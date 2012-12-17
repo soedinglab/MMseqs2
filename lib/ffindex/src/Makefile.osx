@@ -1,0 +1,51 @@
+INSTALL_DIR=..
+LANG=C
+CFLAGS+=-std=c99 -O3 -g -fPIC -Wall -fnested-functions
+LDFLAGS= -L. -lffindex
+#LDFLAGS+=-Wl,-z,defs
+#-Wl,--version-script=libffindex.map
+
+all: ext/fmemopen.o libffindex.a ffindex_get ffindex_build ffindex_modify ffindex_from_fasta
+
+ext/fmemopen.o: ext/fmemopen.c
+	cd ext && make
+
+ffindex.o: ffindex.c ffindex.h ffutil.h
+
+ffindex_get: libffindex.so libffindex.so.0.1 ffindex_get.o
+	$(CC) $(CFLAGS) -L. -lffindex  ffindex_get.o -o $@ 
+
+ffindex_build: libffindex.so libffindex.so.0.1 ffindex_build.o
+	$(CC) $(CFLAGS) -L. -lffindex ffindex_build.o -o $@ 
+
+ffindex_modify: libffindex.so libffindex.so.0.1 ffindex_modify.o
+	$(CC) $(CFLAGS) -L. -lffindex ffindex_modify.o -o $@ 
+
+libffindex.so.0.1: ffindex.o ext/fmemopen.o ffutil.o
+	$(CC) $(LDFLAGS) -shared -o libffindex.so.0.1 ext/fmemopen.o ffindex.o ffutil.o -lc
+
+libffindex.so: libffindex.so.0.1
+	ln -sf libffindex.so.0.1 libffindex.so
+
+libffindex.a: ffindex.o ffutil.o
+	ar rcs libffindex.a ffutil.o ffindex.o  ext/fmemopen.o
+
+test:
+	LD_LIBRARY_PATH=".:$(LD_LIBRARY_PATH)" ./ffindex_build -s test.data test.ffindex ../test/data ../test/data2
+	LD_LIBRARY_PATH=".:$(LD_LIBRARY_PATH)" ./ffindex_get  test.data test.ffindex a b foo
+
+time:
+	LD_LIBRARY_PATH=".:$(LD_LIBRARY_PATH)" zsh -c "time ./ffindex_get  ../test_big/nr20_11Jan10_a3m_db ../test_big/nr20_11Jan10_a3m_db.ffindex BABBAMIBA.a3m KARDUZEBA.a3m HARPAQIBA.a3m WOQQATEBA.a3m BEBRAQIBA.a3m GIRSAKEBA.a3m NAQTIFIBA.a3m BIWCIQABA.a3m > /dev/null"
+
+clean:
+	rm -f ffindex.o ffindex_build ffindex_build.o ffindex_get ffindex_get.o libffindex.so libffindex.so.0.1
+
+install:
+	mkdir -p $(INSTALL_DIR)/bin
+	mkdir -p $(INSTALL_DIR)/lib
+	mkdir -p $(INSTALL_DIR)/include
+	install ffindex_get $(INSTALL_DIR)/bin/ffindex_get
+	install ffindex_build $(INSTALL_DIR)/bin/ffindex_build
+	install libffindex.so.0.1 $(INSTALL_DIR)/lib/libffindex.so.0.1
+	ln -sf libffindex.so.0.1 $(INSTALL_DIR)/lib/libffindex.so
+	install ffindex.h $(INSTALL_DIR)/include/ffindex.h

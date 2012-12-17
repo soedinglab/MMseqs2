@@ -1,0 +1,1 @@
+g++ -o run_sw smith_waterman_sse2.C scoring.cpp run_sw.cpp params.h -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings -fno-strict-aliasing -lboost_regex-mt -fopenmp -DOPENMP=1

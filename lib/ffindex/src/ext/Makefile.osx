@@ -1,0 +1,8 @@
+INSTALL_DIR=..
+LANG=C
+CFLAGS+=-std=c99 -O3 -g -fPIC -Wall
+#LDFLAGS+=-Wl,-z,defs
+#-Wl,--version-script=libffindex.map
+
+fmemopen.o: fmemopen.c fmemopen.h
+

@@ -1,0 +1,22 @@
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+--------------------------------------------------------------------------
+mpiexec has exited due to process rank 7 with PID 5004 on
+node cn21 exiting without calling "finalize". This may
+have caused other processes in the application to be
+terminated by signals sent by mpiexec (as reported here).
+--------------------------------------------------------------------------
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
+ffindex_apply_mpi.c:201 /cluster/user/maria/kClust2/lib/ffindex/src/ffindex_apply_mpi: uniprot_a3m: No such file or directory
