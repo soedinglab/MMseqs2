@@ -1,6 +1,6 @@
 #include "QueryScore.h"
 
-QueryScore::QueryScore (size_t dbSize, short prefThreshold){
+QueryScore::QueryScore (int dbSize, short prefThreshold){
 
     this->dbSize = dbSize;
     this->prefThreshold = prefThreshold;
@@ -11,7 +11,7 @@ QueryScore::QueryScore (size_t dbSize, short prefThreshold){
     this->lastMatchPos = new short[dbSize];
     memset (lastMatchPos, 0, sizeof(short) * dbSize);
 
-    this->hitList = new std::list<size_t>();
+    this->hitList = new std::list<int>();
     this->resList = new std::list<hit_t>();
 }
 
@@ -22,8 +22,8 @@ QueryScore::~QueryScore (){
     delete resList;
 }
 
-void QueryScore::addScores (size_t* hitList, size_t hitListSize, short score){
-    size_t seqId;
+void QueryScore::addScores (int* hitList, int hitListSize, short score){
+    int seqId;
     for (int i = 0; i < hitListSize; i++){
         seqId = hitList[i];
         scores[seqId] += score;
@@ -32,15 +32,15 @@ void QueryScore::addScores (size_t* hitList, size_t hitListSize, short score){
     }
 }
 
-void QueryScore::addElementToResults (size_t seqId){
-    std::list<size_t>::iterator it;
+void QueryScore::addElementToResults (int seqId){
+    std::list<int>::iterator it;
     it = lower_bound(hitList->begin(), hitList->end(), seqId);
     if (*it != seqId)
         this->hitList->insert(it, seqId);
 }
 
 std::list<hit_t>* QueryScore::getResult (){
-    std::list<size_t>::iterator it;
+    std::list<int>::iterator it;
     for (it = hitList->begin(); it != hitList->end(); it++){
         hit_t hit = {*it, scores[*it]};
         resList->push_back(hit); 

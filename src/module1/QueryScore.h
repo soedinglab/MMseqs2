@@ -21,12 +21,12 @@ typedef struct {
 class QueryScore {
     public:
 
-        QueryScore (size_t dbSize, short prefThreshold);
+        QueryScore (int dbSize, short prefThreshold);
 
         ~QueryScore ();
 
         // add k-mer match score for all DB sequences from the list
-        void addScores (size_t* hitList, size_t hitListSize, short score);
+        void addScores (int* hitList, int hitListSize, short score);
 
         // get the list of the sequences with the score > prefThreshold and the corresponding 
         std::list<hit_t>* getResult ();
@@ -50,12 +50,12 @@ class QueryScore {
         short* lastMatchPos;
 
         // list of all DB sequences with the prefiltering score >= prefThreshold
-        std::list<size_t>* hitList;
+        std::list<int>* hitList;
 
         // list of all DB sequences with the prefiltering score >= prefThreshold with the corresponding scores
         std::list<hit_t>* resList;
 
-        void addElementToResults(size_t seqId);
+        void addElementToResults(int seqId);
 
 };
 

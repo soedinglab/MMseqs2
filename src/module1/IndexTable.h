@@ -16,7 +16,7 @@ class IndexTable {
 
     public:
 
-        IndexTable (size_t alphabetSize, size_t kmerSize);
+        IndexTable (int alphabetSize, int kmerSize);
 
         // add k-mers of the sequence to the index table
         void addSequence (Sequence* s);
@@ -25,30 +25,30 @@ class IndexTable {
         void init();
 
         // get list of DB sequences containing this k-mer
-        size_t* getDBSeqList (size_t kmer, size_t* matchedListSize);
+        int* getDBSeqList (int kmer, int* matchedListSize);
 
     private:
         
-        size_t ipow (size_t base, size_t exponent);
+        int ipow (int base, int exponent);
 
-        // Index table: contains posize_ters to the arrays of DB sequences containing a certain k-mer
-        size_t** table;
+        // Index table: contains pointers to the arrays of DB sequences containing a certain k-mer
+        int** table;
 
         // Index table before init: DB sequences for a certain k-mer are stored in lists.
-        // In init(), these lists are copied size_to fixed size arrays and deleted.
-        std::list<size_t>** tableDummy;
+        // In init(), these lists are copied into fixed size arrays and deleted.
+        std::list<int>** tableDummy;
 
         Indexer* idxer;
 
-        size_t alphabetSize;
+        int alphabetSize;
 
-        size_t kmerSize;
+        int kmerSize;
 
         // ALPHABET_SIZE**KMER_SIZE
-        size_t tableSize;
+        int tableSize;
 
         // for each possible k-mer, the size of the corresponding sequences list
-        size_t* listSizes;
+        int* listSizes;
 
 };
 

@@ -1,25 +1,25 @@
 #include "IndexTable.h"
 
-IndexTable::IndexTable (size_t alphabetSize_, size_t kmerSize_):
+IndexTable::IndexTable (int alphabetSize_, int kmerSize_):
     alphabetSize(alphabetSize_),
     kmerSize(kmerSize_)
 {
     tableSize = ipow(alphabetSize, kmerSize);
 
     std::cout << "table size: " << tableSize << "\n";
-    std::cout << "size_t size: " << sizeof(size_t) << "\n";
-    std::cout << "size of list: " << sizeof(std::list<size_t>) << "\n";
+    std::cout << "int size: " << sizeof(int) << "\n";
+    std::cout << "size of list: " << sizeof(std::list<int>) << "\n";
     
-    table = new size_t* [tableSize];
+    table = new int* [tableSize];
     
-    tableDummy = new std::list<size_t>* [tableSize];
-    for (size_t i = 0; i < tableSize; i++){
-        tableDummy[i] = new std::list<size_t>();
+    tableDummy = new std::list<int>* [tableSize];
+    for (int i = 0; i < tableSize; i++){
+        tableDummy[i] = new std::list<int>();
     }
 
     idxer = new Indexer(alphabetSize, kmerSize);
     
-    listSizes = new size_t[tableSize];
+    listSizes = new int[tableSize];
 }
 
 void IndexTable::addSequence (Sequence* s){
@@ -36,12 +36,12 @@ void IndexTable::addSequence (Sequence* s){
 }
 
 void IndexTable::init(){
-    for (size_t i = 0; i < tableSize; i++){
-        std::list<size_t>* l = tableDummy[i];
-        size_t* seqList = new size_t [l->size()];
+    for (int i = 0; i < tableSize; i++){
+        std::list<int>* l = tableDummy[i];
+        int* seqList = new int [l->size()];
 
-        std::list<size_t>::iterator it;
-        size_t j = 0;
+        std::list<int>::iterator it;
+        int j = 0;
         for (it = l->begin(); it != l->end(); it++){
             seqList[j] = *it;
             j++;
@@ -55,14 +55,14 @@ void IndexTable::init(){
     delete[] tableDummy;
 }
 
-size_t* IndexTable::getDBSeqList (size_t kmer, size_t* matchedListSize){
+int* IndexTable::getDBSeqList (int kmer, int* matchedListSize){
     *matchedListSize = listSizes[kmer];
     return table[kmer];
 }
 
-size_t IndexTable::ipow (size_t base, size_t exponent){
-    size_t res = 1;
-    for (size_t i = 0; i < exponent; i++)
+int IndexTable::ipow (int base, int exponent){
+    int res = 1;
+    for (int i = 0; i < exponent; i++)
         res = res*base;
     return res;
 }

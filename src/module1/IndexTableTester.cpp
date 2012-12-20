@@ -80,8 +80,8 @@ int main (int argc, const char * argv[])
     std::cout << " done.";
 
     std::cout << "\nSequence list for k-mer index " << kmerIdx << ":\n";
-    size_t listSize = 0;
-    size_t* seqList = it->getDBSeqList(kmerIdx, &listSize);
+    int listSize = 0;
+    int* seqList = it->getDBSeqList(kmerIdx, &listSize);
     if (listSize > 0){
         for (int i = 0; i < listSize-1; i++)
             std::cout << seqList[i] << ",";
