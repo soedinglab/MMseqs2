@@ -3,6 +3,8 @@
 #include <iostream>
 #include <iterator>
 #include <math.h>
+#include <math.h>
+
 #include <stdlib.h>
 
 
@@ -17,14 +19,14 @@ struct sort_by_score {
 
 ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix, 
                                                        const size_t kmer_size,
-                                                       const size_t alpherbet_size){
+                                                       const size_t alphabet_size){
     
-    Indexer indexer(alpherbet_size, kmer_size);
+    Indexer indexer(alphabet_size, kmer_size);
     
-    this->size = pow(alpherbet_size, kmer_size);
+    this->size = pow(alphabet_size, kmer_size);
     
     // creat permutation 
-    std::vector<std::vector<int> > input(build_input(kmer_size,alpherbet_size));    
+    std::vector<std::vector<int> > input(build_input(kmer_size,alphabet_size));    
     this->scoreMatrix = new std::vector<std::pair<short,size_t> >*[this->size];
     for(int i = 0; i < this->size;i++){
         this->scoreMatrix[i]=new std::vector<std::pair<short,size_t> >();  

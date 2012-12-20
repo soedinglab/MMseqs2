@@ -43,7 +43,7 @@ ALPHABET_SIZE(alphabetSize_)
     if (fileName.substr(fileName.length()-4, 4).compare(".mat") == 0)
         readScoringMatrix();
     else
-        readBiasedScoringMatrix(2.0, -0.2);
+        readBiasedScoringMatrix(2.0, 0.0);
     
 }
 

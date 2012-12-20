@@ -43,7 +43,7 @@ std::list<hit_t>* QueryScore::getResult (){
     std::list<size_t>::iterator it;
     for (it = hitList->begin(); it != hitList->end(); it++){
         hit_t hit = {*it, scores[*it]};
-        resList->push_back(hit);
+        resList->push_back(hit); 
     }
     return resList;
 }
@@ -51,4 +51,5 @@ std::list<hit_t>* QueryScore::getResult (){
 void QueryScore::reset(){
     memset (scores, 0, sizeof(short) * dbSize);
     memset (lastMatchPos, 0, sizeof(short) * dbSize);
+    resList->clear();
 }

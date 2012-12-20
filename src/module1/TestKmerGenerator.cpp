@@ -20,7 +20,7 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=7;
     
     
-    SubstitutionMatrix subMat("../../data/blosum30.out",20);
+    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum30.out",20);
     
     for(int i = 0; i<subMat.ALPHABET_SIZE;i++)
         printf("%c\t",subMat.int2aa[i]);
@@ -61,7 +61,7 @@ int main (int argc, const char * argv[])
     for (int i = 0; i < s->L; i++)
         std::cout << s->int_sequence[i] << " ";
     std::cout << "\n";
-    KmerGenerator kmerGen(kmer_size,redMat.reduced_alphabet_size,10, 
+    KmerGenerator kmerGen(kmer_size,redMat.reduced_alphabet_size,11, 
                           &extMatthree,&extMattwo );
     
     while(s->hasNextKmer(kmer_size)){

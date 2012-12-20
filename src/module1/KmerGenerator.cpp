@@ -68,8 +68,8 @@ void KmerGenerator::calc_devide_stragety(){
     
     this->pow_per_step = new size_t[divide_steps_count];
     this->max_score_per_vec= new short[divide_steps_count];
-    this->possible_rest= new short[divide_steps_count+1];
-    this->possible_rest[divide_steps_count]=0;
+    this->possible_rest= new short[divide_steps_count];
+    this->possible_rest[divide_steps_count-1]=0;
     this->kmer_index = new size_t[divide_steps_count];
     init_result_lists(divide_steps_count);
 }
@@ -95,13 +95,11 @@ kmer_list KmerGenerator::generateKmerList(const int * int_seq){
         this->max_score_per_vec[i]=score.first; //highest score
         divider_before+=divider;
     }
-    short start_threshold=this->threshold;
     for(size_t i = this->divide_steps_count -1; i >= 1 ; i--){
-        start_threshold-=this->max_score_per_vec[i];
-        possible_rest[i] =this->max_score_per_vec[i]+ possible_rest[i+1];
+        this->possible_rest[i-1] =this->max_score_per_vec[i]+ possible_rest[i];
     }
     // create kmer list
-    short cutoff1=start_threshold;
+    short cutoff1=this->threshold - this->possible_rest[0];
     
     
     size_t index=this->kmer_index[0];
@@ -122,9 +120,9 @@ kmer_list KmerGenerator::generateKmerList(const int * int_seq){
             return retList;
         }
             
-        vec_input=outputvec[i];
-        cutoff1 = outputvec[i]->at(lastElm).first; //because old data can be under it   
-        retList.count=lastElm;
+        vec_input=this->outputvec[i];
+        cutoff1 = this->threshold - this->outputvec[i]->at(lastElm).first; //because old data can be under it   
+        retList.count=lastElm+1;
         
     }
     retList.score_kmer_list=outputvec[i-1];
@@ -151,13 +149,13 @@ int KmerGenerator::calcProduct(const std::vector<std::pair<short, size_t> > * ve
             if(counter+1 >= VEC_LIMIT)
                 return counter;
             
-            counter++;
             const std::pair<short, size_t> vec2_pair=vec2->at(j);
             const short score_j = vec2_pair.first;
             const size_t kmer_j = vec2_pair.second;
 
             if(score_j < cutoff2)
                 break;
+            counter++;
             std::pair<short, size_t> * result=&outputvec->at(counter);
             result->first=score_i+score_j;
             result->second=kmer_i+(kmer_j*pow);

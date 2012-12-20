@@ -1,9 +1,4 @@
 #include "ReduceMatrix.h"
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <math.h>
-#include <vector>
 
 ReduceMatrix::ReduceMatrix(double **probMatrix, int * aa2int,char * int2aa, 
                            size_t alphabet_size, size_t reduced_alphabet_size){
@@ -14,11 +9,11 @@ ReduceMatrix::ReduceMatrix(double **probMatrix, int * aa2int,char * int2aa,
     this->int2aa = int2aa;
     this->reduced_aa2int = new int['Z'+1];
     this->reduced_int2aa = new char[alphabet_size];
-    std::vector<char> reduced_int2aa_vec;
+    reduced_alphabet = new std::vector<char>();
     for (size_t i = 0; i <= 'Z'; ++i) reduced_aa2int[i]=aa2int[i];
     for (size_t i = 0; i < alphabet_size; ++i){
         reduced_int2aa[i] = int2aa[i];
-        reduced_int2aa_vec.push_back(int2aa[i]);
+        reduced_alphabet->push_back(int2aa[i]);
     }
     
     size_t numRows=alphabet_size;
@@ -56,11 +51,11 @@ ReduceMatrix::ReduceMatrix(double **probMatrix, int * aa2int,char * int2aa,
         size_t reduced_index=reduce_bases.first;
         size_t lost_index=reduce_bases.second;
         
-        char reduced_aa=reduced_int2aa_vec.at(reduced_index);
-        char lost_aa   =reduced_int2aa_vec.at(lost_index);
+        char reduced_aa=reduced_alphabet->at(reduced_index);
+        char lost_aa   =reduced_alphabet->at(lost_index);
         
-        printf("Reduced aa: %c Lost aa: %c\n",reduced_aa, lost_aa);
-        reduced_int2aa_vec.erase(reduced_int2aa_vec.begin()+lost_index);
+//        printf("%c -> %c\n",lost_aa, reduced_aa);
+        reduced_alphabet->erase(reduced_alphabet->begin()+lost_index);
         
         size_t reduced_int=this->aa2int[reduced_aa];
         size_t lost_int   =this->reduced_aa2int[lost_aa];
@@ -74,22 +69,23 @@ ReduceMatrix::ReduceMatrix(double **probMatrix, int * aa2int,char * int2aa,
                 this->reduced_aa2int[i]=(int)reduced_int;
             }
         }
-        copyMatrix(probMatrix_new,probMatrix, numRows, numCols);
-        
+
+       copyMatrix(probMatrix_new,probMatrix, numRows, numCols);
+
     }
     
     // map big index to new small index
-    for(size_t i2a = 0; i2a<reduced_int2aa_vec.size();i2a++){
-        const char reduced_aa = reduced_int2aa_vec[i2a];
+    for(size_t i = 0; i<reduced_alphabet->size();i++){
+        const char reduced_aa = reduced_alphabet->at(i);
         int big_int= this->aa2int[reduced_aa];
-        for(size_t i =0; i < 'Z'; i++){
+        for(size_t j =0; j < 'Z'; j++){
             if(reduced_aa2int[i]==big_int){
-                this->reduced_aa2int[i]=(int)i2a;
+                this->reduced_aa2int[j] = i;
             }
         }
     }
 
-    generateBiasedSubMatrix(probMatrix_new, reduced_Matrix,2.0, -0.2, numRows-reduce_steps, numCols-reduce_steps);
+    generateBiasedSubMatrix(probMatrix_new, reduced_Matrix,2.0, 0.0, numRows-reduce_steps, numCols-reduce_steps);
     for (size_t i = 0; i < numRows; i++)
     {
         delete[]subMatrix[i];
@@ -167,12 +163,13 @@ void ReduceMatrix::coupleBases(double ** input, double ** output, size_t numRows
         delete[]temp[i];
     }
     delete[]temp;
+
 }
 
 
 
 std::pair<size_t,size_t> ReduceMatrix::coupleWithBestInfo(double ** pinput, double ** pMatrix, size_t numRows, size_t numCols){
-    double bestInfo=0;
+    double bestInfo = 0;
     size_t besti = 0, bestj = 0;
     
     
@@ -203,15 +200,13 @@ std::pair<size_t,size_t> ReduceMatrix::coupleWithBestInfo(double ** pinput, doub
             
             if (temp > bestInfo) {bestInfo = temp; besti = i; bestj = j;}
             
-            std::cout << " i = " << i << "; j = " << j << " info " << temp << '\n';
+//            std::cout << " i = " << i << "; j = " << j << " info " << temp << '\n';
         }
         
     }
     
     
-    static int i =0;
-    std::cout << "Called: " << i++ << '\n';
-    std::cout << "Chosen i and j" << besti << " " << bestj << '\n';
+//    std::cout << "\nInfo: " << bestInfo << "\n";
     // Finally coupling the best option.
     coupleBases(pinput, pMatrix, numRows, numCols, besti, bestj);
     for (size_t i = 0; i < numRows; i++)
@@ -231,6 +226,7 @@ std::pair<size_t,size_t> ReduceMatrix::coupleWithBestInfo(double ** pinput, doub
 void ReduceMatrix::genProbBaseArray(double ** pmatrix, double * prob, size_t numRows, size_t numCols){
     
     for (size_t i = 0; i < numRows; i++){
+        prob[i] = 0;
         for (size_t j = 0; j < numCols; j++){
             prob[i] += pmatrix[i][j];
         }

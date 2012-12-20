@@ -19,7 +19,7 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=3;
     
     
-    SubstitutionMatrix subMat("../../data/blosum30.out",20);
+    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum30.out",20);
     
     for(int i = 0; i<subMat.ALPHABET_SIZE;i++)
         printf("%c\t",subMat.int2aa[i]);
