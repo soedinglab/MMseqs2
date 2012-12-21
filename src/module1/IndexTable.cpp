@@ -8,13 +8,14 @@ IndexTable::IndexTable (int alphabetSize_, int kmerSize_):
 
     std::cout << "table size: " << tableSize << "\n";
     std::cout << "int size: " << sizeof(int) << "\n";
-    std::cout << "size of list: " << sizeof(std::list<int>) << "\n";
+    std::cout << "vector size: " << sizeof(std::vector<int>) << "\n";
     
     table = new int* [tableSize];
     
-    tableDummy = new std::list<int>* [tableSize];
+    tableDummy = new std::vector<int>* [tableSize];
+    tableDummy[0] = new std::vector<int>();
     for (int i = 0; i < tableSize; i++){
-        tableDummy[i] = new std::list<int>();
+        tableDummy[i] = new std::vector<int>();
     }
 
     idxer = new Indexer(alphabetSize, kmerSize);
@@ -37,12 +38,12 @@ void IndexTable::addSequence (Sequence* s){
 
 void IndexTable::init(){
     for (int i = 0; i < tableSize; i++){
-        std::list<int>* l = tableDummy[i];
-        int* seqList = new int [l->size()];
+        std::vector<int>* v = tableDummy[i];
+        int* seqList = new int [v->size()];
 
-        std::list<int>::iterator it;
+        std::vector<int>::iterator it;
         int j = 0;
-        for (it = l->begin(); it != l->end(); it++){
+        for (it = v->begin(); it != v->end(); it++){
             seqList[j] = *it;
             j++;
         }
@@ -50,7 +51,7 @@ void IndexTable::init(){
         listSizes[i] = j;
         table[i] = seqList;
 
-        delete l;
+        delete v;
     }
     delete[] tableDummy;
 }

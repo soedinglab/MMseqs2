@@ -6,7 +6,7 @@
 // Index table stores the list of DB sequences containing a certain k-mer, for each k-mer. 
 //
 
-#include <list>
+#include <vector>
 #include <iostream>
 
 #include "Sequence.h"
@@ -36,7 +36,7 @@ class IndexTable {
 
         // Index table before init: DB sequences for a certain k-mer are stored in lists.
         // In init(), these lists are copied into fixed size arrays and deleted.
-        std::list<int>** tableDummy;
+        std::vector<int>** tableDummy;
 
         Indexer* idxer;
 

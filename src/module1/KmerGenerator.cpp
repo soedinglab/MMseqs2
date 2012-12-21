@@ -1,13 +1,13 @@
 #include "KmerGenerator.h"
 
-KmerGenerator::KmerGenerator(size_t kmer_size,size_t alpherbet_size, short threshold, 
+KmerGenerator::KmerGenerator(size_t kmer_size,size_t alphabet_size, short threshold, 
                              ExtendedSubstitutionMatrix * three,ExtendedSubstitutionMatrix * two ){
     this->threshold = threshold;
     this->kmer_size = kmer_size;
     this->three = three;
     this->two = two;
-    this->indexer = new Indexer(alpherbet_size, kmer_size);
-    calc_devide_stragety();
+    this->indexer = new Indexer(alphabet_size, kmer_size);
+    calc_divide_strategy();
 }
 
 KmerGenerator::~KmerGenerator(){
@@ -23,7 +23,7 @@ KmerGenerator::~KmerGenerator(){
     delete [] outputvec;
 }
 
-void KmerGenerator::calc_devide_stragety(){
+void KmerGenerator::calc_divide_strategy(){
     size_t three_dividecount = this->kmer_size /3;
     
     switch(kmer_size%3){

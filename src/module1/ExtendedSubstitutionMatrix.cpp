@@ -25,7 +25,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
     
     this->size = pow(alphabet_size, kmer_size);
     
-    // creat permutation 
+    // create permutation 
     std::vector<std::vector<int> > input(build_input(kmer_size,alphabet_size));    
     this->scoreMatrix = new std::vector<std::pair<short,size_t> >*[this->size];
     for(int i = 0; i < this->size;i++){

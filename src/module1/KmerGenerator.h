@@ -15,7 +15,7 @@ typedef struct {
 class KmerGenerator 
 {
     public: 
-        KmerGenerator(size_t kmer_size,size_t alpherbet_size, short threshold, 
+        KmerGenerator(size_t kmer_size,size_t alphabet_size, short threshold, 
                   ExtendedSubstitutionMatrix * three,ExtendedSubstitutionMatrix * two );
         ~KmerGenerator();
         /*calculates the kmer list */
@@ -53,7 +53,7 @@ class KmerGenerator
     
         /* kmer splitting stragety (3,2)
            fill up the divide step and calls init_result_list */
-        void calc_devide_stragety();
+        void calc_divide_strategy();
         /* init the output vectors for the kmer calculation*/
         void init_result_lists(size_t divide_steps);
     

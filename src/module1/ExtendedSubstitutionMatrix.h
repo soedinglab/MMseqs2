@@ -13,6 +13,7 @@ public:
     
     ~ExtendedSubstitutionMatrix();
     size_t size;
+    // <k-mer index, match score>
     std::vector<std::pair<short,size_t> > ** scoreMatrix;
 private: 
     std::vector<std::vector<int> > build_input(size_t dimension,size_t range);
