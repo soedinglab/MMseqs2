@@ -27,6 +27,8 @@ class SubstitutionMatrix {
 
         ~SubstitutionMatrix();
 
+        void print();
+
         int* aa2int;
 
         char* int2aa;

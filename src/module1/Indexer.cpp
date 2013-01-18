@@ -1,10 +1,10 @@
 #include "Indexer.h"
-Indexer::Indexer(const size_t alphabetSize, const size_t maxKmerSize){
+Indexer::Indexer(const int alphabetSize, const int maxKmerSize){
     this->maxKmerSize = maxKmerSize;
-    this->powers = new size_t[maxKmerSize];
+    this->powers = new int[maxKmerSize];
     this->alphabetSize = alphabetSize;
-    size_t pow = 1;
-    for( size_t i=0; i<maxKmerSize; ++i ){
+    int pow = 1;
+    for( int i=0; i<maxKmerSize; ++i ){
         this->powers[i] = pow;
         pow *= alphabetSize;
     }
@@ -15,15 +15,15 @@ Indexer::~Indexer(){
     delete this->powers;
 }
 
-size_t Indexer::int2index( const int *int_seq,const int begin,const int end){
+int Indexer::int2index( const int *int_seq,const int begin,const int end){
     this->lastKmerIndex = 0;
-    for( size_t i=begin; i<end; i++ ) {
+    for( int i=begin; i<end; i++ ) {
             this->lastKmerIndex += int_seq[i]*this->powers[i-begin];
     }
     return this->lastKmerIndex;
 }
 
-size_t Indexer::int2index( const int *int_seq){
+int Indexer::int2index( const int *int_seq){
     int2index(int_seq,0,this->maxKmerSize);
     return this->lastKmerIndex;
 }
@@ -35,7 +35,7 @@ void Indexer::index2int(int* int_seq, int idx, int kmerSize){
     }
 }
 
-size_t Indexer::getNextKmerIndex (int* kmer, int kmerSize){
+int Indexer::getNextKmerIndex (int* kmer, int kmerSize){
     if (this->lastKmerIndex == -1)
         return int2index(kmer, 0, kmerSize);
     else{

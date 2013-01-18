@@ -11,7 +11,7 @@
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrix.h"
-#include "ReduceMatrix.h"
+#include "ReducedMatrix.h"
 #include "KmerGenerator.h"
 
 int main (int argc, const char * argv[])
@@ -20,10 +20,15 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=4;
     
     
-    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum30.out",20);
-    
-    ReduceMatrix redMat(subMat.probMatrix,
-                        subMat.aa2int,subMat.int2aa,subMat.ALPHABET_SIZE,20);
+    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum62.out",20);
+    std::cout << "Subustitution matrix:\n";
+    subMat.print();
+    std::cout << "\n";
+
+    std::cout << "ReducedMatrix:\n";
+    ReducedMatrix redMat(subMat.probMatrix,
+                        subMat.aa2int,subMat.int2aa,subMat.ALPHABET_SIZE,19);
+    std::cout << "\n";
     
     const int  testSeq[]={1,2,3,1,1,1};
     ExtendedSubstitutionMatrix extMattwo(redMat.reduced_Matrix, 2,redMat.reduced_alphabet_size);

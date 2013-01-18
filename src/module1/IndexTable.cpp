@@ -14,6 +14,15 @@ IndexTable::IndexTable (int alphabetSize_, int kmerSize_):
     
     tableDummy = new std::vector<int>* [tableSize];
     tableDummy[0] = new std::vector<int>();
+    std::cout << "Initial capacity: " << tableDummy[0]->capacity() << "\n";
+    std::cout << "Initial sizeof(): " << sizeof(*tableDummy[0]) << "\n";
+    for (int i = 0; i < 10; i++){
+        tableDummy[0]->push_back(i);
+    }
+    std::cout << "Capacity: " << tableDummy[0]->capacity() << "\n";
+    std::cout << "sizeof(): " << sizeof(*tableDummy[0]) << "\n";
+
+
     for (int i = 0; i < tableSize; i++){
         tableDummy[i] = new std::vector<int>();
     }

@@ -11,7 +11,7 @@
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrix.h"
-#include "ReduceMatrix.h"
+#include "ReducedMatrix.h"
 
 int main (int argc, const char * argv[])
 {
@@ -24,7 +24,7 @@ int main (int argc, const char * argv[])
     for(int i = 0; i<subMat.ALPHABET_SIZE;i++)
         printf("%c\t",subMat.int2aa[i]);
     printf("\n");
-    ReduceMatrix redMat(subMat.probMatrix,
+    ReducedMatrix redMat(subMat.probMatrix,
                         subMat.aa2int,subMat.int2aa,subMat.ALPHABET_SIZE,subMat.ALPHABET_SIZE-2);
     
     const int  testSeq[]={1,2,3,1,1,1};

@@ -1,6 +1,6 @@
-#include "ReduceMatrix.h"
+#include "ReducedMatrix.h"
 
-ReduceMatrix::ReduceMatrix(double **probMatrix, int * aa2int,char * int2aa, 
+ReducedMatrix::ReducedMatrix(double **probMatrix, int * aa2int,char * int2aa, 
                            size_t alphabet_size, size_t reduced_alphabet_size){
     
     this->alphabet_size = alphabet_size;
@@ -99,7 +99,7 @@ ReduceMatrix::ReduceMatrix(double **probMatrix, int * aa2int,char * int2aa,
 
 
 
-ReduceMatrix::~ReduceMatrix(){
+ReducedMatrix::~ReducedMatrix(){
     delete[] this->reduced_aa2int;
     delete[] this->reduced_int2aa;
     for(size_t i = 0; i<alphabet_size;i++){
@@ -111,7 +111,7 @@ ReduceMatrix::~ReduceMatrix(){
 
 
 
-void ReduceMatrix::copyMatrix(double ** input,double ** output, size_t numRows,size_t numCols){
+void ReducedMatrix::copyMatrix(double ** input,double ** output, size_t numRows,size_t numCols){
     
     for (size_t i=0; i< numRows; i++){
         for (size_t j=0; j< numCols; j++){
@@ -121,7 +121,7 @@ void ReduceMatrix::copyMatrix(double ** input,double ** output, size_t numRows,s
 }
 
 
-double ReduceMatrix::calculateMutualInformation(double ** pMatrix, double ** subMatrix, size_t numRows, size_t numCols){
+double ReducedMatrix::calculateMutualInformation(double ** pMatrix, double ** subMatrix, size_t numRows, size_t numCols){
     double mutualInfo = 0;
     
     for (size_t i=0; i< numRows; i++){
@@ -138,7 +138,7 @@ double ReduceMatrix::calculateMutualInformation(double ** pMatrix, double ** sub
 
 
 
-void ReduceMatrix::coupleBases(double ** input, double ** output, size_t numRows, size_t numCols, size_t base1, size_t base2){
+void ReducedMatrix::coupleBases(double ** input, double ** output, size_t numRows, size_t numCols, size_t base1, size_t base2){
     
     double ** temp=new double *[this->alphabet_size];
     //To ensure every element of temp is set to 0.
@@ -168,7 +168,7 @@ void ReduceMatrix::coupleBases(double ** input, double ** output, size_t numRows
 
 
 
-std::pair<size_t,size_t> ReduceMatrix::coupleWithBestInfo(double ** pinput, double ** pMatrix, size_t numRows, size_t numCols){
+std::pair<size_t,size_t> ReducedMatrix::coupleWithBestInfo(double ** pinput, double ** pMatrix, size_t numRows, size_t numCols){
     double bestInfo = 0;
     size_t besti = 0, bestj = 0;
     
@@ -223,7 +223,7 @@ std::pair<size_t,size_t> ReduceMatrix::coupleWithBestInfo(double ** pinput, doub
 
 
 
-void ReduceMatrix::genProbBaseArray(double ** pmatrix, double * prob, size_t numRows, size_t numCols){
+void ReducedMatrix::genProbBaseArray(double ** pmatrix, double * prob, size_t numRows, size_t numCols){
     
     for (size_t i = 0; i < numRows; i++){
         prob[i] = 0;
@@ -234,7 +234,7 @@ void ReduceMatrix::genProbBaseArray(double ** pmatrix, double * prob, size_t num
     
 }
 
-void ReduceMatrix::generateSubMatrix(double ** pmatrix, double ** subMatrix, size_t numRows, size_t numCols){
+void ReducedMatrix::generateSubMatrix(double ** pmatrix, double ** subMatrix, size_t numRows, size_t numCols){
     
     double prob[numRows];
     genProbBaseArray(pmatrix, prob, numRows, numCols);
@@ -248,7 +248,7 @@ void ReduceMatrix::generateSubMatrix(double ** pmatrix, double ** subMatrix, siz
 }
 
 
-void ReduceMatrix::generateBiasedSubMatrix(double ** pmatrix, short ** subMatrix,
+void ReducedMatrix::generateBiasedSubMatrix(double ** pmatrix, short ** subMatrix,
                                            double bitFactor, double scoringBias,
                                            size_t numRows, size_t numCols){
     
@@ -259,11 +259,10 @@ void ReduceMatrix::generateBiasedSubMatrix(double ** pmatrix, short ** subMatrix
             subMatrix[i][j] = (short)floor (bitFactor * _log2(pmatrix[i][j]/(prob[i]*prob[j])) + scoringBias + 0.5);
         }
     }
-    
 }
 
 
-void ReduceMatrix::addTwoColumns(double ** input, double ** output, size_t numRows , size_t numCols, size_t col1, size_t col2 ){
+void ReducedMatrix::addTwoColumns(double ** input, double ** output, size_t numRows , size_t numCols, size_t col1, size_t col2 ){
     
     for(size_t i = 0; i < numRows; i++){
         
@@ -284,7 +283,7 @@ void ReduceMatrix::addTwoColumns(double ** input, double ** output, size_t numRo
 
 
 
-void ReduceMatrix::addTwoRows(double ** input, double ** output, size_t numRows , 
+void ReducedMatrix::addTwoRows(double ** input, double ** output, size_t numRows , 
                               size_t numCols, size_t row1, size_t row2 )
 {
     

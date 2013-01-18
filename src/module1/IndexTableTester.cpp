@@ -68,16 +68,17 @@ int main (int argc, const char * argv[])
     std::cout << " done.\n";
     it->addSequence(s);
     // adding next sequence
-    std::cout << "Adding another sequence (id 1):\n";
+/*    std::cout << "Adding another sequence (id 1):\n";
     sequence = "MSSAEAGRPSLADS";
     std::cout << sequence << "\n";
     s->setId(1);
     s->mapSequence(sequence);
     it->addSequence(s);
-
+*/
     std::cout << "INIT Index Table...\n";
     it->init();
     std::cout << " done.";
+    exit(0);
 
     std::cout << "\nSequence list for k-mer index " << kmerIdx << ":\n";
     int listSize = 0;
@@ -114,6 +115,8 @@ int main (int argc, const char * argv[])
         seqList = it->getDBSeqList(kmerIdx, &listSize);
 
         qs->addScores(seqList, listSize, 1);
+        qs->addScores(seqList, listSize, 2);
+        qs->moveToNextQueryPos();
     }
 
     // get the result from the QueryScore

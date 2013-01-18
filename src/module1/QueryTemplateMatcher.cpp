@@ -6,17 +6,17 @@ QueryTemplateMatcher::QueryTemplateMatcher ( short kmerThreshold,
                                              IndexTable * indexTable){
     this->kmer_size = kmer_size;
     this->indexTable = indexTable;
-    ReduceMatrix  reduceMatrix(substitutionMatrix->probMatrix,
+    ReducedMatrix  ReducedMatrix(substitutionMatrix->probMatrix,
                                substitutionMatrix->aa2int,
                                substitutionMatrix->int2aa,
                                substitutionMatrix->ALPHABET_SIZE,
                                substitutionMatrix->ALPHABET_SIZE-16);
-    ExtendedSubstitutionMatrix threeExtendedSubstitutionMatrix(reduceMatrix.reduced_Matrix, 3,
-                                                               reduceMatrix.reduced_alphabet_size);
-    ExtendedSubstitutionMatrix twoExtendedSubstitutionMatrix(reduceMatrix.reduced_Matrix, 2,
-                                                             reduceMatrix.reduced_alphabet_size);
+    ExtendedSubstitutionMatrix threeExtendedSubstitutionMatrix(ReducedMatrix.reduced_Matrix, 3,
+                                                               ReducedMatrix.reduced_alphabet_size);
+    ExtendedSubstitutionMatrix twoExtendedSubstitutionMatrix(ReducedMatrix.reduced_Matrix, 2,
+                                                             ReducedMatrix.reduced_alphabet_size);
     this->kmerGenerator = new KmerGenerator(kmer_size, 
-                                            reduceMatrix.reduced_alphabet_size, kmerThreshold, 
+                                            ReducedMatrix.reduced_alphabet_size, kmerThreshold, 
                                             &threeExtendedSubstitutionMatrix, &twoExtendedSubstitutionMatrix);
 }
 

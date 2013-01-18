@@ -9,11 +9,11 @@ class ExtendedSubstitutionMatrix
 public:
     ExtendedSubstitutionMatrix(short ** subMatrix, 
                                const size_t kmer_size,
-                               const size_t alpherbet_size);
+                               const size_t alphabet_size);
     
     ~ExtendedSubstitutionMatrix();
     size_t size;
-    // <k-mer index, match score>
+    // <match score, k-mer index>
     std::vector<std::pair<short,size_t> > ** scoreMatrix;
 private: 
     std::vector<std::vector<int> > build_input(size_t dimension,size_t range);

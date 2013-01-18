@@ -1,5 +1,5 @@
-#ifndef REDUCEMATRIX_H
-#define REDUCEMATRIX_H
+#ifndef ReducedMatrix_H
+#define ReducedMatrix_H
 #include <string>
 #include <cmath>
 #include <iostream>
@@ -8,11 +8,11 @@
 #include <math.h>
 #include <vector>
 
-class ReduceMatrix{
+class ReducedMatrix{
     public: 
-        ReduceMatrix(double **probMatrix,int * aa2int,char * int2aa,
+        ReducedMatrix(double **probMatrix,int * aa2int,char * int2aa,
                 size_t old_alphabet_size, size_t reduced_alphabet_size);
-        ~ReduceMatrix();
+        ~ReducedMatrix();
         /*contains reduced matrix*/
         short ** reduced_Matrix;
         /*mapping aa (orig. alphabet) -> int code of the representative amino acid*/

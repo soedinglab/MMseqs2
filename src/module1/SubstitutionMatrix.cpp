@@ -40,11 +40,13 @@ ALPHABET_SIZE(alphabetSize_)
     
     // read amino acid substitution matrix from file
     std::string fileName(scoringMatrixFileName);
-    if (fileName.substr(fileName.length()-4, 4).compare(".mat") == 0)
-        readScoringMatrix();
-    else
+    if (fileName.substr(fileName.length()-4, 4).compare(".out") == 0)
         readBiasedScoringMatrix(2.0, 0.0);
-    
+    else{
+        std::cerr << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
+        exit(1);
+        //readScoringMatrix();
+    }
 }
 
 SubstitutionMatrix::~SubstitutionMatrix(){
@@ -189,5 +191,14 @@ void SubstitutionMatrix::readBiasedScoringMatrix(double bitFactor, double scorin
         for(size_t j=0; j<ALPHABET_SIZE; ++j){
             scMatrix[i][j] = (short)floor (bitFactor * _log2(probMatrix[i][j]/(pBackground[i]*pBackground[j])) + scoringBias + 0.5);
         }
+    }
+}
+
+void SubstitutionMatrix::print (){
+    for (int i = 0; i < ALPHABET_SIZE; i++){
+        for (int j = 0; j < ALPHABET_SIZE; j++){
+            printf("%3d ", scMatrix[i][j]);
+        }
+        std::cout << "\n";
     }
 }

@@ -6,7 +6,7 @@
 #include <cstring>
 #include <algorithm>
 #include "SubstitutionMatrix.h"
-#include "ReduceMatrix.h"
+#include "ReducedMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "Sequence.h"
 #include "QueryScore.h"

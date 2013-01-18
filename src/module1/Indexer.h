@@ -13,26 +13,26 @@
 class Indexer{
 	
 	public:
-        Indexer(const size_t alphabetSize, const size_t maxKmerSize);
+        Indexer(const int alphabetSize, const int maxKmerSize);
         ~Indexer();
 
         // get the index of the k-mer, beginning at "begin" in the int_seq and ending at "end"
-        size_t int2index( const int *int_seq,const int begin,const int end);
+        int int2index( const int *int_seq,const int begin,const int end);
         // get the index of the k-mer of length maxKmerSize, beginning at position 0
-        size_t int2index( const int *int_seq);
+        int int2index( const int *int_seq);
         
         // get the int sequence for the k-mer with the index idx of kmerSize
         void index2int(int* int_seq, int idx, int kmerSize);
         
-        size_t getNextKmerIndex(int* kmer, int kmerSize);
+        int getNextKmerIndex(int* kmer, int kmerSize);
         
-        size_t * powers;
+        int * powers;
 
     private:
 
-        size_t alphabetSize;
+        int alphabetSize;
         
-        size_t maxKmerSize;
+        int maxKmerSize;
 
         int lastKmerIndex;
 };

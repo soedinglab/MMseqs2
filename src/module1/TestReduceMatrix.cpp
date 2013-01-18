@@ -6,7 +6,7 @@
 //  Copyright (c) 2012 -. All rights reserved.
 //
 
-#include "ReduceMatrix.h"
+#include "ReducedMatrix.h"
 #include "SubstitutionMatrix.h"
 
 int main (int argc, const char * argv[])
@@ -17,7 +17,7 @@ int main (int argc, const char * argv[])
     for(int i = 0; i<subMat.ALPHABET_SIZE;i++)
         printf("(%d)%c\t",i,subMat.int2aa[i]);
     printf("\n");
-    ReduceMatrix redMat(subMat.probMatrix,
+    ReducedMatrix redMat(subMat.probMatrix,
                         subMat.aa2int,subMat.int2aa,subMat.ALPHABET_SIZE,16);
     std::cout << "\n";
     printf("Normal alphabet : ");

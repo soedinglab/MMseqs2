@@ -13,6 +13,8 @@ QueryScore::QueryScore (int dbSize, short prefThreshold){
 
     this->hitList = new std::list<int>();
     this->resList = new std::list<hit_t>();
+
+    this->currQueryPos = 0;
 }
 
 QueryScore::~QueryScore (){
@@ -22,19 +24,28 @@ QueryScore::~QueryScore (){
     delete resList;
 }
 
+void QueryScore::moveToNextQueryPos(){
+    this->currQueryPos++;
+}
+
 void QueryScore::addScores (int* hitList, int hitListSize, short score){
-    int seqId;
+    int dbSeqId;
     for (int i = 0; i < hitListSize; i++){
-        seqId = hitList[i];
-        scores[seqId] += score;
-        if (scores[seqId] >= this->prefThreshold)
-            addElementToResults(seqId);
+        dbSeqId = hitList[i];
+        // this position in the query sequence already matched this db sequence
+        if (this->currQueryPos > this->lastMatchPos[dbSeqId]){
+            scores[dbSeqId] += score;
+            this->lastMatchPos[dbSeqId] = this->currQueryPos;
+            if (scores[dbSeqId] >= this->prefThreshold)
+                addElementToResults(dbSeqId);
+        }
     }
 }
 
 void QueryScore::addElementToResults (int seqId){
     std::list<int>::iterator it;
     it = lower_bound(hitList->begin(), hitList->end(), seqId);
+    // until now, sequence is not in the hitList
     if (*it != seqId)
         this->hitList->insert(it, seqId);
 }
@@ -52,4 +63,5 @@ void QueryScore::reset(){
     memset (scores, 0, sizeof(short) * dbSize);
     memset (lastMatchPos, 0, sizeof(short) * dbSize);
     resList->clear();
+    currQueryPos = 0;
 }

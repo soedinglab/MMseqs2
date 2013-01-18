@@ -11,7 +11,7 @@
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrix.h"
-#include "ReduceMatrix.h"
+#include "ReducedMatrix.h"
 #include "KmerGenerator.h"
 #include "QueryTemplateMatcher.h"
 int main (int argc, const char * argv[])
