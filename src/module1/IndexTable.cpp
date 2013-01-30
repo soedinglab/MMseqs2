@@ -13,16 +13,6 @@ IndexTable::IndexTable (int alphabetSize_, int kmerSize_):
     table = new int* [tableSize];
     
     tableDummy = new std::vector<int>* [tableSize];
-    tableDummy[0] = new std::vector<int>();
-    std::cout << "Initial capacity: " << tableDummy[0]->capacity() << "\n";
-    std::cout << "Initial sizeof(): " << sizeof(*tableDummy[0]) << "\n";
-    for (int i = 0; i < 10; i++){
-        tableDummy[0]->push_back(i);
-    }
-    std::cout << "Capacity: " << tableDummy[0]->capacity() << "\n";
-    std::cout << "sizeof(): " << sizeof(*tableDummy[0]) << "\n";
-
-
     for (int i = 0; i < tableSize; i++){
         tableDummy[i] = new std::vector<int>();
     }
@@ -35,7 +25,7 @@ IndexTable::IndexTable (int alphabetSize_, int kmerSize_):
 void IndexTable::addSequence (Sequence* s){
     // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
     const int* kmer;
-    int kmerIdx;
+    unsigned int kmerIdx;
 
     s->reset();
     while(s->hasNextKmer(kmerSize)){

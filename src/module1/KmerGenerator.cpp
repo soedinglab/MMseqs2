@@ -70,7 +70,7 @@ void KmerGenerator::calc_divide_strategy(){
     this->max_score_per_vec= new short[divide_steps_count];
     this->possible_rest= new short[divide_steps_count];
     this->possible_rest[divide_steps_count-1]=0;
-    this->kmer_index = new size_t[divide_steps_count];
+    this->kmer_index = new unsigned int[divide_steps_count];
     init_result_lists(divide_steps_count);
 }
 
@@ -87,7 +87,7 @@ kmer_list KmerGenerator::generateKmerList(const int * int_seq){
     //find first threshold
     for(int i = 0; i < this->divide_steps_count; i++){
         size_t divider=divide_steps[i];
-        const size_t index= this->indexer->int2index(int_seq,divider_before,divider_before+divider);
+        const unsigned int index= this->indexer->int2index(int_seq,divider_before,divider_before+divider);
         pow_per_step[i]=this->indexer->powers[divider_before];
         this->kmer_index[i]=index;
         ExtendedSubstitutionMatrix * extMatrix= this->matrixLookup[i];

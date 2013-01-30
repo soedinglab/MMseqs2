@@ -16,7 +16,7 @@ int main (int argc, const char * argv[])
 {
     int kmerSize = 6;
 
-    SubstitutionMatrix* sm = new SubstitutionMatrix("/cluster/user/maria/kClust2/data/blosum62.out", 20);
+    SubstitutionMatrix* sm = new SubstitutionMatrix("/cluster/user/maria/kClust2/data/blosum62.out");
 
     std::cout << "Sequence (id 0):\n";
     char* sequence = "MIPAEAGRPSLADS";
@@ -36,7 +36,7 @@ int main (int argc, const char * argv[])
     Indexer* idxer = new Indexer(20, kmerSize);
 
     int* kmer;
-    int kmerIdx;
+    unsigned int kmerIdx;
 
     int* testKmer = new int[kmerSize];
     std::cout << "Pos:\tkmer idx:\tint k-mer:\tchar k-mer:\n";

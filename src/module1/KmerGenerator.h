@@ -41,7 +41,7 @@ class KmerGenerator
         size_t divide_steps_count;
         /* divider of the steps (2,3) */
         size_t * divide_steps; 
-        size_t * kmer_index;
+        unsigned int * kmer_index;
         size_t * pow_per_step;
         short * max_score_per_vec;
         short * possible_rest;

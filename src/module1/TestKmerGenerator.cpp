@@ -13,6 +13,7 @@
 #include "SubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
+#include "BaseMatrix.h"
 
 int main (int argc, const char * argv[])
 {
@@ -20,21 +21,21 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=4;
     
     
-    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum62.out",20);
+    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum62.out");
     std::cout << "Subustitution matrix:\n";
-    subMat.print();
+    BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
 
     std::cout << "ReducedMatrix:\n";
-    ReducedMatrix redMat(subMat.probMatrix,
-                        subMat.aa2int,subMat.int2aa,subMat.ALPHABET_SIZE,19);
+    ReducedMatrix redMat(subMat.probMatrix, 17);
+    BaseMatrix::print(redMat.reducedMatrix, redMat.reducedAlphabetSize);
     std::cout << "\n";
     
     const int  testSeq[]={1,2,3,1,1,1};
-    ExtendedSubstitutionMatrix extMattwo(redMat.reduced_Matrix, 2,redMat.reduced_alphabet_size);
-    ExtendedSubstitutionMatrix extMatthree(redMat.reduced_Matrix, 3,redMat.reduced_alphabet_size);
+    ExtendedSubstitutionMatrix extMattwo(redMat.reducedMatrix, 2,redMat.reducedAlphabetSize);
+    ExtendedSubstitutionMatrix extMatthree(redMat.reducedMatrix, 3,redMat.reducedAlphabetSize);
 
-    Indexer idx(redMat.reduced_alphabet_size,kmer_size);
+    Indexer idx(redMat.reducedAlphabetSize,kmer_size);
     
     
     
@@ -49,11 +50,11 @@ int main (int argc, const char * argv[])
     s->mapSequence(sequence);
     
     printf("Normal alphabet : ");
-    for(int i = 0; i<subMat.ALPHABET_SIZE;i++)
+    for(int i = 0; i<subMat.alphabetSize;i++)
         printf("%c\t",subMat.int2aa[i]);
     
     printf("\nReduced alphabet: ");
-    for(int i = 0; i<subMat.ALPHABET_SIZE;i++)
+    for(int i = 0; i<subMat.alphabetSize;i++)
         printf("%c\t",redMat.reduced_int2aa[i]);
     
     printf("\nNormal int code: ");
@@ -72,7 +73,7 @@ int main (int argc, const char * argv[])
         std::cout << redMat.reduced_int2aa[s->int_sequence[i]] << " ";
     std::cout << "\n";
     
-    KmerGenerator kmerGen(kmer_size,redMat.reduced_alphabet_size,6, 
+    KmerGenerator kmerGen(kmer_size,redMat.reducedAlphabetSize,6, 
                           &extMatthree,&extMattwo );
     
     int* testKmer = new int[kmer_size];
@@ -80,7 +81,7 @@ int main (int argc, const char * argv[])
         const int * curr_pos = s->nextKmer(kmer_size);
         printf("kmerpos1: %d\tkmerpos2: %d\n",curr_pos[0],curr_pos[1]);
         
-        size_t idx_val=idx.int2index(curr_pos);
+        unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";
 //        std::cout << "MaxScore: " << extMattwo.scoreMatrix[idx_val]->back().first<< "\n";
         

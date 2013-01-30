@@ -19,18 +19,17 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=3;
     
     
-    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum30.out",20);
+    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum30.out");
     
-    for(int i = 0; i<subMat.ALPHABET_SIZE;i++)
+    for(int i = 0; i<subMat.alphabetSize;i++)
         printf("%c\t",subMat.int2aa[i]);
     printf("\n");
-    ReducedMatrix redMat(subMat.probMatrix,
-                        subMat.aa2int,subMat.int2aa,subMat.ALPHABET_SIZE,subMat.ALPHABET_SIZE-2);
+    ReducedMatrix redMat(subMat.probMatrix, subMat.alphabetSize-2);
     
     const int  testSeq[]={1,2,3,1,1,1};
     const int * seq_ptr=&testSeq[0];
-    ExtendedSubstitutionMatrix extMat(redMat.reduced_Matrix, kmer_size,redMat.reduced_alphabet_size);
-    Indexer idx(redMat.reduced_alphabet_size,kmer_size);
+    ExtendedSubstitutionMatrix extMat(redMat.reducedMatrix, kmer_size,redMat.reducedAlphabetSize);
+    Indexer idx(redMat.reducedAlphabetSize,kmer_size);
     
     
     
@@ -43,10 +42,10 @@ int main (int argc, const char * argv[])
     s->mapSequence(sequence);
     
     printf("Normal : ");
-    for(int i = 0; i<subMat.ALPHABET_SIZE;i++)
+    for(int i = 0; i<subMat.alphabetSize;i++)
         printf("%c\t",subMat.int2aa[i]);
     printf("\nReduced: ");
-    for(int i = 0; i<subMat.ALPHABET_SIZE;i++)
+    for(int i = 0; i<subMat.alphabetSize;i++)
         printf("%c\t",redMat.reduced_int2aa[i]);
     printf("\nNormal : ");
     for(int i = 65; i<'Z';i++)
@@ -63,7 +62,7 @@ int main (int argc, const char * argv[])
     while(s->hasNextKmer(kmer_size)){
         const int * curr_pos= s->nextKmer(kmer_size);
         printf("kmerpos1: %d\tkmerpos2: %d\n",curr_pos[0],curr_pos[1]);
-        size_t idx_val=idx.int2index(curr_pos);
+        unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";
         std::cout << "MaxScore: " << extMat.scoreMatrix[idx_val]->at(0).first<< "\n";
         

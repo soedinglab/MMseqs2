@@ -37,11 +37,11 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
     
     // fill matrix  
     for(std::vector<int>::size_type i = 0; i != output.size(); i++) {
-        size_t i_index=indexer.int2index(&output[i][0]);
+        unsigned int i_index=indexer.int2index(&output[i][0]);
         std::vector<std::pair<short,size_t> > * i_vector= scoreMatrix[i_index];
         
         for(std::vector<int>::size_type j = 0; j != output.size(); j++) {
-            size_t j_index=indexer.int2index(&output[j][0]);
+            unsigned int j_index=indexer.int2index(&output[j][0]);
             int score=calc_score(&output[i][0],&output[j][0],kmer_size,subMatrix);
             i_vector->push_back(std::make_pair(score,j_index));
         }

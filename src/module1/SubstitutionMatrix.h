@@ -20,53 +20,21 @@
 #include <vector>
 #include <algorithm>
 
-class SubstitutionMatrix {
+#include "BaseMatrix.h"
+
+class SubstitutionMatrix: public BaseMatrix {
 
     public:
-        SubstitutionMatrix(char* scoringMatrixFileName, size_t alphabetSize);
+        SubstitutionMatrix(char* scoringMatrixFileName);
 
-        ~SubstitutionMatrix();
-
-        void print();
-
-        int* aa2int;
-
-        char* int2aa;
-
-        short** scMatrix;
-
-        double* pBackground;
-    
-        double ** probMatrix;
-
-        const size_t ALPHABET_SIZE;
+        virtual ~SubstitutionMatrix();
 
     private:
 
-        void readScoringMatrix();
-
-        void readBiasedScoringMatrix(double bitFactor, double scoringBias);
-
-        inline double _log2 (double x) { return log10(x)/0.301029996; }
-
         char* scoringMatrixFileName;
 
-        void ltrim(std::string &s) {
-            s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-        }
+        void readProbMatrix();
 
-        void rtrim(std::string &s) {
-            s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-        }
-
-        void trim(std::string &s) {
-            rtrim(s);
-            ltrim(s);
-        }
-
-        std::vector<std::string>& split(const std::string &s, char delim, std::vector<std::string> &elems);
-
-        std::vector<std::string> split(const std::string &s, char delim);
 };
 
 #endif

@@ -17,14 +17,18 @@ class Indexer{
         ~Indexer();
 
         // get the index of the k-mer, beginning at "begin" in the int_seq and ending at "end"
-        int int2index( const int *int_seq,const int begin,const int end);
+        unsigned int int2index( const int *int_seq,const int begin,const int end);
         // get the index of the k-mer of length maxKmerSize, beginning at position 0
-        int int2index( const int *int_seq);
+        unsigned int int2index( const int *int_seq);
         
         // get the int sequence for the k-mer with the index idx of kmerSize
-        void index2int(int* int_seq, int idx, int kmerSize);
-        
-        int getNextKmerIndex(int* kmer, int kmerSize);
+        void index2int(int* int_seq, unsigned int idx, int kmerSize);
+       
+        // k-mer iterator, remembers the last k-mer
+        unsigned int getNextKmerIndex(int* kmer, int kmerSize);
+
+        // reset the last k-mer
+        void reset();
         
         int * powers;
 
@@ -34,6 +38,8 @@ class Indexer{
         
         int maxKmerSize;
 
-        int lastKmerIndex;
+        unsigned int lastKmerIndex;
+
+        unsigned int maxKmerIndex;
 };
 #endif

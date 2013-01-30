@@ -8,14 +8,19 @@ Indexer::Indexer(const int alphabetSize, const int maxKmerSize){
         this->powers[i] = pow;
         pow *= alphabetSize;
     }
-    this->lastKmerIndex = -1;
+    this->maxKmerIndex = 0;
+    for( int i=0; i<maxKmerSize; ++i ){
+        this->maxKmerIndex += alphabetSize*this->powers[i];
+    }
+
+    this->lastKmerIndex = this->maxKmerIndex;
 }
 
 Indexer::~Indexer(){
     delete this->powers;
 }
 
-int Indexer::int2index( const int *int_seq,const int begin,const int end){
+unsigned int Indexer::int2index( const int *int_seq,const int begin,const int end){
     this->lastKmerIndex = 0;
     for( int i=begin; i<end; i++ ) {
             this->lastKmerIndex += int_seq[i]*this->powers[i-begin];
@@ -23,24 +28,28 @@ int Indexer::int2index( const int *int_seq,const int begin,const int end){
     return this->lastKmerIndex;
 }
 
-int Indexer::int2index( const int *int_seq){
+unsigned int Indexer::int2index( const int *int_seq){
     int2index(int_seq,0,this->maxKmerSize);
     return this->lastKmerIndex;
 }
 
-void Indexer::index2int(int* int_seq, int idx, int kmerSize){
+void Indexer::index2int(int* int_seq, unsigned int idx, int kmerSize){
     for (int i = kmerSize - 1; i >= 0; i--){
         int_seq[i] = idx / powers[i];
         idx = idx - int_seq[i] * powers[i];
     }
 }
 
-int Indexer::getNextKmerIndex (int* kmer, int kmerSize){
-    if (this->lastKmerIndex == -1)
+unsigned int Indexer::getNextKmerIndex (int* kmer, int kmerSize){
+    if (this->lastKmerIndex == this->maxKmerIndex)
         return int2index(kmer, 0, kmerSize);
     else{
         this->lastKmerIndex /= this->alphabetSize;
         this->lastKmerIndex += kmer[kmerSize-1] * this->powers[kmerSize-1];
         return this->lastKmerIndex;
     }
+}
+
+void Indexer::reset(){
+    this->lastKmerIndex = this->maxKmerIndex;
 }
