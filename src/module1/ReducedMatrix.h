@@ -10,15 +10,16 @@ class ReducedMatrix : public BaseMatrix {
     public: 
         ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize);
         virtual ~ReducedMatrix();
-        /*contains reduced matrix*/
-        short ** reducedMatrix;
-        /*mapping aa (orig. alphabet) -> int code of the representative amino acid*/
-        int*   reduced_aa2int;
-        /*mapping int code (orig. alphabet) -> the representative amino acid char*/
-        char*  reduced_int2aa;
-        /* size of reduced alphabet*/
-        size_t reducedAlphabetSize;
+        /*contains the original matrix before the alphabet reduction*/
+        short ** origSubMatrix;
+        int*   orig_aa2int;
+        char*  orig_int2aa;
+        /* size of the original alphabet*/
+        size_t origAlphabetSize;
 
+        // base class aa2int and int2aa mappings contain now:
+        // aa2int: mapping aa (orig. alphabet) -> int code of the representative amino acid
+        // int2aa: mapping int code (orig. alphabet) -> the representative amino acid char
         std::vector<char>* reducedAlphabet;
 
     private: 

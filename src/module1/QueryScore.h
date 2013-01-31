@@ -28,8 +28,8 @@ class QueryScore {
         // add k-mer match score for all DB sequences from the list
         void addScores (int* hitList, int hitListSize, short score);
 
-        // increment the query position (only one similar k-mer match per db sequence and query position is added to the prefiltering score)
-        void moveToNextQueryPos();
+        // increment the query position 
+//        void moveToNextQueryPos();
 
         // get the list of the sequences with the score > prefThreshold and the corresponding 
         std::list<hit_t>* getResult ();
@@ -50,10 +50,10 @@ class QueryScore {
         short* scores;
 
         // mapping db id -> position of the last match in the query sequence
-        short* lastMatchPos;
+//        short* lastMatchPos;
 
         // current position in the query sequence (prevents multiple matches for the same query position, different similar k-mers and the same db sequence)
-        short currQueryPos;
+//        short currQueryPos;
 
         // sorted list of all DB sequences with the prefiltering score >= prefThreshold
         std::list<int>* hitList;

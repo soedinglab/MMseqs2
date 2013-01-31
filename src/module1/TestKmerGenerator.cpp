@@ -26,16 +26,16 @@ int main (int argc, const char * argv[])
     BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
 
-    std::cout << "ReducedMatrix:\n";
+    std::cout << "subMatrix:\n";
     ReducedMatrix redMat(subMat.probMatrix, 17);
-    BaseMatrix::print(redMat.reducedMatrix, redMat.reducedAlphabetSize);
+    BaseMatrix::print(redMat.subMatrix, redMat.alphabetSize);
     std::cout << "\n";
     
     const int  testSeq[]={1,2,3,1,1,1};
-    ExtendedSubstitutionMatrix extMattwo(redMat.reducedMatrix, 2,redMat.reducedAlphabetSize);
-    ExtendedSubstitutionMatrix extMatthree(redMat.reducedMatrix, 3,redMat.reducedAlphabetSize);
+    ExtendedSubstitutionMatrix extMattwo(redMat.subMatrix, 2,redMat.alphabetSize);
+    ExtendedSubstitutionMatrix extMatthree(redMat.subMatrix, 3,redMat.alphabetSize);
 
-    Indexer idx(redMat.reducedAlphabetSize,kmer_size);
+    Indexer idx(redMat.alphabetSize,kmer_size);
     
     
     
@@ -45,7 +45,7 @@ int main (int argc, const char * argv[])
     char* sequence = "AAVIDE";
     std::cout << sequence << "\n\n";
     
-    Sequence* s = new Sequence (10000, redMat.reduced_aa2int, redMat.reduced_int2aa);
+    Sequence* s = new Sequence (10000, redMat.aa2int, redMat.int2aa);
     s->setId(0);
     s->mapSequence(sequence);
     
@@ -55,7 +55,7 @@ int main (int argc, const char * argv[])
     
     printf("\nReduced alphabet: ");
     for(int i = 0; i<subMat.alphabetSize;i++)
-        printf("%c\t",redMat.reduced_int2aa[i]);
+        printf("%c\t",redMat.int2aa[i]);
     
     printf("\nNormal int code: ");
     for(int i = 'A'; i<'Z';i++)
@@ -63,17 +63,17 @@ int main (int argc, const char * argv[])
     
     printf("\nReduced int code: ");
     for(int i = 'A'; i<'Z';i++)
-        printf("%d\t",redMat.reduced_aa2int[i]); 
+        printf("%d\t",redMat.aa2int[i]); 
     
     std::cout << "\nInt reduced sequence:\n";
     for (int i = 0; i < s->L; i++)
         std::cout << s->int_sequence[i] << " ";
     std::cout << "\nChar reduced sequence:\n";
     for (int i = 0; i < s->L; i++)
-        std::cout << redMat.reduced_int2aa[s->int_sequence[i]] << " ";
+        std::cout << redMat.int2aa[s->int_sequence[i]] << " ";
     std::cout << "\n";
     
-    KmerGenerator kmerGen(kmer_size,redMat.reducedAlphabetSize,6, 
+    KmerGenerator kmerGen(kmer_size,redMat.alphabetSize,6, 
                           &extMatthree,&extMattwo );
     
     int* testKmer = new int[kmer_size];
@@ -103,7 +103,7 @@ int main (int argc, const char * argv[])
                 std::cout << testKmer[i] << " ";
             std::cout << "\t";
             for (int i = 0; i < kmer_size; i++)
-                std::cout << redMat.reduced_int2aa[testKmer[i]];
+                std::cout << redMat.int2aa[testKmer[i]];
             std::cout << "\n";
         }
     }

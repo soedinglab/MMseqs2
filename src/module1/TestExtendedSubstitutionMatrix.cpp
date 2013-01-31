@@ -28,8 +28,8 @@ int main (int argc, const char * argv[])
     
     const int  testSeq[]={1,2,3,1,1,1};
     const int * seq_ptr=&testSeq[0];
-    ExtendedSubstitutionMatrix extMat(redMat.reducedMatrix, kmer_size,redMat.reducedAlphabetSize);
-    Indexer idx(redMat.reducedAlphabetSize,kmer_size);
+    ExtendedSubstitutionMatrix extMat(redMat.subMatrix, kmer_size,redMat.alphabetSize);
+    Indexer idx(redMat.alphabetSize,kmer_size);
     
     
     
@@ -37,7 +37,7 @@ int main (int argc, const char * argv[])
     char* sequence = "AAMICPAEAGRPSLADS";
     std::cout << sequence << "\n\n";
     
-    Sequence* s = new Sequence (10000, redMat.reduced_aa2int, redMat.reduced_int2aa);
+    Sequence* s = new Sequence (10000, redMat.aa2int, redMat.int2aa);
     s->setId(0);
     s->mapSequence(sequence);
     
@@ -46,13 +46,13 @@ int main (int argc, const char * argv[])
         printf("%c\t",subMat.int2aa[i]);
     printf("\nReduced: ");
     for(int i = 0; i<subMat.alphabetSize;i++)
-        printf("%c\t",redMat.reduced_int2aa[i]);
+        printf("%c\t",redMat.int2aa[i]);
     printf("\nNormal : ");
     for(int i = 65; i<'Z';i++)
         printf("%d\t",subMat.aa2int[i]); 
     printf("\nReduced: ");
     for(int i = 65; i<'Z';i++)
-        printf("%d\t",redMat.reduced_aa2int[i]); 
+        printf("%d\t",redMat.aa2int[i]); 
     
     std::cout << "\nInt reduced sequence:\n";
     for (int i = 0; i < s->L; i++)

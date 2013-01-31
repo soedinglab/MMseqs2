@@ -2,47 +2,50 @@
 
 ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
     
-    this->reducedAlphabetSize = reducedAlphabetSize;
-    this->reduced_aa2int = new int['Z'+1];
-    this->reduced_int2aa = new char[alphabetSize];
-    reducedAlphabet = new std::vector<char>();
-    for (size_t i = 0; i <= 'Z'; ++i) reduced_aa2int[i]=aa2int[i];
-    for (size_t i = 0; i < alphabetSize; ++i){
-        reduced_int2aa[i] = int2aa[i];
+    // swap the matrix and alphabet mappings
+    this->origAlphabetSize = this->alphabetSize;
+    this->orig_aa2int = this->aa2int;
+    this->orig_int2aa = this->int2aa;
+    this->origSubMatrix = this->subMatrix;
+
+    // initialize new matrices and alphabet mappings
+    this->alphabetSize = reducedAlphabetSize;
+    this->aa2int = new int['Z'+1];
+    this->int2aa = new char[origAlphabetSize];
+    this->reducedAlphabet = new std::vector<char>();
+    for (size_t i = 0; i <= 'Z'; ++i) aa2int[i] = orig_aa2int[i];
+    for (size_t i = 0; i < origAlphabetSize; ++i){
+        int2aa[i] = orig_int2aa[i];
         reducedAlphabet->push_back(int2aa[i]);
     }
     
-    double ** subMatrix=new double*[alphabetSize-1];
-    double ** probMatrix_new=new double*[alphabetSize-1];
-    for(size_t i = 0; i<alphabetSize-1;i++){
-        subMatrix[i]=new double[alphabetSize-1];
-        probMatrix_new[i]=new double[alphabetSize-1];
+    double ** subMatrix_tmp=new double*[origAlphabetSize-1];
+    double ** probMatrix_new=new double*[origAlphabetSize-1];
+    for(size_t i = 0; i<origAlphabetSize-1;i++){
+        subMatrix_tmp[i]=new double[origAlphabetSize-1];
+        probMatrix_new[i]=new double[origAlphabetSize-1];
     }
 
-    this->reducedMatrix=new short *[reducedAlphabetSize];
-    for (int i = 0; i < reducedAlphabetSize; i++)
-        this->reducedMatrix[i]=new short[reducedAlphabetSize];
-    
-    generateSubMatrix(probMatrix, subMatrix, alphabetSize-1);
+    generateSubMatrix(probMatrix, subMatrix_tmp, origAlphabetSize-1);
 
-    double info = calculateMutualInformation(probMatrix, subMatrix, alphabetSize-1);
+    double info = calculateMutualInformation(probMatrix, subMatrix_tmp, origAlphabetSize-1);
 //    std::cout << "20 " << info << "\n";
 
     
-    size_t reduce_steps=alphabetSize-reducedAlphabetSize;
+    size_t reduce_steps=origAlphabetSize-alphabetSize;
     
     
     for(size_t step = 0 ; step < reduce_steps; step++){
         // Ensuring every element is 0.
-        for(size_t j = 0; j < this->alphabetSize-1; j++)
+        for(size_t j = 0; j < this->origAlphabetSize-1; j++)
         {
-            for(size_t i = 0; i < this->alphabetSize-1; i++)
+            for(size_t i = 0; i < this->origAlphabetSize-1; i++)
             {
                 probMatrix_new[i][j] = 0;
             }
         }
         //This is where the function to couple the two bases is called.
-        std::pair<size_t,size_t> reduce_bases=coupleWithBestInfo(probMatrix, probMatrix_new, alphabetSize-1-step);
+        std::pair<size_t,size_t> reduce_bases=coupleWithBestInfo(probMatrix, probMatrix_new, origAlphabetSize-1-step);
         
         size_t reduced_index=reduce_bases.first;
         size_t lost_index=reduce_bases.second;
@@ -53,43 +56,46 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
         //printf("%c -> %c\n",lost_aa, reduced_aa);
         reducedAlphabet->erase(reducedAlphabet->begin()+lost_index);
         
-        size_t reduced_int=this->aa2int[reduced_aa];
-        size_t lost_int   =this->reduced_aa2int[lost_aa];
+        size_t reduced_int=this->orig_aa2int[reduced_aa];
+        size_t lost_int   =this->aa2int[lost_aa];
 
-        for(size_t i =0; i < this->alphabetSize;i++){
-            if(reduced_int2aa[i]==lost_aa){
-                this->reduced_int2aa[i]=reduced_aa;
+        for(size_t i =0; i < this->origAlphabetSize;i++){
+            if(this->int2aa[i]==lost_aa){
+                this->int2aa[i]=reduced_aa;
             }
         }
         for(size_t i =0; i < 'Z'; i++){
-            if(reduced_aa2int[i]==lost_int){
-                this->reduced_aa2int[i]=(int)reduced_int;
+            if(this->aa2int[i]==lost_int){
+                this->aa2int[i]=(int)reduced_int;
             }
         }
 
-       copyMatrix(probMatrix_new,probMatrix, alphabetSize-1);
+       copyMatrix(probMatrix_new,probMatrix, origAlphabetSize-1);
 
     }
     
     // map big index to new small index
     for(size_t i = 0; i<reducedAlphabet->size();i++){
         const char reduced_aa = reducedAlphabet->at(i);
-        int big_int= this->aa2int[reduced_aa];
+        int big_int= this->orig_aa2int[reduced_aa];
         for(size_t j =0; j < 'Z'; j++){
-            if(reduced_aa2int[i]==big_int){
-                this->reduced_aa2int[j] = i;
+            if(this->aa2int[i] == big_int){
+                this->aa2int[j] = i;
             }
         }
     }
 
     // add amino acid X
-    reduced_int2aa[reducedAlphabetSize - 1] = 'X';
-    reduced_aa2int['X'] = reducedAlphabetSize - 1;
+    int2aa[alphabetSize - 1] = 'X';
+    aa2int['X'] = alphabetSize - 1;
 
+    this->subMatrix = new short*[alphabetSize];
+    for (int i = 0; i<alphabetSize; i++)
+        this->subMatrix[i] = new short[alphabetSize];
 
-    generateSubMatrix(probMatrix_new, reducedMatrix, reducedAlphabetSize, 2.0, 0.0);
+    generateSubMatrix(probMatrix_new, this->subMatrix, alphabetSize, 2.0, 0.0);
 
-    for (size_t i = 0; i < alphabetSize-1; i++)
+    for (size_t i = 0; i < origAlphabetSize-1; i++)
     {
         delete[]probMatrix_new[i];
     }
@@ -98,12 +104,12 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
 
 
 ReducedMatrix::~ReducedMatrix(){
-    delete[] this->reduced_aa2int;
-    delete[] this->reduced_int2aa;
-    for(size_t i = 0; i<reducedAlphabetSize;i++){
-        delete[] reducedMatrix[i];
+    delete[] this->orig_aa2int;
+    delete[] this->orig_int2aa;
+    for(size_t i = 0; i<alphabetSize;i++){
+        delete[] origSubMatrix[i];
     }
-    delete[] reducedMatrix;
+    delete[] origSubMatrix;
 
 }
 
@@ -138,13 +144,13 @@ double ReducedMatrix::calculateMutualInformation(double ** pMatrix, double ** su
 
 void ReducedMatrix::coupleBases(double ** input, double ** output, size_t size, size_t base1, size_t base2){
     
-    double ** temp=new double *[this->alphabetSize-1];
+    double ** temp=new double *[this->origAlphabetSize-1];
     //To ensure every element of temp is set to 0.
-    for(size_t i = 0; i < this->alphabetSize-1; i++)
+    for(size_t i = 0; i < this->origAlphabetSize-1; i++)
     {
-        temp[i]=new double[this->alphabetSize-1];
+        temp[i]=new double[this->origAlphabetSize-1];
         
-        for(size_t j = 0; j < this->alphabetSize-1; j++)
+        for(size_t j = 0; j < this->origAlphabetSize-1; j++)
         {
             temp[i][j] = 0;
         }
@@ -156,7 +162,7 @@ void ReducedMatrix::coupleBases(double ** input, double ** output, size_t size, 
     //Add the corresponding rows.
     addTwoRows(temp, output, size, base1, base2);
     
-    for (size_t i = 0; i < this->alphabetSize-1; i++)
+    for (size_t i = 0; i < this->origAlphabetSize-1; i++)
     {
         delete[]temp[i];
     }

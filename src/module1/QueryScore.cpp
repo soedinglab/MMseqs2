@@ -24,21 +24,21 @@ QueryScore::~QueryScore (){
     delete resList;
 }
 
-void QueryScore::moveToNextQueryPos(){
-    this->currQueryPos++;
-}
+//void QueryScore::moveToNextQueryPos(){
+//    this->currQueryPos++;
+//}
 
 void QueryScore::addScores (int* hitList, int hitListSize, short score){
     int dbSeqId;
     for (int i = 0; i < hitListSize; i++){
         dbSeqId = hitList[i];
         // this position in the query sequence already matched this db sequence
-        if (this->currQueryPos > this->lastMatchPos[dbSeqId]){
-            scores[dbSeqId] += score;
-            this->lastMatchPos[dbSeqId] = this->currQueryPos;
-            if (scores[dbSeqId] >= this->prefThreshold)
-                addElementToResults(dbSeqId);
-        }
+        /*        if (this->currQueryPos > this->lastMatchPos[dbSeqId]){
+                  scores[dbSeqId] += score;
+                  this->lastMatchPos[dbSeqId] = this->currQueryPos;*/
+        if (scores[dbSeqId] >= this->prefThreshold)
+            addElementToResults(dbSeqId);
+    //}
     }
 }
 
