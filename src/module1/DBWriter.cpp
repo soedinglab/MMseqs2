@@ -1,6 +1,6 @@
 #include "DBWriter.h"
 
-DBWriter::DBWriter (char* dataFileName_, char* indexFileName_, int maxThreadNum_):
+DBWriter::DBWriter (const char* dataFileName_, const char* indexFileName_, int maxThreadNum_):
     dataFileName(dataFileName_),
     indexFileName(indexFileName_),
     maxThreadNum(maxThreadNum_)
@@ -40,10 +40,19 @@ void DBWriter::close(){
     {
         fclose(dataFiles[i]);
         fclose(indexFiles[i]);
-        snprintf(merge_command, FILENAME_MAX, "ffindex_build -as %s %s -d %s.%d -i %s.%d",
+        snprintf(merge_command, FILENAME_MAX, "ffindex_build -as %s %s -d %s.%d -i %s.%d &",
                 dataFileName, indexFileName, dataFileName, i, indexFileName, i);
-        system(merge_command);
+
+        std::cout << merge_command << "\n";
+/*        if (system(NULL)){
+            std::cout << "Can use system\n";
+//            std::cerr << "ffindex merge exited abnormally!\n";
+//            std::cerr << "Merge command was:\n" << merge_command << "\n";
+        }
+        else
+            std::cout << "Cannot use system\n";*/
     }
+    delete merge_command;
     delete[] dataFiles;
     delete[] indexFiles;
     delete[] offsets;

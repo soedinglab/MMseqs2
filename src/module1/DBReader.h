@@ -19,7 +19,7 @@ class DBReader {
 
     public:
 
-        DBReader(char* dataFileName, char* indexFileName);
+        DBReader(const char* dataFileName, const char* indexFileName);
 
         void open();
 
@@ -34,9 +34,9 @@ class DBReader {
         char* getDbKey(int id);
 
     private:
-        char* dataFileName;
+        const char* dataFileName;
 
-        char* indexFileName;
+        const char* indexFileName;
 
         FILE* dataFile;
 

@@ -25,13 +25,13 @@
 class SubstitutionMatrix: public BaseMatrix {
 
     public:
-        SubstitutionMatrix(char* scoringMatrixFileName);
+        SubstitutionMatrix(const char* scoringMatrixFileName_);
 
         virtual ~SubstitutionMatrix();
 
     private:
 
-        char* scoringMatrixFileName;
+        const char* scoringMatrixFileName;
 
         void readProbMatrix();
 

@@ -11,9 +11,10 @@
 #include <iostream>
 #include <cstring>
 #include <algorithm>
+#include <limits.h>
 
 typedef struct {
-    short seqId;
+    int seqId;
     short prefScore;
 } hit_t;
 

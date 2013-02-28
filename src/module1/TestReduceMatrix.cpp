@@ -24,7 +24,7 @@ int main (int argc, const char * argv[])
     for(int i = 0; i<subMat.alphabetSize;i++)
         printf("%c\t",subMat.int2aa[i]);
     printf("\nReduced alphabet: ");
-    for(int i = 0; i<subMat.alphabetSize;i++)
+    for(int i = 0; i<redMat.alphabetSize;i++)
         printf("%c\t",redMat.int2aa[i]);
     std::cout << "\nReduced alphabet size: " << redMat.alphabetSize << "\n";
 
@@ -33,9 +33,19 @@ int main (int argc, const char * argv[])
         printf("%c%3d\t", c, subMat.aa2int[c]);
     std::cout << "\n";
 
+    std::cout << "int2aa: \n";
+    for (int i = 0; i < subMat.alphabetSize; i++)
+        printf("%d%3c\t", i, subMat.int2aa[i]);
+    std::cout << "\n";
+
     std::cout << "reduced aa2int:\n";
     for (char c = 'A'; c <= 'Z'; c++)
         printf("%c%3d\t", c, redMat.aa2int[c]);
+    std::cout << "\n";
+
+    std::cout << "reduced int2aa: \n";
+    for (int i = 0; i < redMat.alphabetSize; i++)
+        printf("%d%3c\t", i, redMat.int2aa[i]);
     std::cout << "\n";
 
     printf("\n\nOriginal substitution matrix:\n");

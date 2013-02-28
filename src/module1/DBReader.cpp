@@ -1,6 +1,6 @@
 #include "DBReader.h"
 
-DBReader::DBReader(char* dataFileName_, char* indexFileName_):
+DBReader::DBReader(const char* dataFileName_, const char* indexFileName_):
     dataFileName(dataFileName_),
     indexFileName(indexFileName_)
 {
@@ -12,8 +12,8 @@ void DBReader::open(){
     dataFile = fopen(dataFileName, "r");
     indexFile = fopen(indexFileName, "r");
 
-    if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "run_sw", indexFileName);  exit(EXIT_FAILURE); }
-    if( dataFile == NULL) { fferror_print(__FILE__, __LINE__, "run_sw", dataFileName);  exit(EXIT_FAILURE); }
+    if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", indexFileName);  exit(EXIT_FAILURE); }
+    if( dataFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", dataFileName);  exit(EXIT_FAILURE); }
 
     data = ffindex_mmap_data(dataFile, &dataSize);
 

@@ -53,7 +53,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
         char reduced_aa=reducedAlphabet->at(reduced_index);
         char lost_aa   =reducedAlphabet->at(lost_index);
         
-        //printf("%c -> %c\n",lost_aa, reduced_aa);
+        printf("%c -> %c\n",lost_aa, reduced_aa);
         reducedAlphabet->erase(reducedAlphabet->begin()+lost_index);
         
         size_t reduced_int=this->orig_aa2int[reduced_aa];
@@ -74,20 +74,44 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
 
     }
     
+
+    std::cout << "aa2int: \n";
+    for (int i = 'A'; i < 'Z'; i++){
+        std::cout << (char) i << " " << aa2int[i] << "\t";
+    }
+    std::cout << "\n";
+
+    std::cout << "int2aa:\n";
+    for (int i = 0; i < 21; i++)
+        std::cout << i << " " << int2aa[i] << "\t";
+    std::cout << "\n";
+
     // map big index to new small index
-    for(size_t i = 0; i<reducedAlphabet->size();i++){
-        const char reduced_aa = reducedAlphabet->at(i);
-        int big_int= this->orig_aa2int[reduced_aa];
+    std::cout << "Representative amino acids:\n";
+    int* aa2int_new = new int['Z'+1];
+    for (int i = 0; i <= 'Z'; ++i) 
+        aa2int_new[i] = -1;
+    char* int2aa_new = new char[alphabetSize];
+    for(size_t i = 0; i<reducedAlphabet->size(); i++){
+        const char representative_aa = reducedAlphabet->at(i);
+        std::cout << representative_aa << " "; 
         for(size_t j =0; j < 'Z'; j++){
-            if(this->aa2int[i] == big_int){
-                this->aa2int[j] = i;
+            if(this->aa2int[j] == this->aa2int[representative_aa]){
+                aa2int_new[j] = i;
             }
         }
+        int2aa_new[i] = representative_aa;
     }
 
     // add amino acid X
-    int2aa[alphabetSize - 1] = 'X';
-    aa2int['X'] = alphabetSize - 1;
+//    int2aa_new[alphabetSize - 1] = 'X';
+//    aa2int['X'] = alphabetSize - 1;
+
+    delete[] this->int2aa;
+    delete[] this->aa2int;
+
+    this->int2aa = int2aa_new;
+    this->aa2int = aa2int_new;
 
     this->subMatrix = new short*[alphabetSize];
     for (int i = 0; i<alphabetSize; i++)

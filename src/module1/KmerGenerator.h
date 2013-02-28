@@ -8,6 +8,7 @@
 
 typedef struct {
     size_t count;
+    // score, k-mer index
     std::vector<std::pair<short, size_t> >* score_kmer_list;
 } kmer_list;
 
@@ -19,7 +20,7 @@ class KmerGenerator
                   ExtendedSubstitutionMatrix * three,ExtendedSubstitutionMatrix * two );
         ~KmerGenerator();
         /*calculates the kmer list */
-        kmer_list generateKmerList(const int * int_seq);
+        kmer_list generateKmerList(const int * kmer);
       
 
     private:

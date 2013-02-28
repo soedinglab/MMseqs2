@@ -17,7 +17,7 @@ Indexer::Indexer(const int alphabetSize, const int maxKmerSize){
 }
 
 Indexer::~Indexer(){
-    delete this->powers;
+    delete[] this->powers;
 }
 
 unsigned int Indexer::int2index( const int *int_seq,const int begin,const int end){
@@ -40,7 +40,7 @@ void Indexer::index2int(int* int_seq, unsigned int idx, int kmerSize){
     }
 }
 
-unsigned int Indexer::getNextKmerIndex (int* kmer, int kmerSize){
+unsigned int Indexer::getNextKmerIndex (const int* kmer, int kmerSize){
     if (this->lastKmerIndex == this->maxKmerIndex)
         return int2index(kmer, 0, kmerSize);
     else{
@@ -53,3 +53,15 @@ unsigned int Indexer::getNextKmerIndex (int* kmer, int kmerSize){
 void Indexer::reset(){
     this->lastKmerIndex = this->maxKmerIndex;
 }
+
+void Indexer::printKmer(int* testKmer, int kmerIdx, int kmerSize, char* int2aa){
+    index2int(testKmer, kmerIdx, kmerSize);
+    for (int j = 0; j < kmerSize; j++)
+        std::cout << int2aa[testKmer[j]];
+}
+
+void Indexer::printKmer(int* kmer, int kmerSize, char* int2aa){
+    for (int j = 0; j < kmerSize; j++)
+        std::cout << int2aa[kmer[j]];
+}
+

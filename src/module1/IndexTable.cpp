@@ -1,63 +1,62 @@
 #include "IndexTable.h"
 
-IndexTable::IndexTable (int alphabetSize_, int kmerSize_):
-    alphabetSize(alphabetSize_),
-    kmerSize(kmerSize_)
+IndexTable::IndexTable (int alphabetSize, int kmerSize)
 {
+    this->alphabetSize = alphabetSize;
+    this->kmerSize = kmerSize;
+
     tableSize = ipow(alphabetSize, kmerSize);
 
-    std::cout << "table size: " << tableSize << "\n";
-    std::cout << "int size: " << sizeof(int) << "\n";
-    std::cout << "vector size: " << sizeof(std::vector<int>) << "\n";
-    
-    table = new int* [tableSize];
-    
-    tableDummy = new std::vector<int>* [tableSize];
+    table = new DynamicArray* [tableSize];
     for (int i = 0; i < tableSize; i++){
-        tableDummy[i] = new std::vector<int>();
+        table[i] = new DynamicArray();
     }
 
     idxer = new Indexer(alphabetSize, kmerSize);
-    
-    listSizes = new int[tableSize];
 }
 
 void IndexTable::addSequence (Sequence* s){
     // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
-    const int* kmer;
     unsigned int kmerIdx;
+    s->resetCurrPos();
+    this->s = s;
+    idxer->reset();
 
-    s->reset();
     while(s->hasNextKmer(kmerSize)){
-        kmer = s->nextKmer(kmerSize);
-        kmerIdx = idxer->int2index(kmer, 0, kmerSize);
-        tableDummy[kmerIdx]->push_back(s->id);
+        const int* kmer = s->nextKmer(kmerSize);
+        kmerIdx = idxer->getNextKmerIndex(kmer, kmerSize);
+        table[kmerIdx]->pushBack(s->id);
+    }
+}
+
+void IndexTable::checkSizeAndCapacity(){
+
+    long sizes = 0;
+    long capacities = 0;
+    for (int i = 0; i < tableSize; i++){
+        sizes += table[i]->getSize();
+        capacities += table[i]->getCapacity();
+    }
+    std::cout << sizes << " " << capacities;
+}
+
+void IndexTable::reduceMemoryUsage(){
+    for (int i = 0; i < tableSize; i++){
+        table[i]->shrinkToFit();
     }
 }
 
 void IndexTable::init(){
     for (int i = 0; i < tableSize; i++){
-        std::vector<int>* v = tableDummy[i];
-        int* seqList = new int [v->size()];
-
-        std::vector<int>::iterator it;
-        int j = 0;
-        for (it = v->begin(); it != v->end(); it++){
-            seqList[j] = *it;
-            j++;
-        }
-
-        listSizes[i] = j;
-        table[i] = seqList;
-
-        delete v;
+        // remove duplicate sequence entries
+        table[i]->removeDuplicates();
+        table[i]->shrinkToFit();
     }
-    delete[] tableDummy;
 }
 
 int* IndexTable::getDBSeqList (int kmer, int* matchedListSize){
-    *matchedListSize = listSizes[kmer];
-    return table[kmer];
+    *matchedListSize = table[kmer]->getSize();
+    return table[kmer]->getEntries();
 }
 
 int IndexTable::ipow (int base, int exponent){

@@ -25,10 +25,17 @@ class Indexer{
         void index2int(int* int_seq, unsigned int idx, int kmerSize);
        
         // k-mer iterator, remembers the last k-mer
-        unsigned int getNextKmerIndex(int* kmer, int kmerSize);
+        unsigned int getNextKmerIndex(const int* kmer, int kmerSize);
 
         // reset the last k-mer
         void reset();
+
+        // print k amino acids of the k-mer with index kmerIdx
+        // int k-mer is written into testKmer
+        void printKmer(int* testKmer,  int kmerIdx, int kmerSize, char* int2aa);
+
+        // print k amino acids of int k-mer kmer
+        void printKmer(int* kmer, int kmerSize, char* int2aa);
         
         int * powers;
 

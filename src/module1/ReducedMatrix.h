@@ -20,6 +20,8 @@ class ReducedMatrix : public BaseMatrix {
         // base class aa2int and int2aa mappings contain now:
         // aa2int: mapping aa (orig. alphabet) -> int code of the representative amino acid
         // int2aa: mapping int code (orig. alphabet) -> the representative amino acid char
+        
+        // reducedAlphabet contains only the "representative" amino acids
         std::vector<char>* reducedAlphabet;
 
     private: 

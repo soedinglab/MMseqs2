@@ -21,7 +21,7 @@ extern "C" {
 class DBWriter {
     public:
 
-        DBWriter(char* dataFileName, char* indexFileName, int maxThreadNum);
+        DBWriter(const char* dataFileName, const char* indexFileName, int maxThreadNum);
 
         void open();
 
@@ -33,9 +33,9 @@ class DBWriter {
 
         void initFFIndexWrite(char* dataFileName, char* indexFileName, FILE** dataFile, FILE** indexFile);
 
-        char* dataFileName;
+        const char* dataFileName;
 
-        char* indexFileName;
+        const char* indexFileName;
 
         FILE** dataFiles;
 

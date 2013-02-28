@@ -60,22 +60,40 @@ BaseMatrix::~BaseMatrix(){
     delete[] subMatrix;
 }
 
-void BaseMatrix::print(short** matrix, int size){
+void BaseMatrix::print(short** matrix, char* int2aa, int size){
+    std::cout << "\n";
+    short avg = 0;
+    printf("%4c ", ' ');
+    for (int i = 0; i < size; i++)
+        printf("%4c ", int2aa[i]);
+    std::cout << "\n";
     for (int i = 0; i < size; i++){
+        printf("%4c ", int2aa[i]);
         for (int j = 0; j < size; j++){
             printf("%4d ", matrix[i][j]);
+            avg += matrix[i][j];
         }
         std::cout << "\n";
     }
+    std::cout << ((double)avg/(double)(size*size)) << "\n";
 }
 
-void BaseMatrix::print(double** matrix, int size){
+void BaseMatrix::print(double** matrix, char* int2aa, int size){
+    std::cout << "\n";
+    double avg = 0.0;
+    printf("%7c ", ' ');
+    for (int i = 0; i < size; i++)
+        printf("%7c ", int2aa[i]);
+    std::cout << "\n";
     for (int i = 0; i < size; i++){
+        printf("%7c ", int2aa[i]);
         for (int j = 0; j < size; j++){
             printf("%7.4f ", matrix[i][j]);
+            avg += matrix[i][j];
         }
         std::cout << "\n";
     }
+    std::cout << (avg/(double)(size*size)) << "\n";
 }
 
 void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, size_t size, double bitFactor, double scoringBias){

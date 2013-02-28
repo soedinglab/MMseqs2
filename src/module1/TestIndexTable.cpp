@@ -116,7 +116,6 @@ int main (int argc, const char * argv[])
 
         qs->addScores(seqList, listSize, 1);
         qs->addScores(seqList, listSize, 2);
-        qs->moveToNextQueryPos();
     }
 
     // get the result from the QueryScore

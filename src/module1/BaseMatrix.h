@@ -30,9 +30,9 @@ class BaseMatrix{
         double* pBack;
 
         // print the substitution matrix
-        static void print(short** matrix, int size);
+        static void print(short** matrix, char* int2aa, int size);
 
-        static void print(double** matrix, int size);
+        static void print(double** matrix, char* int2aa, int size);
 
         // generate the substitution matrix given the probability matrix, background probabilities and the alphabet size
         static void generateSubMatrix(double ** probMatrix, double ** subMatrix, size_t size, double bitFactor = 1.0, double scoringBias = 0.0);

@@ -81,13 +81,13 @@ void KmerGenerator::init_result_lists(size_t divide_steps){
         outputvec[i] = new std::vector<std::pair<short, size_t> >(VEC_LIMIT);
     }
 }
-kmer_list KmerGenerator::generateKmerList(const int * int_seq){
+kmer_list KmerGenerator::generateKmerList(const int * kmer){
     size_t divider_before=0;
     kmer_list retList;
     //find first threshold
     for(int i = 0; i < this->divide_steps_count; i++){
         size_t divider=divide_steps[i];
-        const unsigned int index= this->indexer->int2index(int_seq,divider_before,divider_before+divider);
+        const unsigned int index= this->indexer->int2index(kmer,divider_before,divider_before+divider);
         pow_per_step[i]=this->indexer->powers[divider_before];
         this->kmer_index[i]=index;
         ExtendedSubstitutionMatrix * extMatrix= this->matrixLookup[i];

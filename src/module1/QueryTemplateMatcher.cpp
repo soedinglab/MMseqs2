@@ -1,46 +1,60 @@
 #include "QueryTemplateMatcher.h"
-QueryTemplateMatcher::QueryTemplateMatcher ( short kmerThreshold,
-                                             short queryScoreThreshold, 
-                                             size_t kmer_size,
-                                             SubstitutionMatrix * substitutionMatrix,
-                                             IndexTable * indexTable){
-    this->kmer_size = kmer_size;
+QueryTemplateMatcher::QueryTemplateMatcher ( ExtendedSubstitutionMatrix* _2merSubMatrix,
+                                             ExtendedSubstitutionMatrix* _3merSubMatrix,
+                                             IndexTable * indexTable,
+                                             short kmerThr,
+                                             short prefThr,
+                                             int kmerSize, 
+                                             int dbSize,
+                                             int alphabetSize){
     this->indexTable = indexTable;
-    ReducedMatrix  ReducedMatrix(substitutionMatrix->probMatrix,
-                               substitutionMatrix->aa2int,
-                               substitutionMatrix->int2aa,
-                               substitutionMatrix->ALPHABET_SIZE,
-                               substitutionMatrix->ALPHABET_SIZE-16);
-    ExtendedSubstitutionMatrix threeExtendedSubstitutionMatrix(ReducedMatrix.reduced_Matrix, 3,
-                                                               ReducedMatrix.reduced_alphabet_size);
-    ExtendedSubstitutionMatrix twoExtendedSubstitutionMatrix(ReducedMatrix.reduced_Matrix, 2,
-                                                             ReducedMatrix.reduced_alphabet_size);
-    this->kmerGenerator = new KmerGenerator(kmer_size, 
-                                            ReducedMatrix.reduced_alphabet_size, kmerThreshold, 
-                                            &threeExtendedSubstitutionMatrix, &twoExtendedSubstitutionMatrix);
+    this->kmerSize = kmerSize;
+    this->alphabetSize = alphabetSize;
+    this->kmerGenerator = new KmerGenerator(kmerSize, alphabetSize, kmerThr, _3merSubMatrix, _2merSubMatrix);
+    this->queryScore = new QueryScore(dbSize, prefThr);
 }
 
 QueryTemplateMatcher::~QueryTemplateMatcher (){
-    
+    delete indexTable;
+    delete kmerGenerator;
+    delete queryScore;
 }
-
-
 
 std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
     queryScore->reset();
-    
-    while(seq->hasNextKmer(this->kmer_size)){
-        const int * curr_pos= seq->nextKmer(kmer_size);
-        kmer_list kmerList=kmerGenerator->generateKmerList(curr_pos);
-        std::vector<std::pair<short,size_t> > * kmer_vec=kmerList.score_kmer_list;
-        for(int i = 0; i < kmerList.count;i++){
-            const std::pair<short,size_t> curr_kmer_pair=kmer_vec->at(i);
-            const size_t kmerIdx = curr_kmer_pair.second;
-            const short kmerScore =  curr_kmer_pair.first;
-            size_t listSize = 0;
-            size_t* seqList = indexTable->getDBSeqList(kmerIdx, &listSize);
-            queryScore->addScores(seqList,listSize,kmerScore);
+    seq->resetCurrPos();
+
+    // DEBUGGING
+//    Indexer* idxer = new Indexer(alphabetSize, kmerSize);
+ 
+    int* seqList;
+    unsigned int kmerIdx;
+    int listSize = 0;
+    // go through the query sequence
+    int* testKmer = new int[kmerSize];
+    int kmerListLen = 0;
+    int numMatches = 0;
+    while(seq->hasNextKmer(kmerSize)){
+        const int* kmer = seq->nextKmer(kmerSize);
+        
+        // generate k-mer list
+        kmer_list kmerList = kmerGenerator->generateKmerList(kmer);
+        kmerListLen += kmerList.count;
+        std::vector<std::pair<short,size_t> > * retList = kmerList.score_kmer_list;
+        
+        // match the index table
+        for (int i = 0; i < kmerList.count; i++){
+            std::pair<short,size_t> kmerMatch = retList->at(i);
+            seqList = indexTable->getDBSeqList(kmerMatch.second, &listSize);
+            numMatches += listSize;
+
+            // add the scores for the k-mer to the overall score for this query sequence
+            queryScore->addScores(seqList, listSize, kmerMatch.first);
         }
-    }
-    return queryScore->getResult();    
+    } 
+    seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
+    seq->stats->dbMatches = numMatches;
+
+//    delete idxer;
+    return queryScore->getResult();
 }

@@ -1,8 +1,8 @@
 #include "SubstitutionMatrix.h"
 
-SubstitutionMatrix::SubstitutionMatrix(char* scoringMatrixFileName)
+SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_):
+    scoringMatrixFileName(scoringMatrixFileName_)
 {
-    this->scoringMatrixFileName = scoringMatrixFileName;
     // read amino acid substitution matrix from file
     std::string fileName(scoringMatrixFileName);
     if (fileName.substr(fileName.length()-4, 4).compare(".out") == 0)

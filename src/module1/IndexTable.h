@@ -6,11 +6,12 @@
 // Index table stores the list of DB sequences containing a certain k-mer, for each k-mer. 
 //
 
-#include <vector>
 #include <iostream>
+#include <algorithm>
 
 #include "Sequence.h"
 #include "Indexer.h"
+#include "DynamicArray.h"
 
 class IndexTable {
 
@@ -27,16 +28,19 @@ class IndexTable {
         // get list of DB sequences containing this k-mer
         int* getDBSeqList (int kmer, int* matchedListSize);
 
+        // alphabetSize**kmerSize
+        int tableSize;
+
+        void checkSizeAndCapacity();
+
+        void reduceMemoryUsage();
+
     private:
         
         int ipow (int base, int exponent);
 
-        // Index table: contains pointers to the arrays of DB sequences containing a certain k-mer
-        int** table;
-
-        // Index table before init: DB sequences for a certain k-mer are stored in lists.
-        // In init(), these lists are copied into fixed size arrays and deleted.
-        std::vector<int>** tableDummy;
+        // Index table: contains pointers to the arrays (stored in DynamicArray structure) of DB sequences containing a certain k-mer
+        DynamicArray** table;
 
         Indexer* idxer;
 
@@ -44,11 +48,7 @@ class IndexTable {
 
         int kmerSize;
 
-        // ALPHABET_SIZE**KMER_SIZE
-        int tableSize;
-
-        // for each possible k-mer, the size of the corresponding sequences list
-        int* listSizes;
+        Sequence* s;
 
 };
 

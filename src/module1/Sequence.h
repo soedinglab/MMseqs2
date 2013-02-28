@@ -9,40 +9,48 @@
 
 #include <string>
 #include <cstring>
+#include <cstdio>
+#include <iostream>
+#include <cstdlib>
+
+typedef struct {
+        float kmersPerPos;
+        int dbMatches;
+} statistics_t;
 
 class Sequence
 {
-public:
-    Sequence(size_t maxLen,int* aa2int,char* int2aa);  
-    
-    ~Sequence();
+    public:
+        Sequence(size_t maxLen,int* aa2int,char* int2aa);  
 
-    // Map char -> int
-    void mapSequence(const char *seq);
+        ~Sequence();
 
-    // checks if there is still a k-mer left 
-    bool hasNextKmer(size_t kmerSize);
+        // Map char -> int
+        void mapSequence(const char *seq);
 
-    // returns next k-mer
-    const int* nextKmer(size_t kmerSize);
+        // checks if there is still a k-mer left 
+        bool hasNextKmer(size_t kmerSize);
 
-    // resets the sequence position pointer to the start of the sequence
-    void reset() { currItPos = -1; }
+        // returns next k-mer
+        const int* nextKmer(size_t kmerSize);
 
-    // set the id of the sequence object
-    void setId(size_t id);
+        // resets the sequence position pointer to the start of the sequence
+        void resetCurrPos() { currItPos = -1; }
 
-    size_t id;
-    size_t L;              // length of sequence
-    int * int_sequence;    // int sequence 
-    
-    // current iterator position
-    size_t currItPos;
-    size_t maxLen;
-private:
+        void print(); // for debugging 
 
-    void print(); // for debugging 
-    int  * aa2int; // ref to mapping from aa -> int
-    char * int2aa; // ref mapping from int -> aa
+        size_t id;
+
+        size_t L;              // length of sequence
+        int * int_sequence;    // int sequence 
+
+        int  * aa2int; // ref to mapping from aa -> int
+        char * int2aa; // ref mapping from int -> aa
+
+        statistics_t* stats;
+    private:
+        // current iterator position
+        size_t currItPos;
+        size_t maxLen;
 };
 #endif
