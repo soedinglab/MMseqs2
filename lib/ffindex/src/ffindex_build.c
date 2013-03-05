@@ -120,40 +120,17 @@ int main(int argn, char **argv)
 
   char *data_filename  = argv[optind++];
   char *index_filename = argv[optind++];
-  FILE *data_file, *index_file;
+  FILE *data_file = NULL, *index_file = NULL;
 
   size_t offset = 0;
 
   /* open index and data file, seek to end if needed */
+  char *mode = "w";
   if(append)
-  {
-    data_file  = fopen(data_filename, "a");
-    if( data_file == NULL) { perror(data_filename); return EXIT_FAILURE; }
-
-    index_file = fopen(index_filename, "a+");
-    if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
-
-    struct stat sb;
-    fstat(fileno(data_file), &sb);
-    fseek(data_file, sb.st_size, SEEK_SET);
-    offset = sb.st_size;
-
-    fstat(fileno(index_file), &sb);
-    fseek(index_file, sb.st_size, SEEK_SET);
-  }
-  else
-  {
-    struct stat st;
-
-    if(stat(data_filename, &st) == 0) { errno = EEXIST; perror(data_filename); return EXIT_FAILURE; }
-    data_file  = fopen(data_filename, "w");
-    if( data_file == NULL) { perror(data_filename); return EXIT_FAILURE; }
-
-    if(stat(index_filename, &st) == 0) { errno = EEXIST; perror(index_filename); return EXIT_FAILURE; }
-    index_file = fopen(index_filename, "w+");
-    if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
-  }
-
+    mode = "a";
+  err = ffindex_index_open(data_filename, index_filename, mode, &data_file, &index_file, &offset);
+  if(err != EXIT_SUCCESS)
+    return EXIT_FAILURE;
 
   /* For each list_file insert */
   if(list_filenames_index > 0)
@@ -178,11 +155,7 @@ int main(int argn, char **argv)
       size_t data_size;
       char *data_to_add = ffindex_mmap_data(data_file_to_add, &data_size);
       ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, 0);
-      for(size_t entry_i = 0; entry_i < index_to_add->n_entries; entry_i++)
-      {
-        ffindex_entry_t *entry = ffindex_get_entry_by_index(index_to_add, entry_i);
-        ffindex_insert_memory(data_file, index_file, &offset, ffindex_get_data_by_entry(data_to_add, entry), entry->length - 1, entry->name); // skip \0 suffix
-      }
+      ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);
     }
   }
 

@@ -30,12 +30,19 @@ $ cd src
 $ make
 $ make test
 
+If you have MPI and want to compile ffindex_apply_mpi:
+$ make HAVE_MPI=1
+
 On OS X use for the first make line:
 $ make -f Makefile.osx
 
 # Please use a sensible value for INSTALL_DIR, e.g. /usr/local or /opt/ffindex
 # or $HOME/ffindex instead of "..".
 $ make install INSTALL_DIR=.. 
+
+and with MPI:
+
+$ make install INSTALL_DIR=.. HAVE_MPI=1
 
 
 * Usage
@@ -76,3 +83,9 @@ $ ffindex_apply fasta.ffdata fasta.ffindex wc -c
 Count the number of characters in each sequence, without the header:
 $ ffindex_apply fasta.ffdata fasta.ffindex perl -ne '$x += length unless(/^>/); END{print "$x\n"}'
 
+Parallel version for counting the characters including header in each entry:
+$ mpirun -np 4 ffindex_apply_mpi fasta.ffdata fasta.ffindex -- wc -c
+
+Parallel version for counting the characters including header in each entry and
+saving the output to a new ffindex:
+$ mpirun -np 4 ffindex_apply_mpi fasta.ffdata fasta.ffindex -i out-wc.ffindex -o out-wc.ffdata -- wc -c

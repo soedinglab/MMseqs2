@@ -45,19 +45,28 @@ typedef struct ffindex_index {
   ffindex_entry_t entries[]; /* This array is as big as the excess memory allocated for this struct. */
 } ffindex_index_t;
 
+/* return *out_data_file, *out_index_file, out_offset. */
+int ffindex_index_open(char *data_filename, char *index_filename, char* mode, FILE **out_data_file, FILE **out_index_file, size_t *out_offset);
+
 int ffindex_insert_memory(FILE *data_file, FILE *index_file, size_t *offset, char *from_start, size_t from_length, char *name);
 
 int ffindex_insert_file(FILE *data_file, FILE *index_file, size_t *offset, const char *path, char *name);
 
+int ffindex_insert_filestream(FILE *data_file, FILE *index_file, size_t *offset, FILE* file, char *name);
+
 int ffindex_insert_list_file(FILE *data_file, FILE *index_file, size_t *start_offset, FILE *list_file);
 
 int ffindex_insert_dir(FILE *data_file, FILE *index_file, size_t *offset, char *input_dir_name);
+
+int ffindex_insert_ffindex(FILE* data_file, FILE* index_file, size_t* offset, char* data_to_add, ffindex_index_t* index_to_add);
+
 
 FILE* ffindex_fopen_by_entry(char *data, ffindex_entry_t* entry);
 
 FILE* ffindex_fopen_by_name(char *data, ffindex_index_t *index, char *name);
 
 char* ffindex_mmap_data(FILE *file, size_t* size);
+
 
 char* ffindex_get_data_by_offset(char* data, size_t offset);
 
@@ -67,11 +76,15 @@ char* ffindex_get_data_by_name(char *data, ffindex_index_t *index, char *name);
 
 char* ffindex_get_data_by_index(char *data, ffindex_index_t *index, size_t entry_index);
 
+
 ffindex_entry_t* ffindex_get_entry_by_index(ffindex_index_t *index, size_t entry_index);
+
+ffindex_entry_t* ffindex_get_entry_by_name(ffindex_index_t *index, char *name);
 
 ffindex_index_t* ffindex_index_parse(FILE *index_file, size_t num_max_entries);
 
 ffindex_entry_t* ffindex_bsearch_get_entry(ffindex_index_t *index, char *name);
+
 
 void ffindex_sort_index_file(ffindex_index_t *index);
 
@@ -79,15 +92,14 @@ int ffindex_write(ffindex_index_t* index, FILE* index_file);
 
 ffindex_index_t* ffindex_unlink(ffindex_index_t* index, char *entry_name);
 
-ffindex_index_t*  ffindex_index_as_tree(ffindex_index_t* index);
+
+ffindex_index_t* ffindex_index_as_tree(ffindex_index_t* index);
 
 ffindex_index_t* ffindex_tree_unlink(ffindex_index_t* index, char* name_to_unlink);
 
 ffindex_index_t* ffindex_unlink_entries(ffindex_index_t* index, char** sorted_names_to_unlink, int n_names);
 
 int ffindex_tree_write(ffindex_index_t* index, FILE* index_file);
-
-int ffindex_insert_filestream(FILE *data_file, FILE *index_file, size_t *offset, FILE* file, char *name);
 
 char* ffindex_copyright();
 

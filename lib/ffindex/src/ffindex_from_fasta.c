@@ -74,23 +74,18 @@ int main(int argn, char **argv)
   char *index_filename = argv[optind++];
   char *fasta_filename = argv[optind++];
   FILE *data_file, *index_file, *fasta_file;
+  size_t offset = 0;
 
-  struct stat st;
-
-  if(stat(data_filename, &st) == 0) { errno = EEXIST; perror(data_filename); return EXIT_FAILURE; }
-  data_file  = fopen(data_filename, "w");
-  if( data_file == NULL) { perror(data_filename); return EXIT_FAILURE; }
-
-  if(stat(index_filename, &st) == 0) { errno = EEXIST; perror(index_filename); return EXIT_FAILURE; }
-  index_file = fopen(index_filename, "w+");
-  if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
+  /* open ffindex */
+  err = ffindex_index_open(data_filename, index_filename, "w", &data_file, &index_file, &offset);
+  if(err != EXIT_SUCCESS)
+    return err;
 
   fasta_file = fopen(fasta_filename, "r");
   if(fasta_file == NULL) { perror(fasta_filename); return EXIT_FAILURE; }
 
   size_t fasta_size;
   char *fasta_data = ffindex_mmap_data(fasta_file, &fasta_size);
-  size_t offset = 0;
   size_t from_length = 0;
   char name[FFINDEX_MAX_ENTRY_NAME_LENTH];
   int seq_id = 1;

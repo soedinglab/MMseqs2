@@ -75,14 +75,24 @@ int main(int argn, char **argv)
     for(int i = optind; i < argn; i++)
     {
       size_t index_n = atol(argv[i]) - 1; // offset from 0 but specify from 1
-      char *filedata = ffindex_get_data_by_index(data, index, index_n);
-      if(filedata == NULL)
+
+      ffindex_entry_t* entry = ffindex_get_entry_by_index(index, index_n);
+      if(entry == NULL)
       {
         errno = ENOENT; 
         fferror_print(__FILE__, __LINE__, "ffindex_get entry index out of range", argv[i]);
       }
       else
-        fputs(filedata, stdout);
+      {
+        char *filedata = ffindex_get_data_by_entry(data, entry);
+        if(filedata == NULL)
+        {
+          errno = ENOENT; 
+          fferror_print(__FILE__, __LINE__, "ffindex_get entry index out of range", argv[i]);
+        }
+        else
+          fwrite(filedata, entry->length - 1, 1, stdout);
+      }
     }
   }
   else // by name
@@ -90,14 +100,25 @@ int main(int argn, char **argv)
     for(int i = optind; i < argn; i++)
     {
       char *filename = argv[i];
-      char *filedata = ffindex_get_data_by_name(data, index, filename);
-      if(filedata == NULL)
+
+      ffindex_entry_t* entry = ffindex_get_entry_by_name(index, filename);
+      if(entry == NULL)
       {
         errno = ENOENT; 
         fferror_print(__FILE__, __LINE__, "ffindex_get key not found in index", filename);
       }
       else
-        fputs(filedata, stdout);
+      {
+        char *filedata = ffindex_get_data_by_entry(data, entry);
+        if(filedata == NULL)
+        {
+          errno = ENOENT; 
+          fferror_print(__FILE__, __LINE__, "ffindex_get key not found in index", filename);
+        }
+        else
+          fwrite(filedata, entry->length - 1, 1, stdout);
+      }
+    }
 
       /* Alternative code using (slower) ffindex_fopen */
       /*
@@ -114,7 +135,6 @@ int main(int argn, char **argv)
          printf("%s", line);
          }
          */
-    }
   }
 
   return 0;
