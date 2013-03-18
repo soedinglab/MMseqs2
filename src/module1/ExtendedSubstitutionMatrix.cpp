@@ -7,46 +7,38 @@
 
 #include <stdlib.h>
 
-
-
-
 struct sort_by_score {
-    bool operator()(const std::pair<short,size_t> &left, const std::pair<short,size_t> &right) {
-        return left.first > right.first;
+    bool operator()(const std::pair<short,unsigned int> *left, const std::pair<short,unsigned int> * right) {
+        return left->first > right->first;
     }
 };
 
 
 ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix, 
-                                                       const size_t kmer_size,
-                                                       const size_t alphabet_size){
-    
-    Indexer indexer(alphabet_size, kmer_size);
-    
-    this->size = pow(alphabet_size, kmer_size);
-    
+                                                       const size_t kmerSize,
+                                                       const size_t alphabetSize){
+    Indexer indexer( (int) alphabetSize, (int) kmerSize);
+    this->size = pow(alphabetSize, kmerSize);
     // create permutation 
-    std::vector<std::vector<int> > input(build_input(kmer_size,alphabet_size));    
-    this->scoreMatrix = new std::vector<std::pair<short,size_t> >*[this->size];
+    std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));
+    this->scoreMatrix = (const std::pair<short,unsigned int> ***) new std::pair<short,unsigned int> **[this->size];
     for(int i = 0; i < this->size;i++){
-        this->scoreMatrix[i]=new std::vector<std::pair<short,size_t> >();  
+        this->scoreMatrix[i]=(const std::pair<short,unsigned int> **) new std::pair<short,unsigned int> *[this->size];
     }
-    std::vector<std::vector<int> > output;
+    std::vector<std::vector<int> > permutation;
     std::vector<int> outputTemp;
-    cart_product(output, outputTemp, input.begin(), input.end());
+    createCartesianProduct(permutation, outputTemp, input.begin(), input.end());
     
     // fill matrix  
-    for(std::vector<int>::size_type i = 0; i != output.size(); i++) {
-        unsigned int i_index=indexer.int2index(&output[i][0]);
-        std::vector<std::pair<short,size_t> > * i_vector= scoreMatrix[i_index];
+    for(std::vector<int>::size_type i = 0; i != permutation.size(); i++) {
+        unsigned int i_index=indexer.int2index(&permutation[i][0]);
         
-        for(std::vector<int>::size_type j = 0; j != output.size(); j++) {
-            unsigned int j_index=indexer.int2index(&output[j][0]);
-            int score=calc_score(&output[i][0],&output[j][0],kmer_size,subMatrix);
-            i_vector->push_back(std::make_pair(score,j_index));
+        for(std::vector<int>::size_type j = 0; j != permutation.size(); j++) {
+            unsigned int j_index=indexer.int2index(&permutation[j][0]);
+            short score=calcScore(&permutation[i][0],&permutation[j][0],kmerSize,subMatrix);
+            scoreMatrix[i_index][j]=new std::pair<short,unsigned int>(score,j_index);
         }
-        std::sort (i_vector->begin(), i_vector->end(),sort_by_score()); 
-        
+        std::sort (scoreMatrix[i_index], scoreMatrix[i_index]+this->size,sort_by_score());
     }
     
 }
@@ -59,7 +51,7 @@ ExtendedSubstitutionMatrix::~ExtendedSubstitutionMatrix(){
     delete[] scoreMatrix;
 }
 
-int ExtendedSubstitutionMatrix::calc_score(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix){
+short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix){
     short score = 0;
     for(int i = 0; i < seq_size; i++){
         score+= subMatrix[i_seq[i]][j_seq[i]];
@@ -68,7 +60,7 @@ int ExtendedSubstitutionMatrix::calc_score(int * i_seq,int * j_seq,size_t seq_si
 }
 
 // Creates the input
-std::vector<std::vector<int> > ExtendedSubstitutionMatrix::build_input(size_t dimension,size_t range) {
+std::vector<std::vector<int> > ExtendedSubstitutionMatrix::buildInput(size_t dimension,size_t range) {
     std::vector<std::vector<int> >  vvi;
     
     for(int i = 0; i < dimension; i++) {
@@ -81,8 +73,6 @@ std::vector<std::vector<int> > ExtendedSubstitutionMatrix::build_input(size_t di
     return vvi;
 }
 
-
-
 // recursive algorithm to to produce cart. prod.
 // At any given moment, "me" points to some Vi in the middle of the
 // input data set.
@@ -90,7 +80,7 @@ std::vector<std::vector<int> > ExtendedSubstitutionMatrix::build_input(size_t di
 //      add i to current result
 //      recurse on next "me"
 //
-void ExtendedSubstitutionMatrix::cart_product(
+void ExtendedSubstitutionMatrix::createCartesianProduct(
                                               std::vector<std::vector<int> > & output,  // final result
                                               std::vector<int>&  current_result,   // current result
                                               std::vector<std::vector<int> >::const_iterator current_input, // current input
@@ -108,7 +98,7 @@ void ExtendedSubstitutionMatrix::cart_product(
     const std::vector<int>& mevi = *current_input;
     for(std::vector<int>::const_iterator it = mevi.begin();it != mevi.end();it++) {
         current_result.push_back(*it);  // add ME
-        cart_product(output, current_result, current_input+1, end);
+        createCartesianProduct(output, current_result, current_input+1, end);
         current_result.pop_back(); // clean current result off for next round
     }
 }

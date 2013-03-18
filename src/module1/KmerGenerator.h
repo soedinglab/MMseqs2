@@ -9,54 +9,57 @@
 typedef struct {
     size_t count;
     // score, k-mer index
-    std::vector<std::pair<short, size_t> >* score_kmer_list;
-} kmer_list;
+    std::pair<short, unsigned int> ** scoreKmerList;
+} KmerGeneratorResult;
+
 
 
 class KmerGenerator 
 {
     public: 
-        KmerGenerator(size_t kmer_size,size_t alphabet_size, short threshold, 
+        KmerGenerator(size_t kmerSize,size_t alphabetSize, short threshold,
                   ExtendedSubstitutionMatrix * three,ExtendedSubstitutionMatrix * two );
         ~KmerGenerator();
         /*calculates the kmer list */
-        kmer_list generateKmerList(const int * kmer);
-      
+        KmerGeneratorResult generateKmerList(const int * intSeq);
+
 
     private:
     
-        /*creates the product between two vectors and write it to the output vector */
-        int calcProduct(const std::vector<std::pair<short, size_t> > * vec1,
-                           const std::vector<std::pair<short, size_t> > * vec2,
-                           std::vector<std::pair<short, size_t> > * outputvec, 
-                           const short cutoff1,const short possible_rest,const size_t pow);
+        /*creates the product between two arrays and write it to the output array */
+        int calculateArrayProduct(const std::pair<short,unsigned int> ** vec1,
+                        const size_t vec1Size,
+                        const std::pair<short,unsigned int> ** vec2,
+                        const size_t vec2Size,
+                        std::pair<short,unsigned int> **  outputArray,
+                        const short cutoff1,const short possibleRest,const unsigned int pow);
     
-        
+    
         /* maximum return values */
         const static size_t VEC_LIMIT = 8000;
         /* min score  */
         short threshold;
         /* size of kmer  */
-        size_t kmer_size;
+        size_t kmerSize;
         /* partition steps of the kmer size in (2,3)  */
-        size_t divide_steps_count;
+        size_t divideStepCount;
         /* divider of the steps (2,3) */
-        size_t * divide_steps; 
-        unsigned int * kmer_index;
-        size_t * pow_per_step;
-        short * max_score_per_vec;
-        short * possible_rest;
+        unsigned int * divideStep;
+        unsigned int * kmerIndex;
+        unsigned int * stepMultiplicator;
+        short * highestScorePerArray;
+        short * possibleRest;
         Indexer * indexer;
         ExtendedSubstitutionMatrix ** matrixLookup; 
         ExtendedSubstitutionMatrix * three; 
         ExtendedSubstitutionMatrix * two; 
-        std::vector<std::pair<short, size_t> > ** outputvec;
+        std::pair<short, unsigned int>  *** outputArray;
     
         /* kmer splitting stragety (3,2)
            fill up the divide step and calls init_result_list */
-        void calc_divide_strategy();
+        void calcDivideStrategy();
         /* init the output vectors for the kmer calculation*/
-        void init_result_lists(size_t divide_steps);
+        void initResultList(size_t divideSteps);
     
 };
 #endif

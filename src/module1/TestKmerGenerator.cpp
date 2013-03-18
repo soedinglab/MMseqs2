@@ -21,14 +21,14 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=4;
     
     
-    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum62.out");
+    SubstitutionMatrix subMat("/Users/aluucard/Documents/workspace/kClust2/data/blosum62.out");
     std::cout << "Subustitution matrix:\n";
-    BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
+ //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
 
     std::cout << "subMatrix:\n";
-    ReducedMatrix redMat(subMat.probMatrix, 17);
-    BaseMatrix::print(redMat.subMatrix, redMat.alphabetSize);
+    ReducedMatrix redMat(subMat.probMatrix, 20);
+ //   BaseMatrix::print(redMat.subMatrix, redMat.alphabetSize);
     std::cout << "\n";
     
     const int  testSeq[]={1,2,3,1,1,1};
@@ -44,7 +44,6 @@ int main (int argc, const char * argv[])
     std::cout << sequence << "\n\n";
     
     Sequence* s = new Sequence (10000, redMat.aa2int, redMat.int2aa);
-    s->setId(0);
     s->mapSequence(sequence);
     
     printf("Normal alphabet : ");
@@ -83,19 +82,19 @@ int main (int argc, const char * argv[])
         std::cout << "Index:    " <<idx_val << "\n";
 //        std::cout << "MaxScore: " << extMattwo.scoreMatrix[idx_val]->back().first<< "\n";
         
-        kmer_list kmer_list= kmerGen.generateKmerList(curr_pos);
+        KmerGeneratorResult kmer_list= kmerGen.generateKmerList(curr_pos);
         
-        std::vector<std::pair<short,size_t> > * retList=kmer_list.score_kmer_list;
+        std::pair<short,unsigned int> ** retList=kmer_list.scoreKmerList;
         
         std::cout << "Similar k-mer list size:" << kmer_list.count << "\n\n";
 
         std::cout << "Similar " << kmer_size << "-mer list for pos 0:\n";
         for (int pos = 0; pos < kmer_list.count; pos++){
-            std::pair<short,size_t> result = retList->at(pos);
-            std::cout << "Score:" << result.first << "\n";
-            std::cout << "Index:" << result.second << "\n";
+            std::pair<short,unsigned int> * result = retList[pos];
+            std::cout << "Score:" << result->first << "\n";
+            std::cout << "Index:" << result->second << "\n";
 
-            idx.index2int(testKmer, result.second, kmer_size);
+            idx.index2int(testKmer, result->second, kmer_size);
             std::cout << "\t";
             for (int i = 0; i < kmer_size; i++)
                 std::cout << testKmer[i] << " ";

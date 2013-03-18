@@ -19,7 +19,7 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=3;
     
     
-    SubstitutionMatrix subMat("/cluster/user/maria/kClust2/data/blosum30.out");
+    SubstitutionMatrix subMat("/Users/aluucard/Documents/workspace/kClust2/data/blosum30.out");
     
     for(int i = 0; i<subMat.alphabetSize;i++)
         printf("%c\t",subMat.int2aa[i]);
@@ -38,7 +38,6 @@ int main (int argc, const char * argv[])
     std::cout << sequence << "\n\n";
     
     Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa);
-    s->setId(0);
     s->mapSequence(sequence);
     
     printf("Normal : ");
@@ -64,7 +63,7 @@ int main (int argc, const char * argv[])
         printf("kmerpos1: %d\tkmerpos2: %d\n",curr_pos[0],curr_pos[1]);
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";
-        std::cout << "MaxScore: " << extMat.scoreMatrix[idx_val]->at(0).first<< "\n";
+        std::cout << "MaxScore: " << extMat.scoreMatrix[idx_val][0]->first<< "\n";
         
     }
     
