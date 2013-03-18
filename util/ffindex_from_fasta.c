@@ -117,7 +117,7 @@ int main(int argn, char **argv)
     char name[FFINDEX_MAX_ENTRY_NAME_LENTH];
     for(size_t fasta_offset = 1; fasta_offset < fasta_size; fasta_offset++) // position after first ">"
     {
-        /* entry name is the UniProt ID */
+        /* entry name is the UniProt ID or other ID until a blank space occurs*/
         size_t pos = 0;
         while (*(fasta_data + fasta_offset + 3 + pos) != '|'){
             name[pos] = *(fasta_data + fasta_offset + 3 + pos);

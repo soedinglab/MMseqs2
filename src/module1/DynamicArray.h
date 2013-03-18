@@ -17,6 +17,9 @@ class DynamicArray{
         // append an entry
         void pushBack(int entry);
 
+        // append an array of entries
+        void addEntries(int* entry, int size);
+
         // expand the entries array
         void expand();
 
@@ -34,6 +37,9 @@ class DynamicArray{
 
         // get the maximum size before the array has to be enlarged
         int getCapacity();
+
+        // reset the size: (but not the capacity!)
+        void clear();
 
     private:
 

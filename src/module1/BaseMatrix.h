@@ -29,6 +29,8 @@ class BaseMatrix{
         // background probabilities of the amino acids
         double* pBack;
 
+        void printExpectationValue();
+
         // print the substitution matrix
         static void print(short** matrix, char* int2aa, int size);
 

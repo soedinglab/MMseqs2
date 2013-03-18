@@ -23,15 +23,17 @@ class DBWriter {
 
         DBWriter(const char* dataFileName, const char* indexFileName, int maxThreadNum);
 
+        ~DBWriter();
+
         void open();
 
-        void close();
+        int close();
 
         void write(char* data, int dataSize, char* key, int threadIdx);
 
     private:
 
-        void initFFIndexWrite(char* dataFileName, char* indexFileName, FILE** dataFile, FILE** indexFile);
+        void initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile);
 
         const char* dataFileName;
 
@@ -40,6 +42,10 @@ class DBWriter {
         FILE** dataFiles;
 
         FILE** indexFiles;
+
+        char** dataFileNames;
+
+        char** indexFileNames;
 
         size_t* offsets;
 

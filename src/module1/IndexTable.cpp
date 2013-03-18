@@ -7,12 +7,35 @@ IndexTable::IndexTable (int alphabetSize, int kmerSize)
 
     tableSize = ipow(alphabetSize, kmerSize);
 
-    table = new DynamicArray* [tableSize];
+    sizes = new int[tableSize];
+    currPos = new int[tableSize];
     for (int i = 0; i < tableSize; i++){
-        table[i] = new DynamicArray();
+        sizes[i] = 0;
+        currPos[i] = 0;
     }
 
+    table = new int*[tableSize];
+
     idxer = new Indexer(alphabetSize, kmerSize);
+}
+
+void IndexTable::addKmerCount (Sequence* s){
+    unsigned int kmerIdx;
+    s->resetCurrPos();
+    idxer->reset();
+
+    while(s->hasNextKmer(kmerSize)){
+        kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
+        sizes[kmerIdx]++;
+    }
+
+}
+
+void IndexTable::init(){
+    for (int i = 0; i < tableSize; i++){
+        if (sizes[i] > 0)
+            table[i] = new int[sizes[i]];
+    }
 }
 
 void IndexTable::addSequence (Sequence* s){
@@ -23,40 +46,58 @@ void IndexTable::addSequence (Sequence* s){
     idxer->reset();
 
     while(s->hasNextKmer(kmerSize)){
-        const int* kmer = s->nextKmer(kmerSize);
-        kmerIdx = idxer->getNextKmerIndex(kmer, kmerSize);
-        table[kmerIdx]->pushBack(s->id);
+        kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
+        table[kmerIdx][currPos[kmerIdx]++] = s->id;
     }
 }
 
-void IndexTable::checkSizeAndCapacity(){
+void IndexTable::removeDuplicateEntries(){
 
-    long sizes = 0;
-    long capacities = 0;
-    for (int i = 0; i < tableSize; i++){
-        sizes += table[i]->getSize();
-        capacities += table[i]->getCapacity();
+    delete[] currPos;
+    for (int e = 0; e < tableSize; e++){
+        if (sizes[e] == 0)
+            return;
+        int* entries = table[e];
+        int size = sizes[e];
+        std::sort(entries, entries+size);
+        // remove duplicates in-place
+        int boundary = 1;
+        for (int i = 1; i < size; i++){
+            if (entries[i] != entries[i-1])
+                entries[boundary++] = entries[i];
+        }
+
+        size = boundary;
+        // no duplicates found
+        if (size == sizes[e])
+            return;
+        // copy the remaining entries to a smaller array
+        int* entriesNew = new int[size];
+        memcpy(entriesNew, entries, sizeof(int)*size);
+        delete[] entries;
+        table[e] = entriesNew;
+        sizes[e] = size;
     }
-    std::cout << sizes << " " << capacities;
+    
 }
 
-void IndexTable::reduceMemoryUsage(){
+void IndexTable::print(){
+    int* testKmer = new int[kmerSize];
     for (int i = 0; i < tableSize; i++){
-        table[i]->shrinkToFit();
+        if (sizes[i] > 0){
+            idxer->printKmer(testKmer, i, kmerSize, s->int2aa);
+            std::cout << "\n";
+            for (int j = 0; j < sizes[i]; j++){
+                std::cout << "\t" << table[i][j] << "\n";
+            }
+        }
     }
-}
-
-void IndexTable::init(){
-    for (int i = 0; i < tableSize; i++){
-        // remove duplicate sequence entries
-        table[i]->removeDuplicates();
-        table[i]->shrinkToFit();
-    }
+    delete[] testKmer;
 }
 
 int* IndexTable::getDBSeqList (int kmer, int* matchedListSize){
-    *matchedListSize = table[kmer]->getSize();
-    return table[kmer]->getEntries();
+    *matchedListSize = sizes[kmer];
+    return table[kmer];
 }
 
 int IndexTable::ipow (int base, int exponent){

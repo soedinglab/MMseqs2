@@ -45,8 +45,7 @@ void DBReader::close(){
 }
 
 char* DBReader::getData (int id){
-    ffindex_entry_t* entry = id2entry[id];
-    return ffindex_get_data_by_entry(data, entry);
+    return data + id2entry[id]->offset;
 }
 
 char* DBReader::getDataByDBKey (char* key){

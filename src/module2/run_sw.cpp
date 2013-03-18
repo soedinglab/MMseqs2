@@ -138,16 +138,18 @@ std::list<hit_t>* getSWScoresForSequence(char* querySeqData, int querySeqLen, ch
         char* dbSeqData = ffindex_get_data_by_entry(dbData, dbSeqEntry);
         sequence_t dbSeq = seq2sequence_t(dbSeqData, dbSeqEntry->length, aa2int);
 
-        void* Hmatrix = memalign(16,(querySeq.length + 7)/8 * 8 * 8 * dbSeq.length);   // 2GB für 35000*35000 (titin)
-        void* Ematrix = memalign(16,(querySeq.length + 7)/8 * 8 * 8 * dbSeq.length);   
-        void* Fmatrix = memalign(16,(querySeq.length + 7)/8 * 8 * 8 * dbSeq.length);
+        void* Hmatrix = memalign(16,(querySeq.length + 7)/8 * 8 * 8 * dbSeq.length * 16);   // 2GB für 36805*36805 (Q3ASY8_CHLCH)
+        void* Ematrix = memalign(16,(querySeq.length + 7)/8 * 8 * 8 * dbSeq.length * 16);   
+        void* Fmatrix = memalign(16,(querySeq.length + 7)/8 * 8 * 8 * dbSeq.length * 16);
 
-        //std::cout << std::string(id) << "\n";
+        std::cout << "\t" << std::string(id) << "\n";
         // run SW alignment for the query sequence and the prefiltering list sequence
         //      int sw_score = smith_waterman_sse2_byte(querySeq.sequence, queryProfByte, querySeq.length, dbSeq.sequence, dbSeq.length, bias, GAP_OPEN, GAP_EXTEND, workspace);
         //      if (sw_score >= 255)
         aln_t aln = {0, 0, 0, 0};
+        std::cout << "calculating score\n";
         int sw_score = smith_waterman_sse2_word(querySeq.sequence, queryProfWord, querySeq.length, dbSeq.sequence, dbSeq.length, GAP_OPEN, GAP_EXTEND, workspace, Hmatrix, Ematrix, Fmatrix, &aln.qEndPos, &aln.dbEndPos);
+        std::cout << "score: " << sw_score << "\n";
         traceback_word((short*) Hmatrix, (short*) Ematrix, (short*) Fmatrix, querySeq.sequence, queryProfWord, querySeq.length, dbSeq.sequence, dbSeq.length, aln.qEndPos, aln.dbEndPos, GAP_OPEN, GAP_EXTEND, &aln.qStartPos, &aln.dbStartPos);
 
         float qcov = (aln.qEndPos - aln.qStartPos)/(float)querySeq.length;
@@ -167,6 +169,10 @@ std::list<hit_t>* getSWScoresForSequence(char* querySeqData, int querySeqLen, ch
         }
 
         j += strlen(id) + strlen(scoreString) + 2;
+        free(Hmatrix);
+        free(Ematrix);
+        free(Fmatrix);
+
     }
     hitList->sort(compareHits);
 
@@ -202,6 +208,7 @@ void runSWParallel(std::string ffindexPrefBase, std::string ffindexDbBase, std::
     threads = omp_get_max_threads();
 #endif
     void ** workspace = new void*[threads];
+# pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
         // the longest sequence in UniProt is 36805 amino acids
         // 1.2 MB per thread
@@ -228,7 +235,7 @@ void runSWParallel(std::string ffindexPrefBase, std::string ffindexDbBase, std::
         outBuffer[i] = new char[1000];
 
     // for loop over all the sequences in the prefiltering
-    # pragma omp parallel for schedule(dynamic)
+    # pragma omp parallel for schedule(static)
     for(int i = 0; i < prefIndex->n_entries; i++){
         int thr_idx = 0;
 #ifdef OPENMP
@@ -242,6 +249,7 @@ void runSWParallel(std::string ffindexPrefBase, std::string ffindexDbBase, std::
         //std::cout << prefEntry->name << " -> ";
         // get the query sequence
         char* prefList = ffindex_get_data_by_entry(prefData, prefEntry);
+        std::cout << prefEntry->name << "\n";
         ffindex_entry_t* querySeqEntry = ffindex_bsearch_get_entry(dbIndex, prefEntry->name);
         char* querySeqData =  ffindex_get_data_by_entry(dbData, querySeqEntry);
 

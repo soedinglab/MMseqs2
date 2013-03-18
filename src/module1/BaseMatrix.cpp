@@ -136,4 +136,17 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, short ** subMatrix, siz
     delete[] sm;
 }
 
+void BaseMatrix::printExpectationValue(){
+    double eval = 0.0;
+    std::cout << "alphabetSize: " << alphabetSize << "\n";
+    for (int i = 0; i < alphabetSize; i++){
+        for (int j = 0; j < alphabetSize; j++){
+            std::cout << "probMatrix[i][j]: " << probMatrix[i][j] << "\n";
+            std::cout << "pBack[i], pBack[j]: " << pBack[i] << "," << pBack[j] << "\n";
+            eval += probMatrix[i][j]*_log2(probMatrix[i][j]/(pBack[i]*pBack[j]));
+        }
+    }
+    std::cout << eval << "\n";
+}
+
 

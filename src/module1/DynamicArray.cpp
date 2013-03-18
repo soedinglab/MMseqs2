@@ -21,6 +21,11 @@ void DynamicArray::pushBack(int entry){
     entries[size++] = entry;
 }
 
+void DynamicArray::addEntries(int* newEntries, int newSize){
+    for (int i = 0; i < newSize; i++)
+        pushBack(newEntries[i]);
+}
+
 void DynamicArray::expand(){
     capacity = capacity*2 + 1;
     int* entriesNew = new int[capacity];
@@ -64,4 +69,8 @@ int DynamicArray::getSize(){
 
 int DynamicArray::getCapacity(){
     return capacity;
+}
+
+void DynamicArray::clear(){
+    size = 0;
 }

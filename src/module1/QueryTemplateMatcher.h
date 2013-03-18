@@ -20,7 +20,7 @@ class QueryTemplateMatcher {
                 ExtendedSubstitutionMatrix* _3merSubMatrix,
                 IndexTable * indexTable,
                 short kmerThr,
-                short prefThr,
+                float prefThr,
                 int kmerSize,
                 int dbSize,
                 int alphabetSize); 
@@ -28,6 +28,8 @@ class QueryTemplateMatcher {
         ~QueryTemplateMatcher();
         // returns result for the sequence
         std::list<hit_t>*  matchQuery (Sequence * seq);
+
+        void printStats();
 
     private:
         /* generates kmer lists */

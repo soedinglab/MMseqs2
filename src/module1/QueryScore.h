@@ -12,31 +12,34 @@
 #include <cstring>
 #include <algorithm>
 #include <limits.h>
+#include "DynamicArray.h"
 
 typedef struct {
     int seqId;
-    short prefScore;
+    float prefScore;
 } hit_t;
 
 
 class QueryScore {
     public:
 
-        QueryScore (int dbSize, short prefThreshold);
+        QueryScore (int dbSize, float prefThreshold);
 
         ~QueryScore ();
 
         // add k-mer match score for all DB sequences from the list
-        void addScores (int* hitList, int hitListSize, short score);
+        void addScores (int* kmerHitList, int hitListSize, short score);
 
         // increment the query position 
-//        void moveToNextQueryPos();
+        //        void moveToNextQueryPos();
 
         // get the list of the sequences with the score > prefThreshold and the corresponding 
-        std::list<hit_t>* getResult ();
+        std::list<hit_t>* getResult (int querySeqLen);
 
         // reset the prefiltering score counter for the next query sequence
         void reset ();
+
+        void printStats();
 
     private:
 
@@ -44,23 +47,21 @@ class QueryScore {
         int dbSize;
 
         // prefiltering threshold
-        short prefThreshold;
+        float prefThreshold;
 
         // position in the array: sequence id
         // entry in the array: prefiltering score
-        short* scores;
-
-        // mapping db id -> position of the last match in the query sequence
-//        short* lastMatchPos;
-
-        // current position in the query sequence (prevents multiple matches for the same query position, different similar k-mers and the same db sequence)
-//        short currQueryPos;
+        int* scores;
 
         // sorted list of all DB sequences with the prefiltering score >= prefThreshold
-        std::list<int>* hitList;
+        DynamicArray* hitList;
 
         // list of all DB sequences with the prefiltering score >= prefThreshold with the corresponding scores
         std::list<hit_t>* resList;
+
+        double dbFractCnt;
+
+        int qSeqCnt;
 
         void addElementToResults(int seqId);
 

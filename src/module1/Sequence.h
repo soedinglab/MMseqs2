@@ -50,7 +50,7 @@ class Sequence
         statistics_t* stats;
     private:
         // current iterator position
-        size_t currItPos;
+        int currItPos;
         size_t maxLen;
 };
 #endif

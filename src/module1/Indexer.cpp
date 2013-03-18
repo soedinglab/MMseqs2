@@ -60,7 +60,7 @@ void Indexer::printKmer(int* testKmer, int kmerIdx, int kmerSize, char* int2aa){
         std::cout << int2aa[testKmer[j]];
 }
 
-void Indexer::printKmer(int* kmer, int kmerSize, char* int2aa){
+void Indexer::printKmer(const int* kmer, int kmerSize, char* int2aa){
     for (int j = 0; j < kmerSize; j++)
         std::cout << int2aa[kmer[j]];
 }

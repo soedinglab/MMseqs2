@@ -1,79 +1,67 @@
 #include "QueryScore.h"
 
-QueryScore::QueryScore (int dbSize, short prefThreshold){
+QueryScore::QueryScore (int dbSize, float prefThreshold){
 
     this->dbSize = dbSize;
     this->prefThreshold = prefThreshold;
-    
-    this->scores = new short[dbSize];
-    memset (scores, 0, sizeof(short) * dbSize);
+
+    this->scores = new int[dbSize];
+    memset (scores, 0, sizeof(int) * dbSize);
 
     //this->lastMatchPos = new short[dbSize];
     //memset (lastMatchPos, 0, sizeof(short) * dbSize);
 
-    this->hitList = new std::list<int>();
+    this->hitList = new DynamicArray();
     this->resList = new std::list<hit_t>();
 
-    //this->currQueryPos = 0;
+    dbFractCnt = 0.0;
+    qSeqCnt = 0;
+
 }
 
 QueryScore::~QueryScore (){
     delete[] scores;
-    //delete[] lastMatchPos;
     delete hitList;
     delete resList;
 }
 
-//void QueryScore::moveToNextQueryPos(){
-//    this->currQueryPos++;
-//}
 
-void QueryScore::addScores (int* hitList, int hitListSize, short score){
-    int dbSeqId;
+void QueryScore::addScores (int* kmerHitList, int hitListSize, short score){
     for (int i = 0; i < hitListSize; i++){
-        dbSeqId = hitList[i];
-        // avoid overflow
-        if (scores[dbSeqId] + score < SHRT_MAX)
-            scores[dbSeqId] += score;
-        // this position in the query sequence already matched this db sequence
-        /*        if (this->currQueryPos > this->lastMatchPos[dbSeqId]){
-                  scores[dbSeqId] += score;
-                  this->lastMatchPos[dbSeqId] = this->currQueryPos;*/
-        if (scores[dbSeqId] >= this->prefThreshold)
-            this->hitList->push_back(dbSeqId);
-        //    addElementToResults(dbSeqId);
-
-    //}
+        scores[kmerHitList[i]] += score;
     }
 }
 
-void QueryScore::addElementToResults (int seqId){
-    std::list<int>::iterator it;
-    it = lower_bound(hitList->begin(), hitList->end(), seqId);
-    // until now, sequence is not in the hitList
-    if (hitList->size() == 0 || *it != seqId){
-        this->hitList->insert(it, seqId);
+std::list<hit_t>* QueryScore::getResult (int querySeqLen){
+    // look for elements in scores above the prefiltering threshold
+    int minScore = (int) (prefThreshold * (float)querySeqLen);
+    //    int cnt = 0;
+    for (int s = 0; s < dbSize; s++){
+        //        if (scores[s] > 0)
+        //            cnt++;
+        if (scores[s] >= minScore)
+            hitList->pushBack(s);
     }
-}
-
-std::list<hit_t>* QueryScore::getResult (){
+    //    dbFractCnt += (float)cnt/(float)dbSize;
     // remove duplicate entries
-    hitList->sort();
-    hitList->unique();
+    hitList->removeDuplicates();
 
     // write the sequence ids and the corresponding prefiltering scores into the result list
-    std::list<int>::iterator it;
-    for (it = hitList->begin(); it != hitList->end(); it++){
-        hit_t hit = {*it, scores[*it]};
+    int* seqList = hitList->getEntries();
+    for (int  i = 0; i < hitList->getSize(); i++){
+        hit_t hit = {seqList[i], (float)scores[seqList[i]]/(float)querySeqLen};
         resList->push_back(hit); 
     }
     return resList;
 }
 
 void QueryScore::reset(){
-    memset (scores, 0, sizeof(short) * dbSize);
-    //memset (lastMatchPos, 0, sizeof(short) * dbSize);
+    memset (scores, 0, sizeof(int) * dbSize);
     resList->clear();
     hitList->clear();
-    //currQueryPos = 0;
 }
+
+void QueryScore::printStats(){
+    std::cout << "Average occupancy of the DB scores array: " << dbFractCnt/(double)qSeqCnt << "\n";
+}
+

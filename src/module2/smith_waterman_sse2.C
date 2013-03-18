@@ -338,7 +338,7 @@ void traceback_word(short* H,
     idx = midx(qpos, dbpos, iter); 
 //    printf("qpos:%d, dbpos:%d, index: %d\n", qpos, dbpos, idx);
     while (qpos != 0 && dbpos != 0 && H[idx] + 32768 != 0){
-//        printf("%d %d %d\n", qpos, dbpos, H[idx] + 32768);
+        printf("%d %d %d\n", qpos, dbpos, H[idx] + 32768);
         // match between q[i] and db[j]
         if (H[idx] == (H[midx(qpos-1, dbpos-1, iter)] + *((short*)query_profile_word + db_sequence[dbpos] * iter * 8 + qpos%iter * 8 + qpos/iter)) ){ // H[i][j] == H[i-1][j-1] + score(q[i], db[j])
             qpos--;
@@ -363,7 +363,7 @@ void traceback_word(short* H,
                     break;
                 }
                 else{
-                    printf("ERROR\n");
+                    printf("ERROR 1\n");
                     exit(1);
                 }
             }
@@ -386,13 +386,13 @@ void traceback_word(short* H,
                     break;
                 }
                 else{
-                    printf("ERROR\n");
+                    printf("ERROR 2\n");
                     exit(1);
                 }
             }
         }
         else{
-            printf("ERROR\n");
+            printf("ERROR 3\n");
             exit(1);
         }
     }

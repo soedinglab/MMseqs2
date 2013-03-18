@@ -35,7 +35,7 @@ class Indexer{
         void printKmer(int* testKmer,  int kmerIdx, int kmerSize, char* int2aa);
 
         // print k amino acids of int k-mer kmer
-        void printKmer(int* kmer, int kmerSize, char* int2aa);
+        void printKmer(const int* kmer, int kmerSize, char* int2aa);
         
         int * powers;
 
