@@ -14,7 +14,7 @@ public:
     ~ExtendedSubstitutionMatrix();
     size_t size;
     // <match score, k-mer index>
-    const std::pair<short,unsigned int> *** scoreMatrix;
+    std::pair<short,unsigned int> ** scoreMatrix;
 private: 
     std::vector<std::vector<int> > buildInput(size_t dimension,size_t range);
     void createCartesianProduct(

@@ -23,6 +23,8 @@ int main (int argc, const char * argv[])
     
     SubstitutionMatrix subMat("/Users/aluucard/Documents/workspace/kClust2/data/blosum62.out");
     std::cout << "Subustitution matrix:\n";
+    std::cout << "lala matrix:\n";
+
  //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
 
@@ -84,17 +86,17 @@ int main (int argc, const char * argv[])
         
         KmerGeneratorResult kmer_list= kmerGen.generateKmerList(curr_pos);
         
-        std::pair<short,unsigned int> ** retList=kmer_list.scoreKmerList;
+        std::pair<short,unsigned int> * retList=kmer_list.scoreKmerList;
         
         std::cout << "Similar k-mer list size:" << kmer_list.count << "\n\n";
 
         std::cout << "Similar " << kmer_size << "-mer list for pos 0:\n";
         for (int pos = 0; pos < kmer_list.count; pos++){
-            std::pair<short,unsigned int> * result = retList[pos];
-            std::cout << "Score:" << result->first << "\n";
-            std::cout << "Index:" << result->second << "\n";
+            std::pair<short,unsigned int> result = retList[pos];
+            std::cout << "Score:" << result.first << "\n";
+            std::cout << "Index:" << result.second << "\n";
 
-            idx.index2int(testKmer, result->second, kmer_size);
+            idx.index2int(testKmer, result.second, kmer_size);
             std::cout << "\t";
             for (int i = 0; i < kmer_size; i++)
                 std::cout << testKmer[i] << " ";

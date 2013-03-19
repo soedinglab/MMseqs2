@@ -9,7 +9,7 @@
 typedef struct {
     size_t count;
     // score, k-mer index
-    std::pair<short, unsigned int> ** scoreKmerList;
+    std::pair<short, unsigned int> * scoreKmerList;
 } KmerGeneratorResult;
 
 
@@ -27,12 +27,13 @@ class KmerGenerator
     private:
     
         /*creates the product between two arrays and write it to the output array */
-        int calculateArrayProduct(const std::pair<short,unsigned int> ** vec1,
-                        const size_t vec1Size,
-                        const std::pair<short,unsigned int> ** vec2,
-                        const size_t vec2Size,
-                        std::pair<short,unsigned int> **  outputArray,
-                        const short cutoff1,const short possibleRest,const unsigned int pow);
+        int calculateArrayProduct( const std::pair<short,unsigned int> * array1,
+                              const size_t array1Size,
+                              const std::pair<short,unsigned int> * array2,
+                              const size_t array2Size,
+                              std::pair<short,unsigned int> * outputvec,
+                              const short cutoff1,const short possibleRest,
+                              const unsigned int pow);
     
     
         /* maximum return values */
@@ -53,7 +54,7 @@ class KmerGenerator
         ExtendedSubstitutionMatrix ** matrixLookup; 
         ExtendedSubstitutionMatrix * three; 
         ExtendedSubstitutionMatrix * two; 
-        std::pair<short, unsigned int>  *** outputArray;
+        std::pair<short, unsigned int>  ** outputArray;
     
         /* kmer splitting stragety (3,2)
            fill up the divide step and calls init_result_list */

@@ -78,12 +78,9 @@ void KmerGenerator::calcDivideStrategy(){
 
 
 void KmerGenerator::initResultList(size_t divide_steps){
-    outputArray = new std::pair<short, unsigned int> **[divide_steps];
+    outputArray = new std::pair<short, unsigned int> *[divide_steps];
     for(size_t i = 0 ; i < divide_steps; i++){
-        outputArray[i] = new std::pair<short, unsigned int> * [VEC_LIMIT];
-        for(size_t j = 0 ; j < VEC_LIMIT; j++){
-            outputArray[i][j]= new std::pair<short, unsigned int>();
-        }
+        outputArray[i] = new std::pair<short, unsigned int> [VEC_LIMIT];
     }
 }
 
@@ -102,8 +99,8 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
         stepMultiplicator[i]=this->indexer->powers[dividerBefore];
 
         ExtendedSubstitutionMatrix * extMatrix= this->matrixLookup[i];
-        const std::pair<short,unsigned int> * score=extMatrix->scoreMatrix[index][0];
-        this->highestScorePerArray[i]=score->first; //highest score
+        const std::pair<short,unsigned int>  score=(const std::pair<short,unsigned int> ) extMatrix->scoreMatrix[index][0];
+        this->highestScorePerArray[i]=score.first; //highest score
         dividerBefore+=divider;
         
     }
@@ -116,13 +113,13 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
     size_t index=this->kmerIndex[0];
     ExtendedSubstitutionMatrix * extMatrix= this->matrixLookup[0];
     const size_t sizeExtendedMatrix= extMatrix->size;
-    const std::pair<short,unsigned int> ** inputArray=extMatrix->scoreMatrix[index];
+    const std::pair<short,unsigned int> * inputArray=extMatrix->scoreMatrix[index];
     
     size_t i;
     for(i = 0; i < this->divideStepCount-1; i++){
         const size_t index=this->kmerIndex[i+1];
         extMatrix= this->matrixLookup[i+1];
-        const std::pair<short, unsigned int >  ** nextIndexScoreArray=extMatrix->scoreMatrix[index];
+        const std::pair<short, unsigned int >  * nextIndexScoreArray=extMatrix->scoreMatrix[index];
         
         size_t lastElm=calculateArrayProduct(inputArray,
                                    sizeExtendedMatrix,
@@ -138,8 +135,8 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
             return retList;
         }
             
-        inputArray=(const std::pair<short,unsigned int> **) this->outputArray[i];
-        cutoff1 = this->threshold - this->outputArray[i][lastElm]->first; //because old data can be under it
+        inputArray=(const std::pair<short,unsigned int> *) this->outputArray[i];
+        cutoff1 = this->threshold - this->outputArray[i][lastElm].first; //because old data can be under it
         retList.count=lastElm+1;
         
     }
@@ -150,18 +147,18 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
 
 
 
-int KmerGenerator::calculateArrayProduct( const std::pair<short,unsigned int> ** array1,
+int KmerGenerator::calculateArrayProduct( const std::pair<short,unsigned int> * array1,
                                           const size_t array1Size,
-                                          const std::pair<short,unsigned int> ** array2,
+                                          const std::pair<short,unsigned int> * array2,
                                           const size_t array2Size,
-                                          std::pair<short,unsigned int> **  outputvec,
+                                          std::pair<short,unsigned int> * outputvec,
                                           const short cutoff1,const short possibleRest,
                                           const unsigned int pow){
     int counter=-1;
     for(size_t i = 0 ; i< array1Size;i++){
-        const std::pair<short, unsigned int> * array1Pair=array1[i];
-        const short score_i = array1Pair->first;
-        const unsigned int kmer_i = array1Pair->second;
+        const std::pair<short, unsigned int> array1Pair=array1[i];
+        const short score_i = array1Pair.first;
+        const unsigned int kmer_i = array1Pair.second;
         if(score_i < cutoff1 )
             break;
         const short cutoff2=this->threshold-score_i-possibleRest;
@@ -169,14 +166,14 @@ int KmerGenerator::calculateArrayProduct( const std::pair<short,unsigned int> **
             if(counter+1 >= VEC_LIMIT)
                 return counter;
             
-            const std::pair<short, unsigned int> * array2Pair=array2[j];
-            const short score_j = array2Pair->first;
-            const unsigned int kmer_j = array2Pair->second;
+            const std::pair<short, unsigned int> array2Pair=array2[j];
+            const short score_j = array2Pair.first;
+            const unsigned int kmer_j = array2Pair.second;
 
             if(score_j < cutoff2)
                 break;
             counter++;
-            std::pair<short, unsigned int> * result=outputvec[counter];
+            std::pair<short, unsigned int> * result=&outputvec[counter];
             result->first=score_i+score_j;
             result->second=kmer_i+(kmer_j*pow);
 

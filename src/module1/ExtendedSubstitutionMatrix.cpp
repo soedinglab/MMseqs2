@@ -8,8 +8,8 @@
 #include <stdlib.h>
 
 struct sort_by_score {
-    bool operator()(const std::pair<short,unsigned int> *left, const std::pair<short,unsigned int> * right) {
-        return left->first > right->first;
+    bool operator()(const std::pair<short,unsigned int> left, const std::pair<short,unsigned int> right) {
+        return left.first > right.first;
     }
 };
 
@@ -21,9 +21,9 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
     this->size = pow(alphabetSize, kmerSize);
     // create permutation 
     std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));
-    this->scoreMatrix = (const std::pair<short,unsigned int> ***) new std::pair<short,unsigned int> **[this->size];
+    this->scoreMatrix = (std::pair<short,unsigned int> **) new std::pair<short,unsigned int> *[this->size];
     for(int i = 0; i < this->size;i++){
-        this->scoreMatrix[i]=(const std::pair<short,unsigned int> **) new std::pair<short,unsigned int> *[this->size];
+        this->scoreMatrix[i]=(std::pair<short,unsigned int> *) new std::pair<short,unsigned int> [this->size];
     }
     std::vector<std::vector<int> > permutation;
     std::vector<int> outputTemp;
@@ -36,7 +36,8 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
         for(std::vector<int>::size_type j = 0; j != permutation.size(); j++) {
             unsigned int j_index=indexer.int2index(&permutation[j][0]);
             short score=calcScore(&permutation[i][0],&permutation[j][0],kmerSize,subMatrix);
-            scoreMatrix[i_index][j]=new std::pair<short,unsigned int>(score,j_index);
+            scoreMatrix[i_index][j].first=score;
+            scoreMatrix[i_index][j].second=j_index;
         }
         std::sort (scoreMatrix[i_index], scoreMatrix[i_index]+this->size,sort_by_score());
     }
