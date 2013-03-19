@@ -40,13 +40,13 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
 //        std::cout << "\n";
         
         // generate k-mer list
-        kmer_list kmerList = kmerGenerator->generateKmerList(kmer);
+        KmerGeneratorResult kmerList = kmerGenerator->generateKmerList(kmer);
         kmerListLen += kmerList.count;
-        std::vector<std::pair<short,size_t> > * retList = kmerList.score_kmer_list;
+        std::pair<short,unsigned int> * retList = kmerList.scoreKmerList;
         
         // match the index table
         for (int i = 0; i < kmerList.count; i++){
-            std::pair<short,size_t> kmerMatch = retList->at(i);
+            std::pair<short,unsigned int> kmerMatch = retList[i];
 //            std::cout << "\t";
 //            idxer->printKmer(testKmer, kmerMatch.second, kmerSize, seq->int2aa);
             seqList = indexTable->getDBSeqList(kmerMatch.second, &listSize);

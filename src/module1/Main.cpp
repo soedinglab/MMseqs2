@@ -66,7 +66,7 @@ int main (int argc, const char * argv[])
     std::string outDBIndex = "";
     std::string scoringMatrixFile = "";
     
-    float prefThr = 0.55f;
+    float prefThr = 0.65f;
     int kmerSize =  6;
     short kmerThr = 27;
     int maxSeqLen = 40000;
@@ -103,7 +103,7 @@ int main (int argc, const char * argv[])
     for (int id = 0; id < targetDBSize; id++){
         if (id % 1000000 == 0)
             std::cout << id << "\n";
-        if (id == 5000000)
+        if (id == 1000000)
             break;
         seq->id = id;
         char* seqData = tdbr->getData(id);
@@ -118,8 +118,7 @@ int main (int argc, const char * argv[])
     for (int id = 0; id < targetDBSize; id++){
         if (id % 1000000 == 0)
             std::cout << id << "\n";
-
-        if (id == 5000000)
+        if (id == 1000000)
             break;
 
         seq->id = id;
@@ -141,6 +140,7 @@ int main (int argc, const char * argv[])
     int threads = 1;
 #ifdef OPENMP
     threads = omp_get_max_threads();
+    std::cout << "Using " << threads << " threads.\n";
 #endif
 
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
@@ -175,6 +175,8 @@ int main (int argc, const char * argv[])
 
 #pragma omp parallel for schedule(static, 10) reduction (+: kmersPerPos, dbMatches, resSize, empty)
     for (int id = 0; id < queryDBSize; id++){
+        if (id == 1000)
+            break;
         std::list<hit_t>* prefResults;
         int thread_idx = 0;
 #ifdef OPENMP

@@ -5,8 +5,8 @@ QueryScore::QueryScore (int dbSize, float prefThreshold){
     this->dbSize = dbSize;
     this->prefThreshold = prefThreshold;
 
-    this->scores = new int[dbSize];
-    memset (scores, 0, sizeof(int) * dbSize);
+    this->scores = new unsigned short[dbSize];
+    memset (scores, 0, sizeof(unsigned short) * dbSize);
 
     //this->lastMatchPos = new short[dbSize];
     //memset (lastMatchPos, 0, sizeof(short) * dbSize);
@@ -26,9 +26,9 @@ QueryScore::~QueryScore (){
 }
 
 
-void QueryScore::addScores (int* kmerHitList, int hitListSize, short score){
-    for (int i = 0; i < hitListSize; i++){
-        scores[kmerHitList[i]] += score;
+void QueryScore::addScores (int* seqList, int seqListSize, short score){
+    for (int i = 0; i < seqListSize; i++){
+        scores[seqList[i]] += score;
     }
 }
 
@@ -56,7 +56,7 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
 }
 
 void QueryScore::reset(){
-    memset (scores, 0, sizeof(int) * dbSize);
+    memset (scores, 0, sizeof(unsigned short) * dbSize);
     resList->clear();
     hitList->clear();
 }

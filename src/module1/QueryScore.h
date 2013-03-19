@@ -28,7 +28,7 @@ class QueryScore {
         ~QueryScore ();
 
         // add k-mer match score for all DB sequences from the list
-        void addScores (int* kmerHitList, int hitListSize, short score);
+        void addScores (int* seqList, int seqListSize, short score);
 
         // increment the query position 
         //        void moveToNextQueryPos();
@@ -51,7 +51,7 @@ class QueryScore {
 
         // position in the array: sequence id
         // entry in the array: prefiltering score
-        int* scores;
+        unsigned short* scores;
 
         // sorted list of all DB sequences with the prefiltering score >= prefThreshold
         DynamicArray* hitList;
