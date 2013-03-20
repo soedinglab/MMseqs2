@@ -51,10 +51,6 @@ void Sequence::print() {
         printf("%c",int2aa[this->int_sequence[i]]);
     }
     std::cout << std::endl;
-    /*    for(int i = 0; i < this->L; i++){
-          printf("%2d ", this->int_sequence[i]);
-          }
-          std::cout << std::endl; */
 }
 
     bool Sequence::hasNextKmer(size_t kmerSize) {

@@ -66,7 +66,7 @@ int main (int argc, const char * argv[])
     std::string outDBIndex = "";
     std::string scoringMatrixFile = "";
     
-    float prefThr = 0.65f;
+    float prefThr = 0.55f;
     int kmerSize =  6;
     short kmerThr = 27;
     int maxSeqLen = 40000;
@@ -103,8 +103,8 @@ int main (int argc, const char * argv[])
     for (int id = 0; id < targetDBSize; id++){
         if (id % 1000000 == 0)
             std::cout << id << "\n";
-        if (id == 1000000)
-            break;
+//        if (id == 1000000)
+//            break;
         seq->id = id;
         char* seqData = tdbr->getData(id);
         std::string str(seqData);
@@ -118,8 +118,8 @@ int main (int argc, const char * argv[])
     for (int id = 0; id < targetDBSize; id++){
         if (id % 1000000 == 0)
             std::cout << id << "\n";
-        if (id == 1000000)
-            break;
+//        if (id == 1000000)
+//            break;
 
         seq->id = id;
         char* seqData = tdbr->getData(id);
@@ -143,14 +143,14 @@ int main (int argc, const char * argv[])
     std::cout << "Using " << threads << " threads.\n";
 #endif
 
+    subMat = new SubstitutionMatrix (scoringMatrixFile.c_str());
+    ExtendedSubstitutionMatrix* _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
+    ExtendedSubstitutionMatrix* _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
     Sequence** seqs = new Sequence*[threads];
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
-        SubstitutionMatrix* subMat = new SubstitutionMatrix (scoringMatrixFile.c_str());
         seqs[i] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa);
-        ExtendedSubstitutionMatrix* _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
-        ExtendedSubstitutionMatrix* _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
         matchers[i] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, kmerThr, prefThr, kmerSize, targetDBSize, subMat->alphabetSize); 
     }
 
@@ -175,8 +175,6 @@ int main (int argc, const char * argv[])
 
 #pragma omp parallel for schedule(static, 10) reduction (+: kmersPerPos, dbMatches, resSize, empty)
     for (int id = 0; id < queryDBSize; id++){
-        if (id == 1000)
-            break;
         std::list<hit_t>* prefResults;
         int thread_idx = 0;
 #ifdef OPENMP
@@ -187,8 +185,8 @@ int main (int argc, const char * argv[])
         seqs[thread_idx]->mapSequence(seqData);
         if (id > 0 && id % 1000 == 0)
             std::cout << id << "\n";
-//        std::cout << "Sequence: " << qdbr->getDbKey(id) << " (length: " << seq->L << ")\n";
-//        std::cout << seqData << "\n";
+        std::cout << "Sequence: " << qdbr->getDbKey(id) << " (length: " << seq->L << ")\n";
+        std::cout << seqData << "\n";
 //        seq->print();
 
         prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx]);

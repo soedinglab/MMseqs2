@@ -5,8 +5,8 @@ QueryScore::QueryScore (int dbSize, float prefThreshold){
     this->dbSize = dbSize;
     this->prefThreshold = prefThreshold;
 
-    this->scores = new unsigned short[dbSize];
-    memset (scores, 0, sizeof(unsigned short) * dbSize);
+    this->scores = new int[dbSize];
+    memset (scores, 0, sizeof(int) * dbSize);
 
     //this->lastMatchPos = new short[dbSize];
     //memset (lastMatchPos, 0, sizeof(short) * dbSize);
@@ -56,7 +56,7 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
 }
 
 void QueryScore::reset(){
-    memset (scores, 0, sizeof(unsigned short) * dbSize);
+    memset (scores, 0, sizeof(int) * dbSize);
     resList->clear();
     hitList->clear();
 }

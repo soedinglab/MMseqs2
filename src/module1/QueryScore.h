@@ -51,7 +51,7 @@ class QueryScore {
 
         // position in the array: sequence id
         // entry in the array: prefiltering score
-        unsigned short* scores;
+        int* scores;
 
         // sorted list of all DB sequences with the prefiltering score >= prefThreshold
         DynamicArray* hitList;
