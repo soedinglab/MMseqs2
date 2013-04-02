@@ -7,13 +7,11 @@
 // with the prefiltering score >= prefiltering threshold.
 //
 
-#ifdef __SUNPRO_C
-#include <sunmedia_intrin.h>
-#else
-#include <emmintrin.h>
-#endif
 
-#include <malloc.h>
+#include <emmintrin.h>
+
+#include <stdlib.h>
+
 #include <list>
 #include <iostream>
 #include <cstring>
@@ -59,8 +57,8 @@ class QueryScore {
 
         // position in the array: sequence id
         // entry in the array: prefiltering score
-        __m128i* scores;
-
+        __m128i* scores_128;
+        short  * scores; 
         // sorted list of all DB sequences with the prefiltering score >= prefThreshold
         DynamicArray* hitList;
 

@@ -1,5 +1,21 @@
 #include "QueryScoreSSE.h"
 
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+//// Replace memalign by posix_memalign (Why? [JS]
+/////////////////////////////////////////////////////////////////////////////////////
+void *memalign(size_t boundary, size_t size)
+{
+    void *pointer;
+    if (posix_memalign(&pointer,boundary,size) != 0)
+    {
+        std::cerr<<"Error in memalign: Could not allocate memory by memalign. Please report this bug to developers\n";
+        exit(3);
+    }
+    return pointer;
+}
+
 QueryScore::QueryScore (int dbSize, float prefThreshold){
 
     this->dbSize = dbSize;
@@ -7,9 +23,11 @@ QueryScore::QueryScore (int dbSize, float prefThreshold){
 
     // 8 DB int entries are stored in one __m128i vector
     // one __m128i vector needs 16 byte
-    scores = (__m128i*) memalign(16, (dbSize/8 + 1) * 16);
+    scores_128 = (__m128i*) memalign(16, (dbSize/8 + 1) * 16);
+    scores = (short * ) scores_128;
+    
     // set scores to zero
-    memset (scores, 0, (dbSize/8 + 1) * 16);
+    memset (scores_128, 0, (dbSize/8 + 1) * 16);
 
     //this->lastMatchPos = new short[dbSize];
     //memset (lastMatchPos, 0, sizeof(short) * dbSize);
@@ -23,24 +41,19 @@ QueryScore::QueryScore (int dbSize, float prefThreshold){
 }
 
 QueryScore::~QueryScore (){
-    free(scores);
+    free(scores_128);
     delete hitList;
     delete resList;
 }
 
 
 void QueryScore::addScores (int* seqList, int seqListSize, unsigned short score){
-    __m128i tmp = _mm_setzero_si128();
-    int seqId = 0;
     for (int i = 0; i < seqListSize; i++){
-        seqId = seqList[i];
-        // set the score to add at the right position
-        tmp = sse2_insert_epi16(tmp, score, seqId%8);
-        // saturated add of the score to the scores array
-        *(scores + seqId/8) = _mm_adds_epu16(*(scores + seqId/8), tmp);
-        tmp = _mm_setzero_si128();
+        scores[seqList[i]] += score;
     }
 }
+
+
 
 std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     // minimum score for this sequence that satisfies the score per colum threshold
@@ -54,7 +67,7 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     unsigned short cmp;
     unsigned short score;
     
-    __m128i* p = scores;
+    __m128i* p = scores_128;
     // go through all vectors
     for (int pos = 0; pos < dbSize/8 + 1; pos++){
         
@@ -116,17 +129,20 @@ __m128i QueryScore::sse2_insert_epi16(__m128i v, unsigned short val, int pos) {
 }
 
 void QueryScore::reset(){
-    memset (scores, 0, (dbSize/8 + 1) * 16);
+    memset (scores_128, 0, (dbSize/8 + 1) * 16);
     resList->clear();
     hitList->clear();
 }
 
 void QueryScore::printStats(){
     std::cout << "Average occupancy of the DB scores array: " << dbFractCnt/(double)qSeqCnt << "\n";
-} 
+}
 
 void QueryScore::printVector(__m128i v){
     for (int i = 0; i < 8; i++)
         std::cout << sse2_extract_epi16(v, i) << " ";
     std::cout << "\n";
 }
+
+
+
