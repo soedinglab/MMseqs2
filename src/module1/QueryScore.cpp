@@ -39,8 +39,9 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     for (int s = 0; s < dbSize; s++){
         //        if (scores[s] > 0)
         //            cnt++;
-        if (scores[s] >= minScore)
+        if (scores[s] >= minScore){
             hitList->pushBack(s);
+        }
     }
     //    dbFractCnt += (float)cnt/(float)dbSize;
     // remove duplicate entries

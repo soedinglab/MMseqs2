@@ -18,8 +18,8 @@ Sequence::~Sequence()
 
 void Sequence::mapSequence(const char * sequence){
 
-    int l = 0;
-    for (int pos = 0; pos < strlen(sequence); pos++){
+    size_t l = 0;
+    for (size_t pos = 0; pos < strlen(sequence); pos++){
         char curr = sequence[pos];
         if (curr != '\n'){
             // replace non-common amino acids
@@ -43,6 +43,7 @@ void Sequence::mapSequence(const char * sequence){
         }
     }
     this->L = l; 
+    currItPos = -1;
 }
 
 void Sequence::print() {

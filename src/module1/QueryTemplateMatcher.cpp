@@ -54,7 +54,7 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
             numMatches += listSize;
 
             // add the scores for the k-mer to the overall score for this query sequence
-            queryScore->addScores(seqList, listSize, kmerMatch.first);
+            queryScore->addScores(seqList, listSize, (unsigned short)kmerMatch.first);
         }
     } 
     seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);

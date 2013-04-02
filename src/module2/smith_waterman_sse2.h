@@ -19,9 +19,13 @@
 #define SMITH_WATERMAN_SSE2_H
 
 #ifdef __SUNPRO_C
+extern "C" {
 #include <sunmedia_intrin.h>
+}
 #else
+extern "C" {
 #include <emmintrin.h>
+}
 #endif
 
 #include <stdio.h>

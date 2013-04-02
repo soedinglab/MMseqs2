@@ -212,8 +212,12 @@ void runSWParallel(std::string ffindexPrefBase, std::string ffindexDbBase, std::
     for (int i = 0; i < threads; i++){
         // the longest sequence in UniProt is 36805 amino acids
         // 1.2 MB per thread
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
         void * workspace_memory  = (void *)memalign(16,2*16*40000+256);
-        workspace[i] = (void *) ((((size_t) workspace_memory) + 255) & (~0xff));
+        workspace[thread_idx] = (void *) ((((size_t) workspace_memory) + 255) & (~0xff));
     }
 
     // generate output ffindex databases for each thread

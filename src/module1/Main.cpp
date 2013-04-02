@@ -66,10 +66,10 @@ int main (int argc, const char * argv[])
     std::string outDBIndex = "";
     std::string scoringMatrixFile = "";
     
-    float prefThr = 0.55f;
+    float prefThr = 2.0f;
     int kmerSize =  6;
     short kmerThr = 27;
-    int maxSeqLen = 40000;
+    size_t maxSeqLen = 40000;
 
     parseArgs(argc, argv, &queryDB, &targetDB, &scoringMatrixFile, &outDB, &prefThr);
 
@@ -103,8 +103,8 @@ int main (int argc, const char * argv[])
     for (int id = 0; id < targetDBSize; id++){
         if (id % 1000000 == 0)
             std::cout << id << "\n";
-//        if (id == 1000000)
-//            break;
+        if (id == 5000000)
+            break;
         seq->id = id;
         char* seqData = tdbr->getData(id);
         std::string str(seqData);
@@ -116,10 +116,11 @@ int main (int argc, const char * argv[])
 
     std::cout << "Index table: fill...\n";
     for (int id = 0; id < targetDBSize; id++){
+
         if (id % 1000000 == 0)
             std::cout << id << "\n";
-//        if (id == 1000000)
-//            break;
+        if (id == 5000000)
+           break;
 
         seq->id = id;
         char* seqData = tdbr->getData(id);
@@ -150,8 +151,12 @@ int main (int argc, const char * argv[])
     Sequence** seqs = new Sequence*[threads];
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
-        seqs[i] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa);
-        matchers[i] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, kmerThr, prefThr, kmerSize, targetDBSize, subMat->alphabetSize); 
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
+        seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa);
+        matchers[thread_idx] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, kmerThr, prefThr, kmerSize, targetDBSize, subMat->alphabetSize); 
     }
 
     c = clock() -c ;
@@ -168,7 +173,7 @@ int main (int argc, const char * argv[])
         outBuffers[i] = new char[1000000];
 
     double kmersPerPos = 0.0;
-    int dbMatches = 0;
+    size_t dbMatches = 0;
     int resSize = 0;
     int empty = 0;
 
@@ -185,9 +190,9 @@ int main (int argc, const char * argv[])
         seqs[thread_idx]->mapSequence(seqData);
         if (id > 0 && id % 1000 == 0)
             std::cout << id << "\n";
-        std::cout << "Sequence: " << qdbr->getDbKey(id) << " (length: " << seq->L << ")\n";
-        std::cout << seqData << "\n";
-//        seq->print();
+    //        std::cout << "Sequence: " << qdbr->getDbKey(id) << " (length: " << seqs[thread_idx]->L << ")\n";
+//        std::cout << seqData << "\n";
+//        seqs[thread_idx]->print();
 
         prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx]);
         
@@ -214,7 +219,7 @@ int main (int argc, const char * argv[])
     }
 //    matcher->printStats();
     kmersPerPos /= queryDBSize;
-    double dbMatchesPerSeq =  (double)dbMatches/(double)queryDBSize;
+    size_t dbMatchesPerSeq = dbMatches/(size_t)queryDBSize;
     double prefPassedPerSeq = (double)resSize/(double)queryDBSize;
     std::cout << kmersPerPos << " k-mers per position.\n";
     std::cout << dbMatchesPerSeq << " DB matches per sequence.\n";
