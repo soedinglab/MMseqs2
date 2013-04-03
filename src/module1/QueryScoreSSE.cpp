@@ -1,5 +1,7 @@
 #include "QueryScoreSSE.h"
 
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -57,36 +59,27 @@ void QueryScore::addScores (int* seqList, int seqListSize, unsigned short score)
 
 std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     // minimum score for this sequence that satisfies the score per colum threshold
-    unsigned short minScore = (unsigned short) (prefThreshold * (float)querySeqLen);
+    const unsigned short minScore = (unsigned short) (prefThreshold * (float)querySeqLen);
     // set all elements of thr to the threshold score
-    __m128i thr = _mm_set1_epi16(minScore);
+    const __m128i thr = _mm_set1_epi16(minScore);
     // temporary help vectors
-    __m128i zero = _mm_setzero_si128();
-    __m128i tmp;
-
-    unsigned short cmp;
-    unsigned short score;
     
     __m128i* p = scores_128;
-    // go through all vectors
-    for (int pos = 0; pos < dbSize/8 + 1; pos++){
-        
-        // look for entries above the threshold
-        tmp = _mm_subs_epu16(*p, thr);
-        tmp = _mm_cmpeq_epi16(tmp, zero);
-        cmp = _mm_movemask_epi8(tmp);
 
+    for (int pos = 0; pos < dbSize/8 + 1; pos++ ){
+        // look for entries above the threshold
+        const __m128i cmp = _mm_cmpgt_epi16(*p, thr);
+        const int cmp_set_bits=_mm_movemask_epi8(cmp);
         // here are some sequences above the prefiltering threshold
-        if (cmp != 65535){
-            // go through the vector and search for 
-            for (int i = 0; i < 8; i++){
-                score = sse2_extract_epi16(*p, i);
-                if (score >= minScore){
-                    // record the sequence ID with the score above the threshold
-                    hit_t hit = {pos * 8 + i, (float)score/(float)querySeqLen};
-                    resList->push_back(hit);
+        if (cmp_set_bits != 0){
+            
+            // and search for highest
+            for(int i = 0; i < 8; i++){
+                    if(CHECK_BIT(cmp_set_bits,i*2)){
+                        hit_t hit = {pos * 8 + i, ((float)_mm_extract_epi16(*p,i))/(float)querySeqLen};
+                        resList->push_back(hit);
+                    }
                 }
-            }
         }
         p++;
     }
