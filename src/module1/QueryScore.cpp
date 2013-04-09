@@ -25,10 +25,16 @@ QueryScore::~QueryScore (){
     delete resList;
 }
 
+inline unsigned short sadd16(unsigned short a, unsigned short b)
+{
+    unsigned int s = (unsigned int)a+b;
+    return -(s>>16) | (unsigned short)s;
+}
+
 
 void QueryScore::addScores (int* seqList, int seqListSize, short score){
     for (int i = 0; i < seqListSize; i++){
-        scores[seqList[i]] += score;
+        scores[seqList[i]] = sadd16(scores[seqList[i]], score);
     }
 }
 
