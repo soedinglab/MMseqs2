@@ -49,10 +49,10 @@ int main (int argc, const char * argv[])
     std::cout << "\n";
 
     printf("\n\nOriginal substitution matrix:\n");
-    BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
+//    subMat.print();
 
     printf("\n\nReduced substitution matrix:\n");
-    BaseMatrix::print(redMat.subMatrix, redMat.alphabetSize);
+//    redMat.print();
 
     return 0;
 }

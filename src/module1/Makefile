@@ -1,7 +1,38 @@
-g++ -o dbtest DBReader.h DBReader.cpp DBWriter.h DBWriter.cpp TestDB.cpp -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -Wno-write-strings -g
-g++ -o indextabletest BaseMatrix.h BaseMatrix.cpp QueryScore.h QueryScore.cpp IndexTable.h IndexTable.cpp SubstitutionMatrix.h SubstitutionMatrix.cpp Sequence.h Sequence.cpp Indexer.h Indexer.cpp TestIndexTable.cpp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -lboost_regex-mt -Wno-write-strings -g
-g++ -o exsubmattest BaseMatrix.h BaseMatrix.cpp SubstitutionMatrix.h SubstitutionMatrix.cpp ExtendedSubstitutionMatrix.h ExtendedSubstitutionMatrix.cpp Indexer.h Indexer.cpp Sequence.h Sequence.cpp ReducedMatrix.h ReducedMatrix.cpp TestExtendedSubstitutionMatrix.cpp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings -g
-g++ -o kmergentest KmerGenerator.h KmerGenerator.cpp BaseMatrix.h BaseMatrix.cpp SubstitutionMatrix.h SubstitutionMatrix.cpp ExtendedSubstitutionMatrix.h ExtendedSubstitutionMatrix.cpp Indexer.h Indexer.cpp Sequence.h Sequence.cpp ReducedMatrix.h ReducedMatrix.cpp TestKmerGenerator.cpp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings -g
-g++ -o reducemattest BaseMatrix.h BaseMatrix.cpp TestReduceMatrix.cpp SubstitutionMatrix.h SubstitutionMatrix.cpp ReducedMatrix.h ReducedMatrix.cpp -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings -g
-g++ -o kClust2_pref DBReader.h DBReader.cpp DBWriter.h DBWriter.cpp BaseMatrix.h BaseMatrix.cpp Indexer.h Indexer.cpp SubstitutionMatrix.h SubstitutionMatrix.cpp ReducedMatrix.h ReducedMatrix.cpp ExtendedSubstitutionMatrix.h ExtendedSubstitutionMatrix.cpp Sequence.h Sequence.cpp IndexTable.h IndexTable.cpp KmerGenerator.h KmerGenerator.cpp  QueryScore.h QueryScore.cpp QueryTemplateMatcher.h QueryTemplateMatcher.cpp Main.cpp -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings -g
-LC_COLLATE=C LANG=C icpc -xc++ -o kClust2_pref_icpc DynamicArray.h DBReader.h DBWriter.h BaseMatrix.h Indexer.h SubstitutionMatrix.h ReducedMatrix.h ExtendedSubstitutionMatrix.h Sequence.h IndexTable.h KmerGenerator.h QueryScore.h QueryTemplateMatcher.h -x c++ DynamicArray.cpp DBReader.cpp DBWriter.cpp BaseMatrix.cpp Indexer.cpp SubstitutionMatrix.cpp ReducedMatrix.cpp ExtendedSubstitutionMatrix.cpp Sequence.cpp IndexTable.cpp KmerGenerator.cpp  QueryScore.cpp QueryTemplateMatcher.cpp Main.cpp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings -fast
+PROGRAM = kClust2_pref 
+C_FILES := $(shell find . ! -name "Test*" -name "*.cpp")
+OBJS := $(patsubst %.cpp, %.o, $(C_FILES))
+CC = g++
+CFLAGS = -Wall -Ilib -m64 -ffast-math -ftree-vectorize -O3 -DOPENMP=1 -fopenmp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings 
+LDFLAGS =
+
+all: $(PROGRAM)
+
+$(PROGRAM): .depend $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $(PROGRAM)
+
+depend: .depend
+
+.depend: cmd = gcc -MM -MF depend $(var); cat depend >> .depend;
+.depend:
+	@echo "Generating dependencies..."
+	@$(foreach var, $(C_FILES), $(cmd))
+	@rm -f depend
+
+-include .depend
+
+# These are the pattern matching rules. In addition to the automatic
+# variables used here, the variable $* that matches whatever % stands for
+# can be useful in special cases.
+%.o: %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
+
+%: %.cpp
+	$(CC) $(CFLAGS) -o $@ $<
+
+clean:
+	rm -f .depend *.o
+
+.PHONY: clean depend
+
+
+
