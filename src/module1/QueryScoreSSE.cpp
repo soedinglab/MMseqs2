@@ -82,7 +82,7 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
             // and search for highest
             for(int i = 0; i < 8; i++){
                     if(CHECK_BIT(cmp_set_bits,i*2)){
-                        hit_t hit = {pos * 8 + i, ((float)_mm_extract_epi16(*p,i))/(float)querySeqLen};
+                        hit_t hit = {pos * 8 + i, ((float)sse2_extract_epi16(*p,i))/(float)querySeqLen};
                         resList->push_back(hit);
                     }
                 }
