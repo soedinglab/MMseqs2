@@ -63,7 +63,7 @@ int main (int argc, const char * argv[])
         printf("kmerpos1: %d\tkmerpos2: %d\n",curr_pos[0],curr_pos[1]);
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";
-        std::cout << "MaxScore: " << extMat.scoreMatrix[idx_val][0]->first<< "\n";
+        std::cout << "MaxScore: " << extMat.scoreMatrix[idx_val][0].first<< "\n";
         
     }
     

@@ -22,7 +22,6 @@ int main (int argc, const char * argv[])
     char* sequence = "MIPAEAGRPSLADS";
     std::cout << sequence << "\n\n";
     Sequence* s = new Sequence (10000, sm->aa2int, sm->int2aa);
-    s->setId(0);
     s->mapSequence(sequence);
     std::cout << "Int sequence:\n";
     for (int i = 0; i < s->L; i++)
@@ -41,7 +40,6 @@ int main (int argc, const char * argv[])
     int* testKmer = new int[kmerSize];
     std::cout << "Pos:\tkmer idx:\tint k-mer:\tchar k-mer:\n";
     
-    s->reset();
     for (int pos = 0; pos < (s->L-kmerSize); pos++){
         kmer = s->int_sequence + pos;
         kmerIdx = idxer->getNextKmerIndex(kmer, kmerSize);
@@ -106,7 +104,6 @@ int main (int argc, const char * argv[])
     QueryScore* qs = new QueryScore(5, 3);
     
     // Simulation of the index table match step
-    s->reset();
     for (int pos = 0; pos < (s->L-kmerSize); pos++){
         kmer = s->int_sequence + pos;
         kmerIdx = idxer->getNextKmerIndex(kmer, kmerSize);
@@ -121,7 +118,7 @@ int main (int argc, const char * argv[])
     // get the result from the QueryScore
     std::cout << "Prefiltering results for the sequence with id 1:\n";
     std::cout << "seqID\tscore\n";
-    std::list<hit_t>* res = qs->getResult();
+    std::list<hit_t>* res = qs->getResult(12);
     std::list<hit_t>::iterator iter;
     for (iter = res->begin(); iter != res->end(); iter++){
         std::cout << iter->seqId << "\t" << iter->prefScore << "\n";
