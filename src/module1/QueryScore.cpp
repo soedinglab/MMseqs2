@@ -1,12 +1,8 @@
-#include "QueryScoreSSE.h"
+#include "QueryScore.h"
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 
-
-/////////////////////////////////////////////////////////////////////////////////////
-//// Replace memalign by posix_memalign (Why? [JS]
-/////////////////////////////////////////////////////////////////////////////////////
 void *memalign(size_t boundary, size_t size)
 {
     void *pointer;
@@ -108,23 +104,6 @@ unsigned short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
     exit(1);
     // never executed
     return 0;
-}
-
-__m128i QueryScore::sse2_insert_epi16(__m128i v, unsigned short val, int pos) {
-    switch(pos){
-        case 0: return _mm_insert_epi16(v, val, 0);
-        case 1: return _mm_insert_epi16(v, val, 1);
-        case 2: return _mm_insert_epi16(v, val, 2);
-        case 3: return _mm_insert_epi16(v, val, 3);
-        case 4: return _mm_insert_epi16(v, val, 4);
-        case 5: return _mm_insert_epi16(v, val, 5);
-        case 6: return _mm_insert_epi16(v, val, 6);
-        case 7: return _mm_insert_epi16(v, val, 7);
-    }
-    std::cerr << "Fatal error in QueryScore: position in the vector is not in the legal range (pos = " << pos << ")\n";
-    exit(1);
-    // never executed
-    return _mm_insert_epi16(v, val, 0);
 }
 
 void QueryScore::reset(){

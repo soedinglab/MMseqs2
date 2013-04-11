@@ -9,7 +9,7 @@
 #include "BaseMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "Sequence.h"
-#include "QueryScoreSSE.h"
+#include "QueryScore.h"
 #include "IndexTable.h"
 #include "KmerGenerator.h"
 

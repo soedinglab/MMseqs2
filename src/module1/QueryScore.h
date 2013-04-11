@@ -73,8 +73,6 @@ class QueryScore {
 
         unsigned short sse2_extract_epi16(__m128i v, int pos);
 
-        __m128i sse2_insert_epi16(__m128i v, unsigned short val, int pos);
-
         void printVector(__m128i v);
 
 };
