@@ -33,12 +33,12 @@ void Sequence::mapSequence(const char * sequence){
                 this->int_sequence[l] = this->aa2int['D'];
             else if (curr == 'U')
                 this->int_sequence[l] = this->aa2int['X'];
-            else if (curr > 'Z' || this->aa2int[curr] == -1){
+            else if (curr > 'Z' || this->aa2int[(int)curr] == -1){
                 std::cerr << "ERROR: illegal character \"" << curr << "\" in sequence " << this->id << " at position " << pos << "\n";
                 exit(1);
             }
             else
-                this->int_sequence[l] = this->aa2int[curr];
+                this->int_sequence[l] = this->aa2int[(int)curr];
             l++;
         }
     }
@@ -54,14 +54,14 @@ void Sequence::print() {
     std::cout << std::endl;
 }
 
-    bool Sequence::hasNextKmer(size_t kmerSize) {
-        if (((currItPos + 1) + kmerSize) <= this->L)
-            return true;
-        else
-            return false;
-    }
+bool Sequence::hasNextKmer(int kmerSize) {
+   if (((currItPos + 1) + kmerSize) <= this->L)
+      return true;
+   else
+      return false;
+}
 
-const int * Sequence::nextKmer(size_t kmerSize) {
+const int * Sequence::nextKmer(int kmerSize) {
     if (hasNextKmer(kmerSize) == true) {
         currItPos += 1;
         return &int_sequence[currItPos];

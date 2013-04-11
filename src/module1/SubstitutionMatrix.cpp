@@ -58,8 +58,8 @@ void SubstitutionMatrix::readProbMatrix(){
     in.close();
     
     double sum=0.0;
-    for(size_t i=0; i<alphabetSize; ++i)
-        for(size_t j=0; j<alphabetSize; ++j){
+    for(int i=0; i<alphabetSize; ++i)
+        for(int j=0; j<alphabetSize; ++j){
             if( i==j ) pBack[i] += probMatrix[i][j];
             else       pBack[i] += (probMatrix[i][j]/2.0f);
             if( j<=i ) sum += probMatrix[i][j];
@@ -67,14 +67,14 @@ void SubstitutionMatrix::readProbMatrix(){
     
     const double _2sum = 2.0*sum;
     double pbsum = 0.0;
-    for(size_t i=0; i<alphabetSize; ++i){
+    for(int i=0; i<alphabetSize; ++i){
         pbsum += pBack[i];
-        for(size_t j=0; j<alphabetSize; ++j)
+        for(int j=0; j<alphabetSize; ++j)
             if( i==j ) probMatrix[i][j] = probMatrix[i][j] / sum;
             else       probMatrix[i][j] = probMatrix[i][j] / _2sum;
     }
     
-    for(size_t i=0; i<alphabetSize; ++i)pBack[i] /= sum;
+    for(int i=0; i<alphabetSize; ++i)pBack[i] /= sum;
     
 }
 

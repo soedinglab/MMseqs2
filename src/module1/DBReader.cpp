@@ -30,7 +30,7 @@ void DBReader::open(){
     // generate id -> ffindex_entry mapping
     id2entry = new ffindex_entry*[size];
 
-    for (int i = 0; i < size; i++){
+    for (size_t i = 0; i < size; i++){
         id2entry[i] = ffindex_get_entry_by_index(index, i);
     }
 }

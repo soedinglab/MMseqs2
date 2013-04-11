@@ -29,7 +29,7 @@ BaseMatrix::BaseMatrix(){
     aa2int = new int['Z'+1];
     for (int i = 0; i <= 'Z'; ++i) aa2int[i]=-1;
     for (int i = 0; i < alphabetSize; ++i){
-        aa2int[int2aa[i]] = i;
+        aa2int[(int)int2aa[i]] = i;
     }
 
     // init the background probabilities, joint probability and scoring matrices with zeros
@@ -96,28 +96,26 @@ void BaseMatrix::print(double** matrix, char* int2aa, int size){
     std::cout << (avg/(double)(size*size)) << "\n";
 }
 
-void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, size_t size, double bitFactor, double scoringBias){
+void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, int size, double bitFactor, double scoringBias){
 
     // calculate background distribution for the amino acids
     double pBack[size];
-    for (size_t i = 0; i < size; i++){
+    for (int i = 0; i < size; i++){
         pBack[i] = 0;
-        for (size_t j = 0; j < size; j++){
+        for (int j = 0; j < size; j++){
             pBack[i] += probMatrix[i][j];
         }
     }
-
     // calculate the substitution matrix
-    for (size_t i = 0; i < size; i++){
-        for (size_t j = 0; j < size; j++){
-            double temp = probMatrix[i][j]/(pBack[i]*pBack[j]);
+    for (int i = 0; i < size; i++){
+        for (int j = 0; j < size; j++){
             subMatrix[i][j] = bitFactor * _log2(probMatrix[i][j]/(pBack[i]*pBack[j])) + scoringBias;
         }
     }
 
 }
 
-void BaseMatrix::generateSubMatrix(double ** probMatrix, short ** subMatrix, size_t size, double bitFactor, double scoringBias){
+void BaseMatrix::generateSubMatrix(double ** probMatrix, short ** subMatrix, int size, double bitFactor, double scoringBias){
     double** sm = new double* [size];
     for (int i = 0; i < size; i++)
         sm[i] = new double[size];

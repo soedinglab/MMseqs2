@@ -18,7 +18,7 @@ class BaseMatrix{
         char* int2aa;
         
         /* size of alphabet*/
-        size_t alphabetSize;
+        int alphabetSize;
 
         // substitution matrix
         short** subMatrix;
@@ -37,10 +37,10 @@ class BaseMatrix{
         static void print(double** matrix, char* int2aa, int size);
 
         // generate the substitution matrix given the probability matrix, background probabilities and the alphabet size
-        static void generateSubMatrix(double ** probMatrix, double ** subMatrix, size_t size, double bitFactor = 1.0, double scoringBias = 0.0);
+        static void generateSubMatrix(double ** probMatrix, double ** subMatrix, int size, double bitFactor = 1.0, double scoringBias = 0.0);
 
         // generate a short data type substitution matrix
-        static void generateSubMatrix(double ** probMatrix, short ** subMatrix, size_t size, double bitFactor = 1.0, double scoringBias = 0.0);
+        static void generateSubMatrix(double ** probMatrix, short ** subMatrix, int size, double bitFactor = 1.0, double scoringBias = 0.0);
 
     private:
 

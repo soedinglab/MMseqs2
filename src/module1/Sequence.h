@@ -29,19 +29,19 @@ class Sequence
         void mapSequence(const char *seq);
 
         // checks if there is still a k-mer left 
-        bool hasNextKmer(size_t kmerSize);
+        bool hasNextKmer(int kmerSize);
 
         // returns next k-mer
-        const int* nextKmer(size_t kmerSize);
+        const int* nextKmer(int kmerSize);
 
         // resets the sequence position pointer to the start of the sequence
         void resetCurrPos() { currItPos = -1; }
 
         void print(); // for debugging 
 
-        size_t id;
+        int id;
 
-        size_t L;              // length of sequence
+        int L;              // length of sequence
         int * int_sequence;    // int sequence 
 
         int  * aa2int; // ref to mapping from aa -> int

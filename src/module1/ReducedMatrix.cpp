@@ -28,7 +28,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
 
     generateSubMatrix(probMatrix, subMatrix_tmp, origAlphabetSize-1);
 
-    double info = calculateMutualInformation(probMatrix, subMatrix_tmp, origAlphabetSize-1);
+//    double info = calculateMutualInformation(probMatrix, subMatrix_tmp, origAlphabetSize-1);
 //    std::cout << "20 " << info << "\n";
 
     
@@ -45,10 +45,10 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
             }
         }
         //This is where the function to couple the two bases is called.
-        std::pair<size_t,size_t> reduce_bases=coupleWithBestInfo(probMatrix, probMatrix_new, origAlphabetSize-1-step);
+        std::pair<int,int> reduce_bases=coupleWithBestInfo(probMatrix, probMatrix_new, origAlphabetSize-1-step);
         
-        size_t reduced_index=reduce_bases.first;
-        size_t lost_index=reduce_bases.second;
+        int reduced_index=reduce_bases.first;
+        int lost_index=reduce_bases.second;
         
         char reduced_aa=reducedAlphabet->at(reduced_index);
         char lost_aa   =reducedAlphabet->at(lost_index);
@@ -56,15 +56,15 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
         printf("%c -> %c\n",lost_aa, reduced_aa);
         reducedAlphabet->erase(reducedAlphabet->begin()+lost_index);
         
-        size_t reduced_int=this->orig_aa2int[reduced_aa];
-        size_t lost_int   =this->aa2int[lost_aa];
+        int reduced_int=this->orig_aa2int[(int)reduced_aa];
+        int lost_int   =this->aa2int[(int)lost_aa];
 
         for(size_t i =0; i < this->origAlphabetSize;i++){
             if(this->int2aa[i]==lost_aa){
                 this->int2aa[i]=reduced_aa;
             }
         }
-        for(size_t i =0; i < 'Z'; i++){
+        for(int i =0; i < 'Z'; i++){
             if(this->aa2int[i]==lost_int){
                 this->aa2int[i]=(int)reduced_int;
             }
@@ -96,7 +96,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
         const char representative_aa = reducedAlphabet->at(i);
         std::cout << representative_aa << " "; 
         for(size_t j =0; j < 'Z'; j++){
-            if(this->aa2int[j] == this->aa2int[representative_aa]){
+            if(this->aa2int[(int)j] == this->aa2int[(int)representative_aa]){
                 aa2int_new[j] = i;
             }
         }
@@ -130,7 +130,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
 ReducedMatrix::~ReducedMatrix(){
     delete[] this->orig_aa2int;
     delete[] this->orig_int2aa;
-    for(size_t i = 0; i<alphabetSize;i++){
+    for(int i = 0; i<alphabetSize;i++){
         delete[] origSubMatrix[i];
     }
     delete[] origSubMatrix;

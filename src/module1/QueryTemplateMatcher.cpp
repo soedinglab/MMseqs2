@@ -24,20 +24,23 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
     queryScore->reset();
     seq->resetCurrPos();
 
-    // DEBUGGING
-    Indexer* idxer = new Indexer(alphabetSize, kmerSize);
+/* DEBUGGING
+ *    int* testKmer = new int[kmerSize];
+ *    unsigned int kmerIdx;
+ *    Indexer* idxer = new Indexer(alphabetSize, kmerSize);
+ */
  
     int* seqList;
-    unsigned int kmerIdx;
     int listSize = 0;
     // go through the query sequence
-    int* testKmer = new int[kmerSize];
     int kmerListLen = 0;
     int numMatches = 0;
     while(seq->hasNextKmer(kmerSize)){
         const int* kmer = seq->nextKmer(kmerSize);
-//        idxer->printKmer(kmer, kmerSize, seq->int2aa);
-//        std::cout << "\n";
+        /* DEBUGGING
+         * idxer->printKmer(kmer, kmerSize, seq->int2aa);
+         * std::cout << "\n";
+         */
         
         // generate k-mer list
         KmerGeneratorResult kmerList = kmerGenerator->generateKmerList(kmer);
@@ -45,12 +48,16 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
         std::pair<short,unsigned int> * retList = kmerList.scoreKmerList;
         
         // match the index table
-        for (int i = 0; i < kmerList.count; i++){
+        for (unsigned int i = 0; i < kmerList.count; i++){
             std::pair<short,unsigned int> kmerMatch = retList[i];
-//            std::cout << "\t";
-//            idxer->printKmer(testKmer, kmerMatch.second, kmerSize, seq->int2aa);
-            seqList = indexTable->getDBSeqList(kmerMatch.second, &listSize);
-//            std::cout << " (" << listSize << ")\n";
+            /* DEBUGGING
+             * std::cout << "\t";
+             * idxer->printKmer(testKmer, kmerMatch.second, kmerSize, seq->int2aa);
+             */
+             seqList = indexTable->getDBSeqList(kmerMatch.second, &listSize);
+             /* DEBUGGING
+              * std::cout << " (" << listSize << ")\n";
+              */
             numMatches += listSize;
 
             // add the scores for the k-mer to the overall score for this query sequence
@@ -60,7 +67,9 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
     seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
     seq->stats->dbMatches = numMatches;
 
-    delete idxer;
+    /* DEBUGGING
+     * delete idxer;
+     */
     return queryScore->getResult(seq->L);
 }
 
