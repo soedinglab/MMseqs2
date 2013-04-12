@@ -31,7 +31,7 @@ void KmerGenerator::calcDivideStrategy(){
             this->divideStepCount=threeDivideCount;
             this->matrixLookup= new ExtendedSubstitutionMatrix*[divideStepCount];
             this->divideStep = new unsigned int[divideStepCount];
-            for(int i = 0; i < threeDivideCount; i++){
+            for(size_t i = 0; i < threeDivideCount; i++){
                 this->divideStep[i] = 3;
                 this->matrixLookup[i] = three;
             }
@@ -41,7 +41,7 @@ void KmerGenerator::calcDivideStrategy(){
             this->matrixLookup= new ExtendedSubstitutionMatrix*[divideStepCount];
             
             this->divideStep = new unsigned int[divideStepCount];
-            for(int i = 0; i < threeDivideCount-1; i++){
+            for(size_t i = 0; i < threeDivideCount-1; i++){
                 this->divideStep[i] = 3;
                 this->matrixLookup[i] = three;
             }
@@ -56,7 +56,7 @@ void KmerGenerator::calcDivideStrategy(){
             this->divideStepCount=threeDivideCount+1;
             this->matrixLookup= new ExtendedSubstitutionMatrix*[divideStepCount];
             this->divideStep = new unsigned int[divideStepCount];
-            for(int i = 0; i < threeDivideCount; i++){
+            for(size_t i = 0; i < threeDivideCount; i++){
                 this->divideStep[i] = 3;
                 this->matrixLookup[i] = three;
             }
@@ -90,7 +90,7 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
     KmerGeneratorResult retList;
     // pre compute phase
     // find first threshold
-    for(int i = 0; i < this->divideStepCount; i++){
+    for(size_t i = 0; i < this->divideStepCount; i++){
         int divider=divideStep[i];
         
         const unsigned int index= this->indexer->int2index(int_seq,dividerBefore,dividerBefore+divider);
@@ -121,7 +121,7 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
         extMatrix= this->matrixLookup[i+1];
         const std::pair<short, unsigned int >  * nextIndexScoreArray=extMatrix->scoreMatrix[index];
         
-        size_t lastElm=calculateArrayProduct(inputArray,
+        int lastElm=calculateArrayProduct(inputArray,
                                    sizeExtendedMatrix,
                                    nextIndexScoreArray,
                                    sizeExtendedMatrix,
@@ -162,8 +162,8 @@ int KmerGenerator::calculateArrayProduct( const std::pair<short,unsigned int> * 
         if(score_i < cutoff1 )
             break;
         const short cutoff2=this->threshold-score_i-possibleRest;
-        for(int j = 0; j < array2Size;j++){
-            if(counter+1 >= VEC_LIMIT)
+        for(size_t j = 0; j < array2Size;j++){
+            if(counter+1 >= (int) VEC_LIMIT)
                 return counter;
             
             const std::pair<short, unsigned int> array2Pair=array2[j];
