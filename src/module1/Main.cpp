@@ -211,7 +211,7 @@ int main (int argc, const char * argv[])
         std::string prefResultsOutString = prefResultsOut.str();
         const char* prefResultsOutData = prefResultsOutString.c_str();
         memcpy(outBuffers[thread_idx], prefResultsOutData, prefResultsOutString.length()*sizeof(char));
-//        dbw->write(outBuffers[thread_idx], prefResultsOutString.length(), qdbr->getDbKey(id), 0);
+        dbw->write(outBuffers[thread_idx], prefResultsOutString.length(), qdbr->getDbKey(id), 0);
 
         kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
         dbMatches += seqs[thread_idx]->stats->dbMatches;

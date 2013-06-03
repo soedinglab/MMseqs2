@@ -22,13 +22,15 @@ QueryScore::QueryScore (int dbSize, float prefThreshold){
     // 8 DB int entries are stored in one __m128i vector
     // one __m128i vector needs 16 byte
     scores_128 = (__m128i*) memalign(16, (dbSize/8 + 1) * 16);
-    scores = (short * ) scores_128;
+    scores = (unsigned short * ) scores_128;
     
     // set scores to zero
     memset (scores_128, 0, (dbSize/8 + 1) * 16);
 
     //this->lastMatchPos = new short[dbSize];
     //memset (lastMatchPos, 0, sizeof(short) * dbSize);
+    this->lastScores = new LastScore[dbSize];
+    memset (this->lastScores, 0, sizeof(LastScore) * dbSize);
 
     this->hitList = new DynamicArray();
     this->resList = new std::list<hit_t>();
@@ -39,26 +41,16 @@ QueryScore::QueryScore (int dbSize, float prefThreshold){
 }
 
 QueryScore::~QueryScore (){
+    delete lastScores;
     free(scores_128);
     delete hitList;
     delete resList;
 }
 
 
-inline unsigned short sadd16(unsigned short a, unsigned short b)
-{
-	unsigned int s = (unsigned int)a+b;
-	return -(s>>16) | (unsigned short)s;
-}
-
-void QueryScore::addScores (int* seqList, int seqListSize, unsigned short score){
-    for (int i = 0; i < seqListSize; i++){
-        scores[seqList[i]]=sadd16(scores[seqList[i]], score);
-    }
-}
 
 
-
+    
 std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     // minimum score for this sequence that satisfies the score per colum threshold
     const unsigned short minScore = (unsigned short) (prefThreshold * (float)querySeqLen);
@@ -106,11 +98,7 @@ unsigned short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
     return 0;
 }
 
-void QueryScore::reset(){
-    memset (scores_128, 0, (dbSize/8 + 1) * 16);
-    resList->clear();
-    hitList->clear();
-}
+
 
 void QueryScore::printStats(){
     std::cout << "Average occupancy of the DB scores array: " << dbFractCnt/(double)qSeqCnt << "\n";
