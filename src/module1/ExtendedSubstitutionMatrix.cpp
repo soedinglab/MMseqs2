@@ -22,7 +22,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
     // create permutation 
     std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));
     this->scoreMatrix = (std::pair<short,unsigned int> **) new std::pair<short,unsigned int> *[this->size];
-    for(int i = 0; i < this->size;i++){
+    for(size_t i = 0; i < this->size;i++){
         this->scoreMatrix[i]=(std::pair<short,unsigned int> *) new std::pair<short,unsigned int> [this->size];
     }
     std::vector<std::vector<int> > permutation;
@@ -46,7 +46,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
 
 
 ExtendedSubstitutionMatrix::~ExtendedSubstitutionMatrix(){
-    for(int i = 0; i < this->size; i++){
+    for(size_t i = 0; i < this->size; i++){
         delete  scoreMatrix[i];
     }
     delete[] scoreMatrix;
@@ -54,7 +54,7 @@ ExtendedSubstitutionMatrix::~ExtendedSubstitutionMatrix(){
 
 short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix){
     short score = 0;
-    for(int i = 0; i < seq_size; i++){
+    for(size_t i = 0; i < seq_size; i++){
         score+= subMatrix[i_seq[i]][j_seq[i]];
     }
     return score;
@@ -64,9 +64,9 @@ short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_s
 std::vector<std::vector<int> > ExtendedSubstitutionMatrix::buildInput(size_t dimension,size_t range) {
     std::vector<std::vector<int> >  vvi;
     
-    for(int i = 0; i < dimension; i++) {
+    for(size_t i = 0; i < dimension; i++) {
         std::vector<int> vi;
-        for(int j = 0; j < range; j++) {
+        for(size_t j = 0; j < range; j++) {
             vi.push_back(j);
         }
         vvi.push_back(vi);

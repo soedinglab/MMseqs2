@@ -35,7 +35,7 @@ class QueryScore {
         ~QueryScore ();
 
         // add k-mer match score for all DB sequences from the list
-        void addScores (int* seqList, int seqListSize, unsigned short score);
+        virtual void addScores (int* seqList, int seqListSize, unsigned short score) = 0;
 
         // increment the query position 
         //        void moveToNextQueryPos();
@@ -44,7 +44,7 @@ class QueryScore {
         std::list<hit_t>* getResult (int querySeqLen);
 
         // reset the prefiltering score counter for the next query sequence
-        void reset ();
+        virtual void reset () = 0;
 
         void printStats();
 
@@ -58,25 +58,10 @@ class QueryScore {
 
         float getPrefilteringThreshold();
 
-        // number of sequences in the target DB
-        int dbSize;
 
         // prefiltering threshold
         float prefThreshold;
 
-        // position in the array: sequence id
-        // entry in the array: prefiltering score
-        // two pointers point to the same data and make both entry-wise access and sse2 vectorized access possible
-        __m128i* scores_128;
-        unsigned short  * scores; 
-
-        __m128i* seqLens_128;
-        unsigned short * seqLens;
-
-        int seqLenSum;
-
-        // list of all DB sequences with the prefiltering score >= prefThreshold with the corresponding scores
-        std::list<hit_t>* resList;
 
         double dbFractCnt;
 
@@ -87,6 +72,29 @@ class QueryScore {
         unsigned short sse2_extract_epi16(__m128i v, int pos);
 
         void printVector(__m128i v);
+    
+    protected:
+        inline unsigned short sadd16(unsigned short a, unsigned short b)
+        {
+            unsigned int s = (unsigned int)(a+b);
+            return -(s>>16) | (unsigned short)s;
+        }
+
+        // position in the array: sequence id
+        // entry in the array: prefiltering score
+        __m128i* scores_128;
+        unsigned short  * scores;
+
+        __m128i* seqLens_128;
+        unsigned short * seqLens;
+
+        int seqLenSum;
+    
+        // number of sequences in the target DB
+        int dbSize;
+    
+        // list of all DB sequences with the prefiltering score >= prefThreshold with the corresponding scores
+        std::list<hit_t>* resList;
 
 };
 

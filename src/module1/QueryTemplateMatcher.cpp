@@ -1,4 +1,5 @@
 #include "QueryTemplateMatcher.h"
+#include "QueryScoreGlobal.h"
 QueryTemplateMatcher::QueryTemplateMatcher ( ExtendedSubstitutionMatrix* _2merSubMatrix,
                                              ExtendedSubstitutionMatrix* _3merSubMatrix,
                                              IndexTable * indexTable,
@@ -12,7 +13,7 @@ QueryTemplateMatcher::QueryTemplateMatcher ( ExtendedSubstitutionMatrix* _2merSu
     this->kmerSize = kmerSize;
     this->alphabetSize = alphabetSize;
     this->kmerGenerator = new KmerGenerator(kmerSize, alphabetSize, kmerThr, _3merSubMatrix, _2merSubMatrix);
-    this->queryScore = new QueryScore(dbSize, seqLens, prefThr, kmerSize);
+    this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, prefThr, kmerSize);
 }
 
 QueryTemplateMatcher::~QueryTemplateMatcher (){

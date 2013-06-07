@@ -39,7 +39,7 @@ QueryScore::QueryScore (int dbSize, unsigned short * seqLens, float prefThreshol
     this->seqLenSum = 0;
     for (int i = 0; i < dbSize; i++)
         this->seqLenSum += this->seqLens[i];
-
+   
     this->resList = new std::list<hit_t>();
 
     dbFractCnt = 0.0;
@@ -50,14 +50,7 @@ QueryScore::QueryScore (int dbSize, unsigned short * seqLens, float prefThreshol
 
 QueryScore::~QueryScore (){
     free(scores_128);
-    delete[] seqLens;
     delete resList;
-}
-
-inline unsigned short sadd16(unsigned short a, unsigned short b)
-{
-	unsigned int s = (unsigned int)(a+b);
-	return -(s>>16) | (unsigned short)s;
 }
 
 void QueryScore::addScores (int* seqList, int seqListSize, unsigned short score){
@@ -186,6 +179,7 @@ bool QueryScore::compareHitList(hit_t first, hit_t second){
         return false;
 }
 
+    
 std::list<hit_t>* QueryScore::getResult (int querySeqLen){
 //    getPrefilteringThreshold();
 //    return resList;    
