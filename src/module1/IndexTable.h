@@ -46,8 +46,6 @@ class IndexTable {
         int ipow (int base, int exponent);
 
         // Index table: contains pointers to the arrays (stored in DynamicArray structure) of DB sequences containing a certain k-mer
-//        DynamicArray** table
-
         int** table;
 
         int* sizes;

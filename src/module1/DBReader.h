@@ -33,6 +33,8 @@ class DBReader {
 
         char* getDbKey(int id);
 
+        unsigned short * seqLens;
+
     private:
         const char* dataFileName;
 

@@ -11,25 +11,26 @@
 #include <emmintrin.h>
 
 #include <stdlib.h>
-
 #include <list>
 #include <iostream>
 #include <cstring>
 #include <algorithm>
 #include <limits.h>
-
-#include "DynamicArray.h"
+#include <math.h>
+#include <fstream>
+#include <sstream>
 
 typedef struct {
     int seqId;
     float prefScore;
+    float eval;
 } hit_t;
 
 
 class QueryScore {
     public:
 
-        QueryScore (int dbSize, float prefThreshold);
+        QueryScore (int dbSize, unsigned short * seqLens, float prefThreshold, int k);
 
         ~QueryScore ();
 
@@ -47,7 +48,15 @@ class QueryScore {
 
         void printStats();
 
+        int counter;
+
+
+
     private:
+
+        static bool compareHitList(hit_t first, hit_t second);
+
+        float getPrefilteringThreshold();
 
         // number of sequences in the target DB
         int dbSize;
@@ -57,10 +66,14 @@ class QueryScore {
 
         // position in the array: sequence id
         // entry in the array: prefiltering score
+        // two pointers point to the same data and make both entry-wise access and sse2 vectorized access possible
         __m128i* scores_128;
-        short  * scores; 
-        // sorted list of all DB sequences with the prefiltering score >= prefThreshold
-        DynamicArray* hitList;
+        unsigned short  * scores; 
+
+        __m128i* seqLens_128;
+        unsigned short * seqLens;
+
+        int seqLenSum;
 
         // list of all DB sequences with the prefiltering score >= prefThreshold with the corresponding scores
         std::list<hit_t>* resList;

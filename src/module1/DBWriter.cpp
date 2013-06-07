@@ -60,8 +60,8 @@ int DBWriter::close(){
         fclose(dataFiles[i]);
         fclose(indexFiles[i]);
 
-        FILE* data_file_to_add  = fopen(dataFileNames[i], "r");  if(  data_file_to_add == NULL) { perror(dataFileNames[i]); std::cout << "here\n"; return EXIT_FAILURE; }
-        FILE* index_file_to_add = fopen(indexFileNames[i], "r"); if( index_file_to_add == NULL) { perror(indexFileNames[i]); std::cout << "here\n"; return EXIT_FAILURE; }
+        FILE* data_file_to_add  = fopen(dataFileNames[i], "r");  if(  data_file_to_add == NULL) { perror(dataFileNames[i]); return EXIT_FAILURE; }
+        FILE* index_file_to_add = fopen(indexFileNames[i], "r"); if( index_file_to_add == NULL) { perror(indexFileNames[i]); return EXIT_FAILURE; }
         size_t data_size;
         char *data_to_add = ffindex_mmap_data(data_file_to_add, &data_size);
         if (data_size > 0){

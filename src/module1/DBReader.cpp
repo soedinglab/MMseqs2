@@ -27,11 +27,14 @@ void DBReader::open(){
 
     size = index->n_entries;
 
+    seqLens = new unsigned short [size];
+
     // generate id -> ffindex_entry mapping
     id2entry = new ffindex_entry*[size];
 
     for (size_t i = 0; i < size; i++){
         id2entry[i] = ffindex_get_entry_by_index(index, i);
+        seqLens[i] = (unsigned short)id2entry[i]->length;
     }
 }
 

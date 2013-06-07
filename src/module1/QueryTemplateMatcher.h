@@ -19,6 +19,7 @@ class QueryTemplateMatcher {
         QueryTemplateMatcher (ExtendedSubstitutionMatrix* _2merSubMatrix,
                 ExtendedSubstitutionMatrix* _3merSubMatrix,
                 IndexTable * indexTable,
+                unsigned short * seqLens,
                 short kmerThr,
                 float prefThr,
                 int kmerSize,
