@@ -6,9 +6,9 @@
 #include <cstring>
 
 
-#include "BaseMatrix.h"
+#include "../commons/BaseMatrix.h"
+#include "../commons/Sequence.h"
 #include "ExtendedSubstitutionMatrix.h"
-#include "Sequence.h"
 #include "QueryScore.h"
 #include "IndexTable.h"
 #include "KmerGenerator.h"

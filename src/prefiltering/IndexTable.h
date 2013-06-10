@@ -9,7 +9,7 @@
 #include <iostream>
 #include <algorithm>
 
-#include "Sequence.h"
+#include "../commons/Sequence.h"
 #include "Indexer.h"
 
 class IndexTable {

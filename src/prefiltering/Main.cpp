@@ -3,11 +3,11 @@
 #include <unistd.h>
 #include <string>
 
-#include "DBReader.h"
-#include "DBWriter.h"
-#include "Sequence.h"
+#include "../commons/DBReader.h"
+#include "../commons/DBWriter.h"
+#include "../commons/Sequence.h"
+#include "../commons/SubstitutionMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
-#include "SubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
 #include "QueryTemplateMatcher.h"

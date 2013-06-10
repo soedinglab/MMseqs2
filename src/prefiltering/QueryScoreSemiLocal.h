@@ -9,6 +9,7 @@
 #ifndef QUERYSCORESEMILOCAL_H
 #define QUERYSCORESEMILOCAL_H
 #include "QueryScore.h"
+
 class QueryScoreSemiLocal : public QueryScore {
     
 public:
