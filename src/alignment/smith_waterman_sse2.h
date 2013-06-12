@@ -41,10 +41,10 @@ typedef struct {
 } aln_t;
 
 // calculates 8 cells of the SW dynamic programming matrix in parallel
-int smith_waterman_sse2_word(const unsigned char *     query_sequence,
+int smith_waterman_sse2_word(int *     query_sequence,
                          unsigned short *    query_profile_word,
                          const int                 query_length,
-                         const unsigned char *     db_sequence,
+                         int *     db_sequence,
                          const int                 db_length,
                          unsigned short      gap_open,
                          unsigned short      gap_extend,
@@ -57,26 +57,14 @@ int smith_waterman_sse2_word(const unsigned char *     query_sequence,
                          );
 
 
-// calculates 16 cells of the SW dynamic programming matrix in parallel
-// deprecated (no traceback possible)
-int smith_waterman_sse2_byte(const unsigned char *     query_sequence,
-                         unsigned char *     query_profile_byte,
-                         const int                 query_length,
-                         const unsigned char *     db_sequence,
-                         const int                 db_length,
-                         unsigned char       bias,
-                         unsigned char       gap_open,
-                         unsigned char       gap_extend,
-                         void *              workspace_void);
-
 // calculates the start positions of the alignment in the query and in the database sequences given the dynamic programming matrices and the end positions of the alignment
 void traceback_word(short* Hmatrix, 
         short* Ematrix,
         short* Fmatrix,
-        unsigned char* query_sequence,
+        int* query_sequence,
         unsigned short * query_profile_word,
         short qLen,
-        const unsigned char* db_sequence,
+        int* db_sequence,
         short dbLen,
         short qmaxpos, 
         short dbmaxpos, 

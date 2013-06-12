@@ -1,7 +1,7 @@
 #ifndef SUBSTITUTION_MATRIX_H
 #define SUBSTITUTION_MATRIX_H
 
-// Wrote by Maria Hauser mhauser@genzentrum.lmu.de
+// Written by Maria Hauser mhauser@genzentrum.lmu.de
 //  
 // Represents a simple amino acid substitution matrix. 
 // Can read a straight-forward substitution matrix file (.mat ending of the file) and probabilities file (.out ending of the file).

@@ -1,7 +1,7 @@
 #ifndef SEQUENCE_H
 #define SEQUENCE_H
 
-// Wrote by Maria Hauser mhauser@genzentrum.lmu.de, Martin Steinegger Martin.Steinegger@campus.lmu.de
+// Written by Maria Hauser mhauser@genzentrum.lmu.de, Martin Steinegger Martin.Steinegger@campus.lmu.de
 // 
 // Represents a database sequence object, holds its representation in the int array form.
 //
@@ -40,6 +40,7 @@ class Sequence
         void print(); // for debugging 
 
         int id;
+        char* dbKey;
 
         int L;              // length of sequence
         int * int_sequence;    // int sequence 

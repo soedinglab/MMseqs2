@@ -5,8 +5,8 @@
 
 #include "../commons/DBReader.h"
 #include "../commons/DBWriter.h"
-#include "../commons/Sequence.h"
 #include "../commons/SubstitutionMatrix.h"
+#include "../commons/Sequence.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
@@ -19,7 +19,7 @@
 void printUsage(){
 
     std::string usage("\nCalculates similarity scores between all sequences in the query database and all sequences in the target database.\n");
-    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Marting Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
     usage.append("USAGE: kClust2_pref ffindexQueryDBBase ffindexTargetDBBase scoringMatrixFile ffindexOutDBBase [opts]\n"
             "-t\t[float]\tPrefiltering threshold (minimum half bits per query position).\n");
     std::cout << usage;
@@ -58,6 +58,12 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
 
 int main (int argc, const char * argv[])
 {
+    float prefThr = 0.55f;
+    int kmerSize =  6;
+    short kmerThr = 27;
+    size_t maxSeqLen = 40000;
+    size_t BUFFER_SIZE = 10000000;
+
     clock_t c = clock();
     std::string queryDB = "";
     std::string queryDBIndex = "";
@@ -67,12 +73,6 @@ int main (int argc, const char * argv[])
     std::string outDBIndex = "";
     std::string scoringMatrixFile = "";
     
-    float prefThr = 0.55f;
-    int kmerSize =  6;
-    short kmerThr = 27;
-    size_t maxSeqLen = 40000;
-    size_t BUFFER_SIZE = 10000000;
-
     parseArgs(argc, argv, &queryDB, &targetDB, &scoringMatrixFile, &outDB, &prefThr);
 
     std::cout << "prefTht: " << prefThr << "\n";
@@ -81,14 +81,20 @@ int main (int argc, const char * argv[])
     targetDBIndex = targetDB + ".index";
     outDBIndex = outDB + ".index";
 
-    std::cout << "Init data structures:\n";
+     int threads = 1;
+#ifdef OPENMP
+    threads = omp_get_max_threads();
+    std::cout << "Using " << threads << " threads.\n";
+#endif
+
+   std::cout << "Init data structures:\n";
     DBReader* qdbr = new DBReader(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open();
 
     DBReader* tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open();
 
-    DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1);
+    DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw->open();
 
     // init the substitution matrices
@@ -107,32 +113,6 @@ int main (int argc, const char * argv[])
     for (int id = 0; id < targetDBSize; id++){
         if (id % 1000000 == 0)
             std::cout << id << "\n";
-        if (id == 1000000){
-            char* dbKey;
-            while (id < targetDBSize){
-                dbKey = tdbr->getDbKey(id);
-                if (strcmp(dbKey,"Q0KJ32") == 0 ||
-                        strcmp(dbKey,"D6KVP9") == 0 ||
-                        strcmp(dbKey,"C0XU54") == 0 ||
-                        strcmp(dbKey,"D1Y890") == 0 ||
-                        strcmp(dbKey,"C0W539") == 0 ||
-                        strcmp(dbKey,"F0YHT8") == 0 ||
-                        strcmp(dbKey,"F0YBK8") == 0 ||
-                        strcmp(dbKey,"C8PUV4") == 0 ||
-                        strcmp(dbKey,"Q223C0") == 0 ||
-                        strcmp(dbKey,"E3HQM9") == 0 ||
-                        strcmp(dbKey,"D4D255") == 0){
-                    seq->id = id;
-                    std::cout << tdbr->getDbKey(id) << "\n";
-                    char* seqData = tdbr->getData(id);
-                    std::string str(seqData);
-                    seq->mapSequence(seqData);
-                    indexTable->addKmerCount(seq);
-                }
-                id++;
-            }
-            break;
-        }
         seq->id = id;
         char* seqData = tdbr->getData(id);
         std::string str(seqData);
@@ -147,32 +127,6 @@ int main (int argc, const char * argv[])
 
         if (id % 1000000 == 0)
             std::cout << id << "\n";
-        if (id == 1000000){
-            char* dbKey;
-            while (id < targetDBSize){
-                dbKey = tdbr->getDbKey(id);
-                if (strcmp(dbKey,"Q0KJ32") == 0 ||
-                        strcmp(dbKey,"D6KVP9") == 0 ||
-                        strcmp(dbKey,"C0XU54") == 0 ||
-                        strcmp(dbKey,"D1Y890") == 0 ||
-                        strcmp(dbKey,"C0W539") == 0 ||
-                        strcmp(dbKey,"F0YHT8") == 0 ||
-                        strcmp(dbKey,"F0YBK8") == 0 ||
-                        strcmp(dbKey,"C8PUV4") == 0 ||
-                        strcmp(dbKey,"Q223C0") == 0 ||
-                        strcmp(dbKey,"E3HQM9") == 0 ||
-                        strcmp(dbKey,"D4D255") == 0){
-                    seq->id = id;
-                    std::cout << dbKey << "\n";
-                    char* seqData = tdbr->getData(id);
-                    std::string str(seqData);
-                    seq->mapSequence(seqData);
-                    indexTable->addSequence(seq);
-                }   
-                id++;
-            }
-            break;
-        }
 
         seq->id = id;
         char* seqData = tdbr->getData(id);
@@ -190,12 +144,6 @@ int main (int argc, const char * argv[])
 
     std::cout << "Substitution matrices...\n";
     
-    int threads = 1;
-#ifdef OPENMP
-    threads = omp_get_max_threads();
-    std::cout << "Using " << threads << " threads.\n";
-#endif
-
     subMat = new SubstitutionMatrix (scoringMatrixFile.c_str());
     ExtendedSubstitutionMatrix* _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
     ExtendedSubstitutionMatrix* _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
@@ -231,11 +179,6 @@ int main (int argc, const char * argv[])
     int resSize = 0;
     int empty = 0;
 
-    std::ofstream outfile;
-    std::ostringstream fname;
-    fname << "/cluster/user/maria/test/distr/num_matches";
-    outfile.open (fname.str().c_str());
-
 #pragma omp parallel for schedule(static, 10) reduction (+: kmersPerPos, dbMatches, resSize, empty)
     for (int id = 0; id < queryDBSize; id++){
         std::list<hit_t>* prefResults;
@@ -257,39 +200,26 @@ int main (int argc, const char * argv[])
         if (prefResults->size() == 0)
             empty++;
 
-        std::ofstream alnfile;
-        std::ostringstream alnfname;
-        alnfname << "/cluster/user/maria/test/alns/" << id << ".fas";
-        alnfile.open (alnfname.str().c_str());
-
-
         std::stringstream prefResultsOut;
-        alnfile << ">" << qdbr->getDbKey(id) << "\n" << qdbr->getData(id);
         for (std::list<hit_t>::iterator iter = prefResults->begin(); iter != prefResults->end(); iter++){
 //            std::cout << tdbr->getDbKey(iter->seqId);
 //            std::cout << "\tscore: " << iter->prefScore << "\n";
-            prefResultsOut << tdbr->getDbKey(iter->seqId) << "\t" << iter->prefScore << " " << iter->eval << "\n";
-            if (iter->prefScore > 0.0){
-                alnfile << ">" << tdbr->getDbKey(iter->seqId) << " " << iter->prefScore << " " << iter->eval << "\n" << tdbr->getData(iter->seqId);
-            }
+            prefResultsOut << tdbr->getDbKey(iter->seqId) << "\t" << iter->prefScore << "\t" << iter->eval << "\n";
         }
-        alnfile.close();
 
         std::string prefResultsOutString = prefResultsOut.str();
         const char* prefResultsOutData = prefResultsOutString.c_str();
         if (BUFFER_SIZE < prefResultsOutString.length()){
-            std::cerr << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - the output buffer is already huge ;-)\n";
+            std::cerr << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
             exit(1);
         }
         memcpy(outBuffers[thread_idx], prefResultsOutData, prefResultsOutString.length()*sizeof(char));
-        dbw->write(outBuffers[thread_idx], prefResultsOutString.length(), qdbr->getDbKey(id), 0);
+        dbw->write(outBuffers[thread_idx], prefResultsOutString.length(), qdbr->getDbKey(id), thread_idx);
 
         kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
         dbMatches += seqs[thread_idx]->stats->dbMatches;
         resSize += prefResults->size();
-        outfile << id << " " << qdbr->getDbKey(id) << " " << prefResults->size() << " " << seqs[thread_idx]->L << "\n";
     }
-    outfile.close();
 //    matcher->printStats();
     kmersPerPos /= queryDBSize;
     size_t dbMatchesPerSeq = dbMatches/(size_t)queryDBSize;
