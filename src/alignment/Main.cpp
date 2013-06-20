@@ -18,8 +18,8 @@ void printUsage(){
 
     std::string usage("\nCalculates Smith-Waterman alignment scores.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: kClust2_pref ffindexSequenceDBBase ffindexPrefilteringDBBase scoringMatrixFile ffindexOutDBBase [opts]\n"
-            "-t\t[float]\tPrefiltering threshold (minimum half bits per query position).\n");
+    usage.append("USAGE: kClust2_pref ffindexSequenceDBBase ffindexPrefilteringDBBase scoringMatrixFile ffindexOutDBBase [opts]\n");
+//            "-t\t[float]\tPrefiltering threshold (minimum half bits per query position).\n");
     std::cout << usage;
 }
 
@@ -77,11 +77,13 @@ int main(int argc, char **argv){
     std::string matrixFile = ""; 
     std::string outDB = "";
 
-    double evalThr = 0.01;
+    double evalThr = 0.001;
     double covThr = 0.8;
     size_t BUFFER_SIZE = 10000000;
 
     parseArgs(argc, argv, &seqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr);
+
+    std::cout << "Calculating Smith-Waterman alignments with following parameters:\nmax. evalue:\t" << evalThr << "\nmin. query coverage:\t" << covThr << "\n";
 
     std::string seqDBIndex = seqDB + ".index";
     std::string prefDBIndex = prefDB + ".index";

@@ -75,7 +75,7 @@ int main (int argc, const char * argv[])
     
     parseArgs(argc, argv, &queryDB, &targetDB, &scoringMatrixFile, &outDB, &prefThr);
 
-    std::cout << "prefTht: " << prefThr << "\n";
+    std::cout << "prefThr: " << prefThr << "\n";
 
     queryDBIndex = queryDB + ".index";
     targetDBIndex = targetDB + ".index";
