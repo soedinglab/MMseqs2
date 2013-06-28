@@ -10,11 +10,9 @@
 
 void QueryScoreGlobal::addScores (int* seqList, int seqListSize, unsigned short score){
     for (int i = 0; i < seqListSize; i++){
-        const int seqId=seqList[i];
-        scores[seqId]=sadd16(scores[seqId],score);
+        scores[seqList[i]] = sadd16(scores[seqList[i]], score);
     }
 }
-
 
 void QueryScoreGlobal::reset() {
     memset (scores_128, 0, (dbSize/8 + 1) * 16);

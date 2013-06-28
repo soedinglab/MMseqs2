@@ -119,8 +119,8 @@ int main(int argn, char **argv)
     {
         /* entry name is the UniProt ID or other ID until a blank space occurs*/
         size_t pos = 0;
-        while (*(fasta_data + fasta_offset + 3 + pos) != '|'){
-            name[pos] = *(fasta_data + fasta_offset + 3 + pos);
+        while (*(fasta_data + fasta_offset + pos) !=  ' '){
+            name[pos] = *(fasta_data + fasta_offset + pos);
             pos++;
         }
         name[pos] = '\0';

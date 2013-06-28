@@ -73,21 +73,9 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
        copyMatrix(probMatrix_new,probMatrix, origAlphabetSize-1);
 
     }
-    
-
-    std::cout << "aa2int: \n";
-    for (int i = 'A'; i < 'Z'; i++){
-        std::cout << (char) i << " " << aa2int[i] << "\t";
-    }
-    std::cout << "\n";
-
-    std::cout << "int2aa:\n";
-    for (int i = 0; i < 21; i++)
-        std::cout << i << " " << int2aa[i] << "\t";
-    std::cout << "\n";
 
     // map big index to new small index
-    std::cout << "Representative amino acids:\n";
+    std::cout << "Reduced amino acid alphabet:\n";
     int* aa2int_new = new int['Z'+1];
     for (int i = 0; i <= 'Z'; ++i) 
         aa2int_new[i] = -1;
@@ -102,6 +90,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
         }
         int2aa_new[i] = representative_aa;
     }
+    std::cout << "\n";
 
     // add amino acid X
 //    int2aa_new[alphabetSize - 1] = 'X';
@@ -157,10 +146,6 @@ double ReducedMatrix::calculateMutualInformation(double ** pMatrix, double ** su
             mutualInfo += pMatrix[i][j]*subMatrix[i][j];
         }
     }
-    
-    // This is to incorporate the factor of 3 in the formula and also the fact
-    // that the pMatrix being used by us is in 10E-6.
-    
     return mutualInfo;
 }
 

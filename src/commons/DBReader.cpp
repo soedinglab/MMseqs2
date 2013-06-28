@@ -18,7 +18,7 @@ void DBReader::open(){
     data = ffindex_mmap_data(dataFile, &dataSize);
 
     index = ffindex_index_parse(indexFile, 0);
-    
+
     if(index == NULL)
     {
         fferror_print(__FILE__, __LINE__, "ffindex_index_parse", indexFileName);
@@ -29,26 +29,26 @@ void DBReader::open(){
 
     seqLens = new unsigned short [size];
 
-    // generate id -> ffindex_entry mapping
-    id2entry = new ffindex_entry*[size];
-
     for (size_t i = 0; i < size; i++){
-        id2entry[i] = ffindex_get_entry_by_index(index, i);
-        seqLens[i] = (unsigned short)id2entry[i]->length;
+        seqLens[i] = (unsigned short)(ffindex_get_entry_by_index(index, i)->length);
     }
 }
 
 void DBReader::close(){
-
-    delete[] id2entry;
-
     fclose(dataFile);
     fclose(indexFile);
-
 }
 
 char* DBReader::getData (int id){
-    return data + id2entry[id]->offset;
+    if (id >= size){
+        std::cerr << "getData: id (" << id << ") >= db size (" << size << ")\n";
+        exit(1);
+    }
+    if (ffindex_get_entry_by_index(index, id)->offset >= dataSize){ 
+        std::cerr << "Invalid database read for id=" << id << "\n";
+        exit(1);
+    }
+    return data + (ffindex_get_entry_by_index(index, id)->offset);
 }
 
 char* DBReader::getDataByDBKey (char* key){
@@ -60,5 +60,9 @@ size_t DBReader::getSize (){
 }
 
 char* DBReader::getDbKey (int id){
-    return &(id2entry[id]->name[0]);
+    if (id >= size){
+        std::cerr << "getDbKey: id (" << id << ") >= db size (" << size << ")\n";
+        exit(1);
+    }
+    return &(ffindex_get_entry_by_index(index, id)->name[0]);
 }

@@ -53,12 +53,6 @@ QueryScore::~QueryScore (){
     delete resList;
 }
 
-void QueryScore::addScores (int* seqList, int seqListSize, unsigned short score){
-    for (int i = 0; i < seqListSize; i++){
-        scores[seqList[i]] = sadd16(scores[seqList[i]], score);
-    }
-}
-
 float QueryScore::getPrefilteringThreshold (){
 /*
     __m128i sum_v = _mm_setzero_si128();
@@ -175,9 +169,8 @@ float QueryScore::getPrefilteringThreshold (){
 bool QueryScore::compareHitList(hit_t first, hit_t second){
     if (first.eval < second.eval)
         return true;
-    else
-        return false;
-}
+    return false;
+    }
 
     
 std::list<hit_t>* QueryScore::getResult (int querySeqLen){
@@ -187,22 +180,26 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     const unsigned short minScore = (unsigned short) (prefThreshold * (float)querySeqLen);
     // set all elements of thr to the threshold score
     const __m128i thr = _mm_set1_epi16(minScore);
-    
+    const __m128i zero = _mm_setzero_si128(); 
+
     __m128i* p = scores_128;
+    __m128i cmp;
+    __m128i tmp;
 
     for (int pos = 0; pos < dbSize/8 + 1; pos++ ){
         // look for entries above the threshold
-        const __m128i cmp = _mm_cmpgt_epi16(*p, thr);
-        const int cmp_set_bits=_mm_movemask_epi8(cmp);
+        tmp = _mm_subs_epu16(*p, thr);
+        cmp = _mm_cmpeq_epi16(tmp, zero);
+        const int cmp_set_bits = _mm_movemask_epi8(cmp);
         // here are some sequences above the prefiltering threshold
         if (cmp_set_bits != 0){
             // and search for highest
             for(int i = 0; i < 8; i++){
-                    if(CHECK_BIT(cmp_set_bits,i*2)){
-                        hit_t hit = {pos * 8 + i, ((float)sse2_extract_epi16(*p,i))/(float)querySeqLen, 0.0};
-                        resList->push_back(hit);
-                    }
+                if(!CHECK_BIT(cmp_set_bits,i*2)){
+                    hit_t hit = {pos * 8 + i, ((float)sse2_extract_epi16(*p,i))/(float)querySeqLen, 0.0};
+                    resList->push_back(hit);
                 }
+            }
         }
         p++;
     }
@@ -239,7 +236,7 @@ void QueryScore::printStats(){
 
 void QueryScore::printVector(__m128i v){
     for (int i = 0; i < 8; i++)
-        std::cout << sse2_extract_epi16(v, i) << " ";
+        std::cout << (unsigned short) sse2_extract_epi16(v, i) << " ";
     std::cout << "\n";
 }
 

@@ -75,6 +75,20 @@ int DBWriter::close(){
     fclose(data_file);
     fclose(index_file);
 
+    index_file = fopen(indexFileName, "r+");
+    if(index_file == NULL) { perror(indexFileName); return EXIT_FAILURE; }
+
+    ffindex_index_t* index = ffindex_index_parse(index_file, 0);
+    if(index == NULL) { perror("ffindex_index_parse failed"); return (EXIT_FAILURE); }
+
+    fclose(index_file);
+
+    ffindex_sort_index_file(index);
+    index_file = fopen(indexFileName, "w");
+    if(index_file == NULL) { perror(indexFileName); return EXIT_FAILURE; }
+    ffindex_write(index, index_file);
+    fclose(index_file);
+
     return EXIT_SUCCESS;
 }
 

@@ -52,6 +52,20 @@ void IndexTable::addSequence (Sequence* s){
 }
 
 void IndexTable::removeDuplicateEntries(){
+/*    for (int e = 0; e < tableSize; e++){
+        int matched = 0;
+        int* entries = table[e];
+        int size = sizes[e];
+        for (int i = 0; i < size; i++){
+            if (entries[i] == 13){
+                matched = 1;
+                std::cout << e << " ";
+            }
+        }
+        if (matched == 1)
+            std::cout << "\n";
+    }
+*/
 
     delete[] currPos;
     for (int e = 0; e < tableSize; e++){
@@ -59,6 +73,7 @@ void IndexTable::removeDuplicateEntries(){
             return;
         int* entries = table[e];
         int size = sizes[e];
+
         std::sort(entries, entries+size);
         // remove duplicates in-place
         int boundary = 1;
@@ -78,7 +93,7 @@ void IndexTable::removeDuplicateEntries(){
         table[e] = entriesNew;
         sizes[e] = size;
     }
-    
+
 }
 
 void IndexTable::print(){
