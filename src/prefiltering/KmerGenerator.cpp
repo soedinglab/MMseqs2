@@ -124,7 +124,7 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
         int lastElm=calculateArrayProduct(inputArray,
                                    sizeExtendedMatrix,
                                    nextIndexScoreArray,
-                                   sizeExtendedMatrix,
+                                   extMatrix->size,
                                    outputArray[i],
                                    cutoff1,
                                    possibleRest[i+1],
