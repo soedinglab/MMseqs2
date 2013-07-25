@@ -109,6 +109,6 @@ void DBWriter::initFFIndexWrite(const char* dataFileName, const char* indexFileN
     *dataFile = fopen(dataFileName, "w");
     *indexFile = fopen(indexFileName, "w");
 
-    if( *indexFile == NULL) { fferror_print(__FILE__, __LINE__, "run_sw", indexFileName);  exit(EXIT_FAILURE); }
-    if( *dataFile == NULL) { fferror_print(__FILE__, __LINE__, "run_sw", dataFileName);  exit(EXIT_FAILURE); }
+    if( *dataFile == NULL)  { perror(dataFileName); exit(EXIT_FAILURE); } 
+    if( *indexFile == NULL) { perror(indexFileName); exit(EXIT_FAILURE); }
 }

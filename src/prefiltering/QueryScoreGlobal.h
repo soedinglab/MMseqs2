@@ -12,14 +12,17 @@
 #include "QueryScore.h"
 
 class QueryScoreGlobal : public QueryScore {
-    
-public:
-    QueryScoreGlobal(int dbSize, unsigned short * seqLens, float prefThreshold, int k)
-    : QueryScore(dbSize, seqLens, prefThreshold, k)    // Call the QueryScore constructor 
-    {};
-    
-    void addScores (int* seqList, int seqListSize, unsigned short score);
-    void reset();
+
+    public:
+        QueryScoreGlobal(int dbSize, unsigned short * seqLens, int k)
+            : QueryScore(dbSize, seqLens, k)    // Call the QueryScore constructor 
+        {
+        };
+
+
+            void addScores (int* seqList, int seqListSize, unsigned short score);
+            void reset();
+
 
 };
 #endif /* defined(QUERYSCOREGLOBAL_H) */

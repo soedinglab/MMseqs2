@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <list>
 #include <iostream>
+#include <fstream>
 #include <cstring>
 #include <algorithm>
 #include <limits.h>
@@ -30,49 +31,40 @@ typedef struct {
 class QueryScore {
     public:
 
-        QueryScore (int dbSize, unsigned short * seqLens, float prefThreshold, int k);
+        QueryScore (int dbSize, unsigned short * seqLens, int k);
 
         ~QueryScore ();
 
         // add k-mer match score for all DB sequences from the list
         virtual void addScores (int* seqList, int seqListSize, unsigned short score) = 0;
 
-        // increment the query position 
-        //        void moveToNextQueryPos();
-
-        // get the list of the sequences with the score > prefThreshold and the corresponding 
+        // get the list of the sequences with the score > z-score threshold and the corresponding 
         std::list<hit_t>* getResult (int querySeqLen);
 
-        // reset the prefiltering score counter for the next query sequence
         virtual void reset () = 0;
 
-        void printStats();
-
-        int counter;
-
+        int numMatches;
 
 
     private:
+        void setPrefilteringThresholds();
 
         static bool compareHitList(hit_t first, hit_t second);
-
-        float getPrefilteringThreshold();
-
-
-        // prefiltering threshold
-        float prefThreshold;
-
-
-        double dbFractCnt;
-
-        int qSeqCnt;
 
         void addElementToResults(int seqId);
 
         unsigned short sse2_extract_epi16(__m128i v, int pos);
 
         void printVector(__m128i v);
-    
+
+        int counter;
+
+        std::ofstream s_per_pos_file;
+        std::ofstream second_term_file;
+        std::ofstream norm_score1_file;
+        std::ofstream zscore_file;
+
+
     protected:
         inline unsigned short sadd16(unsigned short a, unsigned short b)
         {
@@ -85,15 +77,24 @@ class QueryScore {
         __m128i* scores_128;
         unsigned short  * scores;
 
+        __m128i* thresholds_128;
+        unsigned short  * thresholds;
+
+        float* float_thresholds;
+
         __m128i* seqLens_128;
         unsigned short * seqLens;
 
         int seqLenSum;
-    
+
+        unsigned int scoresSum;
+
+        float* zscores;
+
         // number of sequences in the target DB
         int dbSize;
-    
-        // list of all DB sequences with the prefiltering score >= prefThreshold with the corresponding scores
+
+        // list of all DB sequences with the prefiltering score > z-score threshold with the corresponding scores
         std::list<hit_t>* resList;
 
 };
