@@ -12,7 +12,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_):
         exit(1);
     }
 
-    generateSubMatrix(this->probMatrix, this->subMatrix, this->alphabetSize, 2.0, 0.0);
+    generateSubMatrix(this->probMatrix, this->subMatrix, this->alphabetSize, 8.0, 0.0);
 }
 
 SubstitutionMatrix::~SubstitutionMatrix(){

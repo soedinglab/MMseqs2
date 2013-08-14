@@ -5,7 +5,6 @@ QueryTemplateMatcher::QueryTemplateMatcher ( ExtendedSubstitutionMatrix* _2merSu
                                              IndexTable * indexTable,
                                              unsigned short * seqLens,
                                              short kmerThr,
-                                             float prefThr,
                                              int kmerSize, 
                                              int dbSize,
                                              int alphabetSize){
@@ -13,7 +12,7 @@ QueryTemplateMatcher::QueryTemplateMatcher ( ExtendedSubstitutionMatrix* _2merSu
     this->kmerSize = kmerSize;
     this->alphabetSize = alphabetSize;
     this->kmerGenerator = new KmerGenerator(kmerSize, alphabetSize, kmerThr, _3merSubMatrix, _2merSubMatrix);
-    this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, prefThr, kmerSize);
+    this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, kmerSize);
 }
 
 QueryTemplateMatcher::~QueryTemplateMatcher (){
@@ -73,8 +72,4 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
      * delete idxer;
      */
     return queryScore->getResult(seq->L);
-}
-
-void QueryTemplateMatcher::printStats(){
-    this->queryScore->printStats();
 }

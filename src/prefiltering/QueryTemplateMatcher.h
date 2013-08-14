@@ -21,7 +21,6 @@ class QueryTemplateMatcher {
                 IndexTable * indexTable,
                 unsigned short * seqLens,
                 short kmerThr,
-                float prefThr,
                 int kmerSize,
                 int dbSize,
                 int alphabetSize); 
@@ -29,8 +28,6 @@ class QueryTemplateMatcher {
         ~QueryTemplateMatcher();
         // returns result for the sequence
         std::list<hit_t>*  matchQuery (Sequence * seq);
-
-        void printStats();
 
     private:
         /* generates kmer lists */

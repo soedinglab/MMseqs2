@@ -12,10 +12,14 @@ void QueryScoreGlobal::addScores (int* seqList, int seqListSize, unsigned short 
     for (int i = 0; i < seqListSize; i++){
         scores[seqList[i]] = sadd16(scores[seqList[i]], score);
     }
+    scoresSum += score * seqListSize;
+    numMatches += seqListSize;
 }
 
 void QueryScoreGlobal::reset() {
     memset (scores_128, 0, (dbSize/8 + 1) * 16);
-    
     resList->clear();
+    scoresSum = 0;
+    numMatches = 0;
 }
+
