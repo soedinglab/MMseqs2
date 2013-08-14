@@ -18,9 +18,10 @@ KmerGenerator::~KmerGenerator(){
     delete [] this->divideStep;
     delete [] this->matrixLookup;
     for(size_t i = 0 ; i < this->divideStepCount; i++){
-        delete outputArray[i];
+        delete [] outputArray[i];
     }     
     delete [] outputArray;
+    delete indexer;
 }
 
 void KmerGenerator::calcDivideStrategy(){
