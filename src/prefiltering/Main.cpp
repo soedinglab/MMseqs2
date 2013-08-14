@@ -322,6 +322,7 @@ int main (int argc, const char * argv[])
     int empty = 0;
 
 #pragma omp parallel for schedule(static, 10) reduction (+: kmersPerPos, resSize, empty, dbMatches)
+
     for (int id = 0; id < queryDBSize; id++){
 
         if (id % 1000000 == 0 && id > 0)
