@@ -21,6 +21,7 @@ KmerGenerator::~KmerGenerator(){
         delete outputArray[i];
     }     
     delete [] outputArray;*/
+    delete indexer;
 }
 
 void KmerGenerator::calcDivideStrategy(){
@@ -181,3 +182,4 @@ int KmerGenerator::calculateArrayProduct( const std::pair<short,unsigned int> * 
     }
     return counter;
 }
+
