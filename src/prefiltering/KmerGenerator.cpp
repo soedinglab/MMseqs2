@@ -17,10 +17,10 @@ KmerGenerator::~KmerGenerator(){
     delete [] this->kmerIndex;
     delete [] this->divideStep;
     delete [] this->matrixLookup;
-    for(size_t i = 0 ; i < this->divideStepCount; i++){
+/*    for(size_t i = 0 ; i < this->divideStepCount; i++){
         delete outputArray[i];
     }     
-    delete [] outputArray;
+    delete [] outputArray;*/
 }
 
 void KmerGenerator::calcDivideStrategy(){

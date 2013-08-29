@@ -40,6 +40,10 @@ void Sequence::mapSequence(const char * sequence){
             else
                 this->int_sequence[l] = this->aa2int[(int)curr];
             l++;
+            if (l >= maxLen){
+                std::cerr << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
+                exit(1);
+            }
         }
     }
     this->L = l; 

@@ -19,6 +19,16 @@ IndexTable::IndexTable (int alphabetSize, int kmerSize)
     idxer = new Indexer(alphabetSize, kmerSize);
 }
 
+IndexTable::~IndexTable(){
+    for (int i = 0; i < tableSize; i++){
+        if (sizes[i] > 0)
+            delete[] table[i];
+    }
+    delete[] table;
+    delete[] sizes;
+    delete idxer;
+}
+
 void IndexTable::addKmerCount (Sequence* s){
     unsigned int kmerIdx;
     s->resetCurrPos();
@@ -52,25 +62,11 @@ void IndexTable::addSequence (Sequence* s){
 }
 
 void IndexTable::removeDuplicateEntries(){
-/*    for (int e = 0; e < tableSize; e++){
-        int matched = 0;
-        int* entries = table[e];
-        int size = sizes[e];
-        for (int i = 0; i < size; i++){
-            if (entries[i] == 13){
-                matched = 1;
-                std::cout << e << " ";
-            }
-        }
-        if (matched == 1)
-            std::cout << "\n";
-    }
-*/
 
     delete[] currPos;
     for (int e = 0; e < tableSize; e++){
         if (sizes[e] == 0)
-            return;
+            continue;
         int* entries = table[e];
         int size = sizes[e];
 
@@ -85,7 +81,7 @@ void IndexTable::removeDuplicateEntries(){
         size = boundary;
         // no duplicates found
         if (size == sizes[e])
-            return;
+            continue;
         // copy the remaining entries to a smaller array
         int* entriesNew = new int[size];
         memcpy(entriesNew, entries, sizeof(int)*size);

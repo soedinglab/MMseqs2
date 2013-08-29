@@ -41,6 +41,7 @@ class QueryScore {
         // get the list of the sequences with the score > z-score threshold and the corresponding 
         std::list<hit_t>* getResult (int querySeqLen);
 
+        // reset the prefiltering score counter for the next query sequence
         virtual void reset () = 0;
 
         int numMatches;
@@ -80,16 +81,15 @@ class QueryScore {
         __m128i* thresholds_128;
         unsigned short  * thresholds;
 
-        float* float_thresholds;
-
         __m128i* seqLens_128;
         unsigned short * seqLens;
 
-        int seqLenSum;
+        int* steps;
+        int nsteps;
 
-        unsigned int scoresSum;
+        size_t seqLenSum;
 
-        float* zscores;
+        size_t scoresSum;
 
         // number of sequences in the target DB
         int dbSize;

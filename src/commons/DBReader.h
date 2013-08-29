@@ -13,6 +13,8 @@ extern "C" {
 
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <algorithm>
 
 
 class DBReader {
@@ -25,20 +27,33 @@ class DBReader {
 
         void close();
 
-        char* getData(int id);
+        char* getData(size_t id);
 
         char* getDataByDBKey(char* key);
 
         size_t getSize();
 
-        char* getDbKey(int id);
+        char* getDbKey(size_t id);
 
-        unsigned short * seqLens;
+        unsigned short* getSeqLens();
 
     private:
+
+        void sort(size_t* ids, size_t* workspace);
+
+        void merge(size_t* ids, size_t iLeft, size_t iRight, size_t iEnd, size_t* workspace);
+
+        void calcLocalIdMapping();
+
+        size_t* id2local;
+
+        size_t* local2id;
+
         const char* dataFileName;
 
         const char* indexFileName;
+
+        unsigned short* seqLens;
 
         FILE* dataFile;
 

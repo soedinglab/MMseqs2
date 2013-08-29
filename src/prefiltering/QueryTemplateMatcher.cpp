@@ -16,7 +16,6 @@ QueryTemplateMatcher::QueryTemplateMatcher ( ExtendedSubstitutionMatrix* _2merSu
 }
 
 QueryTemplateMatcher::~QueryTemplateMatcher (){
-    delete indexTable;
     delete kmerGenerator;
     delete queryScore;
 }

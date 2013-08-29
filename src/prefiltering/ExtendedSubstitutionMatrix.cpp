@@ -46,10 +46,10 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
 
 
 ExtendedSubstitutionMatrix::~ExtendedSubstitutionMatrix(){
-    for(size_t i = 0; i < this->size; i++){
+/*    for(size_t i = 0; i < this->size; i++){
         delete  scoreMatrix[i];
     }
-    delete[] scoreMatrix;
+    delete[] scoreMatrix;*/
 }
 
 short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix){

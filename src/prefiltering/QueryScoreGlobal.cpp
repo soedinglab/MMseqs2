@@ -18,6 +18,7 @@ void QueryScoreGlobal::addScores (int* seqList, int seqListSize, unsigned short 
 
 void QueryScoreGlobal::reset() {
     memset (scores_128, 0, (dbSize/8 + 1) * 16);
+    memset (thresholds_128, 0, (dbSize/8 + 1) * 16);
     resList->clear();
     scoresSum = 0;
     numMatches = 0;

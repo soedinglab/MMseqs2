@@ -18,6 +18,8 @@ class IndexTable {
 
         IndexTable (int alphabetSize, int kmerSize);
 
+        ~IndexTable();
+
         // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
         void addKmerCount (Sequence* s);
 
@@ -42,7 +44,6 @@ class IndexTable {
  //       void reduceMemoryUsage();
 
     private:
-        
         int ipow (int base, int exponent);
 
         // Index table: contains pointers to the arrays (stored in DynamicArray structure) of DB sequences containing a certain k-mer

@@ -16,7 +16,7 @@ void *memalign(size_t boundary, size_t size)
     return pointer;
 }
 
-QueryScore::QueryScore (int dbSize, unsigned short * seqLens, int k){
+QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k){
 
     this->dbSize = dbSize;
 
@@ -31,28 +31,44 @@ QueryScore::QueryScore (int dbSize, unsigned short * seqLens, int k){
     thresholds_128 = (__m128i*) memalign(16, (dbSize/8 + 1) * 16);
     thresholds = (unsigned short * ) thresholds_128;
 
-    float_thresholds = new float[dbSize];
-
     memset (thresholds_128, 0, (dbSize/8 + 1) * 16);
 
     // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
     this->seqLens_128 = (__m128i*) memalign(16, (dbSize/8 + 1) * 16);
     this->seqLens = (unsigned short *) this->seqLens_128;
 
-    std::ofstream seq_lens_file;
-    seq_lens_file.open("/net/cluster/user/maria/test/seq_lens.dat");
+    memset (seqLens_128, 0, (dbSize/8 + 1) * 16);
+
     for (int i = 0; i < dbSize; i++){
-        if (seqLens[i] > (k - 1))
-            this->seqLens[i] = seqLens[i] - k + 1;
+        if (dbSeqLens[i] > (k - 1))
+            this->seqLens[i] = dbSeqLens[i] - k + 1;
         else
-            this->seqLens[i] = 0;
-        seq_lens_file << seqLens[i] << "\n";
+            this->seqLens[i] = 1;
     }
-    seq_lens_file.close();
 
     this->seqLenSum = 0;
     for (int i = 0; i < dbSize; i++)
         this->seqLenSum += this->seqLens[i];
+
+    // initialize the points where a score threhold should be recalculated
+    std::list<int> steps_list;
+    int seqLen = this->seqLens[0];
+    steps_list.push_back(0);
+    // check the sequence length and decide if it changed enough to recalculate the score threshold here
+    // minimum step length is 8 (one __m128 register)
+    for (int i = 0; i < (dbSize/8 + 1) * 8; i += 8){
+        if ((float)this->seqLens[i]/(float)seqLen < 0.9){
+            steps_list.push_back(i);
+            seqLen = this->seqLens[i];
+        }
+    }
+
+    nsteps = steps_list.size();
+    steps = new int[nsteps];
+    for (int i = 0; i < nsteps; i++){
+        steps[i] = steps_list.front();
+        steps_list.pop_front();
+    }
 
     this->resList = new std::list<hit_t>();
 
@@ -61,90 +77,93 @@ QueryScore::QueryScore (int dbSize, unsigned short * seqLens, int k){
     numMatches = 0;
 
     counter = 0;
-
-    zscores = new float [dbSize];
-    memset (zscores, 0.0, dbSize);
 }
 
 QueryScore::~QueryScore (){
     free(scores_128);
+    free(thresholds_128);
+    free(seqLens_128);
     delete resList;
 }
 
     bool QueryScore::compareHitList(hit_t first, hit_t second){
-        if (first.eval < second.eval)
+        if (first.prefScore > second.prefScore)
             return true;
         return false;
     }
 
 void QueryScore::setPrefilteringThresholds(){
 
-/*    std::ofstream s_per_pos_file;
-    s_per_pos_file.open("/net/cluster/user/maria/test/s_per_pos.dat", std::fstream::app);
+    float zscore_thr = 200.0;
+    
+    float s_per_pos = (float) ((double)scoresSum/(double)seqLenSum);
+    float s_per_match = (float) ((double)scoresSum/(double)numMatches);
 
-    std::ofstream second_term_file;
-    second_term_file.open("/net/cluster/user/maria/test/second_term.dat", std::fstream::app);
+    float seqLen;
+    float mean;
+    float stddev;
+    float threshold;
+    unsigned short ushort_threshold;
 
-    std::ofstream norm_score1_file;
-    norm_score1_file.open("/net/cluster/user/maria/test/norm_score1.dat", std::fstream::app);
+    __m128i* thr = thresholds_128;
 
-    std::ofstream zscore_file;
-    zscore_file.open("/net/cluster/user/maria/test/zscore.dat", std::fstream::app);
+    for (int i = 0; i < nsteps - 1; i++){
+        seqLen = (float) seqLens[steps[i]];
+        mean = s_per_pos * seqLen;
+        stddev = sqrt(seqLen * s_per_pos * s_per_match);
+        threshold = zscore_thr * stddev + mean;
+        if (threshold >= USHRT_MAX)
+            ushort_threshold = USHRT_MAX;
+        else
+            ushort_threshold = (unsigned short) threshold;
 
-    std::ofstream std_dev_file;
-    std_dev_file.open("/net/cluster/user/maria/test/std_dev.dat", std::fstream::app);
-*/
-    float s_per_pos = (float)scoresSum/(float)seqLenSum;
-//    s_per_pos_file << s_per_pos << "\n";
-
-//    s_per_pos_file.close();
-
-    float s_per_match = (float)scoresSum/(float)numMatches;
-
-    for (int i = 0; i < dbSize; i++){
-        /* ######## ATTENTION pay attention to a possible unsigned short overflow! ######## */
-        thresholds[i] = (unsigned short) (10.0 * sqrt(s_per_pos * (float)seqLens[i] * s_per_match)  + s_per_pos * (float)seqLens[i]);
-//        float_thresholds[i] = 4.0 * sqrt(s_per_pos * (float)seqLens[i] * s_per_match)  + s_per_pos * (float)seqLens[i];
-//        zscores[i] = ( (float)scores[i] - s_per_pos * (float)seqLens[i] ) / sqrt(s_per_pos * (float)seqLens[i] * s_per_match);
-/*        if (scores[i] >= thresholds[i] && zscores[i] < 4.0){
-            std::cout << (4.0 * sqrt(s_per_pos * (float)seqLens[i] * s_per_match)  + s_per_pos * (float)seqLens[i]) << " " << thresholds[i] << " " << scores[i] << "\n";
-            std::cout << seqLens[i] << " " << s_per_pos << " " << s_per_match << " " << zscores[i] <<  "\n";
-            std::cout << "\n";
-        }*/
-/*        float zscore = ( (float)scores[i] - s_per_pos * (float)seqLens[i] ) / sqrt(s_per_pos * (float)seqLens[i] * s_per_match);
-
-        if (counter % 1000 == 0){
-            second_term_file << ( s_per_pos * (float)seqLens[i] ) << "\n";
-            norm_score1_file << ( (float)scores[i] - s_per_pos * (float)seqLens[i] ) << "\n";
-            std_dev_file << (sqrt(s_per_pos * (float)seqLens[i] * s_per_match)) << "\n";
-            zscore_file << zscore << "\n";
+        for (int j = steps[i]; j < steps[i+1]; j += 8){
+            *thr = _mm_set1_epi16(ushort_threshold);
+            thr++;
         }
-        counter++;*/
     }
-/*    second_term_file.close();
-    norm_score1_file.close();
-    std_dev_file.close();
-    zscore_file.close();*/
-
-
+    // set the rest of the thresholds from the last step position
+    for (int j = steps[nsteps-1]; j < (dbSize/8 + 1) * 8; j += 8){
+        *thr = _mm_set1_epi16(ushort_threshold);
+        thr++;
+    }
 }
+
+/*void QueryScore::setPrefilteringThresholds(){
+
+    float zscore_thr = 50.0;
+    float s_per_pos = (float) ((double)scoresSum/(double)seqLenSum);
+    float s_per_match = (float) ((double)scoresSum/(double)numMatches);
+    
+    for (int i = 0; i < dbSize; i++){
+        float seqLen = (float) seqLens[i];
+        float mean = s_per_pos * seqLen;
+        float stddev = sqrt(seqLen * s_per_pos * s_per_match);
+        int threshold = zscore_thr * stddev + mean;
+        unsigned short ushort_threshold;
+        if (threshold >= USHRT_MAX)
+            ushort_threshold = USHRT_MAX;
+        else
+            ushort_threshold = (unsigned short) threshold;
+        thresholds[i] = ushort_threshold;
+    }
+}*/
 
 
 std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     setPrefilteringThresholds();
 
+/*    unsigned short ushort_threshold;
+    unsigned int threshold = (int) 2.2 * (float)(querySeqLen);
+    if (threshold >= USHRT_MAX)
+        ushort_threshold = USHRT_MAX;
+    else
+        ushort_threshold = (unsigned short) threshold;
+    __m128i thr = _mm_set1_epi16(ushort_threshold); */
+
     float s_per_pos = (float)scoresSum/(float)seqLenSum;
     float s_per_match = (float)scoresSum/(float)numMatches;
 
-    // minimum score for this sequence that satisfies the score per colum threshold
-/*    int minScoreInt = (int) (prefThreshold * (float)querySeqLen);
-    unsigned short minScore;
-    if (minScoreInt < SHRT_MAX)
-        minScore = (unsigned short) (prefThreshold * (float)querySeqLen);
-    else
-        minScore = SHRT_MAX;*/
-    // set all elements of thr to the threshold score
-//        const __m128i thr = _mm_set1_epi16(minScore);
     const __m128i zero = _mm_setzero_si128(); 
 
     __m128i* p = scores_128;
@@ -153,19 +172,23 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     __m128i cmp;
     __m128i tmp;
 
+    int set_cnt = 0;
+    int set_bits_cnt = 0;
     for (int pos = 0; pos < dbSize/8 + 1; pos++ ){
 
         // look for entries above the threshold
         tmp = _mm_subs_epu16(*p, *thr);
 
-//                tmp = _mm_subs_epu16(*p, thr);
         cmp = _mm_cmpeq_epi16(tmp, zero);
-        const int cmp_set_bits = _mm_movemask_epi8(cmp);
+        const unsigned int cmp_set_bits = _mm_movemask_epi8(cmp);
+        
         // here are some sequences above the prefiltering threshold
-        if (cmp_set_bits != 0){
+        if (cmp_set_bits != 0xffff){
+            set_cnt++;
             // and search for highest
             for(int i = 0; i < 8; i++){
                 if(!CHECK_BIT(cmp_set_bits,i*2)){
+                    set_bits_cnt++;
                     //hit_t hit = {pos * 8 + i, ((float)sse2_extract_epi16(*p,i))/(float)querySeqLen, 0.0};
                     float zscore = ( (float)scores[pos * 8 + i] - s_per_pos * (float)seqLens[pos * 8 + i] ) / sqrt(s_per_pos * (float)seqLens[pos * 8 + i] * s_per_match);
                     hit_t hit = {pos * 8 + i, zscore, 0.0};
@@ -174,11 +197,30 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
             }
         }
         p++;
+        thr++;
     }
-
     resList->sort(compareHitList);
     return resList;
 }
+
+/*std::list<hit_t>* QueryScore::getResult (int querySeqLen){
+
+    setPrefilteringThresholds();
+    float s_per_pos = (float)scoresSum/(float)seqLenSum;
+    float s_per_match = (float)scoresSum/(float)numMatches;
+
+    for (int i = 0; i < dbSize; i++){
+        if (scores[i] > thresholds[i]){
+            float zscore = ( (float)scores[i] - s_per_pos * (float)seqLens[i] ) / sqrt(s_per_pos * (float)seqLens[i] * s_per_match);
+            hit_t hit = {i, zscore, zscores[i]};
+            resList->push_back(hit);
+        }
+    }
+    resList->sort(compareHitList);
+    return resList;
+}*/
+
+
 
 unsigned short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
     switch(pos){
