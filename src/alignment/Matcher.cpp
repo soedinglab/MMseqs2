@@ -41,12 +41,13 @@ Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seq
             workspace, 
             Hmatrix, Ematrix, Fmatrix, 
             &qEndPos, &dbEndPos);
-    traceback_word((short*) Hmatrix, (short*) Ematrix, (short*) Fmatrix, 
-            query->int_sequence, this->queryProfileWord, query->L, 
-            dbSeq->int_sequence, dbSeq->L, 
-            qEndPos, dbEndPos, 
-            gap_open, gap_extend, 
-            &qStartPos, &dbStartPos);
+    if (s > 0)
+        traceback_word((short*) Hmatrix, (short*) Ematrix, (short*) Fmatrix, 
+                query->int_sequence, this->queryProfileWord, query->L, 
+                dbSeq->int_sequence, dbSeq->L, 
+                qEndPos, dbEndPos, 
+                gap_open, gap_extend, 
+                &qStartPos, &dbStartPos);
 
     // calculation of the coverage and e-value
     float qcov = (qEndPos - qStartPos)/(float)query->L;

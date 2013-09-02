@@ -101,8 +101,8 @@ int main(int argc, char **argv){
     Sequence** dbSeqs = new Sequence*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
-        qSeqs[i] = new Sequence(40000, m->aa2int, m->int2aa);
-        dbSeqs[i] = new Sequence(40000, m->aa2int, m->int2aa);
+        qSeqs[i] = new Sequence(50000, m->aa2int, m->int2aa);
+        dbSeqs[i] = new Sequence(50000, m->aa2int, m->int2aa);
     }
 
     Matcher** matchers = new Matcher*[threads];
@@ -136,31 +136,33 @@ int main(int argc, char **argv){
 
     int alignmentsNum = 0;
     int passedNum = 0;
-# pragma omp parallel for schedule(static) reduction (+: alignmentsNum, passedNum)
-    for (unsigned int i = 0; i < prefdbr->getSize(); i++){
-        if (i%10000 == 0)
-            std::cout << i << " query sequences processed...\n";
+# pragma omp parallel for schedule(static, 10) reduction (+: alignmentsNum, passedNum)
+    for (unsigned int id = 0; id < prefdbr->getSize(); id++){
+        if (id % 1000000 == 0 && id > 0)
+            std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
 
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        // map the query sequence
-        char* querySeqData = seqdbr->getData(i);
-        qSeqs[thread_idx]->dbKey = seqdbr->getDbKey(i);
-        qSeqs[thread_idx]->mapSequence(querySeqData);
-
         // get the prefiltering list
-        char* prefList = prefdbr->getData(i);
+        char* prefList = prefdbr->getData(id);
+        char* queryDbKey = prefdbr->getDbKey(id);
+        //std::cout << "query: " << queryDbKey << "\n";
         std::stringstream lineSs (prefList);
         std::string val;
 
-//        std::cout << seqdbr->getDbKey(i) << "\n";
+        // map the query sequence
+        char* querySeqData = seqdbr->getDataByDBKey(queryDbKey);
+        qSeqs[thread_idx]->dbKey = queryDbKey;
+        qSeqs[thread_idx]->mapSequence(querySeqData);
 
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list 
         // TODO: [which passes the thresholds]
         std::list<Matcher::result_t>* swResults = new std::list<Matcher::result_t>();
-        while (std::getline(lineSs, val, '\t')){
+        // TODO: implement a parameter controlling the max. counter
+        int cnt = 0;
+        while (std::getline(lineSs, val, '\t') && cnt < 100){
             // DB key of the db sequence
             for (unsigned int j = 0; j < val.length(); j++)
                 dbKeys[thread_idx][j] = val.at(j);
@@ -181,9 +183,8 @@ int main(int argc, char **argv){
             Matcher::result_t res = matchers[thread_idx]->getSWResult(qSeqs[thread_idx], dbSeqs[thread_idx], seqdbr->getSize());
             swResults->push_back(res);
 
-//            std::cout << "\t" << res.dbKey << "\nScore: " << res.score << ", qcov: " << res.qcov << ", dbcov: " << res.dbcov << ", eval: " << res.eval << "\n"; 
+            cnt++;
         }
-//        std::cout << "\n";
 
         // write the results
         swResults->sort(compareHits);
