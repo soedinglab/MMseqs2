@@ -21,6 +21,7 @@ class QueryTemplateMatcher {
                 IndexTable * indexTable,
                 unsigned short * seqLens,
                 short kmerThr,
+                double kmerMatchProb,
                 int kmerSize,
                 int dbSize,
                 int alphabetSize); 

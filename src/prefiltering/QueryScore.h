@@ -31,7 +31,7 @@ typedef struct {
 class QueryScore {
     public:
 
-        QueryScore (int dbSize, unsigned short * seqLens, int k);
+        QueryScore (int dbSize, unsigned short * seqLens, int k, short kmerThr, float kmerMatchProb);
 
         ~QueryScore ();
 
@@ -48,7 +48,9 @@ class QueryScore {
 
 
     private:
-        void setPrefilteringThresholds();
+        // returns score per position, score per match
+        // needed for z-score calculation in getResult
+        std::pair<float,float> setPrefilteringThresholds();
 
         static bool compareHitList(hit_t first, hit_t second);
 
@@ -64,6 +66,10 @@ class QueryScore {
         std::ofstream second_term_file;
         std::ofstream norm_score1_file;
         std::ofstream zscore_file;
+
+        short kmerThr;
+
+        double kmerMatchProb;
 
 
     protected:

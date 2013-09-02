@@ -16,9 +16,11 @@ void *memalign(size_t boundary, size_t size)
     return pointer;
 }
 
-QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k){
+QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kmerThr, float kmerMatchProb){
 
     this->dbSize = dbSize;
+    this->kmerMatchProb = kmerMatchProb;
+    this->kmerThr = kmerThr;
 
     // 8 DB short int entries are stored in one __m128i vector
     // one __m128i vector needs 16 byte
@@ -92,18 +94,28 @@ QueryScore::~QueryScore (){
         return false;
     }
 
-void QueryScore::setPrefilteringThresholds(){
+std::pair<float, float> QueryScore::setPrefilteringThresholds(){
 
-    float zscore_thr = 200.0;
+    float zscore_thr = 10.0;
+
+    // pseudo-count sum of sequence lengths
+    // 100 000 * 350
+    float seqLenSum_pc = 35000000.0;
+    // pseudo-count number of k-mer matches
+    float numMatches_pc = seqLenSum_pc *  kmerMatchProb;
+   
+    // pseudo-sum of k-mer scores
+    float matchScoresSum_pc = numMatches_pc * (float) (kmerThr + 8);
+    float s_per_match = ((float)scoresSum + matchScoresSum_pc)/((float)numMatches + numMatches_pc);
+
+    float scoresSum_pc = seqLenSum_pc * kmerMatchProb * s_per_match;
+    float s_per_pos = ((float)scoresSum + scoresSum_pc)/((float)seqLenSum + seqLenSum_pc);
     
-    float s_per_pos = (float) ((double)scoresSum/(double)seqLenSum);
-    float s_per_match = (float) ((double)scoresSum/(double)numMatches);
-
     float seqLen;
     float mean;
     float stddev;
     float threshold;
-    unsigned short ushort_threshold;
+    unsigned short ushort_threshold = USHRT_MAX;
 
     __m128i* thr = thresholds_128;
 
@@ -127,13 +139,15 @@ void QueryScore::setPrefilteringThresholds(){
         *thr = _mm_set1_epi16(ushort_threshold);
         thr++;
     }
+    std::pair<float,float> ret (s_per_pos, s_per_match);
+    return ret;
 }
 
 /*void QueryScore::setPrefilteringThresholds(){
 
     float zscore_thr = 50.0;
-    float s_per_pos = (float) ((double)scoresSum/(double)seqLenSum);
-    float s_per_match = (float) ((double)scoresSum/(double)numMatches);
+    float s_per_pos = (float) ((float)scoresSum/(float)seqLenSum);
+    float s_per_match = (float) ((float)scoresSum/(float)numMatches);
     
     for (int i = 0; i < dbSize; i++){
         float seqLen = (float) seqLens[i];
@@ -151,7 +165,7 @@ void QueryScore::setPrefilteringThresholds(){
 
 
 std::list<hit_t>* QueryScore::getResult (int querySeqLen){
-    setPrefilteringThresholds();
+    std::pair<float, float> ret = setPrefilteringThresholds();
 
 /*    unsigned short ushort_threshold;
     unsigned int threshold = (int) 2.2 * (float)(querySeqLen);
@@ -161,8 +175,8 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
         ushort_threshold = (unsigned short) threshold;
     __m128i thr = _mm_set1_epi16(ushort_threshold); */
 
-    float s_per_pos = (float)scoresSum/(float)seqLenSum;
-    float s_per_match = (float)scoresSum/(float)numMatches;
+    float s_per_pos = ret.first;
+    float s_per_match = ret.second;
 
     const __m128i zero = _mm_setzero_si128(); 
 

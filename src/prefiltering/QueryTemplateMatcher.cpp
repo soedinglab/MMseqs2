@@ -5,6 +5,7 @@ QueryTemplateMatcher::QueryTemplateMatcher ( ExtendedSubstitutionMatrix* _2merSu
                                              IndexTable * indexTable,
                                              unsigned short * seqLens,
                                              short kmerThr,
+                                             double kmerMatchProb,
                                              int kmerSize, 
                                              int dbSize,
                                              int alphabetSize){
@@ -12,7 +13,7 @@ QueryTemplateMatcher::QueryTemplateMatcher ( ExtendedSubstitutionMatrix* _2merSu
     this->kmerSize = kmerSize;
     this->alphabetSize = alphabetSize;
     this->kmerGenerator = new KmerGenerator(kmerSize, alphabetSize, kmerThr, _3merSubMatrix, _2merSubMatrix);
-    this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, kmerSize);
+    this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb);
 }
 
 QueryTemplateMatcher::~QueryTemplateMatcher (){

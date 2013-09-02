@@ -14,8 +14,8 @@
 class QueryScoreGlobal : public QueryScore {
 
     public:
-        QueryScoreGlobal(int dbSize, unsigned short * seqLens, int k)
-            : QueryScore(dbSize, seqLens, k)    // Call the QueryScore constructor 
+        QueryScoreGlobal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb)
+            : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb)    // Call the QueryScore constructor 
         {
         };
 

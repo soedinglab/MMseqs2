@@ -183,7 +183,7 @@ IndexTable* getIndexTable (int alphabetSize, int kmerSize, DBReader* dbr, Sequen
  * K-mer similarity threshold is set to meet a certain DB match probability.
  * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
  */
-short setKmerThreshold (DBReader* dbr, Sequence** seqs, BaseMatrix* subMat, int kmerSize, float targetKmerMatchProb, float toleratedDeviation){
+std::pair<short,double> setKmerThreshold (DBReader* dbr, Sequence** seqs, BaseMatrix* subMat, int kmerSize, double targetKmerMatchProb, double toleratedDeviation){
 
     int threads = 1;
 #ifdef OPENMP
@@ -222,10 +222,15 @@ short setKmerThreshold (DBReader* dbr, Sequence** seqs, BaseMatrix* subMat, int 
 
     size_t dbMatchesSum;
     size_t querySeqLenSum;
-    float kmerMatchProb;
+    size_t dbMatchesExp_pc;
+    // 1000 * 350 * 100000 * 350
+    size_t lenSum_pc = 12250000000000;
 
-    float kmerMatchProbMax = targetKmerMatchProb + (toleratedDeviation * targetKmerMatchProb);
-    float kmerMatchProbMin = targetKmerMatchProb - (toleratedDeviation * targetKmerMatchProb);
+    double kmersPerPos = 0.0;
+    double kmerMatchProb;
+
+    double kmerMatchProbMax = targetKmerMatchProb + (toleratedDeviation * targetKmerMatchProb);
+    double kmerMatchProbMin = targetKmerMatchProb - (toleratedDeviation * targetKmerMatchProb);
     std::cout << "Searching for a k-mer threshold with a k-mer match probability per query position within range [" << kmerMatchProbMin << ":" << kmerMatchProbMax << "].\n";
 
     // adjust k-mer list length threshold
@@ -244,10 +249,10 @@ short setKmerThreshold (DBReader* dbr, Sequence** seqs, BaseMatrix* subMat, int 
             thread_idx = omp_get_thread_num();
 #endif
             // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
-            matchers[thread_idx] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, dbr->getSeqLens(), kmerThrMid, kmerSize, dbr->getSize(), subMat->alphabetSize);
+            matchers[thread_idx] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, dbr->getSeqLens(), kmerThrMid, 0.0, kmerSize, dbr->getSize(), subMat->alphabetSize);
         }
 
-#pragma omp parallel for schedule(static, 10) reduction (+: dbMatchesSum, querySeqLenSum)
+#pragma omp parallel for schedule(static, 10) reduction (+: dbMatchesSum, querySeqLenSum, kmersPerPos)
         for (int i = 0; i < querySetSize; i++){
             int id = querySeqs[i];
 
@@ -261,12 +266,18 @@ short setKmerThreshold (DBReader* dbr, Sequence** seqs, BaseMatrix* subMat, int 
 
             matchers[thread_idx]->matchQuery(seqs[thread_idx]);
 
+            kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
             dbMatchesSum += seqs[thread_idx]->stats->dbMatches;
             querySeqLenSum += seqs[thread_idx]->L;
         }
 
-        kmerMatchProb = ((float)dbMatchesSum / (float) querySeqLenSum)/targetSeqLenSum; 
-        std::cout << "\tMatch probability: " << kmerMatchProb << "\n"; 
+        kmersPerPos /= (double)querySetSize;
+
+        // add pseudo-counts
+        dbMatchesExp_pc = (size_t)(((double)lenSum_pc) * kmersPerPos * pow((1.0/((double)(subMat->alphabetSize-1))), kmerSize));
+
+        // match probability with pseudocounts
+        kmerMatchProb = ((double)dbMatchesSum + dbMatchesExp_pc) / ((double) (querySeqLenSum * targetSeqLenSum + lenSum_pc)); 
 
         if (kmerMatchProb < kmerMatchProbMin)
             kmerThrMax = kmerThrMid - 1;
@@ -281,10 +292,10 @@ short setKmerThreshold (DBReader* dbr, Sequence** seqs, BaseMatrix* subMat, int 
             delete indexTable;
             delete _2merSubMatrix;
             delete _3merSubMatrix;
-            return kmerThrMid;
+            return std::pair<short, double> (kmerThrMid, kmerMatchProb);
         }
     }
-    return 0.0;
+    return std::pair<short, double> (0, 0.0);
 }
 
 
@@ -310,8 +321,6 @@ int main (int argc, const char * argv[])
 
     parseArgs(argc, argv, &queryDB, &targetDB, &scoringMatrixFile, &outDB, &kmerSize, &alphabetSize, &maxSeqLen);
 
-    std::cout << "Query database: " << queryDB << "\n";
-    std::cout << "Target database: " << targetDB << "\n";
     std::cout << "k-mer size: " << kmerSize << "\n";
     std::cout << "Alphabet size: " << alphabetSize << "\n";
 
@@ -335,6 +344,11 @@ int main (int argc, const char * argv[])
 
     DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw->open();
+
+    std::cout << "Query database: " << queryDB << "\n";
+    std::cout << "Query database size: " << qdbr->getSize() << "\n";
+    std::cout << "Target database: " << targetDB << "\n";
+    std::cout << "Target database size: " << tdbr->getSize() << "\n\n";
 
     // init the substitution matrices
     BaseMatrix* subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize);
@@ -363,15 +377,22 @@ int main (int argc, const char * argv[])
 
     // set the k-mer similarity threshold
     std::cout << "\nAdjusting k-mer similarity threshold...\n";
-    short kmerThr = setKmerThreshold (tdbr, seqs, subMat, kmerSize, 1.5e-06, 0.1);
-    if (kmerThr == 0.0)
-        kmerThr = setKmerThreshold (tdbr, seqs, subMat, kmerSize, 1.5e-06, 0.15);
+    std::pair<short, double> ret = setKmerThreshold (tdbr, seqs, subMat, kmerSize, 1.5e-06, 0.1);
+    short kmerThr = ret.first;
+    double kmerMatchProb = ret.second;
+    if (kmerThr == 0.0){
+        ret = setKmerThreshold (tdbr, seqs, subMat, kmerSize, 1.5e-06, 0.15);
+        kmerThr = ret.first;
+        kmerMatchProb = ret.second;
+    }
     if (kmerThr == 0.0){
         std::cout << "ERROR: Could not adjust the k-mer list length threshold!\n";
         std::cout << "Please report this error to the developers Maria Hauser mhauser@genzentrum.lmu.de and Martin Steinegger Martin.Steinegger@campus.lmu.de\n";
         exit(1);
     }
-    std::cout << "k-mer similarity threshold: " << kmerThr << "\n\n"; 
+
+    std::cout << "k-mer similarity threshold: " << kmerThr << "\n"; 
+    std::cout << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
     Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa);
     IndexTable* indexTable = getIndexTable(alphabetSize, kmerSize, tdbr, seq, tdbr->getSize());
@@ -385,7 +406,7 @@ int main (int argc, const char * argv[])
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif 
-        matchers[thread_idx] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, tdbr->getSeqLens(), kmerThr, kmerSize, tdbr->getSize(), subMat->alphabetSize);
+        matchers[thread_idx] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, tdbr->getSeqLens(), kmerThr, kmerMatchProb, kmerSize, tdbr->getSize(), subMat->alphabetSize);
     }
     std::cout << "done!\n";
 
@@ -402,7 +423,6 @@ int main (int argc, const char * argv[])
     int empty = 0;
 
 #pragma omp parallel for schedule(static, 10) reduction (+: kmersPerPos, resSize, empty, dbMatches)
-
     for (int id = 0; id < queryDBSize; id++){
 
         if (id % 1000000 == 0 && id > 0){
