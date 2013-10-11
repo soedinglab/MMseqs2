@@ -31,6 +31,7 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <malloc.h>
 
 
 typedef struct {
@@ -41,9 +42,11 @@ typedef struct {
 } aln_t;
 
 // calculates 8 cells of the SW dynamic programming matrix in parallel
-int smith_waterman_sse2_word(int *     query_sequence,
+int smith_waterman_sse2_word(char* query_id,
+                         int *     query_sequence,
                          unsigned short *    query_profile_word,
                          const int                 query_length,
+                         char* db_id,
                          int *     db_sequence,
                          const int                 db_length,
                          unsigned short      gap_open,
@@ -52,8 +55,8 @@ int smith_waterman_sse2_word(int *     query_sequence,
                          void *              Hmatrix,
                          void *              Ematrix,
                          void *              Fmatrix,
-                         short *             qmaxpos,
-                         short *            dbmaxpos
+                         unsigned short *             qmaxpos,
+                         unsigned short *            dbmaxpos
                          );
 
 
@@ -63,18 +66,25 @@ void traceback_word(short* Hmatrix,
         short* Fmatrix,
         int* query_sequence,
         unsigned short * query_profile_word,
-        short qLen,
+        int qLen,
         int* db_sequence,
-        short dbLen,
-        short qmaxpos, 
-        short dbmaxpos, 
+        int dbLen,
+        unsigned short qmaxpos, 
+        unsigned short dbmaxpos, 
         unsigned short gap_open, 
         unsigned short gap_extend,
-        short* qstartpos,
-        short* dbstartpos);
+        unsigned short* qstartpos,
+        unsigned short* dbstartpos, 
+        char* queryDbKey,
+        char* dbDbKey);
 
 // prints a __m128 vector containing 8 signed shorts
-void printvector (__m128i v);
+void printVector (__m128i v);
+
+// prints a __m128 vector containing 8 unsigned shorts, added 32768
+void printVectorUS (__m128i v);
+
+unsigned short sse2_extract_epi16(__m128i v, int pos);
 
 // The dynamic programming matrix entries for the query and database sequences are stored sequentially (the order see the Farrar paper).
 // This function calculates the index within the dynamic programming matrices for the given query and database sequence position.

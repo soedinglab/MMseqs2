@@ -29,8 +29,6 @@ class BaseMatrix{
         // background probabilities of the amino acids
         double* pBack;
 
-        void printExpectationValue();
-
         // print the substitution matrix
         static void print(short** matrix, char* int2aa, int size);
 
@@ -41,6 +39,8 @@ class BaseMatrix{
 
         // generate a short data type substitution matrix
         static void generateSubMatrix(double ** probMatrix, short ** subMatrix, int size, double bitFactor = 1.0, double scoringBias = 0.0);
+
+        virtual float getBitFactor() {return 1.0; }
 
     private:
 

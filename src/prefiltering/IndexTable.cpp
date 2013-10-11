@@ -57,7 +57,7 @@ void IndexTable::addSequence (Sequence* s){
 
     while(s->hasNextKmer(kmerSize)){
         kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
-        table[kmerIdx][currPos[kmerIdx]++] = s->id;
+        table[kmerIdx][currPos[kmerIdx]++] = s->getId();
     }
 }
 

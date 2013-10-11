@@ -12,30 +12,52 @@ extern "C" {
 
 #include "../commons/DBReader.h"
 #include "../commons/DBWriter.h"
+#include "../commons/NucleotideMatrix.h"
+#include "../commons/SubstitutionMatrix.h"
+
 #include "Matcher.h"
 
 void printUsage(){
 
     std::string usage("\nCalculates Smith-Waterman alignment scores.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: kClust2_pref ffindexSequenceDBBase ffindexPrefilteringDBBase scoringMatrixFile ffindexOutDBBase [opts]\n");
-//            "-t\t[float]\tPrefiltering threshold (minimum half bits per query position).\n");
+    usage.append("USAGE: kClust2_pref ffindexSequenceDBBase ffindexPrefilteringDBBase ffindexOutDBBase [opts]\n"
+            "-m\t[file]\tAmino acid substitution matrix file.\n"
+            "-e\t[float]\tMaximum e-value (default=0.01).\n"
+            "-c\t[float]\tMinimum alignment coverage (default=0.8).\n"
+            "-s\t[int]\tMaximum sequence length (default=50000).\n"
+            "-a\t[int]\tMaximum alignments per query sequence (default=10).\n"
+            "-n\t\tNucleotide sequences input.\n");
     std::cout << usage;
 }
 
-void parseArgs(int argc, char** argv, std::string* seqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr){
-    if (argc < 5){
+void parseArgs(int argc, char** argv, std::string* seqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr, int* maxSeqLen, int* maxAlnNum, int* nucl){
+    if (argc < 4){
         printUsage();
         exit(EXIT_FAILURE);
     }
 
     seqDB->assign(argv[1]);
     prefDB->assign(argv[2]);
-    matrixFile->assign(argv[3]);
-    outDB->assign(argv[4]);
-    int i = 5;
+    outDB->assign(argv[3]);
+    int i = 4;
     while (i < argc){
-        if (strcmp(argv[i], "-e") == 0){
+        if (strcmp(argv[i], "-m") == 0){
+            if (*nucl == 1){
+                std::cerr << "No scoring matrix is allowed for nucleotide sequences.\n";
+                exit(EXIT_FAILURE);
+            }
+            if (++i < argc){
+                matrixFile->assign(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                std::cerr << "No value provided for -m\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "-e") == 0){
             if (++i < argc){
                 *evalThr = atof(argv[i]);
                 i++;
@@ -56,6 +78,36 @@ void parseArgs(int argc, char** argv, std::string* seqDB, std::string* prefDB, s
                 std::cerr << "No value provided for -c\n";
                 exit(EXIT_FAILURE);
             }
+        }
+        else if (strcmp(argv[i], "-s") == 0){
+            if (++i < argc){
+                *maxSeqLen = atoi(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                std::cerr << "No value provided for -s\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "-a") == 0){
+            if (++i < argc){
+                *maxAlnNum = atoi(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                std::cerr << "No value provided for -a\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "-n") == 0){
+            if (strcmp(matrixFile->c_str(), "") != 0){
+                std::cerr << "No scoring matrix is allowed for nucleotide sequences.\n";
+                exit(EXIT_FAILURE);
+            }
+            *nucl = 1;
+            i++;
         }
         else {
             printUsage();
@@ -79,17 +131,28 @@ int main(int argc, char **argv){
 
     double evalThr = 0.001;
     double covThr = 0.8;
+    int maxSeqLen = 50000;
+    int maxAlnNum = 10;
     size_t BUFFER_SIZE = 10000000;
+    int nucleotides = 0;
 
-    parseArgs(argc, argv, &seqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr);
+    parseArgs(argc, argv, &seqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr, &maxSeqLen, &maxAlnNum, &nucleotides);
 
-    std::cout << "Calculating Smith-Waterman alignments with following parameters:\nmax. evalue:\t" << evalThr << "\nmin. query coverage:\t" << covThr << "\n";
+    std::cout << "Calculating Smith-Waterman alignments with following parameters:\nmax. evalue:\t" << evalThr 
+        << "\nmin. sequence coverage:\t" << covThr 
+        << "\nmax. sequence length:\t" << maxSeqLen 
+        << "\nmax. alignment number per query:\t" << maxAlnNum << "\n\n";
 
+    std::cout << "Initialising data structures...\n";
     std::string seqDBIndex = seqDB + ".index";
     std::string prefDBIndex = prefDB + ".index";
     std::string outDBIndex = outDB + ".index";
 
-    SubstitutionMatrix* m = new SubstitutionMatrix(matrixFile.c_str());
+    BaseMatrix* m;
+    if (nucleotides == 0)
+        m = new SubstitutionMatrix(matrixFile.c_str(), 2.0);
+    else
+        m = new NucleotideMatrix();
 
     int threads = 1;
 #ifdef OPENMP
@@ -101,14 +164,14 @@ int main(int argc, char **argv){
     Sequence** dbSeqs = new Sequence*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
-        qSeqs[i] = new Sequence(50000, m->aa2int, m->int2aa);
-        dbSeqs[i] = new Sequence(50000, m->aa2int, m->int2aa);
+        qSeqs[i] = new Sequence(maxSeqLen, m->aa2int, m->int2aa, nucleotides);
+        dbSeqs[i] = new Sequence(maxSeqLen, m->aa2int, m->int2aa, nucleotides);
     }
 
     Matcher** matchers = new Matcher*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++)
-        matchers[i] = new Matcher(m);
+        matchers[i] = new Matcher(m, maxSeqLen);
 
     // open the sequence, prefiltering and output databases
     DBReader* seqdbr = new DBReader(seqDB.c_str(), seqDBIndex.c_str());
@@ -136,7 +199,7 @@ int main(int argc, char **argv){
 
     int alignmentsNum = 0;
     int passedNum = 0;
-# pragma omp parallel for schedule(static, 10) reduction (+: alignmentsNum, passedNum)
+# pragma omp parallel for schedule(dynamic, 10) reduction (+: alignmentsNum, passedNum)
     for (unsigned int id = 0; id < prefdbr->getSize(); id++){
         if (id % 1000000 == 0 && id > 0)
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
@@ -148,25 +211,25 @@ int main(int argc, char **argv){
         // get the prefiltering list
         char* prefList = prefdbr->getData(id);
         char* queryDbKey = prefdbr->getDbKey(id);
-        //std::cout << "query: " << queryDbKey << "\n";
+        std::cout << "query: " << queryDbKey << "\n";
         std::stringstream lineSs (prefList);
         std::string val;
 
         // map the query sequence
         char* querySeqData = seqdbr->getDataByDBKey(queryDbKey);
-        qSeqs[thread_idx]->dbKey = queryDbKey;
-        qSeqs[thread_idx]->mapSequence(querySeqData);
+        qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
 
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list 
-        // TODO: [which passes the thresholds]
         std::list<Matcher::result_t>* swResults = new std::list<Matcher::result_t>();
-        // TODO: implement a parameter controlling the max. counter
         int cnt = 0;
-        while (std::getline(lineSs, val, '\t') && cnt < 100){
+        while (std::getline(lineSs, val, '\t') && cnt < 10){
             // DB key of the db sequence
             for (unsigned int j = 0; j < val.length(); j++)
                 dbKeys[thread_idx][j] = val.at(j);
             dbKeys[thread_idx][val.length()] = '\0';
+            std::cout << "\t" << dbKeys[thread_idx] << "\n";
+//            if (strcmp (dbKeys[thread_idx], "UniRef100_E9IKE5") != 0)
+//                continue;
             // prefiltering score
             std::getline(lineSs, val, '\t');
             float prefScore = atof(val.c_str());
@@ -176,8 +239,12 @@ int main(int argc, char **argv){
 
             // map the database sequence
             char* dbSeqData = seqdbr->getDataByDBKey(dbKeys[thread_idx]);
-            dbSeqs[thread_idx]->dbKey = dbKeys[thread_idx];
-            dbSeqs[thread_idx]->mapSequence(dbSeqData);
+            dbSeqs[thread_idx]->mapSequence(-1, dbKeys[thread_idx], dbSeqData);
+
+            // check if the sequences could pass the coverage threshold 
+            if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) || 
+                    (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) )
+                continue;
 
             // calculate Smith-Waterman alignment
             Matcher::result_t res = matchers[thread_idx]->getSWResult(qSeqs[thread_idx], dbSeqs[thread_idx], seqdbr->getSize());
@@ -206,7 +273,7 @@ int main(int argc, char **argv){
             exit(1);
         }
         memcpy(outBuffers[thread_idx], swResultsStringData, swResultsString.length()*sizeof(char));
-        dbw->write(outBuffers[thread_idx], swResultsString.length(), qSeqs[thread_idx]->dbKey, thread_idx);
+        dbw->write(outBuffers[thread_idx], swResultsString.length(), qSeqs[thread_idx]->getDbKey(), thread_idx);
         
         delete swResults;
 

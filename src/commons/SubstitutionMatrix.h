@@ -25,15 +25,19 @@
 class SubstitutionMatrix: public BaseMatrix {
 
     public:
-        SubstitutionMatrix(const char* scoringMatrixFileName_);
+        SubstitutionMatrix(const char* scoringMatrixFileName_, float bitFactor);
 
         virtual ~SubstitutionMatrix();
+
+        virtual float getBitFactor() {return bitFactor; }
 
     private:
 
         const char* scoringMatrixFileName;
 
         void readProbMatrix();
+
+        float bitFactor;
 
 };
 

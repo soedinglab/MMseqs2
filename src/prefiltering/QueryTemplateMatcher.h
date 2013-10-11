@@ -24,7 +24,8 @@ class QueryTemplateMatcher {
                 double kmerMatchProb,
                 int kmerSize,
                 int dbSize,
-                int alphabetSize); 
+                int alphabetSize,
+                int skip); 
 
         ~QueryTemplateMatcher();
         // returns result for the sequence
@@ -41,6 +42,8 @@ class QueryTemplateMatcher {
         int kmerSize;
         // amino acid alphabet size
         int alphabetSize;
+        // number of skipped k-mers in the sequence
+        int skip;
 
 
 

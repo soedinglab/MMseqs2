@@ -1,6 +1,6 @@
 #include "SubstitutionMatrix.h"
 
-SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_):
+SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_, float bitFactor):
     scoringMatrixFileName(scoringMatrixFileName_)
 {
     // read amino acid substitution matrix from file
@@ -12,8 +12,10 @@ SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_):
         exit(1);
     }
 
-    generateSubMatrix(this->probMatrix, this->subMatrix, this->alphabetSize, 8.0, 0.0);
+    generateSubMatrix(this->probMatrix, this->subMatrix, this->alphabetSize, bitFactor, -0.2);
+    this->bitFactor = bitFactor;
 }
+
 
 SubstitutionMatrix::~SubstitutionMatrix(){
 }

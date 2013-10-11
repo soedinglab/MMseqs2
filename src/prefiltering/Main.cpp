@@ -10,6 +10,7 @@
 #include "../commons/DBWriter.h"
 #include "../commons/SubstitutionMatrix.h"
 #include "../commons/Sequence.h"
+#include "../commons/NucleotideMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
@@ -18,6 +19,8 @@
 #ifdef OPENMP
 #include <omp.h>
 #endif
+
+int globalId;
 
 void kClust2_debug_catch_signal(int sig_num)
 {
@@ -49,7 +52,7 @@ void kClust2_debug_catch_signal(int sig_num)
         "$ ulimit -c unlimited\n\n");
   }
 
-  abort();
+  exit(1);
 }
 
 void kClust2_cuticle_init()
@@ -69,27 +72,55 @@ void printUsage(){
 
     std::string usage("\nCalculates similarity scores between all sequences in the query database and all sequences in the target database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
-    usage.append("USAGE: kClust2_pref ffindexQueryDBBase ffindexTargetDBBase scoringMatrixFile ffindexOutDBBase [opts]\n"
-            "-t\t[float]\tPrefiltering threshold (minimum half bits per query position).\n"
+    usage.append("USAGE: kClust2_pref ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase [opts]\n"
+            "-m\t[file]\tAmino acid substitution matrix file.\n"
+            "-s\t[float]\tSensitivity in the range [2:9], default=7.2\n"
             "-k\t[int]\tk-mer size (default=6).\n"
             "-a\t[int]\tAmino acid alphabet size (default=21).\n"
-            "-m\t[int]\tMaximum sequence length (default=50000).\n");
+            "-l\t[int]\tMaximum sequence length (default=50000).\n"
+            "-n\t\tNucleotide sequences input.\n");
     std::cout << usage;
 }
 
-void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* scoringMatrixFile, std::string* ffindexOutDBBase, int* kmerSize, int* alphabetSize, size_t* maxSeqLen){
-    if (argc < 5){
+void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* scoringMatrixFile, float* sens, int* kmerSize, int* alphabetSize, size_t* maxSeqLen, int* nucl){
+    if (argc < 4){
         printUsage();
         exit(EXIT_FAILURE);
     }
 
     ffindexQueryDBBase->assign(argv[1]);
     ffindexTargetDBBase->assign(argv[2]);
-    scoringMatrixFile->assign(argv[3]);
-    ffindexOutDBBase->assign(argv[4]);
-    int i = 5;
+    ffindexOutDBBase->assign(argv[3]);
+
+    int i = 4;
     while (i < argc){
-        if (strcmp(argv[i], "-k") == 0){
+        if (strcmp(argv[i], "-m") == 0){
+            if (*nucl == 1){
+                std::cerr << "No scoring matrix is allowed for nucleotide sequences.\n";
+                exit(EXIT_FAILURE);
+            }
+            if (++i < argc){
+                scoringMatrixFile->assign(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                std::cerr << "No value provided for -m\n";
+                exit(EXIT_FAILURE);
+            }
+        } 
+        else if (strcmp(argv[i], "-s") == 0){
+            if (++i < argc){
+                *sens = atof(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                std::cerr << "No value provided for -s\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "-k") == 0){
             if (++i < argc){
                 *kmerSize = atoi(argv[i]);
                 i++;
@@ -111,16 +142,24 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "-m") == 0){
+        else if (strcmp(argv[i], "-l") == 0){
             if (++i < argc){
                 *maxSeqLen = atoi(argv[i]);
                 i++;
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for -m\n";
+                std::cerr << "No value provided for -l\n";
                 exit(EXIT_FAILURE);
             }
+        }
+        else if (strcmp(argv[i], "-n") == 0){
+            if (strcmp(scoringMatrixFile->c_str(), "") != 0){
+                std::cerr << "No scoring matrix is allowed for nucleotide sequences.\n";
+                exit(EXIT_FAILURE);
+            }                                                           
+            *nucl = 1;
+            i++;
         }
         else {
             printUsage();
@@ -134,12 +173,11 @@ BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSiz
     std::cout << "Substitution matrices...\n";
     BaseMatrix* subMat;
     if (alphabetSize < 21){
-        SubstitutionMatrix* sMat = new SubstitutionMatrix (scoringMatrixFile.c_str());
+        SubstitutionMatrix* sMat = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
         subMat = new ReducedMatrix(sMat->probMatrix, alphabetSize);
     }
     else
-        subMat = new SubstitutionMatrix (scoringMatrixFile.c_str());
-    //BaseMatrix::print(subMat->subMatrix, subMat->int2aa, subMat->alphabetSize);
+        subMat = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
 
     return subMat;
 }
@@ -154,10 +192,9 @@ IndexTable* getIndexTable (int alphabetSize, int kmerSize, DBReader* dbr, Sequen
     for (int id = 0; id < dbSize; id++){
         if (id % 1000000 == 0 && id > 0)
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
-        seq->id = id;
         char* seqData = dbr->getData(id);
         std::string str(seqData);
-        seq->mapSequence(seqData);
+        seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addKmerCount(seq);
     }
 
@@ -169,10 +206,9 @@ IndexTable* getIndexTable (int alphabetSize, int kmerSize, DBReader* dbr, Sequen
         if (id % 1000000 == 0 && id > 0)
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
 
-        seq->id = id;
         char* seqData = dbr->getData(id);
         std::string str(seqData);
-        seq->mapSequence(seqData);
+        seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addSequence(seq);
     }
 
@@ -249,10 +285,10 @@ std::pair<short,double> setKmerThreshold (DBReader* dbr, Sequence** seqs, BaseMa
             thread_idx = omp_get_thread_num();
 #endif
             // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
-            matchers[thread_idx] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, dbr->getSeqLens(), kmerThrMid, 0.0, kmerSize, dbr->getSize(), subMat->alphabetSize);
+            matchers[thread_idx] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, dbr->getSeqLens(), kmerThrMid, 0.0, kmerSize, dbr->getSize(), subMat->alphabetSize, 0);
         }
 
-#pragma omp parallel for schedule(static, 10) reduction (+: dbMatchesSum, querySeqLenSum, kmersPerPos)
+#pragma omp parallel for schedule(dynamic, 10) reduction (+: dbMatchesSum, querySeqLenSum, kmersPerPos)
         for (int i = 0; i < querySetSize; i++){
             int id = querySeqs[i];
 
@@ -261,8 +297,7 @@ std::pair<short,double> setKmerThreshold (DBReader* dbr, Sequence** seqs, BaseMa
             thread_idx = omp_get_thread_num();
 #endif
             char* seqData = dbr->getData(id);
-            seqs[thread_idx]->id = id;
-            seqs[thread_idx]->mapSequence(seqData);
+            seqs[thread_idx]->mapSequence(id, dbr->getDbKey(id), seqData);
 
             matchers[thread_idx]->matchQuery(seqs[thread_idx]);
 
@@ -309,7 +344,10 @@ int main (int argc, const char * argv[])
     int kmerSize =  6;
     int alphabetSize = 21;
     size_t maxSeqLen = 50000;
-    size_t BUFFER_SIZE = 10000000;
+    size_t BUFFER_SIZE = 1000000;
+    float sensitivity = 7.2f;
+    int skip = 0;
+    int nucleotides = 0;
 
     std::string queryDB = "";
     std::string queryDBIndex = "";
@@ -319,10 +357,14 @@ int main (int argc, const char * argv[])
     std::string outDBIndex = "";
     std::string scoringMatrixFile = "";
 
-    parseArgs(argc, argv, &queryDB, &targetDB, &scoringMatrixFile, &outDB, &kmerSize, &alphabetSize, &maxSeqLen);
+    parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile, &sensitivity, &kmerSize, &alphabetSize, &maxSeqLen, &nucleotides);
+
+    if (nucleotides == 1)
+        alphabetSize = 5;
 
     std::cout << "k-mer size: " << kmerSize << "\n";
     std::cout << "Alphabet size: " << alphabetSize << "\n";
+    std::cout << "Sensitivity: " << sensitivity << "\n";
 
     queryDBIndex = queryDB + ".index";
     targetDBIndex = targetDB + ".index";
@@ -351,7 +393,12 @@ int main (int argc, const char * argv[])
     std::cout << "Target database size: " << tdbr->getSize() << "\n\n";
 
     // init the substitution matrices
-    BaseMatrix* subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize);
+    
+    BaseMatrix* subMat;
+    if (nucleotides == 0)
+        subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize);
+    else
+        subMat = new NucleotideMatrix();
 
     ExtendedSubstitutionMatrix* _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
     ExtendedSubstitutionMatrix* _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
@@ -365,7 +412,7 @@ int main (int argc, const char * argv[])
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa);
+        seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, nucleotides);
         reslens[thread_idx] = new std::list<int>();
     }
 
@@ -376,12 +423,14 @@ int main (int argc, const char * argv[])
         outBuffers[i] = new char[BUFFER_SIZE];
 
     // set the k-mer similarity threshold
-    std::cout << "\nAdjusting k-mer similarity threshold...\n";
-    std::pair<short, double> ret = setKmerThreshold (tdbr, seqs, subMat, kmerSize, 1.5e-06, 0.1);
+    float p_match = pow(2.0, sensitivity) * 1.0e-08 * (float) (skip + 1); // old target value: 1.5e-06, reached with sens = 7.2 approximately
+    std::cout << "\nAdjusting k-mer similarity threshold within +-10% deviation from the target k-mer match probability (target probability = " << p_match << ")...\n";
+    std::pair<short, double> ret = setKmerThreshold (tdbr, seqs, subMat, kmerSize, p_match, 0.1);
     short kmerThr = ret.first;
     double kmerMatchProb = ret.second;
     if (kmerThr == 0.0){
-        ret = setKmerThreshold (tdbr, seqs, subMat, kmerSize, 1.5e-06, 0.15);
+        std::cout << "Could not set the probability within +-10% deviation. Trying +-15% deviation.\n";
+        ret = setKmerThreshold (tdbr, seqs, subMat, kmerSize, p_match, 0.15);
         kmerThr = ret.first;
         kmerMatchProb = ret.second;
     }
@@ -390,11 +439,13 @@ int main (int argc, const char * argv[])
         std::cout << "Please report this error to the developers Maria Hauser mhauser@genzentrum.lmu.de and Martin Steinegger Martin.Steinegger@campus.lmu.de\n";
         exit(1);
     }
+    std::cout << "... done.\n";
 
     std::cout << "k-mer similarity threshold: " << kmerThr << "\n"; 
     std::cout << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
-    Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa);
+    // initialise the index table and the matcher structures for the database
+    Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, nucleotides);
     IndexTable* indexTable = getIndexTable(alphabetSize, kmerSize, tdbr, seq, tdbr->getSize());
     delete seq;
  
@@ -406,7 +457,7 @@ int main (int argc, const char * argv[])
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif 
-        matchers[thread_idx] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, tdbr->getSeqLens(), kmerThr, kmerMatchProb, kmerSize, tdbr->getSize(), subMat->alphabetSize);
+        matchers[thread_idx] = new QueryTemplateMatcher(_2merSubMatrix, _3merSubMatrix, indexTable, tdbr->getSeqLens(), kmerThr, kmerMatchProb, kmerSize, tdbr->getSize(), subMat->alphabetSize, skip);
     }
     std::cout << "done!\n";
 
@@ -422,44 +473,36 @@ int main (int argc, const char * argv[])
     size_t resSize = 0;
     int empty = 0;
 
-#pragma omp parallel for schedule(static, 10) reduction (+: kmersPerPos, resSize, empty, dbMatches)
+#pragma omp parallel for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, empty, dbMatches)
     for (int id = 0; id < queryDBSize; id++){
 
         if (id % 1000000 == 0 && id > 0){
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
-            size_t prefPassedPerSeq = resSize/id;
-            std::cout << "\t" << prefPassedPerSeq << " sequences passed prefiltering per query sequence.\n";
         }
 
-        //std::cout << qdbr->getDbKey(id) << "\n";
-        std::list<hit_t>* prefResults;
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
+        // get query sequence
         char* seqData = qdbr->getData(id);
-        seqs[thread_idx]->id = id;
-        seqs[thread_idx]->mapSequence(seqData);
+        seqs[thread_idx]->mapSequence(id, qdbr->getDbKey(id), seqData);
 
-        prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx]);
-
-        if (prefResults->size() == 0)
-            empty++;
-        
-        if (prefResults->size() > 100000){
-            std::cerr << "The prefiltering list for the query " << qdbr->getDbKey(id) << " is too long, the length of the list = " << prefResults->size() << ", maximum allowed is 100 000.\n";
-        }
-
+        // calculate prefitlering results
+        std::list<hit_t>* prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx]);
+       
+        // write prefiltering results to a string
         std::stringstream prefResultsOut;
         int l = 0;
         for (std::list<hit_t>::iterator iter = prefResults->begin(); iter != prefResults->end(); iter++){
             prefResultsOut << tdbr->getDbKey(iter->seqId) << "\t" << iter->prefScore << "\t" << iter->eval << "\n";
             l++;
-            // maximum allowed result list length is 100000
-            if (l == 100000)
+            // maximum allowed result list length is 100
+            if (l == 100)
                 break;
         }
 
+        // write prefiltering results string to ffindex database
         std::string prefResultsOutString = prefResultsOut.str();
         const char* prefResultsOutData = prefResultsOutString.c_str();
         if (BUFFER_SIZE < strlen(prefResultsOutData)){
@@ -470,42 +513,45 @@ int main (int argc, const char * argv[])
         memcpy(outBuffers[thread_idx], prefResultsOutData, prefResultsOutString.length()*sizeof(char));
         dbw->write(outBuffers[thread_idx], prefResultsOutString.length(), qdbr->getDbKey(id), thread_idx);
 
+        // update statistics counters
+        if (prefResults->size() == 0)
+            empty++;
         kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
         dbMatches += seqs[thread_idx]->stats->dbMatches;
         resSize += prefResults->size();
         reslens[thread_idx]->push_back(prefResults->size());
     }
 
+    // sort and merge the result list lengths (for median calculation)
     reslens[0]->sort();
     for (int i = 1; i < threads; i++){
         reslens[i]->sort();
         reslens[0]->merge(*reslens[i]);
     }
 
-    //    matcher->printStats();
+    // calculate and print statistics
     kmersPerPos /= queryDBSize;
     size_t dbMatchesPerSeq = dbMatches/(size_t)queryDBSize;
     size_t prefPassedPerSeq = resSize/(size_t)queryDBSize;
     std::cout << kmersPerPos << " k-mers per position.\n";
     std::cout << dbMatchesPerSeq << " DB matches per sequence.\n";
-    std::cout << prefPassedPerSeq << " sequences passed prefiltering per query sequence.\n";
+    std::cout << prefPassedPerSeq << " sequences passed prefiltering per query sequence";
+    if (prefPassedPerSeq > 100)
+        std::cout << " (ATTENTION: max. 100 sequences were written to the output prefiltering database).\n";
+    else
+        std::cout << ".\n";
 
     int mid = reslens[0]->size() / 2;
     std::list<int>::iterator it = reslens[0]->begin();
     std::advance(it, mid);
     std::cout << "Median result list size: " << *it << "\n";
-/*    std::ofstream myfile;
-    myfile.open ("/net/cluster/user/maria/test/ressizes.dat");
-    for (it = reslens[0]->begin(); it != reslens[0]->end(); it++)
-        myfile << *it << "\n";
-    myfile.close();
-*/
-    std::cout << empty << " sequences with zero size result lists.\n";
+    std::cout << empty << " sequences with 0 size result lists.\n";
 
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
     std::cout << "Time for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
+    // merge output ffindex databases
     std::cout << "Merging the results...\n";
     qdbr->close();
     if (queryDB.compare(targetDB) != 0)

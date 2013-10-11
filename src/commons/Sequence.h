@@ -21,12 +21,12 @@ typedef struct {
 class Sequence
 {
     public:
-        Sequence(size_t maxLen,int* aa2int,char* int2aa);  
+        Sequence(size_t maxLen,int* aa2int,char* int2aa, int nucleotideSequence);  
 
         ~Sequence();
 
         // Map char -> int
-        void mapSequence(const char *seq);
+        void mapSequence(int id, char* dbKey, const char *seq);
 
         // checks if there is still a k-mer left 
         bool hasNextKmer(int kmerSize);
@@ -39,8 +39,9 @@ class Sequence
 
         void print(); // for debugging 
 
-        int id;
-        char* dbKey;
+        int getId() { return id; }
+
+        char* getDbKey() { return dbKey; }
 
         int L;              // length of sequence
         int * int_sequence;    // int sequence 
@@ -49,9 +50,16 @@ class Sequence
         char * int2aa; // ref mapping from int -> aa
 
         statistics_t* stats;
+
     private:
+        void mapProteinSequence(const char *seq);
+        void mapNucleotideSequence(const char *seq);
+        
+        int id;
+        char* dbKey;
         // current iterator position
         int currItPos;
         size_t maxLen;
+        int nucleotideSequence;
 };
 #endif

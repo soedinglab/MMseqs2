@@ -52,7 +52,7 @@ QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kme
     for (int i = 0; i < dbSize; i++)
         this->seqLenSum += this->seqLens[i];
 
-    // initialize the points where a score threhold should be recalculated
+    // initialize the points where a score threshold should be recalculated
     std::list<int> steps_list;
     int seqLen = this->seqLens[0];
     steps_list.push_back(0);
@@ -96,12 +96,12 @@ QueryScore::~QueryScore (){
 
 std::pair<float, float> QueryScore::setPrefilteringThresholds(){
 
-    float zscore_thr = 10.0;
+    float zscore_thr = 100.0;
 
     // pseudo-count sum of sequence lengths
     // 100 000 * 350
     float seqLenSum_pc = 35000000.0;
-    // pseudo-count number of k-mer matches
+    // pseudo-number of k-mer matches
     float numMatches_pc = seqLenSum_pc *  kmerMatchProb;
    
     // pseudo-sum of k-mer scores

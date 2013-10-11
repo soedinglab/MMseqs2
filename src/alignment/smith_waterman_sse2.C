@@ -1,40 +1,40 @@
 /******************************************************************
   Copyright 2006 by Michael Farrar.  All rights reserved.
   This program may not be sold or incorporated into a commercial product,
-  in whole or in part, without written consent of Michael Farrar.  For 
-  further information regarding permission for use or reproduction, please 
-  contact: Michael Farrar at farrar.michael@gmail.com.
-*******************************************************************/
+  in whole or in part, without written consent of Michael Farrar. 
+ *******************************************************************/
 
 /*
-  Written by Michael Farrar, 2006.
-  Please send bug reports and/or suggestions to farrar.michael@gmail.com.
-*/
+   Written by Michael Farrar, 2006 (alignment), and Maria Hauser, 2012 (traceback).
+   Please send bug reports and/or suggestions to mhauser@genzentrum.lmu.de.
+   */
 
 #include "smith_waterman_sse2.h"
 
 // amino acids in the sequences are numerically coded
-int
-smith_waterman_sse2_word(int *     query_sequence,
-                         unsigned short *    query_profile_word,
-                         const int                 query_length,
-                         int *     db_sequence,
-                         const int                 db_length,
-                         unsigned short      gap_open,
-                         unsigned short      gap_extend,
-                         void *             workspace_void,
-                         void *             Hmatrix,
-                         void *             Ematrix,
-                         void *             Fmatrix,
-                         short *            qmaxpos,
-                         short *            dbmaxpos)
+    int
+smith_waterman_sse2_word(char* query_id, 
+        int *     query_sequence,
+        unsigned short *    query_profile_word,
+        const int                 query_length,
+        char* db_id, 
+        int *     db_sequence,
+        const int                 db_length,
+        unsigned short      gap_open,
+        unsigned short      gap_extend,
+        void *             workspace_void,
+        void *             Hmatrix,
+        void *             Ematrix,
+        void *             Fmatrix,
+        unsigned short *            qmaxpos,
+        unsigned short *            dbmaxpos)
 {
-    int     i, j, k;
+    unsigned short     i, j, k;
     short   score;
 
     int     cmp;
     int     iter = (query_length + 7) / 8;
-    
+
     __m128i *p;
     __m128i *workspace = (__m128i *) workspace_void;
 
@@ -139,15 +139,15 @@ smith_waterman_sse2_word(int *     query_sequence,
             /* add score to H */
             H = _mm_adds_epi16 (H, *pScore++);
 
-            /* Update highest score encountered this far */
+           /* Update highest score encountered this far */
             v_maxscore = _mm_max_epi16(v_maxscore, H);
 
             // save the positions of the highest score
             v_maxmask = _mm_cmpeq_epi16(H, v_maxscore);
-            
+
             v_dbpos = _mm_and_si128(v_dbpos, v_maxmask);
             v_qpos = _mm_and_si128(v_qpos, v_maxmask);
-            
+
             v_dbmaxpos = _mm_andnot_si128(v_maxmask, v_dbmaxpos);
             v_qmaxpos = _mm_andnot_si128(v_maxmask, v_qmaxpos);
 
@@ -238,8 +238,16 @@ smith_waterman_sse2_word(int *     query_sequence,
         FStore = FStore + iter;
     }
 
+    __m128i v1 = _mm_setzero_si128();
+    __m128i v2 = _mm_setzero_si128();
+    __m128i v3 = _mm_setzero_si128();
+
+    v1 = v_maxscore;
+    v2 = v_qmaxpos;
+    v3 = v_dbmaxpos;
+
     v_maxtemp = _mm_setzero_si128();
-    v_maxtemp = _mm_add_epi16(v_maxtemp, v_maxscore);
+    v_maxtemp = _mm_adds_epi16(v_maxtemp, v_maxscore);
 
     /* find largest score in the v_maxscore vector */
     v_temp = _mm_srli_si128 (v_maxscore, 8);
@@ -278,7 +286,38 @@ smith_waterman_sse2_word(int *     query_sequence,
     *qmaxpos = _mm_extract_epi16 (v_qmaxpos, 0);
     *dbmaxpos = _mm_extract_epi16 (v_dbmaxpos, 0);
 
-    /* return largest score biased by 32768 */
+
+/*    if (*qmaxpos >= query_length && query_length < 200 && db_length < 200){
+#pragma omp critical
+        {
+            printf("\ndifference: %d\n", (*qmaxpos - query_length));
+            printf("query: %s, db seq: %s\n", query_id, db_id);
+            printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\n", query_length, db_length, *qmaxpos, *dbmaxpos);
+            printf("score: %d\n", (score + 32768));
+            printf("maxscore vector:\n");
+            printVector(v1);
+            printf("query positions:\n");
+            printVectorUS(v2);
+            printf("db sequence positions:\n");
+            printVectorUS(v3);
+
+            printf("\n");
+
+            int p1 = 0;
+            int p2 = 0;
+
+            for (int k = 0; k < 8; k++){
+                i = sse2_extract_epi16(v2, k);
+                j = sse2_extract_epi16(v3, k);
+                int idx = j * (8 * iter) + (i % iter) * 8 + (i / iter);
+                printf("%2d|%2d|%2d|%2d\t", ((short*)Hmatrix)[idx] + 32768, ((short*)Ematrix)[idx] + 32768, ((short*)Fmatrix)[idx] + 32768, *((short*)query_profile_word + (db_sequence[j] * iter * 8 + i%iter * 8 + i/iter)));
+                printf("\n");
+            }
+            printf("\n");
+        }
+    }*/
+
+    /* return the largest score biased by 32768 */
     return score + 32768;
 }
 
@@ -287,56 +326,60 @@ void traceback_word(short* H,
         short* F,
         int* query_sequence,
         unsigned short * query_profile_word,
-        short qLen,
+        int qLen,
         int* db_sequence,
-        short dbLen,
-        short qmaxpos, 
-        short dbmaxpos, 
+        int dbLen,
+        unsigned short qmaxpos, 
+        unsigned short dbmaxpos, 
         unsigned short gap_open, 
         unsigned short gap_extend,
-        short* qstartpos,
-        short* dbstartpos){
+        unsigned short* qstartpos,
+        unsigned short* dbstartpos,
+        char* queryDbKey,
+        char* dbDbKey){
 
+    // number of iterations
     int iter = (qLen + 7) / 8;
 
     int qpos, dbpos, idx;
 
     qpos = qmaxpos;
     dbpos = dbmaxpos;
-/*
-    int imin = 0;
-    int imax = qLen;
+    /*
+       int imin = 0;
+       int imax = qLen;
 
-    int jmin = 0;
-    int jmax = 14;
+       int jmin = 0;
+       int jmax = 14;
 
-    if (imax <= qLen && jmax <= dbLen){
-        printf("           \t");
-        for (int j = jmin; j< jmax; j++){
-            printf("%11d\t", j);
-        }
-        printf("\n");
-        for (int i = imin; i < imax; i++){
-            printf("%11d\t", i);
-            for (int j = jmin; j< jmax; j++){
-                idx = j * (8 * iter) + (i % iter) * 8 + (i / iter); 
+       if (imax <= qLen && jmax <= dbLen){
+       printf("           \t");
+       for (int j = jmin; j< jmax; j++){
+       printf("%11d\t", j);
+       }
+       printf("\n");
+       for (int i = imin; i < imax; i++){
+       printf("%11d\t", i);
+       for (int j = jmin; j< jmax; j++){
+       idx = j * (8 * iter) + (i % iter) * 8 + (i / iter); 
 
-                printf("%2d|%2d|%2d|%2d\t", H[idx] + 32768, E[idx] + 32768, F[idx] + 32768, *((short*)query_profile_word + (db_sequence[j] * iter * 8 + i%iter * 8 + i/iter)));
-            }
-            printf("\n");
-        }
-        printf("           \t");
-        for (int j = jmin; j< jmax; j++){
-            printf("%11d\t", j);
-        }
-        printf("\n");
+       printf("%2d|%2d|%2d|%2d\t", H[idx] + 32768, E[idx] + 32768, F[idx] + 32768, *((short*)query_profile_word + (db_sequence[j] * iter * 8 + i%iter * 8 + i/iter)));
+       }
+       printf("\n");
+       }
+       printf("           \t");
+       for (int j = jmin; j< jmax; j++){
+       printf("%11d\t", j);
+       }
+       printf("\n");
 
-    }
-*/
+       }
+       */
+    // dynamic programming matrix index, depending on positions in the sequences and iteration length
     idx = midx(qpos, dbpos, iter); 
-//    printf("qpos:%d, dbpos:%d, index: %d\n", qpos, dbpos, idx);
-    while (qpos != 0 && dbpos != 0 && H[idx] + 32768 != 0){
-//        printf("%d %d %d\n", qpos, dbpos, H[idx] + 32768);
+    //    printf("qpos:%d, dbpos:%d, index: %d\n", qpos, dbpos, idx);
+    while (qpos > 0 && dbpos > 0 && H[idx] + 32768 != 0){
+        //        printf("%d %d %d\n", qpos, dbpos, H[idx] + 32768);
         // match between q[i] and db[j]
         if (H[idx] == (H[midx(qpos-1, dbpos-1, iter)] + *((short*)query_profile_word + db_sequence[dbpos] * iter * 8 + qpos%iter * 8 + qpos/iter)) ){ // H[i][j] == H[i-1][j-1] + score(q[i], db[j])
             qpos--;
@@ -345,85 +388,100 @@ void traceback_word(short* H,
         }
         // continue with the E matrix = gap in the db sequence
         else if (H[idx] == E[idx]){
-//            printf("Entering E\n");
+            //            printf("Entering E\n");
             while (qpos != 0 && dbpos != 0 && H[idx] + 32768 != 0){
                 if (E[idx] == E[midx(qpos, dbpos-1, iter)] - gap_extend){
                     dbpos--;
                     idx = midx(qpos, dbpos, iter);
-//                    printf("%d %d %d\n", qpos, dbpos, E[idx] + 32768);
+                    //                    printf("%d %d %d\n", qpos, dbpos, E[idx] + 32768);
                 }
                 else if (E[idx] == H[midx(qpos, dbpos-1, iter)] - gap_open){
                     // leave E matrix
                     dbpos--;
                     idx = midx(qpos, dbpos, iter);
-//                    printf("%d %d %d\n", qpos, dbpos, E[idx] + 32768);
-//                    printf("Leaving E\n");
+                    //                    printf("%d %d %d\n", qpos, dbpos, E[idx] + 32768);
+                    //                    printf("Leaving E\n");
                     break;
                 }
                 else{
-                    printf("ERROR 1\n");
-                    exit(1);
+#pragma omp critical
+                    {
+                        printf("ERROR 1\n");
+                        printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
+                        printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
+                        exit(1);
+                    }
                 }
             }
         }
         // continue with the F matrix = gap in the query sequence
         else if (H[idx] == F[idx]){
-//            printf("Entering F\n");
+            //            printf("Entering F\n");
             while (qpos != 0 && dbpos != 0 && H[idx] + 32768 != 0){
                 if (F[idx] == F[midx(qpos-1, dbpos, iter)] - gap_extend){
                     qpos--;
                     idx = midx(qpos, dbpos, iter);
-//                    printf("%d %d %d\n", qpos, dbpos, F[idx] + 32768);
+                    //                    printf("%d %d %d\n", qpos, dbpos, F[idx] + 32768);
                 }
                 else if (F[idx] == H[midx(qpos-1, dbpos, iter)] - gap_open){
                     // leave F matrix
                     qpos--;
                     idx = midx(qpos, dbpos, iter);
-//                    printf("%d %d %d\n", qpos, dbpos, F[idx] + 32768);
-//                    printf("Leaving F\n");
+                    //                    printf("%d %d %d\n", qpos, dbpos, F[idx] + 32768);
+                    //                    printf("Leaving F\n");
                     break;
                 }
                 else{
-                    printf("ERROR 2\n");
-                    exit(1);
+#pragma omp critical
+                    {
+                        printf("ERROR 2\n");
+                        printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
+                        printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
+                        exit(1);
+                    }
                 }
             }
         }
         else{
-            printf("ERROR 3\n");
-            exit(1);
+#pragma omp critical
+            {
+                printf("ERROR 3\n");
+                printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
+                printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
+                exit(1);
+            }
         }
     }
 
-    *qstartpos = qpos;
-    *dbstartpos = dbpos;
+    *qstartpos = (unsigned short) qpos;
+    *dbstartpos = (unsigned short) dbpos;
 }
 
-void printvector(__m128i v){
-
-    short val = _mm_extract_epi16 (v, 0);
-    printf("%d %d \n", 0, val);
-   
-    val = _mm_extract_epi16 (v, 1);
-    printf("%d %d\n", 1, val);
-
-    val = _mm_extract_epi16 (v, 2);
-    printf("%d %d\n", 2, val);
-
-    val = _mm_extract_epi16 (v, 3);
-    printf("%d %d\n", 3, val);
-
-    val = _mm_extract_epi16 (v, 4);
-    printf("%d %d\n", 4, val);
-
-    val = _mm_extract_epi16 (v, 5);
-    printf("%d %d\n", 5, val);
-
-    val = _mm_extract_epi16 (v, 6);
-    printf("%d %d\n", 6, val);
-
-    val = _mm_extract_epi16 (v, 7);
-    printf("%d %d\n", 7, val);
-
+void printVector(__m128i v){
+    for (int i = 0; i < 8; i++)
+       printf("%d ", ((short) (sse2_extract_epi16(v, i)) + 32768));
+    std::cout << "\n";
 }
 
+void printVectorUS(__m128i v){
+    for (int i = 0; i < 8; i++)
+        printf("%d ", (unsigned short) sse2_extract_epi16(v, i));
+    std::cout << "\n";
+}
+
+unsigned short sse2_extract_epi16(__m128i v, int pos) {
+    switch(pos){
+        case 0: return _mm_extract_epi16(v, 0);
+        case 1: return _mm_extract_epi16(v, 1);
+        case 2: return _mm_extract_epi16(v, 2);
+        case 3: return _mm_extract_epi16(v, 3);
+        case 4: return _mm_extract_epi16(v, 4);
+        case 5: return _mm_extract_epi16(v, 5);
+        case 6: return _mm_extract_epi16(v, 6);
+        case 7: return _mm_extract_epi16(v, 7);
+    }
+    std::cerr << "Fatal error in QueryScore: position in the vector is not in the legal range (pos = " << pos << ")\n";
+    exit(1);
+    // never executed
+    return 0;
+}

@@ -8,12 +8,14 @@ QueryTemplateMatcher::QueryTemplateMatcher ( ExtendedSubstitutionMatrix* _2merSu
                                              double kmerMatchProb,
                                              int kmerSize, 
                                              int dbSize,
-                                             int alphabetSize){
+                                             int alphabetSize,
+                                             int skip){
     this->indexTable = indexTable;
     this->kmerSize = kmerSize;
     this->alphabetSize = alphabetSize;
     this->kmerGenerator = new KmerGenerator(kmerSize, alphabetSize, kmerThr, _3merSubMatrix, _2merSubMatrix);
     this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb);
+    this->skip = skip;
 }
 
 QueryTemplateMatcher::~QueryTemplateMatcher (){
@@ -63,7 +65,11 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
 
             // add the scores for the k-mer to the overall score for this query sequence
             queryScore->addScores(seqList, listSize, (unsigned short)kmerMatch.first);
+
         }
+        // skip next k-mers
+        for (int i = 0; i < this->skip; i++)
+            seq->nextKmer(kmerSize);
     } 
     seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
     seq->stats->dbMatches = numMatches;

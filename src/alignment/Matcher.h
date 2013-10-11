@@ -10,9 +10,10 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <float.h>
+#include <algorithm>
 
 #include "../commons/Sequence.h"
-#include "../commons/SubstitutionMatrix.h"
+#include "../commons/BaseMatrix.h"
 #include "smith_waterman_sse2.h"
 
 class Matcher{
@@ -26,7 +27,7 @@ class Matcher{
             float eval;
         } result_t;
 
-        Matcher(SubstitutionMatrix* m);
+        Matcher(BaseMatrix* m, int maxSeqLen);
 
         ~Matcher();
 
@@ -37,6 +38,8 @@ class Matcher{
 
         // calculate the query profile for SIMD registers processing 8 elements
         void calcQueryProfileWord(Sequence* query);
+
+        int maxSeqLen;
 
         /////////////////////////////////////////////////////////////////////////////////////
         // fast 2^x
@@ -69,7 +72,7 @@ class Matcher{
     // query profile for SIMD registers
     unsigned short* queryProfileWord;
 
-    SubstitutionMatrix* m;
+    BaseMatrix* m;
 
     void* workspace;
 
