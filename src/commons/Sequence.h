@@ -21,7 +21,7 @@ typedef struct {
 class Sequence
 {
     public:
-        Sequence(size_t maxLen,int* aa2int,char* int2aa, int nucleotideSequence);  
+        Sequence(size_t maxLen,int* aa2int,char* int2aa, int seqType);  
 
         ~Sequence();
 
@@ -43,8 +43,16 @@ class Sequence
 
         char* getDbKey() { return dbKey; }
 
-        int L;              // length of sequence
-        int * int_sequence;    // int sequence 
+        // reverse the sequence for the match statistics calculation
+        void reverse();
+
+        static const int AMINO_ACIDS = 0;
+        static const int NUCLEOTIDES = 1;
+
+        // length of sequence
+        int L;
+        // each amino acid coded as integer
+        int * int_sequence;  
 
         int  * aa2int; // ref to mapping from aa -> int
         char * int2aa; // ref mapping from int -> aa
@@ -59,7 +67,9 @@ class Sequence
         char* dbKey;
         // current iterator position
         int currItPos;
+        // AMINO_ACIDS or NUCLEOTIDES
+        int seqType;
+        // maximum possible length of sequence
         size_t maxLen;
-        int nucleotideSequence;
 };
 #endif

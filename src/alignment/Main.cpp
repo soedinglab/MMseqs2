@@ -26,7 +26,7 @@ void printUsage(){
             "-e\t[float]\tMaximum e-value (default=0.01).\n"
             "-c\t[float]\tMinimum alignment coverage (default=0.8).\n"
             "-s\t[int]\tMaximum sequence length (default=50000).\n"
-            "-a\t[int]\tMaximum alignments per query sequence (default=10).\n"
+            "-r\t[int]\tMaximum result alignment number per query sequence (default=10).\n"
             "-n\t\tNucleotide sequences input.\n");
     std::cout << usage;
 }
@@ -90,7 +90,7 @@ void parseArgs(int argc, char** argv, std::string* seqDB, std::string* prefDB, s
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "-a") == 0){
+        else if (strcmp(argv[i], "-r") == 0){
             if (++i < argc){
                 *maxAlnNum = atoi(argv[i]);
                 i++;

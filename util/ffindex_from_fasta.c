@@ -1,7 +1,7 @@
 /*
  * FFindex
  * written by Andy Hauser <hauser@genzentrum.lmu.de>.
- * Please add your name here if you distribute modified versions.
+ * modified by Maria Hauser <mhauser@genzentrum.lmu.de> (splitting into sequences/headers databases)
  * 
  * FFindex is provided under the Create Commons license "Attribution-ShareAlike
  * 3.0", which basically captures the spirit of the Gnu Public License (GPL).
@@ -117,11 +117,38 @@ int main(int argn, char **argv)
     char name[FFINDEX_MAX_ENTRY_NAME_LENTH];
     for(size_t fasta_offset = 1; fasta_offset < fasta_size; fasta_offset++) // position after first ">"
     {
-        /* entry name is the UniProt ID or other ID until a blank space occurs*/
+        /* entry name is the UniProt ID between pipe characters or other ID until a blank space occurs*/
+        size_t local_offset = 0;
+        size_t mode = 0;
+
+        while(*(fasta_data + fasta_offset + local_offset) != '\n'){
+            if(*(fasta_data + fasta_offset + local_offset) == '|'){
+                mode = 1;
+                break;
+            }
+            local_offset++;
+        }
+
+        local_offset = 0;
+            
         size_t pos = 0;
-        while (*(fasta_data + fasta_offset + pos) !=  ' '){
-            name[pos] = *(fasta_data + fasta_offset + pos);
-            pos++;
+        if (mode == 0){
+            while (*(fasta_data + fasta_offset + local_offset) !=  ' '){
+                name[pos] = *(fasta_data + fasta_offset + local_offset);
+                local_offset++;
+                pos++;
+            }
+        }
+        else{
+            while (*(fasta_data + fasta_offset + local_offset) != '|'){
+                local_offset++;
+            }
+            local_offset++;
+            while (*(fasta_data + fasta_offset + local_offset) !=  '|'){
+                name[pos] = *(fasta_data + fasta_offset + local_offset);
+                local_offset++;
+                pos++;
+            }
         }
         name[pos] = '\0';
 

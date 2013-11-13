@@ -16,50 +16,50 @@ void *memalign(size_t boundary, size_t size)
     return pointer;
 }
 
-QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kmerThr, float kmerMatchProb){
+QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr){
 
     this->dbSize = dbSize;
     this->kmerMatchProb = kmerMatchProb;
     this->kmerThr = kmerThr;
+    this->zscore_thr = zscoreThr;
 
+    this->scores_128_size = (dbSize + 7)/8 * 8;
     // 8 DB short int entries are stored in one __m128i vector
     // one __m128i vector needs 16 byte
-    scores_128 = (__m128i*) memalign(16, (dbSize/8 + 1) * 16);
-    scores = (unsigned short * ) scores_128;
+    scores_128 = (__m128i*) memalign(16, scores_128_size * 2);
+    scores = (short * ) scores_128;
 
     // set scores to zero
-    memset (scores_128, 0, (dbSize/8 + 1) * 16);
+    memset (scores_128, 0, scores_128_size * 2);
 
-    thresholds_128 = (__m128i*) memalign(16, (dbSize/8 + 1) * 16);
-    thresholds = (unsigned short * ) thresholds_128;
+    thresholds_128 = (__m128i*) memalign(16, scores_128_size * 2);
+    thresholds = (short * ) thresholds_128;
 
-    memset (thresholds_128, 0, (dbSize/8 + 1) * 16);
+    memset (thresholds_128, 0, scores_128_size * 2);
 
     // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
-    this->seqLens_128 = (__m128i*) memalign(16, (dbSize/8 + 1) * 16);
-    this->seqLens = (unsigned short *) this->seqLens_128;
-
-    memset (seqLens_128, 0, (dbSize/8 + 1) * 16);
+    this->seqLens = new float[scores_128_size];
+    memset (seqLens, 0, scores_128_size * 4);
 
     for (int i = 0; i < dbSize; i++){
         if (dbSeqLens[i] > (k - 1))
-            this->seqLens[i] = dbSeqLens[i] - k + 1;
+            this->seqLens[i] = (float) (dbSeqLens[i] - k + 1);
         else
-            this->seqLens[i] = 1;
+            this->seqLens[i] = 1.0f;
     }
 
-    this->seqLenSum = 0;
+    this->seqLenSum = 0.0f;
     for (int i = 0; i < dbSize; i++)
         this->seqLenSum += this->seqLens[i];
 
     // initialize the points where a score threshold should be recalculated
     std::list<int> steps_list;
-    int seqLen = this->seqLens[0];
+    float seqLen = this->seqLens[0];
     steps_list.push_back(0);
     // check the sequence length and decide if it changed enough to recalculate the score threshold here
     // minimum step length is 8 (one __m128 register)
-    for (int i = 0; i < (dbSize/8 + 1) * 8; i += 8){
-        if ((float)this->seqLens[i]/(float)seqLen < 0.9){
+    for (int i = 0; i < scores_128_size; i += 8){
+        if (this->seqLens[i]/seqLen < 0.9){
             steps_list.push_back(i);
             seqLen = this->seqLens[i];
         }
@@ -79,24 +79,26 @@ QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kme
     numMatches = 0;
 
     counter = 0;
+
+    s_per_match = 0.0f;
+
+    s_per_pos = 0.0f;
 }
 
 QueryScore::~QueryScore (){
     free(scores_128);
     free(thresholds_128);
-    free(seqLens_128);
+    delete[] seqLens;
     delete resList;
 }
 
-    bool QueryScore::compareHitList(hit_t first, hit_t second){
-        if (first.prefScore > second.prefScore)
-            return true;
-        return false;
-    }
+bool QueryScore::compareHits(hit_t first, hit_t second){
+   if (first.prefScore > second.prefScore)
+       return true;
+   return false;
+}
 
-std::pair<float, float> QueryScore::setPrefilteringThresholds(){
-
-    float zscore_thr = 100.0;
+void QueryScore::setPrefilteringThresholds(){
 
     // pseudo-count sum of sequence lengths
     // 100 000 * 350
@@ -106,46 +108,90 @@ std::pair<float, float> QueryScore::setPrefilteringThresholds(){
    
     // pseudo-sum of k-mer scores
     float matchScoresSum_pc = numMatches_pc * (float) (kmerThr + 8);
-    float s_per_match = ((float)scoresSum + matchScoresSum_pc)/((float)numMatches + numMatches_pc);
+    this->s_per_match = ((float)scoresSum + matchScoresSum_pc)/((float)numMatches + numMatches_pc);
 
     float scoresSum_pc = seqLenSum_pc * kmerMatchProb * s_per_match;
-    float s_per_pos = ((float)scoresSum + scoresSum_pc)/((float)seqLenSum + seqLenSum_pc);
+    this->s_per_pos = ((float)scoresSum + scoresSum_pc)/(seqLenSum + seqLenSum_pc);
     
     float seqLen;
     float mean;
     float stddev;
     float threshold;
-    unsigned short ushort_threshold = USHRT_MAX;
+    short short_threshold = SHRT_MAX;
 
     __m128i* thr = thresholds_128;
 
     for (int i = 0; i < nsteps - 1; i++){
-        seqLen = (float) seqLens[steps[i]];
+        seqLen = seqLens[steps[i]];
         mean = s_per_pos * seqLen;
         stddev = sqrt(seqLen * s_per_pos * s_per_match);
         threshold = zscore_thr * stddev + mean;
-        if (threshold >= USHRT_MAX)
-            ushort_threshold = USHRT_MAX;
-        else
-            ushort_threshold = (unsigned short) threshold;
 
+        // saturated conversion of float threshold into short threshold
+        // write short threshold into the __m128i vector
+        int t = (int) threshold;
+        // write 2x int threshold into 64 bit integer
+        int64_t thr_int64 =  ((int64_t)t) << 32 | t;
+        // write 64 bit integer threshold into __m64 data type
+        __m64 i_m64 = _mm_cvtsi64_m64 (thr_int64);
+        // saturated conversion of 2x 32 bit into 4x 16 bit 
+        __m64 i_short_v = _mm_packs_pi32(i_m64, i_m64);
+        // store short treshold in a vector
+        __m128i v =  _mm_set1_epi64(i_short_v);
+
+        // set all thresolds to the current value until calculation of the next value is necessary
         for (int j = steps[i]; j < steps[i+1]; j += 8){
-            *thr = _mm_set1_epi16(ushort_threshold);
+            *thr = v;
             thr++;
         }
     }
     // set the rest of the thresholds from the last step position
-    for (int j = steps[nsteps-1]; j < (dbSize/8 + 1) * 8; j += 8){
-        *thr = _mm_set1_epi16(ushort_threshold);
+    for (int j = steps[nsteps-1]; j < scores_128_size; j += 8){
+        *thr = _mm_set1_epi16(short_threshold);
         thr++;
     }
-    std::pair<float,float> ret (s_per_pos, s_per_match);
-    return ret;
+
+}
+
+
+void QueryScore::setPrefilteringThresholdsRevSeq(){
+    this->s_per_match = (float)scoresSumRevSeq / (float)numMatchesRevSeq;
+    this->matches_per_pos = (float)numMatchesRevSeq / seqLenSum;
+    float factor = zscore_thr * s_per_match * sqrt( 2.0 * matches_per_pos);
+    float threshold;
+    short short_threshold = SHRT_MAX;
+
+    __m128i* thr = thresholds_128;
+    for (int i = 0; i < nsteps - 1; i++){
+        threshold = factor * sqrt(seqLens[steps[i]]);
+
+        // saturated conversion of float threshold into short threshold
+        // write short threshold into the __m128i vector
+        int t = (int) threshold;
+        // write 2x int threshold into 64 bit integer
+        int64_t thr_int64 =  ((int64_t)t) << 32 | t;
+        // write 64 bit integer threshold into __m64 data type
+        __m64 i_m64 = _mm_cvtsi64_m64 (thr_int64);
+        // saturated conversion of 2x 32 bit into 4x 16 bit 
+        __m64 i_short_v = _mm_packs_pi32(i_m64, i_m64);
+        // store short treshold in a vector
+        __m128i v =  _mm_set1_epi64(i_short_v);
+
+        // set all thresolds to the current value until calculation of the next value is necessary
+        for (int j = steps[i]; j < steps[i+1]; j += 8){
+            *thr = v;
+            thr++;
+        }
+    }
+    // set the rest of the thresholds from the last step position
+    for (int j = steps[nsteps-1]; j < scores_128_size; j += 8){
+        *thr = _mm_set1_epi16(short_threshold);
+        thr++;
+    }
 }
 
 /*void QueryScore::setPrefilteringThresholds(){
 
-    float zscore_thr = 50.0;
     float s_per_pos = (float) ((float)scoresSum/(float)seqLenSum);
     float s_per_match = (float) ((float)scoresSum/(float)numMatches);
     
@@ -163,37 +209,34 @@ std::pair<float, float> QueryScore::setPrefilteringThresholds(){
     }
 }*/
 
+float QueryScore::getZscore(int seqId){
+    return ( (float)scores[seqId] - s_per_pos * seqLens[seqId] ) / sqrt(s_per_pos * seqLens[seqId] * s_per_match);
+}
 
-std::list<hit_t>* QueryScore::getResult (int querySeqLen){
-    std::pair<float, float> ret = setPrefilteringThresholds();
+float QueryScore::getZscoreRevSeq(int seqId){
+    return  ( (float)scores[seqId] / (this->s_per_match * sqrt( 2.0 * this->matches_per_pos * seqLens[seqId] )) );
+}
 
-/*    unsigned short ushort_threshold;
-    unsigned int threshold = (int) 2.2 * (float)(querySeqLen);
-    if (threshold >= USHRT_MAX)
-        ushort_threshold = USHRT_MAX;
-    else
-        ushort_threshold = (unsigned short) threshold;
-    __m128i thr = _mm_set1_epi16(ushort_threshold); */
+std::list<hit_t>* QueryScore::getResult (int querySeqLen,  float (QueryScore::*calcZscore)(int)){
 
-    float s_per_pos = ret.first;
-    float s_per_match = ret.second;
-
-    const __m128i zero = _mm_setzero_si128(); 
+//    const __m128i zero = _mm_setzero_si128(); 
 
     __m128i* p = scores_128;
     __m128i* thr = thresholds_128;
 
     __m128i cmp;
-    __m128i tmp;
+//    __m128i tmp;
 
     int set_cnt = 0;
     int set_bits_cnt = 0;
-    for (int pos = 0; pos < dbSize/8 + 1; pos++ ){
+    // go through each vector
+    for (int pos = 0; pos < scores_128_size/8; pos++ ){
 
         // look for entries above the threshold
-        tmp = _mm_subs_epu16(*p, *thr);
+/*        tmp = _mm_subs_epi16(*p, *thr);
 
-        cmp = _mm_cmpeq_epi16(tmp, zero);
+        cmp = _mm_cmpeq_epi16(tmp, zero);*/
+        cmp = _mm_cmpgt_epi16(*thr, *p);
         const unsigned int cmp_set_bits = _mm_movemask_epi8(cmp);
         
         // here are some sequences above the prefiltering threshold
@@ -204,7 +247,7 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
                 if(!CHECK_BIT(cmp_set_bits,i*2)){
                     set_bits_cnt++;
                     //hit_t hit = {pos * 8 + i, ((float)sse2_extract_epi16(*p,i))/(float)querySeqLen, 0.0};
-                    float zscore = ( (float)scores[pos * 8 + i] - s_per_pos * (float)seqLens[pos * 8 + i] ) / sqrt(s_per_pos * (float)seqLens[pos * 8 + i] * s_per_match);
+                    float zscore = (this->*calcZscore)(pos*8+i); 
                     hit_t hit = {pos * 8 + i, zscore, 0.0};
                     resList->push_back(hit);
                 }
@@ -213,11 +256,11 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
         p++;
         thr++;
     }
-    resList->sort(compareHitList);
+    resList->sort(compareHits);
     return resList;
 }
 
-/*std::list<hit_t>* QueryScore::getResult (int querySeqLen){
+/*std::list<hit_t>* QueryScore::getResult (int querySeqLen, float (QueryScore::*calcZscore)(int)){
 
     setPrefilteringThresholds();
     float s_per_pos = (float)scoresSum/(float)seqLenSum;
@@ -225,18 +268,17 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
 
     for (int i = 0; i < dbSize; i++){
         if (scores[i] > thresholds[i]){
-            float zscore = ( (float)scores[i] - s_per_pos * (float)seqLens[i] ) / sqrt(s_per_pos * (float)seqLens[i] * s_per_match);
-            hit_t hit = {i, zscore, zscores[i]};
+            float zscore = (this->*calcZscore)(i);
+            hit_t hit = {i, zscore, 0};
             resList->push_back(hit);
         }
     }
-    resList->sort(compareHitList);
+    resList->sort(compareHits);
     return resList;
 }*/
 
 
-
-unsigned short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
+short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
     switch(pos){
         case 0: return _mm_extract_epi16(v, 0);
         case 1: return _mm_extract_epi16(v, 1);
@@ -259,4 +301,8 @@ void QueryScore::printVector(__m128i v){
     std::cout << "\n";
 }
 
-
+void QueryScore::printScores(){
+    std::cout << "Scores:\n";
+    for (int i = 0; i < dbSize; i++)
+        std::cout << scores[i] << "\n";
+}

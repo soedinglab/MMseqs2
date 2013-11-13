@@ -1,12 +1,12 @@
 #include "Sequence.h"
 
-Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa, int nucleotideSequence)
+Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa, int seqType)
 {
     this->int_sequence = new int[maxLen]; 
     this->aa2int = aa2int;
     this->int2aa = int2aa;
     this->maxLen = maxLen;
-    this->nucleotideSequence = nucleotideSequence;
+    this->seqType = seqType;
     this->stats = new statistics_t;
     currItPos = -1;
 }
@@ -20,10 +20,14 @@ Sequence::~Sequence()
 void Sequence::mapSequence(int id, char* dbKey, const char * sequence){
     this->id = id;
     this->dbKey = dbKey;
-    if (this->nucleotideSequence == 0)
+    if (this->seqType == Sequence::AMINO_ACIDS)
         mapProteinSequence(sequence);
-    else
+    else if (this->seqType == Sequence::NUCLEOTIDES)
         mapNucleotideSequence(sequence);
+    else {
+        std::cerr << "ERROR: Invalid sequence type!\n";
+        exit(EXIT_FAILURE);
+    }
     currItPos = -1;
 }
 
@@ -101,6 +105,15 @@ void Sequence::mapProteinSequence(const char * sequence){
         }
     }
     this->L = l; 
+}
+
+void Sequence::reverse() {
+    int tmp;
+    for (int i = 0; i < this->L/2; i++){
+        tmp = int_sequence[i];
+        int_sequence[i] = int_sequence[this->L-i-1];
+        int_sequence[this->L-i-1] = tmp;
+    }
 }
 
 void Sequence::print() {

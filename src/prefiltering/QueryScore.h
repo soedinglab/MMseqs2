@@ -9,6 +9,7 @@
 
 
 #include <emmintrin.h>
+#include <mmintrin.h>
 
 #include <stdlib.h>
 #include <list>
@@ -20,6 +21,7 @@
 #include <math.h>
 #include <fstream>
 #include <sstream>
+#include <bitset>
 
 typedef struct {
     int seqId;
@@ -31,45 +33,50 @@ typedef struct {
 class QueryScore {
     public:
 
-        QueryScore (int dbSize, unsigned short * seqLens, int k, short kmerThr, float kmerMatchProb);
+        QueryScore (int dbSize, unsigned short * seqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr);
 
-        ~QueryScore ();
+        virtual ~QueryScore ();
 
         // add k-mer match score for all DB sequences from the list
-        virtual void addScores (int* seqList, int seqListSize, unsigned short score) = 0;
+        virtual void addScores (int* seqList, int seqListSize, short score) = 0;
 
-        // get the list of the sequences with the score > z-score threshold and the corresponding 
-        std::list<hit_t>* getResult (int querySeqLen);
+        //  add k-mer match score for all DB sequences from the list for a reverted sequence
+        virtual void addScoresRevSeq (int* seqList, int seqListSize, short score) = 0;
+
+        void setPrefilteringThresholds();
+
+        void setPrefilteringThresholdsRevSeq();
+
+        float getZscore(int seqPos);
+
+        float getZscoreRevSeq(int seqPos);
+
+       // get the list of the sequences with the score > z-score threshold and the corresponding 
+        std::list<hit_t>* getResult (int querySeqLen, float (QueryScore::*calcZscore)(int));
 
         // reset the prefiltering score counter for the next query sequence
         virtual void reset () = 0;
 
-        int numMatches;
-
+        void printScores();
 
     private:
-        // returns score per position, score per match
-        // needed for z-score calculation in getResult
-        std::pair<float,float> setPrefilteringThresholds();
+        static bool compareHits(hit_t first, hit_t second);
 
-        static bool compareHitList(hit_t first, hit_t second);
-
-        void addElementToResults(int seqId);
-
-        unsigned short sse2_extract_epi16(__m128i v, int pos);
+        short sse2_extract_epi16(__m128i v, int pos);
 
         void printVector(__m128i v);
 
         int counter;
 
-        std::ofstream s_per_pos_file;
-        std::ofstream second_term_file;
-        std::ofstream norm_score1_file;
-        std::ofstream zscore_file;
-
         short kmerThr;
 
         double kmerMatchProb;
+
+        float s_per_match;
+
+        float s_per_pos;
+
+        float zscore_thr;
 
 
     protected:
@@ -79,23 +86,65 @@ class QueryScore {
             return -(s>>16) | (unsigned short)s;
         }
 
+        inline short sadd16_signed(short x, short y)
+        {   
+            unsigned short ux = x;
+            unsigned short uy = y;
+            unsigned short res = ux + uy;
+
+            /* Calculate overflowed result. (Don't change the sign bit of ux) */
+            ux = (ux >> 15) + SHRT_MAX;
+
+            /* Force compiler to use cmovns instruction */
+            if ((short) ((ux ^ uy) | ~(uy ^ res)) >= 0)
+            {   
+                res = ux;
+            }
+
+            return res;
+        }
+
+        inline short ssub16_signed (short x, short y)
+        {
+            unsigned short ux = x;
+            unsigned short uy = y;
+            unsigned short res = ux - uy;
+
+            ux = (ux >> 15) + SHRT_MAX;
+
+            /* Force compiler to use cmovns instruction */
+            if ((short)((ux ^ uy) & (ux ^ res)) < 0)
+            {
+                res = ux;
+            }
+
+            return res;
+        }
+
+        // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
+        int scores_128_size;
         // position in the array: sequence id
         // entry in the array: prefiltering score
         __m128i* scores_128;
-        unsigned short  * scores;
+        short  * scores;
 
         __m128i* thresholds_128;
-        unsigned short  * thresholds;
+        short  * thresholds;
 
-        __m128i* seqLens_128;
-        unsigned short * seqLens;
+        // float because it is needed for statistical calculations
+        float * seqLens;
+        float seqLenSum;
 
         int* steps;
         int nsteps;
 
-        size_t seqLenSum;
-
         size_t scoresSum;
+        size_t scoresSumRevSeq;
+
+        int numMatches;
+        int numMatchesRevSeq;
+
+        float matches_per_pos;
 
         // number of sequences in the target DB
         int dbSize;

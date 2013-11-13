@@ -23,7 +23,7 @@ class DBReader {
 
         DBReader(const char* dataFileName, const char* indexFileName);
 
-        void open();
+        void open(int sort = 0);
 
         void close();
 

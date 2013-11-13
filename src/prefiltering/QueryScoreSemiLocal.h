@@ -13,8 +13,8 @@
 class QueryScoreSemiLocal : public QueryScore {
     
 public:
-    QueryScoreSemiLocal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb)
-    : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb)    // Call the QueryScore constructor
+    QueryScoreSemiLocal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
+    : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor
     {
         this->lastScores = new LastScore[dbSize];
         memset (this->lastScores, 0, sizeof(LastScore) * dbSize);
@@ -23,11 +23,11 @@ public:
     ~QueryScoreSemiLocal();
 
      struct LastScore{ 
-         unsigned short lastScore;
-         unsigned short lastMatchPos;
+         short lastScore;
+         short lastMatchPos;
      };
     
-    void addScores (int* seqList, int seqListSize, unsigned short score);
+    void addScores (int* seqList, int seqListSize, short score);
 
     void reset();
 

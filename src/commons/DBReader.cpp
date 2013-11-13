@@ -7,7 +7,7 @@ DBReader::DBReader(const char* dataFileName_, const char* indexFileName_):
     dataSize = 0;
 }
 
-void DBReader::open(){
+void DBReader::open(int sort){
     // open ffindex
     dataFile = fopen(dataFileName, "r");
     indexFile = fopen(indexFileName, "r");
@@ -36,11 +36,18 @@ void DBReader::open(){
     // sort sequences by length and generate the corresponding id mappings
     id2local = new size_t[size];
     local2id = new size_t[size];
-    calcLocalIdMapping();
+    for (int i = 0; i < size; i++){
+        id2local[i] = i;
+        local2id[i] = i;
+    }
+    
+    if (sort == 1){
+        calcLocalIdMapping();
 
-    // adapt sequence lengths
-    for (size_t i = 0; i < size; i++){
-        seqLens[i] = (unsigned short)(ffindex_get_entry_by_index(index, local2id[i])->length);
+        // adapt sequence lengths
+        for (size_t i = 0; i < size; i++){
+            seqLens[i] = (unsigned short)(ffindex_get_entry_by_index(index, local2id[i])->length);
+        }
     }
 }
 
@@ -53,9 +60,13 @@ void DBReader::close(){
 }
 
 char* DBReader::getData (size_t id){
+    if (id >= size){
+        std::cerr << "getData: local id (" << id << ") >= db size (" << size << ")\n";
+        exit(1);
+    }
     id = local2id[id];
     if (id >= size){
-        std::cerr << "getData: id (" << id << ") >= db size (" << size << ")\n";
+        std::cerr << "getData: global id (" << id << ") >= db size (" << size << ")\n";
         exit(1);
     }
     if (ffindex_get_entry_by_index(index, id)->offset >= dataSize){ 
@@ -74,9 +85,14 @@ size_t DBReader::getSize (){
 }
 
 char* DBReader::getDbKey (size_t id){
+    if (id >= size){
+        std::cerr << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
+        exit(1);
+    }
+
     id = local2id[id];
     if (id >= size){
-        std::cerr << "getDbKey: id (" << id << ") >= db size (" << size << ")\n";
+        std::cerr << "getDbKey: global id (" << id << ") >= db size (" << size << ")\n";
         exit(1);
     }
     return &(ffindex_get_entry_by_index(index, id)->name[0]);
@@ -133,10 +149,6 @@ void DBReader::sort(size_t* ids, size_t* workspace)
  */
 void DBReader::calcLocalIdMapping(){
    size_t* workspace = new size_t[size];
-
-   for (size_t i = 0; i < size; i++){
-       local2id[i] = i;
-   }
 
    // sort the enties by the length of the sequences
    sort(local2id, workspace);

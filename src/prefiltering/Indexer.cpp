@@ -54,10 +54,10 @@ void Indexer::reset(){
     this->lastKmerIndex = this->maxKmerIndex;
 }
 
-void Indexer::printKmer(int* testKmer, int kmerIdx, int kmerSize, char* int2aa){
-    index2int(testKmer, kmerIdx, kmerSize);
+void Indexer::printKmer(int* workspace, int kmerIdx, int kmerSize, char* int2aa){
+    index2int(workspace, kmerIdx, kmerSize);
     for (int j = 0; j < kmerSize; j++)
-        std::cout << int2aa[testKmer[j]];
+        std::cout << int2aa[workspace[j]];
 }
 
 void Indexer::printKmer(const int* kmer, int kmerSize, char* int2aa){

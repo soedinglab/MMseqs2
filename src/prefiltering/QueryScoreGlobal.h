@@ -14,13 +14,14 @@
 class QueryScoreGlobal : public QueryScore {
 
     public:
-        QueryScoreGlobal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb)
-            : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb)    // Call the QueryScore constructor 
+        QueryScoreGlobal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
+            : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor 
         {
         };
 
 
-            void addScores (int* seqList, int seqListSize, unsigned short score);
+            void addScores (int* seqList, int seqListSize, short score);
+            void addScoresRevSeq(int* seqList, int seqListSize, short score);
             void reset();
 
 
