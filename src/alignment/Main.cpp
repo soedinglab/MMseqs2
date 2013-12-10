@@ -9,6 +9,8 @@ extern "C" {
 
 #include <string>
 #include <list>
+#include <time.h>
+#include <sys/time.h>
 
 #include "../commons/DBReader.h"
 #include "../commons/DBWriter.h"
@@ -124,6 +126,11 @@ bool compareHits (Matcher::result_t first, Matcher::result_t second){
 }
 
 int main(int argc, char **argv){
+
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
+
     std::string seqDB = "";
     std::string prefDB = ""; 
     std::string matrixFile = ""; 
@@ -157,6 +164,7 @@ int main(int argc, char **argv){
     int threads = 1;
 #ifdef OPENMP
     threads = omp_get_max_threads();
+    std::cout << "Using " << threads << " threads.\n";
 #endif
 
     // 2 Sequence objects for each thread: one for the query, one for the DB sequence
@@ -175,10 +183,10 @@ int main(int argc, char **argv){
 
     // open the sequence, prefiltering and output databases
     DBReader* seqdbr = new DBReader(seqDB.c_str(), seqDBIndex.c_str());
-    seqdbr->open();
+    seqdbr->open(DBReader::NOSORT);
 
     DBReader* prefdbr = new DBReader(prefDB.c_str(), prefDBIndex.c_str());
-    prefdbr->open();
+    prefdbr->open(DBReader::NOSORT);
 
     DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw->open();
@@ -195,14 +203,25 @@ int main(int argc, char **argv){
     for (int i = 0; i < threads; i++)
         outBuffers[i] = new char[BUFFER_SIZE];
 
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    std::cout << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+
     std::cout << "Starting Smith-Waterman scores calculation.\n";
 
     int alignmentsNum = 0;
     int passedNum = 0;
 # pragma omp parallel for schedule(dynamic, 10) reduction (+: alignmentsNum, passedNum)
     for (unsigned int id = 0; id < prefdbr->getSize(); id++){
-        if (id % 1000000 == 0 && id > 0)
+        if (id % 1000000 == 0 && id > 0){
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
+            fflush(stdout);
+        }
+        else if (id % 10000 == 0 && id > 0) {
+            std::cout << ".";
+            fflush(stdout);
+        }
 
         int thread_idx = 0;
 #ifdef OPENMP
@@ -211,7 +230,6 @@ int main(int argc, char **argv){
         // get the prefiltering list
         char* prefList = prefdbr->getData(id);
         char* queryDbKey = prefdbr->getDbKey(id);
-        std::cout << "query: " << queryDbKey << "\n";
         std::stringstream lineSs (prefList);
         std::string val;
 
@@ -219,15 +237,15 @@ int main(int argc, char **argv){
         char* querySeqData = seqdbr->getDataByDBKey(queryDbKey);
         qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
 
+        //std::cout << "query: " << queryDbKey << " (" << qSeqs[thread_idx]->L << ")\n";
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list 
         std::list<Matcher::result_t>* swResults = new std::list<Matcher::result_t>();
         int cnt = 0;
-        while (std::getline(lineSs, val, '\t') && cnt < 10){
+        while (std::getline(lineSs, val, '\t') && cnt < maxAlnNum){
             // DB key of the db sequence
             for (unsigned int j = 0; j < val.length(); j++)
                 dbKeys[thread_idx][j] = val.at(j);
             dbKeys[thread_idx][val.length()] = '\0';
-            std::cout << "\t" << dbKeys[thread_idx] << "\n";
 //            if (strcmp (dbKeys[thread_idx], "UniRef100_E9IKE5") != 0)
 //                continue;
             // prefiltering score
@@ -239,8 +257,16 @@ int main(int argc, char **argv){
 
             // map the database sequence
             char* dbSeqData = seqdbr->getDataByDBKey(dbKeys[thread_idx]);
+            if (dbSeqData == NULL){
+# pragma omp critical
+                {
+                    std::cerr << "ERROR: Sequence " << dbKeys[thread_idx] << " required in the prefiltering not contained in the input sequence database! Please check your database.\n";
+                    exit(1);
+                }
+            }
             dbSeqs[thread_idx]->mapSequence(-1, dbKeys[thread_idx], dbSeqData);
 
+            //std::cout << "\t" << dbKeys[thread_idx] << " (" << dbSeqs[thread_idx]->L << ")\n";
             // check if the sequences could pass the coverage threshold 
             if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) || 
                     (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) )
@@ -278,10 +304,15 @@ int main(int argc, char **argv){
         delete swResults;
 
     }
+    std::cout << "\n";
     std::cout << "All sequences processed.\n\n";
     std::cout << alignmentsNum << " alignments calculated.\n";
     std::cout << passedNum << " sequences passed the thresholds (" << ((float)passedNum/(float)alignmentsNum) << " of overall calculated).\n";
     std::cout << ((float)passedNum/(float)prefdbr->getSize()) << " hits per query sequence.\n";
+
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    std::cout << "Time for alignments calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
     seqdbr->close();
     prefdbr->close();

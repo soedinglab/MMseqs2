@@ -67,6 +67,7 @@ int DBWriter::close(){
         if (data_size > 0){
             ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, 0);
             ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);
+            free(index_to_add);
         }
 
         fclose(data_file_to_add);
@@ -75,10 +76,24 @@ int DBWriter::close(){
     fclose(data_file);
     fclose(index_file);
 
+    char line[1000];
+    int cnt = 0;
+    std::ifstream index_file_cnt(indexFileName);
+    if (index_file_cnt.is_open()) {
+        while ( index_file_cnt.getline (line, 1000) ){
+            cnt++;
+        }
+        index_file_cnt.close();
+    }
+    else{
+        std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
+        exit(EXIT_FAILURE);
+    }
+
     index_file = fopen(indexFileName, "r+");
     if(index_file == NULL) { perror(indexFileName); return EXIT_FAILURE; }
 
-    ffindex_index_t* index = ffindex_index_parse(index_file, 0);
+    ffindex_index_t* index = ffindex_index_parse(index_file, cnt);
     if(index == NULL) { perror("ffindex_index_parse failed"); return (EXIT_FAILURE); }
 
     fclose(index_file);

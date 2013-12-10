@@ -16,7 +16,7 @@ class IndexTable {
 
     public:
 
-        IndexTable (int alphabetSize, int kmerSize);
+        IndexTable (int alphabetSize, int kmerSize, int skip);
 
         ~IndexTable();
 
@@ -26,7 +26,7 @@ class IndexTable {
         // add k-mers of the sequence to the index table
         void addSequence (Sequence* s);
 
-        void removeDuplicateEntries();
+//        void removeDuplicateEntries();
 
         // init the arrays for the sequence lists 
         void init();
@@ -46,8 +46,11 @@ class IndexTable {
     private:
         int ipow (int base, int exponent);
 
-        // Index table: contains pointers to the arrays (stored in DynamicArray structure) of DB sequences containing a certain k-mer
+        // Index table: contains pointers to the point in the entries array where starts the list of sequence ids for a certain k-mer
         int** table;
+
+        // Index table entries: ids of sequences containing a certain k-mer, stored sequentially in the memory
+        int* entries;
 
         int* sizes;
 
@@ -62,6 +65,11 @@ class IndexTable {
 
         Sequence* s;
 
+        // number of skipped k-mers
+        int skip;
+
+        // number of entries in all sequence lists
+        int64_t tableEntriesNum;
 };
 
 #endif

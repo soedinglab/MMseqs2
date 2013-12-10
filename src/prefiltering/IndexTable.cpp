@@ -1,6 +1,6 @@
 #include "IndexTable.h"
 
-IndexTable::IndexTable (int alphabetSize, int kmerSize)
+IndexTable::IndexTable (int alphabetSize, int kmerSize, int skip)
 {
     this->alphabetSize = alphabetSize;
     this->kmerSize = kmerSize;
@@ -17,13 +17,14 @@ IndexTable::IndexTable (int alphabetSize, int kmerSize)
     table = new int*[tableSize];
 
     idxer = new Indexer(alphabetSize, kmerSize);
-}
 
+    this->skip = skip;
+
+    this->tableEntriesNum = 0;
+}
 IndexTable::~IndexTable(){
-    for (int i = 0; i < tableSize; i++){
-        if (sizes[i] > 0)
-            delete[] table[i];
-    }
+    delete[] entries;
+    delete[] currPos;
     delete[] table;
     delete[] sizes;
     delete idxer;
@@ -37,14 +38,24 @@ void IndexTable::addKmerCount (Sequence* s){
     while(s->hasNextKmer(kmerSize)){
         kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
         sizes[kmerIdx]++;
+        tableEntriesNum++;
+        for (int i = 0; i < skip && s->hasNextKmer(kmerSize); i++){
+            idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
+        }
     }
-
+    this->s = s;
 }
 
 void IndexTable::init(){
+    // allocate memory for the sequence id lists
+    entries = new int[tableEntriesNum];
+    int* it = entries;
+    // set the pointers in the index table to the start of the list for a certain k-mer
     for (int i = 0; i < tableSize; i++){
-        if (sizes[i] > 0)
-            table[i] = new int[sizes[i]];
+        if (sizes[i] > 0){
+            table[i] = it;
+            it += sizes[i];
+        }
     }
 }
 
@@ -55,13 +66,29 @@ void IndexTable::addSequence (Sequence* s){
     this->s = s;
     idxer->reset();
 
+    int* workspace = new int(kmerSize);
     while(s->hasNextKmer(kmerSize)){
         kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
+        if(currPos[kmerIdx] >= sizes[kmerIdx]){
+#pragma omp critical
+            {
+                std::cout << "ERROR\n";
+                std::cout << "CurrPos: " << currPos[kmerIdx] << ", sizes: " << sizes[kmerIdx] << "\n";
+                std::cout << "kmerIdx: " << kmerIdx << ", kmer: ";
+                idxer->printKmer(workspace, kmerIdx, kmerSize, s->int2aa);
+                std::cout << "\nSequence:\n";
+                std::cout << "id: " << s->getId() << ", DB id: " << s->getDbKey() << "\n";
+            }
+        }
         table[kmerIdx][currPos[kmerIdx]++] = s->getId();
+        for (int i = 0; i < skip && s->hasNextKmer(kmerSize); i++){
+            idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
+        }
     }
+    delete[] workspace;
 }
 
-void IndexTable::removeDuplicateEntries(){
+/*void IndexTable::removeDuplicateEntries(){
 
     delete[] currPos;
     for (int e = 0; e < tableSize; e++){
@@ -90,7 +117,7 @@ void IndexTable::removeDuplicateEntries(){
         sizes[e] = size;
     }
 
-}
+}*/
 
 void IndexTable::print(){
     int* testKmer = new int[kmerSize];

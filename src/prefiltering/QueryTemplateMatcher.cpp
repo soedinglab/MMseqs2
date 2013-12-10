@@ -11,14 +11,12 @@ QueryTemplateMatcher::QueryTemplateMatcher ( BaseMatrix* m,
         int dbSize,
         bool aaBiasCorrection,
         int maxSeqLen,
-        int skip,
         float zscoreThr){
     this->m = m;
     this->indexTable = indexTable;
     this->kmerSize = kmerSize;
     this->kmerGenerator = new KmerGenerator(kmerSize, m->alphabetSize, kmerThr, _3merSubMatrix, _2merSubMatrix);
     this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);
-    this->skip = skip;
     this->aaBiasCorrection = aaBiasCorrection;
 
     this->deltaS = new float[maxSeqLen];
@@ -26,6 +24,7 @@ QueryTemplateMatcher::QueryTemplateMatcher ( BaseMatrix* m,
 }
 
 QueryTemplateMatcher::~QueryTemplateMatcher (){
+    delete[] deltaS;
     delete kmerGenerator;
     delete queryScore;
 }
@@ -128,13 +127,6 @@ void QueryTemplateMatcher::match(Sequence* seq, void (QueryScore::*addScores)(in
         biasCorrection -= deltaS[pos];
         biasCorrection += deltaS[pos + kmerSize];
         pos++;
-        // skip next k-mers
-        for (int i = 0; i < this->skip; i++){
-            seq->nextKmer(kmerSize);
-            biasCorrection -= deltaS[pos];
-            biasCorrection += deltaS[pos + kmerSize];
-            pos++;
-        }
     }
     // write statistics
     seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);

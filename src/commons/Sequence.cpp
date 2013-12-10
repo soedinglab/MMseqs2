@@ -125,17 +125,13 @@ void Sequence::print() {
 }
 
 bool Sequence::hasNextKmer(int kmerSize) {
-   if (((currItPos + 1) + kmerSize) <= this->L)
-      return true;
-   else
-      return false;
+   return (((currItPos + 1) + kmerSize) <= this->L);
 }
 
 const int * Sequence::nextKmer(int kmerSize) {
-    if (hasNextKmer(kmerSize) == true) {
-        currItPos += 1;
+    if (hasNextKmer(kmerSize)) {
+        currItPos++;
         return &int_sequence[currItPos];
-    } else {
-        return 0;
-    }
+    } 
+    return 0;
 }

@@ -8,6 +8,20 @@ DBReader::DBReader(const char* dataFileName_, const char* indexFileName_):
 }
 
 void DBReader::open(int sort){
+    // count the number of entries
+    char line [1000];
+    int cnt = 0;
+    std::ifstream index_file(indexFileName);
+    if (index_file.is_open()) {
+        while ( index_file.getline (line, 1000) ){
+            cnt++;
+        }
+        index_file.close();
+    }
+    else{
+        std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
+        exit(EXIT_FAILURE);
+    }
     // open ffindex
     dataFile = fopen(dataFileName, "r");
     indexFile = fopen(indexFileName, "r");
@@ -17,7 +31,7 @@ void DBReader::open(int sort){
 
     data = ffindex_mmap_data(dataFile, &dataSize);
 
-    index = ffindex_index_parse(indexFile, 0);
+    index = ffindex_index_parse(indexFile, cnt);
 
     if(index == NULL)
     {
@@ -41,7 +55,7 @@ void DBReader::open(int sort){
         local2id[i] = i;
     }
     
-    if (sort == 1){
+    if (sort == DBReader::SORT){
         calcLocalIdMapping();
 
         // adapt sequence lengths
@@ -96,6 +110,25 @@ char* DBReader::getDbKey (size_t id){
         exit(1);
     }
     return &(ffindex_get_entry_by_index(index, id)->name[0]);
+}
+
+size_t DBReader::getId (char* dbKey){
+    int i = 0; 
+    int j = index->n_entries -1;
+    int k;
+    while (j >= i){
+        k = i + (j - i)/2;
+        int cmp = strcmp(dbKey, index->entries[k].name);
+        if (cmp == 0)
+            return k;
+        else if (cmp > 0)
+            i = k + 1;
+        else
+            j = k - 1;
+    }
+    std::cerr << "DBReader::getId: key not in index!\n";
+    exit(1);
+    return 0;
 }
 
 unsigned short* DBReader::getSeqLens(){

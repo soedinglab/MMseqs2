@@ -23,7 +23,7 @@ class DBReader {
 
         DBReader(const char* dataFileName, const char* indexFileName);
 
-        void open(int sort = 0);
+        void open(int sort);
 
         void close();
 
@@ -35,7 +35,13 @@ class DBReader {
 
         char* getDbKey(size_t id);
 
+        // does a binary search in the ffindex and returns index of the entry with dbKey
+        size_t getId (char* dbKey);
+
         unsigned short* getSeqLens();
+
+        static const int NOSORT = 0;
+        static const int SORT = 1;
 
     private:
 

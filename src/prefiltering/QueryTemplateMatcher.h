@@ -28,7 +28,6 @@ class QueryTemplateMatcher {
                 int dbSize,
                 bool aaBiasCorrecion,
                 int maxSeqLen,
-                int skip, 
                 float zscoreThr); 
 
         ~QueryTemplateMatcher();
@@ -52,8 +51,6 @@ class QueryTemplateMatcher {
         QueryScore * queryScore;
         // k of the k-mer
         int kmerSize;
-        // number of skipped k-mers in the sequence
-        int skip;
         // local amino acid bias correction
         bool aaBiasCorrection;
         // local score correction values

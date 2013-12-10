@@ -17,11 +17,12 @@ extern "C" {
 #include <iostream>
 #include <sys/stat.h>
 #include <sstream>
+#include <fstream>
 
 class DBWriter {
     public:
 
-        DBWriter(const char* dataFileName, const char* indexFileName, int maxThreadNum);
+        DBWriter(const char* dataFileName, const char* indexFileName, int maxThreadNum = 1);
 
         ~DBWriter();
 
@@ -29,7 +30,7 @@ class DBWriter {
 
         int close();
 
-        void write(char* data, int dataSize, char* key, int threadIdx);
+        void write(char* data, int dataSize, char* key, int threadIdx = 0);
 
     private:
 
