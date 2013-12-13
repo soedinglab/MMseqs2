@@ -26,7 +26,7 @@ class IndexTable {
         // add k-mers of the sequence to the index table
         void addSequence (Sequence* s);
 
-//        void removeDuplicateEntries();
+        void removeDuplicateEntries();
 
         // init the arrays for the sequence lists 
         void init();
@@ -38,10 +38,6 @@ class IndexTable {
 
         // alphabetSize**kmerSize
         int tableSize;
-
-//        void checkSizeAndCapacity();
-
- //       void reduceMemoryUsage();
 
     private:
         int ipow (int base, int exponent);

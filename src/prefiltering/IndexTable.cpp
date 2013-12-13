@@ -8,11 +8,10 @@ IndexTable::IndexTable (int alphabetSize, int kmerSize, int skip)
     tableSize = ipow(alphabetSize, kmerSize);
 
     sizes = new int[tableSize];
+    memset(sizes, 0, sizeof(int) * tableSize);
+    
     currPos = new int[tableSize];
-    for (int i = 0; i < tableSize; i++){
-        sizes[i] = 0;
-        currPos[i] = 0;
-    }
+    memset(currPos, 0, sizeof(int) * tableSize);
 
     table = new int*[tableSize];
 
@@ -24,7 +23,6 @@ IndexTable::IndexTable (int alphabetSize, int kmerSize, int skip)
 }
 IndexTable::~IndexTable(){
     delete[] entries;
-    delete[] currPos;
     delete[] table;
     delete[] sizes;
     delete idxer;
@@ -66,7 +64,7 @@ void IndexTable::addSequence (Sequence* s){
     this->s = s;
     idxer->reset();
 
-    int* workspace = new int(kmerSize);
+    int* workspace = new int[kmerSize];
     while(s->hasNextKmer(kmerSize)){
         kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
         if(currPos[kmerIdx] >= sizes[kmerIdx]){
@@ -88,9 +86,11 @@ void IndexTable::addSequence (Sequence* s){
     delete[] workspace;
 }
 
-/*void IndexTable::removeDuplicateEntries(){
+void IndexTable::removeDuplicateEntries(){
 
     delete[] currPos;
+    this->tableEntriesNum = 0;
+    
     for (int e = 0; e < tableSize; e++){
         if (sizes[e] == 0)
             continue;
@@ -106,18 +106,23 @@ void IndexTable::addSequence (Sequence* s){
         }
 
         size = boundary;
-        // no duplicates found
-        if (size == sizes[e])
-            continue;
-        // copy the remaining entries to a smaller array
-        int* entriesNew = new int[size];
-        memcpy(entriesNew, entries, sizeof(int)*size);
-        delete[] entries;
-        table[e] = entriesNew;
+        
         sizes[e] = size;
+        this->tableEntriesNum += size;
+    }
+    // copy the entries without duplicates to a new array
+    int* entriesWithoutDuplicates = new int[tableEntriesNum];
+    int pos = 0;
+    for (int e = 0; e < tableSize; e++){
+        memcpy(entriesWithoutDuplicates + pos, table[e], sizes[e]*sizeof(int));
+        table[e] = entriesWithoutDuplicates + pos;
+        pos += sizes[e];
     }
 
-}*/
+    delete[] entries;
+    entries = entriesWithoutDuplicates;
+
+}
 
 void IndexTable::print(){
     int* testKmer = new int[kmerSize];

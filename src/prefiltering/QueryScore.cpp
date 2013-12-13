@@ -235,7 +235,7 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen,  float (QueryScore::*c
             for(int i = 0; i < 8; i++){
                 if(!CHECK_BIT(cmp_set_bits,i*2)){
                     float zscore = (this->*calcZscore)(pos*8+i); 
-                    hit_t hit = {pos * 8 + i, zscore, 0.0};
+                    hit_t hit = {pos * 8 + i, zscore, scores[pos*8+i]};
                     resList->push_back(hit);
                 }
             }

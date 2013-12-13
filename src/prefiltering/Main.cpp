@@ -269,9 +269,9 @@ IndexTable* getIndexTable (int alphabetSize, int kmerSize, DBReader* dbr, Sequen
         indexTable->addSequence(seq);
     }
 
-/*    std::cout << "Index table: removing duplicate entries...\n";
+    std::cout << "Index table: removing duplicate entries...\n";
     indexTable->removeDuplicateEntries();
-*/
+
     return indexTable;
 }
 
@@ -446,7 +446,7 @@ int main (int argc, const char * argv[])
 
     std::cout << "Init data structures...\n";
     DBReader* qdbr = new DBReader(queryDB.c_str(), queryDBIndex.c_str());
-    qdbr->open(DBReader::NOSORT);
+    qdbr->open(DBReader::SORT);
 
     DBReader* tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader::SORT);
@@ -491,7 +491,7 @@ int main (int argc, const char * argv[])
     std::cout << "\nAdjusting k-mer similarity threshold within +-10% deviation from the target k-mer match probability (target probability = " << p_match << ")...\n";
     std::pair<short, double> ret = setKmerThreshold (tdbr, seqs, subMat, _2merSubMatrix, _3merSubMatrix, kmerSize, maxSeqLen, p_match, 0.1);
     short kmerThr = ret.first; //174; //ret.first; // 103;
-    double kmerMatchProb =  ret.second; //1.16383e-09; //ret.second; // 1.57506e-06;
+    double kmerMatchProb = ret.second; //1.16383e-09; //ret.second; // 1.57506e-06;
     if (kmerThr == 0.0){
         std::cout << "Could not set the probability within +-10% deviation. Trying +-15% deviation.\n";
         ret = setKmerThreshold (tdbr, seqs, subMat, _2merSubMatrix, _3merSubMatrix, kmerSize, maxSeqLen, p_match, 0.15);
@@ -573,6 +573,11 @@ int main (int argc, const char * argv[])
                 std::cout << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << iter->seqId << "\t" << iter->prefScore << "\n";
             }
             prefResultsOut << tdbr->getDbKey(iter->seqId) << "\t" << iter->prefScore << "\t" << iter->eval << "\n";
+/*            if (l == 0){
+                if (strcmp(qdbr->getDbKey(id), tdbr->getDbKey(iter->seqId)) != 0){
+                    std::cout << qdbr->getDbKey(id) << " (" << tdbr->getDbKey(iter->seqId) << ") " << seqs[thread_idx]->L <<  "\n";
+                }
+            }*/
             l++;
             // maximum allowed result list length is reached
             if (l == maxResListLen)
