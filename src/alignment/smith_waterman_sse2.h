@@ -32,6 +32,7 @@ extern "C" {
 #include <stdlib.h>
 #include <iostream>
 #include <malloc.h>
+#include <limits.h> 
 
 
 typedef struct {

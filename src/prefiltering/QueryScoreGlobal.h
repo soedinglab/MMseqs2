@@ -20,8 +20,7 @@ class QueryScoreGlobal : public QueryScore {
         };
 
 
-            void addScores (int* seqList, int seqListSize, short score);
-            void addScoresRevSeq(int* seqList, int seqListSize, short score);
+            void addScores (int* seqList, int seqListSize, unsigned short score);
             void reset();
 
 

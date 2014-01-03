@@ -14,7 +14,7 @@ QueryScoreSemiLocal::~QueryScoreSemiLocal(){
     delete[] lastScores;
 }
 
-void QueryScoreSemiLocal::addScores(int *seqList, int seqListSize, short score){
+void QueryScoreSemiLocal::addScores(int *seqList, int seqListSize, unsigned short score){
     const int currentMatchPos=0;
     const int f = 1;
     for (int i = 0; i < seqListSize; i++){

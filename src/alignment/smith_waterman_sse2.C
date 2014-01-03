@@ -345,41 +345,12 @@ void traceback_word(short* H,
 
     qpos = qmaxpos;
     dbpos = dbmaxpos;
-    /*
-       int imin = 0;
-       int imax = qLen;
 
-       int jmin = 0;
-       int jmax = 14;
-
-       if (imax <= qLen && jmax <= dbLen){
-       printf("           \t");
-       for (int j = jmin; j< jmax; j++){
-       printf("%11d\t", j);
-       }
-       printf("\n");
-       for (int i = imin; i < imax; i++){
-       printf("%11d\t", i);
-       for (int j = jmin; j< jmax; j++){
-       idx = j * (8 * iter) + (i % iter) * 8 + (i / iter); 
-
-       printf("%2d|%2d|%2d|%2d\t", H[idx] + 32768, E[idx] + 32768, F[idx] + 32768, *((short*)query_profile_word + (db_sequence[j] * iter * 8 + i%iter * 8 + i/iter)));
-       }
-       printf("\n");
-       }
-       printf("           \t");
-       for (int j = jmin; j< jmax; j++){
-       printf("%11d\t", j);
-       }
-       printf("\n");
-
-       }
-       */
+    int warning_set = 0;
+    
     // dynamic programming matrix index, depending on positions in the sequences and iteration length
     idx = midx(qpos, dbpos, iter); 
-    //    printf("qpos:%d, dbpos:%d, index: %d\n", qpos, dbpos, idx);
     while (qpos > 0 && dbpos > 0 && H[idx] + 32768 != 0){
-        //        printf("%d %d %d\n", qpos, dbpos, H[idx] + 32768);
         // match between q[i] and db[j]
         if (H[idx] == (H[midx(qpos-1, dbpos-1, iter)] + *((short*)query_profile_word + db_sequence[dbpos] * iter * 8 + qpos%iter * 8 + qpos/iter)) ){ // H[i][j] == H[i-1][j-1] + score(q[i], db[j])
             qpos--;
@@ -388,19 +359,15 @@ void traceback_word(short* H,
         }
         // continue with the E matrix = gap in the db sequence
         else if (H[idx] == E[idx]){
-            //            printf("Entering E\n");
             while (qpos != 0 && dbpos != 0 && H[idx] + 32768 != 0){
                 if (E[idx] == E[midx(qpos, dbpos-1, iter)] - gap_extend){
                     dbpos--;
                     idx = midx(qpos, dbpos, iter);
-                    //                    printf("%d %d %d\n", qpos, dbpos, E[idx] + 32768);
                 }
                 else if (E[idx] == H[midx(qpos, dbpos-1, iter)] - gap_open){
                     // leave E matrix
                     dbpos--;
                     idx = midx(qpos, dbpos, iter);
-                    //                    printf("%d %d %d\n", qpos, dbpos, E[idx] + 32768);
-                    //                    printf("Leaving E\n");
                     break;
                 }
                 else{
@@ -409,6 +376,7 @@ void traceback_word(short* H,
                         printf("ERROR 1\n");
                         printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
                         printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
+                        printf("score: %d\n", H[midx(qpos, dbpos, iter)]);
                         exit(1);
                     }
                 }
@@ -416,19 +384,15 @@ void traceback_word(short* H,
         }
         // continue with the F matrix = gap in the query sequence
         else if (H[idx] == F[idx]){
-            //            printf("Entering F\n");
             while (qpos != 0 && dbpos != 0 && H[idx] + 32768 != 0){
                 if (F[idx] == F[midx(qpos-1, dbpos, iter)] - gap_extend){
                     qpos--;
                     idx = midx(qpos, dbpos, iter);
-                    //                    printf("%d %d %d\n", qpos, dbpos, F[idx] + 32768);
                 }
                 else if (F[idx] == H[midx(qpos-1, dbpos, iter)] - gap_open){
                     // leave F matrix
                     qpos--;
                     idx = midx(qpos, dbpos, iter);
-                    //                    printf("%d %d %d\n", qpos, dbpos, F[idx] + 32768);
-                    //                    printf("Leaving F\n");
                     break;
                 }
                 else{
@@ -437,22 +401,35 @@ void traceback_word(short* H,
                         printf("ERROR 2\n");
                         printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
                         printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
+                        printf("score: %d\n", H[midx(qpos, dbpos, iter)]);
                         exit(1);
                     }
                 }
             }
         }
         else{
+            if (H[idx] == SHRT_MAX){
+                // if we did not find any trace, then here is a short overflow
+                qpos--;
+                dbpos--;
+                warning_set = 1;
+            }
+            else{
 #pragma omp critical
-            {
-                printf("ERROR 3\n");
-                printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
-                printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
-                exit(1);
+                {
+                    printf("ERROR 3\n");
+                    printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
+                    printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
+                    printf("score: %d\n", H[midx(qpos, dbpos, iter)]);
+                    exit(1);
+                }
             }
         }
     }
 
+    if (warning_set == 1)
+        printf("WARNING: short range overflow (query: %s, db seq: %s)\nThe alignment might be inaccurate!\n", queryDbKey, dbDbKey);
+    
     *qstartpos = (unsigned short) qpos;
     *dbstartpos = (unsigned short) dbpos;
 }

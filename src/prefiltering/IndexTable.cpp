@@ -67,17 +67,6 @@ void IndexTable::addSequence (Sequence* s){
     int* workspace = new int[kmerSize];
     while(s->hasNextKmer(kmerSize)){
         kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
-        if(currPos[kmerIdx] >= sizes[kmerIdx]){
-#pragma omp critical
-            {
-                std::cout << "ERROR\n";
-                std::cout << "CurrPos: " << currPos[kmerIdx] << ", sizes: " << sizes[kmerIdx] << "\n";
-                std::cout << "kmerIdx: " << kmerIdx << ", kmer: ";
-                idxer->printKmer(workspace, kmerIdx, kmerSize, s->int2aa);
-                std::cout << "\nSequence:\n";
-                std::cout << "id: " << s->getId() << ", DB id: " << s->getDbKey() << "\n";
-            }
-        }
         table[kmerIdx][currPos[kmerIdx]++] = s->getId();
         for (int i = 0; i < skip && s->hasNextKmer(kmerSize); i++){
             idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
@@ -89,7 +78,7 @@ void IndexTable::addSequence (Sequence* s){
 void IndexTable::removeDuplicateEntries(){
 
     delete[] currPos;
-    this->tableEntriesNum = 0;
+//    this->tableEntriesNum = 0;
     
     for (int e = 0; e < tableSize; e++){
         if (sizes[e] == 0)
@@ -108,9 +97,9 @@ void IndexTable::removeDuplicateEntries(){
         size = boundary;
         
         sizes[e] = size;
-        this->tableEntriesNum += size;
+//        this->tableEntriesNum += size;
     }
-    // copy the entries without duplicates to a new array
+/*    // copy the entries without duplicates to a new array
     int* entriesWithoutDuplicates = new int[tableEntriesNum];
     int pos = 0;
     for (int e = 0; e < tableSize; e++){
@@ -120,7 +109,7 @@ void IndexTable::removeDuplicateEntries(){
     }
 
     delete[] entries;
-    entries = entriesWithoutDuplicates;
+    entries = entriesWithoutDuplicates;*/
 
 }
 

@@ -65,30 +65,14 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
     queryScore->reset();
     seq->resetCurrPos();
 
-    match(seq, &QueryScore::addScores);
+    match(seq);
 
     queryScore->setPrefilteringThresholds();
 
-    return queryScore->getResult(seq->L, &QueryScore::getZscore);
+    return queryScore->getResult(seq->L);
 }
 
-std::list<hit_t>* QueryTemplateMatcher::matchQueryRevSeq (Sequence* seq){
-    queryScore->reset();
-
-    // match the reverse sequence
-    seq->reverse();
-    match(seq, &QueryScore::addScoresRevSeq);
-
-    // reverse the sequence back to the original sequence
-    seq->reverse();
-    match(seq, &QueryScore::addScores);
-
-    // calculate the prefiltering thresholds and the end result list
-    queryScore->setPrefilteringThresholdsRevSeq();
-    return queryScore->getResult(seq->L, &QueryScore::getZscoreRevSeq);
-}
-
-void QueryTemplateMatcher::match(Sequence* seq, void (QueryScore::*addScores)(int* seqList, int seqListSize, short score)){
+void QueryTemplateMatcher::match(Sequence* seq){
 
     seq->resetCurrPos();
     
@@ -122,7 +106,7 @@ void QueryTemplateMatcher::match(Sequence* seq, void (QueryScore::*addScores)(in
             numMatches += listSize;
 
             // add the scores for the k-mer to the overall score for this query sequence
-            (queryScore->*addScores)(seqList, listSize, kmerMatchScore);
+            queryScore->addScores(seqList, listSize, kmerMatchScore);
         }
         biasCorrection -= deltaS[pos];
         biasCorrection += deltaS[pos + kmerSize];

@@ -23,11 +23,11 @@ public:
     ~QueryScoreSemiLocal();
 
      struct LastScore{ 
-         short lastScore;
+         unsigned short lastScore;
          short lastMatchPos;
      };
     
-    void addScores (int* seqList, int seqListSize, short score);
+    void addScores (int* seqList, int seqListSize, unsigned short score);
 
     void reset();
 

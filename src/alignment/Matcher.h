@@ -34,6 +34,9 @@ class Matcher{
         // run SSE2 parallelized Smith-Waterman alignment calculation and traceback
         result_t getSWResult(Sequence* query, Sequence* dbSeq, int seqDbSize);
 
+        static bool compareHits (result_t first, result_t second){ if (first.score > second.score) return true; return false; }
+
+
     private:
 
         // calculate the query profile for SIMD registers processing 8 elements

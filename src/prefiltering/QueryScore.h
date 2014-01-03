@@ -38,10 +38,7 @@ class QueryScore {
         virtual ~QueryScore ();
 
         // add k-mer match score for all DB sequences from the list
-        virtual void addScores (int* seqList, int seqListSize, short score) = 0;
-
-        //  add k-mer match score for all DB sequences from the list for a reverted sequence
-        virtual void addScoresRevSeq (int* seqList, int seqListSize, short score) = 0;
+        virtual void addScores (int* seqList, int seqListSize, unsigned short score) = 0;
 
         void setPrefilteringThresholds();
 
@@ -49,10 +46,8 @@ class QueryScore {
 
         float getZscore(int seqPos);
 
-        float getZscoreRevSeq(int seqPos);
-
        // get the list of the sequences with the score > z-score threshold and the corresponding 
-        std::list<hit_t>* getResult (int querySeqLen, float (QueryScore::*calcZscore)(int));
+        std::list<hit_t>* getResult (int querySeqLen);
 
         // reset the prefiltering score counter for the next query sequence
         virtual void reset () = 0;
@@ -126,10 +121,10 @@ class QueryScore {
         // position in the array: sequence id
         // entry in the array: prefiltering score
         __m128i* scores_128;
-        short  * scores;
+        unsigned short  * scores;
 
         __m128i* thresholds_128;
-        short  * thresholds;
+        unsigned short  * thresholds;
 
         // float because it is needed for statistical calculations
         float * seqLens;
@@ -139,10 +134,8 @@ class QueryScore {
         int nsteps;
 
         size_t scoresSum;
-        size_t scoresSumRevSeq;
 
         int numMatches;
-        int numMatchesRevSeq;
 
         float matches_per_pos;
 

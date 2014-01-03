@@ -1,10 +1,14 @@
 #include "DBReader.h"
 
-DBReader::DBReader(const char* dataFileName_, const char* indexFileName_):
-    dataFileName(dataFileName_),
-    indexFileName(indexFileName_)
+DBReader::DBReader(const char* dataFileName_, const char* indexFileName_)
 {
     dataSize = 0;
+    
+    this->dataFileName = new char [strlen(dataFileName_) + 1];
+    memcpy(dataFileName, dataFileName_, sizeof(char) * (strlen(dataFileName_) + 1));
+
+    this->indexFileName = new char [strlen(indexFileName_) + 1];
+    memcpy(indexFileName, indexFileName_, sizeof(char) * (strlen(indexFileName_) + 1));
 }
 
 void DBReader::open(int sort){

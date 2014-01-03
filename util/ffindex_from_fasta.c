@@ -114,6 +114,7 @@ int main(int argn, char **argv)
     size_t hdr_offset = 0;
     size_t seq_offset = 0;
     size_t from_length = 0;
+    size_t entries_num = 0;
     char name[FFINDEX_MAX_ENTRY_NAME_LENTH];
     for(size_t fasta_offset = 1; fasta_offset < fasta_size; fasta_offset++) // position after first ">"
     {
@@ -151,6 +152,7 @@ int main(int argn, char **argv)
             }
         }
         name[pos] = '\0';
+        entries_num++;
 
         if (headers == 0){
             from_length = 1;
@@ -187,7 +189,7 @@ int main(int argn, char **argv)
     if(sort)
     {
         rewind(index_file);
-        ffindex_index_t* index = ffindex_index_parse(index_file, 0);
+        ffindex_index_t* index = ffindex_index_parse(index_file, entries_num);
         if(index == NULL)
         {
             perror("ffindex_index_parse failed");
@@ -201,7 +203,7 @@ int main(int argn, char **argv)
 
         if (headers == 1){
             rewind(index_file_hdr);
-            ffindex_index_t* index_hdr = ffindex_index_parse(index_file_hdr, 0);
+            ffindex_index_t* index_hdr = ffindex_index_parse(index_file_hdr, entries_num);
             if(index == NULL)
             { 
                 perror("ffindex_index_parse failed");

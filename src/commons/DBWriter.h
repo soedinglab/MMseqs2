@@ -36,9 +36,9 @@ class DBWriter {
 
         void initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile);
 
-        const char* dataFileName;
+        char* dataFileName;
 
-        const char* indexFileName;
+        char* indexFileName;
 
         FILE** dataFiles;
 

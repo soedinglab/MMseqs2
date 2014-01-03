@@ -1,10 +1,13 @@
 #include "DBWriter.h"
 
-DBWriter::DBWriter (const char* dataFileName_, const char* indexFileName_, int maxThreadNum_):
-    dataFileName(dataFileName_),
-    indexFileName(indexFileName_),
-    maxThreadNum(maxThreadNum_)
+DBWriter::DBWriter (const char* dataFileName_, const char* indexFileName_, int maxThreadNum_)
 {
+    this->dataFileName = new char [strlen(dataFileName_) + 1];
+    memcpy(dataFileName, dataFileName_, sizeof(char) * (strlen(dataFileName_) + 1));
+
+    this->indexFileName = new char [strlen(indexFileName_) + 1];
+    memcpy(indexFileName, indexFileName_, sizeof(char) * (strlen(indexFileName_) + 1));
+    this->maxThreadNum = maxThreadNum_;
     dataFiles = new FILE*[maxThreadNum];
     dataFileNames = new char*[maxThreadNum];
     indexFiles = new FILE*[maxThreadNum];

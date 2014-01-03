@@ -27,6 +27,10 @@ class DBReader {
 
         void close();
 
+        char* getDataFileName() { return dataFileName; }
+
+        char* getIndexFileName() { return indexFileName; }
+
         char* getData(size_t id);
 
         char* getDataByDBKey(char* key);
@@ -55,9 +59,9 @@ class DBReader {
 
         size_t* local2id;
 
-        const char* dataFileName;
+        char* dataFileName;
 
-        const char* indexFileName;
+        char* indexFileName;
 
         unsigned short* seqLens;
 

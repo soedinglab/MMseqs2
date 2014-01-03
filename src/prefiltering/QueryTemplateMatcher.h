@@ -33,14 +33,12 @@ class QueryTemplateMatcher {
         ~QueryTemplateMatcher();
         // returns result for the sequence
         std::list<hit_t>*  matchQuery (Sequence * seq);
-        // returns result for the sequence, using the reverse sequence statistics for result caluclation
-        std::list<hit_t>*  matchQueryRevSeq (Sequence * seq);
         // calculate local amino acid bias correction score for each position in the sequence
         void calcLocalAaBiasCorrection(Sequence* seq);
 
     private:
         // match sequence against the IndexTable
-        void match(Sequence* seq, void (QueryScore::*addScores)(int* seqList, int seqListSize, short score));
+        void match(Sequence* seq);
         // scoring matrix for local amino acid bias correction
         BaseMatrix * m;
         /* generates kmer lists */
