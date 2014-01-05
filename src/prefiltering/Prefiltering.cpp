@@ -133,7 +133,7 @@ Prefiltering::~Prefiltering(){
 
 void Prefiltering::run(size_t maxResListLen){
 
-    double kmersPerPos = 0.0;
+    size_t kmersPerPos = 0;
     int dbMatches = 0;
 
     int empty = 0;
