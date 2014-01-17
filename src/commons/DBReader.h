@@ -40,7 +40,7 @@ class DBReader {
         char* getDbKey(size_t id);
 
         // does a binary search in the ffindex and returns index of the entry with dbKey
-        size_t getId (char* dbKey);
+        size_t getId (const char* dbKey);
 
         unsigned short* getSeqLens();
 

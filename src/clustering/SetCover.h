@@ -36,6 +36,8 @@ public:
 */
     set * get_highest_weighted_set(int start_pos);
 private:
+
+    unsigned int add_position;
     int element_size;
     int set_size;
     int weight_range;

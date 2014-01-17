@@ -134,7 +134,7 @@ Prefiltering::~Prefiltering(){
 void Prefiltering::run(size_t maxResListLen){
 
     size_t kmersPerPos = 0;
-    int dbMatches = 0;
+    size_t dbMatches = 0;
 
     int empty = 0;
     int resSize = 0;
@@ -208,7 +208,7 @@ void Prefiltering::run(size_t maxResListLen){
     }
 
     // calculate and print statistics
-    kmersPerPos = (long double) kmersPerPos / queryDBSize;
+    kmersPerPos = kmersPerPos/(size_t)queryDBSize;
     size_t dbMatchesPerSeq = dbMatches/(size_t)queryDBSize;
     size_t prefPassedPerSeq = resSize/(size_t)queryDBSize;
     std::cout << kmersPerPos << " k-mers per position.\n";
@@ -256,21 +256,33 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int dbSiz
     IndexTable* indexTable = new IndexTable(alphabetSize, kmerSize, skip);
 
     for (int id = 0; id < dbSize; id++){
-        if (id % 1000000 == 0 && id > 0)
+        if (id % 1000000 == 0 && id > 0){
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
+            fflush(stdout);
+        }
+        else if (id % 10000 == 0 && id > 0) {
+            std::cout << ".";
+            fflush(stdout);
+        }
         char* seqData = dbr->getData(id);
         std::string str(seqData);
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addKmerCount(seq);
     }
 
-    std::cout << "Index table: init...\n";
+    std::cout << "\nIndex table: init...\n";
     indexTable->init();
 
     std::cout << "Index table: fill...\n";
     for (int id = 0; id < dbSize; id++){
-        if (id % 1000000 == 0 && id > 0)
+        if (id % 1000000 == 0 && id > 0){
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
+            fflush(stdout);
+        }
+        else if (id % 10000 == 0 && id > 0) {
+            std::cout << ".";
+            fflush(stdout);
+        }
 
         char* seqData = dbr->getData(id);
         std::string str(seqData);
@@ -278,7 +290,7 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int dbSiz
         indexTable->addSequence(seq);
     }
 
-    std::cout << "Index table: removing duplicate entries...\n";
+    std::cout << "\nIndex table: removing duplicate entries...\n";
     indexTable->removeDuplicateEntries();
 
     return indexTable;

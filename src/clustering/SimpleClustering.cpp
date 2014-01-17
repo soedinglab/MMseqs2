@@ -14,6 +14,7 @@ SimpleClustering::SimpleClustering(unsigned int set_count,
     this->set_elements = (set::element *) malloc(sizeof(set::element)*all_element_count);
 
     this->curr_pos = 0;
+    this->add_position = 0;
 
 }
 
@@ -24,7 +25,6 @@ SimpleClustering::~SimpleClustering(){
 
 void SimpleClustering::add_set(const unsigned int * element_ids, const int element_size){
 
-    static unsigned int add_position = 0;
     set::element * element_last_ptr = NULL;
     set::element * element_first_ptr = NULL;
     set * curr_set = &this->sets[curr_pos];

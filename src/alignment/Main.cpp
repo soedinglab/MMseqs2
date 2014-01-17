@@ -106,6 +106,12 @@ void parseArgs(int argc, char** argv, std::string* seqDB, std::string* prefDB, s
             exit(EXIT_FAILURE);
         }
     }
+
+    if (strcmp (matrixFile->c_str(), "") == 0){
+        printUsage();
+        std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
+        exit(EXIT_FAILURE);
+    }
 }
 
 bool compareHits (Matcher::result_t first, Matcher::result_t second){

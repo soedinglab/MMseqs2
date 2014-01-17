@@ -34,6 +34,7 @@ extern "C" {
 #include <malloc.h>
 #include <limits.h> 
 
+#include "../commons/Sequence.h"
 
 typedef struct {
     short qStartPos;
@@ -65,19 +66,16 @@ int smith_waterman_sse2_word(char* query_id,
 void traceback_word(short* Hmatrix, 
         short* Ematrix,
         short* Fmatrix,
-        int* query_sequence,
+        Sequence* querySeq,
+        Sequence* dbSeq,
         unsigned short * query_profile_word,
-        int qLen,
-        int* db_sequence,
-        int dbLen,
         unsigned short qmaxpos, 
         unsigned short dbmaxpos, 
         unsigned short gap_open, 
         unsigned short gap_extend,
         unsigned short* qstartpos,
         unsigned short* dbstartpos, 
-        char* queryDbKey,
-        char* dbDbKey);
+        int* aaIds);
 
 // prints a __m128 vector containing 8 signed shorts
 void printVector (__m128i v);

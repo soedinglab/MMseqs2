@@ -25,6 +25,7 @@ SetCover::SetCover(unsigned int set_size,
     this->set_elements = (set::element *) malloc(sizeof(set::element)*all_element_count);
     
     this->sets = (set *) malloc(sizeof(set)*(set_size+1));
+    this->add_position = 0;
 
 }
 
@@ -55,7 +56,6 @@ void SetCover::add_set(const int set_id, const int set_weight,
                         const unsigned short * weights,
                         const int element_size){
     
-    static unsigned int add_position = 0;
 
     set::element * element_last_ptr = NULL;
     set::element * element_first_ptr = NULL;

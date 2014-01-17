@@ -120,11 +120,15 @@ int main(int argn, char **argv)
     {
         /* entry name is the UniProt ID between pipe characters or other ID until a blank space occurs*/
         size_t local_offset = 0;
-        size_t mode = 0;
+        int mode = 0;
 
         while(*(fasta_data + fasta_offset + local_offset) != '\n'){
             if(*(fasta_data + fasta_offset + local_offset) == '|'){
                 mode = 1;
+                break;
+            }
+            else if (*(fasta_data + fasta_offset + local_offset) == ' '){
+                mode = 0;
                 break;
             }
             local_offset++;

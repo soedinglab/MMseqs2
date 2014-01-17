@@ -24,7 +24,8 @@ class Matcher{
             int score;
             float qcov;
             float dbcov;
-            float eval;
+            float seqId;
+            double eval;
         } result_t;
 
         Matcher(BaseMatrix* m, int maxSeqLen);
@@ -78,6 +79,8 @@ class Matcher{
     BaseMatrix* m;
 
     void* workspace;
+
+    void* workspace_memory;
 
 };
 

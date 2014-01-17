@@ -12,6 +12,8 @@ extern "C" {
 
 #include <string>
 #include <list>
+#include <iomanip>
+#include <limits>
 
 #include "../commons/DBReader.h"
 #include "../commons/DBWriter.h"

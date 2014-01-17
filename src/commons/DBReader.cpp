@@ -116,7 +116,7 @@ char* DBReader::getDbKey (size_t id){
     return &(ffindex_get_entry_by_index(index, id)->name[0]);
 }
 
-size_t DBReader::getId (char* dbKey){
+size_t DBReader::getId (const char* dbKey){
     int i = 0; 
     int j = index->n_entries -1;
     int k;
@@ -130,7 +130,7 @@ size_t DBReader::getId (char* dbKey){
         else
             j = k - 1;
     }
-    std::cerr << "DBReader::getId: key not in index!\n";
+    std::cerr << "DBReader::getId: key \"" << dbKey << "\" not in index!\n";
     exit(1);
     return 0;
 }

@@ -61,10 +61,6 @@ Alignment::Alignment(std::string seqDB, std::string prefDB, std::string outDB, s
 }
 
 Alignment::~Alignment(){
-    seqdbr->close();
-    prefdbr->close();
-    dbw->close();
-
     for (int i = 0; i < threads; i++){
         delete qSeqs[i];
         delete dbSeqs[i];
@@ -102,8 +98,6 @@ void Alignment::run (int maxAlnNum){
         // get the prefiltering list
         char* prefList = prefdbr->getData(id);
         char* queryDbKey = prefdbr->getDbKey(id);
-        std::stringstream lineSs (prefList);
-        std::string val;
 
         // map the query sequence
         char* querySeqData = seqdbr->getDataByDBKey(queryDbKey);
@@ -112,6 +106,8 @@ void Alignment::run (int maxAlnNum){
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list 
         std::list<Matcher::result_t>* swResults = new std::list<Matcher::result_t>();
         int cnt = 0;
+        std::stringstream lineSs (prefList);
+        std::string val;
         while (std::getline(lineSs, val, '\t') && cnt < maxAlnNum){
             // DB key of the db sequence
             for (unsigned int j = 0; j < val.length(); j++)
@@ -153,9 +149,10 @@ void Alignment::run (int maxAlnNum){
         std::stringstream swResultsSs;
 
         // put the contents of the swResults list into ffindex DB
+        swResultsSs << std::fixed << std::setprecision(5);
         for (it = swResults->begin(); it != swResults->end(); ++it){
             if (it->eval <= evalThr && it->qcov >= covThr && it->dbcov >= covThr){
-                swResultsSs << it->dbKey << "\t" << it->score << "\t" << it->qcov << "\t" << it->dbcov << "\t" << it->eval << "\n";
+                swResultsSs << it->dbKey << "\t" << it->score << "\t" << it->qcov << "\t" << it->dbcov << "\t" << it->seqId << "\t" << it->eval << "\n";
                 passedNum++;
             }
             alignmentsNum++;
@@ -172,6 +169,10 @@ void Alignment::run (int maxAlnNum){
         delete swResults;
 
     }
+    seqdbr->close();
+    prefdbr->close();
+    dbw->close();
+
     std::cout << "\n";
     std::cout << "All sequences processed.\n\n";
     std::cout << alignmentsNum << " alignments calculated.\n";

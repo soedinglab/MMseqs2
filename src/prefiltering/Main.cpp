@@ -198,6 +198,12 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             exit(EXIT_FAILURE);
         }
     }
+
+    if (strcmp (scoringMatrixFile->c_str(), "") == 0){
+        printUsage();
+        std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
+        exit(EXIT_FAILURE);
+    }
 }
 
 int main (int argc, const char * argv[])
@@ -211,7 +217,6 @@ int main (int argc, const char * argv[])
     int alphabetSize = 21;
     size_t maxSeqLen = 50000;
     size_t maxResListLen = 100;
-    size_t BUFFER_SIZE = 1000000;
     float sensitivity = 7.2f;
     int skip = 0;
     int seqType = Sequence::AMINO_ACIDS;
@@ -240,6 +245,7 @@ int main (int argc, const char * argv[])
     std::cout << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
     gettimeofday(&start, NULL);
 
+    std::cout << "Starting prefiltering scores calculation.\n";
     pref->run(maxResListLen);
 
     gettimeofday(&end, NULL);

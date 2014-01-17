@@ -286,37 +286,6 @@ smith_waterman_sse2_word(char* query_id,
     *qmaxpos = _mm_extract_epi16 (v_qmaxpos, 0);
     *dbmaxpos = _mm_extract_epi16 (v_dbmaxpos, 0);
 
-
-/*    if (*qmaxpos >= query_length && query_length < 200 && db_length < 200){
-#pragma omp critical
-        {
-            printf("\ndifference: %d\n", (*qmaxpos - query_length));
-            printf("query: %s, db seq: %s\n", query_id, db_id);
-            printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\n", query_length, db_length, *qmaxpos, *dbmaxpos);
-            printf("score: %d\n", (score + 32768));
-            printf("maxscore vector:\n");
-            printVector(v1);
-            printf("query positions:\n");
-            printVectorUS(v2);
-            printf("db sequence positions:\n");
-            printVectorUS(v3);
-
-            printf("\n");
-
-            int p1 = 0;
-            int p2 = 0;
-
-            for (int k = 0; k < 8; k++){
-                i = sse2_extract_epi16(v2, k);
-                j = sse2_extract_epi16(v3, k);
-                int idx = j * (8 * iter) + (i % iter) * 8 + (i / iter);
-                printf("%2d|%2d|%2d|%2d\t", ((short*)Hmatrix)[idx] + 32768, ((short*)Ematrix)[idx] + 32768, ((short*)Fmatrix)[idx] + 32768, *((short*)query_profile_word + (db_sequence[j] * iter * 8 + i%iter * 8 + i/iter)));
-                printf("\n");
-            }
-            printf("\n");
-        }
-    }*/
-
     /* return the largest score biased by 32768 */
     return score + 32768;
 }
@@ -324,19 +293,23 @@ smith_waterman_sse2_word(char* query_id,
 void traceback_word(short* H, 
         short* E, 
         short* F,
-        int* query_sequence,
+        Sequence* query,
+        Sequence* dbSeq,
         unsigned short * query_profile_word,
-        int qLen,
-        int* db_sequence,
-        int dbLen,
         unsigned short qmaxpos, 
         unsigned short dbmaxpos, 
         unsigned short gap_open, 
         unsigned short gap_extend,
         unsigned short* qstartpos,
         unsigned short* dbstartpos,
-        char* queryDbKey,
-        char* dbDbKey){
+        int* aaIds){
+
+    int* query_sequence = query->int_sequence;
+    char* queryDbKey = query->getDbKey();
+    int qLen = query->L;
+    int* db_sequence = dbSeq->int_sequence;
+    char* dbDbKey = dbSeq->getDbKey();
+    int dbLen = dbSeq->L;
 
     // number of iterations
     int iter = (qLen + 7) / 8;
@@ -348,6 +321,7 @@ void traceback_word(short* H,
 
     int warning_set = 0;
     
+    *aaIds = (query_sequence[qpos] == db_sequence[dbpos]);
     // dynamic programming matrix index, depending on positions in the sequences and iteration length
     idx = midx(qpos, dbpos, iter); 
     while (qpos > 0 && dbpos > 0 && H[idx] + 32768 != 0){
@@ -356,6 +330,7 @@ void traceback_word(short* H,
             qpos--;
             dbpos--;
             idx = midx(qpos, dbpos, iter);
+            *aaIds += (query_sequence[qpos] == db_sequence[dbpos]);
         }
         // continue with the E matrix = gap in the db sequence
         else if (H[idx] == E[idx]){
@@ -376,7 +351,8 @@ void traceback_word(short* H,
                         printf("ERROR 1\n");
                         printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
                         printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
-                        printf("score: %d\n", H[midx(qpos, dbpos, iter)]);
+                        printf("score: %d\n", H[midx(qpos, dbpos, iter)] + 32768);
+                        printf("short overflow warning set: %d\n", warning_set);
                         exit(1);
                     }
                 }
@@ -401,7 +377,8 @@ void traceback_word(short* H,
                         printf("ERROR 2\n");
                         printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
                         printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
-                        printf("score: %d\n", H[midx(qpos, dbpos, iter)]);
+                        printf("score: %d\n", H[midx(qpos, dbpos, iter)] + 32768);
+                        printf("short overflow warning set: %d\n", warning_set);
                         exit(1);
                     }
                 }
@@ -420,7 +397,8 @@ void traceback_word(short* H,
                     printf("ERROR 3\n");
                     printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
                     printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
-                    printf("score: %d\n", H[midx(qpos, dbpos, iter)]);
+                    printf("score: %d\n", H[midx(qpos, dbpos, iter)] + 32768);
+                    printf("short overflow warning set: %d\n", warning_set);
                     exit(1);
                 }
             }

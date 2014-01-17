@@ -64,7 +64,6 @@ void IndexTable::addSequence (Sequence* s){
     this->s = s;
     idxer->reset();
 
-    int* workspace = new int[kmerSize];
     while(s->hasNextKmer(kmerSize)){
         kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
         table[kmerIdx][currPos[kmerIdx]++] = s->getId();
@@ -72,13 +71,11 @@ void IndexTable::addSequence (Sequence* s){
             idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
         }
     }
-    delete[] workspace;
 }
 
 void IndexTable::removeDuplicateEntries(){
 
     delete[] currPos;
-//    this->tableEntriesNum = 0;
     
     for (int e = 0; e < tableSize; e++){
         if (sizes[e] == 0)
@@ -93,23 +90,9 @@ void IndexTable::removeDuplicateEntries(){
             if (entries[i] != entries[i-1])
                 entries[boundary++] = entries[i];
         }
-
         size = boundary;
-        
         sizes[e] = size;
-//        this->tableEntriesNum += size;
     }
-/*    // copy the entries without duplicates to a new array
-    int* entriesWithoutDuplicates = new int[tableEntriesNum];
-    int pos = 0;
-    for (int e = 0; e < tableSize; e++){
-        memcpy(entriesWithoutDuplicates + pos, table[e], sizes[e]*sizeof(int));
-        table[e] = entriesWithoutDuplicates + pos;
-        pos += sizes[e];
-    }
-
-    delete[] entries;
-    entries = entriesWithoutDuplicates;*/
 
 }
 

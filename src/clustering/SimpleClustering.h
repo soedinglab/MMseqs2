@@ -22,6 +22,7 @@ class SimpleClustering {
         std::list<set *> execute();
 
     private:
+        unsigned int add_position;
         int unique_element_size;
         int all_element_count;
         int set_count;
