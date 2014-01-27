@@ -186,12 +186,20 @@ Clustering::set_data Clustering::read_in_set_data_set_cover(){
                 ret_struct.all_element_count++;
             }
             // skip the rest
-            int score = atoi(strtok(NULL, "\t")); // score
-            float qcov = atof(strtok(NULL, "\t")); // query sequence coverage
-            float dbcov = atof(strtok(NULL, "\t")); // db sequence coverage
-            float seqId = atof(strtok(NULL, "\t")); // sequence identity
-            double eval = atof(strtok(NULL, "\n")); // e-value
-            dbKey = strtok(NULL, "\t"); // next db key
+            // score, query sequence coverage, db sequence coverage, sequence identity
+            for (int j = 0; j < 3; j++){
+                 if (strtok(NULL, "\t") == 0){
+                     std::cerr << "Wrong format of the alignment results file!\n";
+                         exit(EXIT_FAILURE);
+                 }
+            }
+            // e-value
+            if (strtok(NULL, "\n") == 0){
+                std::cerr << "Wrong format of the alignment results file!\n";
+                exit(EXIT_FAILURE);
+            }
+            // next db key
+            dbKey = strtok(NULL, "\t");
         }
 
         if(ret_struct.max_weight < element_counter){

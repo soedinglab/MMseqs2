@@ -17,7 +17,7 @@ void printUsage(){
             "-e\t[float]\tMaximum e-value (default=0.01).\n"
             "-c\t[float]\tMinimum alignment coverage (default=0.8).\n"
             "-s\t[int]\tMaximum sequence length (default=50000).\n"
-            "-r\t[int]\tMaximum result alignment number per query sequence (default=10).\n"
+            "-r\t[int]\tMaximum result alignment number per query sequence (default=100).\n"
             "-n\t\tNucleotide sequences input.\n");
     std::cout << usage;
 }
@@ -130,7 +130,7 @@ int main(int argc, char **argv){
     double evalThr = 0.001;
     double covThr = 0.8;
     int maxSeqLen = 50000;
-    int maxAlnNum = 10;
+    int maxAlnNum = 100;
     int seqType = Sequence::AMINO_ACIDS;
 
     parseArgs(argc, argv, &seqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr, &maxSeqLen, &maxAlnNum, &seqType);

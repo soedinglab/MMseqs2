@@ -8,7 +8,7 @@ C_FILES += $(shell find . -name "*.cpp")
 OBJS := $(patsubst %.cpp, %.o, $(C_FILES))
 CC = g++ 
 #CFLAGS = -g  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
-CFLAGS = -Wall -fopenmp -m64 -ffast-math -ftree-vectorize -O3 -Wno-write-strings -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -fno-strict-aliasing 
+CFLAGS = -Wall -fopenmp -DOPENMP=1 -m64 -ffast-math -ftree-vectorize -O3 -Wno-write-strings -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -fno-strict-aliasing 
 LDFLAGS =
 
 all: $(PROGRAM)

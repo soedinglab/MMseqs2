@@ -176,7 +176,7 @@ void Alignment::run (int maxAlnNum){
     std::cout << "\n";
     std::cout << "All sequences processed.\n\n";
     std::cout << alignmentsNum << " alignments calculated.\n";
-    std::cout << passedNum << " sequences passed the thresholds (" << ((float)passedNum/(float)alignmentsNum) << " of overall calculated).\n";
+    std::cout << passedNum << " sequence pairs passed the thresholds (" << ((float)passedNum/(float)alignmentsNum) << " of overall calculated).\n";
     std::cout << ((float)passedNum/(float)prefdbr->getSize()) << " hits per query sequence.\n";
 
 }
