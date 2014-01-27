@@ -1,4 +1,4 @@
-PROGRAM = kClust2_clu
+PROGRAM = mmseqs_clu
 C_FILES := $(shell find ../commons -name "*.cpp")
 C_FILES += $(shell find . -name "*.cpp")
 OBJS := $(patsubst %.cpp, %.o, $(C_FILES))

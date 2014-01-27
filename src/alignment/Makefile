@@ -1,4 +1,4 @@
-PROGRAM = kClust2_align 
+PROGRAM = mmseqs_align 
 C_FILES := $(shell find ../commons -name "*.cpp")
 C_FILES += $(shell find . -name "*.cpp")
 C_FILES += $(shell find . -name "*.C")

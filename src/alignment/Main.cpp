@@ -12,7 +12,7 @@ void printUsage(){
 
     std::string usage("\nCalculates Smith-Waterman alignment scores.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: kClust2_pref ffindexSequenceDBBase ffindexPrefilteringDBBase ffindexOutDBBase [opts]\n"
+    usage.append("USAGE: mmseqs_pref ffindexSequenceDBBase ffindexPrefilteringDBBase ffindexOutDBBase [opts]\n"
             "-m\t[file]\tAmino acid substitution matrix file.\n"
             "-e\t[float]\tMaximum e-value (default=0.01).\n"
             "-c\t[float]\tMinimum alignment coverage (default=0.8).\n"

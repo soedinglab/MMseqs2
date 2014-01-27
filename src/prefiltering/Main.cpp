@@ -12,11 +12,11 @@
 #include <omp.h>
 #endif
 
-void kClust2_debug_catch_signal(int sig_num)
+void mmseqs_debug_catch_signal(int sig_num)
 {
   if(sig_num == SIGILL)
   {
-    fprintf(stderr, "Your CPU does not support all the latest features that this version of kClust2 makes use of!\n"
+    fprintf(stderr, "Your CPU does not support all the latest features that this version of mmseqs makes use of!\n"
                     "Please run on a newer machine.");
     exit(sig_num);
   }
@@ -45,10 +45,10 @@ void kClust2_debug_catch_signal(int sig_num)
   exit(1);
 }
 
-void kClust2_cuticle_init()
+void mmseqs_cuticle_init()
 {
   struct sigaction handler;
-  handler.sa_handler = kClust2_debug_catch_signal;
+  handler.sa_handler = mmseqs_debug_catch_signal;
   sigemptyset(&handler.sa_mask);
   handler.sa_flags = 0;
 
@@ -62,7 +62,7 @@ void printUsage(){
 
     std::string usage("\nCalculates similarity scores between all sequences in the query database and all sequences in the target database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
-    usage.append("USAGE: kClust2_pref ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase [opts]\n"
+    usage.append("USAGE: mmseqs_pref ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase [opts]\n"
             "-m              \t[file]\tAmino acid substitution matrix file.\n"
             "-s              \t[float]\tSensitivity in the range [2:9] (default=7.2)\n"
             "-k              \t[int]\tk-mer size (default=6).\n"
@@ -208,7 +208,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
 
 int main (int argc, const char * argv[])
 {
-    kClust2_cuticle_init();
+    mmseqs_cuticle_init();
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
