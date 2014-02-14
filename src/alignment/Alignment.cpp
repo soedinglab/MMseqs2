@@ -1,6 +1,10 @@
 #include "Alignment.h"
 
-Alignment::Alignment(std::string seqDB, std::string prefDB, std::string outDB, std::string matrixFile, double evalThr, double covThr, int maxSeqLen, int seqType){
+Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex, 
+        std::string targetSeqDB, std::string targetSeqDBIndex,
+        std::string prefDB, std::string prefDBIndex, 
+        std::string outDB, std::string outDBIndex,
+        std::string matrixFile, double evalThr, double covThr, int maxSeqLen, int seqType){
 
     BUFFER_SIZE = 10000000;
 
@@ -9,9 +13,6 @@ Alignment::Alignment(std::string seqDB, std::string prefDB, std::string outDB, s
     this->evalThr = evalThr;
 
     std::cout << "Initialising data structures...\n";
-    std::string seqDBIndex = seqDB + ".index";
-    std::string prefDBIndex = prefDB + ".index";
-    std::string outDBIndex = outDB + ".index";
 
     BaseMatrix* m;
     if (seqType == Sequence::AMINO_ACIDS)
@@ -39,8 +40,11 @@ Alignment::Alignment(std::string seqDB, std::string prefDB, std::string outDB, s
         matchers[i] = new Matcher(m, maxSeqLen);
 
     // open the sequence, prefiltering and output databases
-    seqdbr = new DBReader(seqDB.c_str(), seqDBIndex.c_str());
-    seqdbr->open(DBReader::NOSORT);
+    qseqdbr = new DBReader(querySeqDB.c_str(), querySeqDBIndex.c_str());
+    qseqdbr->open(DBReader::NOSORT);
+
+    tseqdbr = new DBReader(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
+    tseqdbr->open(DBReader::NOSORT);
 
     prefdbr = new DBReader(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader::NOSORT);
@@ -100,7 +104,7 @@ void Alignment::run (int maxAlnNum){
         char* queryDbKey = prefdbr->getDbKey(id);
 
         // map the query sequence
-        char* querySeqData = seqdbr->getDataByDBKey(queryDbKey);
+        char* querySeqData = qseqdbr->getDataByDBKey(queryDbKey);
         qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
 
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list 
@@ -121,7 +125,7 @@ void Alignment::run (int maxAlnNum){
             float prefEval = atof(val.c_str());
 
             // map the database sequence
-            char* dbSeqData = seqdbr->getDataByDBKey(dbKeys[thread_idx]);
+            char* dbSeqData = tseqdbr->getDataByDBKey(dbKeys[thread_idx]);
             if (dbSeqData == NULL){
 # pragma omp critical
                 {
@@ -137,7 +141,7 @@ void Alignment::run (int maxAlnNum){
                 continue;
 
             // calculate Smith-Waterman alignment
-            Matcher::result_t res = matchers[thread_idx]->getSWResult(qSeqs[thread_idx], dbSeqs[thread_idx], seqdbr->getSize());
+            Matcher::result_t res = matchers[thread_idx]->getSWResult(qSeqs[thread_idx], dbSeqs[thread_idx], (qseqdbr->getSize() + tseqdbr->getSize()));
             swResults->push_back(res);
 
             cnt++;
@@ -149,10 +153,15 @@ void Alignment::run (int maxAlnNum){
         std::stringstream swResultsSs;
 
         // put the contents of the swResults list into ffindex DB
-        swResultsSs << std::fixed << std::setprecision(5);
+        //swResultsSs << std::fixed << std::setprecision(5);
         for (it = swResults->begin(); it != swResults->end(); ++it){
             if (it->eval <= evalThr && it->qcov >= covThr && it->dbcov >= covThr){
-                swResultsSs << it->dbKey << "\t" << it->score << "\t" << it->qcov << "\t" << it->dbcov << "\t" << it->seqId << "\t" << it->eval << "\n";
+                swResultsSs << it->dbKey << "\t";
+                swResultsSs << it->score << "\t";
+                swResultsSs << std::setprecision(3) << it->qcov << "\t";
+                swResultsSs << std::setprecision(3) << it->dbcov << "\t";
+                swResultsSs << std::setprecision(3) << it->seqId << "\t";
+                swResultsSs << std::scientific << std::setprecision(2) << it->eval << "\n";
                 passedNum++;
             }
             alignmentsNum++;
@@ -169,7 +178,8 @@ void Alignment::run (int maxAlnNum){
         delete swResults;
 
     }
-    seqdbr->close();
+    qseqdbr->close();
+    tseqdbr->close();
     prefdbr->close();
     dbw->close();
 

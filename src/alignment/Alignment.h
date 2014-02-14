@@ -26,7 +26,11 @@ class Alignment {
 
     public:
 
-        Alignment (std::string seqDB, std::string prefDB, std::string outDB, std::string matrixFile, double evalThr, double covThr, int maxSeqLen, int seqType);
+        Alignment (std::string querySeqDB, std::string querySeqDBIndex,
+                std::string targetSeqDB, std::string targetSeqDBIndex,
+                std::string prefDB, std::string prefDBIndex,
+                std::string outDB, std::string outDBIndex,
+                std::string matrixFile, double evalThr, double covThr, int maxSeqLen, int seqType);
 
         ~Alignment();
 
@@ -48,7 +52,9 @@ class Alignment {
 
         Matcher** matchers;
 
-        DBReader* seqdbr;
+        DBReader* qseqdbr;
+
+        DBReader* tseqdbr;
 
         DBReader* prefdbr;
 

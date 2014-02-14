@@ -20,7 +20,7 @@ SimpleClustering::SimpleClustering(unsigned int set_count,
 
 SimpleClustering::~SimpleClustering(){
     delete element_lookup;
-//    delete[] sets;
+    delete[] sets;
 }
 
 void SimpleClustering::add_set(const unsigned int * element_ids, const int element_size){

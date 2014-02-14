@@ -1,26 +1,32 @@
 #include "Clustering.h"
 
-Clustering::Clustering(std::string seqDB, std::string alnDB, std::string outDB){
-    std::string alnDBIndex = alnDB + ".index";
-    std::string outDBIndex = outDB + ".index";
-    std::string seqDBIndex = seqDB + ".index";
+Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
+        std::string alnDB, std::string alnDBIndex,
+        std::string outDB, std::string outDBIndex,
+        float seqIdThr){
 
     seqDbr = new DBReader(seqDB.c_str(), seqDBIndex.c_str());
     seqDbr->open(DBReader::SORT);
 
     alnDbr = new DBReader(alnDB.c_str(), alnDBIndex.c_str());
     alnDbr->open(DBReader::NOSORT);
+    std::cout << alnDB << " " << alnDBIndex << "\n";
 
     dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str());
     dbw->open();
 
+    this->seqIdThr = seqIdThr;
 }
 
 void Clustering::run(int mode){
 
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
     std::list<set *> ret;
     Clustering::set_data set_data;
     if (mode == SET_COVER){
+        std::cout << "Clustering mode: SET COVER\n";
         std::cout << "Reading the data...\n";
         set_data = read_in_set_data_set_cover();
 
@@ -53,6 +59,7 @@ void Clustering::run(int mode){
     }
     else if (mode == GREEDY){
 
+        std::cout << "Clustering mode: GREEDY\n";
         std::cout << "Reading the data...\n";
         set_data = read_in_set_data_simple_clustering();
 
@@ -77,7 +84,7 @@ void Clustering::run(int mode){
 
     }
     else{
-        std::cerr << "ERROR: Wrong mode for the clustering!\n";
+        std::cerr << "ERROR: Wrong clustering mode!\n";
         exit(EXIT_FAILURE);
     }
     std::cout << "Validating results...\n";
@@ -88,12 +95,23 @@ void Clustering::run(int mode){
 
     std::cout.flush();
 
+    int dbSize = alnDbr->getSize();
+    int cluNum = ret.size();
+
     std::cout << "Writing results...\n";
     writeData(ret);
     seqDbr->close();
     alnDbr->close();
     dbw->close();
     std::cout << "...done.\n";
+
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    std::cout << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+
+    std::cout << "\nSize of the database was: " << dbSize << "\n";
+    std::cout << "Number of clusters: " << cluNum << "\n";
+
 }
 
 void Clustering::writeData(std::list<set *> ret){
@@ -107,13 +125,14 @@ void Clustering::writeData(std::list<set *> ret){
         // first entry is the representative sequence
         char* dbKey = alnDbr->getDbKey(element->element_id);
         do{ 
-            res << alnDbr->getDbKey(element->element_id) << "\n";
+            char* nextDbKey = alnDbr->getDbKey(element->element_id);
+            res << nextDbKey << "\n";
         }while((element=element->next)!=NULL);
 
         std::string cluResultsOutString = res.str();
         const char* cluResultsOutData = cluResultsOutString.c_str();
         if (BUFFER_SIZE < strlen(cluResultsOutData)){
-            std::cerr << "Tried to process the clustering list for the query " << dbKey << " , the length of the list = " << ret.size() << "\n";
+            std::cerr << "Tried to process the clustering list for the query " << dbKey << " , length of the list = " << ret.size() << "\n";
             std::cerr << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
             continue;
         }
@@ -178,25 +197,23 @@ Clustering::set_data Clustering::read_in_set_data_set_cover(){
 
         while (dbKey != 0)
         {
-            int curr_element = alnDbr->getId(dbKey);
-            if (curr_element != i){
+            size_t curr_element = alnDbr->getId(dbKey);
+            if (curr_element == UINT_MAX){
+                std::cerr << "ERROR: Element " << dbKey << " not contained in the alignment index!\n";
+                exit(1);
+            }
+            int score = atoi(strtok(NULL, "\t")); // score
+            float qcov = atof(strtok(NULL, "\t")); // query sequence coverage
+            float dbcov = atof(strtok(NULL, "\t")); // db sequence coverage
+            float seqId = atof(strtok(NULL, "\t")); // sequence identity
+            double eval = atof(strtok(NULL, "\n")); // e-value
+            // add an edge if it meets the thresholds
+            // the sequence itself has already beed added
+            if (curr_element != i && seqId >= seqIdThr){
                 idsCnt[curr_element]++;
                 element_buffer[element_counter++]=curr_element;
                 element_size[curr_element]++;
                 ret_struct.all_element_count++;
-            }
-            // skip the rest
-            // score, query sequence coverage, db sequence coverage, sequence identity
-            for (int j = 0; j < 3; j++){
-                 if (strtok(NULL, "\t") == 0){
-                     std::cerr << "Wrong format of the alignment results file!\n";
-                         exit(EXIT_FAILURE);
-                 }
-            }
-            // e-value
-            if (strtok(NULL, "\n") == 0){
-                std::cerr << "Wrong format of the alignment results file!\n";
-                exit(EXIT_FAILURE);
             }
             // next db key
             dbKey = strtok(NULL, "\t");
@@ -259,12 +276,10 @@ Clustering::set_data Clustering::read_in_set_data_simple_clustering(){
 
         while (dbKey != 0)
         {
-            int curr_element = alnDbr->getId(dbKey);
-            if (curr_element != i){
-                idsCnt[curr_element]++;
-                element_buffer[element_counter++]=curr_element;
-                element_size[curr_element]++;
-                ret_struct.all_element_count++;
+            size_t curr_element = alnDbr->getId(dbKey);
+            if (curr_element == UINT_MAX){
+                std::cerr << "ERROR: Element " << dbKey << " not contained in the alignment index!\n";
+                exit(1);
             }
             // skip the rest
             int score = atoi(strtok(NULL, "\t")); // score
@@ -272,7 +287,15 @@ Clustering::set_data Clustering::read_in_set_data_simple_clustering(){
             float dbcov = atof(strtok(NULL, "\t")); // db sequence coverage
             float seqId = atof(strtok(NULL, "\t")); // sequence identity
             double eval = atof(strtok(NULL, "\n")); // e-value
-            dbKey = strtok(NULL, "\t"); // next db key
+            // add an edge if it meets the thresholds
+            // the sequence itself has already beed added
+            if (curr_element != i && seqId > seqIdThr){
+                idsCnt[curr_element]++;
+                element_buffer[element_counter++]=curr_element;
+                element_size[curr_element]++;
+                ret_struct.all_element_count++;
+            }
+           dbKey = strtok(NULL, "\t"); // next db key
         }
 
         unsigned int * elements = new unsigned int[element_counter];

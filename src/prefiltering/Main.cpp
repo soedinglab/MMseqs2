@@ -99,7 +99,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i] << "\n";
+                std::cerr << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         } 
@@ -110,7 +110,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i] << "\n";
+                std::cerr << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -121,7 +121,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i] << "\n";
+                std::cerr << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -132,7 +132,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i] << "\n";
+                std::cerr << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -143,7 +143,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided" << argv[i] << "\n";
+                std::cerr << "No value provided" << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -154,7 +154,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i] << "\n";
+                std::cerr << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -173,7 +173,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i] << "\n";
+                std::cerr << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -188,7 +188,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i] << "\n";
+                std::cerr << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -221,7 +221,7 @@ int main (int argc, const char * argv[])
     int skip = 0;
     int seqType = Sequence::AMINO_ACIDS;
     bool aaBiasCorrection = false;
-    float zscoreThr = 300.0f;
+    float zscoreThr = 50.0f;
 
     std::string queryDB = "";
     std::string targetDB = "";
@@ -238,7 +238,11 @@ int main (int argc, const char * argv[])
     std::cout << "Sensitivity: " << sensitivity << "\n";
     std::cout << "Z-score threshold: " << zscoreThr << "\n";
 
-    Prefiltering* pref = new Prefiltering(queryDB, targetDB, outDB, scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, skip);
+    std::string queryDBIndex = queryDB + ".index";
+    std::string targetDBIndex = targetDB + ".index";
+    std::string outDBIndex = outDB + ".index";
+
+    Prefiltering* pref = new Prefiltering(queryDB, queryDBIndex, targetDB, targetDBIndex, outDB, outDBIndex, scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, skip);
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;

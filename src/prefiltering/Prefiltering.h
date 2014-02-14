@@ -24,8 +24,11 @@ class Prefiltering {
     public:
         
         Prefiltering(std::string queryDB, 
+                std::string queryDBIndex,
                 std::string targetDB, 
+                std::string targetDBIndex,
                 std::string outDB, 
+                std::string ouDBIndex,
                 std::string scoringMatrixFile, 
                 float sensitivity, 
                 int kmerSize, 

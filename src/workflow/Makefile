@@ -1,20 +1,32 @@
-PROGRAM = cascaded_clustering
 C_FILES := $(shell find ../commons -name "*.cpp")
 C_FILES += $(shell find ../prefiltering -name "*.cpp" ! -name "Main.cpp")
 C_FILES += $(shell find ../alignment -name "*.cpp" ! -name "Main.cpp")
 C_FILES += $(shell find ../alignment -name "*.C")
 C_FILES += $(shell find ../clustering -name "*.cpp" ! -name "Main.cpp")
-C_FILES += $(shell find . -name "*.cpp")
-OBJS := $(patsubst %.cpp, %.o, $(C_FILES))
+
+CC_SOURCES := $(C_FILES)
+CC_SOURCES += CascadedClustering.cpp
+
+UPDATING_SOURCES := $(C_FILES)
+UPDATING_SOURCES += Updating.cpp 
+
+CC_OBJS := $(patsubst %.cpp, %.o, $(CC_SOURCES))
+UPDATING_OBJS := $(patsubst %.cpp, %.o, $(UPDATING_SOURCES))
+
 CC = g++ 
-#CFLAGS = -g  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
-CFLAGS = -Wall -fopenmp -DOPENMP=1 -m64 -ffast-math -ftree-vectorize -O3 -Wno-write-strings -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -fno-strict-aliasing 
+CFLAGS = -g  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
+#CFLAGS = -Wall -fopenmp -DOPENMP=1 -m64 -ffast-math -ftree-vectorize -O3 -Wno-write-strings -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -fno-strict-aliasing 
 LDFLAGS =
 
-all: $(PROGRAM)
+TARGETS = cascaded_clustering updating
 
-$(PROGRAM): .depend $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $(PROGRAM)
+all: $(TARGETS)
+
+cascaded_clustering: .depend $(CC_OBJS)
+	$(CC) $(CFLAGS) $(CC_OBJS) $(LDFLAGS) -o cascaded_clustering
+
+updating: .depend $(UPDATING_OBJS)
+	$(CC) $(CFLAGS) $(UPDATING_OBJS) $(LDFLAGS) -o updating
 
 depend: .depend
 
@@ -37,8 +49,9 @@ depend: .depend
 
 clean:
 	rm -f .depend *.o
+	rm -f $(TARGETS)
 
-.PHONY: clean depend
+.PHONY: all clean depend
 
 
 

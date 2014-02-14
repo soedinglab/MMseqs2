@@ -11,6 +11,8 @@
 #include <istream>
 #include <cstring>
 #include <stdlib.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "LinearMultiArray.h"
 #include "SetCover.h"
@@ -22,7 +24,10 @@ class Clustering {
 
     public:
 
-        Clustering (std::string seqDBBase, std::string alnResultsDBBase, std::string outDBBAse);
+        Clustering (std::string seqDB, std::string seqDBIndex,
+                std::string alnResultsDB, std::string alnResultsDBIndex,
+                std::string outDB, std::string outDBIndex, 
+                float seqIdThr);
 
         struct set_data {
             // one set contains pointers to the cluster member ids
@@ -60,5 +65,7 @@ class Clustering {
         DBReader* alnDbr;
 
         DBWriter* dbw;
+
+        float seqIdThr;
 };
 #endif

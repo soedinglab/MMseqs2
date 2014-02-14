@@ -1,8 +1,11 @@
 #include "Prefiltering.h"
 
 Prefiltering::Prefiltering(std::string queryDB,
+        std::string queryDBIndex,
         std::string targetDB,
+        std::string targetDBIndex,
         std::string outDB,
+        std::string outDBIndex,
         std::string scoringMatrixFile,
         float sensitivity,
         int kmerSize,
@@ -15,10 +18,6 @@ Prefiltering::Prefiltering(std::string queryDB,
 
 
     BUFFER_SIZE = 1000000;
-
-    std::string queryDBIndex = queryDB + ".index";
-    std::string targetDBIndex = targetDB + ".index";
-    std::string outDBIndex = outDB + ".index";
 
     this->kmerSize = kmerSize;
     this->alphabetSize = alphabetSize;
@@ -73,10 +72,10 @@ Prefiltering::Prefiltering(std::string queryDB,
     // set the k-mer similarity threshold
     float p_match =  pow(2.0, sensitivity) * 1.0e-08 * (float) (skip + 1); // old target value: 1.5e-06, reached with sens = 7.2 approximately
     std::cout << "\nAdjusting k-mer similarity threshold within +-10% deviation from the target k-mer match probability (target probability = " << p_match << ")...\n";
-    std::pair<short, double> ret = setKmerThreshold (qdbr, maxSeqLen, p_match, 0.1);
-    short kmerThr = ret.first; //174; //ret.first; // 103;
-    double kmerMatchProb = ret.second; //1.16383e-09; //ret.second; // 1.57506e-06;
-    if (kmerThr == 0.0){
+//    std::pair<short, double> ret = setKmerThreshold (qdbr, maxSeqLen, p_match, 0.1);
+    short kmerThr = 103;
+    double kmerMatchProb = 1.57506e-06;
+/*    if (kmerThr == 0.0){
         std::cout << "Could not set the probability within +-10% deviation. Trying +-15% deviation.\n";
         ret = setKmerThreshold (qdbr, maxSeqLen, p_match, 0.15);
         kmerThr = ret.first;
@@ -87,7 +86,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         std::cout << "Please report this error to the developers Maria Hauser mhauser@genzentrum.lmu.de and Martin Steinegger Martin.Steinegger@campus.lmu.de\n";
         std::cout << "In the meantime, try to change your parameters k, a, and/or sensitivity.\n";
         exit(1);
-    }
+    }*/
     std::cout << "... done.\n";
 
     std::cout << "k-mer similarity threshold: " << kmerThr << "\n";

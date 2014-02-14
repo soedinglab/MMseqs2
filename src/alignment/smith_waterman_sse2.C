@@ -406,7 +406,7 @@ void traceback_word(short* H,
     }
 
     if (warning_set == 1)
-        printf("WARNING: short range overflow (query: %s, db seq: %s)\nThe alignment might be inaccurate!\n", queryDbKey, dbDbKey);
+        printf("\nWARNING: short range overflow (query: %s, db seq: %s)\nThe alignment might be inaccurate!\n", queryDbKey, dbDbKey);
     
     *qstartpos = (unsigned short) qpos;
     *dbstartpos = (unsigned short) dbpos;

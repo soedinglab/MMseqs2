@@ -79,16 +79,21 @@ void DBReader::close(){
 
 char* DBReader::getData (size_t id){
     if (id >= size){
+        std::cerr << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
         std::cerr << "getData: local id (" << id << ") >= db size (" << size << ")\n";
         exit(1);
     }
     id = local2id[id];
     if (id >= size){
+        std::cerr << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
         std::cerr << "getData: global id (" << id << ") >= db size (" << size << ")\n";
         exit(1);
     }
     if (ffindex_get_entry_by_index(index, id)->offset >= dataSize){ 
-        std::cerr << "Invalid database read for id=" << id << "\n";
+        std::cerr << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
+        std::cerr << "getData: global id (" << id << ")\n";
+        std::cerr << "Size of data: " << dataSize << "\n";
+        std::cerr << "Requested offset: " << ffindex_get_entry_by_index(index, id)->offset << "\n";
         exit(1);
     }
     return data + (ffindex_get_entry_by_index(index, id)->offset);
@@ -104,12 +109,14 @@ size_t DBReader::getSize (){
 
 char* DBReader::getDbKey (size_t id){
     if (id >= size){
+        std::cerr << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
         std::cerr << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
         exit(1);
     }
 
     id = local2id[id];
     if (id >= size){
+        std::cerr << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
         std::cerr << "getDbKey: global id (" << id << ") >= db size (" << size << ")\n";
         exit(1);
     }
@@ -130,9 +137,7 @@ size_t DBReader::getId (const char* dbKey){
         else
             j = k - 1;
     }
-    std::cerr << "DBReader::getId: key \"" << dbKey << "\" not in index!\n";
-    exit(1);
-    return 0;
+    return UINT_MAX;
 }
 
 unsigned short* DBReader::getSeqLens(){

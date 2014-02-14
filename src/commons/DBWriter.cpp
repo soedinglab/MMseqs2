@@ -79,6 +79,7 @@ int DBWriter::close(){
     fclose(data_file);
     fclose(index_file);
 
+    // sort the index file
     char line[1000];
     int cnt = 0;
     std::ifstream index_file_cnt(indexFileName);
