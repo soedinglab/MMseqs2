@@ -1,20 +1,8 @@
 #include "QueryScore.h"
-
+#include "../commons/Util.h"
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 #define _mm_extract_epi32(x, imm) _mm_cvtsi128_si32(_mm_srli_si128((x), 4 * (imm)))
 #define _mm_extract_epi64(x, imm) _mm_cvtsi128_si64(_mm_srli_si128((x), 8 * (imm)))
-
-
-void *memalign(size_t boundary, size_t size)
-{
-    void *pointer;
-    if (posix_memalign(&pointer,boundary,size) != 0)
-    {
-        std::cerr<<"Error in memalign: Could not allocate memory by memalign. Please report this bug to developers\n";
-        exit(3);
-    }
-    return pointer;
-}
 
 QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr){
 
@@ -26,13 +14,13 @@ QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kme
     this->scores_128_size = (dbSize + 7)/8 * 8;
     // 8 DB short int entries are stored in one __m128i vector
     // one __m128i vector needs 16 byte
-    scores_128 = (__m128i*) memalign(16, scores_128_size * 2);
+    scores_128 = (__m128i*) Util::mem_align(16, scores_128_size * 2);
     scores = (unsigned short * ) scores_128;
 
     // set scores to zero
     memset (scores_128, 0, scores_128_size * 2);
 
-    thresholds_128 = (__m128i*) memalign(16, scores_128_size * 2);
+    thresholds_128 = (__m128i*) Util::mem_align(16, scores_128_size * 2);
     thresholds = (unsigned short * ) thresholds_128;
 
     memset (thresholds_128, 0, scores_128_size * 2);
