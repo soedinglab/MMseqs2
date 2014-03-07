@@ -10,15 +10,19 @@ CC_SOURCES += CascadedClustering.cpp
 UPDATING_SOURCES := $(C_FILES)
 UPDATING_SOURCES += Updating.cpp 
 
+TT_SOURCES := $(C_FILES)
+TT_SOURCES += TimeTest.h TimeTest.cpp TimeTestMain.cpp
+
 CC_OBJS := $(patsubst %.cpp, %.o, $(CC_SOURCES))
 UPDATING_OBJS := $(patsubst %.cpp, %.o, $(UPDATING_SOURCES))
+TT_OBJS := $(patsubst %.cpp, %.o, $(TT_SOURCES))
 
 CC = g++ 
-CFLAGS = -g  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
-#CFLAGS = -Wall -fopenmp -DOPENMP=1 -m64 -ffast-math -ftree-vectorize -O3 -Wno-write-strings -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -fno-strict-aliasing 
+#CFLAGS = -g  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
+CFLAGS = -Wall -fopenmp -DOPENMP=1 -m64 -ffast-math -ftree-vectorize -O3 -Wno-write-strings -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -fno-strict-aliasing 
 LDFLAGS =
 
-TARGETS = cascaded_clustering updating
+TARGETS = cascaded_clustering updating time_test
 
 all: $(TARGETS)
 
@@ -27,6 +31,9 @@ cascaded_clustering: .depend $(CC_OBJS)
 
 updating: .depend $(UPDATING_OBJS)
 	$(CC) $(CFLAGS) $(UPDATING_OBJS) $(LDFLAGS) -o updating
+
+time_test: .depend $(TT_OBJS)
+	$(CC) $(CFLAGS) $(TT_OBJS) $(LDFLAGS) -o time_test
 
 depend: .depend
 

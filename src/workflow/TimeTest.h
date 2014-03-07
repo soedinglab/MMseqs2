@@ -12,11 +12,11 @@
 #include "../commons/SubstitutionMatrix.h"
 #include "../commons/Sequence.h"
 #include "../commons/NucleotideMatrix.h"
-#include "ExtendedSubstitutionMatrix.h"
-#include "ReducedMatrix.h"
-#include "KmerGenerator.h"
-#include "QueryTemplateMatcher.h"
-#include "Prefiltering.h"
+#include "../prefiltering/ExtendedSubstitutionMatrix.h"
+#include "../prefiltering/ReducedMatrix.h"
+#include "../prefiltering/KmerGenerator.h"
+#include "../prefiltering/QueryTemplateMatcher.h"
+#include "../prefiltering/Prefiltering.h"
 
 #ifdef OPENMP
 #include <omp.h>
