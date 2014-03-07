@@ -3,8 +3,8 @@ C_FILES := $(shell find ../commons -name "*.cpp")
 C_FILES += $(shell find . -name "*.cpp")
 OBJS := $(patsubst %.cpp, %.o, $(C_FILES))
 CC = g++ 
-CFLAGS = -g  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
-#CFLAGS = -Wall -m64 -ffast-math -ftree-vectorize -O3 -Wno-write-strings -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -fno-strict-aliasing -fopenmp 
+#CFLAGS = -g  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
+CFLAGS = -Wall -m64 -ffast-math -ftree-vectorize -O3 -Wno-write-strings -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -fno-strict-aliasing -fopenmp 
 LDFLAGS =
 
 all: $(PROGRAM)

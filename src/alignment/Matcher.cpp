@@ -1,4 +1,5 @@
 #include "Matcher.h"
+#include "../commons/Util.h"
 
 Matcher::Matcher(BaseMatrix* m, int maxSeqLen){
 
@@ -7,10 +8,10 @@ Matcher::Matcher(BaseMatrix* m, int maxSeqLen){
 
     // memory for the sequence profile is allocated only once
     // = 1.6 MB
-    this->queryProfileWord = (unsigned short*) memalign (16, m->alphabetSize * maxSeqLen * sizeof(unsigned short));
+    this->queryProfileWord = (unsigned short*) Util::mem_align (16, m->alphabetSize * maxSeqLen * sizeof(unsigned short));
 
     // workspace memory for the alignment calculation (see Farrar code)
-    this->workspace_memory  = (void *)memalign(16, 2 * maxSeqLen * sizeof(__m128i) + 256);
+    this->workspace_memory  = (void *) Util::mem_align(16, 2 * maxSeqLen * sizeof(__m128i) + 256);
     this->workspace = (void *) ((((size_t) workspace_memory) + 255) & (~0xff));
 }
 
@@ -27,9 +28,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seq
     calcQueryProfileWord(query);
 
     // allocate memory for the three dynamic programming matrices
-    void* Hmatrix = memalign(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));   // 2.5GB für 36805*36805 (Q3ASY8_CHLCH)
-    void* Ematrix = memalign(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));
-    void* Fmatrix = memalign(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));
+    void* Hmatrix = Util::mem_align(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));   // 2.5GB für 36805*36805 (Q3ASY8_CHLCH)
+    void* Ematrix = Util::mem_align(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));
+    void* Fmatrix = Util::mem_align(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));
 
     unsigned short qStartPos = 0;
     unsigned short qEndPos = 0;

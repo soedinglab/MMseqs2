@@ -31,7 +31,9 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#if !defined(__APPLE__)
 #include <malloc.h>
+#endif
 #include <limits.h> 
 
 #include "../commons/Sequence.h"

@@ -8,7 +8,9 @@
 //
 
 #include <stdlib.h>
+#if !defined(__APPLE__)
 #include <malloc.h>
+#endif
 #include <float.h>
 #include <algorithm>
 
