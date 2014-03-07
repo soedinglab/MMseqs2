@@ -170,7 +170,7 @@ void Alignment::run (int maxAlnNum){
         int qcovNotPassed = 0;
         int dbcovNotPassed = 0;
         for (it = swResults->begin(); it != swResults->end(); ++it){
-            if (it->eval <= evalThr && it->qcov >= covThr && it->dbcov >= covThr){
+            if ((it->eval <= evalThr || it->seqId == 1.0) && it->qcov >= covThr && it->dbcov >= covThr){
                 swResultsSs << it->dbKey << "\t";
                 swResultsSs << it->score << "\t";
                 swResultsSs << std::fixed << std::setprecision(3) << it->qcov << "\t";

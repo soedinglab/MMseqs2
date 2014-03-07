@@ -93,72 +93,74 @@ void TimeTest::runTimeTest (){
 
     // adjust k-mer list length threshold
     for (int kmerSize = 4; kmerSize <= 7; kmerSize++){
-        short kmerThrMin = kmerThrPerPosMin * kmerSize;
-        int kmerThrMax = kmerThrPerPosMax * kmerSize;
+        for (int alphabetSize = 13; alphabetSize <= 21; alphabetSize += 4){ 
+            short kmerThrMin = kmerThrPerPosMin * kmerSize;
+            int kmerThrMax = kmerThrPerPosMax * kmerSize;
 
-        std::cout << "------------------  k = " << kmerSize << " -----------------------------\n";
-        IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize());
-        for (short kmerThr = kmerThrMin; kmerThr < kmerThrMax; kmerThr += kmerSize){
-            std::cout << "k = " << kmerSize << "\n";
-            std::cout << "k-mer threshold = " << kmerThr << "\n";
+            std::cout << "------------------  k = " << kmerSize << " -----------------------------\n";
+            IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize());
+            for (short kmerThr = kmerThrMin; kmerThr < kmerThrMax; kmerThr += kmerSize){
+                std::cout << "k = " << kmerSize << "\n";
+                std::cout << "k-mer threshold = " << kmerThr << "\n";
 
-            size_t dbMatchesSum = 0;
+                size_t dbMatchesSum = 0;
 
-            double kmersPerPos = 0.0;
-            double kmerMatchProb = 0.0;
+                double kmersPerPos = 0.0;
+                double kmerMatchProb = 0.0;
 
-            // determine k-mer match probability and k-mer list length for kmerThr
+                // determine k-mer match probability and k-mer list length for kmerThr
 #pragma omp parallel for schedule(static) 
-            for (int i = 0; i < threads; i++){
-                int thread_idx = 0;
+                for (int i = 0; i < threads; i++){
+                    int thread_idx = 0;
 #ifdef OPENMP
-                thread_idx = omp_get_thread_num();
+                    thread_idx = omp_get_thread_num();
 #endif
-                // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
-                matchers[thread_idx] = new QueryTemplateMatcher(subMat, _2merSubMatrix, _3merSubMatrix, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
-            }
+                    // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
+                    matchers[thread_idx] = new QueryTemplateMatcher(subMat, _2merSubMatrix, _3merSubMatrix, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
+                }
 
-            struct timeval start, end;
-            gettimeofday(&start, NULL);
+                struct timeval start, end;
+                gettimeofday(&start, NULL);
 
 #pragma omp parallel for schedule(dynamic, 10) reduction (+: dbMatchesSum, kmersPerPos)
-            for (int i = 0; i < querySetSize; i++){
-                int id = querySeqs[i];
+                for (int i = 0; i < querySetSize; i++){
+                    int id = querySeqs[i];
 
-                int thread_idx = 0;
+                    int thread_idx = 0;
 #ifdef OPENMP
-                thread_idx = omp_get_thread_num();
+                    thread_idx = omp_get_thread_num();
 #endif
-                char* seqData = tdbr->getData(id);
-                seqs[thread_idx]->mapSequence(id, tdbr->getDbKey(id), seqData);
+                    char* seqData = tdbr->getData(id);
+                    seqs[thread_idx]->mapSequence(id, tdbr->getDbKey(id), seqData);
 
-                matchers[thread_idx]->matchQuery(seqs[thread_idx]);
+                    matchers[thread_idx]->matchQuery(seqs[thread_idx]);
 
-                kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
-                dbMatchesSum += seqs[thread_idx]->stats->dbMatches;
+                    kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
+                    dbMatchesSum += seqs[thread_idx]->stats->dbMatches;
+                }
+
+                kmersPerPos /= (double)querySetSize;
+                kmerMatchProb = ((double)dbMatchesSum) / ((double) (querySeqLenSum * targetSeqLenSum));
+
+                std::cout << "kmerPerPos: " << kmersPerPos << "\n";
+                std::cout << "k-mer match probability: " << kmerMatchProb << "\n";
+
+                gettimeofday(&end, NULL);
+                int sec = end.tv_sec - start.tv_sec;
+                std::cout << "Time: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
+
+                logFileStream << kmersPerPos << "\t" << kmerMatchProb << "\t" << kmerSize << "\t" << alphabetSize << "\t" << sec << "\n";
+
+                for (int j = 0; j < threads; j++){
+                    delete matchers[j];
+                }
             }
-
-            kmersPerPos /= (double)querySetSize;
-            kmerMatchProb = ((double)dbMatchesSum) / ((double) (querySeqLenSum * targetSeqLenSum));
-
-            std::cout << "kmerPerPos: " << kmersPerPos << "\n";
-            std::cout << "k-mer match probability: " << kmerMatchProb << "\n";
-
-            gettimeofday(&end, NULL);
-            int sec = end.tv_sec - start.tv_sec;
-            std::cout << "Time: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
-
-            logFileStream << kmersPerPos << "\t" << kmerMatchProb << "\t" << sec << "\n";
-
-            for (int j = 0; j < threads; j++){
-                delete matchers[j];
-            }
+            delete indexTable;
         }
-        delete indexTable;
-    }
 
-    logFileStream.close();
-    delete[] querySeqs;
-    delete[] matchers;
+        logFileStream.close();
+        delete[] querySeqs;
+        delete[] matchers;
+    }
 }
  
