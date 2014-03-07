@@ -14,6 +14,8 @@ extern "C" {
 #include <list>
 #include <iomanip>
 #include <limits>
+#include <iostream>
+#include <fstream>
 
 #include "../commons/DBReader.h"
 #include "../commons/DBWriter.h"
@@ -45,6 +47,8 @@ class Alignment {
         double covThr;
 
         double evalThr;
+
+        BaseMatrix* m;
 
         // 2 Sequence objects for each thread: one for the query, one for the DB sequence
         Sequence** qSeqs;

@@ -21,6 +21,7 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     this->kmerSize = kmerSize;
     this->alphabetSize = alphabetSize;
+    this->maxSeqLen = maxSeqLen;
 
     threads = 1;
 #ifdef OPENMP
@@ -72,12 +73,12 @@ Prefiltering::Prefiltering(std::string queryDB,
     // set the k-mer similarity threshold
     float p_match =  pow(2.0, sensitivity) * 1.0e-08 * (float) (skip + 1); // old target value: 1.5e-06, reached with sens = 7.2 approximately
     std::cout << "\nAdjusting k-mer similarity threshold within +-10% deviation from the target k-mer match probability (target probability = " << p_match << ")...\n";
-//    std::pair<short, double> ret = setKmerThreshold (qdbr, maxSeqLen, p_match, 0.1);
-    short kmerThr = 103;
-    double kmerMatchProb = 1.57506e-06;
-/*    if (kmerThr == 0.0){
+    std::pair<short, double> ret = setKmerThreshold (qdbr, p_match, 0.1);
+    short kmerThr = ret.first; //103;
+    double kmerMatchProb = ret.second; //1.57506e-06;
+    if (kmerThr == 0.0){
         std::cout << "Could not set the probability within +-10% deviation. Trying +-15% deviation.\n";
-        ret = setKmerThreshold (qdbr, maxSeqLen, p_match, 0.15);
+        ret = setKmerThreshold (qdbr, p_match, 0.15);
         kmerThr = ret.first;
         kmerMatchProb = ret.second;
     }
@@ -86,7 +87,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         std::cout << "Please report this error to the developers Maria Hauser mhauser@genzentrum.lmu.de and Martin Steinegger Martin.Steinegger@campus.lmu.de\n";
         std::cout << "In the meantime, try to change your parameters k, a, and/or sensitivity.\n";
         exit(1);
-    }*/
+    }
     std::cout << "... done.\n";
 
     std::cout << "k-mer similarity threshold: " << kmerThr << "\n";
@@ -94,7 +95,7 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     // initialise the index table and the matcher structures for the database
     Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType);
-    this->indexTable = getIndexTable(tdbr, seq, tdbr->getSize(), skip);
+    this->indexTable = getIndexTable(tdbr, seq, alphabetSize, kmerSize, tdbr->getSize(), skip);
     delete seq;
 
     std::cout << "Initializing data structures...";
@@ -136,11 +137,11 @@ void Prefiltering::run(size_t maxResListLen){
     size_t dbMatches = 0;
 
     int empty = 0;
-    int resSize = 0;
+    size_t resSize = 0;
 
-    int queryDBSize = qdbr->getSize();
+    size_t queryDBSize = qdbr->getSize();
 #pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, empty, dbMatches)
-    for (int id = 0; id < queryDBSize; id++){
+    for (size_t id = 0; id < queryDBSize; id++){
 
         if (id % 1000000 == 0 && id > 0){
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
@@ -207,9 +208,9 @@ void Prefiltering::run(size_t maxResListLen){
     }
 
     // calculate and print statistics
-    kmersPerPos = kmersPerPos/(size_t)queryDBSize;
-    size_t dbMatchesPerSeq = dbMatches/(size_t)queryDBSize;
-    size_t prefPassedPerSeq = resSize/(size_t)queryDBSize;
+    kmersPerPos = kmersPerPos/queryDBSize;
+    size_t dbMatchesPerSeq = dbMatches/queryDBSize;
+    size_t prefPassedPerSeq = resSize/queryDBSize;
     std::cout << kmersPerPos << " k-mers per position.\n";
     std::cout << dbMatchesPerSeq << " DB matches per sequence.\n";
     std::cout << prefPassedPerSeq << " sequences passed prefiltering per query sequence";
@@ -248,7 +249,7 @@ BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, f
 }
 
 
-IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int dbSize, int skip){
+IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize, int kmerSize, int dbSize, int skip){
 
     std::cout << "Index table: counting k-mers...\n";
     // fill and init the index table
@@ -295,12 +296,12 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int dbSiz
     return indexTable;
 }
 
-std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, int maxSeqLen, double targetKmerMatchProb, double toleratedDeviation){
+std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation){
 
     size_t targetDbSize = dbr->getSize();
     if (targetDbSize > 100000)
         targetDbSize = 100000;
-    IndexTable* indexTable = getIndexTable(dbr, seqs[0], targetDbSize);
+    IndexTable* indexTable = getIndexTable(dbr, seqs[0], alphabetSize, kmerSize, targetDbSize);
 
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
 

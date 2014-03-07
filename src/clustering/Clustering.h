@@ -51,10 +51,7 @@ class Clustering {
         bool validate_result(std::list<set *> * ret,unsigned int uniqu_element_count);
 
         // read data for set cover
-        set_data read_in_set_data_set_cover();
-
-        // read data for the clustering by the sequence length
-        set_data read_in_set_data_simple_clustering();
+        set_data read_in_set_data();
 
         void writeData(std::list<set *> ret);
 

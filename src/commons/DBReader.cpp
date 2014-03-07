@@ -9,6 +9,8 @@ DBReader::DBReader(const char* dataFileName_, const char* indexFileName_)
 
     this->indexFileName = new char [strlen(indexFileName_) + 1];
     memcpy(indexFileName, indexFileName_, sizeof(char) * (strlen(indexFileName_) + 1));
+
+//    this->dbKey2id = new std::map<const char*, size_t, StrCompare>;
 }
 
 void DBReader::open(int sort){
@@ -45,10 +47,15 @@ void DBReader::open(int sort){
 
     size = index->n_entries;
 
+    // init seq lens array and dbKey mapping
     seqLens = new unsigned short [size];
 
     for (size_t i = 0; i < size; i++){
-        seqLens[i] = (unsigned short)(ffindex_get_entry_by_index(index, i)->length);
+        ffindex_entry_t* e = ffindex_get_entry_by_index(index, i);
+        seqLens[i] = (unsigned short)(e->length);
+        
+//        char* dbKey = &(e->name[0]);
+//        (*dbKey2id)[dbKey] = i;
     }
 
     // sort sequences by length and generate the corresponding id mappings
@@ -124,6 +131,12 @@ char* DBReader::getDbKey (size_t id){
 }
 
 size_t DBReader::getId (const char* dbKey){
+/*    std::map<const char*, size_t, StrCompare>::iterator it = dbKey2id->find(dbKey);
+    if (it == dbKey2id->end())
+        return UINT_MAX;
+    else
+        return it->second;*/
+
     int i = 0; 
     int j = index->n_entries -1;
     int k;
@@ -131,7 +144,7 @@ size_t DBReader::getId (const char* dbKey){
         k = i + (j - i)/2;
         int cmp = strcmp(dbKey, index->entries[k].name);
         if (cmp == 0)
-            return k;
+            return id2local[k];
         else if (cmp > 0)
             i = k + 1;
         else

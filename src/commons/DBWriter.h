@@ -18,6 +18,7 @@ extern "C" {
 #include <sys/stat.h>
 #include <sstream>
 #include <fstream>
+#include <stdio.h>
 
 class DBWriter {
     public:

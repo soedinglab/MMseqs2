@@ -14,11 +14,10 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
 
     std::cout << "Initialising data structures...\n";
 
-    BaseMatrix* m;
     if (seqType == Sequence::AMINO_ACIDS)
-        m = new SubstitutionMatrix(matrixFile.c_str(), 2.0);
+        this->m = new SubstitutionMatrix(matrixFile.c_str(), 2.0);
     else
-        m = new NucleotideMatrix();
+        this->m = new NucleotideMatrix();
 
     threads = 1;
 #ifdef OPENMP
@@ -78,12 +77,22 @@ Alignment::~Alignment(){
     delete[] matchers;
     delete[] dbKeys;
     delete[] outBuffers;
+
+    delete m;
+
+    delete qseqdbr;
+    delete tseqdbr;
+    delete prefdbr;
+    delete dbw;
 }
 
 void Alignment::run (int maxAlnNum){
 
     int alignmentsNum = 0;
     int passedNum = 0;
+    std::ofstream logfile;
+    logfile.open("mmseqs_aln.log");
+
 # pragma omp parallel for schedule(dynamic, 10) reduction (+: alignmentsNum, passedNum)
     for (unsigned int id = 0; id < prefdbr->getSize(); id++){
         if (id % 1000000 == 0 && id > 0){
@@ -112,6 +121,7 @@ void Alignment::run (int maxAlnNum){
         int cnt = 0;
         std::stringstream lineSs (prefList);
         std::string val;
+        int covNotPassed = 0;
         while (std::getline(lineSs, val, '\t') && cnt < maxAlnNum){
             // DB key of the db sequence
             for (unsigned int j = 0; j < val.length(); j++)
@@ -137,11 +147,13 @@ void Alignment::run (int maxAlnNum){
 
             // check if the sequences could pass the coverage threshold 
             if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
-                    (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) )
+                    (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ){
+                covNotPassed++;
                 continue;
+            }
 
             // calculate Smith-Waterman alignment
-            Matcher::result_t res = matchers[thread_idx]->getSWResult(qSeqs[thread_idx], dbSeqs[thread_idx], (qseqdbr->getSize() + tseqdbr->getSize()));
+            Matcher::result_t res = matchers[thread_idx]->getSWResult(qSeqs[thread_idx], dbSeqs[thread_idx], tseqdbr->getSize());
             swResults->push_back(res);
 
             cnt++;
@@ -153,18 +165,41 @@ void Alignment::run (int maxAlnNum){
         std::stringstream swResultsSs;
 
         // put the contents of the swResults list into ffindex DB
-        //swResultsSs << std::fixed << std::setprecision(5);
+        int queryPassed = 0;
+        int evalNotPassed = 0;
+        int qcovNotPassed = 0;
+        int dbcovNotPassed = 0;
         for (it = swResults->begin(); it != swResults->end(); ++it){
             if (it->eval <= evalThr && it->qcov >= covThr && it->dbcov >= covThr){
                 swResultsSs << it->dbKey << "\t";
                 swResultsSs << it->score << "\t";
-                swResultsSs << std::setprecision(3) << it->qcov << "\t";
-                swResultsSs << std::setprecision(3) << it->dbcov << "\t";
-                swResultsSs << std::setprecision(3) << it->seqId << "\t";
-                swResultsSs << std::scientific << std::setprecision(2) << it->eval << "\n";
+                swResultsSs << std::fixed << std::setprecision(3) << it->qcov << "\t";
+                swResultsSs << it->dbcov << "\t";
+                swResultsSs << it->seqId << "\t";
+                swResultsSs << std::scientific << it->eval << "\n";
                 passedNum++;
+                queryPassed++;
             }
+            if (it->eval > evalThr)
+                evalNotPassed++;
+            if (it->qcov < covThr)
+                qcovNotPassed++;
+            if (it->dbcov < covThr)
+                dbcovNotPassed++;
             alignmentsNum++;
+        }
+        logfile << "queryPassed = " << queryPassed << "\n";
+        if (queryPassed == 0){
+            logfile << queryDbKey << ", pref list length: " << (cnt + covNotPassed) << "\n";
+            if (covNotPassed > 0)
+                logfile << "aborted because of insufficient sequence length: " << covNotPassed << "\n";
+            if (evalNotPassed > 0)
+                logfile << "eval not passed: " << evalNotPassed << "\n";
+            if (qcovNotPassed > 0)
+                logfile << "qcov not passed: " << qcovNotPassed << "\n";
+            if (dbcovNotPassed > 0)
+                logfile << "dbcov not passed: " << dbcovNotPassed << "\n";
+            logfile << "\n";
         }
         std::string swResultsString = swResultsSs.str();
         const char* swResultsStringData = swResultsString.c_str();
@@ -178,6 +213,7 @@ void Alignment::run (int maxAlnNum){
         delete swResults;
 
     }
+    logfile.close();
     qseqdbr->close();
     tseqdbr->close();
     prefdbr->close();

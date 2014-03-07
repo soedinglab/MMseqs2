@@ -24,7 +24,7 @@
 #include <bitset>
 
 typedef struct {
-    int seqId;
+    size_t seqId;
     float prefScore;
     float eval;
 } hit_t;

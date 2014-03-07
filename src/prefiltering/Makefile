@@ -1,16 +1,28 @@
-PROGRAM = mmseqs_pref 
 C_FILES := $(shell find ../commons -name "*.cpp")
-C_FILES += $(shell find . -name "*.cpp")
-OBJS := $(patsubst %.cpp, %.o, $(C_FILES))
+C_FILES += $(shell find . -name "*.cpp" ! -name "Main.cpp" ! -name "TimeTestMain.cpp")
+
+MAIN_SOURCES := $(C_FILES)
+MAIN_SOURCES += Main.cpp
+
+TIME_TEST_SOURCES := $(C_FILES)
+TIME_TEST_SOURCES += TimeTestMain.cpp
+
+MAIN_OBJS := $(patsubst %.cpp, %.o, $(MAIN_SOURCES))
+TIME_TEST_OBJS := $(patsubst %.cpp, %.o, $(TIME_TEST_SOURCES))
+
 CC = g++
 #CFLAGS = -pg  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
 CFLAGS = -Wall -Ilib -m64 -ffast-math -ftree-vectorize -O3 -DOPENMP=1 -fopenmp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings 
 LDFLAGS =
 
-all: $(PROGRAM)
+TARGETS = mmseqs_pref time_test
+all: $(TARGETS)
 
-$(PROGRAM): .depend $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $(PROGRAM)
+mmseqs_pref: .depend $(MAIN_OBJS)
+	$(CC) $(CFLAGS) $(MAIN_OBJS) $(LDFLAGS) -o mmseqs_pref
+
+time_test: .depend $(TIME_TEST_OBJS)
+	$(CC) $(CFLAGS) $(TIME_TEST_OBJS) $(LDFLAGS) -o time_test
 
 depend: .depend
 
@@ -33,6 +45,7 @@ depend: .depend
 
 clean:
 	rm -f .depend *.o
+	rm -f $(TARGETS)
 
 .PHONY: clean depend
 

@@ -1,8 +1,6 @@
 #include <iostream>
-#include <time.h>
 #include <unistd.h>
 #include <string>
-#include <sys/time.h>
 #include <signal.h>
 #include <execinfo.h>
 

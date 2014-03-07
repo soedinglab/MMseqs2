@@ -4,6 +4,8 @@
 #include <iostream>
 #include <unistd.h>
 #include <string>
+#include <time.h>
+#include <sys/time.h>
 
 #include "../commons/DBReader.h"
 #include "../commons/DBWriter.h"
@@ -41,10 +43,12 @@ class Prefiltering {
 
         ~Prefiltering();
 
-        void run(size_t maxResListLen);
+        void run (size_t maxResListLen);
+
+        static IndexTable* getIndexTable(DBReader* dbr, Sequence* seq, int alphabetSize, int kmerSize, int dbSize, int skip = 0);
 
     private:
-        
+
         size_t BUFFER_SIZE;
 
         int threads;
@@ -64,16 +68,15 @@ class Prefiltering {
 
         int kmerSize;
         int alphabetSize;
+        size_t maxSeqLen;
 
         BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor);
-
-        IndexTable* getIndexTable(DBReader* dbr, Sequence* seq, int dbSize, int skip = 0);
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
          * K-mer similarity threshold is set to meet a certain DB match probability.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
-        std::pair<short,double> setKmerThreshold(DBReader* dbr, int maxSeqLen, double targetKmerMatchProb, double toleratedDeviation);
+        std::pair<short,double> setKmerThreshold(DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation);
 
 
 };

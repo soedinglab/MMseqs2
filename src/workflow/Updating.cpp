@@ -23,6 +23,18 @@ struct cluster_t {
     int clu_size;
 };
 
+
+int oldDBSize;
+int newDBSize;
+
+int deletedSeqs;
+int sharedSeqs;
+int newSeqs;
+
+int seqsWithMatches;
+int seqsWithoutMatches;
+int newClus;
+
 void printUsage(){
 
     std::string usage("\nUpdates the existing clustering of the previous database version with new sequences from the current version of the same database.\n");
@@ -145,7 +157,6 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
             j++;
         }
     }
-    std::cout << "-------\n";
     while (i < index_old->n_entries){
         deleted_cnt++;
         i++;
@@ -158,12 +169,13 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
         j++;
     }
 
-    std::cout << "Previos database version: " << index_old->n_entries << " entries.\n";
-    std::cout << "New database vesion     : " << index_new->n_entries << " entries.\n";
-    std::cout << deleted_cnt << " entries were deleted,\n";
-    std::cout << new_cnt << " entries are new,\n";
-    std::cout << shared_cnt << " entries are shared.\n";
-    
+    // set the global count variables
+    oldDBSize = index_old->n_entries;
+    newDBSize = index_new->n_entries;
+    deletedSeqs = deleted_cnt;
+    sharedSeqs = shared_cnt;
+    newSeqs = new_cnt;
+
     fclose(A_index_file);
     fclose(B_index_file);
 }
@@ -216,10 +228,16 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
 }
 
 
-void readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster_t* clusters){
+int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster_t* clusters){
 
     DBReader* cluDbr = new DBReader(cluDB.c_str(), (cluDB + ".index").c_str());
     cluDbr->open(DBReader::NOSORT);
+
+    int ret = cluDbr->getSize();
+
+    for (int i = 0; i < cluDbr->getSize(); i++){
+        id2clu[i] = -1;
+    }
 
     char* buf = new char[1000000];
     for (unsigned int i = 0; i < cluDbr->getSize(); i++){
@@ -228,11 +246,11 @@ void readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluste
 
         // the representative is not in the newest DB version
         if (repId == UINT_MAX)
-            continue;
+            repId = -1;
         
-        // the representative is contained in the newest DB version
         // parse the cluster
-        id2clu[repId] = repId;
+        if (repId != -1)
+            id2clu[repId] = repId;
 
         char* cluData = cluDbr->getData(i);
         strcpy(buf, cluData);
@@ -247,6 +265,9 @@ void readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluste
             unsigned int cluMemId = currSeqDbr->getId(cluMemDbKey);
             // this cluster member is contained in the newest DB version
             if (cluMemId != UINT_MAX){
+                // define new cluster representative if the old representative is not contained in the database anymore
+                if (repId == -1)
+                    repId = cluMemId;
                 id2clu[cluMemId] = repId;
                 // create a cluster member entry
                 // ATTENTION: consider counting cluster members first and allocate the memory at one piece (faster, no memory fragmentation)
@@ -269,9 +290,10 @@ void readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluste
         }
     }
     cluDbr->close();
+    return ret;
 }
 
-int appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::string BA_base, int* id2clu, cluster_t* clusters, std::string Brest_indexFile){
+void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::string BA_base, int* id2clu, cluster_t* clusters, std::string Brest_indexFile){
 
     DBReader* BADbr = new DBReader(BA_base.c_str(), (BA_base + ".index").c_str());
     BADbr->open(DBReader::NOSORT);
@@ -280,11 +302,11 @@ int appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::string
 
     FILE* Brest_index_file = fopen(Brest_indexFile.c_str(), "w");
 
-    int cnt = 0;
+    seqsWithMatches = 0;
+    seqsWithoutMatches = 0;
     char* buf = new char[1000000];
     for (unsigned int i = 0; i < BADbr->getSize(); i++){
         char* qKey = BADbr->getDbKey(i);
-        std::cout << "Query: " << qKey << "\n";
         unsigned int qId = currSeqDbr->getId(qKey);
 
         // find out which cluster the sequence belongs to
@@ -293,35 +315,41 @@ int appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::string
 
         char* tKey = strtok(buf, "\t");
         if (tKey != 0){
-            std::cout << " -> " << tKey << "\n";
             unsigned int tId = currSeqDbr->getId(tKey);
             if (tId == UINT_MAX){
-                std::cerr << "ERROR: DB key " << tKey << " contained in the old database not found in the new database!\n";
-                exit(1);
+                std::cerr << "ERROR: DB key " << tKey << " is in the B->A alignment lists, but not in the new database!\n";
+                exit(EXIT_FAILURE);
             }
             // find out the representative sequence of the cluster of the hit
-            unsigned int repId = id2clu[tId];
+            int repId = id2clu[tId];
+
+            if(repId == -1){
+                std::cout << "ERROR: database sequence " << tKey << " is not in the clustering!\n";
+                std::cout << "Query from B: " << qKey << " matched this sequence.\n";
+                continue;
+            }
+
             // append new member to the cluster
-            clu_entry_t* curr = new clu_entry_t;
+            clu_entry_t* curr = new clu_entry_t; 
             curr->id = qId;
             curr->next = 0;
 
             clusters[repId].last->next = curr;
             clusters[repId].last = curr;
             clusters[repId].clu_size++;
+
+            seqsWithMatches++;
         }
         else{
-            std::cout << " without a match\n";
             ffindex_entry_t* e = ffindex_get_entry_by_name(Bindex, qKey);
             fprintf(Brest_index_file, "%s\t%zd\t%zd\n", e->name, e->offset, e->length);
-            cnt++;
+
+            seqsWithoutMatches++;
         }
     }
 
-    fclose(Brest_index_file);
     BADbr->close();
-
-    return cnt;
+    fclose(Brest_index_file);
 }
 
 void writeResults(cluster_t* clusters, DBReader* seqDbr, int seqDbSize, std::string outDB){
@@ -356,9 +384,6 @@ void writeResults(cluster_t* clusters, DBReader* seqDbr, int seqDbSize, std::str
     }
 
     dbw->close();
-}
-
-void updateClustering(std::string cluDB_base, std::string BA_base, std::string BB_base, std::string currSeqDB_base, std::string outDB, std::string tmpDir){
 }
 
 int main (int argc, const char * argv[]){
@@ -452,9 +477,9 @@ int main (int argc, const char * argv[]){
     std::cout << "Append new sequences to the existing clustering...\n";
     // append sequences from the new database to the existing clustering based on the B->A alignment scores
     // write sequences without a match to a separate index (they will be clustered separately)
-    int cnt = appendToClustering(currSeqDbr, BIndex, BA_base, id2clu, clusters, Brest_indexFile);
+    appendToClustering(currSeqDbr, BIndex, BA_base, id2clu, clusters, Brest_indexFile);
 
-    if (cnt > 0){
+    if (seqsWithoutMatches > 0){
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
         std::cout << "///////            Calculating B->B scores                 /////////////\n";
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
@@ -480,15 +505,28 @@ int main (int argc, const char * argv[]){
 
         std::cout << "Append generated clusters to the complete clustering...\n";
         // append B->B clusters to the clustering
-        readClustering(currSeqDbr, BB_clu, id2clu, clusters);
+        newClus = readClustering(currSeqDbr, BB_clu, id2clu, clusters);
     }
 
-    std::cout << "Write clustering results...\n";
     // write new clustering
+    std::cout << "Write clustering results...\n";
     writeResults(clusters, currSeqDbr, seqDBSize, outDB);
+    std::cout << "done.\n";
 
     currSeqDbr->close();
 
+    std::cout << "////////////////////////////////////////////////////////////////////////\n";
+    std::cout << "///////                   Statistics                            ////////\n";
+    std::cout << "////////////////////////////////////////////////////////////////////////\n";
+    std::cout << "\nPrevios database version: " << oldDBSize << " entries.\n";
+    std::cout << "New database vesion     : " << newDBSize << " entries.\n";
+    std::cout << deletedSeqs << " entries were deleted,\n";
+    std::cout << newSeqs << " entries are new,\n";
+    std::cout << sharedSeqs << " entries are shared.\n\n";
+
+    std::cout << seqsWithMatches << " new sequences had matches to the previous database version.\n";
+    std::cout << "Remaining " << seqsWithoutMatches << " were grouped into " << newClus << " new clusters.\n";
+ 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     std::cout << "\nTime for updating: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";

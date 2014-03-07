@@ -16,7 +16,14 @@ extern "C" {
 #include <fstream>
 #include <algorithm>
 #include <climits>
+#include <map>
+#include <cstring>
 
+struct StrCompare : public std::binary_function<const char*, const char*, bool> {
+    public:
+        bool operator() (const char* str1, const char* str2) const
+        { return std::strcmp(str1, str2) < 0; }
+};
 
 class DBReader {
 
@@ -60,6 +67,8 @@ class DBReader {
         size_t* id2local;
 
         size_t* local2id;
+
+        std::map<const char*, size_t, StrCompare>* dbKey2id;
 
         char* dataFileName;
 

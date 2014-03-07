@@ -30,8 +30,6 @@ SetCover::SetCover(unsigned int set_size,
 }
 
 SetCover::~SetCover(){
-//    free(set_elements);
-//    free(sets);
     delete element_lookup;
     delete[] ordered_by_score_set;
 }
@@ -56,7 +54,6 @@ void SetCover::add_set(const int set_id, const int set_weight,
                         const unsigned short * weights,
                         const int element_size){
     
-
     set::element * element_last_ptr = NULL;
     set::element * element_first_ptr = NULL;
     set * curr_set = &this->sets[set_id];
@@ -73,7 +70,7 @@ void SetCover::add_set(const int set_id, const int set_weight,
         set::element * curr_element_ptr=&set_elements[add_position+i];
         curr_element_ptr->element_id=element_ids[i];
         curr_element_ptr->weight=weights[i];
-        if(element_first_ptr == NULL) // first ptr is not yet set
+       if(element_first_ptr == NULL) // first ptr is not yet set
             element_first_ptr = curr_element_ptr;
         // navigation (double linked list, parent)
         curr_element_ptr->parent_set = curr_set;
@@ -98,13 +95,13 @@ void SetCover::removeSet(set * s){
     set::element * element=s->elements;
     int s_set_id = s->set_id;
     unplug_set(s);
-    do{ // for(Element element in elements
+    do{ // for all elements in set
         set::element * element_to_remove;
         int element_id=element->element_id;
         
-        std::pair<set::element**,int> element_lookup_structur=element_lookup->get_array(element_id);
-        set::element ** element_lookup_array = element_lookup_structur.first;
-        int array_size = element_lookup_structur.second;
+        std::pair<set::element**,int> element_lookup_structure=element_lookup->get_array(element_id);
+        set::element ** element_lookup_array = element_lookup_structure.first;
+        int array_size = element_lookup_structure.second;
         for(int i =0; i < array_size;i++){
             element_to_remove = element_lookup_array[i];
             set * parent_set = element_to_remove->parent_set;
@@ -113,7 +110,6 @@ void SetCover::removeSet(set * s){
                 parent_set->weight  -= element_to_remove->weight;
                 parent_set->elements = unplug_element(element_to_remove,parent_set->elements);
                 create_set_at_weight_position(parent_set->weight,parent_set);
-
             }
             //delete element_to_remove;
         }
@@ -160,7 +156,6 @@ void SetCover::unplug_set(set * set_to_unplug){
         next_set->last = last_set;
     }
 }
-
 
 
 std::list<set *> SetCover::execute_set_cover(){

@@ -20,6 +20,8 @@ DBWriter::DBWriter (const char* dataFileName_, const char* indexFileName_, int m
 DBWriter::~DBWriter(){
     delete[] dataFiles;
     delete[] indexFiles;
+    delete[] dataFileNames;
+    delete[] indexFileNames;
     delete[] offsets;
 }
 
@@ -75,6 +77,11 @@ int DBWriter::close(){
 
         fclose(data_file_to_add);
         fclose(index_file_to_add);
+        if (remove(dataFileNames[i]) != 0)
+            std::cerr << "Error while removing file " << dataFileNames[i] << "\n";
+        if (remove(indexFileNames[i]) != 0)
+            std::cerr << "Error while removing file " << indexFileNames[i] << "\n";
+
     }
     fclose(data_file);
     fclose(index_file);
@@ -107,6 +114,7 @@ int DBWriter::close(){
     if(index_file == NULL) { perror(indexFileName); return EXIT_FAILURE; }
     ffindex_write(index, index_file);
     fclose(index_file);
+    free(index);
 
     return EXIT_SUCCESS;
 }

@@ -159,6 +159,8 @@ int main(int argc, char **argv){
     int sec = end.tv_sec - start.tv_sec;
     std::cout << "Time for alignments calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
+    delete aln;
+
     return 0;
 }
 

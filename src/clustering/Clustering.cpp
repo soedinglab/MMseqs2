@@ -5,17 +5,20 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string outDB, std::string outDBIndex,
         float seqIdThr){
 
+    std::cout << "Init...\n";
+    std::cout << "Opening sequence database...\n";
     seqDbr = new DBReader(seqDB.c_str(), seqDBIndex.c_str());
     seqDbr->open(DBReader::SORT);
 
+    std::cout << "Opening alignment database...\n";
     alnDbr = new DBReader(alnDB.c_str(), alnDBIndex.c_str());
     alnDbr->open(DBReader::NOSORT);
-    std::cout << alnDB << " " << alnDBIndex << "\n";
 
     dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str());
     dbw->open();
 
     this->seqIdThr = seqIdThr;
+    std::cout << "done.\n";
 }
 
 void Clustering::run(int mode){
@@ -28,7 +31,7 @@ void Clustering::run(int mode){
     if (mode == SET_COVER){
         std::cout << "Clustering mode: SET COVER\n";
         std::cout << "Reading the data...\n";
-        set_data = read_in_set_data_set_cover();
+        set_data = read_in_set_data();
 
         std::cout << "Init set cover...\n";
         SetCover setcover(set_data.set_count,
@@ -43,25 +46,30 @@ void Clustering::run(int mode){
                     ,(const unsigned int*)set_data.sets[i],
                     (const unsigned short*)set_data.weights[i],
                     set_data.set_sizes[i]);
-            delete[] set_data.sets[i];
-            delete[] set_data.weights[i];
-
         }
-        delete[] set_data.sets;
-        delete[] set_data.weights;
-
         std::cout.flush();
 
         std::cout << "Clustering...\n";
         ret = setcover.execute_set_cover();
         std::cout << "done.\n";
 
+        for(size_t i = 0; i < set_data.set_count; i++){
+            delete[] set_data.sets[i];
+            delete[] set_data.weights[i];
+
+        }
+        delete[] set_data.sets;
+        delete[] set_data.weights;
+        delete[] set_data.set_sizes;
+        delete[] set_data.element_size_lookup;
+
+
     }
     else if (mode == GREEDY){
 
         std::cout << "Clustering mode: GREEDY\n";
         std::cout << "Reading the data...\n";
-        set_data = read_in_set_data_simple_clustering();
+        set_data = read_in_set_data();
 
         std::cout << "Init simple clustering...\n";
         SimpleClustering simpleClustering(set_data.set_count,
@@ -96,6 +104,7 @@ void Clustering::run(int mode){
     std::cout.flush();
 
     int dbSize = alnDbr->getSize();
+    int seqDbSize = seqDbr->getSize();
     int cluNum = ret.size();
 
     std::cout << "Writing results...\n";
@@ -109,7 +118,8 @@ void Clustering::run(int mode){
     int sec = end.tv_sec - start.tv_sec;
     std::cout << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
 
-    std::cout << "\nSize of the database was: " << dbSize << "\n";
+    std::cout << "\nSize of the sequence database: " << seqDbSize << "\n";
+    std::cout << "Size of the alignment database: " << dbSize << "\n";
     std::cout << "Number of clusters: " << cluNum << "\n";
 
 }
@@ -123,9 +133,9 @@ void Clustering::writeData(std::list<set *> ret){
         std::stringstream res;
         set::element * element =(*iterator)->elements;
         // first entry is the representative sequence
-        char* dbKey = alnDbr->getDbKey(element->element_id);
+        char* dbKey = seqDbr->getDbKey(element->element_id);
         do{ 
-            char* nextDbKey = alnDbr->getDbKey(element->element_id);
+            char* nextDbKey = seqDbr->getDbKey(element->element_id);
             res << nextDbKey << "\n";
         }while((element=element->next)!=NULL);
 
@@ -146,60 +156,107 @@ void Clustering::writeData(std::list<set *> ret){
 bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_element_count){
     std::list<set *>::const_iterator iterator;
     unsigned int result_element_count=0;
+    int* control = new int [uniqu_element_count+1];
+    memset(control, 0, sizeof(int)*(uniqu_element_count+1));
     for (iterator = ret->begin(); iterator != ret->end(); ++iterator) {
         set::element * element =(*iterator)->elements;
         do{ 
+            control[element->element_id]++;
             result_element_count++;
         }while((element=element->next)!=NULL);
     }
-    return (uniqu_element_count==result_element_count)? true : false;
+    int notin = 0;
+    int toomuch = 0;
+    for (int i = 0; i < uniqu_element_count; i++){
+        if (control[i] == 0){
+            std::cout << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is not in the clustering!\n";
+            notin++;
+        }
+        else if (control[i] > 1){
+            std::cout << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is " << control[i] << " times in the clustering!\n";
+            toomuch = toomuch + control[i];
+        }
+    }
+    std::cout << "not in: " << notin << "\n";
+    std::cout << "too much: " << toomuch << "\n";
+    delete[] control;
+    if (uniqu_element_count==result_element_count)
+        return true;
+    else{
+        std::cerr << "uniqu_element_count: " << uniqu_element_count << ", result_element_count: " << result_element_count << "\n";
+        return false;
+    }
 }
 
 
-Clustering::set_data Clustering::read_in_set_data_set_cover(){
+Clustering::set_data Clustering::read_in_set_data(){
 
     Clustering::set_data ret_struct;
 
     // n = overall sequence count
-    int n = alnDbr->getSize();
+    int n = seqDbr->getSize();
+    // m = number of sets
+    int m = alnDbr->getSize();
+
     ret_struct.uniqu_element_count = n;
-    ret_struct.set_count = n;
+    ret_struct.set_count = m;
 
     unsigned int * element_buffer=(unsigned int *)malloc(n * sizeof(unsigned int));
     unsigned int * element_size=new unsigned int[n+2];
-    memset(&element_size[0], 0, sizeof(unsigned int)*(n+2));
+    memset(element_size, 0, sizeof(unsigned int)*(n+2));
     ret_struct.element_size_lookup = element_size;
-    unsigned int * set_size=new unsigned int[n];
+    unsigned int * set_size=new unsigned int[m];
 
     ret_struct.set_sizes = set_size;
-    unsigned int ** sets   = new unsigned int*[n];
+    unsigned int ** sets   = new unsigned int*[m];
     ret_struct.sets = sets;
-    unsigned short ** weights = new unsigned short*[n];
+    unsigned short ** weights = new unsigned short*[m];
     ret_struct.weights = weights;
     ret_struct.max_weight = 0;
     ret_struct.all_element_count=0;
 
     char* buf = new char[1000000];
 
-    int* idsCnt = new int[n];
-    memset(idsCnt, 0, sizeof(int) * n);
+    int empty = 0;
 
-    for(int i = 0; i<n; i++){
+    // the reference id of the elements is always their id in the sequence database
+    for(int i = 0; i<m; i++){
+        if (i % 1000000 == 0 && i > 0){
+            std::cout << "\t" << (i/1000000) << " Mio. sequences processed\n";
+            fflush(stdout);
+        }
+        else if (i % 10000 == 0 && i > 0) {
+            std::cout << ".";
+            fflush(stdout);
+        }
+
         char* data = alnDbr->getData(i);
         strcpy(buf, data);
         unsigned int element_counter=0;
-        char* dbKey = strtok(buf, "\t");
-        // ensure that each set contains the query sequence itself
-        idsCnt[i]++;
-        element_buffer[element_counter++] = i;
-        element_size[i]++;
-        ret_struct.all_element_count++;
 
+        // add the element itself to its own cluster
+/*        int rep_element_id = seqDbr->getId(alnDbr->getDbKey(i));
+        element_buffer[element_counter++]=rep_element_id;
+        element_size[rep_element_id]++;
+        ret_struct.all_element_count++;
+*/
+        char* prevKey = 0;
+        char* dbKey = strtok(buf, "\t");
+
+        int cnt = 0;
         while (dbKey != 0)
         {
-            size_t curr_element = alnDbr->getId(dbKey);
+            if (prevKey != 0 && strcmp(prevKey, dbKey) == 0){
+                prevKey = dbKey;
+                dbKey = strtok(NULL, "\n");
+                dbKey = strtok(NULL, "\t");
+                continue;
+            }
+            prevKey = dbKey;
+
+            size_t curr_element = seqDbr->getId(dbKey);
             if (curr_element == UINT_MAX){
-                std::cerr << "ERROR: Element " << dbKey << " not contained in the alignment index!\n";
+                std::cerr << "ERROR: Element " << dbKey << " contained in some alignment list, but not contained in the sequence database!\n";
                 exit(1);
             }
             int score = atoi(strtok(NULL, "\t")); // score
@@ -208,16 +265,18 @@ Clustering::set_data Clustering::read_in_set_data_set_cover(){
             float seqId = atof(strtok(NULL, "\t")); // sequence identity
             double eval = atof(strtok(NULL, "\n")); // e-value
             // add an edge if it meets the thresholds
-            // the sequence itself has already beed added
-            if (curr_element != i && seqId >= seqIdThr){
-                idsCnt[curr_element]++;
+            if (seqId >= seqIdThr){
                 element_buffer[element_counter++]=curr_element;
                 element_size[curr_element]++;
                 ret_struct.all_element_count++;
             }
             // next db key
             dbKey = strtok(NULL, "\t");
+            cnt++;
         }
+
+        if (cnt == 0)
+            empty++;
 
         if(ret_struct.max_weight < element_counter){
             ret_struct.max_weight = element_counter;
@@ -234,77 +293,11 @@ Clustering::set_data Clustering::read_in_set_data_set_cover(){
 
     }
 
-    return ret_struct;
-}
+    if (empty > 0)
+        std::cout << empty << " input sets were empty!\n";
+    free(element_buffer);
+    delete[] buf;
 
-Clustering::set_data Clustering::read_in_set_data_simple_clustering(){
-
-    Clustering::set_data ret_struct;
-
-    // n = overall sequence count
-    int n = seqDbr->getSize();
-    ret_struct.uniqu_element_count = n;
-    ret_struct.set_count = n;
-
-    unsigned int * element_buffer=(unsigned int *)malloc(n * sizeof(unsigned int));
-    unsigned int * element_size=new unsigned int[n+2];
-    memset(&element_size[0], 0, sizeof(unsigned int)*(n+2));
-    ret_struct.element_size_lookup = element_size;
-    unsigned int * set_size=new unsigned int[n];
-
-    ret_struct.set_sizes = set_size;
-    unsigned int ** sets   = new unsigned int*[n];
-    ret_struct.sets = sets;
-    ret_struct.all_element_count=0;
-
-    char* buf = new char[1000000];
-
-    int* idsCnt = new int[n];
-    memset(idsCnt, 0, sizeof(int) * n);
-
-    for(int i = 0; i < n; i++){
-        char* qDbKey = seqDbr->getDbKey(i);
-        char* data = alnDbr->getDataByDBKey(qDbKey);
-        strcpy(buf, data);
-        unsigned int element_counter=0;
-        char* dbKey = strtok(buf, "\t");
-        // ensure that each set contains the query sequence itself
-        idsCnt[i]++;
-        element_buffer[element_counter++]=i;
-        element_size[i]++;
-        ret_struct.all_element_count++;
-
-        while (dbKey != 0)
-        {
-            size_t curr_element = alnDbr->getId(dbKey);
-            if (curr_element == UINT_MAX){
-                std::cerr << "ERROR: Element " << dbKey << " not contained in the alignment index!\n";
-                exit(1);
-            }
-            // skip the rest
-            int score = atoi(strtok(NULL, "\t")); // score
-            float qcov = atof(strtok(NULL, "\t")); // query sequence coverage
-            float dbcov = atof(strtok(NULL, "\t")); // db sequence coverage
-            float seqId = atof(strtok(NULL, "\t")); // sequence identity
-            double eval = atof(strtok(NULL, "\n")); // e-value
-            // add an edge if it meets the thresholds
-            // the sequence itself has already beed added
-            if (curr_element != i && seqId > seqIdThr){
-                idsCnt[curr_element]++;
-                element_buffer[element_counter++]=curr_element;
-                element_size[curr_element]++;
-                ret_struct.all_element_count++;
-            }
-           dbKey = strtok(NULL, "\t"); // next db key
-        }
-
-        unsigned int * elements = new unsigned int[element_counter];
-        memcpy(elements,element_buffer,sizeof(int)*element_counter);
-
-        sets[i] = elements;
-        set_size[i]=element_counter;
-
-    }
     return ret_struct;
 }
 

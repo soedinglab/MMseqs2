@@ -6,7 +6,8 @@
 
 void printUsage(){
 
-    std::string usage("\nCalculates clustering of a sequence database based on Smith Waterman alignment scores with set cover algorithm.\n");
+    std::string usage("\nCalculates clustering of a sequence database based on Smith Waterman alignment scores with set cover algorithm.\n"
+            "ATTENTION: ffindex sequence database should contain all the sequences participating in the clustering (queries and targets).");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
     usage.append("USAGE: mmseqs_clu ffindexSeqDB ffindexAlnResultsDB ffindexOutDB [opts]\n"
              "-g              \t[file]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
