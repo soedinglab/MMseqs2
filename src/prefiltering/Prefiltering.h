@@ -45,7 +45,7 @@ class Prefiltering {
 
         void run (size_t maxResListLen);
 
-        static IndexTable* getIndexTable(DBReader* dbr, Sequence* seq, int alphabetSize, int kmerSize, int dbSize, int skip = 0);
+        static IndexTable* getIndexTable(DBReader* dbr, Sequence* seq, int alphabetSize, int kmerSize, int dbFrom, int dbTo, int skip = 0);
 
     private:
 

@@ -95,7 +95,7 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     // initialise the index table and the matcher structures for the database
     Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType);
-    this->indexTable = getIndexTable(tdbr, seq, alphabetSize, kmerSize, tdbr->getSize(), skip);
+    this->indexTable = getIndexTable(tdbr, seq, alphabetSize, kmerSize, 0, tdbr->getSize(), skip);
     delete seq;
 
     std::cout << "Initializing data structures...";
@@ -249,13 +249,13 @@ BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, f
 }
 
 
-IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize, int kmerSize, int dbSize, int skip){
+IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize, int kmerSize, int dbFrom, int dbTo, int skip){
 
     std::cout << "Index table: counting k-mers...\n";
     // fill and init the index table
     IndexTable* indexTable = new IndexTable(alphabetSize, kmerSize, skip);
 
-    for (int id = 0; id < dbSize; id++){
+    for (int id = dbFrom; id < dbTo; id++){
         if (id % 1000000 == 0 && id > 0){
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
             fflush(stdout);
@@ -274,7 +274,7 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alpha
     indexTable->init();
 
     std::cout << "Index table: fill...\n";
-    for (int id = 0; id < dbSize; id++){
+    for (int id = dbFrom; id < dbTo; id++){
         if (id % 1000000 == 0 && id > 0){
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
             fflush(stdout);
@@ -301,7 +301,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double ta
     size_t targetDbSize = dbr->getSize();
     if (targetDbSize > 100000)
         targetDbSize = 100000;
-    IndexTable* indexTable = getIndexTable(dbr, seqs[0], alphabetSize, kmerSize, targetDbSize);
+    IndexTable* indexTable = getIndexTable(dbr, seqs[0], alphabetSize, kmerSize, 0, targetDbSize);
 
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
 

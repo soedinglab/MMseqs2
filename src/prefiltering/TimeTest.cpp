@@ -97,7 +97,7 @@ void TimeTest::runTimeTest (){
         int kmerThrMax = kmerThrPerPosMax * kmerSize;
 
         std::cout << "------------------  k = " << kmerSize << " -----------------------------\n";
-        IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, tdbr->getSize());
+        IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize());
         for (short kmerThr = kmerThrMin; kmerThr < kmerThrMax; kmerThr += kmerSize){
             std::cout << "k = " << kmerSize << "\n";
             std::cout << "k-mer threshold = " << kmerThr << "\n";
