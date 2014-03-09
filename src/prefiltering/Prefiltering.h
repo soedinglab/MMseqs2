@@ -45,11 +45,10 @@ class Prefiltering {
 
         void run (size_t maxResListLen);
 
-        static IndexTable* getIndexTable(DBReader* dbr, Sequence* seq, int alphabetSize, int kmerSize, int dbFrom, int dbTo, int skip = 0);
+        static IndexTable* getIndexTable(DBReader* dbr, Sequence* seq, int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo, int skip = 0);
 
     private:
-
-        size_t BUFFER_SIZE;
+        static const size_t BUFFER_SIZE = 1000000;
 
         int threads;
 
@@ -69,15 +68,26 @@ class Prefiltering {
         int kmerSize;
         int alphabetSize;
         size_t maxSeqLen;
-
-        BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor);
+	float zscoreThr;
+	bool aaBiasCorrection;
+	short kmerThr;
+	double kmerMatchProb;
+    int seqType;
+    int skip;
+	BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor);
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
          * K-mer similarity threshold is set to meet a certain DB match probability.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
         std::pair<short,double> setKmerThreshold(DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation);
-
+    // write prefiltering to ffindex database
+    int writePrefilterOutput( int thread_idx, size_t id, size_t maxResListLen, std::list<hit_t>* prefResults);
+    // prints Progress for run
+    static void printProgress(int id);
+    
+	void printStatistics(size_t queryDBSize, size_t kmersPerPos, size_t resSize, size_t dbMatches,
+			     int empty, size_t maxResListLen, std::list<int>* reslens);
 
 };
 

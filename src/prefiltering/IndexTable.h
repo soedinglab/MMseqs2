@@ -54,7 +54,7 @@ class IndexTable {
         int* currPos;
 
         Indexer* idxer;
-
+    
         int alphabetSize;
 
         int kmerSize;
@@ -63,6 +63,10 @@ class IndexTable {
 
         // number of skipped k-mers
         int skip;
+    
+        // amount of sequences in Index
+        size_t size;
+    
 
         // number of entries in all sequence lists
         int64_t tableEntriesNum;
