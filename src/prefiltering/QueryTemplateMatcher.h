@@ -35,7 +35,6 @@ class QueryTemplateMatcher {
         std::list<hit_t>*  matchQuery (Sequence * seq);
         // calculate local amino acid bias correction score for each position in the sequence
         void calcLocalAaBiasCorrection(Sequence* seq);
-
     private:
         // match sequence against the IndexTable
         void match(Sequence* seq);
