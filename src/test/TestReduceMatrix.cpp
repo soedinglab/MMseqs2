@@ -13,7 +13,7 @@
 int main (int argc, const char * argv[])
 {
     
-    SubstitutionMatrix subMat("../../data/blosum62.out");
+    SubstitutionMatrix subMat("../../data/blosum62.out",8.0);
     
     for(int i = 0; i<subMat.alphabetSize;i++)
         printf("(%d)%c\t",i,subMat.int2aa[i]);

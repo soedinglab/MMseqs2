@@ -21,7 +21,7 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=4;
     
     
-    SubstitutionMatrix subMat("/Users/aluucard/Documents/workspace/kClust2/data/blosum62.out");
+    SubstitutionMatrix subMat("../../data/blosum62.out",8.0);
     std::cout << "Subustitution matrix:\n";
     std::cout << "lala matrix:\n";
 
@@ -42,11 +42,11 @@ int main (int argc, const char * argv[])
     
     
     std::cout << "Sequence (id 0):\n";
-    char* sequence = "AAVIDE";
+    char* sequence = (char *) argv[1];
     std::cout << sequence << "\n\n";
     
-    Sequence* s = new Sequence (10000, redMat.aa2int, redMat.int2aa);
-    s->mapSequence(sequence);
+    Sequence* s = new Sequence (10000, redMat.aa2int, redMat.int2aa,0);
+    s->mapSequence(0,"lala",sequence);
     
     printf("Normal alphabet : ");
     for(int i = 0; i<subMat.alphabetSize;i++)
