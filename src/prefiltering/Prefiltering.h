@@ -82,7 +82,7 @@ class Prefiltering {
          */
         std::pair<short,double> setKmerThreshold(DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation);
     // write prefiltering to ffindex database
-    int writePrefilterOutput( int thread_idx, size_t id, size_t maxResListLen, std::list<hit_t>* prefResults);
+    int writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id, size_t maxResListLen, std::list<hit_t>* prefResults);
     // prints Progress for run
     static void printProgress(int id);
     

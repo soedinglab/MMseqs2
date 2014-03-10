@@ -134,13 +134,26 @@ void Prefiltering::run(size_t maxResListLen){
 
     std::cout << "Initializing data structures...";
     size_t queryDBSize = qdbr->getSize();
-    int stepSize = tdbr->getSize();
-    for(int stepStart = 0; stepStart < tdbr->getSize(); stepStart += stepSize ){
+    int splitSize = tdbr->getSize()/2;
+    int splitCount = 0;
+    // splits template database into x sequence steps
+    for(int splitStart = 0; splitStart < tdbr->getSize(); splitStart += splitSize ){
+        splitCount++;
+        std::string idSuffix;
+        std::stringstream idSuffixStream;
+        if (splitStart==0) {
+            idSuffixStream << "";
+        }else {
+            idSuffixStream << "." << splitCount;
+        }
+        idSuffix = idSuffixStream.str();
+
+        
         Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType);
-        this->indexTable = getIndexTable(tdbr, seq, alphabetSize, kmerSize, stepStart, tdbr->getSize(), skip);
+        this->indexTable = getIndexTable(tdbr, seq, alphabetSize, kmerSize, splitStart, splitStart + splitSize , skip);
         delete seq;
 #pragma omp parallel for schedule(static)
-        for (int i = 0; i < threads; i++){
+        for (int i = 0; i < this->threads; i++){
             int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
@@ -169,11 +182,11 @@ void Prefiltering::run(size_t maxResListLen){
             std::list<hit_t>* prefResults;
             prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx]);
             // write
-            if(writePrefilterOutput(thread_idx,id,maxResListLen,prefResults)!=0)
+            if(writePrefilterOutput(thread_idx,idSuffix,id,maxResListLen,prefResults)!=0)
                 continue; // couldnt write result because of to much results
 
             // update statistics counters
-            if (prefResults->size() == 0)
+            if (prefResults->size() == 0) //TODO difficult because I have to memorize the query
                 empty++;
             kmersPerPos += (size_t) seqs[thread_idx]->stats->kmersPerPos;
             dbMatches += seqs[thread_idx]->stats->dbMatches;
@@ -182,27 +195,55 @@ void Prefiltering::run(size_t maxResListLen){
         } // iteration over query end
         std::cout << "\n\n";
         
-        // sort and merge the result list lengths (for median calculation)
-        reslens[0]->sort();
-        for (int i = 1; i < threads; i++){
-            reslens[i]->sort();
-            reslens[0]->merge(*reslens[i]);
-        }
         for (int j = 0; j < threads; j++){
             delete matchers[j];
         }
-        delete[] matchers;
-    } // step end
+        delete indexTable;
 
-    // print statistics
-    this->printStatistics(queryDBSize, kmersPerPos, resSize, dbMatches, empty, maxResListLen, reslens[0]);
-    // merge output ffindex databases
-    std::cout << "Merging the results...\n";
+    } // step end
+    
+    // close reader to reduce memory
     qdbr->close();
     if (strcmp(qdbr->getIndexFileName(), tdbr->getIndexFileName()) != 0)
         tdbr->close();
-    dbw->close();
-    std::cout << "done.\n";
+    
+    // merge output ffindex databases
+    std::cout << "Merging the results...\n";
+    dbw->close(); // sorts the index
+    
+    DBReader tmpReader(dbw->getDataFileName(), dbw->getIndexFileName());
+    DBWriter tmpWriter(dbw->getDataFileName(), dbw->getIndexFileName(),1);
+    tmpReader.open(DBReader::SORT);
+    tmpWriter.open();
+    for (size_t id = 0; id < queryDBSize; id++){
+        std::stringstream mergeResultsOut;
+        for(size_t split = 0; split < splitCount; split++)
+            mergeResultsOut << tmpReader.getData(id+(split*queryDBSize));
+        
+        
+        std::string mergeResultsOutString = mergeResultsOut.str();
+        const char* mergeResultsOutData = mergeResultsOutString.c_str();
+        if (BUFFER_SIZE < strlen(mergeResultsOutData)){
+            exit(3);
+        }
+        memcpy(outBuffers[0], mergeResultsOutData, mergeResultsOutString.length()*sizeof(char));
+        tmpWriter.write(outBuffers[0], mergeResultsOutString.length(),  tmpReader.getDbKey(id), 0);
+
+    }
+    tmpReader.close();
+    tmpWriter.close();
+
+    // sort and merge the result list lengths (for median calculation)
+    reslens[0]->sort();
+    for (int i = 1; i < threads; i++){
+        reslens[i]->sort();
+        reslens[0]->merge(*reslens[i]);
+    }
+    // correction because of x splits
+    kmersPerPos = kmersPerPos / splitCount;
+    // print statistics
+    this->printStatistics(queryDBSize, kmersPerPos, resSize, dbMatches, empty, maxResListLen, reslens[0]);
+
 }
 
 void Prefiltering::printProgress(int id){
@@ -217,7 +258,8 @@ void Prefiltering::printProgress(int id){
 }
 
  // write prefiltering to ffindex database
-int Prefiltering::writePrefilterOutput( int thread_idx, size_t id,size_t maxResListLen, std::list<hit_t>* prefResults){
+int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id,
+                                        size_t maxResListLen, std::list<hit_t>* prefResults){
     // write prefiltering results to a string
     std::stringstream prefResultsOut;
     size_t l = 0;
@@ -240,7 +282,9 @@ int Prefiltering::writePrefilterOutput( int thread_idx, size_t id,size_t maxResL
         return -1;
     }
     memcpy(outBuffers[thread_idx], prefResultsOutData, prefResultsOutString.length()*sizeof(char));
-    dbw->write(outBuffers[thread_idx], prefResultsOutString.length(), qdbr->getDbKey(id), thread_idx);
+    std::stringstream keyStream;
+    keyStream << qdbr->getDbKey(id) << idSuffix;
+    dbw->write(outBuffers[thread_idx], prefResultsOutString.length(), (char *) keyStream.str().c_str() , thread_idx);
     return 0;
 
 }
