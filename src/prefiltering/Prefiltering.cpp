@@ -256,11 +256,11 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alpha
     IndexTable* indexTable = new IndexTable(alphabetSize, kmerSize, skip);
 
     for (int id = dbFrom; id < dbTo; id++){
-        if (id % 1000000 == 0 && id > 0){
+        if ((id-dbFrom) % 1000000 == 0 && (id-dbFrom) > 0){
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
             fflush(stdout);
         }
-        else if (id % 10000 == 0 && id > 0) {
+        else if ((id-dbFrom) % 10000 == 0 && (id-dbFrom) > 0) {
             std::cout << ".";
             fflush(stdout);
         }
@@ -275,11 +275,11 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alpha
 
     std::cout << "Index table: fill...\n";
     for (int id = dbFrom; id < dbTo; id++){
-        if (id % 1000000 == 0 && id > 0){
+        if ((id-dbFrom) % 1000000 == 0 && (id-dbFrom) > 0){
             std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
             fflush(stdout);
         }
-        else if (id % 10000 == 0 && id > 0) {
+        else if ((id-dbFrom) % 10000 == 0 && (id-dbFrom) > 0) {
             std::cout << ".";
             fflush(stdout);
         }

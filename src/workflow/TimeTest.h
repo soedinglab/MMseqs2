@@ -31,7 +31,6 @@ class TimeTest {
                 std::string targetDB,
                 std::string targetDBIndex,
                 std::string scoringMatrixFile,
-                int alphabetSize,
                 size_t maxSeqLen,
                 std::string logFile);
 
@@ -49,15 +48,11 @@ class TimeTest {
 
         size_t maxSeqLen;
 
-        int alphabetSize;
-
         DBReader* qdbr;
         DBReader* tdbr;
         DBWriter* dbw;
 
-        BaseMatrix* subMat;
-        ExtendedSubstitutionMatrix* _2merSubMatrix;
-        ExtendedSubstitutionMatrix* _3merSubMatrix;
+        BaseMatrix* m;
 
         Sequence** seqs;
 };
