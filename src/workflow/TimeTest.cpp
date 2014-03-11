@@ -70,8 +70,8 @@ void TimeTest::runTimeTest (){
         querySeqLenSum += tdbr->getSeqLens()[querySeqs[i]];
     }
 
-    short kmerThrPerPosMin = 10;
-    short kmerThrPerPosMax = 20;
+    short kmerThrPerPosMin = 1;
+    short kmerThrPerPosMax = 15;
 
     // adjust k-mer list length threshold
     for (int alphabetSize = 13; alphabetSize <= 21; alphabetSize += 4){ 
@@ -102,8 +102,8 @@ void TimeTest::runTimeTest (){
             std::cout << "------------------ a = " << alphabetSize << ",  k = " << kmerSize << " -----------------------------\n";
             IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize(), 0);
 
-            for (short kmerThr = kmerThrMin; kmerThr < kmerThrMax; kmerThr += kmerSize){
-                std::cout << "k = " << kmerSize << "\n";
+            for (short kmerThr = kmerThrMax; kmerThr >= kmerThrMin; kmerThr -= 1){
+                std::cout << "k = " << kmerSize << ", a = " << alphabetSize << "\n";
                 std::cout << "k-mer threshold = " << kmerThr << "\n";
 
                 size_t dbMatchesSum = 0;
@@ -141,18 +141,29 @@ void TimeTest::runTimeTest (){
                     kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
                     dbMatchesSum += seqs[thread_idx]->stats->dbMatches;
                 }
+                gettimeofday(&end, NULL);
+                int sec = end.tv_sec - start.tv_sec;
+
+                // too short running time is not recorded
+                if (sec <= 2){
+                    std::cout << "Time <= 2 sec, not counting this step.\n\n";
+                    continue;
+                }
+                std::cout << "Time: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
                 kmersPerPos /= (double)querySetSize;
                 kmerMatchProb = ((double)dbMatchesSum) / ((double) (querySeqLenSum * targetSeqLenSum));
 
                 std::cout << "kmerPerPos: " << kmersPerPos << "\n";
-                std::cout << "k-mer match probability: " << kmerMatchProb << "\n";
-
-                gettimeofday(&end, NULL);
-                int sec = end.tv_sec - start.tv_sec;
-                std::cout << "Time: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
+                std::cout << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
                 logFileStream << kmersPerPos << "\t" << kmerMatchProb << "\t" << kmerSize << "\t" << alphabetSize << "\t" << sec << "\n";
+
+                // running time for the next step will be too long
+                if (sec >= 300){
+                    std::cout << "Time >= 300 sec, going to the next parameter combination.\n";
+                    break;
+                }
 
                 for (int j = 0; j < threads; j++){
                     delete matchers[j];
