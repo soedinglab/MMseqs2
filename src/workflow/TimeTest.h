@@ -2,6 +2,7 @@
 #define TIME_TEST_H
 
 #include <iostream>
+#include <stdio.h>
 #include <unistd.h>
 #include <string>
 #include <time.h>
@@ -52,9 +53,9 @@ class TimeTest {
         DBReader* tdbr;
         DBWriter* dbw;
 
-        BaseMatrix* m;
-
         Sequence** seqs;
+
+        std::string scoringMatrixFile;
 };
 
 #endif

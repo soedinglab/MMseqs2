@@ -31,34 +31,22 @@ TimeTest::TimeTest(std::string queryDB,
     std::cout << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
     std::cout << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
 
-    m = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
-
     this->seqs = new Sequence*[threads];
-#pragma omp parallel for schedule(static)
-    for (int i = 0; i < threads; i++){
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-        seqs[thread_idx] = new Sequence(maxSeqLen, m->aa2int, m->int2aa, Sequence::AMINO_ACIDS);
-    }
+
+    this->scoringMatrixFile = scoringMatrixFile;
 
     std::cout << "Init done.\n\n";
 }
 
 TimeTest::~TimeTest(){
 
-    for (int i = 0; i < threads; i++){
-        delete seqs[i];
-    }
     delete[] seqs;
 
-    delete m;
 }
 
 void TimeTest::runTimeTest (){
 
-    int QUERY_SET_SIZE = 2000;
+    int QUERY_SET_SIZE = 50000;
 
     std::ofstream logFileStream;
     logFileStream.open(logFile.c_str());
@@ -82,30 +70,40 @@ void TimeTest::runTimeTest (){
         querySeqLenSum += tdbr->getSeqLens()[querySeqs[i]];
     }
 
-    short kmerThrPerPosMin = 10;
-    short kmerThrPerPosMax = 20;
+    short kmerThrPerPosMin = 1;
+    short kmerThrPerPosMax = 15;
 
-    BaseMatrix* subMat;
     // adjust k-mer list length threshold
     for (int alphabetSize = 13; alphabetSize <= 21; alphabetSize += 4){ 
 
+        BaseMatrix* m = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
+        BaseMatrix* subMat;
         if (alphabetSize < 21)
             subMat = new ReducedMatrix(m->probMatrix, alphabetSize);
         else
             subMat = m;
 
-        ExtendedSubstitutionMatrix* _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
-        ExtendedSubstitutionMatrix* _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
+        ExtendedSubstitutionMatrix* _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, alphabetSize);
+        ExtendedSubstitutionMatrix* _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, alphabetSize);
+
+#pragma omp parallel for schedule(static)
+        for (int i = 0; i < threads; i++){
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
+            seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS);
+        }
 
         for (int kmerSize = 4; kmerSize <= 7; kmerSize++){
-            short kmerThrMin = kmerThrPerPosMin * kmerSize;
+            short kmerThrMin = (short)((float)(kmerThrPerPosMin * kmerSize) * (pow(( (float)alphabetSize / 21.0 ), 2.0)));
             int kmerThrMax = kmerThrPerPosMax * kmerSize;
 
-            std::cout << "------------------  k = " << kmerSize << " -----------------------------\n";
+            std::cout << "------------------ a = " << alphabetSize << ",  k = " << kmerSize << " -----------------------------\n";
             IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize(), 0);
 
-            for (short kmerThr = kmerThrMin; kmerThr < kmerThrMax; kmerThr += kmerSize){
-                std::cout << "k = " << kmerSize << "\n";
+            for (short kmerThr = kmerThrMax; kmerThr >= kmerThrMin; kmerThr -= 1){
+                std::cout << "k = " << kmerSize << ", a = " << alphabetSize << "\n";
                 std::cout << "k-mer threshold = " << kmerThr << "\n";
 
                 size_t dbMatchesSum = 0;
@@ -143,18 +141,29 @@ void TimeTest::runTimeTest (){
                     kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
                     dbMatchesSum += seqs[thread_idx]->stats->dbMatches;
                 }
+                gettimeofday(&end, NULL);
+                int sec = end.tv_sec - start.tv_sec;
+
+                // too short running time is not recorded
+                if (sec <= 2){
+                    std::cout << "Time <= 2 sec, not counting this step.\n\n";
+                    continue;
+                }
+                std::cout << "Time: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
                 kmersPerPos /= (double)querySetSize;
                 kmerMatchProb = ((double)dbMatchesSum) / ((double) (querySeqLenSum * targetSeqLenSum));
 
                 std::cout << "kmerPerPos: " << kmersPerPos << "\n";
-                std::cout << "k-mer match probability: " << kmerMatchProb << "\n";
-
-                gettimeofday(&end, NULL);
-                int sec = end.tv_sec - start.tv_sec;
-                std::cout << "Time: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
+                std::cout << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
                 logFileStream << kmersPerPos << "\t" << kmerMatchProb << "\t" << kmerSize << "\t" << alphabetSize << "\t" << sec << "\n";
+
+                // running time for the next step will be too long
+                if (sec >= 300){
+                    std::cout << "Time >= 300 sec, going to the next parameter combination.\n";
+                    break;
+                }
 
                 for (int j = 0; j < threads; j++){
                     delete matchers[j];
@@ -163,8 +172,15 @@ void TimeTest::runTimeTest (){
             delete indexTable;
         }
 
+        for (int i = 0; i < threads; i++){
+            delete seqs[i];
+        }
+
+        delete m;
         if (alphabetSize < 21)
             delete subMat;
+        delete _2merSubMatrix;
+        delete _3merSubMatrix;
     }
 
     logFileStream.close();
