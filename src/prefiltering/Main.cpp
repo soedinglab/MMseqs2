@@ -70,11 +70,13 @@ void printUsage(){
             "--nucleotides   \t\tNucleotide sequences input.\n"
             "--max-res-num   \t[int]\tMaximum result sequences per query (default=100)\n"
             "--aa-bias-corr  \t\tLocal amino acid composition bias correction.\n"
+            "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory safing only)\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"); 
     std::cout << usage;
 }
 
-void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* scoringMatrixFile, float* sens, int* kmerSize, int* alphabetSize, float* zscoreThr, size_t* maxSeqLen, int* seqType, size_t* maxResListLen, bool* aaBiasCorrection, int* skip){
+void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* scoringMatrixFile, float* sens, int* kmerSize, int* alphabetSize, float* zscoreThr, size_t* maxSeqLen, int* seqType, size_t* maxResListLen,
+    bool* aaBiasCorrection, int* splitSize, int* skip){
     if (argc < 4){
         printUsage();
         exit(EXIT_FAILURE);
@@ -190,6 +192,17 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         }
+        else if (strcmp(argv[i], "--tdb-seq-cut") == 0){
+            if (++i < argc){
+                *splitSize = atoi(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
         else {
             printUsage();
             std::cerr << "Wrong argument: " << argv[i] << "\n";
@@ -216,6 +229,7 @@ int main (int argc, const char * argv[])
     size_t maxSeqLen = 50000;
     size_t maxResListLen = 100;
     float sensitivity = 7.2f;
+    int splitSize = 0;
     int skip = 0;
     int seqType = Sequence::AMINO_ACIDS;
     bool aaBiasCorrection = false;
@@ -226,7 +240,10 @@ int main (int argc, const char * argv[])
     std::string outDB = "";
     std::string scoringMatrixFile = "";
 
-    parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile, &sensitivity, &kmerSize, &alphabetSize, &zscoreThr, &maxSeqLen, &seqType, &maxResListLen, &aaBiasCorrection, &skip);
+    parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile,
+                          &sensitivity, &kmerSize, &alphabetSize, &zscoreThr,
+                          &maxSeqLen, &seqType, &maxResListLen, &aaBiasCorrection,
+                          &splitSize, &skip);
 
     if (seqType == Sequence::NUCLEOTIDES)
         alphabetSize = 5;
@@ -240,7 +257,7 @@ int main (int argc, const char * argv[])
     std::string targetDBIndex = targetDB + ".index";
     std::string outDBIndex = outDB + ".index";
 
-    Prefiltering* pref = new Prefiltering(queryDB, queryDBIndex, targetDB, targetDBIndex, outDB, outDBIndex, scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, skip);
+    Prefiltering* pref = new Prefiltering(queryDB, queryDBIndex, targetDB, targetDBIndex, outDB, outDBIndex, scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, splitSize, skip);
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;

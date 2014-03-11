@@ -38,7 +38,8 @@ class Prefiltering {
                 float zscoreThr, 
                 size_t maxSeqLen, 
                 int seqType, 
-                bool aaBiasCorrection, 
+                bool aaBiasCorrection,
+                int splitSize,
                 int skip);
 
         ~Prefiltering();
@@ -65,14 +66,17 @@ class Prefiltering {
         QueryTemplateMatcher** matchers;
         IndexTable* indexTable;
 
-        int kmerSize;
-        int alphabetSize;
-        size_t maxSeqLen;
+    std::string outDB;
+    std::string outDBIndex;
+    int kmerSize;
+    int alphabetSize;
+    size_t maxSeqLen;
 	float zscoreThr;
 	bool aaBiasCorrection;
 	short kmerThr;
 	double kmerMatchProb;
     int seqType;
+    int splitSize;
     int skip;
 	BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor);
 

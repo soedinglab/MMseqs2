@@ -14,14 +14,20 @@ Prefiltering::Prefiltering(std::string queryDB,
         size_t maxSeqLen,
         int seqType,
         bool aaBiasCorrection,
-        int skip){
-    this->kmerSize = kmerSize;
-    this->alphabetSize = alphabetSize;
-    this->zscoreThr = zscoreThr;
-    this->maxSeqLen = maxSeqLen;
-    this->seqType = seqType;
-    this->aaBiasCorrection = aaBiasCorrection;
-    this->skip = skip;
+        int splitSize,
+        int skip):    outDB(outDB),
+outDBIndex(outDBIndex),
+kmerSize(kmerSize),
+alphabetSize(alphabetSize),
+zscoreThr(zscoreThr),
+maxSeqLen(maxSeqLen),
+seqType(seqType),
+aaBiasCorrection(aaBiasCorrection),
+splitSize(splitSize),
+skip(skip)
+
+
+{
 
 
 
@@ -39,8 +45,9 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     this->tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader::SORT);
-
-    this->dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), threads);
+    std::string out_tmp = outDB + "_tmp";
+    std::string out_index_tmp = outDBIndex.c_str()+std::string("_tmp");
+    this->dbw = new DBWriter(out_tmp.c_str(), out_index_tmp.c_str(), threads);
     dbw->open();
 
     std::cout << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
@@ -134,7 +141,7 @@ void Prefiltering::run(size_t maxResListLen){
 
     std::cout << "Initializing data structures...";
     size_t queryDBSize = qdbr->getSize();
-    int splitSize = tdbr->getSize();
+//    int splitSize = tdbr->getSize()/2;
     int splitCount = 0;
     // splits template database into x sequence steps
     for(int splitStart = 0; splitStart < tdbr->getSize(); splitStart += splitSize ){
@@ -210,9 +217,8 @@ void Prefiltering::run(size_t maxResListLen){
     // merge output ffindex databases
     std::cout << "Merging the results...\n";
     dbw->close(); // sorts the index
-    
     DBReader tmpReader(dbw->getDataFileName(), dbw->getIndexFileName());
-    DBWriter tmpWriter(dbw->getDataFileName(), dbw->getIndexFileName(),1);
+    DBWriter tmpWriter(outDB.c_str(), outDBIndex.c_str(),1);
     tmpReader.open(DBReader::SORT);
     tmpWriter.open();
     for (size_t id = 0; id < queryDBSize; id++){
@@ -232,6 +238,8 @@ void Prefiltering::run(size_t maxResListLen){
     }
     tmpReader.close();
     tmpWriter.close();
+    remove(dbw->getDataFileName());
+    remove(dbw->getIndexFileName());
 
     // sort and merge the result list lengths (for median calculation)
     reslens[0]->sort();
