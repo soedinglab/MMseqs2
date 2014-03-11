@@ -30,6 +30,10 @@ class DBWriter {
         void open();
 
         int close();
+    
+        char* getDataFileName() { return dataFileName; }
+    
+        char* getIndexFileName() { return indexFileName; }
 
         void write(char* data, int dataSize, char* key, int threadIdx = 0);
 

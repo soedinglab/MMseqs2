@@ -62,16 +62,16 @@ short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_s
 
 // Creates the input
 std::vector<std::vector<int> > ExtendedSubstitutionMatrix::buildInput(size_t dimension,size_t range) {
-    std::vector<std::vector<int> >  vvi;
+    std::vector<std::vector<int> >  dimension_vector;
     
     for(size_t i = 0; i < dimension; i++) {
-        std::vector<int> vi;
+        std::vector<int> range_vector;
         for(size_t j = 0; j < range; j++) {
-            vi.push_back(j);
+            range_vector.push_back(j);
         }
-        vvi.push_back(vi);
+        dimension_vector.push_back(range_vector);
     }
-    return vvi;
+    return dimension_vector;
 }
 
 // recursive algorithm to to produce cart. prod.

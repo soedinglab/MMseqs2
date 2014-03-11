@@ -19,7 +19,7 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=3;
     
     
-    SubstitutionMatrix subMat("/Users/aluucard/Documents/workspace/kClust2/data/blosum30.out");
+    SubstitutionMatrix subMat("/Users/aluucard/Documents/workspace/kClust2/data/blosum30.out",8.0);
     
     for(int i = 0; i<subMat.alphabetSize;i++)
         printf("%c\t",subMat.int2aa[i]);
@@ -37,8 +37,8 @@ int main (int argc, const char * argv[])
     char* sequence = "AAMICPAEAGRPSLADS";
     std::cout << sequence << "\n\n";
     
-    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa);
-    s->mapSequence(sequence);
+    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa,0);
+    s->mapSequence(0,"LALA",sequence);
     
     printf("Normal : ");
     for(int i = 0; i<subMat.alphabetSize;i++)

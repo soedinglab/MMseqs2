@@ -4,6 +4,8 @@ IndexTable::IndexTable (int alphabetSize, int kmerSize, int skip)
 {
     this->alphabetSize = alphabetSize;
     this->kmerSize = kmerSize;
+    this->size = 0;
+    this->skip = skip;
 
     tableSize = ipow(alphabetSize, kmerSize);
 
@@ -16,8 +18,6 @@ IndexTable::IndexTable (int alphabetSize, int kmerSize, int skip)
     table = new int*[tableSize];
 
     idxer = new Indexer(alphabetSize, kmerSize);
-
-    this->skip = skip;
 
     this->tableEntriesNum = 0;
 }
@@ -60,6 +60,7 @@ void IndexTable::init(){
 void IndexTable::addSequence (Sequence* s){
     // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
     unsigned int kmerIdx;
+    this->size++; // amount of sequences added
     s->resetCurrPos();
     this->s = s;
     idxer->reset();

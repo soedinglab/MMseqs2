@@ -8,7 +8,7 @@ int main(int argc, char **argv)
     // DBReader test
     // argv[1] = ffindex_data_file, argv[2] = ffindex_index_file
     DBReader* dbr = new DBReader(argv[1], argv[2]);
-    dbr->open();
+    dbr->open(DBReader::NOSORT);
 
     char* up1 = dbr->getDbKey(0);
     std::cout << "first entry UpID: " << up1 << "\n";

@@ -100,6 +100,7 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
         stepMultiplicator[i]=this->indexer->powers[dividerBefore];
 
         ExtendedSubstitutionMatrix * extMatrix= this->matrixLookup[i];
+        // get highest element in array for index
         const std::pair<short,unsigned int>  score=(const std::pair<short,unsigned int> ) extMatrix->scoreMatrix[index][0];
         this->highestScorePerArray[i]=score.first; //highest score
         dividerBefore+=divider;
