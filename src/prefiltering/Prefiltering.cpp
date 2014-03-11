@@ -23,9 +23,6 @@ Prefiltering::Prefiltering(std::string queryDB,
     this->aaBiasCorrection = aaBiasCorrection;
     this->skip = skip;
 
-
-
-
     this->threads = 1;
 #ifdef OPENMP
     this->threads = omp_get_max_threads();
@@ -76,10 +73,10 @@ Prefiltering::Prefiltering(std::string queryDB,
     // set the k-mer similarity threshold
     float p_match =  pow(2.0, sensitivity) * 1.0e-08 * (float) (skip + 1); // old target value: 1.5e-06, reached with sens = 7.2 approximately
     std::cout << "\nAdjusting k-mer similarity threshold within +-10% deviation from the target k-mer match probability (target probability = " << p_match << ")...\n";
-    std::pair<short, double> ret = setKmerThreshold (qdbr, p_match, 0.1);
-    this->kmerThr = ret.first; //103;
-    this->kmerMatchProb = ret.second; //1.57506e-06;
-    if (kmerThr == 0.0){
+//    std::pair<short, double> ret = setKmerThreshold (qdbr, p_match, 0.1);
+    this->kmerThr = 103;
+    this->kmerMatchProb = 1.57506e-06;
+/*    if (kmerThr == 0.0){
         std::cout << "Could not set the probability within +-10% deviation. Trying +-15% deviation.\n";
         ret = setKmerThreshold (qdbr, p_match, 0.15);
         this->kmerThr = ret.first;
@@ -90,7 +87,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         std::cout << "Please report this error to the developers Maria Hauser mhauser@genzentrum.lmu.de and Martin Steinegger Martin.Steinegger@campus.lmu.de\n";
         std::cout << "In the meantime, try to change your parameters k, a, and/or sensitivity.\n";
         exit(1);
-    }
+    }*/
     std::cout << "... done.\n";
 
     std::cout << "k-mer similarity threshold: " << kmerThr << "\n";
@@ -313,7 +310,7 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alpha
     return indexTable;
 }
 
-std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation){
+std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double sensitivity, double toleratedDeviation){
 
     size_t targetDbSize = std::min( dbr->getSize(), (size_t) 100000);
     IndexTable* indexTable = getIndexTable(dbr, seqs[0], alphabetSize, kmerSize, 0, targetDbSize);
@@ -335,8 +332,10 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double ta
 
     // do a binary search through the k-mer list length threshold space to adjust the k-mer list length threshold in order to get a match probability 
     // for a list of k-mers at one query position as close as possible to targetKmerMatchProb
-    short kmerThrMin = 20;
-    short kmerThrMax = 200;
+    short kmerThrPerPosMin = 10;
+    short kmerThrPerPosMax = 80;
+    short kmerThrMin = (short)((float)(kmerThrPerPosMin * kmerSize) * ((float)alphabetSize / 21.0));
+    short kmerThrMax = (short)((float)(kmerThrPerPosMax * kmerSize) * ((float)alphabetSize / 21.0));
     short kmerThrMid;
 
     size_t dbMatchesSum;
@@ -348,10 +347,19 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double ta
     double kmersPerPos = 0.0;
     double kmerMatchProb;
 
-    double kmerMatchProbMax = targetKmerMatchProb + (toleratedDeviation * targetKmerMatchProb);
-    double kmerMatchProbMin = targetKmerMatchProb - (toleratedDeviation * targetKmerMatchProb);
-    std::cout << "Searching for a k-mer threshold with a k-mer match probability per query position within range [" << kmerMatchProbMin << ":" << kmerMatchProbMax << "].\n";
+    double timevalMax = pow(2.0, sensitivity) * (1.0 + toleratedDeviation);
+    double timevalMin = pow(2.0, sensitivity) * (1.0 - toleratedDeviation);
 
+    // parameters for searching
+    double alpha;
+    double beta;
+    double gamma;
+
+    //////////////////////////////////////////////////////////
+    //
+    //
+    /////////////////////////////////////////////////////////
+    
     // adjust k-mer list length threshold
     while (kmerThrMax >= kmerThrMin){
         dbMatchesSum = 0;
@@ -403,12 +411,13 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double ta
             delete matchers[j];
         }
 
-        std::cout << "k-mer match probability: " << kmerMatchProb << "\n";
-        if (kmerMatchProb < kmerMatchProbMin)
+        // check the parameters
+        double timeval = alpha * kmersPerPos + beta * kmerMatchProb + gamma;
+        if (timeval < timevalMin)
             kmerThrMax = kmerThrMid - 1;
-        else if (kmerMatchProb > kmerMatchProbMax)
+        else if (timeval > timevalMax)
             kmerThrMin = kmerThrMid + 1;
-        else if (kmerMatchProb > kmerMatchProbMin && kmerMatchProb < kmerMatchProbMax){
+        else if (timeval >= timevalMin && timeval <= timevalMax){
             // delete data structures used before returning
             delete[] querySeqs;
             delete[] matchers;
