@@ -134,7 +134,7 @@ void Prefiltering::run(size_t maxResListLen){
 
     std::cout << "Initializing data structures...";
     size_t queryDBSize = qdbr->getSize();
-    int splitSize = tdbr->getSize()/2;
+    int splitSize = tdbr->getSize();
     int splitCount = 0;
     // splits template database into x sequence steps
     for(int splitStart = 0; splitStart < tdbr->getSize(); splitStart += splitSize ){
