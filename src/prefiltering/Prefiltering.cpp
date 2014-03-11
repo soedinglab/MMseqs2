@@ -332,7 +332,7 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alpha
     IndexTable* indexTable = new IndexTable(alphabetSize, kmerSize, skip);
     dbTo=std::min(dbTo,dbr->getSize());
     for (int id = dbFrom; id < dbTo; id++){
-        Prefiltering::printProgress(id);
+        Prefiltering::printProgress(id-dbFrom);
         char* seqData = dbr->getData(id);
         std::string str(seqData);
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
@@ -344,7 +344,7 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alpha
 
     std::cout << "Index table: fill...\n";
     for (int id = dbFrom; id < dbTo; id++){
-        Prefiltering::printProgress(id);
+        Prefiltering::printProgress(id-dbFrom);
         char* seqData = dbr->getData(id);
         std::string str(seqData);
         seq->mapSequence(id, dbr->getDbKey(id), seqData);

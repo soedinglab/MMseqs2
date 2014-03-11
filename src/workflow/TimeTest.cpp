@@ -5,7 +5,6 @@ TimeTest::TimeTest(std::string queryDB,
         std::string targetDB,
         std::string targetDBIndex,
         std::string scoringMatrixFile,
-        int alphabetSize,
         size_t maxSeqLen,
         std::string logFile){
 
@@ -15,8 +14,6 @@ TimeTest::TimeTest(std::string queryDB,
     this->logFile = logFile;
 
     this->maxSeqLen = maxSeqLen;
-
-    this->alphabetSize = alphabetSize;
 
     this->threads = 1;
 #ifdef OPENMP
@@ -34,10 +31,7 @@ TimeTest::TimeTest(std::string queryDB,
     std::cout << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
     std::cout << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
 
-    subMat = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
-
-    _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
-    _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
+    m = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
 
     this->seqs = new Sequence*[threads];
 #pragma omp parallel for schedule(static)
@@ -46,7 +40,7 @@ TimeTest::TimeTest(std::string queryDB,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS);
+        seqs[thread_idx] = new Sequence(maxSeqLen, m->aa2int, m->int2aa, Sequence::AMINO_ACIDS);
     }
 
     std::cout << "Init done.\n\n";
@@ -59,12 +53,12 @@ TimeTest::~TimeTest(){
     }
     delete[] seqs;
 
-    delete subMat;
-    delete _2merSubMatrix;
-    delete _3merSubMatrix;
+    delete m;
 }
 
 void TimeTest::runTimeTest (){
+
+    int QUERY_SET_SIZE = 2000;
 
     std::ofstream logFileStream;
     logFileStream.open(logFile.c_str());
@@ -77,8 +71,8 @@ void TimeTest::runTimeTest (){
 
     // generate a small random sequence set for testing 
     int querySetSize = tdbr->getSize();
-    if (querySetSize > 1000)
-        querySetSize = 1000;
+    if (querySetSize > QUERY_SET_SIZE)
+        querySetSize = QUERY_SET_SIZE;
 
     int* querySeqs = new int[querySetSize];
     srand(1);
@@ -91,14 +85,25 @@ void TimeTest::runTimeTest (){
     short kmerThrPerPosMin = 10;
     short kmerThrPerPosMax = 20;
 
+    BaseMatrix* subMat;
     // adjust k-mer list length threshold
-    for (int kmerSize = 4; kmerSize <= 7; kmerSize++){
-        for (int alphabetSize = 13; alphabetSize <= 21; alphabetSize += 4){ 
+    for (int alphabetSize = 13; alphabetSize <= 21; alphabetSize += 4){ 
+
+        if (alphabetSize < 21)
+            subMat = new ReducedMatrix(m->probMatrix, alphabetSize);
+        else
+            subMat = m;
+
+        ExtendedSubstitutionMatrix* _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
+        ExtendedSubstitutionMatrix* _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
+
+        for (int kmerSize = 4; kmerSize <= 7; kmerSize++){
             short kmerThrMin = kmerThrPerPosMin * kmerSize;
             int kmerThrMax = kmerThrPerPosMax * kmerSize;
 
             std::cout << "------------------  k = " << kmerSize << " -----------------------------\n";
-            IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize());
+            IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize(), 0);
+
             for (short kmerThr = kmerThrMin; kmerThr < kmerThrMax; kmerThr += kmerSize){
                 std::cout << "k = " << kmerSize << "\n";
                 std::cout << "k-mer threshold = " << kmerThr << "\n";
@@ -158,9 +163,12 @@ void TimeTest::runTimeTest (){
             delete indexTable;
         }
 
-        logFileStream.close();
-        delete[] querySeqs;
-        delete[] matchers;
+        if (alphabetSize < 21)
+            delete subMat;
     }
+
+    logFileStream.close();
+    delete[] querySeqs;
+    delete[] matchers;
 }
- 
+
