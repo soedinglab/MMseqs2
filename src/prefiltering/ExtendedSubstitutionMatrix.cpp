@@ -24,7 +24,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
     std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));
     
     this->scoreMatrix = new ScoreMatrix();
-    scoreMatrix->score = (short *) Util::mem_align(16, this->size * this->size * sizeof(short) );
+    scoreMatrix->score = (short *)       Util::mem_align(16, this->size * this->size * sizeof(short) );
     scoreMatrix->index = (unsigned int *)Util::mem_align(16, this->size * this->size * sizeof(unsigned int) );
     scoreMatrix->rowSize = this->size;
     
