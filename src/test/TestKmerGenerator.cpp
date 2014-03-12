@@ -86,17 +86,15 @@ int main (int argc, const char * argv[])
         
         KmerGeneratorResult kmer_list= kmerGen.generateKmerList(curr_pos);
         
-        std::pair<short,unsigned int> * retList=kmer_list.scoreKmerList;
         
         std::cout << "Similar k-mer list size:" << kmer_list.count << "\n\n";
 
         std::cout << "Similar " << kmer_size << "-mer list for pos 0:\n";
         for (int pos = 0; pos < kmer_list.count; pos++){
-            std::pair<short,unsigned int> result = retList[pos];
-            std::cout << "Score:" << result.first << "\n";
-            std::cout << "Index:" << result.second << "\n";
+            std::cout << "Score:" << kmer_list.score[pos] << "\n";
+            std::cout << "Index:" << kmer_list.index[pos] << "\n";
 
-            idx.index2int(testKmer, result.second, kmer_size);
+            idx.index2int(testKmer, kmer_list.index[pos] , kmer_size);
             std::cout << "\t";
             for (int i = 0; i < kmer_size; i++)
                 std::cout << testKmer[i] << " ";

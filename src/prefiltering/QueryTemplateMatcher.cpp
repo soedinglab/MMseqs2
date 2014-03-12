@@ -96,13 +96,12 @@ void QueryTemplateMatcher::match(Sequence* seq){
         // generate k-mer list
         KmerGeneratorResult kmerList = kmerGenerator->generateKmerList(kmer);
         kmerListLen += kmerList.count;
-        std::pair<short,unsigned int> * retList = kmerList.scoreKmerList;
+
 
         // match the index table
         for (unsigned int i = 0; i < kmerList.count; i++){
-            std::pair<short,unsigned int> kmerMatch = retList[i];
-            short kmerMatchScore = kmerMatch.first + (short) biasCorrection;
-            seqList = indexTable->getDBSeqList(kmerMatch.second, &listSize);
+            short kmerMatchScore = kmerList.score[i] + (short) biasCorrection;
+            seqList = indexTable->getDBSeqList(kmerList.index[i], &listSize);
             numMatches += listSize;
 
             // add the scores for the k-mer to the overall score for this query sequence

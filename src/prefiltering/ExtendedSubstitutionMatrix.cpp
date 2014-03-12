@@ -1,8 +1,9 @@
 #include "ExtendedSubstitutionMatrix.h"
 #include "Indexer.h"
+#include "../commons/Util.h"
+
 #include <iostream>
 #include <iterator>
-#include <math.h>
 #include <math.h>
 
 #include <stdlib.h>
@@ -14,42 +15,47 @@ struct sort_by_score {
 };
 
 
-ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix, 
+ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
                                                        const size_t kmerSize,
                                                        const size_t alphabetSize){
     Indexer indexer( (int) alphabetSize, (int) kmerSize);
     this->size = pow(alphabetSize, kmerSize);
-    // create permutation 
+    // create permutation
     std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));
-    this->scoreMatrix = (std::pair<short,unsigned int> **) new std::pair<short,unsigned int> *[this->size];
-    for(size_t i = 0; i < this->size;i++){
-        this->scoreMatrix[i]=(std::pair<short,unsigned int> *) new std::pair<short,unsigned int> [this->size];
-    }
+    
+    this->scoreMatrix = new ScoreMatrix();
+    scoreMatrix->score = (short *) Util::mem_align(16, this->size * this->size * sizeof(short) );
+    scoreMatrix->index = (unsigned int *)Util::mem_align(16, this->size * this->size * sizeof(unsigned int) );
+    scoreMatrix->rowSize = this->size;
+    
     std::vector<std::vector<int> > permutation;
     std::vector<int> outputTemp;
     createCartesianProduct(permutation, outputTemp, input.begin(), input.end());
-    
-    // fill matrix  
+    std::pair<short,unsigned int> tmpScoreMatrix[this->size];
+    // fill matrix
     for(std::vector<int>::size_type i = 0; i != permutation.size(); i++) {
-        unsigned int i_index=indexer.int2index(&permutation[i][0]);
+        const unsigned int i_index=indexer.int2index(&permutation[i][0]);
         
         for(std::vector<int>::size_type j = 0; j != permutation.size(); j++) {
             unsigned int j_index=indexer.int2index(&permutation[j][0]);
             short score=calcScore(&permutation[i][0],&permutation[j][0],kmerSize,subMatrix);
-            scoreMatrix[i_index][j].first=score;
-            scoreMatrix[i_index][j].second=j_index;
+            tmpScoreMatrix[j].first  = score;
+            tmpScoreMatrix[j].second = j_index;
         }
-        std::sort (scoreMatrix[i_index], scoreMatrix[i_index]+this->size,sort_by_score());
+        std::sort (tmpScoreMatrix, tmpScoreMatrix + this->size, sort_by_score());
+        for (size_t z = 0; z < this->size; z++) {
+            scoreMatrix->score[(i_index * this->size) + z] = tmpScoreMatrix[z].first;
+            scoreMatrix->index[(i_index * this->size) + z] = tmpScoreMatrix[z].second;
+        }
+        
     }
-    
 }
 
 
 ExtendedSubstitutionMatrix::~ExtendedSubstitutionMatrix(){
-    for(size_t i = 0; i < this->size; i++){
-        delete[]  scoreMatrix[i];
-    }
-    delete[] scoreMatrix;
+    delete scoreMatrix->index;
+    delete scoreMatrix->score;
+    delete scoreMatrix;
 }
 
 short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix){
@@ -82,10 +88,10 @@ std::vector<std::vector<int> > ExtendedSubstitutionMatrix::buildInput(size_t dim
 //      recurse on next "me"
 //
 void ExtendedSubstitutionMatrix::createCartesianProduct(
-                                              std::vector<std::vector<int> > & output,  // final result
-                                              std::vector<int>&  current_result,   // current result
-                                              std::vector<std::vector<int> >::const_iterator current_input, // current input
-                                              std::vector<std::vector<int> >::const_iterator end) // final input
+                                                        std::vector<std::vector<int> > & output,  // final result
+                                                        std::vector<int>&  current_result,   // current result
+                                                        std::vector<std::vector<int> >::const_iterator current_input, // current input
+                                                        std::vector<std::vector<int> >::const_iterator end) // final input
 {
     if(current_input == end) {
         // terminal condition of the recursion. We no longer have

@@ -4,12 +4,14 @@
 #include <vector>
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
+#include "../commons/Util.h"
 
 
 typedef struct {
     size_t count;
     // score, k-mer index
-    std::pair<short, unsigned int> * scoreKmerList;
+    short        * score;
+    unsigned int * index;
 } KmerGeneratorResult;
 
 
@@ -18,7 +20,7 @@ class KmerGenerator
 {
     public: 
         KmerGenerator(size_t kmerSize,size_t alphabetSize, short threshold,
-                  ExtendedSubstitutionMatrix * three,ExtendedSubstitutionMatrix * two );
+                      ExtendedSubstitutionMatrix * three,ExtendedSubstitutionMatrix * two );
         ~KmerGenerator();
         /*calculates the kmer list */
         KmerGeneratorResult generateKmerList(const int * intSeq);
@@ -27,13 +29,17 @@ class KmerGenerator
     private:
     
         /*creates the product between two arrays and write it to the output array */
-        int calculateArrayProduct( const std::pair<short,unsigned int> * array1,
-                              const size_t array1Size,
-                              const std::pair<short,unsigned int> * array2,
-                              const size_t array2Size,
-                              std::pair<short,unsigned int> * outputvec,
-                              const short cutoff1,const short possibleRest,
-                              const unsigned int pow);
+        int calculateArrayProduct(const short        * scoreArray1,
+                                  const unsigned int * indexArray1,
+                                  const size_t array1Size,
+                                  const short        * scoreArray2,
+                                  const unsigned int * indexArray2,
+                                  const size_t array2Size,
+                                  short              * outputScoreArray,
+                                  unsigned int       * outputIndexArray,
+                                  const short cutoff1,
+                                  const short possibleRest,
+                                  const unsigned int pow);
     
     
         /* maximum return values */
@@ -54,8 +60,9 @@ class KmerGenerator
         ExtendedSubstitutionMatrix ** matrixLookup; 
         ExtendedSubstitutionMatrix * three; 
         ExtendedSubstitutionMatrix * two; 
-        std::pair<short, unsigned int>  ** outputArray;
-    
+        short        ** outputScoreArray;
+        unsigned int ** outputIndexArray;
+
         /* kmer splitting stragety (3,2)
            fill up the divide step and calls init_result_list */
         void calcDivideStrategy();
