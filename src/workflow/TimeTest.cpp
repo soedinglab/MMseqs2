@@ -71,7 +71,7 @@ void TimeTest::runTimeTest (){
     }
 
     short kmerThrPerPosMin = 1;
-    short kmerThrPerPosMax = 15;
+    short kmerThrPerPosMax = 25;
 
     // adjust k-mer list length threshold
     for (int alphabetSize = 13; alphabetSize <= 21; alphabetSize += 4){ 
@@ -102,10 +102,12 @@ void TimeTest::runTimeTest (){
             std::cout << "------------------ a = " << alphabetSize << ",  k = " << kmerSize << " -----------------------------\n";
             IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize(), 0);
 
-            for (short kmerThr = kmerThrMax; kmerThr >= kmerThrMin; kmerThr -= 1){
-                std::cout << "k = " << kmerSize << ", a = " << alphabetSize << "\n";
-                std::cout << "k-mer threshold = " << kmerThr << "\n";
-
+            short decr = 1;
+            if (kmerSize == 6 || kmerSize == 7)
+                decr = 2;
+            std::cout << "Omitting runs with too short running time...\n";
+            int omit = 1;
+            for (short kmerThr = kmerThrMax; kmerThr >= kmerThrMin; kmerThr -= decr){
                 size_t dbMatchesSum = 0;
 
                 double kmersPerPos = 0.0;
@@ -146,9 +148,12 @@ void TimeTest::runTimeTest (){
 
                 // too short running time is not recorded
                 if (sec <= 2){
-                    std::cout << "Time <= 2 sec, not counting this step.\n\n";
+                    //std::cout << "Time <= 2 sec, not counting this step.\n\n";
                     continue;
                 }
+                omit = 0;
+                std::cout << "k = " << kmerSize << ", a = " << alphabetSize << "\n";
+                std::cout << "k-mer threshold = " << kmerThr << "\n";
                 std::cout << "Time: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
                 kmersPerPos /= (double)querySetSize;
