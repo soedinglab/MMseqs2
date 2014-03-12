@@ -229,7 +229,7 @@ int main (int argc, const char * argv[])
     size_t maxSeqLen = 50000;
     size_t maxResListLen = 100;
     float sensitivity = 7.2f;
-    int splitSize = 0;
+    int splitSize = INT_MAX;
     int skip = 0;
     int seqType = Sequence::AMINO_ACIDS;
     bool aaBiasCorrection = false;
