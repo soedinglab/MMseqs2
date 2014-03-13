@@ -81,7 +81,6 @@ class Prefiltering {
         BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor);
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
-         * K-mer similarity threshold is set to meet a certain DB match probability.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
         std::pair<short,double> setKmerThreshold(DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation);
