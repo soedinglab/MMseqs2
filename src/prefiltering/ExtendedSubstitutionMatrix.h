@@ -12,16 +12,18 @@ public:
                                const size_t alphabetSize);
     
     ~ExtendedSubstitutionMatrix();
-    size_t size;
     // <match score, k-mer index>
     struct ScoreMatrix {
         short *        score;
         unsigned int * index;
         size_t rowSize;
     };
+    size_t size;
+
     
     ScoreMatrix * scoreMatrix;
 private:
+
     std::vector<std::vector<int> > buildInput(size_t dimension,size_t range);
     void createCartesianProduct(
                                 std::vector<std::vector<int> > & output,  // final result

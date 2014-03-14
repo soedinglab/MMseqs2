@@ -1,6 +1,5 @@
 #include "QueryScore.h"
 #include "../commons/Util.h"
-#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 #define _mm_extract_epi32(x, imm) _mm_cvtsi128_si32(_mm_srli_si128((x), 4 * (imm)))
 #define _mm_extract_epi64(x, imm) _mm_cvtsi128_si64(_mm_srli_si128((x), 8 * (imm)))
 

@@ -18,8 +18,7 @@
 int main (int argc, const char * argv[])
 {
     
-    const size_t kmer_size=5;
-    
+    const size_t kmer_size=4;
     
     SubstitutionMatrix subMat("../../data/blosum62.out",8.0);
     std::cout << "Subustitution matrix:\n";
@@ -58,10 +57,9 @@ int main (int argc, const char * argv[])
         printf("%d\t",subMat.aa2int[i]); 
     
     
-
     KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,10,
                           &extMatthree,&extMattwo );
-    
+
     int* testKmer = new int[kmer_size];
     while(s->hasNextKmer(kmer_size)){
         const int * curr_pos = s->nextKmer(kmer_size);
@@ -70,9 +68,8 @@ int main (int argc, const char * argv[])
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";
 //        std::cout << "MaxScore: " << extMattwo.scoreMatrix[idx_val]->back().first<< "\n";
-        
+    
         KmerGeneratorResult kmer_list= kmerGen.generateKmerList(curr_pos);
-        
         
         std::cout << "Similar k-mer list size:" << kmer_list.count << "\n\n";
 

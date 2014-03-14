@@ -1,4 +1,7 @@
 #include "KmerGenerator.h"
+#include <emmintrin.h>
+#include <mmintrin.h>
+#include <smmintrin.h>
 
 KmerGenerator::KmerGenerator(size_t kmerSize,size_t alphabetSize, short threshold,
                              ExtendedSubstitutionMatrix * three,ExtendedSubstitutionMatrix * two ){
@@ -79,6 +82,11 @@ void KmerGenerator::calcDivideStrategy(){
     initResultList(divideStepCount);
 //    std::reverse(this->matrixLookup, &this->matrixLookup[divideStepCount]);
 //    std::reverse(this->divideStep, &this->divideStep[divideStepCount]);
+    std::cout << "Divide step for kmer = ";
+    for(int i = 0; i < divideStepCount;i++){
+        std::cout << divideStep[i] << " ";
+    }
+    std::cout << std::endl;
 }
 
 
@@ -87,8 +95,8 @@ void KmerGenerator::initResultList(size_t divide_steps){
     outputIndexArray = new unsigned int *[divide_steps];
 
     for(size_t i = 0 ; i < divide_steps; i++){
-        outputScoreArray[i] = (short *)        Util::mem_align(16,VEC_LIMIT*sizeof(short));
-        outputIndexArray[i] = (unsigned int *) Util::mem_align(16,VEC_LIMIT*sizeof(unsigned int));
+        outputScoreArray[i] = (short *)        Util::mem_align(16384*2,MAX_KMER_RESULT_SIZE*sizeof(short));
+        outputIndexArray[i] = (unsigned int *) Util::mem_align(16384*4,MAX_KMER_RESULT_SIZE*sizeof(unsigned int));
     }
 }
 
@@ -123,24 +131,24 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
     short cutoff1=this->threshold - this->possibleRest[0];
     size_t index=this->kmerIndex[0];
     ExtendedSubstitutionMatrix * extMatrix= this->matrixLookup[0];
-    const ExtendedSubstitutionMatrix::ScoreMatrix * scoreMatrix = extMatrix->scoreMatrix;
+    const ExtendedSubstitutionMatrix::ScoreMatrix * inputScoreMatrix = extMatrix->scoreMatrix;
 
-    const size_t sizeExtendedMatrix= extMatrix->size;
+    const size_t sizeInputMatrix= extMatrix->size;
     
-    short        * inputScoreArray = &scoreMatrix->score[index*scoreMatrix->rowSize];
-    unsigned int * inputIndexArray = &scoreMatrix->index[index*scoreMatrix->rowSize];
+    short        * inputScoreArray = &inputScoreMatrix->score[index*inputScoreMatrix->rowSize];
+    unsigned int * inputIndexArray = &inputScoreMatrix->index[index*inputScoreMatrix->rowSize];
     size_t i;
     for(i = 0; i < this->divideStepCount-1; i++){
         const size_t index=this->kmerIndex[i+1];
         extMatrix= this->matrixLookup[i+1];
-        const ExtendedSubstitutionMatrix::ScoreMatrix * scoreMatrix = extMatrix->scoreMatrix;
+        const ExtendedSubstitutionMatrix::ScoreMatrix * nextScoreMatrix = extMatrix->scoreMatrix;
 
-        short        * nextScoreArray = &scoreMatrix->score[index*scoreMatrix->rowSize];
-        unsigned int * nextIndexArray = &scoreMatrix->index[index*scoreMatrix->rowSize];
+        short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
+        unsigned int * nextIndexArray = &nextScoreMatrix->index[index*nextScoreMatrix->rowSize];
 
         int lastElm=calculateArrayProduct(inputScoreArray,
                                           inputIndexArray,
-                                          sizeExtendedMatrix,
+                                          sizeInputMatrix,
                                           nextScoreArray,
                                           nextIndexArray,
                                           extMatrix->size,
@@ -182,26 +190,52 @@ int KmerGenerator::calculateArrayProduct(const short        * scoreArray1,
                                          const short cutoff1,
                                          const short possibleRest,
                                          const unsigned int pow){
-    int counter=-1;
+    int counter=0;
+    const __m128i * scoreArray2_simd = (const __m128i *) scoreArray2;
+    const __m128i * indexArray2_simd = (const __m128i *) indexArray2;
+    __m128i pow_simd     = _mm_set1_epi32(pow);
+
     for(size_t i = 0 ; i< array1Size;i++){
         const short score_i = scoreArray1[i];
         const unsigned int kmer_i = indexArray1[i];
+        
         if(score_i < cutoff1 )
             break;
         const short cutoff2=this->threshold-score_i-possibleRest;
-        for(size_t j = 0; j < array2Size;j++){
-            if(counter+1 >= (int) VEC_LIMIT)
+        
+
+        __m128i cutoff2_simd = _mm_set1_epi16(cutoff2);
+        __m128i score_i_simd = _mm_set1_epi16(score_i);
+        __m128i kmer_i_simd  = _mm_set1_epi32(kmer_i);
+        const size_t SIMD_SIZE = 8;
+        const size_t array2SizeSIMD = (array2Size/SIMD_SIZE)+1;
+        for(size_t j = 0; j < array2SizeSIMD; j++){
+            if(counter >= (int) MAX_KMER_RESULT_SIZE)
                 return counter;
             
-            const short score_j = scoreArray2[j];
-            const unsigned int kmer_j = indexArray2[j];
-
-            if(score_j < cutoff2)
+            __m128i score_j_simd   = _mm_load_si128(scoreArray2_simd + j);
+            __m128i kmer_j_1_simd  = _mm_load_si128(indexArray2_simd + (j*2));
+            __m128i kmer_j_2_simd  = _mm_load_si128(indexArray2_simd + (j*2+1));
+            // score_j > cutoff2 -> fffff
+            __m128i cmp = _mm_cmpgt_epi16 (score_j_simd, cutoff2_simd);
+            const unsigned int score_j_gt_cutoff = _mm_movemask_epi8(cmp);
+            
+            
+            __m128i * scoreOutput_simd = (__m128i *) &outputScoreArray[counter];
+            __m128i * indexOutput_simd = (__m128i *) &outputIndexArray[counter];
+            _mm_storeu_si128(scoreOutput_simd,   _mm_add_epi16(score_i_simd,score_j_simd));
+            _mm_storeu_si128(indexOutput_simd,   _mm_add_epi32(kmer_i_simd,_mm_mullo_epi32(kmer_j_1_simd, pow_simd)));
+            _mm_storeu_si128(indexOutput_simd+1, _mm_add_epi32(kmer_i_simd,_mm_mullo_epi32(kmer_j_2_simd, pow_simd)));
+            counter+=std::min(SIMD_SIZE,array1Size-j); // protect from running to far
+             // if(score_j < cutoff2)
+            if (score_j_gt_cutoff != 0xffff){
+                for(int vec_index = 0; vec_index < SIMD_SIZE; vec_index++){
+                    if(!CHECK_BIT(score_j_gt_cutoff,vec_index*2)){ // all with 0 is not a result
+                        counter--;
+                    }
+                }
                 break;
-            counter++;
-            outputScoreArray[counter]=score_i+score_j;
-            outputIndexArray[counter]=kmer_i+(kmer_j*pow);
-
+            }
         }
     }
     return counter;

@@ -43,7 +43,7 @@ class KmerGenerator
     
     
         /* maximum return values */
-        const static size_t VEC_LIMIT = 20000;
+        const static size_t MAX_KMER_RESULT_SIZE = 16384;
         /* min score  */
         short threshold;
         /* size of kmer  */

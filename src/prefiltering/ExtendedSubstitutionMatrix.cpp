@@ -20,14 +20,19 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
                                                        const size_t alphabetSize){
     Indexer indexer( (int) alphabetSize, (int) kmerSize);
     this->size = pow(alphabetSize, kmerSize);
+    int row_size = (int) this->size / 16;
+    row_size = (row_size+1) * 16; // for SIMD memory alignment
     // create permutation
     std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));
     
     this->scoreMatrix = new ScoreMatrix();
-    scoreMatrix->score = (short *)       Util::mem_align(16, this->size * this->size * sizeof(short) );
-    scoreMatrix->index = (unsigned int *)Util::mem_align(16, this->size * this->size * sizeof(unsigned int) );
-    scoreMatrix->rowSize = this->size;
-    
+    // score matrix is O(size^2). 64 is added for SSE
+    scoreMatrix->score = (short *)       Util::mem_align(16, (this->size * (row_size)) * sizeof(short));
+    // index matrix is O(size^2). 64 is added for SSE
+    scoreMatrix->index = (unsigned int *)Util::mem_align(16, (this->size * (row_size)) * sizeof(unsigned int));
+    scoreMatrix->rowSize = row_size;
+
+
     std::vector<std::vector<int> > permutation;
     std::vector<int> outputTemp;
     createCartesianProduct(permutation, outputTemp, input.begin(), input.end());
@@ -44,8 +49,8 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
         }
         std::sort (tmpScoreMatrix, tmpScoreMatrix + this->size, sort_by_score());
         for (size_t z = 0; z < this->size; z++) {
-            scoreMatrix->score[(i_index * this->size) + z] = tmpScoreMatrix[z].first;
-            scoreMatrix->index[(i_index * this->size) + z] = tmpScoreMatrix[z].second;
+            scoreMatrix->score[(i_index * scoreMatrix->rowSize) + z] = tmpScoreMatrix[z].first;
+            scoreMatrix->index[(i_index * scoreMatrix->rowSize) + z] = tmpScoreMatrix[z].second;
         }
         
     }
