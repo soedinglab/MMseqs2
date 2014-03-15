@@ -1,11 +1,9 @@
-//
 //  main.cpp
 //  forautocompl
 //
 //  Created by Martin Steinegger on 26.11.12.
 //  Copyright (c) 2012 -. All rights reserved.
 //
-
 #include <iostream>
 #include "Sequence.h"
 #include "Indexer.h"
@@ -17,9 +15,9 @@
 
 int main (int argc, const char * argv[])
 {
-    
+
     const size_t kmer_size=4;
-    
+
     SubstitutionMatrix subMat("../../data/blosum62.out",8.0);
     std::cout << "Subustitution matrix:\n";
     std::cout << "lala matrix:\n";
@@ -34,7 +32,8 @@ int main (int argc, const char * argv[])
     
     const int  testSeq[]={1,2,3,1,1,1};
     ExtendedSubstitutionMatrix extMattwo(subMat.subMatrix, 2,subMat.alphabetSize);
-    ExtendedSubstitutionMatrix extMatthree(subMat.subMatrix, 3,subMat.alphabetSize);
+    ExtendedSubstitutionMatrix extMatthree(subMat.subMatrix,3 ,subMat.alphabetSize);
+    
 
     Indexer idx(subMat.alphabetSize,kmer_size);
     
@@ -77,7 +76,7 @@ int main (int argc, const char * argv[])
         for (int pos = 0; pos < kmer_list.count; pos++){
             std::cout << "Score:" << kmer_list.score[pos] << "\n";
             std::cout << "Index:" << kmer_list.index[pos] << "\n";
-            idx.printKmer(testKmer, kmer_size, subMat.int2aa);
+//            idx.printKmer(testKmer, kmer_size, subMat.int2aa);
             idx.index2int(testKmer, kmer_list.index[pos] , kmer_size);
             std::cout << "\t";
             for (int i = 0; i < kmer_size; i++)
