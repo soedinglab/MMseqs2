@@ -24,7 +24,7 @@
 class Prefiltering {
 
     public:
-        
+
         Prefiltering(std::string queryDB, 
                 std::string queryDBIndex,
                 std::string targetDB, 
@@ -66,32 +66,31 @@ class Prefiltering {
         QueryTemplateMatcher** matchers;
         IndexTable* indexTable;
 
-    std::string outDB;
-    std::string outDBIndex;
-    int kmerSize;
-    int alphabetSize;
-    size_t maxSeqLen;
-	float zscoreThr;
-	bool aaBiasCorrection;
-	short kmerThr;
-	double kmerMatchProb;
-    int seqType;
-    int splitSize;
-    int skip;
-	BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor);
+        std::string outDB;
+        std::string outDBIndex;
+        int kmerSize;
+        int alphabetSize;
+        float zscoreThr;
+        size_t maxSeqLen;
+        int seqType;
+        bool aaBiasCorrection;
+        short kmerThr;
+        double kmerMatchProb;
+        int splitSize;
+        int skip;
+        BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor);
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
-         * K-mer similarity threshold is set to meet a certain DB match probability.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
         std::pair<short,double> setKmerThreshold(DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation);
-    // write prefiltering to ffindex database
-    int writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id, size_t maxResListLen, std::list<hit_t>* prefResults);
-    // prints Progress for run
-    static void printProgress(int id);
-    
-	void printStatistics(size_t queryDBSize, size_t kmersPerPos, size_t resSize, size_t dbMatches,
-			     int empty, size_t maxResListLen, std::list<int>* reslens);
+        // write prefiltering to ffindex database
+        int writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id, size_t maxResListLen, std::list<hit_t>* prefResults);
+        // prints Progress for run
+        static void printProgress(int id);
+
+        void printStatistics(size_t queryDBSize, size_t kmersPerPos, size_t resSize, size_t dbMatches,
+                int empty, size_t maxResListLen, std::list<int>* reslens);
 
 };
 

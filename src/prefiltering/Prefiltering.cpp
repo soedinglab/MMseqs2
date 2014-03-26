@@ -16,17 +16,15 @@ Prefiltering::Prefiltering(std::string queryDB,
         bool aaBiasCorrection,
         int splitSize,
         int skip):    outDB(outDB),
-outDBIndex(outDBIndex),
-kmerSize(kmerSize),
-alphabetSize(alphabetSize),
-zscoreThr(zscoreThr),
-maxSeqLen(maxSeqLen),
-seqType(seqType),
-aaBiasCorrection(aaBiasCorrection),
-splitSize(splitSize),
-skip(skip)
-
-
+    outDBIndex(outDBIndex),
+    kmerSize(kmerSize),
+    alphabetSize(alphabetSize),
+    zscoreThr(zscoreThr),
+    maxSeqLen(maxSeqLen),
+    seqType(seqType),
+    aaBiasCorrection(aaBiasCorrection),
+    splitSize(splitSize),
+    skip(skip)
 {
 
     this->threads = 1;
@@ -42,6 +40,10 @@ skip(skip)
 
     this->tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader::SORT);
+
+    if (splitSize == 0)
+        splitSize = tdbr->getSize();
+
     std::string out_tmp = outDB + "_tmp";
     std::string out_index_tmp = outDBIndex.c_str()+std::string("_tmp");
     this->dbw = new DBWriter(out_tmp.c_str(), out_index_tmp.c_str(), threads);
@@ -78,14 +80,13 @@ skip(skip)
         outBuffers[i] = new char[BUFFER_SIZE];
 
     // set the k-mer similarity threshold
-    float p_match =  pow(2.0, sensitivity) * 1.0e-08 * (float) (skip + 1); // old target value: 1.5e-06, reached with sens = 7.2 approximately
-    std::cout << "\nAdjusting k-mer similarity threshold within +-10% deviation from the target k-mer match probability (target probability = " << p_match << ")...\n";
-//    std::pair<short, double> ret = setKmerThreshold (qdbr, p_match, 0.1);
-    this->kmerThr = 103;
-    this->kmerMatchProb = 1.57506e-06;
-/*    if (kmerThr == 0.0){
+    std::cout << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
+    std::pair<short, double> ret = setKmerThreshold (qdbr, sensitivity, 0.1);
+    this->kmerThr = ret.first;
+    this->kmerMatchProb = ret.second;
+    if (kmerThr == 0.0){
         std::cout << "Could not set the probability within +-10% deviation. Trying +-15% deviation.\n";
-        ret = setKmerThreshold (qdbr, p_match, 0.15);
+        ret = setKmerThreshold (qdbr, sensitivity, 0.15);
         this->kmerThr = ret.first;
         this->kmerMatchProb = ret.second;
     }
@@ -94,7 +95,7 @@ skip(skip)
         std::cout << "Please report this error to the developers Maria Hauser mhauser@genzentrum.lmu.de and Martin Steinegger Martin.Steinegger@campus.lmu.de\n";
         std::cout << "In the meantime, try to change your parameters k, a, and/or sensitivity.\n";
         exit(1);
-    }*/
+    }
     std::cout << "... done.\n";
 
     std::cout << "k-mer similarity threshold: " << kmerThr << "\n";
@@ -102,11 +103,10 @@ skip(skip)
 
     // initialise the index table and the matcher structures for the database
 
-// Init for next split
+    // Init for next split
     this->matchers = new QueryTemplateMatcher*[threads];
 
     std::cout << "... done.\n";
-
 
 }
 
@@ -138,10 +138,9 @@ void Prefiltering::run(size_t maxResListLen){
 
     std::cout << "Initializing data structures...";
     size_t queryDBSize = qdbr->getSize();
-//    int splitSize = tdbr->getSize()/2;
     int splitCount = 0;
     // splits template database into x sequence steps
-    for(int splitStart = 0; splitStart < tdbr->getSize(); splitStart += splitSize ){
+    for(unsigned int splitStart = 0; splitStart < tdbr->getSize(); splitStart += splitSize ){
         splitCount++;
         std::string idSuffix;
         std::stringstream idSuffixStream;
@@ -152,10 +151,11 @@ void Prefiltering::run(size_t maxResListLen){
         }
         idSuffix = idSuffixStream.str();
 
-        
+
         Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType);
         this->indexTable = getIndexTable(tdbr, seq, alphabetSize, kmerSize, splitStart, splitStart + splitSize , skip);
         delete seq;
+        std::cout << "Starting prefiltering scores calculation.\n";
 #pragma omp parallel for schedule(static)
         for (int i = 0; i < this->threads; i++){
             int thread_idx = 0;
@@ -163,11 +163,11 @@ void Prefiltering::run(size_t maxResListLen){
             thread_idx = omp_get_thread_num();
 #endif
             matchers[thread_idx] = new QueryTemplateMatcher(subMat, _2merSubMatrix, _3merSubMatrix,
-                                                            indexTable, tdbr->getSeqLens(), kmerThr,
-                                                            kmerMatchProb, kmerSize, tdbr->getSize(),
-                                                            aaBiasCorrection, maxSeqLen, zscoreThr);
+                    indexTable, tdbr->getSeqLens(), kmerThr,
+                    kmerMatchProb, kmerSize, tdbr->getSize(),
+                    aaBiasCorrection, maxSeqLen, zscoreThr);
         }
-        
+
 
 #pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, empty, dbMatches)
         for (size_t id = 0; id < queryDBSize; id++){
@@ -198,19 +198,19 @@ void Prefiltering::run(size_t maxResListLen){
             reslens[thread_idx]->push_back(prefResults->size());
         } // iteration over query end
         std::cout << "\n\n";
-        
+
         for (int j = 0; j < threads; j++){
             delete matchers[j];
         }
         delete indexTable;
 
     } // step end
-    
+
     // close reader to reduce memory
     qdbr->close();
     if (strcmp(qdbr->getIndexFileName(), tdbr->getIndexFileName()) != 0)
         tdbr->close();
-    
+
     // merge output ffindex databases
     std::cout << "Merging the results...\n";
     dbw->close(); // sorts the index
@@ -220,10 +220,10 @@ void Prefiltering::run(size_t maxResListLen){
     tmpWriter.open();
     for (size_t id = 0; id < queryDBSize; id++){
         std::stringstream mergeResultsOut;
-        for(size_t split = 0; split < splitCount; split++)
+        for(int split = 0; split < splitCount; split++)
             mergeResultsOut << tmpReader.getData(id+(split*queryDBSize));
-        
-        
+
+
         std::string mergeResultsOutString = mergeResultsOut.str();
         const char* mergeResultsOutData = mergeResultsOutString.c_str();
         if (BUFFER_SIZE < strlen(mergeResultsOutData)){
@@ -262,9 +262,9 @@ void Prefiltering::printProgress(int id){
     }
 }
 
- // write prefiltering to ffindex database
+// write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id,
-                                        size_t maxResListLen, std::list<hit_t>* prefResults){
+        size_t maxResListLen, std::list<hit_t>* prefResults){
     // write prefiltering results to a string
     std::stringstream prefResultsOut;
     size_t l = 0;
@@ -296,9 +296,9 @@ int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, si
 
 
 void Prefiltering::printStatistics(size_t queryDBSize, size_t kmersPerPos,
-		                   size_t resSize,     size_t dbMatches,
-				   int empty, size_t maxResListLen,
-				   std::list<int>* reslens){
+        size_t resSize,     size_t dbMatches,
+        int empty, size_t maxResListLen,
+        std::list<int>* reslens){
     size_t dbMatchesPerSeq = dbMatches/queryDBSize;
     size_t prefPassedPerSeq = resSize/queryDBSize;
     std::cout << kmersPerPos/queryDBSize << " k-mers per position.\n";
@@ -331,12 +331,12 @@ BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, f
 
 
 IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
-                                         int kmerSize, size_t dbFrom, size_t dbTo, int skip){
+        int kmerSize, size_t dbFrom, size_t dbTo, int skip){
     std::cout << "Index table: counting k-mers...\n";
     // fill and init the index table
     IndexTable* indexTable = new IndexTable(alphabetSize, kmerSize, skip);
     dbTo=std::min(dbTo,dbr->getSize());
-    for (int id = dbFrom; id < dbTo; id++){
+    for (unsigned int id = dbFrom; id < dbTo; id++){
         Prefiltering::printProgress(id-dbFrom);
         char* seqData = dbr->getData(id);
         std::string str(seqData);
@@ -348,7 +348,7 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alpha
     indexTable->init();
 
     std::cout << "Index table: fill...\n";
-    for (int id = dbFrom; id < dbTo; id++){
+    for (unsigned int id = dbFrom; id < dbTo; id++){
         Prefiltering::printProgress(id-dbFrom);
         char* seqData = dbr->getData(id);
         std::string str(seqData);
@@ -384,10 +384,8 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
 
     // do a binary search through the k-mer list length threshold space to adjust the k-mer list length threshold in order to get a match probability 
     // for a list of k-mers at one query position as close as possible to targetKmerMatchProb
-    short kmerThrPerPosMin = 10;
-    short kmerThrPerPosMax = 80;
-    short kmerThrMin = (short)((float)(kmerThrPerPosMin * kmerSize) * ((float)alphabetSize / 21.0));
-    short kmerThrMax = (short)((float)(kmerThrPerPosMax * kmerSize) * ((float)alphabetSize / 21.0));
+    short kmerThrMin = 3 * kmerSize;
+    short kmerThrMax = 80 * kmerSize;
     short kmerThrMid;
 
     size_t dbMatchesSum;
@@ -399,19 +397,47 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
     double kmersPerPos = 0.0;
     double kmerMatchProb;
 
-    double timevalMax = pow(2.0, sensitivity) * (1.0 + toleratedDeviation);
-    double timevalMin = pow(2.0, sensitivity) * (1.0 - toleratedDeviation);
-
     // parameters for searching
+    // fitted function: Time ~ alpha * kmer_list_len + beta * kmer_match_prob + gamma
     double alpha;
     double beta;
     double gamma;
 
-    //////////////////////////////////////////////////////////
-    //
-    //
-    /////////////////////////////////////////////////////////
-    
+    // the parameters of the fitted function depend on k
+    if (kmerSize == 4){
+        alpha = 6.717981e-01;
+        beta = 6.990462e+05;
+        gamma = 1.718601;
+    }
+    else if (kmerSize == 5){
+        alpha = 2.013548e-01;
+        beta = 7.781889e+05;
+        gamma = 1.997792;
+    }
+    else if (kmerSize == 6){
+        alpha = 1.114936e-01;
+        beta = 9.331253e+05;
+        gamma = 1.416222;
+    }
+    else if (kmerSize == 7){
+        alpha = 6.530289e-02;
+        beta = 3.243035e+06;
+        gamma = 1.137125;
+    }
+    else{
+        std::cerr << "The k-mer size " << kmerSize << " is not valid.\n";
+        exit(EXIT_FAILURE);
+    }
+
+    // Run using k=6, a=21, with k-mer similarity threshold 103
+    // k-mer list length was 117.6, k-mer match probability 1.12735e-06
+    // time reference value for these settings is 15.6
+    // Reference value for sensitivity = 7.0
+    // Since we want to represent the time in the form base**sensitivity, is yields base = 1.48
+    double base = 1.48;
+    double timevalMax = pow(base, sensitivity) * (1.0 + toleratedDeviation);
+    double timevalMin = pow(base, sensitivity) * (1.0 - toleratedDeviation);
+
     // adjust k-mer list length threshold
     while (kmerThrMax >= kmerThrMin){
         dbMatchesSum = 0;
@@ -448,7 +474,6 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
             kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
             dbMatchesSum += seqs[thread_idx]->stats->dbMatches;
             querySeqLenSum += seqs[thread_idx]->L;
-
         }
 
         kmersPerPos /= (double)querySetSize;
@@ -465,10 +490,14 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
 
         // check the parameters
         double timeval = alpha * kmersPerPos + beta * kmerMatchProb + gamma;
-        if (timeval < timevalMin)
+        std::cout << "\tk-mers per position = " << kmersPerPos << ", k-mer match probability: " << kmerMatchProb << "\n";
+        std::cout << "\ttimeval = " << timeval << ", allowed range: [" << timevalMin << ":" << timevalMax << "]\n";
+        if (timeval < timevalMin){
             kmerThrMax = kmerThrMid - 1;
-        else if (timeval > timevalMax)
+        }
+        else if (timeval > timevalMax){
             kmerThrMin = kmerThrMid + 1;
+        }
         else if (timeval >= timevalMin && timeval <= timevalMax){
             // delete data structures used before returning
             delete[] querySeqs;

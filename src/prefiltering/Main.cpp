@@ -24,10 +24,6 @@ void mmseqs_debug_catch_signal(int sig_num)
     fprintf (stderr, "Signal %d received\n",sig_num);
     perror("ERROR (can be bogus)");
 
-/*    fprintf(stderr, "globalId: %d\n", globalId);
-    fprintf(stderr, "getIndexTableExited: %d\n", getIndexTableExited);
-    fprintf(stderr, "globalPos: %d\n", globalPos);*/
-
     fprintf(stderr, "Backtrace:");
     void *buffer[30];
     int nptrs = backtrace(buffer, 30);
@@ -62,8 +58,8 @@ void printUsage(){
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
     usage.append("USAGE: mmseqs_pref ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase [opts]\n"
             "-m              \t[file]\tAmino acid substitution matrix file.\n"
-            "-s              \t[float]\tSensitivity in the range [2:9] (default=7.2)\n"
-            "-k              \t[int]\tk-mer size (default=6).\n"
+            "-s              \t[float]\tSensitivity in the range [2:9] (default=7)\n"
+            "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
             "-a              \t[int]\tAmino acid alphabet size (default=21).\n"
             "--z-score-thr   \t[float]\tZ-score threshold [default: 300.0]\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
@@ -106,6 +102,10 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
         else if (strcmp(argv[i], "-s") == 0){
             if (++i < argc){
                 *sens = atof(argv[i]);
+                if (*sens < 2.0 || *sens > 9.0){
+                    std::cerr << "Please choose sensitivity in the range [2:9].\n";
+                    exit(EXIT_FAILURE);
+                }
                 i++;
             }
             else {
@@ -117,6 +117,10 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
         else if (strcmp(argv[i], "-k") == 0){
             if (++i < argc){
                 *kmerSize = atoi(argv[i]);
+                if (*kmerSize < 4 || *kmerSize > 7){
+                    std::cerr << "Please choose k in the range [4:7].\n";
+                    exit(EXIT_FAILURE);
+                }
                 i++;
             }
             else {
@@ -228,8 +232,9 @@ int main (int argc, const char * argv[])
     int alphabetSize = 21;
     size_t maxSeqLen = 50000;
     size_t maxResListLen = 100;
-    float sensitivity = 7.2f;
+    float sensitivity = 7.0f;
     int splitSize = INT_MAX;
+
     int skip = 0;
     int seqType = Sequence::AMINO_ACIDS;
     bool aaBiasCorrection = false;
