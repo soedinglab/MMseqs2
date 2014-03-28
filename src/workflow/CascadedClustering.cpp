@@ -102,7 +102,7 @@ void extractNewIndex(std::string seqDBIndex, std::string cluDBIndex, std::string
 
     FILE* new_index_file = fopen(newIndexFileName.c_str(), "w");
 
-    for (int i = 0; i < clu_index->n_entries; i++){
+    for (unsigned int i = 0; i < clu_index->n_entries; i++){
         // get the key in the clustering index
         char* dbKey = &(ffindex_get_entry_by_index(clu_index, i)->name[0]);
         // get the entry from the sequence index
@@ -120,7 +120,7 @@ void extractNewIndex(std::string seqDBIndex, std::string cluDBIndex, std::string
 
 std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::string tmpDir, 
         std::string scoringMatrixFile, int maxSeqLen, int seqType, 
-        int kmerSize, int alphabetSize, size_t maxResListLen, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity, 
+        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity, 
         double evalThr, double covThr, int maxAlnNum, int step_num){
 
     struct timeval start, end;
@@ -134,7 +134,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
     Prefiltering* pref = new Prefiltering (inDBData, inDBWorkingIndex, 
             inDBData, inDBWorkingIndex, 
             prefDB_step, prefDB_step+ ".index", 
-            scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, skip);
+            scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, split, skip);
     std::cout << "Starting prefiltering scores calculation.\n";
     pref->run(maxResListLen);
     delete pref;
@@ -212,7 +212,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
     // init the structure for cluster merging
     std::list<int>** mergedClustering = new std::list<int>*[dbr->getSize()];
-    for (int i = 0; i < dbr->getSize(); i++){
+    for (unsigned int i = 0; i < dbr->getSize(); i++){
         mergedClustering[i] = new std::list<int>();
     }
 
@@ -223,7 +223,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     DBReader* cluStepDbr = new DBReader(firstCluStep.c_str(), firstCluStepIndex.c_str());
     cluStepDbr->open(DBReader::NOSORT);
 
-    for (int i = 0; i < cluStepDbr->getSize(); i++){
+    for (unsigned int i = 0; i < cluStepDbr->getSize(); i++){
         int cluId = dbr->getId(cluStepDbr->getDbKey(i));
         std::stringstream lineSs (cluStepDbr->getData(i));
         std::string val;
@@ -258,7 +258,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         cluStepDbr->open(DBReader::NOSORT);
 
         // go through the clusters and merge them into the clusters from the previous clustering step
-        for (int i = 0; i < cluStepDbr->getSize(); i++){
+        for (unsigned int i = 0; i < cluStepDbr->getSize(); i++){
             int cluId = dbr->getId(cluStepDbr->getDbKey(i));
             char* cluData = cluStepDbr->getData(i);
             std::stringstream lineSs(cluData);
@@ -294,7 +294,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     size_t BUFFER_SIZE = 1000000;
     char* outBuffer = new char[BUFFER_SIZE];
     // go through all sequences in the database
-    for (int i = 0; i < dbr->getSize(); i++){
+    for (unsigned int i = 0; i < dbr->getSize(); i++){
 
         // no cluster for this representative
         if (mergedClustering[i]->size() == 0)
@@ -322,7 +322,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     delete[] outBuffer;
 
     // delete the clustering data structure
-    for (int i = 0; i < dbr->getSize(); i++){
+    for (unsigned int i = 0; i < dbr->getSize(); i++){
         delete mergedClustering[i];
     }
     delete[] mergedClustering;
@@ -340,6 +340,7 @@ int main (int argc, const char * argv[]){
     int kmerSize = 6;
     int alphabetSize = 21;
     size_t maxResListLen = 100;
+    int split = 0;
     int skip = 0;
     bool aaBiasCorrection = false;
     float zscoreThr = 300.0f;
@@ -390,15 +391,15 @@ int main (int argc, const char * argv[]){
 
    std::cout << "\n\n";
    std::cout << "------------------------------- Step 1 ----------------------------------------------\n";
-   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, skip, aaBiasCorrection, zscoreThr, 2.0, evalThr, covThr, maxAlnNum, 1);
+   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, 2.0, evalThr, covThr, maxAlnNum, 1);
    cluSteps.push_back(cluDB);
 
    std::cout << "------------------------------- Step 2 ----------------------------------------------\n";
-   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, skip, aaBiasCorrection, 100.0, 5.0, evalThr, covThr, maxAlnNum, 2);
+   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 100.0, 5.0, evalThr, covThr, maxAlnNum, 2);
    cluSteps.push_back(cluDB);
 
    std::cout << "------------------------------- Step 3 ----------------------------------------------\n";
-   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, skip, aaBiasCorrection, 50.0, 7.2, evalThr, covThr, maxAlnNum, 3);
+   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 50.0, 7.2, evalThr, covThr, maxAlnNum, 3);
    cluSteps.push_back(cluDB);
 
    std::cout << "--------------------------- Merging databases ---------------------------------------\n";

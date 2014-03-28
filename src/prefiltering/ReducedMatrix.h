@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "../commons/BaseMatrix.h"
+#include "../commons/Debug.h"
 
 class ReducedMatrix : public BaseMatrix {
     public: 

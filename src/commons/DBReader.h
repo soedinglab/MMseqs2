@@ -64,6 +64,8 @@ class DBReader {
 
         void calcLocalIdMapping();
 
+        void checkClosed();
+
         size_t* id2local;
 
         size_t* local2id;
@@ -89,6 +91,8 @@ class DBReader {
         size_t dataSize;
         // mapping id -> ffindex_entry
         ffindex_entry_t** id2entry;
+
+        int closed;
 
 };
 

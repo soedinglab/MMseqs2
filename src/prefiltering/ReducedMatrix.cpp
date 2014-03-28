@@ -29,7 +29,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
     generateSubMatrix(probMatrix, subMatrix_tmp, origAlphabetSize-1);
 
 //    double info = calculateMutualInformation(probMatrix, subMatrix_tmp, origAlphabetSize-1);
-//    std::cout << "20 " << info << "\n";
+//    Debug(Debug::INFO) << "20 " << info << "\n";
 
     
     size_t reduce_steps=origAlphabetSize-alphabetSize;
@@ -75,14 +75,14 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
     }
 
     // map big index to new small index
-    std::cout << "Reduced amino acid alphabet:\n";
+    Debug(Debug::INFO) << "Reduced amino acid alphabet:\n";
     int* aa2int_new = new int['Z'+1];
     for (int i = 0; i <= 'Z'; ++i) 
         aa2int_new[i] = -1;
     char* int2aa_new = new char[alphabetSize];
     for(size_t i = 0; i<reducedAlphabet->size(); i++){
         const char representative_aa = reducedAlphabet->at(i);
-        std::cout << representative_aa << " "; 
+        Debug(Debug::INFO) << representative_aa << " "; 
         for(size_t j =0; j < 'Z'; j++){
             if(this->aa2int[(int)j] == this->aa2int[(int)representative_aa]){
                 aa2int_new[j] = i;
@@ -90,7 +90,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
         }
         int2aa_new[i] = representative_aa;
     }
-    std::cout << "\n";
+    Debug(Debug::INFO) << "\n";
 
     // add amino acid X
 //    int2aa_new[alphabetSize - 1] = 'X';
@@ -213,13 +213,13 @@ std::pair<size_t,size_t> ReducedMatrix::coupleWithBestInfo(double ** pinput, dou
             
             if (temp > bestInfo) {bestInfo = temp; besti = i; bestj = j;}
             
-//            std::cout << " i = " << i << "; j = " << j << " info " << temp << '\n';
+//            Debug(Debug::INFO) << " i = " << i << "; j = " << j << " info " << temp << '\n';
         }
         
     }
     
     
-    //std::cout << (size-1) <<  " " << bestInfo << "\n";
+    //Debug(Debug::INFO) << (size-1) <<  " " << bestInfo << "\n";
     // Finally coupling the best option.
     coupleBases(pinput, pMatrix, size, besti, bestj);
     for (size_t i = 0; i < size; i++)

@@ -135,25 +135,6 @@ void QueryScore::setPrefilteringThresholds(){
     }
 }
 
-/*void QueryScore::setPrefilteringThresholds(){
-
-    float s_per_pos = (float) ((float)scoresSum/(float)seqLenSum);
-    float s_per_match = (float) ((float)scoresSum/(float)numMatches);
-    
-    for (int i = 0; i < dbSize; i++){
-        float seqLen = (float) seqLens[i];
-        float mean = s_per_pos * seqLen;
-        float stddev = sqrt(seqLen * s_per_pos * s_per_match);
-        int threshold = zscore_thr * stddev + mean;
-        unsigned short ushort_threshold;
-        if (threshold >= USHRT_MAX)
-            ushort_threshold = USHRT_MAX;
-        else
-            ushort_threshold = (unsigned short) threshold;
-        thresholds[i] = ushort_threshold;
-    }
-}*/
-
 float QueryScore::getZscore(int seqId){
     return ( (float)scores[seqId] - s_per_pos * seqLens[seqId] ) / sqrt(s_per_pos * seqLens[seqId] * s_per_match);
 }
@@ -164,6 +145,9 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
 
     __m128i* p = scores_128;
     __m128i* thr = thresholds_128;
+
+    for (int i = 0; i < dbSize; i++)
+        std::cout << scores[i] << "\n";
 
     __m128i cmp;
 
@@ -193,24 +177,6 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     return resList;
 }
 
-/*std::list<hit_t>* QueryScore::getResult (int querySeqLen, float (QueryScore::*calcZscore)(int)){
-
-    setPrefilteringThresholds();
-    float s_per_pos = (float)scoresSum/(float)seqLenSum;
-    float s_per_match = (float)scoresSum/(float)numMatches;
-
-    for (int i = 0; i < dbSize; i++){
-        if (scores[i] > thresholds[i]){
-            float zscore = (this->*calcZscore)(i);
-            hit_t hit = {i, zscore, 0};
-            resList->push_back(hit);
-        }
-    }
-    resList->sort(compareHits);
-    return resList;
-}*/
-
-
 short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
     switch(pos){
         case 0: return _mm_extract_epi16(v, 0);
@@ -222,7 +188,7 @@ short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
         case 6: return _mm_extract_epi16(v, 6);
         case 7: return _mm_extract_epi16(v, 7);
     }
-    std::cerr << "Fatal error in QueryScore: position in the vector is not in the legal range (pos = " << pos << ")\n";
+    Debug(Debug::ERROR) << "Fatal error in QueryScore: position in the vector is not in the legal range (pos = " << pos << ")\n";
     exit(1);
     // never executed
     return 0;

@@ -10,14 +10,15 @@
 
 #include "../commons/SubstitutionMatrix.h"
 #include "../prefiltering/IndexTable.h"
-//#include "../prefiltering/QueryScore.h"
-//#include "../prefiltering/QueryScoreGlobal.h"
+#include "../prefiltering/QueryScore.h"
+#include "../prefiltering/QueryScoreGlobal.h"
 
 int main (int argc, const char * argv[])
 {
-    int kmerSize = 2;
+    int kmerSize = 7;
+    int alphabetSize = 21;
 
-    SubstitutionMatrix* sm = new SubstitutionMatrix("/cluster/user/maria/kClust2/data/blosum62.out", 8.0);
+    SubstitutionMatrix* sm = new SubstitutionMatrix("/cluster/user/maria/mmseqs/data/blosum62.out", 8.0);
 
     std::cout << "Sequence (id 0):\n";
     char* sequence = "MIPAEAGRPSLADS";
@@ -87,7 +88,7 @@ int main (int argc, const char * argv[])
 
     std::cout << "\nTesting index table!\n";
     std::cout << "Initial allocation...\n";
-    IndexTable* it = new IndexTable(21, kmerSize, 0);
+    IndexTable* it = new IndexTable(alphabetSize, kmerSize, 0);
     it->addKmerCount(s);
     it->addKmerCount(s1);
     it->init();
@@ -95,14 +96,14 @@ int main (int argc, const char * argv[])
     it->addSequence(s1);
     std::cout << " done.\n";
 
-    for (int kmerIdx = 0; kmerIdx < 441; kmerIdx++){
-        std::cout << "\nSequence list for k-mer index " << kmerIdx << " (";
-        idxer->printKmer(testKmer, kmerIdx, kmerSize, sm->int2aa);
-        std::cout << ")\n";
+    for (int kmerIdx = 0; kmerIdx < pow(alphabetSize, kmerSize); kmerIdx++){
         int listSize = 0;
         int* seqList = it->getDBSeqList(kmerIdx, &listSize);
-        std::cout << "size: " << listSize << "\n";
         if (listSize > 0){
+            std::cout << "\nSequence list for k-mer index " << kmerIdx << " (";
+            idxer->printKmer(kmerIdx, kmerSize, sm->int2aa);
+            std::cout << ")\n";
+            std::cout << "size: " << listSize << "\n";
             for (int i = 0; i < listSize-1; i++)
                 std::cout << seqList[i] << ",";
             std::cout << seqList[listSize-1] << "\n";
@@ -115,19 +116,21 @@ int main (int argc, const char * argv[])
     // Query Score test
     /////////////////////////////////////////////////////
 
-/*    std::cout << "Testing QueryScore! (each exact k-mer match has the score 1)\n";
-    QueryScore* qs = new QueryScoreGlobal(5, 3);
+    short unsigned int seqLens[2];
+    seqLens[0] = 14;
+    seqLens[1] = 14;
+    std::cout << "Testing QueryScore! (each exact k-mer match has the score 1)\n";
+    QueryScore* qs = new QueryScoreGlobal(2, &seqLens[0], kmerSize, 125, 8.1433e-07, 5.0);
     
     // Simulation of the index table match step
     for (int pos = 0; pos < (s->L-kmerSize); pos++){
         kmer = s->int_sequence + pos;
         kmerIdx = idxer->getNextKmerIndex(kmer, kmerSize);
         
-        listSize = 0;
-        seqList = it->getDBSeqList(kmerIdx, &listSize);
+        int listSize = 0;
+        int* seqList = it->getDBSeqList(kmerIdx, &listSize);
 
         qs->addScores(seqList, listSize, 1);
-        qs->addScores(seqList, listSize, 2);
     }
 
     // get the result from the QueryScore
@@ -137,7 +140,7 @@ int main (int argc, const char * argv[])
     std::list<hit_t>::iterator iter;
     for (iter = res->begin(); iter != res->end(); iter++){
         std::cout << iter->seqId << "\t" << iter->prefScore << "\n";
-    }*/
+    }
 
     return 0;
 }
