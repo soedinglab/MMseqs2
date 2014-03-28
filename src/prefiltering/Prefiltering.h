@@ -12,6 +12,8 @@
 #include "../commons/SubstitutionMatrix.h"
 #include "../commons/Sequence.h"
 #include "../commons/NucleotideMatrix.h"
+#include "../commons/Debug.h"
+#include "../commons/Log.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
@@ -56,6 +58,7 @@ class Prefiltering {
         DBReader* qdbr;
         DBReader* tdbr;
         DBWriter* dbw;
+        DBWriter* tmpDbw;
 
         Sequence** seqs;
         std::list<int>** reslens;
@@ -68,6 +71,7 @@ class Prefiltering {
 
         std::string outDB;
         std::string outDBIndex;
+
         int kmerSize;
         int alphabetSize;
         float zscoreThr;
@@ -86,8 +90,6 @@ class Prefiltering {
         std::pair<short,double> setKmerThreshold(DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation);
         // write prefiltering to ffindex database
         int writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id, size_t maxResListLen, std::list<hit_t>* prefResults);
-        // prints Progress for run
-        static void printProgress(int id);
 
         void printStatistics(size_t queryDBSize, size_t kmersPerPos, size_t resSize, size_t dbMatches,
                 int empty, size_t maxResListLen, std::list<int>* reslens);

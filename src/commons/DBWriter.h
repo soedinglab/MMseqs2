@@ -41,6 +41,8 @@ class DBWriter {
 
         void initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile);
 
+        void checkClosed();
+
         char* dataFileName;
 
         char* indexFileName;
@@ -56,6 +58,8 @@ class DBWriter {
         size_t* offsets;
 
         int maxThreadNum;
+
+        int closed;
 };
 
 #endif

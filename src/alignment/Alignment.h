@@ -21,6 +21,8 @@ extern "C" {
 #include "../commons/DBWriter.h"
 #include "../commons/NucleotideMatrix.h"
 #include "../commons/SubstitutionMatrix.h"
+#include "../commons/Debug.h"
+#include "../commons/Log.h"
 
 #include "Matcher.h"
 

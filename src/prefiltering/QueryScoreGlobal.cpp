@@ -1,11 +1,3 @@
-//
-//  QueryScoreGlobal.cpp
-//  kClust2_xcode
-//
-//  Created by Martin Steinegger on 03.06.13.
-//  Copyright (c) 2013 Martin Steinegger. All rights reserved.
-//
-
 #include "QueryScoreGlobal.h"
 
 void QueryScoreGlobal::addScores (int* seqList, int seqListSize, unsigned short score){

@@ -10,7 +10,7 @@ DBReader::DBReader(const char* dataFileName_, const char* indexFileName_)
     this->indexFileName = new char [strlen(indexFileName_) + 1];
     memcpy(indexFileName, indexFileName_, sizeof(char) * (strlen(indexFileName_) + 1));
 
-//    this->dbKey2id = new std::map<const char*, size_t, StrCompare>;
+    closed = 1;
 }
 
 void DBReader::open(int sort){
@@ -53,9 +53,6 @@ void DBReader::open(int sort){
     for (size_t i = 0; i < size; i++){
         ffindex_entry_t* e = ffindex_get_entry_by_index(index, i);
         seqLens[i] = (unsigned short)(e->length);
-        
-//        char* dbKey = &(e->name[0]);
-//        (*dbKey2id)[dbKey] = i;
     }
 
     // sort sequences by length and generate the corresponding id mappings
@@ -74,6 +71,8 @@ void DBReader::open(int sort){
             seqLens[i] = (unsigned short)(ffindex_get_entry_by_index(index, local2id[i])->length);
         }
     }
+
+    closed = 0;
 }
 
 void DBReader::close(){
@@ -82,61 +81,61 @@ void DBReader::close(){
     delete[] id2local;
     delete[] local2id;
     delete[] seqLens;
+    closed = 1;
 }
 
 char* DBReader::getData (size_t id){
+    checkClosed();
     if (id >= size){
         std::cerr << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
         std::cerr << "getData: local id (" << id << ") >= db size (" << size << ")\n";
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     id = local2id[id];
     if (id >= size){
         std::cerr << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
         std::cerr << "getData: global id (" << id << ") >= db size (" << size << ")\n";
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     if (ffindex_get_entry_by_index(index, id)->offset >= dataSize){ 
         std::cerr << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
         std::cerr << "getData: global id (" << id << ")\n";
         std::cerr << "Size of data: " << dataSize << "\n";
         std::cerr << "Requested offset: " << ffindex_get_entry_by_index(index, id)->offset << "\n";
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return data + (ffindex_get_entry_by_index(index, id)->offset);
 }
 
 char* DBReader::getDataByDBKey (char* key){
+    checkClosed();
     return ffindex_get_data_by_name(data, index, key);
 }
 
 size_t DBReader::getSize (){
+    checkClosed();
     return size;
 }
 
 char* DBReader::getDbKey (size_t id){
+    checkClosed();
     if (id >= size){
         std::cerr << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
         std::cerr << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     id = local2id[id];
     if (id >= size){
         std::cerr << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
         std::cerr << "getDbKey: global id (" << id << ") >= db size (" << size << ")\n";
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return &(ffindex_get_entry_by_index(index, id)->name[0]);
 }
 
 size_t DBReader::getId (const char* dbKey){
-/*    std::map<const char*, size_t, StrCompare>::iterator it = dbKey2id->find(dbKey);
-    if (it == dbKey2id->end())
-        return UINT_MAX;
-    else
-        return it->second;*/
-
+    checkClosed();
     int i = 0; 
     int j = index->n_entries -1;
     int k;
@@ -154,6 +153,7 @@ size_t DBReader::getId (const char* dbKey){
 }
 
 unsigned short* DBReader::getSeqLens(){
+
     return seqLens;
 }
 
@@ -213,4 +213,11 @@ void DBReader::calcLocalIdMapping(){
    }
 
    delete[] workspace;
+}
+
+void DBReader::checkClosed(){
+    if (closed == 1){
+        std::cerr << "Trying to read a closed database.\n";
+        exit(EXIT_FAILURE);
+    }
 }

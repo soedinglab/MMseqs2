@@ -6,8 +6,8 @@ TARGETS := $(patsubst %.cpp, %, $(TARGETS))
 MAIN_OBJS := $(patsubst %.cpp, %.o, $(MAIN_SOURCES))
 
 CC = g++
-CFLAGS = -g -pg  -I../../lib/ffindex/src/ -I../commons/ -I../prefiltering/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
-#CFLAGS = -Wall -Ilib -m64 -ffast-math -ftree-vectorize -O3 -DOPENMP=1 -fopenmp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings 
+#CFLAGS = -g -pg  -I../../lib/ffindex/src/ -I../commons/ -I../prefiltering/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
+CFLAGS = -Wall -Ilib -m64 -ffast-math -ftree-vectorize -O3 -DOPENMP=1 -fopenmp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings 
 LDFLAGS =
 
 all: $(TARGETS)

@@ -18,11 +18,12 @@ void printUsage(){
             "-c\t[float]\tMinimum alignment coverage (default=0.8).\n"
             "-s\t[int]\tMaximum sequence length (default=50000).\n"
             "-r\t[int]\tMaximum result alignment number per query sequence (default=100).\n"
-            "-n\t\tNucleotide sequences input.\n");
-    std::cout << usage;
+            "-n\t\tNucleotide sequences input.\n"
+            "-v\t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
+    Debug(Debug::INFO) << usage;
 }
 
-void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr, int* maxSeqLen, int* maxAlnNum, int* seqType){
+void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr, int* maxSeqLen, int* maxAlnNum, int* seqType, int* verbosity){
     if (argc < 5){
         printUsage();
         exit(EXIT_FAILURE);
@@ -36,7 +37,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
     while (i < argc){
         if (strcmp(argv[i], "-m") == 0){
             if (*seqType == Sequence::NUCLEOTIDES){
-                std::cerr << "No scoring matrix is allowed for nucleotide sequences.\n";
+                Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
                 exit(EXIT_FAILURE);
             }
             if (++i < argc){
@@ -45,7 +46,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -56,7 +57,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -67,7 +68,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -78,7 +79,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -89,28 +90,43 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
         else if (strcmp(argv[i], "-n") == 0){
             if (strcmp(matrixFile->c_str(), "") != 0){
-                std::cerr << "No scoring matrix is allowed for nucleotide sequences.\n";
+                Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
                 exit(EXIT_FAILURE);
             }
             *seqType = Sequence::NUCLEOTIDES;
             i++;
         }
+        else if (strcmp(argv[i], "-v") == 0){
+            if (++i < argc){
+                *verbosity = atoi(argv[i]);
+                if (*verbosity < 0 || *verbosity > 3){
+                    Debug(Debug::ERROR) << "Wrong value for verbosity, please choose one in the range [0:3].\n";
+                    exit(1);
+                }
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
         else {
             printUsage();
-            std::cerr << "Wrong argument: " << argv[i] << "\n";
+            Debug(Debug::ERROR) << "Wrong argument: " << argv[i] << "\n";
             exit(EXIT_FAILURE);
         }
     }
 
     if (strcmp (matrixFile->c_str(), "") == 0){
         printUsage();
-        std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
+        Debug(Debug::ERROR) << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
         exit(EXIT_FAILURE);
     }
 }
@@ -122,6 +138,8 @@ bool compareHits (Matcher::result_t first, Matcher::result_t second){
 }
 
 int main(int argc, char **argv){
+
+    int verbosity = Debug::INFO;
 
     std::string qseqDB = "";
     std::string tseqDB = "";
@@ -135,9 +153,13 @@ int main(int argc, char **argv){
     int maxAlnNum = 100;
     int seqType = Sequence::AMINO_ACIDS;
 
-    parseArgs(argc, argv, &qseqDB, &tseqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr, &maxSeqLen, &maxAlnNum, &seqType);
+    Debug::setDebugLevel(Debug::INFO);
 
-    std::cout << "max. evalue:\t" << evalThr 
+    parseArgs(argc, argv, &qseqDB, &tseqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr, &maxSeqLen, &maxAlnNum, &seqType, &verbosity);
+
+    Debug::setDebugLevel(verbosity);
+
+    Debug(Debug::WARNING) << "max. evalue:\t" << evalThr 
         << "\nmin. sequence coverage:\t" << covThr 
         << "\nmax. sequence length:\t" << maxSeqLen 
         << "\nmax. alignment number per query:\t" << maxAlnNum << "\n\n";
@@ -147,9 +169,10 @@ int main(int argc, char **argv){
     std::string prefDBIndex = prefDB + ".index";
     std::string outDBIndex = outDB+ ".index";
 
+    Debug(Debug::WARNING) << "Init data structures...\n";
     Alignment* aln = new Alignment(qseqDB, qseqDBIndex, tseqDB, tseqDBIndex, prefDB, prefDBIndex, outDB, outDBIndex, matrixFile, evalThr, covThr, maxSeqLen, seqType);
 
-    std::cout << "Calculation of Smith-Waterman alignments...\n";
+    Debug(Debug::WARNING) << "Calculation of Smith-Waterman alignments.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
@@ -157,7 +180,7 @@ int main(int argc, char **argv){
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
-    std::cout << "Time for alignments calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::WARNING) << "Time for alignments calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
     delete aln;
 

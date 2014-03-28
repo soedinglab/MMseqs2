@@ -12,8 +12,6 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
 
     this->evalThr = evalThr;
 
-    std::cout << "Initialising data structures...\n";
-
     if (seqType == Sequence::AMINO_ACIDS)
         this->m = new SubstitutionMatrix(matrixFile.c_str(), 2.0);
     else
@@ -22,7 +20,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     threads = 1;
 #ifdef OPENMP
     threads = omp_get_max_threads();
-    std::cout << "Using " << threads << " threads.\n";
+    Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
 
     qSeqs = new Sequence*[threads];
@@ -90,19 +88,10 @@ void Alignment::run (int maxAlnNum){
 
     int alignmentsNum = 0;
     int passedNum = 0;
-    std::ofstream logfile;
-    logfile.open("mmseqs_aln.log");
 
 # pragma omp parallel for schedule(dynamic, 10) reduction (+: alignmentsNum, passedNum)
     for (unsigned int id = 0; id < prefdbr->getSize(); id++){
-        if (id % 1000000 == 0 && id > 0){
-            std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
-            fflush(stdout);
-        }
-        else if (id % 10000 == 0 && id > 0) {
-            std::cout << ".";
-            fflush(stdout);
-        }
+        Log::printProgress(id);
 
         int thread_idx = 0;
 #ifdef OPENMP
@@ -139,7 +128,7 @@ void Alignment::run (int maxAlnNum){
             if (dbSeqData == NULL){
 # pragma omp critical
                 {
-                    std::cerr << "ERROR: Sequence " << dbKeys[thread_idx] << " required in the prefiltering not contained in the input sequence database! Please check your database.\n";
+                    Debug(Debug::ERROR) << "ERROR: Sequence " << dbKeys[thread_idx] << " is required in the prefiltering, but is not contained in the input sequence database!\nPlease check your database.\n";
                     exit(1);
                 }
             }
@@ -188,23 +177,18 @@ void Alignment::run (int maxAlnNum){
                 dbcovNotPassed++;
             alignmentsNum++;
         }
-        logfile << "queryPassed = " << queryPassed << "\n";
-        if (queryPassed == 0){
-            logfile << queryDbKey << ", pref list length: " << (cnt + covNotPassed) << "\n";
-            if (covNotPassed > 0)
-                logfile << "aborted because of insufficient sequence length: " << covNotPassed << "\n";
-            if (evalNotPassed > 0)
-                logfile << "eval not passed: " << evalNotPassed << "\n";
-            if (qcovNotPassed > 0)
-                logfile << "qcov not passed: " << qcovNotPassed << "\n";
-            if (dbcovNotPassed > 0)
-                logfile << "dbcov not passed: " << dbcovNotPassed << "\n";
-            logfile << "\n";
-        }
+/*        if (queryPassed == 0 && (cnt + covNotPassed) == 100 ){
+            std::cout << "\n" << queryDbKey << "\n";
+            std::cout << querySeqData << "\n";
+            std::cout << (cnt + covNotPassed) << " prefiltering results\n";
+            std::cout << queryPassed << " alignments passed threshold\n";
+            std::cout << (covNotPassed+qcovNotPassed+dbcovNotPassed) << " cov not passed\n";
+            std::cout << evalNotPassed << " eval not passed\n\n";
+        }*/
         std::string swResultsString = swResultsSs.str();
         const char* swResultsStringData = swResultsString.c_str();
         if (BUFFER_SIZE <= swResultsString.length()){
-            std::cerr << "Output buffer size < result size! (" << BUFFER_SIZE << " <= " << swResultsString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
+            Debug(Debug::ERROR) << "Output buffer size < result size! (" << BUFFER_SIZE << " <= " << swResultsString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
             exit(1);
         }
         memcpy(outBuffers[thread_idx], swResultsStringData, swResultsString.length()*sizeof(char));
@@ -213,17 +197,16 @@ void Alignment::run (int maxAlnNum){
         delete swResults;
 
     }
-    logfile.close();
+    Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "All sequences processed.\n\n";
+    Debug(Debug::INFO) << alignmentsNum << " alignments calculated.\n";
+    Debug(Debug::INFO) << passedNum << " sequence pairs passed the thresholds (" << ((float)passedNum/(float)alignmentsNum) << " of overall calculated).\n";
+    Debug(Debug::INFO) << ((float)passedNum/(float)prefdbr->getSize()) << " hits per query sequence.\n";
+
     qseqdbr->close();
     tseqdbr->close();
     prefdbr->close();
     dbw->close();
-
-    std::cout << "\n";
-    std::cout << "All sequences processed.\n\n";
-    std::cout << alignmentsNum << " alignments calculated.\n";
-    std::cout << passedNum << " sequence pairs passed the thresholds (" << ((float)passedNum/(float)alignmentsNum) << " of overall calculated).\n";
-    std::cout << ((float)passedNum/(float)prefdbr->getSize()) << " hits per query sequence.\n";
 
 }
 

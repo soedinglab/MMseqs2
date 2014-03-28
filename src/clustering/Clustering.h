@@ -19,6 +19,8 @@
 #include "SimpleClustering.h"
 #include "../commons/DBReader.h"
 #include "../commons/DBWriter.h"
+#include "../commons/Log.h"
+#include "../commons/Debug.h"
 
 class Clustering {
 

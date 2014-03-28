@@ -185,7 +185,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
         std::string targetDB, std::string targetDBIndex,
         std::string tmpDir,
         std::string scoringMatrixFile, int maxSeqLen, int seqType,
-        int kmerSize, int alphabetSize, size_t maxResListLen, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
+        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
         double evalThr, double covThr, int maxAlnNum, std::string dbName){
 
     struct timeval start, end;
@@ -197,7 +197,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     Prefiltering* pref = new Prefiltering (queryDB, queryDBIndex,
             targetDB, targetDBIndex,
             prefDB, prefDB + ".index",
-            scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, skip);
+            scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, split, skip);
     std::cout << "Starting prefiltering scores calculation.\n";
     pref->run(maxResListLen);
     delete pref;
@@ -235,18 +235,21 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
 
     int ret = cluDbr->getSize();
 
-    for (int i = 0; i < cluDbr->getSize(); i++){
+    for (unsigned int i = 0; i < cluDbr->getSize(); i++){
         id2clu[i] = -1;
     }
 
     char* buf = new char[1000000];
     for (unsigned int i = 0; i < cluDbr->getSize(); i++){
         char* repDbKey = cluDbr->getDbKey(i);
-        unsigned int repId = currSeqDbr->getId(repDbKey);
+        unsigned int uint_repId = currSeqDbr->getId(repDbKey);
 
         // the representative is not in the newest DB version
-        if (repId == UINT_MAX)
+        int repId;
+        if (uint_repId == UINT_MAX)
             repId = -1;
+        else
+            repId = (int) uint_repId;
         
         // parse the cluster
         if (repId != -1)
@@ -399,6 +402,7 @@ int main (int argc, const char * argv[]){
     int kmerSize = 6;
     int alphabetSize = 21;
     size_t maxResListLen = 100;
+    int split = 0;
     int skip = 0;
     bool aaBiasCorrection = false;
     float zscoreThr = 300.0f;
@@ -449,7 +453,7 @@ int main (int argc, const char * argv[]){
             currentSeqDB, AIndex,
             tmpDir,
             scoringMatrixFile, maxSeqLen, seqType,
-            kmerSize, alphabetSize, maxResListLen, skip, aaBiasCorrection, zscoreThr, sensitivity,
+            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
             evalThr, covThr, maxAlnNum, "BA");
 
 
@@ -488,7 +492,7 @@ int main (int argc, const char * argv[]){
                 currentSeqDB, Brest_indexFile,
                 tmpDir,
                 scoringMatrixFile, maxSeqLen, seqType,
-                kmerSize, alphabetSize, maxResListLen, skip, aaBiasCorrection, zscoreThr, sensitivity,
+                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
                 evalThr, covThr, maxAlnNum, "BB");
 
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
