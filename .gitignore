@@ -19,3 +19,6 @@
 *.exe
 *.out
 *.app
+
+# programs
+util/ffindex_from_fasta
