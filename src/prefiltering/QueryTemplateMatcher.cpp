@@ -101,11 +101,17 @@ void QueryTemplateMatcher::match(Sequence* seq){
         // generate k-mer list
         KmerGeneratorResult kmerList = kmerGenerator->generateKmerList(kmer);
         kmerListLen += kmerList.count;
+        std::cout << pos << ": similar k-mer list length = " << kmerList.count << "\n";
         std::pair<short,unsigned int> * retList = kmerList.scoreKmerList;
 
         // match the index table
         int pos_matched = 0;
         for (unsigned int i = 0; i < kmerList.count; i++){
+            if (seq->getId() == 1 && pos == 2 ){
+                std::cout << "\t\t";
+                indexer->printKmer(retList[i].second, kmerSize, m->int2aa);
+                std::cout << " " << retList[i].first << "\n";
+            }
             std::pair<short,unsigned int> kmerMatch = retList[i];
             short kmerMatchScore = kmerMatch.first + (short) biasCorrection;
             seqList = indexTable->getDBSeqList(kmerMatch.second, &indexTabListSize);

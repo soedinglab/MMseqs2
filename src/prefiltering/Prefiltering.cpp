@@ -84,7 +84,7 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     // set the k-mer similarity threshold
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
-    std::pair<short, double> ret = setKmerThreshold (tdbr, sensitivity, 0.1);
+    std::pair<short, double> ret = std::pair<short, double>(114, 7.21423e-08); //setKmerThreshold (tdbr, sensitivity, 0.1);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 
