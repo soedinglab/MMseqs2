@@ -21,4 +21,5 @@
 *.app
 
 # programs
+lib/ffindex/src/ffindex_*
 util/ffindex_from_fasta
