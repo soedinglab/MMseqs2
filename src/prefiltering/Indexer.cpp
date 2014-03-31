@@ -14,10 +14,13 @@ Indexer::Indexer(const int alphabetSize, const int maxKmerSize){
     }
 
     this->lastKmerIndex = this->maxKmerIndex;
+
+    workspace = new int[100];
 }
 
 Indexer::~Indexer(){
     delete[] this->powers;
+    delete[] workspace;
 }
 
 unsigned int Indexer::int2index( const int *int_seq,const int begin,const int end){
@@ -54,7 +57,7 @@ void Indexer::reset(){
     this->lastKmerIndex = this->maxKmerIndex;
 }
 
-void Indexer::printKmer(int* workspace, int kmerIdx, int kmerSize, char* int2aa){
+void Indexer::printKmer(int kmerIdx, int kmerSize, char* int2aa){
     index2int(workspace, kmerIdx, kmerSize);
     for (int j = 0; j < kmerSize; j++)
         std::cout << int2aa[workspace[j]];

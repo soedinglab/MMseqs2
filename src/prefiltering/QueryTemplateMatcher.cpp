@@ -74,13 +74,14 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
 
 void QueryTemplateMatcher::match(Sequence* seq){
 
+    Indexer* indexer = new Indexer(m->alphabetSize, kmerSize);
     seq->resetCurrPos();
     
     if (this->aaBiasCorrection)
         calcLocalAaBiasCorrection(seq);
 
     int* seqList;
-    int listSize = 0;
+    int indexTabListSize = 0;
     // go through the query sequence
     int kmerListLen = 0;
     int numMatches = 0;
@@ -89,30 +90,42 @@ void QueryTemplateMatcher::match(Sequence* seq){
     for (int i = 0; i < kmerSize && i < seq->L; i++)
         biasCorrection += deltaS[i];
 
+    int overall_score = 0;
+    int match_num = 0;
+    int match_pos = 0;
+
     int pos = 0;
+    std::cout << "\nQUERY: " << seq->getDbKey() << "\n";
     while(seq->hasNextKmer(kmerSize)){
         const int* kmer = seq->nextKmer(kmerSize);
-
         // generate k-mer list
         KmerGeneratorResult kmerList = kmerGenerator->generateKmerList(kmer);
         kmerListLen += kmerList.count;
 
 
         // match the index table
+        int pos_matched = 0;
         for (unsigned int i = 0; i < kmerList.count; i++){
             short kmerMatchScore = kmerList.score[i] + (short) biasCorrection;
-            seqList = indexTable->getDBSeqList(kmerList.index[i], &listSize);
-            numMatches += listSize;
+            seqList = indexTable->getDBSeqList(kmerList.index[i], &indexTabListSize);
+            numMatches += indexTabListSize;
 
             // add the scores for the k-mer to the overall score for this query sequence
-            queryScore->addScores(seqList, listSize, kmerMatchScore);
+            // for the overall score, bit/2 is a sufficient sensitivity and we can use the capacity of unsigned short max score in QueryScore better
+            queryScore->addScores(seqList, indexTabListSize, (kmerMatchScore/4));
         }
         biasCorrection -= deltaS[pos];
         biasCorrection += deltaS[pos + kmerSize];
+        if(pos_matched == 1)
+            match_pos++;
         pos++;
     }
+    std::cout << "score = " << overall_score << "\n";
+    std::cout << "matched at " << match_pos << " positions.\n";
+    std::cout << "matched " << match_num << " times.\n";
     // write statistics
     seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
     seq->stats->dbMatches = numMatches;
 
+    delete indexer;
 }

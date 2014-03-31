@@ -58,21 +58,22 @@ void printUsage(){
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
     usage.append("USAGE: mmseqs_pref ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase [opts]\n"
             "-m              \t[file]\tAmino acid substitution matrix file.\n"
-            "-s              \t[float]\tSensitivity in the range [2:9] (default=7)\n"
+            "-s              \t[float]\tSensitivity in the range [1:7] (default=4)\n"
             "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
             "-a              \t[int]\tAmino acid alphabet size (default=21).\n"
             "--z-score-thr   \t[float]\tZ-score threshold [default: 300.0]\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucleotides   \t\tNucleotide sequences input.\n"
             "--max-res-num   \t[int]\tMaximum result sequences per query (default=100)\n"
-            "--aa-bias-corr  \t\tLocal amino acid composition bias correction.\n"
-            "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory safing only)\n"
-            "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"); 
-    std::cout << usage;
+            "--comp-bias-corr  \t\tLocal amino acid composition bias correction.\n"
+            "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
+            "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
+            "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
+    Debug(Debug::INFO) << usage;
 }
 
 void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* scoringMatrixFile, float* sens, int* kmerSize, int* alphabetSize, float* zscoreThr, size_t* maxSeqLen, int* seqType, size_t* maxResListLen,
-    bool* aaBiasCorrection, int* splitSize, int* skip){
+    bool* compBiasCorrection, int* splitSize, int* skip, int* verbosity){
     if (argc < 4){
         printUsage();
         exit(EXIT_FAILURE);
@@ -86,7 +87,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
     while (i < argc){
         if (strcmp(argv[i], "-m") == 0){
             if (*seqType == Sequence::NUCLEOTIDES){
-                std::cerr << "No scoring matrix is allowed for nucleotide sequences.\n";
+                Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
                 exit(EXIT_FAILURE);
             }
             if (++i < argc){
@@ -95,22 +96,22 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         } 
         else if (strcmp(argv[i], "-s") == 0){
             if (++i < argc){
                 *sens = atof(argv[i]);
-                if (*sens < 2.0 || *sens > 9.0){
-                    std::cerr << "Please choose sensitivity in the range [2:9].\n";
+                if (*sens < 1.0 || *sens > 9.0){
+                    Debug(Debug::ERROR) << "Please choose sensitivity in the range [1:7].\n";
                     exit(EXIT_FAILURE);
                 }
                 i++;
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -118,14 +119,14 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             if (++i < argc){
                 *kmerSize = atoi(argv[i]);
                 if (*kmerSize < 4 || *kmerSize > 7){
-                    std::cerr << "Please choose k in the range [4:7].\n";
+                    Debug(Debug::ERROR) << "Please choose k in the range [4:7].\n";
                     exit(EXIT_FAILURE);
                 }
                 i++;
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -136,7 +137,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -147,7 +148,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided" << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided" << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -158,13 +159,13 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
          else if (strcmp(argv[i], "--nucleotides") == 0){
             if (strcmp(scoringMatrixFile->c_str(), "") != 0){
-                std::cerr << "No scoring matrix is allowed for nucleotide sequences.\n";
+                Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
                 exit(EXIT_FAILURE);
             }                                                           
             *seqType = Sequence::NUCLEOTIDES;
@@ -177,12 +178,12 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "--aa-bias-corr") == 0){
-            *aaBiasCorrection = true;
+        else if (strcmp(argv[i], "--comp-bias-corr") == 0){
+            *compBiasCorrection = true;
             i++;
         }
         else if (strcmp(argv[i], "--skip") == 0){
@@ -192,7 +193,22 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "-v") == 0){
+            if (++i < argc){
+                *verbosity = atoi(argv[i]);
+                if (*verbosity < 0 || *verbosity > 3){
+                    Debug(Debug::ERROR) << "Wrong value for verbosity, please choose one in the range [0:3].\n";
+                    exit(1);
+                }
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
@@ -203,20 +219,20 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             }
             else {
                 printUsage();
-                std::cerr << "No value provided for " << argv[i-1] << "\n";
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
         else {
             printUsage();
-            std::cerr << "Wrong argument: " << argv[i] << "\n";
+            Debug(Debug::ERROR) << "Wrong argument: " << argv[i] << "\n";
             exit(EXIT_FAILURE);
         }
     }
 
     if (strcmp (scoringMatrixFile->c_str(), "") == 0){
         printUsage();
-        std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
+        Debug(Debug::ERROR) << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
         exit(EXIT_FAILURE);
     }
 }
@@ -225,6 +241,8 @@ int main (int argc, const char * argv[])
 {
     mmseqs_cuticle_init();
 
+    int verbosity = Debug::INFO;
+
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
@@ -232,12 +250,11 @@ int main (int argc, const char * argv[])
     int alphabetSize = 21;
     size_t maxSeqLen = 50000;
     size_t maxResListLen = 100;
-    float sensitivity = 7.0f;
+    float sensitivity = 4.0f;
     int splitSize = INT_MAX;
-
     int skip = 0;
     int seqType = Sequence::AMINO_ACIDS;
-    bool aaBiasCorrection = false;
+    bool compBiasCorrection = false;
     float zscoreThr = 50.0f;
 
     std::string queryDB = "";
@@ -247,34 +264,40 @@ int main (int argc, const char * argv[])
 
     parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile,
                           &sensitivity, &kmerSize, &alphabetSize, &zscoreThr,
-                          &maxSeqLen, &seqType, &maxResListLen, &aaBiasCorrection,
-                          &splitSize, &skip);
+                          &maxSeqLen, &seqType, &maxResListLen, &compBiasCorrection,
+                          &splitSize, &skip, &verbosity);
+
+    Debug::setDebugLevel(verbosity);
 
     if (seqType == Sequence::NUCLEOTIDES)
         alphabetSize = 5;
 
-    std::cout << "k-mer size: " << kmerSize << "\n";
-    std::cout << "Alphabet size: " << alphabetSize << "\n";
-    std::cout << "Sensitivity: " << sensitivity << "\n";
-    std::cout << "Z-score threshold: " << zscoreThr << "\n";
+    for (int i = 0; i < argc; i++)
+        Debug(Debug::INFO) << argv[i] << " ";
+    Debug(Debug::INFO) << "\n";
+
+    Debug(Debug::WARNING) << "k-mer size: " << kmerSize << "\n";
+    Debug(Debug::WARNING) << "Alphabet size: " << alphabetSize << "\n";
+    Debug(Debug::WARNING) << "Sensitivity: " << sensitivity << "\n";
+    Debug(Debug::WARNING) << "Z-score threshold: " << zscoreThr << "\n";
 
     std::string queryDBIndex = queryDB + ".index";
     std::string targetDBIndex = targetDB + ".index";
     std::string outDBIndex = outDB + ".index";
 
-    Prefiltering* pref = new Prefiltering(queryDB, queryDBIndex, targetDB, targetDBIndex, outDB, outDBIndex, scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, splitSize, skip);
+    Debug(Debug::WARNING) << "Initialising data structures...\n";
+    Prefiltering* pref = new Prefiltering(queryDB, queryDBIndex, targetDB, targetDBIndex, outDB, outDBIndex, scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, compBiasCorrection, splitSize, skip);
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
-    std::cout << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
+    Debug(Debug::WARNING) << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
     gettimeofday(&start, NULL);
 
-    std::cout << "Starting prefiltering scores calculation.\n";
     pref->run(maxResListLen);
 
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
-    std::cout << "Time for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::WARNING) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
     return 0;
 }

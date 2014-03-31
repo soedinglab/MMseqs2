@@ -5,12 +5,12 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string outDB, std::string outDBIndex,
         float seqIdThr){
 
-    std::cout << "Init...\n";
-    std::cout << "Opening sequence database...\n";
+    Debug(Debug::WARNING) << "Init...\n";
+    Debug(Debug::INFO) << "Opening sequence database...\n";
     seqDbr = new DBReader(seqDB.c_str(), seqDBIndex.c_str());
     seqDbr->open(DBReader::SORT);
 
-    std::cout << "Opening alignment database...\n";
+    Debug(Debug::INFO) << "Opening alignment database...\n";
     alnDbr = new DBReader(alnDB.c_str(), alnDBIndex.c_str());
     alnDbr->open(DBReader::NOSORT);
 
@@ -18,7 +18,7 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
     dbw->open();
 
     this->seqIdThr = seqIdThr;
-    std::cout << "done.\n";
+    Debug(Debug::INFO) << "done.\n";
 }
 
 void Clustering::run(int mode){
@@ -29,11 +29,11 @@ void Clustering::run(int mode){
     std::list<set *> ret;
     Clustering::set_data set_data;
     if (mode == SET_COVER){
-        std::cout << "Clustering mode: SET COVER\n";
-        std::cout << "Reading the data...\n";
+        Debug(Debug::INFO) << "Clustering mode: SET COVER\n";
+        Debug(Debug::INFO) << "Reading the data...\n";
         set_data = read_in_set_data();
 
-        std::cout << "Init set cover...\n";
+        Debug(Debug::INFO) << "Init set cover...\n";
         SetCover setcover(set_data.set_count,
                 set_data.uniqu_element_count,
                 set_data.max_weight,
@@ -47,11 +47,10 @@ void Clustering::run(int mode){
                     (const unsigned short*)set_data.weights[i],
                     set_data.set_sizes[i]);
         }
-        std::cout.flush();
 
-        std::cout << "Clustering...\n";
+        Debug(Debug::WARNING) << "Calculating the clustering.\n";
         ret = setcover.execute_set_cover();
-        std::cout << "done.\n";
+        Debug(Debug::INFO) << "done.\n";
 
         for(size_t i = 0; i < set_data.set_count; i++){
             delete[] set_data.sets[i];
@@ -67,11 +66,11 @@ void Clustering::run(int mode){
     }
     else if (mode == GREEDY){
 
-        std::cout << "Clustering mode: GREEDY\n";
-        std::cout << "Reading the data...\n";
+        Debug(Debug::INFO) << "Clustering mode: GREEDY\n";
+        Debug(Debug::INFO) << "Reading the data...\n";
         set_data = read_in_set_data();
 
-        std::cout << "Init simple clustering...\n";
+        Debug(Debug::INFO) << "Init simple clustering...\n";
         SimpleClustering simpleClustering(set_data.set_count,
                 set_data.uniqu_element_count,
                 set_data.all_element_count,
@@ -84,43 +83,39 @@ void Clustering::run(int mode){
         }
         delete[] set_data.sets;
 
-        std::cout.flush();
-
-        std::cout << "Clustering...\n";
+        Debug(Debug::WARNING) << "Calculating the clustering...\n";
         ret = simpleClustering.execute();
-        std::cout << "done.\n";
+        Debug(Debug::INFO) << "done.\n";
 
     }
     else{
         std::cerr << "ERROR: Wrong clustering mode!\n";
         exit(EXIT_FAILURE);
     }
-    std::cout << "Validating results...\n";
+    Debug(Debug::INFO) << "Validating results...\n";
     if(validate_result(&ret,set_data.uniqu_element_count))
-        std::cout << " VALID\n";
+        Debug(Debug::INFO) << " VALID\n";
     else
-        std::cout << " NOT VALID\n";
-
-    std::cout.flush();
+        Debug(Debug::INFO) << " NOT VALID\n";
 
     int dbSize = alnDbr->getSize();
     int seqDbSize = seqDbr->getSize();
     int cluNum = ret.size();
 
-    std::cout << "Writing results...\n";
+    Debug(Debug::INFO) << "Writing results...\n";
     writeData(ret);
     seqDbr->close();
     alnDbr->close();
     dbw->close();
-    std::cout << "...done.\n";
+    Debug(Debug::INFO) << "...done.\n";
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
-    std::cout << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
 
-    std::cout << "\nSize of the sequence database: " << seqDbSize << "\n";
-    std::cout << "Size of the alignment database: " << dbSize << "\n";
-    std::cout << "Number of clusters: " << cluNum << "\n";
+    Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
+    Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
+    Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
 
 }
 
@@ -169,16 +164,20 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
     int toomuch = 0;
     for (int i = 0; i < uniqu_element_count; i++){
         if (control[i] == 0){
-            std::cout << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is not in the clustering!\n";
+            Debug(Debug::INFO) << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is missing in the clustering!\n";
+            Debug(Debug::INFO) << "len = " <<  seqDbr->getSeqLens()[i] << "\n";
+            Debug(Debug::INFO) << "alignment results len = " << strlen(alnDbr->getDataByDBKey(seqDbr->getDbKey(i))) << "\n";
             notin++;
         }
         else if (control[i] > 1){
-            std::cout << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is " << control[i] << " times in the clustering!\n";
+            Debug(Debug::INFO) << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is " << control[i] << " times in the clustering!\n";
             toomuch = toomuch + control[i];
         }
     }
-    std::cout << "not in: " << notin << "\n";
-    std::cout << "too much: " << toomuch << "\n";
+    if (notin > 0)
+        Debug(Debug::INFO) << "not in the clustering: " << notin << "\n";
+    if (toomuch > 0)
+        Debug(Debug::INFO) << "multiple times in the clustering: " << toomuch << "\n";
     delete[] control;
     if (uniqu_element_count==result_element_count)
         return true;
@@ -221,14 +220,8 @@ Clustering::set_data Clustering::read_in_set_data(){
 
     // the reference id of the elements is always their id in the sequence database
     for(int i = 0; i<m; i++){
-        if (i % 1000000 == 0 && i > 0){
-            std::cout << "\t" << (i/1000000) << " Mio. sequences processed\n";
-            fflush(stdout);
-        }
-        else if (i % 10000 == 0 && i > 0) {
-            std::cout << ".";
-            fflush(stdout);
-        }
+
+        Log::printProgress(i);
 
         char* data = alnDbr->getData(i);
         strcpy(buf, data);
@@ -275,8 +268,10 @@ Clustering::set_data Clustering::read_in_set_data(){
             cnt++;
         }
 
-        if (cnt == 0)
+        if (cnt == 0){
+            Debug(Debug::WARNING) << "No alignments found for " << alnDbr->getDbKey(i) << "\n";
             empty++;
+        }
 
         if(ret_struct.max_weight < element_counter){
             ret_struct.max_weight = element_counter;
@@ -294,7 +289,7 @@ Clustering::set_data Clustering::read_in_set_data(){
     }
 
     if (empty > 0)
-        std::cout << empty << " input sets were empty!\n";
+        Debug(Debug::WARNING) << empty << " input sets were empty!\n";
     free(element_buffer);
     delete[] buf;
 

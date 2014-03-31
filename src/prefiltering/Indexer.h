@@ -32,7 +32,7 @@ class Indexer{
 
         // print k amino acids of the k-mer with index kmerIdx
         // int k-mer is written into workspace
-        void printKmer(int* workspace,  int kmerIdx, int kmerSize, char* int2aa);
+        void printKmer(int kmerIdx, int kmerSize, char* int2aa);
 
         // print k amino acids of int k-mer kmer
         void printKmer(const int* kmer, int kmerSize, char* int2aa);
@@ -48,5 +48,7 @@ class Indexer{
         unsigned int lastKmerIndex;
 
         unsigned int maxKmerIndex;
+
+        int* workspace;
 };
 #endif

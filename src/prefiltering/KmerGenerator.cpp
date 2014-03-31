@@ -20,7 +20,7 @@ KmerGenerator::~KmerGenerator(){
     delete [] this->kmerIndex;
     delete [] this->divideStep;
     delete [] this->matrixLookup;
-    for(size_t i = 0 ; i < this->divideStepCount; i++){
+    for(size_t i = 0 ; i < this->divideStepCount - 1; i++){
         delete[] outputScoreArray[i];
         delete[] outputIndexArray[i];
 
@@ -31,8 +31,8 @@ KmerGenerator::~KmerGenerator(){
 }
 
 void KmerGenerator::calcDivideStrategy(){
-    const size_t threeDivideCount = this->kmerSize /3;
-    
+    const size_t threeDivideCount = this->kmerSize / 3;
+
     switch(kmerSize%3){
         case 0:
             this->divideStepCount=threeDivideCount;
@@ -77,7 +77,6 @@ void KmerGenerator::calcDivideStrategy(){
     // init possibleRest 
     this->possibleRest= new short[divideStepCount];
     this->possibleRest[divideStepCount-1]=0;
-    
     this->kmerIndex = new unsigned int[divideStepCount];
     initResultList(divideStepCount);
 //    std::reverse(this->matrixLookup, &this->matrixLookup[divideStepCount]);
@@ -94,7 +93,7 @@ void KmerGenerator::initResultList(size_t divide_steps){
     outputScoreArray = new short *[divide_steps];
     outputIndexArray = new unsigned int *[divide_steps];
 
-    for(size_t i = 0 ; i < divide_steps; i++){
+    for(size_t i = 0 ; i < divide_steps - 1; i++){
         outputScoreArray[i] = (short *)        Util::mem_align(16,MAX_KMER_RESULT_SIZE*sizeof(short));
         outputIndexArray[i] = (unsigned int *) Util::mem_align(16,MAX_KMER_RESULT_SIZE*sizeof(unsigned int));
     }
@@ -132,9 +131,7 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
     size_t index=this->kmerIndex[0];
     ExtendedSubstitutionMatrix * extMatrix= this->matrixLookup[0];
     const ExtendedSubstitutionMatrix::ScoreMatrix * inputScoreMatrix = extMatrix->scoreMatrix;
-
-    const size_t sizeInputMatrix= extMatrix->size;
-    
+    size_t sizeInputMatrix= extMatrix->size;
     short        * inputScoreArray = &inputScoreMatrix->score[index*inputScoreMatrix->rowSize];
     unsigned int * inputIndexArray = &inputScoreMatrix->index[index*inputScoreMatrix->rowSize];
     size_t i;
@@ -142,7 +139,6 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
         const size_t index=this->kmerIndex[i+1];
         extMatrix= this->matrixLookup[i+1];
         const ExtendedSubstitutionMatrix::ScoreMatrix * nextScoreMatrix = extMatrix->scoreMatrix;
-
         short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
         unsigned int * nextIndexArray = &nextScoreMatrix->index[index*nextScoreMatrix->rowSize];
 
@@ -163,12 +159,11 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
             retList.index=NULL;
             return retList;
         }
-            
         inputScoreArray=this->outputScoreArray[i];
         inputIndexArray=this->outputIndexArray[i];
         cutoff1 = this->threshold - this->outputScoreArray[i][lastElm]; //because old data can be under it
-        retList.count=lastElm+1;
-        
+        retList.count = lastElm;
+        sizeInputMatrix = retList.count;
     }
     retList.score=outputScoreArray[i-1];
     retList.index=outputIndexArray[i-1];

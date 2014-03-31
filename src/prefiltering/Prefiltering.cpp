@@ -30,11 +30,10 @@ Prefiltering::Prefiltering(std::string queryDB,
     this->threads = 1;
 #ifdef OPENMP
     this->threads = omp_get_max_threads();
-    std::cout << "Using " << threads << " threads.\n";
+    Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
-    std::cout << "\n";
+    Debug(Debug::INFO) << "\n";
 
-    std::cout << "Init data structures...\n";
     this->qdbr = new DBReader(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open(DBReader::NOSORT);
 
@@ -44,13 +43,17 @@ Prefiltering::Prefiltering(std::string queryDB,
     if (splitSize == 0)
         splitSize = tdbr->getSize();
 
-    std::string out_tmp = outDB + "_tmp";
-    std::string out_index_tmp = outDBIndex.c_str()+std::string("_tmp");
-    this->dbw = new DBWriter(out_tmp.c_str(), out_index_tmp.c_str(), threads);
+    this->dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1);
     dbw->open();
 
-    std::cout << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
-    std::cout << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
+    std::string outDBTmp = outDB + "_tmp";
+    std::string outDBIndexTmp = outDBIndex.c_str()+std::string("_tmp");
+
+    tmpDbw = new DBWriter(outDBTmp.c_str(), outDBIndexTmp.c_str(), threads);
+    tmpDbw->open();
+
+    Debug(Debug::INFO) << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
+    Debug(Debug::INFO) << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
 
     // init the substitution matrices
     if (seqType == Sequence::AMINO_ACIDS)
@@ -80,34 +83,17 @@ Prefiltering::Prefiltering(std::string queryDB,
         outBuffers[i] = new char[BUFFER_SIZE];
 
     // set the k-mer similarity threshold
-    std::cout << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
-    std::pair<short, double> ret = setKmerThreshold (qdbr, sensitivity, 0.1);
+    Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
+    std::pair<short, double> ret = setKmerThreshold (tdbr, sensitivity, 0.1);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
-    if (kmerThr == 0.0){
-        std::cout << "Could not set the probability within +-10% deviation. Trying +-15% deviation.\n";
-        ret = setKmerThreshold (qdbr, sensitivity, 0.15);
-        this->kmerThr = ret.first;
-        this->kmerMatchProb = ret.second;
-    }
-    if (kmerThr == 0.0){
-        std::cout << "ERROR: Could not adjust the k-mer list length threshold!\n";
-        std::cout << "Please report this error to the developers Maria Hauser mhauser@genzentrum.lmu.de and Martin Steinegger Martin.Steinegger@campus.lmu.de\n";
-        std::cout << "In the meantime, try to change your parameters k, a, and/or sensitivity.\n";
-        exit(1);
-    }
-    std::cout << "... done.\n";
 
-    std::cout << "k-mer similarity threshold: " << kmerThr << "\n";
-    std::cout << "k-mer match probability: " << kmerMatchProb << "\n\n";
+    Debug(Debug::WARNING) << "k-mer similarity threshold: " << kmerThr << "\n";
+    Debug(Debug::WARNING) << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
     // initialise the index table and the matcher structures for the database
-
     // Init for next split
     this->matchers = new QueryTemplateMatcher*[threads];
-
-    std::cout << "... done.\n";
-
 }
 
 Prefiltering::~Prefiltering(){
@@ -133,13 +119,15 @@ void Prefiltering::run(size_t maxResListLen){
     size_t kmersPerPos = 0;
     size_t dbMatches = 0;
 
-    int empty = 0;
     size_t resSize = 0;
 
-    std::cout << "Initializing data structures...";
     size_t queryDBSize = qdbr->getSize();
     int splitCount = 0;
+    int* notEmpty = new int[queryDBSize];
+    memset(notEmpty, 0, queryDBSize*sizeof(int));
+
     // splits template database into x sequence steps
+    int step = 0;
     for(unsigned int splitStart = 0; splitStart < tdbr->getSize(); splitStart += splitSize ){
         splitCount++;
         std::string idSuffix;
@@ -155,7 +143,11 @@ void Prefiltering::run(size_t maxResListLen){
         Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType);
         this->indexTable = getIndexTable(tdbr, seq, alphabetSize, kmerSize, splitStart, splitStart + splitSize , skip);
         delete seq;
-        std::cout << "Starting prefiltering scores calculation.\n";
+        int stepCnt = (tdbr->getSize() + splitSize - 1) / splitSize;
+        Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step " << ++step << " of " << stepCnt <<  ")\n";
+       
+        struct timeval start, end;
+        gettimeofday(&start, NULL);
 #pragma omp parallel for schedule(static)
         for (int i = 0; i < this->threads; i++){
             int thread_idx = 0;
@@ -168,11 +160,10 @@ void Prefiltering::run(size_t maxResListLen){
                     aaBiasCorrection, maxSeqLen, zscoreThr);
         }
 
-
-#pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, empty, dbMatches)
+#pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches)
         for (size_t id = 0; id < queryDBSize; id++){
 
-            printProgress(id);
+            Log::printProgress(id);
 
             int thread_idx = 0;
 #ifdef OPENMP
@@ -190,34 +181,44 @@ void Prefiltering::run(size_t maxResListLen){
                 continue; // couldnt write result because of to much results
 
             // update statistics counters
-            if (prefResults->size() == 0) //TODO difficult because I have to memorize the query
-                empty++;
+            if (prefResults->size() != 0)
+                notEmpty[id] = 1;
             kmersPerPos += (size_t) seqs[thread_idx]->stats->kmersPerPos;
             dbMatches += seqs[thread_idx]->stats->dbMatches;
             resSize += prefResults->size();
             reslens[thread_idx]->push_back(prefResults->size());
-        } // iteration over query end
-        std::cout << "\n\n";
+        } // step end
+        if (queryDBSize > 1000)
+            Debug(Debug::INFO) << "\n";
+        Debug(Debug::WARNING) << "\n";
 
         for (int j = 0; j < threads; j++){
             delete matchers[j];
         }
         delete indexTable;
+        
+        gettimeofday(&end, NULL);
+        int sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::WARNING) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
-    } // step end
-
+    } // prefiltering scores calculation end
+    int empty = 0;
+    for (unsigned int i = 0; i < qdbr->getSize(); i++){
+        if (notEmpty[i] == 0){
+//            Debug(Debug::INFO) << "No prefiltering results for id " << i << ", " << qdbr->getDbKey(i) << ", len = " << strlen(qdbr->getData(i)) << "\n";
+            empty++;
+        }
+    }
     // close reader to reduce memory
     qdbr->close();
     if (strcmp(qdbr->getIndexFileName(), tdbr->getIndexFileName()) != 0)
         tdbr->close();
 
     // merge output ffindex databases
-    std::cout << "Merging the results...\n";
-    dbw->close(); // sorts the index
-    DBReader tmpReader(dbw->getDataFileName(), dbw->getIndexFileName());
-    DBWriter tmpWriter(outDB.c_str(), outDBIndex.c_str(),1);
+    Debug(Debug::INFO) << "Merging the results...\n\n";
+    tmpDbw->close(); // sorts the index
+    DBReader tmpReader(tmpDbw->getDataFileName(), tmpDbw->getIndexFileName());
     tmpReader.open(DBReader::SORT);
-    tmpWriter.open();
     for (size_t id = 0; id < queryDBSize; id++){
         std::stringstream mergeResultsOut;
         for(int split = 0; split < splitCount; split++)
@@ -227,16 +228,17 @@ void Prefiltering::run(size_t maxResListLen){
         std::string mergeResultsOutString = mergeResultsOut.str();
         const char* mergeResultsOutData = mergeResultsOutString.c_str();
         if (BUFFER_SIZE < strlen(mergeResultsOutData)){
-            exit(3);
+            Debug(Debug::ERROR) << "ERROR: Buffer overflow during the merging.\n";
+            exit(EXIT_FAILURE);
         }
         memcpy(outBuffers[0], mergeResultsOutData, mergeResultsOutString.length()*sizeof(char));
-        tmpWriter.write(outBuffers[0], mergeResultsOutString.length(),  tmpReader.getDbKey(id), 0);
+        dbw->write(outBuffers[0], mergeResultsOutString.length(),  tmpReader.getDbKey(id), 0);
 
     }
     tmpReader.close();
-    tmpWriter.close();
-    remove(dbw->getDataFileName());
-    remove(dbw->getIndexFileName());
+    dbw->close();
+    remove(tmpDbw->getDataFileName());
+    remove(tmpDbw->getIndexFileName());
 
     // sort and merge the result list lengths (for median calculation)
     reslens[0]->sort();
@@ -251,17 +253,6 @@ void Prefiltering::run(size_t maxResListLen){
 
 }
 
-void Prefiltering::printProgress(int id){
-    if (id % 1000000 == 0 && id > 0){
-        std::cout << "\t" << (id/1000000) << " Mio. sequences processed\n";
-        fflush(stdout);
-    }
-    else if (id % 10000 == 0 && id > 0) {
-        std::cout << ".";
-        fflush(stdout);
-    }
-}
-
 // write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id,
         size_t maxResListLen, std::list<hit_t>* prefResults){
@@ -270,9 +261,9 @@ int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, si
     size_t l = 0;
     for (std::list<hit_t>::iterator iter = prefResults->begin(); iter != prefResults->end(); iter++){
         if (iter->seqId >= tdbr->getSize()){
-            std::cout << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << iter->seqId << "\t" << iter->prefScore << "\n";
+            Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << iter->seqId << "\t" << iter->prefScore << "\n";
         }
-        prefResultsOut << tdbr->getDbKey(iter->seqId) << "\t" << iter->prefScore << "\t" << iter->eval << "\n";
+        prefResultsOut << tdbr->getDbKey(iter->seqId) << "\t" << iter->zScore << "\t" << iter->prefScore << "\n";
         l++;
         // maximum allowed result list length is reached
         if (l == maxResListLen)
@@ -282,14 +273,14 @@ int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, si
     std::string prefResultsOutString = prefResultsOut.str();
     const char* prefResultsOutData = prefResultsOutString.c_str();
     if (BUFFER_SIZE < strlen(prefResultsOutData)){
-        std::cerr << "Tried to process the prefiltering list for the query " << qdbr->getDbKey(id) << " , the length of the list = " << prefResults->size() << "\n";
-        std::cerr << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
+        Debug(Debug::ERROR) << "Tried to process the prefiltering list for the query " << qdbr->getDbKey(id) << " , the length of the list = " << prefResults->size() << "\n";
+        Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
         return -1;
     }
     memcpy(outBuffers[thread_idx], prefResultsOutData, prefResultsOutString.length()*sizeof(char));
     std::stringstream keyStream;
     keyStream << qdbr->getDbKey(id) << idSuffix;
-    dbw->write(outBuffers[thread_idx], prefResultsOutString.length(), (char *) keyStream.str().c_str() , thread_idx);
+    tmpDbw->write(outBuffers[thread_idx], prefResultsOutString.length(), (char *) keyStream.str().c_str() , thread_idx);
     return 0;
 
 }
@@ -301,23 +292,23 @@ void Prefiltering::printStatistics(size_t queryDBSize, size_t kmersPerPos,
         std::list<int>* reslens){
     size_t dbMatchesPerSeq = dbMatches/queryDBSize;
     size_t prefPassedPerSeq = resSize/queryDBSize;
-    std::cout << kmersPerPos/queryDBSize << " k-mers per position.\n";
-    std::cout << dbMatchesPerSeq << " DB matches per sequence.\n";
-    std::cout << prefPassedPerSeq << " sequences passed prefiltering per query sequence";
-    if (prefPassedPerSeq > 100)
-        std::cout << " (ATTENTION: max. " << maxResListLen << " best scoring sequences were written to the output prefiltering database).\n";
+    Debug(Debug::INFO) << kmersPerPos/queryDBSize << " k-mers per position.\n";
+    Debug(Debug::INFO) << dbMatchesPerSeq << " DB matches per sequence.\n";
+    Debug(Debug::INFO) << prefPassedPerSeq << " sequences passed prefiltering per query sequence";
+    if (prefPassedPerSeq > maxResListLen)
+        Debug(Debug::INFO) << " (ATTENTION: max. " << maxResListLen << " best scoring sequences were written to the output prefiltering database).\n";
     else
-        std::cout << ".\n";
+        Debug(Debug::INFO) << ".\n";
 
     int mid = reslens->size() / 2;
     std::list<int>::iterator it = reslens->begin();
     std::advance(it, mid);
-    std::cout << "Median result list size: " << *it << "\n";
-    std::cout << empty << " sequences with 0 size result lists.\n";
+    Debug(Debug::INFO) << "Median result list size: " << *it << "\n";
+    Debug(Debug::INFO) << empty << " sequences with 0 size result lists.\n";
 }
 
 BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor){
-    std::cout << "Substitution matrices...\n";
+    Debug(Debug::INFO) << "Substitution matrices...\n";
     BaseMatrix* subMat;
     if (alphabetSize < 21){
         SubstitutionMatrix* sMat = new SubstitutionMatrix (scoringMatrixFile.c_str(), bitFactor);
@@ -332,33 +323,45 @@ BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, f
 
 IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
         int kmerSize, size_t dbFrom, size_t dbTo, int skip){
-    std::cout << "Index table: counting k-mers...\n";
+
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
+    Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
     IndexTable* indexTable = new IndexTable(alphabetSize, kmerSize, skip);
     dbTo=std::min(dbTo,dbr->getSize());
     for (unsigned int id = dbFrom; id < dbTo; id++){
-        Prefiltering::printProgress(id-dbFrom);
+        Log::printProgress(id-dbFrom);
         char* seqData = dbr->getData(id);
         std::string str(seqData);
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addKmerCount(seq);
     }
 
-    std::cout << "\nIndex table: init... from "<< dbFrom << " to "<< dbTo << "\n";
+    if ((dbTo-dbFrom) > 10000)
+        Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
     indexTable->init();
 
-    std::cout << "Index table: fill...\n";
+    Debug(Debug::INFO) << "Index table: fill...\n";
     for (unsigned int id = dbFrom; id < dbTo; id++){
-        Prefiltering::printProgress(id-dbFrom);
+        Log::printProgress(id-dbFrom);
         char* seqData = dbr->getData(id);
         std::string str(seqData);
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addSequence(seq);
     }
 
-    std::cout << "\nIndex table: removing duplicate entries...\n";
+    if ((dbTo-dbFrom) > 10000)
+        Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "Index table: removing duplicate entries...\n";
     indexTable->removeDuplicateEntries();
+    Debug(Debug::INFO) << "Index table init done.\n\n";
 
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::WARNING) << "Time for index table init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
     return indexTable;
 }
 
@@ -404,39 +407,43 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
     double gamma;
 
     // the parameters of the fitted function depend on k
-    if (kmerSize == 4){
-        alpha = 6.717981e-01;
-        beta = 6.990462e+05;
-        gamma = 1.718601;
+    if (kmerSize == 4){ 
+        alpha = 6.974347e-01; // 6.717981e-01;
+        beta = 6.954641e+05; // 6.990462e+05;
+        gamma = 1.194005; // 1.718601;
     }
-    else if (kmerSize == 5){
-        alpha = 2.013548e-01;
-        beta = 7.781889e+05;
-        gamma = 1.997792;
+    else if (kmerSize == 5){ 
+        alpha = 2.133863e-01; // 2.013548e-01;
+        beta = 7.612418e+05; // 7.781889e+05;
+        gamma = 1.959421; // 1.997792;
     }
-    else if (kmerSize == 6){
-        alpha = 1.114936e-01;
-        beta = 9.331253e+05;
-        gamma = 1.416222;
+    else if (kmerSize == 6){ 
+        alpha = 1.141648e-01; // 1.114936e-01;
+        beta = 9.033168e+05; // 9.331253e+05;
+        gamma = 1.411142; // 1.416222;
     }
-    else if (kmerSize == 7){
-        alpha = 6.530289e-02;
-        beta = 3.243035e+06;
-        gamma = 1.137125;
+    else if (kmerSize == 7){ 
+        alpha = 6.438574e-02; // 6.530289e-02;
+        beta = 3.480680e+06; // 3.243035e+06;
+        gamma = 1.753651; //1.137125;
     }
     else{
-        std::cerr << "The k-mer size " << kmerSize << " is not valid.\n";
+        Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
         exit(EXIT_FAILURE);
     }
 
     // Run using k=6, a=21, with k-mer similarity threshold 103
     // k-mer list length was 117.6, k-mer match probability 1.12735e-06
     // time reference value for these settings is 15.6
-    // Reference value for sensitivity = 7.0
-    // Since we want to represent the time in the form base**sensitivity, is yields base = 1.48
-    double base = 1.48;
+    // Since we want to represent the time value in the form base^sensitivity with base=2.0, it yields sensitivity = 3.96 (~4.0)
+    double base = 2.0;
     double timevalMax = pow(base, sensitivity) * (1.0 + toleratedDeviation);
     double timevalMin = pow(base, sensitivity) * (1.0 - toleratedDeviation);
+
+    // in case the time value cannot be set within the threshold boundaries, the best value that could be reached will be returned with a warning
+    double timevalBest = 0.0;
+    short kmerThrBest = 0;
+    double kmerMatchProbBest = 0.0;
 
     // adjust k-mer list length threshold
     while (kmerThrMax >= kmerThrMin){
@@ -445,7 +452,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
 
         kmerThrMid = kmerThrMin + (kmerThrMax - kmerThrMin)*3/4;
 
-        std::cout << "k-mer threshold range: [" << kmerThrMin  << ":" << kmerThrMax << "], trying threshold " << kmerThrMid << "\n";
+        Debug(Debug::INFO) << "k-mer threshold range: [" << kmerThrMin  << ":" << kmerThrMax << "], trying threshold " << kmerThrMid << "\n";
         // determine k-mer match probability for kmerThrMid
 #pragma omp parallel for schedule(static) 
         for (int i = 0; i < threads; i++){
@@ -490,12 +497,24 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
 
         // check the parameters
         double timeval = alpha * kmersPerPos + beta * kmerMatchProb + gamma;
-        std::cout << "\tk-mers per position = " << kmersPerPos << ", k-mer match probability: " << kmerMatchProb << "\n";
-        std::cout << "\ttimeval = " << timeval << ", allowed range: [" << timevalMin << ":" << timevalMax << "]\n";
+        Debug(Debug::INFO) << "\tk-mers per position = " << kmersPerPos << ", k-mer match probability: " << kmerMatchProb << "\n";
+        Debug(Debug::INFO) << "\ttime value = " << timeval << ", allowed range: [" << timevalMin << ":" << timevalMax << "]\n";
         if (timeval < timevalMin){
+            if ((timevalMin - timeval) < (timevalMin - timevalBest) || (timevalMin - timeval) < (timevalBest - timevalMax)){
+                // save new best values
+                timevalBest = timeval;
+                kmerThrBest = kmerThrMid;
+                kmerMatchProbBest = kmerMatchProb;
+            }
             kmerThrMax = kmerThrMid - 1;
         }
         else if (timeval > timevalMax){
+            if ((timeval - timevalMax) < (timevalMin - timevalBest) || (timeval - timevalMax) < (timevalBest - timevalMax)){
+                // save new best values
+                timevalBest = timeval;
+                kmerThrBest = kmerThrMid;
+                kmerMatchProbBest = kmerMatchProb;
+            }
             kmerThrMin = kmerThrMid + 1;
         }
         else if (timeval >= timevalMin && timeval <= timevalMax){
@@ -503,11 +522,14 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
             delete[] querySeqs;
             delete[] matchers;
             delete indexTable;
+            Debug(Debug::WARNING) << "\nk-mer threshold set, yielding sensitivity " << (log(timeval)/log(base)) << "\n\n";
             return std::pair<short, double> (kmerThrMid, kmerMatchProb);
         }
     }
     delete[] querySeqs;
     delete[] matchers;
     delete indexTable;
-    return std::pair<short, double> (0, 0.0);
+
+    Debug(Debug::WARNING) << "\nCould not set the k-mer threshold to meet the time value. Using the best value obtained so far, yielding sensitivity = " << (log(timevalBest)/log(base)) << "\n\n";
+    return std::pair<short, double> (kmerThrBest, kmerMatchProbBest);
 }

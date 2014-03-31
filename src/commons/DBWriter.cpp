@@ -15,6 +15,7 @@ DBWriter::DBWriter (const char* dataFileName_, const char* indexFileName_, int m
     offsets = new size_t[maxThreadNum];
     for (int i = 0; i < maxThreadNum; i++)
         offsets[i] = 0;
+    closed = 1;
 }
 
 DBWriter::~DBWriter(){
@@ -49,6 +50,7 @@ void DBWriter::open(){
         initFFIndexWrite(dataFileNameCStr, indexFileNameCStr, &dataFiles[i], &indexFiles[i]);
     }
 
+    closed = 0;
 }
 
 int DBWriter::close(){
@@ -116,10 +118,13 @@ int DBWriter::close(){
     fclose(index_file);
     free(index);
 
+    closed = 1;
+
     return EXIT_SUCCESS;
 }
 
 void DBWriter::write(char* data, int dataSize, char* key, int thrIdx){
+    checkClosed();
     if (thrIdx >= maxThreadNum){
         std::cerr << "ERROR: Thread index " << thrIdx << " > maximum thread number " << maxThreadNum << "\n";
         exit(1);
@@ -138,4 +143,11 @@ void DBWriter::initFFIndexWrite(const char* dataFileName, const char* indexFileN
 
     if( *dataFile == NULL)  { perror(dataFileName); exit(EXIT_FAILURE); } 
     if( *indexFile == NULL) { perror(indexFileName); exit(EXIT_FAILURE); }
+}
+
+void DBWriter::checkClosed(){
+    if (closed == 1){
+        std::cerr << "Trying to write to a closed database.\n";
+        exit(EXIT_FAILURE);
+    }
 }

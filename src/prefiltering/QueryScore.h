@@ -23,10 +23,12 @@
 #include <sstream>
 #include <bitset>
 
+#include "../commons/Debug.h"
+
 typedef struct {
     size_t seqId;
-    float prefScore;
-    float eval;
+    float zScore;
+    unsigned short prefScore;
 } hit_t;
 
 

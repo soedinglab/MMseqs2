@@ -98,17 +98,15 @@ void IndexTable::removeDuplicateEntries(){
 }
 
 void IndexTable::print(){
-    int* testKmer = new int[kmerSize];
     for (int i = 0; i < tableSize; i++){
         if (sizes[i] > 0){
-            idxer->printKmer(testKmer, i, kmerSize, s->int2aa);
+            idxer->printKmer(i, kmerSize, s->int2aa);
             std::cout << "\n";
             for (int j = 0; j < sizes[i]; j++){
                 std::cout << "\t" << table[i][j] << "\n";
             }
         }
     }
-    delete[] testKmer;
 }
 
 int* IndexTable::getDBSeqList (int kmer, int* matchedListSize){
