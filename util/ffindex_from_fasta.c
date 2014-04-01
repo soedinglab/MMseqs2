@@ -175,8 +175,9 @@ int main(int argn, char **argv)
                 fasta_offset++;
                 from_length++;
             }
+	    from_length-=1; // last \n should not be included
             ffindex_insert_memory(data_file_hdr, index_file_hdr, &hdr_offset, fasta_data + (fasta_offset - from_length), from_length, name);
-            
+            from_length+=1;
             // sequence
             from_length = 0;
             while(fasta_offset < fasta_size && !(*(fasta_data + fasta_offset) == '>' && *(fasta_data + fasta_offset - 1) == '\n'))
@@ -184,7 +185,11 @@ int main(int argn, char **argv)
                 fasta_offset++;
                 from_length++;
             }
+	    fasta_offset -= 1;
+	    from_length-=1; // last \n should not be included
             ffindex_insert_memory(data_file, index_file, &seq_offset, fasta_data + (fasta_offset - from_length), from_length, name);
+	    from_length+=1;
+	    fasta_offset += 1;
         }
     }
     fclose(data_file);
