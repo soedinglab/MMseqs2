@@ -10,6 +10,12 @@ CFLAGS = -g -msse4.1  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffinde
 LDFLAGS =
 
 TARGETS = mmseqs_pref
+ifdef HAVE_MPI
+CC = mpic++
+CFLAGS += -DHAVE_MPI
+endif
+
+
 all: $(TARGETS)
 
 mmseqs_pref: .depend $(MAIN_OBJS)

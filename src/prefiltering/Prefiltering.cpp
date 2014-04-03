@@ -126,13 +126,12 @@ void Prefiltering::run(){
     for(unsigned int splitStart = 0; splitStart < tdbr->getSize(); splitStart += splitSize ){
         step++;
         Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step " << step << " of " << stepCnt <<  ")\n";
-        std::string splitSuffix = "_tmp_" + SSTR(step);
-        std::string dataFile  = outDB + splitSuffix;
-        std::string indexFile = outDBIndex + splitSuffix;
-        splitFiles.push_back(std::make_pair(dataFile, indexFile));
+        std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB,outDBIndex,step);
+        splitFiles.push_back(filenamePair);
         
         this->run (splitStart, splitSize,
-                   dataFile.c_str(), indexFile.c_str() );
+                   filenamePair.first.c_str(),
+                   filenamePair.second.c_str() );
         
         this->printStatistics();
     } // prefiltering scores calculation end
@@ -144,6 +143,47 @@ void Prefiltering::run(){
     // close reader to reduce memory
     this->closeReader();
 }
+
+std::pair<std::string, std::string> Prefiltering::createTmpFileNames(std::string db, std::string dbindex, int numb){
+    std::string splitSuffix = "_tmp_" + SSTR(numb);
+    std::string dataFile  = db + splitSuffix;
+    std::string indexFile = dbindex + splitSuffix;
+    return std::make_pair(dataFile, indexFile);
+}
+
+void Prefiltering::run(int mpi_rank, int mpi_num_procs){
+    int splitStart, splitSize;
+    
+    Util::decompose_domain(tdbr->getSize(), mpi_rank,
+                     mpi_num_procs, &splitStart,
+                     &splitSize);
+    
+    std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB, outDBIndex, mpi_rank);
+
+    this->run (splitStart, splitSize,
+               filenamePair.first.c_str(),
+               filenamePair.second.c_str());
+    this->printStatistics();
+#ifdef HAVE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+    if(mpi_rank == 0){ // master reduces results
+        std::vector<std::pair<std::string, std::string> > splitFiles;
+        for(int procs = 0; procs < mpi_num_procs; procs++){
+            splitFiles.push_back(createTmpFileNames(outDB, outDBIndex, procs));
+        }
+        // merge output ffindex databases
+        this->mergeOutput(splitFiles);
+        // remove temp databases
+        this->removeDatabaes(splitFiles);
+        // close reader to reduce memory
+        this->closeReader();
+    } else {
+        // close reader to reduce memory
+        this->closeReader();
+    }
+}
+
 
 
 
@@ -463,7 +503,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
     }
     else{
         Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 
     // Run using k=6, a=21, with k-mer similarity threshold 103

@@ -185,7 +185,7 @@ short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
         case 7: return _mm_extract_epi16(v, 7);
     }
     Debug(Debug::ERROR) << "Fatal error in QueryScore: position in the vector is not in the legal range (pos = " << pos << ")\n";
-    exit(1);
+    EXIT(1);
     // never executed
     return 0;
 }

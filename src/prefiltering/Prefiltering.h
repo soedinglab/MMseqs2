@@ -50,6 +50,7 @@ class Prefiltering {
         ~Prefiltering();
         void run (size_t dbFrom,size_t dbSize,
                   std::string resultDB, std::string resultDBIndex);
+        void run(int mpi_rank, int mpi_num_procs);
         void run ();
         void closeReader();
         void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
@@ -101,6 +102,7 @@ class Prefiltering {
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
         std::pair<short,double> setKmerThreshold(DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation);
+        std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb);
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::list<hit_t>* prefResults);
 

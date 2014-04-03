@@ -10,13 +10,18 @@
 #include <omp.h>
 #endif
 
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
+
+
 void mmseqs_debug_catch_signal(int sig_num)
 {
   if(sig_num == SIGILL)
   {
     fprintf(stderr, "Your CPU does not support all the latest features that this version of mmseqs makes use of!\n"
                     "Please run on a newer machine.");
-    exit(sig_num);
+    EXIT(sig_num);
   }
   else
   {
@@ -36,7 +41,7 @@ void mmseqs_debug_catch_signal(int sig_num)
         "$ ulimit -c unlimited\n\n");
   }
 
-  exit(1);
+  EXIT(1);
 }
 
 void mmseqs_cuticle_init()
@@ -72,11 +77,11 @@ void printUsage(){
     Debug(Debug::INFO) << usage;
 }
 
-void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* scoringMatrixFile, float* sens, int* kmerSize, int* alphabetSize, float* zscoreThr, size_t* maxSeqLen, int* seqType, size_t* maxResListLen,
+void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* scoringMatrixFile, float* sens, int* kmerSize, int* alphabetSize, float* zscoreThr, size_t* maxSeqLen, int* seqType, size_t* maxResListLen,
     bool* compBiasCorrection, int* splitSize, int* skip, int* verbosity){
     if (argc < 4){
         printUsage();
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 
     ffindexQueryDBBase->assign(argv[1]);
@@ -88,7 +93,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
         if (strcmp(argv[i], "-m") == 0){
             if (*seqType == Sequence::NUCLEOTIDES){
                 Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
             if (++i < argc){
                 scoringMatrixFile->assign(argv[i]);
@@ -97,7 +102,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         } 
         else if (strcmp(argv[i], "-s") == 0){
@@ -105,14 +110,14 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 *sens = atof(argv[i]);
                 if (*sens < 1.0 || *sens > 9.0){
                     Debug(Debug::ERROR) << "Please choose sensitivity in the range [1:7].\n";
-                    exit(EXIT_FAILURE);
+                    EXIT(EXIT_FAILURE);
                 }
                 i++;
             }
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else if (strcmp(argv[i], "-k") == 0){
@@ -120,14 +125,14 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 *kmerSize = atoi(argv[i]);
                 if (*kmerSize < 4 || *kmerSize > 7){
                     Debug(Debug::ERROR) << "Please choose k in the range [4:7].\n";
-                    exit(EXIT_FAILURE);
+                    EXIT(EXIT_FAILURE);
                 }
                 i++;
             }
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else if (strcmp(argv[i], "-a") == 0){
@@ -138,7 +143,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else if (strcmp(argv[i], "--z-score-thr") == 0){
@@ -149,7 +154,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided" << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else if (strcmp(argv[i], "--max-seq-len") == 0){
@@ -160,13 +165,13 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
          else if (strcmp(argv[i], "--nucleotides") == 0){
             if (strcmp(scoringMatrixFile->c_str(), "") != 0){
                 Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }                                                           
             *seqType = Sequence::NUCLEOTIDES;
             i++;
@@ -179,7 +184,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else if (strcmp(argv[i], "--comp-bias-corr") == 0){
@@ -194,7 +199,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else if (strcmp(argv[i], "-v") == 0){
@@ -202,14 +207,14 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 *verbosity = atoi(argv[i]);
                 if (*verbosity < 0 || *verbosity > 3){
                     Debug(Debug::ERROR) << "Wrong value for verbosity, please choose one in the range [0:3].\n";
-                    exit(1);
+                    EXIT(1);
                 }
                 i++;
             }
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else if (strcmp(argv[i], "--tdb-seq-cut") == 0){
@@ -220,25 +225,36 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             else {
                 printUsage();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else {
             printUsage();
             Debug(Debug::ERROR) << "Wrong argument: " << argv[i] << "\n";
-            exit(EXIT_FAILURE);
+            EXIT(EXIT_FAILURE);
         }
     }
 
     if (strcmp (scoringMatrixFile->c_str(), "") == 0){
         printUsage();
         Debug(Debug::ERROR) << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 }
 
-int main (int argc, const char * argv[])
+
+int main (int argc,  char * argv[])
 {
+#ifdef HAVE_MPI 
+    int mpi_error,mpi_rank,mpi_num_procs;
+    mpi_error = MPI_Init(&argc, &argv);
+    mpi_error = MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    mpi_error = MPI_Comm_size(MPI_COMM_WORLD, &mpi_num_procs);
+    Debug(Debug::WARNING) << "MPI Init...\n";
+    Debug(Debug::WARNING) << "Rank: " << mpi_rank << " Size: " << mpi_num_procs << "\n";
+
+
+#endif
     mmseqs_cuticle_init();
 
     int verbosity = Debug::INFO;
@@ -295,12 +311,16 @@ int main (int argc, const char * argv[])
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
     gettimeofday(&start, NULL);
-
+#ifdef HAVE_MPI
+    pref->run(mpi_rank, mpi_num_procs);
+#else
     pref->run();
-
+#endif
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
     return 0;
 }
