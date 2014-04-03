@@ -36,6 +36,8 @@ class DBWriter {
         char* getIndexFileName() { return indexFileName; }
 
         void write(char* data, int dataSize, char* key, int threadIdx = 0);
+    
+        static void errorIfFileExist(const char * file);
 
     private:
 

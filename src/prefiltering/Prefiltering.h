@@ -14,6 +14,8 @@
 #include "../commons/NucleotideMatrix.h"
 #include "../commons/Debug.h"
 #include "../commons/Log.h"
+#include "../commons/Util.h"
+
 #include "ExtendedSubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
@@ -35,7 +37,8 @@ class Prefiltering {
                 std::string ouDBIndex,
                 std::string scoringMatrixFile, 
                 float sensitivity, 
-                int kmerSize, 
+                int kmerSize,
+                int maxResListLen,
                 int alphabetSize, 
                 float zscoreThr, 
                 size_t maxSeqLen, 
@@ -45,10 +48,15 @@ class Prefiltering {
                 int skip);
 
         ~Prefiltering();
-
-        void run (size_t maxResListLen);
-
-        static IndexTable* getIndexTable(DBReader* dbr, Sequence* seq, int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo, int skip = 0);
+        void run (size_t dbFrom,size_t dbSize,
+                  std::string resultDB, std::string resultDBIndex);
+        void run ();
+        void closeReader();
+        void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
+        void removeDatabaes(std::vector<std::pair<std::string, std::string> > filenames);
+        static IndexTable* getIndexTable(DBReader* dbr, Sequence* seq,
+                                         int alphabetSize, int kmerSize,
+                                         size_t dbFrom, size_t dbTo, int skip = 0);
 
     private:
         static const size_t BUFFER_SIZE = 1000000;
@@ -57,10 +65,10 @@ class Prefiltering {
 
         DBReader* qdbr;
         DBReader* tdbr;
-        DBWriter* dbw;
-        DBWriter* tmpDbw;
 
         Sequence** seqs;
+        int* notEmpty;
+
         std::list<int>** reslens;
         BaseMatrix* subMat;
         ExtendedSubstitutionMatrix* _2merSubMatrix;
@@ -82,6 +90,11 @@ class Prefiltering {
         double kmerMatchProb;
         int splitSize;
         int skip;
+        int maxResListLen;
+        // statistics
+        size_t kmersPerPos;
+        size_t resSize;
+        size_t dbMatches;
         BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor);
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
@@ -89,10 +102,9 @@ class Prefiltering {
          */
         std::pair<short,double> setKmerThreshold(DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation);
         // write prefiltering to ffindex database
-        int writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id, size_t maxResListLen, std::list<hit_t>* prefResults);
+        int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::list<hit_t>* prefResults);
 
-        void printStatistics(size_t queryDBSize, size_t kmersPerPos, size_t resSize, size_t dbMatches,
-                int empty, size_t maxResListLen, std::list<int>* reslens);
+        void printStatistics();
 
 };
 

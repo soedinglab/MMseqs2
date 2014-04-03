@@ -81,11 +81,11 @@ void KmerGenerator::calcDivideStrategy(){
     initResultList(divideStepCount);
 //    std::reverse(this->matrixLookup, &this->matrixLookup[divideStepCount]);
 //    std::reverse(this->divideStep, &this->divideStep[divideStepCount]);
-    std::cout << "Divide step for kmer = ";
+    Debug(Debug::WARNING) << "Divide step for kmer = ";
     for(int i = 0; i < divideStepCount;i++){
-        std::cout << divideStep[i] << " ";
+        Debug(Debug::WARNING) << divideStep[i] << " ";
     }
-    std::cout << std::endl;
+    Debug(Debug::WARNING) << "\n";
 }
 
 

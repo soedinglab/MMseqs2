@@ -134,9 +134,9 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
     Prefiltering* pref = new Prefiltering (inDBData, inDBWorkingIndex, 
             inDBData, inDBWorkingIndex, 
             prefDB_step, prefDB_step+ ".index", 
-            scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, split, skip);
+            scoringMatrixFile, sensitivity, kmerSize, maxResListLen, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, split, skip);
     std::cout << "Starting prefiltering scores calculation.\n";
-    pref->run(maxResListLen);
+    pref->run();
     delete pref;
 
     gettimeofday(&end, NULL);

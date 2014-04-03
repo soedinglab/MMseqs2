@@ -95,7 +95,6 @@ void QueryTemplateMatcher::match(Sequence* seq){
     int match_pos = 0;
 
     int pos = 0;
-    std::cout << "\nQUERY: " << seq->getDbKey() << "\n";
     while(seq->hasNextKmer(kmerSize)){
         const int* kmer = seq->nextKmer(kmerSize);
         // generate k-mer list
@@ -120,9 +119,10 @@ void QueryTemplateMatcher::match(Sequence* seq){
             match_pos++;
         pos++;
     }
-    std::cout << "score = " << overall_score << "\n";
-    std::cout << "matched at " << match_pos << " positions.\n";
-    std::cout << "matched " << match_num << " times.\n";
+    //Debug(Debug::WARNING) << "QUERY: " << seq->getDbKey();
+    //Debug(Debug::WARNING) << " score = " << overall_score;
+    //Debug(Debug::WARNING) << " matched at " << match_pos << " positions. ";
+    //Debug(Debug::WARNING) << match_num << " times.\n";
     // write statistics
     seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
     seq->stats->dbMatches = numMatches;

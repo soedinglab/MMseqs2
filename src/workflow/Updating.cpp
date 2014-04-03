@@ -197,9 +197,9 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     Prefiltering* pref = new Prefiltering (queryDB, queryDBIndex,
             targetDB, targetDBIndex,
             prefDB, prefDB + ".index",
-            scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, split, skip);
+            scoringMatrixFile, sensitivity, kmerSize, maxResListLen, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, split, skip);
     std::cout << "Starting prefiltering scores calculation.\n";
-    pref->run(maxResListLen);
+    pref->run();
     delete pref;
 
     gettimeofday(&end, NULL);

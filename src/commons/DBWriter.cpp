@@ -132,11 +132,14 @@ void DBWriter::write(char* data, int dataSize, char* key, int thrIdx){
     ffindex_insert_memory(dataFiles[thrIdx], indexFiles[thrIdx], &offsets[thrIdx], data, dataSize, key);
 }
 
-void DBWriter::initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile){
-    
+void DBWriter::errorIfFileExist(const char * file){
     struct stat st;
-    if(stat(dataFileName, &st) == 0) { errno = EEXIST; perror(dataFileName); exit(EXIT_FAILURE); }
-    if(stat(indexFileName, &st) == 0) { errno = EEXIST; perror(indexFileName); exit(EXIT_FAILURE); }
+    if(stat(file, &st) == 0) { errno = EEXIST; perror(file); exit(EXIT_FAILURE); }
+}
+
+void DBWriter::initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile){
+    DBWriter::errorIfFileExist(dataFileName);
+    DBWriter::errorIfFileExist(indexFileName);
 
     *dataFile = fopen(dataFileName, "w");
     *indexFile = fopen(indexFileName, "w");

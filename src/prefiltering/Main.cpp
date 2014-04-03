@@ -286,14 +286,17 @@ int main (int argc, const char * argv[])
     std::string outDBIndex = outDB + ".index";
 
     Debug(Debug::WARNING) << "Initialising data structures...\n";
-    Prefiltering* pref = new Prefiltering(queryDB, queryDBIndex, targetDB, targetDBIndex, outDB, outDBIndex, scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, compBiasCorrection, splitSize, skip);
+    Prefiltering* pref = new Prefiltering(queryDB, queryDBIndex, targetDB, targetDBIndex,
+                                          outDB, outDBIndex, scoringMatrixFile, sensitivity,
+                                          kmerSize, maxResListLen, alphabetSize, zscoreThr,
+                                          maxSeqLen, seqType, compBiasCorrection, splitSize, skip);
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
     gettimeofday(&start, NULL);
 
-    pref->run(maxResListLen);
+    pref->run();
 
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;

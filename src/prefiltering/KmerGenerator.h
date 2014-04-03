@@ -5,6 +5,8 @@
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "../commons/Util.h"
+#include "../commons/Debug.h"
+
 
 
 typedef struct {
