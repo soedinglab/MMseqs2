@@ -146,9 +146,6 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     __m128i* p = scores_128;
     __m128i* thr = thresholds_128;
 
-    for (int i = 0; i < dbSize; i++)
-        std::cout << scores[i] << "\n";
-
     __m128i cmp;
 
     // go through each vector
