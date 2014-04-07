@@ -69,6 +69,7 @@ void printUsage(){
             "--z-score-thr   \t[float]\tZ-score threshold [default: 300.0]\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucleotides   \t\tNucleotide sequences input.\n"
+            "--profile       \t\tHMM Profile input.\n"
             "--max-res-num   \t[int]\tMaximum result sequences per query (default=100)\n"
             "--comp-bias-corr  \t\tLocal amino acid composition bias correction.\n"
             "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
@@ -175,7 +176,10 @@ void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase, std::stri
             }                                                           
             *seqType = Sequence::NUCLEOTIDES;
             i++;
-        }
+         }else if (strcmp(argv[i], "--profile") == 0){
+             *seqType = Sequence::HMM_PROFILE;
+             i++;
+         }
        else if (strcmp(argv[i], "--max-res-num") == 0){
             if (++i < argc){
                 *maxResListLen = atoi(argv[i]);

@@ -1,6 +1,8 @@
 #include "Sequence.h"
+#include "../commons/Util.h"
+#include "../commons/Debug.h"
 
-Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa, int seqType)
+Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa, int seqType, BaseMatrix * subMat /* = NULL */)
 {
     this->int_sequence = new int[maxLen]; 
     this->aa2int = aa2int;
@@ -8,6 +10,16 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa, int seqType)
     this->maxLen = maxLen;
     this->seqType = seqType;
     this->stats = new statistics_t;
+    if (seqType == HMM_PROFILE) {
+        const size_t alphabetSize = 20;
+        this->hmm_profile = (short *) Util::mem_align(16, maxLen * alphabetSize  * sizeof(short));
+        this->subMat = subMat;
+        if(subMat == NULL){
+            Debug(Debug::ERROR) << "BaseMatrix must be set in Sequence (Profile Mode)\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+
     currItPos = -1;
 }
 
@@ -15,6 +27,9 @@ Sequence::~Sequence()
 {
     delete[] int_sequence;
     delete stats;
+    if (seqType == HMM_PROFILE) {
+        delete hmm_profile;
+    }
 }
 
 void Sequence::mapSequence(int id, char* dbKey, const char * sequence){
@@ -24,8 +39,10 @@ void Sequence::mapSequence(int id, char* dbKey, const char * sequence){
         mapProteinSequence(sequence);
     else if (this->seqType == Sequence::NUCLEOTIDES)
         mapNucleotideSequence(sequence);
-    else {
-        std::cerr << "ERROR: Invalid sequence type!\n";
+    else if (this->seqType == Sequence::HMM_PROFILE)
+        mapProfile(sequence);
+    else  {
+        Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
         exit(EXIT_FAILURE);
     }
     currItPos = -1;
@@ -60,7 +77,7 @@ void Sequence::mapNucleotideSequence(const char * sequence){
             else if (curr == 'v')
                 this->int_sequence[l] = this->aa2int['a'];
             else if (curr < 'a' || curr > 'z' || this->aa2int[(int)curr] == -1){
-                std::cerr << "ERROR: illegal character \"" << curr << "\" in sequence " << this->dbKey << " at position " << pos << "\n";
+                Debug(Debug::ERROR) << "ERROR: illegal character \"" << curr << "\" in sequence " << this->dbKey << " at position " << pos << "\n";
                 exit(1);
             }
             else
@@ -74,6 +91,54 @@ void Sequence::mapNucleotideSequence(const char * sequence){
     }
     this->L = l;
 }
+
+
+void Sequence::mapProfile(const char * sequenze){
+    size_t l = 0;
+    char * data = (char *) sequenze;
+    // find beging of profile information
+    do {
+        data = Util::skipLine(data);
+	} while( data[0] != '#');
+    // go to readin position
+    for(int i = 0; i < 5; i++)
+        data = Util::skipLine(data);
+    //ammino acids are ordered in HMM
+    char * words[22];
+	while (data[0] != '/' &&  data[1] != '/'){
+        Util::getWordsOfLine(data, words, 22);
+		for(size_t aa_num = 0; aa_num < 20; aa_num++) {
+			// * entry: 0.0 probability
+            const size_t pos_in_profile = l * 20 + aa_num;
+			if (words[aa_num+2][0] == '*'){
+                Debug(Debug::ERROR) << "ERROR: 0 PROBABILITY FOR " << this->dbKey << ".hhm AT " << l << "," << aa_num <<"\n";
+                hmm_profile[pos_in_profile] = (short) -1;
+            }
+			// 0 entry: 1.0 probability
+			else if (words[aa_num+2][0] == '0'){// integer number entry: 0.0 < probability < 1.0
+                float score = BaseMatrix::_log2(1.0f / subMat->getBackgroundProb(aa_num)) * subMat->getBitFactor();
+                hmm_profile[pos_in_profile] = (short) floor (score + 0.5);
+            } else {
+				int entry = atoi(words[aa_num+2]);
+				const double p = pow(2.0f, -(entry/1000.0f)); // back scaling from hhm
+                const double backProb = subMat->getBackgroundProb(aa_num);
+                const double bitFactor = subMat->getBitFactor();
+                double score = BaseMatrix::_log2( p / backProb) * bitFactor;
+				hmm_profile[pos_in_profile] = (short) floor (score + 0.5);
+			}
+		}
+        // go to next entry start
+        for(int i = 0; i < 3; i++)
+            data = Util::skipLine(data);
+		l++;
+        if(l >= this->maxLen ){
+            Debug(Debug::ERROR) << "ERROR: Sequenze with id: " << this->dbKey << " is longer maxRes.\n";
+            break;
+        }
+	}
+    this->L = l;
+}
+
 
 void Sequence::mapProteinSequence(const char * sequence){
     size_t l = 0;

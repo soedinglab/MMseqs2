@@ -55,10 +55,11 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
 
     // init the substitution matrices
-    if (seqType == Sequence::AMINO_ACIDS)
-        subMat = getSubstitutionMatrix(scoringMatrixFile, 8.0);
-    else
+    if (seqType == Sequence::NUCLEOTIDES)
         subMat = new NucleotideMatrix();
+    else
+        subMat = getSubstitutionMatrix(scoringMatrixFile, 8.0);
+
 
     _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
     _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
@@ -74,7 +75,7 @@ Prefiltering::Prefiltering(std::string queryDB,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType);
+        seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType, subMat);
         reslens[thread_idx] = new std::list<int>();
     }
 
@@ -201,7 +202,7 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
     
     memset(notEmpty, 0, queryDBSize*sizeof(int)); // init notEmpty
     
-    Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType);
+    Sequence* seq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType, subMat);
     this->indexTable = getIndexTable(tdbr, seq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
     delete seq;
 

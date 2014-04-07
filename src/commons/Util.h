@@ -26,6 +26,12 @@ public:
 	static void * mem_align(size_t bound, size_t size);
     static void decompose_domain(int domain_size, int world_rank,
                                  int world_size, int* subdomain_start,
-                                 int* subdomain_size);
+                                 int* subdomain_size);    
+    static char * skipLine(char * data);
+    static char * skipWhitespace(char * data);
+    static char * skipNoneWhitespace(char * data);
+    static size_t getWordsOfLine(char * data, char ** words, size_t maxElement );
+    
+
 };
 #endif

@@ -30,6 +30,9 @@ class SubstitutionMatrix: public BaseMatrix {
         virtual ~SubstitutionMatrix();
 
         virtual float getBitFactor() {return bitFactor; }
+    
+        virtual double getBackgroundProb(size_t aa_index) { return pBack[aa_index]; }
+
 
     private:
 
