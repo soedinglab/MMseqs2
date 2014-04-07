@@ -17,13 +17,20 @@ int main (int argc, const char * argv[])
 {
 
     const size_t kmer_size=7;
+
+
     SubstitutionMatrix subMat("../../data/blosum62.out",8.0);
     std::cout << "Subustitution matrix:\n";
-    std::cout << "lala matrix:\n";
 
- //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
+    //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
 
+    std::cout << "subMatrix:\n";
+    //    ReducedMatrix subMat(subMat.probMatrix, 20);
+    //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
+    std::cout << "\n";
+
+    const int  testSeq[]={1,2,3,1,1,1};
     ExtendedSubstitutionMatrix extMattwo(subMat.subMatrix, 2,subMat.alphabetSize);
     ExtendedSubstitutionMatrix extMatthree(subMat.subMatrix, 3,subMat.alphabetSize);
 
@@ -33,13 +40,7 @@ int main (int argc, const char * argv[])
     std::cout << sequence << "\n\n";
     Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa, 0);
     s->mapSequence(0,"lala",sequence);
-    std::cout << "\nInt reduced sequence:\n";
-    for (int i = 0; i < s->L; i++)
-        std::cout << s->int_sequence[i] << " ";
-    std::cout << "\nChar reduced sequence:\n";
-    for (int i = 0; i < s->L; i++)
-        std::cout << subMat.int2aa[s->int_sequence[i]] << " ";
-    std::cout << "\n";
+
     KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,114, 
                           &extMatthree,&extMattwo );
 
@@ -47,7 +48,7 @@ int main (int argc, const char * argv[])
     while(s->hasNextKmer(kmer_size)){
         const int * curr_pos = s->nextKmer(kmer_size);
         printf("kmerpos1: %d\tkmerpos2: %d\n",curr_pos[0],curr_pos[1]);
-        
+
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";
 //        std::cout << "MaxScore: " << extMattwo.scoreMatrix[idx_val]->back().first<< "\n";

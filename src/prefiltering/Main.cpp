@@ -71,7 +71,7 @@ void printUsage(){
             "--nucleotides   \t\tNucleotide sequences input.\n"
             "--profile       \t\tHMM Profile input.\n"
             "--max-res-num   \t[int]\tMaximum result sequences per query (default=100)\n"
-            "--comp-bias-corr  \t\tLocal amino acid composition bias correction.\n"
+            "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
             "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
             "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
@@ -191,8 +191,8 @@ void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase, std::stri
                 EXIT(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "--comp-bias-corr") == 0){
-            *compBiasCorrection = true;
+        else if (strcmp(argv[i], "--no-comp-bias-corr") == 0){
+            *compBiasCorrection = false;
             i++;
         }
         else if (strcmp(argv[i], "--skip") == 0){
@@ -274,13 +274,19 @@ int main (int argc,  char * argv[])
     int splitSize = INT_MAX;
     int skip = 0;
     int seqType = Sequence::AMINO_ACIDS;
-    bool compBiasCorrection = false;
+    bool compBiasCorrection = true;
     float zscoreThr = 50.0f;
 
     std::string queryDB = "";
     std::string targetDB = "";
     std::string outDB = "";
     std::string scoringMatrixFile = "";
+
+    // print command line
+    Debug(Debug::WARNING) << "Program call:\n";
+    for (int i = 0; i < argc; i++)
+        Debug(Debug::WARNING) << argv[i] << " ";
+    Debug(Debug::WARNING) << "\n\n";
 
     parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile,
                           &sensitivity, &kmerSize, &alphabetSize, &zscoreThr,
@@ -292,14 +298,15 @@ int main (int argc,  char * argv[])
     if (seqType == Sequence::NUCLEOTIDES)
         alphabetSize = 5;
 
-    for (int i = 0; i < argc; i++)
-        Debug(Debug::INFO) << argv[i] << " ";
-    Debug(Debug::INFO) << "\n";
-
     Debug(Debug::WARNING) << "k-mer size: " << kmerSize << "\n";
     Debug(Debug::WARNING) << "Alphabet size: " << alphabetSize << "\n";
     Debug(Debug::WARNING) << "Sensitivity: " << sensitivity << "\n";
     Debug(Debug::WARNING) << "Z-score threshold: " << zscoreThr << "\n";
+    if (compBiasCorrection)
+        Debug(Debug::WARNING) << "Compositional bias correction is switched on.\n";
+    else
+        Debug(Debug::WARNING) << "Compositional bias correction is switched off.\n";
+    Debug(Debug::WARNING) << "\n";
 
     std::string queryDBIndex = queryDB + ".index";
     std::string targetDBIndex = targetDB + ".index";

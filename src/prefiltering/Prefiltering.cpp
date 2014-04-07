@@ -498,9 +498,9 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
         gamma = 1.411142; // 1.416222;
     }
     else if (kmerSize == 7){ 
-        alpha = 6.438574e-02; // 6.530289e-02;
-        beta = 3.480680e+06; // 3.243035e+06;
-        gamma = 1.753651; //1.137125;
+        alpha = 7.123599e-02; //6.438574e-02; // 6.530289e-02;
+        beta = 3.148479e+06; //3.480680e+06; // 3.243035e+06;
+        gamma = 1.304421; // 1.753651; //1.137125;
     }
     else{
         Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
@@ -537,7 +537,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
             thread_idx = omp_get_thread_num();
 #endif
             // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
-            matchers[thread_idx] = new QueryTemplateMatcher(subMat, _2merSubMatrix, _3merSubMatrix, indexTable, dbr->getSeqLens(), kmerThrMid, 1.0, kmerSize, dbr->getSize(), false, maxSeqLen, 500.0);
+            matchers[thread_idx] = new QueryTemplateMatcher(subMat, _2merSubMatrix, _3merSubMatrix, indexTable, dbr->getSeqLens(), kmerThrMid, 1.0, kmerSize, dbr->getSize(), aaBiasCorrection, maxSeqLen, 500.0);
         }
 
 #pragma omp parallel for schedule(dynamic, 10) reduction (+: dbMatchesSum, querySeqLenSum, kmersPerPos)

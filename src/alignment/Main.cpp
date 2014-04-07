@@ -17,7 +17,7 @@ void printUsage(){
             "-e\t[float]\tMaximum e-value (default=0.01).\n"
             "-c\t[float]\tMinimum alignment coverage (default=0.8).\n"
             "-s\t[int]\tMaximum sequence length (default=50000).\n"
-            "-r\t[int]\tMaximum result alignment number per query sequence (default=100).\n"
+            "-r\t[int]\tMaximum alignment results per query sequence (default=100).\n"
             "-n\t\tNucleotide sequences input.\n"
             "-v\t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
@@ -155,6 +155,11 @@ int main(int argc, char **argv){
 
     Debug::setDebugLevel(Debug::INFO);
 
+    Debug(Debug::WARNING) << "Program call:\n";
+    for (int i = 0; i < argc; i++)
+        Debug(Debug::WARNING) << argv[i] << " ";
+    Debug(Debug::WARNING) << "\n\n";
+
     parseArgs(argc, argv, &qseqDB, &tseqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr, &maxSeqLen, &maxAlnNum, &seqType, &verbosity);
 
     Debug::setDebugLevel(verbosity);
@@ -162,7 +167,7 @@ int main(int argc, char **argv){
     Debug(Debug::WARNING) << "max. evalue:\t" << evalThr 
         << "\nmin. sequence coverage:\t" << covThr 
         << "\nmax. sequence length:\t" << maxSeqLen 
-        << "\nmax. alignment number per query:\t" << maxAlnNum << "\n\n";
+        << "\nmax. alignment results per query:\t" << maxAlnNum << "\n\n";
 
     std::string qseqDBIndex = qseqDB + ".index";
     std::string tseqDBIndex = tseqDB + ".index";

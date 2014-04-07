@@ -95,7 +95,7 @@ void TimeTest::runTimeTest (){
             seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS);
         }
 
-        for (int kmerSize = 4; kmerSize <= 7; kmerSize++){
+        for (int kmerSize = 7; kmerSize <= 7; kmerSize++){
             short kmerThrMin = (short)((float)(kmerThrPerPosMin * kmerSize) * (pow(( (float)alphabetSize / 21.0 ), 2.0)));
             int kmerThrMax = kmerThrPerPosMax * kmerSize;
 
