@@ -14,7 +14,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <cmath>
-#include "../commons/BaseMatrix.h"
+#include "../commons/BaseMatrix.h"      // for pBack
+
 
 
 typedef struct {
@@ -63,9 +64,12 @@ class Sequence
         // each amino acid coded as integer
         int * int_sequence;  
 
-        // 20 * sequenze length for profile
-        short * hmm_profile;
-
+        // Contains profile information
+        short  * profile_score;
+        int    * profile_index;
+        size_t profile_row_size;
+        static const size_t PROFILE_AA_SIZE = 20;
+    
     
         int  * aa2int; // ref to mapping from aa -> int
         char * int2aa; // ref mapping from int -> aa

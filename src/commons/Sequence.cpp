@@ -2,6 +2,9 @@
 #include "../commons/Util.h"
 #include "../commons/Debug.h"
 
+#include <limits.h> // short_max
+
+
 Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa, int seqType, BaseMatrix * subMat /* = NULL */)
 {
     this->int_sequence = new int[maxLen]; 
@@ -11,12 +14,18 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa, int seqType, BaseMa
     this->seqType = seqType;
     this->stats = new statistics_t;
     if (seqType == HMM_PROFILE) {
-        const size_t alphabetSize = 20;
-        this->hmm_profile = (short *) Util::mem_align(16, maxLen * alphabetSize  * sizeof(short));
         this->subMat = subMat;
         if(subMat == NULL){
             Debug(Debug::ERROR) << "BaseMatrix must be set in Sequence (Profile Mode)\n";
             EXIT(EXIT_FAILURE);
+        }
+        profile_row_size = (size_t) PROFILE_AA_SIZE / 16;
+        profile_row_size = (profile_row_size+1) * 16; // for SIMD memory alignment
+        this->profile_score = (short *) Util::mem_align(16, maxLen * profile_row_size * sizeof(short));
+        this->profile_index = (int *)   Util::mem_align(16, maxLen * profile_row_size * sizeof(int));
+        for(int i = 0; i < maxLen * profile_row_size; i++){
+            profile_score[i] = -SHRT_MAX;
+            profile_index[i] = -1;
         }
     }
 
@@ -28,7 +37,8 @@ Sequence::~Sequence()
     delete[] int_sequence;
     delete stats;
     if (seqType == HMM_PROFILE) {
-        delete hmm_profile;
+        delete profile_score;
+        delete profile_index;
     }
 }
 
@@ -107,26 +117,30 @@ void Sequence::mapProfile(const char * sequenze){
     char * words[22];
 	while (data[0] != '/' &&  data[1] != '/'){
         Util::getWordsOfLine(data, words, 22);
-		for(size_t aa_num = 0; aa_num < 20; aa_num++) {
+		for(size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
 			// * entry: 0.0 probability
-            const size_t pos_in_profile = l * 20 + aa_num;
+            const size_t pos_in_profile = l * profile_row_size + aa_num;
 			if (words[aa_num+2][0] == '*'){
                 Debug(Debug::ERROR) << "ERROR: 0 PROBABILITY FOR " << this->dbKey << ".hhm AT " << l << "," << aa_num <<"\n";
-                hmm_profile[pos_in_profile] = (short) -1;
+                profile_score[pos_in_profile] = (short) -1;
             }
 			// 0 entry: 1.0 probability
 			else if (words[aa_num+2][0] == '0'){// integer number entry: 0.0 < probability < 1.0
                 float score = BaseMatrix::_log2(1.0f / subMat->getBackgroundProb(aa_num)) * subMat->getBitFactor();
-                hmm_profile[pos_in_profile] = (short) floor (score + 0.5);
+                profile_score[pos_in_profile] = (short) floor (score + 0.5);
             } else {
 				int entry = atoi(words[aa_num+2]);
 				const double p = pow(2.0f, -(entry/1000.0f)); // back scaling from hhm
                 const double backProb = subMat->getBackgroundProb(aa_num);
                 const double bitFactor = subMat->getBitFactor();
                 double score = BaseMatrix::_log2( p / backProb) * bitFactor;
-				hmm_profile[pos_in_profile] = (short) floor (score + 0.5);
+				profile_score[pos_in_profile] = (short) floor (score + 0.5);
 			}
 		}
+        
+        int indexArray[PROFILE_AA_SIZE]=   {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19 };
+        Util::rankedDescSort20(&profile_score[l * profile_row_size],(int *) &indexArray);
+        memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
         // go to next entry start
         for(int i = 0; i < 3; i++)
             data = Util::skipLine(data);

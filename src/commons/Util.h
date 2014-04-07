@@ -31,7 +31,8 @@ public:
     static char * skipWhitespace(char * data);
     static char * skipNoneWhitespace(char * data);
     static size_t getWordsOfLine(char * data, char ** words, size_t maxElement );
-    
+    static void rankedDescSort20(short * val, int * index);
+
 
 };
 #endif
