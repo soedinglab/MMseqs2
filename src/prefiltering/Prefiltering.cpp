@@ -195,10 +195,6 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
     DBWriter tmpDbw(resultDB.c_str(), resultDBIndex.c_str(), threads);
     tmpDbw.open();
     size_t queryDBSize = qdbr->getSize();
-
-    this->kmersPerPos = 0;
-    this->dbMatches = 0;
-    this->resSize = 0;
     
     memset(notEmpty, 0, queryDBSize*sizeof(int)); // init notEmpty
     
@@ -219,10 +215,12 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
                                                         kmerMatchProb, kmerSize, tdbr->getSize(),
                                                         aaBiasCorrection, maxSeqLen, zscoreThr);
     }
-    
+
+    int kmersPerPos = 0;
+    int dbMatches = 0;
+    int resSize = 0;
 #pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches)
-    for (size_t id = 0; id < queryDBSize; id++){
-        
+    for (size_t id = 0; id < queryDBSize; id++){ 
         Log::printProgress(id);
         
         int thread_idx = 0;
@@ -248,6 +246,10 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
         resSize += prefResults->size();
         reslens[thread_idx]->push_back(prefResults->size());
     } // step end
+
+    this->kmersPerPos = kmersPerPos;
+    this->dbMatches = dbMatches;
+    this->resSize = resSize;
     if (queryDBSize > 1000)
         Debug(Debug::INFO) << "\n";
     Debug(Debug::WARNING) << "\n";
