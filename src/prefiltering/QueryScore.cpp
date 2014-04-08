@@ -151,8 +151,7 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     for (int pos = 0; pos < scores_128_size/8; pos++ ){
 
         // look for entries above the threshold
-        cmp = _mm_subs_epu16(*p, *thr);
-        cmp = _mm_cmpeq_epi16(cmp, zero);
+        cmp = _mm_cmpgt_epi16(*p, *thr);
         const unsigned int cmp_set_bits = _mm_movemask_epi8(cmp);
         
         // here are some sequences above the prefiltering threshold
