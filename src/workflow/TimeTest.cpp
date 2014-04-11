@@ -138,7 +138,7 @@ void TimeTest::runTimeTest (){
                     char* seqData = tdbr->getData(id);
                     seqs[thread_idx]->mapSequence(id, tdbr->getDbKey(id), seqData);
 
-                    matchers[thread_idx]->matchQuery(seqs[thread_idx]);
+                    matchers[thread_idx]->matchQuery(seqs[thread_idx], UINT_MAX);
 
                     kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
                     dbMatchesSum += seqs[thread_idx]->stats->dbMatches;

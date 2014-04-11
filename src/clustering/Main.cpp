@@ -12,11 +12,12 @@ void printUsage(){
     usage.append("USAGE: mmseqs_clu ffindexSeqDB ffindexAlnResultsDB ffindexOutDB [opts]\n"
              "-g              \t[file]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
              "-s              \t[float]\tMinimum sequence identity  (default = 0.0)\n"
+             "-c              \t\tCheck clusters (default = off)\n"
              "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::ERROR) << usage;
 }
 
-void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::string* ffindexOutDBBase, std::string* ffindexSeqDBBase, int* clusteringMode, float* seqIdThr, int* verbosity){
+void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::string* ffindexOutDBBase, std::string* ffindexSeqDBBase, int* clusteringMode, float* seqIdThr, int* verbosity, int* validateClustering){
     if (argc < 3){
         printUsage();
         exit(EXIT_FAILURE);
@@ -30,6 +31,10 @@ void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::
         if (strcmp(argv[i], "-g") == 0){
                 *clusteringMode = Clustering::GREEDY;
                 i++;
+        }
+        if (strcmp(argv[i], "-c") == 0){
+            *validateClustering = 1;
+            i++;
         }
         else if (strcmp(argv[i], "-s") == 0){
             if (++i < argc){
@@ -74,12 +79,13 @@ int main(int argc, const char * argv[])
     std::string outDB = "";
     int clusteringMode = Clustering::SET_COVER;
     float seqIdThr = 0.0;
+    int validateClustering = 0;
 
-    parseArgs(argc, argv, &alnDB, &outDB, &seqDB, &clusteringMode, &seqIdThr, &verbosity);
+    parseArgs(argc, argv, &alnDB, &outDB, &seqDB, &clusteringMode, &seqIdThr, &verbosity, &validateClustering);
 
     Debug::setDebugLevel(verbosity);
 
-    Clustering* clu = new Clustering(seqDB, seqDB + ".index", alnDB, alnDB + ".index", outDB, outDB + ".index", seqIdThr);
+    Clustering* clu = new Clustering(seqDB, seqDB + ".index", alnDB, alnDB + ".index", outDB, outDB + ".index", seqIdThr, validateClustering);
 
     clu->run(clusteringMode);
     

@@ -175,10 +175,10 @@ void Prefiltering::run(size_t maxResListLen){
 
             // calculate prefitlering results
             std::list<hit_t>* prefResults;
-            prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx]);
+            prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx], tdbr->getId(seqs[thread_idx]->getDbKey()));
             // write
             if(writePrefilterOutput(thread_idx,idSuffix,id,maxResListLen,prefResults)!=0)
-                continue; // couldnt write result because of to much results
+                continue; // couldnt write result because of too much results
 
             // update statistics counters
             if (prefResults->size() != 0)
@@ -476,7 +476,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
             char* seqData = dbr->getData(id);
             seqs[thread_idx]->mapSequence(id, dbr->getDbKey(id), seqData);
 
-            matchers[thread_idx]->matchQuery(seqs[thread_idx]);
+            matchers[thread_idx]->matchQuery(seqs[thread_idx], UINT_MAX);
 
             kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
             dbMatchesSum += seqs[thread_idx]->stats->dbMatches;

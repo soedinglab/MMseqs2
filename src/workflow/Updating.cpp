@@ -504,7 +504,7 @@ int main (int argc, const char * argv[]){
         Clustering* clu = new Clustering(currentSeqDB, currentSeqDBIndex,
                 BB_base, BB_base + ".index",
                 BB_clu, BB_clu + ".index",
-                0.0);
+                0.0, 0);
         clu->run(Clustering::SET_COVER); 
 
         std::cout << "Append generated clusters to the complete clustering...\n";

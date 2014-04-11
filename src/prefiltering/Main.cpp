@@ -103,7 +103,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
         else if (strcmp(argv[i], "-s") == 0){
             if (++i < argc){
                 *sens = atof(argv[i]);
-                if (*sens < 1.0 || *sens > 9.0){
+                if (*sens < 1.0 || *sens > 7.0){
                     Debug(Debug::ERROR) << "Please choose sensitivity in the range [1:7].\n";
                     exit(EXIT_FAILURE);
                 }

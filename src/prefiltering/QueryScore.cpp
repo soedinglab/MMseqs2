@@ -139,7 +139,7 @@ float QueryScore::getZscore(int seqId){
     return ( (float)scores[seqId] - s_per_pos * seqLens[seqId] ) / sqrt(s_per_pos * seqLens[seqId] * s_per_match);
 }
 
-std::list<hit_t>* QueryScore::getResult (int querySeqLen){
+std::list<hit_t>* QueryScore::getResult (int querySeqLen, unsigned int identityId){
 
     const __m128i zero = _mm_setzero_si128(); 
 
@@ -160,7 +160,7 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
         if (cmp_set_bits != 0xffff){
             // and search for highest
             for(int i = 0; i < 8; i++){
-                if(!CHECK_BIT(cmp_set_bits,i*2)){
+                if(!CHECK_BIT(cmp_set_bits,i*2) && (pos * 8 + i) != identityId){
                     float zscore = getZscore(pos*8+i); 
                     hit_t hit = {pos * 8 + i, zscore, scores[pos*8+i]};
                     resList->push_back(hit);
@@ -171,7 +171,12 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
         thr++;
     }
     resList->sort(compareHits);
-    return resList;
+     if (identityId != UINT_MAX){
+        float zscore = getZscore(identityId);
+        hit_t hit = {identityId, zscore, scores[identityId]};
+        resList->push_front(hit);
+    }
+   return resList;
 }
 
 short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
