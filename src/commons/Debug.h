@@ -21,11 +21,13 @@ class Debug
             {
                 if (level <= ERROR && level <= debugLevel){
                     std::cerr << t;
+                    std::cerr << std::flush;
                     return *this;
                 }
                 else if(level > ERROR && level <= debugLevel)
                 {
                     std::cout << t;
+                    std::cout << std::flush;
                     return *this;
                 }
                 else{

@@ -56,7 +56,13 @@ Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seq
     // calculation of the coverage and e-value
     float qcov = (std::min(query->L, (int) qEndPos) - qStartPos + 1)/ (float)query->L;
     float dbcov = (std::min(dbSeq->L, (int) dbEndPos) - dbStartPos + 1)/(float)dbSeq->L;
-    double evalue = (double)(seqDbSize * query->L * dbSeq->L) * fpow2((double)-s/m->getBitFactor());
+    double evalue = ((double) (query->L * dbSeq->L)) * pow (2.71828, ((double)(-s)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
+    evalue = evalue * (double)(seqDbSize);
+
+    if (evalue < 0){
+        std::cout << "seqDbSize: " << seqDbSize << ", qL: " << query->L  << ", dbL: " << dbSeq->L << "\n";
+        std::cout << "score: " << s << ", bit factor: " << m->getBitFactor() << ", pow: " << pow (2.71828, ((double)(-s)/(double)m->getBitFactor())) << ", double: " << (double)(seqDbSize * query->L * dbSeq->L)  << "\n";
+    }
     float seqId = (float)aaIds/(float)(std::min(query->L, dbSeq->L));
 
     free(Hmatrix);
