@@ -32,7 +32,7 @@ unsigned int Indexer::int2index( const int *int_seq,const int begin,const int en
 }
 
 unsigned int Indexer::int2index( const int *int_seq){
-    int2index(int_seq,0,this->maxKmerSize);
+    int2index(int_seq, 0, this->maxKmerSize);
     return this->lastKmerIndex;
 }
 

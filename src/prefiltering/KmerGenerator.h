@@ -31,14 +31,14 @@ class KmerGenerator
     private:
     
         /*creates the product between two arrays and write it to the output array */
-        int calculateArrayProduct(const short        * scoreArray1,
-                                  const unsigned int * indexArray1,
+        int calculateArrayProduct(const short        * __restrict scoreArray1,
+                                  const unsigned int * __restrict indexArray1,
                                   const size_t array1Size,
-                                  const short        * scoreArray2,
-                                  const unsigned int * indexArray2,
+                                  const short        * __restrict scoreArray2,
+                                  const unsigned int * __restrict indexArray2,
                                   const size_t array2Size,
-                                  short              * outputScoreArray,
-                                  unsigned int       * outputIndexArray,
+                                  short              * __restrict outputScoreArray,
+                                  unsigned int       * __restrict outputIndexArray,
                                   const short cutoff1,
                                   const short possibleRest,
                                   const unsigned int pow);

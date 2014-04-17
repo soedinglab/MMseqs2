@@ -14,9 +14,14 @@ public:
     ~ExtendedSubstitutionMatrix();
     // <match score, k-mer index>
     struct ScoreMatrix {
-        short *        score;
-        unsigned int * index;
+        const short *        score;
+        const unsigned int * index;
         size_t rowSize;
+        ScoreMatrix(short * scoreMatrix,
+                    unsigned int *indexMatrix,
+                    size_t size): score(scoreMatrix),
+                                     index(indexMatrix),
+                                     rowSize(size){}
     };
     size_t size;
 

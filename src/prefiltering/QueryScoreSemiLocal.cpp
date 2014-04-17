@@ -14,23 +14,26 @@ QueryScoreSemiLocal::~QueryScoreSemiLocal(){
     delete[] lastScores;
 }
 
-void QueryScoreSemiLocal::addScores(int *seqList, int seqListSize, unsigned short score){
+void QueryScoreSemiLocal::addScores(int * __restrict seqList, int seqListSize, unsigned short score){
     const int currentMatchPos=0;
     const int f = 1;
     for (int i = 0; i < seqListSize; i++){
-        const int seqId=seqList[i];
+        const int seqId = seqList[i];
         LastScore lastScore = this->lastScores[seqId];
         short scoreDrop = f*(currentMatchPos - lastScore.lastMatchPos);
-        lastScore.lastScore          = std::max( 0,lastScore.lastScore - scoreDrop ); // saturated subtract
-        lastScore.lastScore          = sadd16_signed(lastScore.lastScore , score);
-        scores[seqId]                = std::max(scores[seqId],lastScore.lastScore);
+        lastScore.lastScore          = std::max(0, lastScore.lastScore - scoreDrop ); // saturated subtract
+        lastScore.lastScore          = sadd16(lastScore.lastScore , score);
+        scores[seqId]                = std::max(scores[seqId], lastScore.lastScore);
         lastScore.lastMatchPos       = currentMatchPos;
     }
 }
 
 void QueryScoreSemiLocal::reset() {
     memset (scores_128, 0, scores_128_size * 2);
+    memset (thresholds_128, 0, scores_128_size * 2);
     memset (this->lastScores, 0, sizeof(LastScore) * dbSize);
-    
+
     resList->clear();
+    scoresSum = 0;
+    numMatches = 0;
 }
