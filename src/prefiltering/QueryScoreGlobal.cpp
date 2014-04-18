@@ -1,6 +1,6 @@
 #include "QueryScoreGlobal.h"
 
-void QueryScoreGlobal::addScores (int* seqList, int seqListSize, unsigned short score){
+void QueryScoreGlobal::addScores (int* __restrict seqList, int seqListSize, unsigned short score){
     for (int i = 0; i < seqListSize; i++){
         scores[seqList[i]] = sadd16(scores[seqList[i]], score);
     }

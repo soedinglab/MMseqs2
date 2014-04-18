@@ -232,8 +232,13 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
         seqs[thread_idx]->mapSequence(id, qdbr->getDbKey(id), seqData);
         
         // calculate prefitlering results
-        std::list<hit_t>* prefResults;
-        prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx]);
+        std::list<hit_t>* prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx]);
+        // add id if exist in targetDb
+        if (identityId != UINT_MAX){
+         
+            prefResults->push_front(hit);
+        }
+        
         // write
         if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults)!=0)
             continue; // couldnt write result because of to much results
@@ -553,7 +558,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
             char* seqData = dbr->getData(id);
             seqs[thread_idx]->mapSequence(id, dbr->getDbKey(id), seqData);
 
-            matchers[thread_idx]->matchQuery(seqs[thread_idx]);
+            matchers[thread_idx]->matchQuery(seqs[thread_idx], UINT_MAX);
 
             kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
             dbMatchesSum += seqs[thread_idx]->stats->dbMatches;

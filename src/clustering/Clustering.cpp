@@ -3,7 +3,7 @@
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
         std::string outDB, std::string outDBIndex,
-        float seqIdThr){
+        float seqIdThr, int validateClustering){
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
@@ -18,6 +18,7 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
     dbw->open();
 
     this->seqIdThr = seqIdThr;
+    this->validate = validateClustering;
     Debug(Debug::INFO) << "done.\n";
 }
 
@@ -92,11 +93,14 @@ void Clustering::run(int mode){
         std::cerr << "ERROR: Wrong clustering mode!\n";
         exit(EXIT_FAILURE);
     }
-    Debug(Debug::INFO) << "Validating results...\n";
-    if(validate_result(&ret,set_data.uniqu_element_count))
-        Debug(Debug::INFO) << " VALID\n";
-    else
-        Debug(Debug::INFO) << " NOT VALID\n";
+
+    if (validate == 1){
+        Debug(Debug::INFO) << "Validating results...\n";
+        if(validate_result(&ret,set_data.uniqu_element_count))
+            Debug(Debug::INFO) << " VALID\n";
+        else
+            Debug(Debug::INFO) << " NOT VALID\n";
+    }
 
     int dbSize = alnDbr->getSize();
     int seqDbSize = seqDbr->getSize();

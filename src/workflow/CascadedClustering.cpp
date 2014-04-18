@@ -167,7 +167,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
     Clustering* clu = new Clustering(inDBData, inDBWorkingIndex,
             alnDB_step, alnDB_step + ".index",
             cluDB_step, cluDB_step + ".index",
-            0.0);
+            0.0, 0);
     clu->run(Clustering::SET_COVER);
     delete clu;
 
@@ -391,15 +391,15 @@ int main (int argc, const char * argv[]){
 
    std::cout << "\n\n";
    std::cout << "------------------------------- Step 1 ----------------------------------------------\n";
-   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, 2.0, evalThr, covThr, maxAlnNum, 1);
+   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, 1.5, evalThr, covThr, maxAlnNum, 1);
    cluSteps.push_back(cluDB);
 
    std::cout << "------------------------------- Step 2 ----------------------------------------------\n";
-   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 100.0, 5.0, evalThr, covThr, maxAlnNum, 2);
+   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 100.0, 2.5, evalThr, covThr, maxAlnNum, 2);
    cluSteps.push_back(cluDB);
 
    std::cout << "------------------------------- Step 3 ----------------------------------------------\n";
-   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 50.0, 7.2, evalThr, covThr, maxAlnNum, 3);
+   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 50.0, 4.0, evalThr, covThr, maxAlnNum, 3);
    cluSteps.push_back(cluDB);
 
    std::cout << "--------------------------- Merging databases ---------------------------------------\n";

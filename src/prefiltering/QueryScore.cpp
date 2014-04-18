@@ -111,7 +111,7 @@ void QueryScore::setPrefilteringThresholds(){
     unsigned short threshold_ushrt;
     unsigned int ushrt_max = USHRT_MAX;
 
-    __m128i* thr = thresholds_128;
+    __m128i* __restrict thr = thresholds_128;
     __m128i v = _mm_setzero_si128();
 
     for (int i = 0; i < nsteps - 1; i++){
@@ -142,24 +142,24 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
 
     const __m128i zero = _mm_setzero_si128(); 
 
-    __m128i* p = scores_128;
-    __m128i* thr = thresholds_128;
+    __m128i* __restrict p   = scores_128;
+    __m128i* __restrict thr = thresholds_128;
 
-    __m128i cmp;
 
     // go through each vector
-    for (int pos = 0; pos < scores_128_size/8; pos++ ){
+    const size_t lenght = scores_128_size/8;
+    for (size_t pos = 0; pos < lenght; pos++ ){
 
         // look for entries above the threshold
-        cmp = _mm_cmpgt_epi16(*p, *thr);
+        const __m128i cmp = _mm_cmpgt_epi16(*p, *thr);
         const unsigned int cmp_set_bits = _mm_movemask_epi8(cmp);
         
         // here are some sequences above the prefiltering threshold
         if (cmp_set_bits != 0xffff){
             // and search for highest
             for(int i = 0; i < 8; i++){
-                if(!CHECK_BIT(cmp_set_bits,i*2)){
-                    float zscore = getZscore(pos*8+i); 
+                if(!CHECK_BIT(cmp_set_bits,i*2) ){
+                    const float zscore = getZscore(pos*8+i);
                     hit_t hit = {pos * 8 + i, zscore, scores[pos*8+i]};
                     resList->push_back(hit);
                 }
@@ -169,7 +169,8 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
         thr++;
     }
     resList->sort(compareHits);
-    return resList;
+
+   return resList;
 }
 
 short QueryScore::sse2_extract_epi16(__m128i v, int pos) {

@@ -21,16 +21,14 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
     Indexer indexer( (int) alphabetSize, (int) kmerSize);
     this->size = pow(alphabetSize, kmerSize);
     int row_size = (int) this->size / 16;
-    row_size = (row_size+1) * 16; // for SIMD memory alignment
+    row_size = (row_size + 1) * 16; // for SIMD memory alignment
     // create permutation
     std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));
     
-    this->scoreMatrix = new ScoreMatrix();
     // score matrix is O(size^2). 64 is added for SSE
-    scoreMatrix->score = (short *)       Util::mem_align(16, (this->size * (row_size)) * sizeof(short));
+    short * score = (short *)       Util::mem_align(16, (this->size * (row_size)) * sizeof(short));
     // index matrix is O(size^2). 64 is added for SSE
-    scoreMatrix->index = (unsigned int *)Util::mem_align(16, (this->size * (row_size)) * sizeof(unsigned int));
-    scoreMatrix->rowSize = row_size;
+    unsigned int * index = (unsigned int *)Util::mem_align(16, (this->size * (row_size)) * sizeof(unsigned int));
 
 
     std::vector<std::vector<int> > permutation;
@@ -42,18 +40,19 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
         const unsigned int i_index=indexer.int2index(&permutation[i][0]);
         
         for(std::vector<int>::size_type j = 0; j != permutation.size(); j++) {
-            unsigned int j_index=indexer.int2index(&permutation[j][0]);
-            short score=calcScore(&permutation[i][0],&permutation[j][0],kmerSize,subMatrix);
+            const unsigned int j_index=indexer.int2index(&permutation[j][0]);
+            const short score=calcScore(&permutation[i][0],&permutation[j][0],kmerSize,subMatrix);
             tmpScoreMatrix[j].first  = score;
             tmpScoreMatrix[j].second = j_index;
         }
         std::sort (tmpScoreMatrix, tmpScoreMatrix + this->size, sort_by_score());
         for (size_t z = 0; z < this->size; z++) {
-            scoreMatrix->score[(i_index * scoreMatrix->rowSize) + z] = tmpScoreMatrix[z].first;
-            scoreMatrix->index[(i_index * scoreMatrix->rowSize) + z] = tmpScoreMatrix[z].second;
+            score[(i_index * row_size) + z] = tmpScoreMatrix[z].first;
+            index[(i_index * row_size) + z] = tmpScoreMatrix[z].second;
         }
-        
     }
+    this->scoreMatrix = new ScoreMatrix(score, index, row_size);
+
 }
 
 
@@ -66,7 +65,7 @@ ExtendedSubstitutionMatrix::~ExtendedSubstitutionMatrix(){
 short ExtendedSubstitutionMatrix::calcScore(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix){
     short score = 0;
     for(size_t i = 0; i < seq_size; i++){
-        score+= subMatrix[i_seq[i]][j_seq[i]];
+        score += subMatrix[i_seq[i]][j_seq[i]];
     }
     return score;
 }
