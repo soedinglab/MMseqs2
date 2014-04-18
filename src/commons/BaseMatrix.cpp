@@ -113,6 +113,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, in
         }
     }
 
+    subMatrix[size-1][size-1] = 0.0;
 }
 
 void BaseMatrix::generateSubMatrix(double ** probMatrix, short ** subMatrix, int size, double bitFactor, double scoringBias){

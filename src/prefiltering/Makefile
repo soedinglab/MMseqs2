@@ -6,7 +6,7 @@ MAIN_OBJS := $(patsubst %.cpp, %.o, $(MAIN_SOURCES))
 
 CC = g++
 #CFLAGS = -g -msse4.1  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
-CFLAGS = -Wall -Ilib -msse4.1 -m64 -ffast-math -ftree-vectorize -O3 -fstrict-aliasing -DOPENMP=1 -fopenmp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings 
+CFLAGS = -Wall -msse4.1 -m64 -ffast-math -ftree-vectorize -fstrict-aliasing -O3 -DOPENMP=1 -fopenmp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings 
 LDFLAGS =
 
 TARGETS = mmseqs_pref

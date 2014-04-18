@@ -48,7 +48,7 @@ class QueryScore {
 
         float getZscore(int seqPos);
 
-       // get the list of the sequences with the score > z-score threshold and the corresponding 
+       // get the list of the sequences with the score > z-score threshold 
         std::list<hit_t>* getResult (int querySeqLen);
 
         // reset the prefiltering score counter for the next query sequence

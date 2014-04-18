@@ -157,8 +157,8 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
         // here are some sequences above the prefiltering threshold
         if (cmp_set_bits != 0xffff){
             // and search for highest
-            for(size_t i = 0; i < 8; i++){
-                if(!CHECK_BIT(cmp_set_bits,i*2)){
+            for(int i = 0; i < 8; i++){
+                if(!CHECK_BIT(cmp_set_bits,i*2) ){
                     const float zscore = getZscore(pos*8+i);
                     hit_t hit = {pos * 8 + i, zscore, scores[pos*8+i]};
                     resList->push_back(hit);
@@ -169,7 +169,8 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
         thr++;
     }
     resList->sort(compareHits);
-    return resList;
+
+   return resList;
 }
 
 short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
