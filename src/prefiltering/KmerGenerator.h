@@ -2,9 +2,6 @@
 #define KMERGENERATOR_H 
 #include <string>
 #include <vector>
-#include <utility>
-#include <limits.h>
-
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "../commons/Util.h"
@@ -12,55 +9,29 @@
 
 
 
+typedef struct {
+    size_t count;
+    // score, k-mer index
+    short        * score;
+    unsigned int * index;
+} KmerGeneratorResult;
+
+
+
 class KmerGenerator 
 {
-
-public:
-
-    struct KmerGeneratorResult {
-        size_t count;
-        size_t pos;
-        size_t found ;
-        
-        // score, k-mer index
-        short        * score;
-        unsigned int * index;
-  
-        KmerGeneratorResult() : count(0), pos(0), found(0) {}
-        
-        // calculates next result postion in array
-        size_t getNextElement(){
-            while (pos < MAX_KMER_RESULT_SIZE * 8 && found <  count) {
-                if(score[pos] == -SHRT_MAX){
-                    pos += 8 - pos % 8;
-                }else{
-                    found++;
-                    return pos++;
-                }
-            }
-            Debug(Debug::ERROR) << "Error: getNextScorePos in KmerGenerator ran to far \n";
-            EXIT(EXIT_FAILURE);
-            return -1;
-        }
-        // resets iterator
-        void reset(){
-            pos = 0;
-            found = 0;
-        }
-    };
-    
-    KmerGenerator(size_t kmerSize,size_t alphabetSize, short threshold,
-                      ExtendedSubstitutionMatrix * three, ExtendedSubstitutionMatrix * two );
-    ~KmerGenerator();
-    /*calculates the kmer list */
-    KmerGeneratorResult generateKmerList(const int * intSeq);
+    public: 
+        KmerGenerator(size_t kmerSize,size_t alphabetSize, short threshold,
+                      ExtendedSubstitutionMatrix * three,ExtendedSubstitutionMatrix * two );
+        ~KmerGenerator();
+        /*calculates the kmer list */
+        KmerGeneratorResult generateKmerList(const int * intSeq);
 
 
     private:
     
         /*creates the product between two arrays and write it to the output array */
-        std::pair<size_t, short> calculateArrayProduct(
-                                  const short * scoreArray1,
+        int calculateArrayProduct(const short        * scoreArray1,
                                   const unsigned int * indexArray1,
                                   const size_t array1Size,
                                   const short        * scoreArray2,
@@ -74,7 +45,7 @@ public:
     
     
         /* maximum return values */
-        const static size_t MAX_KMER_RESULT_SIZE = 8192;
+        const static size_t MAX_KMER_RESULT_SIZE = 20000;
         /* min score  */
         short threshold;
         /* size of kmer  */

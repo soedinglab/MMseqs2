@@ -99,7 +99,7 @@ void QueryTemplateMatcher::match(Sequence* seq){
     while(seq->hasNextKmer(kmerSize)){
         const int* kmer = seq->nextKmer(kmerSize);
         // generate k-mer list
-        KmerGenerator::KmerGeneratorResult kmerList = kmerGenerator->generateKmerList(kmer);
+        KmerGeneratorResult kmerList = kmerGenerator->generateKmerList(kmer);
         kmerListLen += kmerList.count;
 
         // match the index table

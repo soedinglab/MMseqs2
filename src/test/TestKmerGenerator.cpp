@@ -18,6 +18,7 @@ int main (int argc, const char * argv[])
 
     const size_t kmer_size=7;
 
+
     SubstitutionMatrix subMat("../../data/blosum62.out",8.0);
     std::cout << "Subustitution matrix:\n";
 
@@ -51,17 +52,16 @@ int main (int argc, const char * argv[])
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";
 //        std::cout << "MaxScore: " << extMattwo.scoreMatrix[idx_val]->back().first<< "\n";
-        KmerGenerator::KmerGeneratorResult kmer_list = kmerGen.generateKmerList(curr_pos);
+        KmerGeneratorResult kmer_list= kmerGen.generateKmerList(curr_pos);
         std::cout << "Similar k-mer list size:" << kmer_list.count << "\n\n";
 
         std::cout << "Similar " << kmer_size << "-mer list for pos 0:\n";
         for (size_t pos = 0; pos < kmer_list.count; pos++){
-            std::cout << "Pos:" << pos << " ";
-            int posIndex = kmer_list.getNextElement();
-            std::cout << "Score:" << kmer_list.score[posIndex]  << " ";
-            std::cout << "Index:" << kmer_list.index[posIndex] << "\n";
+	    std::cout << "Pos:" << pos << " ";
+            std::cout << "Score:" << kmer_list.score[pos]  << " ";
+            std::cout << "Index:" << kmer_list.index[pos] << "\n";
 
-            idx.index2int(testKmer, kmer_list.index[posIndex], kmer_size);
+            idx.index2int(testKmer, kmer_list.index[pos], kmer_size);
             std::cout << "\t";
             for (size_t i = 0; i < kmer_size; i++)
                 std::cout << testKmer[i] << " ";

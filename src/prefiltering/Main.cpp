@@ -256,6 +256,8 @@ int main (int argc,  char * argv[])
     mpi_error = MPI_Comm_size(MPI_COMM_WORLD, &mpi_num_procs);
     Debug(Debug::WARNING) << "MPI Init...\n";
     Debug(Debug::WARNING) << "Rank: " << mpi_rank << " Size: " << mpi_num_procs << "\n";
+
+
 #endif
     mmseqs_cuticle_init();
 

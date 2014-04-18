@@ -151,7 +151,6 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen){
     for (int pos = 0; pos < scores_128_size/8; pos++ ){
 
         // look for entries above the threshold
-        // if p > thr -> hit else no hit
         cmp = _mm_cmpgt_epi16(*p, *thr);
         const unsigned int cmp_set_bits = _mm_movemask_epi8(cmp);
         
