@@ -61,7 +61,7 @@ void QueryTemplateMatcher::calcLocalAaBiasCorrection(Sequence* seq){
     }
 }
 
-std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq, unsigned int identityId){
+std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq){
     queryScore->reset();
     seq->resetCurrPos();
 
@@ -69,7 +69,7 @@ std::list<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq, unsigned int
 
     queryScore->setPrefilteringThresholds();
 
-    return queryScore->getResult(seq->L, identityId);
+    return queryScore->getResult(seq->L);
 }
 
 void QueryTemplateMatcher::match(Sequence* seq){
