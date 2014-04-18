@@ -1,6 +1,7 @@
 INSTALL_DIR=..
 LANG=C
-CFLAGS+=-std=c99 -O3 -g -fPIC -Wall -fnested-functions
+CC=gcc -fopenmp
+CFLAGS+=-std=c99 -O3 -g -fPIC -Wall 
 LDFLAGS= -L. -lffindex
 #LDFLAGS+=-Wl,-z,defs
 #-Wl,--version-script=libffindex.map

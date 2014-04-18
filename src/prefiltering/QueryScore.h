@@ -29,7 +29,15 @@ typedef struct {
     size_t seqId;
     float zScore;
     unsigned short prefScore;
+
 } hit_t;
+
+struct HitIdEqual {
+    HitIdEqual( size_t s ) : toFind(s) { }
+    bool operator() (const hit_t &n)
+    { return n.seqId == toFind; }
+    size_t toFind;
+};
 
 
 class QueryScore {

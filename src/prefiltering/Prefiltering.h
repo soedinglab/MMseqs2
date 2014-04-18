@@ -105,6 +105,8 @@ class Prefiltering {
         std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb);
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::list<hit_t>* prefResults);
+        // if query key exists in target db it will be added to the result
+        void addIdIfExistInTargetDb(int thread_idx, std::list<hit_t>* prefResults);
 
         void printStatistics();
 

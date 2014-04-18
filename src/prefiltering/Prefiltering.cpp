@@ -234,10 +234,7 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
         // calculate prefitlering results
         std::list<hit_t>* prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx]);
         // add id if exist in targetDb
-        if (identityId != UINT_MAX){
-         
-            prefResults->push_front(hit);
-        }
+        addIdIfExistInTargetDb(thread_idx, prefResults);
         
         // write
         if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults)!=0)
@@ -322,6 +319,23 @@ void Prefiltering::removeDatabaes(std::vector<std::pair<std::string, std::string
     for (int i = 0; i < filenames.size(); i++) {
         remove(filenames[i].first.c_str());
         remove(filenames[i].second.c_str());
+    }
+}
+
+void Prefiltering::addIdIfExistInTargetDb(int thread_idx, std::list<hit_t>* prefResults) {
+    const size_t identityId = tdbr->getId(seqs[thread_idx]->getDbKey());
+    if (identityId != UINT_MAX){
+        std::list<hit_t>::iterator res = std::find_if(prefResults->begin(),
+                                                      prefResults->end(),
+                                                      HitIdEqual(identityId));
+        if(res == prefResults->end()) {
+            hit_t hit = {identityId, 0, 0};
+            prefResults->push_front(hit);
+        }else{
+            hit_t identityHit = *res;
+            prefResults->erase (res);
+            prefResults->push_front(identityHit);
+        }
     }
 }
 
@@ -558,7 +572,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
             char* seqData = dbr->getData(id);
             seqs[thread_idx]->mapSequence(id, dbr->getDbKey(id), seqData);
 
-            matchers[thread_idx]->matchQuery(seqs[thread_idx], UINT_MAX);
+            matchers[thread_idx]->matchQuery(seqs[thread_idx]);
 
             kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
             dbMatchesSum += seqs[thread_idx]->stats->dbMatches;
