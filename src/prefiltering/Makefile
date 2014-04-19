@@ -41,6 +41,7 @@ depend: .depend
 	$(CC) $(CFLAGS) -o $@ $<
 
 clean:
+	rm ../commons/*.o
 	rm -f .depend *.o
 	rm -f $(TARGETS)
 
