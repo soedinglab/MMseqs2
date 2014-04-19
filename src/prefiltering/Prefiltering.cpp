@@ -316,7 +316,7 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
 }
 
 void Prefiltering::removeDatabaes(std::vector<std::pair<std::string, std::string> > filenames) {
-    for (int i = 0; i < filenames.size(); i++) {
+    for (size_t i = 0; i < filenames.size(); i++) {
         remove(filenames[i].first.c_str());
         remove(filenames[i].second.c_str());
     }
@@ -357,7 +357,7 @@ int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size
     // write prefiltering results string to ffindex database
     std::string prefResultsOutString = prefResultsOut.str();
     const char* prefResultsOutData = prefResultsOutString.c_str();
-    if (BUFFER_SIZE < strlen(prefResultsOutData)){
+    if (BUFFER_SIZE < prefResultsOutString.length()){
         Debug(Debug::ERROR) << "Tried to process the prefiltering list for the query " << qdbr->getDbKey(id) << " , the length of the list = " << prefResults->size() << "\n";
         Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
         return -1;
