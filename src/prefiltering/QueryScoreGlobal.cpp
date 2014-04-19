@@ -2,7 +2,8 @@
 
 void QueryScoreGlobal::addScores (int* __restrict seqList, int seqListSize, unsigned short score){
     for (int i = 0; i < seqListSize; i++){
-        scores[seqList[i]] = sadd16(scores[seqList[i]], score);
+        const int seqId = seqList[i];
+        scores[seqId] = sadd16(scores[seqId], score);
     }
     scoresSum += score * seqListSize;
     numMatches += seqListSize;

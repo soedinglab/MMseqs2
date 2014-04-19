@@ -131,10 +131,10 @@ class QueryScore {
         // position in the array: sequence id
         // entry in the array: prefiltering score
         __m128i* scores_128;
-        unsigned short  * scores;
+        unsigned short  * __restrict scores;
 
         __m128i* thresholds_128;
-        unsigned short  * thresholds;
+        unsigned short  * __restrict thresholds;
 
         // float because it is needed for statistical calculations
         float * seqLens;
