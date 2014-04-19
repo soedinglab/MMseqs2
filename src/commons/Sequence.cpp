@@ -156,8 +156,9 @@ void Sequence::mapProfile(const char * sequenze){
 
 void Sequence::mapProteinSequence(const char * sequence){
     size_t l = 0;
-    for (size_t pos = 0; pos < strlen(sequence); pos++){
-        char curr = sequence[pos];
+    char curr = sequence[l];
+    size_t pos = 0;
+    while (curr != '\0'){
         if (curr != '\n'){
             // replace non-common amino acids
             if (curr == 'J')
@@ -182,8 +183,11 @@ void Sequence::mapProteinSequence(const char * sequence){
                 exit(1);
             }
         }
+        pos++;
+        curr  = sequence[pos];
+
     }
-    this->L = l; 
+    this->L = l;
 }
 
 void Sequence::reverse() {
