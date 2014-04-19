@@ -21,8 +21,8 @@ KmerGenerator::~KmerGenerator(){
     delete [] this->divideStep;
     delete [] this->matrixLookup;
     for(size_t i = 0 ; i < this->divideStepCount - 1; i++){
-        delete outputScoreArray[i];
-        delete outputIndexArray[i];
+        delete [] outputScoreArray[i];
+        delete [] outputIndexArray[i];
 
     }
     delete [] outputScoreArray;
