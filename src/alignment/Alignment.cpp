@@ -86,6 +86,8 @@ Alignment::~Alignment(){
 
 void Alignment::run (int maxAlnNum){
 
+    const int MAX_REJECTED = 5;
+
     int alignmentsNum = 0;
     int passedNum = 0;
 
@@ -107,21 +109,22 @@ void Alignment::run (int maxAlnNum){
 
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list 
         std::list<Matcher::result_t>* swResults = new std::list<Matcher::result_t>();
-        int cnt = 0;
         std::stringstream lineSs (prefList);
         std::string val;
-        int covNotPassed = 0;
-        while (std::getline(lineSs, val, '\t') && cnt < maxAlnNum){
+
+        int rejected = 0;
+        int cnt = 0;
+        while (std::getline(lineSs, val, '\t') && cnt < maxAlnNum && rejected < MAX_REJECTED){
             // DB key of the db sequence
             for (unsigned int j = 0; j < val.length(); j++)
                 dbKeys[thread_idx][j] = val.at(j);
             dbKeys[thread_idx][val.length()] = '\0';
             // prefiltering score
             std::getline(lineSs, val, '\t');
-            float prefScore = atof(val.c_str());
+            //float prefScore = atof(val.c_str());
             // prefiltering e-value
             std::getline(lineSs, val, '\n');
-            float prefEval = atof(val.c_str());
+            //float prefEval = atof(val.c_str());
 
             // map the database sequence
             char* dbSeqData = tseqdbr->getDataByDBKey(dbKeys[thread_idx]);
@@ -137,13 +140,20 @@ void Alignment::run (int maxAlnNum){
             // check if the sequences could pass the coverage threshold 
             if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
                     (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ){
-                covNotPassed++;
+                rejected++;
                 continue;
             }
 
             // calculate Smith-Waterman alignment
             Matcher::result_t res = matchers[thread_idx]->getSWResult(qSeqs[thread_idx], dbSeqs[thread_idx], tseqdbr->getSize());
-            swResults->push_back(res);
+            alignmentsNum++;
+
+            if ((res.eval <= evalThr || res.seqId == 1.0) && res.qcov >= covThr && res.dbcov >= covThr){
+                swResults->push_back(res);
+                passedNum++;
+            }
+            else
+                rejected++;
 
             cnt++;
         }
@@ -154,37 +164,14 @@ void Alignment::run (int maxAlnNum){
         std::stringstream swResultsSs;
 
         // put the contents of the swResults list into ffindex DB
-        int queryPassed = 0;
-        int evalNotPassed = 0;
-        int qcovNotPassed = 0;
-        int dbcovNotPassed = 0;
         for (it = swResults->begin(); it != swResults->end(); ++it){
-            if ((it->eval <= evalThr || it->seqId == 1.0) && it->qcov >= covThr && it->dbcov >= covThr){
                 swResultsSs << it->dbKey << "\t";
                 swResultsSs << it->score << "\t";
                 swResultsSs << std::fixed << std::setprecision(3) << it->qcov << "\t";
                 swResultsSs << it->dbcov << "\t";
                 swResultsSs << it->seqId << "\t";
                 swResultsSs << std::scientific << it->eval << "\n";
-                passedNum++;
-                queryPassed++;
-            }
-            if (it->eval > evalThr)
-                evalNotPassed++;
-            if (it->qcov < covThr)
-                qcovNotPassed++;
-            if (it->dbcov < covThr)
-                dbcovNotPassed++;
-            alignmentsNum++;
-        }
-/*        if (queryPassed == 0 && (cnt + covNotPassed) == 100 ){
-            std::cout << "\n" << queryDbKey << "\n";
-            std::cout << querySeqData << "\n";
-            std::cout << (cnt + covNotPassed) << " prefiltering results\n";
-            std::cout << queryPassed << " alignments passed threshold\n";
-            std::cout << (covNotPassed+qcovNotPassed+dbcovNotPassed) << " cov not passed\n";
-            std::cout << evalNotPassed << " eval not passed\n\n";
-        }*/
+       }
         std::string swResultsString = swResultsSs.str();
         const char* swResultsStringData = swResultsString.c_str();
         if (BUFFER_SIZE <= swResultsString.length()){
