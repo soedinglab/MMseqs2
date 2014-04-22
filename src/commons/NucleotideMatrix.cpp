@@ -39,6 +39,9 @@ NucleotideMatrix::NucleotideMatrix(){
 
 }
 
+
+
+
 NucleotideMatrix::~NucleotideMatrix(){
 }
 

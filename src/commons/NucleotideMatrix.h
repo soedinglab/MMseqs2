@@ -11,6 +11,7 @@ class NucleotideMatrix : public BaseMatrix {
         virtual ~NucleotideMatrix();
 
         using BaseMatrix::getBitFactor;
+
 };
 
 #endif

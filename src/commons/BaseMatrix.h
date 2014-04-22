@@ -1,6 +1,7 @@
 #ifndef BASE_MATRIX_H
 #define BASE_MATRIX_H
-
+#include "Util.h"
+#include "Debug.h"
 #include <iostream>
 #include <cmath>
 #include <cstdio>
@@ -40,8 +41,12 @@ class BaseMatrix{
         // generate a short data type substitution matrix
         static void generateSubMatrix(double ** probMatrix, short ** subMatrix, int size, double bitFactor = 1.0, double scoringBias = 0.0);
 
-        virtual double getBackgroundProb(size_t aa_index) { return NULL; }
-    
+        virtual double getBackgroundProb(size_t aa_index) {
+                Debug(Debug::ERROR) << "getBackground is not Impl. for this type of Matrix \n";
+                EXIT(EXIT_FAILURE);
+                return 0.0;
+        };
+
         virtual float getBitFactor() {return 1.0; }
     
         static inline double _log2 (double x) { return log10(x)/0.301029996; }

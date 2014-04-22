@@ -58,7 +58,7 @@ void DBReader::open(int sort){
     // sort sequences by length and generate the corresponding id mappings
     id2local = new size_t[size];
     local2id = new size_t[size];
-    for (int i = 0; i < size; i++){
+    for (size_t i = 0; i < size; i++){
         id2local[i] = i;
         local2id[i] = i;
     }
