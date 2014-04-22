@@ -61,7 +61,7 @@ QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kme
         steps_list.pop_front();
     }
 
-    this->resList = new std::list<hit_t>();
+    this->resList = new std::vector<hit_t>();
 
     scoresSum = 0;
 
@@ -83,9 +83,7 @@ QueryScore::~QueryScore (){
 }
 
 bool QueryScore::compareHits(hit_t first, hit_t second){
-   if (first.prefScore > second.prefScore)
-       return true;
-   return false;
+    return (first.prefScore > second.prefScore) ? true : false;
 }
 
 void QueryScore::setPrefilteringThresholds(){
@@ -139,7 +137,7 @@ float QueryScore::getZscore(int seqId){
     return ( (float)scores[seqId] - s_per_pos * seqLens[seqId] ) / sqrt(s_per_pos * seqLens[seqId] * s_per_match);
 }
 
-std::list<hit_t>* QueryScore::getResult (int querySeqLen, unsigned int identityId){
+std::vector<hit_t>* QueryScore::getResult (int querySeqLen, unsigned int identityId){
 
     const __m128i zero = _mm_setzero_si128(); 
 
@@ -170,11 +168,11 @@ std::list<hit_t>* QueryScore::getResult (int querySeqLen, unsigned int identityI
         p++;
         thr++;
     }
-    resList->sort(compareHits);
+    std::sort(resList->begin(), resList->end(),compareHits);
      if (identityId != UINT_MAX){
         float zscore = getZscore(identityId);
         hit_t hit = {identityId, zscore, scores[identityId]};
-        resList->push_front(hit);
+//   resList->push_front(hit);
     }
    return resList;
 }
