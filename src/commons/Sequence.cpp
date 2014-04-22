@@ -1,6 +1,6 @@
 #include "Sequence.h"
-#include "../commons/Util.h"
 #include "../commons/Debug.h"
+#include "../commons/Util.h"
 
 #include <limits.h> // short_max
 
@@ -22,8 +22,8 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa, int seqType, BaseMa
         profile_row_size = (size_t) PROFILE_AA_SIZE / 16;
         profile_row_size = (profile_row_size+1) * 16; // for SIMD memory alignment
         this->profile_score = (short *) Util::mem_align(16, maxLen * profile_row_size * sizeof(short));
-        this->profile_index = (int *)   Util::mem_align(16, maxLen * profile_row_size * sizeof(int));
-        for(int i = 0; i < maxLen * profile_row_size; i++){
+        this->profile_index = (unsigned int *)   Util::mem_align(16, maxLen * profile_row_size * sizeof(int));
+        for(size_t i = 0; i < maxLen * profile_row_size; i++){
             profile_score[i] = -SHRT_MAX;
             profile_index[i] = -1;
         }
@@ -138,12 +138,14 @@ void Sequence::mapProfile(const char * sequenze){
 			}
 		}
         
-        int indexArray[PROFILE_AA_SIZE]=   {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19 };
+        int indexArray[PROFILE_AA_SIZE]=   { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19 };
         Util::rankedDescSort20(&profile_score[l * profile_row_size],(int *) &indexArray);
         memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
         // go to next entry start
         for(int i = 0; i < 3; i++)
             data = Util::skipLine(data);
+        
+        int_sequence[l] = 0;
 		l++;
         if(l >= this->maxLen ){
             Debug(Debug::ERROR) << "ERROR: Sequenze with id: " << this->dbKey << " is longer maxRes.\n";
@@ -151,6 +153,23 @@ void Sequence::mapProfile(const char * sequenze){
         }
 	}
     this->L = l;
+}
+
+void Sequence::initProfileMatrix(int kmerSize){
+    for (int i = 0; i < kmerSize; i++) {
+        profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
+    }
+}
+
+
+void Sequence::nextProfileKmer(int kmerSize) {
+    for (int i = 0; i < kmerSize; i++) {
+        unsigned int * index = profile_index + ((currItPos + i) * profile_row_size);
+        short * score        = profile_score + ((currItPos + i) * profile_row_size);
+        profile_matrix[i]->index = index;
+        profile_matrix[i]->score = score;
+
+    }
 }
 
 
@@ -213,8 +232,9 @@ bool Sequence::hasNextKmer(int kmerSize) {
 
 const int * Sequence::nextKmer(int kmerSize) {
     if (hasNextKmer(kmerSize)) {
+        if(seqType == HMM_PROFILE) nextProfileKmer(kmerSize);
         currItPos++;
-        return &int_sequence[currItPos];
+        return int_sequence + currItPos;
     } 
     return 0;
 }

@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include "../commons/ScoreMatrix.h" // ScoreMatrix
+
 
 class ExtendedSubstitutionMatrix
 {
@@ -12,20 +14,9 @@ public:
                                const size_t alphabetSize);
     
     ~ExtendedSubstitutionMatrix();
-    // <match score, k-mer index>
-    struct ScoreMatrix {
-        const short *        score;
-        const unsigned int * index;
-        size_t rowSize;
-        ScoreMatrix(short * scoreMatrix,
-                    unsigned int *indexMatrix,
-                    size_t size): score(scoreMatrix),
-                                     index(indexMatrix),
-                                     rowSize(size){}
-    };
+
     size_t size;
 
-    
     ScoreMatrix * scoreMatrix;
 private:
 

@@ -15,7 +15,8 @@ QueryTemplateMatcher::QueryTemplateMatcher ( BaseMatrix* m,
     this->m = m;
     this->indexTable = indexTable;
     this->kmerSize = kmerSize;
-    this->kmerGenerator = new KmerGenerator(kmerSize, m->alphabetSize, kmerThr, _3merSubMatrix, _2merSubMatrix);
+    this->kmerGenerator = new KmerGenerator(kmerSize, m->alphabetSize, kmerThr);
+    this->kmerGenerator->setDivideStrategy(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix );
     this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);
     this->aaBiasCorrection = aaBiasCorrection;
 
@@ -99,12 +100,12 @@ void QueryTemplateMatcher::match(Sequence* seq){
     while(seq->hasNextKmer(kmerSize)){
         const int* kmer = seq->nextKmer(kmerSize);
         // generate k-mer list
-        KmerGeneratorResult kmerList = kmerGenerator->generateKmerList(kmer);
-        kmerListLen += kmerList.count;
+        ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
+        kmerListLen += kmerList.elementSize;
 
         // match the index table
 //        int pos_matched = 0;
-        for (unsigned int i = 0; i < kmerList.count; i++){
+        for (unsigned int i = 0; i < kmerList.elementSize; i++){
             short kmerMatchScore = kmerList.score[i] + (short) biasCorrection;
             seqList = indexTable->getDBSeqList(kmerList.index[i], &indexTabListSize);
             numMatches += indexTabListSize;

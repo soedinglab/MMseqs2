@@ -130,10 +130,10 @@ class QueryScore {
         int scores_128_size;
         // position in the array: sequence id
         // entry in the array: prefiltering score
-        __m128i* scores_128;
+        __m128i* __restrict scores_128;
         unsigned short  * __restrict scores;
 
-        __m128i* thresholds_128;
+        __m128i* __restrict thresholds_128;
         unsigned short  * __restrict thresholds;
 
         // float because it is needed for statistical calculations

@@ -67,7 +67,7 @@ class Prefiltering {
         DBReader* qdbr;
         DBReader* tdbr;
 
-        Sequence** seqs;
+        Sequence** qseq;
         int* notEmpty;
 
         std::list<int>** reslens;
@@ -101,7 +101,7 @@ class Prefiltering {
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
-        std::pair<short,double> setKmerThreshold(DBReader* dbr, double targetKmerMatchProb, double toleratedDeviation);
+        std::pair<short,double> setKmerThreshold(DBReader* qdbr, DBReader* tdbr, double targetKmerMatchProb, double toleratedDeviation);
         std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb);
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::list<hit_t>* prefResults);

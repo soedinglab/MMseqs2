@@ -51,7 +51,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
             index[(i_index * row_size) + z] = tmpScoreMatrix[z].second;
         }
     }
-    this->scoreMatrix = new ScoreMatrix(score, index, row_size);
+    this->scoreMatrix = new ScoreMatrix(score, index, size, row_size);
 
 }
 

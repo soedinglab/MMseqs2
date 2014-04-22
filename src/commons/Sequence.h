@@ -11,10 +11,12 @@
 #include <string>
 #include <cstring>
 #include <cstdio>
+#include <vector>
 #include <iostream>
 #include <cstdlib>
 #include <cmath>
 #include "../commons/BaseMatrix.h"      // for pBack
+#include "../commons/ScoreMatrix.h"      // for ScoreMatrix
 
 
 
@@ -41,6 +43,8 @@ class Sequence
 
         // returns next k-mer
         const int* nextKmer(int kmerSize);
+    
+
 
         // resets the sequence position pointer to the start of the sequence
         void resetCurrPos() { currItPos = -1; }
@@ -53,6 +57,9 @@ class Sequence
 
         // reverse the sequence for the match statistics calculation
         void reverse();
+        // init profile Matrix
+        void initProfileMatrix(int kmerSize);
+
 
         static const int AMINO_ACIDS = 0;
         static const int NUCLEOTIDES = 1;
@@ -65,11 +72,11 @@ class Sequence
         int * int_sequence;  
 
         // Contains profile information
-        short  * profile_score;
-        int    * profile_index;
+        short           * profile_score;
+        unsigned int    * profile_index;
         size_t profile_row_size;
         static const size_t PROFILE_AA_SIZE = 20;
-    
+        ScoreMatrix ** profile_matrix;
     
         int  * aa2int; // ref to mapping from aa -> int
         char * int2aa; // ref mapping from int -> aa
@@ -89,5 +96,8 @@ class Sequence
         BaseMatrix * subMat;
         // maximum possible length of sequence
         size_t maxLen;
+        // read next kmer profile in profile_matrix
+        void nextProfileKmer(int kmerSize);
+
 };
 #endif

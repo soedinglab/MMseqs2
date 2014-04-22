@@ -42,7 +42,7 @@ int main (int argc, const char * argv[])
     s->mapSequence(0,"lala",sequence);
 
     KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,114, 
-                          &extMatthree,&extMattwo );
+                          extMatthree.scoreMatrix , extMattwo.scoreMatrix );
 
     int* testKmer = new int[kmer_size];
     while(s->hasNextKmer(kmer_size)){
@@ -52,11 +52,11 @@ int main (int argc, const char * argv[])
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";
 //        std::cout << "MaxScore: " << extMattwo.scoreMatrix[idx_val]->back().first<< "\n";
-        KmerGeneratorResult kmer_list= kmerGen.generateKmerList(curr_pos);
-        std::cout << "Similar k-mer list size:" << kmer_list.count << "\n\n";
+        ScoreMatrix kmer_list= kmerGen.generateKmerList(curr_pos);
+        std::cout << "Similar k-mer list size:" << kmer_list.elementSize << "\n\n";
 
         std::cout << "Similar " << kmer_size << "-mer list for pos 0:\n";
-        for (size_t pos = 0; pos < kmer_list.count; pos++){
+        for (size_t pos = 0; pos < kmer_list.elementSize; pos++){
 	    std::cout << "Pos:" << pos << " ";
             std::cout << "Score:" << kmer_list.score[pos]  << " ";
             std::cout << "Index:" << kmer_list.index[pos] << "\n";

@@ -3,30 +3,25 @@
 #include <string>
 #include <vector>
 #include "Indexer.h"
-#include "ExtendedSubstitutionMatrix.h"
-#include "../commons/Util.h"
+#include "../commons/ScoreMatrix.h"
 #include "../commons/Debug.h"
-
-
-
-typedef struct {
-    size_t count;
-    // score, k-mer index
-    short        * score;
-    unsigned int * index;
-} KmerGeneratorResult;
-
 
 
 class KmerGenerator 
 {
     public: 
-        KmerGenerator(size_t kmerSize,size_t alphabetSize, short threshold,
-                      ExtendedSubstitutionMatrix * three,ExtendedSubstitutionMatrix * two );
+        KmerGenerator(size_t kmerSize,size_t alphabetSize, short threshold);
         ~KmerGenerator();
         /*calculates the kmer list */
-        KmerGeneratorResult generateKmerList(const int * intSeq);
+        ScoreMatrix generateKmerList(const int * intSeq);
 
+        /* kmer splitting stragety (3,2)
+         fill up the divide step and calls init_result_list */
+        void setDivideStrategy(ScoreMatrix * three, ScoreMatrix * two );
+
+        /* kmer splitting stragety (1)
+         fill up the divide step and calls init_result_list */
+        void setDivideStrategy(ScoreMatrix ** one);
 
     private:
     
@@ -59,17 +54,13 @@ class KmerGenerator
         short * highestScorePerArray;
         short * possibleRest;
         Indexer * indexer;
-        ExtendedSubstitutionMatrix ** matrixLookup; 
-        ExtendedSubstitutionMatrix * three; 
-        ExtendedSubstitutionMatrix * two; 
+        ScoreMatrix ** matrixLookup;
         short        ** outputScoreArray;
         unsigned int ** outputIndexArray;
 
-        /* kmer splitting stragety (3,2)
-           fill up the divide step and calls init_result_list */
-        void calcDivideStrategy();
+
         /* init the output vectors for the kmer calculation*/
-        void initResultList(size_t divideSteps);
+        void initDataStructure(size_t divideSteps);
     
 };
 #endif
