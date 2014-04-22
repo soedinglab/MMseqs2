@@ -174,7 +174,7 @@ void Prefiltering::run(size_t maxResListLen){
             seqs[thread_idx]->mapSequence(id, qdbr->getDbKey(id), seqData);
 
             // calculate prefitlering results
-            std::list<hit_t>* prefResults;
+            std::vector<hit_t>* prefResults;
             prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx], tdbr->getId(seqs[thread_idx]->getDbKey()));
             // write
             if(writePrefilterOutput(thread_idx,idSuffix,id,maxResListLen,prefResults)!=0)
@@ -255,11 +255,11 @@ void Prefiltering::run(size_t maxResListLen){
 
 // write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id,
-        size_t maxResListLen, std::list<hit_t>* prefResults){
+        size_t maxResListLen, std::vector<hit_t>* prefResults){
     // write prefiltering results to a string
     std::stringstream prefResultsOut;
     size_t l = 0;
-    for (std::list<hit_t>::iterator iter = prefResults->begin(); iter != prefResults->end(); iter++){
+    for (std::vector<hit_t>::iterator iter = prefResults->begin(); iter != prefResults->end(); iter++){
         if (iter->seqId >= tdbr->getSize()){
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << iter->seqId << "\t" << iter->prefScore << "\n";
         }
