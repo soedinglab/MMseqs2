@@ -78,8 +78,12 @@ void printUsage(){
     Debug(Debug::INFO) << usage;
 }
 
-void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* scoringMatrixFile, float* sens, int* kmerSize, int* alphabetSize, float* zscoreThr, size_t* maxSeqLen, int* seqType, size_t* maxResListLen,
-    bool* compBiasCorrection, int* splitSize, int* skip, int* verbosity){
+void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase,
+               std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase,
+               std::string* scoringMatrixFile, float* sens, int* kmerSize,
+               int* alphabetSize, float* zscoreThr, size_t* maxSeqLen,
+               int* querySeqType, int * targetSeqType, size_t* maxResListLen, bool* compBiasCorrection,
+               int* splitSize, int* skip, int* verbosity){
     if (argc < 4){
         printUsage();
         EXIT(EXIT_FAILURE);
@@ -92,7 +96,7 @@ void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase, std::stri
     int i = 4;
     while (i < argc){
         if (strcmp(argv[i], "-m") == 0){
-            if (*seqType == Sequence::NUCLEOTIDES){
+            if (*querySeqType == Sequence::NUCLEOTIDES){
                 Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -174,10 +178,13 @@ void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase, std::stri
                 Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
                 EXIT(EXIT_FAILURE);
             }                                                           
-            *seqType = Sequence::NUCLEOTIDES;
-            i++;
+             *querySeqType = Sequence::NUCLEOTIDES;
+             *targetSeqType = Sequence::NUCLEOTIDES;
+             i++;
          }else if (strcmp(argv[i], "--profile") == 0){
-             *seqType = Sequence::HMM_PROFILE;
+             *querySeqType = Sequence::HMM_PROFILE;
+             *targetSeqType = Sequence::AMINO_ACIDS;
+
              i++;
          }
          else if (strcmp(argv[i], "--max-seqs") == 0){
@@ -273,7 +280,9 @@ int main (int argc,  char * argv[])
     float sensitivity = 4.0f;
     int splitSize = INT_MAX;
     int skip = 0;
-    int seqType = Sequence::AMINO_ACIDS;
+    int querySeqType  = Sequence::AMINO_ACIDS;
+    int targetSeqType = Sequence::AMINO_ACIDS;
+
     bool compBiasCorrection = true;
     float zscoreThr = 50.0f;
 
@@ -290,12 +299,12 @@ int main (int argc,  char * argv[])
 
     parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile,
                           &sensitivity, &kmerSize, &alphabetSize, &zscoreThr,
-                          &maxSeqLen, &seqType, &maxResListLen, &compBiasCorrection,
+                          &maxSeqLen, &querySeqType, &targetSeqType, &maxResListLen, &compBiasCorrection,
                           &splitSize, &skip, &verbosity);
 
     Debug::setDebugLevel(verbosity);
 
-    if (seqType == Sequence::NUCLEOTIDES)
+    if (querySeqType == Sequence::NUCLEOTIDES)
         alphabetSize = 5;
 
     Debug(Debug::WARNING) << "k-mer size: " << kmerSize << "\n";
@@ -316,7 +325,8 @@ int main (int argc,  char * argv[])
     Prefiltering* pref = new Prefiltering(queryDB, queryDBIndex, targetDB, targetDBIndex,
                                           outDB, outDBIndex, scoringMatrixFile, sensitivity,
                                           kmerSize, maxResListLen, alphabetSize, zscoreThr,
-                                          maxSeqLen, seqType, compBiasCorrection, splitSize, skip);
+                                          maxSeqLen, querySeqType, targetSeqType, compBiasCorrection,
+                                          splitSize, skip);
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;

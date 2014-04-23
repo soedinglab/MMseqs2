@@ -1,8 +1,6 @@
 #include "QueryTemplateMatcher.h"
 #include "QueryScoreGlobal.h"
 QueryTemplateMatcher::QueryTemplateMatcher ( BaseMatrix* m,
-        ExtendedSubstitutionMatrix* _2merSubMatrix,
-        ExtendedSubstitutionMatrix* _3merSubMatrix,
         IndexTable * indexTable,
         unsigned short * seqLens,
         short kmerThr,
@@ -15,13 +13,21 @@ QueryTemplateMatcher::QueryTemplateMatcher ( BaseMatrix* m,
     this->m = m;
     this->indexTable = indexTable;
     this->kmerSize = kmerSize;
+
     this->kmerGenerator = new KmerGenerator(kmerSize, m->alphabetSize, kmerThr);
-    this->kmerGenerator->setDivideStrategy(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix );
     this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);
     this->aaBiasCorrection = aaBiasCorrection;
 
     this->deltaS = new float[maxSeqLen];
     memset(this->deltaS, 0, maxSeqLen * sizeof(float));
+}
+
+void QueryTemplateMatcher::setAminoAcideMatrix(ScoreMatrix * three, ScoreMatrix * two) {
+    this->kmerGenerator->setDivideStrategy(three, two );
+}
+
+void QueryTemplateMatcher::setProfileMatrix(ScoreMatrix **matrix){
+    this->kmerGenerator->setDivideStrategy(matrix );
 }
 
 QueryTemplateMatcher::~QueryTemplateMatcher (){

@@ -18,8 +18,6 @@
 class QueryTemplateMatcher {
     public:
         QueryTemplateMatcher (BaseMatrix* m,
-                ExtendedSubstitutionMatrix* _2merSubMatrix,
-                ExtendedSubstitutionMatrix* _3merSubMatrix,
                 IndexTable * indexTable,
                 unsigned short * seqLens,
                 short kmerThr,
@@ -36,9 +34,15 @@ class QueryTemplateMatcher {
         std::pair<hit_t *, size_t>  matchQuery (Sequence * seq, unsigned int identityId);
         // calculate local amino acid bias correction score for each position in the sequence
         void calcLocalAaBiasCorrection(Sequence* seq);
+        // set substituion matrix for KmerGenerator
+        void setProfileMatrix(ScoreMatrix ** matrix);
+        // set aminoacido substituion
+        void setAminoAcideMatrix(ScoreMatrix * three, ScoreMatrix * two);
+    
     private:
         // match sequence against the IndexTable
         void match(Sequence* seq);
+    
         // scoring matrix for local amino acid bias correction
         BaseMatrix * m;
         /* generates kmer lists */

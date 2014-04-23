@@ -42,7 +42,8 @@ class Prefiltering {
                 int alphabetSize, 
                 float zscoreThr, 
                 size_t maxSeqLen, 
-                int seqType, 
+                int querySeqType,
+                int targetSeqType,
                 bool aaBiasCorrection,
                 int splitSize,
                 int skip);
@@ -75,7 +76,6 @@ class Prefiltering {
         ExtendedSubstitutionMatrix* _2merSubMatrix;
         ExtendedSubstitutionMatrix* _3merSubMatrix;
         char** outBuffers;
-        QueryTemplateMatcher** matchers;
         IndexTable* indexTable;
 
         std::string outDB;
@@ -85,7 +85,8 @@ class Prefiltering {
         int alphabetSize;
         float zscoreThr;
         size_t maxSeqLen;
-        int seqType;
+        int querySeqType;
+        int targetSeqType;
         bool aaBiasCorrection;
         short kmerThr;
         double kmerMatchProb;
@@ -105,7 +106,15 @@ class Prefiltering {
         std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb);
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults);
-
+        // init QueryTemplateMatcher
+        QueryTemplateMatcher ** createQueryTemplateMatcher ( BaseMatrix* m, IndexTable * indexTable,
+                                   unsigned short * seqLens,
+                                   short kmerThr, double kmerMatchProb,
+                                   int kmerSize, int dbSize,
+                                   bool aaBiasCorrection, int maxSeqLen,
+                                   float zscoreThr);
+    
+    
         void printStatistics();
 
 };
