@@ -174,7 +174,11 @@ std::pair<hit_t *, size_t> QueryScore::getResult (int querySeqLen, unsigned int 
                     result->zScore = zscore;
                     result->prefScore = scores[pos*8+i];
                     elemetCounter++;
-                    if(elemetCounter >= MAX_RES_LIST) goto OuterLoop;
+                    if(elemetCounter >= MAX_RES_LIST) {
+                        Debug(Debug::WARNING) << "Fatal error in QueryScore: more than max result lenght (" << MAX_RES_LIST << ") +  pass getResult (pos = " << result->seqId << ")\n";
+
+                        goto OuterLoop;
+                    }
                 }
             }
         }
