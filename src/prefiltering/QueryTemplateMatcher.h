@@ -33,7 +33,7 @@ class QueryTemplateMatcher {
         ~QueryTemplateMatcher();
         // returns result for the sequence
         // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
-        std::vector<hit_t>*  matchQuery (Sequence * seq, unsigned int identityId);
+        std::pair<hit_t *, size_t>  matchQuery (Sequence * seq, unsigned int identityId);
         // calculate local amino acid bias correction score for each position in the sequence
         void calcLocalAaBiasCorrection(Sequence* seq);
     private:

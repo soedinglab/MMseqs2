@@ -174,19 +174,19 @@ void Prefiltering::run(size_t maxResListLen){
             seqs[thread_idx]->mapSequence(id, qdbr->getDbKey(id), seqData);
 
             // calculate prefitlering results
-            std::vector<hit_t>* prefResults;
-            prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx], tdbr->getId(seqs[thread_idx]->getDbKey()));
+            std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx], tdbr->getId(seqs[thread_idx]->getDbKey()));
+            const size_t resultSize = prefResults.second;
             // write
             if(writePrefilterOutput(thread_idx,idSuffix,id,maxResListLen,prefResults)!=0)
                 continue; // couldnt write result because of too much results
 
             // update statistics counters
-            if (prefResults->size() != 0)
+            if (resultSize != 0)
                 notEmpty[id] = 1;
             kmersPerPos += (size_t) seqs[thread_idx]->stats->kmersPerPos;
             dbMatches += seqs[thread_idx]->stats->dbMatches;
-            resSize += prefResults->size();
-            reslens[thread_idx]->push_back(prefResults->size());
+            resSize += resultSize;
+            reslens[thread_idx]->push_back(resultSize);
         } // step end
         if (queryDBSize > 1000)
             Debug(Debug::INFO) << "\n";
@@ -255,15 +255,19 @@ void Prefiltering::run(size_t maxResListLen){
 
 // write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id,
-        size_t maxResListLen, std::vector<hit_t>* prefResults){
+        size_t maxResListLen, std::pair<hit_t *, size_t> prefResults){
     // write prefiltering results to a string
     std::stringstream prefResultsOut;
     size_t l = 0;
-    for (std::vector<hit_t>::iterator iter = prefResults->begin(); iter != prefResults->end(); iter++){
-        if (iter->seqId >= tdbr->getSize()){
-            Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << iter->seqId << "\t" << iter->prefScore << "\n";
+    hit_t * resultVector = prefResults.first;
+    const size_t resultSize = prefResults.second;
+    for (size_t i = 0; i < resultSize; i++){
+        hit_t * res = resultVector + i;
+
+        if (res->seqId >= tdbr->getSize()) {
+            Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << res->seqId << "\t" << res->prefScore << "\n";
         }
-        prefResultsOut << tdbr->getDbKey(iter->seqId) << "\t" << iter->zScore << "\t" << iter->prefScore << "\n";
+        prefResultsOut << tdbr->getDbKey(res->seqId) << "\t" << res->zScore << "\t" << res->prefScore << "\n";
         l++;
         // maximum allowed result list length is reached
         if (l == maxResListLen)
@@ -273,7 +277,7 @@ int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, si
     std::string prefResultsOutString = prefResultsOut.str();
     const char* prefResultsOutData = prefResultsOutString.c_str();
     if (BUFFER_SIZE < strlen(prefResultsOutData)){
-        Debug(Debug::ERROR) << "Tried to process the prefiltering list for the query " << qdbr->getDbKey(id) << " , the length of the list = " << prefResults->size() << "\n";
+        Debug(Debug::ERROR) << "Tried to process the prefiltering list for the query " << qdbr->getDbKey(id) << " , the length of the list = " << resultSize << "\n";
         Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
         return -1;
     }

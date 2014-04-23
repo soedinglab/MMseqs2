@@ -30,7 +30,5 @@ void QueryScoreSemiLocal::addScores(int *seqList, int seqListSize, unsigned shor
 
 void QueryScoreSemiLocal::reset() {
     memset (scores_128, 0, scores_128_size * 2);
-    memset (this->lastScores, 0, sizeof(LastScore) * dbSize);
-    
-    resList->clear();
+    memset (this->lastScores, 0, sizeof(LastScore) * dbSize);    
 }

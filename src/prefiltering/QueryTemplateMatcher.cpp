@@ -61,7 +61,7 @@ void QueryTemplateMatcher::calcLocalAaBiasCorrection(Sequence* seq){
     }
 }
 
-std::vector<hit_t>* QueryTemplateMatcher::matchQuery (Sequence * seq, unsigned int identityId){
+std::pair<hit_t *, size_t> QueryTemplateMatcher::matchQuery (Sequence * seq, unsigned int identityId){
     queryScore->reset();
     seq->resetCurrPos();
 

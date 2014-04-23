@@ -50,7 +50,7 @@ class QueryScore {
         float getZscore(int seqPos);
 
        // get the list of the sequences with the score > z-score threshold 
-        std::vector<hit_t>* getResult (int querySeqLen, unsigned int identityId);
+        std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId);
 
         // reset the prefiltering score counter for the next query sequence
         virtual void reset () = 0;
@@ -146,8 +146,9 @@ class QueryScore {
         int dbSize;
 
         // list of all DB sequences with the prefiltering score > z-score threshold with the corresponding scores
-        std::vector<hit_t>* resList;
-
+        hit_t * resList;
+        // maximal resultList
+        static const size_t MAX_RES_LIST = 150000;
 };
 
 #endif
