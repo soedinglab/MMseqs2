@@ -36,8 +36,8 @@ class QueryTemplateMatcher {
         void calcLocalAaBiasCorrection(Sequence* seq);
         // set substituion matrix for KmerGenerator
         void setProfileMatrix(ScoreMatrix ** matrix);
-        // set aminoacido substituion
-        void setAminoAcideMatrix(ScoreMatrix * three, ScoreMatrix * two);
+        // set substitution matrix
+        void setSubstitutionMatrix(ScoreMatrix * three, ScoreMatrix * two);
     
     private:
         // match sequence against the IndexTable

@@ -22,7 +22,7 @@ QueryTemplateMatcher::QueryTemplateMatcher ( BaseMatrix* m,
     memset(this->deltaS, 0, maxSeqLen * sizeof(float));
 }
 
-void QueryTemplateMatcher::setAminoAcideMatrix(ScoreMatrix * three, ScoreMatrix * two) {
+void QueryTemplateMatcher::setSubstitutionMatrix(ScoreMatrix * three, ScoreMatrix * two) {
     this->kmerGenerator->setDivideStrategy(three, two );
 }
 

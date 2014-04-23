@@ -57,15 +57,23 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
 
     // init the substitution matrices
-    if (querySeqType == Sequence::NUCLEOTIDES)
-        subMat = new NucleotideMatrix();
-    else
-        subMat = getSubstitutionMatrix(scoringMatrixFile, 8.0);
-
-
-    _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
-    _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
-
+    switch (querySeqType) {
+        case Sequence::NUCLEOTIDES:
+            subMat = new NucleotideMatrix();
+            _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
+            _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
+            break;
+        case Sequence::AMINO_ACIDS:
+            subMat = getSubstitutionMatrix(scoringMatrixFile, 8.0);
+            _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
+            _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
+            break;
+        case Sequence::HMM_PROFILE:
+            _2merSubMatrix = NULL;
+            _3merSubMatrix = NULL;
+            break;
+    }
+    
     // init all thread-specific data structures 
     this->qseq = new Sequence*[threads];
     this->reslens = new std::list<int>*[threads];
@@ -205,7 +213,7 @@ QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
         if(querySeqType == Sequence::HMM_PROFILE){
             matchers[thread_idx]->setProfileMatrix(qseq[thread_idx]->profile_matrix);
         }else {
-            matchers[thread_idx]->setAminoAcideMatrix(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix );
+            matchers[thread_idx]->setSubstitutionMatrix(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix );
         }
     }
     return matchers;
