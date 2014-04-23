@@ -16,9 +16,9 @@ void printUsage(){
             "-m\t[file]\tAmino acid substitution matrix file.\n"
             "-e\t[float]\tMaximum e-value (default=0.01).\n"
             "-c\t[float]\tMinimum alignment coverage (default=0.8).\n"
-            "-s\t[int]\tMaximum sequence length (default=50000).\n"
-            "-r\t[int]\tMaximum alignment results per query sequence (default=100).\n"
-            "-n\t\tNucleotide sequences input.\n"
+            "--max-seq-len\t[int]\tMaximum sequence length (default=50000).\n"
+            "--max-seqs\t[int]\tMaximum alignment results per query sequence (default=100).\n"
+            "--nucleotides\t\tNucleotide sequences input.\n"
             "-v\t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
 }
@@ -72,7 +72,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "-s") == 0){
+        else if (strcmp(argv[i], "--max-seq-len") == 0){
             if (++i < argc){
                 *maxSeqLen = atoi(argv[i]);
                 i++;
@@ -83,7 +83,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "-r") == 0){
+        else if (strcmp(argv[i], "--max-seqs") == 0){
             if (++i < argc){
                 *maxAlnNum = atoi(argv[i]);
                 i++;
@@ -94,7 +94,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "-n") == 0){
+        else if (strcmp(argv[i], "--nucleotides") == 0){
             if (strcmp(matrixFile->c_str(), "") != 0){
                 Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
                 exit(EXIT_FAILURE);
