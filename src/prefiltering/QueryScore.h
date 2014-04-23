@@ -12,6 +12,7 @@
 #include <mmintrin.h>
 
 #include <stdlib.h>
+#include <vector>
 #include <list>
 #include <iostream>
 #include <fstream>
@@ -57,7 +58,8 @@ class QueryScore {
         float getZscore(int seqPos);
 
        // get the list of the sequences with the score > z-score threshold 
-        std::list<hit_t>* getResult (int querySeqLen);
+
+        std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId);
 
         // reset the prefiltering score counter for the next query sequence
         virtual void reset () = 0;
@@ -153,8 +155,9 @@ class QueryScore {
         int dbSize;
 
         // list of all DB sequences with the prefiltering score > z-score threshold with the corresponding scores
-        std::list<hit_t>* resList;
-
+        hit_t * resList;
+        // maximal resultList
+        static const size_t MAX_RES_LIST = 150000;
 };
 
 #endif

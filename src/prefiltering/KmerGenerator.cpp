@@ -21,8 +21,8 @@ KmerGenerator::~KmerGenerator(){
     delete [] this->divideStep;
     delete [] this->matrixLookup;
     for(size_t i = 0 ; i < this->divideStepCount - 1; i++){
-        delete [] outputScoreArray[i];
-        delete [] outputIndexArray[i];
+        delete outputScoreArray[i];
+        delete outputIndexArray[i];
 
     }
     delete [] outputScoreArray;
@@ -102,8 +102,8 @@ void KmerGenerator::initDataStructure(size_t divide_steps){
     outputIndexArray = new unsigned int *[divide_steps];
 
     for(size_t i = 0 ; i < divide_steps - 1; i++){
-        outputScoreArray[i] = (short *)        Util::mem_align(16,MAX_KMER_RESULT_SIZE*sizeof(short));
-        outputIndexArray[i] = (unsigned int *) Util::mem_align(16,MAX_KMER_RESULT_SIZE*sizeof(unsigned int));
+        outputScoreArray[i] = (short *)        Util::mem_align(16,MAX_KMER_RESULT_SIZE * sizeof(short));
+        outputIndexArray[i] = (unsigned int *) Util::mem_align(16,MAX_KMER_RESULT_SIZE * sizeof(unsigned int));
     }
 }
 
@@ -133,7 +133,7 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
     
     // create kmer list
     short cutoff1 = this->threshold - this->possibleRest[0];
-    size_t index  = this->kmerIndex[0];
+    const size_t index  = this->kmerIndex[0];
     const ScoreMatrix * inputScoreMatrix = this->matrixLookup[0];
     size_t sizeInputMatrix = inputScoreMatrix->elementSize;
     const short        * inputScoreArray = &inputScoreMatrix->score[index*inputScoreMatrix->rowSize];
@@ -199,6 +199,8 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
         const size_t SIMD_SIZE = 8;
         const size_t array2SizeSIMD = (array2Size/SIMD_SIZE)+1;
         for(size_t j = 0; j < array2SizeSIMD; j++){
+            if(counter + SIMD_SIZE >= MAX_KMER_RESULT_SIZE )
+                return counter;
             const __m128i score_j_simd   = _mm_load_si128(scoreArray2_simd + j);
             const __m128i kmer_j_1_simd  = _mm_load_si128(indexArray2_simd + (j*2));
             const __m128i kmer_j_2_simd  = _mm_load_si128(indexArray2_simd + (j*2+1));
@@ -224,8 +226,6 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
                 }
                 break;
             }
-            if(counter >= MAX_KMER_RESULT_SIZE)
-                return counter;
         }
     }
     return counter;

@@ -70,7 +70,7 @@ void printUsage(){
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucleotides   \t\tNucleotide sequences input.\n"
             "--profile       \t\tHMM Profile input.\n"
-            "--max-res-num   \t[int]\tMaximum result sequences per query (default=100)\n"
+            "--max-seqs   \t[int]\tMaximum result sequences per query (default=100)\n"
             "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
             "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
@@ -180,7 +180,7 @@ void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase, std::stri
              *seqType = Sequence::HMM_PROFILE;
              i++;
          }
-       else if (strcmp(argv[i], "--max-res-num") == 0){
+         else if (strcmp(argv[i], "--max-seqs") == 0){
             if (++i < argc){
                 *maxResListLen = atoi(argv[i]);
                 i++;

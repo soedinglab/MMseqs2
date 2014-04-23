@@ -12,7 +12,6 @@ void QueryScoreGlobal::addScores (int* __restrict seqList, int seqListSize, unsi
 void QueryScoreGlobal::reset() {
     memset (scores_128, 0, scores_128_size * 2);
     memset (thresholds_128, 0, scores_128_size * 2);
-    resList->clear();
     scoresSum = 0;
     numMatches = 0;
 }

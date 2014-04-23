@@ -33,7 +33,6 @@ void QueryScoreSemiLocal::reset() {
     memset (thresholds_128, 0, scores_128_size * 2);
     memset (this->lastScores, 0, sizeof(LastScore) * dbSize);
 
-    resList->clear();
     scoresSum = 0;
     numMatches = 0;
 }

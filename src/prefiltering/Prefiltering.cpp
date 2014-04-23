@@ -216,6 +216,7 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
                                                         aaBiasCorrection, maxSeqLen, zscoreThr);
     }
 
+
     int kmersPerPos = 0;
     int dbMatches = 0;
     int resSize = 0;
@@ -232,21 +233,19 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
         qseq[thread_idx]->mapSequence(id, qdbr->getDbKey(id), seqData);
         
         // calculate prefitlering results
-        std::list<hit_t>* prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx]);
-        // add id if exist in targetDb
-        addIdIfExistInTargetDb(thread_idx, prefResults);
-        
+        std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx], tdbr->getId(qseq[thread_idx]->getDbKey()));
+        const size_t resultSize = prefResults.second;
         // write
-        if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults)!=0)
-            continue; // couldnt write result because of to much results
+        if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults) != 0)
+            continue; // couldnt write result because of too much results
         
         // update statistics counters
-        if (prefResults->size() != 0)
+        if (resultSize != 0)
             notEmpty[id] = 1;
         kmersPerPos += (size_t) qseq[thread_idx]->stats->kmersPerPos;
         dbMatches += qseq[thread_idx]->stats->dbMatches;
-        resSize += prefResults->size();
-        reslens[thread_idx]->push_back(prefResults->size());
+        resSize += resultSize;
+        reslens[thread_idx]->push_back(resultSize);
     } // step end
 
     this->kmersPerPos = kmersPerPos;
@@ -322,48 +321,43 @@ void Prefiltering::removeDatabaes(std::vector<std::pair<std::string, std::string
     }
 }
 
-void Prefiltering::addIdIfExistInTargetDb(int thread_idx, std::list<hit_t>* prefResults) {
-    const size_t identityId = tdbr->getId(qseq[thread_idx]->getDbKey());
-    if (identityId != UINT_MAX){
-        std::list<hit_t>::iterator res = std::find_if(prefResults->begin(),
-                                                      prefResults->end(),
-                                                      HitIdEqual(identityId));
-        if(res == prefResults->end()) {
-            hit_t hit = {identityId, 0, 0};
-            prefResults->push_front(hit);
-        }else{
-            hit_t identityHit = *res;
-            prefResults->erase (res);
-            prefResults->push_front(identityHit);
-        }
-    }
-}
 
 // write prefiltering to ffindex database
-int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::list<hit_t>* prefResults){
+int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults){
     // write prefiltering results to a string
-    std::stringstream prefResultsOut;
     size_t l = 0;
-    for (std::list<hit_t>::iterator iter = prefResults->begin(); iter != prefResults->end(); iter++){
-        if (iter->seqId >= tdbr->getSize()){
-            Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << iter->seqId << "\t" << iter->prefScore << "\n";
+    hit_t * resultVector = prefResults.first;
+    const size_t resultSize = prefResults.second;
+    std::string prefResultsOutString;
+    prefResultsOutString.reserve(BUFFER_SIZE);
+    std::string stringBuffer;
+    char buffer [100];
+    prefResultsOutString.reserve(100);
+
+    for (size_t i = 0; i < resultSize; i++){
+        hit_t * res = resultVector + i;
+
+        if (res->seqId >= tdbr->getSize()) {
+            Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << res->seqId << "\t" << res->prefScore << "\n";
         }
-        prefResultsOut << tdbr->getDbKey(iter->seqId) << "\t" << iter->zScore << "\t" << iter->prefScore << "\n";
+        snprintf(buffer,100,"%s\t%.4f\t%d\n",tdbr->getDbKey(res->seqId), res->zScore, res->prefScore);
+        stringBuffer = buffer;
+        prefResultsOutString.append( stringBuffer );
         l++;
         // maximum allowed result list length is reached
         if (l == this->maxResListLen)
             break;
     }
     // write prefiltering results string to ffindex database
-    std::string prefResultsOutString = prefResultsOut.str();
     const char* prefResultsOutData = prefResultsOutString.c_str();
-    if (BUFFER_SIZE < prefResultsOutString.length()){
-        Debug(Debug::ERROR) << "Tried to process the prefiltering list for the query " << qdbr->getDbKey(id) << " , the length of the list = " << prefResults->size() << "\n";
-        Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
+    const size_t prefResultsLength = prefResultsOutString.length();
+    if (BUFFER_SIZE < prefResultsLength){
+        Debug(Debug::ERROR) << "Tried to process the prefiltering list for the query " << qdbr->getDbKey(id) << " , the length of the list = " << resultSize << "\n";
+        Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsLength << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
         return -1;
     }
-    memcpy(outBuffers[thread_idx], prefResultsOutData, prefResultsOutString.length()*sizeof(char));
-    dbWriter->write(outBuffers[thread_idx], prefResultsOutString.length(), qdbr->getDbKey(id), thread_idx);
+    memcpy(outBuffers[thread_idx], prefResultsOutData, prefResultsLength * sizeof(char));
+    dbWriter->write(outBuffers[thread_idx], prefResultsLength, qdbr->getDbKey(id), thread_idx);
     return 0;
 
 }
@@ -576,7 +570,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* qdbr, DBReader
             char* seqData = qdbr->getData(id);
             qseq[thread_idx]->mapSequence(id, qdbr->getDbKey(id), seqData);
 
-            matchers[thread_idx]->matchQuery(qseq[thread_idx]);
+            matchers[thread_idx]->matchQuery(qseq[thread_idx],UINT_MAX);
 
             kmersPerPos += qseq[thread_idx]->stats->kmersPerPos;
             dbMatchesSum += qseq[thread_idx]->stats->dbMatches;

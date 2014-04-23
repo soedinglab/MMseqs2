@@ -40,7 +40,7 @@ class KmerGenerator
     
     
         /* maximum return values */
-        const static size_t MAX_KMER_RESULT_SIZE = 4096;
+        const static size_t MAX_KMER_RESULT_SIZE = 8192;
         /* min score  */
         short threshold;
         /* size of kmer  */
@@ -54,7 +54,7 @@ class KmerGenerator
         short * highestScorePerArray;
         short * possibleRest;
         Indexer * indexer;
-        ScoreMatrix ** matrixLookup;
+        ScoreMatrix  ** matrixLookup;
         short        ** outputScoreArray;
         unsigned int ** outputIndexArray;
 
