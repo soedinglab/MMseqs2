@@ -21,6 +21,10 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa, int seqType, BaseMa
         }
         profile_row_size = (size_t) PROFILE_AA_SIZE / 16;
         profile_row_size = (profile_row_size+1) * 16; // for SIMD memory alignment
+        profile_matrix = new ScoreMatrix*[20]; // init 20 matrix pointer (its more than enough for all kmer parameter)
+        for (size_t i = 0; i < 20; i++) {
+            profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
+        }
         this->profile_score = (short *) Util::mem_align(16, maxLen * profile_row_size * sizeof(short));
         this->profile_index = (unsigned int *)   Util::mem_align(16, maxLen * profile_row_size * sizeof(int));
         for(size_t i = 0; i < maxLen * profile_row_size; i++){
@@ -129,7 +133,7 @@ void Sequence::mapProfile(const char * sequenze){
                 float score = BaseMatrix::_log2(1.0f / subMat->getBackgroundProb(aa_num)) * subMat->getBitFactor();
                 profile_score[pos_in_profile] = (short) floor (score + 0.5);
             } else {
-				int entry = atoi(words[aa_num+2]);
+				int entry = Util::fast_atoi(words[aa_num+2]);
 				const double p = pow(2.0f, -(entry/1000.0f)); // back scaling from hhm
                 const double backProb = subMat->getBackgroundProb(aa_num);
                 const double bitFactor = subMat->getBitFactor();
@@ -155,11 +159,6 @@ void Sequence::mapProfile(const char * sequenze){
     this->L = l;
 }
 
-void Sequence::initProfileMatrix(int kmerSize){
-    for (int i = 0; i < kmerSize; i++) {
-        profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
-    }
-}
 
 
 void Sequence::nextProfileKmer(int kmerSize) {
@@ -171,6 +170,7 @@ void Sequence::nextProfileKmer(int kmerSize) {
 
     }
 }
+
 
 
 void Sequence::mapProteinSequence(const char * sequence){
@@ -232,8 +232,8 @@ bool Sequence::hasNextKmer(int kmerSize) {
 
 const int * Sequence::nextKmer(int kmerSize) {
     if (hasNextKmer(kmerSize)) {
-        if(seqType == HMM_PROFILE) nextProfileKmer(kmerSize);
         currItPos++;
+        if(seqType == HMM_PROFILE) nextProfileKmer(kmerSize);
         return int_sequence + currItPos;
     } 
     return 0;

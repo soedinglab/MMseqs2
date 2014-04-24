@@ -1,5 +1,4 @@
 #include "Util.h"
-#include <iostream>
 
 
 
@@ -28,33 +27,7 @@ void Util::decompose_domain(int domain_size, int world_rank,
     }
 }
 
-char * Util::skipLine(char * data){
-    while( *data !='\n' ) { data++; }
-    return (data+1);
-}
 
-char * Util::skipWhitespace(char * data){
-    while( isspace(*data) ) { data++; }
-    return data;
-}
-
-char * Util::skipNoneWhitespace(char * data){
-    while( !isspace(*data) ) { data++; }
-    return data;
-}
-
-
-size_t Util::getWordsOfLine(char * data, char ** words, size_t maxElement ){
-    size_t elementCounter = 0;
-    while(*data !=  '\0' && *data !=  '\n' ){
-        data = skipWhitespace(data);
-        words[elementCounter++] = data;
-        if(elementCounter >= maxElement)
-            break;
-        data = skipNoneWhitespace(data);
-    }
-    return elementCounter;
-}
 
 // http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=20&algorithm=bosenelson&output=svg
 // // sorting networks

@@ -75,8 +75,6 @@ class Prefiltering {
         BaseMatrix* subMat;
         ExtendedSubstitutionMatrix* _2merSubMatrix;
         ExtendedSubstitutionMatrix* _3merSubMatrix;
-        char** outBuffers;
-        IndexTable* indexTable;
 
         std::string outDB;
         std::string outDBIndex;

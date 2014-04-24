@@ -5,8 +5,8 @@ MAIN_SOURCES += $(shell find . -name "*.cpp")
 MAIN_OBJS := $(patsubst %.cpp, %.o, $(MAIN_SOURCES))
 
 CC = g++
-CFLAGS = -ggdb -msse4.1  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
-#CFLAGS = -Wall -msse4.1 -m64 -ffast-math -ftree-vectorize -fstrict-aliasing -O3 -DOPENMP=1 -fopenmp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings 
+#CFLAGS = -ggdb -msse4.1  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings
+CFLAGS = -Wall -msse4.1 -m64 -ffast-math -ftree-vectorize -fstrict-aliasing -O3 -DOPENMP=1 -fopenmp  -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings 
 LDFLAGS =
 
 TARGETS = mmseqs_pref

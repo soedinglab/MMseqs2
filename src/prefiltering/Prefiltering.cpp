@@ -69,6 +69,7 @@ Prefiltering::Prefiltering(std::string queryDB,
             _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
             break;
         case Sequence::HMM_PROFILE:
+            subMat = getSubstitutionMatrix(scoringMatrixFile, 8.0); // needed for Background distrubutions 
             _2merSubMatrix = NULL;
             _3merSubMatrix = NULL;
             break;
@@ -89,11 +90,6 @@ Prefiltering::Prefiltering(std::string queryDB,
         reslens[thread_idx] = new std::list<int>();
     }
 
-    outBuffers = new char*[threads];
-#pragma omp parallel for schedule(static)
-    for (int i = 0; i < threads; i++)
-        outBuffers[i] = new char[BUFFER_SIZE];
-
     // set the k-mer similarity threshold
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
     std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, sensitivity, 0.1);
@@ -107,15 +103,12 @@ Prefiltering::Prefiltering(std::string queryDB,
 Prefiltering::~Prefiltering(){
     for (int i = 0; i < threads; i++){
         delete qseq[i];
-        delete[] outBuffers[i];
         delete reslens[i];
     }
     delete[] qseq;
-    delete[] outBuffers;
     delete[] reslens;
     delete notEmpty;
 
-    delete indexTable;
     delete subMat;
     delete _2merSubMatrix;
     delete _3merSubMatrix;
@@ -207,7 +200,7 @@ QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        matchers[thread_idx] = new QueryTemplateMatcher(m,indexTable, seqLens, kmerThr,
+        matchers[thread_idx] = new QueryTemplateMatcher(m, indexTable, seqLens, kmerThr,
                                                         kmerMatchProb, kmerSize, dbSize,
                                                         aaBiasCorrection, maxSeqLen, zscoreThr);
         if(querySeqType == Sequence::HMM_PROFILE){
@@ -232,7 +225,7 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
     memset(notEmpty, 0, queryDBSize*sizeof(int)); // init notEmpty
     
     Sequence* tseq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, subMat);
-    this->indexTable = getIndexTable(tdbr, tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
+    IndexTable * indexTable = getIndexTable(tdbr, tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
     delete tseq;
 
     struct timeval start, end;
@@ -314,22 +307,21 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
         filesToMerge[file]->open(DBReader::NOSORT);
     }
     for (size_t id = 0; id < qdbr->getSize(); id++){
-        std::stringstream mergeResultsOut;
+        std::string mergeResultsOutString;
+        mergeResultsOutString.reserve(BUFFER_SIZE);
         // get all data for the id from all files
         for(size_t file = 0; file < file_count; file++){
-            mergeResultsOut << filesToMerge[file]->getData(id);
+            mergeResultsOutString.append(filesToMerge[file]->getData(id));
         }
         // create merged string
-        std::string mergeResultsOutString = mergeResultsOut.str();
-        if (BUFFER_SIZE < mergeResultsOutString.length()){
+        if (mergeResultsOutString.length() >= BUFFER_SIZE ){
             Debug(Debug::ERROR) << "ERROR: Buffer overflow at id: " << qdbr->getDbKey(id) << " during the merging.\n";
             Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << mergeResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
             continue; // read next id
         }
         // write result
-        const char* mergeResultsOutData = mergeResultsOutString.c_str();
-        memcpy(outBuffers[0], mergeResultsOutData, mergeResultsOutString.length() * sizeof(char));
-        dbw.write(outBuffers[0], mergeResultsOutString.length(), qdbr->getDbKey(id), 0);
+        char* mergeResultsOutData = (char *) mergeResultsOutString.c_str();
+        dbw.write(mergeResultsOutData, mergeResultsOutString.length(), qdbr->getDbKey(id), 0);
     }
     // close all reader
     for(size_t file = 0; file < file_count; file++){
@@ -356,9 +348,7 @@ int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size
     const size_t resultSize = prefResults.second;
     std::string prefResultsOutString;
     prefResultsOutString.reserve(BUFFER_SIZE);
-    std::string stringBuffer;
     char buffer [100];
-    prefResultsOutString.reserve(100);
 
     for (size_t i = 0; i < resultSize; i++){
         hit_t * res = resultVector + i;
@@ -366,24 +356,22 @@ int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size
         if (res->seqId >= tdbr->getSize()) {
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << res->seqId << "\t" << res->prefScore << "\n";
         }
-        snprintf(buffer,100,"%s\t%.4f\t%d\n",tdbr->getDbKey(res->seqId), res->zScore, res->prefScore);
-        stringBuffer = buffer;
-        prefResultsOutString.append( stringBuffer );
+        const int len = snprintf(buffer,100,"%s\t%.4f\t%d\n",tdbr->getDbKey(res->seqId), res->zScore, res->prefScore);
+        prefResultsOutString.append( buffer, len );
         l++;
         // maximum allowed result list length is reached
         if (l == this->maxResListLen)
             break;
     }
     // write prefiltering results string to ffindex database
-    const char* prefResultsOutData = prefResultsOutString.c_str();
     const size_t prefResultsLength = prefResultsOutString.length();
     if (BUFFER_SIZE < prefResultsLength){
         Debug(Debug::ERROR) << "Tried to process the prefiltering list for the query " << qdbr->getDbKey(id) << " , the length of the list = " << resultSize << "\n";
         Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsLength << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
         return -1;
     }
-    memcpy(outBuffers[thread_idx], prefResultsOutData, prefResultsLength * sizeof(char));
-    dbWriter->write(outBuffers[thread_idx], prefResultsLength, qdbr->getDbKey(id), thread_idx);
+    char* prefResultsOutData = (char *) prefResultsOutString.c_str();
+    dbWriter->write(prefResultsOutData, prefResultsLength, qdbr->getDbKey(id), thread_idx);
     return 0;
 
 }

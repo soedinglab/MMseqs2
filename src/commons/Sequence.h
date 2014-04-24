@@ -54,12 +54,12 @@ class Sequence
         int getId() { return id; }
 
         char* getDbKey() { return dbKey; }
+    
+        int getSeqType() { return seqType; }
+
 
         // reverse the sequence for the match statistics calculation
         void reverse();
-        // init profile Matrix
-        void initProfileMatrix(int kmerSize);
-
 
         static const int AMINO_ACIDS = 0;
         static const int NUCLEOTIDES = 1;
