@@ -5,6 +5,9 @@
 //  Copyright (c) 2012 -. All rights reserved.
 //
 #include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "Sequence.h"
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
@@ -31,19 +34,30 @@ int main (int argc, const char * argv[])
     std::cout << "\n";
 
     const int  testSeq[]={1,2,3,1,1,1};
-    ExtendedSubstitutionMatrix extMattwo(subMat.subMatrix, 2,subMat.alphabetSize);
-    ExtendedSubstitutionMatrix extMatthree(subMat.subMatrix, 3,subMat.alphabetSize);
 
     Indexer idx(subMat.alphabetSize,kmer_size);
     std::cout << "Sequence (id 0):\n";
-    const char* sequence = argv[1];
-    std::cout << sequence << "\n\n";
-    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa, 0);
+    char buffer [50000];
+
+    FILE *f = fopen(argv[1], "rb");
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    
+    char *string = (char *) malloc(fsize + 1);
+    fread(string, fsize, 1, f);
+    fclose(f);
+    
+    string[fsize] = 0;
+    
+    const char* sequence = (const char *) string;
+
+    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, &subMat);
     s->mapSequence(0,"lala",sequence);
 
-    KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,60);
+    KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,90);
 
-    kmerGen.setDivideStrategy(extMatthree.scoreMatrix, extMattwo.scoreMatrix );
+    kmerGen.setDivideStrategy(s->profile_matrix);
     int* testKmer = new int[kmer_size];
     while(s->hasNextKmer(kmer_size)){
         const int * curr_pos = s->nextKmer(kmer_size);

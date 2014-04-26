@@ -50,6 +50,29 @@ class BaseMatrix{
         virtual float getBitFactor() {return 1.0; }
     
         static inline double _log2 (double x) { return log10(x)/0.301029996; }
+    
+    static inline float
+    fastlog2 (float x)
+    {
+        union { float f; uint32_t i; } vx = { x };
+        union { uint32_t i; float f; } mx = { (vx.i & 0x007FFFFF) | 0x3f000000 };
+        float y = vx.i;
+        y *= 1.1920928955078125e-7f;
+        
+        return y - 124.22551499f
+        - 1.498030302f * mx.f
+        - 1.72587999f / (0.3520887068f + mx.f);
+    }
+    
+        static inline double fastPow(double a, double b) {
+            union {
+                double d;
+                int x[2];
+            } u = { a };
+            u.x[1] = (int)(b * (u.x[1] - 1072632447) + 1072632447);
+            u.x[0] = 0;
+            return u.d;
+        }
 
     private:
 

@@ -4,27 +4,29 @@ BaseMatrix::BaseMatrix(){
     this->alphabetSize = 21;
     // init [amino acid <-> int] mappings
     int2aa = new char[alphabetSize];
+    // A C D E F G	H I	K L M N P Q R S T V W Y
     int2aa[0] = 'A';
-    int2aa[1] = 'R';
-    int2aa[2] = 'N';
-    int2aa[3] = 'D';
-    int2aa[4] = 'C';
-    int2aa[5] = 'Q';
-    int2aa[6] = 'E';
-    int2aa[7] = 'G';
-    int2aa[8] = 'H';
-    int2aa[9] = 'I';
-    int2aa[10] = 'L';
-    int2aa[11] = 'K';
-    int2aa[12] = 'M';
-    int2aa[13] = 'F';
-    int2aa[14] = 'P';
+    int2aa[1] = 'C';
+    int2aa[2] = 'D';
+    int2aa[3] = 'E';
+    int2aa[4] = 'F';
+    int2aa[5] = 'G';
+    int2aa[6] = 'H';
+    int2aa[7] = 'I';
+    int2aa[8] = 'K';
+    int2aa[9] = 'L';
+    int2aa[10] = 'M';
+    int2aa[11] = 'N';
+    int2aa[12] = 'P';
+    int2aa[13] = 'Q';
+    int2aa[14] = 'R';
     int2aa[15] = 'S';
     int2aa[16] = 'T';
-    int2aa[17] = 'W';
-    int2aa[18] = 'Y';
-    int2aa[19] = 'V';
+    int2aa[17] = 'V';
+    int2aa[18] = 'W';
+    int2aa[19] = 'Y';
     int2aa[20] = 'X';
+    
 
     aa2int = new int['Z'+1];
     for (int i = 0; i <= 'Z'; ++i) aa2int[i]=-1;

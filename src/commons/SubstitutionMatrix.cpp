@@ -1,4 +1,6 @@
 #include "SubstitutionMatrix.h"
+#include "Util.h"
+
 
 SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_, float bitFactor):
     scoringMatrixFileName(scoringMatrixFileName_)
@@ -31,6 +33,7 @@ void SubstitutionMatrix::readProbMatrix(){
     int column = 0;
     std::string line;
     bool capture = false;
+    char aa_lookup[20];
     while( in.good() ){
         getline( in, line );
         if( line.length()>11 && line.substr(0, 11)!="Frequencies" && !capture )
@@ -39,22 +42,37 @@ void SubstitutionMatrix::readProbMatrix(){
             capture=true;
             continue;
         }
-        if( row==alphabetSize ) break;
+        // all are read amino acids 
+        if( row == 20 ) break;
         std::stringstream stream(line);
         std::string h;
         stream >> h;
         if( h=="" ) continue;
+
         if (!isalpha(h.at(0))){
             column = 0;
             stream.clear();
             stream.str(line);
             float f;
+            size_t row_aa_index = aa2int[aa_lookup[row]];
             while( stream >> f ){
-                probMatrix[row][column] = f;
-                probMatrix[column][row] = f;
+                size_t column_aa_index = aa2int[aa_lookup[column]];
+                probMatrix[row_aa_index][column_aa_index] = f;
+                probMatrix[column_aa_index][row_aa_index] = f;
                 ++column;
             }
             ++row;
+        }else{
+            char * words[20];
+            char * data = (char *)line.c_str();
+            if(Util::getWordsOfLine(data, words, 20) != 20){
+                std::cerr << "Not enough AminoAcids in Substituon matrix, please check format.\n";
+                EXIT(-1);
+            }else{
+                for(size_t i = 0; i < 20; i++){
+                    aa_lookup[i] = *words[i];
+                }
+            }
         }
     }
     in.close();

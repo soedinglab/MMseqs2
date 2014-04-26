@@ -161,7 +161,7 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
         }
         inputScoreArray = this->outputScoreArray[i];
         inputIndexArray = this->outputIndexArray[i];
-        cutoff1 = this->threshold - this->outputScoreArray[i][lastElm]; //because old data can be under it
+        cutoff1 = -1000; //all must be inspected
         sizeInputMatrix = lastElm;
     }
 
@@ -197,11 +197,12 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
         const __m128i score_i_simd = _mm_set1_epi16(score_i);
         const __m128i kmer_i_simd  = _mm_set1_epi32(kmer_i);
         const size_t SIMD_SIZE = 8;
-        const size_t array2SizeSIMD = (array2Size/SIMD_SIZE)+1;
+        const size_t array2SizeSIMD = (array2Size / SIMD_SIZE)+1;
         for(size_t j = 0; j < array2SizeSIMD; j++){
             if(counter + SIMD_SIZE >= MAX_KMER_RESULT_SIZE )
                 return counter;
             const __m128i score_j_simd   = _mm_load_si128(scoreArray2_simd + j);
+            
             const __m128i kmer_j_1_simd  = _mm_load_si128(indexArray2_simd + (j*2));
             const __m128i kmer_j_2_simd  = _mm_load_si128(indexArray2_simd + (j*2+1));
             // score_j < cutoff2 -> fffff, score_j > cutoff2 -> 0000

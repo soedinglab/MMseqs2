@@ -32,17 +32,16 @@ void Util::decompose_domain(int domain_size, int world_rank,
 // http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=20&algorithm=bosenelson&output=svg
 // // sorting networks
 void Util::rankedDescSort20(short * val, int * index){
-#define min(x, y) (x < y ? x : y)
-#define max(x, y) (x < y ? y : x)
-#define min2(x,y,a,b) (x < y ? a : b )
-#define max2(x,y,a,b) (x < y ? b : a )
-#define SWAP(x,y) { \
-const int a = max(val[x], val[y]); \
-const int b = min(val[x], val[y]); \
-const int c = max2(val[x], val[y],index[x],index[y]);\
-const int d = min2(val[x], val[y],index[x],index[y]);\
-val[x] = a; index[x] = c; \
-val[y] = b; index[y] = d; }
+#define SWAP(x,y){\
+    if( val[x] < val[y] ){   \
+        int tmp = val[x];    \
+        val[x] = val[y];     \
+        val[y] = tmp;        \
+        tmp = index[x];      \
+        index[x] = index[y]; \
+        index[y] = tmp;      \
+    } \
+}
     SWAP(0,1);SWAP(3,4);SWAP(5,6);SWAP(8,9);SWAP(10,11);SWAP(13,14);SWAP(15,16);SWAP(18,19);
     SWAP(2,4);SWAP(7,9);SWAP(12,14);SWAP(17,19);
     SWAP(2,3);SWAP(1,4);SWAP(7,8);SWAP(6,9);SWAP(12,13);SWAP(11,14);SWAP(17,18);SWAP(16,19);

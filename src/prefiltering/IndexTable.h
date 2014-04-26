@@ -43,7 +43,7 @@ class IndexTable {
         int ipow (int base, int exponent);
 
         // Index table: contains pointers to the point in the entries array where starts the list of sequence ids for a certain k-mer
-        int** table;
+        int** __restrict table;
 
         // Index table entries: ids of sequences containing a certain k-mer, stored sequentially in the memory
         int* entries;

@@ -111,9 +111,9 @@ void Sequence::mapProfile(const char * sequenze){
     size_t l = 0;
     char * data = (char *) sequenze;
     // find beging of profile information
-    do {
+    while( data[0] != '#') {
         data = Util::skipLine(data);
-	} while( data[0] != '#');
+	}
     // go to readin position
     for(int i = 0; i < 5; i++)
         data = Util::skipLine(data);
@@ -134,14 +134,22 @@ void Sequence::mapProfile(const char * sequenze){
                 profile_score[pos_in_profile] = (short) floor (score + 0.5);
             } else {
 				int entry = Util::fast_atoi(words[aa_num+2]);
-				const double p = pow(2.0f, -(entry/1000.0f)); // back scaling from hhm
-                const double backProb = subMat->getBackgroundProb(aa_num);
-                const double bitFactor = subMat->getBitFactor();
-                double score = BaseMatrix::_log2( p / backProb) * bitFactor;
+				const float p = powFast2( -(entry/1000.0f)); // back scaling from hhm
+                const float backProb = subMat->getBackgroundProb(aa_num);
+                const float bitFactor = subMat->getBitFactor();
+                
+                double score = BaseMatrix::fastlog2( p / backProb) * bitFactor;
+                
+            
+
 				profile_score[pos_in_profile] = (short) floor (score + 0.5);
+//                std::cout << aa_num << " " << subMat->int2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
 			}
 		}
         
+        
+        
+
         int indexArray[PROFILE_AA_SIZE]=   { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19 };
         Util::rankedDescSort20(&profile_score[l * profile_row_size],(int *) &indexArray);
         memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
