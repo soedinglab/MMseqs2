@@ -2,6 +2,8 @@
 #define UTIL_H
 #include <math.h>
 #include <stdlib.h>
+
+
 #ifdef HAVE_MPI
 #include <mpi.h>
 #endif
@@ -102,10 +104,6 @@ public:
         }
         return val;
     }
-    
-
-    
- 
     
     static inline char * skipLine(char * data){
         while( *data !='\n' ) { data++; }

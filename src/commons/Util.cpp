@@ -69,3 +69,4 @@ void Util::rankedDescSort20(short * val, int * index){
 #undef min2
 #undef max2
 }
+

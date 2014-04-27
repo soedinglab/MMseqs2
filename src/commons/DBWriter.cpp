@@ -1,4 +1,5 @@
 #include "DBWriter.h"
+#include "Debug.h"
 
 DBWriter::DBWriter (const char* dataFileName_, const char* indexFileName_, int maxThreadNum_)
 {
@@ -25,6 +26,49 @@ DBWriter::~DBWriter(){
     delete[] indexFileNames;
     delete[] offsets;
 }
+
+
+
+void DBWriter::mergeFiles(DBReader * qdbr,
+                          std::vector<std::pair<std::string, std::string> > files,
+                          size_t maxLineLength)
+{
+    Debug(Debug::INFO) << "Merging the results... to " << dataFileName << " .. ";
+    const size_t file_count = files.size();
+
+    // open DBReader
+    DBReader * filesToMerge [file_count];
+    for(size_t file = 0; file < file_count; file++){
+        filesToMerge[file] = new DBReader(files[file].first.c_str(),
+                                          files[file].second.c_str());
+        filesToMerge[file]->open(DBReader::NOSORT);
+    }
+    for (size_t id = 0; id < qdbr->getSize(); id++){
+        std::string mergeResultsOutString;
+        mergeResultsOutString.reserve(maxLineLength);
+        // get all data for the id from all files
+        for(size_t file = 0; file < file_count; file++){
+            mergeResultsOutString.append(filesToMerge[file]->getData(id));
+        }
+        // create merged string
+        if (mergeResultsOutString.length() >= maxLineLength ){
+            Debug(Debug::ERROR) << "ERROR: Buffer overflow at id: " << qdbr->getDbKey(id) << " during the merging.\n";
+            Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << maxLineLength << " < " << mergeResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
+            continue; // read next id
+        }
+        // write result
+        char* mergeResultsOutData = (char *) mergeResultsOutString.c_str();
+        this->write(mergeResultsOutData, mergeResultsOutString.length(), qdbr->getDbKey(id), 0);
+    }
+    // close all reader
+    for(size_t file = 0; file < file_count; file++){
+        filesToMerge[file]->close();
+        delete filesToMerge[file];
+    }
+    Debug(Debug::INFO) << "Done";
+}
+
+
 
 
 void DBWriter::open(){
@@ -80,9 +124,9 @@ int DBWriter::close(){
         fclose(data_file_to_add);
         fclose(index_file_to_add);
         if (remove(dataFileNames[i]) != 0)
-            std::cerr << "Error while removing file " << dataFileNames[i] << "\n";
+            Debug(Debug::ERROR) << "Error while removing file " << dataFileNames[i] << "\n";
         if (remove(indexFileNames[i]) != 0)
-            std::cerr << "Error while removing file " << indexFileNames[i] << "\n";
+            Debug(Debug::ERROR) << "Error while removing file " << indexFileNames[i] << "\n";
 
     }
     fclose(data_file);
@@ -99,7 +143,7 @@ int DBWriter::close(){
         index_file_cnt.close();
     }
     else{
-        std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
+        Debug(Debug::ERROR) <<  "Could not open ffindex index file " << indexFileName << "\n";
         exit(EXIT_FAILURE);
     }
 
@@ -126,7 +170,7 @@ int DBWriter::close(){
 void DBWriter::write(char* data, int dataSize, char* key, int thrIdx){
     checkClosed();
     if (thrIdx >= maxThreadNum){
-        std::cerr << "ERROR: Thread index " << thrIdx << " > maximum thread number " << maxThreadNum << "\n";
+        Debug(Debug::ERROR) <<  "ERROR: Thread index " << thrIdx << " > maximum thread number " << maxThreadNum << "\n";
         exit(1);
     }
     ffindex_insert_memory(dataFiles[thrIdx], indexFiles[thrIdx], &offsets[thrIdx], data, dataSize, key);
@@ -150,7 +194,7 @@ void DBWriter::initFFIndexWrite(const char* dataFileName, const char* indexFileN
 
 void DBWriter::checkClosed(){
     if (closed == 1){
-        std::cerr << "Trying to write to a closed database.\n";
+        Debug(Debug::ERROR) <<  "Trying to write to a closed database.\n";
         exit(EXIT_FAILURE);
     }
 }

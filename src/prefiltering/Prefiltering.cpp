@@ -142,6 +142,13 @@ void Prefiltering::run(){
     this->closeReader();
 }
 
+void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> > filenames){
+    DBWriter writer(outDB.c_str(), outDBIndex.c_str());
+    writer.open();
+    writer.mergeFiles(qdbr, filenames, BUFFER_SIZE);
+    writer.close();
+}
+
 std::pair<std::string, std::string> Prefiltering::createTmpFileNames(std::string db, std::string dbindex, int numb){
     std::string splitSuffix = "_tmp_" + SSTR(numb);
     std::string dataFile  = db + splitSuffix;
@@ -292,45 +299,6 @@ void Prefiltering::closeReader(){
     qdbr->close();
     if (strcmp(qdbr->getIndexFileName(), tdbr->getIndexFileName()) != 0)
         tdbr->close();
-}
-
-void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> > filenames){
-    Debug(Debug::INFO) << "Merging the results...\n\n";
-    const size_t file_count = filenames.size();
-
-    DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), 1);
-    dbw.open();
-    // open DBReader
-    DBReader * filesToMerge [file_count];
-    for(size_t file = 0; file < file_count; file++){
-        filesToMerge[file] = new DBReader(filenames[file].first.c_str(),
-                                          filenames[file].second.c_str());
-        filesToMerge[file]->open(DBReader::NOSORT);
-    }
-    for (size_t id = 0; id < qdbr->getSize(); id++){
-        std::string mergeResultsOutString;
-        mergeResultsOutString.reserve(BUFFER_SIZE);
-        // get all data for the id from all files
-        for(size_t file = 0; file < file_count; file++){
-            mergeResultsOutString.append(filesToMerge[file]->getData(id));
-        }
-        // create merged string
-        if (mergeResultsOutString.length() >= BUFFER_SIZE ){
-            Debug(Debug::ERROR) << "ERROR: Buffer overflow at id: " << qdbr->getDbKey(id) << " during the merging.\n";
-            Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << mergeResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
-            continue; // read next id
-        }
-        // write result
-        char* mergeResultsOutData = (char *) mergeResultsOutString.c_str();
-        dbw.write(mergeResultsOutData, mergeResultsOutString.length(), qdbr->getDbKey(id), 0);
-    }
-    // close all reader
-    for(size_t file = 0; file < file_count; file++){
-        filesToMerge[file]->close();
-        delete filesToMerge[file];
-    }
-    // sort result list
-    dbw.close();
 }
 
 void Prefiltering::removeDatabaes(std::vector<std::pair<std::string, std::string> > filenames) {
