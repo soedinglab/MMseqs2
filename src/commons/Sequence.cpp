@@ -130,7 +130,7 @@ void Sequence::mapProfile(const char * sequenze){
             }
 			// 0 entry: 1.0 probability
 			else if (words[aa_num+2][0] == '0'){// integer number entry: 0.0 < probability < 1.0
-                float score = BaseMatrix::_log2(1.0f / subMat->getBackgroundProb(aa_num)) * subMat->getBitFactor();
+                float score = BaseMatrix::fastlog2(1.0f / subMat->getBackgroundProb(aa_num)) * subMat->getBitFactor();
                 profile_score[pos_in_profile] = (short) floor (score + 0.5);
             } else {
 				int entry = Util::fast_atoi(words[aa_num+2]);
@@ -140,8 +140,6 @@ void Sequence::mapProfile(const char * sequenze){
                 
                 double score = BaseMatrix::fastlog2( p / backProb) * bitFactor;
                 
-            
-
 				profile_score[pos_in_profile] = (short) floor (score + 0.5);
 //                std::cout << aa_num << " " << subMat->int2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
 			}
