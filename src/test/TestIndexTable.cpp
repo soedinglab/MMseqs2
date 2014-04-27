@@ -136,10 +136,9 @@ int main (int argc, const char * argv[])
     // get the result from the QueryScore
     std::cout << "Prefiltering results for the sequence with id 1:\n";
     std::cout << "seqID\tscore\n";
-    std::list<hit_t>* res = qs->getResult(12);
-    std::list<hit_t>::iterator iter;
-    for (iter = res->begin(); iter != res->end(); iter++){
-        std::cout << iter->seqId << "\t" << iter->prefScore << "\n";
+    std::pair<hit_t *,size_t> res = qs->getResult(12,100000000);
+    for (int i = 0; i < res.second; i++ ){
+        std::cout << res.first[i].seqId << "\t" << res.first[i].prefScore << "\n";
     }
 
     return 0;
