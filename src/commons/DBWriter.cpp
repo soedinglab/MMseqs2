@@ -72,7 +72,22 @@ int DBWriter::close(){
         size_t data_size;
         char *data_to_add = ffindex_mmap_data(data_file_to_add, &data_size);
         if (data_size > 0){
-            ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, 0);
+            // count the number of entries
+            char line[1000];
+            int cnt = 0;
+            std::ifstream index_file_cnt(indexFileNames[i]);
+            if (index_file_cnt.is_open()) {
+                while ( index_file_cnt.getline (line, 1000) ){
+                    cnt++;
+                }
+                index_file_cnt.close();
+            }
+            else{
+                std::cerr << "Could not open ffindex index file " << indexFileNames[i] << "\n";
+                exit(EXIT_FAILURE);
+            }
+            // merge data and indexes
+            ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, cnt);
             ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);
             free(index_to_add);
         }

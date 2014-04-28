@@ -33,6 +33,7 @@ depend: .depend
 
 clean:
 	rm -f .depend *.o
+	rm ../commons/*.o
 
 .PHONY: clean depend
 

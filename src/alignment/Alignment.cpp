@@ -84,9 +84,7 @@ Alignment::~Alignment(){
     delete dbw;
 }
 
-void Alignment::run (int maxAlnNum){
-
-    const int MAX_REJECTED = 5;
+void Alignment::run (int maxAlnNum, int maxRejected){
 
     int alignmentsNum = 0;
     int passedNum = 0;
@@ -114,7 +112,7 @@ void Alignment::run (int maxAlnNum){
 
         int rejected = 0;
         int cnt = 0;
-        while (std::getline(lineSs, val, '\t') && cnt < maxAlnNum && rejected < MAX_REJECTED){
+        while (std::getline(lineSs, val, '\t') && cnt < maxAlnNum && rejected < maxRejected){
             // DB key of the db sequence
             for (unsigned int j = 0; j < val.length(); j++)
                 dbKeys[thread_idx][j] = val.at(j);

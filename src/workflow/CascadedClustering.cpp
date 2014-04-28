@@ -153,7 +153,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
             alnDB_step, alnDB_step + ".index", 
             scoringMatrixFile, evalThr, covThr, maxSeqLen, seqType);
     std::cout << "Starting alignments calculation.\n";
-    aln->run(maxResListLen);
+    aln->run(maxResListLen, 10);
     delete aln;
 
     gettimeofday(&end, NULL);
