@@ -137,9 +137,9 @@ KmerGeneratorResult KmerGenerator::generateKmerList(const int * int_seq){
         }
             
         inputArray=(const std::pair<short,unsigned int> *) this->outputArray[i];
-        cutoff1 = this->threshold - this->outputArray[i][lastElm].first; //because old data can be under it
+        cutoff1 = -1000; // we need all that came through 
         retList.count = lastElm + 1;
-        sizeInputMatrix = retList.count;
+        sizeInputMatrix = retList.count; // because old data can be under it
     }
     retList.scoreKmerList=outputArray[i-1];
     return retList;
