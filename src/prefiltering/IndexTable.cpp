@@ -28,6 +28,10 @@ IndexTable::~IndexTable(){
     delete idxer;
 }
 
+int* IndexTable::getSizes(){
+    return sizes;
+}
+
 void IndexTable::addKmerCount (Sequence* s){
     unsigned int kmerIdx;
     s->resetCurrPos();
@@ -55,6 +59,10 @@ void IndexTable::init(){
             it += sizes[i];
         }
     }
+}
+
+int * IndexTable::getEntries(){
+    return entries;
 }
 
 void IndexTable::addSequence (Sequence* s){

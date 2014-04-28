@@ -70,8 +70,6 @@ class DBReader {
 
         size_t* local2id;
 
-        std::map<const char*, size_t, StrCompare>* dbKey2id;
-
         char* dataFileName;
 
         char* indexFileName;

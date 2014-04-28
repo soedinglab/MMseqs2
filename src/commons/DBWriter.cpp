@@ -1,7 +1,12 @@
 #include "DBWriter.h"
 #include "Debug.h"
+#include "Util.h"
+#include <sys/mman.h>
 
-DBWriter::DBWriter (const char* dataFileName_, const char* indexFileName_, int maxThreadNum_)
+DBWriter::DBWriter (const char* dataFileName_,
+                    const char* indexFileName_,
+                    int maxThreadNum_,
+                    size_t mode /* default ASCII */)
 {
     this->dataFileName = new char [strlen(dataFileName_) + 1];
     memcpy(dataFileName, dataFileName_, sizeof(char) * (strlen(dataFileName_) + 1));
@@ -16,15 +21,30 @@ DBWriter::DBWriter (const char* dataFileName_, const char* indexFileName_, int m
     offsets = new size_t[maxThreadNum];
     for (int i = 0; i < maxThreadNum; i++)
         offsets[i] = 0;
+    if(mode == ASCII_MODE)
+        datafileMode = "w";
+    else if(mode == BINARY_MODE)
+        datafileMode = "wb";
+    else {
+        Debug(Debug::ERROR) <<  "No right mode for DBWriter " << indexFileName << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    
     closed = 1;
 }
 
 DBWriter::~DBWriter(){
     delete[] dataFiles;
     delete[] indexFiles;
+    for (int i = 0; i < maxThreadNum; i++){
+        delete dataFileNames[i];
+        delete indexFileNames[i];
+    }
     delete[] dataFileNames;
     delete[] indexFileNames;
     delete[] offsets;
+    delete dataFileName;
+    delete indexFileName;
 }
 
 
@@ -111,16 +131,18 @@ int DBWriter::close(){
         fclose(dataFiles[i]);
         fclose(indexFiles[i]);
 
-        FILE* data_file_to_add  = fopen(dataFileNames[i], "r");  if(  data_file_to_add == NULL) { perror(dataFileNames[i]); return EXIT_FAILURE; }
-        FILE* index_file_to_add = fopen(indexFileNames[i], "r"); if( index_file_to_add == NULL) { perror(indexFileNames[i]); return EXIT_FAILURE; }
+        FILE* data_file_to_add  = fopen(dataFileNames[i], "r");
+        if( data_file_to_add == NULL) { perror(dataFileNames[i]); return EXIT_FAILURE; }
+        FILE* index_file_to_add = fopen(indexFileNames[i], "r");
+        if( index_file_to_add == NULL) { perror(indexFileNames[i]); return EXIT_FAILURE; }
         size_t data_size;
         char *data_to_add = ffindex_mmap_data(data_file_to_add, &data_size);
         if (data_size > 0){
             ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, 0);
             ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);
             free(index_to_add);
+            munmap(data_to_add,data_size);
         }
-
         fclose(data_file_to_add);
         fclose(index_file_to_add);
         if (remove(dataFileNames[i]) != 0)
@@ -144,7 +166,7 @@ int DBWriter::close(){
     }
     else{
         Debug(Debug::ERROR) <<  "Could not open ffindex index file " << indexFileName << "\n";
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 
     index_file = fopen(indexFileName, "r+");
@@ -167,7 +189,7 @@ int DBWriter::close(){
     return EXIT_SUCCESS;
 }
 
-void DBWriter::write(char* data, int dataSize, char* key, int thrIdx){
+void DBWriter::write(char* data, int64_t dataSize, char* key, int thrIdx){
     checkClosed();
     if (thrIdx >= maxThreadNum){
         Debug(Debug::ERROR) <<  "ERROR: Thread index " << thrIdx << " > maximum thread number " << maxThreadNum << "\n";
@@ -178,23 +200,25 @@ void DBWriter::write(char* data, int dataSize, char* key, int thrIdx){
 
 void DBWriter::errorIfFileExist(const char * file){
     struct stat st;
-    if(stat(file, &st) == 0) { errno = EEXIST; perror(file); exit(EXIT_FAILURE); }
+    if(stat(file, &st) == 0) { errno = EEXIST; perror(file); EXIT(EXIT_FAILURE); }
 }
 
-void DBWriter::initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile){
+void DBWriter::initFFIndexWrite(const char* dataFileName,
+                                const char* indexFileName,
+                                FILE** dataFile, FILE** indexFile){
     DBWriter::errorIfFileExist(dataFileName);
     DBWriter::errorIfFileExist(indexFileName);
 
-    *dataFile = fopen(dataFileName, "w");
+    *dataFile = fopen(dataFileName, datafileMode.c_str());
     *indexFile = fopen(indexFileName, "w");
 
-    if( *dataFile == NULL)  { perror(dataFileName); exit(EXIT_FAILURE); } 
-    if( *indexFile == NULL) { perror(indexFileName); exit(EXIT_FAILURE); }
+    if( *dataFile == NULL)  { perror(dataFileName); EXIT(EXIT_FAILURE); }
+    if( *indexFile == NULL) { perror(indexFileName); EXIT(EXIT_FAILURE); }
 }
 
 void DBWriter::checkClosed(){
     if (closed == 1){
         Debug(Debug::ERROR) <<  "Trying to write to a closed database.\n";
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 }

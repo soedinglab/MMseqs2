@@ -38,6 +38,14 @@ class IndexTable {
 
         // alphabetSize**kmerSize
         int tableSize;
+    
+        // get pointer to sizes array
+        int* getSizes();
+        // get pointer to entries array
+        int* getEntries();
+    
+        // number of entries in all sequence lists
+        int64_t tableEntriesNum; // must be 64bit
 
     private:
         int ipow (int base, int exponent);
@@ -68,8 +76,7 @@ class IndexTable {
         size_t size;
     
 
-        // number of entries in all sequence lists
-        int64_t tableEntriesNum;
+
 };
 
 #endif

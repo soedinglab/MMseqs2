@@ -1,4 +1,5 @@
 #include "DBReader.h"
+#include <sys/mman.h>
 
 DBReader::DBReader(const char* dataFileName_, const char* indexFileName_)
 {
@@ -78,9 +79,13 @@ void DBReader::open(int sort){
 void DBReader::close(){
     fclose(dataFile);
     fclose(indexFile);
+    delete dataFileName;
+    delete indexFileName;
     delete[] id2local;
     delete[] local2id;
     delete[] seqLens;
+    delete index;
+    munmap(data,dataSize);
     closed = 1;
 }
 

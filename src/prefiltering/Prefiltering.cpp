@@ -64,12 +64,12 @@ Prefiltering::Prefiltering(std::string queryDB,
             _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
             break;
         case Sequence::AMINO_ACIDS:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, 8.0);
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0);
             _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
             _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
             break;
         case Sequence::HMM_PROFILE:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, 8.0); // needed for Background distrubutions 
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0); // needed for Background distrubutions
             _2merSubMatrix = NULL;
             _3merSubMatrix = NULL;
             break;
@@ -380,7 +380,7 @@ void Prefiltering::printStatistics(){
     Debug(Debug::INFO) << empty << " sequences with 0 size result lists.\n";
 }
 
-BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor){
+BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSize, float bitFactor){
     Debug(Debug::INFO) << "Substitution matrices...\n";
     BaseMatrix* subMat;
     if (alphabetSize < 21){

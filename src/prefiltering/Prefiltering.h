@@ -59,6 +59,9 @@ class Prefiltering {
         static IndexTable* getIndexTable(DBReader* dbr, Sequence* seq,
                                          int alphabetSize, int kmerSize,
                                          size_t dbFrom, size_t dbTo, int skip = 0);
+        // get substituion matrix
+        static BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSize, float bitFactor);
+
 
     private:
         static const size_t BUFFER_SIZE = 1000000;
@@ -95,7 +98,6 @@ class Prefiltering {
         size_t kmersPerPos;
         size_t resSize;
         size_t dbMatches;
-        BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, float bitFactor);
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.

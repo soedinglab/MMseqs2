@@ -24,8 +24,11 @@ extern "C" {
 
 class DBWriter {
     public:
+    
+        static const size_t ASCII_MODE = 0;
+        static const size_t BINARY_MODE = 1;
 
-        DBWriter(const char* dataFileName, const char* indexFileName, int maxThreadNum = 1);
+        DBWriter(const char* dataFileName, const char* indexFileName, int maxThreadNum = 1, size_t mode = ASCII_MODE);
 
         ~DBWriter();
 
@@ -37,7 +40,7 @@ class DBWriter {
     
         char* getIndexFileName() { return indexFileName; }
 
-        void write(char* data, int dataSize, char* key, int threadIdx = 0);
+        void write(char* data, int64_t dataSize, char* key, int threadIdx = 0);
     
         void mergeFiles(DBReader * qdbr,
                         std::vector<std::pair<std::string, std::string> > files,
@@ -46,7 +49,6 @@ class DBWriter {
         static void errorIfFileExist(const char * file);
 
     private:
-
         void initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile);
 
         void checkClosed();
@@ -68,6 +70,8 @@ class DBWriter {
         int maxThreadNum;
 
         int closed;
+    
+        std::string datafileMode;
 };
 
 #endif
