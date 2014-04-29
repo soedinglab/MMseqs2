@@ -40,7 +40,7 @@ void parseArgs(int argc, const char** argv,
     
     int i = 3;
     while (i < argc){
-        if (strcmp(argv[i], "-k") == 0){
+        if (strcmp(argv[i], "--split") == 0){
             if (++i < argc){
                 *split = atoi(argv[i]);
                 i++;
@@ -119,7 +119,7 @@ int main (int argc, const char * argv[])
     int maxSeqLen = 50000;
     int skip = 0;
     std::string scoringMatrixFile = "/Users/mad/Documents/workspace/mmseqs/data/blosum62.out";
-    parseArgs(argc, argv, &seqDB, &outDB, &kmerSize, &alphabetSize, &maxSeqLen, &skip, &splitt);
+    parseArgs(argc, argv, &seqDB, &outDB, &kmerSize, &alphabetSize, &maxSeqLen, &skip, &split);
     DBReader dbr(seqDB.c_str(), std::string(seqDB+".index").c_str());
     dbr.open(DBReader::SORT);
 

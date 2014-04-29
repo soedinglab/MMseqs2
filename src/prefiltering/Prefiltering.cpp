@@ -48,6 +48,11 @@ Prefiltering::Prefiltering(std::string queryDB,
     if(templateDBIsIndex == true){ // exchange reader with old ffindex reader
         this->tidxdbr = this->tdbr;
         this->tdbr = PrefilteringIndexReader::openNewReader(tdbr);
+        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
+        this->kmerSize     = data.kmerSize;
+        this->alphabetSize = data.alphabetSize;
+        this->skip         = data.skip;
+        this->split        = data.split;
     }
     
     DBWriter::errorIfFileExist(outDB.c_str());
@@ -121,17 +126,15 @@ Prefiltering::~Prefiltering(){
 
 void Prefiltering::run(){
     // splits template database into x sequence steps
-    int stepCnt =  split;
+    int splitCounter =  this->split;
     std::vector<std::pair<std::string, std::string> > splitFiles;
-    for(unsigned int step = 0; step < stepCnt; step++){
-        Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step " << step << " of " << stepCnt <<  ")\n";
-        int splitStart, splitSize;
-        Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
-                                          step, stepCnt, &splitStart, &splitSize);
-        std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB,outDBIndex,step);
+    for(unsigned int split = 0; split < splitCounter; split++){
+        Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step " << split << " of " << splitCounter <<  ")\n";
+
+        std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB,outDBIndex,split);
         splitFiles.push_back(filenamePair);
         
-        this->run (splitStart, splitSize,
+        this->run (split, splitCounter,
                    filenamePair.first.c_str(),
                    filenamePair.second.c_str() );
         
@@ -161,13 +164,10 @@ std::pair<std::string, std::string> Prefiltering::createTmpFileNames(std::string
 }
 
 void Prefiltering::run(int mpi_rank, int mpi_num_procs){
-    int splitStart, splitSize;
-    
-    Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
-                                      mpi_rank, mpi_num_procs, &splitStart, &splitSize);
+
     std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB, outDBIndex, mpi_rank);
 
-    this->run (splitStart, splitSize,
+    this->run (mpi_rank, mpi_num_procs,
                filenamePair.first.c_str(),
                filenamePair.second.c_str());
     this->printStatistics();
@@ -222,10 +222,13 @@ QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
     return matchers;
 }
 
-IndexTable * Prefiltering::getIndexTable(int dbFrom, int dbSize){
+IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
     if(templateDBIsIndex == true ){
-        return PrefilteringIndexReader::generateIndexTable(tidxdbr);
+        return PrefilteringIndexReader::generateIndexTable(tidxdbr,split);
     }else{
+        int dbFrom, dbSize;
+        Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
+                                          split, splitCount, &dbFrom, &dbSize);
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, subMat);
         return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
     }
@@ -234,16 +237,16 @@ IndexTable * Prefiltering::getIndexTable(int dbFrom, int dbSize){
 
 
 
-void Prefiltering::run (size_t dbFrom,size_t dbSize,
+void Prefiltering::run (size_t split, size_t splitCount,
                         std::string resultDB, std::string resultDBIndex){
     
     DBWriter tmpDbw(resultDB.c_str(), resultDBIndex.c_str(), threads);
     tmpDbw.open();
     size_t queryDBSize = qdbr->getSize();
     
-    memset(notEmpty, 0, queryDBSize*sizeof(int)); // init notEmpty
+    memset(notEmpty, 0, queryDBSize * sizeof(int)); // init notEmpty
     
-    IndexTable * indexTable = getIndexTable(dbFrom, dbSize);
+    IndexTable * indexTable = getIndexTable(split, splitCount);
     
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -453,8 +456,8 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
 std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* qdbr, DBReader* tdbr,
                                                         double sensitivity, double toleratedDeviation){
 
-    size_t targetDbSize = std::min( tdbr->getSize(), (size_t) 100000);
-    IndexTable* indexTable = getIndexTable(0,targetDbSize);
+    IndexTable* indexTable = getIndexTable(0,split);
+    size_t targetDbSize = std::min( tdbr->getSize(), (size_t) indexTable->getSize());
 
     int targetSeqLenSum = 0;
     for (size_t i = 0; i < targetDbSize; i++)

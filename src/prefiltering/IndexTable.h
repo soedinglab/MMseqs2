@@ -45,8 +45,9 @@ class IndexTable {
         // get pointer to entries array
         int* getEntries();
         // init index table with external data (needed for index readin)
-        void initTableByExternalData(uint64_t tableEntriesNum, int * entries,int * sizes);
-    
+        void initTableByExternalData(uint64_t tableEntriesNum, int * entries,int * sizes, unsigned int tableSize);
+        // get amount of sequences in Index
+        unsigned int getSize() {  return size; };
         // number of entries in all sequence lists
         int64_t tableEntriesNum; // must be 64bit
 
@@ -76,7 +77,7 @@ class IndexTable {
         int skip;
     
         // amount of sequences in Index
-        size_t size;
+        unsigned int size;
     
 
 

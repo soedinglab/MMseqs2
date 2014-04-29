@@ -9,8 +9,7 @@ struct PrefilteringIndexData{
     int kmerSize;
     int alphabetSize;
     int skip;
-    uint64_t entrieSize;
-    uint64_t samplingEntrieSize;
+    int split;
 };
 
 
@@ -19,6 +18,8 @@ public:
     static const char * VERSION;
     static const char * ENTRIES;
     static const char * ENTRIESIZES;
+    static const char * ENTRIESNUM;
+    static const char * TABLESIZE;
     static const char * META;
     
     static bool checkIfIndexFile(DBReader * reader);
@@ -28,7 +29,7 @@ public:
     
     static DBReader * openNewReader(DBReader * dbr);
     
-    static IndexTable * generateIndexTable(DBReader * dbr);
+    static IndexTable * generateIndexTable(DBReader * dbr, int split);
     
     static PrefilteringIndexData getMetadata(DBReader * dbr);
 };

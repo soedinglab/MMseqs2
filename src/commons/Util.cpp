@@ -60,7 +60,6 @@ void Util::decomposeDomainByAminoaAcid(int aaSize, unsigned short * seqSizes, si
         }
         currentSize += seqSizes[i];
     }
-    std::cout << currentSize << std::endl;
 }
 
 

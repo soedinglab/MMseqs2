@@ -124,8 +124,9 @@ void IndexTable::print(){
 
 
 void IndexTable::initTableByExternalData(uint64_t tableEntriesNum,
-                                         int * sizes, int * entries){
+                                         int * sizes, int * entries, unsigned int tableSize){
     this->tableEntriesNum = tableEntriesNum;
+    this->size = tableSize;
     initMemory();
     memcpy ( this->sizes   , sizes  , sizeof(unsigned int) * this->tableSize);
     memcpy ( this->entries , entries, sizeof(unsigned int) * tableEntriesNum);
