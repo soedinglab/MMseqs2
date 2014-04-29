@@ -30,6 +30,8 @@ class IndexTable {
 
         // init the arrays for the sequence lists 
         void init();
+        // allocates memory for index tables
+        void initMemory();
 
         // get list of DB sequences containing this k-mer
         int* getDBSeqList (int kmer, int* matchedListSize);
@@ -37,12 +39,13 @@ class IndexTable {
         void print();
 
         // alphabetSize**kmerSize
-        int tableSize;
-    
+        unsigned int tableSize;
         // get pointer to sizes array
         int* getSizes();
         // get pointer to entries array
         int* getEntries();
+        // init index table with external data (needed for index readin)
+        void initTableByExternalData(uint64_t tableEntriesNum, int * entries,int * sizes);
     
         // number of entries in all sequence lists
         int64_t tableEntriesNum; // must be 64bit

@@ -1,17 +1,24 @@
 #include "DBReader.h"
 #include <sys/mman.h>
+#include "Debug.h"
+#include "Util.h"
 
-DBReader::DBReader(const char* dataFileName_, const char* indexFileName_)
+
+
+DBReader::DBReader(const char* dataFileName_, const char* indexFileName_,int dataMode /*DATA_AND_INDEX*/)
 {
     dataSize = 0;
-    
+    this->dataMode = dataMode;
     this->dataFileName = new char [strlen(dataFileName_) + 1];
     memcpy(dataFileName, dataFileName_, sizeof(char) * (strlen(dataFileName_) + 1));
-
     this->indexFileName = new char [strlen(indexFileName_) + 1];
     memcpy(indexFileName, indexFileName_, sizeof(char) * (strlen(indexFileName_) + 1));
 
     closed = 1;
+}
+DBReader::~DBReader(){
+    delete indexFileName;
+    delete dataFileName;
 }
 
 void DBReader::open(int sort){
@@ -26,24 +33,24 @@ void DBReader::open(int sort){
         index_file.close();
     }
     else{
-        std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
-        exit(EXIT_FAILURE);
+        Debug(Debug::ERROR) << "Could not open ffindex index file " << indexFileName << "\n";
+        EXIT(EXIT_FAILURE);
     }
     // open ffindex
-    dataFile = fopen(dataFileName, "r");
+    if(dataMode == DATA_AND_INDEX){
+        dataFile = fopen(dataFileName, "r");
+        if( dataFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", dataFileName);  EXIT(EXIT_FAILURE); }
+        data = ffindex_mmap_data(dataFile, &dataSize);
+    }
     indexFile = fopen(indexFileName, "r");
-
-    if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", indexFileName);  exit(EXIT_FAILURE); }
-    if( dataFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", dataFileName);  exit(EXIT_FAILURE); }
-
-    data = ffindex_mmap_data(dataFile, &dataSize);
+    if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", indexFileName);  EXIT(EXIT_FAILURE); }
 
     index = ffindex_index_parse(indexFile, cnt);
 
     if(index == NULL)
     {
         fferror_print(__FILE__, __LINE__, "ffindex_index_parse", indexFileName);
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 
     size = index->n_entries;
@@ -77,43 +84,52 @@ void DBReader::open(int sort){
 }
 
 void DBReader::close(){
-    fclose(dataFile);
     fclose(indexFile);
-    delete dataFileName;
-    delete indexFileName;
     delete[] id2local;
     delete[] local2id;
     delete[] seqLens;
     delete index;
-    munmap(data,dataSize);
+    if(dataMode == DATA_AND_INDEX){
+        fclose(dataFile);
+        munmap(data, dataSize);
+    }
     closed = 1;
 }
 
 char* DBReader::getData (size_t id){
     checkClosed();
+    if(dataMode == INDEXONLY){
+        Debug(Debug::ERROR) << "DBReader is just open in INDEXONLY mode. Call of getData is not allowed" << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     if (id >= size){
-        std::cerr << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
-        std::cerr << "getData: local id (" << id << ") >= db size (" << size << ")\n";
-        exit(EXIT_FAILURE);
+        Debug(Debug::ERROR) << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
+        Debug(Debug::ERROR) << "getData: local id (" << id << ") >= db size (" << size << ")\n";
+        EXIT(EXIT_FAILURE);
     }
     id = local2id[id];
     if (id >= size){
-        std::cerr << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
-        std::cerr << "getData: global id (" << id << ") >= db size (" << size << ")\n";
-        exit(EXIT_FAILURE);
+        Debug(Debug::ERROR) << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
+        Debug(Debug::ERROR) << "getData: global id (" << id << ") >= db size (" << size << ")\n";
+        EXIT(EXIT_FAILURE);
     }
     if (ffindex_get_entry_by_index(index, id)->offset >= dataSize){ 
-        std::cerr << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
-        std::cerr << "getData: global id (" << id << ")\n";
-        std::cerr << "Size of data: " << dataSize << "\n";
-        std::cerr << "Requested offset: " << ffindex_get_entry_by_index(index, id)->offset << "\n";
-        exit(EXIT_FAILURE);
+        Debug(Debug::ERROR) << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
+        Debug(Debug::ERROR) << "getData: global id (" << id << ")\n";
+        Debug(Debug::ERROR) << "Size of data: " << dataSize << "\n";
+        Debug(Debug::ERROR) << "Requested offset: " << ffindex_get_entry_by_index(index, id)->offset << "\n";
+        EXIT(EXIT_FAILURE);
     }
     return data + (ffindex_get_entry_by_index(index, id)->offset);
 }
 
+
 char* DBReader::getDataByDBKey (char* key){
     checkClosed();
+    if(dataMode ==INDEXONLY){
+        Debug(Debug::ERROR) << "DBReader is just open in INDEX_ONLY mode. Call of getData is not allowed" << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     return ffindex_get_data_by_name(data, index, key);
 }
 
@@ -125,16 +141,16 @@ size_t DBReader::getSize (){
 char* DBReader::getDbKey (size_t id){
     checkClosed();
     if (id >= size){
-        std::cerr << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
-        std::cerr << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
-        exit(EXIT_FAILURE);
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
+        Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
+        EXIT(EXIT_FAILURE);
     }
 
     id = local2id[id];
     if (id >= size){
-        std::cerr << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
-        std::cerr << "getDbKey: global id (" << id << ") >= db size (" << size << ")\n";
-        exit(EXIT_FAILURE);
+        Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
+        Debug(Debug::ERROR) << "getDbKey: global id (" << id << ") >= db size (" << size << ")\n";
+        EXIT(EXIT_FAILURE);
     }
     return &(ffindex_get_entry_by_index(index, id)->name[0]);
 }
@@ -222,7 +238,7 @@ void DBReader::calcLocalIdMapping(){
 
 void DBReader::checkClosed(){
     if (closed == 1){
-        std::cerr << "Trying to read a closed database.\n";
-        exit(EXIT_FAILURE);
+        Debug(Debug::ERROR) << "Trying to read a closed database.\n";
+        EXIT(EXIT_FAILURE);
     }
 }

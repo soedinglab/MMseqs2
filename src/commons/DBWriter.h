@@ -47,6 +47,8 @@ class DBWriter {
                         size_t maxLineLength);
     
         static void errorIfFileExist(const char * file);
+    
+        void writeFile(FILE * file, char* key, int thrIdx);
 
     private:
         void initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile);

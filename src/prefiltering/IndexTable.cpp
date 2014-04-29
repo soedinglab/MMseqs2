@@ -48,9 +48,13 @@ void IndexTable::addKmerCount (Sequence* s){
     this->s = s;
 }
 
-void IndexTable::init(){
+void IndexTable::initMemory(){
     // allocate memory for the sequence id lists
     entries = new int[tableEntriesNum];
+}
+
+
+void IndexTable::init(){
     int* it = entries;
     // set the pointers in the index table to the start of the list for a certain k-mer
     for (int i = 0; i < tableSize; i++){
@@ -115,6 +119,17 @@ void IndexTable::print(){
             }
         }
     }
+}
+
+
+
+void IndexTable::initTableByExternalData(uint64_t tableEntriesNum,
+                                         int * sizes, int * entries){
+    this->tableEntriesNum = tableEntriesNum;
+    initMemory();
+    memcpy ( this->sizes   , sizes  , sizeof(unsigned int) * this->tableSize);
+    memcpy ( this->entries , entries, sizeof(unsigned int) * tableEntriesNum);
+    this->init();
 }
 
 int* IndexTable::getDBSeqList (int kmer, int* matchedListSize){

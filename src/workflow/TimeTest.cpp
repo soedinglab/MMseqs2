@@ -100,7 +100,7 @@ void TimeTest::runTimeTest (){
             int kmerThrMax = kmerThrPerPosMax * kmerSize;
 
             std::cout << "------------------ a = " << alphabetSize << ",  k = " << kmerSize << " -----------------------------\n";
-            IndexTable* indexTable = Prefiltering::getIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize(), 0);
+            IndexTable* indexTable = Prefiltering::generateIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0, tdbr->getSize(), 0);
 
             short decr = 1;
             if (kmerSize == 6 || kmerSize == 7)

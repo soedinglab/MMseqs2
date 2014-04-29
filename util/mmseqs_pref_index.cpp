@@ -2,8 +2,12 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
+#include "PrefilteringIndexReader.h"
 #include "Prefiltering.h"
 
+
+#include <iostream>     // std::ios, std::istream, std::cout
+#include <fstream>      // std::ifstream
 #include <vector>
 #include <utility>      // std::pair
 
@@ -113,36 +117,23 @@ int main (int argc, const char * argv[])
     int kmerSize =  6;
     int alphabetSize = 21;
     int maxSeqLen = 50000;
-    int dbFrom = 0;
     int skip = 0;
     std::string scoringMatrixFile = "/Users/mad/Documents/workspace/mmseqs/data/blosum62.out";
     parseArgs(argc, argv, &seqDB, &outDB, &kmerSize, &alphabetSize, &maxSeqLen, &skip, &splitt);
     DBReader dbr(seqDB.c_str(), std::string(seqDB+".index").c_str());
-    dbr.open(DBReader::NOSORT);
+    dbr.open(DBReader::SORT);
 
     
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0f);
-
-    size_t dbSize = dbr.getSize();
-
     Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, subMat);
-    IndexTable * indexTable = Prefiltering::getIndexTable(&dbr, &seq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
-    DBWriter writer(outDB.c_str(), std::string( outDB +".index").c_str(),DBWriter::BINARY_MODE);
-    writer.open();
-    char * entries = (char *) indexTable->getEntries(); // pointer to first datapoint
-    writer.write(entries, indexTable->tableEntriesNum * sizeof(int), "MMSEQSDATA", 0);
     
-    char * sizes = (char *) indexTable->getSizes();
-    writer.write(sizes, indexTable->tableSize * sizeof(int), "MMSEQSIZES", 0);
+    PrefilteringIndexReader::createIndexFile(outDB, &dbr, &seq, splitt, alphabetSize, kmerSize, skip );
 
-    int64_t metadata[] = {kmerSize, alphabetSize, skip, indexTable->tableSize, indexTable->tableEntriesNum};
-    char * metadataptr = (char *) &metadata;
-    writer.write(metadataptr, 5 * sizeof(int64_t), "MMSEQSMETA", 0);
     
     // write code
-    writer.close();
     dbr.close();
-    delete indexTable;
+    
+    
     delete subMat;
     return 0;
 }

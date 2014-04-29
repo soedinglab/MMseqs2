@@ -91,6 +91,7 @@ int main (int argc, const char * argv[])
     IndexTable* it = new IndexTable(alphabetSize, kmerSize, 0);
     it->addKmerCount(s);
     it->addKmerCount(s1);
+    it->initMemory();
     it->init();
     it->addSequence(s);
     it->addSequence(s1);

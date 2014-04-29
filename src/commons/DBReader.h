@@ -29,7 +29,9 @@ class DBReader {
 
     public:
 
-        DBReader(const char* dataFileName, const char* indexFileName);
+        DBReader(const char* dataFileName, const char* indexFileName, int mode = DATA_AND_INDEX);
+
+        ~DBReader();
 
         void open(int sort);
 
@@ -40,12 +42,15 @@ class DBReader {
         char* getIndexFileName() { return indexFileName; }
 
         char* getData(size_t id);
-
+    
         char* getDataByDBKey(char* key);
-
+    
         size_t getSize();
 
         char* getDbKey(size_t id);
+    
+        FILE* getDataAsFile(char* key);
+
 
         // does a binary search in the ffindex and returns index of the entry with dbKey
         // returns UINT_MAX if the key is not contained in index
@@ -55,6 +60,9 @@ class DBReader {
 
         static const int NOSORT = 0;
         static const int SORT = 1;
+    
+        static const int INDEXONLY = 1;
+        static const int DATA_AND_INDEX = 0;
 
     private:
 
@@ -77,6 +85,8 @@ class DBReader {
         unsigned short* seqLens;
 
         FILE* dataFile;
+    
+        int dataMode;
 
         FILE* indexFile;
         

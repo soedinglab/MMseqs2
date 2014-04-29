@@ -56,7 +56,9 @@ class Prefiltering {
         void closeReader();
         void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
         void removeDatabaes(std::vector<std::pair<std::string, std::string> > filenames);
-        static IndexTable* getIndexTable(DBReader* dbr, Sequence* seq,
+        IndexTable * getIndexTable(int from, int size); // needed for index lookup
+    
+        static IndexTable* generateIndexTable(DBReader* dbr, Sequence* seq,
                                          int alphabetSize, int kmerSize,
                                          size_t dbFrom, size_t dbTo, int skip = 0);
         // get substituion matrix
@@ -70,6 +72,8 @@ class Prefiltering {
 
         DBReader* qdbr;
         DBReader* tdbr;
+        DBReader* tidxdbr;
+
 
         Sequence** qseq;
         int* notEmpty;
@@ -88,6 +92,8 @@ class Prefiltering {
         size_t maxSeqLen;
         int querySeqType;
         int targetSeqType;
+        bool templateDBIsIndex;
+    
         bool aaBiasCorrection;
         short kmerThr;
         double kmerMatchProb;

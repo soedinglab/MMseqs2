@@ -189,6 +189,12 @@ int DBWriter::close(){
     return EXIT_SUCCESS;
 }
 
+void DBWriter::writeFile(FILE * file, char* key, int thrIdx){
+    ffindex_insert_filestream(dataFiles[thrIdx], indexFiles[thrIdx],
+                                 &offsets[thrIdx], file, key);
+
+}
+
 void DBWriter::write(char* data, int64_t dataSize, char* key, int thrIdx){
     checkClosed();
     if (thrIdx >= maxThreadNum){

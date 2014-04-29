@@ -1,5 +1,5 @@
 #include "Prefiltering.h"
-
+#include "PrefilteringIndexReader.h"
 
 Prefiltering::Prefiltering(std::string queryDB,
         std::string queryDBIndex,
@@ -44,12 +44,16 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     this->tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader::SORT);
-
+    templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
+    if(templateDBIsIndex == true){ // exchange reader with old ffindex reader
+        this->tidxdbr = this->tdbr;
+        this->tdbr = PrefilteringIndexReader::openNewReader(tdbr);
+    }
     
     DBWriter::errorIfFileExist(outDB.c_str());
     DBWriter::errorIfFileExist(outDBIndex.c_str());
     
-    if (splitSize == 0)
+    if (splitSize == 0) //TODO problem with templateDBIsIndex
         splitSize = tdbr->getSize();
 
     
@@ -109,7 +113,10 @@ Prefiltering::~Prefiltering(){
     delete[] qseq;
     delete[] reslens;
     delete notEmpty;
-
+    delete qdbr;
+    delete tdbr;
+    if(templateDBIsIndex == true)
+        delete tidxdbr;
     delete subMat;
     delete _2merSubMatrix;
     delete _3merSubMatrix;
@@ -220,6 +227,15 @@ QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
     return matchers;
 }
 
+IndexTable * Prefiltering::getIndexTable(int dbFrom, int dbSize){
+    if(templateDBIsIndex == true ){
+        return PrefilteringIndexReader::generateIndexTable(tidxdbr);
+    }else{
+        Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, subMat);
+        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
+    }
+}
+
 
 
 
@@ -232,10 +248,8 @@ void Prefiltering::run (size_t dbFrom,size_t dbSize,
     
     memset(notEmpty, 0, queryDBSize*sizeof(int)); // init notEmpty
     
-    Sequence* tseq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, subMat);
-    IndexTable * indexTable = getIndexTable(tdbr, tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
-    delete tseq;
-
+    IndexTable * indexTable = getIndexTable(dbFrom, dbSize);
+    
     struct timeval start, end;
     gettimeofday(&start, NULL);
     QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat,indexTable, tdbr->getSeqLens(), kmerThr,
@@ -299,6 +313,8 @@ void Prefiltering::closeReader(){
     qdbr->close();
     if (strcmp(qdbr->getIndexFileName(), tdbr->getIndexFileName()) != 0)
         tdbr->close();
+    if(templateDBIsIndex)
+        tidxdbr->close();
 }
 
 void Prefiltering::removeDatabaes(std::vector<std::pair<std::string, std::string> > filenames) {
@@ -394,7 +410,7 @@ BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, i
 }
 
 
-IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
+IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
         int kmerSize, size_t dbFrom, size_t dbTo, int skip){
 
     struct timeval start, end;
@@ -415,6 +431,7 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alpha
     if ((dbTo-dbFrom) > 10000)
         Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
+    indexTable->initMemory();
     indexTable->init();
 
     Debug(Debug::INFO) << "Index table: fill...\n";
@@ -442,9 +459,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* qdbr, DBReader
                                                         double sensitivity, double toleratedDeviation){
 
     size_t targetDbSize = std::min( tdbr->getSize(), (size_t) 100000);
-    Sequence* tseq = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, subMat);
-    IndexTable* indexTable = getIndexTable(tdbr, tseq, alphabetSize, kmerSize, 0, targetDbSize);
-    delete tseq;
+    IndexTable* indexTable = getIndexTable(0,targetDbSize);
 
     int targetSeqLenSum = 0;
     for (size_t i = 0; i < targetDbSize; i++)
