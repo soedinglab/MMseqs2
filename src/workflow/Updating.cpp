@@ -216,7 +216,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
             alnDB, alnDB + ".index",
             scoringMatrixFile, evalThr, covThr, maxSeqLen, seqType);
     std::cout << "Starting alignments calculation.\n";
-    aln->run(maxResListLen);
+    aln->run(maxResListLen, 10);
     delete aln;
 
     gettimeofday(&end, NULL);

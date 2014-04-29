@@ -44,6 +44,7 @@ clean:
 	rm ../commons/*.o
 	rm -f .depend *.o
 	rm -f $(TARGETS)
+	rm ../commons/*.o
 
 .PHONY: clean depend
 

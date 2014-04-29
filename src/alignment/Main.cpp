@@ -13,17 +13,18 @@ void printUsage(){
     std::string usage("\nCalculates Smith-Waterman alignment scores.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("USAGE: mmseqs_pref ffindexQuerySequenceDBBase ffindexTargetSequenceDBBase ffindexPrefilteringDBBase ffindexOutDBBase [opts]\n"
-            "-m\t[file]\tAmino acid substitution matrix file.\n"
-            "-e\t[float]\tMaximum e-value (default=0.01).\n"
-            "-c\t[float]\tMinimum alignment coverage (default=0.8).\n"
+            "-m          \t[file]\tAmino acid substitution matrix file.\n"
+            "-e          \t[float]\tMaximum e-value (default=0.01).\n"
+            "-c          \t[float]\tMinimum alignment coverage (default=0.8).\n"
             "--max-seq-len\t[int]\tMaximum sequence length (default=50000).\n"
             "--max-seqs\t[int]\tMaximum alignment results per query sequence (default=100).\n"
+            "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
             "--nucleotides\t\tNucleotide sequences input.\n"
-            "-v\t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
+            "-v         \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
 }
 
-void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr, int* maxSeqLen, int* maxAlnNum, int* seqType, int* verbosity){
+void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr, int* maxSeqLen, int* maxAlnNum, int* seqType, int* verbosity, int* maxRejected){
     if (argc < 5){
         printUsage();
         exit(EXIT_FAILURE);
@@ -75,6 +76,17 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
         else if (strcmp(argv[i], "--max-seq-len") == 0){
             if (++i < argc){
                 *maxSeqLen = atoi(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "--max-rejected") == 0){
+            if (++i < argc){
+                *maxRejected = atoi(argv[i]);
                 i++;
             }
             else {
@@ -151,6 +163,7 @@ int main(int argc, char **argv){
     double covThr = 0.8;
     int maxSeqLen = 50000;
     int maxAlnNum = 100;
+    int maxRejected = INT_MAX;
     int seqType = Sequence::AMINO_ACIDS;
 
     Debug::setDebugLevel(Debug::INFO);
@@ -160,14 +173,20 @@ int main(int argc, char **argv){
         Debug(Debug::WARNING) << argv[i] << " ";
     Debug(Debug::WARNING) << "\n\n";
 
-    parseArgs(argc, argv, &qseqDB, &tseqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr, &maxSeqLen, &maxAlnNum, &seqType, &verbosity);
+    parseArgs(argc, argv, &qseqDB, &tseqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr, &maxSeqLen, &maxAlnNum, &seqType, &verbosity, &maxRejected);
 
     Debug::setDebugLevel(verbosity);
 
-    Debug(Debug::WARNING) << "max. evalue:\t" << evalThr 
-        << "\nmin. sequence coverage:\t" << covThr 
-        << "\nmax. sequence length:\t" << maxSeqLen 
-        << "\nmax. alignment results per query:\t" << maxAlnNum << "\n\n";
+    Debug(Debug::WARNING) 
+        << "max. evalue:                       \t" << evalThr 
+        << "\nmin. sequence coverage:          \t" << covThr 
+        << "\nmax. sequence length:            \t" << maxSeqLen 
+        << "\nmax. alignment results per query:\t" << maxAlnNum 
+        << "\nmax rejected sequences per query:\t";
+    if (maxRejected == INT_MAX)
+        Debug(Debug::WARNING) << "off\n\n";
+    else
+        Debug(Debug::WARNING) << maxRejected << "\n\n";
 
     std::string qseqDBIndex = qseqDB + ".index";
     std::string tseqDBIndex = tseqDB + ".index";
@@ -181,7 +200,7 @@ int main(int argc, char **argv){
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
-    aln->run(maxAlnNum);
+    aln->run(maxAlnNum, maxRejected);
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
