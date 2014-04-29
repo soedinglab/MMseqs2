@@ -45,7 +45,7 @@ class Prefiltering {
                 int querySeqType,
                 int targetSeqType,
                 bool aaBiasCorrection,
-                int splitCount,
+                int split,
                 int skip);
 
         ~Prefiltering();
@@ -97,7 +97,7 @@ class Prefiltering {
         bool aaBiasCorrection;
         short kmerThr;
         double kmerMatchProb;
-        int splitCount;
+        int split;
         int skip;
         size_t maxResListLen;
         // statistics

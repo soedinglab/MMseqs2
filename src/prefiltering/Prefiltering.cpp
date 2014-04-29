@@ -17,7 +17,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         int querySeqType,
         int targetSeqType,
         bool aaBiasCorrection,
-        int splitCount,
+        int split,
         int skip):    outDB(outDB),
     outDBIndex(outDBIndex),
     kmerSize(kmerSize),
@@ -28,7 +28,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     querySeqType(querySeqType),
     targetSeqType(targetSeqType),
     aaBiasCorrection(aaBiasCorrection),
-    splitCount(splitCount),
+    split(split),
     skip(skip)
 {
 
@@ -121,7 +121,7 @@ Prefiltering::~Prefiltering(){
 
 void Prefiltering::run(){
     // splits template database into x sequence steps
-    int stepCnt =  splitCount;
+    int stepCnt =  split;
     std::vector<std::pair<std::string, std::string> > splitFiles;
     for(unsigned int step = 0; step < stepCnt; step++){
         Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step " << step << " of " << stepCnt <<  ")\n";

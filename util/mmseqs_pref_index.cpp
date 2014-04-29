@@ -15,7 +15,7 @@ void printUsage(){
     std::string usage("\nMerge multiple ffindex files based on simular id into one file. \n");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
     usage.append("USAGE: ffindex_database_merge ffindexQueryDB ffindexOutputDB ffindexOutDB ffindexFILES*\n");
-    usage.append("--splitt        \t[int]\tcreate splitted index for n nodes\n");
+    usage.append("--split         \t[int]\tsplites the database in n. This is needed if index is used to run on n nodes. (default=1)\n");
     usage.append("-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n");
     usage.append("-a              \t[int]\tAmino acid alphabet size (default=21).\n");
     usage.append("--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n");
@@ -29,7 +29,7 @@ void parseArgs(int argc, const char** argv,
                std::string* ffindexSeqDB,
                std::string* ffindexOutDB,
                int *kmerSize, int *alphabetSize,
-               int *maxSeqLen, int * skip, int * splitt){
+               int *maxSeqLen, int * skip, int * split){
     if (argc < 2){
         printUsage();
         exit(EXIT_FAILURE);
@@ -42,7 +42,7 @@ void parseArgs(int argc, const char** argv,
     while (i < argc){
         if (strcmp(argv[i], "-k") == 0){
             if (++i < argc){
-                *splitt = atoi(argv[i]);
+                *split = atoi(argv[i]);
                 i++;
             }
             else {
@@ -113,7 +113,7 @@ int main (int argc, const char * argv[])
     std::string seqDB = "";
     std::string outDB = "";
 
-    int splitt = 1;
+    int split = 1;
     int kmerSize =  6;
     int alphabetSize = 21;
     int maxSeqLen = 50000;
@@ -122,18 +122,12 @@ int main (int argc, const char * argv[])
     parseArgs(argc, argv, &seqDB, &outDB, &kmerSize, &alphabetSize, &maxSeqLen, &skip, &splitt);
     DBReader dbr(seqDB.c_str(), std::string(seqDB+".index").c_str());
     dbr.open(DBReader::SORT);
-    for(int i = 0; i < 1; i++){
-        int start, size;
-        Util::decomposeDomainByAminoaAcid(dbr.getAminoAcidDBSize(), dbr.getSeqLens(), dbr.getSize(),
-                                          i, 1, &start, &size);
-        std::cout << i << " " << start << " " <<  size << std::endl;
-    }
 
     
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0f);
     Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, subMat);
     
-    PrefilteringIndexReader::createIndexFile(outDB, &dbr, &seq, splitt, alphabetSize, kmerSize, skip );
+    PrefilteringIndexReader::createIndexFile(outDB, &dbr, &seq, split, alphabetSize, kmerSize, skip );
 
     
     // write code

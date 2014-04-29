@@ -24,7 +24,7 @@ public:
     static bool checkIfIndexFile(DBReader * reader);
 
     static void createIndexFile(std::string outDb, DBReader * dbr, Sequence * seq,
-                                int splitt, int alphabetSize, int kmerSize, int skip );
+                                int split, int alphabetSize, int kmerSize, int skip );
     
     static DBReader * openNewReader(DBReader * dbr);
     

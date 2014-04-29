@@ -13,7 +13,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader * reader){
 }
     
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader * dbr, Sequence * seq,
-                                int splitt, int alphabetSize, int kmerSize, int skip )
+                                int split, int alphabetSize, int kmerSize, int skip )
 {
     int dbFrom = 0;
     size_t dbSize = dbr->getSize();
