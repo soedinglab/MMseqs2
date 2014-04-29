@@ -15,7 +15,7 @@ void printUsage(){
     std::string usage("\nMerge multiple ffindex files based on simular id into one file. \n");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
     usage.append("USAGE: ffindex_database_merge ffindexQueryDB ffindexOutputDB ffindexOutDB ffindexFILES*\n");
-    usage.append("-s\t[int]\tcreate splitted index for n nodes\n");
+    usage.append("--splitt        \t[int]\tcreate splitted index for n nodes\n");
     usage.append("-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n");
     usage.append("-a              \t[int]\tAmino acid alphabet size (default=21).\n");
     usage.append("--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n");
@@ -122,6 +122,12 @@ int main (int argc, const char * argv[])
     parseArgs(argc, argv, &seqDB, &outDB, &kmerSize, &alphabetSize, &maxSeqLen, &skip, &splitt);
     DBReader dbr(seqDB.c_str(), std::string(seqDB+".index").c_str());
     dbr.open(DBReader::SORT);
+    for(int i = 0; i < 1; i++){
+        int start, size;
+        Util::decomposeDomainByAminoaAcid(dbr.getAminoAcidDBSize(), dbr.getSeqLens(), dbr.getSize(),
+                                          i, 1, &start, &size);
+        std::cout << i << " " << start << " " <<  size << std::endl;
+    }
 
     
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0f);

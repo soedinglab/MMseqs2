@@ -57,10 +57,11 @@ void DBReader::open(int sort){
 
     // init seq lens array and dbKey mapping
     seqLens = new unsigned short [size];
-
+    aaDbSize = 0;
     for (size_t i = 0; i < size; i++){
         ffindex_entry_t* e = ffindex_get_entry_by_index(index, i);
         seqLens[i] = (unsigned short)(e->length);
+        aaDbSize += seqLens[i];
     }
 
     // sort sequences by length and generate the corresponding id mappings

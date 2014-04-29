@@ -94,7 +94,8 @@ public:
                                  int world_size, int* subdomain_start,
                                  int* subdomain_size);
     static void rankedDescSort20(short * val, int * index);
-
+    static void decomposeDomainByAminoaAcid(int aaSize, unsigned short * seqSizes, size_t count,
+                                            int worldRank, int worldSize, int *start, int *end);
     
     static inline int fast_atoi( const char * str )
     {

@@ -70,9 +70,9 @@ void printUsage(){
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucleotides   \t\tNucleotide sequences input.\n"
             "--profile       \t\tHMM Profile input.\n"
-            "--max-seqs   \t[int]\tMaximum result sequences per query (default=100)\n"
-            "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
-            "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
+            "--max-seqs      \t[int]\tMaximum result sequences per query (default=100)\n"
+            "--no-comp-bias-corr \tSwitch off local amino acid composition bias correction.\n"
+            "--split         \tSplits target databases in x equal distrbuted junks (default=0)\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
             "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
@@ -83,7 +83,7 @@ void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase,
                std::string* scoringMatrixFile, float* sens, int* kmerSize,
                int* alphabetSize, float* zscoreThr, size_t* maxSeqLen,
                int* querySeqType, int * targetSeqType, size_t* maxResListLen, bool* compBiasCorrection,
-               int* splitSize, int* skip, int* verbosity){
+               int* splitCount, int* skip, int* verbosity){
     if (argc < 4){
         printUsage();
         EXIT(EXIT_FAILURE);
@@ -228,9 +228,9 @@ void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase,
                 EXIT(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "--tdb-seq-cut") == 0){
+        else if (strcmp(argv[i], "--split") == 0){
             if (++i < argc){
-                *splitSize = atoi(argv[i]);
+                *splitCount = atoi(argv[i]);
                 i++;
             }
             else {
@@ -278,7 +278,7 @@ int main (int argc,  char * argv[])
     size_t maxSeqLen = 50000;
     size_t maxResListLen = 100;
     float sensitivity = 4.0f;
-    int splitSize = INT_MAX;
+    int splitCount = 0;
     int skip = 0;
     int querySeqType  = Sequence::AMINO_ACIDS;
     int targetSeqType = Sequence::AMINO_ACIDS;
@@ -300,7 +300,7 @@ int main (int argc,  char * argv[])
     parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile,
                           &sensitivity, &kmerSize, &alphabetSize, &zscoreThr,
                           &maxSeqLen, &querySeqType, &targetSeqType, &maxResListLen, &compBiasCorrection,
-                          &splitSize, &skip, &verbosity);
+                          &splitCount, &skip, &verbosity);
 
     Debug::setDebugLevel(verbosity);
 
@@ -326,7 +326,7 @@ int main (int argc,  char * argv[])
                                           outDB, outDBIndex, scoringMatrixFile, sensitivity,
                                           kmerSize, maxResListLen, alphabetSize, zscoreThr,
                                           maxSeqLen, querySeqType, targetSeqType, compBiasCorrection,
-                                          splitSize, skip);
+                                          splitCount, skip);
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;

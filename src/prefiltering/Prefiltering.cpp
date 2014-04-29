@@ -17,7 +17,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         int querySeqType,
         int targetSeqType,
         bool aaBiasCorrection,
-        int splitSize,
+        int splitCount,
         int skip):    outDB(outDB),
     outDBIndex(outDBIndex),
     kmerSize(kmerSize),
@@ -28,7 +28,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     querySeqType(querySeqType),
     targetSeqType(targetSeqType),
     aaBiasCorrection(aaBiasCorrection),
-    splitSize(splitSize),
+    splitCount(splitCount),
     skip(skip)
 {
 
@@ -52,10 +52,6 @@ Prefiltering::Prefiltering(std::string queryDB,
     
     DBWriter::errorIfFileExist(outDB.c_str());
     DBWriter::errorIfFileExist(outDBIndex.c_str());
-    
-    if (splitSize == 0) //TODO problem with templateDBIsIndex
-        splitSize = tdbr->getSize();
-
     
     Debug(Debug::INFO) << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
     Debug(Debug::INFO) << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
@@ -125,12 +121,13 @@ Prefiltering::~Prefiltering(){
 
 void Prefiltering::run(){
     // splits template database into x sequence steps
-    int step = 0;
-    int stepCnt = (tdbr->getSize() + splitSize - 1) / splitSize;
+    int stepCnt =  splitCount;
     std::vector<std::pair<std::string, std::string> > splitFiles;
-    for(unsigned int splitStart = 0; splitStart < tdbr->getSize(); splitStart += splitSize ){
-        step++;
+    for(unsigned int step = 0; step < stepCnt; step++){
         Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step " << step << " of " << stepCnt <<  ")\n";
+        int splitStart, splitSize;
+        Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
+                                          step, stepCnt, &splitStart, &splitSize);
         std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB,outDBIndex,step);
         splitFiles.push_back(filenamePair);
         
@@ -166,10 +163,8 @@ std::pair<std::string, std::string> Prefiltering::createTmpFileNames(std::string
 void Prefiltering::run(int mpi_rank, int mpi_num_procs){
     int splitStart, splitSize;
     
-    Util::decompose_domain(tdbr->getSize(), mpi_rank,
-                     mpi_num_procs, &splitStart,
-                     &splitSize);
-    
+    Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
+                                      mpi_rank, mpi_num_procs, &splitStart, &splitSize);
     std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB, outDBIndex, mpi_rank);
 
     this->run (splitStart, splitSize,

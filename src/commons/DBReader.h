@@ -40,6 +40,8 @@ class DBReader {
         char* getDataFileName() { return dataFileName; }
 
         char* getIndexFileName() { return indexFileName; }
+    
+        unsigned int getAminoAcidDBSize(){ return aaDbSize; }
 
         char* getData(size_t id);
     
@@ -51,12 +53,12 @@ class DBReader {
     
         FILE* getDataAsFile(char* key);
 
+        unsigned short* getSeqLens();
 
         // does a binary search in the ffindex and returns index of the entry with dbKey
         // returns UINT_MAX if the key is not contained in index
         size_t getId (const char* dbKey);
 
-        unsigned short* getSeqLens();
 
         static const int NOSORT = 0;
         static const int SORT = 1;
@@ -99,7 +101,9 @@ class DBReader {
         size_t dataSize;
         // mapping id -> ffindex_entry
         ffindex_entry_t** id2entry;
-
+        // amino acid size
+        unsigned int aaDbSize;
+        // flag to check if db was closed
         int closed;
 
 };

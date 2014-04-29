@@ -27,6 +27,41 @@ void Util::decompose_domain(int domain_size, int world_rank,
     }
 }
 
+void Util::decomposeDomainByAminoaAcid(int aaSize, unsigned short * seqSizes, size_t count,
+                            int worldRank, int worldSize, int *start, int *size){
+    if (worldSize > aaSize) {
+        // Assume the domain size is greater than the world size.
+        EXIT(1);
+    }
+    if (worldSize == 1) {
+        *start = 0;
+        *size = count;
+        return;
+    }
+    
+    int aaPerSplitt =  aaSize / worldSize;
+    int currentRank = 0;
+    int currentSize = 0;
+    *start = 0;
+    for(int i = 0; i < count; i++ ){
+        if(currentSize > aaPerSplitt){
+            currentSize = 0;
+            currentRank++;
+            if(currentRank > worldRank){
+                *size = (i) - *start ;
+                break;
+            }else if (currentRank == worldRank){
+                *start = i;
+                if(worldRank == worldSize-1){
+                    *size = count - *start;
+                    break;
+                }
+            }
+        }
+        currentSize += seqSizes[i];
+    }
+    std::cout << currentSize << std::endl;
+}
 
 
 // http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=20&algorithm=bosenelson&output=svg
