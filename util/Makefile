@@ -11,6 +11,7 @@ CFLAGS += -I../src/commons -I../src/prefiltering
 TARGETS = ffindex_database_merge 
 TARGETS += ffindex_from_fasta
 TARGETS += mmseqs_pref_index
+TARGETS += ffindex_to_fasta
 ifdef HAVE_MPI
 CC = mpic++
 CFLAGS += -DHAVE_MPI
@@ -21,8 +22,14 @@ all: $(TARGETS)
 ffindex_database_merge: .depend ffindex_database_merge.o $(MAIN_OBJS)
 	$(CC) $(CFLAGS) $(MAIN_OBJS) ffindex_database_merge.o -o ffindex_database_merge
 
-ffindex_database_merge.o: ffindex_database_merge.o
+ffindex_database_merge.o: ffindex_database_merge.cpp
 	$(CC) $(CFLAGS) -c ffindex_database_merge.cpp -o ffindex_database_merge.o
+
+ffindex_to_fasta: .depend ffindex_to_fasta.o $(MAIN_OBJS)
+	$(CC) $(CFLAGS) $(MAIN_OBJS) ffindex_to_fasta.o -o ffindex_to_fasta
+
+ffindex_to_fasta.o: ffindex_to_fasta.cpp
+	$(CC) $(CFLAGS) -c ffindex_to_fasta.cpp -o ffindex_to_fasta.o
 
 mmseqs_pref_index: .depend mmseqs_pref_index.o $(MAIN_OBJS)
 	$(CC) $(CFLAGS) $(MAIN_OBJS) mmseqs_pref_index.o -o mmseqs_pref_index
