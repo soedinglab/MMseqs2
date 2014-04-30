@@ -7,14 +7,14 @@
 #include <time.h>
 #include <sys/time.h>
 
-#include "../commons/DBReader.h"
-#include "../commons/DBWriter.h"
-#include "../commons/SubstitutionMatrix.h"
-#include "../commons/Sequence.h"
-#include "../commons/NucleotideMatrix.h"
-#include "../commons/Debug.h"
-#include "../commons/Log.h"
-#include "../commons/Util.h"
+#include "DBReader.h"
+#include "DBWriter.h"
+#include "SubstitutionMatrix.h"
+#include "Sequence.h"
+#include "NucleotideMatrix.h"
+#include "Debug.h"
+#include "Log.h"
+#include "Util.h"
 
 #include "ExtendedSubstitutionMatrix.h"
 #include "ReducedMatrix.h"

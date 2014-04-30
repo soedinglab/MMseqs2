@@ -24,7 +24,7 @@
 #include <sstream>
 #include <bitset>
 
-#include "../commons/Debug.h"
+#include "Debug.h"
 
 typedef struct {
     size_t seqId;

@@ -2,7 +2,7 @@
 #include <emmintrin.h>
 #include <mmintrin.h>
 #include <smmintrin.h>
-#include "../commons/Util.h"
+#include "Util.h"
 
 
 KmerGenerator::KmerGenerator(size_t kmerSize, size_t alphabetSize, short threshold ){

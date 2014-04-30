@@ -1,6 +1,6 @@
 #include "ExtendedSubstitutionMatrix.h"
 #include "Indexer.h"
-#include "../commons/Util.h"
+#include "Util.h"
 
 #include <iostream>
 #include <iterator>

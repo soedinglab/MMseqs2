@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include "../commons/ScoreMatrix.h" // ScoreMatrix
+#include "ScoreMatrix.h" // ScoreMatrix
 
 
 class ExtendedSubstitutionMatrix

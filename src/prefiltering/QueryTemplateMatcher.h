@@ -6,8 +6,8 @@
 #include <cstring>
 
 
-#include "../commons/BaseMatrix.h"
-#include "../commons/Sequence.h"
+#include "BaseMatrix.h"
+#include "Sequence.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "QueryScore.h"
 #include "IndexTable.h"

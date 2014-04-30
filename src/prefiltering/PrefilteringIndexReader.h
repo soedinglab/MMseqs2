@@ -1,7 +1,7 @@
 #ifndef PREFILTERINGINDEXREADER_H
 #define PREFILTERINGINDEXREADER_H
 #include "IndexTable.h"
-#include "../commons/DBReader.h"
+#include "DBReader.h"
 #include <string>
 
 

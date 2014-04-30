@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 #include "Indexer.h"
-#include "../commons/ScoreMatrix.h"
-#include "../commons/Debug.h"
+#include "ScoreMatrix.h"
+#include "Debug.h"
 
 
 class KmerGenerator 

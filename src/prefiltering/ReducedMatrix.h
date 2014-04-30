@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "../commons/BaseMatrix.h"
-#include "../commons/Debug.h"
+#include "BaseMatrix.h"
+#include "Debug.h"
 
 class ReducedMatrix : public BaseMatrix {
     public: 

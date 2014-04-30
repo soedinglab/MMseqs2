@@ -1,6 +1,6 @@
 #include "PrefilteringIndexReader.h"
-#include "../commons/Debug.h"
-#include "../commons/DBWriter.h"
+#include "Debug.h"
+#include "DBWriter.h"
 #include "Prefiltering.h"
 
 const char * PrefilteringIndexReader::VERSION       = "MMSEQSVERSION";
