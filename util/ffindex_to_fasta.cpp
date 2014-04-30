@@ -54,7 +54,7 @@ int main (int argc, const char * argv[])
         char * key = dbr_data.getDbKey(i);
         if(dbr_header != NULL){
             char * header_data =dbr_header->getDataByDBKey(key);
-            fwrite(header_data, sizeof(char), strlen(header_data), fastaFP);
+            fwrite(header_data, sizeof(char), strlen(header_data) - 1, fastaFP);
         }else{
             fwrite(key, sizeof(char), strlen(key), fastaFP);
         }
