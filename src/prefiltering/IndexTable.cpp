@@ -142,10 +142,7 @@ void IndexTable::initTableByExternalData(uint64_t tableEntriesNum,
     this->sizes = NULL;
 }
 
-int* IndexTable::getDBSeqList (int kmer, int* matchedListSize){
-    *matchedListSize = table[kmer][0];
-    return table[kmer] + 1;
-}
+
 
 int IndexTable::ipow (int base, int exponent){
     int res = 1;

@@ -34,7 +34,11 @@ class IndexTable {
         void initMemory();
 
         // get list of DB sequences containing this k-mer
-        int* getDBSeqList (int kmer, int* matchedListSize);
+        inline int* getDBSeqList (int kmer, int* matchedListSize){
+            int * __restrict tabPosition = table[kmer];
+            *matchedListSize = tabPosition[0];
+            return tabPosition + 1;
+        };
 
         void print();
 
