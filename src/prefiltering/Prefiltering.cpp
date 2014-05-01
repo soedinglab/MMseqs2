@@ -55,6 +55,9 @@ Prefiltering::Prefiltering(std::string queryDB,
         this->split        = data.split;
     }
     
+
+
+    
     DBWriter::errorIfFileExist(outDB.c_str());
     DBWriter::errorIfFileExist(outDBIndex.c_str());
     
@@ -104,6 +107,8 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     Debug(Debug::WARNING) << "k-mer similarity threshold: " << kmerThr << "\n";
     Debug(Debug::WARNING) << "k-mer match probability: " << kmerMatchProb << "\n\n";
+    
+    
 }
 
 Prefiltering::~Prefiltering(){
@@ -408,12 +413,8 @@ BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, i
 }
 
 
-IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
-        int kmerSize, size_t dbFrom, size_t dbTo, int skip){
-
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-
+IndexTable* Prefiltering::generateCountedIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
+                           int kmerSize, size_t dbFrom, size_t dbTo, int skip){
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
     IndexTable* indexTable = new IndexTable(alphabetSize, kmerSize, skip);
@@ -425,13 +426,17 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addKmerCount(seq);
     }
+    return  indexTable;
+}
 
-    if ((dbTo-dbFrom) > 10000)
-        Debug(Debug::INFO) << "\n";
+
+void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * indexTable,
+                                size_t dbFrom, size_t dbTo)
+{
     Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
     indexTable->initMemory();
     indexTable->init();
-
+    
     Debug(Debug::INFO) << "Index table: fill...\n";
     for (unsigned int id = dbFrom; id < dbTo; id++){
         Log::printProgress(id-dbFrom);
@@ -440,13 +445,31 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addSequence(seq);
     }
-
+    
     if ((dbTo-dbFrom) > 10000)
-        Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: removing duplicate entries...\n";
     indexTable->removeDuplicateEntries();
     Debug(Debug::INFO) << "Index table init done.\n\n";
 
+}
+
+
+IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
+        int kmerSize, size_t dbFrom, size_t dbTo, int skip){
+
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
+    Debug(Debug::INFO) << "Index table: counting k-mers...\n";
+    IndexTable* indexTable = generateCountedIndexTable(dbr,seq,alphabetSize,kmerSize,dbFrom,dbTo, skip);
+
+
+    if ((dbTo-dbFrom) > 10000)
+        Debug(Debug::INFO) << "\n";
+    
+    fillDatabase(dbr, seq, indexTable, dbFrom, dbTo);
+    
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for index table init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";

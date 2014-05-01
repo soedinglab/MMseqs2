@@ -61,6 +61,16 @@ class Prefiltering {
         static IndexTable* generateIndexTable(DBReader* dbr, Sequence* seq,
                                          int alphabetSize, int kmerSize,
                                          size_t dbFrom, size_t dbTo, int skip = 0);
+    
+    
+        static IndexTable* generateCountedIndexTable (DBReader* dbr, Sequence* seq,
+                                                         int alphabetSize, int kmerSize,
+                                                         size_t dbFrom, size_t dbTo, int skip = 0);
+    
+        static void fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * indexTable,
+                                 size_t dbFrom, size_t dbTo);
+
+
         // get substituion matrix
         static BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSize, float bitFactor);
 
