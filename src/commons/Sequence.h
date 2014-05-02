@@ -22,7 +22,7 @@
 
 typedef struct {
         float kmersPerPos;
-        int dbMatches;
+        size_t dbMatches;
 } statistics_t;
 
 class Sequence

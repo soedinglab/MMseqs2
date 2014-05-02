@@ -49,7 +49,14 @@ class QueryScore {
         virtual ~QueryScore ();
 
         // add k-mer match score for all DB sequences from the list
-        virtual void addScores (int* seqList, int seqListSize, unsigned short score) = 0;
+    inline void addScores (int* __restrict seqList, int seqListSize, unsigned short score){
+        for (int i = 0; i < seqListSize; i++){
+            const int seqId = seqList[i];
+            scores[seqId] = sadd16(scores[seqId], score);
+        }
+        scoresSum += score * seqListSize;
+        numMatches += seqListSize;
+    }
 
         void setPrefilteringThresholds();
 
@@ -65,6 +72,10 @@ class QueryScore {
         virtual void reset () = 0;
 
         void printScores();
+    
+        unsigned int getNumMatches(){
+            return numMatches;
+        };
 
     private:
         static bool compareHits(hit_t first, hit_t second);
@@ -87,11 +98,14 @@ class QueryScore {
 
 
     protected:
-        inline unsigned short sadd16(unsigned short a, unsigned short b)
-        {
-            unsigned int s = (unsigned int)(a+b);
-            return -(s>>16) | (unsigned short)s;
-        }
+//        inline unsigned short sadd16(unsigned short a, unsigned short b)
+//        {
+//            unsigned int s = (unsigned int)(a+b);
+//            return -(s>>16) | (unsigned short)s;
+//        }
+    
+        inline unsigned short sadd16(const unsigned short  a, const unsigned short  b)
+        { return (a > 0xFFFF - b) ? 0xFFFF : a + b; };
 
         inline short sadd16_signed(short x, short y)
         {   
@@ -147,7 +161,7 @@ class QueryScore {
 
         size_t scoresSum;
 
-        int numMatches;
+        unsigned int numMatches;
 
         float matches_per_pos;
 

@@ -261,7 +261,7 @@ void Prefiltering::run (size_t split, size_t splitCount,
 
 
     int kmersPerPos = 0;
-    int dbMatches = 0;
+    size_t dbMatches = 0;
     int resSize = 0;
 #pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches)
     for (size_t id = 0; id < queryDBSize; id++){ 

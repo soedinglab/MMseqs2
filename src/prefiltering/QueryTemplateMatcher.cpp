@@ -92,7 +92,6 @@ void QueryTemplateMatcher::match(Sequence* seq){
     int indexTabListSize = 0;
     // go through the query sequence
     int kmerListLen = 0;
-    int numMatches = 0;
 
     float biasCorrection = 0;
     for (int i = 0; i < kmerSize && i < seq->L; i++)
@@ -113,9 +112,8 @@ void QueryTemplateMatcher::match(Sequence* seq){
         // match the index table
 //        int pos_matched = 0;
         for (unsigned int i = 0; i < kmerList.elementSize; i++){
-            short kmerMatchScore = kmerList.score[i] + (short) biasCorrection;
+            unsigned short kmerMatchScore = kmerList.score[i] + (short) biasCorrection;
             seqList = indexTable->getDBSeqList(kmerList.index[i], &indexTabListSize);
-            numMatches += indexTabListSize;
 
 /*            if (seq->getId() == 1 && pos == 2 ){
                 std::cout << "\t\t";
@@ -153,7 +151,6 @@ void QueryTemplateMatcher::match(Sequence* seq){
     //Debug(Debug::WARNING) << match_num << " times.\n";
     // write statistics
     seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
-    seq->stats->dbMatches = numMatches;
-
+    seq->stats->dbMatches = queryScore->getNumMatches();
 //    delete indexer;
 }
