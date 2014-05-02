@@ -57,7 +57,7 @@ void Sequence::mapSequence(int id, char* dbKey, const char * sequence){
         mapProfile(sequence);
     else  {
         Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
     currItPos = -1;
 }
@@ -68,38 +68,35 @@ void Sequence::mapNucleotideSequence(const char * sequence){
         char curr = sequence[pos];
         if (curr != '\n'){  
             curr = tolower(curr);
-            if (curr == 'u')
-                this->int_sequence[l] = this->aa2int['t'];
-            else if (curr == 'w')
-                this->int_sequence[l] = this->aa2int['a'];
-            else if (curr == 's')
-                this->int_sequence[l] = this->aa2int['c'];
-            else if (curr == 'm')
-                this->int_sequence[l] = this->aa2int['a'];
-            else if (curr == 'k')
-                this->int_sequence[l] = this->aa2int['g'];
-            else if (curr == 'r')
-                this->int_sequence[l] = this->aa2int['a'];
-            else if (curr == 'y')
-                this->int_sequence[l] = this->aa2int['c'];
-            else if (curr == 'b')
-                this->int_sequence[l] = this->aa2int['c'];
-            else if (curr == 'd')
-                this->int_sequence[l] = this->aa2int['a'];
-            else if (curr == 'h')
-                this->int_sequence[l] = this->aa2int['a'];
-            else if (curr == 'v')
-                this->int_sequence[l] = this->aa2int['a'];
-            else if (curr < 'a' || curr > 'z' || this->aa2int[(int)curr] == -1){
-                Debug(Debug::ERROR) << "ERROR: illegal character \"" << curr << "\" in sequence " << this->dbKey << " at position " << pos << "\n";
-                exit(1);
+
+            // nucleotide is small
+            switch(curr){
+                case 'u': this->int_sequence[l] = this->aa2int['t']; break;
+                case 'b':
+                case 'y':
+                case 's': this->int_sequence[l] = this->aa2int['c']; break;
+                case 'd':
+                case 'h':
+                case 'v':
+                case 'w':
+                case 'r':
+                case 'm': this->int_sequence[l] = this->aa2int['a']; break;
+                case 'k': this->int_sequence[l] = this->aa2int['g']; break;
+                default:
+                    if (curr < 'a' || curr > 'z' || this->aa2int[(int)curr] == -1){
+                        Debug(Debug::ERROR) << "ERROR: illegal character \""
+                                            << curr << "\" in sequence "
+                                            << this->dbKey << " at position " << pos << "\n";
+
+                        EXIT(1);
+                    }
+                    this->int_sequence[l] = this->aa2int[(int)curr];
+                    break;
             }
-            else
-                this->int_sequence[l] = this->aa2int[(int)curr];
             l++;
             if (l >= maxLen){
-                std::cerr << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
-                exit(1);
+                Debug(Debug::ERROR) << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
+                EXIT(1);
             }
         }
     }
@@ -186,26 +183,29 @@ void Sequence::mapProteinSequence(const char * sequence){
     while (curr != '\0'){
         if (curr != '\n'){
             // replace non-common amino acids
-            if (curr == 'J')
-                this->int_sequence[l] = this->aa2int['L'];
-            else if (curr == 'O')
-                this->int_sequence[l] = this->aa2int['X'];
-            else if (curr == 'Z')
-                this->int_sequence[l] = this->aa2int['E'];
-            else if (curr == 'B')
-                this->int_sequence[l] = this->aa2int['D'];
-            else if (curr == 'U')
-                this->int_sequence[l] = this->aa2int['X'];
-            else if (curr > 'Z' || this->aa2int[(int)curr] == -1){
-                std::cerr << "ERROR: illegal character \"" << curr << "\" in sequence " << this->dbKey << " at position " << pos << "\n";
-                exit(1);
+            curr = toupper(curr);
+            switch(curr){
+                case 'J': this->int_sequence[l] = this->aa2int['L']; break;
+                case 'U':
+                case 'O': this->int_sequence[l] = this->aa2int['X']; break;
+                case 'Z': this->int_sequence[l] = this->aa2int['E']; break;
+                case 'B': this->int_sequence[l] = this->aa2int['D']; break;
+                default:
+                    if (curr < 'A' ||curr > 'Z' || this->aa2int[(int)curr] == -1){
+                        Debug(Debug::ERROR) << "ERROR: illegal character \"" << curr
+                                            << "\" in sequence " << this->dbKey
+                                            << " at position " << pos << "\n";
+                        EXIT(1);
+                    }
+                    else
+                        this->int_sequence[l] = this->aa2int[(int)curr];
+                    break;
             }
-            else
-                this->int_sequence[l] = this->aa2int[(int)curr];
+
             l++;
             if (l >= maxLen){
-                std::cerr << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
-                exit(1);
+                Debug(Debug::ERROR) << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
+                EXIT(1);
             }
         }
         pos++;
