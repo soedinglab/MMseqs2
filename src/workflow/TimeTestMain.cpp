@@ -10,7 +10,7 @@
 #include <omp.h>
 #endif
 
-void printUsage(){
+void printUsageTimeTest(){
 
     std::string usage("\nRuns time benchmark on a database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
@@ -22,7 +22,7 @@ void printUsage(){
 
 void parseArgs(int argc, const char** argv, std::string* ffindexDBBase, std::string* logFile, std::string* scoringMatrixFile, size_t* maxSeqLen){
     if (argc < 3){
-        printUsage();
+        printUsageTimeTest();
         exit(EXIT_FAILURE);
     }
 
@@ -37,7 +37,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexDBBase, std::str
                 i++;
             }
             else {
-                printUsage();
+                printUsageTimeTest();
                 std::cerr << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -48,20 +48,20 @@ void parseArgs(int argc, const char** argv, std::string* ffindexDBBase, std::str
                 i++;
             }
             else {
-                printUsage();
+                printUsageTimeTest();
                 std::cerr << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
         else {
-            printUsage();
+            printUsageTimeTest();
             std::cerr << "Wrong argument: " << argv[i] << "\n";
             exit(EXIT_FAILURE);
         }
     }
 
     if (strcmp (scoringMatrixFile->c_str(), "") == 0){
-        printUsage();
+        printUsageTimeTest();
         std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
         exit(EXIT_FAILURE);
     }
@@ -69,7 +69,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexDBBase, std::str
 
 
 
-int main (int argc, const char * argv[])
+int timetest (int argc, const char * argv[])
 {
     size_t maxSeqLen = 50000;
 

@@ -1,4 +1,8 @@
 #include "Alignment.h"
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 
 Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex, 
         std::string targetSeqDB, std::string targetSeqDBIndex,

@@ -11,7 +11,7 @@
 #include <vector>
 #include <utility>      // std::pair
 
-void printUsage(){
+void printUsageFFindexToIndex(){
     std::string usage("\nMerge multiple ffindex files based on simular id into one file. \n");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
     usage.append("USAGE: ffindex_database_merge ffindexQueryDB ffindexOutputDB ffindexOutDB ffindexFILES*\n");
@@ -31,7 +31,7 @@ void parseArgs(int argc, const char** argv,
                int *kmerSize, int *alphabetSize,
                int *maxSeqLen, int * skip, int * split){
     if (argc < 2){
-        printUsage();
+        printUsageFFindexToIndex();
         exit(EXIT_FAILURE);
     }
     ffindexSeqDB->assign(argv[1]);
@@ -46,7 +46,7 @@ void parseArgs(int argc, const char** argv,
                 i++;
             }
             else {
-                printUsage();
+                printUsageFFindexToIndex();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -60,7 +60,7 @@ void parseArgs(int argc, const char** argv,
             i++;
         }
         else {
-            printUsage();
+            printUsageFFindexToIndex();
             Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
             EXIT(EXIT_FAILURE);
         }
@@ -71,7 +71,7 @@ void parseArgs(int argc, const char** argv,
             i++;
         }
         else {
-            printUsage();
+            printUsageFFindexToIndex();
             Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
             EXIT(EXIT_FAILURE);
         }
@@ -82,7 +82,7 @@ void parseArgs(int argc, const char** argv,
             i++;
         }
         else {
-            printUsage();
+            printUsageFFindexToIndex();
             Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
             EXIT(EXIT_FAILURE);
         }
@@ -92,13 +92,13 @@ void parseArgs(int argc, const char** argv,
             i++;
         }
         else {
-            printUsage();
+            printUsageFFindexToIndex();
             Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
             EXIT(EXIT_FAILURE);
         }
     } else {
             Debug(Debug::ERROR) << "WRONG PARAMETER";
-            printUsage();
+            printUsageFFindexToIndex();
             exit(EXIT_FAILURE);
             break;
         }
@@ -107,7 +107,7 @@ void parseArgs(int argc, const char** argv,
 
 
 
-int main (int argc, const char * argv[])
+int createindex (int argc, const char * argv[])
 {
     
     std::string seqDB = "";
@@ -118,8 +118,9 @@ int main (int argc, const char * argv[])
     int alphabetSize = 21;
     int maxSeqLen = 50000;
     int skip = 0;
-    std::string scoringMatrixFile = "/Users/mad/Documents/workspace/mmseqs/data/blosum62.out";
     parseArgs(argc, argv, &seqDB, &outDB, &kmerSize, &alphabetSize, &maxSeqLen, &skip, &split);
+
+    std::string scoringMatrixFile = "/Users/mad/Documents/workspace/mmseqs/data/blosum62.out";
     DBReader dbr(seqDB.c_str(), std::string(seqDB+".index").c_str());
     dbr.open(DBReader::SORT);
 

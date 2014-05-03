@@ -1,10 +1,11 @@
 
 #include <iostream>
 #include <time.h>
-
 #include "Clustering.h"
+#include "CommandDeclarations.h"
 
-void printUsage(){
+
+void printUsageClustering(){
 
     std::string usage("\nCalculates clustering of a sequence database based on Smith Waterman alignment scores with set cover algorithm.\n"
             "ATTENTION: ffindex sequence database should contain all the sequences participating in the clustering (queries and targets).");
@@ -19,7 +20,7 @@ void printUsage(){
 
 void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::string* ffindexOutDBBase, std::string* ffindexSeqDBBase, int* clusteringMode, float* seqIdThr, int* verbosity, int* validateClustering){
     if (argc < 3){
-        printUsage();
+        printUsageClustering();
         exit(EXIT_FAILURE);
     }
     ffindexSeqDBBase->assign(argv[1]);
@@ -42,7 +43,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::
                 i++;
             }
             else {
-                printUsage();
+                printUsageClustering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -57,20 +58,20 @@ void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::
                 i++;
             }
             else {
-                printUsage();
+                printUsageClustering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
         else {
-            printUsage();
+            printUsageClustering();
             Debug(Debug::ERROR) << "Wrong argument: " << argv[i-1] << "\n";
             exit(EXIT_FAILURE);
         }
     }
 }
 
-int main(int argc, const char * argv[])
+int cluster(int argc, const char ** argv)
 {
     int verbosity = Debug::INFO;
 
@@ -88,6 +89,6 @@ int main(int argc, const char * argv[])
     Clustering* clu = new Clustering(seqDB, seqDB + ".index", alnDB, alnDB + ".index", outDB, outDB + ".index", seqIdThr, validateClustering);
 
     clu->run(clusteringMode);
-    
+    return 0;
 }
 

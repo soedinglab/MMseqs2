@@ -21,15 +21,20 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "CommandDeclarations.h"
 
 
+
+extern "C" {
 #include "ffindex.h"
 #include "ffutil.h"
+}
+
 
 #define MAX_FILENAME_LIST_FILES 4096
 
 
-void usage(char *program_name)
+void usage(const char *program_name)
 {
     fprintf(stderr, "USAGE: %s -v | [-s] [-e] data_filename index_filename fasta_filename [headers_filename headers_index_filename]\n"
             "\t-s\tsort index file\n"
@@ -37,11 +42,11 @@ void usage(char *program_name)
             "\nDesigned and implemented by Andreas W. Hauser <hauser@genzentrum.lmu.de>.\n", program_name);
 }
 
-int main(int argn, char **argv)
+int createdb(int argn, const char **argv)
 {
     int sort = 0, version = 0, headers = 0;
     int opt, err = EXIT_SUCCESS;
-    while ((opt = getopt(argn, argv, "sve")) != -1)
+    while ((opt = getopt(argn,(char **) argv, "sve")) != -1)
     {
         switch (opt)
         {
@@ -74,14 +79,14 @@ int main(int argn, char **argv)
     }
 
 
-    char *data_filename  = argv[optind++];
-    char *index_filename = argv[optind++];
-    char *fasta_filename = argv[optind++];
+    char *data_filename  = (char *)argv[optind++];
+    char *index_filename = (char *)argv[optind++];
+    char *fasta_filename = (char *)argv[optind++];
     char *data_filename_hdr;
     char *index_filename_hdr;
     if(headers == 1){
-        data_filename_hdr = argv[optind++];
-        index_filename_hdr = argv[optind++];
+        data_filename_hdr = (char *)argv[optind++];
+        index_filename_hdr = (char *)argv[optind++];
     }
     FILE *data_file, *index_file, *fasta_file, *data_file_hdr, *index_file_hdr;
 

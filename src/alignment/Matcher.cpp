@@ -1,5 +1,5 @@
 #include "Matcher.h"
-#include "../commons/Util.h"
+#include "Util.h"
 
 Matcher::Matcher(BaseMatrix* m, int maxSeqLen){
 
@@ -39,14 +39,14 @@ Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seq
     int aaIds = 0;
 
     // calculation of the score and traceback of the alignment
-    int s = smith_waterman_sse2_word(query->getDbKey(), query->int_sequence, this->queryProfileWord, query->L, 
+    int s = SmithWaterman::smith_waterman_sse2_word(query->getDbKey(), query->int_sequence, this->queryProfileWord, query->L,
             dbSeq->getDbKey(), dbSeq->int_sequence, dbSeq->L, 
             gap_open, gap_extend, 
             workspace, 
             Hmatrix, Ematrix, Fmatrix, 
             &qEndPos, &dbEndPos);
 
-    traceback_word((short*) Hmatrix, (short*) Ematrix, (short*) Fmatrix, 
+    SmithWaterman::traceback_word((short*) Hmatrix, (short*) Ematrix, (short*) Fmatrix,
             query, dbSeq,
             this->queryProfileWord,
             qEndPos, dbEndPos, 

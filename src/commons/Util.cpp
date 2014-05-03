@@ -6,7 +6,7 @@ void * Util::mem_align(size_t boundary, size_t size) {
   void *pointer;
   if (posix_memalign(&pointer,boundary,size) != 0) {
 	std::cerr<<"Error: Could not allocate memory by memalign. Please report this bug to developers\n";
-	exit(3);
+	EXIT(3);
    }
    return pointer;
 }
@@ -43,7 +43,7 @@ void Util::decomposeDomainByAminoaAcid(int aaSize, unsigned short * seqSizes, si
     int currentRank = 0;
     int currentSize = 0;
     *start = 0;
-    for(int i = 0; i < count; i++ ){
+    for(size_t i = 0; i < count; i++ ){
         if(currentSize > aaPerSplitt){
             currentSize = 0;
             currentRank++;

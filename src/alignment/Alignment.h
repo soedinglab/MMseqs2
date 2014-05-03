@@ -1,14 +1,7 @@
 #ifndef ALIGNMENT_H
 #define ALIGNMENT_H
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
 
-extern "C" {
-#include "ffindex.h"
-#include "ffutil.h"
-}
 
 #include <string>
 #include <list>
@@ -17,12 +10,12 @@ extern "C" {
 #include <iostream>
 #include <fstream>
 
-#include "../commons/DBReader.h"
-#include "../commons/DBWriter.h"
-#include "../commons/NucleotideMatrix.h"
-#include "../commons/SubstitutionMatrix.h"
-#include "../commons/Debug.h"
-#include "../commons/Log.h"
+#include "DBReader.h"
+#include "DBWriter.h"
+#include "NucleotideMatrix.h"
+#include "SubstitutionMatrix.h"
+#include "Debug.h"
+#include "Log.h"
 
 #include "Matcher.h"
 

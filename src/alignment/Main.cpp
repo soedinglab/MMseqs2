@@ -1,15 +1,11 @@
+#include "Alignment.h"
+#include "CommandDeclarations.h"
 #include <iostream>
-#include <time.h>
-#include <unistd.h>
 #include <string>
 #include <sys/time.h>
-#include <signal.h>
-#include <execinfo.h>
 
-#include "Alignment.h"
 
-void printUsage(){
-
+void printUsageAlignment(){
     std::string usage("\nCalculates Smith-Waterman alignment scores.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("USAGE: mmseqs_pref ffindexQuerySequenceDBBase ffindexTargetSequenceDBBase ffindexPrefilteringDBBase ffindexOutDBBase [opts]\n"
@@ -24,9 +20,9 @@ void printUsage(){
     Debug(Debug::INFO) << usage;
 }
 
-void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr, int* maxSeqLen, int* maxAlnNum, int* seqType, int* verbosity, int* maxRejected){
+void parseArgs(int argc, const char** argv, std::string* qseqDB, std::string* tseqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr, int* maxSeqLen, int* maxAlnNum, int* seqType, int* verbosity, int* maxRejected){
     if (argc < 5){
-        printUsage();
+        printUsageAlignment();
         exit(EXIT_FAILURE);
     }
 
@@ -46,7 +42,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 i++;
             }
             else {
-                printUsage();
+                printUsageAlignment();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -57,7 +53,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 i++;
             }
             else {
-                printUsage();
+                printUsageAlignment();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -68,7 +64,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 i++;
             }
             else {
-                printUsage();
+                printUsageAlignment();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -79,7 +75,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 i++;
             }
             else {
-                printUsage();
+                printUsageAlignment();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -90,7 +86,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 i++;
             }
             else {
-                printUsage();
+                printUsageAlignment();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -101,7 +97,7 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 i++;
             }
             else {
-                printUsage();
+                printUsageAlignment();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -124,20 +120,20 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 i++;
             }
             else {
-                printUsage();
+                printUsageAlignment();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
         else {
-            printUsage();
+            printUsageAlignment();
             Debug(Debug::ERROR) << "Wrong argument: " << argv[i] << "\n";
             exit(EXIT_FAILURE);
         }
     }
 
     if (strcmp (matrixFile->c_str(), "") == 0){
-        printUsage();
+        printUsageAlignment();
         Debug(Debug::ERROR) << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
         exit(EXIT_FAILURE);
     }
@@ -149,7 +145,8 @@ bool compareHits (Matcher::result_t first, Matcher::result_t second){
     return false;
 }
 
-int main(int argc, char **argv){
+int alignment(int argc, const char *argv[])
+{
 
     int verbosity = Debug::INFO;
 
@@ -205,7 +202,7 @@ int main(int argc, char **argv){
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for alignments calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-
+ 
     delete aln;
 
     return 0;

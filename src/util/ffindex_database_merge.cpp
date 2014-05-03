@@ -4,9 +4,9 @@
 #include <vector>
 #include <utility>      // std::pair
 
-void printUsage(){
-    std::string usage("\nMerge multiple ffindex files based on simular id into one file. \n");
-    usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
+void printUsageFFindexMergeDb(){
+    std::string usage("\nMerge multiple ffindex files based on similar id into one file. \n");
+    usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de).\n\n");
     usage.append("USAGE: ffindex_database_merge ffindexQueryDB ffindexOutDB ffindexFILES*\n");
     Debug(Debug::ERROR) << usage;
 }
@@ -16,7 +16,7 @@ void parseArgs(int argc, const char** argv,
 	       std::string* ffindexOutDB, 
 	       std::vector<std::pair<std::string,std::string> > * files){
     if (argc < 3){
-        printUsage();
+        printUsageFFindexMergeDb();
         exit(EXIT_FAILURE);
     }
     ffindexSeqDB->assign(argv[1]);
@@ -31,7 +31,7 @@ void parseArgs(int argc, const char** argv,
 
 
 
-int main (int argc, const char * argv[])
+int mergeffindex (int argc, const char * argv[])
 {
 
     std::string seqDB = "";

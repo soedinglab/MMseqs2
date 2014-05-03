@@ -11,6 +11,7 @@ extern "C" {
 #include "ffindex.h"
 #include "ffutil.h"
 }
+#include "Util.h"
 
 struct clu_entry_t {
     int id;
@@ -35,7 +36,7 @@ int seqsWithMatches;
 int seqsWithoutMatches;
 int newClus;
 
-void printUsage(){
+void printUsageUpdate(){
 
     std::string usage("\nUpdates the existing clustering of the previous database version with new sequences from the current version of the same database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
@@ -48,7 +49,7 @@ void printUsage(){
 void parseArgs(int argc, const char** argv, std::string* ffindexLastSeqDBBase, std::string* ffindexCurrentSeqDBBase, std::string* ffindexCluDBBase, std::string* ffindexOutDBBase, 
         std::string* tmpDir, std::string* scoringMatrixFile, size_t* maxSeqLen){
     if (argc < 4){
-        printUsage();
+        printUsageUpdate();
         exit(EXIT_FAILURE);
     }
 
@@ -66,7 +67,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexLastSeqDBBase, s
                 i++;
             }
             else {
-                printUsage();
+                printUsageUpdate();
                 std::cerr << "No value provided for " << argv[i] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -77,46 +78,23 @@ void parseArgs(int argc, const char** argv, std::string* ffindexLastSeqDBBase, s
                 i++;
             }
             else {
-                printUsage();
+                printUsageUpdate();
                 std::cerr << "No value provided for " << argv[i] << "\n";
                 exit(EXIT_FAILURE);
             }
         }
         else {
-            printUsage();
+            printUsageUpdate();
             std::cerr << "Wrong argument: " << argv[i] << "\n";
             exit(EXIT_FAILURE);
         }
     }
 
     if (strcmp (scoringMatrixFile->c_str(), "") == 0){
-        printUsage();
+        printUsageUpdate();
         std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
         exit(EXIT_FAILURE);
     }
-}
-
-ffindex_index_t* openIndex(const char* indexFileName){
-    // count the number of entries in the clustering
-    char line [1000];
-    int cnt = 0;
-    std::ifstream index_file(indexFileName);
-    if (index_file.is_open()) {
-        while ( index_file.getline (line, 1000) ){
-            cnt++;
-        }
-        index_file.close();
-    }
-    else{
-        std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
-        exit(EXIT_FAILURE);
-    }
-    // open clustering ffindex
-    FILE* indexFile = fopen(indexFileName, "r");
-    if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", indexFileName);  exit(EXIT_FAILURE); }
-
-    ffindex_index_t* index = ffindex_index_parse(indexFile, cnt);
-    return index;
 }
 
 void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string oldDBIndex, std::string newDBIndex){
@@ -124,8 +102,8 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
     FILE* A_index_file = fopen(A_indexFile.c_str(), "w");
     FILE* B_index_file = fopen(B_indexFile.c_str(), "w");
 
-    ffindex_index_t* index_old = openIndex(oldDBIndex.c_str());
-    ffindex_index_t* index_new = openIndex(newDBIndex.c_str());
+    ffindex_index_t* index_old = Util::openIndex(oldDBIndex.c_str());
+    ffindex_index_t* index_new = Util::openIndex(newDBIndex.c_str());
 
     // positions in the databases
     unsigned int i = 0;
@@ -184,7 +162,7 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
 std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
         std::string targetDB, std::string targetDBIndex,
         std::string tmpDir,
-        std::string scoringMatrixFile, int maxSeqLen, int seqType,
+        std::string scoringMatrixFile, int maxSeqLen, int querySeqType, int targetSeqType,
         int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
         double evalThr, double covThr, int maxAlnNum, std::string dbName){
 
@@ -197,7 +175,8 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     Prefiltering* pref = new Prefiltering (queryDB, queryDBIndex,
             targetDB, targetDBIndex,
             prefDB, prefDB + ".index",
-            scoringMatrixFile, sensitivity, kmerSize, maxResListLen, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, split, skip);
+            scoringMatrixFile, sensitivity, kmerSize, maxResListLen, alphabetSize,
+            zscoreThr, maxSeqLen, querySeqType, targetSeqType, aaBiasCorrection, split, skip);
     std::cout << "Starting prefiltering scores calculation.\n";
     pref->run();
     delete pref;
@@ -214,7 +193,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
             targetDB, targetDBIndex,
             prefDB, prefDB + ".index",
             alnDB, alnDB + ".index",
-            scoringMatrixFile, evalThr, covThr, maxSeqLen, seqType);
+            scoringMatrixFile, evalThr, covThr, maxSeqLen, querySeqType);
     std::cout << "Starting alignments calculation.\n";
     aln->run(maxResListLen, 10);
     delete aln;
@@ -301,7 +280,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
     DBReader* BADbr = new DBReader(BA_base.c_str(), (BA_base + ".index").c_str());
     BADbr->open(DBReader::NOSORT);
 
-    ffindex_index_t* Bindex = openIndex(BIndexFile.c_str());
+    ffindex_index_t* Bindex = Util::openIndex(BIndexFile.c_str());
 
     FILE* Brest_index_file = fopen(Brest_indexFile.c_str(), "w");
 
@@ -389,14 +368,16 @@ void writeResults(cluster_t* clusters, DBReader* seqDbr, int seqDbSize, std::str
     dbw->close();
 }
 
-int main (int argc, const char * argv[]){
+int clusterupdate (int argc, const char * argv[]){
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
     // general parameters
     size_t maxSeqLen = 50000;
-    int seqType = Sequence::AMINO_ACIDS;
+    int querySeqType = Sequence::AMINO_ACIDS;
+    int targetSeqType = Sequence::AMINO_ACIDS;
+
 
     // parameter for the prefiltering
     int kmerSize = 6;
@@ -452,7 +433,7 @@ int main (int argc, const char * argv[]){
     std::string BA_base = runScoresCalculation(currentSeqDB, BIndex,
             currentSeqDB, AIndex,
             tmpDir,
-            scoringMatrixFile, maxSeqLen, seqType,
+            scoringMatrixFile, maxSeqLen, querySeqType, targetSeqType,
             kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
             evalThr, covThr, maxAlnNum, "BA");
 
@@ -491,7 +472,7 @@ int main (int argc, const char * argv[]){
         std::string BB_base = runScoresCalculation(currentSeqDB, Brest_indexFile, 
                 currentSeqDB, Brest_indexFile,
                 tmpDir,
-                scoringMatrixFile, maxSeqLen, seqType,
+                scoringMatrixFile, maxSeqLen, querySeqType, targetSeqType,
                 kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
                 evalThr, covThr, maxAlnNum, "BB");
 

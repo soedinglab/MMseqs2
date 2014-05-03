@@ -59,7 +59,7 @@ void IndexTable::initMemory(){
 void IndexTable::init(){
     int* it = entries;
     // set the pointers in the index table to the start of the list for a certain k-mer
-    for (int i = 0; i < tableSize; i++){
+    for (size_t i = 0; i < tableSize; i++){
         table[i] = it;
         table[i][0] = sizes[i];
         it += sizes[i] + 1; // +1 for sizes element
@@ -92,7 +92,7 @@ void IndexTable::removeDuplicateEntries(){
     delete[] currPos;
 
     
-    for (int e = 0; e < tableSize; e++){
+    for (size_t e = 0; e < tableSize; e++){
         if (sizes[e] == 0)
             continue;
         int* entries = table[e] + 1; // because of size at position 1
@@ -113,7 +113,7 @@ void IndexTable::removeDuplicateEntries(){
 }
 
 void IndexTable::print(){
-    for (int i = 0; i < tableSize; i++){
+    for (size_t i = 0; i < tableSize; i++){
         if (table[i][0] > 0){
             idxer->printKmer(i, kmerSize, s->int2aa);
             std::cout << "\n";
@@ -134,7 +134,7 @@ void IndexTable::initTableByExternalData(uint64_t tableEntriesNum,
     memcpy ( this->entries , pentries, sizeof(unsigned int) * (this->tableEntriesNum  + this->tableSize));
     int* it = this->entries;
     // set the pointers in the index table to the start of the list for a certain k-mer
-    for (int i = 0; i < tableSize; i++){
+    for (size_t i = 0; i < tableSize; i++){
         table[i] = it;
         it += sizes[i] + 1; // +1 for sizes element
     }

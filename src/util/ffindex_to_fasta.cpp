@@ -1,7 +1,7 @@
 #include "DBReader.h"
 #include "Debug.h"
 #include <stdio.h>
-void printUsage(){
+void printUsageFFindexToFasta(){
     std::string usage("\nMerge multiple ffindex files based on simular id into one file. \n");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
     usage.append("USAGE: ffindex_database_merge ffindexDB fastaOutDB [ffindexHeaderDB]\n");
@@ -13,7 +13,7 @@ void parseArgs(int argc, const char** argv,
                std::string* fastaOutDB,
                std::string* ffindexHeaderDB){
     if (argc < 2){
-        printUsage();
+        printUsageFFindexToFasta();
         exit(EXIT_FAILURE);
     }
     ffindexSeqDB->assign(argv[1]);
@@ -26,7 +26,7 @@ void parseArgs(int argc, const char** argv,
 
 
 
-int main (int argc, const char * argv[])
+int createfasta (int argc, const char * argv[])
 {
     
     std::string ffindexSeqDB = "";

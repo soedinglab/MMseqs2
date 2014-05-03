@@ -12,8 +12,7 @@
 #include "smith_waterman_sse2.h"
 
 // amino acids in the sequences are numerically coded
-    int
-smith_waterman_sse2_word(char* query_id, 
+int SmithWaterman::smith_waterman_sse2_word(char* query_id,
         int *     query_sequence,
         unsigned short *    query_profile_word,
         const int                 query_length,
@@ -290,7 +289,7 @@ smith_waterman_sse2_word(char* query_id,
     return score + 32768;
 }
 
-void traceback_word(short* H, 
+void SmithWaterman::traceback_word(short* H,
         short* E, 
         short* F,
         Sequence* query,
@@ -412,19 +411,19 @@ void traceback_word(short* H,
     *dbstartpos = (unsigned short) dbpos;
 }
 
-void printVector(__m128i v){
+void SmithWaterman::printVector(__m128i v){
     for (int i = 0; i < 8; i++)
        printf("%d ", ((short) (sse2_extract_epi16(v, i)) + 32768));
     std::cout << "\n";
 }
 
-void printVectorUS(__m128i v){
+void SmithWaterman::printVectorUS(__m128i v){
     for (int i = 0; i < 8; i++)
         printf("%d ", (unsigned short) sse2_extract_epi16(v, i));
     std::cout << "\n";
 }
 
-unsigned short sse2_extract_epi16(__m128i v, int pos) {
+unsigned short SmithWaterman::sse2_extract_epi16(__m128i v, int pos) {
     switch(pos){
         case 0: return _mm_extract_epi16(v, 0);
         case 1: return _mm_extract_epi16(v, 1);

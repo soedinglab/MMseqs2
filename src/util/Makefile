@@ -10,7 +10,7 @@ CFLAGS = -ggdb -msse4.1  -I../lib/ffindex/src/ -L../lib/ffindex/src/ -lffindex  
 CFLAGS += -I../src/commons -I../src/prefiltering 
 TARGETS = ffindex_database_merge 
 TARGETS += ffindex_from_fasta
-TARGETS += mmseqs_pref_index
+TARGETS += ffindex_to_pref_index
 TARGETS += ffindex_to_fasta
 ifdef HAVE_MPI
 CC = mpic++
@@ -31,10 +31,10 @@ ffindex_to_fasta: .depend ffindex_to_fasta.o $(MAIN_OBJS)
 ffindex_to_fasta.o: ffindex_to_fasta.cpp
 	$(CC) $(CFLAGS) -c ffindex_to_fasta.cpp -o ffindex_to_fasta.o
 
-mmseqs_pref_index: .depend mmseqs_pref_index.o $(MAIN_OBJS)
-	$(CC) $(CFLAGS) $(MAIN_OBJS) mmseqs_pref_index.o -o mmseqs_pref_index
-mmseqs_pref_index.o: mmseqs_pref_index.o
-	$(CC) $(CFLAGS) -c mmseqs_pref_index.cpp -o mmseqs_pref_index.o
+ffindex_to_pref_index: .depend ffindex_to_pref_index.o $(MAIN_OBJS)
+	$(CC) $(CFLAGS) $(MAIN_OBJS) ffindex_to_pref_index.o -o ffindex_to_pref_index
+ffindex_to_pref_index.o: ffindex_to_pref_index.cpp
+	$(CC) $(CFLAGS) -c ffindex_to_pref_index.cpp -o ffindex_to_pref_index.o
 
 ffindex_from_fasta: ffindex_from_fasta .depend 
 	gcc $(CFLAGS) -std=c99 ffindex_from_fasta.c -o ffindex_from_fasta

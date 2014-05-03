@@ -142,9 +142,6 @@ void Sequence::mapProfile(const char * sequenze){
 			}
 		}
         
-        
-        
-
         int indexArray[PROFILE_AA_SIZE]=   { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19 };
         Util::rankedDescSort20(&profile_score[l * profile_row_size],(int *) &indexArray);
         memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );

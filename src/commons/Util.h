@@ -2,7 +2,15 @@
 #define UTIL_H
 #include <math.h>
 #include <stdlib.h>
+#include <fstream>
 
+#include <stdlib.h>
+#include <iostream>
+
+extern "C" {
+#include "ffindex.h"
+#include "ffutil.h"
+}
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -17,7 +25,7 @@
 #define SSTR( x ) dynamic_cast< std::ostringstream & >( \
 ( std::ostringstream() << std::dec << x ) ).str()
 
-
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
 static const float _2p23 = 8388608.0f;
 typedef struct {
@@ -84,8 +92,11 @@ static inline float powFast2 ( float f)
     return powFastLookup( f, 1.0f, ppf->pTable_m, ppf->precision_m );
 }
 
-#include <stdlib.h>
-#include <iostream>
+
+
+
+
+
 
 class Util {
 public:
@@ -124,6 +135,30 @@ public:
             data++;
         }
         return data;
+    }
+    
+    
+    static ffindex_index_t* openIndex(const char* indexFileName){
+        // count the number of entries in the clustering
+        char line [1000];
+        int cnt = 0;
+        std::ifstream index_file(indexFileName);
+        if (index_file.is_open()) {
+            while ( index_file.getline (line, 1000) ){
+                cnt++;
+            }
+            index_file.close();
+        }
+        else{
+            std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        // open clustering ffindex
+        FILE* indexFile = fopen(indexFileName, "r");
+        if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", indexFileName);  EXIT(EXIT_FAILURE); }
+        
+        ffindex_index_t* index = ffindex_index_parse(indexFile, cnt);
+        return index;
     }
     
     

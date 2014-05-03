@@ -3,8 +3,9 @@
 #include <string>
 #include <signal.h>
 #include <execinfo.h>
-
 #include "Prefiltering.h"
+#include "CommandDeclarations.h"
+
 
 #ifdef OPENMP
 #include <omp.h>
@@ -57,7 +58,7 @@ void mmseqs_cuticle_init()
   sigaction(SIGABRT, &handler, NULL);
 }
 
-void printUsage(){
+void printUsagePrefiltering(){
 
     std::string usage("\nCalculates similarity scores between all sequences in the query database and all sequences in the target database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
@@ -69,34 +70,25 @@ void printUsage(){
             "--z-score-thr   \t[float]\tZ-score threshold [default: 300.0]\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucleotides   \t\tNucleotide sequences input.\n"
-<<<<<<< HEAD
             "--profile       \t\tHMM Profile input.\n"
             "--max-seqs      \t[int]\tMaximum result sequences per query (default=100)\n"
             "--no-comp-bias-corr \tSwitch off local amino acid composition bias correction.\n"
             "--split         \tSplits target databases in n equal distrbuted junks (default=1)\n"
-=======
-            "--max-seqs   \t[int]\tMaximum result sequences per query (default=100)\n"
-            "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
-            "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
             "--threads       \t[int]\tNumber of threads used to compute. (Default=all cpus)\n"
->>>>>>> master
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
             "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
 }
 
-<<<<<<< HEAD
-void parseArgs(int argc, char** argv, std::string* ffindexQueryDBBase,
+void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
                std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase,
                std::string* scoringMatrixFile, float* sens, int* kmerSize,
                int* alphabetSize, float* zscoreThr, size_t* maxSeqLen,
                int* querySeqType, int * targetSeqType, size_t* maxResListLen, bool* compBiasCorrection,
-               int* split, int* skip, int* verbosity){
-=======
-void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* scoringMatrixFile, float* sens, int* kmerSize, int* alphabetSize, float* zscoreThr, size_t* maxSeqLen, int* seqType, size_t* maxResListLen, bool* compBiasCorrection, int* splitSize, int* threads, int* skip, int* verbosity){
->>>>>>> master
+               int* split, int* threads, int* skip, int* verbosity){
+
     if (argc < 4){
-        printUsage();
+        printUsagePrefiltering();
         EXIT(EXIT_FAILURE);
     }
 
@@ -116,7 +108,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -131,7 +123,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -146,7 +138,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -157,7 +149,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -168,7 +160,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided" << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -179,7 +171,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -204,7 +196,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -219,7 +211,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -230,7 +222,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 exit(EXIT_FAILURE);
             }
@@ -245,7 +237,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -256,29 +248,26 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 i++;
             }
             else {
-                printUsage();
+                printUsagePrefiltering();
                 Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
                 EXIT(EXIT_FAILURE);
             }
         }
         else {
-            printUsage();
+            printUsagePrefiltering();
             Debug(Debug::ERROR) << "Wrong argument: " << argv[i] << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
 
     if (strcmp (scoringMatrixFile->c_str(), "") == 0){
-        printUsage();
+        printUsagePrefiltering();
         Debug(Debug::ERROR) << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
         EXIT(EXIT_FAILURE);
     }
 }
 
-<<<<<<< HEAD
 
-int main (int argc,  char * argv[])
-=======
 // this is needed because with GCC4.7 omp_get_num_threads() returns just 1.
 int omp_thread_count() {
     int n = 0;
@@ -287,8 +276,7 @@ int omp_thread_count() {
     return n;
 }
 
-int main (int argc, const char * argv[])
->>>>>>> master
+int prefilter(int argc, const char **argv)
 {
 #ifdef HAVE_MPI 
     int mpi_error,mpi_rank,mpi_num_procs;
@@ -314,17 +302,13 @@ int main (int argc, const char * argv[])
     float sensitivity = 4.0f;
     int split = 1;
     int skip = 0;
-<<<<<<< HEAD
     int querySeqType  = Sequence::AMINO_ACIDS;
     int targetSeqType = Sequence::AMINO_ACIDS;
 
-=======
     int threads = 1;
 #ifdef OPENMP
     threads = omp_thread_count();
 #endif
-    int seqType = Sequence::AMINO_ACIDS;
->>>>>>> master
     bool compBiasCorrection = true;
     float zscoreThr = 50.0f;
 
@@ -341,17 +325,13 @@ int main (int argc, const char * argv[])
 
     parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile,
                           &sensitivity, &kmerSize, &alphabetSize, &zscoreThr,
-<<<<<<< HEAD
                           &maxSeqLen, &querySeqType, &targetSeqType, &maxResListLen, &compBiasCorrection,
-                          &split, &skip, &verbosity);
+                          &split, &threads, &skip, &verbosity);
 
-=======
-                          &maxSeqLen, &seqType, &maxResListLen, &compBiasCorrection,
-                          &splitSize, &threads, &skip, &verbosity);
 #ifdef OPENMP
     omp_set_num_threads(threads);
 #endif
->>>>>>> master
+
     Debug::setDebugLevel(verbosity);
 
     if (querySeqType == Sequence::NUCLEOTIDES)

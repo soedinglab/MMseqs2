@@ -121,7 +121,8 @@ void TimeTest::runTimeTest (){
                     thread_idx = omp_get_thread_num();
 #endif
                     // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
-                    matchers[thread_idx] = new QueryTemplateMatcher(subMat, _2merSubMatrix, _3merSubMatrix, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
+                    matchers[thread_idx] = new QueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
+                    matchers[thread_idx]->setSubstitutionMatrix(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix );
                 }
 
                 struct timeval start, end;
