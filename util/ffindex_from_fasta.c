@@ -138,7 +138,7 @@ int main(int argn, char **argv)
             
         size_t pos = 0;
         if (mode == 0){
-            while (*(fasta_data + fasta_offset + local_offset) !=  ' '){
+            while ((*(fasta_data + fasta_offset + local_offset) !=  ' ') && (*(fasta_data + fasta_offset + local_offset) != '\n')){
                 name[pos] = *(fasta_data + fasta_offset + local_offset);
                 local_offset++;
                 pos++;

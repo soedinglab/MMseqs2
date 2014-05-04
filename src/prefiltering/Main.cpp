@@ -61,7 +61,7 @@ void printUsage(){
             "-s              \t[float]\tSensitivity in the range [1:7] (default=4)\n"
             "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
             "-a              \t[int]\tAmino acid alphabet size (default=21).\n"
-            "--z-score-thr   \t[float]\tZ-score threshold [default: 300.0]\n"
+            "--z-score-thr   \t[float]\tZ-score threshold [default: 50.0]\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucleotides   \t\tNucleotide sequences input.\n"
             "--max-seqs   \t[int]\tMaximum result sequences per query (default=100)\n"
@@ -304,7 +304,7 @@ int main (int argc, const char * argv[])
 
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::WARNING) << "\nTime for the prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
     return 0;
 }

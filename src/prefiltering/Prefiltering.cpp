@@ -176,6 +176,8 @@ void Prefiltering::run(size_t maxResListLen){
             // calculate prefitlering results
             std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(seqs[thread_idx], tdbr->getId(seqs[thread_idx]->getDbKey()));
             const size_t resultSize = prefResults.second;
+//            if (resultSize == QueryScore::MAX_RES_LIST_LEN)
+//                Debug(Debug::INFO) << "WARNING: More than " << QueryScore::MAX_RES_LIST_LEN << " results for the query " << qdbr->getDbKey(id) << ", I am skipping the rest. (Consider increasing z-score threshold for this run.)\n";
             // write
             if(writePrefilterOutput(thread_idx,idSuffix,id,maxResListLen,prefResults)!=0)
                 continue; // couldnt write result because of too much results
@@ -190,7 +192,7 @@ void Prefiltering::run(size_t maxResListLen){
         } // step end
         if (queryDBSize > 1000)
             Debug(Debug::INFO) << "\n";
-        Debug(Debug::WARNING) << "\n";
+        Debug(Debug::INFO) << "\n";
 
         for (int j = 0; j < threads; j++){
             delete matchers[j];
@@ -261,6 +263,14 @@ int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, si
     size_t l = 0;
     hit_t * resultVector = prefResults.first;
     const size_t resultSize = prefResults.second;
+
+    hit_t * r = resultVector;
+    char* tDbKey = tdbr->getDbKey(r->seqId);
+    char* qDbKey = qdbr->getDbKey(id);
+
+    if (strcmp(qDbKey, tDbKey) != 0)
+        Debug(Debug::WARNING) << "ATTENTION: self match not the first match for the query sequence " << qDbKey << "\n";
+
     for (size_t i = 0; i < resultSize; i++){
         hit_t * res = resultVector + i;
 
@@ -296,13 +306,13 @@ void Prefiltering::printStatistics(size_t queryDBSize, size_t kmersPerPos,
         std::list<int>* reslens){
     size_t dbMatchesPerSeq = dbMatches/queryDBSize;
     size_t prefPassedPerSeq = resSize/queryDBSize;
-    Debug(Debug::INFO) << kmersPerPos/queryDBSize << " k-mers per position.\n";
-    Debug(Debug::INFO) << dbMatchesPerSeq << " DB matches per sequence.\n";
-    Debug(Debug::INFO) << prefPassedPerSeq << " sequences passed prefiltering per query sequence";
+    Debug(Debug::WARNING) << kmersPerPos/queryDBSize << " k-mers per position.\n";
+    Debug(Debug::WARNING) << dbMatchesPerSeq << " DB matches per sequence.\n";
+    Debug(Debug::WARNING) << prefPassedPerSeq << " sequences passed prefiltering per query sequence";
     if (prefPassedPerSeq > maxResListLen)
-        Debug(Debug::INFO) << " (ATTENTION: max. " << maxResListLen << " best scoring sequences were written to the output prefiltering database).\n";
+        Debug(Debug::WARNING) << " (ATTENTION: max. " << maxResListLen << " best scoring sequences were written to the output prefiltering database).\n";
     else
-        Debug(Debug::INFO) << ".\n";
+        Debug(Debug::WARNING) << ".\n";
 
     int mid = reslens->size() / 2;
     std::list<int>::iterator it = reslens->begin();
@@ -372,7 +382,7 @@ IndexTable* Prefiltering::getIndexTable (DBReader* dbr, Sequence* seq, int alpha
 std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double sensitivity, double toleratedDeviation){
 
     size_t targetDbSize = std::min( dbr->getSize(), (size_t) 100000);
-    IndexTable* indexTable = getIndexTable(dbr, seqs[0], alphabetSize, kmerSize, 0, targetDbSize);
+IndexTable* indexTable = getIndexTable(dbr, seqs[0], alphabetSize, kmerSize, 0, targetDbSize);
 
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
 
@@ -422,14 +432,14 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* dbr, double se
         gamma = 1.959421; // 1.997792;
     }
     else if (kmerSize == 6){ 
-        alpha = 1.141648e-01; // 1.114936e-01;
+        alpha = 1.141648e-01; // 1.114936e-01
         beta = 9.033168e+05; // 9.331253e+05;
         gamma = 1.411142; // 1.416222;
     }
     else if (kmerSize == 7){ 
-        alpha = 7.123599e-02; //6.438574e-02; // 6.530289e-02;
-        beta = 3.148479e+06; //3.480680e+06; // 3.243035e+06;
-        gamma = 1.304421; // 1.753651; //1.137125;
+        alpha = 6.356035e-02; //7.123599e-02; //6.438574e-02; // 6.530289e-02;
+        beta = 3.432066e+06; //3.148479e+06; //3.480680e+06; // 3.243035e+06;
+        gamma = 1.238231; //1.304421; // 1.753651; //1.137125;
     }
     else{
         Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
