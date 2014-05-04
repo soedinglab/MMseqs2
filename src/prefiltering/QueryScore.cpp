@@ -83,7 +83,7 @@ QueryScore::~QueryScore (){
 }
 
 bool QueryScore::compareHits(hit_t first, hit_t second){
-    return (first.prefScore > second.prefScore) ? true : false;
+    return (first.zScore > second.zScore) ? true : false;
 }
 
 void QueryScore::setPrefilteringThresholds(){
