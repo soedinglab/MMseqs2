@@ -88,7 +88,7 @@ void QueryTemplateMatcher::match(Sequence* seq){
     if (this->aaBiasCorrection)
         calcLocalAaBiasCorrection(seq);
 
-    int* seqList;
+    unsigned int* seqList;
     int indexTabListSize = 0;
     // go through the query sequence
     int kmerListLen = 0;
@@ -97,9 +97,9 @@ void QueryTemplateMatcher::match(Sequence* seq){
     for (int i = 0; i < kmerSize && i < seq->L; i++)
         biasCorrection += deltaS[i];
 
-/*    int overall_score = 0;
-    int match_num = 0;
-    int match_pos = 0;*/
+//    int overall_score = 0;
+//    int match_num = 0;
+//    int match_pos = 0;
 
     int pos = 0;
 //    std::cout << "\nQUERY: " << seq->getDbKey() << "\n";
@@ -120,20 +120,18 @@ void QueryTemplateMatcher::match(Sequence* seq){
                 indexer->printKmer(retList[i].second, kmerSize, m->int2aa);
                 std::cout << " " << retList[i].first << "\n";
             }*/
-/*            for (int j = 0; j < indexTabListSize; j++){
-                if (seqList[j] == 1){
-                    std::cout << "Similar k-mer list pos: " << i << ", score: " << retList[i].first << ", kmer idx: " << retList[i].second << "\n";
-                    pos_matched = 1;
-                    std::cout << pos << " ";
-                    indexer->printKmer(kmer, kmerSize, m->int2aa);
-                    std::cout << "->";
-                    indexer->printKmer(kmerMatch.second, kmerSize, m->int2aa);
-                    std::cout << "\n";
-                    std::cout << "\t" << kmerMatchScore << "\n";
-                    overall_score+=kmerMatchScore;
-                    match_num++;
-                }
-            }*/
+//            for (int j = 0; j < indexTabListSize; j++){
+//                    std::cout << "Similar k-mer list pos: " << i << ", score: " << kmerList.index[i] << ", kmer idx: " << kmerList.score[i] << "\n";
+//                    pos_matched = 1;
+//                    std::cout << pos << " ";
+//                    indexer->printKmer(kmer, kmerSize, m->int2aa);
+//                    std::cout << "->";
+//                    indexer->printKmer(kmerList.index[i], kmerSize, m->int2aa);
+//                    std::cout << "\n";
+//                    std::cout << "\t" << kmerMatchScore << "\n";
+//                    overall_score+=kmerMatchScore;
+//                    match_num++;
+//            }
 
             // add the scores for the k-mer to the overall score for this query sequence
             // for the overall score, bit/2 is a sufficient sensitivity and we can use the capacity of unsigned short max score in QueryScore better

@@ -22,6 +22,8 @@
 #include <math.h>
 #include <fstream>
 #include <sstream>
+#include <map>
+#include <vector>
 #include <bitset>
 
 #include "Debug.h"
@@ -41,15 +43,17 @@ struct HitIdEqual {
 };
 
 
+
 class QueryScore {
     public:
 
         QueryScore (int dbSize, unsigned short * seqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr);
 
         virtual ~QueryScore ();
+    
 
         // add k-mer match score for all DB sequences from the list
-    inline void addScores (int* __restrict seqList, int seqListSize, unsigned short score){
+    inline void addScores (unsigned int* __restrict seqList, int seqListSize, unsigned short score){
         for (int i = 0; i < seqListSize; i++){
             const int seqId = seqList[i];
             scores[seqId] = sadd16(scores[seqId], score);
@@ -57,6 +61,7 @@ class QueryScore {
         scoresSum += score * seqListSize;
         numMatches += seqListSize;
     }
+
 
         void setPrefilteringThresholds();
 

@@ -34,8 +34,8 @@ class IndexTable {
         void initMemory();
 
         // get list of DB sequences containing this k-mer
-        inline int* getDBSeqList (int kmer, int* matchedListSize){
-            int * __restrict tabPosition = table[kmer];
+        inline unsigned int* getDBSeqList (int kmer, int* matchedListSize){
+            unsigned int * __restrict tabPosition = table[kmer];
             *matchedListSize = tabPosition[0];
             return tabPosition + 1;
         };
@@ -45,11 +45,12 @@ class IndexTable {
         // alphabetSize**kmerSize
         unsigned int tableSize;
         // get pointer to sizes array
-        int* getSizes();
+        unsigned short* getSizes();
         // get pointer to entries array
-        int* getEntries();
+        unsigned int* getEntries();
         // init index table with external data (needed for index readin)
-        void initTableByExternalData(uint64_t tableEntriesNum, int * entries,int * sizes, unsigned int tableSize);
+        void initTableByExternalData(uint64_t tableEntriesNum, unsigned short * sizes,
+                                     unsigned int * entries, unsigned int tableSize);
         // get amount of sequences in Index
         unsigned int getSize() {  return size; };
         // number of entries in all sequence lists
@@ -59,12 +60,12 @@ class IndexTable {
         int ipow (int base, int exponent);
 
         // Index table: contains pointers to the point in the entries array where starts the list of sequence ids for a certain k-mer
-        int** __restrict table;
+        unsigned int** __restrict table;
 
         // Index table entries: ids of sequences containing a certain k-mer, stored sequentially in the memory
-        int* entries;
+        unsigned int* entries;
 
-        int* sizes;
+        unsigned short* sizes;
 
         // only for init: current position in the DB id array of the index table where the next sequence id can be written
         int* currPos;

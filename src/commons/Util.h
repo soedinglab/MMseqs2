@@ -3,6 +3,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <fstream>
+#include <vector>
+
 
 #include <stdlib.h>
 #include <iostream>
@@ -116,6 +118,27 @@ public:
         }
         return val;
     }
+    
+    
+    bool startWith(std::string prefix, std::string str){
+        return (!str.compare(0, prefix.size(), prefix));
+    }
+    
+    std::vector<std::string> split(std::string str,std::string sep){
+        char buffer[1024];
+        snprintf(buffer, 1024, "%s", str.c_str());
+        char* cstr = (char *) &buffer;
+        char* current;
+        std::vector<std::string> arr;
+        current=strtok(cstr,sep.c_str());
+        while(current!=NULL){
+            arr.push_back(current);
+            current=strtok(NULL,sep.c_str());
+        }
+        return arr;
+    }
+
+    
     
     static inline char * skipLine(char * data){
         while( *data !='\n' ) { data++; }

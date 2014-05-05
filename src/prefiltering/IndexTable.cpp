@@ -9,13 +9,13 @@ IndexTable::IndexTable (int alphabetSize, int kmerSize, int skip)
     
     tableSize = ipow(alphabetSize, kmerSize);
     
-    sizes = new int[tableSize];
-    memset(sizes, 0, sizeof(int) * tableSize);
+    sizes = new unsigned short[tableSize];
+    memset(sizes, 0, sizeof(short) * tableSize);
     
     currPos = new int[tableSize];
     std::fill_n(currPos, tableSize, 1); // needed because of size at beginning
     
-    table = new int*[tableSize];
+    table = new unsigned int*[tableSize];
     
     idxer = new Indexer(alphabetSize, kmerSize);
     
@@ -27,7 +27,7 @@ IndexTable::~IndexTable(){
     delete idxer;
 }
 
-int* IndexTable::getSizes(){
+unsigned short * IndexTable::getSizes(){
     if(sizes == NULL)
         std::cerr << "AAAAAH" << std::endl;
     return sizes;
@@ -52,12 +52,12 @@ void IndexTable::addKmerCount (Sequence* s){
 void IndexTable::initMemory(){
     // allocate memory for the sequence id lists
     // tablesSizes is added to put the Size of the entry infront fo the memory
-    entries = new int[tableEntriesNum+tableSize];
+    entries = new unsigned int[tableEntriesNum+tableSize];
 }
 
 
 void IndexTable::init(){
-    int* it = entries;
+    unsigned int* it = entries;
     // set the pointers in the index table to the start of the list for a certain k-mer
     for (size_t i = 0; i < tableSize; i++){
         table[i] = it;
@@ -66,7 +66,7 @@ void IndexTable::init(){
     }
 }
 
-int * IndexTable::getEntries(){
+unsigned int * IndexTable::getEntries(){
     return entries;
 }
 
@@ -95,7 +95,7 @@ void IndexTable::removeDuplicateEntries(){
     for (size_t e = 0; e < tableSize; e++){
         if (sizes[e] == 0)
             continue;
-        int* entries = table[e] + 1; // because of size at position 1
+        unsigned int* entries = table[e] + 1; // because of size at position 1
         int size = sizes[e];
         
         std::sort(entries, entries + size);
@@ -127,12 +127,12 @@ void IndexTable::print(){
 
 
 void IndexTable::initTableByExternalData(uint64_t tableEntriesNum,
-                                         int * sizes, int * pentries, unsigned int sequenzeCount){
+                                         unsigned short * sizes, unsigned int * pentries, unsigned int sequenzeCount){
     this->tableEntriesNum = tableEntriesNum;
     this->size = sequenzeCount;
     initMemory();
     memcpy ( this->entries , pentries, sizeof(unsigned int) * (this->tableEntriesNum  + this->tableSize));
-    int* it = this->entries;
+    unsigned int* it = this->entries;
     // set the pointers in the index table to the start of the list for a certain k-mer
     for (size_t i = 0; i < tableSize; i++){
         table[i] = it;

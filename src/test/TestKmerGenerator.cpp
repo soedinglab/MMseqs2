@@ -16,7 +16,7 @@
 int main (int argc, const char * argv[])
 {
 
-    const size_t kmer_size=6;
+    const size_t kmer_size=5;
 
 
     SubstitutionMatrix subMat("../../data/blosum62.out",8.0);
@@ -41,7 +41,7 @@ int main (int argc, const char * argv[])
     Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa, 0);
     s->mapSequence(0,"lala",sequence);
 
-    KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,60);
+    KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,80);
 
     kmerGen.setDivideStrategy(extMatthree.scoreMatrix, extMattwo.scoreMatrix );
     int* testKmer = new int[kmer_size];

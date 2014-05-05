@@ -32,7 +32,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader * dbr,
         std::string entriesizes_key = std::string(ENTRIESIZES) + SSTR(step);
         Debug(Debug::WARNING) << "Write " << entriesizes_key << "\n";
         char * sizes = (char *) indexTable->getSizes();
-        writer.write(sizes, indexTable->tableSize * sizeof(int),(char*) entriesizes_key.c_str(), 0);
+        writer.write(sizes, indexTable->tableSize * sizeof(short),(char*) entriesizes_key.c_str(), 0);
         
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize );
         
@@ -86,9 +86,9 @@ DBReader * PrefilteringIndexReader::openNewReader(DBReader * dbr){
 
 IndexTable * PrefilteringIndexReader::generateIndexTable(DBReader * dbr, int split){
     std::string entriesizes_key = std::string(ENTRIESIZES) + SSTR(split);
-    int * entrie_sizes   = (int *) dbr->getDataByDBKey((char*)entriesizes_key.c_str());
+    unsigned short * entrie_sizes   = (unsigned short  *) dbr->getDataByDBKey((char*)entriesizes_key.c_str());
     std::string entries_key = std::string(ENTRIES) + SSTR(split);
-    int * entries        = (int *) dbr->getDataByDBKey((char*)entries_key.c_str());
+    unsigned int * entries        = (unsigned int *) dbr->getDataByDBKey((char*)entries_key.c_str());
     std::string entriesnum_key = std::string(ENTRIESNUM) + SSTR(split);
     int64_t * entriesNum   = (int64_t *) dbr->getDataByDBKey((char*)entriesnum_key.c_str());
     std::string tablesize_key = std::string(TABLESIZE) + SSTR(split);
