@@ -113,7 +113,7 @@ void QueryTemplateMatcher::match(Sequence* seq){
                 std::cout << " " << retList[i].first << "\n";
             }*/
             std::pair<short,unsigned int> kmerMatch = retList[i];
-            short kmerMatchScore = kmerMatch.first + (short) biasCorrection;
+            short kmerMatchScore = std::max((kmerMatch.first + (short) biasCorrection), 0);
             seqList = indexTable->getDBSeqList(kmerMatch.second, &indexTabListSize);
             numMatches += indexTabListSize;
 
