@@ -36,7 +36,8 @@ KSEQ_INIT(int, read);
 
 void usage(const char *program_name)
 {
-    fprintf(stderr, "USAGE: %s  data_filename index_filename fasta_filename headers_filename headers_index_filename\n"
+    fprintf(stderr, "Converts a fasta database to ffindex.\n");
+    fprintf(stderr, "USAGE: %s  fastaInDB ffindexOutDB\n"
             "\nDesigned and implemented by Andreas Hauser, Martin Steinegger <martin.steinegger@campus.lmu.de>.\n", program_name);
 }
 
@@ -104,22 +105,25 @@ int main(int argn,const char **argv)
     int opt, err = EXIT_SUCCESS;
     sort = 1;
 
-    if(argn  <  6)
+    if(argn  <  3)
     {
         usage(argv[0]);
         return EXIT_FAILURE;
     }
 
 
-    char *data_filename  = (char *)argv[optind++];
-    char *index_filename = (char *)argv[optind++];
-    char *fasta_filename = (char *)argv[optind++];
-    char *data_filename_hdr;
-    char *index_filename_hdr;
-    data_filename_hdr = (char *) argv[optind++];
-    index_filename_hdr = (char *)argv[optind++];
+    char *data_filename  = (char *)   argv[optind++];
+    std::string index_filename_str(data_filename);
+    index_filename_str.append(".index");
+    char *index_filename = (char *) index_filename_str.c_str();
+    char *fasta_filename = (char *)   argv[optind++];
+    std::string data_filename_hdr_str(data_filename);
+    data_filename_hdr_str.append("_h");
+    char *data_filename_hdr  = (char *)data_filename_hdr_str.c_str() ;
+    std::string index_filename_hdr_str(data_filename);
+    index_filename_hdr_str.append("_h.index");
+    char *index_filename_hdr = (char *)index_filename_hdr_str.c_str() ;
     FILE *data_file, *index_file, *fasta_file, *data_file_hdr, *index_file_hdr;
-
     struct stat st;
 
     if(stat(data_filename, &st) == 0) { errno = EEXIST; perror(data_filename); return EXIT_FAILURE; }
