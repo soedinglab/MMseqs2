@@ -82,7 +82,6 @@ std::pair<hit_t *, size_t> QueryTemplateMatcher::matchQuery (Sequence * seq, uns
 
 void QueryTemplateMatcher::match(Sequence* seq){
 
-//    Indexer* indexer = new Indexer(m->alphabetSize, kmerSize);
     seq->resetCurrPos();
 
     if (this->aaBiasCorrection)
@@ -101,8 +100,9 @@ void QueryTemplateMatcher::match(Sequence* seq){
 //    int match_num = 0;
 //    int match_pos = 0;
 
+
     int pos = 0;
-//    std::cout << "\nQUERY: " << seq->getDbKey() << "\n";
+    short zero = 0;
     while(seq->hasNextKmer(kmerSize)){
         const int* kmer = seq->nextKmer(kmerSize);
         // generate k-mer list
@@ -111,14 +111,12 @@ void QueryTemplateMatcher::match(Sequence* seq){
 
         // match the index table
 //        int pos_matched = 0;
+        short biasCorrection_short = (short) biasCorrection;
         for (unsigned int i = 0; i < kmerList.elementSize; i++){
             // avoid unsigned short overflow
-            short kmerMatchScore = kmerList.score[i];
-            if (((int)kmerMatchScore + (int) biasCorrection) < 0 )
-                kmerMatchScore = 0;
-            else
-                kmerMatchScore = kmerMatchScore + (short) biasCorrection;
-
+            short kmerMatchScore = kmerList.score[i] + biasCorrection_short;
+            // avoid unsigned short overflow
+            kmerMatchScore = std::max(kmerMatchScore, zero);
             
             
             seqList = indexTable->getDBSeqList(kmerList.index[i], &indexTabListSize);
@@ -141,16 +139,12 @@ void QueryTemplateMatcher::match(Sequence* seq){
 //                    match_num++;
 //            }
 
-
-
             // add the scores for the k-mer to the overall score for this query sequence
             // for the overall score, bit/2 is a sufficient sensitivity and we can use the capacity of unsigned short max score in QueryScore better
             queryScore->addScores(seqList, indexTabListSize, (kmerMatchScore/4));
         }
         biasCorrection -= deltaS[pos];
         biasCorrection += deltaS[pos + kmerSize];
-//        if(pos_matched == 1)
-//            match_pos++;
         pos++;
     }
     //Debug(Debug::WARNING) << "QUERY: " << seq->getDbKey();
@@ -161,4 +155,5 @@ void QueryTemplateMatcher::match(Sequence* seq){
     seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
     seq->stats->dbMatches = queryScore->getNumMatches();
 //    delete indexer;
+
 }

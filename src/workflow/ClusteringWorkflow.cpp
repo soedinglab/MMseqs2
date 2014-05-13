@@ -16,7 +16,7 @@ extern "C" {
 
 void printUsageCascadedCluster(){
 
-    std::string usage("\nCalculates similarity scores between all sequences in the query database and all sequences in the target database using cascaded clustering algorithm.\n");
+    std::string usage("\nCalculates the clustering of the sequences in the input database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
     usage.append("USAGE: mmseqs_clustering ffindexInDBBase ffindexOutDBBase tmpDir [opts]\n"
             "--cascaded      \t\tStart the cascaded instead of simple clustering workflow.\n"
