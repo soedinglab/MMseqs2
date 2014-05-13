@@ -137,11 +137,11 @@ public:
 
     
     
-    bool startWith(std::string prefix, std::string str){
+    static bool startWith(std::string prefix, std::string str){
         return (!str.compare(0, prefix.size(), prefix));
     }
     
-    std::vector<std::string> split(std::string str,std::string sep){
+    static std::vector<std::string> split(std::string str,std::string sep){
         char buffer[1024];
         snprintf(buffer, 1024, "%s", str.c_str());
         char* cstr = (char *) &buffer;

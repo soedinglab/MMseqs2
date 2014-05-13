@@ -29,6 +29,8 @@ extern "C" {
 #include "ffutil.h"
 }
 #include "kseq.h"
+#include "Util.h"
+
 #define MAX_FILENAME_LIST_FILES 4096
 
 KSEQ_INIT(int, read);
@@ -38,62 +40,49 @@ void usage(const char *program_name)
 {
     fprintf(stderr, "Converts a fasta database to ffindex.\n");
     fprintf(stderr, "USAGE: %s  fastaInDB ffindexOutDB\n"
-            "\nDesigned and implemented by Andreas Hauser, Martin Steinegger <martin.steinegger@campus.lmu.de>.\n", program_name);
+            "\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>, Andreas Hauser.\n", program_name);
 }
 
 
 
-/**
- * Function to split a String by a separator (like 'explode' in PHP)
- *
- * @author Bjoern Bastian
- * @version 20120927
- * @param string The content we want to split
- * @param string The divider
- * @param stringlist Pointer to a StringList for the tokens
- * @param boolean Trim the content
- * @return integer Length of the StringList or 0
- */
-std::vector<std::string> split(std::string str,std::string sep){
-    char buffer[1024];
-    sprintf(buffer, "%s", str.c_str());
-    char* cstr = (char *) &buffer;
-    char* current;
-    std::vector<std::string> arr;
-    current=strtok(cstr,sep.c_str());
-    while(current!=NULL){
-        arr.push_back(current);
-        current=strtok(NULL,sep.c_str());
-    }
-    return arr;
-}
 
-bool startWith(std::string prefix, std::string str){
-	return (!str.compare(0, prefix.size(), prefix));
-
-}
-	
+// GenBank                           gi|gi-number|gb|accession|locus
+// ENA Data Library                  gi|gi-number|emb|accession|locus
+// DDBJ, DNA Database of Japan       gi|gi-number|dbj|accession|locus
+// SWISS-PROT                        sp|accession|name
+// Brookhaven Protein Data Bank (1)  pdb|entry|chain
+// NBRF PIR                          pir||entry
+// Protein Research Foundation       prf||name
+// PDB EBI                           PDB:1ECY_A mol:protein length:142  ECOTIN
+// TrEMBL                            tr|accession|name
+// Patents                           pat|country|number
+// GenInfo Backbone Id               bbs|number
+// General database identifier       gnl|database|identifier
+// NCBI Reference Sequence           ref|accession|locus
+// Local Sequence identifier         lcl|identifier
+// id only                           identifier
+// id only                           identifier
 std::string parseFastaHeader(std::string header){
-        std::vector<std::string> arr = split(header,"|");
+    std::vector<std::string> arr = Util::split(header,"|");
     for(int i = 0; i < arr.size(); i++)
 	if(arr.size() > 1) { 
-		if (startWith("cl|", header)  || 
-		    startWith("sp|", header)  ||
-	    	    startWith("tr|", header)  ||
-	   	    startWith("ref|", header) || 
-	    	    startWith("pdb|", header)  ||
-	    	    startWith("bbs|", header)  ||
-	    	    startWith("lcl|", header)  ||
-                startWith("pir||", header) ||
-                startWith("prf||", header)  )
+		if (Util::startWith("cl|", header)  ||
+		    Util::startWith("sp|", header)  ||
+            Util::startWith("tr|", header)  ||
+	   	    Util::startWith("ref|", header) ||
+            Util::startWith("pdb|", header)  ||
+            Util::startWith("bbs|", header)  ||
+            Util::startWith("lcl|", header)  ||
+            Util::startWith("pir||", header) ||
+            Util::startWith("prf||", header)  )
 		      return arr[1];
-        else if (startWith("gnl|", header) || startWith("pat|", header))
+        else if (Util::startWith("gnl|", header) || Util::startWith("pat|", header))
               return arr[2];
-		else if (startWith("gi|", header))
+		else if (Util::startWith("gi|", header))
 	     	  return arr[3];
 	
 	} else { 
-		arr = split(header," ");
+		arr = Util::split(header," ");
 		return arr[0];	
 	}
 }
@@ -151,15 +140,12 @@ int createdb(int argn,const char **argv)
     size_t offset_sequence = 0;
     size_t entries_num = 0;
     while ((l = kseq_read(seq)) >= 0) {
-	//printf("name: %s %d\n", seq->name.s, seq->name.l);
-	//printf("seq:  %s %d\n", seq->seq.s,  seq->seq.l);
-	std::string id = parseFastaHeader(std::string(seq->name.s));
-//	if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
-	// header
+        std::string id = parseFastaHeader(std::string(seq->name.s));
+        // header
         ffindex_insert_memory(data_file_hdr, index_file_hdr, &offset_header,   seq->name.s, seq->name.l,  (char *) id.c_str());
-	// sequence
+        // sequence
         ffindex_insert_memory(data_file,     index_file,     &offset_sequence, seq->seq.s,  seq->seq.l , (char *) id.c_str());
-	entries_num++;
+        entries_num++;
     }
     kseq_destroy(seq);
     fclose(fasta_file);
