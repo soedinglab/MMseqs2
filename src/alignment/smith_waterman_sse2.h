@@ -77,7 +77,8 @@ void traceback_word(short* Hmatrix,
         unsigned short gap_extend,
         unsigned short* qstartpos,
         unsigned short* dbstartpos, 
-        int* aaIds);
+        int* aaIds,
+        int* overflow_warning);
 
 // prints a __m128 vector containing 8 signed shorts
 void printVector (__m128i v);

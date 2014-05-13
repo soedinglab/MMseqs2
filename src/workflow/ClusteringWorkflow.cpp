@@ -17,13 +17,14 @@ void printUsage(){
 
     std::string usage("\nCalculates similarity scores between all sequences in the query database and all sequences in the target database using cascaded clustering algorithm.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
-    usage.append("USAGE: cascaded_clustering ffindexInDBBase ffindexOutDBBase tmpDir [opts]\n"
+    usage.append("USAGE: mmseqs_clustering ffindexInDBBase ffindexOutDBBase tmpDir [opts]\n"
+            "--cascaded      \t\tStart the cascaded instead of simple clustering workflow.\n"
             "-m              \t[file]\tAmino acid substitution matrix file.\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n");
     std::cout << usage;
 }
 
-void parseArgs(int argc, const char** argv, std::string* ffindexInDBBase, std::string* ffindexOutDBBase, std::string* tmpDir, std::string* scoringMatrixFile, size_t* maxSeqLen){
+void parseArgs(int argc, const char** argv, std::string* ffindexInDBBase, std::string* ffindexOutDBBase, std::string* tmpDir, std::string* scoringMatrixFile, size_t* maxSeqLen, bool* cascaded){
     if (argc < 4){
         printUsage();
         exit(EXIT_FAILURE);
@@ -56,6 +57,10 @@ void parseArgs(int argc, const char** argv, std::string* ffindexInDBBase, std::s
                 std::cerr << "No value provided for " << argv[i] << "\n";
                 exit(EXIT_FAILURE);
             }
+        }
+        else if (strcmp(argv[i], "--cascaded") == 0){
+                *cascaded = true;
+                i++;
         }
         else {
             printUsage();
@@ -121,7 +126,8 @@ void extractNewIndex(std::string seqDBIndex, std::string cluDBIndex, std::string
 std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::string tmpDir, 
         std::string scoringMatrixFile, int maxSeqLen, int seqType, 
         int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity, 
-        double evalThr, double covThr, int maxAlnNum, int step_num){
+        double evalThr, double covThr, int maxAlnNum, int step_num,
+        bool lastStep){
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -176,28 +182,13 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
     std::cout << "\nTime for step " << step_num << " clustering: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
     gettimeofday(&start, NULL);
 
-    std::cout << "\n##### Updating databases #####\n\n";
-    // extract new index containing only sequences remained after the clustering and overwrite old index with the extracted index
-    std::string cluDBIndex = cluDB_step + ".index";
-    std::string newIndexFileName =  tmpDir + "/db_seq_step" + ss.str();
-    extractNewIndex(inDBWorkingIndex, cluDBIndex, inDBWorkingIndex);
-
-/*    // Overwrite old index with the new index
-    // (this is not the original index!)
-    ffindex_index_t* seq_index = openIndex(newIndexFileName.c_str());
-
-    FILE* index_file = fopen(inDBWorkingIndex.c_str(), "w");
-
-    for (int i = 0; i < seq_index->n_entries; i++){
-        // get the entry from the sequence index
-        ffindex_entry_t* e = ffindex_get_entry_by_index(seq_index, i);
-        // write the sequence index entry into the new index
-        fprintf(index_file, "%s\t%zd\t%zd\n", e->name, e->offset, e->length);
+    if (!lastStep){
+        std::cout << "\n##### Updating databases #####\n\n";
+        // extract new index containing only sequences remained after the clustering and overwrite old index with the extracted index
+        std::string cluDBIndex = cluDB_step + ".index";
+        std::string newIndexFileName =  tmpDir + "/db_seq_step" + ss.str();
+        extractNewIndex(inDBWorkingIndex, cluDBIndex, inDBWorkingIndex);
     }
-
-    // close all the files
-    fclose(seq_index->file);
-    fclose(index_file);*/
 
     return cluDB_step;
 }
@@ -236,15 +227,15 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     cluStepDbr->close();
 
     std::cout << "Clustering step 1...\n";
-/*    // print out the merged clustering
-    for (int i = 0; i < dbr->getSize(); i++){
-        std::cout << dbr->getDbKey(i) << ": ";
-        for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
-            std::cout << dbr->getDbKey(*it) << " ";
-        }
-        std::cout << "\n";
-    }
-    std::cout << "\n";*/
+    /*    // print out the merged clustering
+          for (int i = 0; i < dbr->getSize(); i++){
+          std::cout << dbr->getDbKey(i) << ": ";
+          for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
+          std::cout << dbr->getDbKey(*it) << " ";
+          }
+          std::cout << "\n";
+          }
+          std::cout << "\n";*/
 
     // merge later clustering steps into the initial clustering step
     int cnt = 2;
@@ -253,7 +244,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         std::string cluStep = cluSteps.front();
         std::string cluStepIndex = cluStep + ".index";
         cluSteps.pop_front();
-        
+
         cluStepDbr = new DBReader(cluStep.c_str(), cluStepIndex.c_str());
         cluStepDbr->open(DBReader::NOSORT);
 
@@ -273,20 +264,20 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         cluStepDbr->close();
 
         std::cout << "Clustering step " << cnt << "...\n";
-/*        // print out the merged clustering
-        for (int i = 0; i < dbr->getSize(); i++){
-            std::cout << dbr->getDbKey(i) << ": ";
-            for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
-                std::cout << dbr->getDbKey(*it) << " ";
-            }
-            std::cout << "\n";
-        }
-        std::cout << "\n";*/
+        /*        // print out the merged clustering
+                  for (int i = 0; i < dbr->getSize(); i++){
+                  std::cout << dbr->getDbKey(i) << ": ";
+                  for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
+                  std::cout << dbr->getDbKey(*it) << " ";
+                  }
+                  std::cout << "\n";
+                  }
+                  std::cout << "\n";*/
         cnt++;
     }
 
     std::cout << "Writing the results...\n";
-    
+
     std::string outDBIndex = outDB + ".index";
     DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str());
     dbw->open();
@@ -330,33 +321,50 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
 }
 
-int main (int argc, const char * argv[]){
+void copy(std::string inFile, std::string outFile){
+    // buffer
+    std::ifstream inf(inFile.c_str(), std::ios::binary);
+    std::ofstream outf(outFile.c_str(), std::ios::binary);
+    if (inf.is_open()) {
+        outf << inf.rdbuf();
+        inf.close();
+        outf.close();
+    }   
+    else{
+        std::cerr << "Could not open file " << inFile << "\n";
+        exit(EXIT_FAILURE);
+    }
+}
 
-    // general parameters
-    size_t maxSeqLen = 50000;
-    int seqType = Sequence::AMINO_ACIDS;
-    
-    // parameter for the prefiltering
-    int kmerSize = 6;
-    int alphabetSize = 21;
-    size_t maxResListLen = 100;
-    int split = 0;
-    int skip = 0;
-    bool aaBiasCorrection = false;
-    float zscoreThr = 300.0f;
+void runClustering(size_t maxSeqLen, int seqType, 
+        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, 
+        double evalThr, double covThr, int maxAlnNum,
+        std::string inDB, std::string outDB, std::string scoringMatrixFile, std::string tmpDir){
 
-    // parameters for the alignment
-    double evalThr = 0.001;
-    double covThr = 0.8;
-    int maxAlnNum = 10;
+    float sens = 4.0;
 
-    std::string inDB = "";
-    std::string outDB = "";
-    std::string scoringMatrixFile = "";
-    std::string tmpDir = "";
+    std::cout << "\nRunning the clustering with sensitivity " << sens << "\n";
 
-    parseArgs(argc, argv, &inDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen);
+    std::string inDBIndex = inDB + ".index";
 
+    std::string cluDB = runStep(inDB, inDBIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens, evalThr, covThr, maxAlnNum, 1, true);
+
+    std::string cluDBIndex = cluDB + ".index";
+    std::string outDBIndex = outDB + ".index";
+
+    // copy the clustering databases to the right location
+    copy(cluDBIndex, outDBIndex);
+    copy(cluDB, outDB); 
+
+}
+
+void runCascadedClustering(size_t maxSeqLen, int seqType,
+        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr,
+        double evalThr, double covThr, int maxAlnNum,
+        std::string inDB, std::string outDB, std::string scoringMatrixFile, std::string tmpDir){
+
+    std::cout << "\nRunning cascaded clustering for the database " << inDB << "\n";
+   
     std::string inDBIndex = inDB + ".index";
 
     // copy index to a new location, it will be overwritten
@@ -369,39 +377,64 @@ int main (int argc, const char * argv[]){
     ffindex_write(index_orig, index_cpy_file);
     fclose(index_cpy_file);
 
-    // save the data
-/*    int BUF_SIZE = 100000;
-    char buf[BUF_SIZE];
-    std::ifstream data_file;
-    data_file.open(inDB.c_str());
- 
-    std::ofstream data_cpy_file;
-    data_cpy_file.open(inDBWorking.c_str(), std::ios::out);
+    std::list<std::string> cluSteps;
+    std::string cluDB = "";
 
-   if (data_file.is_open()) {
-        while (data_file.getline (buf, BUF_SIZE, '\0'))
-            data_cpy_file << buf << '\0';
-   }
+    std::cout << "\n\n";
+    std::cout << "------------------------------- Step 1 ----------------------------------------------\n";
+    cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 300.0, 1.5, evalThr, covThr, maxAlnNum, 1, false);
+    cluSteps.push_back(cluDB);
 
-   data_file.close();
-   data_cpy_file.close();*/
+    std::cout << "------------------------------- Step 2 ----------------------------------------------\n";
+    cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 100.0, 2.5, evalThr, covThr, maxAlnNum, 2, false);
+    cluSteps.push_back(cluDB);
 
-   std::list<std::string> cluSteps;
-   std::string cluDB = "";
+    std::cout << "------------------------------- Step 3 ----------------------------------------------\n";
+    cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, 4.0, evalThr, covThr, maxAlnNum, 3, true);
+    cluSteps.push_back(cluDB);
 
-   std::cout << "\n\n";
-   std::cout << "------------------------------- Step 1 ----------------------------------------------\n";
-   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, 1.5, evalThr, covThr, maxAlnNum, 1);
-   cluSteps.push_back(cluDB);
+    std::cout << "--------------------------- Merging databases ---------------------------------------\n";
+    mergeClusteringResults(inDB, outDB, cluSteps);
 
-   std::cout << "------------------------------- Step 2 ----------------------------------------------\n";
-   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 100.0, 2.5, evalThr, covThr, maxAlnNum, 2);
-   cluSteps.push_back(cluDB);
+}
 
-   std::cout << "------------------------------- Step 3 ----------------------------------------------\n";
-   cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 50.0, 4.0, evalThr, covThr, maxAlnNum, 3);
-   cluSteps.push_back(cluDB);
+int main (int argc, const char * argv[]){
 
-   std::cout << "--------------------------- Merging databases ---------------------------------------\n";
-   mergeClusteringResults(inDB, outDB, cluSteps);
+    // general parameters
+    bool cascaded = false;
+    size_t maxSeqLen = 50000;
+    int seqType = Sequence::AMINO_ACIDS;
+
+    // parameter for the prefiltering
+    int kmerSize = 6;
+    int alphabetSize = 21;
+    size_t maxResListLen = 300;
+    int split = 0;
+    int skip = 0;
+    bool aaBiasCorrection = true;
+    float zscoreThr = 50.0f;
+
+    // parameters for the alignment
+    double evalThr = 0.001;
+    double covThr = 0.8;
+    int maxAlnNum = 300;
+
+    std::string inDB = "";
+    std::string outDB = "";
+    std::string scoringMatrixFile = "";
+    std::string tmpDir = "";
+
+    parseArgs(argc, argv, &inDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen, &cascaded);
+
+    if (cascaded)
+        runCascadedClustering(maxSeqLen, seqType,
+                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr,
+                evalThr, covThr, maxAlnNum,
+                inDB, outDB, scoringMatrixFile, tmpDir);
+    else
+        runClustering(maxSeqLen, seqType,
+                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr,
+                evalThr, covThr, maxAlnNum,
+                inDB, outDB, scoringMatrixFile, tmpDir);
+
 }

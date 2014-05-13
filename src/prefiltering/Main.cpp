@@ -67,7 +67,7 @@ void printUsage(){
             "--max-seqs   \t[int]\tMaximum result sequences per query (default=100)\n"
             "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
             "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
-            "--threads       \t[int]\tNumber of threads used to compute. (Default=all cpus)\n"
+            "--threads       \t[int]\tNumber of threads used to compute (default=all cores).\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
             "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;

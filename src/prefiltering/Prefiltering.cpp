@@ -40,8 +40,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     this->tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader::SORT);
 
-    if (splitSize == 0)
-        splitSize = tdbr->getSize();
+    if (this->splitSize == 0)
+        this->splitSize = tdbr->getSize();
 
     this->dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1);
     dbw->open();
@@ -100,15 +100,12 @@ Prefiltering::~Prefiltering(){
     for (int i = 0; i < threads; i++){
         delete seqs[i];
         delete[] outBuffers[i];
-        delete matchers[i];
         delete reslens[i];
     }
     delete[] seqs;
     delete[] outBuffers;
-    delete[] matchers;
     delete[] reslens;
 
-    delete indexTable;
     delete subMat;
     delete _2merSubMatrix;
     delete _3merSubMatrix;

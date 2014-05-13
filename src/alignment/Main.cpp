@@ -20,11 +20,12 @@ void printUsage(){
             "--max-seqs\t[int]\tMaximum alignment results per query sequence (default=100).\n"
             "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
             "--nucleotides\t\tNucleotide sequences input.\n"
+            "--threads       \t[int]\tNumber of threads used to compute (default=all cores).\n"
             "-v         \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
 }
 
-void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr, int* maxSeqLen, int* maxAlnNum, int* seqType, int* verbosity, int* maxRejected){
+void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, std::string* prefDB, std::string* matrixFile, std::string* outDB, double* evalThr, double* covThr, int* maxSeqLen, int* maxAlnNum, int* seqType, int* verbosity, int* maxRejected, int* threads){
     if (argc < 5){
         printUsage();
         exit(EXIT_FAILURE);
@@ -129,6 +130,17 @@ void parseArgs(int argc, char** argv, std::string* qseqDB, std::string* tseqDB, 
                 exit(EXIT_FAILURE);
             }
         }
+        else if (strcmp(argv[i], "--threads") == 0){
+            if (++i < argc){
+                *threads = atoi(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
         else {
             printUsage();
             Debug(Debug::ERROR) << "Wrong argument: " << argv[i] << "\n";
@@ -149,9 +161,21 @@ bool compareHits (Matcher::result_t first, Matcher::result_t second){
     return false;
 }
 
+// this is needed because with GCC4.7 omp_get_num_threads() returns just 1.
+int omp_thread_count() {
+    int n = 0;
+#pragma omp parallel reduction(+:n)
+    n += 1;
+    return n;
+}
+
 int main(int argc, char **argv){
 
     int verbosity = Debug::INFO;
+    int threads = 1;
+#ifdef OPENMP
+    threads = omp_thread_count();
+#endif
 
     std::string qseqDB = "";
     std::string tseqDB = "";
@@ -173,7 +197,11 @@ int main(int argc, char **argv){
         Debug(Debug::WARNING) << argv[i] << " ";
     Debug(Debug::WARNING) << "\n\n";
 
-    parseArgs(argc, argv, &qseqDB, &tseqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr, &maxSeqLen, &maxAlnNum, &seqType, &verbosity, &maxRejected);
+    parseArgs(argc, argv, &qseqDB, &tseqDB, &prefDB, &matrixFile, &outDB, &evalThr, &covThr, &maxSeqLen, &maxAlnNum, &seqType, &verbosity, &maxRejected, &threads);
+
+#ifdef OPENMP
+    omp_set_num_threads(threads);
+#endif
 
     Debug::setDebugLevel(verbosity);
 
