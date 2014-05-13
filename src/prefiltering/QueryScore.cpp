@@ -60,7 +60,7 @@ QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kme
         steps_list.pop_front();
     }
 
-    this->resList = (hit_t *) Util::mem_align(16, MAX_RES_LIST * sizeof(hit_t) );
+    this->resList = (hit_t *) Util::mem_align(16, MAX_RES_LIST_LEN * sizeof(hit_t) );
 
     scoresSum = 0;
 
@@ -82,7 +82,7 @@ QueryScore::~QueryScore (){
 }
 
 bool QueryScore::compareHits(hit_t first, hit_t second){
-    return (first.prefScore > second.prefScore) ? true : false;
+    return (first.zScore > second.zScore) ? true : false;
 }
 
 void QueryScore::setPrefilteringThresholds(){
@@ -138,15 +138,18 @@ float QueryScore::getZscore(int seqId){
 
 
 std::pair<hit_t *, size_t> QueryScore::getResult (int querySeqLen, unsigned int identityId){
-    size_t elemetCounter = 0;
-    const __m128i zero = _mm_setzero_si128();
+
+    size_t elementCounter = 0;
+    const __m128i zero = _mm_setzero_si128(); 
 
     __m128i* __restrict p   = scores_128;
     __m128i* __restrict thr = thresholds_128;
 
     
+    // check if there is the identity of the query sequence in the database
+    // the identity should be included in the results
     if (identityId != UINT_MAX){
-        elemetCounter++;
+        elementCounter++;
     }
 
     // go through each vector
@@ -165,33 +168,33 @@ std::pair<hit_t *, size_t> QueryScore::getResult (int querySeqLen, unsigned int 
 
                 if(!CHECK_BIT(cmp_set_bits,i*2) && (pos * 8 + i) != identityId){
                     const float zscore = getZscore(pos*8+i);
-                    hit_t * result = (resList + elemetCounter);
+                    hit_t * result = (resList + elementCounter);
                     result->seqId = pos * 8 + i;
                     result->zScore = zscore;
                     result->prefScore = scores[pos*8+i];
-                    elemetCounter++;
-                    if(elemetCounter >= MAX_RES_LIST) {
-                        Debug(Debug::WARNING) << "Fatal error in QueryScore: more than max result lenght (" << MAX_RES_LIST << ") +  pass getResult (pos = " << result->seqId << ")\n";
-
+                    elementCounter++;
+                    if(elementCounter >= MAX_RES_LIST_LEN)
                         goto OuterLoop;
-                    }
                 }
             }
         }
         p++;
         thr++;
     }
-    OuterLoop:
-    std::sort(resList, resList + elemetCounter, compareHits);
-
+OuterLoop:
+    // include the identity in results if its there
     if (identityId != UINT_MAX){
         const float zscore = getZscore(identityId);
         hit_t * result = (resList + 0);
         result->seqId = identityId;
         result->zScore = zscore;
         result->prefScore = scores[identityId];
+        std::sort(resList + 1, resList + elementCounter, compareHits);
     }
-   return std::make_pair<hit_t *, size_t>(resList, elemetCounter);
+    else
+        std::sort(resList, resList + elementCounter, compareHits);
+
+    return std::make_pair<hit_t *, size_t>(resList, elementCounter);
 }
 
 short QueryScore::sse2_extract_epi16(__m128i v, int pos) {

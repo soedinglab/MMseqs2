@@ -37,6 +37,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seq
     unsigned short dbStartPos = 0;
     unsigned short dbEndPos = 0;
     int aaIds = 0;
+    int overflow_warning = 0;
 
     // calculation of the score and traceback of the alignment
     int s = SmithWaterman::smith_waterman_sse2_word(query->getDbKey(), query->int_sequence, this->queryProfileWord, query->L,
@@ -51,19 +52,28 @@ Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seq
             this->queryProfileWord,
             qEndPos, dbEndPos, 
             gap_open, gap_extend, 
-            &qStartPos, &dbStartPos, &aaIds);
+            &qStartPos, &dbStartPos, &aaIds, &overflow_warning);
 
     // calculation of the coverage and e-value
-    float qcov = (std::min(query->L, (int) qEndPos) - qStartPos + 1)/ (float)query->L;
-    float dbcov = (std::min(dbSeq->L, (int) dbEndPos) - dbStartPos + 1)/(float)dbSeq->L;
+    float qcov;
+    float dbcov;
+    float seqId;
+
+    if (overflow_warning == 0){
+        qcov = (std::min(query->L, (int) qEndPos) - qStartPos + 1)/ (float)query->L;
+        dbcov = (std::min(dbSeq->L, (int) dbEndPos) - dbStartPos + 1)/(float)dbSeq->L;
+        seqId = (float)aaIds/(float)(std::min(query->L, dbSeq->L));
+    }
+    else{
+        // there was an unsigned short range overflow during the alignment
+        // we cannot say anything reliable about sequence coverage and identity
+        qcov = 1.0;
+        dbcov = 1.0;
+        seqId = 1.0;
+    }
+
     double evalue = ((double) (query->L * dbSeq->L)) * pow (2.71828, ((double)(-s)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
     evalue = evalue * (double)(seqDbSize);
-
-    if (evalue < 0){
-        std::cout << "seqDbSize: " << seqDbSize << ", qL: " << query->L  << ", dbL: " << dbSeq->L << "\n";
-        std::cout << "score: " << s << ", bit factor: " << m->getBitFactor() << ", pow: " << pow (2.71828, ((double)(-s)/(double)m->getBitFactor())) << ", double: " << (double)(seqDbSize * query->L * dbSeq->L)  << "\n";
-    }
-    float seqId = (float)aaIds/(float)(std::min(query->L, dbSeq->L));
 
     free(Hmatrix);
     free(Ematrix);

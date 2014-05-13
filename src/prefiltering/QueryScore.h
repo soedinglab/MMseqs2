@@ -82,6 +82,9 @@ class QueryScore {
             return numMatches;
         };
 
+        // maximal resultList
+        static const size_t MAX_RES_LIST_LEN = 150000;
+
     private:
         static bool compareHits(hit_t first, hit_t second);
 
@@ -175,8 +178,6 @@ class QueryScore {
 
         // list of all DB sequences with the prefiltering score > z-score threshold with the corresponding scores
         hit_t * resList;
-        // maximal resultList
-        static const size_t MAX_RES_LIST = 150000;
 };
 
 #endif

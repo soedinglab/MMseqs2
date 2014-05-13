@@ -253,7 +253,7 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
                 id2clu[cluMemId] = repId;
                 // create a cluster member entry
                 // ATTENTION: consider counting cluster members first and allocate the memory at one piece (faster, no memory fragmentation)
-                // if the program becomes too slow or the memory consumption is too high
+                // if the program becomes too slow and/or the memory consumption is too high
                 curr = new clu_entry_t;
                 curr->id = cluMemId;
                 curr->next = 0;
@@ -385,9 +385,9 @@ int clusterupdate (int argc, const char * argv[]){
     size_t maxResListLen = 100;
     int split = 0;
     int skip = 0;
-    bool aaBiasCorrection = false;
-    float zscoreThr = 300.0f;
-    float sensitivity = 7.2;
+    bool aaBiasCorrection = true;
+    float zscoreThr = 50.0f;
+    float sensitivity = 4.0;
 
     // parameters for the alignment
     double evalThr = 0.001;

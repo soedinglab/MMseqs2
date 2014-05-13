@@ -60,18 +60,19 @@ public:
 
     // calculates the start positions of the alignment in the query and in the database sequences given the dynamic programming matrices and the end positions of the alignment
     static void traceback_word(short* Hmatrix,
-            short* Ematrix,
-            short* Fmatrix,
-            Sequence* querySeq,
-            Sequence* dbSeq,
-            unsigned short * query_profile_word,
-            unsigned short qmaxpos, 
-            unsigned short dbmaxpos, 
-            unsigned short gap_open, 
-            unsigned short gap_extend,
-            unsigned short* qstartpos,
-            unsigned short* dbstartpos, 
-            int* aaIds);
+        short* Ematrix,
+        short* Fmatrix,
+        Sequence* querySeq,
+        Sequence* dbSeq,
+        unsigned short * query_profile_word,
+        unsigned short qmaxpos, 
+        unsigned short dbmaxpos, 
+        unsigned short gap_open, 
+        unsigned short gap_extend,
+        unsigned short* qstartpos,
+        unsigned short* dbstartpos, 
+        int* aaIds,
+        int* overflow_warning);
 
     // prints a __m128 vector containing 8 signed shorts
     static void printVector (__m128i v);

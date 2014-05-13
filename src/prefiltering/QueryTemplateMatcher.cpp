@@ -112,7 +112,15 @@ void QueryTemplateMatcher::match(Sequence* seq){
         // match the index table
 //        int pos_matched = 0;
         for (unsigned int i = 0; i < kmerList.elementSize; i++){
-            unsigned short kmerMatchScore = kmerList.score[i] + (short) biasCorrection;
+            // avoid unsigned short overflow
+            short kmerMatchScore = kmerList.score[i];
+            if (((int)kmerMatchScore + (int) biasCorrection) < 0 )
+                kmerMatchScore = 0;
+            else
+                kmerMatchScore = kmerMatchScore + (short) biasCorrection;
+
+            
+            
             seqList = indexTable->getDBSeqList(kmerList.index[i], &indexTabListSize);
 
 /*            if (seq->getId() == 1 && pos == 2 ){
@@ -132,6 +140,8 @@ void QueryTemplateMatcher::match(Sequence* seq){
 //                    overall_score+=kmerMatchScore;
 //                    match_num++;
 //            }
+
+
 
             // add the scores for the k-mer to the overall score for this query sequence
             // for the overall score, bit/2 is a sufficient sensitivity and we can use the capacity of unsigned short max score in QueryScore better

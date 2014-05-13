@@ -67,7 +67,7 @@ void printUsagePrefiltering(){
             "-s              \t[float]\tSensitivity in the range [1:7] (default=4)\n"
             "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
             "-a              \t[int]\tAmino acid alphabet size (default=21).\n"
-            "--z-score-thr   \t[float]\tZ-score threshold [default: 300.0]\n"
+            "--z-score-thr   \t[float]\tZ-score threshold [default: 50.0]\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucleotides   \t\tNucleotide sequences input.\n"
             "--profile       \t\tHMM Profile input.\n"
@@ -268,13 +268,6 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
 }
 
 
-// this is needed because with GCC4.7 omp_get_num_threads() returns just 1.
-int omp_thread_count() {
-    int n = 0;
-#pragma omp parallel reduction(+:n)
-    n += 1;
-    return n;
-}
 
 int prefilter(int argc, const char **argv)
 {
@@ -307,7 +300,7 @@ int prefilter(int argc, const char **argv)
 
     int threads = 1;
 #ifdef OPENMP
-    threads = omp_thread_count();
+    threads = Util::omp_thread_count();
 #endif
     bool compBiasCorrection = true;
     float zscoreThr = 50.0f;
@@ -369,7 +362,7 @@ int prefilter(int argc, const char **argv)
 #endif
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::WARNING) << "\nTime for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif

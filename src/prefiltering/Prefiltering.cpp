@@ -31,6 +31,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     split(split),
     skip(skip)
 {
+    if(this->split == 0 )
+        this->split = 1;
 
     this->threads = 1;
 #ifdef OPENMP

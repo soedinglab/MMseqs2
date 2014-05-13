@@ -5,7 +5,7 @@
  *******************************************************************/
 
 /*
-   Written by Michael Farrar, 2006 (alignment), and Maria Hauser, 2012 (traceback).
+   Written by Michael Farrar, 2006 (alignment), and Maria Hauser, 2012 (traceback, modified alignment).
    Please send bug reports and/or suggestions to mhauser@genzentrum.lmu.de.
    */
 
@@ -301,7 +301,8 @@ void SmithWaterman::traceback_word(short* H,
         unsigned short gap_extend,
         unsigned short* qstartpos,
         unsigned short* dbstartpos,
-        int* aaIds){
+        int* aaIds,
+        int* overflow_warning){
 
     int* query_sequence = query->int_sequence;
     char* queryDbKey = query->getDbKey();
@@ -318,12 +319,21 @@ void SmithWaterman::traceback_word(short* H,
     qpos = qmaxpos;
     dbpos = dbmaxpos;
 
-    int warning_set = 0;
-    
+    /*
+    for (int i = 0; i < query->L; i++){
+        for (int j = 0; j < dbSeq->L; j++){
+            int idx = midx(i, j, iter);
+            printf("%d  ", H[idx] + 32768);
+        }
+        printf("\n");
+    }
+    printf("\n");
+    */
+
     *aaIds = (query_sequence[qpos] == db_sequence[dbpos]);
     // dynamic programming matrix index, depending on positions in the sequences and iteration length
     idx = midx(qpos, dbpos, iter); 
-    while (qpos > 0 && dbpos > 0 && H[idx] + 32768 != 0){
+    while (qpos > 0 && dbpos > 0){
         // match between q[i] and db[j]
         if (H[idx] == (H[midx(qpos-1, dbpos-1, iter)] + *((short*)query_profile_word + db_sequence[dbpos] * iter * 8 + qpos%iter * 8 + qpos/iter)) ){ // H[i][j] == H[i-1][j-1] + score(q[i], db[j])
             qpos--;
@@ -331,6 +341,11 @@ void SmithWaterman::traceback_word(short* H,
             idx = midx(qpos, dbpos, iter);
             *aaIds += (query_sequence[qpos] == db_sequence[dbpos]);
         }
+        // if H[idx] = 0 then only a match is checked (this is meant for allowing X-X matches at the beginning of the alignment, they have score 0)
+        // else, identical sequences with x at the beginning of the sequence will never produce alignment coverage 1.0
+        // if there is no match with score 0 then traceback is aborted
+        else if (H[idx] + 32768 == 0)
+            break;
         // continue with the E matrix = gap in the db sequence
         else if (H[idx] == E[idx]){
             while (qpos != 0 && dbpos != 0 && H[idx] + 32768 != 0){
@@ -351,7 +366,7 @@ void SmithWaterman::traceback_word(short* H,
                         printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
                         printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
                         printf("score: %d\n", H[midx(qpos, dbpos, iter)] + 32768);
-                        printf("short overflow warning set: %d\n", warning_set);
+                        printf("short overflow warning set: %d\n", *overflow_warning);
                         exit(1);
                     }
                 }
@@ -377,7 +392,7 @@ void SmithWaterman::traceback_word(short* H,
                         printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
                         printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
                         printf("score: %d\n", H[midx(qpos, dbpos, iter)] + 32768);
-                        printf("short overflow warning set: %d\n", warning_set);
+                        printf("short overflow warning set: %d\n", *overflow_warning);
                         exit(1);
                     }
                 }
@@ -388,7 +403,7 @@ void SmithWaterman::traceback_word(short* H,
                 // if we did not find any trace, then here is a short overflow
                 qpos--;
                 dbpos--;
-                warning_set = 1;
+                *overflow_warning = 1;
             }
             else{
 #pragma omp critical
@@ -397,15 +412,16 @@ void SmithWaterman::traceback_word(short* H,
                     printf("query: %s, db seq: %s\n", queryDbKey, dbDbKey);
                     printf("qLen: %d, dbLen: %d\nqmaxpos: %d, dbmaxpos: %d\nqpos: %d, dbpos: %d\n", qLen, dbLen, qmaxpos, dbmaxpos, qpos, dbpos);
                     printf("score: %d\n", H[midx(qpos, dbpos, iter)] + 32768);
-                    printf("short overflow warning set: %d\n", warning_set);
+                    printf("short overflow warning set: %d\n", *overflow_warning);
                     exit(1);
                 }
             }
         }
     }
 
-    if (warning_set == 1)
-        printf("\nWARNING: short range overflow (query: %s, db seq: %s)\nThe alignment might be inaccurate!\n", queryDbKey, dbDbKey);
+    // don't terrify the user ;-)
+//    if (*overflow_warning == 1)
+//        printf("\nWARNING: short range overflow (query: %s, db seq: %s)\nThe alignment might be inaccurate!\n", queryDbKey, dbDbKey);
     
     *qstartpos = (unsigned short) qpos;
     *dbstartpos = (unsigned short) dbpos;

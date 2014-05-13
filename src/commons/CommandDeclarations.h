@@ -2,7 +2,7 @@
 #define COMMANDDECLARATIONS_H
 
 extern int cluster(int argc, const char **argv);
-extern int cascadedclustering(int argc, const char **argv);
+extern int clusteringworkflow(int argc, const char **argv);
 extern int clusterupdate(int argc, const char **argv);
 extern int prefilter(int argc, const char **argv);
 extern int createdb(int argc, const char **argv);

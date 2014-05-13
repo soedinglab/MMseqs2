@@ -15,7 +15,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "alignment", alignment },
     { "cluster", cluster },
-    { "cascadedclustering", cascadedclustering },
+    { "clusteringworkflow", clusteringworkflow },
     { "clusterupdate", clusterupdate },
     { "prefilter", prefilter },
     { "createdb", createdb },
@@ -32,7 +32,7 @@ void printUsage(){
     usage.append("Main tools: \n"
                  "alignment          \tCalculates Smith-Waterman alignment scores from prefilter output\n"
                  "cluster            \tCalculates clustering of a sequence database based on alignment output with set cover algorithm\n"
-                 "cascadedclustering \tCalculates cascaded clustering of a sequence database. (Prefiltering -> Alignment -> cluster)*n \n"
+                 "clusteringworkflow \tCalculates cascaded clustering of a sequence database. (Prefiltering -> Alignment -> cluster)*n \n"
                  "clusterupdate      \tUpdates the existing clustering of the previous database version with new sequences from the current version\n"
                  "prefilter          \tCalculates similarity scores between all sequences in the query db and all sequences in the target db\n"
                  "\nHelper: \n"

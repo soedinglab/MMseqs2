@@ -17,6 +17,11 @@ extern "C" {
 #ifdef HAVE_MPI
 #include <mpi.h>
 #endif
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 #ifdef HAVE_MPI
 #define EXIT(exitCode) MPI_Finalize(); exit(exitCode)
 #else
@@ -34,6 +39,9 @@ typedef struct {
     unsigned int  precision_m;
     unsigned int* pTable_m;
 } PowFast;
+
+
+
 
 static void powFastSetTable(unsigned int* const pTable, const unsigned int  precision )
 {
@@ -118,6 +126,15 @@ public:
         }
         return val;
     }
+    
+    // this is needed because with GCC4.7 omp_get_num_threads() returns just 1.
+    static int omp_thread_count() {
+        int n = 0;
+        #pragma omp parallel reduction(+:n)
+            n += 1;
+        return n;
+    }
+
     
     
     bool startWith(std::string prefix, std::string str){
