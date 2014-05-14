@@ -87,15 +87,14 @@ std::string parseFastaHeader(std::string header){
                 startWith("pir||", header) ||
                 startWith("prf||", header)  )
 		      return arr[1];
-        else if (startWith("gnl|", header) || startWith("pat|", header))
-              return arr[2];
+                else if (startWith("gnl|", header) || startWith("pat|", header))
+                      return arr[2];
 		else if (startWith("gi|", header))
 	     	  return arr[3];
 	
-	} else { 
-		arr = split(header," ");
-		return arr[0];	
-	}
+	}  
+	arr = split(header," ");
+	return arr[0];	
 }
 
 
@@ -111,12 +110,11 @@ int main(int argn,const char **argv)
         return EXIT_FAILURE;
     }
 
-
+    char *fasta_filename = (char *)   argv[optind++];
     char *data_filename  = (char *)   argv[optind++];
     std::string index_filename_str(data_filename);
     index_filename_str.append(".index");
     char *index_filename = (char *) index_filename_str.c_str();
-    char *fasta_filename = (char *)   argv[optind++];
     std::string data_filename_hdr_str(data_filename);
     data_filename_hdr_str.append("_h");
     char *data_filename_hdr  = (char *)data_filename_hdr_str.c_str() ;
@@ -151,16 +149,24 @@ int main(int argn,const char **argv)
     size_t offset_header = 0;
     size_t offset_sequence = 0;
     size_t entries_num = 0;
+    std::string header_line;
+    header_line.reserve(10000);
     while ((l = kseq_read(seq)) >= 0) {
 	//printf("name: %s %d\n", seq->name.s, seq->name.l);
 	//printf("seq:  %s %d\n", seq->seq.s,  seq->seq.l);
 	std::string id = parseFastaHeader(std::string(seq->name.s));
-//	if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
+	header_line.append(seq->name.s, seq->name.l);
+	if(seq->comment.l)  { 
+		header_line.append(" ",1);
+		header_line.append(seq->comment.s,seq->comment.l); 
+	}
+	//if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
 	// header
-        ffindex_insert_memory(data_file_hdr, index_file_hdr, &offset_header,   seq->name.s, seq->name.l,  (char *) id.c_str());
+        ffindex_insert_memory(data_file_hdr, index_file_hdr, &offset_header,  (char *)  header_line.c_str(), header_line.length(),  (char *) id.c_str());
 	// sequence
         ffindex_insert_memory(data_file,     index_file,     &offset_sequence, seq->seq.s,  seq->seq.l , (char *) id.c_str());
 	entries_num++;
+	header_line.clear();
     }
     kseq_destroy(seq);
     fclose(fasta_file);
