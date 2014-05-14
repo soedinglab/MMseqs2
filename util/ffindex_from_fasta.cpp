@@ -87,15 +87,14 @@ std::string parseFastaHeader(std::string header){
                 startWith("pir||", header) ||
                 startWith("prf||", header)  )
 		      return arr[1];
-        else if (startWith("gnl|", header) || startWith("pat|", header))
-              return arr[2];
+                else if (startWith("gnl|", header) || startWith("pat|", header))
+                      return arr[2];
 		else if (startWith("gi|", header))
 	     	  return arr[3];
 	
-	} else { 
-		arr = split(header," ");
-		return arr[0];	
-	}
+	}  
+	arr = split(header," ");
+	return arr[0];	
 }
 
 
@@ -151,10 +150,10 @@ int main(int argn,const char **argv)
     size_t offset_sequence = 0;
     size_t entries_num = 0;
     while ((l = kseq_read(seq)) >= 0) {
-	//printf("name: %s %d\n", seq->name.s, seq->name.l);
-	//printf("seq:  %s %d\n", seq->seq.s,  seq->seq.l);
+	printf("name: %s %d\n", seq->name.s, seq->name.l);
+	printf("seq:  %s %d\n", seq->seq.s,  seq->seq.l);
 	std::string id = parseFastaHeader(std::string(seq->name.s));
-//	if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
+	if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
 	// header
         ffindex_insert_memory(data_file_hdr, index_file_hdr, &offset_header,   seq->name.s, seq->name.l,  (char *) id.c_str());
 	// sequence
