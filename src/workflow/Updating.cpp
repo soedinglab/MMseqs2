@@ -13,7 +13,7 @@ extern "C" {
 }
 
 struct clu_entry_t {
-    int id;
+    unsigned int id;
     clu_entry_t* next;
 };
 
@@ -228,7 +228,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
 }
 
 
-int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster_t* clusters){
+int readClustering(DBReader* currSeqDbr, std::string cluDB, unsigned int* id2rep, char** rep2cluName, cluster_t* clusters){
 
     DBReader* cluDbr = new DBReader(cluDB.c_str(), (cluDB + ".index").c_str());
     cluDbr->open(DBReader::NOSORT);
@@ -236,25 +236,14 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
     int ret = cluDbr->getSize();
 
     for (unsigned int i = 0; i < cluDbr->getSize(); i++){
-        id2clu[i] = -1;
+        id2rep[i] = UINT_MAX;
     }
 
     char* buf = new char[1000000];
     for (unsigned int i = 0; i < cluDbr->getSize(); i++){
-        char* repDbKey = cluDbr->getDbKey(i);
-        unsigned int uint_repId = currSeqDbr->getId(repDbKey);
-
-        // the representative is not in the newest DB version
-        int repId;
-        if (uint_repId == UINT_MAX)
-            repId = -1;
-        else
-            repId = (int) uint_repId;
+        unsigned int repId = UINT_MAX;
         
         // parse the cluster
-        if (repId != -1)
-            id2clu[repId] = repId;
-
         char* cluData = cluDbr->getData(i);
         strcpy(buf, cluData);
 
@@ -268,10 +257,13 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
             unsigned int cluMemId = currSeqDbr->getId(cluMemDbKey);
             // this cluster member is contained in the newest DB version
             if (cluMemId != UINT_MAX){
-                // define new cluster representative if the old representative is not contained in the database anymore
-                if (repId == -1)
+                // define a cluster representative if the representative is not set yet
+                if (repId == UINT_MAX){
                     repId = cluMemId;
-                id2clu[cluMemId] = repId;
+                    // remember the name of the cluster
+                    strcpy(rep2cluName[repId], cluDbr->getDbKey(i));
+                }
+                id2rep[cluMemId] = repId;
                 // create a cluster member entry
                 // ATTENTION: consider counting cluster members first and allocate the memory at one piece (faster, no memory fragmentation)
                 // if the program becomes too slow and/or the memory consumption is too high
@@ -282,7 +274,7 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
                     prev->next = curr;
                 }
                 prev = curr;
-                // update clustering entry
+                // update the current clustering entry
                 clusters[repId].clu_size++;
                 if (clusters[repId].first == 0){
                     clusters[repId].first = curr;
@@ -296,7 +288,7 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
     return ret;
 }
 
-void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::string BA_base, int* id2clu, cluster_t* clusters, std::string Brest_indexFile){
+void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::string BA_base, unsigned int* id2rep, cluster_t* clusters, std::string Brest_indexFile){
 
     DBReader* BADbr = new DBReader(BA_base.c_str(), (BA_base + ".index").c_str());
     BADbr->open(DBReader::NOSORT);
@@ -324,7 +316,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
                 exit(EXIT_FAILURE);
             }
             // find out the representative sequence of the cluster of the hit
-            int repId = id2clu[tId];
+            int repId = id2rep[tId];
 
             if(repId == -1){
                 std::cout << "ERROR: database sequence " << tKey << " is not in the clustering!\n";
@@ -355,7 +347,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
     fclose(Brest_index_file);
 }
 
-void writeResults(cluster_t* clusters, DBReader* seqDbr, int seqDbSize, std::string outDB){
+void writeResults(cluster_t* clusters, char** rep2cluName, DBReader* seqDbr, int seqDbSize, std::string outDB){
 
     DBWriter* dbw = new DBWriter(outDB.c_str(), (outDB + ".index").c_str());
     dbw->open();
@@ -368,7 +360,11 @@ void writeResults(cluster_t* clusters, DBReader* seqDbr, int seqDbSize, std::str
         if (clusters[i].clu_size == 0)
             continue;
 
-        char* repDbKey = seqDbr->getDbKey(i);
+        // get the cluster name
+        char* cluName = rep2cluName[i];
+        unsigned int cluId = seqDbr->getId(cluName);
+        if (cluId == UINT_MAX)
+            std::cout << cluName << " representative deleted.\n";
         std::stringstream res;
         clu_entry_t* e = clusters[i].first;
         while (e != 0){
@@ -378,12 +374,12 @@ void writeResults(cluster_t* clusters, DBReader* seqDbr, int seqDbSize, std::str
         std::string cluResultsOutString = res.str();
         const char* cluResultsOutData = cluResultsOutString.c_str();
         if (BUFFER_SIZE < strlen(cluResultsOutData)){
-            std::cerr << "Tried to process the clustering list for the query " << repDbKey << " , length of the list = " << clusters[i].clu_size << "\n";
+            std::cerr << "Tried to process the clustering list for the cluster " << cluName << " , length of the list = " << clusters[i].clu_size << "\n";
             std::cerr << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
             continue;
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->write(outBuffer, cluResultsOutString.length(), repDbKey);
+        dbw->write(outBuffer, cluResultsOutString.length(), cluName);
     }
 
     dbw->close();
@@ -466,7 +462,10 @@ int main (int argc, const char * argv[]){
 
     // data structures for the clustering
     int seqDBSize = currSeqDbr->getSize();
-    int* id2clu = new int[seqDBSize];
+    unsigned int* id2rep = new unsigned int[seqDBSize];
+    char** rep2cluName = new char*[seqDBSize];
+    for (int i = 0; i < seqDBSize; i++)
+        rep2cluName[i] = new char[FFINDEX_MAX_ENTRY_NAME_LENTH];
     cluster_t* clusters = new cluster_t[seqDBSize];
     for (int i = 0; i < seqDBSize; i++){
         clusters[i].clu_size = 0;
@@ -476,12 +475,12 @@ int main (int argc, const char * argv[]){
 
     std::cout << "Read the existing clustering...\n";
     // Read the existing clustering
-    readClustering(currSeqDbr, cluDB, id2clu, clusters);
+    readClustering(currSeqDbr, cluDB, id2rep, rep2cluName, clusters);
 
     std::cout << "Append new sequences to the existing clustering...\n";
     // append sequences from the new database to the existing clustering based on the B->A alignment scores
     // write sequences without a match to a separate index (they will be clustered separately)
-    appendToClustering(currSeqDbr, BIndex, BA_base, id2clu, clusters, Brest_indexFile);
+    appendToClustering(currSeqDbr, BIndex, BA_base, id2rep, clusters, Brest_indexFile);
 
     if (seqsWithoutMatches > 0){
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
@@ -509,12 +508,12 @@ int main (int argc, const char * argv[]){
 
         std::cout << "Append generated clusters to the complete clustering...\n";
         // append B->B clusters to the clustering
-        newClus = readClustering(currSeqDbr, BB_clu, id2clu, clusters);
+        newClus = readClustering(currSeqDbr, BB_clu, id2rep, rep2cluName, clusters);
     }
 
     // write new clustering
     std::cout << "Write clustering results...\n";
-    writeResults(clusters, currSeqDbr, seqDBSize, outDB);
+    writeResults(clusters, rep2cluName, currSeqDbr, seqDBSize, outDB);
     std::cout << "done.\n";
 
     currSeqDbr->close();

@@ -262,11 +262,6 @@ int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, si
     const size_t resultSize = prefResults.second;
 
     hit_t * r = resultVector;
-    char* tDbKey = tdbr->getDbKey(r->seqId);
-    char* qDbKey = qdbr->getDbKey(id);
-
-    if (strcmp(qDbKey, tDbKey) != 0)
-        Debug(Debug::WARNING) << "ATTENTION: self match not the first match for the query sequence " << qDbKey << "\n";
 
     for (size_t i = 0; i < resultSize; i++){
         hit_t * res = resultVector + i;

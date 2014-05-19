@@ -273,7 +273,7 @@ Clustering::set_data Clustering::read_in_set_data(){
         }
 
         if (cnt == 0){
-            Debug(Debug::WARNING) << "No alignments found for " << alnDbr->getDbKey(i) << "\n";
+//            Debug(Debug::WARNING) << "No alignments found for " << alnDbr->getDbKey(i) << "\n";
             empty++;
         }
 

@@ -58,7 +58,7 @@ void printUsage(){
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
     usage.append("USAGE: mmseqs_pref ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase [opts]\n"
             "-m              \t[file]\tAmino acid substitution matrix file.\n"
-            "-s              \t[float]\tSensitivity in the range [1:7] (default=4)\n"
+            "-r              \t[float]\tRuntime in the range [1:7] (default=4)\n"
             "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
             "-a              \t[int]\tAmino acid alphabet size (default=21).\n"
             "--z-score-thr   \t[float]\tZ-score threshold [default: 50.0]\n"
@@ -100,7 +100,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         } 
-        else if (strcmp(argv[i], "-s") == 0){
+        else if (strcmp(argv[i], "-r") == 0){
             if (++i < argc){
                 *sens = atof(argv[i]);
                 if (*sens < 1.0 || *sens > 7.0){

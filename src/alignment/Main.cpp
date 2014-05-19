@@ -20,7 +20,7 @@ void printUsage(){
             "--max-seqs\t[int]\tMaximum alignment results per query sequence (default=100).\n"
             "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
             "--nucleotides\t\tNucleotide sequences input.\n"
-            "--threads       \t[int]\tNumber of threads used to compute (default=all cores).\n"
+            "--threads  \t[int]\tNumber of threads used to compute (default=all cores).\n"
             "-v         \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
 }
