@@ -261,8 +261,6 @@ int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, si
     hit_t * resultVector = prefResults.first;
     const size_t resultSize = prefResults.second;
 
-    hit_t * r = resultVector;
-
     for (size_t i = 0; i < resultSize; i++){
         hit_t * res = resultVector + i;
 

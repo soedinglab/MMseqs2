@@ -58,13 +58,13 @@ void printUsage(){
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
     usage.append("USAGE: mmseqs_pref ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase [opts]\n"
             "-m              \t[file]\tAmino acid substitution matrix file.\n"
-            "-r              \t[float]\tRuntime in the range [1:7] (default=4)\n"
+            "-s              \t[float]\tSensitivity in the range [1:9] (default=4)\n"
             "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
             "-a              \t[int]\tAmino acid alphabet size (default=21).\n"
             "--z-score-thr   \t[float]\tZ-score threshold [default: 50.0]\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucleotides   \t\tNucleotide sequences input.\n"
-            "--max-seqs   \t[int]\tMaximum result sequences per query (default=100)\n"
+            "--max-seqs   \t[int]\tMaximum result sequences per query (default=300)\n"
             "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
             "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
             "--threads       \t[int]\tNumber of threads used to compute (default=all cores).\n"
@@ -83,6 +83,8 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
     ffindexTargetDBBase->assign(argv[2]);
     ffindexOutDBBase->assign(argv[3]);
 
+    int zscoreSet = 0;
+
     int i = 4;
     while (i < argc){
         if (strcmp(argv[i], "-m") == 0){
@@ -100,12 +102,32 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         } 
-        else if (strcmp(argv[i], "-r") == 0){
+        else if (strcmp(argv[i], "-s") == 0){
             if (++i < argc){
                 *sens = atof(argv[i]);
-                if (*sens < 1.0 || *sens > 7.0){
-                    Debug(Debug::ERROR) << "Please choose sensitivity in the range [1:7].\n";
+                if (*sens < 1.0 || *sens > 9.0){
+                    Debug(Debug::ERROR) << "Please choose sensitivity in the range [1:9].\n";
                     exit(EXIT_FAILURE);
+                }
+                // adapt z-score threshold to the sensitivity setting
+                // user defined threshold overwrites the automatic setting
+                if (zscoreSet == 0){
+                    if (1.0 <= *sens && *sens <= 2.0)
+                        *zscoreThr = 70.0;
+                    else if (2.0 < *sens && *sens <= 3.0)
+                        *zscoreThr = 60.0;
+                    else if (3.0 < *sens && *sens <= 4.0)
+                        *zscoreThr = 50.0;
+                    else if (4.0 < *sens && *sens <= 5.0)
+                        *zscoreThr = 40.0;
+                    else if (5.0 < *sens && *sens <= 6.0)
+                        *zscoreThr = 30.0;
+                    else if (6.0 < *sens && *sens <= 7.0)
+                        *zscoreThr = 20.0;
+                    else if (7.0 < *sens && *sens <= 8.0)
+                        *zscoreThr = 10.0;
+                    else if (8.0 < *sens && *sens <= 9.0)
+                        *zscoreThr = 5.0;
                 }
                 i++;
             }
@@ -144,6 +166,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
         else if (strcmp(argv[i], "--z-score-thr") == 0){
             if (++i < argc){
                 *zscoreThr = atof(argv[i]);
+                zscoreSet = 1;
                 i++;
             }
             else {
@@ -268,7 +291,7 @@ int main (int argc, const char * argv[])
     int kmerSize =  6;
     int alphabetSize = 21;
     size_t maxSeqLen = 50000;
-    size_t maxResListLen = 100;
+    size_t maxResListLen = 300;
     float sensitivity = 4.0f;
     int splitSize = INT_MAX;
     int skip = 0;

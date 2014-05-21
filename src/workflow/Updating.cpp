@@ -362,9 +362,6 @@ void writeResults(cluster_t* clusters, char** rep2cluName, DBReader* seqDbr, int
 
         // get the cluster name
         char* cluName = rep2cluName[i];
-        unsigned int cluId = seqDbr->getId(cluName);
-        if (cluId == UINT_MAX)
-            std::cout << cluName << " representative deleted.\n";
         std::stringstream res;
         clu_entry_t* e = clusters[i].first;
         while (e != 0){

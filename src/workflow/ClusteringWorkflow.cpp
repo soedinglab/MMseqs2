@@ -20,11 +20,13 @@ void printUsage(){
     usage.append("USAGE: mmseqs_clustering ffindexInDBBase ffindexOutDBBase tmpDir [opts]\n"
             "--cascaded      \t\tStart the cascaded instead of simple clustering workflow.\n"
             "-m              \t[file]\tAmino acid substitution matrix file.\n"
+            "-s              \t[float]\tTarget sensitivity in the range [2:9] (default=4).\n"
+            "--max-seqs      \tMaximum result sequences per query (default=300)\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n");
     std::cout << usage;
 }
 
-void parseArgs(int argc, const char** argv, std::string* ffindexInDBBase, std::string* ffindexOutDBBase, std::string* tmpDir, std::string* scoringMatrixFile, size_t* maxSeqLen, bool* cascaded){
+void parseArgs(int argc, const char** argv, std::string* ffindexInDBBase, std::string* ffindexOutDBBase, std::string* tmpDir, std::string* scoringMatrixFile, size_t* maxSeqLen, bool* cascaded, float* sens, size_t* maxResListLen){
     if (argc < 4){
         printUsage();
         exit(EXIT_FAILURE);
@@ -59,8 +61,29 @@ void parseArgs(int argc, const char** argv, std::string* ffindexInDBBase, std::s
             }
         }
         else if (strcmp(argv[i], "--cascaded") == 0){
-                *cascaded = true;
+            *cascaded = true;
+            i++;
+        }
+        else if (strcmp(argv[i], "-s") == 0){
+            if (++i < argc){
+                *sens = atof(argv[i]);
+                if (*sens < 2.0 || *sens > 9.0){
+                    Debug(Debug::ERROR) << "Please choose sensitivity in the range [2:9].\n";
+                    exit(EXIT_FAILURE);
+                }
                 i++;
+            }
+        }
+        else if (strcmp(argv[i], "--max-seqs") == 0){
+            if (++i < argc){
+                *maxResListLen = atoi(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
         }
         else {
             printUsage();
@@ -68,7 +91,6 @@ void parseArgs(int argc, const char** argv, std::string* ffindexInDBBase, std::s
             exit(EXIT_FAILURE);
         }
     }
-
     if (strcmp (scoringMatrixFile->c_str(), "") == 0){
         printUsage();
         std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
@@ -159,7 +181,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
             alnDB_step, alnDB_step + ".index", 
             scoringMatrixFile, evalThr, covThr, maxSeqLen, seqType);
     std::cout << "Starting alignments calculation.\n";
-    aln->run(maxResListLen, 10);
+    aln->run(maxResListLen, INT_MAX);
     delete aln;
 
     gettimeofday(&end, NULL);
@@ -227,15 +249,6 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     cluStepDbr->close();
 
     std::cout << "Clustering step 1...\n";
-    /*    // print out the merged clustering
-          for (int i = 0; i < dbr->getSize(); i++){
-          std::cout << dbr->getDbKey(i) << ": ";
-          for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
-          std::cout << dbr->getDbKey(*it) << " ";
-          }
-          std::cout << "\n";
-          }
-          std::cout << "\n";*/
 
     // merge later clustering steps into the initial clustering step
     int cnt = 2;
@@ -264,15 +277,6 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         cluStepDbr->close();
 
         std::cout << "Clustering step " << cnt << "...\n";
-        /*        // print out the merged clustering
-                  for (int i = 0; i < dbr->getSize(); i++){
-                  std::cout << dbr->getDbKey(i) << ": ";
-                  for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
-                  std::cout << dbr->getDbKey(*it) << " ";
-                  }
-                  std::cout << "\n";
-                  }
-                  std::cout << "\n";*/
         cnt++;
     }
 
@@ -336,18 +340,42 @@ void copy(std::string inFile, std::string outFile){
     }
 }
 
-void runClustering(size_t maxSeqLen, int seqType, 
-        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, 
+float getZscoreForSensitivity (float sensitivity){
+    float zscoreThr = 50.0;
+
+    if (1.0 <= sensitivity && sensitivity <= 2.0)
+        zscoreThr = 70.0;
+    else if (2.0 < sensitivity && sensitivity <= 3.0)
+        zscoreThr = 60.0;
+    else if (3.0 < sensitivity && sensitivity <= 4.0)
+        zscoreThr = 50.0;
+    else if (4.0 < sensitivity && sensitivity <= 5.0)
+        zscoreThr = 40.0;
+    else if (5.0 < sensitivity && sensitivity <= 6.0)
+        zscoreThr = 30.0;
+    else if (6.0 < sensitivity && sensitivity <= 7.0)
+        zscoreThr = 20.0;
+    else if (7.0 < sensitivity && sensitivity <= 8.0)
+        zscoreThr = 10.0;
+    else if (8.0 < sensitivity && sensitivity <= 9.0)
+        zscoreThr = 5.0;
+
+    return zscoreThr;
+}
+
+void runClustering(float sensitivity, size_t maxSeqLen, int seqType, 
+        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, 
         double evalThr, double covThr, int maxAlnNum,
         std::string inDB, std::string outDB, std::string scoringMatrixFile, std::string tmpDir){
 
-    float sens = 4.0;
-
-    std::cout << "\nRunning the clustering with sensitivity " << sens << "\n";
-
     std::string inDBIndex = inDB + ".index";
 
-    std::string cluDB = runStep(inDB, inDBIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens, evalThr, covThr, maxAlnNum, 1, true);
+    float zscoreThr = getZscoreForSensitivity(sensitivity);
+
+    std::cout << "\nRunning the clustering with sensitivity " << sensitivity << "\n";
+    std::cout << "Z-score threshold: " << zscoreThr << "\n";
+
+    std::string cluDB = runStep(inDB, inDBIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity, evalThr, covThr, maxAlnNum, 1, true);
 
     std::string cluDBIndex = cluDB + ".index";
     std::string outDBIndex = outDB + ".index";
@@ -358,13 +386,14 @@ void runClustering(size_t maxSeqLen, int seqType,
 
 }
 
-void runCascadedClustering(size_t maxSeqLen, int seqType,
-        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr,
+void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqType,
+        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection,
         double evalThr, double covThr, int maxAlnNum,
         std::string inDB, std::string outDB, std::string scoringMatrixFile, std::string tmpDir){
 
     std::cout << "\nRunning cascaded clustering for the database " << inDB << "\n";
-   
+    std::cout << "Target sensitivity: " << targetSensitivity << "\n";
+
     std::string inDBIndex = inDB + ".index";
 
     // copy index to a new location, it will be overwritten
@@ -382,15 +411,34 @@ void runCascadedClustering(size_t maxSeqLen, int seqType,
 
     std::cout << "\n\n";
     std::cout << "------------------------------- Step 1 ----------------------------------------------\n";
-    cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 300.0, 1.5, evalThr, covThr, maxAlnNum, 1, false);
+
+    float sens = targetSensitivity/3.0;
+    float zscoreThr = getZscoreForSensitivity(sens);
+
+    std::cout << "\nSensitivity " << sens << "\n";
+    std::cout << "Z-score threshold: " << zscoreThr << "\n";
+    
+    cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens, evalThr, covThr, maxAlnNum, 1, false);
     cluSteps.push_back(cluDB);
 
     std::cout << "------------------------------- Step 2 ----------------------------------------------\n";
-    cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 100.0, 2.5, evalThr, covThr, maxAlnNum, 2, false);
+    sens = (targetSensitivity * 2.0) /3.0;
+    zscoreThr = getZscoreForSensitivity(sens);
+    
+    std::cout << "\nSensitivity " << sens << "\n";
+    std::cout << "Z-score threshold: " << zscoreThr << "\n";
+
+    cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens, evalThr, covThr, maxAlnNum, 2, false);
     cluSteps.push_back(cluDB);
 
     std::cout << "------------------------------- Step 3 ----------------------------------------------\n";
-    cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, 4.0, evalThr, covThr, maxAlnNum, 3, true);
+    sens = targetSensitivity;
+    zscoreThr = getZscoreForSensitivity(sens);
+    
+    std::cout << "\nSensitivity " << sens << "\n";
+    std::cout << "Z-score threshold: " << zscoreThr << "\n";
+
+    cluDB = runStep(inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens, evalThr, covThr, maxAlnNum, 3, true);
     cluSteps.push_back(cluDB);
 
     std::cout << "--------------------------- Merging databases ---------------------------------------\n";
@@ -404,6 +452,7 @@ int main (int argc, const char * argv[]){
     bool cascaded = false;
     size_t maxSeqLen = 50000;
     int seqType = Sequence::AMINO_ACIDS;
+    float targetSens = 4.0;
 
     // parameter for the prefiltering
     int kmerSize = 6;
@@ -412,7 +461,6 @@ int main (int argc, const char * argv[]){
     int split = 0;
     int skip = 0;
     bool aaBiasCorrection = true;
-    float zscoreThr = 50.0f;
 
     // parameters for the alignment
     double evalThr = 0.001;
@@ -424,16 +472,16 @@ int main (int argc, const char * argv[]){
     std::string scoringMatrixFile = "";
     std::string tmpDir = "";
 
-    parseArgs(argc, argv, &inDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen, &cascaded);
+    parseArgs(argc, argv, &inDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen, &cascaded, &targetSens, &maxResListLen);
 
     if (cascaded)
-        runCascadedClustering(maxSeqLen, seqType,
-                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr,
+        runCascadedClustering(targetSens, maxSeqLen, seqType,
+                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 
                 evalThr, covThr, maxAlnNum,
                 inDB, outDB, scoringMatrixFile, tmpDir);
     else
-        runClustering(maxSeqLen, seqType,
-                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr,
+        runClustering(targetSens, maxSeqLen, seqType,
+                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection,
                 evalThr, covThr, maxAlnNum,
                 inDB, outDB, scoringMatrixFile, tmpDir);
 

@@ -17,7 +17,7 @@ void printUsage(){
             "-e          \t[float]\tMaximum e-value (default=0.01).\n"
             "-c          \t[float]\tMinimum alignment coverage (default=0.8).\n"
             "--max-seq-len\t[int]\tMaximum sequence length (default=50000).\n"
-            "--max-seqs\t[int]\tMaximum alignment results per query sequence (default=100).\n"
+            "--max-seqs\t[int]\tMaximum alignment results per query sequence (default=300).\n"
             "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
             "--nucleotides\t\tNucleotide sequences input.\n"
             "--threads  \t[int]\tNumber of threads used to compute (default=all cores).\n"
@@ -186,7 +186,7 @@ int main(int argc, char **argv){
     double evalThr = 0.001;
     double covThr = 0.8;
     int maxSeqLen = 50000;
-    int maxAlnNum = 100;
+    int maxAlnNum = 300;
     int maxRejected = INT_MAX;
     int seqType = Sequence::AMINO_ACIDS;
 
