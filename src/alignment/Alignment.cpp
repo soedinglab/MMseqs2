@@ -86,8 +86,8 @@ Alignment::~Alignment(){
 
 void Alignment::run (int maxAlnNum, int maxRejected){
 
-    int alignmentsNum = 0;
-    int passedNum = 0;
+    size_t alignmentsNum = 0;
+    size_t passedNum = 0;
 
 # pragma omp parallel for schedule(dynamic, 10) reduction (+: alignmentsNum, passedNum)
     for (unsigned int id = 0; id < prefdbr->getSize(); id++){
@@ -186,7 +186,10 @@ void Alignment::run (int maxAlnNum, int maxRejected){
     Debug(Debug::INFO) << "All sequences processed.\n\n";
     Debug(Debug::INFO) << alignmentsNum << " alignments calculated.\n";
     Debug(Debug::INFO) << passedNum << " sequence pairs passed the thresholds (" << ((float)passedNum/(float)alignmentsNum) << " of overall calculated).\n";
-    Debug(Debug::INFO) << ((float)passedNum/(float)prefdbr->getSize()) << " hits per query sequence.\n";
+    size_t hits = passedNum / prefdbr->getSize();
+    size_t hits_rest = passedNum % prefdbr->getSize();
+    float hits_f = ((float) hits) + ((float)hits_rest) / (float) prefdbr->getSize();
+    Debug(Debug::INFO) << hits_f << " hits per query sequence.\n";
 
     qseqdbr->close();
     tseqdbr->close();
