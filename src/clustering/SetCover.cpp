@@ -32,6 +32,8 @@ SetCover::SetCover(unsigned int set_size,
 SetCover::~SetCover(){
     delete element_lookup;
     delete[] ordered_by_score_set;
+    free(set_elements);
+    free(sets);
 }
 
 
@@ -53,7 +55,7 @@ void SetCover::add_set(const int set_id, const int set_weight,
                         const unsigned int * element_ids,
                         const unsigned short * weights,
                         const int element_size){
-    
+
     set::element * element_last_ptr = NULL;
     set::element * element_first_ptr = NULL;
     set * curr_set = &this->sets[set_id];
@@ -88,8 +90,6 @@ void SetCover::add_set(const int set_id, const int set_weight,
     curr_set->elements = element_first_ptr; // set element pointer to current_set
 
 }
-
-
 
 void SetCover::removeSet(set * s){
     set::element * element=s->elements;

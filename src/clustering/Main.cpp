@@ -32,7 +32,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::
                 *clusteringMode = Clustering::GREEDY;
                 i++;
         }
-        if (strcmp(argv[i], "-c") == 0){
+        else if (strcmp(argv[i], "-c") == 0){
             *validateClustering = 1;
             i++;
         }
@@ -88,6 +88,8 @@ int main(int argc, const char * argv[])
     Clustering* clu = new Clustering(seqDB, seqDB + ".index", alnDB, alnDB + ".index", outDB, outDB + ".index", seqIdThr, validateClustering);
 
     clu->run(clusteringMode);
+
+    delete clu;
     
 }
 

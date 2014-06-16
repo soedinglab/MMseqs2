@@ -13,6 +13,11 @@ DBReader::DBReader(const char* dataFileName_, const char* indexFileName_)
     closed = 1;
 }
 
+DBReader::~DBReader(){
+    delete[] dataFileName;
+    delete[] indexFileName;
+}
+
 void DBReader::open(int sort){
     // count the number of entries
     char line [1000];
@@ -81,6 +86,8 @@ void DBReader::close(){
     delete[] id2local;
     delete[] local2id;
     delete[] seqLens;
+    munmap(data, dataSize);
+    free(index);
     closed = 1;
 }
 

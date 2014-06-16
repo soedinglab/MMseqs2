@@ -18,6 +18,7 @@ extern "C" {
 #include <climits>
 #include <map>
 #include <cstring>
+#include <sys/mman.h>
 
 struct StrCompare : public std::binary_function<const char*, const char*, bool> {
     public:
@@ -30,6 +31,8 @@ class DBReader {
     public:
 
         DBReader(const char* dataFileName, const char* indexFileName);
+        
+        ~DBReader();
 
         void open(int sort);
 

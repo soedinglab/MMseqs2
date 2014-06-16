@@ -19,6 +19,8 @@ DBWriter::DBWriter (const char* dataFileName_, const char* indexFileName_, int m
 }
 
 DBWriter::~DBWriter(){
+    delete[] dataFileName;
+    delete[] indexFileName;
     delete[] dataFiles;
     delete[] indexFiles;
     delete[] dataFileNames;
@@ -91,6 +93,7 @@ int DBWriter::close(){
             ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);
             free(index_to_add);
         }
+        munmap(data_to_add, data_size);
 
         fclose(data_file_to_add);
         fclose(index_file_to_add);
@@ -132,6 +135,11 @@ int DBWriter::close(){
     ffindex_write(index, index_file);
     fclose(index_file);
     free(index);
+
+    for (int i = 0; i < maxThreadNum; i++){
+        delete[] dataFileNames[i];
+        delete[] indexFileNames[i];
+    }
 
     closed = 1;
 

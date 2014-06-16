@@ -112,22 +112,22 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 // adapt z-score threshold to the sensitivity setting
                 // user defined threshold overwrites the automatic setting
                 if (zscoreSet == 0){
-                    if (1.0 <= *sens && *sens <= 2.0)
-                        *zscoreThr = 70.0;
-                    else if (2.0 < *sens && *sens <= 3.0)
-                        *zscoreThr = 60.0;
-                    else if (3.0 < *sens && *sens <= 4.0)
+                    if (1.0 <= *sens && *sens < 2.0)
+                        *zscoreThr = 300.0;
+                    else if (2.0 <= *sens && *sens < 3.0)
+                        *zscoreThr = 200.0;
+                    else if (3.0 <= *sens && *sens < 4.0)
+                        *zscoreThr = 100.0;
+                    else if (4.0 <= *sens && *sens < 5.0)
                         *zscoreThr = 50.0;
-                    else if (4.0 < *sens && *sens <= 5.0)
+                    else if (5.0 <= *sens && *sens < 6.0)
                         *zscoreThr = 40.0;
-                    else if (5.0 < *sens && *sens <= 6.0)
+                    else if (6.0 <= *sens && *sens < 7.0)
                         *zscoreThr = 30.0;
-                    else if (6.0 < *sens && *sens <= 7.0)
+                    else if (7.0 <= *sens && *sens < 8.0)
                         *zscoreThr = 20.0;
-                    else if (7.0 < *sens && *sens <= 8.0)
+                    else if (8.0 <= *sens && *sens <= 9.0)
                         *zscoreThr = 10.0;
-                    else if (8.0 < *sens && *sens <= 9.0)
-                        *zscoreThr = 5.0;
                 }
                 i++;
             }
