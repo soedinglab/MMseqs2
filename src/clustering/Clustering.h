@@ -29,7 +29,7 @@ class Clustering {
         Clustering (std::string seqDB, std::string seqDBIndex,
                 std::string alnResultsDB, std::string alnResultsDBIndex,
                 std::string outDB, std::string outDBIndex, 
-                float seqIdThr, int validateClustering);
+                float seqIdThr, int validateClustering, int maxListLen);
 
         struct set_data {
             // one set contains pointers to the cluster member ids
@@ -68,5 +68,9 @@ class Clustering {
         float seqIdThr;
 
         int validate;
+
+        // maximum length of the alignment lists 
+        // after the maximum length, the reading of the alignment list for a query is aborted
+        int maxListLen;
 };
 #endif

@@ -13,11 +13,12 @@ void printUsage(){
              "-g              \t[file]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
              "-s              \t[float]\tMinimum sequence identity  (default = 0.0)\n"
              "-c              \t\tCheck clusters (default = off)\n"
-             "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
+             "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n"
+             "--max-seqs      \t[int]\tMaximum result sequences per query (default=100)\n");
     Debug(Debug::ERROR) << usage;
 }
 
-void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::string* ffindexOutDBBase, std::string* ffindexSeqDBBase, int* clusteringMode, float* seqIdThr, int* verbosity, int* validateClustering){
+void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::string* ffindexOutDBBase, std::string* ffindexSeqDBBase, int* clusteringMode, float* seqIdThr, int* verbosity, int* validateClustering, int* maxListLen){
     if (argc < 3){
         printUsage();
         exit(EXIT_FAILURE);
@@ -62,6 +63,18 @@ void parseArgs(int argc, const char** argv, std::string* ffindexAlnDBBase, std::
                 exit(EXIT_FAILURE);
             }
         }
+        else if (strcmp(argv[i], "--max-seqs") == 0){
+            if (++i < argc){
+                *maxListLen = atoi(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+
         else {
             printUsage();
             Debug(Debug::ERROR) << "Wrong argument: " << argv[i-1] << "\n";
@@ -80,12 +93,13 @@ int main(int argc, const char * argv[])
     int clusteringMode = Clustering::SET_COVER;
     float seqIdThr = 0.0;
     int validateClustering = 0;
+    int maxListLen = 100;
 
-    parseArgs(argc, argv, &alnDB, &outDB, &seqDB, &clusteringMode, &seqIdThr, &verbosity, &validateClustering);
+    parseArgs(argc, argv, &alnDB, &outDB, &seqDB, &clusteringMode, &seqIdThr, &verbosity, &validateClustering, &maxListLen);
 
     Debug::setDebugLevel(verbosity);
 
-    Clustering* clu = new Clustering(seqDB, seqDB + ".index", alnDB, alnDB + ".index", outDB, outDB + ".index", seqIdThr, validateClustering);
+    Clustering* clu = new Clustering(seqDB, seqDB + ".index", alnDB, alnDB + ".index", outDB, outDB + ".index", seqIdThr, validateClustering, maxListLen);
 
     clu->run(clusteringMode);
 

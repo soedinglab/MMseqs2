@@ -115,6 +115,7 @@ void Prefiltering::run(size_t maxResListLen){
     size_t dbMatches = 0;
 
     size_t resSize = 0;
+    size_t realResSize = 0;
 
     size_t queryDBSize = qdbr->getSize();
     int splitCount = 0;
@@ -155,7 +156,7 @@ void Prefiltering::run(size_t maxResListLen){
                     aaBiasCorrection, maxSeqLen, zscoreThr);
         }
 
-#pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches)
+#pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, realResSize, dbMatches)
         for (size_t id = 0; id < queryDBSize; id++){
 
             Log::printProgress(id);
@@ -181,6 +182,7 @@ void Prefiltering::run(size_t maxResListLen){
             kmersPerPos += (size_t) seqs[thread_idx]->stats->kmersPerPos;
             dbMatches += seqs[thread_idx]->stats->dbMatches;
             resSize += resultSize;
+            realResSize += std::min(resultSize, maxResListLen);
             reslens[thread_idx]->push_back(resultSize);
         } // step end
         if (queryDBSize > 1000)
@@ -213,7 +215,7 @@ void Prefiltering::run(size_t maxResListLen){
     // correction because of x splits
     kmersPerPos = kmersPerPos / splitCount;
     // print statistics
-    this->printStatistics(queryDBSize, kmersPerPos, resSize, dbMatches, empty, maxResListLen, reslens[0]);
+    this->printStatistics(queryDBSize, kmersPerPos, resSize, realResSize, dbMatches, empty, maxResListLen, reslens[0]);
 
     // close reader to reduce memory
     qdbr->close();
@@ -296,11 +298,12 @@ int Prefiltering::writePrefilterOutput( int thread_idx, std::string idSuffix, si
 
 
 void Prefiltering::printStatistics(size_t queryDBSize, size_t kmersPerPos,
-        size_t resSize,     size_t dbMatches,
+        size_t resSize,  size_t realResSize,   size_t dbMatches,
         int empty, size_t maxResListLen,
         std::list<int>* reslens){
     size_t dbMatchesPerSeq = dbMatches/queryDBSize;
     size_t prefPassedPerSeq = resSize/queryDBSize;
+    size_t prefRealPassedPerSeq = realResSize/queryDBSize;
     Debug(Debug::WARNING) << kmersPerPos/queryDBSize << " k-mers per position.\n";
     Debug(Debug::WARNING) << dbMatchesPerSeq << " DB matches per sequence.\n";
     Debug(Debug::WARNING) << prefPassedPerSeq << " sequences passed prefiltering per query sequence";
@@ -308,6 +311,7 @@ void Prefiltering::printStatistics(size_t queryDBSize, size_t kmersPerPos,
         Debug(Debug::WARNING) << " (ATTENTION: max. " << maxResListLen << " best scoring sequences were written to the output prefiltering database).\n";
     else
         Debug(Debug::WARNING) << ".\n";
+    Debug(Debug::WARNING) << prefRealPassedPerSeq << " sequences per query sequence were really written, after restricting maximum list length to " << maxResListLen << "\n";
 
     int mid = reslens->size() / 2;
     std::list<int>::iterator it = reslens->begin();

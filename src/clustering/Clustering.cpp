@@ -3,7 +3,7 @@
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
         std::string outDB, std::string outDBIndex,
-        float seqIdThr, int validateClustering){
+        float seqIdThr, int validateClustering, int maxListLen){
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
@@ -19,6 +19,7 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
 
     this->seqIdThr = seqIdThr;
     this->validate = validateClustering;
+    this->maxListLen = maxListLen;
     Debug(Debug::INFO) << "done.\n";
 }
 
@@ -34,7 +35,7 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "Reading the data...\n";
         set_data = read_in_set_data();
 
-        Debug(Debug::INFO) << "Init set cover...\n";
+        Debug(Debug::INFO) << "\nInit set cover...\n";
         SetCover setcover(set_data.set_count,
                 set_data.uniqu_element_count,
                 set_data.max_weight,
@@ -42,6 +43,7 @@ void Clustering::run(int mode){
                 set_data.element_size_lookup
                 );
 
+        Debug(Debug::INFO) << "Adding sets...\n";
         for(size_t i = 0; i < set_data.set_count; i++){
             setcover.add_set(i+1, set_data.set_sizes[i]
                     ,(const unsigned int*)set_data.sets[i],
@@ -244,7 +246,7 @@ Clustering::set_data Clustering::read_in_set_data(){
         char* dbKey = strtok(buf, "\t");
 
         int cnt = 0;
-        while (dbKey != 0)
+        while (dbKey != 0 && cnt < this->maxListLen)
         {
             if (prevKey != 0 && strcmp(prevKey, dbKey) == 0){
                 prevKey = dbKey;

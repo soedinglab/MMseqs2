@@ -64,7 +64,7 @@ void printUsage(){
             "--z-score-thr   \t[float]\tZ-score threshold [default: 50.0]\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucleotides   \t\tNucleotide sequences input.\n"
-            "--max-seqs   \t[int]\tMaximum result sequences per query (default=300)\n"
+            "--max-seqs      \t[int]\tMaximum result sequences per query (default=300)\n"
             "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
             "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
             "--threads       \t[int]\tNumber of threads used to compute (default=all cores).\n"

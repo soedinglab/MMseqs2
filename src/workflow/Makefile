@@ -3,9 +3,13 @@ C_FILES += $(shell find ../prefiltering -name "*.cpp" ! -name "Main.cpp")
 C_FILES += $(shell find ../alignment -name "*.cpp" ! -name "Main.cpp")
 C_FILES += $(shell find ../alignment -name "*.C")
 C_FILES += $(shell find ../clustering -name "*.cpp" ! -name "Main.cpp")
+C_FILES += WorkflowFunctions.cpp
 
-CW_SOURCES := $(C_FILES)
-CW_SOURCES += ClusteringWorkflow.cpp
+SEARCH_SOURCES := $(C_FILES)
+SEARCH_SOURCES += Search.cpp
+
+CLU_SOURCES := $(C_FILES)
+CLU_SOURCES += Clustering.cpp
 
 UPDATING_SOURCES := $(C_FILES)
 UPDATING_SOURCES += Updating.cpp 
@@ -13,7 +17,8 @@ UPDATING_SOURCES += Updating.cpp
 TT_SOURCES := $(C_FILES)
 TT_SOURCES += TimeTest.h TimeTest.cpp TimeTestMain.cpp
 
-CC_OBJS := $(patsubst %.cpp, %.o, $(CW_SOURCES))
+SEARCH_OBJS := $(patsubst %.cpp, %.o, $(SEARCH_SOURCES))
+CLU_OBJS := $(patsubst %.cpp, %.o, $(CLU_SOURCES))
 UPDATING_OBJS := $(patsubst %.cpp, %.o, $(UPDATING_SOURCES))
 TT_OBJS := $(patsubst %.cpp, %.o, $(TT_SOURCES))
 
@@ -22,15 +27,18 @@ CC = g++
 CFLAGS = -Wall -fopenmp -DOPENMP=1 -m64 -ffast-math -ftree-vectorize -O3 -Wno-write-strings -I../../lib/ffindex/src/ -L../../lib/ffindex/src/ -lffindex -fno-strict-aliasing 
 LDFLAGS =
 
-TARGETS = clustering updating time_test
+TARGETS = mmseqs_search_wf mmseqs_cluster_wf mmseqs_update_wf time_test
 
 all: $(TARGETS)
 
-clustering: .depend $(CC_OBJS)
-	$(CC) $(CFLAGS) $(CC_OBJS) $(LDFLAGS) -o clustering
+mmseqs_search_wf: .depend $(SEARCH_OBJS)
+	$(CC) $(CFLAGS) $(SEARCH_OBJS) $(LDFLAGS) -o mmseqs_search_wf
 
-updating: .depend $(UPDATING_OBJS)
-	$(CC) $(CFLAGS) $(UPDATING_OBJS) $(LDFLAGS) -o updating
+mmseqs_cluster_wf: .depend $(CLU_OBJS)
+	$(CC) $(CFLAGS) $(CLU_OBJS) $(LDFLAGS) -o mmseqs_cluster_wf
+
+mmseqs_update_wf: .depend $(UPDATING_OBJS)
+	$(CC) $(CFLAGS) $(UPDATING_OBJS) $(LDFLAGS) -o mmseqs_update_wf
 
 time_test: .depend $(TT_OBJS)
 	$(CC) $(CFLAGS) $(TT_OBJS) $(LDFLAGS) -o time_test

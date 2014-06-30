@@ -6,6 +6,7 @@
 #include "../prefiltering/Prefiltering.h"
 #include "../alignment/Alignment.h"
 #include "../clustering/Clustering.h"
+#include "WorkflowFunctions.h"
 
 extern "C" {
 #include "ffindex.h"
@@ -94,29 +95,6 @@ void parseArgs(int argc, const char** argv, std::string* ffindexLastSeqDBBase, s
         std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
         exit(EXIT_FAILURE);
     }
-}
-
-ffindex_index_t* openIndex(const char* indexFileName){
-    // count the number of entries in the clustering
-    char line [1000];
-    int cnt = 0;
-    std::ifstream index_file(indexFileName);
-    if (index_file.is_open()) {
-        while ( index_file.getline (line, 1000) ){
-            cnt++;
-        }
-        index_file.close();
-    }
-    else{
-        std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
-        exit(EXIT_FAILURE);
-    }
-    // open clustering ffindex
-    FILE* indexFile = fopen(indexFileName, "r");
-    if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", indexFileName);  exit(EXIT_FAILURE); }
-
-    ffindex_index_t* index = ffindex_index_parse(indexFile, cnt);
-    return index;
 }
 
 void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string oldDBIndex, std::string newDBIndex){
@@ -500,7 +478,7 @@ int main (int argc, const char * argv[]){
         Clustering* clu = new Clustering(currentSeqDB, currentSeqDBIndex,
                 BB_base, BB_base + ".index",
                 BB_clu, BB_clu + ".index",
-                0.0, 0);
+                0.0, 0, maxResListLen);
         clu->run(Clustering::SET_COVER); 
 
         std::cout << "Append generated clusters to the complete clustering...\n";

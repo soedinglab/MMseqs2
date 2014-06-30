@@ -91,7 +91,7 @@ class Prefiltering {
         // write prefiltering to ffindex database
         int writePrefilterOutput( int thread_idx, std::string idSuffix, size_t id, size_t maxResListLen, std::pair<hit_t *,size_t> prefResults);
 
-        void printStatistics(size_t queryDBSize, size_t kmersPerPos, size_t resSize, size_t dbMatches,
+        void printStatistics(size_t queryDBSize, size_t kmersPerPos, size_t resSize, size_t realResSize, size_t dbMatches,
                 int empty, size_t maxResListLen, std::list<int>* reslens);
 
 };
