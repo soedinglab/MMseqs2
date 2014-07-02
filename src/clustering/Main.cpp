@@ -10,7 +10,7 @@ void printUsage(){
             "ATTENTION: ffindex sequence database should contain all the sequences participating in the clustering (queries and targets).");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
     usage.append("USAGE: mmseqs_clu ffindexSeqDB ffindexAlnResultsDB ffindexOutDB [opts]\n"
-             "-g              \t[file]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
+             "-g              \t\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
              "-s              \t[float]\tMinimum sequence identity  (default = 0.0)\n"
              "-c              \t\tCheck clusters (default = off)\n"
              "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n"

@@ -66,7 +66,7 @@ void printUsage(){
             "--nucleotides   \t\tNucleotide sequences input.\n"
             "--max-seqs      \t[int]\tMaximum result sequences per query (default=300)\n"
             "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
-            "--tdb-seq-cut   \t\tSplits target databases in junks for x sequences. (For memory saving only)\n"
+            "--max-chunk-size\t[int]\tSplits target databases in chunks when the database size exceeds the given size. (For memory saving only)\n"
             "--threads       \t[int]\tNumber of threads used to compute (default=all cores).\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
             "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
@@ -113,9 +113,9 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 // user defined threshold overwrites the automatic setting
                 if (zscoreSet == 0){
                     if (1.0 <= *sens && *sens < 2.0)
-                        *zscoreThr = 300.0;
+                        *zscoreThr = 500.0;
                     else if (2.0 <= *sens && *sens < 3.0)
-                        *zscoreThr = 200.0;
+                        *zscoreThr = 300.0;
                     else if (3.0 <= *sens && *sens < 4.0)
                         *zscoreThr = 100.0;
                     else if (4.0 <= *sens && *sens < 5.0)
@@ -246,7 +246,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "--tdb-seq-cut") == 0){
+        else if (strcmp(argv[i], "--max-chunk-size") == 0){
             if (++i < argc){
                 *splitSize = atoi(argv[i]);
                 i++;
