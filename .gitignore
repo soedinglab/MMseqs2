@@ -19,7 +19,10 @@
 *.exe
 *.out
 *.app
-
+# debug
+*.dSYM
+.DS_Store
+*.swp
 # programs
 lib/ffindex/src/ffindex_*
 util/ffindex_from_fasta
