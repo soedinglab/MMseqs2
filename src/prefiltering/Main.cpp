@@ -56,19 +56,19 @@ void printUsage(){
 
     std::string usage("\nCalculates similarity scores between all sequences in the query database and all sequences in the target database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
-    usage.append("USAGE: mmseqs_pref ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase [opts]\n"
-            "-m              \t[file]\tAmino acid substitution matrix file.\n"
+    usage.append("USAGE: mmseqs_pref [queryDBBase] [targetDBBase] [outDBBase] [opts]\n"
             "-s              \t[float]\tSensitivity in the range [1:9] (default=4)\n"
             "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
-            "-a              \t[int]\tAmino acid alphabet size (default=21).\n"
-            "--z-score-thr   \t[float]\tZ-score threshold [default: 50.0]\n"
+            "-cpu              \t[int]\tNumber of cores used for the computation (default=all cores).\n"
+            "--alph-size     \t[int]\tAmino acid alphabet size (default=21).\n"
+            "--z-score       \t[float]\tZ-score threshold [default: 50.0]\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
-            "--nucleotides   \t\tNucleotide sequences input.\n"
+            "--nucl          \t\tNucleotide sequences input.\n"
             "--max-seqs      \t[int]\tMaximum result sequences per query (default=300)\n"
             "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
             "--max-chunk-size\t[int]\tSplits target databases in chunks when the database size exceeds the given size. (For memory saving only)\n"
-            "--threads       \t[int]\tNumber of threads used to compute (default=all cores).\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
+            "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
             "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
 }
@@ -102,6 +102,21 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         } 
+        else if (strcmp(argv[i], "--sub-mat") == 0){
+            if (*seqType == Sequence::NUCLEOTIDES){
+                Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
+                exit(EXIT_FAILURE);
+            }
+            if (++i < argc){
+                scoringMatrixFile->assign(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
         else if (strcmp(argv[i], "-s") == 0){
             if (++i < argc){
                 *sens = atof(argv[i]);
@@ -163,7 +178,30 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "--z-score-thr") == 0){
+        else if (strcmp(argv[i], "--alph-size") == 0){
+            if (++i < argc){
+                *alphabetSize = atoi(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "--z-score") == 0){
+            if (++i < argc){
+                *zscoreThr = atof(argv[i]);
+                zscoreSet = 1;
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided" << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "--z-score") == 0){
             if (++i < argc){
                 *zscoreThr = atof(argv[i]);
                 zscoreSet = 1;
@@ -186,11 +224,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         }
-         else if (strcmp(argv[i], "--nucleotides") == 0){
-            if (strcmp(scoringMatrixFile->c_str(), "") != 0){
-                Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
-                exit(EXIT_FAILURE);
-            }                                                           
+         else if (strcmp(argv[i], "--nucl") == 0){
             *seqType = Sequence::NUCLEOTIDES;
             i++;
         }
@@ -220,7 +254,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "--threads") == 0){
+        else if (strcmp(argv[i], "-cpu") == 0){
             if (++i < argc){
                 *threads = atoi(argv[i]);
                 i++;
@@ -263,12 +297,6 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
             exit(EXIT_FAILURE);
         }
     }
-
-    if (strcmp (scoringMatrixFile->c_str(), "") == 0){
-        printUsage();
-        Debug(Debug::ERROR) << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
-        exit(EXIT_FAILURE);
-    }
 }
 
 // this is needed because with GCC4.7 omp_get_num_threads() returns just 1.
@@ -306,7 +334,14 @@ int main (int argc, const char * argv[])
     std::string queryDB = "";
     std::string targetDB = "";
     std::string outDB = "";
-    std::string scoringMatrixFile = "";
+    // get the path of the scoring matrix
+    char* mmdir = getenv ("MMDIR");
+    if (mmdir == 0){
+        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+        exit(1);
+    }
+    std::string scoringMatrixFile(mmdir);
+    scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
 
     // print command line
     Debug(Debug::WARNING) << "Program call:\n";

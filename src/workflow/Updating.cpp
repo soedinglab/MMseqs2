@@ -40,8 +40,8 @@ void printUsage(){
 
     std::string usage("\nUpdates the existing clustering of the previous database version with new sequences from the current version of the same database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
-    usage.append("USAGE: update ffindexOldSeqDBBase ffindexCurrentSeqDBBase ffindexcluDBBase ffindexOutDBBase tmpDir [opts]\n"
-            "-m              \t[file]\tAmino acid substitution matrix file.\n"
+    usage.append("USAGE: update [oldSeqDBBase] [currentSeqDBBase] [oldCluDBBase] [outDBBase] [tmpDir] [opts]\n"
+            "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n");
     std::cout << usage;
 }
@@ -72,6 +72,17 @@ void parseArgs(int argc, const char** argv, std::string* ffindexLastSeqDBBase, s
                 exit(EXIT_FAILURE);
             }
         }
+        else if (strcmp(argv[i], "--sub-mat") == 0){
+            if (++i < argc){
+                scoringMatrixFile->assign(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                std::cerr << "No value provided for " << argv[i] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        } 
         else if (strcmp(argv[i], "--max-seq-len") == 0){
             if (++i < argc){
                 *maxSeqLen = atoi(argv[i]);
@@ -388,8 +399,16 @@ int main (int argc, const char * argv[]){
     std::string currentSeqDB = "";
     std::string cluDB = ""; 
     std::string outDB = "";
-    std::string scoringMatrixFile = "";
     std::string tmpDir = "";
+
+    // get the path of the scoring matrix
+    char* mmdir = getenv ("MMDIR");
+    if (mmdir == 0){
+        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+        exit(1);
+    }
+    std::string scoringMatrixFile(mmdir);
+    scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
 
     parseArgs(argc, argv, &lastSeqDB, &currentSeqDB, &cluDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen);
 

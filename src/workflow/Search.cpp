@@ -15,16 +15,17 @@ void printUsage(){
 
     std::string usage("\nCalculates the clustering of the sequences in the input database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
-    usage.append("USAGE: mmseqs_clustering ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase tmpDir [opts]\n"
-            "-m              \t[file]\tAmino acid substitution matrix file.\n"
+    usage.append("USAGE: mmseqs_clustering [queryDBBase] [targetDBBase] [outDBBase] [tmpDir] [opts]\n"
+            "-s              \t[float]\tTarget sensitivity in the range [2:9] (default=4).\n"
+            "--z-score       \t[float]\tZ-score threshold [default: 50.0]\n"
             "--max-seqs      \tMaximum result sequences per query (default=300)\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
-            "-s              \t[float]\tTarget sensitivity in the range [2:9] (default=4).\n"
+            "--sub-mat              \t[file]\tAmino acid substitution matrix file.\n"
             );
     std::cout << usage;
 }
 
-void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* tmpDir, std::string* scoringMatrixFile, size_t* maxSeqLen, float* sens, size_t* maxResListLen){
+void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* tmpDir, std::string* scoringMatrixFile, size_t* maxSeqLen, float* sens, size_t* maxResListLen, float* zscoreThr){
     if (argc < 4){
         printUsage();
         exit(EXIT_FAILURE);
@@ -49,6 +50,29 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         }
+        else if (strcmp(argv[i], "--sub-mat") == 0){
+            if (++i < argc){
+                scoringMatrixFile->assign(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                std::cerr << "No value provided for " << argv[i] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "--z-score") == 0){
+            if (++i < argc){
+                *zscoreThr = atof(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                Debug(Debug::ERROR) << "No value provided" << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+
         else if (strcmp(argv[i], "--max-seq-len") == 0){
             if (++i < argc){
                 *maxSeqLen = atoi(argv[i]);
@@ -95,13 +119,14 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
 }
 
 void runSearch(float sensitivity, size_t maxSeqLen, int seqType,
-        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection,
+        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr,
         double evalThr, double covThr,
         std::string queryDB, std::string targetDB, std::string outDB, std::string scoringMatrixFile, std::string tmpDir){
 
     std::string queryDBIndex = queryDB + ".index";
     std::string targetDBIndex = targetDB + ".index";
-    float zscoreThr = getZscoreForSensitivity(sensitivity);
+    if (zscoreThr == 0.0)
+        zscoreThr = getZscoreForSensitivity(sensitivity);
 
     std::string alnDB = runStep(queryDB, queryDBIndex, targetDB, targetDBIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity, evalThr, covThr, INT_MAX, 1, 0, true);
 
@@ -127,6 +152,7 @@ int main (int argc, const char * argv[]){
     int split = 0;
     int skip = 0;
     bool aaBiasCorrection = true;
+    float zscoreThr = 0.0;
 
     // parameters for the alignment
     double evalThr = 0.001;
@@ -135,13 +161,21 @@ int main (int argc, const char * argv[]){
     std::string queryDB = "";
     std::string targetDB = "";
     std::string outDB = "";
-    std::string scoringMatrixFile = "";
     std::string tmpDir = "";
 
-    parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen, &targetSens, &maxResListLen);
+    // get the path of the scoring matrix
+    char* mmdir = getenv ("MMDIR");
+    if (mmdir == 0){
+        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+        exit(1);
+    }
+    std::string scoringMatrixFile(mmdir);
+    scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
+
+    parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen, &targetSens, &maxResListLen, &zscoreThr);
 
     runSearch(targetSens, maxSeqLen, seqType,
-            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection,
+            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr,
             evalThr, covThr,
             queryDB, targetDB, outDB, scoringMatrixFile, tmpDir);
 

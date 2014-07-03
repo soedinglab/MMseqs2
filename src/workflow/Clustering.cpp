@@ -15,16 +15,16 @@ void printUsage(){
 
     std::string usage("\nCalculates the clustering of the sequences in the input database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
-    usage.append("USAGE: mmseqs_clustering ffindexInDBBase ffindexOutDBBase tmpDir [opts]\n"
+    usage.append("USAGE: mmseqs_clustering [sequenceDBBase] [outDBBase] [tmpDir] [opts]\n"
             "GENERAL OPTIONS:\n"
-            "-m              \t[file]\tAmino acid substitution matrix file.\n"
+            "--cascaded      \t\tStart the cascaded instead of simple clustering workflow.\n"
+            "-s              \t[float]\tTarget sensitivity in the range [2:9] (default=4).\n"
             "--max-seqs      \tMaximum result sequences per query (default=300)\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
 //            "--restart          \t[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
 //            "                \t     \tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering.\n"
-            "-s              \t[float]\tTarget sensitivity in the range [2:9] (default=4).\n"
 //            "CASCADED CLUSTERING OPTIONS:\n"
-            "--cascaded      \t\tStart the cascaded instead of simple clustering workflow.\n"
+            "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
 /*            "--step          \t[int]\tRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the database merging.\n"
             "\nRESTART OPTIONS NOTE:\n"
             "                \t     \tIt is assumed that all valid intermediate results exist.\n"
@@ -72,6 +72,17 @@ void parseArgs(int argc, const char** argv, std::string* ffindexInDBBase, std::s
             }   
         }
         else if (strcmp(argv[i], "-m") == 0){
+            if (++i < argc){
+                scoringMatrixFile->assign(argv[i]);
+                i++;
+            }
+            else {
+                printUsage();
+                std::cerr << "No value provided for " << argv[i] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "--sub-mat") == 0){
             if (++i < argc){
                 scoringMatrixFile->assign(argv[i]);
                 i++;
@@ -427,8 +438,16 @@ int main (int argc, const char * argv[]){
 
     std::string inDB = "";
     std::string outDB = "";
-    std::string scoringMatrixFile = "";
     std::string tmpDir = "";
+
+    // get the path of the scoring matrix
+    char* mmdir = getenv ("MMDIR");
+    if (mmdir == 0){
+        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+        exit(1);
+    }
+    std::string scoringMatrixFile(mmdir);
+    scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
 
     parseArgs(argc, argv, &inDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen, &cascaded, &targetSens, &maxResListLen, &restart, &step);
 
