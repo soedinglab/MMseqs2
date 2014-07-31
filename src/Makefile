@@ -84,9 +84,20 @@ depend: .depend
 	$(CC) $(CFLAGS) -o $@ $<
 
 clean:
-	rm -f .depend *.o
-	rm -f $(TARGETS)
-	rm ../commons/*.o
+	rm -f .depend
+	rm -f ../bin/mmseqs_pref ../bin/mmseqs_aln ../bin/mmseqs_clu ../bin/mmseqs_search ../bin/mmseqs_cluster ../bin/mmseqs_update workflow/time_test
+	rm -f commons/*.o
+	rm -f commons/.depend
+	rm -f alignment/*.o
+	rm -f alignment/.depend
+	rm -f prefiltering/*.o
+	rm -f prefiltering/.depend
+	rm -f clustering/*.o
+	rm -f clustering/.depend
+	rm -f workflow/*.o
+	rm -f workflow/.depend
+	rm -f test/*.o
+	rm -f test/.depend
 
 .PHONY: all clean depend
 

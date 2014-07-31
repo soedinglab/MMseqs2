@@ -14,12 +14,12 @@ extern "C" {
 void printUsage(){
 
     std::string usage("\nCalculates the clustering of the sequences in the input database.\n");
-    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
-    usage.append("USAGE: mmseqs_clustering [sequenceDBBase] [outDBBase] [tmpDir] [opts]\n"
+    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+    usage.append("USAGE: mmseqs_cluster <sequenceDB> <outDB> <tmpDir> [opts]\n"
             "GENERAL OPTIONS:\n"
             "--cascaded      \t\tStart the cascaded instead of simple clustering workflow.\n"
             "-s              \t[float]\tTarget sensitivity in the range [2:9] (default=4).\n"
-            "--max-seqs      \tMaximum result sequences per query (default=300)\n"
+            "--max-seqs      \t\tMaximum result sequences per query (default=300).\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
 //            "--restart          \t[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
 //            "                \t     \tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering.\n"
@@ -293,7 +293,13 @@ void runClustering(float sensitivity, size_t maxSeqLen, int seqType,
     std::cout << "\nRunning the clustering with sensitivity " << sensitivity << "\n";
     std::cout << "Z-score threshold: " << zscoreThr << "\n";
 
-    std::string cluDB = runStep(inDB, inDBIndex, inDB, inDBIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity, evalThr, covThr, 10, 1, restart, false);
+    std::list<std::string>* tmpFiles = new std::list<std::string>();
+
+    std::string cluDB = runStep(inDB, inDBIndex, inDB, inDBIndex, tmpDir,
+            scoringMatrixFile, maxSeqLen, seqType,
+            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
+            evalThr, covThr, 10,
+            1, restart, false, tmpFiles);
 
     std::string cluDBIndex = cluDB + ".index";
     std::string outDBIndex = outDB + ".index";
@@ -301,26 +307,8 @@ void runClustering(float sensitivity, size_t maxSeqLen, int seqType,
     // copy the clustering databases to the right location
     copy(cluDBIndex, outDBIndex);
     copy(cluDB, outDB); 
-
-}
-
-void runSearch(float sensitivity, size_t maxSeqLen, int seqType,
-        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection,
-        double evalThr, double covThr,
-        std::string inDB, std::string targetDB, std::string outDB, std::string scoringMatrixFile, std::string tmpDir, int restart){
-
-    std::string inDBIndex = inDB + ".index";
-    std::string targetDBIndex = targetDB + ".index";
-    float zscoreThr = getZscoreForSensitivity(sensitivity);
-
-    std::string alnDB = runStep(inDB, inDBIndex, targetDB, targetDBIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity, evalThr, covThr, INT_MAX, 1, restart, true);
-
-    std::string alnDBIndex = alnDB + ".index";
-    std::string outDBIndex = outDB + ".index";
-
-    // copy the clustering databases to the right location
-    copy(alnDBIndex, outDBIndex);
-    copy(alnDB, outDB);
+    deleteTmpFiles(tmpFiles);
+    delete tmpFiles;
 }
 
 void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqType,
@@ -331,10 +319,13 @@ void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqTyp
     std::cout << "\nRunning cascaded clustering for the database " << inDB << "\n";
     std::cout << "Target sensitivity: " << targetSensitivity << "\n";
 
+    std::list<std::string>* tmpFiles = new std::list<std::string>();
+
     std::string inDBIndex = inDB + ".index";
 
     // copy index to a new location, it will be overwritten
     std::string inDBWorkingIndex = tmpDir + "/input_seqs.index";
+    tmpFiles->push_back(inDBWorkingIndex);
 
     // save the original sequences to the working location
     // index will be overwritten in each clustering step
@@ -361,13 +352,18 @@ void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqTyp
         local_restart = restart;
     else
         local_restart = 1;
-    cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, 50, split, skip, aaBiasCorrection, zscoreThr, sens, evalThr, covThr, 10, 1, local_restart, false);
+    cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
+            scoringMatrixFile, maxSeqLen, seqType, 
+            kmerSize, alphabetSize, 50, split, 2, aaBiasCorrection, zscoreThr, sens,
+            evalThr, covThr, 10,
+            1, local_restart, false, tmpFiles);
     cluSteps.push_back(cluDB);
 
     std::cout << "\n##### Updating databases #####\n\n";
     // extract new index containing only sequences remained after the clustering and overwrite old index with the extracted index
     std::string cluDBIndex = cluDB + ".index";
     std::string newIndexFileName =  tmpDir + "/seqs_tmp.index";
+    tmpFiles->push_back(newIndexFileName);
     extractNewIndex(inDBWorkingIndex, cluDBIndex, newIndexFileName);
     copy(newIndexFileName, inDBWorkingIndex);
 
@@ -384,7 +380,11 @@ void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqTyp
     else
         local_restart = 1;
 
-    cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens, evalThr, covThr, 10, 2, local_restart, false);
+    cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
+            scoringMatrixFile, maxSeqLen, seqType,
+            kmerSize, alphabetSize, 100, split, skip, aaBiasCorrection, zscoreThr, sens,
+            evalThr, covThr, 10,
+            2, local_restart, false, tmpFiles);
     cluSteps.push_back(cluDB);
 
     std::cout << "\n##### Updating databases #####\n\n";
@@ -406,11 +406,17 @@ void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqTyp
     else
         local_restart = 1;
 
-    cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens, evalThr, covThr, INT_MAX, 3, local_restart, false);
+    cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
+            scoringMatrixFile, maxSeqLen, seqType,
+            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens,
+            evalThr, covThr, INT_MAX,
+            3, local_restart, false, tmpFiles);
     cluSteps.push_back(cluDB);
 
     std::cout << "--------------------------- Merging databases ---------------------------------------\n";
     mergeClusteringResults(inDB, outDB, cluSteps);
+    deleteTmpFiles(tmpFiles);
+    delete tmpFiles;
 
 }
 

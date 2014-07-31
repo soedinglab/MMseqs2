@@ -10,17 +10,17 @@
 
 void printUsage(){
 
-    std::string usage("\nCalculates Smith-Waterman alignment scores.\n");
+    std::string usage("\nCalculates Smith-Waterman alignment scores between all sequences in the query database and the sequences of the target database which passed the prefiltering.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: mmseqs_pref [queryDBBase] [targetDBBase] [prefResultsDBBase] [outDBBase] [opts]\n"
+    usage.append("USAGE: mmseqs_pref <queryDB> <targetDB> <prefResultsDB> <outDB> [opts]\n"
             "-e          \t[float]\tMaximum e-value (default=0.01).\n"
             "-c          \t[float]\tMinimum alignment coverage (default=0.8).\n"
-            "-cpu              \t[int]\tNumber of cores used for the computation (default=all cores).\n"
+            "-cpu        \t[int]\tNumber of cores used for the computation (default=all cores).\n"
             "--max-seq-len\t[int]\tMaximum sequence length (default=50000).\n"
             "--max-seqs\t[int]\tMaximum alignment results per query sequence (default=300).\n"
             "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
             "--nucleotides\t\tNucleotide sequences input.\n"
-            "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
+            "--sub-mat  \t[file]\tAmino acid substitution matrix file.\n"
             "-v         \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
 }

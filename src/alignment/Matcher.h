@@ -42,6 +42,14 @@ class Matcher{
 
     private:
 
+        int maxAllocatedLen;
+
+        void* H_workspace;
+
+        void* E_workspace;
+
+        void* F_workspace;
+
         // calculate the query profile for SIMD registers processing 8 elements
         void calcQueryProfileWord(Sequence* query);
 

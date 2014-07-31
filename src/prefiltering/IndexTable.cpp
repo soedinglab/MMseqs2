@@ -45,16 +45,39 @@ void IndexTable::addKmerCount (Sequence* s){
 }
 
 void IndexTable::init(){
+//    std::list<int>* sizesList = new std::list<int>();
     // allocate memory for the sequence id lists
     entries = new int[tableEntriesNum];
     int* it = entries;
     // set the pointers in the index table to the start of the list for a certain k-mer
     for (int i = 0; i < tableSize; i++){
+//        if (i < tableSize - 1)
+//            sizesList->push_back(sizes[i]);
         if (sizes[i] > 0){
             table[i] = it;
             it += sizes[i];
         }
     }
+/*    sizesList->sort();
+    std::cout << sizesList->front() << " " << sizesList->back() << "\n";
+    std::list<int>::iterator itt = sizesList->end();
+    itt--;
+    itt--;
+    int maxVal = *itt; 
+    int maxPos = maxVal / 10 + 1;
+    int* ar = new int[maxPos];
+    memset(ar, 0, sizeof(int) * (maxPos));
+
+    for (std::list<int>::iterator it = sizesList->begin(); it != sizesList->end(); it++){
+        ar[*it/10]++;
+    }
+    std::ofstream outf;
+    outf.open("/cluster/user/maria/test/kmer_cnt.out");
+    for (int i = 0; i < maxPos; i++)
+        outf << (i*10) << " " << ar[i] << "\n";
+    outf.close();
+    delete sizesList;
+    delete[] ar;*/
 }
 
 void IndexTable::addSequence (Sequence* s){
@@ -77,6 +100,7 @@ void IndexTable::addSequence (Sequence* s){
 void IndexTable::removeDuplicateEntries(){
 
     delete[] currPos;
+//    std::list<int>* sizesList = new std::list<int>();
     
     for (int e = 0; e < tableSize; e++){
         if (sizes[e] == 0)
@@ -93,7 +117,31 @@ void IndexTable::removeDuplicateEntries(){
         }
         size = boundary;
         sizes[e] = size;
+//        if (e < tableSize - 1)
+//            sizesList->push_back(sizes[e]);
+
     }
+/*    sizesList->sort();
+    std::cout << sizesList->front() << " " << sizesList->back() << "\n";
+    std::list<int>::iterator itt = sizesList->end();
+    itt--;
+    itt--;
+    int maxVal = *itt;
+    int maxPos = maxVal / 10 + 1;
+    int* ar = new int[maxPos];
+    memset(ar, 0, sizeof(int) * (maxPos));
+
+    for (std::list<int>::iterator it = sizesList->begin(); it != sizesList->end(); it++){
+        ar[*it/10]++;
+    }
+    std::ofstream outf;
+    outf.open("/cluster/user/maria/test/kmer_cnt_with_rm.out");
+    for (int i = 0; i < maxPos; i++)
+        outf << (i*10) << " " << ar[i] << "\n";
+    outf.close();
+    delete sizesList;
+    delete[] ar;
+*/
 
 }
 

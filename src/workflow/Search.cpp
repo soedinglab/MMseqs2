@@ -13,20 +13,20 @@ extern "C" {
 
 void printUsage(){
 
-    std::string usage("\nCalculates the clustering of the sequences in the input database.\n");
-    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
-    usage.append("USAGE: mmseqs_clustering [queryDBBase] [targetDBBase] [outDBBase] [tmpDir] [opts]\n"
-            "-s              \t[float]\tTarget sensitivity in the range [2:9] (default=4).\n"
-            "--z-score       \t[float]\tZ-score threshold [default: 50.0]\n"
+    std::string usage("\nCompares all sequences in the query database with all sequences in the target database.\n");
+    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+    usage.append("USAGE: mmseqs_search <queryDB> <targetDB> <outDB> <tmpDir> [opts]\n"
+            "-s              \t[float]\tTarget sensitivity in the range [1:9] (default=4).\n"
+            "--z-score       \t[float]\tZ-score threshold (default: 50.0)\n"
             "--max-seqs      \tMaximum result sequences per query (default=300)\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
-            "--sub-mat              \t[file]\tAmino acid substitution matrix file.\n"
+            "--sub-mat       \t[file]\tAmino acid substitution matrix file (default: BLOSUM62).\n"
             );
     std::cout << usage;
 }
 
 void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase, std::string* tmpDir, std::string* scoringMatrixFile, size_t* maxSeqLen, float* sens, size_t* maxResListLen, float* zscoreThr){
-    if (argc < 4){
+    if (argc < 5){
         printUsage();
         exit(EXIT_FAILURE);
     }
@@ -87,8 +87,8 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
         else if (strcmp(argv[i], "-s") == 0){
             if (++i < argc){
                 *sens = atof(argv[i]);
-                if (*sens < 2.0 || *sens > 9.0){
-                    Debug(Debug::ERROR) << "Please choose sensitivity in the range [2:9].\n";
+                if (*sens < 1.0 || *sens > 9.0){
+                    Debug(Debug::ERROR) << "Please choose sensitivity in the range [1:9].\n";
                     exit(EXIT_FAILURE);
                 }
                 i++;
@@ -128,7 +128,13 @@ void runSearch(float sensitivity, size_t maxSeqLen, int seqType,
     if (zscoreThr == 0.0)
         zscoreThr = getZscoreForSensitivity(sensitivity);
 
-    std::string alnDB = runStep(queryDB, queryDBIndex, targetDB, targetDBIndex, tmpDir, scoringMatrixFile, maxSeqLen, seqType, kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity, evalThr, covThr, INT_MAX, 1, 0, true);
+    std::list<std::string>* tmpFiles = new std::list<std::string>();
+
+    std::string alnDB = runStep(queryDB, queryDBIndex, targetDB, targetDBIndex, tmpDir,
+            scoringMatrixFile, maxSeqLen, seqType,
+            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
+            evalThr, covThr, INT_MAX,
+            1, 0, true, tmpFiles);
 
     std::string alnDBIndex = alnDB + ".index";
     std::string outDBIndex = outDB + ".index";
@@ -136,6 +142,8 @@ void runSearch(float sensitivity, size_t maxSeqLen, int seqType,
     // copy the clustering databases to the right location
     copy(alnDBIndex, outDBIndex);
     copy(alnDB, outDB);
+    deleteTmpFiles(tmpFiles);
+    delete tmpFiles;
 }
 
 int main (int argc, const char * argv[]){

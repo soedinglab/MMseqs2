@@ -2,6 +2,7 @@
 #define PREFILTERING_H
 
 #include <iostream>
+#include <fstream>
 #include <unistd.h>
 #include <string>
 #include <time.h>

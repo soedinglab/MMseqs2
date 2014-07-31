@@ -39,8 +39,8 @@ int newClus;
 void printUsage(){
 
     std::string usage("\nUpdates the existing clustering of the previous database version with new sequences from the current version of the same database.\n");
-    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
-    usage.append("USAGE: update [oldSeqDBBase] [currentSeqDBBase] [oldCluDBBase] [outDBBase] [tmpDir] [opts]\n"
+    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+    usage.append("USAGE: mmseqs_update <oldDB> <newDB> <oldDB_clustering> <outDB> <tmpDir> [opts]\n"
             "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n");
     std::cout << usage;
@@ -175,7 +175,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
         std::string tmpDir,
         std::string scoringMatrixFile, int maxSeqLen, int seqType,
         int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
-        double evalThr, double covThr, int maxAlnNum, std::string dbName){
+        double evalThr, double covThr, int maxAlnNum, std::string dbName, std::list<std::string>* tmpFiles){
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -183,9 +183,12 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     // prefiltering step
     std::cout << "\n----------------------------- Prefiltering ------------------------\n";
     std::string prefDB = tmpDir + "/db_pref_" + dbName;
+    std::string prefDBIndex = prefDB + ".index";
+    tmpFiles->push_back(prefDB);
+    tmpFiles->push_back(prefDBIndex);
     Prefiltering* pref = new Prefiltering (queryDB, queryDBIndex,
             targetDB, targetDBIndex,
-            prefDB, prefDB + ".index",
+            prefDB, prefDBIndex,
             scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, split, skip);
     std::cout << "Starting prefiltering scores calculation.\n";
     pref->run(maxResListLen);
@@ -199,10 +202,13 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     // alignment step
     std::cout << "------------------------------ Alignment --------------------------\n";
     std::string alnDB = tmpDir + "/db_aln_" + dbName;
+    std::string alnDBIndex = alnDB + ".index";
+    tmpFiles->push_back(alnDB);
+    tmpFiles->push_back(alnDBIndex);
     Alignment* aln = new Alignment(queryDB, queryDBIndex,
             targetDB, targetDBIndex,
-            prefDB, prefDB + ".index",
-            alnDB, alnDB + ".index",
+            prefDB, prefDBIndex,
+            alnDB, alnDBIndex,
             scoringMatrixFile, evalThr, covThr, maxSeqLen, seqType);
     std::cout << "Starting alignments calculation.\n";
     aln->run(maxResListLen, 10);
@@ -417,12 +423,19 @@ int main (int argc, const char * argv[]){
     std::string cluDBIndex = cluDB + ".index";
     std::string outDBIndex = outDB + ".index";
 
+    std::list<std::string>* tmpFiles = new std::list<std::string>();
     std::string AIndex = tmpDir + "/A.index";
     std::string BIndex = tmpDir + "/B.index";
+    tmpFiles->push_back(AIndex);
+    tmpFiles->push_back(BIndex);
 
     std::string Brest_indexFile = tmpDir + "/Brest.index";
+    tmpFiles->push_back(Brest_indexFile);
     
     std::string BB_clu = tmpDir + "/BB_clu";
+    std::string BB_clu_index = BB_clu + ".index";
+    tmpFiles->push_back(BB_clu);
+    tmpFiles->push_back(BB_clu_index);
     
     std::cout << "////////////////////////////////////////////////////////////////////////\n";
     std::cout << "///////                   Init                             /////////////\n";
@@ -430,7 +443,6 @@ int main (int argc, const char * argv[]){
     // extract three indexes:
     // - A: last database version without deleted sequences
     // - B: sequences which are new in the database
-    // - deleted: sequences from the last database version which are deleted in the current database version
     writeIndexes(AIndex, BIndex, lastSeqDBIndex, currentSeqDBIndex);
 
 
@@ -444,8 +456,7 @@ int main (int argc, const char * argv[]){
             tmpDir,
             scoringMatrixFile, maxSeqLen, seqType,
             kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
-            evalThr, covThr, maxAlnNum, "BA");
-
+            evalThr, covThr, maxAlnNum, "BA", tmpFiles);
 
     std::cout << "////////////////////////////////////////////////////////////////////////\n";
     std::cout << "///////      Adding sequences to existing clusters         /////////////\n";
@@ -486,7 +497,7 @@ int main (int argc, const char * argv[]){
                 tmpDir,
                 scoringMatrixFile, maxSeqLen, seqType,
                 kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
-                evalThr, covThr, maxAlnNum, "BB");
+                evalThr, covThr, maxAlnNum, "BB", tmpFiles);
 
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
         std::cout << "///////             Appending new clusters                 /////////////\n";
@@ -496,7 +507,7 @@ int main (int argc, const char * argv[]){
         // use the index generated in the previous step
         Clustering* clu = new Clustering(currentSeqDB, currentSeqDBIndex,
                 BB_base, BB_base + ".index",
-                BB_clu, BB_clu + ".index",
+                BB_clu, BB_clu_index,
                 0.0, 0, maxResListLen);
         clu->run(Clustering::SET_COVER); 
 
@@ -527,5 +538,8 @@ int main (int argc, const char * argv[]){
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     std::cout << "\nTime for updating: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
+
+    deleteTmpFiles(tmpFiles);
+    delete tmpFiles;
 
 }

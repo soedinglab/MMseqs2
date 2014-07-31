@@ -33,6 +33,7 @@ smith_waterman_sse2_word(char* query_id,
     short   score;
 
     int     cmp;
+    // iteration length
     int     iter = (query_length + 7) / 8;
 
     __m128i *p;

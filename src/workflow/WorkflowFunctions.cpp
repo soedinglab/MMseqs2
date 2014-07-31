@@ -27,7 +27,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
         std::string scoringMatrixFile, int maxSeqLen, int seqType,
         int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
         double evalThr, double covThr, int maxRejects,
-        int step_num, int restart, bool search){
+        int step_num, int restart, bool search, std::list<std::string>* tmpFiles){
 
     std::cout << "------------------------------------------------------------\n";
     std::cout << "GENERAL PARAMETERS:\n";
@@ -49,13 +49,16 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
     std::stringstream ss;
     ss << step_num;
     std::string prefDB_step = tmpDir + "/db_pref_step" + ss.str();
+    std::string prefDB_step_index = prefDB_step+ ".index";
+    tmpFiles->push_back(prefDB_step);
+    tmpFiles->push_back(prefDB_step_index);
 
     int sec;
     if (restart <= 1){
         std::cout << "\n##### Step " << ss.str() << ": PREFILTERING #####\n\n";
         Prefiltering* pref = new Prefiltering (inDBData, inDBWorkingIndex,
-                inDBData, inDBWorkingIndex,
-                prefDB_step, prefDB_step+ ".index",
+                targetDBData, targetDBIndex,
+                prefDB_step, prefDB_step_index,
                 scoringMatrixFile, sensitivity, kmerSize, alphabetSize, zscoreThr, maxSeqLen, seqType, aaBiasCorrection, split, skip);
         std::cout << "Starting prefiltering scores calculation.\n";
         pref->run(maxResListLen);
@@ -69,13 +72,16 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
 
     // alignment step
     std::string alnDB_step = tmpDir + "/db_aln_step" + ss.str();
+    std::string alnDB_step_index = alnDB_step + ".index";
+    tmpFiles->push_back(alnDB_step);
+    tmpFiles->push_back(alnDB_step_index);
 
     if (restart <= 2){
         std::cout << "\n##### Step " << ss.str() << ": ALIGNMENT #####\n\n";
         Alignment* aln = new Alignment(inDBData, inDBWorkingIndex,
-                inDBData, inDBWorkingIndex,
-                prefDB_step, prefDB_step + ".index",
-                alnDB_step, alnDB_step + ".index",
+                targetDBData, targetDBIndex,
+                prefDB_step, prefDB_step_index,
+                alnDB_step, alnDB_step_index,
                 scoringMatrixFile, evalThr, covThr, maxSeqLen, seqType);
         std::cout << "Starting alignments calculation.\n";
         aln->run(maxResListLen, maxRejects);
@@ -92,12 +98,15 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
 
     // clustering step
     std::string cluDB_step = tmpDir + "/db_clu_step" + ss.str();
+    std::string cluDB_step_index = cluDB_step + ".index";
+    tmpFiles->push_back(cluDB_step);
+    tmpFiles->push_back(cluDB_step_index);
 
     if (restart <= 3){
         std::cout << "\n##### Step " << ss.str() << ": CLUSTERING #####\n\n";
         Clustering* clu = new Clustering(inDBData, inDBWorkingIndex,
-                alnDB_step, alnDB_step + ".index",
-                cluDB_step, cluDB_step + ".index",
+                alnDB_step, alnDB_step_index,
+                cluDB_step, cluDB_step_index,
                 0.0, 0, maxResListLen);
         clu->run(Clustering::SET_COVER);
         delete clu;
@@ -130,7 +139,7 @@ float getZscoreForSensitivity (float sensitivity){
     float zscoreThr = 50.0;
 
     if (1.0 <= sensitivity && sensitivity < 2.0)
-        zscoreThr = 500.0;
+        zscoreThr = 700.0;
     else if (2.0 <= sensitivity && sensitivity < 3.0)
         zscoreThr = 200.0;
     else if (3.0 <= sensitivity && sensitivity < 4.0)
@@ -147,5 +156,13 @@ float getZscoreForSensitivity (float sensitivity){
         zscoreThr = 10.0;
 
     return zscoreThr;
+}
+
+void deleteTmpFiles(std::list<std::string>* tmpFiles){
+    for (std::list<std::string>::iterator it = tmpFiles->begin(); it != tmpFiles->end(); it++){
+        std::cout << "Deleting " << *it << "\n";
+        if( remove((*it).c_str()) != 0 )
+            std::cerr << "Error deleting file " << *it << "\n";
+    }
 }
 

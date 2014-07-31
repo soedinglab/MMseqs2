@@ -54,17 +54,17 @@ void mmseqs_cuticle_init()
 
 void printUsage(){
 
-    std::string usage("\nCalculates similarity scores between all sequences in the query database and all sequences in the target database.\n");
+    std::string usage("\nCalculates k-mer similarity scores between all sequences in the query database and all sequences in the target database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
-    usage.append("USAGE: mmseqs_pref [queryDBBase] [targetDBBase] [outDBBase] [opts]\n"
-            "-s              \t[float]\tSensitivity in the range [1:9] (default=4)\n"
+    usage.append("USAGE: mmseqs_pref <queryDB> <targetDB> <outDB> [opts]\n"
+            "-s              \t[float]\tSensitivity in the range [1:9] (default=4).\n"
             "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
             "-cpu              \t[int]\tNumber of cores used for the computation (default=all cores).\n"
             "--alph-size     \t[int]\tAmino acid alphabet size (default=21).\n"
-            "--z-score       \t[float]\tZ-score threshold [default: 50.0]\n"
+            "--z-score       \t[float]\tZ-score threshold (default: 50.0).\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--nucl          \t\tNucleotide sequences input.\n"
-            "--max-seqs      \t[int]\tMaximum result sequences per query (default=300)\n"
+            "--max-seqs      \t[int]\tMaximum result sequences per query (default=300).\n"
             "--no-comp-bias-corr  \t\tSwitch off local amino acid composition bias correction.\n"
             "--max-chunk-size\t[int]\tSplits target databases in chunks when the database size exceeds the given size. (For memory saving only)\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
@@ -189,7 +189,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "--z-score") == 0){
+        else if (strcmp(argv[i], "--z-score-thr") == 0){
             if (++i < argc){
                 *zscoreThr = atof(argv[i]);
                 zscoreSet = 1;
