@@ -78,7 +78,7 @@ QueryScore::~QueryScore (){
     free(thresholds_128);
     delete[] seqLens;
     delete[] steps;
-    delete resList;
+    free(resList);
 }
 
 bool QueryScore::compareHits(hit_t first, hit_t second){

@@ -2,6 +2,7 @@
 #define PREFILTERING_H
 
 #include <iostream>
+#include <fstream>
 #include <unistd.h>
 #include <string>
 #include <time.h>
@@ -113,7 +114,9 @@ class Prefiltering {
         // statistics
         size_t kmersPerPos;
         size_t resSize;
+        size_t realResSize;
         size_t dbMatches;
+
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.

@@ -18,6 +18,7 @@ extern "C" {
 #include <climits>
 #include <map>
 #include <cstring>
+#include <sys/mman.h>
 
 struct StrCompare : public std::binary_function<const char*, const char*, bool> {
     public:

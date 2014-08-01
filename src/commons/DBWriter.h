@@ -21,6 +21,7 @@ extern "C" {
 #include <sstream>
 #include <fstream>
 #include <stdio.h>
+#include <sys/mman.h>
 
 class DBWriter {
     public:

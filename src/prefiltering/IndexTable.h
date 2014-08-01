@@ -7,7 +7,9 @@
 //
 
 #include <iostream>
+#include <fstream>
 #include <algorithm>
+#include <list>
 
 #include "Sequence.h"
 #include "Indexer.h"

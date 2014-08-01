@@ -1,5 +1,6 @@
 #include "Prefiltering.h"
 #include "PrefilteringIndexReader.h"
+#include "../commons/Util.h"
 
 Prefiltering::Prefiltering(std::string queryDB,
         std::string queryDBIndex,
@@ -264,7 +265,9 @@ void Prefiltering::run (size_t split, size_t splitCount,
 
     int kmersPerPos = 0;
     size_t dbMatches = 0;
-    int resSize = 0;
+    size_t resSize = 0;
+    size_t realResSize = 0;
+
 #pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches)
     for (size_t id = 0; id < queryDBSize; id++){ 
         Log::printProgress(id);
@@ -290,12 +293,15 @@ void Prefiltering::run (size_t split, size_t splitCount,
         kmersPerPos += (size_t) qseq[thread_idx]->stats->kmersPerPos;
         dbMatches += qseq[thread_idx]->stats->dbMatches;
         resSize += resultSize;
+        realResSize += std::min(resultSize, maxResListLen);
         reslens[thread_idx]->push_back(resultSize);
     } // step end
 
     this->kmersPerPos = kmersPerPos;
     this->dbMatches = dbMatches;
     this->resSize = resSize;
+    this->realResSize = realResSize;
+
     if (queryDBSize > 1000)
         Debug(Debug::INFO) << "\n";
     Debug(Debug::WARNING) << "\n";
@@ -328,7 +334,6 @@ void Prefiltering::removeDatabaes(std::vector<std::pair<std::string, std::string
         remove(filenames[i].second.c_str());
     }
 }
-
 
 // write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults){
@@ -386,6 +391,7 @@ void Prefiltering::printStatistics(){
     
     size_t dbMatchesPerSeq = dbMatches/queryDBSize;
     size_t prefPassedPerSeq = resSize/queryDBSize;
+    size_t prefRealPassedPerSeq = realResSize/queryDBSize;
     Debug(Debug::INFO) << kmersPerPos/queryDBSize << " k-mers per position.\n";
     Debug(Debug::INFO) << dbMatchesPerSeq << " DB matches per sequence.\n";
     Debug(Debug::INFO) << prefPassedPerSeq << " sequences passed prefiltering per query sequence";
@@ -438,7 +444,7 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
     Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
     indexTable->initMemory();
     indexTable->init();
-    
+
     Debug(Debug::INFO) << "Index table: fill...\n";
     for (unsigned int id = dbFrom; id < dbTo; id++){
         Log::printProgress(id-dbFrom);
@@ -447,9 +453,9 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addSequence(seq);
     }
-    
+
     if ((dbTo-dbFrom) > 10000)
-    Debug(Debug::INFO) << "\n";
+        Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: removing duplicate entries...\n";
     indexTable->removeDuplicateEntries();
     Debug(Debug::INFO) << "Index table init done.\n\n";
@@ -530,14 +536,14 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* qdbr, DBReader
         gamma = 1.959421; // 1.997792;
     }
     else if (kmerSize == 6){ 
-        alpha = 1.141648e-01; // 1.114936e-01;
+        alpha = 1.141648e-01; // 1.114936e-01
         beta = 9.033168e+05; // 9.331253e+05;
         gamma = 1.411142; // 1.416222;
     }
     else if (kmerSize == 7){ 
-        alpha = 7.123599e-02; //6.438574e-02; // 6.530289e-02;
-        beta = 3.148479e+06; //3.480680e+06; // 3.243035e+06;
-        gamma = 1.304421; // 1.753651; //1.137125;
+        alpha = 6.356035e-02; //7.123599e-02; //6.438574e-02; // 6.530289e-02;
+        beta = 3.432066e+06; //3.148479e+06; //3.480680e+06; // 3.243035e+06;
+        gamma = 1.238231; //1.304421; // 1.753651; //1.137125;
     }
     else{
         Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
@@ -626,6 +632,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* qdbr, DBReader
         else if (timeval >= timevalMin && timeval <= timevalMax){
             // delete data structures used before returning
             delete[] querySeqs;
+            delete[] matchers;
             delete indexTable;
             Debug(Debug::WARNING) << "\nk-mer threshold set, yielding sensitivity " << (log(timeval)/log(base)) << "\n\n";
             return std::pair<short, double> (kmerThrMid, kmerMatchProb);

@@ -6,6 +6,7 @@
 #include "../prefiltering/Prefiltering.h"
 #include "../alignment/Alignment.h"
 #include "../clustering/Clustering.h"
+#include "WorkflowFunctions.h"
 
 extern "C" {
 #include "ffindex.h"
@@ -14,7 +15,7 @@ extern "C" {
 #include "Util.h"
 
 struct clu_entry_t {
-    int id;
+    unsigned int id;
     clu_entry_t* next;
 };
 
@@ -39,9 +40,9 @@ int newClus;
 void printUsageUpdate(){
 
     std::string usage("\nUpdates the existing clustering of the previous database version with new sequences from the current version of the same database.\n");
-    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de))\n\n");
-    usage.append("USAGE: update ffindexOldSeqDBBase ffindexCurrentSeqDBBase ffindexcluDBBase ffindexOutDBBase tmpDir [opts]\n"
-            "-m              \t[file]\tAmino acid substitution matrix file.\n"
+    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+    usage.append("USAGE: mmseqs_update <oldDB> <newDB> <oldDB_clustering> <outDB> <tmpDir> [opts]\n"
+            "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n");
     std::cout << usage;
 }
@@ -72,6 +73,17 @@ void parseArgs(int argc, const char** argv, std::string* ffindexLastSeqDBBase, s
                 exit(EXIT_FAILURE);
             }
         }
+        else if (strcmp(argv[i], "--sub-mat") == 0){
+            if (++i < argc){
+                scoringMatrixFile->assign(argv[i]);
+                i++;
+            }
+            else {
+                printUsageUpdate();
+                std::cerr << "No value provided for " << argv[i] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        } 
         else if (strcmp(argv[i], "--max-seq-len") == 0){
             if (++i < argc){
                 *maxSeqLen = atoi(argv[i]);
@@ -164,7 +176,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
         std::string tmpDir,
         std::string scoringMatrixFile, int maxSeqLen, int querySeqType, int targetSeqType,
         int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
-        double evalThr, double covThr, int maxAlnNum, std::string dbName){
+        double evalThr, double covThr, int maxAlnNum, std::string dbName, std::list<std::string>* tmpFiles){
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -172,9 +184,12 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     // prefiltering step
     std::cout << "\n----------------------------- Prefiltering ------------------------\n";
     std::string prefDB = tmpDir + "/db_pref_" + dbName;
+    std::string prefDBIndex = prefDB + ".index";
+    tmpFiles->push_back(prefDB);
+    tmpFiles->push_back(prefDBIndex);
     Prefiltering* pref = new Prefiltering (queryDB, queryDBIndex,
             targetDB, targetDBIndex,
-            prefDB, prefDB + ".index",
+            prefDB, prefDBIndex,
             scoringMatrixFile, sensitivity, kmerSize, maxResListLen, alphabetSize,
             zscoreThr, maxSeqLen, querySeqType, targetSeqType, aaBiasCorrection, split, skip);
     std::cout << "Starting prefiltering scores calculation.\n";
@@ -189,10 +204,13 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     // alignment step
     std::cout << "------------------------------ Alignment --------------------------\n";
     std::string alnDB = tmpDir + "/db_aln_" + dbName;
+    std::string alnDBIndex = alnDB + ".index";
+    tmpFiles->push_back(alnDB);
+    tmpFiles->push_back(alnDBIndex);
     Alignment* aln = new Alignment(queryDB, queryDBIndex,
             targetDB, targetDBIndex,
-            prefDB, prefDB + ".index",
-            alnDB, alnDB + ".index",
+            prefDB, prefDBIndex,
+            alnDB, alnDBIndex,
             scoringMatrixFile, evalThr, covThr, maxSeqLen, querySeqType);
     std::cout << "Starting alignments calculation.\n";
     aln->run(maxResListLen, 10);
@@ -207,7 +225,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
 }
 
 
-int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster_t* clusters){
+int readClustering(DBReader* currSeqDbr, std::string cluDB, unsigned int* id2rep, char** rep2cluName, cluster_t* clusters){
 
     DBReader* cluDbr = new DBReader(cluDB.c_str(), (cluDB + ".index").c_str());
     cluDbr->open(DBReader::NOSORT);
@@ -215,25 +233,14 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
     int ret = cluDbr->getSize();
 
     for (unsigned int i = 0; i < cluDbr->getSize(); i++){
-        id2clu[i] = -1;
+        id2rep[i] = UINT_MAX;
     }
 
     char* buf = new char[1000000];
     for (unsigned int i = 0; i < cluDbr->getSize(); i++){
-        char* repDbKey = cluDbr->getDbKey(i);
-        unsigned int uint_repId = currSeqDbr->getId(repDbKey);
-
-        // the representative is not in the newest DB version
-        int repId;
-        if (uint_repId == UINT_MAX)
-            repId = -1;
-        else
-            repId = (int) uint_repId;
+        unsigned int repId = UINT_MAX;
         
         // parse the cluster
-        if (repId != -1)
-            id2clu[repId] = repId;
-
         char* cluData = cluDbr->getData(i);
         strcpy(buf, cluData);
 
@@ -247,10 +254,13 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
             unsigned int cluMemId = currSeqDbr->getId(cluMemDbKey);
             // this cluster member is contained in the newest DB version
             if (cluMemId != UINT_MAX){
-                // define new cluster representative if the old representative is not contained in the database anymore
-                if (repId == -1)
+                // define a cluster representative if the representative is not set yet
+                if (repId == UINT_MAX){
                     repId = cluMemId;
-                id2clu[cluMemId] = repId;
+                    // remember the name of the cluster
+                    strcpy(rep2cluName[repId], cluDbr->getDbKey(i));
+                }
+                id2rep[cluMemId] = repId;
                 // create a cluster member entry
                 // ATTENTION: consider counting cluster members first and allocate the memory at one piece (faster, no memory fragmentation)
                 // if the program becomes too slow and/or the memory consumption is too high
@@ -261,7 +271,7 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
                     prev->next = curr;
                 }
                 prev = curr;
-                // update clustering entry
+                // update the current clustering entry
                 clusters[repId].clu_size++;
                 if (clusters[repId].first == 0){
                     clusters[repId].first = curr;
@@ -275,7 +285,7 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, int* id2clu, cluster
     return ret;
 }
 
-void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::string BA_base, int* id2clu, cluster_t* clusters, std::string Brest_indexFile){
+void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::string BA_base, unsigned int* id2rep, cluster_t* clusters, std::string Brest_indexFile){
 
     DBReader* BADbr = new DBReader(BA_base.c_str(), (BA_base + ".index").c_str());
     BADbr->open(DBReader::NOSORT);
@@ -303,7 +313,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
                 exit(EXIT_FAILURE);
             }
             // find out the representative sequence of the cluster of the hit
-            int repId = id2clu[tId];
+            int repId = id2rep[tId];
 
             if(repId == -1){
                 std::cout << "ERROR: database sequence " << tKey << " is not in the clustering!\n";
@@ -334,7 +344,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
     fclose(Brest_index_file);
 }
 
-void writeResults(cluster_t* clusters, DBReader* seqDbr, int seqDbSize, std::string outDB){
+void writeResults(cluster_t* clusters, char** rep2cluName, DBReader* seqDbr, int seqDbSize, std::string outDB){
 
     DBWriter* dbw = new DBWriter(outDB.c_str(), (outDB + ".index").c_str());
     dbw->open();
@@ -347,7 +357,8 @@ void writeResults(cluster_t* clusters, DBReader* seqDbr, int seqDbSize, std::str
         if (clusters[i].clu_size == 0)
             continue;
 
-        char* repDbKey = seqDbr->getDbKey(i);
+        // get the cluster name
+        char* cluName = rep2cluName[i];
         std::stringstream res;
         clu_entry_t* e = clusters[i].first;
         while (e != 0){
@@ -357,12 +368,12 @@ void writeResults(cluster_t* clusters, DBReader* seqDbr, int seqDbSize, std::str
         std::string cluResultsOutString = res.str();
         const char* cluResultsOutData = cluResultsOutString.c_str();
         if (BUFFER_SIZE < strlen(cluResultsOutData)){
-            std::cerr << "Tried to process the clustering list for the query " << repDbKey << " , length of the list = " << clusters[i].clu_size << "\n";
+            std::cerr << "Tried to process the clustering list for the cluster " << cluName << " , length of the list = " << clusters[i].clu_size << "\n";
             std::cerr << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
             continue;
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->write(outBuffer, cluResultsOutString.length(), repDbKey);
+        dbw->write(outBuffer, cluResultsOutString.length(), cluName);
     }
 
     dbw->close();
@@ -398,8 +409,16 @@ int clusterupdate (int argc, const char * argv[]){
     std::string currentSeqDB = "";
     std::string cluDB = ""; 
     std::string outDB = "";
-    std::string scoringMatrixFile = "";
     std::string tmpDir = "";
+
+    // get the path of the scoring matrix
+    char* mmdir = getenv ("MMDIR");
+    if (mmdir == 0){
+        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+        exit(1);
+    }
+    std::string scoringMatrixFile(mmdir);
+    scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
 
     parseArgs(argc, argv, &lastSeqDB, &currentSeqDB, &cluDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen);
 
@@ -408,12 +427,19 @@ int clusterupdate (int argc, const char * argv[]){
     std::string cluDBIndex = cluDB + ".index";
     std::string outDBIndex = outDB + ".index";
 
+    std::list<std::string>* tmpFiles = new std::list<std::string>();
     std::string AIndex = tmpDir + "/A.index";
     std::string BIndex = tmpDir + "/B.index";
+    tmpFiles->push_back(AIndex);
+    tmpFiles->push_back(BIndex);
 
     std::string Brest_indexFile = tmpDir + "/Brest.index";
+    tmpFiles->push_back(Brest_indexFile);
     
     std::string BB_clu = tmpDir + "/BB_clu";
+    std::string BB_clu_index = BB_clu + ".index";
+    tmpFiles->push_back(BB_clu);
+    tmpFiles->push_back(BB_clu_index);
     
     std::cout << "////////////////////////////////////////////////////////////////////////\n";
     std::cout << "///////                   Init                             /////////////\n";
@@ -421,7 +447,6 @@ int clusterupdate (int argc, const char * argv[]){
     // extract three indexes:
     // - A: last database version without deleted sequences
     // - B: sequences which are new in the database
-    // - deleted: sequences from the last database version which are deleted in the current database version
     writeIndexes(AIndex, BIndex, lastSeqDBIndex, currentSeqDBIndex);
 
 
@@ -435,8 +460,7 @@ int clusterupdate (int argc, const char * argv[]){
             tmpDir,
             scoringMatrixFile, maxSeqLen, querySeqType, targetSeqType,
             kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
-            evalThr, covThr, maxAlnNum, "BA");
-
+            evalThr, covThr, maxAlnNum, "BA", tmpFiles);
 
     std::cout << "////////////////////////////////////////////////////////////////////////\n";
     std::cout << "///////      Adding sequences to existing clusters         /////////////\n";
@@ -447,7 +471,10 @@ int clusterupdate (int argc, const char * argv[]){
 
     // data structures for the clustering
     int seqDBSize = currSeqDbr->getSize();
-    int* id2clu = new int[seqDBSize];
+    unsigned int* id2rep = new unsigned int[seqDBSize];
+    char** rep2cluName = new char*[seqDBSize];
+    for (int i = 0; i < seqDBSize; i++)
+        rep2cluName[i] = new char[FFINDEX_MAX_ENTRY_NAME_LENTH];
     cluster_t* clusters = new cluster_t[seqDBSize];
     for (int i = 0; i < seqDBSize; i++){
         clusters[i].clu_size = 0;
@@ -457,12 +484,12 @@ int clusterupdate (int argc, const char * argv[]){
 
     std::cout << "Read the existing clustering...\n";
     // Read the existing clustering
-    readClustering(currSeqDbr, cluDB, id2clu, clusters);
+    readClustering(currSeqDbr, cluDB, id2rep, rep2cluName, clusters);
 
     std::cout << "Append new sequences to the existing clustering...\n";
     // append sequences from the new database to the existing clustering based on the B->A alignment scores
     // write sequences without a match to a separate index (they will be clustered separately)
-    appendToClustering(currSeqDbr, BIndex, BA_base, id2clu, clusters, Brest_indexFile);
+    appendToClustering(currSeqDbr, BIndex, BA_base, id2rep, clusters, Brest_indexFile);
 
     if (seqsWithoutMatches > 0){
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
@@ -474,7 +501,7 @@ int clusterupdate (int argc, const char * argv[]){
                 tmpDir,
                 scoringMatrixFile, maxSeqLen, querySeqType, targetSeqType,
                 kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
-                evalThr, covThr, maxAlnNum, "BB");
+                evalThr, covThr, maxAlnNum, "BB", tmpFiles);
 
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
         std::cout << "///////             Appending new clusters                 /////////////\n";
@@ -484,18 +511,18 @@ int clusterupdate (int argc, const char * argv[]){
         // use the index generated in the previous step
         Clustering* clu = new Clustering(currentSeqDB, currentSeqDBIndex,
                 BB_base, BB_base + ".index",
-                BB_clu, BB_clu + ".index",
-                0.0, 0);
+                BB_clu, BB_clu_index,
+                0.0, 0, maxResListLen);
         clu->run(Clustering::SET_COVER); 
 
         std::cout << "Append generated clusters to the complete clustering...\n";
         // append B->B clusters to the clustering
-        newClus = readClustering(currSeqDbr, BB_clu, id2clu, clusters);
+        newClus = readClustering(currSeqDbr, BB_clu, id2rep, rep2cluName, clusters);
     }
 
     // write new clustering
     std::cout << "Write clustering results...\n";
-    writeResults(clusters, currSeqDbr, seqDBSize, outDB);
+    writeResults(clusters, rep2cluName, currSeqDbr, seqDBSize, outDB);
     std::cout << "done.\n";
 
     currSeqDbr->close();
@@ -515,5 +542,8 @@ int clusterupdate (int argc, const char * argv[]){
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     std::cout << "\nTime for updating: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
+
+    deleteTmpFiles(tmpFiles);
+    delete tmpFiles;
 
 }

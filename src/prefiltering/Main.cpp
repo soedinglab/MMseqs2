@@ -60,22 +60,24 @@ void mmseqs_cuticle_init()
 
 void printUsagePrefiltering(){
 
-    std::string usage("\nCalculates similarity scores between all sequences in the query database and all sequences in the target database.\n");
+    std::string usage("\nCalculates k-mer similarity scores between all sequences in the query database and all sequences in the target database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de)\n\n");
-    usage.append("USAGE: mmseqs_pref ffindexQueryDBBase ffindexTargetDBBase ffindexOutDBBase [opts]\n"
-            "-m              \t[file]\tAmino acid substitution matrix file.\n"
-            "-s              \t[float]\tSensitivity in the range [1:7] (default=4)\n"
+    usage.append("USAGE: mmseqs_pref <queryDB> <targetDB> <outDB> [opts]\n"
+            "-s              \t[float]\tSensitivity in the range [1:9] (default=4).\n"
             "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
-            "-a              \t[int]\tAmino acid alphabet size (default=21).\n"
-            "--z-score-thr   \t[float]\tZ-score threshold [default: 50.0]\n"
+            "-cpu              \t[int]\tNumber of cores used for the computation (default=all cores).\n"
+            "--alph-size     \t[int]\tAmino acid alphabet size (default=21).\n"
+            "--z-score       \t[float]\tZ-score threshold (default: 50.0).\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
-            "--nucleotides   \t\tNucleotide sequences input.\n"
             "--profile       \t\tHMM Profile input.\n"
             "--max-seqs      \t[int]\tMaximum result sequences per query (default=100)\n"
             "--no-comp-bias-corr \tSwitch off local amino acid composition bias correction.\n"
             "--split         \tSplits target databases in n equal distrbuted junks (default=1)\n"
             "--threads       \t[int]\tNumber of threads used to compute. (Default=all cpus)\n"
+            "--nucl          \t\tNucleotide sequences input.\n"
+            "--max-seqs      \t[int]\tMaximum result sequences per query (default=300).\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
+            "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
             "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
 }
@@ -96,6 +98,8 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
     ffindexTargetDBBase->assign(argv[2]);
     ffindexOutDBBase->assign(argv[3]);
 
+    int zscoreSet = 0;
+
     int i = 4;
     while (i < argc){
         if (strcmp(argv[i], "-m") == 0){
@@ -113,12 +117,47 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
                 EXIT(EXIT_FAILURE);
             }
         } 
+        else if (strcmp(argv[i], "--sub-mat") == 0){
+            if (*querySeqType == Sequence::NUCLEOTIDES){
+                Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
+                exit(EXIT_FAILURE);
+            }
+            if (++i < argc){
+                scoringMatrixFile->assign(argv[i]);
+                i++;
+            }
+            else {
+                printUsagePrefiltering();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
         else if (strcmp(argv[i], "-s") == 0){
             if (++i < argc){
                 *sens = atof(argv[i]);
-                if (*sens < 1.0 || *sens > 7.0){
-                    Debug(Debug::ERROR) << "Please choose sensitivity in the range [1:7].\n";
-                    EXIT(EXIT_FAILURE);
+                if (*sens < 1.0 || *sens > 9.0){
+                    Debug(Debug::ERROR) << "Please choose sensitivity in the range [1:9].\n";
+                    exit(EXIT_FAILURE);
+                }
+                // adapt z-score threshold to the sensitivity setting
+                // user defined threshold overwrites the automatic setting
+                if (zscoreSet == 0){
+                    if (1.0 <= *sens && *sens < 2.0)
+                        *zscoreThr = 500.0;
+                    else if (2.0 <= *sens && *sens < 3.0)
+                        *zscoreThr = 300.0;
+                    else if (3.0 <= *sens && *sens < 4.0)
+                        *zscoreThr = 100.0;
+                    else if (4.0 <= *sens && *sens < 5.0)
+                        *zscoreThr = 50.0;
+                    else if (5.0 <= *sens && *sens < 6.0)
+                        *zscoreThr = 40.0;
+                    else if (6.0 <= *sens && *sens < 7.0)
+                        *zscoreThr = 30.0;
+                    else if (7.0 <= *sens && *sens < 8.0)
+                        *zscoreThr = 20.0;
+                    else if (8.0 <= *sens && *sens <= 9.0)
+                        *zscoreThr = 10.0;
                 }
                 i++;
             }
@@ -154,9 +193,33 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
                 EXIT(EXIT_FAILURE);
             }
         }
+        else if (strcmp(argv[i], "--alph-size") == 0){
+            if (++i < argc){
+                *alphabetSize = atoi(argv[i]);
+                i++;
+            }
+            else {
+                printUsagePrefiltering();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
         else if (strcmp(argv[i], "--z-score-thr") == 0){
             if (++i < argc){
                 *zscoreThr = atof(argv[i]);
+                zscoreSet = 1;
+                i++;
+            }
+            else {
+                printUsagePrefiltering();
+                Debug(Debug::ERROR) << "No value provided" << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "--z-score") == 0){
+            if (++i < argc){
+                *zscoreThr = atof(argv[i]);
+                zscoreSet = 1;
                 i++;
             }
             else {
@@ -176,21 +239,22 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
                 EXIT(EXIT_FAILURE);
             }
         }
-         else if (strcmp(argv[i], "--nucleotides") == 0){
+        else if (strcmp(argv[i], "--nucl") == 0){
             if (strcmp(scoringMatrixFile->c_str(), "") != 0){
                 Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
                 EXIT(EXIT_FAILURE);
             }                                                           
-             *querySeqType = Sequence::NUCLEOTIDES;
-             *targetSeqType = Sequence::NUCLEOTIDES;
-             i++;
-         }else if (strcmp(argv[i], "--profile") == 0){
-             *querySeqType = Sequence::HMM_PROFILE;
-             *targetSeqType = Sequence::AMINO_ACIDS;
+            *querySeqType = Sequence::NUCLEOTIDES;
+            *targetSeqType = Sequence::NUCLEOTIDES;
+            i++;
+        }
+        else if (strcmp(argv[i], "--profile") == 0){
+            *querySeqType = Sequence::HMM_PROFILE;
+            *targetSeqType = Sequence::AMINO_ACIDS;
 
-             i++;
-         }
-         else if (strcmp(argv[i], "--max-seqs") == 0){
+            i++;
+        }
+        else if (strcmp(argv[i], "--max-seqs") == 0){
             if (++i < argc){
                 *maxResListLen = atoi(argv[i]);
                 i++;
@@ -216,7 +280,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
                 EXIT(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "--threads") == 0){
+        else if (strcmp(argv[i], "-cpu") == 0){
             if (++i < argc){
                 *threads = atoi(argv[i]);
                 i++;
@@ -259,12 +323,6 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
             EXIT(EXIT_FAILURE);
         }
     }
-
-    if (strcmp (scoringMatrixFile->c_str(), "") == 0){
-        printUsagePrefiltering();
-        Debug(Debug::ERROR) << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
-        EXIT(EXIT_FAILURE);
-    }
 }
 
 
@@ -291,7 +349,7 @@ int prefilter(int argc, const char **argv)
     int kmerSize =  6;
     int alphabetSize = 21;
     size_t maxSeqLen = 50000;
-    size_t maxResListLen = 100;
+    size_t maxResListLen = 300;
     float sensitivity = 4.0f;
     int split = 1;
     int skip = 0;
@@ -308,7 +366,14 @@ int prefilter(int argc, const char **argv)
     std::string queryDB = "";
     std::string targetDB = "";
     std::string outDB = "";
-    std::string scoringMatrixFile = "";
+    // get the path of the scoring matrix
+    char* mmdir = getenv ("MMDIR");
+    if (mmdir == 0){
+        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+        exit(1);
+    }
+    std::string scoringMatrixFile(mmdir);
+    scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
 
     // print command line
     Debug(Debug::WARNING) << "Program call:\n";

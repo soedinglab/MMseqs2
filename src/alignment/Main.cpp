@@ -9,17 +9,17 @@
 
 
 void printUsageAlignment(){
-    std::string usage("\nCalculates Smith-Waterman alignment scores.\n");
+    std::string usage("\nCalculates Smith-Waterman alignment scores between all sequences in the query database and the sequences of the target database which passed the prefiltering.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: mmseqs_pref ffindexQuerySequenceDBBase ffindexTargetSequenceDBBase ffindexPrefilteringDBBase ffindexOutDBBase [opts]\n"
-            "-m          \t[file]\tAmino acid substitution matrix file.\n"
+    usage.append("USAGE: mmseqs_pref <queryDB> <targetDB> <prefResultsDB> <outDB> [opts]\n"
             "-e          \t[float]\tMaximum e-value (default=0.01).\n"
             "-c          \t[float]\tMinimum alignment coverage (default=0.8).\n"
+            "-cpu        \t[int]\tNumber of cores used for the computation (default=all cores).\n"
             "--max-seq-len\t[int]\tMaximum sequence length (default=50000).\n"
-            "--max-seqs\t[int]\tMaximum alignment results per query sequence (default=100).\n"
+            "--max-seqs\t[int]\tMaximum alignment results per query sequence (default=300).\n"
             "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
             "--nucleotides\t\tNucleotide sequences input.\n"
-            "--threads       \t[int]\tNumber of threads used to compute (default=all cores).\n"
+            "--sub-mat  \t[file]\tAmino acid substitution matrix file.\n"
             "-v         \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
     Debug(Debug::INFO) << usage;
 }
@@ -40,6 +40,21 @@ void parseArgs(int argc, const char** argv, std::string* qseqDB, std::string* ts
     int i = 5;
     while (i < argc){
         if (strcmp(argv[i], "-m") == 0){
+            if (*seqType == Sequence::NUCLEOTIDES){
+                Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
+                exit(EXIT_FAILURE);
+            }
+            if (++i < argc){
+                matrixFile->assign(argv[i]);
+                i++;
+            }
+            else {
+                printUsageAlignment();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(argv[i], "--sub-mat") == 0){
             if (*seqType == Sequence::NUCLEOTIDES){
                 Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
                 exit(EXIT_FAILURE);
@@ -110,10 +125,6 @@ void parseArgs(int argc, const char** argv, std::string* qseqDB, std::string* ts
             }
         }
         else if (strcmp(argv[i], "--nucleotides") == 0){
-            if (strcmp(matrixFile->c_str(), "") != 0){
-                Debug(Debug::ERROR) << "No scoring matrix is allowed for nucleotide sequences.\n";
-                exit(EXIT_FAILURE);
-            }
             *seqType = Sequence::NUCLEOTIDES;
             i++;
         }
@@ -132,7 +143,7 @@ void parseArgs(int argc, const char** argv, std::string* qseqDB, std::string* ts
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(argv[i], "--threads") == 0){
+        else if (strcmp(argv[i], "-cpu") == 0){
             if (++i < argc){
                 *threads = atoi(argv[i]);
                 i++;
@@ -176,15 +187,23 @@ int alignment(int argc, const char *argv[])
     std::string qseqDB = "";
     std::string tseqDB = "";
     std::string prefDB = ""; 
-    std::string matrixFile = ""; 
     std::string outDB = "";
 
     double evalThr = 0.001;
     double covThr = 0.8;
     int maxSeqLen = 50000;
-    int maxAlnNum = 100;
+    int maxAlnNum = 300;
     int maxRejected = INT_MAX;
     int seqType = Sequence::AMINO_ACIDS;
+
+    // get the path of the scoring matrix
+    char* mmdir = getenv ("MMDIR");
+    if (mmdir == 0){
+        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+        exit(1);
+    }
+    std::string matrixFile(mmdir);
+    matrixFile = matrixFile + "/data/blosum62.out";
 
     Debug::setDebugLevel(Debug::INFO);
 

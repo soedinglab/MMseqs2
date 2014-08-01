@@ -20,7 +20,7 @@ MAIN_OBJS := $(patsubst %.cpp, %.o, $(MAIN_SOURCES))
 INCLUDES=-I../commons/ -I../../lib/ffindex/src/ -I../../lib/kseq/ -I../prefiltering/ -I../alignment/ -I../clustering/ -I../workflow/ -I../util/
 CC = g++
 #CFLAGS = -ggdb -msse4.1 $(INCLUDES) -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings -lz
-CFLAGS = -Wall -msse4.1 -m64 -ffast-math -ftree-vectorize -fstrict-aliasing -O3 -DOPENMP=1 -fopenmp $(INCLUDES) -L../../lib/ffindex/src/ -lffindex -lz  -Wno-write-strings 
+CFLAGS = -Wall -msse4.1 -m64 -ffast-math -ftree-vectorize -fno-strict-aliasing -O3 -DOPENMP=1 -fopenmp $(INCLUDES) -L../../lib/ffindex/src/ -lffindex -lz  -Wno-write-strings 
 LDFLAGS =
 
 TARGETS = mmseqs
@@ -45,12 +45,12 @@ mmseqs: $(MAIN_OBJS)
 	$(CC) $(CFLAGS) -o $@ $<
 
 clean:
-	rm ../commons/*.o
-	rm ../prefiltering/*.o
-	rm ../alignment/*.o
-	rm ../clustering/*.o
-	rm ../workflow/*.o
-	rm ../util/*.o
+	rm -f ../commons/*.o
+	rm -f ../prefiltering/*.o
+	rm -f ../alignment/*.o
+	rm -f ../clustering/*.o
+	rm -f ../workflow/*.o
+	rm -f ../util/*.o
 	rm -f *.o
 	rm -f $(TARGETS)
 

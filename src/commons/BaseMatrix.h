@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdio>
+#include <stdint.h>
 
 class BaseMatrix{
     public:

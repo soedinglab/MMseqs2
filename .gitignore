@@ -5,7 +5,7 @@
 *.obj
 
 # Compiled Dynamic libraries
-*.so
+*.so.*
 *.dylib
 *.dll
 
@@ -26,3 +26,8 @@
 # programs
 lib/ffindex/src/ffindex_*
 util/ffindex_from_fasta
+util/ffindex_to_fasta
+
+*.depend
+*.swp
+src/workflow/time_test

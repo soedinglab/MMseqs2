@@ -98,7 +98,7 @@ std::string parseFastaHeader(std::string header){
 }
 
 
-int main(int argn,const char **argv)
+int createdb(int argn,const char **argv)
 {
     int sort = 0, version = 0, headers = 0;
     int opt, err = EXIT_SUCCESS;
@@ -158,13 +158,16 @@ int main(int argn,const char **argv)
 	header_line.append(seq->name.s, seq->name.l);
 	if(seq->comment.l)  { 
 		header_line.append(" ",1);
-		header_line.append(seq->comment.s,seq->comment.l); 
-	}
+                header_line.append(seq->comment.s,seq->comment.l); 
+        }
+        header_line.append("\n");
 	//if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
 	// header
         ffindex_insert_memory(data_file_hdr, index_file_hdr, &offset_header,  (char *)  header_line.c_str(), header_line.length(),  (char *) id.c_str());
 	// sequence
-        ffindex_insert_memory(data_file,     index_file,     &offset_sequence, seq->seq.s,  seq->seq.l , (char *) id.c_str());
+        std::string sequence = seq->seq.s;
+        sequence.append("\n");
+        ffindex_insert_memory(data_file,     index_file,     &offset_sequence, (char *) sequence.c_str(),  sequence.length() , (char *) id.c_str());
 	entries_num++;
 	header_line.clear();
     }

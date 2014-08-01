@@ -13,11 +13,20 @@ Matcher::Matcher(BaseMatrix* m, int maxSeqLen){
     // workspace memory for the alignment calculation (see Farrar code)
     this->workspace_memory  = (void *) Util::mem_align(16, 2 * maxSeqLen * sizeof(__m128i) + 256);
     this->workspace = (void *) ((((size_t) workspace_memory) + 255) & (~0xff));
+
+    maxAllocatedLen = 1000;
+    
+    H_workspace = Util::mem_align(16,(maxAllocatedLen + 7)/8 * maxAllocatedLen * sizeof(__m128i));
+    E_workspace = Util::mem_align(16,(maxAllocatedLen + 7)/8 * maxAllocatedLen * sizeof(__m128i));
+    F_workspace = Util::mem_align(16,(maxAllocatedLen + 7)/8 * maxAllocatedLen * sizeof(__m128i));
 }
 
 Matcher::~Matcher(){
     free(this->queryProfileWord);
     free(this->workspace_memory);
+    free(this->H_workspace);
+    free(this->E_workspace);
+    free(this->F_workspace);
 }
 
 Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seqDbSize){
@@ -27,10 +36,22 @@ Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seq
 
     calcQueryProfileWord(query);
 
-    // allocate memory for the three dynamic programming matrices
-    void* Hmatrix = Util::mem_align(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));   // 2.5GB für 36805*36805 (Q3ASY8_CHLCH)
-    void* Ematrix = Util::mem_align(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));
-    void* Fmatrix = Util::mem_align(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));
+    void* Hmatrix;
+    void* Ematrix;
+    void* Fmatrix;
+
+    if ((query->L > maxAllocatedLen) || (dbSeq->L > maxAllocatedLen)){
+        // allocate new memory
+        Hmatrix = Util::mem_align(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));   // 2.5GB für 36805*36805 (Q3ASY8_CHLCH)
+        Ematrix = Util::mem_align(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));
+        Fmatrix = Util::mem_align(16,(query->L + 7)/8 * dbSeq->L * sizeof(__m128i));
+    }
+    else {
+        // use the already allocated memory
+        Hmatrix = H_workspace;
+        Ematrix = E_workspace;
+        Fmatrix = F_workspace;
+    }
 
     unsigned short qStartPos = 0;
     unsigned short qEndPos = 0;
@@ -72,12 +93,14 @@ Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seq
         seqId = 1.0;
     }
 
-    double evalue = ((double) (query->L * dbSeq->L)) * pow (2.71828, ((double)(-s)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
+    double evalue = ((double) (query->L * dbSeq->L)) * pow (2.0, ((double)(-s)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
     evalue = evalue * (double)(seqDbSize);
 
-    free(Hmatrix);
-    free(Ematrix);
-    free(Fmatrix);
+    if ((query->L > maxAllocatedLen) || (dbSeq->L > maxAllocatedLen)){
+        free(Hmatrix);
+        free(Ematrix);
+        free(Fmatrix);
+    }
 
     result_t result = {std::string(dbSeq->getDbKey()), s, qcov, dbcov, seqId, evalue};
     return result;

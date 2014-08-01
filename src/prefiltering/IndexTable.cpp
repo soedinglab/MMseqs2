@@ -90,7 +90,6 @@ void IndexTable::addSequence (Sequence* s){
 void IndexTable::removeDuplicateEntries(){
     
     delete[] currPos;
-
     
     for (size_t e = 0; e < tableSize; e++){
         if (sizes[e] == 0)
@@ -141,8 +140,6 @@ void IndexTable::initTableByExternalData(uint64_t tableEntriesNum,
     delete [] this->sizes;
     this->sizes = NULL;
 }
-
-
 
 int IndexTable::ipow (int base, int exponent){
     int res = 1;

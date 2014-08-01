@@ -16,9 +16,10 @@ DBReader::DBReader(const char* dataFileName_, const char* indexFileName_,int dat
 
     closed = 1;
 }
+
 DBReader::~DBReader(){
-    delete indexFileName;
-    delete dataFileName;
+    delete[] dataFileName;
+    delete[] indexFileName;
 }
 
 void DBReader::open(int sort){
@@ -89,11 +90,11 @@ void DBReader::close(){
     delete[] id2local;
     delete[] local2id;
     delete[] seqLens;
-    delete index;
     if(dataMode == DATA_AND_INDEX){
         fclose(dataFile);
         munmap(data, dataSize);
     }
+    free(index);
     closed = 1;
 }
 

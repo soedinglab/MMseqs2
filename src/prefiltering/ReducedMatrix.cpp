@@ -92,10 +92,6 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
     }
     Debug(Debug::INFO) << "\n";
 
-    // add amino acid X
-//    int2aa_new[alphabetSize - 1] = 'X';
-//    aa2int['X'] = alphabetSize - 1;
-
     delete[] this->int2aa;
     delete[] this->aa2int;
 

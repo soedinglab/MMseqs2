@@ -15,6 +15,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "alignment", alignment },
     { "cluster", cluster },
+    { "search", search },
     { "clusteringworkflow", clusteringworkflow },
     { "clusterupdate", clusterupdate },
     { "prefilter", prefilter },

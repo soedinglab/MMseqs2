@@ -3,7 +3,7 @@
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
         std::string outDB, std::string outDBIndex,
-        float seqIdThr, int validateClustering){
+        float seqIdThr, int validateClustering, int maxListLen){
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
@@ -19,6 +19,7 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
 
     this->seqIdThr = seqIdThr;
     this->validate = validateClustering;
+    this->maxListLen = maxListLen;
     Debug(Debug::INFO) << "done.\n";
 }
 
@@ -34,7 +35,7 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "Reading the data...\n";
         set_data = read_in_set_data();
 
-        Debug(Debug::INFO) << "Init set cover...\n";
+        Debug(Debug::INFO) << "\nInit set cover...\n";
         SetCover setcover(set_data.set_count,
                 set_data.uniqu_element_count,
                 set_data.max_weight,
@@ -42,6 +43,7 @@ void Clustering::run(int mode){
                 set_data.element_size_lookup
                 );
 
+        Debug(Debug::INFO) << "Adding sets...\n";
         for(size_t i = 0; i < set_data.set_count; i++){
             setcover.add_set(i+1, set_data.set_sizes[i]
                     ,(const unsigned int*)set_data.sets[i],
@@ -53,20 +55,11 @@ void Clustering::run(int mode){
         ret = setcover.execute_set_cover();
         Debug(Debug::INFO) << "done.\n";
 
-        for(size_t i = 0; i < set_data.set_count; i++){
-            delete[] set_data.sets[i];
-            delete[] set_data.weights[i];
-
-        }
-        delete[] set_data.sets;
-        delete[] set_data.weights;
-        delete[] set_data.set_sizes;
-        delete[] set_data.element_size_lookup;
-
-
+        Debug(Debug::INFO) << "Writing results...\n";
+        writeData(ret);
+        Debug(Debug::INFO) << "...done.\n";
     }
     else if (mode == GREEDY){
-
         Debug(Debug::INFO) << "Clustering mode: GREEDY\n";
         Debug(Debug::INFO) << "Reading the data...\n";
         set_data = read_in_set_data();
@@ -80,14 +73,17 @@ void Clustering::run(int mode){
         for(size_t i = 0; i < set_data.set_count; i++){
             simpleClustering.add_set((const unsigned int*)set_data.sets[i],
                     set_data.set_sizes[i]);
-            delete[] set_data.sets[i];
         }
-        delete[] set_data.sets;
 
         Debug(Debug::WARNING) << "Calculating the clustering...\n";
         ret = simpleClustering.execute();
+        std::cout << "ret size: " << ret.size() << "\n";
+
         Debug(Debug::INFO) << "done.\n";
 
+        Debug(Debug::INFO) << "Writing results...\n";
+        writeData(ret);
+        Debug(Debug::INFO) << "...done.\n";
     }
     else{
         std::cerr << "ERROR: Wrong clustering mode!\n";
@@ -106,12 +102,12 @@ void Clustering::run(int mode){
     int seqDbSize = seqDbr->getSize();
     int cluNum = ret.size();
 
-    Debug(Debug::INFO) << "Writing results...\n";
-    writeData(ret);
     seqDbr->close();
     alnDbr->close();
     dbw->close();
-    Debug(Debug::INFO) << "...done.\n";
+    delete seqDbr;
+    delete alnDbr;
+    delete dbw;
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
@@ -120,6 +116,15 @@ void Clustering::run(int mode){
     Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
     Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
+
+    for(size_t i = 0; i < set_data.set_count; i++){
+        delete[] set_data.weights[i];
+        delete[] set_data.sets[i];
+    }
+    delete[] set_data.weights;
+    delete[] set_data.sets;
+    delete[] set_data.set_sizes;
+    delete[] set_data.element_size_lookup;
 
 }
 
@@ -133,7 +138,7 @@ void Clustering::writeData(std::list<set *> ret){
         set::element * element =(*iterator)->elements;
         // first entry is the representative sequence
         char* dbKey = seqDbr->getDbKey(element->element_id);
-        do{ 
+        do{
             char* nextDbKey = seqDbr->getDbKey(element->element_id);
             res << nextDbKey << "\n";
         }while((element=element->next)!=NULL);
@@ -241,7 +246,7 @@ Clustering::set_data Clustering::read_in_set_data(){
         char* dbKey = strtok(buf, "\t");
 
         int cnt = 0;
-        while (dbKey != 0)
+        while (dbKey != 0 && cnt < this->maxListLen)
         {
             if (prevKey != 0 && strcmp(prevKey, dbKey) == 0){
                 prevKey = dbKey;
@@ -273,7 +278,7 @@ Clustering::set_data Clustering::read_in_set_data(){
         }
 
         if (cnt == 0){
-            Debug(Debug::WARNING) << "No alignments found for " << alnDbr->getDbKey(i) << "\n";
+//            Debug(Debug::WARNING) << "No alignments found for " << alnDbr->getDbKey(i) << "\n";
             empty++;
         }
 
