@@ -632,7 +632,6 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* qdbr, DBReader
         else if (timeval >= timevalMin && timeval <= timevalMax){
             // delete data structures used before returning
             delete[] querySeqs;
-            delete[] matchers;
             delete indexTable;
             Debug(Debug::WARNING) << "\nk-mer threshold set, yielding sensitivity " << (log(timeval)/log(base)) << "\n\n";
             return std::pair<short, double> (kmerThrMid, kmerMatchProb);

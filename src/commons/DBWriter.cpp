@@ -45,8 +45,6 @@ DBWriter::~DBWriter(){
     delete[] dataFileNames;
     delete[] indexFileNames;
     delete[] offsets;
-    delete dataFileName;
-    delete indexFileName;
 }
 
 
@@ -201,11 +199,6 @@ int DBWriter::close(){
     ffindex_write(index, index_file);
     fclose(index_file);
     free(index);
-
-    for (int i = 0; i < maxThreadNum; i++){
-        delete[] dataFileNames[i];
-        delete[] indexFileNames[i];
-    }
 
     closed = 1;
 
