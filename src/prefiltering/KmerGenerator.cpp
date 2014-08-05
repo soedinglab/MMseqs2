@@ -198,35 +198,33 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
         const __m128i kmer_i_simd  = _mm_set1_epi32(kmer_i);
         const size_t SIMD_SIZE = 8;
         const size_t array2SizeSIMD = (array2Size / SIMD_SIZE)+1;
-        for(size_t j = 0; j < array2SizeSIMD; j++){
-            if(counter + SIMD_SIZE >= MAX_KMER_RESULT_SIZE )
-                return counter;
+        unsigned int score_j_lt_cutoff = 0;
+        for(size_t j = 0; j < array2SizeSIMD
+                        // if(score_j < cutoff2) break;
+                        && score_j_lt_cutoff == 0
+                        && (counter + SIMD_SIZE) < MAX_KMER_RESULT_SIZE; j++){
             const __m128i score_j_simd   = _mm_load_si128(scoreArray2_simd + j);
-            
             const __m128i kmer_j_1_simd  = _mm_load_si128(indexArray2_simd + (j*2));
             const __m128i kmer_j_2_simd  = _mm_load_si128(indexArray2_simd + (j*2+1));
-            // score_j < cutoff2 -> fffff, score_j > cutoff2 -> 0000
-            const __m128i cmp = _mm_cmplt_epi16 (score_j_simd, cutoff2_simd);
-            const unsigned int score_j_lt_cutoff = _mm_movemask_epi8(cmp);
-            
             
             __m128i * scoreOutput_simd = (__m128i *) (outputScoreArray + counter);
             __m128i * indexOutput_simd = (__m128i *) (outputIndexArray + counter);
+            // score = score_i + score_j;
             _mm_storeu_si128(scoreOutput_simd,     _mm_add_epi16(score_i_simd,score_j_simd));
+            // kmer = kmer_i + (kmer_j * pow)
+            // SIMD/2 because its int
             const __m128i kmer_j_1 = _mm_mullo_epi32(kmer_j_1_simd, pow_simd);
             const __m128i kmer_j_2 = _mm_mullo_epi32(kmer_j_2_simd, pow_simd);
             _mm_storeu_si128(indexOutput_simd,     _mm_add_epi32(kmer_i_simd, kmer_j_1));
             _mm_storeu_si128(indexOutput_simd + 1, _mm_add_epi32(kmer_i_simd, kmer_j_2));
             counter += std::min(SIMD_SIZE,  array2Size - (j*SIMD_SIZE)); //protect from running to far
-             // if(score_j < cutoff2)
-            if (score_j_lt_cutoff > 0){
-                for(size_t vec_index = 0; vec_index < SIMD_SIZE; vec_index++){
-                    if(CHECK_BIT(score_j_lt_cutoff,vec_index*2)){ // all with 1 is not a result
-                        counter--;
-                    }
-                }
-                break;
-            }
+            // reduce count of all not needed elements
+            // score_j < cutoff2 -> fffff, score_j > cutoff2 -> 0000
+            const __m128i cmp = _mm_cmplt_epi16 (score_j_simd, cutoff2_simd);
+            // extract all values that are
+            score_j_lt_cutoff = _mm_movemask_epi8(cmp);
+            
+            counter-= _mm_popcnt_u32(score_j_lt_cutoff) / 2;
         }
     }
     return counter;
