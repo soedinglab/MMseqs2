@@ -11,6 +11,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         std::string scoringMatrixFile,
         float sensitivity,
         int kmerSize,
+        bool spacedKmer,
         int maxResListLen,
         int alphabetSize,
         float zscoreThr,
@@ -22,6 +23,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         int skip):    outDB(outDB),
     outDBIndex(outDBIndex),
     kmerSize(kmerSize),
+    spacedKmer(spacedKmer),
     maxResListLen(maxResListLen),
     alphabetSize(alphabetSize),
     zscoreThr(zscoreThr),
@@ -57,9 +59,6 @@ Prefiltering::Prefiltering(std::string queryDB,
         this->skip         = data.skip;
         this->split        = data.split;
     }
-    
-
-
     
     DBWriter::errorIfFileExist(outDB.c_str());
     DBWriter::errorIfFileExist(outDBIndex.c_str());
@@ -97,14 +96,14 @@ Prefiltering::Prefiltering(std::string queryDB,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, querySeqType, subMat);
+        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, querySeqType, kmerSize, spacedKmer, subMat);
         reslens[thread_idx] = new std::list<int>();
     }
 
     // set the k-mer similarity threshold
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
     std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, sensitivity, 0.1);
-   // std::pair<short, double> ret = std::pair<short, double>(103, 1.04703e-06);
+    //std::pair<short, double> ret = std::pair<short, double>(104, 1.84907e-06);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 
@@ -117,24 +116,27 @@ Prefiltering::Prefiltering(std::string queryDB,
 Prefiltering::~Prefiltering(){
     for (int i = 0; i < threads; i++){
         delete qseq[i];
+        reslens[i]->clear();
         delete reslens[i];
     }
     delete[] qseq;
     delete[] reslens;
-    delete notEmpty;
+    delete[] notEmpty;
     delete qdbr;
     delete tdbr;
     if(templateDBIsIndex == true)
         delete tidxdbr;
     delete subMat;
-    delete _2merSubMatrix;
-    delete _3merSubMatrix;
+    if(_2merSubMatrix != NULL)
+        delete _2merSubMatrix;
+    if(_3merSubMatrix != NULL)
+        delete _3merSubMatrix;
 }
 
 
 void Prefiltering::run(){
     // splits template database into x sequence steps
-    int splitCounter =  this->split;
+    unsigned int splitCounter =  this->split;
     std::vector<std::pair<std::string, std::string> > splitFiles;
     for(unsigned int split = 0; split < splitCounter; split++){
         Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step " << split << " of " << splitCounter <<  ")\n";
@@ -237,7 +239,8 @@ IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
         int dbFrom, dbSize;
         Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                           split, splitCount, &dbFrom, &dbSize);
-        Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, subMat);
+        std::cout << "Spaced Kmer: " << spacedKmer << std::endl;
+        Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, subMat);
         return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
     }
 }
@@ -261,7 +264,6 @@ void Prefiltering::run (size_t split, size_t splitCount,
     QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat,indexTable, tdbr->getSeqLens(), kmerThr,
                              kmerMatchProb, kmerSize, tdbr->getSize(),
                              aaBiasCorrection, maxSeqLen, zscoreThr);
-
 
     int kmersPerPos = 0;
     size_t dbMatches = 0;

@@ -37,7 +37,7 @@ int main (int argc, const char * argv[])
     char* sequence = "AAMICPAEAGRPSLADS";
     std::cout << sequence << "\n\n";
     
-    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa,0);
+    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, false);
     s->mapSequence(0,"LALA",sequence);
     
     printf("Normal : ");
@@ -58,8 +58,8 @@ int main (int argc, const char * argv[])
         std::cout << s->int_sequence[i] << " ";
     std::cout << "\n";
     
-    while(s->hasNextKmer(kmer_size)){
-        const int * curr_pos= s->nextKmer(kmer_size);
+    while(s->hasNextKmer()){
+        const int * curr_pos= s->nextKmer();
         printf("kmerpos1: %d\tkmerpos2: %d\n",curr_pos[0],curr_pos[1]);
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";

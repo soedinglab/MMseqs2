@@ -19,8 +19,8 @@ MAIN_OBJS := $(patsubst %.cpp, %.o, $(MAIN_SOURCES))
 
 INCLUDES=-I../commons/ -I../../lib/ffindex/src/ -I../../lib/kseq/ -I../prefiltering/ -I../alignment/ -I../clustering/ -I../workflow/ -I../util/
 CC = g++
-#CFLAGS = -ggdb -msse4.1 $(INCLUDES) -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings -lz
-CFLAGS = -Wall -msse4.1 -m64 -ffast-math -ftree-vectorize -fno-strict-aliasing -O3 -DOPENMP=1 -fopenmp $(INCLUDES) -L../../lib/ffindex/src/ -lffindex -lz  -Wno-write-strings 
+#CFLAGS = -ggdb -msse4.2 $(INCLUDES) -L../../lib/ffindex/src/ -lffindex  -Wno-write-strings -lz
+CFLAGS = -g -Wall -msse4.2 -m64 -ffast-math -ftree-vectorize -fno-strict-aliasing -O3 -DOPENMP=1 -fopenmp $(INCLUDES) -L../../lib/ffindex/src/ -lffindex -lz  -Wno-write-strings 
 LDFLAGS =
 
 TARGETS = mmseqs

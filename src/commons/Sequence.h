@@ -18,7 +18,14 @@
 #include "../commons/BaseMatrix.h"      // for pBack
 #include "../commons/ScoreMatrix.h"      // for ScoreMatrix
 
-
+const char seed_4[]        = {1, 1, 1, 1};
+const char seed_4_spaced[] = {1, 1, 1, 0, 1, 1};
+const char seed_5[]        = {1, 1, 1, 1, 1};
+const char seed_5_spaced[] = {1, 1, 1, 0, 1, 1};
+const char seed_6[]        = {1, 1, 1, 1, 1, 1};
+const char seed_6_spaced[] = {1, 1, 1, 0, 1, 1, 0, 1};
+const char seed_7[]        = {1, 1, 1, 1, 1, 1, 1};
+const char seed_7_spaced[] = {1, 1, 1, 1, 0, 1, 0, 1, 0, 1};
 
 typedef struct {
         float kmersPerPos;
@@ -28,8 +35,9 @@ typedef struct {
 class Sequence
 {
     public:
-        Sequence(size_t maxLen,int* aa2int,char* int2aa, int seqType, BaseMatrix * subMat = NULL);
-
+        Sequence(size_t maxLen, int* aa2int, char* int2aa,
+                 int seqType, unsigned int kmerSize = 0,
+                 bool spaced = false, BaseMatrix * subMat = NULL );
         ~Sequence();
 
         // Map char -> int
@@ -39,10 +47,10 @@ class Sequence
         void mapProfile(const char *data);
 
         // checks if there is still a k-mer left
-        bool hasNextKmer(int kmerSize);
+        bool hasNextKmer();
 
         // returns next k-mer
-        const int* nextKmer(int kmerSize);
+        const int* nextKmer();
     
 
 
@@ -82,7 +90,10 @@ class Sequence
         char * int2aa; // ref mapping from int -> aa
 
         statistics_t* stats;
+    
+        std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
+    
     private:
         void mapProteinSequence(const char *seq);
         void mapNucleotideSequence(const char *seq);
@@ -97,7 +108,12 @@ class Sequence
         // maximum possible length of sequence
         size_t maxLen;
         // read next kmer profile in profile_matrix
-        void nextProfileKmer(int kmerSize);
-
+        void nextProfileKmer();
+        // size of Pattern
+        unsigned int spacedPatternSize;
+        // contains spaced pattern e.g. 1 1 1 1 0 1 0 1 0 1
+        const char * spacedPattern;
+        // sequence window will be filled by newxtKmer (needed for spaced patterns)
+        int * kmerWindow;
 };
 #endif

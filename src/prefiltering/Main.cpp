@@ -347,6 +347,7 @@ int prefilter(int argc, const char **argv)
     gettimeofday(&start, NULL);
 
     int kmerSize =  6;
+    bool spacedKmer = true;
     int alphabetSize = 21;
     size_t maxSeqLen = 50000;
     size_t maxResListLen = 300;
@@ -412,7 +413,7 @@ int prefilter(int argc, const char **argv)
     Debug(Debug::WARNING) << "Initialising data structures...\n";
     Prefiltering* pref = new Prefiltering(queryDB, queryDBIndex, targetDB, targetDBIndex,
                                           outDB, outDBIndex, scoringMatrixFile, sensitivity,
-                                          kmerSize, maxResListLen, alphabetSize, zscoreThr,
+                                          kmerSize, spacedKmer, maxResListLen, alphabetSize, zscoreThr,
                                           maxSeqLen, querySeqType, targetSeqType, compBiasCorrection,
                                           split, skip);
 
@@ -428,6 +429,7 @@ int prefilter(int argc, const char **argv)
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "\nTime for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    delete pref;
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif

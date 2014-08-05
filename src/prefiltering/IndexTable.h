@@ -42,7 +42,7 @@ class IndexTable {
             return tabPosition + 1;
         };
 
-        void print();
+        void print(char * int2aa);
 
         // alphabetSize**kmerSize
         unsigned int tableSize;
@@ -55,6 +55,7 @@ class IndexTable {
                                      unsigned int * entries, unsigned int tableSize);
         // get amount of sequences in Index
         unsigned int getSize() {  return size; };
+    
         // number of entries in all sequence lists
         int64_t tableEntriesNum; // must be 64bit
 

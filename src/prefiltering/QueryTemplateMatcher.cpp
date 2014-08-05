@@ -103,12 +103,11 @@ void QueryTemplateMatcher::match(Sequence* seq){
 
     int pos = 0;
     short zero = 0;
-    while(seq->hasNextKmer(kmerSize)){
-        const int* kmer = seq->nextKmer(kmerSize);
+    while(seq->hasNextKmer()){
+        const int* kmer = seq->nextKmer();
         // generate k-mer list
         ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
         kmerListLen += kmerList.elementSize;
-
         // match the index table
 //        int pos_matched = 0;
         short biasCorrection_short = (short) biasCorrection;
@@ -120,7 +119,7 @@ void QueryTemplateMatcher::match(Sequence* seq){
             
             
             seqList = indexTable->getDBSeqList(kmerList.index[i], &indexTabListSize);
-
+            
 /*            if (seq->getId() == 1 && pos == 2 ){
                 std::cout << "\t\t";
                 indexer->printKmer(retList[i].second, kmerSize, m->int2aa);
@@ -154,6 +153,7 @@ void QueryTemplateMatcher::match(Sequence* seq){
     // write statistics
     seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
     seq->stats->dbMatches = queryScore->getNumMatches();
+
 //    delete indexer;
 
 }

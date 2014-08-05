@@ -38,12 +38,12 @@ void IndexTable::addKmerCount (Sequence* s){
     s->resetCurrPos();
     idxer->reset();
     
-    while(s->hasNextKmer(kmerSize)){
-        kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
+    while(s->hasNextKmer()){
+        kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
         sizes[kmerIdx]++;
         tableEntriesNum++;
-        for (int i = 0; i < skip && s->hasNextKmer(kmerSize); i++){
-            idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
+        for (int i = 0; i < skip && s->hasNextKmer(); i++){
+            idxer->getNextKmerIndex(s->nextKmer(), kmerSize);
         }
     }
     this->s = s;
@@ -78,11 +78,11 @@ void IndexTable::addSequence (Sequence* s){
     this->s = s;
     idxer->reset();
     
-    while(s->hasNextKmer(kmerSize)){
-        kmerIdx = idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
+    while(s->hasNextKmer()){
+        kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
         table[kmerIdx][currPos[kmerIdx]++] = s->getId();
-        for (int i = 0; i < skip && s->hasNextKmer(kmerSize); i++){
-            idxer->getNextKmerIndex(s->nextKmer(kmerSize), kmerSize);
+        for (int i = 0; i < skip && s->hasNextKmer(); i++){
+            idxer->getNextKmerIndex(s->nextKmer(), kmerSize);
         }
     }
 }
@@ -111,12 +111,12 @@ void IndexTable::removeDuplicateEntries(){
 
 }
 
-void IndexTable::print(){
+void IndexTable::print(char * int2aa){
     for (size_t i = 0; i < tableSize; i++){
         if (table[i][0] > 0){
-            idxer->printKmer(i, kmerSize, s->int2aa);
+            idxer->printKmer(i, kmerSize, int2aa);
             std::cout << "\n";
-            for (int j = 0; j < table[i][0]; j++){
+            for (unsigned int j = 0; j < table[i][0]; j++){
                 std::cout << "\t" << table[i][j+1] << "\n";
             }
         }

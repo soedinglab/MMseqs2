@@ -115,6 +115,8 @@ int createindex (int argc, const char * argv[])
 
     int split = 1;
     int kmerSize =  6;
+    bool spacedKmer = false;
+
     int alphabetSize = 21;
     int maxSeqLen = 50000;
     int skip = 0;
@@ -126,7 +128,7 @@ int createindex (int argc, const char * argv[])
 
     
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0f);
-    Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, subMat);
+    Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, kmerSize, spacedKmer, subMat);
     
     PrefilteringIndexReader::createIndexFile(outDB, &dbr, &seq, split, alphabetSize, kmerSize, skip );
 

@@ -39,6 +39,7 @@ class Prefiltering {
                 std::string scoringMatrixFile, 
                 float sensitivity, 
                 int kmerSize,
+                bool spacedKmer,
                 int maxResListLen,
                 int alphabetSize, 
                 float zscoreThr, 
@@ -98,6 +99,9 @@ class Prefiltering {
         std::string outDBIndex;
 
         int kmerSize;
+        bool spacedKmer;
+    
+        size_t maxResListLen;
         int alphabetSize;
         float zscoreThr;
         size_t maxSeqLen;
@@ -110,7 +114,6 @@ class Prefiltering {
         double kmerMatchProb;
         int split;
         int skip;
-        size_t maxResListLen;
         // statistics
         size_t kmersPerPos;
         size_t resSize;
