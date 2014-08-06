@@ -156,15 +156,29 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
                                                 cutoff1,
                                                 possibleRest[i+1],
                                                 stepMultiplicator[i+1]);
-        if(lastElm==-1){
-            return ScoreMatrix(NULL,NULL,0,0);
-        }
+
         inputScoreArray = this->outputScoreArray[i];
         inputIndexArray = this->outputIndexArray[i];
         cutoff1 = -1000; //all must be inspected
         sizeInputMatrix = lastElm;
     }
-
+    
+    // add identity of input kmer
+    if(sizeInputMatrix==0){
+        outputScoreArray[0][0] = 0;
+        outputIndexArray[0][0] = 0;
+        // create first kmer
+        for(int z = 0; z < this->divideStepCount; z++){
+            const size_t index = this->kmerIndex[z];
+            const ScoreMatrix * nextScoreMatrix = this->matrixLookup[i];
+            const short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
+            const unsigned int * nextIndexArray = &nextScoreMatrix->index[index*nextScoreMatrix->rowSize];
+            outputScoreArray[0][0] += nextScoreArray[0];
+            outputIndexArray[0][0] += nextIndexArray[0] * stepMultiplicator[z];
+        }
+        
+        return ScoreMatrix(outputScoreArray[0], outputIndexArray[0], 1, 0);
+    }
     return ScoreMatrix(outputScoreArray[i-1], outputIndexArray[i-1], sizeInputMatrix, MAX_KMER_RESULT_SIZE);
 }
 
@@ -221,9 +235,9 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
             // reduce count of all not needed elements
             // score_j < cutoff2 -> fffff, score_j > cutoff2 -> 0000
             const __m128i cmp = _mm_cmplt_epi16 (score_j_simd, cutoff2_simd);
-            // extract all values that are
+            // extract all values that are under the threshold
             score_j_lt_cutoff = _mm_movemask_epi8(cmp);
-            
+            // subsstract all elements that are under the threshold from counter
             counter-= _mm_popcnt_u32(score_j_lt_cutoff) / 2;
         }
     }
