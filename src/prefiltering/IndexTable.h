@@ -35,7 +35,7 @@ class IndexTable {
             currPos = new int[tableSize];
             std::fill_n(currPos, tableSize, 1); // needed because of size at beginning
         
-            table = new unsigned int*[tableSize];
+            table = new char*[tableSize];
         
             idxer = new Indexer(alphabetSize, kmerSize);
         
@@ -66,7 +66,7 @@ class IndexTable {
     
         // get list of DB sequences containing this k-mer
         inline unsigned int* getDBSeqList (int kmer, int* matchedListSize){
-            unsigned int * __restrict tabPosition = table[kmer];
+            unsigned int * __restrict tabPosition = (unsigned int *) table[kmer];
             *matchedListSize = tabPosition[0];
             return tabPosition + 1;
         }
@@ -78,25 +78,8 @@ class IndexTable {
             return sizes;
         }
     
-        // init index table with external data (needed for index readin)
-        void initTableByExternalData(uint64_t tableEntriesNum, unsigned short * sizes,
-                                     unsigned int * pentries, unsigned int sequenzeCount){
-            this->tableEntriesNum = tableEntriesNum;
-            this->size = sequenzeCount;
-            initMemory();
-            memcpy ( this->entries , pentries, sizeof(unsigned int) * (this->tableEntriesNum  + this->tableSize));
-            unsigned int* it = this->entries;
-            // set the pointers in the index table to the start of the list for a certain k-mer
-            for (size_t i = 0; i < tableSize; i++){
-                table[i] = it;
-                it += sizes[i] + 1; // +1 for sizes element
-            }
-            delete [] this->sizes;
-            this->sizes = NULL;
-        }
-    
         // get pointer to entries array
-        unsigned int * getEntries(){
+        char * getEntries(){
             return entries;
         }
     
@@ -116,6 +99,10 @@ class IndexTable {
         // prints the IndexTable
         virtual void print(char * int2aa) = 0;
     
+        // init index table with external data (needed for index readin)
+        virtual void initTableByExternalData(uint64_t tableEntriesNum, unsigned short * sizes,
+                                         unsigned int * pentries, unsigned int sequenzeCount) = 0;
+    
         // get amount of sequences in Index
         unsigned int getSize() {  return size; };
     
@@ -133,10 +120,10 @@ class IndexTable {
         unsigned int tableSize;
     
         // Index table: contains pointers to the point in the entries array where starts the list of sequence ids for a certain k-mer
-        unsigned int** __restrict table;
+        char** __restrict table;
 
         // Index table entries: ids of sequences containing a certain k-mer, stored sequentially in the memory
-        unsigned int* entries;
+        char* entries;
 
         unsigned short* sizes;
 

@@ -168,7 +168,7 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
         outputScoreArray[0][0] = 0;
         outputIndexArray[0][0] = 0;
         // create first kmer
-        for(int z = 0; z < this->divideStepCount; z++){
+        for(unsigned int z = 0; z < this->divideStepCount; z++){
             const size_t index = this->kmerIndex[z];
             const ScoreMatrix * nextScoreMatrix = this->matrixLookup[i];
             const short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
@@ -232,7 +232,7 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
             _mm_storeu_si128(indexOutput_simd,     _mm_add_epi32(kmer_i_simd, kmer_j_1));
             _mm_storeu_si128(indexOutput_simd + 1, _mm_add_epi32(kmer_i_simd, kmer_j_2));
             counter += std::min(SIMD_SIZE,  array2Size - (j*SIMD_SIZE)); //protect from running to far
-            // reduce count of all not needed elements
+            // reduce count of all elements under the threshold
             // score_j < cutoff2 -> fffff, score_j > cutoff2 -> 0000
             const __m128i cmp = _mm_cmplt_epi16 (score_j_simd, cutoff2_simd);
             // extract all values that are under the threshold

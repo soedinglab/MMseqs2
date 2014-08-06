@@ -41,13 +41,11 @@ class IndexTableGlobal : public virtual IndexTable {
 
         // print the index table (debugging)
         void print(char * int2aa);
-
-        // get pointer to sizes array
-        unsigned short* getSizes();
     
-        // get pointer to entries array
-        unsigned int* getEntries();
-
+        // init index table with external data (needed for index readin)
+        void initTableByExternalData(uint64_t tableEntriesNum, unsigned short * sizes,
+                                     unsigned int * pentries, unsigned int sequenzeCount);
+    
 };
 
 #endif
