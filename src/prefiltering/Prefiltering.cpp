@@ -1,6 +1,8 @@
 #include "Prefiltering.h"
 #include "PrefilteringIndexReader.h"
 #include "../commons/Util.h"
+#include "IndexTableGlobal.h"
+
 
 Prefiltering::Prefiltering(std::string queryDB,
         std::string queryDBIndex,
@@ -423,11 +425,11 @@ BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, i
 }
 
 
-IndexTable* Prefiltering::generateCountedIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
-                           int kmerSize, size_t dbFrom, size_t dbTo, int skip){
+void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
+                                                   IndexTable* indexTable,
+                                                   size_t dbFrom, size_t dbTo){
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
-    IndexTable* indexTable = new IndexTable(alphabetSize, kmerSize, skip);
     dbTo=std::min(dbTo,dbr->getSize());
     for (unsigned int id = dbFrom; id < dbTo; id++){
         Log::printProgress(id-dbFrom);
@@ -436,7 +438,6 @@ IndexTable* Prefiltering::generateCountedIndexTable (DBReader* dbr, Sequence* se
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addKmerCount(seq);
     }
-    return  indexTable;
 }
 
 
@@ -471,8 +472,9 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
-    Debug(Debug::INFO) << "Index table: counting k-mers...\n";
-    IndexTable* indexTable = generateCountedIndexTable(dbr,seq,alphabetSize,kmerSize,dbFrom,dbTo, skip);
+    IndexTable* indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
+
+    countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
 
 
     if ((dbTo-dbFrom) > 10000)

@@ -1,9 +1,10 @@
 #ifndef INDEX_TABLE_H
 #define INDEX_TABLE_H
 
-// Written by Maria Hauser mhauser@genzentrum.lmu.de
+//
+// Written by Martin Steinegger martin.steinegger@campus.lmu.de and Maria Hauser mhauser@genzentrum.lmu.de
 // 
-// Index table stores the list of DB sequences containing a certain k-mer, for each k-mer. 
+// Abstract: Index table stores the list of DB sequences containing a certain k-mer, for each k-mer. 
 //
 
 #include <iostream>
@@ -13,55 +14,124 @@
 
 #include "Sequence.h"
 #include "Indexer.h"
+#include "Util.h"
+
 
 class IndexTable {
 
     public:
 
-        IndexTable (int alphabetSize, int kmerSize, int skip);
+        IndexTable (int alphabetSize, int kmerSize, int skip) {
+            this->alphabetSize = alphabetSize;
+            this->kmerSize = kmerSize;
+            this->size = 0;
+            this->skip = skip;
+        
+            tableSize = Util::ipow(alphabetSize, kmerSize);
+        
+            sizes = new unsigned short[tableSize];
+            memset(sizes, 0, sizeof(short) * tableSize);
+        
+            currPos = new int[tableSize];
+            std::fill_n(currPos, tableSize, 1); // needed because of size at beginning
+        
+            table = new unsigned int*[tableSize];
+        
+            idxer = new Indexer(alphabetSize, kmerSize);
+        
+            this->tableEntriesNum = 0;
+        }
 
-        ~IndexTable();
+        virtual ~IndexTable(){
+            delete[] entries;
+            delete[] table;
+            delete idxer; }
 
         // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
-        void addKmerCount (Sequence* s);
-
-        // add k-mers of the sequence to the index table
-        void addSequence (Sequence* s);
-
-        void removeDuplicateEntries();
-
-        // init the arrays for the sequence lists 
-        void init();
-        // allocates memory for index tables
-        void initMemory();
-
+        void addKmerCount (Sequence* s){
+            unsigned int kmerIdx;
+            s->resetCurrPos();
+            idxer->reset();
+        
+            while(s->hasNextKmer()){
+                kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
+                sizes[kmerIdx]++;
+                tableEntriesNum++;
+                for (int i = 0; i < skip && s->hasNextKmer(); i++){
+                    idxer->getNextKmerIndex(s->nextKmer(), kmerSize);
+                }
+            }
+            this->s = s;
+        }
+    
         // get list of DB sequences containing this k-mer
         inline unsigned int* getDBSeqList (int kmer, int* matchedListSize){
             unsigned int * __restrict tabPosition = table[kmer];
             *matchedListSize = tabPosition[0];
             return tabPosition + 1;
-        };
-
-        void print(char * int2aa);
-
-        // alphabetSize**kmerSize
-        unsigned int tableSize;
+        }
+    
         // get pointer to sizes array
-        unsigned short* getSizes();
-        // get pointer to entries array
-        unsigned int* getEntries();
+        unsigned short * getSizes(){
+            if(sizes == NULL)
+                std::cerr << "AAAAAH" << std::endl;
+            return sizes;
+        }
+    
         // init index table with external data (needed for index readin)
         void initTableByExternalData(uint64_t tableEntriesNum, unsigned short * sizes,
-                                     unsigned int * entries, unsigned int tableSize);
+                                     unsigned int * pentries, unsigned int sequenzeCount){
+            this->tableEntriesNum = tableEntriesNum;
+            this->size = sequenzeCount;
+            initMemory();
+            memcpy ( this->entries , pentries, sizeof(unsigned int) * (this->tableEntriesNum  + this->tableSize));
+            unsigned int* it = this->entries;
+            // set the pointers in the index table to the start of the list for a certain k-mer
+            for (size_t i = 0; i < tableSize; i++){
+                table[i] = it;
+                it += sizes[i] + 1; // +1 for sizes element
+            }
+            delete [] this->sizes;
+            this->sizes = NULL;
+        }
+    
+        // get pointer to entries array
+        unsigned int * getEntries(){
+            return entries;
+        }
+    
+        // FUNCTIONS TO OVERWRITE
+        // add k-mers of the sequence to the index table
+        virtual void addSequence (Sequence* s) = 0;
+
+        // removes dublicates
+        virtual void removeDuplicateEntries() = 0;
+
+        // init the arrays for the sequence lists 
+        virtual void init() = 0;
+    
+        // allocates memory for index tables
+        virtual void initMemory() = 0;
+    
+        // prints the IndexTable
+        virtual void print(char * int2aa) = 0;
+    
         // get amount of sequences in Index
         unsigned int getSize() {  return size; };
     
+        // returns the size of  table entries
+        int64_t getTableEntriesNum(){ return tableEntriesNum; };
+    
+        // returns table size
+        unsigned int getTableSize(){ return tableSize; };
+
+    protected:
         // number of entries in all sequence lists
         int64_t tableEntriesNum; // must be 64bit
-
-    private:
-        int ipow (int base, int exponent);
-
+    
+        // alphabetSize**kmerSize
+        unsigned int tableSize;
+    
         // Index table: contains pointers to the point in the entries array where starts the list of sequence ids for a certain k-mer
         unsigned int** __restrict table;
 

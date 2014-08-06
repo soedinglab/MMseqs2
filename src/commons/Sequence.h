@@ -60,6 +60,9 @@ class Sequence
         void print(); // for debugging 
 
         int getId() { return id; }
+    
+        int getCurrentPosition() { return currItPos; }
+
 
         char* getDbKey() { return dbKey; }
     

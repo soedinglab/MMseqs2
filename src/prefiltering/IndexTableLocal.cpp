@@ -1,5 +1,5 @@
 #include "IndexTable.h"
-
+/*
 IndexTable::IndexTable (int alphabetSize, int kmerSize, int skip)
 {
     this->alphabetSize = alphabetSize;
@@ -13,7 +13,7 @@ IndexTable::IndexTable (int alphabetSize, int kmerSize, int skip)
     memset(sizes, 0, sizeof(short) * tableSize);
     
     currPos = new int[tableSize];
-    std::fill_n(currPos, tableSize, 1); // needed because of size at beginning
+    std::fill_n(currPos, tableSize, 0); // needed because of size at beginning
     
     table = new unsigned int*[tableSize];
     
@@ -52,21 +52,27 @@ void IndexTable::addKmerCount (Sequence* s){
 void IndexTable::initMemory(){
     // allocate memory for the sequence id lists
     // tablesSizes is added to put the Size of the entry infront fo the memory
-    entries = new unsigned int[tableEntriesNum+tableSize];
+    entries = new char [tableEntriesNum * sizeof(IndexEntry) +
+                                         tableSize * sizeof(int)];
 }
 
 
 void IndexTable::init(){
-    unsigned int* it = entries;
+    char * it = entries;
     // set the pointers in the index table to the start of the list for a certain k-mer
     for (size_t i = 0; i < tableSize; i++){
         table[i] = it;
-        table[i][0] = sizes[i];
-        it += sizes[i] + 1; // +1 for sizes element
+        int * row = table[i];
+        row[0] = sizes[i];
+        it += (sizes[i] * sizeof(IndexEntry)) + sizeof(int); // jump to next kmer entrie; +1 for sizes element
     }
+    
+    delete[] sizes;
+    sizes = NULL;
+
 }
 
-unsigned int * IndexTable::getEntries(){
+KmerEntry * IndexTable::getEntries(){
     return entries;
 }
 
@@ -80,44 +86,34 @@ void IndexTable::addSequence (Sequence* s){
     
     while(s->hasNextKmer()){
         kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
-        table[kmerIdx][currPos[kmerIdx]++] = s->getId();
+        IndexEntryLocal entry = *(table[kmerIdx]+(currPos[kmerIdx]++ * sizeof(IndexEntry)) + sizeof(int));
+        entry.seqId      = s->getId();
+        entry.position_j = s->getCurrentPosition();
+        // if skip is activated skip next positions
         for (int i = 0; i < skip && s->hasNextKmer(); i++){
             idxer->getNextKmerIndex(s->nextKmer(), kmerSize);
         }
     }
+    // current position not needed
+    delete[] currPos;
+
 }
 
 void IndexTable::removeDuplicateEntries(){
     
-    delete[] currPos;
-    
-    for (size_t e = 0; e < tableSize; e++){
-        if (sizes[e] == 0)
-            continue;
-        unsigned int* entries = table[e] + 1; // because of size at position 1
-        int size = sizes[e];
-        
-        std::sort(entries, entries + size);
-        // remove duplicates in-place
-        int boundary = 1;
-        for (int i = 1; i < size; i++){
-            if (entries[i] != entries[i-1])
-                entries[boundary++] = entries[i];
-        }
-        size = boundary;
-        table[e][0]  = size;
-    }
-    delete[] sizes;
+   // we dont remove in case of local search
 
 }
 
 void IndexTable::print(char * int2aa){
     for (size_t i = 0; i < tableSize; i++){
-        if (table[i][0] > 0){
+        const unsigned int tableSize = ((unsigned int*)table[i])[0];
+        if ( > 0){
             idxer->printKmer(i, kmerSize, int2aa);
             std::cout << "\n";
-            for (unsigned int j = 0; j < table[i][0]; j++){
-                std::cout << "\t" << table[i][j+1] << "\n";
+            IndexEntry * entries = table[i] + sizeof(unsigned int);
+            for (unsigned int j = 0; j < tableSize; j++){
+                std::cout << "\t(" << entries[i].seqId << ", " << entries[i].position_j << ")\n";
             }
         }
     }
@@ -143,6 +139,6 @@ void IndexTable::initTableByExternalData(uint64_t tableEntriesNum,
 int IndexTable::ipow (int base, int exponent){
     int res = 1;
     for (int i = 0; i < exponent; i++)
-        res = res*base;
+        res = res * base;
     return res;
-}
+}*/

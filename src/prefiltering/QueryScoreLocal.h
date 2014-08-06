@@ -35,14 +35,15 @@ public:
 
     std::map<unsigned int,std::vector<LocalResult *> > localScoreResults;
 
-
     
     // add k-mer match score for all DB sequences from the list
-    inline void addScores (unsigned int* __restrict seqList, int seqListSize,
-                                unsigned short i, unsigned short j,
-                                unsigned short score){
+    inline void checkDiagonal (std::pair<unsigned int,unsigned short> * __restrict seqList,
+                           int seqListSize,
+                           const unsigned short i,
+                           const unsigned short score){
         for (int i = 0; i < seqListSize; i++){
-            const unsigned int seqId = seqList[i];
+            const unsigned int seqId = seqList[i].first;
+            const unsigned short j   = seqList[i].second;
             const int diagonal = i - j + 255; // contains now the last diagonal
             if(diagonal == scores[seqId]){ // two elements found (Not true for 0)
                 // add score to
