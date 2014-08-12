@@ -170,7 +170,7 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
         // create first kmer
         for(unsigned int z = 0; z < this->divideStepCount; z++){
             const size_t index = this->kmerIndex[z];
-            const ScoreMatrix * nextScoreMatrix = this->matrixLookup[i];
+            const ScoreMatrix * nextScoreMatrix = this->matrixLookup[z];
             const short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
             const unsigned int * nextIndexArray = &nextScoreMatrix->index[index*nextScoreMatrix->rowSize];
             outputScoreArray[0][0] += nextScoreArray[0];

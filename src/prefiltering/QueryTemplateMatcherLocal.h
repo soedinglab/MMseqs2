@@ -1,0 +1,34 @@
+#ifndef QUERY_TEMPLATE_MATCHER_GLOBAL_H
+#define QUERY_TEMPLATE_MATCHER_GLOBAL_H
+
+#include "QueryTemplateMatcher.h"
+
+
+class QueryTemplateMatcherGlobal : public virtual  QueryTemplateMatcher {
+    public:
+        QueryTemplateMatcherGlobal ( BaseMatrix* m,
+                                    IndexTable * indexTable,
+                                    unsigned short * seqLens,
+                                    short kmerThr,
+                                    double kmerMatchProb,
+                                    int kmerSize,
+                                    int dbSize,
+                                    bool aaBiasCorrection,
+                                    int maxSeqLen,
+                                    float zscoreThr);
+        ~QueryTemplateMatcherGlobal ();
+
+        
+        // returns result for the sequence
+        // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
+        std::pair<hit_t *, size_t>  matchQuery (Sequence * seq, unsigned int identityId);
+    
+    protected:
+    
+        // match sequence against the IndexTable
+        void match(Sequence* seq);
+    
+
+};
+
+#endif
