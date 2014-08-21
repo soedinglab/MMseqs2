@@ -2,7 +2,9 @@
 #include "PrefilteringIndexReader.h"
 #include "../commons/Util.h"
 #include "IndexTableGlobal.h"
-
+#include "IndexTableLocal.h"
+#include "QueryTemplateMatcherGlobal.h"
+#include "QueryTemplateMatcherLocal.h"
 
 Prefiltering::Prefiltering(std::string queryDB,
         std::string queryDBIndex,
@@ -105,7 +107,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     // set the k-mer similarity threshold
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
     std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, sensitivity, 0.1);
-    //std::pair<short, double> ret = std::pair<short, double>(104, 1.84907e-06);
+    //std::pair<short, double> ret = std::pair<short, double>(70, 8.18064e-05);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 
@@ -222,7 +224,7 @@ QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        matchers[thread_idx] = new QueryTemplateMatcher(m, indexTable, seqLens, kmerThr,
+        matchers[thread_idx] = new QueryTemplateMatcherLocal(m, indexTable, seqLens, kmerThr,
                                                         kmerMatchProb, kmerSize, dbSize,
                                                         aaBiasCorrection, maxSeqLen, zscoreThr);
         if(querySeqType == Sequence::HMM_PROFILE){
@@ -471,11 +473,10 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-
-    IndexTable* indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
+	
+    IndexTable* indexTable = new IndexTableLocal(alphabetSize, kmerSize, skip);
 
     countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
-
 
     if ((dbTo-dbFrom) > 10000)
         Debug(Debug::INFO) << "\n";

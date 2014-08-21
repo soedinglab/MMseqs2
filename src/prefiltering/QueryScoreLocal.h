@@ -12,51 +12,21 @@
 #include <vector>
 #include <map>
 
-struct LocalResult{
-    const unsigned short i;
-    const unsigned short j;
-    const unsigned short score;
-    LocalResult( unsigned short i,
-                unsigned short j,
-                unsigned short score) :
-    i(i), j(j), score(score) {};
-};
 
 
 class QueryScoreLocal : public QueryScore {
     
 public:
-    QueryScoreLocal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
-    : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor
-    {    };
-
+    QueryScoreLocal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr);
+   
     ~QueryScoreLocal();
-
-
-    std::map<unsigned int,std::vector<LocalResult *> > localScoreResults;
-
     
-    // add k-mer match score for all DB sequences from the list
-    inline void checkDiagonal (std::pair<unsigned int,unsigned short> * __restrict seqList,
-                           int seqListSize,
-                           const unsigned short i,
-                           const unsigned short score){
-        for (int i = 0; i < seqListSize; i++){
-            const unsigned int seqId = seqList[i].first;
-            const unsigned short j   = seqList[i].second;
-            const int diagonal = i - j + 255; // contains now the last diagonal
-            if(diagonal == scores[seqId]){ // two elements found (Not true for 0)
-                // add score to
-                localScoreResults[seqId].push_back(new LocalResult(i, j, score));
-            }
-            scores[seqId] = diagonal;
-        }
-        
-        scoresSum += score * seqListSize;
-        numMatches += seqListSize;
-    };
+    std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId);
 
     void reset();
+    
+    void setPrefilteringThresholds();
+
 
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */

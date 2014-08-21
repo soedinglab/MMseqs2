@@ -1,6 +1,7 @@
-#include "QueryTemplateMatcher.h"
+#include "QueryTemplateMatcherGlobal.h"
 #include "QueryScoreGlobal.h"
-QueryTemplateMatcher::QueryTemplateMatcher ( BaseMatrix* m,
+
+QueryTemplateMatcherGlobal::QueryTemplateMatcherGlobal ( BaseMatrix* m,
         IndexTable * indexTable,
         unsigned short * seqLens,
         short kmerThr,
@@ -9,69 +10,23 @@ QueryTemplateMatcher::QueryTemplateMatcher ( BaseMatrix* m,
         int dbSize,
         bool aaBiasCorrection,
         int maxSeqLen,
-        float zscoreThr){
-    this->m = m;
-    this->indexTable = indexTable;
-    this->kmerSize = kmerSize;
-
-    this->kmerGenerator = new KmerGenerator(kmerSize, m->alphabetSize, kmerThr);
+        float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+                            kmerSize, dbSize, aaBiasCorrection, maxSeqLen, zscoreThr) {
     this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);
-    this->aaBiasCorrection = aaBiasCorrection;
 
-    this->deltaS = new float[maxSeqLen];
-    memset(this->deltaS, 0, maxSeqLen * sizeof(float));
 }
 
-void QueryTemplateMatcher::setSubstitutionMatrix(ScoreMatrix * three, ScoreMatrix * two) {
-    this->kmerGenerator->setDivideStrategy(three, two );
-}
 
-void QueryTemplateMatcher::setProfileMatrix(ScoreMatrix **matrix){
-    this->kmerGenerator->setDivideStrategy(matrix );
-}
-
-QueryTemplateMatcher::~QueryTemplateMatcher (){
-    delete[] deltaS;
-    delete kmerGenerator;
+QueryTemplateMatcherGlobal::~QueryTemplateMatcherGlobal(){
     delete queryScore;
 }
 
-void QueryTemplateMatcher::calcLocalAaBiasCorrection(Sequence* seq){
-    int windowSize = 40;
-    if (seq->L < windowSize + 1)
-        memset(this->deltaS, 0, seq->L * sizeof(float));
-    else{
-        float deltaS_i;
-        int minPos;
-        int maxPos;
-        int _2d;
-        // calculate local amino acid bias 
-        for (int i = 0; i < seq->L; i++){
-            deltaS_i = 0.0;
-            minPos = std::max(0, (i - windowSize/2));
-            maxPos = std::min(seq->L, (i + windowSize/2));
-            _2d = maxPos - minPos;
-
-            // negative score for the amino acids in the neighborhood of i
-            for (int j = minPos; j < maxPos; j++){
-                if (j != i){
-                    deltaS_i += m->subMatrix[seq->int_sequence[i]][seq->int_sequence[j]];
-                }
-            }
-            deltaS_i /= -1.0 * _2d;
-            // positive score for the background score distribution for i
-            for (int a = 0; a < m->alphabetSize; a++)
-                deltaS_i += m->pBack[a] * m->subMatrix[seq->int_sequence[i]][a];
-
-            deltaS[i] = deltaS_i;
-        }
-    }
-}
-
-
-std::pair<hit_t *, size_t> QueryTemplateMatcher::matchQuery (Sequence * seq, unsigned int identityId){
+std::pair<hit_t *, size_t> QueryTemplateMatcherGlobal::matchQuery (Sequence * seq, unsigned int identityId){
     queryScore->reset();
     seq->resetCurrPos();
+    
+    if (this->aaBiasCorrection)
+        this->calcLocalAaBiasCorrection(seq);
 
     match(seq);
 
@@ -80,12 +35,7 @@ std::pair<hit_t *, size_t> QueryTemplateMatcher::matchQuery (Sequence * seq, uns
     return queryScore->getResult(seq->L,identityId);
 }
 
-void QueryTemplateMatcher::match(Sequence* seq){
-
-    seq->resetCurrPos();
-
-    if (this->aaBiasCorrection)
-        calcLocalAaBiasCorrection(seq);
+void QueryTemplateMatcherGlobal::match(Sequence* seq){
 
     unsigned int* seqList;
     int indexTabListSize = 0;
@@ -95,10 +45,6 @@ void QueryTemplateMatcher::match(Sequence* seq){
     float biasCorrection = 0;
     for (int i = 0; i < kmerSize && i < seq->L; i++)
         biasCorrection += deltaS[i];
-
-//    int overall_score = 0;
-//    int match_num = 0;
-//    int match_pos = 0;
 
 
     int pos = 0;

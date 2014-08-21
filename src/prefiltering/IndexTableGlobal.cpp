@@ -3,12 +3,15 @@
 IndexTableGlobal::IndexTableGlobal (int alphabetSize, int kmerSize, int skip)
                     : IndexTable(alphabetSize, kmerSize, skip) { }
 
-IndexTableGlobal::~IndexTableGlobal(){ }
+IndexTableGlobal::~IndexTableGlobal(){ delete[] entries; }
 
 void IndexTableGlobal::initMemory(){
     // allocate memory for the sequence id lists
     // tablesSizes is added to put the Size of the entry infront fo the memory
     entries = new char[(tableEntriesNum+tableSize)*sizeof(int)];
+    
+    std::fill_n(currPos, tableSize, 1); // needed because of size at beginning
+
 }
 
 void IndexTableGlobal::init(){

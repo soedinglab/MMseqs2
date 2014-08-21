@@ -19,9 +19,10 @@
 #include "../commons/ScoreMatrix.h"      // for ScoreMatrix
 
 const char seed_4[]        = {1, 1, 1, 1};
-const char seed_4_spaced[] = {1, 1, 1, 0, 1, 1};
+const char seed_4_spaced[] = {1, 1, 1, 0, 1};
 const char seed_5[]        = {1, 1, 1, 1, 1};
-const char seed_5_spaced[] = {1, 1, 1, 0, 1, 1};
+//const char seed_5_spaced[] = {1, 1, 1, 0, 1, 1};
+const char seed_5_spaced[] = {1, 1, 0, 1, 0, 1, 1};
 const char seed_6[]        = {1, 1, 1, 1, 1, 1};
 const char seed_6_spaced[] = {1, 1, 1, 0, 1, 1, 0, 1};
 const char seed_7[]        = {1, 1, 1, 1, 1, 1, 1};

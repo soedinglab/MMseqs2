@@ -188,4 +188,5 @@ int search (int argc, const char * argv[]){
             evalThr, covThr,
             queryDB, targetDB, outDB, scoringMatrixFile, tmpDir);
 
+    return 0;
 }

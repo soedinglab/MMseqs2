@@ -225,7 +225,7 @@ std::pair<size_t,size_t> ReducedMatrix::coupleWithBestInfo(double ** pinput, dou
     }
     delete[]tempsub;
     delete[]tempp;
-    return std::make_pair<size_t,size_t>(besti,bestj);
+    return std::make_pair(besti,bestj);
 }
 
 void ReducedMatrix::addTwoColumns(double ** input, double ** output, size_t size, size_t col1, size_t col2 ){

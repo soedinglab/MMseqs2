@@ -92,4 +92,5 @@ int timetest (int argc, const char * argv[])
     tt->runTimeTest();
     
     delete tt;
+    return 0;
 }

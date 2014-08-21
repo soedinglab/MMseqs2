@@ -16,6 +16,12 @@
 #include "Indexer.h"
 #include "Util.h"
 
+// IndexEntryLocal is an entry with possition and seqId for a kmer
+// strucutre needs to be packed or it will need 8 bytes instead of 6
+struct __attribute__((__packed__)) IndexEntryLocal {
+    unsigned int seqId;
+    unsigned short position_j;
+};
 
 class IndexTable {
 
@@ -33,7 +39,6 @@ class IndexTable {
             memset(sizes, 0, sizeof(short) * tableSize);
         
             currPos = new int[tableSize];
-            std::fill_n(currPos, tableSize, 1); // needed because of size at beginning
         
             table = new char*[tableSize];
         
@@ -43,7 +48,6 @@ class IndexTable {
         }
 
         virtual ~IndexTable(){
-            delete[] entries;
             delete[] table;
             delete idxer; }
 
@@ -69,6 +73,14 @@ class IndexTable {
             unsigned int * __restrict tabPosition = (unsigned int *) table[kmer];
             *matchedListSize = tabPosition[0];
             return tabPosition + 1;
+        }
+    
+    
+        // get list of DB sequences containing this k-mer
+        inline IndexEntryLocal* getDBSeqListAndPosition (int kmer, int* matchedListSize){
+            unsigned int * __restrict tabPosition = (unsigned int *) table[kmer];
+            *matchedListSize = tabPosition[0];
+            return (IndexEntryLocal * ) (tabPosition + 1); // skip the size
         }
     
         // get pointer to sizes array
