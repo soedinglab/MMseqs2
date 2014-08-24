@@ -119,7 +119,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase, std
 }
 
 void runSearch(float sensitivity, size_t maxSeqLen, int seqType,
-        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr,
+        int kmerSize, bool spacedKmer, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr,
         double evalThr, double covThr,
         std::string queryDB, std::string targetDB, std::string outDB, std::string scoringMatrixFile, std::string tmpDir){
 
@@ -132,7 +132,7 @@ void runSearch(float sensitivity, size_t maxSeqLen, int seqType,
 
     std::string alnDB = runStep(queryDB, queryDBIndex, targetDB, targetDBIndex, tmpDir,
             scoringMatrixFile, maxSeqLen, seqType,
-            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
+            kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
             evalThr, covThr, INT_MAX,
             1, 0, true, tmpFiles);
 
@@ -156,6 +156,7 @@ int search (int argc, const char * argv[]){
 
     // parameter for the prefiltering
     int kmerSize = 6;
+    bool spacedKmer = false;
     int alphabetSize = 21;
     int split = 0;
     int skip = 0;
@@ -183,8 +184,9 @@ int search (int argc, const char * argv[]){
     parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen, &targetSens, &maxResListLen, &zscoreThr);
 
     runSearch(targetSens, maxSeqLen, seqType,
-            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr,
+            kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr,
             evalThr, covThr,
             queryDB, targetDB, outDB, scoringMatrixFile, tmpDir);
 
+    return 0;
 }

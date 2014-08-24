@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <fstream>
 #include <vector>
+#include <limits.h>
+
 
 
 #include <stdlib.h>
@@ -135,8 +137,13 @@ public:
         return n;
     }
 
-    
-    
+    static int ipow (int base, int exponent){
+        int res = 1;
+        for (int i = 0; i < exponent; i++)
+            res = res*base;
+        return res;
+    }
+
     static bool startWith(std::string prefix, std::string str){
         return (!str.compare(0, prefix.size(), prefix));
     }
@@ -212,6 +219,45 @@ public:
             data = skipNoneWhitespace(data);
         }
         return elementCounter;
+    }
+    
+    
+    static inline unsigned short sadd16(const unsigned short  a, const unsigned short  b)
+    { return (a > 0xFFFF - b) ? 0xFFFF : a + b; };
+    
+    static inline short sadd16_signed(short x, short y)
+    {
+        unsigned short ux = x;
+        unsigned short uy = y;
+        unsigned short res = ux + uy;
+        
+        /* Calculate overflowed result. (Don't change the sign bit of ux) */
+        ux = (ux >> 15) + SHRT_MAX;
+        
+        /* Force compiler to use cmovns instruction */
+        if ((short) ((ux ^ uy) | ~(uy ^ res)) >= 0)
+        {
+            res = ux;
+        }
+        
+        return res;
+    }
+    
+    static inline short ssub16_signed (short x, short y)
+    {
+        unsigned short ux = x;
+        unsigned short uy = y;
+        unsigned short res = ux - uy;
+        
+        ux = (ux >> 15) + SHRT_MAX;
+        
+        /* Force compiler to use cmovns instruction */
+        if ((short)((ux ^ uy) & (ux ^ res)) < 0)
+        {
+            res = ux;
+        }
+        
+        return res;
     }
 
 

@@ -75,7 +75,7 @@ bool startWith(std::string prefix, std::string str){
 	
 std::string parseFastaHeader(std::string header){
         std::vector<std::string> arr = split(header,"|");
-    for(int i = 0; i < arr.size(); i++)
+    for(unsigned int i = 0; i < arr.size(); i++)
 	if(arr.size() > 1) { 
 		if (startWith("cl|", header)  || 
 		    startWith("sp|", header)  ||
@@ -100,9 +100,7 @@ std::string parseFastaHeader(std::string header){
 
 int createdb(int argn,const char **argv)
 {
-    int sort = 0, version = 0, headers = 0;
-    int opt, err = EXIT_SUCCESS;
-    sort = 1;
+    int err = EXIT_SUCCESS;
 
     if(argn  <  3)
     {

@@ -93,7 +93,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* query, Sequence* dbSeq, int seq
         seqId = 1.0;
     }
 
-    double evalue = ((double) (query->L * dbSeq->L)) * pow (2.0, ((double)(-s)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
+    double evalue = ((double) (query->L * dbSeq->L)) * pow (2.71828, ((double)(-s)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
     evalue = evalue * (double)(seqDbSize);
 
     if ((query->L > maxAllocatedLen) || (dbSeq->L > maxAllocatedLen)){

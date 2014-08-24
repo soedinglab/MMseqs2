@@ -282,7 +282,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 }
 
 void runClustering(float sensitivity, size_t maxSeqLen, int seqType, 
-        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, 
+        int kmerSize, bool spacedKmer, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection,
         double evalThr, double covThr, 
         std::string inDB, std::string outDB, std::string scoringMatrixFile, std::string tmpDir, int restart){
 
@@ -297,7 +297,7 @@ void runClustering(float sensitivity, size_t maxSeqLen, int seqType,
 
     std::string cluDB = runStep(inDB, inDBIndex, inDB, inDBIndex, tmpDir,
             scoringMatrixFile, maxSeqLen, seqType,
-            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
+            kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
             evalThr, covThr, 10,
             1, restart, false, tmpFiles);
 
@@ -312,7 +312,7 @@ void runClustering(float sensitivity, size_t maxSeqLen, int seqType,
 }
 
 void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqType,
-        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection,
+        int kmerSize, bool spacedKmer, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection,
         double evalThr, double covThr,
         std::string inDB, std::string outDB, std::string scoringMatrixFile, std::string tmpDir, int restart, int step){
 
@@ -354,7 +354,7 @@ void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqTyp
         local_restart = 1;
     cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
             scoringMatrixFile, maxSeqLen, seqType, 
-            kmerSize, alphabetSize, 50, split, 2, aaBiasCorrection, zscoreThr, sens,
+            kmerSize, spacedKmer, alphabetSize, 50, split, 2, aaBiasCorrection, zscoreThr, sens,
             evalThr, covThr, 10,
             1, local_restart, false, tmpFiles);
     cluSteps.push_back(cluDB);
@@ -382,7 +382,7 @@ void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqTyp
 
     cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
             scoringMatrixFile, maxSeqLen, seqType,
-            kmerSize, alphabetSize, 100, split, skip, aaBiasCorrection, zscoreThr, sens,
+            kmerSize, spacedKmer, alphabetSize, 100, split, skip, aaBiasCorrection, zscoreThr, sens,
             evalThr, covThr, 10,
             2, local_restart, false, tmpFiles);
     cluSteps.push_back(cluDB);
@@ -408,7 +408,7 @@ void runCascadedClustering(float targetSensitivity, size_t maxSeqLen, int seqTyp
 
     cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
             scoringMatrixFile, maxSeqLen, seqType,
-            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens,
+            kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sens,
             evalThr, covThr, INT_MAX,
             3, local_restart, false, tmpFiles);
     cluSteps.push_back(cluDB);
@@ -433,6 +433,8 @@ int clusteringworkflow (int argc, const char * argv[]){
 
     // parameter for the prefiltering
     int kmerSize = 6;
+    bool spacedKmer = true;
+
     int alphabetSize = 21;
     int split = 0;
     int skip = 0;
@@ -459,12 +461,12 @@ int clusteringworkflow (int argc, const char * argv[]){
 
     if (cascaded)
         runCascadedClustering(targetSens, maxSeqLen, seqType,
-                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, 
+                kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection,
                 evalThr, covThr,
                 inDB, outDB, scoringMatrixFile, tmpDir, restart, step);
     else
         runClustering(targetSens, maxSeqLen, seqType,
-                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection,
+                kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection,
                 evalThr, covThr,
                 inDB, outDB, scoringMatrixFile, tmpDir, restart);
 

@@ -57,8 +57,8 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
 
 
 ExtendedSubstitutionMatrix::~ExtendedSubstitutionMatrix(){
-    delete scoreMatrix->index;
-    delete scoreMatrix->score;
+    free((void *) scoreMatrix->index);
+    free((void *) scoreMatrix->score);
     delete scoreMatrix;
 }
 

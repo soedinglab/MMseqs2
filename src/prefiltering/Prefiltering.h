@@ -39,6 +39,7 @@ class Prefiltering {
                 std::string scoringMatrixFile, 
                 float sensitivity, 
                 int kmerSize,
+                bool spacedKmer,
                 int maxResListLen,
                 int alphabetSize, 
                 float zscoreThr, 
@@ -64,9 +65,8 @@ class Prefiltering {
                                          size_t dbFrom, size_t dbTo, int skip = 0);
     
     
-        static IndexTable* generateCountedIndexTable (DBReader* dbr, Sequence* seq,
-                                                         int alphabetSize, int kmerSize,
-                                                         size_t dbFrom, size_t dbTo, int skip = 0);
+        static void countKmersForIndexTable (DBReader* dbr, Sequence* seq, IndexTable* indexTable,
+                                        size_t dbFrom, size_t dbTo);
     
         static void fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * indexTable,
                                  size_t dbFrom, size_t dbTo);
@@ -98,6 +98,9 @@ class Prefiltering {
         std::string outDBIndex;
 
         int kmerSize;
+        bool spacedKmer;
+    
+        size_t maxResListLen;
         int alphabetSize;
         float zscoreThr;
         size_t maxSeqLen;
@@ -110,7 +113,6 @@ class Prefiltering {
         double kmerMatchProb;
         int split;
         int skip;
-        size_t maxResListLen;
         // statistics
         size_t kmersPerPos;
         size_t resSize;

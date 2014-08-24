@@ -12,17 +12,42 @@
 #include "QueryScore.h"
 
 class QueryScoreGlobal : public QueryScore {
+    
+public:
+    QueryScoreGlobal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr);
 
-    public:
-        QueryScoreGlobal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
-            : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor 
-        {
-        };
+    ~QueryScoreGlobal();
+        
+    void reset();
+    
+    void setPrefilteringThresholds();
+    
+    float getZscore(int seqPos);
+    
+    std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId);
+    
+private:
+    int counter;
+    
+    float s_per_match;
+    
+    float s_per_pos;
+        
+    __m128i* __restrict thresholds_128;
+    
+    unsigned short  * __restrict thresholds;
+    
+    // float because it is needed for statistical calculations
+    float * seqLens;
+    
+    float seqLenSum;
+    
+    int* steps;
+    
+    int nsteps;
+            
+    float matches_per_pos;
 
-
-            void addScores (int* seqList, int seqListSize, unsigned short score);
-            void reset();
-
-
+    
 };
 #endif /* defined(QUERYSCOREGLOBAL_H) */

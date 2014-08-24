@@ -2,8 +2,8 @@
 #define QUERY_SCORE_H
 
 // Written by Maria Hauser mhauser@genzentrum.lmu.de
-// 
-// Calculates the overall prefiltering score for the template database sequences and returns all sequences 
+//
+// Calculates the overall prefiltering score for the template database sequences and returns all sequences
 // with the prefiltering score >= prefiltering threshold.
 //
 
@@ -18,21 +18,22 @@
 #include <fstream>
 #include <cstring>
 #include <algorithm>
-#include <limits.h>
 #include <math.h>
 #include <fstream>
 #include <sstream>
-#include <map>
+#include <unordered_map>
 #include <vector>
-#include <bitset>
+#include <stdlib.h>     /* abs */
 
 #include "Debug.h"
+#include "Util.h"
+#include "IndexTable.h"
+
 
 typedef struct {
     size_t seqId;
     float zScore;
     unsigned short prefScore;
-
 } hit_t;
 
 struct HitIdEqual {
@@ -42,142 +43,118 @@ struct HitIdEqual {
     size_t toFind;
 };
 
+struct LocalResult{
+    const unsigned short i;
+    const unsigned short j;
+    const unsigned short score;
+    LocalResult( unsigned short i,
+                unsigned short j,
+                unsigned short score) :
+    i(i), j(j), score(score) {};
+};
+
+
 
 
 class QueryScore {
-    public:
-
-        QueryScore (int dbSize, unsigned short * seqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr);
-
-        virtual ~QueryScore ();
+public:
     
-
-        // add k-mer match score for all DB sequences from the list
+    QueryScore (int dbSize, unsigned short * seqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr);
+    
+    virtual ~QueryScore ();
+    
+    
+    inline void addScoresLocal (IndexEntryLocal * __restrict seqList, const unsigned short i,
+                                const int seqListSize, unsigned short score, const unsigned short minKmerScoreThreshold){
+        
+        //const unsigned short checkIfMatchedBefore = (i % 2) ? 0x8000 : 0x7FFF; // 1000000000000 0111111111111111
+        for (int seqIdx = 0; seqIdx < seqListSize; seqIdx++){
+            IndexEntryLocal entry = seqList[seqIdx];
+            const unsigned short j = entry.position_j;
+            const unsigned int seqId = entry.seqId;
+            const unsigned short diagonal = i - j + 32768;
+            //std::cout <<  i << " " << j << " " << entry.seqId << " " <<  diagonal << std::endl;
+            if (diagonal == scores[seqId]){
+                //std::cout <<  "Found diagonal for SeqId: " << seqId << " Diagonal: " << diagonal << std::endl;
+                // first hit for diagonal adds minKmerScoreThreshold to favour hits with two matches
+                localResult[seqId] = (localResult[seqId] > 0.0 ? 0 : minKmerScoreThreshold) + Util::sadd16(localResult[seqId], score);
+                //                    localResult[seqId] = sadd16(localResult[seqId], score);
+                numMatches += 1;
+                scoresSum += score;
+            }
+            //scores[seqId] = (diagonal & checkIfMatchedBefore ) ? diagonal : diagonal | checkIfMatchedBefore;
+            scores[seqId] = diagonal;
+            
+        }
+    }
+    
+    // add k-mer match score for all DB sequences from the list
     inline void addScores (unsigned int* __restrict seqList, int seqListSize, unsigned short score){
         for (int i = 0; i < seqListSize; i++){
             const int seqId = seqList[i];
-            scores[seqId] = sadd16(scores[seqId], score);
+            scores[seqId] = Util::sadd16(scores[seqId], score);
         }
         scoresSum += score * seqListSize;
         numMatches += seqListSize;
     }
-
-
-        void setPrefilteringThresholds();
-
-        void setPrefilteringThresholdsRevSeq();
-
-        float getZscore(int seqPos);
-
-       // get the list of the sequences with the score > z-score threshold 
-
-        std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId);
-
-        // reset the prefiltering score counter for the next query sequence
-        virtual void reset () = 0;
-
-        void printScores();
     
-        unsigned int getNumMatches(){
-            return numMatches;
-        };
-
-        // maximal resultList
-        static const size_t MAX_RES_LIST_LEN = 150000;
-
-    private:
-        static bool compareHits(hit_t first, hit_t second);
-
-        short sse2_extract_epi16(__m128i v, int pos);
-
-        void printVector(__m128i v);
-
-        int counter;
-
-        short kmerThr;
-
-        double kmerMatchProb;
-
-        float s_per_match;
-
-        float s_per_pos;
-
-        float zscore_thr;
-
-
-    protected:
-//        inline unsigned short sadd16(unsigned short a, unsigned short b)
-//        {
-//            unsigned int s = (unsigned int)(a+b);
-//            return -(s>>16) | (unsigned short)s;
-//        }
     
-        inline unsigned short sadd16(const unsigned short  a, const unsigned short  b)
-        { return (a > 0xFFFF - b) ? 0xFFFF : a + b; };
+    virtual void setPrefilteringThresholds() = 0;
+    
+    // get the list of the sequences with the score > z-score threshold
+    virtual std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId) = 0;
+    
+    // reset the prefiltering score counter for the next query sequence
+    virtual void reset () = 0;
+    
+    // prints the score results
+    void printScores();
+    
+    // returns the number of Matches for this Query
+    unsigned int getNumMatches(){
+        return numMatches;
+    };
+    
+    // maximal resultList
+    static const size_t MAX_RES_LIST_LEN = 150000;
+    
+    short sse2_extract_epi16(__m128i v, int pos);
 
-        inline short sadd16_signed(short x, short y)
-        {   
-            unsigned short ux = x;
-            unsigned short uy = y;
-            unsigned short res = ux + uy;
+    void printVector(__m128i v);
 
-            /* Calculate overflowed result. (Don't change the sign bit of ux) */
-            ux = (ux >> 15) + SHRT_MAX;
+    static bool compareHits(hit_t first, hit_t second);
+    
+protected:
+    std::unordered_map<unsigned int , unsigned short > localResult;
 
-            /* Force compiler to use cmovns instruction */
-            if ((short) ((ux ^ uy) | ~(uy ^ res)) >= 0)
-            {   
-                res = ux;
-            }
+    // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
+    int scores_128_size;
+    
+    short kmerThr;
+    
+    double kmerMatchProb;
+    
+    // position in the array: sequence id
+    // entry in the array: prefiltering score
+    __m128i* __restrict scores_128;
+    
+    unsigned short  * __restrict scores;
+    
+    unsigned int numMatches;
+        
+    // number of sequences in the target DB
+    int dbSize;
+    
+    // list of all DB sequences with the prefiltering score > z-score threshold with the corresponding scores
+    hit_t * resList;
+    
+    // sum up the scores over the query
+    size_t scoresSum;
+    
+    //
+    float zscore_thr;
 
-            return res;
-        }
 
-        inline short ssub16_signed (short x, short y)
-        {
-            unsigned short ux = x;
-            unsigned short uy = y;
-            unsigned short res = ux - uy;
-
-            ux = (ux >> 15) + SHRT_MAX;
-
-            /* Force compiler to use cmovns instruction */
-            if ((short)((ux ^ uy) & (ux ^ res)) < 0)
-            {
-                res = ux;
-            }
-
-            return res;
-        }
-
-        // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
-        int scores_128_size;
-        // position in the array: sequence id
-        // entry in the array: prefiltering score
-        __m128i* __restrict scores_128;
-        unsigned short  * __restrict scores;
-
-        __m128i* __restrict thresholds_128;
-        unsigned short  * __restrict thresholds;
-
-        // float because it is needed for statistical calculations
-        float * seqLens;
-        float seqLenSum;
-
-        int* steps;
-        int nsteps;
-
-        size_t scoresSum;
-
-        unsigned int numMatches;
-
-        float matches_per_pos;
-
-        // number of sequences in the target DB
-        int dbSize;
-
-        // list of all DB sequences with the prefiltering score > z-score threshold with the corresponding scores
-        hit_t * resList;
 };
 
 #endif

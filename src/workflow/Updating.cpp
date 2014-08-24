@@ -175,7 +175,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
         std::string targetDB, std::string targetDBIndex,
         std::string tmpDir,
         std::string scoringMatrixFile, int maxSeqLen, int querySeqType, int targetSeqType,
-        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
+        int kmerSize, bool spacedKmer, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
         double evalThr, double covThr, int maxAlnNum, std::string dbName, std::list<std::string>* tmpFiles){
 
     struct timeval start, end;
@@ -190,7 +190,7 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     Prefiltering* pref = new Prefiltering (queryDB, queryDBIndex,
             targetDB, targetDBIndex,
             prefDB, prefDBIndex,
-            scoringMatrixFile, sensitivity, kmerSize, maxResListLen, alphabetSize,
+            scoringMatrixFile, sensitivity, kmerSize, spacedKmer, maxResListLen, alphabetSize,
             zscoreThr, maxSeqLen, querySeqType, targetSeqType, aaBiasCorrection, split, skip);
     std::cout << "Starting prefiltering scores calculation.\n";
     pref->run();
@@ -392,6 +392,8 @@ int clusterupdate (int argc, const char * argv[]){
 
     // parameter for the prefiltering
     int kmerSize = 6;
+    bool spacedKmer = false;
+
     int alphabetSize = 21;
     size_t maxResListLen = 100;
     int split = 0;
@@ -459,8 +461,8 @@ int clusterupdate (int argc, const char * argv[]){
             currentSeqDB, AIndex,
             tmpDir,
             scoringMatrixFile, maxSeqLen, querySeqType, targetSeqType,
-            kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
-            evalThr, covThr, maxAlnNum, "BA", tmpFiles);
+            kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection,
+            zscoreThr, sensitivity, evalThr, covThr, maxAlnNum, "BA", tmpFiles);
 
     std::cout << "////////////////////////////////////////////////////////////////////////\n";
     std::cout << "///////      Adding sequences to existing clusters         /////////////\n";
@@ -500,8 +502,8 @@ int clusterupdate (int argc, const char * argv[]){
                 currentSeqDB, Brest_indexFile,
                 tmpDir,
                 scoringMatrixFile, maxSeqLen, querySeqType, targetSeqType,
-                kmerSize, alphabetSize, maxResListLen, split, skip, aaBiasCorrection, zscoreThr, sensitivity,
-                evalThr, covThr, maxAlnNum, "BB", tmpFiles);
+                kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection,
+                zscoreThr, sensitivity, evalThr, covThr, maxAlnNum, "BB", tmpFiles);
 
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
         std::cout << "///////             Appending new clusters                 /////////////\n";
@@ -545,5 +547,5 @@ int clusterupdate (int argc, const char * argv[]){
 
     deleteTmpFiles(tmpFiles);
     delete tmpFiles;
-
+    return 0;
 }

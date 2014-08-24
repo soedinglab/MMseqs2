@@ -2,6 +2,7 @@
 #include "Debug.h"
 #include "DBWriter.h"
 #include "Prefiltering.h"
+#include "IndexTableGlobal.h"
 
 const char * PrefilteringIndexReader::VERSION       = "MMSEQSVERSION";
 const char * PrefilteringIndexReader::ENTRIES       = "MMSEQSENTRIES";
@@ -24,26 +25,25 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader * dbr,
         int splitStart, splitSize;
         Util::decomposeDomainByAminoaAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                                       step, stepCnt, &splitStart, &splitSize);
-    
-        IndexTable * indexTable = Prefiltering::generateCountedIndexTable(dbr, seq, alphabetSize,
-                                                                          kmerSize, splitStart,
-                                                                          splitStart + splitSize , skip);
+        IndexTable * indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
+
+        Prefiltering::countKmersForIndexTable(dbr, seq, indexTable, splitStart, splitStart + splitSize);
         
         std::string entriesizes_key = std::string(ENTRIESIZES) + SSTR(step);
         Debug(Debug::WARNING) << "Write " << entriesizes_key << "\n";
         char * sizes = (char *) indexTable->getSizes();
-        writer.write(sizes, indexTable->tableSize * sizeof(short),(char*) entriesizes_key.c_str(), 0);
+        writer.write(sizes, indexTable->getTableSize() * sizeof(short),(char*) entriesizes_key.c_str(), 0);
         
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize );
         
         std::string entries_key = std::string(ENTRIES) + SSTR(step);
         Debug(Debug::WARNING) << "Write " << entries_key << "\n";
         char * entries = (char *) indexTable->getEntries();
-        writer.write(entries, (indexTable->tableEntriesNum + indexTable->tableSize) * sizeof(int),(char*) entries_key.c_str(), 0);
+        writer.write(entries, (indexTable->getTableEntriesNum() + indexTable->getTableSize()) * sizeof(int),(char*) entries_key.c_str(), 0);
         
         std::string entriesnum_key = std::string(ENTRIESNUM) + SSTR(step);
         Debug(Debug::WARNING) << "Write " << entriesnum_key << "\n";
-        int64_t entriesNum = { indexTable->tableEntriesNum };
+        int64_t entriesNum = { indexTable->getTableEntriesNum() };
         char * entriesNumPtr = (char *) &entriesNum;
         writer.write(entriesNumPtr, 1 * sizeof(int64_t),(char *) entriesnum_key.c_str(), 0);
         
@@ -95,7 +95,7 @@ IndexTable * PrefilteringIndexReader::generateIndexTable(DBReader * dbr, int spl
     unsigned int * tableSize   = (unsigned int *) dbr->getDataByDBKey((char*)tablesize_key.c_str());
 
     PrefilteringIndexData data = getMetadata(dbr);
-    IndexTable * retTable = new IndexTable(data.alphabetSize, data.kmerSize, data.skip);
+    IndexTable * retTable = new IndexTableGlobal(data.alphabetSize, data.kmerSize, data.skip);
     retTable->initTableByExternalData(entriesNum[0], entrie_sizes, entries, tableSize[0]);
     return retTable;
 }

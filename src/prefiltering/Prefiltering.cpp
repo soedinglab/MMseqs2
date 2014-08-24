@@ -1,6 +1,10 @@
 #include "Prefiltering.h"
 #include "PrefilteringIndexReader.h"
 #include "../commons/Util.h"
+#include "IndexTableGlobal.h"
+#include "IndexTableLocal.h"
+#include "QueryTemplateMatcherGlobal.h"
+#include "QueryTemplateMatcherLocal.h"
 
 Prefiltering::Prefiltering(std::string queryDB,
         std::string queryDBIndex,
@@ -11,6 +15,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         std::string scoringMatrixFile,
         float sensitivity,
         int kmerSize,
+        bool spacedKmer,
         int maxResListLen,
         int alphabetSize,
         float zscoreThr,
@@ -22,6 +27,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         int skip):    outDB(outDB),
     outDBIndex(outDBIndex),
     kmerSize(kmerSize),
+    spacedKmer(spacedKmer),
     maxResListLen(maxResListLen),
     alphabetSize(alphabetSize),
     zscoreThr(zscoreThr),
@@ -57,9 +63,6 @@ Prefiltering::Prefiltering(std::string queryDB,
         this->skip         = data.skip;
         this->split        = data.split;
     }
-    
-
-
     
     DBWriter::errorIfFileExist(outDB.c_str());
     DBWriter::errorIfFileExist(outDBIndex.c_str());
@@ -97,14 +100,14 @@ Prefiltering::Prefiltering(std::string queryDB,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, querySeqType, subMat);
+        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, querySeqType, kmerSize, spacedKmer, subMat);
         reslens[thread_idx] = new std::list<int>();
     }
 
     // set the k-mer similarity threshold
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
     std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, sensitivity, 0.1);
-   // std::pair<short, double> ret = std::pair<short, double>(103, 1.04703e-06);
+    //std::pair<short, double> ret = std::pair<short, double>(70, 8.18064e-05);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 
@@ -117,24 +120,27 @@ Prefiltering::Prefiltering(std::string queryDB,
 Prefiltering::~Prefiltering(){
     for (int i = 0; i < threads; i++){
         delete qseq[i];
+        reslens[i]->clear();
         delete reslens[i];
     }
     delete[] qseq;
     delete[] reslens;
-    delete notEmpty;
+    delete[] notEmpty;
     delete qdbr;
     delete tdbr;
     if(templateDBIsIndex == true)
         delete tidxdbr;
     delete subMat;
-    delete _2merSubMatrix;
-    delete _3merSubMatrix;
+    if(_2merSubMatrix != NULL)
+        delete _2merSubMatrix;
+    if(_3merSubMatrix != NULL)
+        delete _3merSubMatrix;
 }
 
 
 void Prefiltering::run(){
     // splits template database into x sequence steps
-    int splitCounter =  this->split;
+    unsigned int splitCounter =  this->split;
     std::vector<std::pair<std::string, std::string> > splitFiles;
     for(unsigned int split = 0; split < splitCounter; split++){
         Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step " << split << " of " << splitCounter <<  ")\n";
@@ -218,7 +224,7 @@ QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        matchers[thread_idx] = new QueryTemplateMatcher(m, indexTable, seqLens, kmerThr,
+        matchers[thread_idx] = new QueryTemplateMatcherLocal(m, indexTable, seqLens, kmerThr,
                                                         kmerMatchProb, kmerSize, dbSize,
                                                         aaBiasCorrection, maxSeqLen, zscoreThr);
         if(querySeqType == Sequence::HMM_PROFILE){
@@ -237,7 +243,8 @@ IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
         int dbFrom, dbSize;
         Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                           split, splitCount, &dbFrom, &dbSize);
-        Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, subMat);
+        std::cout << "Spaced Kmer: " << spacedKmer << std::endl;
+        Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, subMat);
         return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
     }
 }
@@ -261,7 +268,6 @@ void Prefiltering::run (size_t split, size_t splitCount,
     QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat,indexTable, tdbr->getSeqLens(), kmerThr,
                              kmerMatchProb, kmerSize, tdbr->getSize(),
                              aaBiasCorrection, maxSeqLen, zscoreThr);
-
 
     int kmersPerPos = 0;
     size_t dbMatches = 0;
@@ -421,11 +427,11 @@ BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, i
 }
 
 
-IndexTable* Prefiltering::generateCountedIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
-                           int kmerSize, size_t dbFrom, size_t dbTo, int skip){
+void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
+                                                   IndexTable* indexTable,
+                                                   size_t dbFrom, size_t dbTo){
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
-    IndexTable* indexTable = new IndexTable(alphabetSize, kmerSize, skip);
     dbTo=std::min(dbTo,dbr->getSize());
     for (unsigned int id = dbFrom; id < dbTo; id++){
         Log::printProgress(id-dbFrom);
@@ -434,7 +440,6 @@ IndexTable* Prefiltering::generateCountedIndexTable (DBReader* dbr, Sequence* se
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addKmerCount(seq);
     }
-    return  indexTable;
 }
 
 
@@ -468,10 +473,10 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
+	
+    IndexTable* indexTable = new IndexTableLocal(alphabetSize, kmerSize, skip);
 
-    Debug(Debug::INFO) << "Index table: counting k-mers...\n";
-    IndexTable* indexTable = generateCountedIndexTable(dbr,seq,alphabetSize,kmerSize,dbFrom,dbTo, skip);
-
+    countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
 
     if ((dbTo-dbFrom) > 10000)
         Debug(Debug::INFO) << "\n";
@@ -632,7 +637,6 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* qdbr, DBReader
         else if (timeval >= timevalMin && timeval <= timevalMax){
             // delete data structures used before returning
             delete[] querySeqs;
-            delete[] matchers;
             delete indexTable;
             Debug(Debug::WARNING) << "\nk-mer threshold set, yielding sensitivity " << (log(timeval)/log(base)) << "\n\n";
             return std::pair<short, double> (kmerThrMid, kmerMatchProb);

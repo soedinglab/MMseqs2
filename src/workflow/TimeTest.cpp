@@ -1,5 +1,5 @@
 #include "TimeTest.h"
-
+#include "QueryTemplateMatcherGlobal.h"
 TimeTest::TimeTest(std::string queryDB,
         std::string queryDBIndex,
         std::string targetDB,
@@ -106,7 +106,6 @@ void TimeTest::runTimeTest (){
             if (kmerSize == 6 || kmerSize == 7)
                 decr = 2;
             std::cout << "Omitting runs with too short running time...\n";
-            int omit = 1;
             for (short kmerThr = kmerThrMax; kmerThr >= kmerThrMin; kmerThr -= decr){
                 size_t dbMatchesSum = 0;
 
@@ -121,7 +120,7 @@ void TimeTest::runTimeTest (){
                     thread_idx = omp_get_thread_num();
 #endif
                     // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
-                    matchers[thread_idx] = new QueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
+                    matchers[thread_idx] = new QueryTemplateMatcherGlobal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
                     matchers[thread_idx]->setSubstitutionMatrix(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix );
                 }
 
@@ -152,7 +151,6 @@ void TimeTest::runTimeTest (){
                     //std::cout << "Time <= 2 sec, not counting this step.\n\n";
                     continue;
                 }
-                omit = 0;
                 std::cout << "k = " << kmerSize << ", a = " << alphabetSize << "\n";
                 std::cout << "k-mer threshold = " << kmerThr << "\n";
                 std::cout << "Time: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";

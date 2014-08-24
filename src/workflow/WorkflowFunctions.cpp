@@ -3,7 +3,7 @@
 
 std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::string targetDBData, std::string targetDBIndex, std::string tmpDir,
         std::string scoringMatrixFile, int maxSeqLen, int seqType,
-        int kmerSize, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
+        int kmerSize, bool spacedKmer, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
         double evalThr, double covThr, int maxRejects,
         int step_num, int restart, bool search, std::list<std::string>* tmpFiles){
 
@@ -41,7 +41,8 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
         Prefiltering* pref = new Prefiltering (inDBData, inDBWorkingIndex,
                 targetDBData, targetDBIndex,
                 prefDB_step, prefDB_step_index,
-                scoringMatrixFile, sensitivity, kmerSize, maxResListLen, alphabetSize, zscoreThr, maxSeqLen, querySeqType, targetSeqType, aaBiasCorrection, split, skip);
+                scoringMatrixFile, sensitivity, kmerSize, spacedKmer, maxResListLen, alphabetSize,
+                zscoreThr, maxSeqLen, querySeqType, targetSeqType, aaBiasCorrection, split, skip);
         std::cout << "Starting prefiltering scores calculation.\n";
         pref->run();
         delete pref;

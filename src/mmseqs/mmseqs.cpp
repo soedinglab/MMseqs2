@@ -53,8 +53,7 @@ int isCommand(const char *s)
 		struct Command *p = commands+i;
 		if (!strcmp(s, p->cmd))
 			return 1;
-	}
-	return 0;
+	}	return 0;
 }
 
 int runCommand(Command *p, int argc, const char **argv){

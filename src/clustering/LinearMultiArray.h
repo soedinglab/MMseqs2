@@ -17,7 +17,7 @@ public:
         multi_array = (T*) malloc( sizeof(T)*size);
         next_pos_to_write = (T**) malloc( sizeof(T *)*(element_size+1));
         int last_element=0;
-        for(int i = 0; i <= element_size; i++){
+        for(unsigned int i = 0; i <= element_size; i++){
             this->xorSwap(&element_size_lookup[0], &element_size_lookup[i+1]);
             element_size_lookup[i+1] = last_element+element_size_lookup[i+1];
             last_element = element_size_lookup[i+1];
@@ -25,7 +25,7 @@ public:
         this->element_offset = element_size_lookup;
         
         
-        for(int i = 0; i <= element_size; i++){
+        for(unsigned int i = 0; i <= element_size; i++){
             next_pos_to_write[i] = &multi_array[element_offset[i]];
         }
 
