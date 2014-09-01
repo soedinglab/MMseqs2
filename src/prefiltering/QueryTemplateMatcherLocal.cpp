@@ -87,7 +87,7 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
             // add the scores for the k-mer to the overall score for this query sequence
             // for the overall score, bit/2 is a sufficient sensitivity and we can use the capacity of unsigned short max score in QueryScore better
             // std::cout << "i: " << seq->getCurrentPosition() << std::endl;
-            queryScore->addScoresLocal(entries, seq->getCurrentPosition(), indexTabListSize, kmerMatchScore/4, this->kmerThr/4);
+            queryScore->addScoresLocal(entries, seq->getCurrentPosition(), indexTabListSize, kmerMatchScore/4);
         }
         biasCorrection -= deltaS[pos];
         biasCorrection += deltaS[pos + kmerSize];

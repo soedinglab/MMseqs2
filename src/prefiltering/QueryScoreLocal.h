@@ -25,7 +25,16 @@ public:
 
     void reset();
     
+    // NOT needed for Local scoring
     void setPrefilteringThresholds();
+    
+    // Sort local results by sequence id, i and j
+    static bool compareLocalResult(LocalResult first, LocalResult second);
+private:
+    unsigned short gapOpenPenalty;
+    unsigned short gapExtendPenalty;
+    unsigned short minKmerMatch; // the minimal score from kmer scores
+
 
 
 };

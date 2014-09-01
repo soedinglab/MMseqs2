@@ -44,14 +44,21 @@ struct HitIdEqual {
 };
 
 struct LocalResult{
-    const unsigned short i;
-    const unsigned short j;
-    const unsigned short score;
-    LocalResult( unsigned short i,
+    unsigned int seqId;
+    unsigned short i;
+    unsigned short j;
+    unsigned short diagonal;
+    unsigned short score;
+
+    LocalResult(unsigned int seqId,
+                unsigned short i,
                 unsigned short j,
+                unsigned short diagonal,
                 unsigned short score) :
-    i(i), j(j), score(score) {};
-};
+    seqId(seqId), i(i), j(j), diagonal(diagonal), score(score) {};
+    LocalResult() : seqId(0), i(0), j(0), diagonal(0), score(0) {};
+
+}; // 2 + 2 + 2  + 2 + 4 = 12 byte => with padding 16 byte
 
 
 
@@ -65,7 +72,7 @@ public:
     
     
     inline void addScoresLocal (IndexEntryLocal * __restrict seqList, const unsigned short i,
-                                const int seqListSize, unsigned short score, const unsigned short minKmerScoreThreshold){
+                                const int seqListSize, unsigned short score){
         
         //const unsigned short checkIfMatchedBefore = (i % 2) ? 0x8000 : 0x7FFF; // 1000000000000 0111111111111111
         for (int seqIdx = 0; seqIdx < seqListSize; seqIdx++){
@@ -77,7 +84,17 @@ public:
             if (diagonal == scores[seqId]){
                 //std::cout <<  "Found diagonal for SeqId: " << seqId << " Diagonal: " << diagonal << std::endl;
                 // first hit for diagonal adds minKmerScoreThreshold to favour hits with two matches
-                localResult[seqId] = (localResult[seqId] > 0.0 ? 0 : minKmerScoreThreshold) + Util::sadd16(localResult[seqId], score);
+                if(localResultSize >= MAX_LOCAL_RESULT_SIZE){
+                //    std::cout << "To much hits" << std::endl;
+                    break;
+                }
+
+                LocalResult * currLocalResult = localResults + localResultSize++;
+                currLocalResult->seqId = seqId;
+                currLocalResult->i = i;
+                currLocalResult->j = j;
+                currLocalResult->diagonal = diagonal;
+                currLocalResult->score = score;
                 //                    localResult[seqId] = sadd16(localResult[seqId], score);
                 numMatches += 1;
                 scoresSum += score;
@@ -125,7 +142,14 @@ public:
     static bool compareHits(hit_t first, hit_t second);
     
 protected:
-    std::unordered_map<unsigned int , unsigned short > localResult;
+//    std::unordered_map<unsigned int , unsigned short > localResult;
+    LocalResult * localResults;
+    
+    // current position in Localresults while adding Score
+    unsigned int localResultSize;
+    
+    // max LocalResult size
+    const unsigned int MAX_LOCAL_RESULT_SIZE = 100000;
 
     // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
     int scores_128_size;
