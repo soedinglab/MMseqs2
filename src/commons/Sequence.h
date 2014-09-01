@@ -22,11 +22,14 @@ const char seed_4[]        = {1, 1, 1, 1};
 const char seed_4_spaced[] = {1, 1, 1, 0, 1};
 const char seed_5[]        = {1, 1, 1, 1, 1};
 //const char seed_5_spaced[] = {1, 1, 1, 0, 1, 1};
-const char seed_5_spaced[] = {1, 1, 0, 1, 0, 1, 1};
+//const char seed_5_spaced[] = {1, 1, 0, 1, 0, 1, 1};// better than 111011
+const char seed_5_spaced[] = {1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1}; // just 0.001 %worse ROC5 but way faster
 const char seed_6[]        = {1, 1, 1, 1, 1, 1};
-const char seed_6_spaced[] = {1, 1, 1, 0, 1, 1, 0, 1};
+//const char seed_6_spaced[] = {1, 1, 1, 0, 1, 1, 0, 1};
+const char seed_6_spaced[] = {1, 1, 0, 1, 0, 1, 0, 0, 1, 1}; // better than 11101101
 const char seed_7[]        = {1, 1, 1, 1, 1, 1, 1};
-const char seed_7_spaced[] = {1, 1, 1, 1, 0, 1, 0, 1, 0, 1};
+//const char seed_7_spaced[] = {1, 1, 1, 1, 0, 1, 0, 1, 0, 1};
+const char seed_7_spaced[] = {1, 1,0, 1, 0, 1, 1, 0, 0, 1, 1};
 
 typedef struct {
         float kmersPerPos;
