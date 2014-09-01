@@ -122,7 +122,7 @@ float getZscoreForSensitivity (float sensitivity){
     float zscoreThr = 50.0;
 
     if (1.0 <= sensitivity && sensitivity < 2.0)
-        zscoreThr = 700.0;
+        zscoreThr = 400.0;
     else if (2.0 <= sensitivity && sensitivity < 3.0)
         zscoreThr = 200.0;
     else if (3.0 <= sensitivity && sensitivity < 4.0)
