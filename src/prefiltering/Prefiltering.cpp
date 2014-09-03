@@ -108,8 +108,8 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     // set the k-mer similarity threshold
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
-    std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, sensitivity, 0.1);
-    //std::pair<short, double> ret = std::pair<short, double>(60, 8.18064e-05);
+    //std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, sensitivity, 0.1);
+    std::pair<short, double> ret = std::pair<short, double>(70, 8.18064e-05);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 
@@ -226,7 +226,7 @@ QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
+        matchers[thread_idx] = new QueryTemplateMatcherLocal(m, indexTable, seqLens, kmerThr,
                                                         kmerMatchProb, kmerSize, dbSize,
                                                         aaBiasCorrection, maxSeqLen, zscoreThr);
         if(querySeqType == Sequence::HMM_PROFILE){
@@ -466,31 +466,6 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
 
     Debug(Debug::INFO) << "Index table: removing duplicate entries...\n";
     indexTable->revertPointer();
-    char int2aa[21];
-    // A C D E F G	H I	K L M N P Q R S T V W Y
-    int2aa[0] = 'A';
-    int2aa[1] = 'C';
-    int2aa[2] = 'D';
-    int2aa[3] = 'E';
-    int2aa[4] = 'F';
-    int2aa[5] = 'G';
-    int2aa[6] = 'H';
-    int2aa[7] = 'I';
-    int2aa[8] = 'K';
-    int2aa[9] = 'L';
-    int2aa[10] = 'M';
-    int2aa[11] = 'N';
-    int2aa[12] = 'P';
-    int2aa[13] = 'Q';
-    int2aa[14] = 'R';
-    int2aa[15] = 'S';
-    int2aa[16] = 'T';
-    int2aa[17] = 'V';
-    int2aa[18] = 'W';
-    int2aa[19] = 'Y';
-    int2aa[20] = 'X';
-    
-    indexTable->print((char*)&int2aa);
     indexTable->removeDuplicateEntries();
     Debug(Debug::INFO) << "Index table init done.\n\n";
 
@@ -503,7 +478,7 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
     struct timeval start, end;
     gettimeofday(&start, NULL);
 	
-    IndexTable* indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
+    IndexTable* indexTable = new IndexTableLocal(alphabetSize, kmerSize, skip);
 
     countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
 

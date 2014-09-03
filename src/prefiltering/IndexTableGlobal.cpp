@@ -16,7 +16,8 @@ void IndexTableGlobal::addSequence (Sequence* s){
     
     while(s->hasNextKmer()){
         kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
-        table[kmerIdx][0] = s->getId();
+        unsigned int * pos = (unsigned int *) table[kmerIdx];
+        *(pos) = s->getId();
         table[kmerIdx] += sizeof(unsigned int); // move one element further
         for (int i = 0; i < skip && s->hasNextKmer(); i++){
             idxer->getNextKmerIndex(s->nextKmer(), kmerSize);	
