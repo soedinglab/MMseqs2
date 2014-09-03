@@ -38,7 +38,7 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherLocal::matchQuery (Sequence * seq
 
 void QueryTemplateMatcherLocal::match(Sequence* seq){
     IndexEntryLocal* entries;
-    int indexTabListSize = 0;
+    size_t indexTabListSize = 0;
     // go through the query sequence
     int kmerListLen = 0;
     
@@ -64,7 +64,7 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
             kmerMatchScore = std::max(kmerMatchScore, zero);
             
             
-            entries = indexTable->getDBSeqListAndPosition(kmerList.index[i], &indexTabListSize);
+            entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[i], &indexTabListSize);
             
             /*            if (seq->getId() == 1 && pos == 2 ){
              std::cout << "\t\t";

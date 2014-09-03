@@ -1,30 +1,10 @@
 #include "IndexTableLocal.h"
 
 IndexTableLocal::IndexTableLocal (int alphabetSize, int kmerSize, int skip)
-: IndexTable(alphabetSize, kmerSize, skip) { }
+: IndexTable(alphabetSize, kmerSize, skip, sizeof(IndexEntryLocal)) { }
 
 IndexTableLocal::~IndexTableLocal(){ }
 
-void IndexTableLocal::initMemory(){
-    // allocate memory for the sequence id lists
-    // tablesSizes is added to put the Size of the entry infront fo the memory
-    entries = new char [tableEntriesNum * sizeof(IndexEntryLocal) +
-                        tableSize * sizeof(int)];
-    std::fill_n(currPos, tableSize, 0); // needed because of size at beginning
-
-}
-
-void IndexTableLocal::init(){
-    char * it = entries;
-    // set the pointers in the index table to the start of the list for a certain k-mer
-    for (size_t i = 0; i < tableSize; i++){
-        table[i] = (char *) it;
-        table[i][0] = sizes[i];
-        it += (sizes[i] * sizeof(IndexEntryLocal) + sizeof(unsigned int)); // jump to next kmer entrie; +1 for sizes element
-    }
-    delete[] sizes;
-    sizes = NULL;
-}
 
 void IndexTableLocal::addSequence (Sequence* s){
     // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
@@ -37,9 +17,8 @@ void IndexTableLocal::addSequence (Sequence* s){
     while(s->hasNextKmer()){
         kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
 
-        IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]
-                                                       + (currPos[kmerIdx]++ * sizeof(IndexEntryLocal))
-                                                       + sizeof(int));
+        IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
+        table[kmerIdx] += sizeof(IndexEntryLocal);
         entry->seqId      = s->getId();
         entry->position_j = s->getCurrentPosition();
         
@@ -52,8 +31,6 @@ void IndexTableLocal::addSequence (Sequence* s){
 }
 
 void IndexTableLocal::removeDuplicateEntries(){
-    delete[] currPos;
-    currPos = NULL;
     //  we dont remove entries for local search
 }
 
@@ -69,20 +46,4 @@ void IndexTableLocal::print(char * int2aa){
             }
         }
     }
-}
-
-void IndexTableLocal::initTableByExternalData(uint64_t tableEntriesNum, unsigned short * sizes,
-                                              unsigned int * pentries, unsigned int sequenzeCount){
-    this->tableEntriesNum = tableEntriesNum;
-    this->size = sequenzeCount;
-    initMemory();
-    memcpy ( this->entries, pentries, sizeof(IndexEntryLocal) * this->tableEntriesNum + this->tableSize * sizeof(unsigned int));
-    char* it = this->entries;
-    // set the pointers in the index table to the start of the list for a certain k-mer
-    for (size_t i = 0; i < tableSize; i++){
-        table[i] = it;
-        it += (sizes[i] * sizeof(IndexEntryLocal) + sizeof(unsigned int)); // jump to next kmer entrie; +1 for sizes element
-    }
-    delete [] this->sizes;
-    this->sizes = NULL;
 }

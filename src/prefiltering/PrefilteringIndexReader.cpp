@@ -31,8 +31,8 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader * dbr,
         
         std::string entriesizes_key = std::string(ENTRIESIZES) + SSTR(step);
         Debug(Debug::WARNING) << "Write " << entriesizes_key << "\n";
-        char * sizes = (char *) indexTable->getSizes();
-        writer.write(sizes, indexTable->getTableSize() * sizeof(short),(char*) entriesizes_key.c_str(), 0);
+        //char * sizes = (char *) indexTable->getSizes();
+        //writer.write(sizes, indexTable->getTableSize() * sizeof(short),(char*) entriesizes_key.c_str(), 0);
         
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize );
         

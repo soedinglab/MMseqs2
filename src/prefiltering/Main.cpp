@@ -347,7 +347,7 @@ int prefilter(int argc, const char **argv)
     gettimeofday(&start, NULL);
 
     int kmerSize =  6;
-    bool spacedKmer = true;
+    bool spacedKmer = false;
     int alphabetSize = 21;
     size_t maxSeqLen = 50000;
     size_t maxResListLen = 300;

@@ -38,7 +38,7 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherGlobal::matchQuery (Sequence * se
 void QueryTemplateMatcherGlobal::match(Sequence* seq){
 
     unsigned int* seqList;
-    int indexTabListSize = 0;
+    size_t indexTabListSize = 0;
     // go through the query sequence
     int kmerListLen = 0;
 
@@ -64,7 +64,7 @@ void QueryTemplateMatcherGlobal::match(Sequence* seq){
             kmerMatchScore = std::max(kmerMatchScore, zero);
             
             
-            seqList = indexTable->getDBSeqList(kmerList.index[i], &indexTabListSize);
+            seqList = indexTable->getDBSeqList<unsigned int>(kmerList.index[i], &indexTabListSize);
             
 /*            if (seq->getId() == 1 && pos == 2 ){
                 std::cout << "\t\t";
