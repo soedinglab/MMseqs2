@@ -70,12 +70,12 @@ void printUsagePrefiltering(){
             "--z-score       \t[float]\tZ-score threshold (default: 50.0).\n"
             "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
             "--profile       \t\tHMM Profile input.\n"
-            "--max-seqs      \t[int]\tMaximum result sequences per query (default=100)\n"
-            "--no-comp-bias-corr \tSwitch off local amino acid composition bias correction.\n"
-            "--no-spaced-kmer    \tSwitch off spaced kmers (consecutive pattern).\n"
-            "--split         \tSplits target databases in n equal distrbuted junks (default=1)\n"
-            "--threads       \t[int]\tNumber of threads used to compute. (Default=all cpus)\n"
             "--nucl          \t\tNucleotide sequences input.\n"
+            "--search-mode   \t[int]\tSearch mode loc: 1 glob: 2 (default=1).\n"
+            "--no-comp-bias-corr \t\tSwitch off local amino acid composition bias correction.\n"
+            "--no-spaced-kmer \t\tSwitch off spaced kmers (consecutive pattern).\n"
+            "--split         \t[int]\tSplits target databases in n equal distrbuted junks (default=1)\n"
+            "--threads       \t[int]\tNumber of threads used to compute. (Default=all cpus)\n"
             "--max-seqs      \t[int]\tMaximum result sequences per query (default=300).\n"
             "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
             "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
@@ -87,7 +87,8 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
                std::string* ffindexTargetDBBase, std::string* ffindexOutDBBase,
                std::string* scoringMatrixFile, float* sens, int* kmerSize,
                int* alphabetSize, float* zscoreThr, size_t* maxSeqLen,
-               int* querySeqType, int * targetSeqType, size_t* maxResListLen, bool* compBiasCorrection,
+               int* querySeqType, int * targetSeqType, bool* localSearch,
+               size_t* maxResListLen, bool* compBiasCorrection,
                bool* spacedKmer, int* split, int* threads, int* skip, int* verbosity){
 
     if (argc < 4){
@@ -274,6 +275,25 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
             *spacedKmer = false;
             i++;
         }
+        else if (strcmp(argv[i], "--search-mode") == 0){
+            if (++i < argc){
+                switch (atoi(argv[i])) {
+                    default:
+                    case 1:
+                        *localSearch = true;
+                        break;
+                    case 2:
+                        *localSearch = false;
+                        break;
+                }
+                i++;
+            }
+            else {
+                printUsagePrefiltering();
+                Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+        }
         else if (strcmp(argv[i], "--skip") == 0){
             if (++i < argc){
                 *skip = atoi(argv[i]);
@@ -367,6 +387,8 @@ int prefilter(int argc, const char **argv)
 #endif
     bool compBiasCorrection = true;
     bool spacedKmer = true;
+    bool localSearch = true;
+
 
     float zscoreThr = 50.0f;
 
@@ -390,7 +412,8 @@ int prefilter(int argc, const char **argv)
 
     parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile,
                           &sensitivity, &kmerSize, &alphabetSize, &zscoreThr,
-                          &maxSeqLen, &querySeqType, &targetSeqType, &maxResListLen, &compBiasCorrection,
+                          &maxSeqLen, &querySeqType, &targetSeqType, &localSearch,
+                          &maxResListLen, &compBiasCorrection,
                           &spacedKmer, &split, &threads, &skip, &verbosity);
 
 #ifdef OPENMP
