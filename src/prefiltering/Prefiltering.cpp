@@ -62,6 +62,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         this->alphabetSize = data.alphabetSize;
         this->skip         = data.skip;
         this->split        = data.split;
+        this->spacedKmer   = data.spacedKmer;
     }
     
     DBWriter::errorIfFileExist(outDB.c_str());
@@ -108,8 +109,9 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     // set the k-mer similarity threshold
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
-    //std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, sensitivity, 0.1);
-    std::pair<short, double> ret = std::pair<short, double>(70, 8.18064e-05);
+    std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, sensitivity, 0.1);
+    //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
+    //std::pair<short, double> ret = std::pair<short, double>(80, 8.18064e-05);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 
@@ -226,7 +228,7 @@ QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        matchers[thread_idx] = new QueryTemplateMatcherLocal(m, indexTable, seqLens, kmerThr,
+        matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
                                                         kmerMatchProb, kmerSize, dbSize,
                                                         aaBiasCorrection, maxSeqLen, zscoreThr);
         if(querySeqType == Sequence::HMM_PROFILE){
@@ -250,9 +252,6 @@ IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
         return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
     }
 }
-
-
-
 
 void Prefiltering::run (size_t split, size_t splitCount,
                         std::string resultDB, std::string resultDBIndex){
@@ -478,7 +477,7 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
     struct timeval start, end;
     gettimeofday(&start, NULL);
 	
-    IndexTable* indexTable = new IndexTableLocal(alphabetSize, kmerSize, skip);
+    IndexTable* indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
 
     countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
 

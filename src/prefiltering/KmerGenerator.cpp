@@ -2,6 +2,7 @@
 #include <emmintrin.h>
 #include <mmintrin.h>
 #include <smmintrin.h>
+#include <algorithm>    // std::reverse
 #include "Util.h"
 
 
@@ -84,8 +85,8 @@ void KmerGenerator::setDivideStrategy(ScoreMatrix * three, ScoreMatrix * two){
     }
 
     initDataStructure(divideStepCount);
-//    std::reverse(this->matrixLookup, &this->matrixLookup[divideStepCount]);
-//    std::reverse(this->divideStep, &this->divideStep[divideStepCount]);
+    std::reverse(this->matrixLookup, &this->matrixLookup[divideStepCount]);
+    std::reverse(this->divideStep, &this->divideStep[divideStepCount]);
 
 }
 

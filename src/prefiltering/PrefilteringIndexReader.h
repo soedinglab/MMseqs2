@@ -10,6 +10,8 @@ struct PrefilteringIndexData{
     int alphabetSize;
     int skip;
     int split;
+    int local;
+    int spacedKmer;
 };
 
 

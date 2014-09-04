@@ -72,6 +72,7 @@ void printUsagePrefiltering(){
             "--profile       \t\tHMM Profile input.\n"
             "--max-seqs      \t[int]\tMaximum result sequences per query (default=100)\n"
             "--no-comp-bias-corr \tSwitch off local amino acid composition bias correction.\n"
+            "--no-spaced-kmer    \tSwitch off spaced kmers (consecutive pattern).\n"
             "--split         \tSplits target databases in n equal distrbuted junks (default=1)\n"
             "--threads       \t[int]\tNumber of threads used to compute. (Default=all cpus)\n"
             "--nucl          \t\tNucleotide sequences input.\n"
@@ -87,7 +88,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
                std::string* scoringMatrixFile, float* sens, int* kmerSize,
                int* alphabetSize, float* zscoreThr, size_t* maxSeqLen,
                int* querySeqType, int * targetSeqType, size_t* maxResListLen, bool* compBiasCorrection,
-               int* split, int* threads, int* skip, int* verbosity){
+               bool* spacedKmer, int* split, int* threads, int* skip, int* verbosity){
 
     if (argc < 4){
         printUsagePrefiltering();
@@ -269,6 +270,10 @@ void parseArgs(int argc, const char** argv, std::string* ffindexQueryDBBase,
             *compBiasCorrection = false;
             i++;
         }
+        else if (strcmp(argv[i], "--no-spaced-kmer") == 0){
+            *spacedKmer = false;
+            i++;
+        }
         else if (strcmp(argv[i], "--skip") == 0){
             if (++i < argc){
                 *skip = atoi(argv[i]);
@@ -347,7 +352,6 @@ int prefilter(int argc, const char **argv)
     gettimeofday(&start, NULL);
 
     int kmerSize =  6;
-    bool spacedKmer = true;
     int alphabetSize = 21;
     size_t maxSeqLen = 50000;
     size_t maxResListLen = 300;
@@ -362,6 +366,8 @@ int prefilter(int argc, const char **argv)
     threads = Util::omp_thread_count();
 #endif
     bool compBiasCorrection = true;
+    bool spacedKmer = true;
+
     float zscoreThr = 50.0f;
 
     std::string queryDB = "";
@@ -385,7 +391,7 @@ int prefilter(int argc, const char **argv)
     parseArgs(argc, argv, &queryDB, &targetDB, &outDB, &scoringMatrixFile,
                           &sensitivity, &kmerSize, &alphabetSize, &zscoreThr,
                           &maxSeqLen, &querySeqType, &targetSeqType, &maxResListLen, &compBiasCorrection,
-                          &split, &threads, &skip, &verbosity);
+                          &spacedKmer, &split, &threads, &skip, &verbosity);
 
 #ifdef OPENMP
     omp_set_num_threads(threads);
@@ -404,6 +410,10 @@ int prefilter(int argc, const char **argv)
         Debug(Debug::WARNING) << "Compositional bias correction is switched on.\n";
     else
         Debug(Debug::WARNING) << "Compositional bias correction is switched off.\n";
+    if (spacedKmer)
+        Debug(Debug::WARNING) << "Spaced kmers is switched on.\n";
+    else
+        Debug(Debug::WARNING) << "Spaced kmers is switched off.\n";
     Debug(Debug::WARNING) << "\n";
 
     std::string queryDBIndex = queryDB + ".index";

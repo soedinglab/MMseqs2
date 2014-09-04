@@ -14,7 +14,7 @@
 void printUsageFFindexToIndex(){
     std::string usage("\nMerge multiple ffindex files based on simular id into one file. \n");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE: ffindex_database_merge ffindexQueryDB ffindexOutputDB ffindexOutDB ffindexFILES*\n");
+    usage.append("USAGE: ffindexInputDB ffindexOutDB \n");
     usage.append("--split         \t[int]\tsplites the database in n. This is needed if index is used to run on n nodes. (default=1)\n");
     usage.append("-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n");
     usage.append("-a              \t[int]\tAmino acid alphabet size (default=21).\n");
@@ -29,7 +29,7 @@ void parseArgs(int argc, const char** argv,
                std::string* ffindexSeqDB,
                std::string* ffindexOutDB,
                int *kmerSize, int *alphabetSize,
-               int *maxSeqLen, int * skip, int * split){
+               int *maxSeqLen, int * skip, int * split, bool * spacedKmer){
     if (argc < 2){
         printUsageFFindexToIndex();
         exit(EXIT_FAILURE);
@@ -86,7 +86,7 @@ void parseArgs(int argc, const char** argv,
             Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
             EXIT(EXIT_FAILURE);
         }
-    }        else if (strcmp(argv[i], "--skip") == 0){
+    }   else if (strcmp(argv[i], "--skip") == 0){
         if (++i < argc){
             *skip = atoi(argv[i]);
             i++;
@@ -96,7 +96,10 @@ void parseArgs(int argc, const char** argv,
             Debug(Debug::ERROR) << "No value provided for " << argv[i-1] << "\n";
             EXIT(EXIT_FAILURE);
         }
-    } else {
+    }   else if (strcmp(argv[i], "--no-spaced-kmer") == 0){
+        *spacedKmer = false;
+        i++;
+    }   else {
             Debug(Debug::ERROR) << "WRONG PARAMETER";
             printUsageFFindexToIndex();
             exit(EXIT_FAILURE);
@@ -115,14 +118,20 @@ int createindex (int argc, const char * argv[])
 
     int split = 1;
     int kmerSize =  6;
-    bool spacedKmer = false;
+    bool spacedKmer = true;
 
     int alphabetSize = 21;
     int maxSeqLen = 50000;
     int skip = 0;
-    parseArgs(argc, argv, &seqDB, &outDB, &kmerSize, &alphabetSize, &maxSeqLen, &skip, &split);
+    parseArgs(argc, argv, &seqDB, &outDB, &kmerSize, &alphabetSize, &maxSeqLen, &skip, &split, &spacedKmer);
 
-    std::string scoringMatrixFile = "/Users/mad/Documents/workspace/mmseqs/data/blosum62.out";
+    char* mmdir = getenv ("MMDIR");
+    if (mmdir == 0){
+        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+        exit(1);
+    }
+    std::string scoringMatrixFile(mmdir);
+    scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
     DBReader dbr(seqDB.c_str(), std::string(seqDB+".index").c_str());
     dbr.open(DBReader::SORT);
 

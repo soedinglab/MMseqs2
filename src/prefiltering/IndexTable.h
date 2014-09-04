@@ -42,11 +42,21 @@ class IndexTable {
             idxer = new Indexer(alphabetSize, kmerSize);
         
             this->tableEntriesNum = 0;
+            
+            entries = NULL;
         }
 
         virtual ~IndexTable(){
+            deleteEntries();
             delete[] table;
             delete idxer; }
+    
+        void deleteEntries(){
+            if(entries != NULL){
+                delete [] entries;
+                entries = NULL;
+            }
+        }
 
         // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
         void addKmerCount (Sequence* s){
@@ -101,21 +111,23 @@ class IndexTable {
     
         // init index table with external data (needed for index readin)
         void initTableByExternalData(uint64_t tableEntriesNum, unsigned short * sizes,
-                                     unsigned int * pentries, unsigned int sequenzeCount){
+                                     char * pentries, size_t sequenzeCount){
             this->tableEntriesNum = tableEntriesNum;
             this->size = sequenzeCount;
             initMemory();
-            memcpy ( this->entries , pentries, this->sizeOfEntry * (this->tableEntriesNum ));
+            memcpy ( this->entries , pentries, this->tableEntriesNum * this->sizeOfEntry );
             char* it = this->entries;
             // set the pointers in the index table to the start of the list for a certain k-mer
             for (size_t i = 0; i < tableSize; i++){
                 table[i] = it;
                 it += sizes[i] * this->sizeOfEntry;
             }
+            table[tableSize] = it;
+
         }
     
         void revertPointer(){
-            for(unsigned int i = tableSize-1; i > 0;i--){
+            for(size_t i = tableSize-1; i > 0;i--){
                 table[i] = table[i-1];
             }
             table[0] = entries;
@@ -133,20 +145,25 @@ class IndexTable {
         virtual void print(char * int2aa) = 0;
     
         // get amount of sequences in Index
-        unsigned int getSize() {  return size; };
+        size_t getSize() {  return size; };
     
         // returns the size of  table entries
         int64_t getTableEntriesNum(){ return tableEntriesNum; };
     
         // returns table size
-        unsigned int getTableSize(){ return tableSize; };
-
+        size_t getTableSize(){ return tableSize; };
+    
+        // returns table
+        char ** getTable(){ return table; };
+    
+        // returns the size of the entry (int for global) (IndexEntryLocal for local)
+        size_t getSizeOfEntry() { return sizeOfEntry; }
     protected:
         // number of entries in all sequence lists
         int64_t tableEntriesNum; // must be 64bit
     
         // alphabetSize**kmerSize
-        unsigned int tableSize;
+        size_t tableSize;
     
         // Index table: contains pointers to the point in the entries array where starts the list of sequence ids for a certain k-mer
         char** __restrict table;
@@ -166,7 +183,7 @@ class IndexTable {
         int skip;
     
         // amount of sequences in Index
-        unsigned int size;
+        size_t size;
     
         // entry size
         size_t sizeOfEntry;

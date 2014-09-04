@@ -36,11 +36,12 @@ void IndexTableLocal::removeDuplicateEntries(){
 
 void IndexTableLocal::print(char * int2aa){
     for (size_t i = 0; i < tableSize; i++){
-        const unsigned int entrieSize = ((unsigned int*)table[i])[0];
+        ptrdiff_t entrieSize = (table[i+1] - table[i]) / sizeof(IndexEntryLocal);
+
         if (entrieSize > 0){
             idxer->printKmer(i, kmerSize, int2aa);
             std::cout << "\n";
-            IndexEntryLocal * entries = (IndexEntryLocal *) (table[i] + sizeof(unsigned int));
+            IndexEntryLocal * entries = (IndexEntryLocal *) table[i];
             for (unsigned int j = 0; j < entrieSize; j++){
                 std::cout << "\t(" << entries[i].seqId << ", " << entries[i].position_j << ")\n";
             }

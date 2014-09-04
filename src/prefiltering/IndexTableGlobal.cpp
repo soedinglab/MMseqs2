@@ -3,7 +3,7 @@
 IndexTableGlobal::IndexTableGlobal (int alphabetSize, int kmerSize, int skip)
                     : IndexTable(alphabetSize, kmerSize, skip, sizeof(int)) { }
 
-IndexTableGlobal::~IndexTableGlobal(){ delete[] entries; }
+IndexTableGlobal::~IndexTableGlobal(){ }
 
 
 void IndexTableGlobal::addSequence (Sequence* s){
