@@ -17,10 +17,10 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader * reader){
     return (reader->getDataByDBKey((char*)VERSION) == NULL) ? false : true;
 }
     
-void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader * dbr, Sequence * seq,
+void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader * dbr, Sequence * seq,
                                 int split, int alphabetSize, int kmerSize, int skip )
 {
-    DBWriter writer(outDB.c_str(), std::string( outDB +".index").c_str(), DBWriter::BINARY_MODE);
+    DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
     writer.open();
     int stepCnt = split;
     for(int step = 0; step < stepCnt; step++){

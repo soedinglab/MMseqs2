@@ -1,0 +1,8 @@
+Import ('env')
+
+name = 'getoptpp'
+inc = env.Dir('.')
+src = env.Glob('*.cpp')
+deps = ['getoptpp','gmock','gtest_main', 'gtest', 'mili']
+
+env.CreateTest(name, inc, src, deps)

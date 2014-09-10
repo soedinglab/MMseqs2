@@ -5,16 +5,16 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
         std::string targetSeqDB, std::string targetSeqDBIndex,
         std::string prefDB, std::string prefDBIndex, 
         std::string outDB, std::string outDBIndex,
-        std::string matrixFile, double evalThr, double covThr, int maxSeqLen, int seqType){
+        Parameters par){
 
     BUFFER_SIZE = 10000000;
 
-    this->covThr = covThr;
+    this->covThr = par.covThr;
 
-    this->evalThr = evalThr;
+    this->evalThr = par.evalThr;
 
-    if (seqType == Sequence::AMINO_ACIDS)
-        this->m = new SubstitutionMatrix(matrixFile.c_str(), 2.0);
+    if (par.querySeqType == Sequence::AMINO_ACIDS)
+        this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0);
     else
         this->m = new NucleotideMatrix();
 
@@ -28,14 +28,14 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     dbSeqs = new Sequence*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
-        qSeqs[i] = new Sequence(maxSeqLen, m->aa2int, m->int2aa, seqType);
-        dbSeqs[i] = new Sequence(maxSeqLen, m->aa2int, m->int2aa, seqType);
+        qSeqs[i] = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.querySeqType);
+        dbSeqs[i] = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.querySeqType);
     }
 
     matchers = new Matcher*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++)
-        matchers[i] = new Matcher(m, maxSeqLen);
+        matchers[i] = new Matcher(m, par.maxSeqLen);
 
     // open the sequence, prefiltering and output databases
     qseqdbr = new DBReader(querySeqDB.c_str(), querySeqDBIndex.c_str());

@@ -16,6 +16,7 @@
 #include "Debug.h"
 #include "Log.h"
 #include "Util.h"
+#include "Parameters.h"
 
 #include "ExtendedSubstitutionMatrix.h"
 #include "ReducedMatrix.h"
@@ -30,25 +31,13 @@ class Prefiltering {
 
     public:
 
-        Prefiltering(std::string queryDB, 
-                std::string queryDBIndex,
-                std::string targetDB, 
-                std::string targetDBIndex,
-                std::string outDB, 
-                std::string ouDBIndex,
-                std::string scoringMatrixFile, 
-                float sensitivity, 
-                int kmerSize,
-                bool spacedKmer,
-                int maxResListLen,
-                int alphabetSize, 
-                float zscoreThr, 
-                size_t maxSeqLen, 
-                int querySeqType,
-                int targetSeqType,
-                bool aaBiasCorrection,
-                int split,
-                int skip);
+    Prefiltering(std::string queryDB,
+                 std::string queryDBIndex,
+                 std::string targetDB,
+                 std::string targetDBIndex,
+                 std::string outDB,
+                 std::string outDBIndex,
+                 Parameters par);
 
         ~Prefiltering();
         void run (size_t dbFrom,size_t dbSize,

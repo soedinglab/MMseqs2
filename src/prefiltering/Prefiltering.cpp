@@ -6,37 +6,27 @@
 #include "QueryTemplateMatcherGlobal.h"
 #include "QueryTemplateMatcherLocal.h"
 
+
 Prefiltering::Prefiltering(std::string queryDB,
-        std::string queryDBIndex,
-        std::string targetDB,
-        std::string targetDBIndex,
-        std::string outDB,
-        std::string outDBIndex,
-        std::string scoringMatrixFile,
-        float sensitivity,
-        int kmerSize,
-        bool spacedKmer,
-        int maxResListLen,
-        int alphabetSize,
-        float zscoreThr,
-        size_t maxSeqLen,
-        int querySeqType,
-        int targetSeqType,
-        bool aaBiasCorrection,
-        int split,
-        int skip):    outDB(outDB),
+                           std::string queryDBIndex,
+                           std::string targetDB,
+                           std::string targetDBIndex,
+                           std::string outDB,
+                           std::string outDBIndex,
+                           Parameters par):
+    outDB(outDB),
     outDBIndex(outDBIndex),
-    kmerSize(kmerSize),
-    spacedKmer(spacedKmer),
-    maxResListLen(maxResListLen),
-    alphabetSize(alphabetSize),
-    zscoreThr(zscoreThr),
-    maxSeqLen(maxSeqLen),
-    querySeqType(querySeqType),
-    targetSeqType(targetSeqType),
-    aaBiasCorrection(aaBiasCorrection),
-    split(split),
-    skip(skip)
+    kmerSize(par.kmerSize),
+    spacedKmer(par.spacedKmer),
+    maxResListLen(par.maxResListLen),
+    alphabetSize(par.alphabetSize),
+    zscoreThr(par.zscoreThr),
+    maxSeqLen(par.maxSeqLen),
+    querySeqType(par.querySeqType),
+    targetSeqType(par.targetSeqType),
+    aaBiasCorrection(par.compBiasCorrection),
+    split(par.split),
+    skip(par.skip)
 {
     if(this->split == 0 )
         this->split = 1;
@@ -68,8 +58,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     DBWriter::errorIfFileExist(outDB.c_str());
     DBWriter::errorIfFileExist(outDBIndex.c_str());
     
-    Debug(Debug::INFO) << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
-    Debug(Debug::INFO) << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
+    Debug(Debug::INFO) << "Query database: " << par.db1 << "(size=" << qdbr->getSize() << ")\n";
+    Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
 
     // init the substitution matrices
     // TODO set bitfactor for local and global 2.0 for local search
@@ -81,12 +71,12 @@ Prefiltering::Prefiltering(std::string queryDB,
             _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
             break;
         case Sequence::AMINO_ACIDS:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0);
+            subMat = getSubstitutionMatrix(par.scoringMatrixFile, alphabetSize, 8.0);
             _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
             _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
             break;
         case Sequence::HMM_PROFILE:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0); // needed for Background distrubutions
+            subMat = getSubstitutionMatrix(par.scoringMatrixFile, alphabetSize, 8.0); // needed for Background distrubutions
             _2merSubMatrix = NULL;
             _3merSubMatrix = NULL;
             break;
@@ -108,8 +98,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     }
 
     // set the k-mer similarity threshold
-    Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
-    std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, sensitivity, 0.1);
+    Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << par.sensitivity << ")...\n";
+    std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, par.sensitivity, 0.1);
     //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
     //std::pair<short, double> ret = std::pair<short, double>(80, 8.18064e-05);
     this->kmerThr = ret.first;

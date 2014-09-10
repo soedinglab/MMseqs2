@@ -2,9 +2,9 @@
 #include "Debug.h"
 #include <stdio.h>
 void printUsageFFindexToFasta(){
-    std::string usage("\nMerge multiple ffindex files based on simular id into one file. \n");
+    std::string usage("\nConverts a ffindex database to fasta \n");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE: ffindex_database_merge ffindexDB fastaOutDB [ffindexHeaderDB]\n");
+    usage.append("USAGE: <ffindexDB> <fastaDB> [ffindexHeaderDB]\n");
     Debug(Debug::ERROR) << usage;
 }
 

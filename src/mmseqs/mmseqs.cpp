@@ -31,15 +31,15 @@ void printUsage(){
     std::string usage("\nAll possible mmseqs command\n");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("Main tools: \n"
+                 "prefilter          \tCalculates similarity scores between all sequences in the query db and all sequences in the target db\n"
                  "alignment          \tCalculates Smith-Waterman alignment scores from prefilter output\n"
                  "cluster            \tCalculates clustering of a sequence database based on alignment output with set cover algorithm\n"
-                 "clusteringworkflow \tCalculates cascaded clustering of a sequence database. (Prefiltering -> Alignment -> cluster)*n \n"
+                 "clusteringworkflow \tCalculates cascaded clustering of a ffindex sequence database. (Prefiltering -> Alignment -> cluster)*n \n"
                  "clusterupdate      \tUpdates the existing clustering of the previous database version with new sequences from the current version\n"
-                 "prefilter          \tCalculates similarity scores between all sequences in the query db and all sequences in the target db\n"
                  "\nHelper: \n"
                  "createdb           \tConvert fasta to ffindex (all programs need ffindex as input)\n"
-                 "createfasta        \tConvert ffindex to fasta\n"
                  "createindex        \tConvert ffindex to fast index for prefiltering\n"
+                 "createfasta        \tConvert ffindex to fasta\n"
                  "mergeffindex       \tMerge multiple ffindex files based on similar id into one file.\n"
                  );
     Debug(Debug::INFO) << usage;

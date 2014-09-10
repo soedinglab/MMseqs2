@@ -1,0 +1,16 @@
+Import ('env')
+
+inc = env.Dir('.')
+deps = ['getoptpp']
+
+env.CreateProgram('getoptpp-example_general1', inc, env.File('example_general1.cpp'), deps)
+env.CreateProgram('getoptpp-example_extendingtypes_date', inc, env.File('example_extendingtypes_date.cpp'), deps)
+env.CreateProgram('getoptpp-example_formatflags', inc, env.File('example_formatflags.cpp'), deps)
+env.CreateProgram('getoptpp-example_env', inc, env.File('example_env.cpp'), deps)
+env.CreateProgram('getoptpp-example_global_option', inc, env.File('example_global_option.cpp'), deps)
+env.CreateProgram('getoptpp-example_helloworld', inc, env.File('example_helloworld.cpp'), deps)
+env.CreateProgram('getoptpp-example_helloworld_ex', inc, env.File('example_helloworld_ex.cpp'), deps)
+env.CreateProgram('getoptpp-example_iterators', inc, env.File('example_iterators.cpp'), deps)
+env.CreateProgram('getoptpp-example_nomanip', inc, env.File('example_nomanip.cpp'), deps)
+env.CreateProgram('getoptpp-example_nomanip_ex', inc, env.File('example_nomanip_ex.cpp'), deps)
+

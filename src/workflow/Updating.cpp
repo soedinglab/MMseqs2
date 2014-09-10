@@ -37,77 +37,6 @@ int seqsWithMatches;
 int seqsWithoutMatches;
 int newClus;
 
-void printUsageUpdate(){
-
-    std::string usage("\nUpdates the existing clustering of the previous database version with new sequences from the current version of the same database.\n");
-    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: mmseqs_update <oldDB> <newDB> <oldDB_clustering> <outDB> <tmpDir> [opts]\n"
-            "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
-            "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n");
-    std::cout << usage;
-}
-
-void parseArgs(int argc, const char** argv, std::string* ffindexLastSeqDBBase, std::string* ffindexCurrentSeqDBBase, std::string* ffindexCluDBBase, std::string* ffindexOutDBBase, 
-        std::string* tmpDir, std::string* scoringMatrixFile, size_t* maxSeqLen){
-    if (argc < 4){
-        printUsageUpdate();
-        exit(EXIT_FAILURE);
-    }
-
-    ffindexLastSeqDBBase->assign(argv[1]);
-    ffindexCurrentSeqDBBase->assign(argv[2]);
-    ffindexCluDBBase->assign(argv[3]);
-    ffindexOutDBBase->assign(argv[4]);
-    tmpDir->assign(argv[5]);
-
-    int i = 6;
-    while (i < argc){
-        if (strcmp(argv[i], "-m") == 0){
-            if (++i < argc){
-                scoringMatrixFile->assign(argv[i]);
-                i++;
-            }
-            else {
-                printUsageUpdate();
-                std::cerr << "No value provided for " << argv[i] << "\n";
-                exit(EXIT_FAILURE);
-            }
-        }
-        else if (strcmp(argv[i], "--sub-mat") == 0){
-            if (++i < argc){
-                scoringMatrixFile->assign(argv[i]);
-                i++;
-            }
-            else {
-                printUsageUpdate();
-                std::cerr << "No value provided for " << argv[i] << "\n";
-                exit(EXIT_FAILURE);
-            }
-        } 
-        else if (strcmp(argv[i], "--max-seq-len") == 0){
-            if (++i < argc){
-                *maxSeqLen = atoi(argv[i]);
-                i++;
-            }
-            else {
-                printUsageUpdate();
-                std::cerr << "No value provided for " << argv[i] << "\n";
-                exit(EXIT_FAILURE);
-            }
-        }
-        else {
-            printUsageUpdate();
-            std::cerr << "Wrong argument: " << argv[i] << "\n";
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    if (strcmp (scoringMatrixFile->c_str(), "") == 0){
-        printUsageUpdate();
-        std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
-        exit(EXIT_FAILURE);
-    }
-}
 
 void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string oldDBIndex, std::string newDBIndex){
 
@@ -173,10 +102,7 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
 
 std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
         std::string targetDB, std::string targetDBIndex,
-        std::string tmpDir,
-        std::string scoringMatrixFile, int maxSeqLen, int querySeqType, int targetSeqType,
-        int kmerSize, bool spacedKmer, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
-        double evalThr, double covThr, int maxAlnNum, std::string dbName, std::list<std::string>* tmpFiles){
+        std::string tmpDir, Parameters par, std::string dbName, std::list<std::string>* tmpFiles){
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -187,11 +113,12 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     std::string prefDBIndex = prefDB + ".index";
     tmpFiles->push_back(prefDB);
     tmpFiles->push_back(prefDBIndex);
-    Prefiltering* pref = new Prefiltering (queryDB, queryDBIndex,
-            targetDB, targetDBIndex,
-            prefDB, prefDBIndex,
-            scoringMatrixFile, sensitivity, kmerSize, spacedKmer, maxResListLen, alphabetSize,
-            zscoreThr, maxSeqLen, querySeqType, targetSeqType, aaBiasCorrection, split, skip);
+
+    
+    Prefiltering* pref = new Prefiltering (queryDB,  queryDBIndex,
+                                           targetDB, targetDBIndex,
+                                           prefDB,   prefDBIndex,
+                                           par);
     std::cout << "Starting prefiltering scores calculation.\n";
     pref->run();
     delete pref;
@@ -211,9 +138,9 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
             targetDB, targetDBIndex,
             prefDB, prefDBIndex,
             alnDB, alnDBIndex,
-            scoringMatrixFile, evalThr, covThr, maxSeqLen, querySeqType);
+            par);
     std::cout << "Starting alignments calculation.\n";
-    aln->run(maxResListLen, 10);
+    aln->run(par.maxResListLen, 10);
     delete aln;
 
     gettimeofday(&end, NULL);
@@ -281,6 +208,7 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, unsigned int* id2rep
             cluMemDbKey = strtok(NULL, "\n");
         }
     }
+    delete buf;
     cluDbr->close();
     return ret;
 }
@@ -339,7 +267,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
             seqsWithoutMatches++;
         }
     }
-
+    delete buf;
     BADbr->close();
     fclose(Brest_index_file);
 }
@@ -384,46 +312,25 @@ int clusterupdate (int argc, const char * argv[]){
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
-    // general parameters
-    size_t maxSeqLen = 50000;
-    int querySeqType = Sequence::AMINO_ACIDS;
-    int targetSeqType = Sequence::AMINO_ACIDS;
-
-
-    // parameter for the prefiltering
-    int kmerSize = 6;
-    bool spacedKmer = false;
-
-    int alphabetSize = 21;
-    size_t maxResListLen = 100;
-    int split = 0;
-    int skip = 0;
-    bool aaBiasCorrection = true;
-    float zscoreThr = 50.0f;
-    float sensitivity = 4.0;
-
-    // parameters for the alignment
-    double evalThr = 0.001;
-    double covThr = 0.8;
-    int maxAlnNum = 10;
-
-    std::string lastSeqDB = "";
-    std::string currentSeqDB = "";
-    std::string cluDB = ""; 
-    std::string outDB = "";
-    std::string tmpDir = "";
-
-    // get the path of the scoring matrix
-    char* mmdir = getenv ("MMDIR");
-    if (mmdir == 0){
-        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
-        exit(1);
-    }
-    std::string scoringMatrixFile(mmdir);
-    scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
-
-    parseArgs(argc, argv, &lastSeqDB, &currentSeqDB, &cluDB, &outDB, &tmpDir, &scoringMatrixFile, &maxSeqLen);
-
+    std::string usage("\nUpdates the existing clustering of the previous database version with new sequences from the current version of the same database.\n");
+        usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+        usage.append("USAGE: update <oldDB> <newDB> <oldDB_clustering> <outDB> <tmpDir> [opts]\n");
+    std::vector<MMseqsParameter> perfPar = {
+        Parameters::PARAM_SUB_MAT,
+        Parameters::PARAM_MAX_SEQS,
+        Parameters::PARAM_MAX_SEQ_LEN,
+        Parameters::PARAM_V};
+    Parameters par;
+    par.parseParameters(argc, (char**)argv, usage, perfPar, 5);
+    
+    Debug::setDebugLevel(par.verbosity);
+    
+    std::string lastSeqDB = par.db1;
+    std::string currentSeqDB = par.db2;
+    std::string cluDB = par.db3;
+    std::string outDB = par.db4;
+    std::string tmpDir = par.db5;
+    
     std::string lastSeqDBIndex = lastSeqDB + ".index";
     std::string currentSeqDBIndex = currentSeqDB + ".index";
     std::string cluDBIndex = cluDB + ".index";
@@ -459,10 +366,7 @@ int clusterupdate (int argc, const char * argv[]){
     // B->A scores
     std::string BA_base = runScoresCalculation(currentSeqDB, BIndex,
             currentSeqDB, AIndex,
-            tmpDir,
-            scoringMatrixFile, maxSeqLen, querySeqType, targetSeqType,
-            kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection,
-            zscoreThr, sensitivity, evalThr, covThr, maxAlnNum, "BA", tmpFiles);
+            tmpDir, par, "BA", tmpFiles);
 
     std::cout << "////////////////////////////////////////////////////////////////////////\n";
     std::cout << "///////      Adding sequences to existing clusters         /////////////\n";
@@ -500,10 +404,7 @@ int clusterupdate (int argc, const char * argv[]){
         // B->B scores
         std::string BB_base = runScoresCalculation(currentSeqDB, Brest_indexFile, 
                 currentSeqDB, Brest_indexFile,
-                tmpDir,
-                scoringMatrixFile, maxSeqLen, querySeqType, targetSeqType,
-                kmerSize, spacedKmer, alphabetSize, maxResListLen, split, skip, aaBiasCorrection,
-                zscoreThr, sensitivity, evalThr, covThr, maxAlnNum, "BB", tmpFiles);
+                tmpDir, par, "BB", tmpFiles);
 
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
         std::cout << "///////             Appending new clusters                 /////////////\n";
@@ -514,12 +415,13 @@ int clusterupdate (int argc, const char * argv[]){
         Clustering* clu = new Clustering(currentSeqDB, currentSeqDBIndex,
                 BB_base, BB_base + ".index",
                 BB_clu, BB_clu_index,
-                0.0, 0, maxResListLen);
+                0.0, 0, par.maxResListLen);
         clu->run(Clustering::SET_COVER); 
 
         std::cout << "Append generated clusters to the complete clustering...\n";
         // append B->B clusters to the clustering
         newClus = readClustering(currSeqDbr, BB_clu, id2rep, rep2cluName, clusters);
+        delete clu;
     }
 
     // write new clustering
@@ -528,7 +430,7 @@ int clusterupdate (int argc, const char * argv[]){
     std::cout << "done.\n";
 
     currSeqDbr->close();
-
+    delete currSeqDbr;
     std::cout << "////////////////////////////////////////////////////////////////////////\n";
     std::cout << "///////                   Statistics                            ////////\n";
     std::cout << "////////////////////////////////////////////////////////////////////////\n";

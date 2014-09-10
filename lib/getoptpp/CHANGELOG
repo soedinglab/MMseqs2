@@ -1,0 +1,122 @@
+Version 2.18
+============
+    * Changed GetOpt_pp's license: from GPLv3 to Boost Software License - Version 1.0.
+
+Version 2.17
+============
+    * Implemented issue 22: parse suboptions @file.
+    * Fixed issue reported by Matthias Siebert that caused extracted option arguments
+      to still remain available as global options.
+
+Version 2.16
+============
+    * Fixed issue 31: things like '-?' were not properly parsed.
+
+Version 2.15
+============
+    * Fixed issue 26: linker issues under Mac OSX.
+    * Fixed issue 29: Added examples to SConscript (enabling fudepan-build).
+    * Fixed issue 28.
+
+Version 2.15RC2
+===============
+    * Fixed issue 23: option_remains didn't check global options.
+    * Removed warnings of unused parameters when compiled with -Wextra
+
+Version 2.15RC1
+===============
+    * Added support for long flag only options (issue 21)
+
+Version 2.14RC1
+===============
+    * several fixes to the makefile. Additionally, non-root users can use static lib.
+    * GPLv3 heading fixed (referred to an old application).
+    * refactor the parser to be helped by the options.
+    * replaced EMPTY_OPTION by GlobalOption logic.
+
+Version 2.13
+============
+    * fix for Mac OS X
+
+
+Version 2.12
+============
+    * changed license from Affero to GPL3 (Non-affero). This was always the intention.
+
+
+Version 2.11
+============
+    * Added include of 'unistd.h' for old glibc headers (thanks grunertj)
+
+
+Version 2.1
+===========
+    * Added 'end_of_options' method, and added `TooManyOptionsEx' exception. Refer to documentation.
+    * Added method 'exceptions_all()'.
+    * Fixed behavior bug in OptionPresent when exceptions were activated.
+
+
+Version 2.01
+============
+    * Fixed syntax so it compiles in VStudio 2003
+
+
+Version 2.0
+===========
+    * Added command line iterators.
+    * Added ability to include environment variables as long options.
+
+
+Version 1.01
+============
+    * Optimized parser.
+    * Added EMPTY_OPTION support [Issue #6]
+    * Added multiple short options in a single entry support [Issue #9]
+    * Added 'standalone' header (getopt_pp_standalone.h)
+
+
+Version 1.0
+===========
+    * Added format flags support (i.e. std::hex)
+
+
+Version 0.91
+============
+    * Fixed syntact errors. Now is fully ANSI compliant, and compiles in Visual C++ 2003.
+    * Added example for extending types.
+ 
+
+Version 0.9
+===========
+    * Added validation for trailing garbage after numbers (i.e. '123x')  [Issue #7]
+    * Added 'option_remains()' method for validating if all the options were extracted. [Issue #8]
+    * String code removed [Issue #10]
+
+
+Version 0.8
+===========
+    * Added std::vector<> support. (see example general1)
+    * Added alternative method for retrieving options without manipulators: 'getopt()' method
+    * std::exception is now a public base class of GetOptEx exception.
+
+
+Version 0.7
+===========
+    * Added exception hierarchy, instead of throwing an integer.
+    
+
+Version 0.6
+===========
+    * fixed bug in OptionPresent.
+    * Now, OptionPresent receives optionally a target bool. If it's not present, returns the result
+	in the >> operator.
+
+
+Version 0.5
+===========
+    * Everything enclosed within GetOpt namespace.
+
+
+Version 0.4
+===========
+    * Added default values support.

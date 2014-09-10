@@ -97,15 +97,12 @@ class IndexTable {
         // allocates memory for index tables
         void init(){
             char * it = entries;
-            size_t tmp = 0;
             // set the pointers in the index table to the start of the list for a certain k-mer
             for (size_t i = 0; i < tableSize; i++){
                 const size_t entriesCount = (size_t) table[i];
-                tmp += entriesCount;
                 table[i] = (char *) it;
                 it += (entriesCount * this->sizeOfEntry);
             }
-            std::cout << "Elements: " << tmp << std::endl;
             table[tableSize] = it;
         }
     

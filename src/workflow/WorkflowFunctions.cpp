@@ -1,33 +1,25 @@
 #include "WorkflowFunctions.h"
 
 
-std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::string targetDBData, std::string targetDBIndex, std::string tmpDir,
-        std::string scoringMatrixFile, int maxSeqLen, int seqType,
-        int kmerSize, bool spacedKmer, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection, float zscoreThr, float sensitivity,
-        double evalThr, double covThr, int maxRejects,
-        int step_num, int restart, bool search, std::list<std::string>* tmpFiles){
+std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::string targetDBData, std::string targetDBIndex, std::string tmpDir, Parameters par, int step_num, int restart, bool search, std::list<std::string>* tmpFiles){
 
     std::cout << "------------------------------------------------------------\n";
     std::cout << "GENERAL PARAMETERS:\n";
-    std::cout << "max. sequence length: " << maxSeqLen << "\n";
-    std::cout << "max. result list length: " << maxResListLen << "\n";
+    std::cout << "max. sequence length: " << par.maxSeqLen << "\n";
+    std::cout << "max. result list length: " << par.maxResListLen << "\n";
     std::cout << "PREFILTERING PARAMETERS:\n";
-    std::cout << "k-mer size: " << kmerSize << "\n";
-    std::cout << "z-score threshold: " << zscoreThr << "\n";
-    std::cout << "sensitivity: " << sensitivity << "\n";
+    std::cout << "k-mer size: " << par.kmerSize << "\n";
+    std::cout << "z-score threshold: " << par.zscoreThr << "\n";
+    std::cout << "sensitivity: " << par.sensitivity << "\n";
     std::cout << "ALIGNMENT PARAMETERS:\n";
-    std::cout << "e-value threshold: " << evalThr << "\n";
-    std::cout << "coverage threshold: " << covThr << "\n";
-    std::cout << "Maximum number of rejects: " << maxRejects << "\n";
+    std::cout << "e-value threshold: " << par.evalThr << "\n";
+    std::cout << "coverage threshold: " << par.covThr << "\n";
+    std::cout << "Maximum number of rejects: " << par.maxRejected << "\n";
     std::cout << "------------------------------------------------------------\n\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
     // prefiltering step
-    
-    int querySeqType = Sequence::AMINO_ACIDS;
-    int targetSeqType = Sequence::AMINO_ACIDS;
-
     std::stringstream ss;
     ss << step_num;
     std::string prefDB_step = tmpDir + "/db_pref_step" + ss.str();
@@ -41,8 +33,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
         Prefiltering* pref = new Prefiltering (inDBData, inDBWorkingIndex,
                 targetDBData, targetDBIndex,
                 prefDB_step, prefDB_step_index,
-                scoringMatrixFile, sensitivity, kmerSize, spacedKmer, maxResListLen, alphabetSize,
-                zscoreThr, maxSeqLen, querySeqType, targetSeqType, aaBiasCorrection, split, skip);
+                par);
         std::cout << "Starting prefiltering scores calculation.\n";
         pref->run();
         delete pref;
@@ -65,9 +56,9 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
                 targetDBData, targetDBIndex,
                 prefDB_step, prefDB_step_index,
                 alnDB_step, alnDB_step_index,
-                scoringMatrixFile, evalThr, covThr, maxSeqLen, seqType);
+                par);
         std::cout << "Starting alignments calculation.\n";
-        aln->run(maxResListLen, maxRejects);
+        aln->run(par.maxResListLen, par.maxRejected);
         delete aln;
 
         gettimeofday(&end, NULL);
@@ -90,7 +81,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
         Clustering* clu = new Clustering(inDBData, inDBWorkingIndex,
                 alnDB_step, alnDB_step_index,
                 cluDB_step, cluDB_step_index,
-                0.0, 0, maxResListLen);
+                0.0, 0, par.maxResListLen);
         clu->run(Clustering::SET_COVER);
         delete clu;
 

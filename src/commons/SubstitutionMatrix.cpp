@@ -33,7 +33,7 @@ void SubstitutionMatrix::readProbMatrix(){
     int column = 0;
     std::string line;
     bool capture = false;
-    char aa_lookup[20];
+    unsigned char aa_lookup[20];
     while( in.good() ){
         getline( in, line );
         if( line.length()>11 && line.substr(0, 11)!="Frequencies" && !capture )

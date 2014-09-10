@@ -34,11 +34,11 @@ extern "C" {
 KSEQ_INIT(int, read);
 
 
-void usage(const char *program_name)
+void usage()
 {
     fprintf(stderr, "Converts a fasta database to ffindex.\n");
-    fprintf(stderr, "USAGE: %s  fastaInDB ffindexOutDB\n"
-            "\nDesigned and implemented by Andreas Hauser, Martin Steinegger <martin.steinegger@campus.lmu.de>.\n", program_name);
+    fprintf(stderr, "USAGE: <fastaDB>  <ffindexDB>\n"
+            "\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
 }
 
 
@@ -104,7 +104,7 @@ int createdb(int argn,const char **argv)
 
     if(argn  <  3)
     {
-        usage(argv[0]);
+        usage();
         return EXIT_FAILURE;
     }
 

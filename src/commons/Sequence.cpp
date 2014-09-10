@@ -222,7 +222,7 @@ void Sequence::mapProfile(const char * sequenze){
 
 void Sequence::nextProfileKmer() {
     int pos = 0;
-    for(unsigned int i = 0; i < this->spacedPatternSize; i++) {
+    for(int i = 0; i < this->spacedPatternSize; i++) {
         if(spacedPattern[i]) {
             unsigned int * index = profile_index + ((currItPos + i) * profile_row_size);
             short * score        = profile_score + ((currItPos + i) * profile_row_size);
@@ -310,7 +310,7 @@ const int * Sequence::nextKmer() {
         
         const int * posToRead = int_sequence + currItPos;
         int * currWindowPos = kmerWindow;
-        for(unsigned int i = 0; i < this->spacedPatternSize; i++) {
+        for(int i = 0; i < this->spacedPatternSize; i++) {
             if(spacedPattern[i]) {
                 currWindowPos[0] = posToRead[i];
                 currWindowPos++;

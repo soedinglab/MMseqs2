@@ -21,6 +21,8 @@
 #include "Log.h"
 
 #include "Matcher.h"
+#include "Parameters.h"
+
 
 class Alignment {
 
@@ -30,7 +32,7 @@ class Alignment {
                 std::string targetSeqDB, std::string targetSeqDBIndex,
                 std::string prefDB, std::string prefDBIndex,
                 std::string outDB, std::string outDBIndex,
-                std::string matrixFile, double evalThr, double covThr, int maxSeqLen, int seqType);
+                Parameters par);
 
         ~Alignment();
 

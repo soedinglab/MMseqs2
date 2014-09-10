@@ -117,7 +117,7 @@ class Sequence
         // read next kmer profile in profile_matrix
         void nextProfileKmer();
         // size of Pattern
-        unsigned int spacedPatternSize;
+        int spacedPatternSize;
         // contains spaced pattern e.g. 1 1 1 1 0 1 0 1 0 1
         const char * spacedPattern;
         // sequence window will be filled by newxtKmer (needed for spaced patterns)

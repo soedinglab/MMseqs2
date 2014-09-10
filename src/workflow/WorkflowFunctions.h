@@ -5,9 +5,11 @@
 #include <sys/time.h>
 #include <list>
 
-#include "../prefiltering/Prefiltering.h"
-#include "../alignment/Alignment.h"
-#include "../clustering/Clustering.h"
+#include "Prefiltering.h"
+#include "Alignment.h"
+#include "Clustering.h"
+#include "Parameters.h"
+
 
 extern "C" {
 #include "ffindex.h"
@@ -15,9 +17,7 @@ extern "C" {
 }
 
 std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::string targetDBData, std::string targetDBIndex, std::string tmpDir,
-        std::string scoringMatrixFile, int maxSeqLen, int seqType,
-        int kmerSize, bool spacedKmer, int alphabetSize, size_t maxResListLen, int split, int skip, bool aaBiasCorrection,
-        float zscoreThr, float sensitivity, double evalThr, double covThr, int maxRejects,
+        Parameters par,
         int step_num, int restart, bool search, std::list<std::string>* tmpFiles);
 
 void copy(std::string inFile, std::string outFile);

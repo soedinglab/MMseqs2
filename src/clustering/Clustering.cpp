@@ -171,7 +171,7 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
     }
     int notin = 0;
     int toomuch = 0;
-    for (int i = 0; i < uniqu_element_count; i++){
+    for (unsigned int i = 0; i < uniqu_element_count; i++){
         if (control[i] == 0){
             Debug(Debug::INFO) << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is missing in the clustering!\n";
             Debug(Debug::INFO) << "len = " <<  seqDbr->getSeqLens()[i] << "\n";
@@ -261,11 +261,14 @@ Clustering::set_data Clustering::read_in_set_data(){
                 std::cerr << "ERROR: Element " << dbKey << " contained in some alignment list, but not contained in the sequence database!\n";
                 exit(1);
             }
-            int score = atoi(strtok(NULL, "\t")); // score
-            float qcov = atof(strtok(NULL, "\t")); // query sequence coverage
-            float dbcov = atof(strtok(NULL, "\t")); // db sequence coverage
+            //int score = atoi(strtok(NULL, "\t")); // score
+            strtok(NULL, "\t");
+            //float qcov = atof(strtok(NULL, "\t")); // query sequence coverage
+            strtok(NULL, "\t");
+            //float dbcov = atof(strtok(NULL, "\t")); // db sequence coverage
+            strtok(NULL, "\t");
             float seqId = atof(strtok(NULL, "\t")); // sequence identity
-            double eval = atof(strtok(NULL, "\n")); // e-value
+            //double eval = atof(strtok(NULL, "\n")); // e-value
             // add an edge if it meets the thresholds
             if (seqId >= seqIdThr){
                 element_buffer[element_counter++]=curr_element;

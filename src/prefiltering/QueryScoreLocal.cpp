@@ -81,7 +81,7 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned
             //              << diagCurr << " " << diagPrev << " " << std::abs(diagCurr - diagPrev) << std::endl;
             // Subtract gap costs for gap
             //scoreDiagonalSwitch -= (diagPrev == INT_MAX) ?  0.0 :
-                                    this->gapOpenPenalty + this->gapExtendPenalty * std::abs(diagCurr - diagPrev);
+            //                        this->gapOpenPenalty + this->gapExtendPenalty * std::abs(diagCurr - diagPrev);
             //scoreCurr = (scoreCurr > scoreCurr + scoreDiagonalSwitch) ? scoreCurr : scoreCurr + scoreDiagonalSwitch;
 
         }
