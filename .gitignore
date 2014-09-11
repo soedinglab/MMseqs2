@@ -31,3 +31,5 @@ util/ffindex_to_fasta
 *.depend
 *.swp
 src/workflow/time_test
+
+build/
