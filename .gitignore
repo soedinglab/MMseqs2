@@ -33,3 +33,4 @@ util/ffindex_to_fasta
 src/workflow/time_test
 
 build/
+.idea/
