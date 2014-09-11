@@ -19,6 +19,9 @@ struct MMseqsParameter {
 class Parameters          // Parameters for gap penalties and pseudocounts
 {
 public:
+    
+    static const int SET_COVER = 0;
+    static const int GREEDY = 1;
     // COMMON
     char** argv;            //command line parameters
     char argc;              //dimension of argv

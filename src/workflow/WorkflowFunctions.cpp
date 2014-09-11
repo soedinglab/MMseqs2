@@ -82,7 +82,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
                 alnDB_step, alnDB_step_index,
                 cluDB_step, cluDB_step_index,
                 0.0, 0, par.maxResListLen);
-        clu->run(Clustering::SET_COVER);
+        clu->run(Parameters::SET_COVER);
         delete clu;
 
         gettimeofday(&end, NULL);

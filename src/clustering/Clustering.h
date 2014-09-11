@@ -21,6 +21,8 @@
 #include "../commons/DBWriter.h"
 #include "../commons/Log.h"
 #include "../commons/Debug.h"
+#include "Parameters.h"
+
 
 class Clustering {
 
@@ -45,8 +47,7 @@ class Clustering {
 
         void run(int mode);
 
-        static const int SET_COVER = 0;
-        static const int GREEDY = 1;
+
 
     private:
         // check if every element is member in only one cluster

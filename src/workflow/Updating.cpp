@@ -416,7 +416,7 @@ int clusterupdate (int argc, const char * argv[]){
                 BB_base, BB_base + ".index",
                 BB_clu, BB_clu_index,
                 0.0, 0, par.maxResListLen);
-        clu->run(Clustering::SET_COVER); 
+        clu->run(Parameters::SET_COVER);
 
         std::cout << "Append generated clusters to the complete clustering...\n";
         // append B->B clusters to the clustering

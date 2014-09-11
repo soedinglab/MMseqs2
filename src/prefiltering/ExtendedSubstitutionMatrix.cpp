@@ -34,7 +34,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
     std::vector<std::vector<int> > permutation;
     std::vector<int> outputTemp;
     createCartesianProduct(permutation, outputTemp, input.begin(), input.end());
-    std::pair<short,unsigned int> tmpScoreMatrix[this->size];
+    std::pair<short,unsigned int> * tmpScoreMatrix = new std::pair<short, unsigned int> [this->size];
     // fill matrix
     for(std::vector<int>::size_type i = 0; i != permutation.size(); i++) {
         const unsigned int i_index=indexer.int2index(&permutation[i][0]);
@@ -51,6 +51,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
             index[(i_index * row_size) + z] = tmpScoreMatrix[z].second;
         }
     }
+    delete tmpScoreMatrix;
     this->scoreMatrix = new ScoreMatrix(score, index, size, row_size);
 
 }

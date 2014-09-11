@@ -30,7 +30,7 @@ void Clustering::run(int mode){
 
     std::list<set *> ret;
     Clustering::set_data set_data;
-    if (mode == SET_COVER){
+    if (mode == Parameters::SET_COVER){
         Debug(Debug::INFO) << "Clustering mode: SET COVER\n";
         Debug(Debug::INFO) << "Reading the data...\n";
         set_data = read_in_set_data();
@@ -59,7 +59,7 @@ void Clustering::run(int mode){
         writeData(ret);
         Debug(Debug::INFO) << "...done.\n";
     }
-    else if (mode == GREEDY){
+    else if (mode == Parameters::GREEDY){
         Debug(Debug::INFO) << "Clustering mode: GREEDY\n";
         Debug(Debug::INFO) << "Reading the data...\n";
         set_data = read_in_set_data();

@@ -2,7 +2,6 @@
 #include "Parameters.h"
 #include "Sequence.h"
 #include "Debug.h"
-#include "Clustering.h"
 #include "getoptpp/getopt_pp_standalone.h" // external lib for parsing
 #include <iomanip>
 
@@ -186,7 +185,7 @@ void Parameters::setDefaults() {
     covThr = 0.8;
     maxRejected = INT_MAX;
     
-    clusteringMode = Clustering::SET_COVER;
+    clusteringMode = Parameters::SET_COVER;
     seqIdThr = 0.0;
     validateClustering = 0;
     cascaded = false;
