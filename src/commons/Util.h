@@ -31,8 +31,8 @@ extern "C" {
 #endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
-#define SSTR( x ) dynamic_cast< std::ostringstream & >( \
-( std::ostringstream() << std::dec << x ) ).str()
+#define SSTR( x ) dynamic_cast< std::ostringstream& >( \
+( std::ostringstream().flush() << std::dec << x ) ).str()
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 

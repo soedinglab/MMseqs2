@@ -6,6 +6,33 @@
 #include <iomanip>
 
 
+
+const MMseqsParameter Parameters::PARAM_S=MMseqsParameter("-s",                    "[float]\tSensitivity in the range [1:9]");
+const MMseqsParameter Parameters::PARAM_K={"-k",                    "[int]\tk-mer size in the range [4:7]"};
+const MMseqsParameter Parameters::PARAM_THREADS={"--threads",        "[int]\tNumber of cores used for the computation"};
+const MMseqsParameter Parameters::PARAM_ALPH_SIZE={"--alph-size",    "[int]\tAmino acid alphabet size"};
+const MMseqsParameter Parameters::PARAM_MAX_SEQ_LEN={"--max-seq-len","[int]\tMaximum sequence length"};
+const MMseqsParameter Parameters::PARAM_PROFILE={"--profile",        "\tHMM Profile input"};
+const MMseqsParameter Parameters::PARAM_NUCL={"--nucl",              "\tNucleotide sequences input"};
+const MMseqsParameter Parameters::PARAM_Z_SCORE={"--z-score",        "[float]\tZ-score threshold "};
+const MMseqsParameter Parameters::PARAM_SKIP={"--skip",              "[int]\tNumber of skipped k-mers during the index table generation"};
+const MMseqsParameter Parameters::PARAM_MAX_SEQS={"--max-seqs",      "[int]\tMaximum result sequences per query"};
+const MMseqsParameter Parameters::PARAM_SPLIT={"--split",            "[int]\tSplits target databases in n equal distrbuted junks"};
+const MMseqsParameter Parameters::PARAM_SUB_MAT={"--sub-mat",        "[file]\tAmino acid substitution matrix file"};
+const MMseqsParameter Parameters::PARAM_SEARCH_MODE={"--search-mode","[int]\tSearch mode loc: 1 glob: 2"};
+const MMseqsParameter Parameters::PARAM_NO_COMP_BIAS_CORR={"--no-comp-bias-corr","Switch off local amino acid composition bias correction"};
+const MMseqsParameter Parameters::PARAM_NO_SPACED_KMER={"--no-spaced=kmer","Switch off spaced kmers (use consecutive pattern)"};
+// alignment
+const MMseqsParameter Parameters::PARAM_E={"-e",                          "Maximum e-value"};
+const MMseqsParameter Parameters::PARAM_C={"-c",                          "Minimum alignment coverage"};
+const MMseqsParameter Parameters::PARAM_MAX_REJECTED={"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted"};
+// clustering
+const MMseqsParameter Parameters::PARAM_G={"-g","Greedy clustering by sequence length"};
+const MMseqsParameter Parameters::PARAM_MIN_SEQ_ID={"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
+const MMseqsParameter Parameters::PARAM_CASCADED={"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
+// logging
+const MMseqsParameter Parameters::PARAM_V={"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
+
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
     std::stringstream ss;
@@ -42,8 +69,8 @@ void Parameters::parseParameters(int argc, char* pargv[],
             targetSeqType = Sequence::NUCLEOTIDES;
         }
         
-        if(ops >> GetOpt::OptionPresent("z-score") == false){
-            // adapt z-score threshold to the sensitivity setting TODO
+        if((ops >> GetOpt::OptionPresent("z-score")) == false){
+            // adapt z-score threshold to the sensitivity setting
             // user defined threshold overwrites the automatic setting
             if (1.0 <= sensitivity && sensitivity < 2.0)
                 zscoreThr = 500.0;
@@ -68,8 +95,10 @@ void Parameters::parseParameters(int argc, char* pargv[],
         ops >> GetOpt::Option("split",    split);
         ops >> GetOpt::Option('m',"sub-mat",  scoringMatrixFile);
         int searchMode = 0;
-        ops >> GetOpt::Option("search-mode", searchMode);
-        localSearch = (searchMode == 1) ? true : false;
+        if (ops >> GetOpt::OptionPresent("search-mode")){
+            ops >> GetOpt::Option("search-mode", searchMode);
+            localSearch = (searchMode == 1) ? true : false;
+        }
 
         if (ops >> GetOpt::OptionPresent("no-comp-bias-corr")){
             compBiasCorrection = false;

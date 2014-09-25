@@ -26,7 +26,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     targetSeqType(par.targetSeqType),
     aaBiasCorrection(par.compBiasCorrection),
     split(par.split),
-    skip(par.skip)
+    skip(par.skip),
+    isLocal(par.localSearch)
 {
     if(this->split == 0 )
         this->split = 1;
@@ -52,7 +53,8 @@ Prefiltering::Prefiltering(std::string queryDB,
         this->alphabetSize = data.alphabetSize;
         this->skip         = data.skip;
         this->split        = data.split;
-        this->spacedKmer   = data.spacedKmer;
+        this->spacedKmer   = (data.spacedKmer == 1) ? true : false;
+        this->isLocal      = (data.local == 1) ? true : false;
     }
     
     DBWriter::errorIfFileExist(outDB.c_str());
@@ -62,8 +64,6 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
 
     // init the substitution matrices
-    // TODO set bitfactor for local and global 2.0 for local search
-    // upscale to 8.0 for global
     switch (querySeqType) {
         case Sequence::NUCLEOTIDES:
             subMat = new NucleotideMatrix();
@@ -101,7 +101,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << par.sensitivity << ")...\n";
     std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, par.sensitivity, 0.1);
     //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
-    //std::pair<short, double> ret = std::pair<short, double>(80, 8.18064e-05);
+    //std::pair<short, double> ret = std::pair<short, double>(70, 8.18064e-05);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 
@@ -165,7 +165,7 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
 }
 
 std::pair<std::string, std::string> Prefiltering::createTmpFileNames(std::string db, std::string dbindex, int numb){
-    std::string splitSuffix = "_tmp_" + SSTR(numb);
+    std::string splitSuffix = std::string("_tmp_") + SSTR(numb);
     std::string dataFile  = db + splitSuffix;
     std::string indexFile = dbindex + splitSuffix;
     return std::make_pair(dataFile, indexFile);
@@ -218,9 +218,16 @@ QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
-                                                        kmerMatchProb, kmerSize, dbSize,
-                                                        aaBiasCorrection, maxSeqLen, zscoreThr);
+        if (isLocal) {
+            matchers[thread_idx] = new QueryTemplateMatcherLocal(m, indexTable, seqLens, kmerThr,
+                                                                  kmerMatchProb, kmerSize, dbSize,
+                                                                  aaBiasCorrection, maxSeqLen, zscoreThr);
+
+        }else{
+            matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
+                                                                  kmerMatchProb, kmerSize, dbSize,
+                                                                  aaBiasCorrection, maxSeqLen, zscoreThr);
+        }
         if(querySeqType == Sequence::HMM_PROFILE){
             matchers[thread_idx]->setProfileMatrix(qseq[thread_idx]->profile_matrix);
         }else {
@@ -239,7 +246,7 @@ IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
                                           split, splitCount, &dbFrom, &dbSize);
         std::cout << "Spaced Kmer: " << spacedKmer << std::endl;
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, subMat);
-        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize , skip);
+        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, isLocal, skip);
     }
 }
 
@@ -462,12 +469,17 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
 
 
 IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
-        int kmerSize, size_t dbFrom, size_t dbTo, int skip){
+        int kmerSize, size_t dbFrom, size_t dbTo, bool isLocal, int skip){
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-	
-    IndexTable* indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
+    IndexTable * indexTable;
+	if (isLocal) {
+        indexTable = new IndexTableLocal(alphabetSize, kmerSize, skip);
+    } else{
+        indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
+
+    }
 
     countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
 
@@ -547,6 +559,10 @@ std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* qdbr, DBReader
         Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
         EXIT(EXIT_FAILURE);
     }
+    //alpha = 0; //7.123599e-02; //6.438574e-02; // 6.530289e-02;
+    //beta = 1; //3.148479e+06; //3.480680e+06; // 3.243035e+06;
+    //gamma = 0; //1.304421; // 1.753651; //1.137125;
+
 
     // Run using k=6, a=21, with k-mer similarity threshold 103
     // k-mer list length was 117.6, k-mer match probability 1.12735e-06

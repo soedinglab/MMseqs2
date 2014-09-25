@@ -13,6 +13,7 @@
 struct MMseqsParameter {
     const char *name;
     const char *description;
+    MMseqsParameter(const char * n,const char * d):name(n),description(d){}
 };
 
 
@@ -111,31 +112,31 @@ public:
     // clustering
     //    "-g              \t[int]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
     //    "--min-seq-id    \t[float]\tMinimum sequence identity of sequences in a cluster (default = 0.0)\n"
-    const constexpr static MMseqsParameter PARAM_S={"-s",                    "[float]\tSensitivity in the range [1:9]"};
-    const constexpr static MMseqsParameter PARAM_K={"-k",                    "[int]\tk-mer size in the range [4:7]"};
-    const constexpr static MMseqsParameter PARAM_THREADS={"--threads",        "[int]\tNumber of cores used for the computation"};
-    const constexpr static MMseqsParameter PARAM_ALPH_SIZE={"--alph-size",    "[int]\tAmino acid alphabet size"};
-    const constexpr static MMseqsParameter PARAM_MAX_SEQ_LEN={"--max-seq-len","[int]\tMaximum sequence length"};
-    const constexpr static MMseqsParameter PARAM_PROFILE={"--profile",        "\tHMM Profile input"};
-    const constexpr static MMseqsParameter PARAM_NUCL={"--nucl",              "\tNucleotide sequences input"};
-    const constexpr static MMseqsParameter PARAM_Z_SCORE={"--z-score",        "[float]\tZ-score threshold "};
-    const constexpr static MMseqsParameter PARAM_SKIP={"--skip",              "[int]\tNumber of skipped k-mers during the index table generation"};
-    const constexpr static MMseqsParameter PARAM_MAX_SEQS={"--max-seqs",      "[int]\tMaximum result sequences per query"};
-    const constexpr static MMseqsParameter PARAM_SPLIT={"--split",            "[int]\tSplits target databases in n equal distrbuted junks"};
-    const constexpr static MMseqsParameter PARAM_SUB_MAT={"--sub-mat",        "[file]\tAmino acid substitution matrix file"};
-    const constexpr static MMseqsParameter PARAM_SEARCH_MODE={"--search-mode","[int]\tSearch mode loc: 1 glob: 2"};
-    const constexpr static MMseqsParameter PARAM_NO_COMP_BIAS_CORR={"--no-comp-bias-corr","Switch off local amino acid composition bias correction"};
-    const constexpr static MMseqsParameter PARAM_NO_SPACED_KMER={"--no-spaced=kmer","Switch off spaced kmers (use consecutive pattern)"};
+    const static MMseqsParameter PARAM_S;
+    const static MMseqsParameter PARAM_K;
+    const static MMseqsParameter PARAM_THREADS;
+    const static MMseqsParameter PARAM_ALPH_SIZE;
+    const static MMseqsParameter PARAM_MAX_SEQ_LEN;
+    const static MMseqsParameter PARAM_PROFILE;
+    const static MMseqsParameter PARAM_NUCL;
+    const static MMseqsParameter PARAM_Z_SCORE;
+    const static MMseqsParameter PARAM_SKIP;
+    const static MMseqsParameter PARAM_MAX_SEQS;
+    const static MMseqsParameter PARAM_SPLIT;
+    const static MMseqsParameter PARAM_SUB_MAT;
+    const static MMseqsParameter PARAM_SEARCH_MODE;
+    const static MMseqsParameter PARAM_NO_COMP_BIAS_CORR;
+    const static MMseqsParameter PARAM_NO_SPACED_KMER;
     // alignment
-    const constexpr static MMseqsParameter PARAM_E={"-e",                          "Maximum e-value"};
-    const constexpr static MMseqsParameter PARAM_C={"-c",                          "Minimum alignment coverage"};
-    const constexpr static MMseqsParameter PARAM_MAX_REJECTED={"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted"};
+    const static MMseqsParameter PARAM_E;
+    const static MMseqsParameter PARAM_C;
+    const static MMseqsParameter PARAM_MAX_REJECTED;
     // clustering
-    const constexpr static MMseqsParameter PARAM_G={"-g","Greedy clustering by sequence length"};
-    const constexpr static MMseqsParameter PARAM_MIN_SEQ_ID={"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
-    const constexpr static MMseqsParameter PARAM_CASCADED={"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
+    const static MMseqsParameter PARAM_G;
+    const static MMseqsParameter PARAM_MIN_SEQ_ID;
+    const static MMseqsParameter PARAM_CASCADED;
     // logging
-    const constexpr static MMseqsParameter PARAM_V={"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
+    const static MMseqsParameter PARAM_V;
     
 };
 

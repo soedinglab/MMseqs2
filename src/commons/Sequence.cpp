@@ -130,17 +130,17 @@ void Sequence::mapNucleotideSequence(const char * sequence){
 
             // nucleotide is small
             switch(curr){
-                case 'u': this->int_sequence[l] = this->aa2int['t']; break;
+                case 'u': this->int_sequence[l] = this->aa2int[(int)'t']; break;
                 case 'b':
                 case 'y':
-                case 's': this->int_sequence[l] = this->aa2int['c']; break;
+                case 's': this->int_sequence[l] = this->aa2int[(int)'c']; break;
                 case 'd':
                 case 'h':
                 case 'v':
                 case 'w':
                 case 'r':
-                case 'm': this->int_sequence[l] = this->aa2int['a']; break;
-                case 'k': this->int_sequence[l] = this->aa2int['g']; break;
+                case 'm': this->int_sequence[l] = this->aa2int[(int)'a']; break;
+                case 'k': this->int_sequence[l] = this->aa2int[(int)'g']; break;
                 default:
                     if (curr < 'a' || curr > 'z' || this->aa2int[(int)curr] == -1){
                         Debug(Debug::ERROR) << "ERROR: illegal character \""

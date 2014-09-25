@@ -51,8 +51,7 @@ class TimeTest {
 
         DBReader* qdbr;
         DBReader* tdbr;
-        DBWriter* dbw;
-
+        
         Sequence** seqs;
 
         std::string scoringMatrixFile;

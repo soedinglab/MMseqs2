@@ -24,7 +24,6 @@ class SimpleClustering {
     private:
         unsigned int add_position;
         int unique_element_size;
-        int all_element_count;
         int set_count;
 
         // pointer to a corresponding set for each representative sequence

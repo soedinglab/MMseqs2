@@ -311,6 +311,7 @@ int clusteringworkflow (int argc, const char * argv[]){
         Parameters::PARAM_S,
         Parameters::PARAM_SUB_MAT,
         Parameters::PARAM_MAX_SEQS,
+        Parameters::PARAM_CASCADED,
         Parameters::PARAM_MAX_SEQ_LEN,
         Parameters::PARAM_V};
     Parameters par;

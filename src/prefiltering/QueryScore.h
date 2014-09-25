@@ -96,13 +96,14 @@ public:
                 currLocalResult->diagonal = diagonal;
                 currLocalResult->score = score;
                 //                    localResult[seqId] = sadd16(localResult[seqId], score);
-                numMatches += 1;
                 scoresSum += score;
             }
             //scores[seqId] = (diagonal & checkIfMatchedBefore ) ? diagonal : diagonal | checkIfMatchedBefore;
             scores[seqId] = diagonal;
             
         }
+        numMatches += seqListSize;
+
     }
     
     // add k-mer match score for all DB sequences from the list

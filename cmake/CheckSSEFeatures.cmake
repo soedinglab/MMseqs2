@@ -4,11 +4,11 @@ macro(PCL_CHECK_FOR_SSE)
     set(SSE_FLAGS)
 
     # Test CLANG
-    #if(CMAKE_COMPILER_IS_CLANG)
-    #  if(APPLE)
-    #    SET(SSE_FLAGS "${SSE_FLAGS} -march=native")
-    #  endif(APPLE)
-    #endif(CMAKE_COMPILER_IS_CLANG)
+    if(CMAKE_COMPILER_IS_CLANG)
+      if(APPLE)
+        SET(SSE_FLAGS "${SSE_FLAGS} -march=native")
+      endif(APPLE)
+    endif(CMAKE_COMPILER_IS_CLANG)
 
     # Test GCC/G++
     if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
@@ -48,48 +48,87 @@ macro(PCL_CHECK_FOR_SSE)
         }"
         HAVE_POSIX_MEMALIGN)
 
+
+    if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+        set(CMAKE_REQUIRED_FLAGS "-mavx2 -Wa,-q")
+    endif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_COMPILER_IS_CLANG)
+        set(CMAKE_REQUIRED_FLAGS "-mavx2")
+    endif(CMAKE_COMPILER_IS_CLANG)
+    check_cxx_source_runs("
+      #include <immintrin.h>
+      int main()
+      {
+        __m256i a, b;
+        a = _mm256_set1_epi8 (1);
+        b = a;
+        _mm256_add_epi8 (a,a);
+        return 0;
+      }"
+      HAVE_AVX2_EXTENSIONS)
+
+
+
+    if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+        set(CMAKE_REQUIRED_FLAGS "-mavx -Wa,-q")
+    endif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_COMPILER_IS_CLANG)
+        set(CMAKE_REQUIRED_FLAGS "-mavx")
+    endif(CMAKE_COMPILER_IS_CLANG)
+
+    check_cxx_source_runs("
+      #include <immintrin.h>
+      int main()
+      {
+        __m256 a, b;
+        float vals[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+        const int mask = 123;
+        a = _mm256_loadu_ps(vals);
+        b = a;
+        b = _mm256_dp_ps (a, a, 3);
+        _mm256_storeu_ps(vals,b);
+        return 0;
+      }"
+      HAVE_AVX_EXTENSIONS)
+
+
     if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
         set(CMAKE_REQUIRED_FLAGS "-msse4.2")
     endif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
 
     check_cxx_source_runs("
-        #include <emmintrin.h>
-        #include <nmmintrin.h>
-        int main ()
-        {
-          long long a[2] = {  1, 2 };
-          long long b[2] = { -1, 3 };
-          long long c[2];
-          __m128i va = _mm_loadu_si128 ((__m128i*)a);
-          __m128i vb = _mm_loadu_si128 ((__m128i*)b);
-          __m128i vc = _mm_cmpgt_epi64 (va, vb);
-
-          _mm_storeu_si128 ((__m128i*)c, vc);
-          if (c[0] == -1LL && c[1] == 0LL)
-            return (0);
-          else
-            return (1);
-        }"
-        HAVE_SSE4_2_EXTENSIONS)
+      #include <nmmintrin.h>
+      int main ()
+      {
+        long long a[2] = {  1, 2 };
+        long long b[2] = { -1, 3 };
+        long long c[2];
+        __m128i va = _mm_loadu_si128 ((__m128i*)a);
+        __m128i vb = _mm_loadu_si128 ((__m128i*)b);
+        __m128i vc = _mm_cmpgt_epi64 (va, vb);
+        _mm_storeu_si128 ((__m128i*)c, vc);
+        return 0;
+      }"
+      HAVE_SSE4_2_EXTENSIONS)
 
     if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
         set(CMAKE_REQUIRED_FLAGS "-msse4.1")
     endif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
-
+    
     check_cxx_source_runs("
-        #include <smmintrin.h>
-        int main ()
-        {
-          __m128 a, b;
-          float vals[4] = {1, 2, 3, 4};
-          const int mask = 123;
-          a = _mm_loadu_ps (vals);
-          b = a;
-          b = _mm_dp_ps (a, a, 4);
-          _mm_storeu_ps (vals,b);
-          return (0);
-        }"
-        HAVE_SSE4_1_EXTENSIONS)
+      #include <smmintrin.h>
+      int main ()
+      {
+        __m128 a, b;
+        float vals[4] = {1, 2, 3, 4};
+        const int mask = 123;
+        a = _mm_loadu_ps (vals);
+        b = a;
+        b = _mm_dp_ps (a, a, 4);
+        _mm_storeu_ps (vals,b);
+        return (0);
+      }"
+      HAVE_SSE4_1_EXTENSIONS)
 
     if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
         set(CMAKE_REQUIRED_FLAGS "-msse3")
@@ -150,8 +189,24 @@ macro(PCL_CHECK_FOR_SSE)
     set(CMAKE_REQUIRED_FLAGS)
 
     if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
-        if(HAVE_SSE4_2_EXTENSIONS)
-            SET(SSE_FLAGS "${SSE_FLAGS} -msse4.2 -mfpmath=sse")
+	if(HAVE_AVX2_EXTENSIONS)
+	    if(CMAKE_COMPILER_IS_CLANG)
+		SET(SSE_FLAGS "${SSE_FLAGS} -mavx2 -mfpmath=sse")
+		message(STATUS "Found AVXextensions, using flags: ${SSE_FLAGS}")
+	    else()
+	    	SET(SSE_FLAGS "${SSE_FLAGS} -mavx2 -mfpmath=sse -Wa,-q")
+		message(STATUS "Found AVX2extensions, using flags: ${SSE_FLAGS}")
+	    endif(CMAKE_COMPILER_IS_CLANG)
+	elseif(HAVE_AVX_EXTENSIONS)
+       	    if(CMAKE_COMPILER_IS_CLANG)
+		SET(SSE_FLAGS "${SSE_FLAGS} -mavx -mfpmath=sse")
+		message(STATUS "Found AVXextensions, using flags: ${SSE_FLAGS}")
+	    else()
+	    	SET(SSE_FLAGS "${SSE_FLAGS} -mavx -mfpmath=sse -Wa,-q")
+		message(STATUS "Found AVXextensions, using flags: ${SSE_FLAGS}")
+	    endif(CMAKE_COMPILER_IS_CLANG) 
+	elseif(HAVE_SSE4_2_EXTENSIONS)
+	    SET(SSE_FLAGS "${SSE_FLAGS} -msse4.2 -mfpmath=sse")
             message(STATUS "Found SSE4.2 extensions, using flags: ${SSE_FLAGS}")
         elseif(HAVE_SSE4_1_EXTENSIONS)
             SET(SSE_FLAGS "${SSE_FLAGS} -msse4.1 -mfpmath=sse")
@@ -213,6 +268,8 @@ macro(PCL_CHECK_FOR_SSE4_1)
       HAVE_SSE4_1_EXTENSIONS)
 endmacro(PCL_CHECK_FOR_SSE4_1)
 
+
+
 ###############################################################################
 # Check for the presence of SSE 3
 macro(PCL_CHECK_FOR_SSE3)
@@ -237,6 +294,41 @@ macro(PCL_CHECK_FOR_SSE3)
       HAVE_SSE3_EXTENSIONS)
 endmacro(PCL_CHECK_FOR_SSE3)
 
+
+
+
+
+
+###############################################################################
+# Check for the presence of AVX
+macro(PCL_CHECK_FOR_AVX)
+  include(CheckCXXSourceRuns)
+  set(CMAKE_REQUIRED_FLAGS)
+
+  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
+      set(CMAKE_REQUIRED_FLAGS "-mavx -Wa,-q")
+  endif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
+
+  check_cxx_source_runs("
+      #include <immintrin.h>
+      int main()
+      {
+        __m256 a, b;
+        float vals[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+        const int mask = 123;
+        a = _mm256_loadu_ps(vals);
+        b = a;
+        b = _mm256_dp_ps (a, a, 3);
+        _mm256_storeu_ps(vals,b);
+        return 0;
+      }"
+      HAVE_AVX_EXTENSIONS)
+endmacro(PCL_CHECK_FOR_AVX)
+
+
+
+
 PCL_CHECK_FOR_SSE()
 PCL_CHECK_FOR_SSE3()
 PCL_CHECK_FOR_SSE4_1()
+PCL_CHECK_FOR_AVX()

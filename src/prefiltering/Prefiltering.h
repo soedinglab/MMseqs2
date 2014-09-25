@@ -51,7 +51,7 @@ class Prefiltering {
     
         static IndexTable* generateIndexTable(DBReader* dbr, Sequence* seq,
                                          int alphabetSize, int kmerSize,
-                                         size_t dbFrom, size_t dbTo, int skip = 0);
+                                         size_t dbFrom, size_t dbTo, bool isLocal, int skip = 0);
     
     
         static void countKmersForIndexTable (DBReader* dbr, Sequence* seq, IndexTable* indexTable,
@@ -85,7 +85,7 @@ class Prefiltering {
 
         std::string outDB;
         std::string outDBIndex;
-
+        // parameter
         int kmerSize;
         bool spacedKmer;
     
@@ -102,6 +102,7 @@ class Prefiltering {
         double kmerMatchProb;
         int split;
         int skip;
+        bool isLocal;
         // statistics
         size_t kmersPerPos;
         size_t resSize;
