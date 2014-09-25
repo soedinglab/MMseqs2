@@ -169,19 +169,21 @@ public:
         return (data+1);
     }
     
-    static inline char * skipWhitespace(char * data){
-        while( isspace(*data) == true ) {
-            data++;
+    static inline size_t skipWhitespace(char * data){
+        size_t counter = 0;
+        while( isspace(*(data+counter)) == true ) {
+            counter++;
         }
-        return data;
+        return counter;
     }
     
-    static inline char * skipNoneWhitespace(char * data){
+    static inline size_t skipNoneWhitespace(char * data){
         //A value different from zero (i.e., true) if indeed c is a white-space character. Zero (i.e., false) otherwise.
-        while( isspace(*data) == false ) {
-            data++;
+        size_t counter = 0;
+        while( isspace(*(data+counter)) == false ) {
+            counter++;
         }
-        return data;
+        return counter;
     }
     
     
@@ -212,11 +214,11 @@ public:
     static inline size_t getWordsOfLine(char * data, char ** words, size_t maxElement ){
         size_t elementCounter = 0;
         while(*data !=  '\n' && *data != '\0'){
-            data = skipWhitespace(data);
+            data += skipWhitespace(data);
             words[elementCounter++] = data;
             if(elementCounter >= maxElement)
                 break;
-            data = skipNoneWhitespace(data);
+            data += skipNoneWhitespace(data);
         }
         return elementCounter;
     }
