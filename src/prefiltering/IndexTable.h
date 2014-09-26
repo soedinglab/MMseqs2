@@ -112,7 +112,10 @@ class IndexTable {
             this->tableEntriesNum = tableEntriesNum;
             this->size = sequenzeCount;
             initMemory();
+            Debug(Debug::WARNING) << "Copy " << this->tableEntriesNum
+                                  << " Entries (" <<  this->tableEntriesNum*this->sizeOfEntry  << " byte)\n";
             memcpy ( this->entries , pentries, this->tableEntriesNum * this->sizeOfEntry );
+            Debug(Debug::WARNING) << "Setup Sizes  \n";
             char* it = this->entries;
             // set the pointers in the index table to the start of the list for a certain k-mer
             for (size_t i = 0; i < tableSize; i++){
@@ -120,6 +123,8 @@ class IndexTable {
                 it += sizes[i] * this->sizeOfEntry;
             }
             table[tableSize] = it;
+            Debug(Debug::WARNING) << "Read IndexTable ... Done\n";
+
 
         }
     
