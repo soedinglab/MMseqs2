@@ -47,11 +47,12 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         std::string entriesizes_key = std::string(ENTRIESIZES) + SSTR(step);
         Debug(Debug::WARNING) << "Write " << entriesizes_key << "\n";
         char **sizes = indexTable->getTable();
-        unsigned short *size = new unsigned short[indexTable->getTableSize()];
+        size_t *size = new size_t[indexTable->getTableSize()];
         for (size_t i = 0; i < indexTable->getTableSize(); i++) {
-            size[i] = (sizes[i + 1] - sizes[i]) / indexTable->getSizeOfEntry();
+            const ptrdiff_t diff =  (sizes[i + 1] - sizes[i]) / indexTable->getSizeOfEntry();
+            size[i] = (size_t) diff;
         }
-        writer.write((char *) size, indexTable->getTableSize() * sizeof(short), (char *) entriesizes_key.c_str(), 0);
+        writer.write((char *) size, indexTable->getTableSize() * sizeof(size_t), (char *) entriesizes_key.c_str(), 0);
         delete[] size;
         // meta data
         // ENTRIESNUM
@@ -101,13 +102,13 @@ DBReader *PrefilteringIndexReader::openNewReader(DBReader *dbr) {
 
 IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader *dbr, int split) {
     std::string entriesizes_key = std::string(ENTRIESIZES) + SSTR(split);
-    unsigned short *entrieSizes = (unsigned short *) dbr->getDataByDBKey((char *) entriesizes_key.c_str());
-    std::string entries_key = std::string(ENTRIES) + SSTR(split);
-    char *entries = (char *) dbr->getDataByDBKey((char *) entries_key.c_str());
-    std::string entriesnum_key = std::string(ENTRIESNUM) + SSTR(split);
-    int64_t *entriesNum = (int64_t *) dbr->getDataByDBKey((char *) entriesnum_key.c_str());
-    std::string tablesize_key = std::string(TABLESIZE) + SSTR(split);
-    size_t *tableSize = (size_t *) dbr->getDataByDBKey((char *) tablesize_key.c_str());
+    size_t *entrieSizes         = (size_t *) dbr->getDataByDBKey((char *) entriesizes_key.c_str());
+    std::string entries_key     = std::string(ENTRIES) + SSTR(split);
+    char *entries               = (char *) dbr->getDataByDBKey((char *) entries_key.c_str());
+    std::string entriesnum_key  = std::string(ENTRIESNUM) + SSTR(split);
+    int64_t *entriesNum         = (int64_t *) dbr->getDataByDBKey((char *) entriesnum_key.c_str());
+    std::string tablesize_key   = std::string(TABLESIZE) + SSTR(split);
+    size_t *tableSize           = (size_t *) dbr->getDataByDBKey((char *) tablesize_key.c_str());
 
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;

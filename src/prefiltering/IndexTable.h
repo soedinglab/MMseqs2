@@ -107,7 +107,7 @@ class IndexTable {
         }
     
         // init index table with external data (needed for index readin)
-        void initTableByExternalData(uint64_t tableEntriesNum, unsigned short * sizes,
+        void initTableByExternalData(uint64_t tableEntriesNum, size_t * sizes,
                                      char * pentries, size_t sequenzeCount){
             this->tableEntriesNum = tableEntriesNum;
             this->size = sequenzeCount;
