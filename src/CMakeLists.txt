@@ -7,7 +7,7 @@ add_subdirectory(commons)
 add_subdirectory(prefiltering)
 add_subdirectory(util)
 add_subdirectory(workflow)
-
+add_subdirectory(test)
 set(mmseqs_source_files mmseqs.cpp )
 add_executable(mmseqs ${mmseqs_source_files})
 

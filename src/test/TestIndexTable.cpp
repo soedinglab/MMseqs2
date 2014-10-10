@@ -9,7 +9,9 @@
 #include <iostream>
 
 #include "../commons/SubstitutionMatrix.h"
+
 #include "../prefiltering/IndexTable.h"
+#include "../prefiltering/IndexTableGlobal.h"
 #include "../prefiltering/QueryScore.h"
 #include "../prefiltering/QueryScoreGlobal.h"
 
@@ -88,7 +90,7 @@ int main (int argc, const char * argv[])
 
     std::cout << "\nTesting index table!\n";
     std::cout << "Initial allocation...\n";
-    IndexTable* it = new IndexTable(alphabetSize, kmerSize, 0);
+    IndexTable* it = new IndexTableGlobal(alphabetSize, kmerSize, 0);
     it->addKmerCount(s);
     it->addKmerCount(s1);
     it->initMemory();
@@ -98,8 +100,8 @@ int main (int argc, const char * argv[])
     std::cout << " done.\n";
 
     for (int kmerIdx = 0; kmerIdx < pow(alphabetSize, kmerSize); kmerIdx++){
-        int listSize = 0;
-        int* seqList = it->getDBSeqList(kmerIdx, &listSize);
+        size_t listSize = 0;
+        unsigned int* seqList = it->getDBSeqList<unsigned int>(kmerIdx, &listSize);
         if (listSize > 0){
             std::cout << "\nSequence list for k-mer index " << kmerIdx << " (";
             idxer->printKmer(kmerIdx, kmerSize, sm->int2aa);
@@ -128,8 +130,8 @@ int main (int argc, const char * argv[])
         kmer = s->int_sequence + pos;
         kmerIdx = idxer->getNextKmerIndex(kmer, kmerSize);
         
-        int listSize = 0;
-        int* seqList = it->getDBSeqList(kmerIdx, &listSize);
+        size_t listSize = 0;
+        unsigned int* seqList = it->getDBSeqList<unsigned int>(kmerIdx, &listSize);
 
         qs->addScores(seqList, listSize, 1);
     }

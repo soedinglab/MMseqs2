@@ -16,7 +16,7 @@
 int main (int argc, const char * argv[])
 {
 
-    const size_t kmer_size=5;
+    const size_t kmer_size=6;
 
 
     SubstitutionMatrix subMat("../../data/blosum62.out",8.0);
@@ -38,16 +38,17 @@ int main (int argc, const char * argv[])
     std::cout << "Sequence (id 0):\n";
     const char* sequence = argv[1];
     std::cout << sequence << "\n\n";
-    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa, 0);
+    Sequence* s = new Sequence (10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     s->mapSequence(0,"lala",sequence);
 
-    KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,80);
+    KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,114);
 
     kmerGen.setDivideStrategy(extMatthree.scoreMatrix, extMattwo.scoreMatrix );
     int* testKmer = new int[kmer_size];
-    while(s->hasNextKmer(kmer_size)){
-        const int * curr_pos = s->nextKmer(kmer_size);
-        printf("kmerpos1: %d\tkmerpos2: %d\n",curr_pos[0],curr_pos[1]);
+    int i = 0; 
+    while(s->hasNextKmer()){
+        const int * curr_pos = s->nextKmer();
+        printf("Pos1: %d\n",i++);
 
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "\n";

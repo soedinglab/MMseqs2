@@ -99,9 +99,9 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     // set the k-mer similarity threshold
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << par.sensitivity << ")...\n";
-    std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, par.sensitivity, 0.1);
+    //std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, par.sensitivity, 0.1);
     //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
-    //std::pair<short, double> ret = std::pair<short, double>(70, 8.18064e-05);
+    std::pair<short, double> ret = std::pair<short, double>(70, 8.18064e-05);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 
@@ -444,7 +444,7 @@ void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
 void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * indexTable,
                                 size_t dbFrom, size_t dbTo)
 {
-    Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
+    Debug(Debug::INFO) << "\nIndex table: init... from "<< dbFrom << " to "<< dbTo << "\n";
     indexTable->initMemory();
     indexTable->init();
 
