@@ -35,35 +35,32 @@ class Matcher{
         ~Matcher();
 
         // run SSE2 parallelized Smith-Waterman alignment calculation and traceback
-        result_t getSWResult(Sequence* query, Sequence* dbSeq, int seqDbSize);
+        result_t getSWResult(Sequence* dbSeq,const size_t seqDbSize,const double evalThr);
 
+        // need for sorting the results
         static bool compareHits (result_t first, result_t second){ if (first.score > second.score) return true; return false; }
-
-
+    
+        // map new query into memory (create profile, ...)
+        void initQuery(Sequence* query);
     private:
 
-        int maxAllocatedLen;
-
-        void* H_workspace;
-
-        void* E_workspace;
-
-        void* F_workspace;
-
         // calculate the query profile for SIMD registers processing 8 elements
-        void calcQueryProfileWord(Sequence* query);
-
         int maxSeqLen;
+    
+        // holds values of the current active query
+        Sequence * currentQuery;
+    
+        // aligner Class
+        SmithWaterman * aligner;
+        // parameter for alignment
+        const unsigned short GAP_OPEN = 10;
+        const unsigned short GAP_EXTEND = 1;
+        // substitution matrix
+        BaseMatrix* m;
+        // byte version of substitution matrix
+        int8_t * tinySubMat;
 
- 
-    // query profile for SIMD registers
-    unsigned short* queryProfileWord;
 
-    BaseMatrix* m;
-
-    void* workspace;
-
-    void* workspace_memory;
 
 };
 

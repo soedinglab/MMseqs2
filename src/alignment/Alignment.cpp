@@ -105,7 +105,7 @@ void Alignment::run (int maxAlnNum, int maxRejected){
         // map the query sequence
         char* querySeqData = qseqdbr->getDataByDBKey(queryDbKey);
         qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
-
+        matchers[thread_idx]->initQuery(qSeqs[thread_idx]);
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list 
         std::list<Matcher::result_t>* swResults = new std::list<Matcher::result_t>();
         std::stringstream lineSs (prefList);
@@ -144,7 +144,7 @@ void Alignment::run (int maxAlnNum, int maxRejected){
             }
 
             // calculate Smith-Waterman alignment
-            Matcher::result_t res = matchers[thread_idx]->getSWResult(qSeqs[thread_idx], dbSeqs[thread_idx], tseqdbr->getSize());
+            Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr);
             alignmentsNum++;
 
             if ((res.eval <= evalThr || res.seqId == 1.0) && res.qcov >= covThr && res.dbcov >= covThr){
