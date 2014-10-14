@@ -7,31 +7,31 @@
 
 
 
-const MMseqsParameter Parameters::PARAM_S=MMseqsParameter("-s",                    "[float]\tSensitivity in the range [1:9]");
-const MMseqsParameter Parameters::PARAM_K={"-k",                    "[int]\tk-mer size in the range [4:7]"};
-const MMseqsParameter Parameters::PARAM_THREADS={"--threads",        "[int]\tNumber of cores used for the computation"};
-const MMseqsParameter Parameters::PARAM_ALPH_SIZE={"--alph-size",    "[int]\tAmino acid alphabet size"};
-const MMseqsParameter Parameters::PARAM_MAX_SEQ_LEN={"--max-seq-len","[int]\tMaximum sequence length"};
-const MMseqsParameter Parameters::PARAM_PROFILE={"--profile",        "\tHMM Profile input"};
-const MMseqsParameter Parameters::PARAM_NUCL={"--nucl",              "\tNucleotide sequences input"};
-const MMseqsParameter Parameters::PARAM_Z_SCORE={"--z-score",        "[float]\tZ-score threshold "};
-const MMseqsParameter Parameters::PARAM_SKIP={"--skip",              "[int]\tNumber of skipped k-mers during the index table generation"};
-const MMseqsParameter Parameters::PARAM_MAX_SEQS={"--max-seqs",      "[int]\tMaximum result sequences per query"};
-const MMseqsParameter Parameters::PARAM_SPLIT={"--split",            "[int]\tSplits target databases in n equal distrbuted junks"};
-const MMseqsParameter Parameters::PARAM_SUB_MAT={"--sub-mat",        "[file]\tAmino acid substitution matrix file"};
-const MMseqsParameter Parameters::PARAM_SEARCH_MODE={"--search-mode","[int]\tSearch mode loc: 1 glob: 2"};
-const MMseqsParameter Parameters::PARAM_NO_COMP_BIAS_CORR={"--no-comp-bias-corr","Switch off local amino acid composition bias correction"};
-const MMseqsParameter Parameters::PARAM_NO_SPACED_KMER={"--no-spaced=kmer","Switch off spaced kmers (use consecutive pattern)"};
+const MMseqsParameter Parameters::PARAM_S=MMseqsParameter(0,"-s",                    "[float]\tSensitivity in the range [1:9]");
+const MMseqsParameter Parameters::PARAM_K={1,"-k",                    "[int]\tk-mer size in the range [4:7]"};
+const MMseqsParameter Parameters::PARAM_THREADS={2,"--threads",        "[int]\tNumber of cores used for the computation"};
+const MMseqsParameter Parameters::PARAM_ALPH_SIZE={3,"--alph-size",    "[int]\tAmino acid alphabet size"};
+const MMseqsParameter Parameters::PARAM_MAX_SEQ_LEN={4,"--max-seq-len","[int]\tMaximum sequence length"};
+const MMseqsParameter Parameters::PARAM_PROFILE={5,"--profile",        "\tHMM Profile input"};
+const MMseqsParameter Parameters::PARAM_NUCL={6,"--nucl",              "\tNucleotide sequences input"};
+const MMseqsParameter Parameters::PARAM_Z_SCORE={7,"--z-score",        "[float]\tZ-score threshold "};
+const MMseqsParameter Parameters::PARAM_SKIP={8,"--skip",              "[int]\tNumber of skipped k-mers during the index table generation"};
+const MMseqsParameter Parameters::PARAM_MAX_SEQS={9,"--max-seqs",      "[int]\tMaximum result sequences per query"};
+const MMseqsParameter Parameters::PARAM_SPLIT={10,"--split",            "[int]\tSplits target databases in n equal distrbuted junks"};
+const MMseqsParameter Parameters::PARAM_SUB_MAT={11,"--sub-mat",        "[file]\tAmino acid substitution matrix file"};
+const MMseqsParameter Parameters::PARAM_SEARCH_MODE={12,"--search-mode","[int]\tSearch mode loc: 1 glob: 2"};
+const MMseqsParameter Parameters::PARAM_NO_COMP_BIAS_CORR={13,"--no-comp-bias-corr","Switch off local amino acid composition bias correction"};
+const MMseqsParameter Parameters::PARAM_NO_SPACED_KMER={14,"--no-spaced-kmer","Switch off spaced kmers (use consecutive pattern)"};
 // alignment
-const MMseqsParameter Parameters::PARAM_E={"-e",                          "Maximum e-value"};
-const MMseqsParameter Parameters::PARAM_C={"-c",                          "Minimum alignment coverage"};
-const MMseqsParameter Parameters::PARAM_MAX_REJECTED={"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted"};
+const MMseqsParameter Parameters::PARAM_E={15,"-e",                          "Maximum e-value"};
+const MMseqsParameter Parameters::PARAM_C={16,"-c",                          "Minimum alignment coverage"};
+const MMseqsParameter Parameters::PARAM_MAX_REJECTED={17,"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted"};
 // clustering
-const MMseqsParameter Parameters::PARAM_G={"-g","Greedy clustering by sequence length"};
-const MMseqsParameter Parameters::PARAM_MIN_SEQ_ID={"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
-const MMseqsParameter Parameters::PARAM_CASCADED={"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
+const MMseqsParameter Parameters::PARAM_G={18,"-g","Greedy clustering by sequence length"};
+const MMseqsParameter Parameters::PARAM_MIN_SEQ_ID={19,"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
+const MMseqsParameter Parameters::PARAM_CASCADED={20,"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
 // logging
-const MMseqsParameter Parameters::PARAM_V={"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
+const MMseqsParameter Parameters::PARAM_V={21,"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -136,7 +136,7 @@ void Parameters::parseParameters(int argc, char* pargv[],
     // read global parameters
     std::vector<std::string> getFilename;
     ops >> GetOpt::GlobalOption(getFilename);
-    std::cout << getFilename.size() << std::endl;
+
     if(getFilename.size() < requiredParameterCount){
         printUsageMessage(programUsageHeader, parameters);
         Debug(Debug::INFO) << requiredParameterCount << " Database paths are required" << "\n";
@@ -165,6 +165,117 @@ void Parameters::parseParameters(int argc, char* pargv[],
             EXIT(EXIT_FAILURE);
             break;
     }
+    printParameters(argc,pargv,parameters);
+}
+
+void Parameters::printParameters(int argc, char* pargv[],
+                                 std::vector<MMseqsParameter> parameters){
+    Debug(Debug::WARNING) << "Program call:\n";
+    for (int i = 0; i < argc; i++)
+        Debug(Debug::WARNING) << pargv[i] << " ";
+    Debug(Debug::WARNING) << "\n\n";
+    
+    for (size_t i = 0; i < parameters.size(); i++) {
+        switch (parameters[i].uniqid) {
+            case 0:
+                Debug(Debug::WARNING) << "Sensitivity:             " << this->sensitivity << "\n";
+                break;
+            case 1:
+                Debug(Debug::WARNING) << "K-mer size:              " << this->kmerSize << "\n";
+                break;
+            case 2:
+                Debug(Debug::WARNING) << "Threads:                 " << this->threads << "\n";
+                break;
+            case 3:
+                Debug(Debug::WARNING) << "Alphabet size:           " << this->alphabetSize << "\n";
+                break;
+            case 4:
+                Debug(Debug::WARNING) << "Max. sequence length:    " << this->maxSeqLen  << "\n";
+                break;
+            case 5:
+                if(this->querySeqType == Sequence::HMM_PROFILE){
+                    Debug(Debug::WARNING) << "Query input:              AA Profile\n";
+                    Debug(Debug::WARNING) << "DB    input:              AA\n";
+                }
+                break;
+            case 6:
+                if(this->querySeqType == Sequence::NUCLEOTIDES){
+                    Debug(Debug::WARNING) << "Query input:              Nucleotide\n";
+                    Debug(Debug::WARNING) << "DB input:                 Nucleotide\n";
+                }
+                break;
+            case 7:
+                Debug(Debug::WARNING) << "Z-Score threshold:       " << this->zscoreThr << "\n";
+                break;
+            case 8:
+                Debug(Debug::WARNING) << "Skip Kmers:              " << this->skip << "\n";
+                break;
+            case 9:
+                Debug(Debug::WARNING) << "Max. results per query:  " << this->maxResListLen  << "\n";
+                break;
+            case 10:
+                Debug(Debug::WARNING) << "Split db:                " << this->split << "\n";
+                break;
+            case 11:
+                Debug(Debug::WARNING) << "Sub Matrix:              " << this->scoringMatrixFile << "\n";
+                break;
+            case 12:
+                if (this->localSearch)
+                    Debug(Debug::WARNING) << "Search mode:             local\n";
+                else
+                    Debug(Debug::WARNING) << "Search mode:             global\n";
+                break;
+            case 13:
+                if (this->compBiasCorrection)
+                    Debug(Debug::WARNING) << "Compositional bias:      on\n";
+                else
+                    Debug(Debug::WARNING) << "Compositional bias:      off\n";
+                break;
+            case 14:
+                if (this->spacedKmer)
+                    Debug(Debug::WARNING) << "Spaced kmers:            on\n";
+                else
+                    Debug(Debug::WARNING) << "Spaced kmers:            off\n";
+                break;
+            case 15:
+                Debug(Debug::WARNING) << "Max. evalue:             " << this->evalThr << "\n";
+                break;
+            case 16:
+                Debug(Debug::WARNING) << "Min. sequence coverage:  " << this->covThr  << "\n";
+                break;
+            case 17:
+                Debug(Debug::WARNING) << "Max. rejected:           ";
+                if (this->maxRejected == INT_MAX)
+                    Debug(Debug::WARNING) << "off\n";
+                else
+                    Debug(Debug::WARNING) << this->maxRejected << "\n";
+                break;
+            case 18:
+                if(this->clusteringMode == GREEDY){
+                    Debug(Debug::WARNING) << "Cluster type:             " << "greedy" << "\n";
+                }else{
+                    Debug(Debug::WARNING) << "Cluster type:             " << "simple" << "\n";
+                }
+                break;
+            case 19:
+                Debug(Debug::WARNING) << "Min. sequence id:        " << this->seqIdThr  << "\n";
+                break;
+            case 20:
+                if(this->cascaded)
+                    Debug(Debug::WARNING) << "Cluster mode:             " << "cascaded" << "\n";
+                else
+                    Debug(Debug::WARNING) << "Cluster mode:             " << "single" << "\n";
+                break;
+            default:
+                break;
+        }
+    }
+    Debug(Debug::WARNING) << "\n";
+
+
+    
+
+    
 }
 
 void Parameters::serialize( std::ostream &stream )  {

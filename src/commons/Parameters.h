@@ -11,9 +11,10 @@
 
 
 struct MMseqsParameter {
+    const int uniqid;
     const char *name;
     const char *description;
-    MMseqsParameter(const char * n,const char * d):name(n),description(d){}
+    MMseqsParameter(int uid,const char * n,const char * d): uniqid(uid), name(n),description(d){}
 };
 
 
@@ -86,6 +87,8 @@ public:
                          size_t requiredParameterCount);
     void printUsageMessage(std::string programUsageHeader,
                            std::vector<MMseqsParameter> parameters);
+    void printParameters(int argc, char* pargv[],
+                         std::vector<MMseqsParameter> parameters);
     Parameters();
     // parameter constants
     //    "-s              \t[float]\tSensitivity in the range [1:9] (default=4).\n"
@@ -137,6 +140,8 @@ public:
     const static MMseqsParameter PARAM_CASCADED;
     // logging
     const static MMseqsParameter PARAM_V;
+
+
     
 };
 

@@ -24,12 +24,12 @@ int alignment(int argc, const char *argv[])
     std::vector<MMseqsParameter> perfPar = {
             Parameters::PARAM_E,
             Parameters::PARAM_C,
-            Parameters::PARAM_THREADS,
             Parameters::PARAM_MAX_SEQ_LEN,
             Parameters::PARAM_MAX_SEQS,
             Parameters::PARAM_MAX_REJECTED,
             Parameters::PARAM_NUCL,
             Parameters::PARAM_SUB_MAT,
+            Parameters::PARAM_THREADS,
             Parameters::PARAM_V};
     Parameters par;
     par.parseParameters(argc, (char**)argv, usage, perfPar, 4);
@@ -37,28 +37,11 @@ int alignment(int argc, const char *argv[])
 
     Debug::setDebugLevel(Debug::INFO);
 
-    Debug(Debug::WARNING) << "Program call:\n";
-    for (int i = 0; i < argc; i++)
-        Debug(Debug::WARNING) << argv[i] << " ";
-    Debug(Debug::WARNING) << "\n\n";
-
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
     Debug::setDebugLevel(par.verbosity);
-
-    Debug(Debug::WARNING) 
-        << "max. evalue:                       \t" << par.evalThr
-        << "\nmin. sequence coverage:          \t" << par.covThr
-        << "\nmax. sequence length:            \t" << par.maxSeqLen
-        << "\nmax. alignment results per query:\t" << par.maxResListLen
-        << "\nmax rejected sequences per query:\t";
-    if (par.maxRejected == INT_MAX)
-        Debug(Debug::WARNING) << "off\n\n";
-    else
-        Debug(Debug::WARNING) << par.maxRejected << "\n\n";
-
 
     Debug(Debug::WARNING) << "Init data structures...\n";
     Alignment* aln = new Alignment(par.db1,           par.db1Index,

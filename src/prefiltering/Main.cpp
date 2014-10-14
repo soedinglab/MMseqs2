@@ -69,7 +69,6 @@ int prefilter(int argc, const char **argv)
     std::vector<MMseqsParameter> perfPar = {
         Parameters::PARAM_S,
         Parameters::PARAM_K,
-        Parameters::PARAM_THREADS,
         Parameters::PARAM_ALPH_SIZE,
         Parameters::PARAM_MAX_SEQ_LEN,
         Parameters::PARAM_PROFILE,
@@ -78,10 +77,11 @@ int prefilter(int argc, const char **argv)
         Parameters::PARAM_SKIP,
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_SPLIT,
-        Parameters::PARAM_SUB_MAT,
         Parameters::PARAM_SEARCH_MODE,
         Parameters::PARAM_NO_COMP_BIAS_CORR,
         Parameters::PARAM_NO_SPACED_KMER,
+        Parameters::PARAM_SUB_MAT,
+        Parameters::PARAM_THREADS,
         Parameters::PARAM_V};
     Parameters par;
     par.parseParameters(argc, (char**)argv, usage, perfPar, 3);
@@ -101,34 +101,12 @@ int prefilter(int argc, const char **argv)
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    // print command line
-    Debug(Debug::WARNING) << "Program call:\n";
-    for (int i = 0; i < argc; i++)
-        Debug(Debug::WARNING) << argv[i] << " ";
-    Debug(Debug::WARNING) << "\n\n";
     
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
     Debug::setDebugLevel(par.verbosity);
-
-
-    Debug(Debug::WARNING) << "k-mer size: " << par.kmerSize << "\n";
-    Debug(Debug::WARNING) << "Alphabet size: " << par.alphabetSize << "\n";
-    Debug(Debug::WARNING) << "Sensitivity: " << par.sensitivity << "\n";
-    Debug(Debug::WARNING) << "Z-score threshold: " << par.zscoreThr << "\n";
-    if (par.compBiasCorrection)
-        Debug(Debug::WARNING) << "Compositional bias correction is switched on.\n";
-    else
-        Debug(Debug::WARNING) << "Compositional bias correction is switched off.\n";
-    if (par.spacedKmer)
-        Debug(Debug::WARNING) << "Spaced kmers is switched on.\n";
-    else
-        Debug(Debug::WARNING) << "Spaced kmers is switched off.\n";
-    Debug(Debug::WARNING) << "\n";
-
-
 
     Debug(Debug::WARNING) << "Initialising data structures...\n";
     Prefiltering* pref = new Prefiltering(par.db1,par.db1Index,
