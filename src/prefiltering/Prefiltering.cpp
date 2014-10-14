@@ -101,7 +101,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << par.sensitivity << ")...\n";
     //std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, par.sensitivity, 0.1);
     //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
-    std::pair<short, double> ret = std::pair<short, double>(70, 8.18064e-05);
+    std::pair<short, double> ret = std::pair<short, double>(80, 8.18064e-05);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 
@@ -244,7 +244,6 @@ IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
         int dbFrom, dbSize;
         Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                           split, splitCount, &dbFrom, &dbSize);
-        std::cout << "Spaced Kmer: " << spacedKmer << std::endl;
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, subMat);
         return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, isLocal, skip);
     }
@@ -489,6 +488,8 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
     fillDatabase(dbr, seq, indexTable, dbFrom, dbTo);
     
     gettimeofday(&end, NULL);
+    
+    indexTable->printStatisitic(seq->int2aa);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for index table init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
     return indexTable;

@@ -136,6 +136,51 @@ class IndexTable {
         }
 
     
+        void printStatisitic(char * int2aa){
+            size_t minKmer = 0;
+
+            size_t entries = 0;
+            double avgKmer = 0;
+
+            size_t emptyKmer = 0;
+            const size_t top_N = 10;
+            std::pair<size_t, size_t> topElements[top_N];
+            for(size_t j =0; j < top_N; j++)
+                topElements[j].first = 0;
+            
+            for(size_t i = 0; i < tableSize-1 ;i++){
+                const ptrdiff_t size =  (table[i + 1] - table[i]) / this->sizeOfEntry;
+                minKmer = std::min(minKmer, (size_t)size);
+                entries += size;
+                if(size == 0){
+                    emptyKmer++;
+                }
+                if(size < topElements[top_N-1].first)
+                    continue;
+                for(size_t j =0; j < top_N; j++){
+                    if (topElements[j].first < size) {
+                        topElements[j].first = size;
+                        topElements[j].second = i;
+                        break;
+                    }
+                }
+            }
+            avgKmer = ((double)entries) / ((double)tableSize);
+            Debug(Debug::WARNING) << "DB statistic\n";
+            Debug(Debug::WARNING) << "Entries:         " << entries << "\n";
+            Debug(Debug::WARNING) << "DB Size:         " << entries * sizeOfEntry + tableSize * sizeof(int *) << " (byte)\n";
+            Debug(Debug::WARNING) << "Avg Kmer Size:   " << avgKmer << "\n";
+            Debug(Debug::WARNING) << "Top " << top_N << " Kmers\n   ";
+            for(size_t j =0; j < top_N; j++){
+                Debug(Debug::WARNING) << "\t";
+
+                this->idxer->printKmer(topElements[j].second, kmerSize, int2aa);
+                Debug(Debug::WARNING) << "\t\t" << topElements[j].first << "\n";
+            }
+            Debug(Debug::WARNING) << "Min Kmer Size:   " << minKmer << "\n";
+            Debug(Debug::WARNING) << "Empty Kmer list: " << emptyKmer << "\n";
+        }
+    
         // FUNCTIONS TO OVERWRITE
         // add k-mers of the sequence to the index table
         virtual void addSequence (Sequence* s) = 0;
