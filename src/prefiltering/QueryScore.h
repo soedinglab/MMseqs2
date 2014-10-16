@@ -31,34 +31,33 @@
 
 
 typedef struct {
-    size_t seqId;
+    unsigned int seqId;
     float zScore;
     unsigned short prefScore;
 } hit_t;
 
-struct HitIdEqual {
-    HitIdEqual( size_t s ) : toFind(s) { }
-    bool operator() (const hit_t &n)
-    { return n.seqId == toFind; }
-    size_t toFind;
-};
-
-struct LocalResult{
-    unsigned int seqId;
-    unsigned short i;
-    unsigned short j;
+typedef struct {
     unsigned short diagonal;
-    unsigned short score;
-    
-    LocalResult(unsigned int seqId,
-                unsigned short i,
-                unsigned short j,
-                unsigned short diagonal,
-                unsigned short score) :
-    seqId(seqId), i(i), j(j), diagonal(diagonal), score(score) {};
-    LocalResult() : seqId(0), i(0), j(0), diagonal(0), score(0) {};
-    
-}; // 2 + 2 + 2  + 2 + 4 = 12 byte => with padding 16 byte
+    unsigned short prefScore;
+    unsigned int seqId;
+} LocalMatch;
+
+//struct LocalResult{
+//    unsigned int seqId;
+//    unsigned short i;
+//    unsigned short j;
+//    unsigned short diagonal;
+//    unsigned short score;
+//
+//    LocalResult(unsigned int seqId,
+//                unsigned short i,
+//                unsigned short j,
+//                unsigned short diagonal,
+//                unsigned short score) :
+//    seqId(seqId), i(i), j(j), diagonal(diagonal), score(score) {};
+//    LocalResult() : seqId(0), i(0), j(0), diagonal(0), score(0) {};
+//
+//}; // 2 + 2 + 2  + 2 + 4 = 12 byte => with padding 16 byte
 
 
 
@@ -66,7 +65,8 @@ struct LocalResult{
 class QueryScore {
 public:
     
-    QueryScore (int dbSize, unsigned short * seqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr);
+    QueryScore (int dbSize, unsigned short * seqLens, int k, short kmerThr,
+                float kmerMatchProb, float zscoreThr);
     
     virtual ~QueryScore ();
     
@@ -74,33 +74,18 @@ public:
     inline void addScoresLocal (IndexEntryLocal * __restrict seqList, const unsigned short i,
                                 const int seqListSize, unsigned short score){
         
-        //const unsigned short checkIfMatchedBefore = (i % 2) ? 0x8000 : 0x7FFF; // 1000000000000 0111111111111111
-        for (int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
+        for (int seqIdx = 0; seqIdx < seqListSize; seqIdx++){
             IndexEntryLocal entry = seqList[seqIdx];
             const unsigned short j = entry.position_j;
             const unsigned int seqId = entry.seqId;
-            const unsigned short diagonal = i - j + 32768;
+            const unsigned short currDiagonal = i - j + 32768;
             //std::cout <<  i << " " << j << " " << entry.seqId << " " <<  diagonal << std::endl;
-            if (UNLIKELY(diagonal == scores[seqId])){
-                //std::cout <<  "Found diagonal for SeqId: " << seqId << " Diagonal: " << diagonal << std::endl;
-                // first hit for diagonal adds minKmerScoreThreshold to favour hits with two matches
-                if(UNLIKELY(localResultSize >= MAX_LOCAL_RESULT_SIZE)){
-                    //    std::cout << "To much hits" << std::endl;
-                    break;
-                }
-                
-                LocalResult * currLocalResult = localResults + localResultSize++;
-                currLocalResult->seqId = seqId;
-                currLocalResult->i = i;
-                currLocalResult->j = j;
-                currLocalResult->diagonal = diagonal;
-                currLocalResult->score = score;
-                //                    localResult[seqId] = sadd16(localResult[seqId], score);
-                scoresSum += score;
-            } else {
-                scores[seqId] = diagonal;
-            }
-            
+            LocalMatch * currMatch = matchArray + seqId;
+            const unsigned short matchScore   = Util::sadd16(score, currMatch->prefScore);
+            const unsigned short prevDiagonal = currMatch->diagonal;
+            currMatch->diagonal   = currDiagonal;
+            currMatch->prefScore  = (prevDiagonal == currDiagonal) ? matchScore : currMatch->prefScore;
+            currMatch->seqId = seqId;
         }
         numMatches += seqListSize;
         
@@ -144,13 +129,15 @@ public:
     
 protected:
     //    std::unordered_map<unsigned int , unsigned short > localResult;
-    LocalResult * localResults;
+    //    LocalResult * localResults;
+    //    max LocalResult size
+    //    const unsigned int MAX_LOCAL_RESULT_SIZE = 100000;
+    
+    // keeps track of diagnoals while Matching
+    LocalMatch * matchArray;
     
     // current position in Localresults while adding Score
     unsigned int localResultSize;
-    
-    // max LocalResult size
-    const unsigned int MAX_LOCAL_RESULT_SIZE = 100000;
     
     // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
     int scores_128_size;

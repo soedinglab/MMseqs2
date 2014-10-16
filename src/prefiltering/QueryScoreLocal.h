@@ -29,7 +29,10 @@ public:
     void setPrefilteringThresholds();
     
     // Sort local results by sequence id, i and j
-    static bool compareLocalResult(LocalResult first, LocalResult second);
+    //    static bool compareLocalResult(LocalResult first, LocalResult second);
+    
+    static bool compareLocalMatch(LocalMatch first, LocalMatch second);
+    
 private:
     unsigned short gapOpenPenalty;
     unsigned short gapExtendPenalty;

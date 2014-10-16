@@ -5,6 +5,14 @@ QueryScoreGlobal::QueryScoreGlobal(int dbSize, unsigned short * dbSeqLens, int k
 : QueryScore(dbSize, dbSeqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor
 {
     
+    this->scores_128_size = (dbSize + 7)/8 * 8;
+    // 8 DB short int entries are stored in one __m128i vector
+    // one __m128i vector needs 16 byte
+    scores_128 = (__m128i*) Util::mem_align(16, scores_128_size * 2);
+    scores = (unsigned short * ) scores_128;
+    // set scores to zero
+    memset (scores_128, 0, scores_128_size * 2);
+    
     thresholds_128 = (__m128i*) Util::mem_align(16, scores_128_size * 2);
     thresholds = (unsigned short * ) thresholds_128;
     
@@ -52,6 +60,7 @@ QueryScoreGlobal::QueryScoreGlobal(int dbSize, unsigned short * dbSeqLens, int k
 }
 
 QueryScoreGlobal::~QueryScoreGlobal(){
+    free(scores_128);
     free(thresholds_128);
     delete[] seqLens;
     delete[] steps;
