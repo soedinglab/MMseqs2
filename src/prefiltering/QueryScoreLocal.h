@@ -18,27 +18,24 @@ class QueryScoreLocal : public QueryScore {
     
 public:
     QueryScoreLocal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr);
-   
+    
     ~QueryScoreLocal();
     
     std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId);
-
+    
     void reset();
     
     // NOT needed for Local scoring
     void setPrefilteringThresholds();
     
     // Sort local results by sequence id, i and j
-//    static bool compareLocalResult(LocalResult first, LocalResult second);
-    
-    static bool compareLocalMatch(LocalMatch first, LocalMatch second);
-
+    static bool compareLocalResult(LocalResult first, LocalResult second);
 private:
     unsigned short gapOpenPenalty;
     unsigned short gapExtendPenalty;
     unsigned short minKmerMatch; // the minimal score from kmer scores
-
-
-
+    
+    
+    
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */

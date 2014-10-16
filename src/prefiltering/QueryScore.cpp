@@ -5,17 +5,30 @@
 
 QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kmerThr,
                         float kmerMatchProb, float zscoreThr){
-
+    
     this->dbSize = dbSize;
     this->kmerMatchProb = kmerMatchProb;
     this->kmerThr = kmerThr;
     this->zscore_thr = zscoreThr;
+    
+    this->scores_128_size = (dbSize + 7)/8 * 8;
+    // 8 DB short int entries are stored in one __m128i vector
+    // one __m128i vector needs 16 byte
+    scores_128 = (__m128i*) Util::mem_align(16, scores_128_size * 2);
+    scores = (unsigned short * ) scores_128;
+    // set scores to zero
+    memset (scores_128, 0, scores_128_size * 2);
+    
     this->resList = (hit_t *) Util::mem_align(16, MAX_RES_LIST_LEN * sizeof(hit_t) );
+    
     scoresSum = 0;
+    
     numMatches = 0;
+    
 }
 
 QueryScore::~QueryScore (){
+    free(scores_128);
     free(resList);
 }
 
