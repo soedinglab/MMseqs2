@@ -75,16 +75,16 @@ public:
                                 const int seqListSize, unsigned short score){
         
         //const unsigned short checkIfMatchedBefore = (i % 2) ? 0x8000 : 0x7FFF; // 1000000000000 0111111111111111
-        for (int seqIdx = 0; seqIdx < seqListSize; seqIdx++){
+        for (int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
             IndexEntryLocal entry = seqList[seqIdx];
             const unsigned short j = entry.position_j;
             const unsigned int seqId = entry.seqId;
             const unsigned short diagonal = i - j + 32768;
             //std::cout <<  i << " " << j << " " << entry.seqId << " " <<  diagonal << std::endl;
-            if (diagonal == scores[seqId]){
+            if (UNLIKELY(diagonal == scores[seqId])){
                 //std::cout <<  "Found diagonal for SeqId: " << seqId << " Diagonal: " << diagonal << std::endl;
                 // first hit for diagonal adds minKmerScoreThreshold to favour hits with two matches
-                if(localResultSize >= MAX_LOCAL_RESULT_SIZE){
+                if(UNLIKELY(localResultSize >= MAX_LOCAL_RESULT_SIZE)){
                     //    std::cout << "To much hits" << std::endl;
                     break;
                 }
@@ -97,9 +97,9 @@ public:
                 currLocalResult->score = score;
                 //                    localResult[seqId] = sadd16(localResult[seqId], score);
                 scoresSum += score;
+            } else {
+                scores[seqId] = diagonal;
             }
-            //scores[seqId] = (diagonal & checkIfMatchedBefore ) ? diagonal : diagonal | checkIfMatchedBefore;
-            scores[seqId] = diagonal;
             
         }
         numMatches += seqListSize;
