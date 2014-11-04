@@ -1,6 +1,5 @@
 //
 //  QueryScoreLocal.h
-//  kClust2_xcode
 //
 //  Created by Martin Steinegger on 03.06.13.
 //  Copyright (c) 2013 Martin Steinegger. All rights reserved.
@@ -30,10 +29,7 @@ public:
     
     // Sort local results by sequence id, i and j
     static bool compareLocalResult(LocalResult first, LocalResult second);
-private:
-    unsigned short gapOpenPenalty;
-    unsigned short gapExtendPenalty;
-    unsigned short minKmerMatch; // the minimal score from kmer scores
+// the minimal score from kmer scores
     
     
     

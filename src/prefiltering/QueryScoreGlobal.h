@@ -1,6 +1,5 @@
 //
 //  QueryScoreGlobal.h
-//  kClust2_xcode
 //
 //  Created by Martin Steinegger on 03.06.13.
 //  Copyright (c) 2013 Martin Steinegger. All rights reserved.
