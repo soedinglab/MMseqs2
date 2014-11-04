@@ -36,32 +36,14 @@ typedef struct {
     unsigned short prefScore;
 } hit_t;
 
-struct HitIdEqual {
-    HitIdEqual( size_t s ) : toFind(s) { }
-    bool operator() (const hit_t &n)
-    { return n.seqId == toFind; }
-    size_t toFind;
-};
-
 struct LocalResult{
     unsigned int seqId;
-    unsigned short i;
-    unsigned short j;
-    unsigned short diagonal;
     unsigned short score;
-    
     LocalResult(unsigned int seqId,
-                unsigned short i,
-                unsigned short j,
-                unsigned short diagonal,
                 unsigned short score) :
-    seqId(seqId), i(i), j(j), diagonal(diagonal), score(score) {};
-    LocalResult() : seqId(0), i(0), j(0), diagonal(0), score(0) {};
-    
-}; // 2 + 2 + 2  + 2 + 4 = 12 byte => with padding 16 byte
-
-
-
+    seqId(seqId), score(score) {};
+    LocalResult() : seqId(0), score(0) {};
+}; // 4 + 2 = 6 byte => with padding 8 byte
 
 class QueryScore {
 public:
@@ -80,27 +62,16 @@ public:
             const unsigned short j = entry.position_j;
             const unsigned int seqId = entry.seqId;
             const unsigned short diagonal = i - j + 32768;
-            //std::cout <<  i << " " << j << " " << entry.seqId << " " <<  diagonal << std::endl;
             if (UNLIKELY(diagonal == scores[seqId])){
-                //std::cout <<  "Found diagonal for SeqId: " << seqId << " Diagonal: " << diagonal << std::endl;
-                // first hit for diagonal adds minKmerScoreThreshold to favour hits with two matches
                 if(UNLIKELY(localResultSize >= MAX_LOCAL_RESULT_SIZE)){
-                    //    std::cout << "To much hits" << std::endl;
                     break;
                 }
-                
                 LocalResult * currLocalResult = localResults + localResultSize++;
                 currLocalResult->seqId = seqId;
-                currLocalResult->i = i;
-                currLocalResult->j = j;
-                currLocalResult->diagonal = diagonal;
                 currLocalResult->score = score;
-                //                    localResult[seqId] = sadd16(localResult[seqId], score);
-                scoresSum += score;
             } else {
                 scores[seqId] = diagonal;
             }
-            
         }
         numMatches += seqListSize;
         
@@ -150,7 +121,7 @@ protected:
     unsigned int localResultSize;
     
     // max LocalResult size
-    const unsigned int MAX_LOCAL_RESULT_SIZE = 100000;
+    const unsigned int MAX_LOCAL_RESULT_SIZE = 100000000;
     
     // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
     int scores_128_size;
