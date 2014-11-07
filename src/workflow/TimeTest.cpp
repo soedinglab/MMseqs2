@@ -51,7 +51,7 @@ void TimeTest::runTimeTest (){
     std::ofstream logFileStream;
     logFileStream.open(logFile.c_str());
 
-    QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
+        QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
 
     int targetSeqLenSum = 0;
     for (size_t i = 0; i < tdbr->getSize(); i++)

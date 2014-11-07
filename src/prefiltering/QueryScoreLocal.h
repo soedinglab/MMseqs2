@@ -29,9 +29,6 @@ public:
     
     // Sort local results by sequence id, i and j
     static bool compareLocalResult(LocalResult first, LocalResult second);
-// the minimal score from kmer scores
-    
-    
     
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */

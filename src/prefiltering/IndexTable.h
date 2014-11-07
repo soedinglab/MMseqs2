@@ -179,6 +179,8 @@ class IndexTable {
             }
             Debug(Debug::WARNING) << "Min Kmer Size:   " << minKmer << "\n";
             Debug(Debug::WARNING) << "Empty Kmer list: " << emptyKmer << "\n";
+            Debug(Debug::WARNING) << "\n";
+
         }
     
         // FUNCTIONS TO OVERWRITE

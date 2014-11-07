@@ -23,8 +23,6 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
   set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
-
-
 #set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COMPILE_FLAGS}” )
 add_subdirectory(lib/ffindex)
 include_directories(src/commons)
@@ -33,6 +31,7 @@ include_directories(src/alignment)
 include_directories(src/clustering)
 include_directories(lib/getoptpp)
 include_directories(lib/kseq)
+include_directories(lib/simd)
 include_directories(${PROJECT_SOURCE_DIR}/lib/ffindex/src)
 add_subdirectory(src)
 

@@ -12,6 +12,16 @@ endif()
 #SSE
 INCLUDE(CheckSSEFeatures)
 ADD_DEFINITIONS(${CXX_DFLAGS})
+if(${HAVE_AVX2_EXTENSIONS})
+    ADD_DEFINITIONS("-DAVX2")
+#    ADD_DEFINITIONS("-DSSE") #debugging
+else()
+if(${HAVE_SSE4_2_EXTENSIONS})
+    ADD_DEFINITIONS("-DSSE")
+else()
+    message( FATAL_ERROR "SSE4.2 is needed to run compile! CMake will exit." )
+endif(${HAVE_SSE2_EXTENSIONS})
+endif(${HAVE_AVX2_EXTENSIONS})
 
 # set flags
 set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -Wall -Wno-write-strings -std=c++11 -m64")

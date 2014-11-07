@@ -1,7 +1,6 @@
 #include "QueryScore.h"
-#include "Util.h"
-#define _mm_extract_epi32(x, imm) _mm_cvtsi128_si32(_mm_srli_si128((x), 4 * (imm)))
-#define _mm_extract_epi64(x, imm) _mm_cvtsi128_si64(_mm_srli_si128((x), 8 * (imm)))
+#include "simd.h"
+
 
 QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kmerThr,
                         float kmerMatchProb, float zscoreThr){
@@ -10,16 +9,15 @@ QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kme
     this->kmerMatchProb = kmerMatchProb;
     this->kmerThr = kmerThr;
     this->zscore_thr = zscoreThr;
-    
-    this->scores_128_size = (dbSize + 7)/8 * 8;
+    this->scores_128_size = (dbSize + SIMD_SHORT_SIZE -1)/ SIMD_SHORT_SIZE * SIMD_SHORT_SIZE;
     // 8 DB short int entries are stored in one __m128i vector
     // one __m128i vector needs 16 byte
-    scores_128 = (__m128i*) Util::mem_align(16, scores_128_size * 2);
+    scores_128 = (simd_int*) mem_align(ALIGN_INT, scores_128_size * 2);
     scores = (unsigned short * ) scores_128;
     // set scores to zero
     memset (scores_128, 0, scores_128_size * 2);
     
-    this->resList = (hit_t *) Util::mem_align(16, MAX_RES_LIST_LEN * sizeof(hit_t) );
+    this->resList = (hit_t *) mem_align(ALIGN_INT, MAX_RES_LIST_LEN * sizeof(hit_t) );
     
     scoresSum = 0;
     

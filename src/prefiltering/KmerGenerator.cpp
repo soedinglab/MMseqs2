@@ -1,9 +1,6 @@
 #include "KmerGenerator.h"
-#include <emmintrin.h>
-#include <mmintrin.h>
-#include <smmintrin.h>
 #include <algorithm>    // std::reverse
-#include "Util.h"
+#include "simd.h"
 
 
 KmerGenerator::KmerGenerator(size_t kmerSize, size_t alphabetSize, short threshold ){
@@ -103,8 +100,8 @@ void KmerGenerator::initDataStructure(size_t divide_steps){
     outputIndexArray = new unsigned int *[divide_steps];
 
     for(size_t i = 0 ; i < divide_steps - 1; i++){
-        outputScoreArray[i] = (short *)        Util::mem_align(16,MAX_KMER_RESULT_SIZE * sizeof(short));
-        outputIndexArray[i] = (unsigned int *) Util::mem_align(16,MAX_KMER_RESULT_SIZE * sizeof(unsigned int));
+        outputScoreArray[i] = (short *)        mem_align(ALIGN_INT, MAX_KMER_RESULT_SIZE * sizeof(short));
+        outputIndexArray[i] = (unsigned int *) mem_align(ALIGN_INT, MAX_KMER_RESULT_SIZE * sizeof(unsigned int));
     }
 }
 
@@ -140,6 +137,7 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
     const short        * inputScoreArray = &inputScoreMatrix->score[index*inputScoreMatrix->rowSize];
     const unsigned int * inputIndexArray = &inputScoreMatrix->index[index*inputScoreMatrix->rowSize];
     size_t i;
+
     for(i = 0; i < this->divideStepCount-1; i++){
         const size_t index = this->kmerIndex[i+1];
         const ScoreMatrix * nextScoreMatrix = this->matrixLookup[i+1];
@@ -163,7 +161,7 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
         cutoff1 = -1000; //all must be inspected
         sizeInputMatrix = lastElm;
     }
-    
+
     // add identity of input kmer
     if(sizeInputMatrix==0){
         outputScoreArray[0][0] = 0;
@@ -184,8 +182,6 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
 }
 
 
-
-
 int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreArray1,
                                          const unsigned int * __restrict indexArray1,
                                          const size_t array1Size,
@@ -198,9 +194,9 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
                                          const short possibleRest,
                                          const unsigned int pow){
     size_t counter=0;
-    const __m128i * scoreArray2_simd = (const __m128i *) scoreArray2;
-    const __m128i * indexArray2_simd = (const __m128i *) indexArray2;
-    const __m128i pow_simd     = _mm_set1_epi32(pow);
+    const simd_int * scoreArray2_simd = (const simd_int *) scoreArray2;
+    const simd_int * indexArray2_simd = (const simd_int *) indexArray2;
+    const simd_int pow_simd     = simdi32_set(pow);
 
     for(size_t i = 0 ; i < array1Size; i++){
         const short score_i = scoreArray1[i];
@@ -208,38 +204,42 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
             break;
         const unsigned int kmer_i = indexArray1[i];
         const short cutoff2 = this->threshold - score_i - possibleRest;
-        const __m128i cutoff2_simd = _mm_set1_epi16(cutoff2);
-        const __m128i score_i_simd = _mm_set1_epi16(score_i);
-        const __m128i kmer_i_simd  = _mm_set1_epi32(kmer_i);
-        const size_t SIMD_SIZE = 8;
+        const simd_int cutoff2_simd = simdi16_set(cutoff2);
+        const simd_int score_i_simd = simdi16_set(score_i);
+        const simd_int kmer_i_simd  = simdi32_set(kmer_i);
+        const size_t SIMD_SIZE = VECSIZE_INT*2; // VECSIZE_INT*2 because its short
         const size_t array2SizeSIMD = (array2Size / SIMD_SIZE)+1;
+
         unsigned int score_j_lt_cutoff = 0;
         for(size_t j = 0; j < array2SizeSIMD
                         // if(score_j < cutoff2) break;
                         && score_j_lt_cutoff == 0
                         && (counter + SIMD_SIZE) < MAX_KMER_RESULT_SIZE; j++){
-            const __m128i score_j_simd   = _mm_load_si128(scoreArray2_simd + j);
-            const __m128i kmer_j_1_simd  = _mm_load_si128(indexArray2_simd + (j*2));
-            const __m128i kmer_j_2_simd  = _mm_load_si128(indexArray2_simd + (j*2+1));
-            
-            __m128i * scoreOutput_simd = (__m128i *) (outputScoreArray + counter);
-            __m128i * indexOutput_simd = (__m128i *) (outputIndexArray + counter);
+            const simd_int score_j_simd   = simdi_load(scoreArray2_simd + j);
+            const simd_int kmer_j_1_simd  = simdi_load(indexArray2_simd + (j*2));
+            const simd_int kmer_j_2_simd  = simdi_load(indexArray2_simd + (j*2+1));
+
+            simd_int * scoreOutput_simd = (simd_int *) (outputScoreArray + counter);
+            simd_int * indexOutput_simd = (simd_int *) (outputIndexArray + counter);
             // score = score_i + score_j;
-            _mm_storeu_si128(scoreOutput_simd,     _mm_add_epi16(score_i_simd,score_j_simd));
+            simdi_storeu(scoreOutput_simd, simdi16_add(score_i_simd,score_j_simd));
             // kmer = kmer_i + (kmer_j * pow)
             // SIMD/2 because its int
-            const __m128i kmer_j_1 = _mm_mullo_epi32(kmer_j_1_simd, pow_simd);
-            const __m128i kmer_j_2 = _mm_mullo_epi32(kmer_j_2_simd, pow_simd);
-            _mm_storeu_si128(indexOutput_simd,     _mm_add_epi32(kmer_i_simd, kmer_j_1));
-            _mm_storeu_si128(indexOutput_simd + 1, _mm_add_epi32(kmer_i_simd, kmer_j_2));
+            const simd_int kmer_j_1 = simdi32_mul(kmer_j_1_simd, pow_simd);
+            const simd_int kmer_j_2 = simdi32_mul(kmer_j_2_simd, pow_simd);
+            simdi_storeu(indexOutput_simd,     simdi32_add(kmer_i_simd, kmer_j_1));
+            simdi_storeu(indexOutput_simd + 1, simdi32_add(kmer_i_simd, kmer_j_2));
             counter += std::min(SIMD_SIZE,  array2Size - (j*SIMD_SIZE)); //protect from running to far
+
             // reduce count of all elements under the threshold
             // score_j < cutoff2 -> ffff, score_j > cutoff2 -> 0000
-            const __m128i cmp = _mm_cmplt_epi16 (score_j_simd, cutoff2_simd);
+            const simd_int cmp = simdi16_lt(score_j_simd, cutoff2_simd);
             // extract all values that are under the threshold
-            score_j_lt_cutoff = _mm_movemask_epi8(cmp);
+            score_j_lt_cutoff = simdi8_movemask(cmp);
             // subsstract all elements that are under the threshold from counter
+
             counter-= _mm_popcnt_u32(score_j_lt_cutoff) / 2;
+
         }
     }
     return counter;

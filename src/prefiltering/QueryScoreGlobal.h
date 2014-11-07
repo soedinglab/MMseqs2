@@ -32,7 +32,7 @@ private:
     
     float s_per_pos;
         
-    __m128i* __restrict thresholds_128;
+    simd_int* __restrict thresholds_128;
     
     unsigned short  * __restrict thresholds;
     

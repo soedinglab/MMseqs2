@@ -10,19 +10,18 @@
    */
 
 #include "smith_waterman_sse2.h"
-#include "Util.h"
 
 SmithWaterman::SmithWaterman(int maxSequenceLength, int aaSize) {
     const int segSize = (maxSequenceLength+7)/8;
-    vHStore = (__m128i*) Util::mem_align(16,segSize * sizeof(__m128i));
-	vHLoad  = (__m128i*) Util::mem_align(16,segSize * sizeof(__m128i));
-	vE      = (__m128i*) Util::mem_align(16,segSize * sizeof(__m128i));
-	vHmax   = (__m128i*) Util::mem_align(16,segSize * sizeof(__m128i));
+    vHStore = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
+	vHLoad  = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
+	vE      = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
+	vHmax   = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
     profile = new s_profile();
-    profile->profile_byte = (__m128i*)Util::mem_align(16, aaSize * segSize * sizeof(__m128i));
-    profile->profile_word = (__m128i*)Util::mem_align(16, aaSize * segSize * sizeof(__m128i));
-    profile->profile_rev_byte = (__m128i*)Util::mem_align(16, aaSize * segSize * sizeof(__m128i));
-    profile->profile_rev_word = (__m128i*)Util::mem_align(16, aaSize * segSize * sizeof(__m128i));
+    profile->profile_byte = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
+    profile->profile_word = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
+    profile->profile_rev_byte = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
+    profile->profile_rev_word = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
     profile->query_rev_sequence = new int8_t[maxSequenceLength];
     profile->query_sequence = new int8_t[maxSequenceLength];
     memset(profile->query_sequence, 0, maxSequenceLength*sizeof(int8_t));
@@ -112,13 +111,13 @@ s_align* SmithWaterman::ssw_align (
     
 	// Find the beginning position of the best alignment.
 	if (word == 0) {
-		createQueryProfile<int8_t,16>(profile->profile_rev_byte,
+		createQueryProfile<int8_t, VECSIZE_INT*4>(profile->profile_rev_byte,
                                       profile->query_rev_sequence + queryOffset, //TODO offset them
                                       profile->mat, r->qEndPos1 + 1, profile->alphabetSize, profile->bias);
 		bests_reverse = sw_sse2_byte(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_byte,
                                      r->score1, profile->bias, maskLen);
 	} else {
-		createQueryProfile<int16_t,8>(profile->profile_rev_word,
+		createQueryProfile<int16_t, VECSIZE_INT*2>(profile->profile_rev_word,
                                       profile->query_rev_sequence + queryOffset,
                                       profile->mat, r->qEndPos1 + 1, profile->alphabetSize, 0);
 		bests_reverse = sw_sse2_word(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_word,
@@ -159,7 +158,7 @@ end:
 
 /* Generate query profile rearrange query sequence & calculate the weight of match/mismatch. */
 template <typename T, size_t Elements> void SmithWaterman::createQueryProfile (
-                         __m128i* profile,
+                         simd_int* profile,
                          const int8_t* query_sequence,
                          const int8_t* mat,
                          const int32_t query_length,
@@ -227,52 +226,49 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
                                     int32_t query_lenght,
                                     const uint8_t gap_open, /* will be used as - */
                                     const uint8_t gap_extend, /* will be used as - */
-                                    const __m128i* query_profile_byte,
+                                    const simd_int* query_profile_byte,
                                     uint8_t terminate,	/* the best alignment score: used to terminate
                                                          the matrix calculation when locating the
                                                          alignment beginning point. If this score
                                                          is set to 0, it will not be used */
                                     uint8_t bias,  /* Shift 0 point to a positive value. */
                                     int32_t maskLen) {
-    
-#define max16(m, vm) (vm) = _mm_max_epu8((vm), _mm_srli_si128((vm), 8)); \
-(vm) = _mm_max_epu8((vm), _mm_srli_si128((vm), 4)); \
-(vm) = _mm_max_epu8((vm), _mm_srli_si128((vm), 2)); \
-(vm) = _mm_max_epu8((vm), _mm_srli_si128((vm), 1)); \
-(m) = _mm_extract_epi16((vm), 0)
+//TODO find general solution
+#define max16(m, vm) ((m) = simdi8_hmax((vm)));
     
 	uint8_t max = 0;		                     /* the max alignment score */
 	int32_t end_read = query_lenght - 1;
 	int32_t end_ref = -1; /* 0_based best alignment ending point; Initialized as isn't aligned -1. */
-	int32_t segLen = (query_lenght + 15) / 16; /* number of segment */
+    const int SIMD_SIZE = VECSIZE_INT * 4;
+	int32_t segLen = (query_lenght + SIMD_SIZE-1) / SIMD_SIZE; /* number of segment */
 	/* array to record the largest score of each reference position */
 	memset(this->maxColumn, 0, db_length * sizeof(uint8_t));
     uint8_t * maxColumn = (uint8_t *) this->maxColumn;
     
 	/* Define 16 byte 0 vector. */
-	__m128i vZero = _mm_set1_epi32(0);
-    __m128i* pvHStore = vHStore;
-    __m128i* pvHLoad = vHLoad;
-    __m128i* pvE = vE;
-    __m128i* pvHmax = vHmax;
-	memset(pvHStore,0,segLen*sizeof(__m128i));
-    memset(pvHLoad,0,segLen*sizeof(__m128i));
-    memset(pvE,0,segLen*sizeof(__m128i));
-    memset(pvHmax,0,segLen*sizeof(__m128i));
+	simd_int vZero = simdi32_set(0);
+    simd_int* pvHStore = vHStore;
+    simd_int* pvHLoad = vHLoad;
+    simd_int* pvE = vE;
+    simd_int* pvHmax = vHmax;
+	memset(pvHStore,0,segLen*sizeof(simd_int));
+    memset(pvHLoad,0,segLen*sizeof(simd_int));
+    memset(pvE,0,segLen*sizeof(simd_int));
+    memset(pvHmax,0,segLen*sizeof(simd_int));
 
 	int32_t i, j;
 	/* 16 byte insertion begin vector */
-	__m128i vGapO = _mm_set1_epi8(gap_open);
+	simd_int vGapO = simdi8_set(gap_open);
     
 	/* 16 byte insertion extension vector */
-	__m128i vGapE = _mm_set1_epi8(gap_extend);
+	simd_int vGapE = simdi8_set(gap_extend);
     
 	/* 16 byte bias vector */
-	__m128i vBias = _mm_set1_epi8(bias);
+	simd_int vBias = simdi8_set(bias);
     
-	__m128i vMaxScore = vZero; /* Trace the highest score of the whole SW matrix. */
-	__m128i vMaxMark = vZero; /* Trace the highest score till the previous column. */
-	__m128i vTemp;
+	simd_int vMaxScore = vZero; /* Trace the highest score of the whole SW matrix. */
+	simd_int vMaxMark = vZero; /* Trace the highest score till the previous column. */
+	simd_int vTemp;
 	int32_t edge, begin = 0, end = db_length, step = 1;
     //	int32_t distance = query_lenght * 2 / 3;
     //	int32_t distance = query_lenght / 2;
@@ -286,15 +282,15 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 	}
 	for (i = begin; LIKELY(i != end); i += step) {
 		int32_t cmp;
-		__m128i e, vF = vZero, vMaxColumn = vZero; /* Initialize F value to 0.
+		simd_int e, vF = vZero, vMaxColumn = vZero; /* Initialize F value to 0.
                                                     Any errors to vH values will be corrected in the Lazy_F loop.
                                                     */
         //		max16(maxColumn[i], vMaxColumn);
         //		fprintf(stderr, "middle[%d]: %d\n", i, maxColumn[i]);
         
-		__m128i vH = pvHStore[segLen - 1];
-		vH = _mm_slli_si128 (vH, 1); /* Shift the 128-bit value in vH left by 1 byte. */
-		const __m128i* vP = query_profile_byte + db_sequence[i] * segLen; /* Right part of the query_profile_byte */
+		simd_int vH = pvHStore[segLen - 1];
+		vH = simdi8_shiftl (vH, 1); /* Shift the 128-bit value in vH left by 1 byte. */
+		const simd_int* vP = query_profile_byte + db_sequence[i] * segLen; /* Right part of the query_profile_byte */
         //	int8_t* t;
         //	int32_t ti;
         //        fprintf(stderr, "i: %d of %d:\t ", i,segLen);
@@ -302,14 +298,14 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
         //fprintf(stderr, "\n");
         
         /* Swap the 2 H buffers. */
-		__m128i* pv = pvHLoad;
+		simd_int* pv = pvHLoad;
 		pvHLoad = pvHStore;
 		pvHStore = pv;
         
 		/* inner loop to process the query sequence */
 		for (j = 0; LIKELY(j < segLen); ++j) {
-			vH = _mm_adds_epu8(vH, _mm_load_si128(vP + j));
-			vH = _mm_subs_epu8(vH, vBias); /* vH will be always > 0 */
+			vH = simdui8_adds(vH, simdi_load(vP + j));
+			vH = simdui8_subs(vH, vBias); /* vH will be always > 0 */
             //	max16(maxColumn[i], vH);
             //	fprintf(stderr, "H[%d]: %d\n", i, maxColumn[i]);
             //	int8_t* t;
@@ -317,76 +313,84 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
             //for (t = (int8_t*)&vH, ti = 0; ti < 16; ++ti) fprintf(stderr, "%d\t", *t++);
             
 			/* Get max from vH, vE and vF. */
-			e = _mm_load_si128(pvE + j);
-			vH = _mm_max_epu8(vH, e);
-			vH = _mm_max_epu8(vH, vF);
-			vMaxColumn = _mm_max_epu8(vMaxColumn, vH);
+			e = simdi_load(pvE + j);
+			vH = simdui8_max(vH, e);
+			vH = simdui8_max(vH, vF);
+			vMaxColumn = simdui8_max(vMaxColumn, vH);
             
             //	max16(maxColumn[i], vMaxColumn);
             //	fprintf(stderr, "middle[%d]: %d\n", i, maxColumn[i]);
             //	for (t = (int8_t*)&vMaxColumn, ti = 0; ti < 16; ++ti) fprintf(stderr, "%d\t", *t++);
             
 			/* Save vH values. */
-			_mm_store_si128(pvHStore + j, vH);
+			simdi_store(pvHStore + j, vH);
             
 			/* Update vE value. */
-			vH = _mm_subs_epu8(vH, vGapO); /* saturation arithmetic, result >= 0 */
-			e = _mm_subs_epu8(e, vGapE);
-			e = _mm_max_epu8(e, vH);
-			_mm_store_si128(pvE + j, e);
+			vH = simdui8_subs(vH, vGapO); /* saturation arithmetic, result >= 0 */
+			e = simdui8_subs(e, vGapE);
+			e = simdui8_max(e, vH);
+			simdi_store(pvE + j, e);
             
 			/* Update vF value. */
-			vF = _mm_subs_epu8(vF, vGapE);
-			vF = _mm_max_epu8(vF, vH);
+			vF = simdui8_subs(vF, vGapE);
+			vF = simdui8_max(vF, vH);
             
 			/* Load the next vH. */
-			vH = _mm_load_si128(pvHLoad + j);
+			vH = simdi_load(pvHLoad + j);
 		}
         
 		/* Lazy_F loop: has been revised to disallow adjecent insertion and then deletion, so don't update E(i, j), learn from SWPS3 */
         /* reset pointers to the start of the saved data */
         j = 0;
-        vH = _mm_load_si128 (pvHStore + j);
+        vH = simdi_load (pvHStore + j);
         
         /*  the computed vF value is for the given column.  since */
         /*  we are at the end, we need to shift the vF value over */
         /*  to the next column. */
-        vF = _mm_slli_si128 (vF, 1);
-        vTemp = _mm_subs_epu8 (vH, vGapO);
-		vTemp = _mm_subs_epu8 (vF, vTemp);
-		vTemp = _mm_cmpeq_epi8 (vTemp, vZero);
-		cmp  = _mm_movemask_epi8 (vTemp);
-        
+        vF = simdi8_shiftl (vF, 1);
+        vTemp = simdui8_subs (vH, vGapO);
+		vTemp = simdui8_subs (vF, vTemp);
+		vTemp = simdi8_eq (vTemp, vZero);
+		cmp  = simdi8_movemask (vTemp);
+#ifdef AVX2
+        while (cmp != 0xffffffff)
+#else
         while (cmp != 0xffff)
+#endif
         {
-            vH = _mm_max_epu8 (vH, vF);
-			vMaxColumn = _mm_max_epu8(vMaxColumn, vH);
-            _mm_store_si128 (pvHStore + j, vH);
-            vF = _mm_subs_epu8 (vF, vGapE);
+            vH = simdui8_max (vH, vF);
+			vMaxColumn = simdui8_max(vMaxColumn, vH);
+            simdi_store (pvHStore + j, vH);
+            vF = simdui8_subs (vF, vGapE);
             j++;
             if (j >= segLen)
             {
                 j = 0;
-                vF = _mm_slli_si128 (vF, 1);
+                vF = simdi8_shiftl (vF, 1);
             }
-            vH = _mm_load_si128 (pvHStore + j);
+            vH = simdi_load (pvHStore + j);
             
-            vTemp = _mm_subs_epu8 (vH, vGapO);
-            vTemp = _mm_subs_epu8 (vF, vTemp);
-            vTemp = _mm_cmpeq_epi8 (vTemp, vZero);
-            cmp  = _mm_movemask_epi8 (vTemp);
+            vTemp = simdui8_subs (vH, vGapO);
+            vTemp = simdui8_subs (vF, vTemp);
+            vTemp = simdi8_eq (vTemp, vZero);
+            cmp  = simdi8_movemask (vTemp);
         }
         
-		vMaxScore = _mm_max_epu8(vMaxScore, vMaxColumn);
-		vTemp = _mm_cmpeq_epi8(vMaxMark, vMaxScore);
-		cmp = _mm_movemask_epi8(vTemp);
-		if (cmp != 0xffff) {
+		vMaxScore = simdui8_max(vMaxScore, vMaxColumn);
+		vTemp = simdi8_eq(vMaxMark, vMaxScore);
+		cmp = simdi8_movemask(vTemp);
+#ifdef AVX2
+        if (cmp != 0xffffffff)
+#else
+        if (cmp != 0xffff)
+#endif
+        {
 			uint8_t temp;
 			vMaxMark = vMaxScore;
 			max16(temp, vMaxScore);
 			vMaxScore = vMaxMark;
-            
-			if (LIKELY(temp > max)) {
+
+            if (LIKELY(temp > max)) {
 				max = temp;
 				if (max + bias >= 255) break;	//overflow
 				end_ref = i;
@@ -404,11 +408,11 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
     
 	/* Trace the alignment ending position on read. */
 	uint8_t *t = (uint8_t*)pvHmax;
-	int32_t column_len = segLen * 16;
+	int32_t column_len = segLen * SIMD_SIZE;
 	for (i = 0; LIKELY(i < column_len); ++i, ++t) {
 		int32_t temp;
 		if (*t == max) {
-			temp = i / 16 + i % 16 * segLen;
+			temp = i / SIMD_SIZE + i % SIMD_SIZE * segLen;
 			if (temp < end_read) end_read = temp;
 		}
 	}
@@ -451,44 +455,42 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
                                     int32_t query_lenght,
                                     const uint8_t gap_open, /* will be used as - */
                                     const uint8_t gap_extend, /* will be used as - */
-                                    const __m128i*query_profile_word,
+                                    const simd_int*query_profile_word,
                                     uint16_t terminate,
                                     int32_t maskLen) {
     
-#define max8(m, vm) (vm) = _mm_max_epi16((vm), _mm_srli_si128((vm), 8)); \
-(vm) = _mm_max_epi16((vm), _mm_srli_si128((vm), 4)); \
-(vm) = _mm_max_epi16((vm), _mm_srli_si128((vm), 2)); \
-(m) = _mm_extract_epi16((vm), 0)
+#define max8(m, vm) ((m) = simdi16_hmax((vm)));
     
 	uint16_t max = 0;		                     /* the max alignment score */
 	int32_t end_read = query_lenght - 1;
 	int32_t end_ref = 0; /* 1_based best alignment ending point; Initialized as isn't aligned - 0. */
-	int32_t segLen = (query_lenght + 7) / 8; /* number of segment */
+    const unsigned int SIMD_SIZE = VECSIZE_INT * 2;
+	int32_t segLen = (query_lenght + SIMD_SIZE-1) / SIMD_SIZE; /* number of segment */
 	/* array to record the alignment read ending position of the largest score of each reference position */
     memset(this->maxColumn, 0, db_length * sizeof(uint16_t));
     uint16_t * maxColumn = (uint16_t *) this->maxColumn;
     
 	/* Define 16 byte 0 vector. */
-	__m128i vZero = _mm_set1_epi32(0);
-    __m128i* pvHStore = vHStore;
-    __m128i* pvHLoad = vHLoad;
-    __m128i* pvE = vE;
-    __m128i* pvHmax = vHmax;
-	memset(pvHStore,0,segLen*sizeof(__m128i));
-    memset(pvHLoad,0, segLen*sizeof(__m128i));
-    memset(pvE,0,     segLen*sizeof(__m128i));
-    memset(pvHmax,0,  segLen*sizeof(__m128i));
+	simd_int vZero = simdi32_set(0);
+    simd_int* pvHStore = vHStore;
+    simd_int* pvHLoad = vHLoad;
+    simd_int* pvE = vE;
+    simd_int* pvHmax = vHmax;
+	memset(pvHStore,0,segLen*sizeof(simd_int));
+    memset(pvHLoad,0, segLen*sizeof(simd_int));
+    memset(pvE,0,     segLen*sizeof(simd_int));
+    memset(pvHmax,0,  segLen*sizeof(simd_int));
 
 	int32_t i, j, k;
 	/* 16 byte insertion begin vector */
-	__m128i vGapO = _mm_set1_epi16(gap_open);
+	simd_int vGapO = simdi16_set(gap_open);
     
 	/* 16 byte insertion extension vector */
-	__m128i vGapE = _mm_set1_epi16(gap_extend);
+	simd_int vGapE = simdi16_set(gap_extend);
     
-	__m128i vMaxScore = vZero; /* Trace the highest score of the whole SW matrix. */
-	__m128i vMaxMark = vZero; /* Trace the highest score till the previous column. */
-	__m128i vTemp;
+	simd_int vMaxScore = vZero; /* Trace the highest score of the whole SW matrix. */
+	simd_int vMaxMark = vZero; /* Trace the highest score till the previous column. */
+	simd_int vTemp;
 	int32_t edge, begin = 0, end = db_length, step = 1;
     
 	/* outer loop to process the reference sequence */
@@ -499,66 +501,72 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 	}
 	for (i = begin; LIKELY(i != end); i += step) {
 		int32_t cmp;
-		__m128i e, vF = vZero; /* Initialize F value to 0.
+		simd_int e, vF = vZero; /* Initialize F value to 0.
                                 Any errors to vH values will be corrected in the Lazy_F loop.
                                 */
-		__m128i vH = pvHStore[segLen - 1];
-		vH = _mm_slli_si128 (vH, 2); /* Shift the 128-bit value in vH left by 2 byte. */
+		simd_int vH = pvHStore[segLen - 1];
+		vH = simdi8_shiftl (vH, 2); /* Shift the 128-bit value in vH left by 2 byte. */
         
 		/* Swap the 2 H buffers. */
-		__m128i* pv = pvHLoad;
+		simd_int* pv = pvHLoad;
         
-		__m128i vMaxColumn = vZero; /* vMaxColumn is used to record the max values of column i. */
+		simd_int vMaxColumn = vZero; /* vMaxColumn is used to record the max values of column i. */
         
-		const __m128i* vP = query_profile_word + db_sequence[i] * segLen; /* Right part of the query_profile_byte */
+		const simd_int* vP = query_profile_word + db_sequence[i] * segLen; /* Right part of the query_profile_byte */
 		pvHLoad = pvHStore;
 		pvHStore = pv;
         
 		/* inner loop to process the query sequence */
 		for (j = 0; LIKELY(j < segLen); j ++) {
-			vH = _mm_adds_epi16(vH, _mm_load_si128(vP + j));
+			vH = simdi16_adds(vH, simdi_load(vP + j));
             
 			/* Get max from vH, vE and vF. */
-			e = _mm_load_si128(pvE + j);
-			vH = _mm_max_epi16(vH, e);
-			vH = _mm_max_epi16(vH, vF);
-			vMaxColumn = _mm_max_epi16(vMaxColumn, vH);
+			e = simdi_load(pvE + j);
+			vH = simdi16_max(vH, e);
+			vH = simdi16_max(vH, vF);
+			vMaxColumn = simdi16_max(vMaxColumn, vH);
             
 			/* Save vH values. */
-			_mm_store_si128(pvHStore + j, vH);
+			simdi_store(pvHStore + j, vH);
             
 			/* Update vE value. */
-			vH = _mm_subs_epu16(vH, vGapO); /* saturation arithmetic, result >= 0 */
-			e = _mm_subs_epu16(e, vGapE);
-			e = _mm_max_epi16(e, vH);
-			_mm_store_si128(pvE + j, e);
+			vH = simdui16_subs(vH, vGapO); /* saturation arithmetic, result >= 0 */
+			e = simdui16_subs(e, vGapE);
+			e = simdi16_max(e, vH);
+			simdi_store(pvE + j, e);
             
 			/* Update vF value. */
-			vF = _mm_subs_epu16(vF, vGapE);
-			vF = _mm_max_epi16(vF, vH);
+			vF = simdui16_subs(vF, vGapE);
+			vF = simdi16_max(vF, vH);
             
 			/* Load the next vH. */
-			vH = _mm_load_si128(pvHLoad + j);
+			vH = simdi_load(pvHLoad + j);
 		}
         
 		/* Lazy_F loop: has been revised to disallow adjecent insertion and then deletion, so don't update E(i, j), learn from SWPS3 */
 		for (k = 0; LIKELY(k < 8); ++k) {
-			vF = _mm_slli_si128 (vF, 2);
+			vF = simdi8_shiftl (vF, 2);
 			for (j = 0; LIKELY(j < segLen); ++j) {
-				vH = _mm_load_si128(pvHStore + j);
-				vH = _mm_max_epi16(vH, vF);
-				_mm_store_si128(pvHStore + j, vH);
-				vH = _mm_subs_epu16(vH, vGapO);
-				vF = _mm_subs_epu16(vF, vGapE);
-				if (UNLIKELY(! _mm_movemask_epi8(_mm_cmpgt_epi16(vF, vH)))) goto end;
+				vH = simdi_load(pvHStore + j);
+				vH = simdi16_max(vH, vF);
+				simdi_store(pvHStore + j, vH);
+				vH = simdui16_subs(vH, vGapO);
+				vF = simdui16_subs(vF, vGapE);
+				if (UNLIKELY(! simdi8_movemask(simdi16_gt(vF, vH)))) goto end;
 			}
 		}
         
     end:
-		vMaxScore = _mm_max_epi16(vMaxScore, vMaxColumn);
-		vTemp = _mm_cmpeq_epi16(vMaxMark, vMaxScore);
-		cmp = _mm_movemask_epi8(vTemp);
-		if (cmp != 0xffff) {
+		vMaxScore = simdi16_max(vMaxScore, vMaxColumn);
+		vTemp = simdi16_eq(vMaxMark, vMaxScore);
+		cmp = simdi8_movemask(vTemp);
+
+#ifdef AVX2
+        if (cmp != 0xffffffff)
+#else
+        if (cmp != 0xffff)
+#endif
+        {
 			uint16_t temp;
 			vMaxMark = vMaxScore;
 			max8(temp, vMaxScore);
@@ -578,11 +586,11 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
     
 	/* Trace the alignment ending position on read. */
 	uint16_t *t = (uint16_t*)pvHmax;
-	int32_t column_len = segLen * 8;
+	int32_t column_len = segLen * SIMD_SIZE;
 	for (i = 0; LIKELY(i < column_len); ++i, ++t) {
 		int32_t temp;
 		if (*t == max) {
-			temp = i / 8 + i % 8 * segLen;
+			temp = i / SIMD_SIZE + i % SIMD_SIZE * segLen;
 			if (temp < end_read) end_read = temp;
 		}
 	}
@@ -633,10 +641,10 @@ void SmithWaterman::ssw_init (const Sequence* q,
         bias = abs(bias);
 
         profile->bias = bias;
-        createQueryProfile<int8_t,16>(profile->profile_byte, profile->query_sequence, mat, q->L, alphabetSize, bias);
+        createQueryProfile<int8_t, VECSIZE_INT*4>(profile->profile_byte, profile->query_sequence, mat, q->L, alphabetSize, bias);
     }
     if (score_size == 1 || score_size == 2) {
-        createQueryProfile<int16_t,8>(profile->profile_word, profile->query_sequence, mat, q->L, alphabetSize, 0);
+        createQueryProfile<int16_t,VECSIZE_INT*2>(profile->profile_word, profile->query_sequence, mat, q->L, alphabetSize, 0);
     }
     
     seq_reverse( profile->query_rev_sequence, profile->query_sequence, q->L);

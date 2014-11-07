@@ -1,19 +1,11 @@
 #include "QueryScoreGlobal.h"
-
+#include "simd.h"
 
 QueryScoreGlobal::QueryScoreGlobal(int dbSize, unsigned short * dbSeqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
 : QueryScore(dbSize, dbSeqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor
 {
     
-    this->scores_128_size = (dbSize + 7)/8 * 8;
-    // 8 DB short int entries are stored in one __m128i vector
-    // one __m128i vector needs 16 byte
-    scores_128 = (__m128i*) Util::mem_align(16, scores_128_size * 2);
-    scores = (unsigned short * ) scores_128;
-    // set scores to zero
-    memset (scores_128, 0, scores_128_size * 2);
-    
-    thresholds_128 = (__m128i*) Util::mem_align(16, scores_128_size * 2);
+    thresholds_128 = (simd_int*) mem_align(ALIGN_INT, scores_128_size * 2);
     thresholds = (unsigned short * ) thresholds_128;
     
     memset (thresholds_128, 0, scores_128_size * 2);
@@ -60,7 +52,6 @@ QueryScoreGlobal::QueryScoreGlobal(int dbSize, unsigned short * dbSeqLens, int k
 }
 
 QueryScoreGlobal::~QueryScoreGlobal(){
-    free(scores_128);
     free(thresholds_128);
     delete[] seqLens;
     delete[] steps;
@@ -96,8 +87,8 @@ void QueryScoreGlobal::setPrefilteringThresholds(){
     unsigned short threshold_ushrt;
     unsigned int ushrt_max = USHRT_MAX;
     
-    __m128i* __restrict thr = thresholds_128;
-    __m128i v = _mm_setzero_si128();
+    simd_int* __restrict thr = thresholds_128;
+    simd_int v = simdi32_set(0);
     
     for (int i = 0; i < nsteps - 1; i++){
         seqLen = seqLens[steps[i]];
@@ -109,10 +100,10 @@ void QueryScoreGlobal::setPrefilteringThresholds(){
         threshold_ushrt = (unsigned short) std::min(ushrt_max, (unsigned int) threshold);
         
         // store short treshold in a vector
-        v =  _mm_set1_epi16(threshold_ushrt);
+        v = simdi16_set(threshold_ushrt);
         
         // set all thresolds to the current value until calculation of the next value is necessary
-        for (int j = steps[i]; j < steps[i+1]; j += 8){
+        for (int j = steps[i]; j < steps[i+1]; j += SIMD_SHORT_SIZE){
             *thr = v;
             thr++;
         }
@@ -122,10 +113,10 @@ void QueryScoreGlobal::setPrefilteringThresholds(){
 std::pair<hit_t *, size_t> QueryScoreGlobal::getResult (int querySeqLen, unsigned int identityId){
     
     size_t elementCounter = 0;
-    const __m128i zero = _mm_setzero_si128();
+    const simd_int zero = simdi32_set(0);
     
-    __m128i* __restrict p   = scores_128;
-    __m128i* __restrict thr = thresholds_128;
+    simd_int* __restrict p   = scores_128;
+    simd_int* __restrict thr = thresholds_128;
     
     
     // check if there is the identity of the query sequence in the database
@@ -135,25 +126,29 @@ std::pair<hit_t *, size_t> QueryScoreGlobal::getResult (int querySeqLen, unsigne
     }
     
     // go through each vector
-    const size_t lenght = scores_128_size/8;
+    const size_t lenght = scores_128_size/ (SIMD_SHORT_SIZE); // *2for short
     for (size_t pos = 0; pos < lenght; pos++ ){
         
         // look for entries above the threshold
-        __m128i cmp = _mm_subs_epu16(*p, *thr);
-        cmp = _mm_cmpeq_epi16(cmp, zero);
-        const unsigned int cmp_set_bits = _mm_movemask_epi8(cmp);
+        simd_int cmp = simdui16_subs(*p, *thr);
+        cmp = simdi16_eq(cmp, zero);
+        const unsigned int cmp_set_bits = simdi8_movemask(cmp);
         
         // here are some sequences above the prefiltering threshold
+#ifdef AVX2
+        if (cmp_set_bits != 0xffffffff){
+#else
         if (cmp_set_bits != 0xffff){
+#endif
             // and search for highest
-            for(int i = 0; i < 8; i++){
+            for(int i = 0; i < SIMD_SHORT_SIZE; i++){
                 
-                if(!CHECK_BIT(cmp_set_bits,i*2) && (pos * 8 + i) != identityId){
-                    const float zscore = getZscore(pos*8+i);
+                if(!CHECK_BIT(cmp_set_bits,i*2) && (pos * SIMD_SHORT_SIZE + i) != identityId){
+                    const float zscore = getZscore(pos * SIMD_SHORT_SIZE + i);
                     hit_t * result = (resList + elementCounter);
-                    result->seqId = pos * 8 + i;
+                    result->seqId = pos * SIMD_SHORT_SIZE + i;
                     result->zScore = zscore;
-                    result->prefScore = scores[pos*8+i];
+                    result->prefScore = scores[pos * SIMD_SHORT_SIZE + i];
                     elementCounter++;
                     if(elementCounter >= MAX_RES_LIST_LEN)
                         goto OuterLoop;

@@ -120,7 +120,6 @@ static inline float powFast2 ( float f)
 
 class Util {
 public:
-	static void * mem_align(size_t bound, size_t size);
     static void decompose_domain(int domain_size, int world_rank,
                                  int world_size, int* subdomain_start,
                                  int* subdomain_size);

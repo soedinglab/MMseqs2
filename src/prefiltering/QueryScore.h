@@ -6,11 +6,6 @@
 // Calculates the overall prefiltering score for the template database sequences and returns all sequences
 // with the prefiltering score >= prefiltering threshold.
 //
-
-
-#include <emmintrin.h>
-#include <mmintrin.h>
-
 #include <stdlib.h>
 #include <vector>
 #include <list>
@@ -27,6 +22,7 @@
 
 #include "Debug.h"
 #include "Util.h"
+#include "simd.h"
 #include "IndexTable.h"
 
 
@@ -114,7 +110,9 @@ public:
     static bool compareHits(hit_t first, hit_t second);
     
 protected:
-    //    std::unordered_map<unsigned int , unsigned short > localResult;
+
+    const unsigned int SIMD_SHORT_SIZE = VECSIZE_INT * 2;  // *2 for short
+
     LocalResult * localResults;
     
     // current position in Localresults while adding Score
@@ -132,7 +130,7 @@ protected:
     
     // position in the array: sequence id
     // entry in the array: prefiltering score
-    __m128i* __restrict scores_128;
+    simd_int* __restrict scores_128;
     
     unsigned short  * __restrict scores;
     

@@ -1,6 +1,7 @@
 #include "ExtendedSubstitutionMatrix.h"
 #include "Indexer.h"
 #include "Util.h"
+#include "simd.h"
 
 #include <iostream>
 #include <iterator>
@@ -20,15 +21,15 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
                                                        const size_t alphabetSize){
     Indexer indexer( (int) alphabetSize, (int) kmerSize);
     this->size = pow(alphabetSize, kmerSize);
-    int row_size = (int) this->size / 16;
-    row_size = (row_size + 1) * 16; // for SIMD memory alignment
+    int row_size = (int) this->size / ALIGN_INT;
+    row_size = (row_size + 1) * ALIGN_INT; // for SIMD memory alignment
     // create permutation
     std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));
     
     // score matrix is O(size^2). 64 is added for SSE
-    short * score = (short *)       Util::mem_align(16, (this->size * (row_size)) * sizeof(short));
+    short * score = (short *) mem_align(ALIGN_INT, (this->size * (row_size)) * sizeof(short));
     // index matrix is O(size^2). 64 is added for SSE
-    unsigned int * index = (unsigned int *)Util::mem_align(16, (this->size * (row_size)) * sizeof(unsigned int));
+    unsigned int * index = (unsigned int *)mem_align(ALIGN_INT, (this->size * (row_size)) * sizeof(unsigned int));
 
 
     std::vector<std::vector<int> > permutation;
@@ -49,6 +50,10 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
         for (size_t z = 0; z < this->size; z++) {
             score[(i_index * row_size) + z] = tmpScoreMatrix[z].first;
             index[(i_index * row_size) + z] = tmpScoreMatrix[z].second;
+        }
+        for (size_t z = this->size; z < row_size; z++) {
+            score[(i_index * row_size) + z] = -255;
+            index[(i_index * row_size) + z] = 0;
         }
     }
     delete tmpScoreMatrix;

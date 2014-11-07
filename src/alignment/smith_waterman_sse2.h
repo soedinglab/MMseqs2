@@ -27,6 +27,7 @@
 #if !defined(__APPLE__)
 #include <malloc.h>
 #endif
+#include "simd.h"
 #include <limits.h> 
 
 #include "../commons/Sequence.h"
@@ -154,10 +155,10 @@ public:
 private:
     
     struct s_profile{
-        __m128i* profile_byte;	// 0: none
-        __m128i* profile_word;	// 0: none
-        __m128i* profile_rev_byte;	// 0: none
-        __m128i* profile_rev_word;	// 0: none
+        simd_int* profile_byte;	// 0: none
+        simd_int* profile_word;	// 0: none
+        simd_int* profile_rev_byte;	// 0: none
+        simd_int* profile_rev_word;	// 0: none
         int8_t* query_sequence;
         int8_t* query_rev_sequence;
         const int8_t* mat;
@@ -165,10 +166,10 @@ private:
         int32_t alphabetSize;
         uint8_t bias;
     };
-    __m128i* vHStore;
-    __m128i* vHLoad;
-    __m128i* vE;
-    __m128i* vHmax;
+    simd_int* vHStore;
+    simd_int* vHLoad;
+    simd_int* vE;
+    simd_int* vHmax;
     uint8_t * maxColumn;
     
     typedef struct {
@@ -196,7 +197,7 @@ private:
                                  int32_t query_lenght,
                                  const uint8_t gap_open, /* will be used as - */
                                  const uint8_t gap_extend, /* will be used as - */
-                                 const __m128i* query_profile_byte,
+                                 const simd_int* query_profile_byte,
                                  uint8_t terminate,	/* the best alignment score: used to terminate
                                                      the matrix calculation when locating the
                                                      alignment beginning point. If this score
@@ -210,7 +211,7 @@ private:
                   int32_t query_lenght,
                   const uint8_t gap_open, /* will be used as - */
                   const uint8_t gap_extend, /* will be used as - */
-                  const __m128i*query_profile_byte,
+                  const simd_int*query_profile_byte,
                   uint16_t terminate,
                   int32_t maskLen);
     
@@ -235,7 +236,7 @@ private:
 
     s_profile* profile;
     
-    template <typename T, size_t Elements> void createQueryProfile (__m128i* profile,
+    template <typename T, size_t Elements> void createQueryProfile (simd_int* profile,
                  const int8_t* query_sequence,
                  const int8_t* mat,
                  const int32_t query_length,

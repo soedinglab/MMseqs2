@@ -92,8 +92,9 @@ Prefiltering::Prefiltering(std::string queryDB,
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
-#endif
-        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, querySeqType, kmerSize, spacedKmer, subMat);
+#endif 
+        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa,
+                                        querySeqType, kmerSize, 1, spacedKmer, subMat);
         reslens[thread_idx] = new std::list<int>();
     }
 
@@ -137,11 +138,9 @@ void Prefiltering::run(){
     unsigned int splitCounter =  this->split;
     std::vector<std::pair<std::string, std::string> > splitFiles;
     for(unsigned int split = 0; split < splitCounter; split++){
-        Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step " << split << " of " << splitCounter <<  ")\n";
-
         std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB,outDBIndex,split);
         splitFiles.push_back(filenamePair);
-        
+
         this->run (split, splitCounter,
                    filenamePair.first.c_str(),
                    filenamePair.second.c_str() );
@@ -251,7 +250,8 @@ IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
 
 void Prefiltering::run (size_t split, size_t splitCount,
                         std::string resultDB, std::string resultDBIndex){
-    
+    Debug(Debug::WARNING) << "Process prefiltering step " << split << " of " << splitCount <<  "\n\n";
+
     DBWriter tmpDbw(resultDB.c_str(), resultDBIndex.c_str(), threads);
     tmpDbw.open();
     size_t queryDBSize = qdbr->getSize();
@@ -261,6 +261,7 @@ void Prefiltering::run (size_t split, size_t splitCount,
     IndexTable * indexTable = getIndexTable(split, splitCount);
     
     struct timeval start, end;
+
     gettimeofday(&start, NULL);
     QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat,indexTable, tdbr->getSeqLens(), kmerThr,
                              kmerMatchProb, kmerSize, tdbr->getSize(),
@@ -270,6 +271,7 @@ void Prefiltering::run (size_t split, size_t splitCount,
     size_t dbMatches = 0;
     size_t resSize = 0;
     size_t realResSize = 0;
+    Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step "<< split << " of " << splitCount << ")\n";
 
 #pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches)
     for (size_t id = 0; id < queryDBSize; id++){ 
@@ -431,7 +433,7 @@ void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
     // fill and init the index table
     dbTo=std::min(dbTo,dbr->getSize());
     for (unsigned int id = dbFrom; id < dbTo; id++){
-        Log::printProgress(id-dbFrom);
+        Log::printProgress(id - dbFrom);
         char* seqData = dbr->getData(id);
         std::string str(seqData);
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
@@ -443,7 +445,7 @@ void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
 void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * indexTable,
                                 size_t dbFrom, size_t dbTo)
 {
-    Debug(Debug::INFO) << "\nIndex table: init... from "<< dbFrom << " to "<< dbTo << "\n";
+    Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
     indexTable->initMemory();
     indexTable->init();
 
@@ -482,8 +484,7 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
 
     countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
 
-    if ((dbTo-dbFrom) > 10000)
-        Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "\n";
     
     fillDatabase(dbr, seq, indexTable, dbFrom, dbTo);
     

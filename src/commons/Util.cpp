@@ -2,15 +2,6 @@
 
 
 
-void * Util::mem_align(size_t boundary, size_t size) {
-  void *pointer;
-  if (posix_memalign(&pointer,boundary,size) != 0) {
-	std::cerr<<"Error: Could not allocate memory by memalign. Please report this bug to developers\n";
-	EXIT(3);
-   }
-   return pointer;
-}
-
 void Util::decompose_domain(int domain_size, int world_rank,
                       int world_size, int* subdomain_start,
                       int* subdomain_size) {

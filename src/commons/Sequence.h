@@ -17,19 +17,20 @@
 #include <cmath>
 #include "../commons/BaseMatrix.h"      // for pBack
 #include "../commons/ScoreMatrix.h"      // for ScoreMatrix
+#include "KmerIterator.h"      // for ScoreMatrix
 
-const char seed_4[]        = {1, 1, 1, 1};
-const char seed_4_spaced[] = {1, 1, 1, 0, 1};
-const char seed_5[]        = {1, 1, 1, 1, 1};
+const int8_t seed_4[]        = {1, 1, 1, 1};
+const int8_t seed_4_spaced[] = {1, 1, 1, 0, 1};
+const int8_t seed_5[]        = {1, 1, 1, 1, 1};
 //const char seed_5_spaced[] = {1, 1, 1, 0, 1, 1};
 //const char seed_5_spaced[] = {1, 1, 0, 1, 0, 1, 1};// better than 111011
-const char seed_5_spaced[] = {1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1}; // just 0.001 %worse ROC5 but way faster
-const char seed_6[]        = {1, 1, 1, 1, 1, 1};
+const int8_t seed_5_spaced[] = {1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1}; // just 0.001 %worse ROC5 but way faster
+const int8_t seed_6[]        = {1, 1, 1, 1, 1, 1};
 //const char seed_6_spaced[] = {1, 1, 1, 0, 1, 1, 0, 1};
-const char seed_6_spaced[] = {1, 1, 0, 1, 0, 1, 0, 0, 1, 1}; // better than 11101101
-const char seed_7[]        = {1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_6_spaced[] = {1, 1, 0, 1, 0, 1, 0, 0, 1, 1}; // better than 11101101
+const int8_t seed_7[]        = {1, 1, 1, 1, 1, 1, 1};
 //const char seed_7_spaced[] = {1, 1, 1, 1, 0, 1, 0, 1, 0, 1};
-const char seed_7_spaced[] = {1, 1,0, 1, 0, 1, 1, 0, 0, 1, 1};
+const int8_t seed_7_spaced[] = {1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1};
 
 typedef struct {
         float kmersPerPos;
@@ -40,8 +41,11 @@ class Sequence
 {
     public:
         Sequence(size_t maxLen, int* aa2int, char* int2aa,
-                 int seqType, unsigned int kmerSize = 0,
-                 bool spaced = false, BaseMatrix * subMat = NULL );
+                 int seqType,
+                 const unsigned int kmerSize = 0,
+                 const unsigned int stepSize = 1,
+                 const bool spaced = false,
+                 BaseMatrix * subMat = NULL );
         ~Sequence();
 
         // Map char -> int
@@ -55,17 +59,15 @@ class Sequence
 
         // returns next k-mer
         const int* nextKmer();
-    
-
 
         // resets the sequence position pointer to the start of the sequence
-        void resetCurrPos() { currItPos = -1; }
+        void resetCurrPos() { kmerIterator->reset(); }
 
-        void print(); // for debugging 
+        void print(); // for debugging
 
         int getId() { return id; }
     
-        int getCurrentPosition() { return currItPos; }
+        int getCurrentPosition() { return kmerIterator->getPosition(); }
 
 
         char* getDbKey() { return dbKey; }
@@ -80,7 +82,10 @@ class Sequence
         static const int NUCLEOTIDES = 1;
         static const int HMM_PROFILE = 2;
 
-
+    
+        // Kmer Iterator
+        KmerIterator * kmerIterator;
+    
         // length of sequence
         int L;
         // each amino acid coded as integer
@@ -98,7 +103,7 @@ class Sequence
 
         statistics_t* stats;
     
-        std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
+        std::pair<const int8_t *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
     
     private:
@@ -106,8 +111,6 @@ class Sequence
         void mapNucleotideSequence(const char *seq);
         int id;
         char* dbKey;
-        // current iterator position
-        int currItPos;
         // AMINO_ACIDS or NUCLEOTIDES
         int seqType;
         // Matrix for Profile calculation
@@ -115,11 +118,9 @@ class Sequence
         // maximum possible length of sequence
         size_t maxLen;
         // read next kmer profile in profile_matrix
-        void nextProfileKmer();
-        // size of Pattern
-        int spacedPatternSize;
-        // contains spaced pattern e.g. 1 1 1 1 0 1 0 1 0 1
-        const char * spacedPattern;
+        void nextProfileKmer(const unsigned int * kmerPos);
+        // kmer Size
+        unsigned int kmerSize;
         // sequence window will be filled by newxtKmer (needed for spaced patterns)
         int * kmerWindow;
 };
