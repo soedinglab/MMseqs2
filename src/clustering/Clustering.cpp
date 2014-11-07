@@ -269,6 +269,7 @@ Clustering::set_data Clustering::read_in_set_data(){
             strtok(NULL, "\t");
             float seqId = atof(strtok(NULL, "\t")); // sequence identity
             //double eval = atof(strtok(NULL, "\n")); // e-value
+            strtok(NULL, "\n");
             // add an edge if it meets the thresholds
             if (seqId >= seqIdThr){
                 element_buffer[element_counter++]=curr_element;
