@@ -9,10 +9,10 @@
 #include "DBReader.h"
 #include "Debug.h"
 
-void printUsage(){
-    std::string usage("\nConvert a mmseqs clustering to ffindex based multiple sequence alignments.\n");
+void printUsageCusteringToFasta(){
+    std::string usage("\nConvert a mmseqs ffindex clustering to an clustering fasta format.\n");
     usage.append("Written by Milot Mirdita (milot@mirdita.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE: mmseqs_clustering_to_msa clusteredDB fastaHeaderInDB fastaBodyInDB msaOutDB\n");
+    usage.append("USAGE:  <clusteredDB> <fastaHeaderInDB> <fastaBodyInDB> <msaOutDB>\n");
     Debug(Debug::ERROR) << usage;
 }
 
@@ -22,7 +22,7 @@ void parseArgs(int argc, const char** argv,
                std::string* fastaBodyInDB,
                std::string* msaOutDB){
 	if (argc < 5){
-        printUsage();
+        printUsageCusteringToFasta();
         exit(EXIT_FAILURE);
     }
 
@@ -41,7 +41,7 @@ FILE* openFileOrDie(const char * fileName, const char * mode) {
 	return file;
 }
 
-int main (int argc, const char * argv[])
+int clusteringtofastadb (int argc, const char **argv)
 {
     
     std::string clusteredDB = "";

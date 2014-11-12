@@ -18,6 +18,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     outDBIndex(outDBIndex),
     kmerSize(par.kmerSize),
     spacedKmer(par.spacedKmer),
+    sensitivity(par.sensitivity),
     maxResListLen(par.maxResListLen),
     alphabetSize(par.alphabetSize),
     zscoreThr(par.zscoreThr),
@@ -98,18 +99,6 @@ Prefiltering::Prefiltering(std::string queryDB,
         reslens[thread_idx] = new std::list<int>();
     }
 
-    // set the k-mer similarity threshold
-    Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << par.sensitivity << ")...\n";
-    //std::pair<short, double> ret = setKmerThreshold (qdbr, tdbr, par.sensitivity, 0.1);
-    //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
-    std::pair<short, double> ret = std::pair<short, double>(80, 8.18064e-05);
-    this->kmerThr = ret.first;
-    this->kmerMatchProb = ret.second;
-
-    Debug(Debug::WARNING) << "k-mer similarity threshold: " << kmerThr << "\n";
-    Debug(Debug::WARNING) << "k-mer match probability: " << kmerMatchProb << "\n\n";
-    
-    
 }
 
 Prefiltering::~Prefiltering(){
@@ -250,6 +239,7 @@ IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
 
 void Prefiltering::run (size_t split, size_t splitCount,
                         std::string resultDB, std::string resultDBIndex){
+
     Debug(Debug::WARNING) << "Process prefiltering step " << split << " of " << splitCount <<  "\n\n";
 
     DBWriter tmpDbw(resultDB.c_str(), resultDBIndex.c_str(), threads);
@@ -259,6 +249,18 @@ void Prefiltering::run (size_t split, size_t splitCount,
     memset(notEmpty, 0, queryDBSize * sizeof(int)); // init notEmpty
     
     IndexTable * indexTable = getIndexTable(split, splitCount);
+
+    // set the k-mer similarity threshold
+    Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
+    //std::pair<short, double> ret = setKmerThreshold (indexTable, qdbr, tdbr, par.sensitivity, 0.1);
+    //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
+    std::pair<short, double> ret = std::pair<short, double>(80, 8.18064e-05);
+    this->kmerThr = ret.first;
+    this->kmerMatchProb = ret.second;
+
+    Debug(Debug::WARNING) << "k-mer similarity threshold: " << kmerThr << "\n";
+    Debug(Debug::WARNING) << "k-mer match probability: " << kmerMatchProb << "\n\n";
+
     
     struct timeval start, end;
 
@@ -496,12 +498,10 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
     return indexTable;
 }
 
-std::pair<short,double> Prefiltering::setKmerThreshold (DBReader* qdbr, DBReader* tdbr,
+std::pair<short,double> Prefiltering::setKmerThreshold (IndexTable * indexTable, DBReader* qdbr, DBReader* tdbr,
                                                         double sensitivity, double toleratedDeviation){
 
-    IndexTable* indexTable = getIndexTable(0,split);
-    size_t targetDbSize = std::min( tdbr->getSize(), (size_t) indexTable->getSize());
-
+    size_t targetDbSize = indexTable->getSize();
     int targetSeqLenSum = 0;
     for (size_t i = 0; i < targetDbSize; i++)
         targetSeqLenSum += tdbr->getSeqLens()[i];
