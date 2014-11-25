@@ -3,7 +3,7 @@
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
         std::string outDB, std::string outDBIndex,
-        float seqIdThr, int validateClustering, int maxListLen){
+        int validateClustering, int maxListLen){
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
@@ -17,7 +17,6 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
     dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str());
     dbw->open();
 
-    this->seqIdThr = seqIdThr;
     this->validate = validateClustering;
     this->maxListLen = maxListLen;
     Debug(Debug::INFO) << "done.\n";
@@ -270,12 +269,11 @@ Clustering::set_data Clustering::read_in_set_data(){
             float seqId = atof(strtok(NULL, "\t")); // sequence identity
             //double eval = atof(strtok(NULL, "\n")); // e-value
             strtok(NULL, "\n");
-            // add an edge if it meets the thresholds
-            if (seqId >= seqIdThr){
-                element_buffer[element_counter++]=curr_element;
-                element_size[curr_element]++;
-                ret_struct.all_element_count++;
-            }
+            // add an edge
+            element_buffer[element_counter++] = curr_element;
+            element_size[curr_element]++;
+            ret_struct.all_element_count++;
+
             // next db key
             dbKey = strtok(NULL, "\t");
             cnt++;

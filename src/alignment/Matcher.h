@@ -21,21 +21,31 @@
 class Matcher{
 
     public:
-        typedef struct {
+
+
+
+    static const unsigned int SCORE_ONLY = 0;
+    static const unsigned int SCORE_COV = 1;
+    static const unsigned int SCORE_COV_SEQID = 2;
+
+        struct result_t {
             std::string dbKey;
             int score;
             float qcov;
             float dbcov;
             float seqId;
             double eval;
-        } result_t;
+            result_t(std::string dbkey,int score,
+                 float qcov, float dbcov,
+                 float seqId, double eval) : dbKey(dbkey), score(score), qcov(qcov), dbcov(dbcov), seqId(seqId), eval(eval) {};
+        };
 
         Matcher(BaseMatrix* m, int maxSeqLen);
 
         ~Matcher();
 
         // run SSE2 parallelized Smith-Waterman alignment calculation and traceback
-        result_t getSWResult(Sequence* dbSeq,const size_t seqDbSize,const double evalThr);
+        result_t getSWResult(Sequence* dbSeq,const size_t seqDbSize,const double evalThr, const unsigned int mode);
 
         // need for sorting the results
         static bool compareHits (result_t first, result_t second){ if (first.score > second.score) return true; return false; }

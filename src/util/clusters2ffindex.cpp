@@ -67,8 +67,6 @@ int clusteringtofastadb (int argc, const char **argv)
 	FILE* msaData  = openFileOrDie(msaOutDB.c_str(), "w");
 	FILE* msaIndex = openFileOrDie(msaOutIndex.c_str(), "w+");
 
-	char header_start[] = {'>'};
-    char newline[] = {'\n'};
     Debug(Debug::WARNING) << "Start writing file to " << msaOutDB << "\n";
     
 	size_t offset = 0;

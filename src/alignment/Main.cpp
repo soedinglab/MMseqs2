@@ -24,6 +24,7 @@ int alignment(int argc, const char *argv[])
     std::vector<MMseqsParameter> perfPar = {
             Parameters::PARAM_E,
             Parameters::PARAM_C,
+            Parameters::PARAM_MIN_SEQ_ID,
             Parameters::PARAM_MAX_SEQ_LEN,
             Parameters::PARAM_MAX_SEQS,
             Parameters::PARAM_MAX_REJECTED,

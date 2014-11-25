@@ -6,3 +6,11 @@ add_executable(test_alignment ${testalignment})
 target_link_libraries(test_alignment util)
 target_link_libraries(test_alignment workflow)
 target_link_libraries(test_alignment ffindex)
+
+
+set(testalignment_perf TestAlignmentPerformance.cpp )
+add_executable(testalignment_perf ${testalignment_perf})
+
+target_link_libraries(testalignment_perf util)
+target_link_libraries(testalignment_perf workflow)
+target_link_libraries(testalignment_perf ffindex)

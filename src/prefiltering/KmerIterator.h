@@ -49,7 +49,7 @@ class KmerIterator {
                 }
                 run += 1;
                 unsigned int pos = 0;
-                for(int i = 0; i < this->patternSize; i++) {
+                for(unsigned int i = 0; i < this->patternSize; i++) {
                     if(pattern[i]) {
                         buffer[pos++] = (idx + i);
                     }

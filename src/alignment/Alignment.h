@@ -40,12 +40,19 @@ class Alignment {
 
     private:
 
+        // keeps state of alignment mode (SCORE_ONLY, SCORE_COV or SCORE_COV_SEQID)
+        unsigned mode;
         int threads;
 
         size_t BUFFER_SIZE;
 
+        // sequence identity threshold
+        double seqIdThr;
+
+        // query sequence coverage threshold
         double covThr;
 
+        // e value threshold
         double evalThr;
 
         BaseMatrix* m;

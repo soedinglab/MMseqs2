@@ -91,7 +91,7 @@ void Parameters::parseParameters(int argc, char* pargv[],
         }
         ops >> GetOpt::Option("z-score",  zscoreThr);
         ops >> GetOpt::Option("skip",     skip);
-        ops >> GetOpt::Option("max-seqs", maxResListLen);
+        ops >> GetOpt::Option('l',"max-seqs", maxResListLen);
         ops >> GetOpt::Option("split",    split);
         ops >> GetOpt::Option('m',"sub-mat",  scoringMatrixFile);
         int searchMode = 0;
@@ -297,7 +297,7 @@ void Parameters::setDefaults() {
     char* mmdir = getenv ("MMDIR");
     if (mmdir == 0){
         std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
-        exit(1);
+        EXIT(1);
     }
     scoringMatrixFile = std::string(mmdir);
     scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
@@ -322,7 +322,7 @@ void Parameters::setDefaults() {
     zscoreThr = 50.0f;
     
     evalThr = 0.001;
-    covThr = 0.8;
+    covThr = 0.0;
     maxRejected = INT_MAX;
     
     clusteringMode = Parameters::SET_COVER;

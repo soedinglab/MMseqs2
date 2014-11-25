@@ -31,7 +31,7 @@ class Clustering {
         Clustering (std::string seqDB, std::string seqDBIndex,
                 std::string alnResultsDB, std::string alnResultsDBIndex,
                 std::string outDB, std::string outDBIndex, 
-                float seqIdThr, int validateClustering, int maxListLen);
+                int validateClustering, int maxListLen);
 
         struct set_data {
             // one set contains pointers to the cluster member ids
@@ -65,8 +65,6 @@ class Clustering {
         DBReader* alnDbr;
 
         DBWriter* dbw;
-
-        float seqIdThr;
 
         int validate;
 

@@ -105,7 +105,7 @@ s_align* SmithWaterman::ssw_align (
 	free(bests);
     int32_t queryOffset = query_length - r->qEndPos1;
     
-	if (flag == 0 || (flag == 2 && r->score1 < filters)){
+	if (flag == 0 || ((flag == 2 || flag == 1) && r->score1 < filters)){
         goto end;
     }
     
@@ -128,8 +128,7 @@ s_align* SmithWaterman::ssw_align (
 	r->qStartPos1 = r->qEndPos1 - bests_reverse[0].read;
     
 	free(bests_reverse);
-	if ((7&flag) == 0 || ((2&flag) != 0 && r->score1 < filters) || ((4&flag) != 0
-                                                                    && (r->dbEndPos1 - r->dbStartPos1 > filterd || r->qEndPos1 - r->qStartPos1 > filterd)))
+	if (flag == 1) // just start and end point are needed
         goto end;
     
 	// Generate cigar.
@@ -165,14 +164,14 @@ template <typename T, size_t Elements> void SmithWaterman::createQueryProfile (
                          const int32_t aaSize,	/* the edge length of the squre matrix mat */
                          uint8_t bias) {
     
-    const int32_t segLen = (query_length+Elements-1)/Elements;
+    const size_t segLen = (query_length+Elements-1)/Elements;
 	T* t = (T*)profile;
     
 	/* Generate query profile rearrange query sequence & calculate the weight of match/mismatch */
-	for (int32_t nt = 0; LIKELY(nt < aaSize); nt ++) {
-		for (int32_t i = 0; i < segLen; i ++) {
-			int32_t  j = i;
-			for (int32_t segNum = 0; LIKELY(segNum < Elements) ; segNum ++) {
+	for (size_t nt = 0; LIKELY(nt < aaSize); nt ++) {
+		for (size_t i = 0; i < segLen; i ++) {
+            size_t  j = i;
+			for (size_t segNum = 0; LIKELY(segNum < Elements) ; segNum ++) {
 				*t++ = (j>= query_length) ? bias : mat[nt * aaSize + query_sequence[j]] + bias;
 				j += segLen;
 			}
@@ -702,7 +701,7 @@ SmithWaterman::cigar* SmithWaterman::banded_sw (const int*db_sequence,
 			kroundup32(s2);
 			if (s2 < 0) {
 				fprintf(stderr, "Alignment score and position are not consensus.\n");
-				exit(1);
+				EXIT(1);
 			}
 			direction = (int8_t*)realloc(direction, s2 * sizeof(int8_t));
 		}
@@ -920,7 +919,7 @@ unsigned short SmithWaterman::sse2_extract_epi16(__m128i v, int pos) {
         case 7: return _mm_extract_epi16(v, 7);
     }
     std::cerr << "Fatal error in QueryScore: position in the vector is not in the legal range (pos = " << pos << ")\n";
-    exit(1);
+    EXIT(1);
     // never executed
     return 0;
 }
