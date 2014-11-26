@@ -23,6 +23,7 @@ class KmerGenerator
          fill up the divide step and calls init_result_list */
         void setDivideStrategy(ScoreMatrix ** one);
 
+	void setThreshold(short threshold);
     private:
     
         /*creates the product between two arrays and write it to the output array */
@@ -40,7 +41,7 @@ class KmerGenerator
     
     
         /* maximum return values */
-        const static size_t MAX_KMER_RESULT_SIZE = 262144;
+        const static size_t MAX_KMER_RESULT_SIZE = 262144*2;
         /* min score  */
         short threshold;
         /* size of kmer  */
