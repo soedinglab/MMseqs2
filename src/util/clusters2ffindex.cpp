@@ -9,10 +9,10 @@
 #include "DBReader.h"
 #include "Debug.h"
 
-void printUsage(){
-    std::string usage("\nConvert a mmseqs clustering to ffindex based multiple sequence alignments.\n");
+void printUsageCusteringToFasta(){
+    std::string usage("\nConvert a mmseqs ffindex clustering to an clustering fasta format.\n");
     usage.append("Written by Milot Mirdita (milot@mirdita.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE: mmseqs_clustering_to_msa clusteredDB fastaHeaderInDB fastaBodyInDB msaOutDB\n");
+    usage.append("USAGE:  <clusteredDB> <fastaHeaderInDB> <fastaBodyInDB> <msaOutDB>\n");
     Debug(Debug::ERROR) << usage;
 }
 
@@ -22,7 +22,7 @@ void parseArgs(int argc, const char** argv,
                std::string* fastaBodyInDB,
                std::string* msaOutDB){
 	if (argc < 5){
-        printUsage();
+        printUsageCusteringToFasta();
         exit(EXIT_FAILURE);
     }
 
@@ -41,7 +41,7 @@ FILE* openFileOrDie(const char * fileName, const char * mode) {
 	return file;
 }
 
-int main (int argc, const char * argv[])
+int clusteringtofastadb (int argc, const char **argv)
 {
     
     std::string clusteredDB = "";
@@ -67,8 +67,6 @@ int main (int argc, const char * argv[])
 	FILE* msaData  = openFileOrDie(msaOutDB.c_str(), "w");
 	FILE* msaIndex = openFileOrDie(msaOutIndex.c_str(), "w+");
 
-	char header_start[] = {'>'};
-    char newline[] = {'\n'};
     Debug(Debug::WARNING) << "Start writing file to " << msaOutDB << "\n";
     
 	size_t offset = 0;
@@ -81,7 +79,7 @@ int main (int argc, const char * argv[])
 	    	char* cEntry = const_cast<char *>(entry.c_str());
 			char* header = headers.getDataByDBKey(cEntry);
         	char* body   =  bodies.getDataByDBKey(cEntry);
-			fasta += std::string(header) + std::string(body);
+			fasta += "> " + std::string(header) + std::string(body);
 		}
 
 		ffindex_insert_memory(msaData, msaIndex, &offset, const_cast<char *>(fasta.c_str()), fasta.length(), clusterKey);

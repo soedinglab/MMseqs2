@@ -88,7 +88,7 @@ class Prefiltering {
         // parameter
         int kmerSize;
         bool spacedKmer;
-    
+        float sensitivity;
         size_t maxResListLen;
         int alphabetSize;
         float zscoreThr;
@@ -108,12 +108,15 @@ class Prefiltering {
         size_t resSize;
         size_t realResSize;
         size_t dbMatches;
+        size_t doubleMatches;
 
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
-        std::pair<short,double> setKmerThreshold(DBReader* qdbr, DBReader* tdbr, double targetKmerMatchProb, double toleratedDeviation);
+        std::pair<short,double> setKmerThreshold(IndexTable * indexTable,
+                                                 DBReader* qdbr, DBReader* tdbr,
+                                                 double targetKmerMatchProb, double toleratedDeviation);
         std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb);
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults);

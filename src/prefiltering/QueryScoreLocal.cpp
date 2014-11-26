@@ -12,7 +12,7 @@ QueryScoreLocal::QueryScoreLocal(int dbSize, unsigned short * seqLens, int k, sh
 {
     localResultSize = 0;
     localResults = new LocalResult[MAX_LOCAL_RESULT_SIZE];
-};
+}
 
 QueryScoreLocal::~QueryScoreLocal(){
     delete [] localResults;
@@ -62,3 +62,4 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
     return pair;
 }
+

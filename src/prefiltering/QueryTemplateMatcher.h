@@ -15,6 +15,12 @@
 #include "KmerGenerator.h"
 #include "Indexer.h"
 
+struct statistics_t{
+    float kmersPerPos;
+    size_t dbMatches;
+    size_t doubleMatches;
+    statistics_t() : kmersPerPos(0.0) , dbMatches(0) , doubleMatches(0) {};
+};
 
 class QueryTemplateMatcher {
     public:
@@ -34,14 +40,19 @@ class QueryTemplateMatcher {
             this->kmerThr = kmerThr;
             this->kmerGenerator = new KmerGenerator(kmerSize, m->alphabetSize, kmerThr);
             this->aaBiasCorrection = aaBiasCorrection;
-            
+            this->stats = new statistics_t();
             this->deltaS = new float[maxSeqLen];
             memset(this->deltaS, 0, maxSeqLen * sizeof(float));
         }
 
         virtual ~QueryTemplateMatcher () {
+            delete stats;
             delete[] deltaS;
             delete kmerGenerator;
+        }
+
+        const statistics_t * getStatistics(){
+            return stats;
         }
 
         // set substituion matrix for KmerGenerator
@@ -93,7 +104,8 @@ class QueryTemplateMatcher {
         virtual std::pair<hit_t *, size_t>  matchQuery (Sequence * seq, unsigned int identityId) = 0;
     
     protected:
-    
+        // keeps stats for run
+        statistics_t * stats;
         // match sequence against the IndexTable
         virtual void match(Sequence* seq) = 0;
         // scoring matrix for local amino acid bias correction

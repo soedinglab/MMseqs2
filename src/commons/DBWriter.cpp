@@ -150,7 +150,7 @@ int DBWriter::close(){
             }
             else{
                 std::cerr << "Could not open ffindex index file " << indexFileNames[i] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
             // merge data and indexes
             ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, cnt);
@@ -215,7 +215,7 @@ void DBWriter::write(char* data, int64_t dataSize, char* key, int thrIdx){
     checkClosed();
     if (thrIdx >= maxThreadNum){
         Debug(Debug::ERROR) <<  "ERROR: Thread index " << thrIdx << " > maximum thread number " << maxThreadNum << "\n";
-        exit(1);
+        EXIT(1);
     }
     ffindex_insert_memory(dataFiles[thrIdx], indexFiles[thrIdx], &offsets[thrIdx], data, dataSize, key);
 }

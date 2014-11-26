@@ -13,17 +13,15 @@ int cluster(int argc, const char ** argv)
     usage.append("USAGE: mmseqs_clu <sequenceDB> <alnResultsDB> <outDB> [opts]\n");
     std::vector<MMseqsParameter> perfPar = {
         Parameters::PARAM_G,
-        Parameters::PARAM_MIN_SEQ_ID,
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_V};
     Parameters par;
     par.parseParameters(argc, (char**)argv, usage, perfPar, 3);
 
-    
     Debug::setDebugLevel(par.verbosity);
 
     Clustering* clu = new Clustering(par.db1, par.db1Index, par.db2, par.db2Index,
-                                     par.db3, par.db3Index, par.seqIdThr, par.validateClustering, par.maxResListLen);
+                                     par.db3, par.db3Index, par.validateClustering, par.maxResListLen);
 
     clu->run(par.clusteringMode);
 

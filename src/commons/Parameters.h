@@ -114,7 +114,7 @@ public:
     //    "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
     // clustering
     //    "-g              \t[int]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
-    //    "--min-seq-id    \t[float]\tMinimum sequence identity of sequences in a cluster (default = 0.0)\n"
+    //    "--min-seq-id    \t[float]\tMinimum sequence identity of query to target cluster (default = 0.0)\n"
     const static MMseqsParameter PARAM_S;
     const static MMseqsParameter PARAM_K;
     const static MMseqsParameter PARAM_THREADS;

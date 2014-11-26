@@ -11,7 +11,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_, float
         readProbMatrix();
     else{
         std::cerr << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
-        exit(1);
+        EXIT(1);
     }
 
     generateSubMatrix(this->probMatrix, this->subMatrix, this->alphabetSize, bitFactor, -0.2);
@@ -27,7 +27,7 @@ void SubstitutionMatrix::readProbMatrix(){
     std::ifstream in(scoringMatrixFileName);
     if( in.fail() ) {
         std::cerr << "Cannot read " << scoringMatrixFileName << "\n";
-        exit(1);
+        EXIT(1);
     }
     int row    = 0;
     int column = 0;

@@ -155,10 +155,10 @@ class IndexTable {
                 if(size == 0){
                     emptyKmer++;
                 }
-                if(size < topElements[top_N-1].first)
+                if(((size_t)size) < topElements[top_N-1].first)
                     continue;
                 for(size_t j =0; j < top_N; j++){
-                    if (topElements[j].first < size) {
+                    if (topElements[j].first < ((size_t)size)) {
                         topElements[j].first = size;
                         topElements[j].second = i;
                         break;

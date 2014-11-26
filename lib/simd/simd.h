@@ -22,12 +22,8 @@
 #ifdef AVX
 #define SSE
 #endif
+#include <xmmintrin.h> //TODO SSE
 
-//function header
-uint16_t simd_hmax16(const __m128i buffer);
-uint8_t simd_hmax8(const __m128i buffer);
-uint16_t simd_hmax16_avx(const __m256i buffer);
-uint8_t simd_hmax8_avx(const __m256i buffer);
 
 
 #ifdef AVX512
@@ -132,6 +128,9 @@ typedef __m512i simd_int;
 #include <immintrin.h> // AVX
 #define ALIGN_INT   32
 #define VECSIZE_INT 8
+//function header
+uint16_t simd_hmax16_avx(const __m256i buffer);
+uint8_t simd_hmax8_avx(const __m256i buffer);
 
 template  <unsigned int N> __m256i _mm256_shift_left(__m256i a)
 {
@@ -236,7 +235,8 @@ typedef __m256 simd_float;
 
 
 #ifdef SSE
-#include <xmmintrin.h> // SSE
+uint16_t simd_hmax16(const __m128i buffer);
+uint8_t simd_hmax8(const __m128i buffer);
 #include <emmintrin.h> // SSE2
 // double support
 #ifndef SIMD_DOUBLE
