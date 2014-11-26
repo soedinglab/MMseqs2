@@ -140,8 +140,8 @@ void TimeTest::runTimeTest (){
 
                     matchers[thread_idx]->matchQuery(seqs[thread_idx], UINT_MAX);
 
-                    kmersPerPos += seqs[thread_idx]->stats->kmersPerPos;
-                    dbMatchesSum += seqs[thread_idx]->stats->dbMatches;
+                    kmersPerPos += matchers[thread_idx]->getStatistics()->kmersPerPos;
+                    dbMatchesSum += matchers[thread_idx]->getStatistics()->dbMatches;
                 }
                 gettimeofday(&end, NULL);
                 int sec = end.tv_sec - start.tv_sec;

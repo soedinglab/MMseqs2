@@ -7,7 +7,6 @@ QueryScoreGlobal::QueryScoreGlobal(int dbSize, unsigned short * dbSeqLens, int k
     
     thresholds_128 = (simd_int*) mem_align(ALIGN_INT, scores_128_size * 2);
     thresholds = (unsigned short * ) thresholds_128;
-    
     memset (thresholds_128, 0, scores_128_size * 2);
     
     // initialize sequence lenghts with each seqLens[i] = L_i - k + 1

@@ -1,5 +1,6 @@
 #include "QueryTemplateMatcherLocal.h"
 #include "QueryScoreLocal.h"
+#include "QueryTemplateMatcher.h"
 
 QueryTemplateMatcherLocal::QueryTemplateMatcherLocal  ( BaseMatrix* m,
                                                         IndexTable * indexTable,
@@ -98,7 +99,8 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
     //Debug(Debug::WARNING) << " matched at " << match_pos << " positions. ";
     //Debug(Debug::WARNING) << match_num << " times.\n";
     // write statistics
-    seq->stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
-    seq->stats->dbMatches = queryScore->getNumMatches();
+    stats->doubleMatches = queryScore->getLocalResultSize();
+    stats->kmersPerPos   = ((float)kmerListLen/(float)seq->L);
+    stats->dbMatches     = queryScore->getNumMatches();
     //    delete indexer;
 }

@@ -108,6 +108,7 @@ class Prefiltering {
         size_t resSize;
         size_t realResSize;
         size_t dbMatches;
+        size_t doubleMatches;
 
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.

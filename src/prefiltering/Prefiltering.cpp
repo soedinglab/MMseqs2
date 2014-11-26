@@ -5,6 +5,7 @@
 #include "IndexTableLocal.h"
 #include "QueryTemplateMatcherGlobal.h"
 #include "QueryTemplateMatcherLocal.h"
+#include "QueryTemplateMatcher.h"
 
 
 Prefiltering::Prefiltering(std::string queryDB,
@@ -271,11 +272,12 @@ void Prefiltering::run (size_t split, size_t splitCount,
 
     int kmersPerPos = 0;
     size_t dbMatches = 0;
+    size_t doubleMatches = 0;
     size_t resSize = 0;
     size_t realResSize = 0;
     Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step "<< split << " of " << splitCount << ")\n";
 
-#pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches)
+#pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches)
     for (size_t id = 0; id < queryDBSize; id++){ 
         Log::printProgress(id);
         
@@ -297,8 +299,10 @@ void Prefiltering::run (size_t split, size_t splitCount,
         // update statistics counters
         if (resultSize != 0)
             notEmpty[id] = 1;
-        kmersPerPos += (size_t) qseq[thread_idx]->stats->kmersPerPos;
-        dbMatches += qseq[thread_idx]->stats->dbMatches;
+
+        kmersPerPos += (size_t) matchers[thread_idx]->getStatistics()->kmersPerPos;
+        dbMatches += matchers[thread_idx]->getStatistics()->dbMatches;
+        doubleMatches += matchers[thread_idx]->getStatistics()->doubleMatches;
         resSize += resultSize;
         realResSize += std::min(resultSize, maxResListLen);
         reslens[thread_idx]->push_back(resultSize);
@@ -308,6 +312,7 @@ void Prefiltering::run (size_t split, size_t splitCount,
     this->dbMatches = dbMatches;
     this->resSize = resSize;
     this->realResSize = realResSize;
+    this->doubleMatches = doubleMatches;
 
     if (queryDBSize > 1000)
         Debug(Debug::INFO) << "\n";
@@ -399,8 +404,12 @@ void Prefiltering::printStatistics(){
     size_t dbMatchesPerSeq = dbMatches/queryDBSize;
     size_t prefPassedPerSeq = resSize/queryDBSize;
     size_t prefRealPassedPerSeq = realResSize/queryDBSize;
+    size_t doubleMatcherPerQuerySeq = doubleMatches/queryDBSize;
     Debug(Debug::INFO) << kmersPerPos/queryDBSize << " k-mers per position.\n";
     Debug(Debug::INFO) << dbMatchesPerSeq << " DB matches per sequence.\n";
+    if(isLocal){
+         Debug(Debug::INFO) << doubleMatcherPerQuerySeq << " Double diagonal matches per sequence.\n";
+    }
     Debug(Debug::INFO) << prefPassedPerSeq << " sequences passed prefiltering per query sequence";
     if (prefPassedPerSeq > maxResListLen)
         Debug(Debug::INFO) << " (ATTENTION: max. " << maxResListLen << " best scoring sequences were written to the output prefiltering database).\n";
@@ -605,8 +614,8 @@ std::pair<short,double> Prefiltering::setKmerThreshold (IndexTable * indexTable,
 
             matchers[thread_idx]->matchQuery(qseq[thread_idx],UINT_MAX);
 
-            kmersPerPos += qseq[thread_idx]->stats->kmersPerPos;
-            dbMatchesSum += qseq[thread_idx]->stats->dbMatches;
+            kmersPerPos += matchers[thread_idx]->getStatistics()->kmersPerPos;
+            dbMatchesSum += matchers[thread_idx]->getStatistics()->dbMatches;
             querySeqLenSum += qseq[thread_idx]->L;
         }
 

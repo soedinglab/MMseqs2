@@ -99,6 +99,11 @@ public:
     unsigned int getNumMatches(){
         return numMatches;
     };
+
+    // returns the current local Result size
+    unsigned int getLocalResultSize(){
+        return localResultSize;
+    }
     
     // maximal resultList
     static const size_t MAX_RES_LIST_LEN = 150000;

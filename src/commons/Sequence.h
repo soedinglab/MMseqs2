@@ -32,11 +32,6 @@ const int8_t seed_7[]        = {1, 1, 1, 1, 1, 1, 1};
 //const char seed_7_spaced[] = {1, 1, 1, 1, 0, 1, 0, 1, 0, 1};
 const int8_t seed_7_spaced[] = {1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1};
 
-typedef struct {
-        float kmersPerPos;
-        size_t dbMatches;
-} statistics_t;
-
 class Sequence
 {
     public:
@@ -101,8 +96,6 @@ class Sequence
         int  * aa2int; // ref to mapping from aa -> int
         char * int2aa; // ref mapping from int -> aa
 
-        statistics_t* stats;
-    
         std::pair<const int8_t *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
     

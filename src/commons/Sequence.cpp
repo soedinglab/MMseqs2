@@ -18,7 +18,6 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa,
     this->int2aa = int2aa;
     this->maxLen = maxLen;
     this->seqType = seqType;
-    this->stats = new statistics_t;
     std::pair<const int8_t *, unsigned int> spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
     this->kmerSize = kmerSize;
     const int8_t * spacedPattern   = spacedKmerInformation.first;
@@ -53,7 +52,6 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa,
 Sequence::~Sequence()
 {
     delete[] int_sequence;
-    delete stats;
     delete kmerIterator;
     if(kmerWindow)
         delete [] kmerWindow;
