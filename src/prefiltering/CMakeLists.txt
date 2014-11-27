@@ -1,5 +1,4 @@
 set(prefiltering_source_files
-  KmerIterator.h
   ExtendedSubstitutionMatrix.cpp
   ExtendedSubstitutionMatrix.h
   IndexTable.h

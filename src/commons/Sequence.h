@@ -17,7 +17,6 @@
 #include <cmath>
 #include "../commons/BaseMatrix.h"      // for pBack
 #include "../commons/ScoreMatrix.h"      // for ScoreMatrix
-#include "KmerIterator.h"      // for ScoreMatrix
 
 const int8_t seed_4[]        = {1, 1, 1, 1};
 const int8_t seed_4_spaced[] = {1, 1, 1, 0, 1};
@@ -56,13 +55,13 @@ class Sequence
         const int* nextKmer();
 
         // resets the sequence position pointer to the start of the sequence
-        void resetCurrPos() { kmerIterator->reset(); }
+        void resetCurrPos() { currItPos = -1; }
 
         void print(); // for debugging
 
         int getId() { return id; }
     
-        int getCurrentPosition() { return kmerIterator->getPosition(); }
+        int getCurrentPosition() { return currItPos; }
 
 
         char* getDbKey() { return dbKey; }
@@ -76,13 +75,10 @@ class Sequence
         static const int AMINO_ACIDS = 0;
         static const int NUCLEOTIDES = 1;
         static const int HMM_PROFILE = 2;
-
-    
-        // Kmer Iterator
-        KmerIterator * kmerIterator;
     
         // length of sequence
         int L;
+
         // each amino acid coded as integer
         int * int_sequence;  
 
@@ -96,7 +92,7 @@ class Sequence
         int  * aa2int; // ref to mapping from aa -> int
         char * int2aa; // ref mapping from int -> aa
 
-        std::pair<const int8_t *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
+        std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
     
     private:
@@ -104,6 +100,8 @@ class Sequence
         void mapNucleotideSequence(const char *seq);
         int id;
         char* dbKey;
+        // current iterator position
+        int currItPos;
         // AMINO_ACIDS or NUCLEOTIDES
         int seqType;
         // Matrix for Profile calculation
@@ -111,7 +109,11 @@ class Sequence
         // maximum possible length of sequence
         size_t maxLen;
         // read next kmer profile in profile_matrix
-        void nextProfileKmer(const unsigned int * kmerPos);
+        void nextProfileKmer();
+        // size of Pattern
+        int spacedPatternSize;
+        // contains spaced pattern e.g. 1 1 1 1 0 1 0 1 0 1
+        const char * spacedPattern;
         // kmer Size
         unsigned int kmerSize;
         // sequence window will be filled by newxtKmer (needed for spaced patterns)

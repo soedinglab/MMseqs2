@@ -18,11 +18,10 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa,
     this->int2aa = int2aa;
     this->maxLen = maxLen;
     this->seqType = seqType;
-    std::pair<const int8_t *, unsigned int> spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
+    std::pair<const char *, unsigned int> spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
+    this->spacedPattern = spacedKmerInformation.first;
+    this->spacedPatternSize = spacedKmerInformation.second;
     this->kmerSize = kmerSize;
-    const int8_t * spacedPattern   = spacedKmerInformation.first;
-    unsigned int spacedPatternSize = spacedKmerInformation.second;
-    kmerIterator = new KmerIterator(stepSize, spacedPattern, spacedPatternSize);
     this->kmerWindow = NULL;
     if(spacedPatternSize)
        this->kmerWindow = new int[kmerSize];
@@ -47,12 +46,13 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa,
             profile_index[i] = -1;
         }
     }
+    currItPos = -1;
+
 }
 
 Sequence::~Sequence()
 {
     delete[] int_sequence;
-    delete kmerIterator;
     if(kmerWindow)
         delete [] kmerWindow;
     if (seqType == HMM_PROFILE) {
@@ -65,38 +65,37 @@ Sequence::~Sequence()
     }
 }
 
-
-std::pair<const int8_t *, unsigned int> Sequence::getSpacedPattern(bool spaced, unsigned int kmerSize){
+std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, unsigned int kmerSize){
     switch (kmerSize) {
         case 0: // if no kmer iterator support
-            return std::make_pair<const int8_t *, unsigned int>(NULL, 0);
+            return std::make_pair<const char *, unsigned int>(NULL, 0);
             break;
         case 4:
             if(spaced){
-                return std::make_pair<const int8_t *, unsigned int>((const int8_t *) &seed_4_spaced, ARRAY_SIZE(seed_4_spaced));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_4_spaced, ARRAY_SIZE(seed_4_spaced));
             }else{
-                return std::make_pair<const int8_t *, unsigned int>((const int8_t *) &seed_4, ARRAY_SIZE(seed_4));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_4, ARRAY_SIZE(seed_4));
             }
             break;
         case 5:
             if(spaced){
-                return std::make_pair<const int8_t *, unsigned int>((const int8_t *) &seed_5_spaced, ARRAY_SIZE(seed_5_spaced));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_5_spaced, ARRAY_SIZE(seed_5_spaced));
             }else{
-                return std::make_pair<const int8_t *, unsigned int>((const int8_t *) &seed_5, ARRAY_SIZE(seed_5));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_5, ARRAY_SIZE(seed_5));
             }
             break;
         case 6:
             if(spaced){
-                return std::make_pair<const int8_t *, unsigned int>((const int8_t *) &seed_6_spaced, ARRAY_SIZE(seed_6_spaced));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_6_spaced, ARRAY_SIZE(seed_6_spaced));
             }else{
-                return std::make_pair<const int8_t *, unsigned int>((const int8_t *) &seed_6, ARRAY_SIZE(seed_6));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_6, ARRAY_SIZE(seed_6));
             }
             break;
         case 7:
             if(spaced){
-                return std::make_pair<const int8_t *, unsigned int>((const int8_t *) &seed_7_spaced, ARRAY_SIZE(seed_7_spaced));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_7_spaced, ARRAY_SIZE(seed_7_spaced));
             }else{
-                return std::make_pair<const int8_t *, unsigned int>((const int8_t *) &seed_7, ARRAY_SIZE(seed_7));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_7, ARRAY_SIZE(seed_7));
             }
             break;
         default:
@@ -105,7 +104,7 @@ std::pair<const int8_t *, unsigned int> Sequence::getSpacedPattern(bool spaced, 
             EXIT(EXIT_FAILURE);
             break;
     }
-    return std::make_pair<const int8_t *, unsigned int>(NULL, 0);
+    return std::make_pair<const char *, unsigned int>(NULL, 0);
 }
 
 
@@ -122,8 +121,8 @@ void Sequence::mapSequence(int id, char* dbKey, const char * sequence){
         Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
         EXIT(EXIT_FAILURE);
     }
-    kmerIterator->setSequenceSize(L);
-    kmerIterator->reset();
+    currItPos = -1;
+
 }
 
 void Sequence::mapNucleotideSequence(const char * sequence){
@@ -225,17 +224,18 @@ void Sequence::mapProfile(const char * sequenze){
 
 
 
-void Sequence::nextProfileKmer(const unsigned int * kmerPos) {
+void Sequence::nextProfileKmer() {
     int pos = 0;
-    for(unsigned int i = 0; i < this->kmerSize; i++) {
-        unsigned int * index = profile_index + (kmerPos[i] * profile_row_size);
-        short * score        = profile_score + (kmerPos[i] * profile_row_size);
-        profile_matrix[pos]->index = index;
-        profile_matrix[pos]->score = score;
-        pos++;
+    for(int i = 0; i < this->spacedPatternSize; i++) {
+        if(spacedPattern[i]) {
+            unsigned int * index = profile_index + ((currItPos + i) * profile_row_size);
+            short * score        = profile_score + ((currItPos + i) * profile_row_size);
+            profile_matrix[pos]->index = index;
+            profile_matrix[pos]->score = score;
+            pos++;
+        }
     }
 }
-
 
 
 void Sequence::mapProteinSequence(const char * sequence){
@@ -295,19 +295,31 @@ void Sequence::print() {
 }
 
 bool Sequence::hasNextKmer() {
-   return kmerIterator->hasNext();
+    return (((currItPos + 1) + this->spacedPatternSize) <= this->L);
 }
 
+
 const int * Sequence::nextKmer() {
-    if (kmerIterator->hasNext()) {
-        const unsigned int * kmerPos = kmerIterator->nextKmer();
+    if(spacedPattern == NULL ) {
+        Debug(Debug::ERROR) << "Sequence does not have a kmerSize (kmerSize= " << spacedPatternSize << ") to use nextKmer.\n";
+        Debug(Debug::ERROR) << "Please report this bug to the developer\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (hasNextKmer()) {
+        currItPos++;
         if(seqType == HMM_PROFILE) {
-            nextProfileKmer(kmerPos);
+            nextProfileKmer();
         }
-        for(unsigned int i = 0; i < kmerSize; i++){
-            kmerWindow[i] = int_sequence[kmerPos[i]];
+
+        const int * posToRead = int_sequence + currItPos;
+        int * currWindowPos = kmerWindow;
+        for(int i = 0; i < this->spacedPatternSize; i++) {
+            if(spacedPattern[i]) {
+                currWindowPos[0] = posToRead[i];
+                currWindowPos++;
+            }
         }
         return (const int *) kmerWindow;
-    } 
+    }
     return 0;
 }
