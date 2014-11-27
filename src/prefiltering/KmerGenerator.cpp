@@ -11,6 +11,9 @@ KmerGenerator::KmerGenerator(size_t kmerSize, size_t alphabetSize, short thresho
 //    calcDivideStrategy();
 }
 
+void KmerGenerator::setThreshold(short threshold){
+	this->threshold = threshold;
+} 
 KmerGenerator::~KmerGenerator(){
     delete [] this->stepMultiplicator;
     delete [] this->highestScorePerArray;
