@@ -22,9 +22,8 @@ KmerGenerator::~KmerGenerator(){
     delete [] this->divideStep;
     delete [] this->matrixLookup;
     for(size_t i = 0 ; i < this->divideStepCount - 1; i++){
-        delete outputScoreArray[i];
-        delete outputIndexArray[i];
-
+        free( outputScoreArray[i] );
+        free( outputIndexArray[i] );
     }
     delete [] outputScoreArray;
     delete [] outputIndexArray;
@@ -87,7 +86,6 @@ void KmerGenerator::setDivideStrategy(ScoreMatrix * three, ScoreMatrix * two){
     initDataStructure(divideStepCount);
     std::reverse(this->matrixLookup, &this->matrixLookup[divideStepCount]);
     std::reverse(this->divideStep, &this->divideStep[divideStepCount]);
-
 }
 
 
@@ -166,21 +164,21 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
     }
 
     // add identity of input kmer
-    if(sizeInputMatrix==0){
-        outputScoreArray[0][0] = 0;
-        outputIndexArray[0][0] = 0;
-        // create first kmer
-        for(unsigned int z = 0; z < this->divideStepCount; z++){
-            const size_t index = this->kmerIndex[z];
-            const ScoreMatrix * nextScoreMatrix = this->matrixLookup[z];
-            const short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
-            const unsigned int * nextIndexArray = &nextScoreMatrix->index[index*nextScoreMatrix->rowSize];
-            outputScoreArray[0][0] += nextScoreArray[0];
-            outputIndexArray[0][0] += nextIndexArray[0] * stepMultiplicator[z];
-        }
-        
-        return ScoreMatrix(outputScoreArray[0], outputIndexArray[0], 1, 0);
-    }
+//    if(sizeInputMatrix==0){
+//        outputScoreArray[0][0] = 0;
+//        outputIndexArray[0][0] = 0;
+//        // create first kmer
+//        for(unsigned int z = 0; z < this->divideStepCount; z++){
+//            const size_t index = this->kmerIndex[z];
+//            const ScoreMatrix * nextScoreMatrix = this->matrixLookup[z];
+//            const short        * nextScoreArray = &nextScoreMatrix->score[index*nextScoreMatrix->rowSize];
+//            const unsigned int * nextIndexArray = &nextScoreMatrix->index[index*nextScoreMatrix->rowSize];
+//            outputScoreArray[0][0] += nextScoreArray[0];
+//            outputIndexArray[0][0] += nextIndexArray[0] * stepMultiplicator[z];
+//        }
+//
+//        return ScoreMatrix(outputScoreArray[0], outputIndexArray[0], 1, 0);
+//    }
     return ScoreMatrix(outputScoreArray[i-1], outputIndexArray[i-1], sizeInputMatrix, MAX_KMER_RESULT_SIZE);
 }
 
@@ -218,9 +216,9 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
                         // if(score_j < cutoff2) break;
                         && score_j_lt_cutoff == 0
                         && (counter + SIMD_SIZE) < MAX_KMER_RESULT_SIZE; j++){
-            const simd_int score_j_simd   = simdi_load(scoreArray2_simd + j);
-            const simd_int kmer_j_1_simd  = simdi_load(indexArray2_simd + (j*2));
-            const simd_int kmer_j_2_simd  = simdi_load(indexArray2_simd + (j*2+1));
+            const simd_int score_j_simd   = simdi_streamload((simd_int *)(scoreArray2_simd + j));
+            const simd_int kmer_j_1_simd  = simdi_streamload((simd_int *)(indexArray2_simd + (j*2)));
+            const simd_int kmer_j_2_simd  = simdi_streamload((simd_int *)(indexArray2_simd + (j*2+1)));
 
             simd_int * scoreOutput_simd = (simd_int *) (outputScoreArray + counter);
             simd_int * indexOutput_simd = (simd_int *) (outputIndexArray + counter);
