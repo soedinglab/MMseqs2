@@ -56,7 +56,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
             index[(i_index * row_size) + z] = 0;
         }
     }
-    delete tmpScoreMatrix;
+    delete [] tmpScoreMatrix;
     outputTemp.clear();
     permutation.clear();
     this->scoreMatrix = new ScoreMatrix(score, index, size, row_size);
