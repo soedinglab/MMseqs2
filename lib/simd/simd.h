@@ -92,8 +92,8 @@ typedef __m512i simd_int;
 #define simdui8_max(x,y)    NOT_YET_IMP()
 #define simdi16_max(x,y)    _mm512_max_epi32(x,y)
 #define simdi32_max(x,y)    _mm512_max_epi32(x,y)
-
 #define simdi_load(x)       _mm512_load_si512(x)
+#define simdi_streamload(x) _mm512_stream_load_si512(x)
 #define simdi_store(x,y)    _mm512_store_si512(x,y)
 #define simdi_storeu(x,y)   _mm512_storeu_si512(x,y)
 #define simdi32_set(x)      _mm512_set1_epi32(x)
@@ -153,6 +153,7 @@ typedef __m256i simd_int;
 #define simdui8_max(x,y)    _mm256_max_epu8(x,y)
 #define simdi8_hmax(x)     simd_hmax8_avx(x)
 #define simdi_load(x)       _mm256_load_si256(x)
+#define simdi_streamload(x) _mm256_stream_load_si256(x)
 #define simdi_store(x,y)    _mm256_store_si256(x,y)
 #define simdi_storeu(x,y)   _mm256_storeu_si256(x,y)
 #define simdi32_set(x)      _mm256_set1_epi32(x)
@@ -237,7 +238,7 @@ typedef __m256 simd_float;
 #ifdef SSE
 uint16_t simd_hmax16(const __m128i buffer);
 uint8_t simd_hmax8(const __m128i buffer);
-#include <emmintrin.h> // SSE2
+#include <nmmintrin.h>  //SSE4.2
 // double support
 #ifndef SIMD_DOUBLE
 #define SIMD_DOUBLE
@@ -307,6 +308,7 @@ typedef __m128i simd_int;
 #define simdui8_max(x,y)    _mm_max_epu8(x,y)
 #define simdi8_hmax(x)      simd_hmax8(x)
 #define simdi_load(x)       _mm_load_si128(x)
+#define simdi_streamload(x) _mm_stream_load_si128(x)
 #define simdi_storeu(x,y)   _mm_storeu_si128(x,y)
 #define simdi_store(x,y)    _mm_store_si128(x,y)
 #define simdi32_set(x)      _mm_set1_epi32(x)
