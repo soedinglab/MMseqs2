@@ -25,7 +25,7 @@ public:
     void add_set(const int set_id, const int set_weight,
                  const unsigned int * element_ids,
                  const unsigned short * weights,
-                 const int element_size);
+                 const unsigned int element_size);
     std::list<set *> execute_set_cover();
 /*
     get_highest_weighted_set 
@@ -50,7 +50,7 @@ private:
     void removeSet(set * s);
     set::element * unplug_element(set::element * element_to_unplug,set::element * first_element);
     void unplug_set(set * set_to_remove);
-    set * create_set_at_weight_position(int weight,set * set_to_add);
+    set * create_set_at_weight_position(unsigned short weight,set * set_to_add);
 
 };
 #endif /* defined(__graphcluster__SetCover__) */
