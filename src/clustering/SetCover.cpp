@@ -19,11 +19,11 @@ SetCover::SetCover(unsigned int set_size,
     this->element_size = uniqu_element_size;
     this->weight_range = weight_range;
     this->ordered_by_score_set = new set*[weight_range+1]; // score range
-    memset(this->ordered_by_score_set, 0, sizeof(set *)*(weight_range+1)); // init with 0 (no element is set)
+    memset(this->ordered_by_score_set, 0, sizeof(set *) * (weight_range+1)); // init with 0 (no element is set)
     
     this->element_lookup     = new linear_multi_array<set::element*>(element_size_lookup,uniqu_element_size,all_element_count);
-    this->set_elements = (set::element *) malloc(sizeof(set::element)*all_element_count);
-    
+    this->set_elements = (set::element *) malloc(sizeof(set::element) * all_element_count);
+    memset(this->set_elements, 0, sizeof(set::element) * all_element_count);
     this->sets = (set *) malloc(sizeof(set)*(set_size+1));
     this->add_position = 0;
 
@@ -37,10 +37,10 @@ SetCover::~SetCover(){
 }
 
 
-set * SetCover::create_set_at_weight_position(int weight,set * set_to_add){
-    set * weighted_position_start_set=this->ordered_by_score_set[weight];
+set * SetCover::create_set_at_weight_position(unsigned short weight,set * set_to_add){
+    set * weighted_position_start_set = this->ordered_by_score_set[weight];
     
-    if(weighted_position_start_set == 0) { // first element is not yet set
+    if(weighted_position_start_set == NULL) { // first element is not yet set
         set_to_add->next = NULL;
         set_to_add->last = NULL;
     }else{  // first element is already set
@@ -54,40 +54,40 @@ set * SetCover::create_set_at_weight_position(int weight,set * set_to_add){
 void SetCover::add_set(const int set_id, const int set_weight,
                         const unsigned int * element_ids,
                         const unsigned short * weights,
-                        const int element_size){
-
-    set::element * element_last_ptr = NULL;
-    set::element * element_first_ptr = NULL;
+                        const unsigned int element_size){
+    // double linked list pointer
+    set::element * set_element_first = NULL;
+    set::element * set_element_last  = NULL;
     set * curr_set = &this->sets[set_id];
     curr_set->next = NULL;
     curr_set->last = NULL;
     curr_set->elements = NULL;		
-    curr_set =create_set_at_weight_position(set_weight,curr_set);
+    curr_set = create_set_at_weight_position(set_weight, curr_set);
     curr_set->set_id = set_id;
     curr_set->weight = set_weight;
     
     // set up doubled linked list + fill element_lookup
-    for(int i = 0 ; i < element_size; i++) {
+    for(unsigned int i = 0; i < element_size; i++) {
         // init elemnt with id, weight information
-        set::element * curr_element_ptr=&set_elements[add_position+i];
-        curr_element_ptr->element_id=element_ids[i];
-        curr_element_ptr->weight=weights[i];
-       if(element_first_ptr == NULL) // first ptr is not yet set
-            element_first_ptr = curr_element_ptr;
+        set::element * curr_element_ptr = &set_elements[add_position+i];
+        curr_element_ptr->element_id = element_ids[i];
+        curr_element_ptr->weight = weights[i];
+       if(set_element_first == NULL) // first ptr is not yet set
+            set_element_first = curr_element_ptr;
         // navigation (double linked list, parent)
         curr_element_ptr->parent_set = curr_set;
-        curr_element_ptr->last = element_last_ptr;
-        if(element_last_ptr != NULL) // not in first iteration
-            element_last_ptr->next = curr_element_ptr;
-        element_last_ptr = curr_element_ptr;
+        curr_element_ptr->last = set_element_last;
+        if(set_element_last != NULL) // not in first iteration
+            set_element_last->next   = curr_element_ptr;
+        set_element_last = curr_element_ptr;
         // element_lookup fill up
-        int element_id=curr_element_ptr->element_id;
+        unsigned int element_id = curr_element_ptr->element_id;
         element_lookup->add_value_at(element_id,curr_element_ptr);
     }
     add_position += element_size;
-    if(element_last_ptr!=NULL)
-        element_last_ptr->next = NULL; // last element points to NULL
-    curr_set->elements = element_first_ptr; // set element pointer to current_set
+    if(set_element_last !=NULL)
+        set_element_last->next = NULL; // last element points to NULL
+    curr_set->elements = set_element_first; // set element pointer to current_set
 
 }
 
