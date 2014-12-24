@@ -37,7 +37,6 @@ class Sequence
         Sequence(size_t maxLen, int* aa2int, char* int2aa,
                  int seqType,
                  const unsigned int kmerSize = 0,
-                 const unsigned int stepSize = 1,
                  const bool spaced = false,
                  BaseMatrix * subMat = NULL );
         ~Sequence();
