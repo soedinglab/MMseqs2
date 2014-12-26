@@ -1,6 +1,6 @@
 #include "Clustering.h"
 #include "Util.h"
-
+#include <cstddef>
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
         std::string outDB, std::string outDBIndex,
