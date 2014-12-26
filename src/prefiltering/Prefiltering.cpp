@@ -335,8 +335,8 @@ void Prefiltering::run (size_t split, size_t splitCount,
 
 void Prefiltering::closeReader(){
     qdbr->close();
-    if (strcmp(qdbr->getIndexFileName(), tdbr->getIndexFileName()) != 0)
-        tdbr->close();
+    //if (strcmp(qdbr->getIndexFileName(), tdbr->getIndexFileName()) != 0)
+    tdbr->close();
     if(templateDBIsIndex)
         tidxdbr->close();
 }
@@ -523,8 +523,6 @@ std::pair<short,double> Prefiltering::setKmerThreshold (IndexTable * indexTable,
     for (int i = 0; i < querySetSize; i++){
         querySeqs[i] = rand() % tdbr->getSize();
     }
-    for (size_t i = 0; i < targetDbSize; i++)
-        std::cout << tdbr->getDbKey(i) << std::endl;
 
     // do a binary search through the k-mer list length threshold space to adjust the k-mer list length threshold in order to get a match probability 
     // for a list of k-mers at one query position as close as possible to targetKmerMatchProb

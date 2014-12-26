@@ -248,7 +248,9 @@ Clustering::set_data Clustering::read_in_set_data(){
 */
 
         Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
-        strncpy(dbKey, data, (words[1] - words[0])-1);
+        ptrdiff_t keySize =  (words[1] - words[0]) - 1;
+        strncpy(dbKey, data, keySize);
+        dbKey[keySize] = '\0';
         unsigned int cnt = 0;
         while (*data != '\0' && cnt < this->maxListLen)
         {
@@ -256,7 +258,7 @@ Clustering::set_data Clustering::read_in_set_data(){
             if (curr_element == UINT_MAX){
                 Debug(Debug::ERROR) << "ERROR: Element " << dbKey
                         << " contained in some alignment list, but not contained in the sequence database!\n";
-                exit(1);
+                EXIT(EXIT_FAILURE);
             }
             // add an edge
             element_buffer[element_counter++] = curr_element;
@@ -266,7 +268,9 @@ Clustering::set_data Clustering::read_in_set_data(){
             // next db key
             data = Util::skipLine(data);
             Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
-            strncpy(dbKey, data, (words[1] - words[0])-1);
+            keySize =  (words[1] - words[0]) - 1;
+            strncpy(dbKey, data, keySize);
+            dbKey[keySize] = '\0';
             cnt++;
         }
 
