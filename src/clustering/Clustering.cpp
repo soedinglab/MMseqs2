@@ -1,5 +1,6 @@
 #include "Clustering.h"
-
+#include "Util.h"
+#include <cstddef>
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
         std::string outDB, std::string outDBIndex,
@@ -36,17 +37,17 @@ void Clustering::run(int mode){
 
         Debug(Debug::INFO) << "\nInit set cover...\n";
         SetCover setcover(set_data.set_count,
-                set_data.uniqu_element_count,
-                set_data.max_weight,
-                set_data.all_element_count,
-                set_data.element_size_lookup
-                );
+                          set_data.uniqu_element_count,
+                          set_data.max_weight,
+                          set_data.all_element_count,
+                          set_data.element_size_lookup
+                         );
 
         Debug(Debug::INFO) << "Adding sets...\n";
         for(size_t i = 0; i < set_data.set_count; i++){
-            setcover.add_set(i+1, set_data.set_sizes[i]
-                    ,(const unsigned int*)set_data.sets[i],
-                    (const unsigned short*)set_data.weights[i],
+            setcover.add_set(i+1, set_data.set_sizes[i],
+                    (const unsigned int*)   set_data.sets[i],
+                    (const unsigned short*) set_data.weights[i],
                     set_data.set_sizes[i]);
         }
 
@@ -85,7 +86,7 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "...done.\n";
     }
     else{
-        std::cerr << "ERROR: Wrong clustering mode!\n";
+        Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
         exit(EXIT_FAILURE);
     }
 
@@ -97,9 +98,9 @@ void Clustering::run(int mode){
             Debug(Debug::INFO) << " NOT VALID\n";
     }
 
-    int dbSize = alnDbr->getSize();
-    int seqDbSize = seqDbr->getSize();
-    int cluNum = ret.size();
+    unsigned int dbSize = alnDbr->getSize();
+    unsigned int seqDbSize = seqDbr->getSize();
+    unsigned int cluNum = ret.size();
 
     seqDbr->close();
     alnDbr->close();
@@ -145,8 +146,10 @@ void Clustering::writeData(std::list<set *> ret){
         std::string cluResultsOutString = res.str();
         const char* cluResultsOutData = cluResultsOutString.c_str();
         if (BUFFER_SIZE < strlen(cluResultsOutData)){
-            std::cerr << "Tried to process the clustering list for the query " << dbKey << " , length of the list = " << ret.size() << "\n";
-            std::cerr << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
+            Debug(Debug::ERROR) << "Tried to process the clustering list for the query " << dbKey
+                                << " , length of the list = " << ret.size() << "\n";
+            Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
+                                << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
             continue;
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
@@ -190,7 +193,8 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
     if (uniqu_element_count==result_element_count)
         return true;
     else{
-        std::cerr << "uniqu_element_count: " << uniqu_element_count << ", result_element_count: " << result_element_count << "\n";
+        Debug(Debug::ERROR) << "uniqu_element_count: " << uniqu_element_count
+                            << ", result_element_count: " << result_element_count << "\n";
         return false;
     }
 }
@@ -201,39 +205,40 @@ Clustering::set_data Clustering::read_in_set_data(){
     Clustering::set_data ret_struct;
 
     // n = overall sequence count
-    int n = seqDbr->getSize();
+    unsigned int n = seqDbr->getSize();
     // m = number of sets
-    int m = alnDbr->getSize();
+    unsigned int m = alnDbr->getSize();
 
     ret_struct.uniqu_element_count = n;
     ret_struct.set_count = m;
 
-    unsigned int * element_buffer=(unsigned int *)malloc(n * sizeof(unsigned int));
-    unsigned int * element_size=new unsigned int[n+2];
-    memset(element_size, 0, sizeof(unsigned int)*(n+2));
+    // set element size lookup
+    unsigned int * element_buffer = (unsigned int *) malloc(n * sizeof(unsigned int));
+    unsigned int * element_size   = new unsigned int[n + 2];
+    memset(element_size, 0, sizeof(unsigned int) * (n + 2));
     ret_struct.element_size_lookup = element_size;
+    // return set size
     unsigned int * set_size=new unsigned int[m];
-
     ret_struct.set_sizes = set_size;
-    unsigned int ** sets   = new unsigned int*[m];
+    // set sets
+    unsigned int ** sets = new unsigned int*[m];
     ret_struct.sets = sets;
+    // set weights
     unsigned short ** weights = new unsigned short*[m];
     ret_struct.weights = weights;
     ret_struct.max_weight = 0;
-    ret_struct.all_element_count=0;
-
-    char* buf = new char[1000000];
+    ret_struct.all_element_count = 0;
 
     int empty = 0;
+    unsigned int ELEMENTS_IN_RECORD = 2;
+    char * words[ELEMENTS_IN_RECORD];
+    char * dbKey = new char[32+1];
 
     // the reference id of the elements is always their id in the sequence database
-    for(int i = 0; i<m; i++){
-
+    for(unsigned int i = 0; i < m; i++) {
         Log::printProgress(i);
-
         char* data = alnDbr->getData(i);
-        strcpy(buf, data);
-        unsigned int element_counter=0;
+        unsigned int element_counter = 0;
 
         // add the element itself to its own cluster
 /*        int rep_element_id = seqDbr->getId(alnDbr->getDbKey(i));
@@ -241,41 +246,31 @@ Clustering::set_data Clustering::read_in_set_data(){
         element_size[rep_element_id]++;
         ret_struct.all_element_count++;
 */
-        char* prevKey = 0;
-        char* dbKey = strtok(buf, "\t");
 
-        int cnt = 0;
-        while (dbKey != 0 && cnt < this->maxListLen)
+        Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
+        ptrdiff_t keySize =  (words[1] - words[0]) - 1;
+        strncpy(dbKey, data, keySize);
+        dbKey[keySize] = '\0';
+        unsigned int cnt = 0;
+        while (*data != '\0' && cnt < this->maxListLen)
         {
-            if (prevKey != 0 && strcmp(prevKey, dbKey) == 0){
-                prevKey = dbKey;
-                dbKey = strtok(NULL, "\n");
-                dbKey = strtok(NULL, "\t");
-                continue;
-            }
-            prevKey = dbKey;
-
             size_t curr_element = seqDbr->getId(dbKey);
             if (curr_element == UINT_MAX){
-                std::cerr << "ERROR: Element " << dbKey << " contained in some alignment list, but not contained in the sequence database!\n";
-                exit(1);
+                Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                        << " contained in some alignment list, but not contained in the sequence database!\n";
+                EXIT(EXIT_FAILURE);
             }
-            //int score = atoi(strtok(NULL, "\t")); // score
-            strtok(NULL, "\t");
-            //float qcov = atof(strtok(NULL, "\t")); // query sequence coverage
-            strtok(NULL, "\t");
-            //float dbcov = atof(strtok(NULL, "\t")); // db sequence coverage
-            strtok(NULL, "\t");
-            float seqId = atof(strtok(NULL, "\t")); // sequence identity
-            //double eval = atof(strtok(NULL, "\n")); // e-value
-            strtok(NULL, "\n");
             // add an edge
             element_buffer[element_counter++] = curr_element;
             element_size[curr_element]++;
             ret_struct.all_element_count++;
 
             // next db key
-            dbKey = strtok(NULL, "\t");
+            data = Util::skipLine(data);
+            Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
+            keySize =  (words[1] - words[0]) - 1;
+            strncpy(dbKey, data, keySize);
+            dbKey[keySize] = '\0';
             cnt++;
         }
 
@@ -283,13 +278,15 @@ Clustering::set_data Clustering::read_in_set_data(){
 //            Debug(Debug::WARNING) << "No alignments found for " << alnDbr->getDbKey(i) << "\n";
             empty++;
         }
-
-        if(ret_struct.max_weight < element_counter){
-            ret_struct.max_weight = element_counter;
+        // max_weight can not be gibber than 2^16
+        if(element_counter > SHRT_MAX){
+            Debug(Debug::ERROR)  << "ERROR: Set has too much elements. Set name is "
+                      << dbKey << " and has has the weight " << element_counter <<".\n";
         }
+        ret_struct.max_weight = std::max(element_counter, ret_struct.max_weight);
 
         unsigned int * elements = new unsigned int[element_counter];
-        memcpy(elements,element_buffer,sizeof(int)*element_counter);
+        memcpy(elements, element_buffer, sizeof(unsigned int) * element_counter);
         unsigned short * weight = new unsigned short[element_counter];
         std::fill_n(weight, element_counter, 1);
 
@@ -302,8 +299,7 @@ Clustering::set_data Clustering::read_in_set_data(){
     if (empty > 0)
         Debug(Debug::WARNING) << empty << " input sets were empty!\n";
     free(element_buffer);
-    delete[] buf;
-
+    delete [] dbKey;
     return ret_struct;
 }
 

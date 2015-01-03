@@ -14,3 +14,11 @@ add_executable(testalignment_perf ${testalignment_perf})
 target_link_libraries(testalignment_perf util)
 target_link_libraries(testalignment_perf workflow)
 target_link_libraries(testalignment_perf ffindex)
+
+
+set(testkmergenerator_perf TestKmerGenerator.cpp )
+add_executable(testkmergenerator_perf ${testkmergenerator_perf})
+
+target_link_libraries(testkmergenerator_perf util)
+target_link_libraries(testkmergenerator_perf workflow)
+target_link_libraries(testkmergenerator_perf ffindex)
