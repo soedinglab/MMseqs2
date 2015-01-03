@@ -53,16 +53,16 @@ macro(PCL_CHECK_FOR_SSE)
         set(CMAKE_REQUIRED_FLAGS "-mavx2 -Wa,-q")
     endif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     if(CMAKE_COMPILER_IS_CLANG)
-        set(CMAKE_REQUIRED_FLAGS "-mavx2")
+        set(CMAKE_REQUIRED_FLAGS "-mavx2 -march=native")
     endif(CMAKE_COMPILER_IS_CLANG)
     check_cxx_source_runs("
       #include <immintrin.h>
       int main()
       {
-        __m256i a, b;
+        volatile __m256i a, b;
         a = _mm256_set1_epi8 (1);
         b = a;
-        _mm256_add_epi8 (a,a);
+        b = _mm256_add_epi8 (a,a);
         return 0;
       }"
       HAVE_AVX2_EXTENSIONS)
@@ -119,7 +119,7 @@ macro(PCL_CHECK_FOR_SSE)
       #include <smmintrin.h>
       int main ()
       {
-        __m128 a, b;
+        volatile __m128 a, b;
         float vals[4] = {1, 2, 3, 4};
         const int mask = 123;
         a = _mm_loadu_ps (vals);
@@ -138,7 +138,7 @@ macro(PCL_CHECK_FOR_SSE)
         #include <pmmintrin.h>
         int main ()
         {
-            __m128d a, b;
+            volatile __m128d a, b;
             double vals[2] = {0};
             a = _mm_loadu_pd (vals);
             b = _mm_hadd_pd (a,a);
@@ -157,7 +157,7 @@ macro(PCL_CHECK_FOR_SSE)
         #include <emmintrin.h>
         int main ()
         {
-            __m128d a, b;
+            volatile __m128d a, b;
             double vals[2] = {0};
             a = _mm_loadu_pd (vals);
             b = _mm_add_pd (a,a);
@@ -176,7 +176,7 @@ macro(PCL_CHECK_FOR_SSE)
         #include <xmmintrin.h>
         int main ()
         {
-            __m128 a, b;
+            volatile __m128 a, b;
             float vals[4] = {0};
             a = _mm_loadu_ps (vals);
             b = a;
@@ -256,7 +256,7 @@ macro(PCL_CHECK_FOR_SSE4_1)
       #include <smmintrin.h>
       int main()
       {
-        __m128 a, b;
+        volatile __m128 a, b;
         float vals[4] = {1, 2, 3, 4};
         const int mask = 123;
         a = _mm_loadu_ps(vals);
@@ -284,7 +284,7 @@ macro(PCL_CHECK_FOR_SSE3)
       #include <pmmintrin.h>
       int main ()
       {
-          __m128d a, b;
+          volatile __m128d a, b;
           double vals[2] = {0};
           a = _mm_loadu_pd (vals);
           b = _mm_hadd_pd (a,a);
@@ -313,7 +313,7 @@ macro(PCL_CHECK_FOR_AVX)
       #include <immintrin.h>
       int main()
       {
-        __m256 a, b;
+        volatile __m256 a, b;
         float vals[8] = {1, 2, 3, 4, 5, 6, 7, 8};
         const int mask = 123;
         a = _mm256_loadu_ps(vals);
