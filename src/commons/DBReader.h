@@ -103,7 +103,7 @@ class DBReader {
         // mapping id -> ffindex_entry
         ffindex_entry_t** id2entry;
         // amino acid size
-        unsigned int aaDbSize;
+        size_t aaDbSize;
         // flag to check if db was closed
         int closed;
 
