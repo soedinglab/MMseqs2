@@ -94,7 +94,7 @@ Alignment::~Alignment(){
     delete dbw;
 }
 
-void Alignment::run (int maxAlnNum, int maxRejected){
+void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejected){
 
     size_t alignmentsNum = 0;
     size_t totalPassedNum = 0;
@@ -120,7 +120,7 @@ void Alignment::run (int maxAlnNum, int maxRejected){
         std::stringstream lineSs (prefList);
         std::string val;
         size_t passedNum = 0;
-        int rejected = 0;
+        unsigned int rejected = 0;
         while (std::getline(lineSs, val, '\t') && passedNum < maxAlnNum && rejected < maxRejected){
             // DB key of the db sequence
             for (unsigned int j = 0; j < val.length(); j++)

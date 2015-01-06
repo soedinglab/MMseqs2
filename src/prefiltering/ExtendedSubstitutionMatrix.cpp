@@ -21,7 +21,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
                                                        const size_t alphabetSize){
     Indexer indexer( (int) alphabetSize, (int) kmerSize);
     this->size = pow(alphabetSize, kmerSize);
-    int row_size = (int) this->size / ALIGN_INT;
+    size_t row_size = this->size / ALIGN_INT;
     row_size = (row_size + 1) * ALIGN_INT; // for SIMD memory alignment
     // create permutation
     std::vector<std::vector<int> > input(buildInput(kmerSize,alphabetSize));

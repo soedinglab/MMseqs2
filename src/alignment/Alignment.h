@@ -36,7 +36,7 @@ class Alignment {
 
         ~Alignment();
 
-        void run (int maxAlnNum, int maxRejected);
+        void run (const unsigned int maxAlnNum, const unsigned int maxRejected);
 
     private:
 

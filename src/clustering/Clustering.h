@@ -72,6 +72,6 @@ class Clustering {
 
         // maximum length of the alignment lists 
         // after the maximum length, the reading of the alignment list for a query is aborted
-        int maxListLen;
+        unsigned int maxListLen;
 };
 #endif
