@@ -16,7 +16,7 @@
 class SetCover {
 public:
     SetCover(size_t set_size,
-             size_t element_size,
+             size_t unique_element_size,
              unsigned short weight_range,
              size_t all_element_count,
              unsigned int *element_size_lookup);
@@ -50,8 +50,7 @@ private:
     linear_multi_array<set::element *> * element_lookup;
     // methodes
     void removeSet(set * s);
-    set::element * unplug_element(set::element * element_to_unplug,
-                                  set::element * first_element);
+    set::element *unplug_element(set::element *element_to_unplug);
     void unplug_set(set * set_to_remove);
     set * create_set_at_weight_position(unsigned short weight,
                                         set * set_to_add);

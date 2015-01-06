@@ -20,7 +20,6 @@ struct set {
         element * next;
         unsigned int element_id;
         unsigned short weight;
-        element(unsigned int element_id, unsigned short weight) : element_id(element_id), weight(weight){};
 
     };
     element * elements;

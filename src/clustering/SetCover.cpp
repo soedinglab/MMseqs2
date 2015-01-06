@@ -14,21 +14,21 @@
 
 
 SetCover::SetCover(size_t set_size,
-        size_t uniqu_element_size,
+        size_t unique_element_size,
         unsigned short weight_range,
         size_t all_element_count,
         unsigned int *element_size_lookup){
     this->set_size = set_size;
-    this->element_size = uniqu_element_size;
+    this->element_size = unique_element_size;
     this->weight_range = weight_range;
     this->all_element_count = all_element_count;
     this->ordered_by_score_set = new set*[weight_range+1]; // score range
     memset(this->ordered_by_score_set, 0, sizeof(set *) * (weight_range+1)); // init with 0 (no element is set)
     
-    this->element_lookup     = new linear_multi_array<set::element*>(element_size_lookup, uniqu_element_size, all_element_count);
-    this->elements_of_set = (set::element *) malloc(sizeof(set::element) * all_element_count); // most memory consumption
+    this->element_lookup     = new linear_multi_array<set::element*>(element_size_lookup, unique_element_size, all_element_count);
+    this->elements_of_set = new set::element[all_element_count]; // most memory consumption
     memset(this->elements_of_set, 0, sizeof(set::element) * all_element_count);
-    this->sets = (set *) malloc(sizeof(set) * (set_size + 1) );
+    this->sets = new set[set_size + 1];
     this->add_position = 0;
 
 }
@@ -36,18 +36,19 @@ SetCover::SetCover(size_t set_size,
 SetCover::~SetCover(){
     delete element_lookup;
     delete[] ordered_by_score_set;
-    free(elements_of_set);
-    free(sets);
+    delete[] elements_of_set;
+    delete[] sets;
 }
 
 
 set * SetCover::create_set_at_weight_position(unsigned short weight,set * set_to_add){
-    set * weighted_position_start_set = this->ordered_by_score_set[weight];
     if(weight > weight_range) {
         Debug(Debug::ERROR) << "ERROR: Weight is wrong in create_set_at_weight_position. Weight is " <<
                 weight << " element_size:  " << weight_range << ".\n";
         EXIT(EXIT_FAILURE);
     }
+    set * weighted_position_start_set = this->ordered_by_score_set[weight];
+
     if(weighted_position_start_set == NULL) { // first element is not yet set
         set_to_add->next = NULL;
         set_to_add->last = NULL;
@@ -125,6 +126,11 @@ void SetCover::add_set(const unsigned int set_id,
 void SetCover::removeSet(set * s){
     set::element * element=s->elements;
     unsigned int s_set_id = s->set_id;
+    if(element == NULL){
+        Debug(Debug::ERROR) << "ERROR: Element pointer of set is null. Set id " <<
+                s_set_id    << " in removeSet .\n";
+        EXIT(EXIT_FAILURE);
+    }
     unplug_set(s);
     do{ // for all elements in set
         unsigned int element_id = element->element_id;
@@ -132,13 +138,14 @@ void SetCover::removeSet(set * s){
         std::pair<set::element**, unsigned int> element_lookup_structure = element_lookup->get_array(element_id);
         set::element ** element_lookup_array = element_lookup_structure.first;
         unsigned int array_size = element_lookup_structure.second;
-        for(unsigned int i =0; i < array_size; i++){
+        for(unsigned int i = 0; i < array_size; i++){
             set::element * element_to_remove = element_lookup_array[i];
             set * parent_set = element_to_remove->parent_set;
             if(parent_set != NULL && parent_set->set_id!=s_set_id){
                 unplug_set(parent_set);
                 parent_set->weight  -= element_to_remove->weight;
-                parent_set->elements = unplug_element(element_to_remove,parent_set->elements);
+                set::element * elementStartPtr = unplug_element(element_to_remove);
+                parent_set->elements = (elementStartPtr != NULL) ? elementStartPtr : parent_set->elements;
                 create_set_at_weight_position(parent_set->weight,parent_set);
             }
             //delete element_to_remove;
@@ -147,7 +154,7 @@ void SetCover::removeSet(set * s){
     }while((element=element->next) != NULL);
 }
 
-set::element * SetCover::unplug_element(set::element * element_to_unplug,set::element * first_element) {
+set::element * SetCover::unplug_element(set::element *element_to_unplug) {
     set::element * last_element=element_to_unplug->last;
     set::element * next_element=element_to_unplug->next;
     element_to_unplug->last       = NULL;
@@ -156,7 +163,9 @@ set::element * SetCover::unplug_element(set::element * element_to_unplug,set::el
 
     if(last_element == NULL && next_element==NULL){
         return NULL;
-    }if(last_element == NULL){ // first element
+    }
+
+    if(last_element == NULL){ // first element
         next_element->last = NULL;
         return next_element;
     } else if (next_element == NULL) { // end of list
@@ -165,7 +174,7 @@ set::element * SetCover::unplug_element(set::element * element_to_unplug,set::el
         last_element->next = next_element;
         next_element->last = last_element;
     }
-    return first_element;
+    return NULL;
 }
 
 
