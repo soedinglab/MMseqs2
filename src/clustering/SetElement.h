@@ -9,28 +9,25 @@
 #ifndef __graphcluster__element__
 #define __graphcluster__element__
 #include <iostream>
-#include "SetElement.h"
 
-struct element_meta_data{
-    int element_id;
-    int count;
-};
+
 
 
 struct set {
-    int set_id;
-    unsigned short weight;
     struct element {
-        unsigned int element_id;
-        unsigned short weight;
-        element(unsigned int element_id,unsigned short weight) : element_id(element_id), weight(weight){};
         set * parent_set;
         element * last;
         element * next;
+        unsigned int element_id;
+        unsigned short weight;
+        element(unsigned int element_id, unsigned short weight) : element_id(element_id), weight(weight){};
+
     };
     element * elements;
     set * last;
     set * next;
+    int set_id;
+    unsigned short weight;
 };
 
 

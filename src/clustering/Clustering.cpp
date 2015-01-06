@@ -1,6 +1,7 @@
 #include "Clustering.h"
 #include "Util.h"
-#include <cstddef>
+
+
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
         std::string outDB, std::string outDBIndex,
@@ -45,7 +46,7 @@ void Clustering::run(int mode){
 
         Debug(Debug::INFO) << "Adding sets...\n";
         for(size_t i = 0; i < set_data.set_count; i++){
-            setcover.add_set(i+1, set_data.set_sizes[i],
+            setcover.add_set(i + 1, set_data.set_sizes[i], //TODO not sure why +1
                     (const unsigned int*)   set_data.sets[i],
                     (const unsigned short*) set_data.weights[i],
                     set_data.set_sizes[i]);
@@ -117,10 +118,8 @@ void Clustering::run(int mode){
     Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
 
-    for(size_t i = 0; i < set_data.set_count; i++){
-        delete[] set_data.weights[i];
-        delete[] set_data.sets[i];
-    }
+    delete[] set_data.startWeightsArray;
+    delete[] set_data.startElementsArray;
     delete[] set_data.weights;
     delete[] set_data.sets;
     delete[] set_data.set_sizes;
@@ -213,7 +212,7 @@ Clustering::set_data Clustering::read_in_set_data(){
     ret_struct.set_count = m;
 
     // set element size lookup
-    unsigned int * element_buffer = (unsigned int *) malloc(n * sizeof(unsigned int));
+    unsigned int * element_buffer = new unsigned int[n];
     unsigned int * element_size   = new unsigned int[n + 2];
     memset(element_size, 0, sizeof(unsigned int) * (n + 2));
     ret_struct.element_size_lookup = element_size;
@@ -230,52 +229,55 @@ Clustering::set_data Clustering::read_in_set_data(){
     ret_struct.all_element_count = 0;
 
     int empty = 0;
-    unsigned int ELEMENTS_IN_RECORD = 2;
+    // needed for parsing
+    const unsigned int ELEMENTS_IN_RECORD = 2;
     char * words[ELEMENTS_IN_RECORD];
-    char * dbKey = new char[32+1];
+    char * dbKey = new char[255+1];
 
-    // the reference id of the elements is always their id in the sequence database
+    // count lines to know the target memory size
+    const char * data = alnDbr->getData();
+    size_t dataSize = alnDbr->getDataSize();
+    std::cout << "Data Size: " << dataSize << std::endl;
+    size_t elementCount = Util::count_lines(data, dataSize);
+    std::cout << "Element Count: " << elementCount << std::endl;
+    unsigned int * elements = new unsigned int[elementCount];
+    unsigned short * weight = new unsigned short[elementCount];
+    std::fill_n(weight, elementCount, 1);
+    size_t curr_start_pos = 0;
+
+        // the reference id of the elements is always their id in the sequence database
     for(unsigned int i = 0; i < m; i++) {
         Log::printProgress(i);
         char* data = alnDbr->getData(i);
         unsigned int element_counter = 0;
 
-        // add the element itself to its own cluster
-/*        int rep_element_id = seqDbr->getId(alnDbr->getDbKey(i));
-        element_buffer[element_counter++]=rep_element_id;
-        element_size[rep_element_id]++;
-        ret_struct.all_element_count++;
-*/
-
         Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
         ptrdiff_t keySize =  (words[1] - words[0]) - 1;
         strncpy(dbKey, data, keySize);
         dbKey[keySize] = '\0';
-        unsigned int cnt = 0;
+        size_t cnt = 0;
         while (*data != '\0' && cnt < this->maxListLen)
         {
             size_t curr_element = seqDbr->getId(dbKey);
-            if (curr_element == UINT_MAX){
+            if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()){
                 Debug(Debug::ERROR) << "ERROR: Element " << dbKey
                         << " contained in some alignment list, but not contained in the sequence database!\n";
                 EXIT(EXIT_FAILURE);
             }
             // add an edge
-            element_buffer[element_counter++] = curr_element;
+            element_buffer[element_counter++] = (unsigned int) curr_element;
             element_size[curr_element]++;
             ret_struct.all_element_count++;
-
             // next db key
             data = Util::skipLine(data);
             Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
-            keySize =  (words[1] - words[0]) - 1;
+            keySize = (words[1] - words[0]) - 1;
             strncpy(dbKey, data, keySize);
             dbKey[keySize] = '\0';
             cnt++;
         }
 
         if (cnt == 0){
-//            Debug(Debug::WARNING) << "No alignments found for " << alnDbr->getDbKey(i) << "\n";
             empty++;
         }
         // max_weight can not be gibber than 2^16
@@ -283,22 +285,19 @@ Clustering::set_data Clustering::read_in_set_data(){
             Debug(Debug::ERROR)  << "ERROR: Set has too much elements. Set name is "
                       << dbKey << " and has has the weight " << element_counter <<".\n";
         }
-        ret_struct.max_weight = std::max(element_counter, ret_struct.max_weight);
-
-        unsigned int * elements = new unsigned int[element_counter];
-        memcpy(elements, element_buffer, sizeof(unsigned int) * element_counter);
-        unsigned short * weight = new unsigned short[element_counter];
-        std::fill_n(weight, element_counter, 1);
-
-        weights[i] = weight;
-        sets[i] = elements;
-        set_size[i]=element_counter;
-
+        ret_struct.max_weight = std::max((unsigned short)element_counter, ret_struct.max_weight);
+        // set pointer
+        memcpy(elements + curr_start_pos, element_buffer, sizeof(unsigned int) * element_counter);
+        weights[i] = (weight + curr_start_pos);
+        sets[i] = (elements + curr_start_pos);
+        set_size[i] = element_counter;
+        curr_start_pos += element_counter;
     }
-
+    ret_struct.startElementsArray = elements;
+    ret_struct.startWeightsArray = weight;
     if (empty > 0)
         Debug(Debug::WARNING) << empty << " input sets were empty!\n";
-    free(element_buffer);
+    delete [] element_buffer;
     delete [] dbKey;
     return ret_struct;
 }

@@ -39,10 +39,12 @@ class Clustering {
             unsigned short ** weights;
             unsigned int * set_sizes;
             unsigned int * element_size_lookup;
-            unsigned int set_count;
-            unsigned int uniqu_element_count;
-            unsigned int all_element_count;
-            unsigned int max_weight;
+            size_t set_count;
+            size_t uniqu_element_count;
+            size_t all_element_count;
+            unsigned short max_weight;
+            unsigned int * startElementsArray;
+            unsigned short * startWeightsArray;
         };
 
         void run(int mode);

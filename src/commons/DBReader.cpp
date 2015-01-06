@@ -159,12 +159,12 @@ char* DBReader::getDbKey (size_t id){
 
 size_t DBReader::getId (const char* dbKey){
     checkClosed();
-    int i = 0; 
-    int j = index->n_entries -1;
-    int k;
+    size_t i = 0;
+    size_t j = index->n_entries - 1;
+    size_t k;
     while (j >= i){
         k = i + (j - i)/2;
-        int cmp = strcmp(dbKey, index->entries[k].name);
+        int cmp = strcmp(dbKey, index->entries[k].name); // has to be signed
         if (cmp == 0)
             return id2local[k];
         else if (cmp > 0)

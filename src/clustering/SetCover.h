@@ -15,42 +15,46 @@
 #include "LinearMultiArray.h"
 class SetCover {
 public:
-    SetCover(unsigned int set_size,
-              unsigned int element_size,
-              unsigned int weight_range,
-              unsigned int all_element_count,
-              unsigned int * element_size_lookup);
+    SetCover(size_t set_size,
+             size_t element_size,
+             unsigned short weight_range,
+             size_t all_element_count,
+             unsigned int *element_size_lookup);
     ~SetCover();
 
-    void add_set(const int set_id, const int set_weight,
-                 const unsigned int * element_ids,
-                 const unsigned short * weights,
-                 const unsigned int element_size);
+    void add_set(const unsigned int set_id,
+            unsigned short const set_weight,
+            const unsigned int *element_ids,
+            const unsigned short *weights,
+            const unsigned int element_size);
     std::list<set *> execute_set_cover();
 /*
-    get_highest_weighted_set 
+    get_highest_weighted_set
     input 
             int start_pos is the search start position 
     output
             returns the highest sets from a certaint position
 */
-    set * get_highest_weighted_set(int start_pos);
+    set * get_highest_weighted_set(unsigned int start_pos);
 private:
 
     unsigned int add_position;
-    int element_size;
-    int set_size;
-    int weight_range;
+    unsigned int element_size;
+    size_t all_element_count;
+    unsigned int set_size;
+    unsigned short weight_range;
     set ** ordered_by_score_set;
-    set::element * set_elements;
+    set::element *elements_of_set;
     set * sets;
 
     linear_multi_array<set::element *> * element_lookup;
     // methodes
     void removeSet(set * s);
-    set::element * unplug_element(set::element * element_to_unplug,set::element * first_element);
+    set::element * unplug_element(set::element * element_to_unplug,
+                                  set::element * first_element);
     void unplug_set(set * set_to_remove);
-    set * create_set_at_weight_position(unsigned short weight,set * set_to_add);
+    set * create_set_at_weight_position(unsigned short weight,
+                                        set * set_to_add);
 
 };
 #endif /* defined(__graphcluster__SetCover__) */

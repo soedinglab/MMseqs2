@@ -22,3 +22,11 @@ add_executable(testkmergenerator_perf ${testkmergenerator_perf})
 target_link_libraries(testkmergenerator_perf util)
 target_link_libraries(testkmergenerator_perf workflow)
 target_link_libraries(testkmergenerator_perf ffindex)
+
+
+set(testdb TestDB.cpp )
+add_executable(testdb ${testdb})
+
+target_link_libraries(testdb util)
+target_link_libraries(testdb workflow)
+target_link_libraries(testdb ffindex)

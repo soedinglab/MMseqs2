@@ -67,6 +67,13 @@ class DBReader {
         static const int INDEXONLY = 1;
         static const int DATA_AND_INDEX = 0;
 
+        const char * getData(){
+            return data;
+        }
+
+        size_t getDataSize(){
+            return dataSize;
+        }
     private:
 
         void sort(size_t* ids, size_t* workspace);

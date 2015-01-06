@@ -126,8 +126,10 @@ public:
     static void rankedDescSort20(short * val, int * index);
     static void decomposeDomainByAminoaAcid(int aaSize, unsigned short * seqSizes, size_t count,
                                             int worldRank, int worldSize, int *start, int *end);
-    
-    static inline int fast_atoi( const char * str )
+
+    static size_t count_lines(const char * file, size_t endPos );
+
+        static inline int fast_atoi( const char * str )
     {
         int val = 0;
         while (*str >= '0' && *str <= '9') {

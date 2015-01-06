@@ -1,6 +1,14 @@
 #include "Util.h"
 
-
+size_t Util::count_lines(const char * file, size_t endPos ) {
+    size_t newlines = 0;
+    for ( size_t i = 0; i < endPos; i++ ) {
+        if ( file[i] == '\n' ) {
+            newlines++;
+        }
+    }
+    return newlines;
+}
 
 void Util::decompose_domain(int domain_size, int world_rank,
                       int world_size, int* subdomain_start,
