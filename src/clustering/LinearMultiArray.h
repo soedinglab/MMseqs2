@@ -21,14 +21,10 @@ public:
         multi_array = (T*) malloc( sizeof(T) * size);
         next_pos_to_write = (T**) malloc( sizeof(T *) * (element_size + 1));
         size_t last_element = 0;
-        size_t last_element_2 = 0;
-
         for(size_t i = 0; i <= element_size; i++){
             std::swap(element_size_lookup[0], element_size_lookup[i+1]);
             element_size_lookup[i+1] = last_element + element_size_lookup[i+1];
             last_element = element_size_lookup[i+1];
-            if(element_size_lookup[i+1] > 2147483648)
-                std::cout << "FUck my life " << last_element  << " " <<  element_size_lookup[i+1] << std::endl;
         }
 
         this->element_offset = element_size_lookup;
