@@ -5,13 +5,13 @@ QueryScoreGlobal::QueryScoreGlobal(int dbSize, unsigned short * dbSeqLens, int k
 : QueryScore(dbSize, dbSeqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor
 {
     
-    thresholds_128 = (simd_int*) mem_align(ALIGN_INT, scores_128_size * 2);
+    thresholds_128 = (simd_int*) mem_align(ALIGN_INT, scores_128_size * sizeof(unsigned short));
     thresholds = (unsigned short * ) thresholds_128;
-    memset (thresholds_128, 0, scores_128_size * 2);
+    memset (thresholds_128, 0, scores_128_size * sizeof(unsigned short));
     
     // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
     this->seqLens = new float[scores_128_size];
-    memset (seqLens, 0, scores_128_size * 4);
+    memset (seqLens, 0, scores_128_size * sizeof(float));
     
     for (int i = 0; i < dbSize; i++){
         if (dbSeqLens[i] > (k - 1))
@@ -87,7 +87,6 @@ void QueryScoreGlobal::setPrefilteringThresholds(){
     unsigned int ushrt_max = USHRT_MAX;
     
     simd_int* __restrict thr = thresholds_128;
-    simd_int v = simdi32_set(0);
     
     for (int i = 0; i < nsteps - 1; i++){
         seqLen = seqLens[steps[i]];
@@ -99,7 +98,7 @@ void QueryScoreGlobal::setPrefilteringThresholds(){
         threshold_ushrt = (unsigned short) std::min(ushrt_max, (unsigned int) threshold);
         
         // store short treshold in a vector
-        v = simdi16_set(threshold_ushrt);
+        simd_int v = simdi16_set(threshold_ushrt);
         
         // set all thresolds to the current value until calculation of the next value is necessary
         for (int j = steps[i]; j < steps[i+1]; j += SIMD_SHORT_SIZE){

@@ -208,7 +208,7 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, unsigned int* id2rep
             cluMemDbKey = strtok(NULL, "\n");
         }
     }
-    delete buf;
+    delete [] buf;
     cluDbr->close();
     return ret;
 }
@@ -267,7 +267,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
             seqsWithoutMatches++;
         }
     }
-    delete buf;
+    delete [] buf;
     BADbr->close();
     fclose(Brest_index_file);
 }

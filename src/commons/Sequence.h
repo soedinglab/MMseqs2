@@ -44,7 +44,7 @@ class Sequence
         // Map char -> int
         void mapSequence(int id, char* dbKey, const char *seq);
     
-        // Map Profile HMM
+        // map profile HMM, *data points to start position of Profile
         void mapProfile(const char *data);
 
         // checks if there is still a k-mer left
@@ -84,7 +84,8 @@ class Sequence
         // Contains profile information
         short           * profile_score;
         unsigned int    * profile_index;
-        size_t profile_row_size;
+        size_t profile_row_size; // (PROFILE_AA_SIZE / SIMD_SIZE) + 1 * SIMD_SIZE
+
         static const size_t PROFILE_AA_SIZE = 20;
         ScoreMatrix ** profile_matrix;
     

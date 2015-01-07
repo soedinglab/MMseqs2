@@ -1,28 +1,37 @@
 #include "Matcher.h"
 #include "Util.h"
 
-Matcher::Matcher(BaseMatrix* m, int maxSeqLen){
+Matcher::Matcher(int maxSeqLen) {
     
     this->m = m;
     this->maxSeqLen = maxSeqLen;
+    aligner = new SmithWaterman(maxSeqLen, m->alphabetSize);
+    this->tinySubMat = NULL;
+}
+
+
+void Matcher::setSubstitutionMatrix(BaseMatrix *m){
     this->tinySubMat = new int8_t[m->alphabetSize*m->alphabetSize];
     for (size_t i = 0; i < m->alphabetSize; i++) {
         for (size_t j = 0; j < m->alphabetSize; j++) {
             tinySubMat[i*m->alphabetSize + j] = m->subMatrix[i][j];
         }
     }
-    aligner = new SmithWaterman(maxSeqLen, m->alphabetSize);
 }
 
 Matcher::~Matcher(){
     delete aligner;
-    delete [] tinySubMat;
+    if(tinySubMat != NULL){
+        delete [] tinySubMat;
+        tinySubMat = NULL;
+    }
 }
 
 void Matcher::initQuery(Sequence* query){
     currentQuery = query;
     aligner->ssw_init(query, this->tinySubMat, this->m->alphabetSize, 2);
 }
+
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
                                         const double evalThr, const unsigned int mode){

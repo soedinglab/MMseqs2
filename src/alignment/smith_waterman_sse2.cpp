@@ -49,6 +49,36 @@ SmithWaterman::~SmithWaterman(){
     delete [] maxColumn;
 }
 
+
+/* Generate query profile rearrange query sequence & calculate the weight of match/mismatch. */
+template <typename T, size_t Elements, const unsigned int type> void SmithWaterman::createQueryProfile (
+		simd_int* profile,
+		const int8_t* query_sequence,
+		const int8_t* mat,
+		const int32_t query_length,
+		const int32_t aaSize,	/* the edge length of the squre matrix mat */
+		uint8_t bias) {
+
+	const size_t segLen = (query_length+Elements-1)/Elements;
+	T* t = (T*)profile;
+
+	/* Generate query profile rearrange query sequence & calculate the weight of match/mismatch */
+	for (size_t nt = 0; LIKELY(nt < aaSize); nt++) {
+		for (size_t i = 0; i < segLen; i ++) {
+			size_t  j = i;
+			for (size_t segNum = 0; LIKELY(segNum < Elements) ; segNum ++) {
+				if(type == SUBSTITUTIONMATRIX)                                                      // substitution score for query_seq constrainted by nt
+					*t++ = (j>= query_length) ? bias : mat[nt * aaSize + query_sequence[j]] + bias; // mat[nt][q[j]] mat eq 20*20
+				if(type == PROFILE)                                                                 // substi
+					*t++ = (j>= query_length) ? bias : mat[nt * query_length + j] + bias; //mat eq L*20  // mat[nt][j]
+
+				j += segLen;
+			}
+		}
+	}
+}
+
+
 s_align* SmithWaterman::ssw_align (
                                    const int *db_sequence,
                                    int32_t db_length,
@@ -81,7 +111,7 @@ s_align* SmithWaterman::ssw_align (
 			word = 1;
 		} else if (bests[0].score == 255) {
 			fprintf(stderr, "Please set 2 to the score_size parameter of the function ssw_init, otherwise the alignment results will be incorrect.\n");
-			free(r);
+			delete r;
 			return NULL;
 		}
 	}else if (profile->profile_word) {
@@ -89,7 +119,7 @@ s_align* SmithWaterman::ssw_align (
 		word = 1;
 	}else {
 		fprintf(stderr, "Please call the function ssw_init before ssw_align.\n");
-		free(r);
+		delete r;
 		return NULL;
 	}
 	r->score1 = bests[0].score;
@@ -111,13 +141,13 @@ s_align* SmithWaterman::ssw_align (
     
 	// Find the beginning position of the best alignment.
 	if (word == 0) {
-		createQueryProfile<int8_t, VECSIZE_INT*4>(profile->profile_rev_byte,
+		createQueryProfile<int8_t, VECSIZE_INT*4, SUBSTITUTIONMATRIX>(profile->profile_rev_byte,
                                       profile->query_rev_sequence + queryOffset, //TODO offset them
                                       profile->mat, r->qEndPos1 + 1, profile->alphabetSize, profile->bias);
 		bests_reverse = sw_sse2_byte(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_byte,
                                      r->score1, profile->bias, maskLen);
 	} else {
-		createQueryProfile<int16_t, VECSIZE_INT*2>(profile->profile_rev_word,
+		createQueryProfile<int16_t, VECSIZE_INT*2, SUBSTITUTIONMATRIX>(profile->profile_rev_word,
                                       profile->query_rev_sequence + queryOffset,
                                       profile->mat, r->qEndPos1 + 1, profile->alphabetSize, 0);
 		bests_reverse = sw_sse2_word(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_word,
@@ -154,30 +184,6 @@ end:
 	return r;
 }
 
-
-/* Generate query profile rearrange query sequence & calculate the weight of match/mismatch. */
-template <typename T, size_t Elements> void SmithWaterman::createQueryProfile (
-                         simd_int* profile,
-                         const int8_t* query_sequence,
-                         const int8_t* mat,
-                         const int32_t query_length,
-                         const int32_t aaSize,	/* the edge length of the squre matrix mat */
-                         uint8_t bias) {
-    
-    const size_t segLen = (query_length+Elements-1)/Elements;
-	T* t = (T*)profile;
-    
-	/* Generate query profile rearrange query sequence & calculate the weight of match/mismatch */
-	for (size_t nt = 0; LIKELY(nt < aaSize); nt ++) {
-		for (size_t i = 0; i < segLen; i ++) {
-            size_t  j = i;
-			for (size_t segNum = 0; LIKELY(segNum < Elements) ; segNum ++) {
-				*t++ = (j>= query_length) ? bias : mat[nt * aaSize + query_sequence[j]] + bias;
-				j += segLen;
-			}
-        }
-	}
-}
 
 static void seq_reverse(int8_t * reverse, const int8_t* seq, int32_t end)	/* end is 0-based alignment ending position */
 {
@@ -640,10 +646,10 @@ void SmithWaterman::ssw_init (const Sequence* q,
         bias = abs(bias);
 
         profile->bias = bias;
-        createQueryProfile<int8_t, VECSIZE_INT*4>(profile->profile_byte, profile->query_sequence, mat, q->L, alphabetSize, bias);
+        createQueryProfile<int8_t, VECSIZE_INT*4, SUBSTITUTIONMATRIX>(profile->profile_byte, profile->query_sequence, mat, q->L, alphabetSize, bias);
     }
     if (score_size == 1 || score_size == 2) {
-        createQueryProfile<int16_t,VECSIZE_INT*2>(profile->profile_word, profile->query_sequence, mat, q->L, alphabetSize, 0);
+        createQueryProfile<int16_t,VECSIZE_INT*2, SUBSTITUTIONMATRIX>(profile->profile_word, profile->query_sequence, mat, q->L, alphabetSize, 0);
     }
     
     seq_reverse( profile->query_rev_sequence, profile->query_sequence, q->L);

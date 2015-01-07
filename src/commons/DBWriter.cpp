@@ -1,7 +1,6 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
-#include <sys/mman.h>
 
 DBWriter::DBWriter (const char* dataFileName_,
                     const char* indexFileName_,
@@ -39,8 +38,8 @@ DBWriter::~DBWriter(){
     delete[] dataFiles;
     delete[] indexFiles;
     for (int i = 0; i < maxThreadNum; i++){
-        delete dataFileNames[i];
-        delete indexFileNames[i];
+        delete[] dataFileNames[i];
+        delete[] indexFileNames[i];
     }
     delete[] dataFileNames;
     delete[] indexFileNames;

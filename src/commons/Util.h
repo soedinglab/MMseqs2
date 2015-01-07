@@ -224,9 +224,10 @@ public:
         size_t elementCounter = 0;
         while(*data !=  '\n' && *data != '\0'){
             data += skipWhitespace(data);
-            words[elementCounter++] = data;
+            words[elementCounter] = data;
+            elementCounter++;
             if(elementCounter >= maxElement)
-                break;
+                return elementCounter;
             data += skipNoneWhitespace(data);
         }
         return elementCounter;

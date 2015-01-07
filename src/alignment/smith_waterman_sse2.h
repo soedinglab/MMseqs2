@@ -54,7 +54,7 @@ typedef struct {
 
 class SmithWaterman{
 public:
-    
+
     SmithWaterman(int maxSequenceLength, int aaSize);
     ~SmithWaterman();
 
@@ -235,8 +235,12 @@ private:
     inline uint32_t to_cigar_int (uint32_t length, char op_letter);
 
     s_profile* profile;
-    
-    template <typename T, size_t Elements> void createQueryProfile (simd_int* profile,
+
+
+    const static unsigned int SUBSTITUTIONMATRIX = 1;
+    const static unsigned int PROFILE = 2;
+
+    template <typename T, size_t Elements, const unsigned int type> void createQueryProfile (simd_int* profile,
                  const int8_t* query_sequence,
                  const int8_t* mat,
                  const int32_t query_length,

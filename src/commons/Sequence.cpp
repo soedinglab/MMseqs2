@@ -32,7 +32,7 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa,
             EXIT(EXIT_FAILURE);
         }
         // setup memory for profiles
-        profile_row_size = (size_t) PROFILE_AA_SIZE / (VECSIZE_INT*4);
+        profile_row_size = (size_t) PROFILE_AA_SIZE / (VECSIZE_INT*4); //
         profile_row_size = (profile_row_size+1) * (VECSIZE_INT*4); // for SIMD memory alignment
         profile_matrix = new ScoreMatrix*[20]; // init 20 matrix pointer (its more than enough for all kmer parameter)
         for (size_t i = 0; i < kmerSize; i++) {
@@ -193,27 +193,27 @@ void Sequence::mapProfile(const char * sequenze){
             } else {
 				int entry = Util::fast_atoi(words[aa_num+2]);
 				const float p = powFast2( -(entry/1000.0f)); // back scaling from hhm
-                const float backProb = subMat->getBackgroundProb(aa_num);
+                const float backProb  = subMat->getBackgroundProb(aa_num);
                 const float bitFactor = subMat->getBitFactor();
                 
                 double score = BaseMatrix::fastlog2( p / backProb) * bitFactor;
                 
-				profile_score[pos_in_profile] = (short) floor (score + 0.5);
+				profile_score[pos_in_profile] = (short) floor (score + 0.5); // rounding
 //                std::cout << aa_num << " " << subMat->int2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
 			}
 		}
         
-        int indexArray[PROFILE_AA_SIZE]=   { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19 };
+        int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
         Util::rankedDescSort20(&profile_score[l * profile_row_size],(int *) &indexArray);
         memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
         // go to next entry start
-        for(int i = 0; i < 3; i++)
+        for(int i = 0; i < 3; i++) // skip transitions
             data = Util::skipLine(data);
         
         int_sequence[l] = 0;
 		l++;
         if(l >= this->maxLen ){
-            Debug(Debug::ERROR) << "ERROR: Sequenze with id: " << this->dbKey << " is longer maxRes.\n";
+            Debug(Debug::ERROR) << "ERROR: Sequenze with id: " << this->dbKey << " is longer than maxRes.\n";
             break;
         }
 	}

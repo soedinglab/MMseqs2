@@ -40,7 +40,7 @@ class Matcher{
                  float seqId, double eval) : dbKey(dbkey), score(score), qcov(qcov), dbcov(dbcov), seqId(seqId), eval(eval) {};
         };
 
-        Matcher(BaseMatrix* m, int maxSeqLen);
+        Matcher(int maxSeqLen);
 
         ~Matcher();
 
@@ -52,7 +52,11 @@ class Matcher{
     
         // map new query into memory (create profile, ...)
         void initQuery(Sequence* query);
-    private:
+
+        // set substituion matrix
+        void setSubstitutionMatrix(BaseMatrix *m);
+
+private:
 
         // calculate the query profile for SIMD registers processing 8 elements
         int maxSeqLen;
@@ -69,7 +73,6 @@ class Matcher{
         BaseMatrix* m;
         // byte version of substitution matrix
         int8_t * tinySubMat;
-
 
 
 };

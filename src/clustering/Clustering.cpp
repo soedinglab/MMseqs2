@@ -232,14 +232,13 @@ Clustering::set_data Clustering::read_in_set_data(){
     // needed for parsing
     const unsigned int ELEMENTS_IN_RECORD = 2;
     char * words[ELEMENTS_IN_RECORD];
+    memset(words, 0, ELEMENTS_IN_RECORD*sizeof(char*));
     char * dbKey = new char[255+1];
 
     // count lines to know the target memory size
     const char * data = alnDbr->getData();
     size_t dataSize = alnDbr->getDataSize();
-    std::cout << "Data Size: " << dataSize << std::endl;
     size_t elementCount = Util::count_lines(data, dataSize);
-    std::cout << "Element Count: " << elementCount << std::endl;
     unsigned int * elements = new unsigned int[elementCount];
     unsigned short * weight = new unsigned short[elementCount];
     std::fill_n(weight, elementCount, 1);
@@ -248,10 +247,16 @@ Clustering::set_data Clustering::read_in_set_data(){
         // the reference id of the elements is always their id in the sequence database
     for(unsigned int i = 0; i < m; i++) {
         Log::printProgress(i);
+        //TODO fox problem with no entry
         char* data = alnDbr->getData(i);
         unsigned int element_counter = 0;
 
-        Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
+        unsigned int elementSize = Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
+        if(elementSize != 2){ // check if file contains entry
+            Debug(Debug::ERROR) << "ERROR: Sequence " << i
+            << " does not containe any sequence!\n";
+            continue;
+        }
         ptrdiff_t keySize =  (words[1] - words[0]) - 1;
         strncpy(dbKey, data, keySize);
         dbKey[keySize] = '\0';
