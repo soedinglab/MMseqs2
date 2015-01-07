@@ -25,7 +25,7 @@ struct set {
     element * elements;
     set * last;
     set * next;
-    int set_id;
+    unsigned int set_id;
     unsigned short weight;
 };
 

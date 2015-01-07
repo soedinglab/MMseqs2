@@ -76,11 +76,11 @@ int main (int argc, const char * argv[])
     int mode = 0;
     size_t cells = 0;
     std::vector<std::string> sequences = readData("/Users/mad/Documents/databases/rfam/Rfam.fasta");
-    for(int seq_i = 0; seq_i < sequences.size(); seq_i++){
+    for(size_t seq_i = 0; seq_i < sequences.size(); seq_i++){
         query->mapSequence(1,"lala2",sequences[seq_i].c_str());
         aligner.ssw_init(query, tinySubMat, subMat.alphabetSize, 2);
 
-        for(int seq_j = 0; seq_j < sequences.size(); seq_j++) {
+        for(size_t seq_j = 0; seq_j < sequences.size(); seq_j++) {
             dbSeq->mapSequence(2, "WTF", sequences[seq_j].c_str());
             int32_t maskLen = query->L / 2;
             s_align *alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, mode, 0, 0, maskLen);

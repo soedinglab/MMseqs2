@@ -61,7 +61,7 @@ void SimpleClustering::add_set(const unsigned int * element_ids, const int eleme
 
 void SimpleClustering::removeSet(set * s){
     set::element * element=s->elements;
-    int s_set_id = s->set_id;
+    unsigned int s_set_id = s->set_id;
     do{ // for(Element element in elements
         set::element * element_to_remove;
         int element_id=element->element_id;

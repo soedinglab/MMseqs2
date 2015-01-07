@@ -66,7 +66,7 @@ int main (int argc, const char * argv[])
         for (int32_t c = 0; c < alignment->cigarLen; ++c) {
             char letter = SmithWaterman::cigar_int_to_op(alignment->cigar[c]);
             uint32_t length = SmithWaterman::cigar_int_to_len(alignment->cigar[c]);
-            for (int i = 0; i < length; ++i){
+            for (uint32_t i = 0; i < length; ++i){
                 if (letter == 'M') {
 		    fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
                     if (dbSeq->int_sequence[targetPos] == s->int_sequence[queryPos]){

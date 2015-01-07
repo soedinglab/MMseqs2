@@ -636,7 +636,7 @@ void SmithWaterman::ssw_init (const Sequence* q,
 
     profile->bias = 0;
     
-    for(size_t i = 0; i < q->L; i++){
+    for(int i = 0; i < q->L; i++){
         profile->query_sequence[i] = (int8_t) q->int_sequence[i];
     }
     if (score_size == 0 || score_size == 2) {

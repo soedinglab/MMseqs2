@@ -520,7 +520,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (IndexTable * indexTable,
     size_t querySetSize = std::min ( tdbr->getSize(), (size_t) 1000);
     int* querySeqs = new int[querySetSize];
     srand(1);
-    for (int i = 0; i < querySetSize; i++){
+    for (size_t i = 0; i < querySetSize; i++){
         querySeqs[i] = rand() % tdbr->getSize();
     }
 
@@ -602,7 +602,7 @@ std::pair<short,double> Prefiltering::setKmerThreshold (IndexTable * indexTable,
                                  aaBiasCorrection, maxSeqLen, 500.0);
 
 #pragma omp parallel for schedule(dynamic, 10) reduction (+: dbMatchesSum, querySeqLenSum, kmersPerPos)
-        for (int i = 0; i < querySetSize; i++){
+        for (size_t i = 0; i < querySetSize; i++){
             int id = querySeqs[i];
 
             int thread_idx = 0;

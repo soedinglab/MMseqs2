@@ -12,8 +12,8 @@ Matcher::Matcher(int maxSeqLen) {
 
 void Matcher::setSubstitutionMatrix(BaseMatrix *m){
     this->tinySubMat = new int8_t[m->alphabetSize*m->alphabetSize];
-    for (size_t i = 0; i < m->alphabetSize; i++) {
-        for (size_t j = 0; j < m->alphabetSize; j++) {
+    for (int i = 0; i < m->alphabetSize; i++) {
+        for (int j = 0; j < m->alphabetSize; j++) {
             tinySubMat[i*m->alphabetSize + j] = m->subMatrix[i][j];
         }
     }
@@ -65,7 +65,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
             for (int32_t c = 0; c < alignment->cigarLen; ++c) {
                 char letter = SmithWaterman::cigar_int_to_op(alignment->cigar[c]);
                 uint32_t length = SmithWaterman::cigar_int_to_len(alignment->cigar[c]);
-                for (int i = 0; i < length; ++i){
+                for (uint32_t i = 0; i < length; ++i){
                     if (letter == 'M') {
                         if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
                             aaIds++;

@@ -139,7 +139,7 @@ std::pair<hit_t *, size_t> QueryScoreGlobal::getResult (int querySeqLen, unsigne
         if (cmp_set_bits != 0xffff){
 #endif
             // and search for highest
-            for(int i = 0; i < SIMD_SHORT_SIZE; i++){
+            for(unsigned int i = 0; i < SIMD_SHORT_SIZE; i++){
                 
                 if(!CHECK_BIT(cmp_set_bits,i*2) && (pos * SIMD_SHORT_SIZE + i) != identityId){
                     const float zscore = getZscore(pos * SIMD_SHORT_SIZE + i);
