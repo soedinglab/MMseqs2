@@ -37,15 +37,14 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     dbSeqs = new Sequence*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
-        qSeqs[i] = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.querySeqType);
-        dbSeqs[i] = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.querySeqType);
+        qSeqs[i]  = new Sequence(par.maxSeqLen, m, par.querySeqType, 0, false);
+        dbSeqs[i] = new Sequence(par.maxSeqLen, m, par.querySeqType, 0, false);
     }
 
     matchers = new Matcher*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++) {
-        matchers[i] = new Matcher(par.maxSeqLen);
-        matchers[i]->setSubstitutionMatrix(this->m);
+        matchers[i] = new Matcher(par.maxSeqLen, this->m);
     }
 
     // open the sequence, prefiltering and output databases

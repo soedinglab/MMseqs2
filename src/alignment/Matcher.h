@@ -40,7 +40,7 @@ class Matcher{
                  float seqId, double eval) : dbKey(dbkey), score(score), qcov(qcov), dbcov(dbcov), seqId(seqId), eval(eval) {};
         };
 
-        Matcher(int maxSeqLen);
+        Matcher(int maxSeqLen, BaseMatrix *m);
 
         ~Matcher();
 
@@ -53,8 +53,6 @@ class Matcher{
         // map new query into memory (create profile, ...)
         void initQuery(Sequence* query);
 
-        // set substituion matrix
-        void setSubstitutionMatrix(BaseMatrix *m);
 
 private:
 
@@ -74,7 +72,8 @@ private:
         // byte version of substitution matrix
         int8_t * tinySubMat;
 
-
+        // set substituion matrix
+        void setSubstitutionMatrix(BaseMatrix *m);
 };
 
 #endif
