@@ -1,12 +1,12 @@
 #include "Matcher.h"
 #include "Util.h"
 
-Matcher::Matcher(int maxSeqLen) {
-    
+Matcher::Matcher(int maxSeqLen, BaseMatrix *m) {
     this->m = m;
+    this->tinySubMat = NULL;
+    setSubstitutionMatrix(m);
     this->maxSeqLen = maxSeqLen;
     aligner = new SmithWaterman(maxSeqLen, m->alphabetSize);
-    this->tinySubMat = NULL;
 }
 
 
