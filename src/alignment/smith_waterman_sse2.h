@@ -24,6 +24,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <simd.h>
+
 #if !defined(__APPLE__)
 #include <malloc.h>
 #endif
@@ -162,7 +164,21 @@ private:
         int8_t* query_sequence;
         int8_t* query_rev_sequence;
         const int8_t* mat;
+        // Memory layout of if mat + profile is qL * AA
+        //    Query lenght
+        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
+        // ...
+        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+        // Memory layout of if mat + sub is AA * AA
+        //     A   C    ...                                                                Y
+        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
+        // ...
+        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+        int8_t* mat_rev; // needed for profile
         int32_t query_length;
+        int32_t sequence_type;
         int32_t alphabetSize;
         uint8_t bias;
     };
@@ -214,18 +230,9 @@ private:
                   const simd_int*query_profile_byte,
                   uint16_t terminate,
                   int32_t maskLen);
-    
-    
-    cigar * banded_sw (const int*db_sequence,
-               const int8_t* query_sequence,
-               int32_t db_length,
-               int32_t query_length,
-               int32_t score,
-               const uint32_t gap_open,  /* will be used as - */
-               const uint32_t gap_extend,  /* will be used as - */
-               int32_t band_width,
-               const int8_t* mat,	/* pointer to the weight matrix */
-               int32_t n);
+
+    template <const unsigned int type>
+    SmithWaterman::cigar *banded_sw(const int *db_sequence, const int8_t *query_sequence, int32_t db_length, int32_t query_length, int32_t queryStart, int32_t score, const uint32_t gap_open, const uint32_t gap_extend, int32_t band_width, const int8_t *mat, int32_t n);
     
     /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
      @param	length		length of CIGAR
@@ -240,12 +247,8 @@ private:
     const static unsigned int SUBSTITUTIONMATRIX = 1;
     const static unsigned int PROFILE = 2;
 
-    template <typename T, size_t Elements, const unsigned int type> void createQueryProfile (simd_int* profile,
-                 const int8_t* query_sequence,
-                 const int8_t* mat,
-                 const int32_t query_length,
-                 const int32_t aaSize,	/* the edge length of the squre matrix mat */
-                 uint8_t bias);
+    template <typename T, size_t Elements, const unsigned int type>
+    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
 
 };
 #endif /* SMITH_WATERMAN_SSE2_H */

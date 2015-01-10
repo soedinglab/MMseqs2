@@ -92,7 +92,7 @@ void TimeTest::runTimeTest (){
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
 #endif
-            seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS);
+            seqs[thread_idx] = new Sequence(maxSeqLen, subMat, Sequence::AMINO_ACIDS, 0, false);
         }
 
         for (int kmerSize = 4; kmerSize <= 7; kmerSize++){

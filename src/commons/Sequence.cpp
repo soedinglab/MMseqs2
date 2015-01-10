@@ -4,17 +4,20 @@
 #include "simd.h"
 
 #include <limits.h> // short_max
+#include "BaseMatrix.h"
 
 
-Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa,
-                   int seqType,
-                   const unsigned int kmerSize /* = 0 */,
-                   const bool spaced /* = false */,
-                   BaseMatrix * subMat /* = NULL */)
+Sequence::Sequence(size_t maxLen, BaseMatrix *subMat,
+                   int seqType, const unsigned int kmerSize, const bool spaced)
 {
-    this->int_sequence = new int[maxLen]; 
-    this->aa2int = aa2int;
-    this->int2aa = int2aa;
+    this->int_sequence = new int[maxLen];
+    this->subMat = subMat;
+    if(subMat == NULL){
+        Debug(Debug::ERROR) << "BaseMatrix must be set in Sequence (Profile Mode)\n";
+        EXIT(EXIT_FAILURE);
+    }
+    this->aa2int = subMat->aa2int;
+    this->int2aa = subMat->int2aa;
     this->maxLen = maxLen;
     this->seqType = seqType;
     std::pair<const char *, unsigned int> spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
@@ -26,11 +29,6 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa,
        this->kmerWindow = new int[kmerSize];
     // init memory for profile search
     if (seqType == HMM_PROFILE) {
-        this->subMat = subMat;
-        if(subMat == NULL){
-            Debug(Debug::ERROR) << "BaseMatrix must be set in Sequence (Profile Mode)\n";
-            EXIT(EXIT_FAILURE);
-        }
         // setup memory for profiles
         profile_row_size = (size_t) PROFILE_AA_SIZE / (VECSIZE_INT*4); //
         profile_row_size = (profile_row_size+1) * (VECSIZE_INT*4); // for SIMD memory alignment
@@ -38,8 +36,9 @@ Sequence::Sequence(size_t maxLen, int* aa2int, char* int2aa,
         for (size_t i = 0; i < kmerSize; i++) {
             profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
         }
-        this->profile_score = (short *)          mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(short));
-        this->profile_index = (unsigned int *)   mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(int));
+        this->profile_score = (short *)            mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(short));
+        this->profile_index = (unsigned int *)     mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(int));
+        this->profile_for_alignment = (int8_t *)   mem_align(ALIGN_INT, maxLen * PROFILE_AA_SIZE * sizeof(int8_t));
         for(size_t i = 0; i < maxLen * profile_row_size; i++){
             profile_score[i] = -SHRT_MAX;
             profile_index[i] = -1;
@@ -54,12 +53,13 @@ Sequence::~Sequence()
     if(kmerWindow)
         delete [] kmerWindow;
     if (seqType == HMM_PROFILE) {
-        for (size_t i = 0; i < 20; i++) {
+        for (size_t i = 0; i < kmerSize; i++) {
             delete profile_matrix[i];
         }
         delete [] profile_matrix;
-        free( profile_score);
-        free( profile_index);
+        free( profile_score );
+        free( profile_index );
+        free( profile_for_alignment );
     }
 }
 
@@ -194,7 +194,7 @@ void Sequence::mapProfile(const char * sequenze){
 				int entry = Util::fast_atoi(words[aa_num+2]);
 				const float p = powFast2( -(entry/1000.0f)); // back scaling from hhm
                 const float backProb  = subMat->getBackgroundProb(aa_num);
-                const float bitFactor = subMat->getBitFactor();
+                const float bitFactor = subMat->getBitFactor(); //TODO solve somehow this?!?
                 
                 double score = BaseMatrix::fastlog2( p / backProb) * bitFactor;
                 
@@ -202,15 +202,15 @@ void Sequence::mapProfile(const char * sequenze){
 //                std::cout << aa_num << " " << subMat->int2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
 			}
 		}
-        
-        int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
-        Util::rankedDescSort20(&profile_score[l * profile_row_size],(int *) &indexArray);
+        // sort profile scores and index for KmerGenerator (prefilter step)
+        unsigned int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+        Util::rankedDescSort20(&profile_score[l * profile_row_size],(unsigned int *) &indexArray);
         memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
         // go to next entry start
         for(int i = 0; i < 3; i++) // skip transitions
             data = Util::skipLine(data);
-        
-        int_sequence[l] = 0;
+        // create consensus sequence
+        int_sequence[l] = indexArray[0]; // index 0 is the highst scoring one
 		l++;
         if(l >= this->maxLen ){
             Debug(Debug::ERROR) << "ERROR: Sequenze with id: " << this->dbKey << " is longer than maxRes.\n";
@@ -218,6 +218,14 @@ void Sequence::mapProfile(const char * sequenze){
         }
 	}
     this->L = l;
+
+    // write alignemnt profile
+    for(size_t l = 0; l < this->L; l++){
+        for(size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
+            unsigned int aa_idx = profile_index[l * profile_row_size + aa_num];
+            profile_for_alignment[aa_idx * this-> L + l] = profile_score[l * profile_row_size + aa_num];
+        }
+    }
 }
 
 
@@ -275,6 +283,23 @@ void Sequence::mapProteinSequence(const char * sequence){
     this->L = l;
 }
 
+
+void Sequence::printProfile(){
+    printf("Query profile of sequence %s\n", dbKey);
+    printf("Pos ");
+    for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
+        printf("%3c ", this->int2aa[aa]);
+    }
+    printf("\n");
+    for(size_t i = 0; i < this->L; i++){
+        printf("%3d ", i);
+        for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
+            printf("%3d ", profile_for_alignment[aa * L + i] );
+        }
+        printf("\n");
+    }
+}
+
 void Sequence::reverse() {
     int tmp;
     for (int i = 0; i < this->L/2; i++){
@@ -320,4 +345,12 @@ const int * Sequence::nextKmer() {
         return (const int *) kmerWindow;
     }
     return 0;
+}
+
+int8_t const * Sequence::getAlignmentProfile()const {
+    return profile_for_alignment;
+}
+
+int Sequence::getSequenceType() const {
+    return seqType;
 }

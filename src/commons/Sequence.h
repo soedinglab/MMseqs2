@@ -34,11 +34,7 @@ const int8_t seed_7_spaced[] = {1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1};
 class Sequence
 {
     public:
-        Sequence(size_t maxLen, int* aa2int, char* int2aa,
-                 int seqType,
-                 const unsigned int kmerSize = 0,
-                 const bool spaced = false,
-                 BaseMatrix * subMat = NULL );
+        Sequence(size_t maxLen, BaseMatrix *subMat, int seqType, const unsigned int kmerSize, const bool spaced);
         ~Sequence();
 
         // Map char -> int
@@ -88,14 +84,28 @@ class Sequence
 
         static const size_t PROFILE_AA_SIZE = 20;
         ScoreMatrix ** profile_matrix;
+        // Memory layout of this profile is qL * AA
+        //   Query lenght
+        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
+        // ...
+        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+
+        int8_t * profile_for_alignment;
     
         int  * aa2int; // ref to mapping from aa -> int
         char * int2aa; // ref mapping from int -> aa
 
         std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
-    
-    private:
+
+    void printProfile();
+
+    int8_t const * getAlignmentProfile()const;
+
+    int getSequenceType()const;
+
+private:
         void mapProteinSequence(const char *seq);
         void mapNucleotideSequence(const char *seq);
         int id;
@@ -118,5 +128,6 @@ class Sequence
         unsigned int kmerSize;
         // sequence window will be filled by newxtKmer (needed for spaced patterns)
         int * kmerWindow;
+
 };
 #endif

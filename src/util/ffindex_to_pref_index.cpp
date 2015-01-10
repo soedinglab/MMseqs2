@@ -39,7 +39,7 @@ int createindex (int argc, const char * argv[])
     dbr.open(DBReader::SORT);
 
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f);
-    Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, par.kmerSize, par.spacedKmer, subMat);
+    Sequence seq(par.maxSeqLen, subMat, Sequence::AMINO_ACIDS, par.kmerSize, par.spacedKmer);
 
     PrefilteringIndexReader::createIndexFile(par.db2, par.db2Index, &dbr, &seq, par.split, subMat->alphabetSize, par.kmerSize, par.skip, par.spacedKmer, par.localSearch);
 
