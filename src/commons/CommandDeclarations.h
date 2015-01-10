@@ -12,6 +12,6 @@ extern int createindex(int argc, const char **argv);
 extern int mergeffindex(int argc, const char **argv);
 extern int alignment(int argc, const char **argv);
 extern int clusteringtofastadb(int argc, const char **argv);
-
+extern int swapresults(int argc, const char **argv);
 
 #endif

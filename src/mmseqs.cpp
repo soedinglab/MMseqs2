@@ -21,7 +21,8 @@ static struct Command commands[] = {
         {"createfasta", createfasta},
         {"createindex", createindex},
         {"mergeffindex", mergeffindex},
-        {"clusteringtofastadb", clusteringtofastadb}
+        {"clusteringtofastadb", clusteringtofastadb},
+        {"swapresults", swapresults}
 };
 
 
@@ -38,6 +39,7 @@ void printUsage() {
             "createdb           \tConvert fasta to ffindex (all programs need ffindex as input)\n"
             "createindex        \tConvert ffindex to fast index for prefiltering\n"
             "createfasta        \tConvert ffindex to fasta\n"
+            "swapresults        \tSwaps results from the mapping A->A,B,C to A -> A, B -> A, C -> A\n"
             "clusteringtofastadb\tCConvert Convert mmseqs clustering to ffindex indexed fasta format\n"
             "mergeffindex       \tMerge multiple ffindex files based on similar id into one file.\n"
     );

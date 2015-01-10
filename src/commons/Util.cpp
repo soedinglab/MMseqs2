@@ -1,3 +1,5 @@
+#include <IOKit/IOCFPlugIn.h>
+#include <IOKit/IODataQueueClient.h>
 #include "Util.h"
 
 size_t Util::count_lines(const char * file, size_t endPos ) {
@@ -10,9 +12,9 @@ size_t Util::count_lines(const char * file, size_t endPos ) {
     return newlines;
 }
 
-void Util::decompose_domain(int domain_size, int world_rank,
-                      int world_size, int* subdomain_start,
-                      int* subdomain_size) {
+void Util::decompose_domain(size_t domain_size, size_t world_rank,
+        size_t world_size, size_t *subdomain_start,
+        size_t *subdomain_size) {
     if (world_size > domain_size) {
         // Don't worry about this special case. Assume the domain size
         // is greater than the world size.
@@ -26,8 +28,8 @@ void Util::decompose_domain(int domain_size, int world_rank,
     }
 }
 
-void Util::decomposeDomainByAminoaAcid(int aaSize, unsigned short * seqSizes, size_t count,
-                            int worldRank, int worldSize, int *start, int *size){
+void Util::decomposeDomainByAminoaAcid(size_t aaSize, unsigned short *seqSizes, size_t count,
+        size_t worldRank, size_t worldSize, size_t *start, size_t *size){
     if (worldSize > aaSize) {
         // Assume the domain size is greater than the world size.
         EXIT(1);
@@ -38,12 +40,12 @@ void Util::decomposeDomainByAminoaAcid(int aaSize, unsigned short * seqSizes, si
         return;
     }
     
-    int aaPerSplitt =  aaSize / worldSize;
-    int currentRank = 0;
-    int currentSize = 0;
+    size_t aaPerSplit =  aaSize / worldSize;
+    size_t currentRank = 0;
+    size_t currentSize = 0;
     *start = 0;
     for(size_t i = 0; i < count; i++ ){
-        if(currentSize > aaPerSplitt){
+        if(currentSize > aaPerSplit){
             currentSize = 0;
             currentRank++;
             if(currentRank > worldRank){
@@ -63,16 +65,16 @@ void Util::decomposeDomainByAminoaAcid(int aaSize, unsigned short * seqSizes, si
 
 
 // http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=20&algorithm=batcher&output=svg
-// // sorting networks
-void Util::rankedDescSort20(short * val, int * index){
+// sorting networks
+void Util::rankedDescSort20(short *val, unsigned int *index){
 #define SWAP(x,y){\
     if( val[x] < val[y] ){   \
-        int tmp = val[x];    \
+        short tmp1 = val[x];    \
         val[x] = val[y];     \
-        val[y] = tmp;        \
-        tmp = index[x];      \
+        val[y] = tmp1;        \
+        unsigned int tmp2 = index[x];      \
         index[x] = index[y]; \
-        index[y] = tmp;      \
+        index[y] = tmp2;      \
     } \
 }
     SWAP(0,16);SWAP(1,17);SWAP(2,18);SWAP(3,19);SWAP(4,12);SWAP(5,13);SWAP(6,14);SWAP(7,15);
@@ -90,9 +92,5 @@ void Util::rankedDescSort20(short * val, int * index){
     SWAP(1,4);SWAP(3,6);SWAP(5,8);SWAP(7,10);SWAP(9,12);SWAP(11,14);SWAP(13,16);SWAP(15,18);
     SWAP(1,2);SWAP(3,4);SWAP(5,6);SWAP(7,8);SWAP(9,10);SWAP(11,12);SWAP(13,14);SWAP(15,16);SWAP(17,18);
 #undef SWAP
-#undef min
-#undef max
-#undef min2
-#undef max2
 }
 

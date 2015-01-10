@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <iostream>
+#include <IOKit/IODataQueueClient.h>
 
 extern "C" {
 #include "ffindex.h"
@@ -120,12 +121,12 @@ static inline float powFast2 ( float f)
 
 class Util {
 public:
-    static void decompose_domain(int domain_size, int world_rank,
-                                 int world_size, int* subdomain_start,
-                                 int* subdomain_size);
-    static void rankedDescSort20(short * val, int * index);
-    static void decomposeDomainByAminoaAcid(int aaSize, unsigned short * seqSizes, size_t count,
-                                            int worldRank, int worldSize, int *start, int *end);
+    static void decompose_domain(size_t domain_size, size_t world_rank,
+            size_t world_size, size_t *subdomain_start,
+            size_t *subdomain_size);
+    static void rankedDescSort20(short *val, unsigned int *index);
+    static void decomposeDomainByAminoaAcid(size_t aaSize, unsigned short *seqSizes, size_t count,
+            size_t worldRank, size_t worldSize, size_t *start, size_t *end);
 
     static size_t count_lines(const char * file, size_t endPos );
 
@@ -189,7 +190,7 @@ public:
     static inline size_t skipNoneWhitespace(char * data){
         //A value different from zero (i.e., true) if indeed c is a white-space character. Zero (i.e., false) otherwise.
         size_t counter = 0;
-        while(( data[counter] == ' ' || data[counter] == '\t') == false ) {
+        while(( data[counter] == ' ' || data[counter] == '\t' || data[counter] == '\n') == false ) {
             counter++;
         }
         return counter;

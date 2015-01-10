@@ -4,6 +4,7 @@ set(util_source_files
   ffindex2fasta.cpp
   ffindex_database_merge.cpp
   ffindex_to_pref_index.cpp
+  ffindex_swap_results.cpp
 )
 add_library(util ${util_source_files})
 
