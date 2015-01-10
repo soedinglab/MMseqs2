@@ -60,8 +60,6 @@ class Clustering {
 
         void writeData(std::list<set *> ret);
 
-        int mode;
-
         DBReader* seqDbr;
 
         DBReader* alnDbr;

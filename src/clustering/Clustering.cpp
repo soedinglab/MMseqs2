@@ -244,10 +244,9 @@ Clustering::set_data Clustering::read_in_set_data(){
     std::fill_n(weight, elementCount, 1);
     size_t curr_start_pos = 0;
 
-        // the reference id of the elements is always their id in the sequence database
+    // the reference id of the elements is always their id in the sequence database
     for(unsigned int i = 0; i < m; i++) {
         Log::printProgress(i);
-        //TODO fox problem with no entry
         char* data = alnDbr->getData(i);
         unsigned int element_counter = 0;
 

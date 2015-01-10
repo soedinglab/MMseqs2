@@ -21,7 +21,8 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
     writer.open();
     int stepCnt = split;
     for (int step = 0; step < stepCnt; step++) {
-        int splitStart, splitSize;
+        size_t splitStart = 0;
+        size_t splitSize  = 0;
         Util::decomposeDomainByAminoaAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                 step, stepCnt, &splitStart, &splitSize);
         IndexTable *indexTable;

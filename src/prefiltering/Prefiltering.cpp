@@ -95,8 +95,7 @@ Prefiltering::Prefiltering(std::string queryDB,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif 
-        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa,
-                                        querySeqType, kmerSize, spacedKmer, subMat);
+        qseq[thread_idx] = new Sequence(maxSeqLen, subMat, querySeqType, kmerSize, spacedKmer);
         reslens[thread_idx] = new std::list<int>();
     }
 
@@ -230,10 +229,11 @@ IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
     if(templateDBIsIndex == true ){
         return PrefilteringIndexReader::generateIndexTable(tidxdbr,split);
     }else{
-        int dbFrom, dbSize;
+        size_t dbFrom = 0;
+        size_t dbSize = 0;
         Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                           split, splitCount, &dbFrom, &dbSize);
-        Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, subMat);
+        Sequence tseq(maxSeqLen, subMat, targetSeqType, kmerSize, spacedKmer);
         return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, isLocal, skip);
     }
 }
@@ -404,7 +404,7 @@ void Prefiltering::printStatistics(){
     
     size_t dbMatchesPerSeq = dbMatches/queryDBSize;
     size_t prefPassedPerSeq = resSize/queryDBSize;
-    size_t prefRealPassedPerSeq = realResSize/queryDBSize;
+//    size_t prefRealPassedPerSeq = realResSize/queryDBSize;
     size_t doubleMatcherPerQuerySeq = doubleMatches/queryDBSize;
     Debug(Debug::INFO) << kmersPerPos/queryDBSize << " k-mers per position.\n";
     Debug(Debug::INFO) << dbMatchesPerSeq << " DB matches per sequence.\n";

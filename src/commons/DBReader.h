@@ -42,7 +42,7 @@ class DBReader {
 
         char* getIndexFileName() { return indexFileName; }
     
-        unsigned int getAminoAcidDBSize(){ return aaDbSize; }
+        size_t getAminoAcidDBSize(){ return aaDbSize; }
 
         char* getData(size_t id);
     
