@@ -1,5 +1,3 @@
-#include <IOKit/IOCFPlugIn.h>
-#include <IOKit/IODataQueueClient.h>
 #include "Util.h"
 
 size_t Util::count_lines(const char * file, size_t endPos ) {

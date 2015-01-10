@@ -10,7 +10,6 @@
 
 #include <stdlib.h>
 #include <iostream>
-#include <IOKit/IODataQueueClient.h>
 
 extern "C" {
 #include "ffindex.h"

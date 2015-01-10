@@ -2,6 +2,7 @@
 #include "DBWriter.h"
 
 #include "Debug.h"
+#include <cstddef>
 #include <stdio.h>
 #include "Util.h"
 
