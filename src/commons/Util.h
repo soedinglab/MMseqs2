@@ -236,7 +236,7 @@ public:
     
     
     static inline unsigned short sadd16(const unsigned short  a, const unsigned short  b)
-    { return (a > 0xFFFF - b) ? 0xFFFF : a + b; };
+    { return (a > 0xFFFF - b) ? 0xFFFF : a + b; }
     
     static inline short sadd16_signed(short x, short y)
     {
@@ -273,6 +273,6 @@ public:
         return res;
     }
 
-
+    static std::string parseFastaHeader(std::string header);
 };
 #endif

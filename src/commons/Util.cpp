@@ -94,3 +94,27 @@ void Util::rankedDescSort20(short *val, unsigned int *index){
 #undef SWAP
 }
 
+std::string Util::parseFastaHeader(std::string header){
+    std::vector<std::string> arr = Util::split(header,"|");
+    for(unsigned int i = 0; i < arr.size(); i++)
+        if(arr.size() > 1) {
+            if (Util::startWith("cl|",   header) ||
+                    Util::startWith("sp|",   header) ||
+                    Util::startWith("tr|",   header) ||
+                    Util::startWith("ref|",  header) ||
+                    Util::startWith("pdb|",  header) ||
+                    Util::startWith("bbs|",  header) ||
+                    Util::startWith("lcl|",  header) ||
+                    Util::startWith("pir||", header) ||
+                    Util::startWith("prf||", header)) {
+                return arr[1];
+            }
+            else if (Util::startWith("gnl|", header) || Util::startWith("pat|", header))
+                return arr[2];
+            else if (Util::startWith("gi|", header))
+                return arr[3];
+
+        }
+    arr = Util::split(header," ");
+    return arr[0];
+}

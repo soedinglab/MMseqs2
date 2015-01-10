@@ -23,16 +23,17 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-
 extern "C" {
 #include "ffindex.h"
 #include "ffutil.h"
 }
+
+#include "Util.h"
+
 #include "kseq.h"
 #define MAX_FILENAME_LIST_FILES 4096
 
-KSEQ_INIT(int, read);
-
+KSEQ_INIT(int, read)
 
 void usage()
 {
@@ -40,63 +41,6 @@ void usage()
     fprintf(stderr, "USAGE: <fastaDB>  <ffindexDB>\n"
             "\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
 }
-
-
-
-/**
- * Function to split a String by a separator (like 'explode' in PHP)
- *
- * @author Bjoern Bastian
- * @version 20120927
- * @param string The content we want to split
- * @param string The divider
- * @param stringlist Pointer to a StringList for the tokens
- * @param boolean Trim the content
- * @return integer Length of the StringList or 0
- */
-std::vector<std::string> split(std::string str,std::string sep){
-    char buffer[1024];
-    sprintf(buffer, "%s", str.c_str());
-    char* cstr = (char *) &buffer;
-    char* current;
-    std::vector<std::string> arr;
-    current=strtok(cstr,sep.c_str());
-    while(current!=NULL){
-        arr.push_back(current);
-        current=strtok(NULL,sep.c_str());
-    }
-    return arr;
-}
-
-bool startWith(std::string prefix, std::string str){
-	return (!str.compare(0, prefix.size(), prefix));
-
-}
-	
-std::string parseFastaHeader(std::string header){
-        std::vector<std::string> arr = split(header,"|");
-    for(unsigned int i = 0; i < arr.size(); i++)
-	if(arr.size() > 1) { 
-		if (startWith("cl|", header)  || 
-		    startWith("sp|", header)  ||
-	    	    startWith("tr|", header)  ||
-	   	    startWith("ref|", header) || 
-	    	    startWith("pdb|", header)  ||
-	    	    startWith("bbs|", header)  ||
-	    	    startWith("lcl|", header)  ||
-                startWith("pir||", header) ||
-                startWith("prf||", header)  )
-		      return arr[1];
-                else if (startWith("gnl|", header) || startWith("pat|", header))
-                      return arr[2];
-		else if (startWith("gi|", header))
-	     	  return arr[3];
-	
-	}  
-	arr = split(header," ");
-	return arr[0];	
-}
-
 
 int createdb(int argn,const char **argv)
 {
@@ -143,16 +87,15 @@ int createdb(int argn,const char **argv)
     
     kseq_t *seq;
     seq = kseq_init(fileno(fasta_file));
-    int l;
     size_t offset_header = 0;
     size_t offset_sequence = 0;
     size_t entries_num = 0;
     std::string header_line;
     header_line.reserve(10000);
-    while ((l = kseq_read(seq)) >= 0) {
+    while (kseq_read(seq) >= 0) {
 	//printf("name: %s %d\n", seq->name.s, seq->name.l);
 	//printf("seq:  %s %d\n", seq->seq.s,  seq->seq.l);
-	std::string id = parseFastaHeader(std::string(seq->name.s));
+    std::string id = Util::parseFastaHeader(std::string(seq->name.s));
 	header_line.append(seq->name.s, seq->name.l);
 	if(seq->comment.l)  { 
 		header_line.append(" ",1);

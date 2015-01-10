@@ -8,10 +8,6 @@
 
 #ifndef __graphcluster__element__
 #define __graphcluster__element__
-#include <iostream>
-
-
-
 
 struct set {
     struct element {
