@@ -251,29 +251,19 @@ void Sequence::mapProteinSequence(const char * sequence){
     while (curr != '\0'){
         if (curr != '\n'){
             // replace non-common amino acids
-            curr = toupper(curr);
+            curr = Util::toUpper(curr);
+            this->int_sequence[l] = this->aa2int[(int)curr];
             switch(curr){
-                case 'J': this->int_sequence[l] = this->aa2int['L']; break;
+                case 'J': this->int_sequence[l] = this->aa2int[(int)'L']; break;
                 case 'U':
-                case 'O': this->int_sequence[l] = this->aa2int['X']; break;
-                case 'Z': this->int_sequence[l] = this->aa2int['E']; break;
-                case 'B': this->int_sequence[l] = this->aa2int['D']; break;
-                default:
-                    if (curr < 'A' ||curr > 'Z' || this->aa2int[(int)curr] == -1){
-                        Debug(Debug::ERROR) << "ERROR: illegal character \"" << curr
-                                            << "\" in sequence " << this->dbKey
-                                            << " at position " << pos << "\n";
-                        EXIT(1);
-                    }
-                    else
-                        this->int_sequence[l] = this->aa2int[(int)curr];
-                    break;
+                case 'O': this->int_sequence[l] = this->aa2int[(int)'X']; break;
+                case 'Z': this->int_sequence[l] = this->aa2int[(int)'E']; break;
+                case 'B': this->int_sequence[l] = this->aa2int[(int)'D']; break;
             }
-
             l++;
             if (l >= maxLen){
                 Debug(Debug::ERROR) << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
-                EXIT(1);
+                EXIT(EXIT_FAILURE);
             }
         }
         pos++;
@@ -292,7 +282,7 @@ void Sequence::printProfile(){
     }
     printf("\n");
     for(size_t i = 0; i < this->L; i++){
-        printf("%3d ", i);
+        printf("%3zu ", i);
         for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
             printf("%3d ", profile_for_alignment[aa * L + i] );
         }

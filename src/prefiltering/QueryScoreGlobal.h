@@ -45,7 +45,7 @@ private:
     
     int nsteps;
             
-    float matches_per_pos;
+    //float matches_per_pos;
 
     
 };

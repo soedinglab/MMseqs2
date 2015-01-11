@@ -6,8 +6,6 @@
 #include <vector>
 #include <limits.h>
 
-
-
 #include <stdlib.h>
 #include <iostream>
 
@@ -275,6 +273,11 @@ public:
 
     static std::string parseFastaHeader(std::string header);
 
+    static inline char toUpper(char character){
+        character += ('a' <= character && character <= 'z') ? ('A' - 'a') : 0;
+        return character;
+    }
+
     static inline void parseKey(char *data, char * key) {
         char * startPosOfKey = data;
         char * endPosOfId    = data + Util::skipNoneWhitespace(data);
@@ -282,5 +285,6 @@ public:
         strncpy(key, data, keySize);
         key[keySize] = '\0';
     }
+
 };
 #endif

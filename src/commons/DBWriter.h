@@ -22,6 +22,7 @@ extern "C" {
 #include <fstream>
 #include <stdio.h>
 #include <sys/mman.h>
+#include <IOKit/IOCFPlugIn.h>
 
 class DBWriter {
     public:
@@ -46,12 +47,14 @@ class DBWriter {
         void mergeFiles(DBReader * qdbr,
                         std::vector<std::pair<std::string, std::string> > files,
                         size_t maxLineLength);
-    
+
+        void swapResults(std::string inputDb, size_t splitSize);
+
         static void errorIfFileExist(const char * file);
-    
+
         void writeFile(FILE * file, char* key, int thrIdx);
 
-    private:
+private:
         void initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile);
 
         void checkClosed();
@@ -75,6 +78,7 @@ class DBWriter {
         int closed;
     
         std::string datafileMode;
+
 };
 
 #endif
