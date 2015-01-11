@@ -101,7 +101,7 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
     size_t totalPassedNum = 0;
 
 # pragma omp parallel for schedule(dynamic, 10) reduction (+: alignmentsNum, totalPassedNum)
-    for (unsigned int id = 0; id < prefdbr->getSize(); id++){
+    for (size_t id = 0; id < prefdbr->getSize(); id++){
         Log::printProgress(id);
 
         int thread_idx = 0;

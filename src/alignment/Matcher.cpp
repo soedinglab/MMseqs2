@@ -35,8 +35,6 @@ void Matcher::initQuery(Sequence* query){
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
                                         const double evalThr, const unsigned int mode){
-    
-    
     unsigned short qStartPos = 0;
     unsigned short qEndPos = 0;
     unsigned short dbStartPos = 0;
