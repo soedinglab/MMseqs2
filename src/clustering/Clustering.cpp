@@ -250,18 +250,15 @@ Clustering::set_data Clustering::read_in_set_data(){
         char* data = alnDbr->getData(i);
         unsigned int element_counter = 0;
 
-        unsigned int elementSize = Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
-        if(elementSize != 2){ // check if file contains entry
+        if(*data == '\0'){ // check if file contains entry
             Debug(Debug::ERROR) << "ERROR: Sequence " << i
             << " does not containe any sequence!\n";
             continue;
         }
-        ptrdiff_t keySize =  (words[1] - words[0]) - 1;
-        strncpy(dbKey, data, keySize);
-        dbKey[keySize] = '\0';
         size_t cnt = 0;
         while (*data != '\0' && cnt < this->maxListLen)
         {
+            Util::parseKey(data, dbKey);
             size_t curr_element = seqDbr->getId(dbKey);
             if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()){
                 Debug(Debug::ERROR) << "ERROR: Element " << dbKey
@@ -274,10 +271,6 @@ Clustering::set_data Clustering::read_in_set_data(){
             ret_struct.all_element_count++;
             // next db key
             data = Util::skipLine(data);
-            Util::getWordsOfLine(data, words, ELEMENTS_IN_RECORD);
-            keySize = (words[1] - words[0]) - 1;
-            strncpy(dbKey, data, keySize);
-            dbKey[keySize] = '\0';
             cnt++;
         }
 

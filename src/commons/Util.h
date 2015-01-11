@@ -189,7 +189,8 @@ public:
     static inline size_t skipNoneWhitespace(char * data){
         //A value different from zero (i.e., true) if indeed c is a white-space character. Zero (i.e., false) otherwise.
         size_t counter = 0;
-        while(( data[counter] == ' ' || data[counter] == '\t' || data[counter] == '\n') == false ) {
+        while(( data[counter] == ' '  || data[counter] == '\t'
+             || data[counter] == '\n' || data[counter] == '\0' ) == false ) {
             counter++;
         }
         return counter;
@@ -273,5 +274,13 @@ public:
     }
 
     static std::string parseFastaHeader(std::string header);
+
+    static inline void parseKey(char *data, char * key) {
+        char * startPosOfKey = data;
+        char * endPosOfId    = data + Util::skipNoneWhitespace(data);
+        ptrdiff_t keySize =  (endPosOfId - startPosOfKey);
+        strncpy(key, data, keySize);
+        key[keySize] = '\0';
+    }
 };
 #endif
