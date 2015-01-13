@@ -22,7 +22,6 @@ extern "C" {
 #include <fstream>
 #include <stdio.h>
 #include <sys/mman.h>
-#include <IOKit/IOCFPlugIn.h>
 
 class DBWriter {
     public:

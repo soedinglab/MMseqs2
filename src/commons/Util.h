@@ -1,5 +1,6 @@
 #ifndef UTIL_H
 #define UTIL_H
+#include <cstddef>
 #include <math.h>
 #include <stdlib.h>
 #include <fstream>

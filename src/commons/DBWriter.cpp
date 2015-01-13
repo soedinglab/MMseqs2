@@ -1,4 +1,3 @@
-#include <IOKit/IOCFPlugIn.h>
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
