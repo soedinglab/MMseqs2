@@ -59,6 +59,7 @@ class Alignment {
 
         // 2 Sequence objects for each thread: one for the query, one for the DB sequence
         Sequence** qSeqs;
+
         Sequence** dbSeqs;
 
         Matcher** matchers;
