@@ -11,6 +11,8 @@ set(commons_source_files
   Log.h
   NucleotideMatrix.cpp
   NucleotideMatrix.h
+  Orf.cpp
+  Orf.h
   Parameters.cpp
   Parameters.h
   ScoreMatrix.h
