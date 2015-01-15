@@ -41,11 +41,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
         dbSeqs[i] = new Sequence(par.maxSeqLen, m, par.querySeqType, 0, false);
     }
 
-    matchers = new Matcher*[threads];
-# pragma omp parallel for schedule(static)
-    for (int i = 0; i < threads; i++) {
-        matchers[i] = new Matcher(par.maxSeqLen, this->m);
-    }
+
 
     // open the sequence, prefiltering and output databases
     qseqdbr = new DBReader(querySeqDB.c_str(), querySeqDBIndex.c_str());
@@ -59,6 +55,12 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
 
     dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw->open();
+
+    matchers = new Matcher*[threads];
+# pragma omp parallel for schedule(static)
+    for (int i = 0; i < threads; i++) {
+        matchers[i] = new Matcher(par.maxSeqLen, this->m);
+    }
 
     dbKeys = new char*[threads];
 # pragma omp parallel for schedule(static)
@@ -150,12 +152,12 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
             // check if the sequences could pass the coverage threshold 
             if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
                  (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ) {
-                rejected++; //TODO is the really a rejected?
+                rejected++;
                 continue;
             }
 
             // calculate Smith-Waterman alignment
-            Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->mode);
+            Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getAminoAcidDBSize(), evalThr, this->mode);
             alignmentsNum++;
 
             if ((res.eval <= evalThr || (mode != Matcher::SCORE_ONLY && res.seqId == 1.0)) &&

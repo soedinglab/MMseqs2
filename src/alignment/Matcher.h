@@ -1,5 +1,5 @@
-#ifndef _H
-#define _H
+#ifndef MATCHER_H
+#define MATCHER_H
 
 //
 // Written by Maria Hauser, mhauser@genzentrum.lmu.de
@@ -8,9 +8,7 @@
 //
 
 #include <stdlib.h>
-#if !defined(__APPLE__)
-#include <malloc.h>
-#endif
+
 #include <float.h>
 #include <algorithm>
 
@@ -48,7 +46,7 @@ class Matcher{
         result_t getSWResult(Sequence* dbSeq,const size_t seqDbSize,const double evalThr, const unsigned int mode);
 
         // need for sorting the results
-        static bool compareHits (result_t first, result_t second){ if (first.score > second.score) return true; return false; }
+        static bool compareHits (result_t first, result_t second){ return (first.score > second.score); }
     
         // map new query into memory (create profile, ...)
         void initQuery(Sequence* query);
@@ -71,7 +69,6 @@ private:
         BaseMatrix* m;
         // byte version of substitution matrix
         int8_t * tinySubMat;
-
         // set substituion matrix
         void setSubstitutionMatrix(BaseMatrix *m);
 };
