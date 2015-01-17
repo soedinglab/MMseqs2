@@ -33,7 +33,7 @@
  */
 
 #include <vector>
-
+#include <stdlib.h>
 
 //
 // class COrf implements a simple open reading frame search.
