@@ -51,9 +51,7 @@ public:
     
     inline void addScoresLocal (IndexEntryLocal * __restrict seqList, const unsigned short i,
                                 const int seqListSize, unsigned short score){
-        
-        //const unsigned short checkIfMatchedBefore = (i % 2) ? 0x8000 : 0x7FFF; // 1000000000000 0111111111111111
-        for (int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
+        for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
             IndexEntryLocal entry = seqList[seqIdx];
             const unsigned short j = entry.position_j;
             const unsigned int seqId = entry.seqId;
@@ -96,7 +94,7 @@ public:
     void printScores();
     
     // returns the number of Matches for this Query
-    unsigned int getNumMatches(){
+unsigned int getNumMatches(){
         return numMatches;
     };
 
@@ -106,7 +104,7 @@ public:
     }
     
     // maximal resultList
-    static const size_t MAX_RES_LIST_LEN = 150000;
+    static const size_t MAX_RES_LIST_LEN = 15000000;
     
     short sse2_extract_epi16(__m128i v, int pos);
     
