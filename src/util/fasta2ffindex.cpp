@@ -108,6 +108,11 @@ int createdb(int argn,const char **argv)
 	// sequence
         std::string sequence = seq->seq.s;
         sequence.append("\n");
+        if(id.length() >= 31 ){
+            std::cerr << "Id: " << id << " is too long. Maximal 32 characters are allowed." << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
         ffindex_insert_memory(data_file,     index_file,     &offset_sequence, (char *) sequence.c_str(),  sequence.length() , (char *) id.c_str());
 	entries_num++;
 	header_line.clear();
