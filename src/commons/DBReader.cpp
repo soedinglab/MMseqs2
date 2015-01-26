@@ -159,8 +159,9 @@ char* DBReader::getDbKey (size_t id){
 
 size_t DBReader::getId (const char* dbKey){
     checkClosed();
-    size_t i = 0;
-    size_t j = index->n_entries - 1;
+    // i,j and cmp has to be signed
+    long long i = 0;
+    long long j = index->n_entries - 1;
     size_t k;
     while (j >= i){
         k = i + (j - i)/2;
