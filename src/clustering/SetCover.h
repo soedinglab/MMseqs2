@@ -38,8 +38,8 @@ public:
     set * get_highest_weighted_set(unsigned int start_pos);
 private:
 
-    unsigned int add_position;
-    unsigned int element_size;
+    size_t add_position;
+    size_t element_size;
     size_t all_element_count;
     unsigned int set_size;
     unsigned short weight_range;
