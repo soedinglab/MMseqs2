@@ -253,9 +253,10 @@ void Prefiltering::run (size_t split, size_t splitCount,
 
     // set the k-mer similarity threshold
     Debug(Debug::INFO) << "\nAdjusting k-mer similarity threshold within +-10% deviation from the reference time value, sensitivity = " << sensitivity << ")...\n";
-    std::pair<short, double> ret = setKmerThreshold (indexTable, qdbr, tdbr, sensitivity, 0.1);
+    //std::pair<short, double> ret = setKmerThreshold (indexTable, qdbr, tdbr, sensitivity, 0.1);
     //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
-    //std::pair<short, double> ret = std::pair<short, double>(80, 8.18064e-05);
+    //std::pair<short, double> ret = std::pair<short, double>(88, 8.18064e-05);
+    std::pair<short, double> ret = std::pair<short, double>(100, 8.18064e-05);
     this->kmerThr = ret.first;
     this->kmerMatchProb = ret.second;
 

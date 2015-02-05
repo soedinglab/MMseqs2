@@ -693,7 +693,6 @@ void SmithWaterman::ssw_init (const Sequence* q,
 
         profile->bias = bias;
 		if(q->getSequenceType() == Sequence::HMM_PROFILE){
-			printf("Create 1\n");
 			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_byte, profile->query_sequence, profile->mat, q->L, alphabetSize, bias, 1, q->L);
 		}else{
 			createQueryProfile<int8_t, VECSIZE_INT * 4, SUBSTITUTIONMATRIX>(profile->profile_byte, profile->query_sequence, profile->mat, q->L, alphabetSize, bias, 0, 0);
@@ -701,7 +700,6 @@ void SmithWaterman::ssw_init (const Sequence* q,
     }
     if (score_size == 1 || score_size == 2) {
 		if(q->getSequenceType() == Sequence::HMM_PROFILE){
-			printf("Create 2\n");
 			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_word, profile->query_sequence, profile->mat, q->L, alphabetSize, 0, 1, q->L);
 		}else{
 			createQueryProfile<int16_t, VECSIZE_INT * 2, SUBSTITUTIONMATRIX>(profile->profile_word, profile->query_sequence, profile->mat, q->L, alphabetSize, 0, 0, 0);

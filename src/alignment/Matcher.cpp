@@ -30,7 +30,10 @@ Matcher::~Matcher(){
 
 void Matcher::initQuery(Sequence* query){
     currentQuery = query;
-    aligner->ssw_init(query, this->tinySubMat, this->m->alphabetSize, 2);
+    if(query->getSeqType() == Sequence::HMM_PROFILE)
+        aligner->ssw_init(query, query->getAlignmentProfile(), this->m->alphabetSize, 2);
+    else
+        aligner->ssw_init(query, this->tinySubMat, this->m->alphabetSize, 2);
 }
 
 
