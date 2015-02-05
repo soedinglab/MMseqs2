@@ -29,6 +29,7 @@ int alignment(int argc, const char *argv[])
             Parameters::PARAM_MAX_SEQS,
             Parameters::PARAM_MAX_REJECTED,
             Parameters::PARAM_NUCL,
+            Parameters::PARAM_PROFILE,
             Parameters::PARAM_SUB_MAT,
             Parameters::PARAM_THREADS,
             Parameters::PARAM_V};

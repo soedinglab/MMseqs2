@@ -34,7 +34,7 @@ const MMseqsParameter Parameters::PARAM_CASCADED={20,"--cascaded", "\tStart the 
 const MMseqsParameter Parameters::PARAM_V={21,"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
 // clustering workflow
 const MMseqsParameter Parameters::PARAM_RESTART={22, "--restart","[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
-                                                                 "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering."};
+        "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering."};
 const MMseqsParameter Parameters::PARAM_STEP={23, "--step","[int]\ttRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the database merging."};
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
@@ -123,12 +123,14 @@ void Parameters::parseParameters(int argc, char* pargv[],
 
     // logging
         ops >> GetOpt::Option('v', verbosity);
+
+        // clustering workflow
+        ops >> GetOpt::Option("step", step);
+        ops >> GetOpt::Option("restart", restart);
+
         ops.end_of_options();            // I'm done!
 
         ops.options_remain();
-    // clustering workflow
-        ops >> GetOpt::Option("step", step);
-        ops >> GetOpt::Option("restart", restart);
 
 
     }
@@ -282,7 +284,7 @@ void Parameters::printParameters(int argc, char* pargv[],
     Debug(Debug::WARNING) << "\n";
 
 
-    
+
 
     
 }
@@ -338,6 +340,8 @@ void Parameters::setDefaults() {
     seqIdThr = 0.0;
     validateClustering = 0;
     cascaded = false;
+    restart = 0;
+    step = 1;
 
     verbosity = Debug::INFO;
 

@@ -322,6 +322,10 @@ const int * Sequence::nextKmer() {
         currItPos++;
         if(seqType == HMM_PROFILE) {
             nextProfileKmer();
+            for(unsigned int i = 0; i < this->kmerSize; i++) {
+                kmerWindow[i] = 0;
+            }
+            return kmerWindow;
         }
 
         const int * posToRead = int_sequence + currItPos;
