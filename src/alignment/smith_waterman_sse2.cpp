@@ -11,6 +11,7 @@
 
 #include <Sequence.h>
 #include <simd.h>
+#include <Util.h>
 #include "smith_waterman_sse2.h"
 
 SmithWaterman::SmithWaterman(int maxSequenceLength, int aaSize) {

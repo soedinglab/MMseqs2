@@ -15,7 +15,6 @@
 #include <iostream>
 #include <cstdlib>
 #include <cmath>
-#include "../commons/BaseMatrix.h"      // for pBack
 #include "../commons/ScoreMatrix.h"      // for ScoreMatrix
 
 const int8_t seed_4[]        = {1, 1, 1, 1};
@@ -34,11 +33,11 @@ const int8_t seed_7_spaced[] = {1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1};
 class Sequence
 {
     public:
-        Sequence(size_t maxLen, BaseMatrix *subMat, int seqType, const unsigned int kmerSize, const bool spaced);
+        Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType, const unsigned int kmerSize, const bool spaced);
         ~Sequence();
 
         // Map char -> int
-        void mapSequence(int id, char* dbKey, const char *seq);
+        void mapSequence(size_t id, char *dbKey, const char *seq);
     
         // map profile HMM, *data points to start position of Profile
         void mapProfile(const char *data);
@@ -108,14 +107,12 @@ class Sequence
 private:
         void mapProteinSequence(const char *seq);
         void mapNucleotideSequence(const char *seq);
-        int id;
+        size_t id;
         char* dbKey;
         // current iterator position
         int currItPos;
         // AMINO_ACIDS or NUCLEOTIDES
         int seqType;
-        // Matrix for Profile calculation
-        BaseMatrix * subMat;
         // maximum possible length of sequence
         size_t maxLen;
         // read next kmer profile in profile_matrix

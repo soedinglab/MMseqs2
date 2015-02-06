@@ -2,16 +2,16 @@
 #include "QueryScoreLocal.h"
 #include "QueryTemplateMatcher.h"
 
-QueryTemplateMatcherLocal::QueryTemplateMatcherLocal  ( BaseMatrix* m,
-                                                        IndexTable * indexTable,
-                                                        unsigned short * seqLens,
-                                                        short kmerThr,
-                                                        double kmerMatchProb,
-                                                        int kmerSize,
-                                                        int dbSize,
-                                                        bool aaBiasCorrection,
-                                                        int maxSeqLen,
-                                                        float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m,
+                                                     IndexTable *indexTable,
+                                                     unsigned int *seqLens,
+                                                     short kmerThr,
+                                                     double kmerMatchProb,
+                                                     int kmerSize,
+                                                     int dbSize,
+                                                     bool aaBiasCorrection,
+                                                     int maxSeqLen,
+                                                     float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
                                                                                                 kmerSize, dbSize, aaBiasCorrection, maxSeqLen, zscoreThr) {
 
     this->queryScore = new QueryScoreLocal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);

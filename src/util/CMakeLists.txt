@@ -1,5 +1,6 @@
 set(util_source_files
   fasta2ffindex.cpp
+  profile2ffindex.cpp
   clusters2ffindex.cpp
   ffindex2fasta.cpp
   ffindex_database_merge.cpp

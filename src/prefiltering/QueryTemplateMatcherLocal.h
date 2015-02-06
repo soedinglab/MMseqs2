@@ -6,16 +6,16 @@
 
 class QueryTemplateMatcherLocal : public virtual  QueryTemplateMatcher {
     public:
-        QueryTemplateMatcherLocal ( BaseMatrix* m,
-                                    IndexTable * indexTable,
-                                    unsigned short * seqLens,
-                                    short kmerThr,
-                                    double kmerMatchProb,
-                                    int kmerSize,
-                                    int dbSize,
-                                    bool aaBiasCorrection,
-                                    int maxSeqLen,
-                                    float zscoreThr);
+        QueryTemplateMatcherLocal(BaseMatrix *m,
+                IndexTable *indexTable,
+                unsigned int *seqLens,
+                short kmerThr,
+                double kmerMatchProb,
+                int kmerSize,
+                int dbSize,
+                bool aaBiasCorrection,
+                int maxSeqLen,
+                float zscoreThr);
         ~QueryTemplateMatcherLocal ();
 
         // returns result for the sequence

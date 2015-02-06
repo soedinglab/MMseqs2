@@ -14,6 +14,7 @@
 
 #include "Sequence.h"
 #include "Indexer.h"
+#include "Debug.h"
 #include "Util.h"
 
 // IndexEntryLocal is an entry with possition and seqId for a kmer

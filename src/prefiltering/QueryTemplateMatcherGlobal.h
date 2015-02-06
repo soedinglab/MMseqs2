@@ -6,9 +6,9 @@
 
 class QueryTemplateMatcherGlobal : public virtual  QueryTemplateMatcher {
     public:
-        QueryTemplateMatcherGlobal ( BaseMatrix* m,
-                                    IndexTable * indexTable,
-                                    unsigned short * seqLens,
+        QueryTemplateMatcherGlobal(BaseMatrix *m,
+                                    IndexTable *indexTable,
+                                    unsigned int *seqLens,
                                     short kmerThr,
                                     double kmerMatchProb,
                                     int kmerSize,
