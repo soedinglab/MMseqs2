@@ -54,7 +54,7 @@ class DBReader {
     
         FILE* getDataAsFile(char* key);
 
-        unsigned short* getSeqLens();
+        unsigned int * getSeqLens();
 
         // does a binary search in the ffindex and returns index of the entry with dbKey
         // returns UINT_MAX if the key is not contained in index
@@ -92,7 +92,7 @@ class DBReader {
 
         char* indexFileName;
 
-        unsigned short* seqLens;
+        unsigned int* seqLens;
 
         FILE* dataFile;
     

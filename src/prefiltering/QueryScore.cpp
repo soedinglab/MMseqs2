@@ -2,8 +2,8 @@
 #include "simd.h"
 
 
-QueryScore::QueryScore (int dbSize, unsigned short * dbSeqLens, int k, short kmerThr,
-                        float kmerMatchProb, float zscoreThr){
+QueryScore::QueryScore(int dbSize, unsigned int *dbSeqLens, int k, short kmerThr,
+        float kmerMatchProb, float zscoreThr){
     
     this->dbSize = dbSize;
     this->kmerMatchProb = kmerMatchProb;

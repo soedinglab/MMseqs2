@@ -57,8 +57,8 @@ int main (int argc, const char * argv[])
 
 
     std::cout << "Sequence (id 0):\n";
-    Sequence* query = new Sequence(10000, &subMat, 0, kmer_size, true);
-    Sequence* dbSeq = new Sequence(10000, &subMat, 0, kmer_size, true);
+    Sequence* query = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
+    Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     SmithWaterman aligner(15000, subMat.alphabetSize);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];

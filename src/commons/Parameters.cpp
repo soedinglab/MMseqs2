@@ -3,6 +3,7 @@
 #include "Sequence.h"
 #include "Debug.h"
 #include "getoptpp/getopt_pp_standalone.h" // external lib for parsing
+#include "Util.h"
 #include <iomanip>
 
 

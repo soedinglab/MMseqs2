@@ -14,5 +14,6 @@ extern int alignment(int argc, const char **argv);
 extern int clusteringtofastadb(int argc, const char **argv);
 extern int swapresults(int argc, const char **argv);
 extern int extractorf(int argc, const char **argv);
+extern int createprofiledb(int argc, const char **argv);
 
 #endif

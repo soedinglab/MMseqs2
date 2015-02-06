@@ -95,7 +95,7 @@ Prefiltering::Prefiltering(std::string queryDB,
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif 
-        qseq[thread_idx] = new Sequence(maxSeqLen, subMat, querySeqType, kmerSize, spacedKmer);
+        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, querySeqType, kmerSize, spacedKmer);
         reslens[thread_idx] = new std::list<int>();
     }
 
@@ -188,16 +188,16 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs){
 }
 
 
-QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher( BaseMatrix* m,
-                                             IndexTable * indexTable,
-                                             unsigned short * seqLens,
-                                             short kmerThr,
-                                             double kmerMatchProb,
-                                             int kmerSize, 
-                                             int dbSize,
-                                             bool aaBiasCorrection,
-                                             int maxSeqLen,
-                                             float zscoreThr){
+QueryTemplateMatcher** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m,
+                                                                IndexTable *indexTable,
+                                                                unsigned int *seqLens,
+                                                                short kmerThr,
+                                                                double kmerMatchProb,
+                                                                int kmerSize,
+                                                                int dbSize,
+                                                                bool aaBiasCorrection,
+                                                                int maxSeqLen,
+                                                                float zscoreThr){
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
 
 #pragma omp parallel for schedule(static)
@@ -233,7 +233,7 @@ IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
         size_t dbSize = 0;
         Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                           split, splitCount, &dbFrom, &dbSize);
-        Sequence tseq(maxSeqLen, subMat, targetSeqType, kmerSize, spacedKmer);
+        Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer);
         return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, isLocal, skip);
     }
 }

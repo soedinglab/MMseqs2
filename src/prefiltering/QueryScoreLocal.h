@@ -16,7 +16,7 @@
 class QueryScoreLocal : public QueryScore {
     
 public:
-    QueryScoreLocal(int dbSize, unsigned short * seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr);
+    QueryScoreLocal(int dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr);
     
     ~QueryScoreLocal();
     

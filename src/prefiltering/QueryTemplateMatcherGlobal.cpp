@@ -2,12 +2,12 @@
 #include "QueryScoreGlobal.h"
 #include "QueryTemplateMatcher.h"
 
-QueryTemplateMatcherGlobal::QueryTemplateMatcherGlobal ( BaseMatrix* m,
-        IndexTable * indexTable,
-        unsigned short * seqLens,
+QueryTemplateMatcherGlobal::QueryTemplateMatcherGlobal(BaseMatrix *m,
+        IndexTable *indexTable,
+        unsigned int *seqLens,
         short kmerThr,
         double kmerMatchProb,
-        int kmerSize, 
+        int kmerSize,
         int dbSize,
         bool aaBiasCorrection,
         int maxSeqLen,

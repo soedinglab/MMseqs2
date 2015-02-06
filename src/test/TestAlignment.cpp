@@ -40,9 +40,9 @@ int main (int argc, const char * argv[])
     //const char* sequence = read_seq;
     const char* sequence = tim.c_str();
     std::cout << sequence << "\n\n";
-    Sequence* s = new Sequence(10000, &subMat, 0, kmer_size, true);
+    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     s->mapSequence(0,"lala",sequence);
-    Sequence* dbSeq = new Sequence(10000, &subMat, 0, kmer_size, true);
+    Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     dbSeq->mapSequence(1,"lala2",tim.c_str());
     SmithWaterman aligner(15000, subMat.alphabetSize);

@@ -1,7 +1,7 @@
 #include "QueryScoreGlobal.h"
 #include "simd.h"
 
-QueryScoreGlobal::QueryScoreGlobal(int dbSize, unsigned short * dbSeqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
+QueryScoreGlobal::QueryScoreGlobal(int dbSize, unsigned int *dbSeqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
 : QueryScore(dbSize, dbSeqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor
 {
     

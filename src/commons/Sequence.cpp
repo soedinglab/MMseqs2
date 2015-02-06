@@ -4,20 +4,17 @@
 #include "simd.h"
 
 #include <limits.h> // short_max
-#include "BaseMatrix.h"
 
 
-Sequence::Sequence(size_t maxLen, BaseMatrix *subMat,
-                   int seqType, const unsigned int kmerSize, const bool spaced)
+Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType, const unsigned int kmerSize, const bool spaced)
 {
     this->int_sequence = new int[maxLen];
-    this->subMat = subMat;
-    if(subMat == NULL){
+    if(aa2int == NULL){
         Debug(Debug::ERROR) << "BaseMatrix must be set in Sequence (Profile Mode)\n";
         EXIT(EXIT_FAILURE);
     }
-    this->aa2int = subMat->aa2int;
-    this->int2aa = subMat->int2aa;
+    this->aa2int = aa2int;
+    this->int2aa = int2aa;
     this->maxLen = maxLen;
     this->seqType = seqType;
     std::pair<const char *, unsigned int> spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
@@ -106,7 +103,7 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
 }
 
 
-void Sequence::mapSequence(int id, char* dbKey, const char * sequence){
+void Sequence::mapSequence(size_t id, char *dbKey, const char *sequence){
     this->id = id;
     this->dbKey = dbKey;
     if (this->seqType == Sequence::AMINO_ACIDS)
@@ -168,55 +165,31 @@ void Sequence::mapNucleotideSequence(const char * sequence){
 void Sequence::mapProfile(const char * sequenze){
     size_t l = 0;
     char * data = (char *) sequenze;
-    // find beging of profile information
-    while( data[0] != '#') {
-        data = Util::skipLine(data);
-	}
-    // go to readin position
-    for(int i = 0; i < 5; i++)
-        data = Util::skipLine(data);
-    //ammino acids are ordered in HMM
-    char * words[22];
-	while (data[0] != '/' &&  data[1] != '/'){
-        Util::getWordsOfLine(data, words, 22);
-		for(size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
-			// * entry: 0.0 probability
-            const size_t pos_in_profile = l * profile_row_size + aa_num;
-			if (words[aa_num+2][0] == '*'){
-                Debug(Debug::ERROR) << "ERROR: 0 PROBABILITY FOR " << this->dbKey << ".hhm AT " << l << "," << aa_num <<"\n";
-                profile_score[pos_in_profile] = (short) -1;
-            }
-			// 0 entry: 1.0 probability
-			else if (words[aa_num+2][0] == '0'){// integer number entry: 0.0 < probability < 1.0
-                float score = BaseMatrix::fastlog2(1.0f / subMat->getBackgroundProb(aa_num)) * subMat->getBitFactor();
-                profile_score[pos_in_profile] = (short) floor (score + 0.5);
-            } else {
-				int entry = Util::fast_atoi(words[aa_num+2]);
-				const float p = powFast2( -(entry/1000.0f)); // back scaling from hhm
-                const float backProb  = subMat->getBackgroundProb(aa_num);
-                const float bitFactor = subMat->getBitFactor(); //TODO solve somehow this?!?
-                
-                double score = BaseMatrix::fastlog2( p / backProb) * bitFactor;
-                
-				profile_score[pos_in_profile] = (short) floor (score + 0.5); // rounding
-//                std::cout << aa_num << " " << subMat->int2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
-			}
-		}
+    size_t currPos = 0;
+    // if no data exists
+
+    while (data[currPos] != '\0' ){
+        for(size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
+            // shift bytes back (avoid \0 byte)
+            const char mask = (char)0x80;
+            short value = static_cast<short>(data[currPos + aa_idx] ^ mask);
+            profile_score[l * profile_row_size + aa_idx] = value*4;
+        }
         // sort profile scores and index for KmerGenerator (prefilter step)
         unsigned int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
         Util::rankedDescSort20(&profile_score[l * profile_row_size],(unsigned int *) &indexArray);
         memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
-        // go to next entry start
-        for(int i = 0; i < 3; i++) // skip transitions
-            data = Util::skipLine(data);
         // create consensus sequence
         int_sequence[l] = indexArray[0]; // index 0 is the highst scoring one
-		l++;
+        l++;
         if(l >= this->maxLen ){
             Debug(Debug::ERROR) << "ERROR: Sequenze with id: " << this->dbKey << " is longer than maxRes.\n";
             break;
         }
-	}
+        // go to begin of next entry 0, 20, 40, 60, ...
+        currPos += PROFILE_AA_SIZE;
+    }
+
     this->L = l;
 
     // write alignemnt profile

@@ -44,7 +44,7 @@ struct LocalResult{
 class QueryScore {
 public:
     
-    QueryScore (int dbSize, unsigned short * seqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr);
+    QueryScore(int dbSize, unsigned int *seqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr);
     
     virtual ~QueryScore ();
     
