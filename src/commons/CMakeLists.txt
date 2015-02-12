@@ -22,6 +22,8 @@ set(commons_source_files
   SubstitutionMatrix.h
   Util.cpp
   Util.h
+  CountInt32Array.cpp
+  CountInt32Array.h
 )
 add_library(commons ${commons_source_files})
 

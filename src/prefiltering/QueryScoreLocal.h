@@ -10,13 +10,13 @@
 #include "QueryScore.h"
 #include <vector>
 #include <map>
-
+#include <CountInt32Array.h>
 
 
 class QueryScoreLocal : public QueryScore {
     
 public:
-    QueryScoreLocal(int dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr);
+    QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr, size_t binSize);
     
     ~QueryScoreLocal();
     
@@ -26,9 +26,14 @@ public:
     
     // NOT needed for Local scoring
     void setPrefilteringThresholds();
-    
-    // Sort local results by sequence id, i and j
-    static bool compareLocalResult(LocalResult first, LocalResult second);
-    
+
+    void setupBinPointer();
+    void evaluateBins();
+private:
+    unsigned int binSize;
+    unsigned int * __restrict binData;
+
+    CountInt32Array * counter;
+
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */

@@ -20,7 +20,7 @@ void IndexTableLocal::addSequence (Sequence* s){
         IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
         table[kmerIdx] += sizeof(IndexEntryLocal);
         entry->seqId      = s->getId();
-        entry->position_j = s->getCurrentPosition();
+        entry->position_j = s->getCurrentPosition() % 256;
         
         //unsigned int* row = (unsigned int *) table[kmerIdx];
         //row[currPos[kmerIdx]++] = s->getId();

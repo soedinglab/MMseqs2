@@ -112,7 +112,7 @@ int main (int argc, const char * argv[])
             }
         }
     }
-    std::cout << alignment->score1  << " "<< alignment->qEndPos1 << " " << alignment->qStartPos1  << " "<< alignment->qEndPos1 << " "
+    std::cout << alignment->normalizedScore1 << " "<< alignment->qEndPos1 << " " << alignment->qStartPos1  << " "<< alignment->qEndPos1 << " "
             << alignment->dbStartPos1 << " "<< alignment->dbEndPos1 << std::endl;
     delete [] tinySubMat;
     delete [] alignment->cigar;

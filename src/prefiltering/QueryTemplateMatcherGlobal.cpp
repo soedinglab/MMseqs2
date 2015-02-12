@@ -1,6 +1,5 @@
 #include "QueryTemplateMatcherGlobal.h"
 #include "QueryScoreGlobal.h"
-#include "QueryTemplateMatcher.h"
 
 QueryTemplateMatcherGlobal::QueryTemplateMatcherGlobal(BaseMatrix *m,
         IndexTable *indexTable,
@@ -13,7 +12,7 @@ QueryTemplateMatcherGlobal::QueryTemplateMatcherGlobal(BaseMatrix *m,
         int maxSeqLen,
         float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
                             kmerSize, dbSize, aaBiasCorrection, maxSeqLen, zscoreThr) {
-    this->queryScore    = new QueryScoreGlobal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);
+    this->queryScore = new QueryScoreGlobal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);
 
 }
 

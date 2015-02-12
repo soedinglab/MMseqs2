@@ -13,8 +13,8 @@ QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m,
                                                      int maxSeqLen,
                                                      float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
                                                                                                 kmerSize, dbSize, aaBiasCorrection, maxSeqLen, zscoreThr) {
-
-    this->queryScore = new QueryScoreLocal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);
+//TODO
+    this->queryScore = new QueryScoreLocal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr, 65536);
 }
 
 
@@ -26,9 +26,7 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherLocal::matchQuery (Sequence * seq
     queryScore->reset();
     seq->resetCurrPos();
     
-    if (this->aaBiasCorrection)
-        this->calcLocalAaBiasCorrection(seq);
-    
+    queryScore->setupBinPointer();
     match(seq);
     
 //    queryScore->setPrefilteringThresholds();
@@ -90,10 +88,10 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
             // std::cout << "i: " << seq->getCurrentPosition() << std::endl;
             queryScore->addScoresLocal(entries, seq->getCurrentPosition(), indexTabListSize, kmerMatchScore/4);
         }
-        biasCorrection -= deltaS[pos];
-        biasCorrection += deltaS[pos + kmerSize];
         pos++;
     }
+    // needed to call here to get the LocalResultSize
+    queryScore->evaluateBins();
     //Debug(Debug::WARNING) << "QUERY: " << seq->getDbKey();
     //Debug(Debug::WARNING) << " score = " << overall_score;
     //Debug(Debug::WARNING) << " matched at " << match_pos << " positions. ";

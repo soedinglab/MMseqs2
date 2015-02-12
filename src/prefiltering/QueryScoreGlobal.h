@@ -13,7 +13,7 @@
 class QueryScoreGlobal : public QueryScore {
     
 public:
-    QueryScoreGlobal(int dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr);
+    QueryScoreGlobal(size_t dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr);
 
     ~QueryScoreGlobal();
         
