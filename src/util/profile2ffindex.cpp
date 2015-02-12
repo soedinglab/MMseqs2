@@ -38,6 +38,37 @@ extern "C" {
 
 
 
+void parsePSSM(char *data, char *profileBuffer, size_t *size, char *id, BaseMatrix * subMat){
+    // go to readin position
+    for(size_t i = 0; i < 2; i++){
+        data = Util::skipLine(data);
+    }
+    // read aa_index
+    char * words[22];
+    Util::getWordsOfLine(data, words, 22);
+    // A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V
+    // header line
+    int aa_index[20];
+    for(size_t i = 0; i < 20; i++) {
+        aa_index[i] = subMat->aa2int[words[i][0]];
+    }
+    data = Util::skipLine(data);
+    size_t curr_pos = 0;
+    while (data[0] != '\n') {
+        Util::getWordsOfLine(data, words, 22);
+        for (size_t i = 0; i < 20; i++) {
+            size_t writePos = curr_pos + aa_index[i];
+            profileBuffer[writePos] = atoi(words[2+i]);
+            // shifted score by -128 to avoid \0
+            profileBuffer[writePos] = (profileBuffer[writePos] ^ 0x80);
+        }
+        data = Util::skipLine(data);
+        curr_pos += 20;
+    }
+    *size = curr_pos;
+}
+
+
 // pasre HMM format
 void parseHMM(char *data, char *profileBuffer, size_t *size, char *id, BaseMatrix * subMat){
     size_t l = 0;
@@ -133,7 +164,9 @@ int createprofiledb(int argn,const char **argv)
         char * data = dbr_data.getData(i);
         char * id   = dbr_data.getDbKey(i);
         size_t elementSize = 0;
-        parseHMM(data, profileBuffer, &elementSize, id, subMat);
+        //parseHMM(data, profileBuffer, &elementSize, id, subMat);
+        parsePSSM(data, profileBuffer, &elementSize, id, subMat);
+
         ffindex_insert_memory(data_file,  index_file,     &offset_sequence,
                 profileBuffer,  elementSize , id);
     }

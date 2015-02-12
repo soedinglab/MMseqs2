@@ -114,8 +114,6 @@ class QueryTemplateMatcher {
         KmerGenerator * kmerGenerator;
         /* contains the sequences for a kmer */
         IndexTable * indexTable;
-        /* calculates the score */
-        QueryScore * queryScore;
         // k of the k-mer
         int kmerSize;
         // local amino acid bias correction

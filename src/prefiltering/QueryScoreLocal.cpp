@@ -4,22 +4,28 @@
 //  Created by Martin Steinegger on 03.06.13.
 //  Copyright (c) 2013 Martin Steinegger. All rights reserved.
 //
-
 #include "QueryScoreLocal.h"
+#include "QueryScore.h"
 
-QueryScoreLocal::QueryScoreLocal(int dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
+QueryScoreLocal::QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, short kmerThr,
+                                 double kmerMatchProb, float zscoreThr, size_t binSize)
 : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor
 {
     localResultSize = 0;
-    localResults = new LocalResult[MAX_LOCAL_RESULT_SIZE];
+    localResults = new unsigned int[MAX_LOCAL_RESULT_SIZE];
+    this->binSize = binSize;
+    binData = new unsigned int[BIN_COUNT * binSize];
+    counter = new CountInt32Array(dbSize, this->binSize / 4);
 }
 
 QueryScoreLocal::~QueryScoreLocal(){
     delete [] localResults;
+    delete [] binData;
+    delete counter;
 }
 
 void QueryScoreLocal::reset() {
-    memset (scores_128, 0, scores_128_size * 2);
+//    memset (scores_128, 0, scores_128_size * 2);
     scoresSum = 0;
     numMatches = 0;
     localResultSize = 0;
@@ -27,22 +33,15 @@ void QueryScoreLocal::reset() {
 
 void QueryScoreLocal::setPrefilteringThresholds() { }
 
-bool QueryScoreLocal::compareLocalResult(LocalResult first, LocalResult second){
-    return (first.seqId < second.seqId);
-}
-
 std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned int identityId){
     size_t elementCounter = 0;
-    std::sort(localResults, localResults + localResultSize, compareLocalResult);
-    LocalResult * currentLocalResult = localResults + 0;
-    unsigned short scoreMax  = currentLocalResult->score;  // current best score
-    unsigned int seqIdPrev = currentLocalResult->seqId;
+    std::sort(localResults, localResults + localResultSize);
+    unsigned short scoreMax  = 1;  // current best score
+    unsigned int seqIdPrev = localResults[0];
     for (unsigned int i = 1; i < localResultSize; i++) {
-        scoreMax += currentLocalResult->score;   // add score of current kmer match
-        currentLocalResult = localResults + i;
-        unsigned int seqIdCurr = currentLocalResult->seqId;
-        // if new sequence occurs or end of data write the result back
-        if (seqIdCurr != seqIdPrev || i == (localResultSize - 1)) {
+        unsigned int seqIdCurr = localResults[i];
+        // if new sequence occurs or last element
+        if (seqIdCurr != seqIdPrev || (i + 1 == localResultSize)) {
             // write result to list
             hit_t *result = (resList + elementCounter);
             result->seqId = seqIdPrev;
@@ -55,6 +54,7 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned
             // reset values
             scoreMax = 0;  // current best score
         }
+        scoreMax += 1;   // add score of current kmer match
     }
     // sort hits by score
     //TODO maybe sort of hits not needed if SW is included
@@ -63,3 +63,23 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned
     return pair;
 }
 
+void QueryScoreLocal::evaluateBins(){
+    for(size_t bin = 0; bin < BIN_COUNT; bin++){
+        const unsigned int *binStartPos = (binData + bin * binSize);
+        const size_t N = (diagonalBins[bin] - binStartPos);
+        localResultSize += counter->countElements(binStartPos, N, localResults + localResultSize);
+    }
+}
+
+void QueryScoreLocal::setupBinPointer() {
+    // Example binCount = 3
+    // bin start             |-----------------------|-----------------------| bin end
+    //    segments[bin_step][0]
+    //                            segments[bin_step][1]
+    //                                                    segments[bin_step][2]
+    size_t curr_pos = 0;
+    for(size_t bin = 0; bin < BIN_COUNT; bin++){
+        diagonalBins[bin] = binData + curr_pos;
+        curr_pos += binSize;
+    }
+}
