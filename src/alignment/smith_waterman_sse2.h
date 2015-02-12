@@ -43,7 +43,8 @@ typedef struct {
 
 
 typedef struct {
-	uint16_t score1;
+    uint16_t rawScore1;
+	uint16_t normalizedScore1;
 	uint16_t score2;
 	int32_t dbStartPos1;
 	int32_t dbEndPos1;

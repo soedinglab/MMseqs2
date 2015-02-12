@@ -51,8 +51,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     // calcuate stop score
     const double qL = static_cast<double>(currentQuery->L);
     // avoid nummerical issues -log(evalThr/(qL*dbL*seqDbSize))
-    double datapoints = -log(static_cast<double>(seqDbSize)) - log(qL) + log(evalThr);
+    double datapoints = -log(static_cast<double>(seqDbSize)) - log(100) + log(evalThr);
     uint16_t scoreThr = (uint16_t) (m->getBitFactor() * -(datapoints));
+    //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
     s_align * alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, scoreThr, 0, maskLen);
     // calculation of the coverage and e-value
@@ -92,15 +93,10 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         qcov = (std::min(currentQuery->L, (int) qEndPos) - qStartPos + 1) / (float) currentQuery->L;
         dbcov = (std::min(dbSeq->L, (int) dbEndPos) - dbStartPos + 1) / (float) dbSeq->L;
     }
-    // Norm score by 100*100 (100*100 = 0.0)
-    // GENOMICS 38, 179 – 191 (1996) ARTICLE NO . 0614
-    // Sensitivity and Selectivity in Protein Similarity Searches: A
-    // Comparison of Smith – Waterman in Hardware to BLAST and FASTA
-    // 21.20 = ln(100) * ln(100)
-    alignment->score1 = alignment->score1 * (log(100)*log(100))/(log(currentQuery->L)*log(dbSeq->L));
-    double evalue = ( static_cast<double>(qL)) * pow (2.7182, ((double)(-alignment->score1)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
+    // 100 because the score is normalized
+    double evalue = ( static_cast<double>(100)) * pow (2.7182, ((double)(-alignment->normalizedScore1)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
     evalue = evalue * (double)(seqDbSize);
-    result_t result(std::string(dbSeq->getDbKey()), alignment->score1, qcov, dbcov, seqId, evalue);
+    result_t result(std::string(dbSeq->getDbKey()), alignment->normalizedScore1, qcov, dbcov, seqId, evalue);
     delete [] alignment->cigar;
     delete alignment;
     return result;
