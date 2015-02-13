@@ -83,3 +83,30 @@ void QueryScoreLocal::setupBinPointer() {
         curr_pos += binSize;
     }
 }
+
+
+void QueryScoreLocal::reallocBinMemory(const unsigned int binCount, const size_t binSize) {
+    delete [] binData;
+    binData = new unsigned int[binCount * binSize];
+}
+
+bool QueryScoreLocal::checkForOverflowAndResizeArray() {
+    const unsigned int * bin_ref_pointer = binData;
+    unsigned int * lastPosition = (binData + BIN_COUNT * binSize) - 1;
+    for (size_t bin = 0; bin < BIN_COUNT; bin++) {
+        const unsigned int *binStartPos = (bin_ref_pointer + bin * binSize);
+        const size_t n = (diagonalBins[bin] - binStartPos);
+        // if one bin has more elements than binSize
+        // or the current bin pointer is at the end of the binDataFrame
+        // reallocate new memory
+        if( n > binSize || (diagonalBins[bin] - lastPosition) == 0) {
+            // overflow detected
+            // find nearest upper power of 2^(x)
+            std::cout << "Diagonal Found overlow" << std::endl;
+            this->binSize = pow(2, ceil(log(binSize + 1)/log(2)));
+            reallocBinMemory(BIN_COUNT, this->binSize);
+            return true;
+        }
+    }
+    return false;
+}

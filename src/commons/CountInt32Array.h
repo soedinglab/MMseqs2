@@ -27,6 +27,7 @@ private:
     unsigned int binCount;
     size_t binSize;
     unsigned int **bins;
+    // array to keep the bin elements
     unsigned int * binDataFrame;
 
     bool checkForOverflowAndResizeArray(unsigned int **bins,
