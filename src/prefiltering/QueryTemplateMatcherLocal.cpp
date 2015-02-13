@@ -14,7 +14,7 @@ QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m,
                                                      float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
                                                                                                 kmerSize, dbSize, aaBiasCorrection, maxSeqLen, zscoreThr) {
 //TODO
-    this->queryScore = new QueryScoreLocal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr, 65536);
+    this->queryScore = new QueryScoreLocal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr, 262144);
 }
 
 
@@ -23,12 +23,16 @@ QueryTemplateMatcherLocal::~QueryTemplateMatcherLocal(){
 }
 
 std::pair<hit_t *, size_t> QueryTemplateMatcherLocal::matchQuery (Sequence * seq, unsigned int identityId){
+
+    startAgain:
     queryScore->reset();
     seq->resetCurrPos();
     
     queryScore->setupBinPointer();
     match(seq);
-    
+    if(queryScore->checkForOverflowAndResizeArray() == true)
+        goto startAgain;
+
 //    queryScore->setPrefilteringThresholds();
     
     return queryScore->getResult(0,0);

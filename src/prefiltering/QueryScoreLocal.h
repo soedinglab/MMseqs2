@@ -24,16 +24,17 @@ public:
     
     void reset();
     
+    bool checkForOverflowAndResizeArray();
+    
     // NOT needed for Local scoring
     void setPrefilteringThresholds();
 
     void setupBinPointer();
     void evaluateBins();
 private:
-    unsigned int binSize;
-    unsigned int * __restrict binData;
-
     CountInt32Array * counter;
+    
+    void reallocBinMemory(const unsigned int binCount, const size_t binSize);
 
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */
