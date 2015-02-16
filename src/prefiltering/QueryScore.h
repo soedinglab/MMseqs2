@@ -42,16 +42,16 @@ public:
 
     inline void addScoresLocal (IndexEntryLocal * __restrict seqList, const unsigned short i,
             const int seqListSize, unsigned short score){
-        unsigned int * lastPosition = (binData + BIN_COUNT * binSize) - 1;
-
+        unsigned char * data =  (unsigned char *)scores;
         for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
-            IndexEntryLocal entry = seqList[seqIdx];
-            const unsigned short j = entry.position_j;
+            const IndexEntryLocal entry = seqList[seqIdx];
             const unsigned int seqId = entry.seqId;
-            const unsigned char diagonal = i - j + 256;
-            *diagonalBins[diagonal] = seqId;
-            diagonalBins[diagonal] += ((diagonalBins[diagonal] - lastPosition) != 0) ? 1 : 0;
-
+            const unsigned int seqIndex = seqId * 2;
+            const unsigned char currDiagonal = i - entry.position_j;
+            const unsigned char dbDiagonal = data[seqIndex];
+            const unsigned char score      = data[seqIndex + 1];
+            data[seqIndex] = currDiagonal;
+            data[seqIndex + 1] += (UNLIKELY(currDiagonal == dbDiagonal) && LIKELY(score < 255)) ? 1 : 0;
         }
         numMatches += seqListSize;
     }
@@ -131,11 +131,6 @@ protected:
     // max LocalResult size
     const unsigned int MAX_LOCAL_RESULT_SIZE = 100000000;
 
-    // pointer to position to write in bin
-    static const unsigned int BIN_COUNT = 256;
-    unsigned int * diagonalBins[BIN_COUNT];
-    unsigned int binSize;
-    unsigned int * __restrict binData;
     // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
     int scores_128_size;
 
