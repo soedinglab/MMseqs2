@@ -13,15 +13,11 @@ QueryScoreLocal::QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, sh
 {
     localResultSize = 0;
     localResults = new unsigned int[MAX_LOCAL_RESULT_SIZE];
-    this->binSize = binSize;
-    binData = new unsigned int[BIN_COUNT * binSize];
-    counter = new CountInt32Array(dbSize, this->binSize / 4);
+    this->seqsLens = seqLens;
 }
 
 QueryScoreLocal::~QueryScoreLocal(){
     delete [] localResults;
-    delete [] binData;
-    delete counter;
 }
 
 void QueryScoreLocal::reset() {
@@ -34,79 +30,46 @@ void QueryScoreLocal::reset() {
 void QueryScoreLocal::setPrefilteringThresholds() { }
 
 std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned int identityId){
-    size_t elementCounter = 0;
-    std::sort(localResults, localResults + localResultSize);
-    unsigned short scoreMax  = 1;  // current best score
-    unsigned int seqIdPrev = localResults[0];
-    for (unsigned int i = 1; i < localResultSize; i++) {
-        unsigned int seqIdCurr = localResults[i];
-        // if new sequence occurs or last element
-        if (seqIdCurr != seqIdPrev || (i + 1 == localResultSize)) {
-            // write result to list
-            hit_t *result = (resList + elementCounter);
-            result->seqId = seqIdPrev;
-            result->zScore = scoreMax;
-            result->prefScore = scoreMax;
-            elementCounter++;
-            if (elementCounter >= MAX_RES_LIST_LEN)
-                break;
-            seqIdPrev = seqIdCurr;
-            // reset values
-            scoreMax = 0;  // current best score
+    simd_int thr = simdi16_set(0);
+    simd_int zero =  simdi_setzero();
+    const size_t lenght = scores_128_size / (SIMD_SHORT_SIZE); // *2for short
+    simd_int* __restrict s   = scores_128;
+    const float log_qL = log(querySeqLen);
+    unsigned int elementCounter = 0;
+    for (size_t pos = 0; pos < lenght; pos++ ){
+        // look for entries above the threshold
+        simd_int currElements = simdi_load(s + pos);
+        // shift out the diagonal information and move the score to the first byte
+        currElements = simdi16_srli(currElements, 8);
+        simd_int cmp = simdi16_gt(currElements, thr);
+        const unsigned int cmp_set_bits = simdi8_movemask(cmp);
+        // set zero so no memset is needed
+        simdi_store(s + pos, zero);
+        if (cmp_set_bits != 0){
+            for(unsigned int i = 0; i < SIMD_SHORT_SIZE; i++){
+                if( CHECK_BIT(cmp_set_bits,i*2)) {
+                    unsigned short element = simdi16_extract (currElements,  i);
+                    hit_t * result = (resList + elementCounter);
+                    result->seqId = pos * SIMD_SHORT_SIZE + i;
+                    // log(100) * log(100) /(log(qL)*log(dbL))
+                    result->zScore = (element) * 21.20/(log_qL*log(seqsLens[result->seqId]));
+                    //result->zScore = (element);
+                    result->prefScore = element;
+                    localResultSize += element;
+                    elementCounter++;
+                    if(elementCounter >= MAX_RES_LIST_LEN){
+                        // because the memset will not be finished
+                        memset (scores_128, 0, scores_128_size * 2);
+                        goto OuterLoop;
+                    }
+                }
+            }
         }
-        scoreMax += 1;   // add score of current kmer match
     }
+    OuterLoop:
     // sort hits by score
     //TODO maybe sort of hits not needed if SW is included
     std::sort(resList, resList + elementCounter, compareHits);
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
     return pair;
-}
-
-void QueryScoreLocal::evaluateBins(){
-    for(size_t bin = 0; bin < BIN_COUNT; bin++){
-        const unsigned int *binStartPos = (binData + bin * binSize);
-        const size_t N = (diagonalBins[bin] - binStartPos);
-        localResultSize += counter->countElements(binStartPos, N, localResults + localResultSize);
-    }
-}
-
-void QueryScoreLocal::setupBinPointer() {
-    // Example binCount = 3
-    // bin start             |-----------------------|-----------------------| bin end
-    //    segments[bin_step][0]
-    //                            segments[bin_step][1]
-    //                                                    segments[bin_step][2]
-    size_t curr_pos = 0;
-    for(size_t bin = 0; bin < BIN_COUNT; bin++){
-        diagonalBins[bin] = binData + curr_pos;
-        curr_pos += binSize;
-    }
-}
-
-
-void QueryScoreLocal::reallocBinMemory(const unsigned int binCount, const size_t binSize) {
-    delete [] binData;
-    binData = new unsigned int[binCount * binSize];
-}
-
-bool QueryScoreLocal::checkForOverflowAndResizeArray() {
-    const unsigned int * bin_ref_pointer = binData;
-    unsigned int * lastPosition = (binData + BIN_COUNT * binSize) - 1;
-    for (size_t bin = 0; bin < BIN_COUNT; bin++) {
-        const unsigned int *binStartPos = (bin_ref_pointer + bin * binSize);
-        const size_t n = (diagonalBins[bin] - binStartPos);
-        // if one bin has more elements than binSize
-        // or the current bin pointer is at the end of the binDataFrame
-        // reallocate new memory
-        if( n > binSize || (diagonalBins[bin] - lastPosition) == 0) {
-            // overflow detected
-            // find nearest upper power of 2^(x)
-            std::cout << "Diagonal Found overlow" << std::endl;
-            this->binSize = pow(2, ceil(log(binSize + 1)/log(2)));
-            reallocBinMemory(BIN_COUNT, this->binSize);
-            return true;
-        }
-    }
-    return false;
 }

@@ -29,12 +29,8 @@ public:
     // NOT needed for Local scoring
     void setPrefilteringThresholds();
 
-    void setupBinPointer();
-    void evaluateBins();
 private:
-    CountInt32Array * counter;
-    
-    void reallocBinMemory(const unsigned int binCount, const size_t binSize);
 
+    unsigned int * seqsLens;
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */
