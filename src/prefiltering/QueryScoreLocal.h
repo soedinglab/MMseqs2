@@ -10,7 +10,6 @@
 #include "QueryScore.h"
 #include <vector>
 #include <map>
-#include <CountInt32Array.h>
 
 
 class QueryScoreLocal : public QueryScore {
