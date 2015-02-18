@@ -11,6 +11,7 @@
 
 #include <Sequence.h>
 #include <simd.h>
+#include <Util.h>
 #include "smith_waterman_sse2.h"
 
 SmithWaterman::SmithWaterman(int maxSequenceLength, int aaSize) {
@@ -138,8 +139,15 @@ s_align* SmithWaterman::ssw_align (
 		delete r;
 		return NULL;
 	}
-	r->score1 = bests[0].score;
-	r->dbEndPos1 = bests[0].ref;
+
+    // Norm score by 100*100 (100*100 = 0.0)
+    // GENOMICS 38, 179 – 191 (1996) ARTICLE NO . 0614
+    // Sensitivity and Selectivity in Protein Similarity Searches: A
+    // Comparison of Smith – Waterman in Hardware to BLAST and FASTA
+    // 21.20 = ln(100) * ln(100)
+    r->normalizedScore1 = bests[0].score * (log(100)*log(100))/(log(query_length)*log(db_length));
+    r->rawScore1 = bests[0].score;
+    r->dbEndPos1 = bests[0].ref;
 	r->qEndPos1 = bests[0].read;
 	if (maskLen >= 15) {
 		r->score2 = bests[1].score;
@@ -151,7 +159,7 @@ s_align* SmithWaterman::ssw_align (
 	free(bests);
     int32_t queryOffset = query_length - r->qEndPos1;
     
-	if (flag == 0 || ((flag == 2 || flag == 1) && r->score1 < filters)){
+	if (flag == 0 || ((flag == 2 || flag == 1) && r->normalizedScore1 < filters)){
         goto end;
     }
     
@@ -165,7 +173,7 @@ s_align* SmithWaterman::ssw_align (
 					r->qEndPos1 + 1, profile->alphabetSize, profile->bias, queryOffset, 0);
 		}
 		bests_reverse = sw_sse2_byte(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_byte,
-                                     r->score1, profile->bias, maskLen);
+                                     r->normalizedScore1, profile->bias, maskLen);
 	} else {
 		if(profile->sequence_type == Sequence::HMM_PROFILE) {
 			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_rev_word, profile->query_rev_sequence, profile->mat,
@@ -176,13 +184,14 @@ s_align* SmithWaterman::ssw_align (
 					r->qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
 		}
 		bests_reverse = sw_sse2_word(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_word,
-                                     r->score1, maskLen);
+                                     r->normalizedScore1, maskLen);
 	}
-    if(bests_reverse->score != r->score1){
+
+    if(bests_reverse->score != r->rawScore1 ){
 		fprintf(stderr, "Score of forward/backward SW differ. This should not happen.\n");
 		delete r;
-		return NULL;
-	}
+    	return NULL;
+    }
 
 	r->dbStartPos1 = bests_reverse[0].ref;
 	r->qStartPos1 = r->qEndPos1 - bests_reverse[0].read;
@@ -198,12 +207,12 @@ s_align* SmithWaterman::ssw_align (
 
 	if(profile->sequence_type == Sequence::HMM_PROFILE) {
 		path = banded_sw<PROFILE>(db_sequence + r->dbStartPos1, profile->query_sequence + r->qStartPos1,
-				db_length, query_length, r->qStartPos1, r->score1,
+				db_length, query_length, r->qStartPos1, r->normalizedScore1,
 				gap_open, gap_extend, band_width,
 				profile->mat, profile->query_length);
 	}else {
 		path = banded_sw<SUBSTITUTIONMATRIX>(db_sequence + r->dbStartPos1, profile->query_sequence + r->qStartPos1,
-				db_length, query_length, r->qStartPos1, r->score1,
+				db_length, query_length, r->qStartPos1, r->normalizedScore1,
 				gap_open, gap_extend, band_width,
 				profile->mat, profile->alphabetSize);
 	}
@@ -693,7 +702,6 @@ void SmithWaterman::ssw_init (const Sequence* q,
 
         profile->bias = bias;
 		if(q->getSequenceType() == Sequence::HMM_PROFILE){
-			printf("Create 1\n");
 			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_byte, profile->query_sequence, profile->mat, q->L, alphabetSize, bias, 1, q->L);
 		}else{
 			createQueryProfile<int8_t, VECSIZE_INT * 4, SUBSTITUTIONMATRIX>(profile->profile_byte, profile->query_sequence, profile->mat, q->L, alphabetSize, bias, 0, 0);
@@ -701,7 +709,6 @@ void SmithWaterman::ssw_init (const Sequence* q,
     }
     if (score_size == 1 || score_size == 2) {
 		if(q->getSequenceType() == Sequence::HMM_PROFILE){
-			printf("Create 2\n");
 			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_word, profile->query_sequence, profile->mat, q->L, alphabetSize, 0, 1, q->L);
 		}else{
 			createQueryProfile<int16_t, VECSIZE_INT * 2, SUBSTITUTIONMATRIX>(profile->profile_word, profile->query_sequence, profile->mat, q->L, alphabetSize, 0, 0, 0);

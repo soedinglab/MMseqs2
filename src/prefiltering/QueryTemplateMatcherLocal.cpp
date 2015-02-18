@@ -2,19 +2,18 @@
 #include "QueryScoreLocal.h"
 #include "QueryTemplateMatcher.h"
 
-QueryTemplateMatcherLocal::QueryTemplateMatcherLocal  ( BaseMatrix* m,
-                                                        IndexTable * indexTable,
-                                                        unsigned short * seqLens,
-                                                        short kmerThr,
-                                                        double kmerMatchProb,
-                                                        int kmerSize,
-                                                        int dbSize,
-                                                        bool aaBiasCorrection,
-                                                        int maxSeqLen,
-                                                        float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m,
+                                                     IndexTable *indexTable,
+                                                     unsigned int *seqLens,
+                                                     short kmerThr,
+                                                     double kmerMatchProb,
+                                                     int kmerSize,
+                                                     int dbSize,
+                                                     bool aaBiasCorrection,
+                                                     int maxSeqLen,
+                                                     float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
                                                                                                 kmerSize, dbSize, aaBiasCorrection, maxSeqLen, zscoreThr) {
-
-    this->queryScore = new QueryScoreLocal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);
+    this->queryScore = new QueryScoreLocal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr, 262144);
 }
 
 
@@ -26,14 +25,12 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherLocal::matchQuery (Sequence * seq
     queryScore->reset();
     seq->resetCurrPos();
     
-    if (this->aaBiasCorrection)
-        this->calcLocalAaBiasCorrection(seq);
-    
     match(seq);
-    
+
+
 //    queryScore->setPrefilteringThresholds();
     
-    return queryScore->getResult(0,0);
+    return queryScore->getResult(seq->L,0);
 }
 
 
@@ -90,10 +87,9 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
             // std::cout << "i: " << seq->getCurrentPosition() << std::endl;
             queryScore->addScoresLocal(entries, seq->getCurrentPosition(), indexTabListSize, kmerMatchScore/4);
         }
-        biasCorrection -= deltaS[pos];
-        biasCorrection += deltaS[pos + kmerSize];
         pos++;
     }
+    // needed to call here to get the LocalResultSize
     //Debug(Debug::WARNING) << "QUERY: " << seq->getDbKey();
     //Debug(Debug::WARNING) << " score = " << overall_score;
     //Debug(Debug::WARNING) << " matched at " << match_pos << " positions. ";

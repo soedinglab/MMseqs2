@@ -26,7 +26,7 @@ void Util::decompose_domain(size_t domain_size, size_t world_rank,
     }
 }
 
-void Util::decomposeDomainByAminoaAcid(size_t aaSize, unsigned short *seqSizes, size_t count,
+void Util::decomposeDomainByAminoaAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
         size_t worldRank, size_t worldSize, size_t *start, size_t *size){
     if (worldSize > aaSize) {
         // Assume the domain size is greater than the world size.

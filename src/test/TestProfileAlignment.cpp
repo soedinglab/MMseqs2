@@ -67,10 +67,10 @@ int main (int argc, const char * argv[])
     //const char* sequence = read_seq;
     const char* sequence = profile.c_str();
     std::cout << sequence << "\n\n";
-    Sequence* s = new Sequence(10000, &subMat, Sequence::HMM_PROFILE, kmer_size, true);
+    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, kmer_size, true);
     s->mapSequence(0,"lala",sequence);
     s->printProfile();
-    Sequence* dbSeq = new Sequence(10000, &subMat, Sequence::AMINO_ACIDS, kmer_size, true);
+    Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     const char* sequence2 = "MSEILLLIVP";
     dbSeq->mapSequence(1,"lala2",sequence2);
@@ -112,7 +112,7 @@ int main (int argc, const char * argv[])
             }
         }
     }
-    std::cout << alignment->score1  << " "<< alignment->qEndPos1 << " " << alignment->qStartPos1  << " "<< alignment->qEndPos1 << " "
+    std::cout << alignment->normalizedScore1 << " "<< alignment->qEndPos1 << " " << alignment->qStartPos1  << " "<< alignment->qEndPos1 << " "
             << alignment->dbStartPos1 << " "<< alignment->dbEndPos1 << std::endl;
     delete [] tinySubMat;
     delete [] alignment->cigar;

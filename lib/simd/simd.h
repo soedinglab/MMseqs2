@@ -99,7 +99,7 @@ typedef __m512i simd_int;
 #define simdi32_set(x)      _mm512_set1_epi32(x)
 #define simdi16_set(x)      _mm512_set1_epi16(x)
 #define simdi8_set(x)       _mm512_set1_epi8(x)
-#define simdi_setzero(x)    _mm512_setzero_si512()
+#define simdi_setzero()    _mm512_setzero_si512()
 #define simdi32_gt(x,y)     _mm512_cmpgt_epi32(x,y)
 #define simdi8_gt(x,y)      NOT_YET_IMP()
 #define simdi16_gt(x,y)     NOT_YET_IMP()
@@ -113,6 +113,9 @@ typedef __m512i simd_int;
 #define simdi8_shiftl(x,y)  NOT_YET_IMP()
 #define simdi8_shiftr(x,y)  NOT_YET_IMP()
 #define simdi8_movemask(x)  NOT_YET_IMP()
+#define simdi16_extract(x,y) NOT_YET_IMP()
+#define simdi16_slli(x,y)	_mm512_slli_epi16(x,y) // shift integers in a left by y
+#define simdi16_srli(x,y)	_mm512_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)	_mm512_slli_epi32(x,y) // shift integers in a left by y
 #define simdi32_srli(x,y)	_mm512_srli_epi32(x,y) // shift integers in a right by y
 #define simdi32_i2f(x) 	    _mm512_cvtepi32_ps(x)  // convert integer to s.p. float
@@ -135,7 +138,7 @@ uint8_t simd_hmax8_avx(const __m256i buffer);
 template  <unsigned int N> __m256i _mm256_shift_left(__m256i a)
 {
     __m256i mask = _mm256_permute2x128_si256(a, a, _MM_SHUFFLE(0,0,3,0) );
-    return _mm256_alignr_epi8(a,mask,16-N); 
+    return _mm256_alignr_epi8(a,mask,16-N);
 }
 
 typedef __m256i simd_int;
@@ -159,7 +162,7 @@ typedef __m256i simd_int;
 #define simdi32_set(x)      _mm256_set1_epi32(x)
 #define simdi16_set(x)      _mm256_set1_epi16(x)
 #define simdi8_set(x)       _mm256_set1_epi8(x)
-#define simdi_setzero(x)    _mm256_setzero_si256()
+#define simdi_setzero()    _mm256_setzero_si256()
 #define simdi32_gt(x,y)     _mm256_cmpgt_epi32(x,y)
 #define simdi8_gt(x,y)      _mm256_cmpgt_epi8(x,y)
 #define simdi16_gt(x,y)     _mm256_cmpgt_epi16(x,y)
@@ -175,6 +178,9 @@ typedef __m256i simd_int;
 //TODO fix like shift_left
 #define simdi8_shiftr(x,y)  _mm256_srli_si256(x,y)
 #define simdi8_movemask(x)  _mm256_movemask_epi8(x)
+#define simdi16_extract(x,y) _mm256_extract_epi16(x,y)
+#define simdi16_slli(x,y)	_mm256_slli_epi16(x,y) // shift integers in a left by y
+#define simdi16_srli(x,y)	_mm256_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)   _mm256_slli_epi32(x,y) // shift integers in a left by y
 #define simdi32_srli(x,y)   _mm256_srli_epi32(x,y) // shift integers in a right by y
 #define simdi32_i2f(x) 	    _mm256_cvtepi32_ps(x)  // convert integer to s.p. float
@@ -314,7 +320,7 @@ typedef __m128i simd_int;
 #define simdi32_set(x)      _mm_set1_epi32(x)
 #define simdi16_set(x)      _mm_set1_epi16(x)
 #define simdi8_set(x)       _mm_set1_epi8(x)
-#define simdi_setzero(x)    _mm_setzero_si128()
+#define simdi_setzero()    _mm_setzero_si128()
 #define simdi32_gt(x,y)     _mm_cmpgt_epi32(x,y)
 #define simdi8_gt(x,y)      _mm_cmpgt_epi8(x,y)
 #define simdi16_eq(x,y)     _mm_cmpeq_epi16(x,y)
@@ -329,12 +335,18 @@ typedef __m128i simd_int;
 #define simdi8_shiftl(x,y)  _mm_slli_si128(x,y)
 #define simdi8_shiftr(x,y)  _mm_srli_si128(x,y)
 #define simdi8_movemask(x)  _mm_movemask_epi8(x)
+#define simdi16_extract(x,y) sse2_extract_epi16(x,y)
+#define simdi16_slli(x,y)	_mm_slli_epi16(x,y) // shift integers in a left by y
+#define simdi16_srli(x,y)	_mm_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)	_mm_slli_epi32(x,y) // shift integers in a left by y
 #define simdi32_srli(x,y)	_mm_srli_epi32(x,y) // shift integers in a right by y
 #define simdi32_i2f(x) 	    _mm_cvtepi32_ps(x)  // convert integer to s.p. float
 #define simdi_i2fcast(x)    _mm_castsi128_ps(x)
 #endif //SIMD_INT
 #endif //SSE
+
+
+
 
 
 
@@ -371,6 +383,21 @@ inline uint8_t simd_hmax8_avx(const __m256i buffer){
 }
 #endif
 
+
+inline unsigned short sse2_extract_epi16(__m128i v, int pos) {
+    switch(pos){
+        case 0: return _mm_extract_epi16(v, 0);
+        case 1: return _mm_extract_epi16(v, 1);
+        case 2: return _mm_extract_epi16(v, 2);
+        case 3: return _mm_extract_epi16(v, 3);
+        case 4: return _mm_extract_epi16(v, 4);
+        case 5: return _mm_extract_epi16(v, 5);
+        case 6: return _mm_extract_epi16(v, 6);
+        case 7: return _mm_extract_epi16(v, 7);
+    }
+    return 0;
+}
+
 /* horizontal max */
 template <typename F>
 inline F simd_hmax(const F * in, unsigned int n)
@@ -398,30 +425,30 @@ inline F simd_hmin(const F * in, unsigned int n)
 
 inline void *mem_align(size_t boundary, size_t size)
 {
-  void *pointer;
-  if (posix_memalign(&pointer,boundary,size) != 0)
-  {
-      std::cerr<<"Error: Could not allocate memory by memalign. Please report this bug to developers\n";
-      exit(3);
-  }
-  return pointer;
+    void *pointer;
+    if (posix_memalign(&pointer,boundary,size) != 0)
+    {
+        std::cerr<<"Error: Could not allocate memory by memalign. Please report this bug to developers\n";
+        exit(3);
+    }
+    return pointer;
 }
 #ifdef SIMD_FLOAT
 inline simd_float * malloc_simd_float(const size_t size)
 {
-	return (simd_float *) mem_align(ALIGN_FLOAT,size);
+    return (simd_float *) mem_align(ALIGN_FLOAT,size);
 }
 #endif
 #ifdef SIMD_DOUBLE
 inline simd_double * malloc_simd_double(const size_t size)
 {
-	return (simd_double *) mem_align(ALIGN_DOUBLE,size);
+    return (simd_double *) mem_align(ALIGN_DOUBLE,size);
 }
 #endif
 #ifdef SIMD_INT
 inline simd_int * malloc_simd_int(const size_t size)
 {
-	return (simd_int *) mem_align(ALIGN_INT,size);
+    return (simd_int *) mem_align(ALIGN_INT,size);
 }
 #endif
 #endif //SIMD_H

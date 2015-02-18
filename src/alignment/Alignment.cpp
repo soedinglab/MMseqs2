@@ -22,7 +22,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
         Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
         this->mode = Matcher::SCORE_COV_SEQID; // slowest
     }
-    if (par.querySeqType == Sequence::AMINO_ACIDS)
+    if (par.querySeqType == Sequence::AMINO_ACIDS || par.querySeqType == Sequence::HMM_PROFILE)
         this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0);
     else
         this->m = new NucleotideMatrix();
@@ -37,8 +37,8 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     dbSeqs = new Sequence*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
-        qSeqs[i]  = new Sequence(par.maxSeqLen, m, par.querySeqType, 0, false);
-        dbSeqs[i] = new Sequence(par.maxSeqLen, m, par.querySeqType, 0, false);
+        qSeqs[i]  = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.querySeqType, 0, false);
+        dbSeqs[i] = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.targetSeqType, 0, false);
     }
 
 
