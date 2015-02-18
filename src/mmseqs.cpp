@@ -42,8 +42,8 @@ void printUsage() {
             "createfasta        \tConvert ffindex to fasta\n"
             "swapresults        \tSwaps results from the mapping A->A,B,C to A -> A, B -> A, C -> A\n"
             "clusteringtofastadb\tCConvert Convert mmseqs clustering to ffindex indexed fasta format\n"
-            "mergeffindex       \tMerge multiple ffindex files based on similar id into one file.\n",
-            "extractorf         \t blabla\n"
+            "mergeffindex       \tMerge multiple ffindex files based on similar id into one file\n",
+            "extractorf         \tExtract all open reading frames from a nucleotide fasta file into a ffindex database\n"
     );
     Debug(Debug::INFO) << usage;
 }
