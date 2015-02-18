@@ -24,16 +24,16 @@ struct statistics_t{
 
 class QueryTemplateMatcher {
     public:
-        QueryTemplateMatcher (  BaseMatrix* m,
-                                IndexTable * indexTable,
-                                unsigned short * seqLens,
-                                short kmerThr,
-                                double kmerMatchProb,
-                                int kmerSize,
-                                int dbSize,
-                                bool aaBiasCorrection,
-                                int maxSeqLen,
-                                float zscoreThr){
+        QueryTemplateMatcher(BaseMatrix *m,
+                IndexTable *indexTable,
+                unsigned int *seqLens,
+                short kmerThr,
+                double kmerMatchProb,
+                int kmerSize,
+                int dbSize,
+                bool aaBiasCorrection,
+                int maxSeqLen,
+                float zscoreThr){
             this->m = m;
             this->indexTable = indexTable;
             this->kmerSize = kmerSize;
@@ -114,8 +114,6 @@ class QueryTemplateMatcher {
         KmerGenerator * kmerGenerator;
         /* contains the sequences for a kmer */
         IndexTable * indexTable;
-        /* calculates the score */
-        QueryScore * queryScore;
         // k of the k-mer
         int kmerSize;
         // local amino acid bias correction

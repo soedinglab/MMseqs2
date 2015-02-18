@@ -57,11 +57,11 @@ void DBReader::open(int sort){
     size = index->n_entries;
 
     // init seq lens array and dbKey mapping
-    seqLens = new unsigned short [size];
+    seqLens = new unsigned int [size];
     aaDbSize = 0;
     for (size_t i = 0; i < size; i++){
         ffindex_entry_t* e = ffindex_get_entry_by_index(index, i);
-        seqLens[i] = (unsigned short)(e->length);
+        seqLens[i] = (e->length);
         aaDbSize += seqLens[i];
     }
 
@@ -78,7 +78,7 @@ void DBReader::open(int sort){
 
         // adapt sequence lengths
         for (size_t i = 0; i < size; i++){
-            seqLens[i] = (unsigned short)(ffindex_get_entry_by_index(index, local2id[i])->length);
+            seqLens[i] = ffindex_get_entry_by_index(index, local2id[i])->length;
         }
     }
 
@@ -162,7 +162,7 @@ size_t DBReader::getId (const char* dbKey){
     // i,j and cmp has to be signed
     long long i = 0;
     long long j = index->n_entries - 1;
-    size_t k;
+    long long k;
     while (j >= i){
         k = i + (j - i)/2;
         int cmp = strcmp(dbKey, index->entries[k].name); // has to be signed
@@ -176,8 +176,7 @@ size_t DBReader::getId (const char* dbKey){
     return UINT_MAX;
 }
 
-unsigned short* DBReader::getSeqLens(){
-
+unsigned int * DBReader::getSeqLens(){
     return seqLens;
 }
 
@@ -228,7 +227,6 @@ void DBReader::sort(size_t* ids, size_t* workspace)
  */
 void DBReader::calcLocalIdMapping(){
    size_t* workspace = new size_t[size];
-
    // sort the enties by the length of the sequences
    sort(local2id, workspace);
 

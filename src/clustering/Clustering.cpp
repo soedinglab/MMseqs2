@@ -204,9 +204,9 @@ Clustering::set_data Clustering::read_in_set_data(){
     Clustering::set_data ret_struct;
 
     // n = overall sequence count
-    unsigned int n = seqDbr->getSize();
+    size_t n = seqDbr->getSize();
     // m = number of sets
-    unsigned int m = alnDbr->getSize();
+    size_t m = alnDbr->getSize();
 
     ret_struct.uniqu_element_count = n;
     ret_struct.set_count = m;
@@ -228,7 +228,7 @@ Clustering::set_data Clustering::read_in_set_data(){
     ret_struct.max_weight = 0;
     ret_struct.all_element_count = 0;
 
-    int empty = 0;
+    size_t empty = 0;
     // needed for parsing
     const unsigned int ELEMENTS_IN_RECORD = 2;
     char * words[ELEMENTS_IN_RECORD];
@@ -245,10 +245,10 @@ Clustering::set_data Clustering::read_in_set_data(){
     size_t curr_start_pos = 0;
 
     // the reference id of the elements is always their id in the sequence database
-    for(unsigned int i = 0; i < m; i++) {
+    for(size_t i = 0; i < m; i++) {
         Log::printProgress(i);
         char* data = alnDbr->getData(i);
-        unsigned int element_counter = 0;
+        size_t element_counter = 0;
 
         if(*data == '\0'){ // check if file contains entry
             Debug(Debug::ERROR) << "ERROR: Sequence " << i
@@ -266,6 +266,7 @@ Clustering::set_data Clustering::read_in_set_data(){
                 EXIT(EXIT_FAILURE);
             }
             // add an edge
+            // should be int because of memory constraints
             element_buffer[element_counter++] = (unsigned int) curr_element;
             element_size[curr_element]++;
             ret_struct.all_element_count++;
@@ -277,9 +278,9 @@ Clustering::set_data Clustering::read_in_set_data(){
         if (cnt == 0){
             empty++;
         }
-        // max_weight can not be gibber than 2^16
+        // max_weight can not be bigger than 2^16
         if(element_counter > SHRT_MAX){
-            Debug(Debug::ERROR)  << "ERROR: Set has too much elements. Set name is "
+            Debug(Debug::ERROR)  << "ERROR: Set has too many elements. Set name is "
                       << dbKey << " and has has the weight " << element_counter <<".\n";
         }
         ret_struct.max_weight = std::max((unsigned short)element_counter, ret_struct.max_weight);

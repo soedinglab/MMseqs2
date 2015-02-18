@@ -76,6 +76,10 @@ public:
     float  seqIdThr;
     int    validateClustering;
     bool   cascaded;
+
+    // CLUSTERING WORKFLOW
+    int restart;
+    int step;
     
     void setDefaultPaths();
     void setDefaults();
@@ -140,9 +144,10 @@ public:
     const static MMseqsParameter PARAM_CASCADED;
     // logging
     const static MMseqsParameter PARAM_V;
+    // clustering workflow
+    const static MMseqsParameter PARAM_RESTART;
+    const static MMseqsParameter PARAM_STEP;
 
-
-    
 };
 
 #endif /* defined(__MMseqs__Parameters__) */

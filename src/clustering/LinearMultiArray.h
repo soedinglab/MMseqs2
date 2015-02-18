@@ -18,8 +18,8 @@ public:
             EXIT(EXIT_FAILURE);
         }
         this->size = size; //at least one
-        multi_array = (T*) malloc( sizeof(T) * size);
-        next_pos_to_write = (T**) malloc( sizeof(T *) * (element_size + 1));
+        multi_array = new T[size];
+        next_pos_to_write = new T*[element_size + 1];
         size_t last_element = 0;
         for(size_t i = 0; i <= element_size; i++){
             std::swap(element_size_lookup[0], element_size_lookup[i+1]);
@@ -33,7 +33,10 @@ public:
         }
     }
 
-    ~linear_multi_array() {free(multi_array); free(next_pos_to_write);}
+    ~linear_multi_array() {
+        delete [] multi_array;
+        delete [] next_pos_to_write;
+    }
 
     const std::pair<T*, unsigned int> get_array(size_t i); // get value
     void add_value_at(size_t i, T element); // push it

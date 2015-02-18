@@ -312,7 +312,9 @@ int clusteringworkflow (int argc, const char * argv[]){
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_CASCADED,
         Parameters::PARAM_MAX_SEQ_LEN,
-        Parameters::PARAM_V};
+            Parameters::PARAM_RESTART,
+            Parameters::PARAM_STEP,
+            Parameters::PARAM_V};
     Parameters par;
     par.parseParameters(argc, (char**)argv, usage, perfPar, 3);
     par.localSearch = false;
@@ -320,8 +322,8 @@ int clusteringworkflow (int argc, const char * argv[]){
     par.covThr = 0.8;
     par.evalThr = 0.001;
     Debug::setDebugLevel(par.verbosity);
-    int restart = 0;
-    int step = 1;
+    int restart = par.restart;
+    int step = par.step;
     
     if (par.cascaded)
         runCascadedClustering(par, par.db1, par.db2, par.db3, restart, step);

@@ -2,20 +2,21 @@
 #define QUERY_TEMPLATE_MATCHER_LOCAL_H
 
 #include "QueryTemplateMatcher.h"
+#include "QueryScoreLocal.h"
 
 
 class QueryTemplateMatcherLocal : public virtual  QueryTemplateMatcher {
     public:
-        QueryTemplateMatcherLocal ( BaseMatrix* m,
-                                    IndexTable * indexTable,
-                                    unsigned short * seqLens,
-                                    short kmerThr,
-                                    double kmerMatchProb,
-                                    int kmerSize,
-                                    int dbSize,
-                                    bool aaBiasCorrection,
-                                    int maxSeqLen,
-                                    float zscoreThr);
+        QueryTemplateMatcherLocal(BaseMatrix *m,
+                IndexTable *indexTable,
+                unsigned int *seqLens,
+                short kmerThr,
+                double kmerMatchProb,
+                int kmerSize,
+                int dbSize,
+                bool aaBiasCorrection,
+                int maxSeqLen,
+                float zscoreThr);
         ~QueryTemplateMatcherLocal ();
 
         // returns result for the sequence
@@ -26,7 +27,9 @@ class QueryTemplateMatcherLocal : public virtual  QueryTemplateMatcher {
     
         // match sequence against the IndexTable
         void match(Sequence* seq);
-    
+
+        /* calculates the score */
+        QueryScoreLocal * queryScore;
 
 };
 

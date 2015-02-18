@@ -83,7 +83,7 @@ void SetCover::add_set(const unsigned int set_id,
     
     // set up doubled linked list + fill element_lookup
     for(unsigned int i = 0; i < element_size; i++) {
-        // init elemnt with id, weight information
+        // init element with id, weight information
         if((add_position + i) > this->all_element_count ){
             Debug(Debug::ERROR)  << "ERROR: More elements than allocated memory. (add_position + i) "
                                  << (add_position + i)  <<" is higher than all element count "
