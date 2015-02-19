@@ -76,6 +76,11 @@ public:
     float  seqIdThr;
     int    validateClustering;
     bool   cascaded;
+    
+    //extractorf
+    size_t min_length;
+    size_t max_length;
+    size_t max_gaps;
 
     // CLUSTERING WORKFLOW
     int restart;
@@ -147,6 +152,10 @@ public:
     // clustering workflow
     const static MMseqsParameter PARAM_RESTART;
     const static MMseqsParameter PARAM_STEP;
+    // extractorfs
+    const static MMseqsParameter PARAM_ORF_MIN_LENGTH;
+    const static MMseqsParameter PARAM_ORF_MAX_LENGTH;
+    const static MMseqsParameter PARAM_ORF_MAX_GAP;
 
 };
 
