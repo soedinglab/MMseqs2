@@ -35,8 +35,12 @@ const MMseqsParameter Parameters::PARAM_CASCADED={20,"--cascaded", "\tStart the 
 const MMseqsParameter Parameters::PARAM_V={21,"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
 // clustering workflow
 const MMseqsParameter Parameters::PARAM_RESTART={22, "--restart","[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
-        "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering."};
-const MMseqsParameter Parameters::PARAM_STEP={23, "--step","[int]\ttRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the database merging."};
+        "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering"};
+const MMseqsParameter Parameters::PARAM_STEP={23, "--step","[int]\t\tRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the database merging"};
+
+const MMseqsParameter Parameters::PARAM_ORF_MIN_LENGTH={24, "--min-length","[int]\t\tMinimum length of open reading frame to be extracted from fasta file"};
+const MMseqsParameter Parameters::PARAM_ORF_MAX_LENGTH={25, "--max-length","[int]\t\tMaximum length of open reading frame to be extracted from fasta file."};
+const MMseqsParameter Parameters::PARAM_ORF_MAX_GAP={26, "--max-gaps","[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected"};
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -128,6 +132,11 @@ void Parameters::parseParameters(int argc, char* pargv[],
         // clustering workflow
         ops >> GetOpt::Option("step", step);
         ops >> GetOpt::Option("restart", restart);
+    
+    // extractorf
+        ops >> GetOpt::Option("min-length", min_length);
+        ops >> GetOpt::Option("max-length", max_length);
+        ops >> GetOpt::Option("max-gaps", max_gaps);
 
         ops.end_of_options();            // I'm done!
 
@@ -346,6 +355,10 @@ void Parameters::setDefaults() {
 
     verbosity = Debug::INFO;
 
+    //extractorfs
+    min_length = 1;
+    max_length = SIZE_MAX;
+    max_gaps = SIZE_MAX;
 }
 
 
