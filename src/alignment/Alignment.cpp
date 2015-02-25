@@ -119,7 +119,7 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
         qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
         matchers[thread_idx]->initQuery(qSeqs[thread_idx]);
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list 
-        std::list<Matcher::result_t>* swResults = new std::list<Matcher::result_t>();
+        std::list<Matcher::result_t> swResults;
         std::stringstream lineSs (prefList);
         std::string val;
         size_t passedNum = 0;
@@ -163,7 +163,7 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
             if ((res.eval <= evalThr || (mode != Matcher::SCORE_ONLY && res.seqId == 1.0)) &&
                 (res.qcov >= covThr && res.dbcov >= covThr) && //TODO is qcov not enough? maybe two thresholds?
                 (res.seqId > seqIdThr)) {
-                swResults->push_back(res);
+                swResults.push_back(res);
                 passedNum++;
                 totalPassedNum++;
             }
@@ -172,12 +172,12 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
             }
         }
         // write the results
-        swResults->sort(Matcher::compareHits);
+        swResults.sort(Matcher::compareHits);
         std::list<Matcher::result_t>::iterator it;
         std::stringstream swResultsSs;
 
         // put the contents of the swResults list into ffindex DB
-        for (it = swResults->begin(); it != swResults->end(); ++it){
+        for (it = swResults.begin(); it != swResults.end(); ++it){
                 swResultsSs << it->dbKey << "\t";
                 swResultsSs << it->score << "\t"; //TODO fix for formats
                 swResultsSs << std::fixed << std::setprecision(3) << it->qcov << "\t";
@@ -195,8 +195,6 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
         }
         memcpy(outBuffers[thread_idx], swResultsStringData, swResultsString.length()*sizeof(char));
         dbw->write(outBuffers[thread_idx], swResultsString.length(), qSeqs[thread_idx]->getDbKey(), thread_idx);
-
-        delete swResults;
 
     }
     Debug(Debug::INFO) << "\n";
