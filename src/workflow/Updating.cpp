@@ -321,7 +321,7 @@ int clusterupdate (int argc, const char * argv[]){
         Parameters::PARAM_MAX_SEQ_LEN,
         Parameters::PARAM_V};
     Parameters par;
-    par.parseParameters(argc, (char**)argv, usage, perfPar, 5);
+    par.parseParameters(argc, argv, usage, perfPar, 5);
     
     Debug::setDebugLevel(par.verbosity);
     

@@ -52,7 +52,7 @@ void Parameters::printUsageMessage(std::string programUsageHeader,
     Debug(Debug::INFO) << ss.str();
 }
 
-void Parameters::parseParameters(int argc, char* pargv[],
+void Parameters::parseParameters(int argc, const char* pargv[],
                                  std::string programUsageHeader,
                                  std::vector<MMseqsParameter> parameters,
                                  size_t requiredParameterCount)
@@ -189,7 +189,7 @@ void Parameters::parseParameters(int argc, char* pargv[],
     printParameters(argc,pargv,parameters);
 }
 
-void Parameters::printParameters(int argc, char* pargv[],
+void Parameters::printParameters(int argc, const char* pargv[],
                                  std::vector<MMseqsParameter> parameters){
     Debug(Debug::WARNING) << "Program call:\n";
     for (int i = 0; i < argc; i++)
