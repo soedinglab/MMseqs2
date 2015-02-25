@@ -106,18 +106,19 @@ static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector
                 to[cur_frame] = pos;
 
                 // edge case 1: see above
-                if(from[cur_frame] == 0 && firstOrfFound[cur_frame] == false) {
+                if(from[cur_frame] == 0 && firstOrfFound[cur_frame] == false && currentLength[cur_frame] >= min_length) {
                     firstOrfFound[cur_frame] = true;
                     ranges.emplace_back(from[cur_frame], to[cur_frame]);
+                    currentGaps[cur_frame] = 0;
+                    currentLength[cur_frame] = 0;
                     continue;
                 }
 
                 if(currentLength[cur_frame] >= min_length) {
                     ranges.emplace_back(from[cur_frame], to[cur_frame]);
+                    currentGaps[cur_frame] = 0;
+                    currentLength[cur_frame] = 0;
                 }
-
-                currentGaps[cur_frame] = 0;
-                currentLength[cur_frame] = 0;
 
                 continue;
             }
@@ -131,6 +132,9 @@ static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector
             Orf::SequencePosition to = seq_length - ((seq_length - from[frame]) % 3);
             ranges.emplace_back(from[frame], to);
         }
+        
+        currentGaps[frame] = 0;
+        currentLength[frame] = 0;
     }
 }
 
