@@ -7,6 +7,7 @@ set(util_source_files
   ffindex_to_pref_index.cpp
   ffindex_swap_results.cpp
   extract_orf.cpp
+  translate_nucleotide.cpp
 )
 add_library(util ${util_source_files})
 

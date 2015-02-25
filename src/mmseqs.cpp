@@ -24,8 +24,8 @@ static struct Command commands[] = {
         {"clusteringtofastadb", clusteringtofastadb},
         {"swapresults", swapresults},
         {"extractorf", extractorf},
-        {"createprofiledb", createprofiledb}
-
+        {"createprofiledb", createprofiledb},
+        {"translatenucleotide", translatenucleotide}
 };
 
 
@@ -47,6 +47,7 @@ void printUsage() {
             "clusteringtofastadb\tCConvert Convert mmseqs clustering to ffindex indexed fasta format\n"
             "mergeffindex       \tMerge multiple ffindex files based on similar id into one file\n"
             "extractorf         \tExtract all open reading frames from a nucleotide fasta file into a ffindex database\n"
+            "translatenucleotide\tTranslate nucleotide sequences into aminoacid sequences in a ffindex database\n"
     );
     Debug(Debug::INFO) << usage;
 }
