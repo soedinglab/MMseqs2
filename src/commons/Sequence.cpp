@@ -196,7 +196,7 @@ void Sequence::mapProfile(const char * sequenze){
     for(size_t l = 0; l < this->L; l++){
         for(size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
             unsigned int aa_idx = profile_index[l * profile_row_size + aa_num];
-            profile_for_alignment[aa_idx * this-> L + l] = profile_score[l * profile_row_size + aa_num];
+            profile_for_alignment[aa_idx * this-> L + l] = profile_score[l * profile_row_size + aa_num] /4;
         }
     }
 }

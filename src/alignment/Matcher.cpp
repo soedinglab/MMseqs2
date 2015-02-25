@@ -94,9 +94,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         dbcov = (std::min(dbSeq->L, (int) dbEndPos) - dbStartPos + 1) / (float) dbSeq->L;
     }
     // 100 because the score is normalized
-    double evalue = ( static_cast<double>(100)) * pow (2.7182, ((double)(-alignment->normalizedScore1)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
+    double evalue = ( static_cast<double>(100)) * pow (2.7182, ((double)(-alignment->score1)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
     evalue = evalue * (double)(seqDbSize);
-    result_t result(std::string(dbSeq->getDbKey()), alignment->normalizedScore1, qcov, dbcov, seqId, evalue);
+    result_t result(std::string(dbSeq->getDbKey()), alignment->score1, qcov, dbcov, seqId, evalue);
     delete [] alignment->cigar;
     delete alignment;
     return result;
