@@ -50,7 +50,7 @@ int search (int argc, const char * argv[]){
         Parameters::PARAM_MAX_SEQ_LEN,
         Parameters::PARAM_V};
     Parameters par;
-    par.parseParameters(argc, (char**)argv, usage, perfPar, 4);
+    par.parseParameters(argc, argv, usage, perfPar, 4);
     
     Debug::setDebugLevel(par.verbosity);
     runSearch(par, par.db1, par.db2, par.db3, par.db4);

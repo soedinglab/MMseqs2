@@ -31,7 +31,7 @@ int createindex (int argc, const char * argv[])
         Parameters::PARAM_NO_SPACED_KMER,
         Parameters::PARAM_V};
     Parameters par;
-    par.parseParameters(argc, (char**)argv, usage, perfPar, 2);
+    par.parseParameters(argc, argv, usage, perfPar, 2);
 
     Debug::setDebugLevel(par.verbosity);
     

@@ -25,7 +25,7 @@ public:
     static const int SET_COVER = 0;
     static const int GREEDY = 1;
     // COMMON
-    char** argv;            //command line parameters
+    const char** argv;            //command line parameters
     char argc;              //dimension of argv
     
     // path to databases
@@ -90,13 +90,13 @@ public:
     void setDefaults();
     void serialize( std::ostream &stream );
     void deserialize( std::istream &stream );
-    void parseParameters(int argc, char* argv[],
+    void parseParameters(int argc, const char* argv[],
                          std::string programUsageHeader,
                          std::vector<MMseqsParameter> parameters,
                          size_t requiredParameterCount);
     void printUsageMessage(std::string programUsageHeader,
                            std::vector<MMseqsParameter> parameters);
-    void printParameters(int argc, char* pargv[],
+    void printParameters(int argc, const char* pargv[],
                          std::vector<MMseqsParameter> parameters);
     Parameters();
     // parameter constants
