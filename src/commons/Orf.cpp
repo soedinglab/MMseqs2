@@ -1,5 +1,6 @@
 #include "Orf.h"
 #include <algorithm>
+#include <cstring>
 
 //note: N->N, S->S, W->W, U->A, T->A
 static const char* iupac_revcomp_table =
