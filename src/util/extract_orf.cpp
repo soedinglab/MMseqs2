@@ -3,164 +3,110 @@
 #define _FILE_OFFSET_BITS 64
 
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <vector>
-#include <iostream>
-#include <sys/types.h>
-#include <sys/stat.h>
 
-extern "C" {
-#include "ffindex.h"
-#include "ffutil.h"
-}
+#include "Parameters.h"
+#include "DBWriter.h"
 
 #include "Orf.h"
-#include "Util.h"
 
 #include "kseq.h"
-#define MAX_FILENAME_LIST_FILES 4096
 
 KSEQ_INIT(int, read)
 
-void printUsageExtractOrf()
+int orfFastaToFFindex(
+    const char* fasta_filename,
+    const char* data_filename, const char* index_filename,
+    const char* data_filename_hdr, const char* index_filename_hdr,
+    size_t min_length, size_t max_length, size_t max_gaps)
 {
-    fprintf(stderr, "Converts a fasta database to ffindex.\n");
-    fprintf(stderr, "USAGE: <fastaDB>  <ffindexDB>\n"
-            "\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
-}
-
-int extractorf(int argn, const char **argv)
-{
-    int err = EXIT_SUCCESS;
-
-    if(argn  <  3)
-    {
-        printUsageExtractOrf();
+    FILE* fasta_file = fopen(fasta_filename, "r");
+    if (fasta_file == NULL) {
+        perror(fasta_filename);
         return EXIT_FAILURE;
     }
+    
+    DBWriter seq_writer(data_filename, index_filename);
+    seq_writer.open();
+    DBWriter hdr_writer(data_filename_hdr, index_filename_hdr);
+    hdr_writer.open();
+    
+    kseq_t* seq = kseq_init(fileno(fasta_file));
 
-    char *fasta_filename = (char *)   argv[optind++];
-    char *data_filename  = (char *)   argv[optind++];
+    char header_buffer[LINE_MAX];
+    char id_buffer[LINE_MAX];
+    
+    std::vector<Orf::SequenceLocation> res;
+    size_t entries_num = 0;
+    while (kseq_read(seq) >= 0) {
+        Orf orf(seq->seq.s);
+        orf.FindOrfs(res, min_length, max_length, max_gaps);
 
-    std::string index_filename_str(data_filename);
-    index_filename_str.append(".index");
-    char *index_filename = (char *) index_filename_str.c_str();
+        size_t orfs_num = 0;
+        for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); it++) {
+            snprintf(id_buffer, LINE_MAX, "%zu_%zu", entries_num, orfs_num);
+
+            Orf::SequenceLocation loc = (Orf::SequenceLocation) * it;
+
+            if (seq->comment.l) {
+                snprintf(header_buffer, LINE_MAX, "%s %s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, seq->comment.s, loc.from, loc.to, loc.strand, loc.uncertainty_from, loc.uncertainty_to);
+            }
+            else {
+                snprintf(header_buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, loc.from, loc.to, loc.strand, loc.uncertainty_from, loc.uncertainty_to);
+            }
+            
+            hdr_writer.write(header_buffer, strlen(header_buffer), id_buffer);
+
+            std::unique_ptr<char> sequence(orf.View(loc));
+            char* seq = sequence.get();
+            size_t length = strlen(seq);
+            seq_writer.write(seq, length, id_buffer);
+
+            orfs_num++;
+        }
+        
+        entries_num++;
+        res.clear();
+    }
+
+    kseq_destroy(seq);
+    hdr_writer.close();
+    seq_writer.close();
+    
+    fclose(fasta_file);
+    
+    return EXIT_SUCCESS;
+}
+
+int extractorf(int argn, const char** argv)
+{
+    std::string usage;
+    usage.append("Extract all open reading frames from a nucleotide fasta file into a ffindex database.\n");
+    usage.append("USAGE: <fastaDB>  <ffindexDB>\n");
+    usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
+    std::vector<MMseqsParameter> orf_par = {
+        Parameters::PARAM_ORF_MIN_LENGTH,
+        Parameters::PARAM_ORF_MAX_LENGTH,
+        Parameters::PARAM_ORF_MAX_GAP
+    };
+
+    Parameters par;
+    par.parseParameters(argn, argv, usage, orf_par, 2);
+
+    const char* input = par.db1.c_str();
+    
+    const char* data_filename = par.db2.c_str();
+    const char* index_filename = par.db2Index.c_str();
 
     std::string data_filename_hdr_str(data_filename);
     data_filename_hdr_str.append("_h");
-    char *data_filename_hdr  = (char *)data_filename_hdr_str.c_str();
+    const char* data_filename_hdr = data_filename_hdr_str.c_str();
 
     std::string index_filename_hdr_str(data_filename);
     index_filename_hdr_str.append("_h.index");
-    char *index_filename_hdr = (char *)index_filename_hdr_str.c_str();
+    const char* index_filename_hdr = index_filename_hdr_str.c_str();
 
-    FILE *data_file, *index_file, *fasta_file, *data_file_hdr, *index_file_hdr;
-    struct stat st;
-
-    if(stat(data_filename, &st) == 0) { errno = EEXIST; perror(data_filename); return EXIT_FAILURE; }
-    data_file  = fopen(data_filename, "w+");
-    if( data_file == NULL) { perror(data_filename); return EXIT_FAILURE; }
-
-    if(stat(index_filename, &st) == 0) { errno = EEXIST; perror(index_filename); return EXIT_FAILURE; }
-    index_file = fopen(index_filename, "w+");
-    if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
-
-    fasta_file = fopen(fasta_filename, "r");
-    if(fasta_file == NULL) { perror(fasta_filename); return EXIT_FAILURE; }
-
-    if(stat(data_filename_hdr, &st) == 0) { errno = EEXIST; perror(data_filename_hdr); return EXIT_FAILURE; }
-    data_file_hdr  = fopen(data_filename_hdr, "w+");
-    if( data_file_hdr == NULL) { perror(data_filename_hdr); return EXIT_FAILURE; }
-
-    if(stat(index_filename_hdr, &st) == 0) { errno = EEXIST; perror(index_filename_hdr); return EXIT_FAILURE; }
-    index_file_hdr = fopen(index_filename_hdr, "w+");
-    if(index_file_hdr == NULL) { perror(index_filename_hdr); return EXIT_FAILURE; }
-
-    kseq_t *seq;
-    seq = kseq_init(fileno(fasta_file));
-    size_t offset_header = 0;
-    size_t offset_sequence = 0;
-    size_t entries_num = 0;
-    std::string header_line;
-
-    std::vector<std::string> start;
-    start.push_back("ATG");
-    start.push_back("AUG");
-
-    header_line.reserve(10000);
-    while (kseq_read(seq) >= 0) {
-        std::string id = Util::parseFastaHeader(std::string(seq->name.s));
-        header_line.append(seq->name.s, seq->name.l);
-        if(seq->comment.l)  {
-            header_line.append(" ",1);
-            header_line.append(seq->comment.s,seq->comment.l);
-        }
-        header_line.append("\n");
-
-        // header
-        //ffindex_insert_memory(data_file_hdr, index_file_hdr, &offset_header,  (char *)  header_line.c_str(), header_line.length(),  (char *) id.c_str());
-        // sequence
-        char sequence_buffer[100000];
-        strcpy(sequence_buffer, seq->seq.s);
-
-        std::vector<Orf::SequenceLocation*> res;
-        Orf::FindOrfs(sequence_buffer, res, 42);
-
-        for(std::vector<Orf::SequenceLocation *>::const_iterator it = res.begin(); it != res.end(); it++) {
-            Orf::SequenceLocation* loc = (Orf::SequenceLocation*)*it;
-            printf("%zu, %zu, %d, %d, %d \n", loc->from, loc->to, loc->strand, loc->uncertainty_from, loc->uncertainty_to);
-            //printf("%s\n", sequence.substr(loc->from, loc->to).c_str());
-        }
-
-        //sequence.append("\n");
-        //ffindex_insert_memory(data_file,     index_file,     &offset_sequence, (char *) sequence.c_str(),  sequence.length() , (char *) id.c_str());
-        entries_num++;
-        header_line.clear();
-    }
-    kseq_destroy(seq);
-    fclose(fasta_file);
-    fclose(data_file);
-    fclose(data_file_hdr);
-
-    /* Sort the index entries and write back */
-    rewind(index_file);
-    ffindex_index_t* index = ffindex_index_parse(index_file, entries_num);
-    if(index == NULL)
-    {
-        perror("ffindex_index_parse failed");
-        return EXIT_FAILURE;
-    }
-    fclose(index_file);
-    ffindex_sort_index_file(index);
-
-    index_file = fopen(index_filename, "w");
-    if(index_file == NULL)
-    {
-        perror(index_filename);
-        return EXIT_FAILURE;
-    }
-    err += ffindex_write(index, index_file);
-
-    rewind(index_file_hdr);
-    ffindex_index_t* index_hdr = ffindex_index_parse(index_file_hdr, entries_num);
-    if(index == NULL)
-    {
-        perror("ffindex_index_parse failed");
-        return EXIT_FAILURE;
-    }
-    fclose(index_file_hdr);
-    ffindex_sort_index_file(index_hdr);
-
-    index_file_hdr = fopen(index_filename_hdr, "w");
-    if(index_file_hdr == NULL)
-    {
-        perror(index_filename_hdr);
-        return EXIT_FAILURE;
-    }
-    err += ffindex_write(index_hdr, index_file_hdr);
-
-    return err;
+    return orfFastaToFFindex(input,
+                             data_filename, index_filename,
+                             data_filename_hdr, index_filename_hdr,
+                             par.min_length, par.max_length, par.max_gaps);
 }
-

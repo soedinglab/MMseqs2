@@ -34,7 +34,7 @@ int alignment(int argc, const char *argv[])
             Parameters::PARAM_THREADS,
             Parameters::PARAM_V};
     Parameters par;
-    par.parseParameters(argc, (char**)argv, usage, perfPar, 4);
+    par.parseParameters(argc, argv, usage, perfPar, 4);
 
 
     Debug::setDebugLevel(Debug::INFO);

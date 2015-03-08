@@ -124,7 +124,7 @@ int createprofiledb(int argn,const char **argv)
             Parameters::PARAM_SUB_MAT,
             Parameters::PARAM_V};
     Parameters par;
-    par.parseParameters(argn, (char**)argv, usage, profile_ffindex_par, 2);
+    par.parseParameters(argn, argv, usage, profile_ffindex_par, 2);
 
     struct stat st;
 
