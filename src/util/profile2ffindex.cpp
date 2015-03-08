@@ -1,18 +1,8 @@
-/*
- * FFindex
- * written by Andy Hauser <hauser@genzentrum.lmu.de>.
- * modified by Maria Hauser <mhauser@genzentrum.lmu.de> (splitting into sequences/headers databases)
- *
- * FFindex is provided under the Create Commons license "Attribution-ShareAlike
- * 3.0", which basically captures the spirit of the Gnu Public License (GPL).
- *
- * See:
- * http://creativecommons.org/licenses/by-sa/3.0/
- */
-
-#define _GNU_SOURCE 1
-#define _LARGEFILE64_SOURCE 1
-#define _FILE_OFFSET_BITS 64
+// Written by Martin Steinegger martin.steinegger@campus.lmu.de
+//
+// Converts PSSM or HHM to MMseqs profile format.
+// MMseqs just stores the position specific score in 1 byte
+//
 
 #include <unistd.h>
 #include <stdlib.h>
