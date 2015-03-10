@@ -200,7 +200,6 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
 
 
 Clustering::set_data Clustering::read_in_set_data(){
-
     Clustering::set_data ret_struct;
 
     // n = overall sequence count
@@ -245,9 +244,13 @@ Clustering::set_data Clustering::read_in_set_data(){
     size_t curr_start_pos = 0;
 
     // the reference id of the elements is always their id in the sequence database
-    for(size_t i = 0; i < m; i++) {
+    // the reference id of the elements is always their id in the sequence database
+    for(size_t i = 0; i < n; i++) {
         Log::printProgress(i);
-        char* data = alnDbr->getData(i);
+        // seqDbr is descending sorted by length
+        // the assumption is that clustering is B -> B (not A -> B)
+        char * clusterId = seqDbr->getDbKey(i);
+        char* data = alnDbr->getDataByDBKey(clusterId);
         size_t element_counter = 0;
 
         if(*data == '\0'){ // check if file contains entry

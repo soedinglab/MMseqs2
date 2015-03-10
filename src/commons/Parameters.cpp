@@ -120,7 +120,9 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops >> GetOpt::Option('c', covThr);
         ops >> GetOpt::Option("max-rejected", maxRejected);
     // clustering
-        ops >> GetOpt::Option('g', clusteringMode);
+        if (ops >> GetOpt::OptionPresent('g')) {
+            clusteringMode = Parameters::GREEDY;
+        }
         ops >> GetOpt::Option("min-seq-id", seqIdThr);
         if (ops >> GetOpt::OptionPresent("cascaded")){
             cascaded = true;
