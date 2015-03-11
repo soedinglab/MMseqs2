@@ -264,12 +264,7 @@ void Sequence::printProfile(){
 }
 
 void Sequence::reverse() {
-    int tmp;
-    for (int i = 0; i < this->L/2; i++){
-        tmp = int_sequence[i];
-        int_sequence[i] = int_sequence[this->L-i-1];
-        int_sequence[this->L-i-1] = tmp;
-    }
+    std::reverse(int_sequence, int_sequence + this->L); // reverse sequence
 }
 
 void Sequence::print() {
@@ -320,4 +315,8 @@ int8_t const * Sequence::getAlignmentProfile()const {
 
 int Sequence::getSequenceType() const {
     return seqType;
+}
+
+unsigned int Sequence::geEffectiveKmerSize() {
+    return spacedPatternSize;
 }

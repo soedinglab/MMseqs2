@@ -12,7 +12,6 @@ QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, int k, short kmer
     this->scores_128_size = (dbSize + SIMD_SHORT_SIZE -1)/ SIMD_SHORT_SIZE * SIMD_SHORT_SIZE;
     // 8 DB short int entries are stored in one __m128i vector
     // one __m128i vector needs 16 byte
-    //TODO
     scores_128 = (simd_int*) mem_align(ALIGN_INT, scores_128_size * 2);
     scores = (unsigned short * ) scores_128;
     // set scores to zero

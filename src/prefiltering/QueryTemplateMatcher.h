@@ -16,10 +16,16 @@
 #include "Indexer.h"
 
 struct statistics_t{
-    float kmersPerPos;
+    double kmersPerPos;
     size_t dbMatches;
     size_t doubleMatches;
-    statistics_t() : kmersPerPos(0.0) , dbMatches(0) , doubleMatches(0) {};
+    size_t querySeqLen;
+    statistics_t() : kmersPerPos(0.0) , dbMatches(0) , doubleMatches(0), querySeqLen(0) {};
+    statistics_t(double kmersPerPos, size_t dbMatches,
+                 size_t doubleMatches, size_t querySeqLen) : kmersPerPos(kmersPerPos),
+                                                             dbMatches(dbMatches),
+                                                             doubleMatches(doubleMatches),
+                                                             querySeqLen(querySeqLen) {};
 };
 
 class QueryTemplateMatcher {

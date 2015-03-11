@@ -42,16 +42,19 @@ public:
 
     inline void addScoresLocal (IndexEntryLocal * __restrict seqList, const unsigned short i,
             const int seqListSize, unsigned short score){
-        unsigned char * data =  (unsigned char *)scores;
+        unsigned char * data =  (unsigned char *) scores;
         for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
             const IndexEntryLocal entry = seqList[seqIdx];
-            const unsigned int seqId = entry.seqId;
-            const unsigned int seqIndex = seqId * 2;
+            const unsigned int seqIndex = entry.seqId * 2;
             const unsigned char currDiagonal = i - entry.position_j;
             const unsigned char dbDiagonal = data[seqIndex];
-            const unsigned char score      = data[seqIndex + 1];
-            data[seqIndex] = currDiagonal;
-            data[seqIndex + 1] += (UNLIKELY(currDiagonal == dbDiagonal) && LIKELY(score < 255)) ? 1 : 0;
+            const unsigned char oldScore   = data[seqIndex + 1];
+            const unsigned char scoreToAdd = (UNLIKELY(currDiagonal == dbDiagonal) && LIKELY(oldScore < 255)) ? 1 : 0;
+            const unsigned char newScore = oldScore + scoreToAdd;
+            localResultSize   -= oldScore;
+            localResultSize   += newScore;
+            data[seqIndex]     = currDiagonal;
+            data[seqIndex + 1] = newScore;
         }
         numMatches += seqListSize;
     }
@@ -106,7 +109,7 @@ public:
     };
 
     // returns the current local Result size
-    unsigned int getLocalResultSize(){
+    size_t getLocalResultSize(){
         return localResultSize;
     }
 
@@ -123,13 +126,8 @@ protected:
 
     const unsigned int SIMD_SHORT_SIZE = VECSIZE_INT * 2;  // *2 for short
 
-    unsigned int * localResults;
-
     // current position in Localresults while adding Score
-    unsigned int localResultSize;
-
-    // max LocalResult size
-    const unsigned int MAX_LOCAL_RESULT_SIZE = 100000000;
+    size_t localResultSize;
 
     // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
     int scores_128_size;

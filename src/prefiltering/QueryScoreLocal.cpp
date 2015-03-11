@@ -12,12 +12,10 @@ QueryScoreLocal::QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, sh
 : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor
 {
     localResultSize = 0;
-    localResults = new unsigned int[MAX_LOCAL_RESULT_SIZE];
     this->seqsLens = seqLens;
 }
 
 QueryScoreLocal::~QueryScoreLocal(){
-    delete [] localResults;
 }
 
 void QueryScoreLocal::reset() {
@@ -48,18 +46,22 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned
         if (cmp_set_bits != 0){
             for(unsigned int i = 0; i < SIMD_SHORT_SIZE; i++){
                 if( CHECK_BIT(cmp_set_bits,i*2)) {
-                    unsigned short element = simdi16_extract (currElements,  i);
+                    unsigned short rawScore = simdi16_extract (currElements,  i);
                     hit_t * result = (resList + elementCounter);
                     result->seqId = pos * SIMD_SHORT_SIZE + i;
                     // log(100) * log(100) /(log(qL)*log(dbL))
-                    result->zScore = (element) * 21.20/(log_qL*log(seqsLens[result->seqId]));
-                    //result->zScore = (element);
-                    result->prefScore = element;
-                    localResultSize += element;
+                    result->zScore = (float)rawScore ;
+
+                    //result->zScore = ((float)rawScore) - (kmerMatchProb *  ((float)seqsLens[result->seqId]));
+                    //std::cout << result->zScore << std::endl;
+
+                    //result->zScore = (rawScore);
+                    result->prefScore = rawScore;
+                    localResultSize += rawScore;
                     elementCounter++;
                     if(elementCounter >= MAX_RES_LIST_LEN){
                         // because the memset will not be finished
-                        memset (scores_128, 0, scores_128_size * 2);
+                        memset (s + pos, 0, scores_128_size * 2);
                         goto OuterLoop;
                     }
                 }
