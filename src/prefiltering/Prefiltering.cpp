@@ -658,8 +658,8 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
 #endif
-        char* seqData = tdbr->getData(id);
-        qseq[thread_idx]->mapSequence(id, tdbr->getDbKey(id), seqData);
+        char* seqData = qdbr->getData(id);
+        qseq[thread_idx]->mapSequence(id, qdbr->getDbKey(id), seqData);
         qseq[thread_idx]->reverse();
         matchers[thread_idx]->matchQuery(qseq[thread_idx], UINT_MAX);
 
