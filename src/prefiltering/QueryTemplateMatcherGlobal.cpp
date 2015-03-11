@@ -98,8 +98,9 @@ void QueryTemplateMatcherGlobal::match(Sequence* seq){
     //Debug(Debug::WARNING) << match_num << " times.\n";
     // write statistics
     stats->doubleMatches = queryScore->getLocalResultSize();
-    stats->kmersPerPos = ((float)kmerListLen/(float)seq->L);
-    stats->dbMatches = queryScore->getNumMatches();
+    stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
+    stats->querySeqLen   = seq->L;
+    stats->dbMatches     = queryScore->getNumMatches();
 
 //    delete indexer;
 

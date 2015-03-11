@@ -104,6 +104,8 @@ class Sequence
 
     int getSequenceType()const;
 
+    unsigned int geEffectiveKmerSize();
+
 private:
         void mapProteinSequence(const char *seq);
         void mapNucleotideSequence(const char *seq);

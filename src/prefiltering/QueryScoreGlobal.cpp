@@ -48,6 +48,7 @@ QueryScoreGlobal::QueryScoreGlobal(size_t dbSize, unsigned int *dbSeqLens, int k
     counter = 0;
     s_per_match = 0.0f;
     s_per_pos = 0.0f;
+    localResultSize = 0;
 }
 
 QueryScoreGlobal::~QueryScoreGlobal(){

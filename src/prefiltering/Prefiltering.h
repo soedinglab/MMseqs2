@@ -7,6 +7,8 @@
 #include <string>
 #include <time.h>
 #include <sys/time.h>
+#include <stddef.h>
+#include <stdbool.h>
 
 #include "DBReader.h"
 #include "DBWriter.h"
@@ -121,16 +123,12 @@ class Prefiltering {
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults);
         // init QueryTemplateMatcher
-        QueryTemplateMatcher ** createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
-                unsigned int *seqLens,
-                short kmerThr, double kmerMatchProb,
-                int kmerSize, int dbSize,
-                bool aaBiasCorrection, int maxSeqLen,
-                float zscoreThr);
+        QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, unsigned int *seqLens, short kmerThr, double kmerMatchProb, int kmerSize, size_t dbSize, bool aaBiasCorrection, unsigned int maxSeqLen, float zscoreThr, bool isLocal);
     
     
         void printStatistics();
 
+    statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize, unsigned int *querySeqsIds, bool reverseQuery, size_t kmerThrMid);
 };
 
 #endif

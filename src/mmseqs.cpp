@@ -25,7 +25,8 @@ static struct Command commands[] = {
         {"swapresults", swapresults},
         {"extractorf", extractorf},
         {"createprofiledb", createprofiledb},
-        {"translatenucleotide", translatenucleotide}
+        {"translatenucleotide", translatenucleotide},
+        {"timetest", timetest}
 };
 
 

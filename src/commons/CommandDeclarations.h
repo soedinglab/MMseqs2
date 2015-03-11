@@ -16,5 +16,6 @@ extern int swapresults(int argc, const char **argv);
 extern int extractorf(int argc, const char **argv);
 extern int createprofiledb(int argc, const char **argv);
 extern int translatenucleotide(int argc, const char **argv);
+extern int timetest(int argc, const char **argv);
 
 #endif
