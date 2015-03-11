@@ -1,4 +1,3 @@
-#include <AppKit/AppKit.h>
 #include "TimeTest.h"
 #include "QueryTemplateMatcherGlobal.h"
 #include "QueryTemplateMatcherLocal.h"
