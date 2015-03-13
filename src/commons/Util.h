@@ -287,5 +287,19 @@ public:
         key[keySize] = '\0';
     }
 
+    static inline void parseByColumnNumber(char *data, char * key, int position) {
+        char * startPosOfKey = data;
+        for (int i = 0; i < position; ++i) {
+            startPosOfKey = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
+            startPosOfKey = startPosOfKey + Util::skipWhitespace(startPosOfKey);
+
+        }
+
+        char * endPosOfId    = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
+        ptrdiff_t keySize =  (endPosOfId - startPosOfKey);
+        strncpy(key, startPosOfKey, keySize);
+        key[keySize] = '\0';
+    }
+
 };
 #endif

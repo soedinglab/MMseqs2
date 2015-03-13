@@ -1,6 +1,7 @@
 #include "Clustering.h"
 #include "Util.h"
 #include <cstddef>
+#include <tic.h>
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
@@ -85,8 +86,27 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "Writing results...\n";
         writeData(ret);
         Debug(Debug::INFO) << "...done.\n";
-    }
-    else{
+    }else if (mode == Parameters::AFFINITY){
+        Debug(Debug::INFO) << "Clustering mode: AFFINITY\n";
+        Debug(Debug::INFO) << "Reading the data...\n";
+        set_data = read_in_set_data();
+
+        Debug(Debug::INFO) << "Init affinity clustering...\n";
+        AffinityClustering affinityClustering(set_data.set_count, set_data.uniqu_element_count, set_data.all_element_count,
+                set_data.element_size_lookup, set_data.similarities, set_data.sets, 500,0.5);
+
+
+
+        Debug(Debug::WARNING) << "Calculating the clustering...\n";
+        ret = affinityClustering.execute();
+        std::cout << "ret size: " << ret.size() << "\n";
+
+        Debug(Debug::INFO) << "done.\n";
+
+        Debug(Debug::INFO) << "Writing results...\n";
+        writeData(ret);
+        Debug(Debug::INFO) << "...done.\n";
+    } else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
         exit(EXIT_FAILURE);
     }
@@ -122,6 +142,7 @@ void Clustering::run(int mode){
     delete[] set_data.startElementsArray;
     delete[] set_data.weights;
     delete[] set_data.sets;
+    delete[] set_data.similarities;
     delete[] set_data.set_sizes;
     delete[] set_data.element_size_lookup;
 
@@ -212,6 +233,7 @@ Clustering::set_data Clustering::read_in_set_data(){
 
     // set element size lookup
     unsigned int * element_buffer = new unsigned int[n];
+    double * element_similarity_buffer = new double[n];
     unsigned int * element_size   = new unsigned int[n + 2];
     memset(element_size, 0, sizeof(unsigned int) * (n + 2));
     ret_struct.element_size_lookup = element_size;
@@ -221,6 +243,9 @@ Clustering::set_data Clustering::read_in_set_data(){
     // set sets
     unsigned int ** sets = new unsigned int*[m];
     ret_struct.sets = sets;
+    // similarities scores
+    double ** sets_similarities = new double*[m];
+    ret_struct.similarities = sets_similarities;
     // set weights
     unsigned short ** weights = new unsigned short*[m];
     ret_struct.weights = weights;
@@ -233,12 +258,14 @@ Clustering::set_data Clustering::read_in_set_data(){
     char * words[ELEMENTS_IN_RECORD];
     memset(words, 0, ELEMENTS_IN_RECORD*sizeof(char*));
     char * dbKey = new char[255+1];
+    char *similarity = new char[255+1];
 
     // count lines to know the target memory size
     const char * data = alnDbr->getData();
     size_t dataSize = alnDbr->getDataSize();
     size_t elementCount = Util::count_lines(data, dataSize);
     unsigned int * elements = new unsigned int[elementCount];
+    double * similarities = new double[elementCount];
     unsigned short * weight = new unsigned short[elementCount];
     std::fill_n(weight, elementCount, 1);
     size_t curr_start_pos = 0;
@@ -262,6 +289,7 @@ Clustering::set_data Clustering::read_in_set_data(){
         while (*data != '\0' && cnt < this->maxListLen)
         {
             Util::parseKey(data, dbKey);
+            Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
             size_t curr_element = seqDbr->getId(dbKey);
             if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()){
                 Debug(Debug::ERROR) << "ERROR: Element " << dbKey
@@ -270,6 +298,7 @@ Clustering::set_data Clustering::read_in_set_data(){
             }
             // add an edge
             // should be int because of memory constraints
+            element_similarity_buffer[element_counter] = atof(std::string(similarity).c_str());
             element_buffer[element_counter++] = (unsigned int) curr_element;
             element_size[curr_element]++;
             ret_struct.all_element_count++;
@@ -289,17 +318,22 @@ Clustering::set_data Clustering::read_in_set_data(){
         ret_struct.max_weight = std::max((unsigned short)element_counter, ret_struct.max_weight);
         // set pointer
         memcpy(elements + curr_start_pos, element_buffer, sizeof(unsigned int) * element_counter);
+        memcpy(similarities + curr_start_pos, element_similarity_buffer, sizeof(double) * element_counter);
         weights[i] = (weight + curr_start_pos);
         sets[i] = (elements + curr_start_pos);
+        sets_similarities[i] = (similarities + curr_start_pos);
         set_size[i] = element_counter;
         curr_start_pos += element_counter;
     }
     ret_struct.startElementsArray = elements;
     ret_struct.startWeightsArray = weight;
+    ret_struct.similarities=sets_similarities;
     if (empty > 0)
         Debug(Debug::WARNING) << empty << " input sets were empty!\n";
     delete [] element_buffer;
+    delete [] element_similarity_buffer;
     delete [] dbKey;
+    delete [] similarity;
     return ret_struct;
 }
 
