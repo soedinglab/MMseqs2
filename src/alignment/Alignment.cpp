@@ -157,7 +157,7 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
             }
 
             // calculate Smith-Waterman alignment
-            Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getAminoAcidDBSize(), evalThr, this->mode);
+            Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->mode);
             alignmentsNum++;
 
             if ((res.eval <= evalThr || (mode != Matcher::SCORE_ONLY && res.seqId == 1.0)) &&
