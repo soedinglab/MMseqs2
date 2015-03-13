@@ -19,7 +19,7 @@
 
 // IndexEntryLocal is an entry with possition and seqId for a kmer
 // strucutre needs to be packed or it will need 8 bytes instead of 6
-struct __attribute__((__packed__)) IndexEntryLocal {
+struct IndexEntryLocal {
     unsigned int seqId;
     unsigned short position_j;
 };
@@ -36,7 +36,7 @@ class IndexTable {
             this->skip = skip;
             this->sizeOfEntry = sizeOfEntry;
             tableSize = Util::ipow(alphabetSize, kmerSize);
-        
+            //std::cout << "Size of Entrie: " << sizeOfEntry << std::endl;
             table = new char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
             memset(table, 0, sizeof(char * ) * (tableSize + 1));
 
@@ -50,7 +50,8 @@ class IndexTable {
         virtual ~IndexTable(){
             deleteEntries();
             delete[] table;
-            delete idxer; }
+            delete idxer;
+        }
     
         void deleteEntries(){
             if(entries != NULL){
@@ -80,7 +81,7 @@ class IndexTable {
         template<typename T> inline T* getDBSeqList (int kmer, size_t* matchedListSize){
             const ptrdiff_t diff =  (table[kmer + 1] - table[kmer]) / sizeof( T );
             *matchedListSize = diff;
-            return (T *) table[kmer ];
+            return (T *) table[kmer];
         }
     
         // get pointer to entries array
@@ -92,7 +93,7 @@ class IndexTable {
         void initMemory(){
             // allocate memory for the sequence id lists
             // tablesSizes is added to put the Size of the entry infront fo the memory
-            entries = new char [(tableEntriesNum + 1) * this->sizeOfEntry]; // +1 for table[tableEntriesNum] pointer address
+            entries = new char [(tableEntriesNum + 1) * this->sizeOfEntry]; // +1 for table[tableSize] pointer address
         }
     
         // allocates memory for index tables
@@ -130,7 +131,8 @@ class IndexTable {
         }
     
         void revertPointer(){
-            for(size_t i = tableSize-1; i > 0;i--){
+            //TODO maybe not - 1
+            for(size_t i = tableSize - 1; i > 0; i--){
                 table[i] = table[i-1];
             }
             table[0] = entries;
@@ -149,7 +151,7 @@ class IndexTable {
             for(size_t j =0; j < top_N; j++)
                 topElements[j].first = 0;
             
-            for(size_t i = 0; i < tableSize-1 ;i++){
+            for(size_t i = 0; i < tableSize - 1; i++){
                 const ptrdiff_t size =  (table[i + 1] - table[i]) / this->sizeOfEntry;
                 minKmer = std::min(minKmer, (size_t)size);
                 entries += size;
