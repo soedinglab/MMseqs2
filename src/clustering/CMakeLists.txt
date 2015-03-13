@@ -1,4 +1,6 @@
 set(clustering_source_files
+  AffinityClustering.cpp
+  AffinityClustering.h
   Clustering.cpp
   Clustering.h
   LinearMultiArray.h

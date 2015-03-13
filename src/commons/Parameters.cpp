@@ -29,6 +29,7 @@ const MMseqsParameter Parameters::PARAM_C={16,"-c",                          "Mi
 const MMseqsParameter Parameters::PARAM_MAX_REJECTED={17,"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted"};
 // clustering
 const MMseqsParameter Parameters::PARAM_G={18,"-g","Greedy clustering by sequence length"};
+const MMseqsParameter Parameters::PARAM_A={28,"-a","Affinity clustering"};
 const MMseqsParameter Parameters::PARAM_MIN_SEQ_ID={19,"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
 const MMseqsParameter Parameters::PARAM_CASCADED={20,"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
 // logging
@@ -122,6 +123,9 @@ void Parameters::parseParameters(int argc, const char* pargv[],
     // clustering
         if (ops >> GetOpt::OptionPresent('g')) {
             clusteringMode = Parameters::GREEDY;
+        }
+        if (ops >> GetOpt::OptionPresent('a')) {
+            clusteringMode = Parameters::AFFINITY;
         }
         ops >> GetOpt::Option("min-seq-id", seqIdThr);
         if (ops >> GetOpt::OptionPresent("cascaded")){

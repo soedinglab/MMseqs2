@@ -24,6 +24,7 @@ public:
     
     static const int SET_COVER = 0;
     static const int GREEDY = 1;
+    static const int AFFINITY = 2;
     // COMMON
     const char** argv;            //command line parameters
     char argc;              //dimension of argv
@@ -123,6 +124,7 @@ public:
     //    "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
     // clustering
     //    "-g              \t[int]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
+    //    "-a              \t[int]\taffinity clustering (default: set cover clustering algorithm).\n"
     //    "--min-seq-id    \t[float]\tMinimum sequence identity of query to target cluster (default = 0.0)\n"
     const static MMseqsParameter PARAM_S;
     const static MMseqsParameter PARAM_K;
@@ -145,6 +147,7 @@ public:
     const static MMseqsParameter PARAM_MAX_REJECTED;
     // clustering
     const static MMseqsParameter PARAM_G;
+    const static MMseqsParameter PARAM_A;
     const static MMseqsParameter PARAM_MIN_SEQ_ID;
     const static MMseqsParameter PARAM_CASCADED;
     // logging

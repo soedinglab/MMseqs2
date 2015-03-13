@@ -220,7 +220,6 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
     }
     return matchers;
 }
-
 IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
     if(templateDBIsIndex == true ){
         return PrefilteringIndexReader::generateIndexTable(tidxdbr,split);
