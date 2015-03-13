@@ -19,7 +19,7 @@
 
 // IndexEntryLocal is an entry with possition and seqId for a kmer
 // strucutre needs to be packed or it will need 8 bytes instead of 6
-struct IndexEntryLocal {
+struct __attribute__((__packed__)) IndexEntryLocal {
     unsigned int seqId;
     unsigned short position_j;
 };
@@ -36,7 +36,7 @@ class IndexTable {
             this->skip = skip;
             this->sizeOfEntry = sizeOfEntry;
             tableSize = Util::ipow(alphabetSize, kmerSize);
-            //std::cout << "Size of Entrie: " << sizeOfEntry << std::endl;
+
             table = new char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
             memset(table, 0, sizeof(char * ) * (tableSize + 1));
 
