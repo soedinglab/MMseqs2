@@ -1,6 +1,7 @@
 #include <BaseMatrix.h>
 #include "Matcher.h"
 #include "Util.h"
+#include "smith_waterman_sse2.h"
 
 Matcher::Matcher(int maxSeqLen, BaseMatrix *m) {
     this->m = m;
@@ -50,8 +51,10 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     
     // calcuate stop score
     const double qL = static_cast<double>(currentQuery->L);
+    const double dbL = static_cast<double>(dbSeq->L);
+
     // avoid nummerical issues -log(evalThr/(qL*dbL*seqDbSize))
-    double datapoints = -log(static_cast<double>(seqDbSize)) - log(100) + log(evalThr);
+    double datapoints = -log(static_cast<double>(seqDbSize)) - log(qL) - log(dbL) + log(evalThr);
     uint16_t scoreThr = (uint16_t) (m->getBitFactor() * -(datapoints));
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
@@ -89,13 +92,18 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     dbStartPos = alignment->dbStartPos1;
     qEndPos = alignment->qEndPos1;
     dbEndPos = alignment->dbEndPos1;
+    // normalize score
+    alignment->score1 = alignment->score1 - log2(dbSeq->L);
     if(mode == SCORE_COV || mode == SCORE_COV_SEQID) {
         qcov = (std::min(currentQuery->L, (int) qEndPos) - qStartPos + 1) / (float) currentQuery->L;
         dbcov = (std::min(dbSeq->L, (int) dbEndPos) - dbStartPos + 1) / (float) dbSeq->L;
     }
     // 100 because the score is normalized
-    double evalue = ( static_cast<double>(100)) * pow (2.7182, ((double)(-alignment->score1)/(double)m->getBitFactor())); // fpow2((double)-s/m->getBitFactor());
-    evalue = evalue * (double)(seqDbSize);
+
+    // Karlin-Altschul statistics
+    //  E =  qL dL * exp(-S)
+    double evalue =  pow (exp(1), ((double)(-(alignment->score1)/(double)m->getBitFactor())));
+    evalue *= (qL * seqDbSize * dbSeq->L);
     result_t result(std::string(dbSeq->getDbKey()), alignment->score1, qcov, dbcov, seqId, evalue);
     delete [] alignment->cigar;
     delete alignment;

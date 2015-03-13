@@ -57,6 +57,7 @@ public:
     // PREFILTER
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
+    int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
     float  zscoreThr;                    // z score threshold for global matching
     bool   localSearch;                  // Local search type
@@ -141,6 +142,7 @@ public:
     const static MMseqsParameter PARAM_SEARCH_MODE;
     const static MMseqsParameter PARAM_NO_COMP_BIAS_CORR;
     const static MMseqsParameter PARAM_NO_SPACED_KMER;
+    const static MMseqsParameter PARAM_K_SCORE;
     // alignment
     const static MMseqsParameter PARAM_E;
     const static MMseqsParameter PARAM_C;
