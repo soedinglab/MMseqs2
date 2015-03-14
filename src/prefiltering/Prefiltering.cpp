@@ -190,12 +190,10 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs){
 }
 
 
-QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
-                                                                 unsigned int *seqLens, short kmerThr,
-                                                                 double kmerMatchProb, int kmerSize, size_t dbSize,
-                                                                 bool aaBiasCorrection, unsigned int maxSeqLen, float zscoreThr,
-                                                                 bool isLocal) {
-    QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
+QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, unsigned int *seqLens, short kmerThr, double kmerMatchProb,
+        int kmerSize, size_t effectiveKmerSize, size_t dbSize, bool aaBiasCorrection, unsigned int maxSeqLen,
+        float zscoreThr, bool isLocal, size_t maxHitsPerQuery) {
+    QueryTemplateMatcher** matchers = new QueryTemplateMatcher *[threads];
 
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < this->threads; i++){
@@ -205,12 +203,12 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
 #endif
         if (isLocal) {
             matchers[thread_idx] = new QueryTemplateMatcherLocal(m, indexTable, seqLens, kmerThr,
-                                                                  kmerMatchProb, kmerSize, dbSize,
-                                                                  aaBiasCorrection, maxSeqLen, zscoreThr);
+                                                                  kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
+                                                                  aaBiasCorrection, maxSeqLen, maxHitsPerQuery);
 
         }else{
             matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
-                                                                  kmerMatchProb, kmerSize, dbSize,
+                                                                  kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
                                                                   aaBiasCorrection, maxSeqLen, zscoreThr);
         }
         if(querySeqType == Sequence::HMM_PROFILE){
@@ -263,10 +261,8 @@ void Prefiltering::run (size_t split, size_t splitCount,
     struct timeval start, end;
 
     gettimeofday(&start, NULL);
-    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable,
-            tdbr->getSeqLens(), kmerThr,
-            kmerMatchProb, kmerSize, tdbr->getSize(),
-            aaBiasCorrection, maxSeqLen, zscoreThr, isLocal);
+    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThr, kmerMatchProb,
+            kmerSize, qseq[0]->getEffectiveKmerSize(), tdbr->getSize(), aaBiasCorrection, maxSeqLen, zscoreThr, isLocal, maxResListLen);
 
     size_t kmersPerPos = 0;
     size_t dbMatches = 0;
@@ -512,7 +508,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
     size_t targetDbSize = indexTable->getSize();
     size_t targetSeqLenSum = 0;
     for (size_t i = 0; i < targetDbSize; i++){
-        targetSeqLenSum += (tdbr->getSeqLens()[i] - qseq[0]->geEffectiveKmerSize());
+        targetSeqLenSum += (tdbr->getSeqLens()[i] - qseq[0]->getEffectiveKmerSize());
     }
     // generate a small random sequence set for testing
     size_t querySetSize = std::min ( tdbr->getSize(), (size_t) 1000);
@@ -592,7 +588,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
         if(isLocal == true) {
             stats = computeStatisticForKmerThreshold(indexTable, querySetSize, querySeqs, true, kmerThrMid);
             // match probability with pseudocounts
-            stats.querySeqLen -= (querySetSize * qseq[0]->geEffectiveKmerSize());
+            stats.querySeqLen -= (querySetSize * qseq[0]->getEffectiveKmerSize());
             kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
             kmerMatchProb = kmerMatchProb / 256.0;
         } else {
@@ -647,9 +643,8 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
 statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,
                                                             unsigned int *querySeqsIds, bool reverseQuery, size_t kmerThrMid) {
     // determine k-mer match probability for kmerThrMid
-    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid,
-            1.0, kmerSize, tdbr->getSize(), aaBiasCorrection,
-            maxSeqLen, 500.0, isLocal);
+    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid, 1.0,
+            kmerSize, qseq[0]->getEffectiveKmerSize(), tdbr->getSize(), aaBiasCorrection, maxSeqLen, 500.0, isLocal, LONG_MAX);
     size_t dbMatchesSum = 0;
     size_t doubleMatches = 0;
     size_t querySeqLenSum = 0;

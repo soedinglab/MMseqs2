@@ -15,7 +15,7 @@
 class QueryScoreLocal : public QueryScore {
     
 public:
-    QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr, size_t binSize);
+    QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, size_t maxHitsPerQuery);
     
     ~QueryScoreLocal();
     
@@ -30,6 +30,6 @@ public:
 
 private:
 
-    unsigned int * seqsLens;
+    size_t maxHitsPerQuery;
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */

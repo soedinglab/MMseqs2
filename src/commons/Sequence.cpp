@@ -335,6 +335,6 @@ int Sequence::getSequenceType() const {
     return seqType;
 }
 
-unsigned int Sequence::geEffectiveKmerSize() {
+unsigned int Sequence::getEffectiveKmerSize() {
     return spacedPatternSize;
 }

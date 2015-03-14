@@ -53,7 +53,7 @@ void TimeTest::runTimeTest (){
     std::ofstream logFileStream;
     logFileStream.open(logFile.c_str());
 
-    QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
+    QueryTemplateMatcher** matchers = new QueryTemplateMatcher *[threads];
 
     size_t targetSeqLenSum = 0;
     for (size_t i = 0; i < tdbr->getSize(); i++)
@@ -126,10 +126,10 @@ void TimeTest::runTimeTest (){
 #endif
                             // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
                             if(isLocal == 1){
-                                matchers[thread_idx] = new QueryTemplateMatcherLocal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
+                                matchers[thread_idx] = new QueryTemplateMatcherLocal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, seqs[0]->getEffectiveKmerSize(), tdbr->getSize(), false, maxSeqLen, 300);
                             }
                             else{
-                                matchers[thread_idx] = new QueryTemplateMatcherGlobal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
+                                matchers[thread_idx] = new QueryTemplateMatcherGlobal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, seqs[0]->getEffectiveKmerSize(), tdbr->getSize(), false, maxSeqLen, 500.0);
                             }
                             matchers[thread_idx]->setSubstitutionMatrix(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix );
                         }

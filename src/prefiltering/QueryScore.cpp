@@ -1,14 +1,12 @@
+#include <stddef.h>
 #include "QueryScore.h"
 #include "simd.h"
 
 
-QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, int k, short kmerThr,
-        float kmerMatchProb, float zscoreThr){
-    
+QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, int seedLength, short kmerThr, float kmerMatchProb) {
     this->dbSize = dbSize;
     this->kmerMatchProb = kmerMatchProb;
     this->kmerThr = kmerThr;
-    this->zscore_thr = zscoreThr;
     this->scores_128_size = (dbSize + SIMD_SHORT_SIZE -1)/ SIMD_SHORT_SIZE * SIMD_SHORT_SIZE;
     // 8 DB short int entries are stored in one __m128i vector
     // one __m128i vector needs 16 byte
@@ -20,9 +18,24 @@ QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, int k, short kmer
     this->resList = (hit_t *) mem_align(ALIGN_INT, MAX_RES_LIST_LEN * sizeof(hit_t) );
     
     scoresSum = 0;
-    
     numMatches = 0;
-    
+
+    // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
+    this->seqLens = new float[scores_128_size];
+    memset (seqLens, 0, scores_128_size * sizeof(float));
+
+    for (size_t i = 0; i < dbSize; i++){
+        if (dbSeqLens[i] > (seedLength - 1))
+            this->seqLens[i] = (float) (dbSeqLens[i] - seedLength + 1);
+        else
+            this->seqLens[i] = 1.0f;
+    }
+
+    this->seqLenSum = 0.0f;
+    for (size_t i = 0; i < dbSize; i++)
+        this->seqLenSum += this->seqLens[i];
+
+
 }
 
 QueryScore::~QueryScore (){

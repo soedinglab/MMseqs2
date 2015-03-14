@@ -3,17 +3,17 @@
 #include "QueryTemplateMatcher.h"
 
 QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m,
-                                                     IndexTable *indexTable,
-                                                     unsigned int *seqLens,
-                                                     short kmerThr,
-                                                     double kmerMatchProb,
-                                                     int kmerSize,
-                                                     int dbSize,
-                                                     bool aaBiasCorrection,
-                                                     int maxSeqLen,
-                                                     float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                                                                kmerSize, dbSize, aaBiasCorrection, maxSeqLen, zscoreThr) {
-    this->queryScore = new QueryScoreLocal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr, 262144);
+        IndexTable *indexTable,
+        unsigned int *seqLens,
+        short kmerThr,
+        double kmerMatchProb,
+        int kmerSize,
+        size_t effectiveKmerSize,
+        size_t dbSize,
+        bool aaBiasCorrection,
+        unsigned int maxSeqLen,
+        size_t maxHitsPerQuery) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, aaBiasCorrection, maxSeqLen) {
+    this->queryScore = new QueryScoreLocal(dbSize, seqLens, effectiveKmerSize, kmerThr, kmerMatchProb, maxHitsPerQuery);
 }
 
 
@@ -27,7 +27,6 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherLocal::matchQuery (Sequence * seq
     
     match(seq);
 
-
 //    queryScore->setPrefilteringThresholds();
     
     return queryScore->getResult(seq->L,0);
@@ -38,13 +37,8 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
     IndexEntryLocal* entries;
     size_t indexTabListSize = 0;
     // go through the query sequence
-    int kmerListLen = 0;
-    
-    float biasCorrection = 0;
-    for (int i = 0; i < kmerSize && i < seq->L; i++)
-        biasCorrection += deltaS[i];
-    
-    
+    size_t kmerListLen = 0;
+
     unsigned int pos = 0;
     short zero = 0;
     while(seq->hasNextKmer()){
@@ -54,14 +48,8 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
         kmerListLen += kmerList.elementSize;
         // match the index table
         //        int pos_matched = 0;
-        short biasCorrection_short = (short) biasCorrection;
         for (unsigned int i = 0; i < kmerList.elementSize; i++){
-            // avoid unsigned short overflow
-            short kmerMatchScore = kmerList.score[i] + biasCorrection_short;
-            // avoid unsigned short overflow
-            kmerMatchScore = std::max(kmerMatchScore, zero);
-            
-            
+
             entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[i], &indexTabListSize);
             
             /*            if (seq->getId() == 1 && pos == 2 ){
@@ -85,7 +73,7 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
             // add the scores for the k-mer to the overall score for this query sequence
             // for the overall score, bit/2 is a sufficient sensitivity and we can use the capacity of unsigned short max score in QueryScore better
             // std::cout << "i: " << seq->getCurrentPosition() << std::endl;
-            queryScore->addScoresLocal(entries, seq->getCurrentPosition(), indexTabListSize, kmerMatchScore/4);
+            queryScore->addScoresLocal(entries, seq->getCurrentPosition(), indexTabListSize);
         }
         pos++;
     }
