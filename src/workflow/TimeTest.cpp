@@ -91,7 +91,7 @@ void TimeTest::runTimeTest (){
 
         for(int isSpaced = 0; isSpaced < 2; isSpaced++ ){
             for(int isLocal = 0; isLocal < 2; isLocal++ ){
-                for (int kmerSize = 5; kmerSize <= 7; kmerSize++){
+                for (int kmerSize = 6; kmerSize <= 7; kmerSize++){
 #pragma omp parallel for schedule(static)
                     for (int i = 0; i < threads; i++){
                         int thread_idx = 0;
@@ -184,7 +184,7 @@ void TimeTest::runTimeTest (){
                         logFileStream << kmersPerPos << "\t" << kmerMatchProb << "\t" <<  dbMatchesSum << "\t" << doubleMatches << "\t" << kmerSize << "\t" << alphabetSize << "\t" << isSpaced << "\t" << isLocal << "\t"  << sec << "\n";
 
                         // running time for the next step will be too long
-                        if (sec >= 300){
+                        if (sec >= 1200){
                             std::cout << "Time >= 300 sec, going to the next parameter combination.\n";
                             break;
                         }

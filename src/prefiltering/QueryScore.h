@@ -50,10 +50,8 @@ public:
             const unsigned char currDiagonal = i - entry.position_j;
             const unsigned char dbDiagonal = data[seqIndex];
             const unsigned char oldScore   = data[seqIndex + 1];
-            const unsigned char scoreToAdd = (UNLIKELY(currDiagonal >= dbDiagonal - 1) && UNLIKELY(currDiagonal <= dbDiagonal + 1 ) && LIKELY(oldScore < 255)) ? 1 : 0;
+            const unsigned char scoreToAdd = (UNLIKELY(currDiagonal == dbDiagonal) && LIKELY(oldScore < 255)) ? 1 : 0;
             const unsigned char newScore = oldScore + scoreToAdd;
-            localResultSize[oldScore] -= 1;
-            localResultSize[newScore] += 1;
             data[seqIndex]     = currDiagonal;
             data[seqIndex + 1] = newScore;
         }
@@ -68,10 +66,10 @@ public:
 //            const unsigned int seqId = entry.seqId;
 //            const unsigned char diagonal = i - j + 256;
 //            if (UNLIKELY(diagonal == scores[seqId])){
-//                if(UNLIKELY(localResultSize >= MAX_LOCAL_RESULT_SIZE)){
+//                if(UNLIKELY(scoreSizes >= MAX_LOCAL_RESULT_SIZE)){
 //                    break;
 //                }
-//                LocalResult * currLocalResult = localResults + localResultSize++;
+//                LocalResult * currLocalResult = localResults + scoreSizes++;
 //                currLocalResult->seqId = seqId;
 //                currLocalResult->score = score;
 //            } else {
@@ -113,7 +111,7 @@ public:
     size_t getLocalResultSize(){
         size_t retValue = 0;
         for(size_t i = 1; i < SCORE_RANGE; i++){
-            retValue += localResultSize[i] * i;
+            retValue += scoreSizes[i] * i;
         }
         return retValue;
     }
@@ -132,7 +130,7 @@ protected:
     const unsigned int SIMD_SHORT_SIZE = VECSIZE_INT * 2;  // *2 for short
 
     // current position in Localresults while adding Score
-    unsigned int * localResultSize;
+    unsigned int *scoreSizes;
     const static size_t SCORE_RANGE = 256;
 
     // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)

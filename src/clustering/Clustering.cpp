@@ -1,7 +1,6 @@
 #include "Clustering.h"
 #include "Util.h"
 #include <cstddef>
-#include <tic.h>
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
