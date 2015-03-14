@@ -7,19 +7,57 @@ QueryTemplateMatcherGlobal::QueryTemplateMatcherGlobal(BaseMatrix *m,
         short kmerThr,
         double kmerMatchProb,
         int kmerSize,
-        int dbSize,
+        size_t effectiveKmerSize,
+        size_t dbSize,
         bool aaBiasCorrection,
         int maxSeqLen,
-        float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                            kmerSize, dbSize, aaBiasCorrection, maxSeqLen, zscoreThr) {
-    this->queryScore = new QueryScoreGlobal(dbSize, seqLens, kmerSize, kmerThr, kmerMatchProb, zscoreThr);
+        float zscoreThr) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, aaBiasCorrection, maxSeqLen) {
+    this->queryScore = new QueryScoreGlobal(dbSize, seqLens, effectiveKmerSize, kmerThr, kmerMatchProb, zscoreThr);
+    this->deltaS = new float[maxSeqLen];
+    memset(this->deltaS, 0, maxSeqLen * sizeof(float));
 
 }
 
 
 QueryTemplateMatcherGlobal::~QueryTemplateMatcherGlobal(){
     delete queryScore;
+    delete [] deltaS;
 }
+
+// calculate local amino acid bias correction score for each position in the sequence
+void QueryTemplateMatcherGlobal::calcLocalAaBiasCorrection(Sequence* seq){
+    int windowSize = 40;
+    if (seq->L < windowSize + 1)
+        memset(this->deltaS, 0, seq->L * sizeof(float));
+    else{
+        float deltaS_i;
+        int minPos;
+        int maxPos;
+        int _2d;
+        // calculate local amino acid bias
+        for (int i = 0; i < seq->L; i++){
+            deltaS_i = 0.0;
+            minPos = std::max(0, (i - windowSize/2));
+            maxPos = std::min(seq->L, (i + windowSize/2));
+            _2d = maxPos - minPos;
+
+            // negative score for the amino acids in the neighborhood of i
+            for (int j = minPos; j < maxPos; j++){
+                if (j != i){
+                    deltaS_i += m->subMatrix[seq->int_sequence[i]][seq->int_sequence[j]];
+                }
+            }
+            deltaS_i /= -1.0 * _2d;
+            // positive score for the background score distribution for i
+            for (int a = 0; a < m->alphabetSize; a++)
+                deltaS_i += m->pBack[a] * m->subMatrix[seq->int_sequence[i]][a];
+
+            deltaS[i] = deltaS_i;
+        }
+    }
+}
+
+
 
 std::pair<hit_t *, size_t> QueryTemplateMatcherGlobal::matchQuery (Sequence * seq, unsigned int identityId){
     queryScore->reset();
@@ -97,7 +135,7 @@ void QueryTemplateMatcherGlobal::match(Sequence* seq){
     //Debug(Debug::WARNING) << " matched at " << match_pos << " positions. ";
     //Debug(Debug::WARNING) << match_num << " times.\n";
     // write statistics
-    stats->doubleMatches = queryScore->getLocalResultSize();
+    stats->doubleMatches = 0;
     stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
     stats->querySeqLen   = seq->L;
     stats->dbMatches     = queryScore->getNumMatches();
