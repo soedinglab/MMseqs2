@@ -9,7 +9,6 @@
 #include <sys/time.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <Kernel/stdbool.h>
 
 #include "DBReader.h"
 #include "DBWriter.h"

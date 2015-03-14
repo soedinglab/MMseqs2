@@ -28,6 +28,8 @@ public:
     // NOT needed for Local scoring
     void setPrefilteringThresholds();
 
+    void updateScoreBins();
+
 private:
 
     size_t maxHitsPerQuery;

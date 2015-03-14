@@ -11,20 +11,20 @@
 QueryScoreLocal::QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, size_t maxHitsPerQuery)
 : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb)    // Call the QueryScore constructor
 {
-    this->localResultSize = new unsigned int[SCORE_RANGE];
-    memset(localResultSize, 0, SCORE_RANGE * sizeof(unsigned int));
+    this->scoreSizes = new unsigned int[SCORE_RANGE];
+    memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
     this->maxHitsPerQuery = maxHitsPerQuery;
 }
 
 QueryScoreLocal::~QueryScoreLocal(){
-    delete [] localResultSize;
+    delete [] scoreSizes;
 }
 
 void QueryScoreLocal::reset() {
 //    memset (scores_128, 0, scores_128_size * 2);
     scoresSum = 0;
     numMatches = 0;
-    memset(localResultSize, 0, SCORE_RANGE * sizeof(unsigned int));
+    memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
 }
 
 void QueryScoreLocal::setPrefilteringThresholds() { }
@@ -33,7 +33,7 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned
     size_t foundHits = 0;
     size_t scoreThr = 0;
     for(scoreThr = SCORE_RANGE - 1; scoreThr > 0 ; scoreThr--){
-        foundHits += localResultSize[scoreThr];
+        foundHits += scoreSizes[scoreThr];
         if(foundHits >= maxHitsPerQuery)
             break;
     }
@@ -74,7 +74,7 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned
 
                     //result->zScore = (rawScore);
                     result->prefScore = rawScore;
-                    //localResultSize += rawScore;
+                    //scoreSizes += rawScore;
                     elementCounter++;
                     if(elementCounter >= MAX_RES_LIST_LEN){
                         // because the memset will not be finished
@@ -91,4 +91,11 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned
     std::sort(resList, resList + elementCounter, compareHits);
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
     return pair;
+}
+
+void QueryScoreLocal::updateScoreBins() {
+    unsigned char * data =  (unsigned char *) scores;
+    for(size_t i = 0; i < dbSize; i++){
+        scoreSizes[data[(i * 2) + 1]]++;
+    }
 }
