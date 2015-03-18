@@ -30,4 +30,11 @@ MPIARGS="-np 32"
 #wait $(<${OUTDB}_hhm.pid) $(<${OUTDB}_cs219.pid)
 #rm -f ${OUTDB}_hhm.pid ${OUTDB}_cs219.pid
 
+# generate files for legacy hh-suite compatibility
+mmseqs legacycs219 ${OUTDB}_cs219 ${OUTDB}_a3m ${OUTDB}
 
+ln -s ${OUTDB}_a3m.ffdata ${OUTDB}__a3m_db
+ln -s ${OUTDB}_hhm.ffdata ${OUTDB}_hhm_db
+
+awk '{print $1".a3m\t"$2"\t"$3}' ${OUTDB}_a3m.ffindex > ${OUTDB}_a3m_db.index
+awk '{print $1".hhm\t"$2"\t"$3}' ${OUTDB}_hhm.ffindex > ${OUTDB}_hhm_db.index
