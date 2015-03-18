@@ -3,11 +3,10 @@
 #include <iostream>
 #include <fstream>
 
-#include <sys/stat.h>
-
-
 #include "DBReader.h"
 #include "Debug.h"
+
+#include "Util.h"
 
 void printUsageCusteringToFasta(){
     std::string usage("\nConvert a mmseqs ffindex clustering to an clustering fasta format.\n");
@@ -30,15 +29,6 @@ void parseArgs(int argc, const char** argv,
     fastaHeaderInDB->assign(argv[2]);
     fastaBodyInDB->assign(argv[3]);
     msaOutDB->assign(argv[4]);
-}
-
-FILE* openFileOrDie(const char * fileName, const char * mode) {
-	struct stat st;
-	FILE* file;
-    if(stat(fileName, &st) == 0) { errno = EEXIST; perror(fileName); exit(EXIT_FAILURE); }
-    file = fopen(fileName, mode);
-    if(file == NULL) { perror(fileName); exit(EXIT_FAILURE); }
-	return file;
 }
 
 int clusteringtofastadb (int argc, const char **argv)
@@ -64,8 +54,8 @@ int clusteringtofastadb (int argc, const char **argv)
     
 	std::string msaOutIndex = std::string(msaOutDB + ".index");
 
-	FILE* msaData  = openFileOrDie(msaOutDB.c_str(), "w");
-	FILE* msaIndex = openFileOrDie(msaOutIndex.c_str(), "w+");
+	FILE* msaData  = Util::openFileOrDie(msaOutDB.c_str(), "w");
+	FILE* msaIndex = Util::openFileOrDie(msaOutIndex.c_str(), "w+");
 
     Debug(Debug::WARNING) << "Start writing file to " << msaOutDB << "\n";
     
