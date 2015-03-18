@@ -26,7 +26,8 @@ static struct Command commands[] = {
         {"extractorf", extractorf},
         {"createprofiledb", createprofiledb},
         {"translatenucleotide", translatenucleotide},
-        {"timetest", timetest}
+        {"timetest", timetest},
+        {"legacycs219", legacycs219}
 };
 
 
@@ -49,6 +50,7 @@ void printUsage() {
             "mergeffindex       \tMerge multiple ffindex files based on similar id into one file\n"
             "extractorf         \tExtract all open reading frames from a nucleotide fasta file into a ffindex database\n"
             "translatenucleotide\tTranslate nucleotide sequences into aminoacid sequences in a ffindex database\n"
+            "legacycs219        \tTranslates a cs219 ffindex database into its legacy format. This tool is part of the mmseqs-based HH-suite database pipeline"
     );
     Debug(Debug::INFO) << usage;
 }

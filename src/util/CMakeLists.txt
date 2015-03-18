@@ -8,6 +8,7 @@ set(util_source_files
   ffindex_swap_results.cpp
   extract_orf.cpp
   translate_nucleotide.cpp
+  legacycs219.cpp
 )
 add_library(util ${util_source_files})
 
