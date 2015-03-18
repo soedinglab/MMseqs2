@@ -29,6 +29,7 @@ const MMseqsParameter Parameters::PARAM_C={16,"-c",                          "Mi
 const MMseqsParameter Parameters::PARAM_MAX_REJECTED={17,"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted"};
 // clustering
 const MMseqsParameter Parameters::PARAM_G={18,"-g","Greedy clustering by sequence length"};
+const MMseqsParameter Parameters::PARAM_A={28,"-a","Affinity clustering"};
 const MMseqsParameter Parameters::PARAM_MIN_SEQ_ID={19,"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
 const MMseqsParameter Parameters::PARAM_CASCADED={20,"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
 // logging
@@ -41,6 +42,7 @@ const MMseqsParameter Parameters::PARAM_STEP={23, "--step","[int]\t\tRestart the
 const MMseqsParameter Parameters::PARAM_ORF_MIN_LENGTH={24, "--min-length","[int]\t\tMinimum length of open reading frame to be extracted from fasta file"};
 const MMseqsParameter Parameters::PARAM_ORF_MAX_LENGTH={25, "--max-length","[int]\t\tMaximum length of open reading frame to be extracted from fasta file."};
 const MMseqsParameter Parameters::PARAM_ORF_MAX_GAP={26, "--max-gaps","[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected"};
+const MMseqsParameter Parameters::PARAM_K_SCORE={27,"--k-score","[int]\tSet the K-mer threshold for the K-mer generation"};
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -65,6 +67,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
     {
         ops >> GetOpt::Option('s', sensitivity);
         ops >> GetOpt::Option('k', kmerSize);
+        ops >> GetOpt::Option("k-score", kmerScore);
         ops >> GetOpt::Option("threads",     threads);
         ops >> GetOpt::Option("max-seq-len", maxSeqLen);
         ops >> GetOpt::Option("alph-size",   alphabetSize);
@@ -122,6 +125,9 @@ void Parameters::parseParameters(int argc, const char* pargv[],
     // clustering
         if (ops >> GetOpt::OptionPresent('g')) {
             clusteringMode = Parameters::GREEDY;
+        }
+        if (ops >> GetOpt::OptionPresent('a')) {
+            clusteringMode = Parameters::AFFINITY;
         }
         ops >> GetOpt::Option("min-seq-id", seqIdThr);
         if (ops >> GetOpt::OptionPresent("cascaded")){
@@ -289,6 +295,12 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 else
                     Debug(Debug::WARNING) << "Cluster mode:             " << "single" << "\n";
                 break;
+            case 27:
+                if(this->kmerScore != INT_MAX)
+                    Debug(Debug::WARNING) << "K-score:             " << this->kmerScore << "\n";
+                else
+                    Debug(Debug::WARNING) << "K-score:             " << "auto" << "\n";
+                break;
             default:
                 break;
         }
@@ -326,6 +338,7 @@ void Parameters::setDefaults() {
     scoringMatrixFile = scoringMatrixFile + "/data/blosum62.out";
     
     kmerSize =  6;
+    kmerScore = INT_MAX;
     alphabetSize = 21;
     maxSeqLen = 50000;
     maxResListLen = 300;

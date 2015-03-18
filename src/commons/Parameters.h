@@ -24,6 +24,7 @@ public:
     
     static const int SET_COVER = 0;
     static const int GREEDY = 1;
+    static const int AFFINITY = 2;
     // COMMON
     const char** argv;            //command line parameters
     char argc;              //dimension of argv
@@ -56,6 +57,7 @@ public:
     // PREFILTER
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
+    int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
     float  zscoreThr;                    // z score threshold for global matching
     bool   localSearch;                  // Local search type
@@ -123,6 +125,7 @@ public:
     //    "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
     // clustering
     //    "-g              \t[int]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
+    //    "-a              \t[int]\taffinity clustering (default: set cover clustering algorithm).\n"
     //    "--min-seq-id    \t[float]\tMinimum sequence identity of query to target cluster (default = 0.0)\n"
     const static MMseqsParameter PARAM_S;
     const static MMseqsParameter PARAM_K;
@@ -139,12 +142,14 @@ public:
     const static MMseqsParameter PARAM_SEARCH_MODE;
     const static MMseqsParameter PARAM_NO_COMP_BIAS_CORR;
     const static MMseqsParameter PARAM_NO_SPACED_KMER;
+    const static MMseqsParameter PARAM_K_SCORE;
     // alignment
     const static MMseqsParameter PARAM_E;
     const static MMseqsParameter PARAM_C;
     const static MMseqsParameter PARAM_MAX_REJECTED;
     // clustering
     const static MMseqsParameter PARAM_G;
+    const static MMseqsParameter PARAM_A;
     const static MMseqsParameter PARAM_MIN_SEQ_ID;
     const static MMseqsParameter PARAM_CASCADED;
     // logging

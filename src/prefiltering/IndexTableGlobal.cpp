@@ -1,7 +1,7 @@
 	#include "IndexTableGlobal.h"
 
 IndexTableGlobal::IndexTableGlobal (int alphabetSize, int kmerSize, int skip)
-                    : IndexTable(alphabetSize, kmerSize, skip, sizeof(int)) { }
+                    : IndexTable(alphabetSize, kmerSize, skip, sizeof(unsigned int)) { }
 
 IndexTableGlobal::~IndexTableGlobal(){ }
 
@@ -49,14 +49,13 @@ void IndexTableGlobal::removeDuplicateEntries(){
         std::sort(entriesRead, entriesRead + size);
         // remove duplicates in-place
         entriesWrite[writePostion++] = entriesRead[0]; // copy first element
-        for (int i = 1; i < size; i++){
+        for (size_t i = 1; i < size; i++){
             if (entriesRead[i] != entriesRead[i-1])
                 entriesWrite[writePostion++] = entriesRead[i];
         }
     }
     // set pointer to last element
     table[tableSize] = (char *) (entriesWrite + writePostion);
-
 }
 
 void IndexTableGlobal::print(char * int2aa){

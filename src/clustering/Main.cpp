@@ -13,6 +13,7 @@ int cluster(int argc, const char ** argv)
     usage.append("USAGE: mmseqs_clu <sequenceDB> <alnResultsDB> <outDB> [opts]\n");
     std::vector<MMseqsParameter> perfPar = {
         Parameters::PARAM_G,
+        Parameters::PARAM_A,
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_V};
     Parameters par;

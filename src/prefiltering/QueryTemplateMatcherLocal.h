@@ -13,10 +13,11 @@ class QueryTemplateMatcherLocal : public virtual  QueryTemplateMatcher {
                 short kmerThr,
                 double kmerMatchProb,
                 int kmerSize,
-                int dbSize,
+                size_t effectiveKmerSize,
+                size_t dbSize,
                 bool aaBiasCorrection,
-                int maxSeqLen,
-                float zscoreThr);
+                unsigned int maxSeqLen,
+                size_t maxHitsPerQuery);
         ~QueryTemplateMatcherLocal ();
 
         // returns result for the sequence
