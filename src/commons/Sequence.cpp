@@ -264,6 +264,24 @@ void Sequence::printProfile(){
 }
 
 void Sequence::reverse() {
+    if(seqType == HMM_PROFILE){
+        short        tmpScore[PROFILE_AA_SIZE*4];
+        unsigned int tmpIndex[PROFILE_AA_SIZE*4];
+
+        int i_curr = 0 * profile_row_size;
+        int j_curr = (this->L - 1)  * profile_row_size;
+
+        for (size_t i = 0; i < this->L/2; i++) {
+            memcpy(&tmpScore[0], profile_score + i_curr, profile_row_size * sizeof(short));
+            memcpy(&tmpIndex[0], profile_index + i_curr, profile_row_size * sizeof(unsigned int));
+            memcpy(profile_score + i_curr, profile_score + j_curr, profile_row_size * sizeof(short));
+            memcpy(profile_index + i_curr, profile_index + j_curr, profile_row_size * sizeof(unsigned int));
+            memcpy(profile_score + j_curr, &tmpScore[0], profile_row_size * sizeof(short));
+            memcpy(profile_index + j_curr, &tmpIndex[0], profile_row_size * sizeof(unsigned int));
+            i_curr += profile_row_size;
+            j_curr -= profile_row_size;
+        }
+    }
     std::reverse(int_sequence, int_sequence + this->L); // reverse sequence
 }
 
@@ -317,6 +335,6 @@ int Sequence::getSequenceType() const {
     return seqType;
 }
 
-unsigned int Sequence::geEffectiveKmerSize() {
+unsigned int Sequence::getEffectiveKmerSize() {
     return spacedPatternSize;
 }

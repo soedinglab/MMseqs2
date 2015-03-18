@@ -89,6 +89,7 @@ class Prefiltering {
         std::string outDBIndex;
         // parameter
         int kmerSize;
+        int kmerScore;
         bool spacedKmer;
         float sensitivity;
         size_t maxResListLen;
@@ -116,14 +117,12 @@ class Prefiltering {
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
-        std::pair<short,double> setKmerThreshold(IndexTable * indexTable,
-                                                 DBReader* qdbr, DBReader* tdbr,
-                                                 double targetKmerMatchProb, double toleratedDeviation);
+        std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader *qdbr, DBReader *tdbr, float targetKmerMatchProb, double toleratedDeviation, int b);
         std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb);
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults);
         // init QueryTemplateMatcher
-        QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, unsigned int *seqLens, short kmerThr, double kmerMatchProb, int kmerSize, size_t dbSize, bool aaBiasCorrection, unsigned int maxSeqLen, float zscoreThr, bool isLocal);
+        QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, unsigned int *seqLens, short kmerThr, double kmerMatchProb, int kmerSize, size_t effectiveKmerSize, size_t dbSize, bool aaBiasCorrection, unsigned int maxSeqLen, float zscoreThr, bool isLocal, size_t maxHitsPerQuery);
     
     
         void printStatistics();

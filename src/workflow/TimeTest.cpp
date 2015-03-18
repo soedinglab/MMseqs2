@@ -53,7 +53,7 @@ void TimeTest::runTimeTest (){
     std::ofstream logFileStream;
     logFileStream.open(logFile.c_str());
 
-    QueryTemplateMatcher** matchers = new QueryTemplateMatcher*[threads];
+    QueryTemplateMatcher** matchers = new QueryTemplateMatcher *[threads];
 
     size_t targetSeqLenSum = 0;
     for (size_t i = 0; i < tdbr->getSize(); i++)
@@ -91,7 +91,7 @@ void TimeTest::runTimeTest (){
 
         for(int isSpaced = 0; isSpaced < 2; isSpaced++ ){
             for(int isLocal = 0; isLocal < 2; isLocal++ ){
-                for (int kmerSize = 5; kmerSize <= 7; kmerSize++){
+                for (int kmerSize = 6; kmerSize <= 7; kmerSize++){
 #pragma omp parallel for schedule(static)
                     for (int i = 0; i < threads; i++){
                         int thread_idx = 0;
@@ -126,10 +126,10 @@ void TimeTest::runTimeTest (){
 #endif
                             // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
                             if(isLocal == 1){
-                                matchers[thread_idx] = new QueryTemplateMatcherLocal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
+                                matchers[thread_idx] = new QueryTemplateMatcherLocal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, seqs[0]->getEffectiveKmerSize(), tdbr->getSize(), false, maxSeqLen, 300);
                             }
                             else{
-                                matchers[thread_idx] = new QueryTemplateMatcherGlobal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, tdbr->getSize(), false, maxSeqLen, 500.0);
+                                matchers[thread_idx] = new QueryTemplateMatcherGlobal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, seqs[0]->getEffectiveKmerSize(), tdbr->getSize(), false, maxSeqLen, 500.0);
                             }
                             matchers[thread_idx]->setSubstitutionMatrix(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix );
                         }
@@ -184,7 +184,7 @@ void TimeTest::runTimeTest (){
                         logFileStream << kmersPerPos << "\t" << kmerMatchProb << "\t" <<  dbMatchesSum << "\t" << doubleMatches << "\t" << kmerSize << "\t" << alphabetSize << "\t" << isSpaced << "\t" << isLocal << "\t"  << sec << "\n";
 
                         // running time for the next step will be too long
-                        if (sec >= 300){
+                        if (sec >= 1200){
                             std::cout << "Time >= 300 sec, going to the next parameter combination.\n";
                             break;
                         }

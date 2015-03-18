@@ -18,6 +18,8 @@
 #include <sstream>
 #include <unordered_map>
 #include <vector>
+#include <sys/cdefs.h>
+#include <zconf.h>
 #include <stdlib.h>     /* abs */
 
 #include "Debug.h"
@@ -36,12 +38,11 @@ typedef struct {
 class QueryScore {
 public:
 
-    QueryScore(size_t dbSize, unsigned int *seqLens, int k, short kmerThr, float kmerMatchProb, float zscoreThr);
+    QueryScore(size_t dbSize, unsigned int *seqLens, int seedLength, short kmerThr, float kmerMatchProb);
 
     virtual ~QueryScore ();
 
-    inline void addScoresLocal (IndexEntryLocal * __restrict seqList, const unsigned short i,
-            const int seqListSize, unsigned short score){
+    inline void addScoresLocal(IndexEntryLocal *seqList, const unsigned short i, const int seqListSize) {
         unsigned char * data =  (unsigned char *) scores;
         for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
             const IndexEntryLocal entry = seqList[seqIdx];
@@ -51,8 +52,6 @@ public:
             const unsigned char oldScore   = data[seqIndex + 1];
             const unsigned char scoreToAdd = (UNLIKELY(currDiagonal == dbDiagonal) && LIKELY(oldScore < 255)) ? 1 : 0;
             const unsigned char newScore = oldScore + scoreToAdd;
-            localResultSize   -= oldScore;
-            localResultSize   += newScore;
             data[seqIndex]     = currDiagonal;
             data[seqIndex + 1] = newScore;
         }
@@ -67,10 +66,10 @@ public:
 //            const unsigned int seqId = entry.seqId;
 //            const unsigned char diagonal = i - j + 256;
 //            if (UNLIKELY(diagonal == scores[seqId])){
-//                if(UNLIKELY(localResultSize >= MAX_LOCAL_RESULT_SIZE)){
+//                if(UNLIKELY(scoreSizes >= MAX_LOCAL_RESULT_SIZE)){
 //                    break;
 //                }
-//                LocalResult * currLocalResult = localResults + localResultSize++;
+//                LocalResult * currLocalResult = localResults + scoreSizes++;
 //                currLocalResult->seqId = seqId;
 //                currLocalResult->score = score;
 //            } else {
@@ -110,7 +109,11 @@ public:
 
     // returns the current local Result size
     size_t getLocalResultSize(){
-        return localResultSize;
+        size_t retValue = 0;
+        for(size_t i = 1; i < SCORE_RANGE; i++){
+            retValue += scoreSizes[i] * i;
+        }
+        return retValue;
     }
 
     // maximal resultList
@@ -127,7 +130,8 @@ protected:
     const unsigned int SIMD_SHORT_SIZE = VECSIZE_INT * 2;  // *2 for short
 
     // current position in Localresults while adding Score
-    size_t localResultSize;
+    unsigned int *scoreSizes;
+    const static size_t SCORE_RANGE = 256;
 
     // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
     int scores_128_size;
@@ -153,9 +157,11 @@ protected:
     // sum up the scores over the query
     size_t scoresSum;
 
-    //
-    float zscore_thr;
+    // float because it is needed for statistical calculations
+    float * seqLens;
 
+    // total sum of amino acid minus k
+    float seqLenSum;
 
 };
 

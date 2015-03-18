@@ -295,6 +295,20 @@ public:
         file = fopen(fileName, mode);
         if(file == NULL) { perror(fileName); exit(EXIT_FAILURE); }
         return file;
+	}
+
+	static inline void parseByColumnNumber(char *data, char * key, int position) {
+        char * startPosOfKey = data;
+        for (int i = 0; i < position; ++i) {
+            startPosOfKey = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
+            startPosOfKey = startPosOfKey + Util::skipWhitespace(startPosOfKey);
+
+        }
+
+        char * endPosOfId    = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
+        ptrdiff_t keySize =  (endPosOfId - startPosOfKey);
+        strncpy(key, startPosOfKey, keySize);
+        key[keySize] = '\0';
     }
 
 };

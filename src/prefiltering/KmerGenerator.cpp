@@ -164,7 +164,7 @@ ScoreMatrix KmerGenerator::generateKmerList(const int * int_seq){
     }
 
     // add identity of input kmer
-    if(sizeInputMatrix==0){
+    if(sizeInputMatrix == 0){
         outputScoreArray[0][0] = 0;
         outputIndexArray[0][0] = 0;
         // create first kmer
