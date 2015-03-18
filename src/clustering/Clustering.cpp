@@ -255,7 +255,8 @@ Clustering::set_data Clustering::read_in_set_data(){
 
         if(*data == '\0'){ // check if file contains entry
             Debug(Debug::ERROR) << "ERROR: Sequence " << i
-            << " does not containe any sequence!\n";
+            << " does not contain any sequence for key " << clusterId
+            << "!\n";
             continue;
         }
         size_t cnt = 0;
