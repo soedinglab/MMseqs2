@@ -173,8 +173,11 @@ void runClustering(Parameters par,
 
     // copy the clustering databases to the right location
     copy(cluDBIndex, outDBIndex);
-    copy(cluDB, outDB); 
-    deleteTmpFiles(tmpFiles);
+    copy(cluDB, outDB);
+
+    if(!par.keepTempFiles) {
+        deleteTmpFiles(tmpFiles);
+    }
     delete tmpFiles;
 }
 
@@ -289,7 +292,10 @@ void runCascadedClustering(Parameters par,
 
     std::cout << "--------------------------- Merging databases ---------------------------------------\n";
     mergeClusteringResults(inDB, outDB, cluSteps);
-    deleteTmpFiles(tmpFiles);
+
+    if(!par.keepTempFiles) {
+        deleteTmpFiles(tmpFiles);
+    }
     delete tmpFiles;
 }
 
@@ -320,7 +326,8 @@ int clusteringworkflow (int argc, const char * argv[]){
         Parameters::PARAM_RESTART,
         Parameters::PARAM_STEP,
         Parameters::PARAM_V,
-        Parameters::PARAM_SEARCH_MODE
+        Parameters::PARAM_SEARCH_MODE,
+        Parameters::PARAM_KEEP_TEMP_FILES
     };
 
     Parameters par;
