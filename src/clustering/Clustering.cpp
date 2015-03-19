@@ -2,6 +2,7 @@
 #include "Util.h"
 #include <cstddef>
 #include <tic.h>
+#include <backward/hashtable.h>
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
@@ -93,7 +94,7 @@ void Clustering::run(int mode){
 
         Debug(Debug::INFO) << "Init affinity clustering...\n";
         AffinityClustering affinityClustering(set_data.set_count, set_data.uniqu_element_count, set_data.all_element_count,
-                set_data.element_size_lookup, set_data.similarities, set_data.sets, 500,0.5);
+                set_data.set_sizes, set_data.similarities, set_data.sets, 500,0.5);
 
 
 
@@ -157,7 +158,8 @@ void Clustering::writeData(std::list<set *> ret){
         std::stringstream res;
         set::element * element =(*iterator)->elements;
         // first entry is the representative sequence
-        char* dbKey = seqDbr->getDbKey(element->element_id);
+        char* dbKey = seqDbr->getDbKey((*iterator)->set_id);
+
         do{
             char* nextDbKey = seqDbr->getDbKey(element->element_id);
             res << nextDbKey << "\n";
