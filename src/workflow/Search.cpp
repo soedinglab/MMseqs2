@@ -47,7 +47,7 @@ int search (int argc, const char * argv[]){
         Parameters::PARAM_SEARCH_MODE,
         Parameters::PARAM_PROFILE,
         Parameters::PARAM_NUCL,
-        Parameters::PARAM_NO_SPACED_KMER,
+        Parameters::PARAM_SPACED_KMER_MODE,
         Parameters::PARAM_NO_COMP_BIAS_CORR,
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_MAX_SEQ_LEN,

@@ -22,7 +22,7 @@ const MMseqsParameter Parameters::PARAM_SPLIT={10,"--split",            "[int]\t
 const MMseqsParameter Parameters::PARAM_SUB_MAT={11,"--sub-mat",        "[file]\tAmino acid substitution matrix file"};
 const MMseqsParameter Parameters::PARAM_SEARCH_MODE={12,"--search-mode","[int]\tSearch mode. Local: 1 Global: 2"};
 const MMseqsParameter Parameters::PARAM_NO_COMP_BIAS_CORR={13,"--no-comp-bias-corr","Switch off local amino acid composition bias correction"};
-const MMseqsParameter Parameters::PARAM_NO_SPACED_KMER={14,"--no-spaced-kmer","Switch off spaced kmers (use consecutive pattern)"};
+const MMseqsParameter Parameters::PARAM_SPACED_KMER_MODE={14,"--spaced-kmer-mode","Spaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1"};
 // alignment
 const MMseqsParameter Parameters::PARAM_E={15,"-e",                          "Maximum e-value"};
 const MMseqsParameter Parameters::PARAM_C={16,"-c",                          "Minimum alignment coverage"};
@@ -117,8 +117,11 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         if (ops >> GetOpt::OptionPresent("no-comp-bias-corr")){
             compBiasCorrection = false;
         }
-        if (ops >> GetOpt::OptionPresent("no-spaced-kmer")){
-            spacedKmer = false;
+
+        int spacedKmerMode = 0;
+        if (ops >> GetOpt::OptionPresent("spaced-kmer-mode")){
+            ops >> GetOpt::Option("spaced-kmer-mode", spacedKmerMode);
+            spacedKmer = (spacedKmerMode == 1) ? true : false;
         }
 
         if (ops >> GetOpt::OptionPresent("keep-temp-files"))

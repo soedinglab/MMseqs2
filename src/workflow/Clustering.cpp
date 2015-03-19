@@ -327,6 +327,7 @@ int clusteringworkflow (int argc, const char * argv[]){
         Parameters::PARAM_STEP,
         Parameters::PARAM_V,
         Parameters::PARAM_SEARCH_MODE,
+        Parameters::PARAM_SPACED_KMER_MODE,
         Parameters::PARAM_KEEP_TEMP_FILES
     };
 
