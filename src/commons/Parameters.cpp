@@ -81,7 +81,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             querySeqType  = Sequence::NUCLEOTIDES;
             targetSeqType = Sequence::NUCLEOTIDES;
         }
-        
+
         if((ops >> GetOpt::OptionPresent("z-score")) == false){
             // adapt z-score threshold to the sensitivity setting
             // user defined threshold overwrites the automatic setting
@@ -107,6 +107,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops >> GetOpt::Option('l',"max-seqs", maxResListLen);
         ops >> GetOpt::Option("split",    split);
         ops >> GetOpt::Option('m',"sub-mat",  scoringMatrixFile);
+
         int searchMode = 0;
         if (ops >> GetOpt::OptionPresent("search-mode")){
             ops >> GetOpt::Option("search-mode", searchMode);
@@ -123,11 +124,12 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         if (ops >> GetOpt::OptionPresent("keep-temp-files"))
             keepTempFiles = true;
 
-    // alignment
+        // alignment
         ops >> GetOpt::Option('e', evalThr);
         ops >> GetOpt::Option('c', covThr);
         ops >> GetOpt::Option("max-rejected", maxRejected);
-    // clustering
+
+        // clustering
         if (ops >> GetOpt::OptionPresent('g')) {
             clusteringMode = Parameters::GREEDY;
         }
@@ -145,7 +147,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         // clustering workflow
         ops >> GetOpt::Option("step", step);
         ops >> GetOpt::Option("restart", restart);
-    
+
         // extractorf
         ops >> GetOpt::Option("min-length", min_length);
         ops >> GetOpt::Option("max-length", max_length);
@@ -154,8 +156,6 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops.end_of_options();            // I'm done!
 
         ops.options_remain();
-
-
     }
     catch (GetOpt::GetOptEx ex)
     {
@@ -317,11 +317,6 @@ void Parameters::printParameters(int argc, const char* pargv[],
         }
     }
     Debug(Debug::WARNING) << "\n";
-
-
-
-
-    
 }
 
 void Parameters::serialize( std::ostream &stream )  {
