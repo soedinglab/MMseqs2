@@ -158,7 +158,7 @@ void Clustering::writeData(std::list<set *> ret){
         std::stringstream res;
         set::element * element =(*iterator)->elements;
         // first entry is the representative sequence
-        char* dbKey = seqDbr->getDbKey((*iterator)->set_id);
+        char* dbKey = seqDbr->getDbKey(element->element_id);
 
         do{
             char* nextDbKey = seqDbr->getDbKey(element->element_id);

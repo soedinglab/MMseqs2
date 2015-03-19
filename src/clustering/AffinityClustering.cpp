@@ -121,7 +121,7 @@ std::list<set *> AffinityClustering::execute(){
                 maxk=currentset[k];
             }
             //debugging
-           // add_to_set(currentset[k],&sets[i],i);
+         //   add_to_set(currentset[k],&sets[i],i);
         }
         //add i to set k
         add_to_set(i,&sets[maxk],maxk);
@@ -148,16 +148,33 @@ void AffinityClustering::add_to_set(const unsigned int element_id, set * curr_se
         curr_element_ptr->element_id=element_id;
         curr_element_ptr->last=NULL;
         if(curr_set->elements == NULL) {// first ptr is not yet set
-            curr_element_ptr->next == NULL;
+            if(set_id!=element_id) {
+                set::element *element_first_ptr = new set::element();
+                element_first_ptr->element_id=set_id;
+                element_first_ptr->last=NULL;
+                curr_element_ptr->next = NULL;
+                curr_element_ptr->last = element_first_ptr;
+                element_first_ptr->next = curr_element_ptr;
+                curr_set->elements = element_first_ptr;
+            }else{
+                set::element *element_first_ptr = new set::element();
+                element_first_ptr->element_id=set_id;
+                element_first_ptr->last=NULL;
+                element_first_ptr->next=NULL;
+                curr_set->elements = element_first_ptr;
+            }
         }
         else {
-            set::element *element_first_ptr = curr_set->elements;
-            element_first_ptr->last=curr_element_ptr;
-            curr_element_ptr->next = element_first_ptr;
+            if(set_id!=element_id) {
+                set::element *element_first_ptr = curr_set->elements;
+                curr_element_ptr->next = element_first_ptr->next;
+                curr_element_ptr->last = element_first_ptr;
+                element_first_ptr->next = curr_element_ptr;
+                curr_set->elements = element_first_ptr;
+            }
         }
         // navigation (double linked list, parent)
         curr_element_ptr->parent_set = curr_set;
-    curr_set->elements=curr_element_ptr;
     curr_set->set_id=set_id;
 
 
