@@ -20,7 +20,7 @@ const MMseqsParameter Parameters::PARAM_SKIP={8,"--skip",              "[int]\tN
 const MMseqsParameter Parameters::PARAM_MAX_SEQS={9,"--max-seqs",      "[int]\tMaximum result sequences per query"};
 const MMseqsParameter Parameters::PARAM_SPLIT={10,"--split",            "[int]\tSplits target databases in n equal distrbuted junks"};
 const MMseqsParameter Parameters::PARAM_SUB_MAT={11,"--sub-mat",        "[file]\tAmino acid substitution matrix file"};
-const MMseqsParameter Parameters::PARAM_SEARCH_MODE={12,"--search-mode","[int]\tSearch mode loc: 1 glob: 2"};
+const MMseqsParameter Parameters::PARAM_SEARCH_MODE={12,"--search-mode","[int]\tSearch mode. Local: 1 Global: 2"};
 const MMseqsParameter Parameters::PARAM_NO_COMP_BIAS_CORR={13,"--no-comp-bias-corr","Switch off local amino acid composition bias correction"};
 const MMseqsParameter Parameters::PARAM_NO_SPACED_KMER={14,"--no-spaced-kmer","Switch off spaced kmers (use consecutive pattern)"};
 // alignment
@@ -60,8 +60,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                                  size_t requiredParameterCount)
 {
     GetOpt::GetOpt_pp ops(argc, pargv);
-    ops.exceptions(std::ios::failbit); // throw exceptoin when parsing error
-    //ops.exceptions(std::ios::eofbit); // throw exceptoin when parsing error
+    ops.exceptions(std::ios::failbit); // throw exception when parsing error
+    //ops.exceptions(std::ios::eofbit); // throw exception when parsing error
 
     try
     {
@@ -134,14 +134,14 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             cascaded = true;
         }
 
-    // logging
+        // logging
         ops >> GetOpt::Option('v', verbosity);
 
         // clustering workflow
         ops >> GetOpt::Option("step", step);
         ops >> GetOpt::Option("restart", restart);
     
-    // extractorf
+        // extractorf
         ops >> GetOpt::Option("min-length", min_length);
         ops >> GetOpt::Option("max-length", max_length);
         ops >> GetOpt::Option("max-gaps", max_gaps);
