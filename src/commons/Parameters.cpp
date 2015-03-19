@@ -43,6 +43,7 @@ const MMseqsParameter Parameters::PARAM_ORF_MIN_LENGTH={24, "--min-length","[int
 const MMseqsParameter Parameters::PARAM_ORF_MAX_LENGTH={25, "--max-length","[int]\t\tMaximum length of open reading frame to be extracted from fasta file."};
 const MMseqsParameter Parameters::PARAM_ORF_MAX_GAP={26, "--max-gaps","[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected"};
 const MMseqsParameter Parameters::PARAM_K_SCORE={27,"--k-score","[int]\tSet the K-mer threshold for the K-mer generation"};
+const MMseqsParameter Parameters::PARAM_KEEP_TEMP_FILES={28,"--keep-temp-files","\tDo not delete temporary files."};
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -118,6 +119,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         if (ops >> GetOpt::OptionPresent("no-spaced-kmer")){
             spacedKmer = false;
         }
+
+        if (ops >> GetOpt::OptionPresent("keep-temp-files"))
+            keepTempFiles = true;
+
     // alignment
         ops >> GetOpt::Option('e', evalThr);
         ops >> GetOpt::Option('c', covThr);
@@ -301,6 +306,12 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 else
                     Debug(Debug::WARNING) << "K-score:             " << "auto" << "\n";
                 break;
+            case 28:
+                if(this->keepTempFiles)
+                    Debug(Debug::WARNING) << "Keep temp files:          yes\n";
+                else
+                    Debug(Debug::WARNING) << "Keep temp files:          no\n";
+                break;
             default:
                 break;
         }
@@ -367,6 +378,7 @@ void Parameters::setDefaults() {
     cascaded = false;
     restart = 0;
     step = 1;
+    keepTempFiles = false;
 
     verbosity = Debug::INFO;
 
