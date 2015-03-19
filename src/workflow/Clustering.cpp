@@ -293,6 +293,11 @@ void runCascadedClustering(Parameters par,
     delete tmpFiles;
 }
 
+void setWorkflowDefaults(Parameters* p) {
+    p->localSearch = false;;
+    p->spacedKmer = false;
+}
+
 int clusteringworkflow (int argc, const char * argv[]){
 
     std::string usage("\nCalculates the clustering of the sequences in the input database.\n");
@@ -312,13 +317,17 @@ int clusteringworkflow (int argc, const char * argv[]){
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_CASCADED,
         Parameters::PARAM_MAX_SEQ_LEN,
-            Parameters::PARAM_RESTART,
-            Parameters::PARAM_STEP,
-            Parameters::PARAM_V};
+        Parameters::PARAM_RESTART,
+        Parameters::PARAM_STEP,
+        Parameters::PARAM_V,
+        Parameters::PARAM_SEARCH_MODE
+    };
+
     Parameters par;
+    setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, usage, perfPar, 3);
-    par.localSearch = false;
-    par.spacedKmer = false;
+    par.localSearch = par.localSearch;
+    par.spacedKmer = par.spacedKmer;
     par.covThr = 0.8;
     par.evalThr = 0.001;
     Debug::setDebugLevel(par.verbosity);
