@@ -7,7 +7,6 @@
 #include <vector>
 #include <limits.h>
 
-#include <stdlib.h>
 #include <iostream>
 #include <sys/stat.h>
 
