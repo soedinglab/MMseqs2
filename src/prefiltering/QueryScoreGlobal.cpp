@@ -1,36 +1,23 @@
+#include <random>
 #include "QueryScoreGlobal.h"
 #include "simd.h"
 
 QueryScoreGlobal::QueryScoreGlobal(size_t dbSize, unsigned int *dbSeqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
-: QueryScore(dbSize, dbSeqLens, k, kmerThr, kmerMatchProb, zscoreThr)    // Call the QueryScore constructor
+: QueryScore(dbSize, dbSeqLens, k, kmerThr, kmerMatchProb)    // Call the QueryScore constructor
 {
     
     thresholds_128 = (simd_int*) mem_align(ALIGN_INT, scores_128_size * sizeof(unsigned short));
     thresholds = (unsigned short * ) thresholds_128;
     memset (thresholds_128, 0, scores_128_size * sizeof(unsigned short));
-    
-    // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
-    this->seqLens = new float[scores_128_size];
-    memset (seqLens, 0, scores_128_size * sizeof(float));
-    
-    for (int i = 0; i < dbSize; i++){
-        if (dbSeqLens[i] > (k - 1))
-            this->seqLens[i] = (float) (dbSeqLens[i] - k + 1);
-        else
-            this->seqLens[i] = 1.0f;
-    }
-    
-    this->seqLenSum = 0.0f;
-    for (int i = 0; i < dbSize; i++)
-        this->seqLenSum += this->seqLens[i];
-    
+    this->zscore_thr = zscoreThr;
+
     // initialize the points where a score threshold should be recalculated
     std::list<int> steps_list;
     float seqLen = this->seqLens[0];
     steps_list.push_back(0);
     // check the sequence length and decide if it changed enough to recalculate the score threshold here
     // minimum step length is 8 (one __m128 register)
-    for (int i = 0; i < scores_128_size; i += 8){
+    for (size_t i = 0; i < scores_128_size; i += 8){
         if (this->seqLens[i]/seqLen < 0.9){
             steps_list.push_back(i);
             seqLen = this->seqLens[i];
@@ -40,7 +27,7 @@ QueryScoreGlobal::QueryScoreGlobal(size_t dbSize, unsigned int *dbSeqLens, int k
     
     nsteps = steps_list.size();
     steps = new int[nsteps];
-    for (int i = 0; i < nsteps; i++){
+    for (size_t i = 0; i < nsteps; i++){
         steps[i] = steps_list.front();
         steps_list.pop_front();
     }
@@ -48,7 +35,6 @@ QueryScoreGlobal::QueryScoreGlobal(size_t dbSize, unsigned int *dbSeqLens, int k
     counter = 0;
     s_per_match = 0.0f;
     s_per_pos = 0.0f;
-    localResultSize = 0;
 }
 
 QueryScoreGlobal::~QueryScoreGlobal(){

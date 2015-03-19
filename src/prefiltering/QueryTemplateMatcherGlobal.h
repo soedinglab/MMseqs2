@@ -7,15 +7,16 @@
 class QueryTemplateMatcherGlobal : public virtual  QueryTemplateMatcher {
     public:
         QueryTemplateMatcherGlobal(BaseMatrix *m,
-                                    IndexTable *indexTable,
-                                    unsigned int *seqLens,
-                                    short kmerThr,
-                                    double kmerMatchProb,
-                                    int kmerSize,
-                                    int dbSize,
-                                    bool aaBiasCorrection,
-                                    int maxSeqLen,
-                                    float zscoreThr);
+                IndexTable *indexTable,
+                unsigned int *seqLens,
+                short kmerThr,
+                double kmerMatchProb,
+                int kmerSize,
+                size_t effectiveKmerSize,
+                size_t dbSize,
+                bool aaBiasCorrection,
+                int maxSeqLen,
+                float zscoreThr);
         ~QueryTemplateMatcherGlobal ();
 
         
@@ -30,6 +31,11 @@ class QueryTemplateMatcherGlobal : public virtual  QueryTemplateMatcher {
     private:
         /* calculates the score */
         QueryScore * queryScore;
+
+        // local score correction values
+        float* deltaS;
+
+        void calcLocalAaBiasCorrection(Sequence* seq);
 
 };
 

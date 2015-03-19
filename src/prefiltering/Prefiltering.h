@@ -122,7 +122,7 @@ class Prefiltering {
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults);
         // init QueryTemplateMatcher
-        QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, unsigned int *seqLens, short kmerThr, double kmerMatchProb, int kmerSize, size_t dbSize, bool aaBiasCorrection, unsigned int maxSeqLen, float zscoreThr, bool isLocal);
+        QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, unsigned int *seqLens, short kmerThr, double kmerMatchProb, int kmerSize, size_t effectiveKmerSize, size_t dbSize, bool aaBiasCorrection, unsigned int maxSeqLen, float zscoreThr, bool isLocal, size_t maxHitsPerQuery);
     
     
         void printStatistics();
