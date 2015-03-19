@@ -279,12 +279,13 @@ Clustering::set_data Clustering::read_in_set_data(){
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
         char * clusterId = seqDbr->getDbKey(i);
-        char* data = alnDbr->getDataByDBKey(clusterId);
+        char * data = alnDbr->getDataByDBKey(clusterId);
         size_t element_counter = 0;
 
         if(*data == '\0'){ // check if file contains entry
             Debug(Debug::ERROR) << "ERROR: Sequence " << i
-            << " does not containe any sequence!\n";
+            << " does not contain any sequence for key " << clusterId
+            << "!\n";
             continue;
         }
         size_t cnt = 0;

@@ -98,33 +98,41 @@ class Sequence
         std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
 
-    void printProfile();
+        void printProfile();
 
-    int8_t const * getAlignmentProfile()const;
+        int8_t const * getAlignmentProfile()const;
 
-    int getSequenceType()const;
+        int getSequenceType()const;
 
-    unsigned int geEffectiveKmerSize();
+        unsigned int getEffectiveKmerSize();
 
 private:
         void mapProteinSequence(const char *seq);
         void mapNucleotideSequence(const char *seq);
         size_t id;
         char* dbKey;
+
         // current iterator position
         int currItPos;
+
         // AMINO_ACIDS or NUCLEOTIDES
         int seqType;
+
         // maximum possible length of sequence
         size_t maxLen;
+
         // read next kmer profile in profile_matrix
         void nextProfileKmer();
+
         // size of Pattern
         int spacedPatternSize;
+
         // contains spaced pattern e.g. 1 1 1 1 0 1 0 1 0 1
         const char * spacedPattern;
+
         // kmer Size
         unsigned int kmerSize;
+
         // sequence window will be filled by newxtKmer (needed for spaced patterns)
         int * kmerWindow;
 

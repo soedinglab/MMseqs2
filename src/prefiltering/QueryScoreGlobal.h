@@ -36,17 +36,12 @@ private:
     
     unsigned short  * __restrict thresholds;
     
-    // float because it is needed for statistical calculations
-    float * seqLens;
-    
-    float seqLenSum;
-    
     int* steps;
     
     int nsteps;
+
+    float zscore_thr;
             
     //float matches_per_pos;
-
-    
 };
 #endif /* defined(QUERYSCOREGLOBAL_H) */
