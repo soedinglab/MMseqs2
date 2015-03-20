@@ -17,7 +17,7 @@ int orfFastaToFFindex(
     const char* fasta_filename,
     const char* data_filename, const char* index_filename,
     const char* data_filename_hdr, const char* index_filename_hdr,
-    size_t min_length, size_t max_length, size_t max_gaps)
+    Parameters* par)
 {
     FILE* fasta_file = fopen(fasta_filename, "r");
     if (fasta_file == NULL) {
@@ -39,13 +39,16 @@ int orfFastaToFFindex(
     size_t entries_num = 0;
     while (kseq_read(seq) >= 0) {
         Orf orf(seq->seq.s);
-        orf.FindOrfs(res, min_length, max_length, max_gaps);
+        orf.FindOrfs(res, par->min_length, par->max_length, par->max_gaps);
 
         size_t orfs_num = 0;
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); it++) {
             snprintf(id_buffer, LINE_MAX, "%zu_%zu", entries_num, orfs_num);
 
             Orf::SequenceLocation loc = (Orf::SequenceLocation) * it;
+
+            if (par->skipIncompleteOrfs && (loc.uncertainty_from != Orf::UNCERTAINTY_UNKOWN || loc.uncertainty_to != Orf::UNCERTAINTY_UNKOWN))
+                continue;
 
             if (seq->comment.l) {
                 snprintf(header_buffer, LINE_MAX, "%s %s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, seq->comment.s, loc.from, loc.to, loc.strand, loc.uncertainty_from, loc.uncertainty_to);
@@ -81,12 +84,13 @@ int extractorf(int argn, const char** argv)
 {
     std::string usage;
     usage.append("Extract all open reading frames from a nucleotide fasta file into a ffindex database.\n");
-    usage.append("USAGE: <fastaDB>  <ffindexDB>\n");
+    usage.append("USAGE: <fastaDB> <ffindexDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
     std::vector<MMseqsParameter> orf_par = {
         Parameters::PARAM_ORF_MIN_LENGTH,
         Parameters::PARAM_ORF_MAX_LENGTH,
-        Parameters::PARAM_ORF_MAX_GAP
+        Parameters::PARAM_ORF_MAX_GAP,
+        Parameters::PARAM_ORF_SKIP_INCOMPLETE
     };
 
     Parameters par;
@@ -108,5 +112,5 @@ int extractorf(int argn, const char** argv)
     return orfFastaToFFindex(input,
                              data_filename, index_filename,
                              data_filename_hdr, index_filename_hdr,
-                             par.min_length, par.max_length, par.max_gaps);
+                             &par);
 }

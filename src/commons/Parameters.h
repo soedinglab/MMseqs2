@@ -84,6 +84,7 @@ public:
     size_t min_length;
     size_t max_length;
     size_t max_gaps;
+    bool skipIncompleteOrfs;
 
     // CLUSTERING WORKFLOW
     int restart;
@@ -163,6 +164,7 @@ public:
     const static MMseqsParameter PARAM_ORF_MIN_LENGTH;
     const static MMseqsParameter PARAM_ORF_MAX_LENGTH;
     const static MMseqsParameter PARAM_ORF_MAX_GAP;
+    const static MMseqsParameter PARAM_ORF_SKIP_INCOMPLETE;
 
 };
 
