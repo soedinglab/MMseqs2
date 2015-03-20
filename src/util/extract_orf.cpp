@@ -39,7 +39,7 @@ int orfFastaToFFindex(
     size_t entries_num = 0;
     while (kseq_read(seq) >= 0) {
         Orf orf(seq->seq.s);
-        orf.FindOrfs(res, par->min_length, par->max_length, par->max_gaps);
+        orf.FindOrfs(res, par->orfMinLength, par->orfMaxLength, par->orfMaxGaps);
 
         size_t orfs_num = 0;
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); it++) {
@@ -47,7 +47,7 @@ int orfFastaToFFindex(
 
             Orf::SequenceLocation loc = (Orf::SequenceLocation) * it;
 
-            if (par->skipIncompleteOrfs && (loc.uncertainty_from != Orf::UNCERTAINTY_UNKOWN || loc.uncertainty_to != Orf::UNCERTAINTY_UNKOWN))
+            if (par->orfSkipIncomplete && (loc.uncertainty_from != Orf::UNCERTAINTY_UNKOWN || loc.uncertainty_to != Orf::UNCERTAINTY_UNKOWN))
                 continue;
 
             if (seq->comment.l) {

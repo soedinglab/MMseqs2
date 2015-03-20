@@ -81,10 +81,10 @@ public:
     bool   cascaded;
     
     //extractorf
-    size_t min_length;
-    size_t max_length;
-    size_t max_gaps;
-    bool skipIncompleteOrfs;
+    size_t orfMinLength;
+    size_t orfMaxLength;
+    size_t orfMaxGaps;
+    bool   orfSkipIncomplete;
 
     // CLUSTERING WORKFLOW
     int restart;
