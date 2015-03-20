@@ -153,11 +153,11 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops >> GetOpt::Option("restart", restart);
 
         // extractorf
-        ops >> GetOpt::Option("min-length", min_length);
-        ops >> GetOpt::Option("max-length", max_length);
-        ops >> GetOpt::Option("max-gaps", max_gaps);
+        ops >> GetOpt::Option("min-length", orfMinLength);
+        ops >> GetOpt::Option("max-length", orfMaxLength);
+        ops >> GetOpt::Option("max-gaps", orfMaxGaps);
         if (ops >> GetOpt::OptionPresent("skip-incomplete")){
-            skipIncompleteOrfs = true;
+            orfSkipIncomplete = true;
         }
 
 
@@ -321,7 +321,7 @@ void Parameters::printParameters(int argc, const char* pargv[],
                     Debug(Debug::WARNING) << "Keep temp files:          no\n";
                 break;
             case 29:
-                if(this->skipIncompleteOrfs)
+                if(this->orfSkipIncomplete)
                     Debug(Debug::WARNING) << "Skip incomplete ORFs:     yes\n";
                 else
                     Debug(Debug::WARNING) << "Skip incomplete ORFs:     no\n";
@@ -392,10 +392,10 @@ void Parameters::setDefaults() {
     verbosity = Debug::INFO;
 
     //extractorfs
-    min_length = 1;
-    max_length = SIZE_MAX;
-    max_gaps = SIZE_MAX;
-    skipIncompleteOrfs = true;
+    orfMinLength = 1;
+    orfMaxLength = SIZE_MAX;
+    orfMaxGaps = SIZE_MAX;
+    orfSkipIncomplete = true;
 }
 
 
