@@ -44,6 +44,7 @@ const MMseqsParameter Parameters::PARAM_ORF_MAX_LENGTH={25, "--max-length","[int
 const MMseqsParameter Parameters::PARAM_ORF_MAX_GAP={26, "--max-gaps","[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected"};
 const MMseqsParameter Parameters::PARAM_K_SCORE={27,"--k-score","[int]\tSet the K-mer threshold for the K-mer generation"};
 const MMseqsParameter Parameters::PARAM_KEEP_TEMP_FILES={28,"--keep-temp-files","\tDo not delete temporary files."};
+const MMseqsParameter Parameters::PARAM_ORF_SKIP_INCOMPLETE={29,"--skip-incomplete","\tSkip orfs that have only an end or only a start"};
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -155,6 +156,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops >> GetOpt::Option("min-length", min_length);
         ops >> GetOpt::Option("max-length", max_length);
         ops >> GetOpt::Option("max-gaps", max_gaps);
+        if (ops >> GetOpt::OptionPresent("skip-incomplete")){
+            skipIncompleteOrfs = true;
+        }
+
 
         ops.end_of_options();            // I'm done!
 
@@ -315,6 +320,12 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 else
                     Debug(Debug::WARNING) << "Keep temp files:          no\n";
                 break;
+            case 29:
+                if(this->skipIncompleteOrfs)
+                    Debug(Debug::WARNING) << "Skip incomplete ORFs:     yes\n";
+                else
+                    Debug(Debug::WARNING) << "Skip incomplete ORFs:     no\n";
+                break;
             default:
                 break;
         }
@@ -384,6 +395,7 @@ void Parameters::setDefaults() {
     min_length = 1;
     max_length = SIZE_MAX;
     max_gaps = SIZE_MAX;
+    skipIncompleteOrfs = true;
 }
 
 
