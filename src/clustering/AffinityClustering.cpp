@@ -3,7 +3,8 @@
 #include <float.h>
 #include "AffinityClustering.h"
 
-AffinityClustering::AffinityClustering(size_t set_count, size_t unique_element_count, size_t all_element_count,unsigned int *element_size_lookup, double **similarities, unsigned int **setids,  size_t iterationnumber, double input_lambda) {
+
+AffinityClustering::AffinityClustering(size_t set_count, size_t unique_element_count, size_t all_element_count,unsigned int *element_size_lookup, double **similarities, unsigned int **setids,  size_t iterationnumber, unsigned int convergenceIterations,double input_lambda) {
     this->set_count=set_count;
     this->unique_element_count=unique_element_count;
     this->all_element_count=all_element_count;
@@ -12,6 +13,7 @@ AffinityClustering::AffinityClustering(size_t set_count, size_t unique_element_c
     this->setids=setids;
     this->input_lambda=input_lambda;
     this->iterationnumber= iterationnumber;
+    this->convergenceIterations=convergenceIterations;
 
 }
 
@@ -32,8 +34,10 @@ std::list<set *> AffinityClustering::execute(){
     double ** responsibilities=new double *[set_count];
     double * responsibilitiesData=new double [all_element_count];
     double * selfavailabilities=new double [set_count];
+    bool * convergence=new bool [set_count*convergenceIterations];
+    bool converged=false;
 
-
+    std::fill_n(convergence,set_count*convergenceIterations,0);
     std::fill_n(availabilitiesData, all_element_count , 0);
     size_t curr_pos  = 0;
     for(size_t i = 0; i < set_count; i++){
@@ -43,7 +47,8 @@ std::list<set *> AffinityClustering::execute(){
         curr_pos  += element_size_lookup[i];
     }
 
-    for (size_t j = 0; j < iterationnumber; j++) {
+
+    for (size_t j = 0; (j < iterationnumber) && (!converged); j++ ) {
     //responsibilities
     for(size_t i = 0; i < set_count; i++) {
         const unsigned int *currentset = setids[i];
@@ -94,6 +99,35 @@ std::list<set *> AffinityClustering::execute(){
                  availabilities[i][k]=availabilities[i][k]*lambda+(1-lambda)*std::min(0.0,responsibilities[currentset[k]][0]+(selfavailabilities[currentset[k]]-std::max(0.0,responsibilities[i][k])));
             }
         }
+        //check for convergence
+        for(size_t i = 0; i < set_count; i++) {
+            if(availabilities[i][0]+responsibilities[i][0]>0){
+                convergence[(i*convergenceIterations)+((j)%convergenceIterations)]=1;
+            }else{
+                convergence[(i*convergenceIterations)+((j)%convergenceIterations)]=0;
+            }
+
+        }
+
+
+        if(j>convergenceIterations){
+            converged=true;
+            for(size_t i = 0; i < set_count && converged; i++) {
+                    bool first=convergence[(i*convergenceIterations)];
+                for(int c=1;c<convergenceIterations;c++) {
+                    if(first!=convergence[(i*convergenceIterations)+c]){
+                        converged=false;
+                        //std::cout <<j << "\t"<< i << "\n";
+                        break;
+                    }
+                }
+            }
+            if(converged) {
+                Debug(Debug::INFO) << "Convergence after " << j << " iterations.\n";
+                break;
+            }
+        }
+
         //after initialisation, set lambda input value
         lambda=input_lambda;
         /*
@@ -105,6 +139,7 @@ std::list<set *> AffinityClustering::execute(){
         }
         */
     }
+
     //compute result
     set* sets = new set[set_count];
     memset(sets, 0, sizeof(set *)*(set_count+1));
@@ -135,6 +170,14 @@ std::list<set *> AffinityClustering::execute(){
             continue;
         result.push_back(max_set); // O(1)
     }
+    delete[] availabilities;
+    delete[] availabilitiesData ;
+    delete[] responsibilities;
+    delete[] responsibilitiesData;
+    delete[] selfavailabilities;
+    //delete[] sets;
+
+
 
     return result;
 }

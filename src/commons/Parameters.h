@@ -25,6 +25,13 @@ public:
     static const int SET_COVER = 0;
     static const int GREEDY = 1;
     static const int AFFINITY = 2;
+
+    static const int APC_ALIGNMENTSCORE=1;
+    static const int APC_COVERAGE=2;
+    static const int APC_SEQID=3;
+    static const int APC_EVAL=4;
+
+
     // COMMON
     const char** argv;            //command line parameters
     char argc;              //dimension of argv
@@ -71,13 +78,18 @@ public:
     double  evalThr;                     // e-value threshold for acceptance
     double  covThr;                      // coverage threshold for acceptance
     int     maxRejected;                 // after n sequences that are above eval stop
-    
+    float  seqIdThr;                     // sequence identity threshold for acceptance
+
     // CLUSTERING
     std::string ffindexAlnDBBase;
     int    clusteringMode;
-    float  seqIdThr;
     int    validateClustering;
     bool   cascaded;
+    //AFFINITYCLUSTERIN
+    int maxIteration;                   // Maximum number of iterations of affinity clustering.
+    int convergenceIterations;          // Number of iterations the representatives have to stay constant.
+    float dampingFactor;                  // Reduces oscillation. Value in range of 0.5< <1.
+    int similarityScoreType;            // Type of score to use for affinity clustering. (1) alignment score. (2) coverage (3)sequence identity (4)E-value.
     
     //extractorf
     size_t min_length;
@@ -147,11 +159,17 @@ public:
     const static MMseqsParameter PARAM_E;
     const static MMseqsParameter PARAM_C;
     const static MMseqsParameter PARAM_MAX_REJECTED;
+    const static MMseqsParameter PARAM_MIN_SEQ_ID;
     // clustering
     const static MMseqsParameter PARAM_G;
     const static MMseqsParameter PARAM_A;
-    const static MMseqsParameter PARAM_MIN_SEQ_ID;
     const static MMseqsParameter PARAM_CASCADED;
+        //afinity clustering
+        const static MMseqsParameter PARAM_MAXITERATIONS;
+        const static MMseqsParameter PARAM_CONVERGENCEITERATIONS;
+        const static MMseqsParameter PARAM_DAMPING;
+        const static MMseqsParameter PARAM_SIMILARITYSCORE;
+
     // logging
     const static MMseqsParameter PARAM_V;
     // clustering workflow

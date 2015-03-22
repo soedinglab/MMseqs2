@@ -15,14 +15,18 @@ int cluster(int argc, const char ** argv)
         Parameters::PARAM_G,
         Parameters::PARAM_A,
         Parameters::PARAM_MAX_SEQS,
-        Parameters::PARAM_V};
+        Parameters::PARAM_V,
+        Parameters::PARAM_MAXITERATIONS,
+        Parameters::PARAM_CONVERGENCEITERATIONS,
+        Parameters::PARAM_DAMPING,
+        Parameters::PARAM_SIMILARITYSCORE};
     Parameters par;
     par.parseParameters(argc, argv, usage, perfPar, 3);
 
     Debug::setDebugLevel(par.verbosity);
 
     Clustering* clu = new Clustering(par.db1, par.db1Index, par.db2, par.db2Index,
-                                     par.db3, par.db3Index, par.validateClustering, par.maxResListLen);
+                                     par.db3, par.db3Index, par.validateClustering, par.maxResListLen,par.maxIteration,par.convergenceIterations,par.dampingFactor,par.similarityScoreType);
 
     clu->run(par.clusteringMode);
 
