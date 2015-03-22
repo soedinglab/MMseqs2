@@ -7,9 +7,7 @@
 #include <vector>
 #include <limits.h>
 
-#include <stdlib.h>
 #include <iostream>
-#include <sys/stat.h>
 
 extern "C" {
 #include "ffindex.h"
@@ -288,14 +286,7 @@ public:
         key[keySize] = '\0';
     }
 
-    static FILE* openFileOrDie(const char * fileName, const char * mode) {
-        struct stat st;
-        FILE* file;
-        if(stat(fileName, &st) == 0) { errno = EEXIST; perror(fileName); exit(EXIT_FAILURE); }
-        file = fopen(fileName, mode);
-        if(file == NULL) { perror(fileName); exit(EXIT_FAILURE); }
-        return file;
-	}
+    static FILE* openFileOrDie(const char * fileName, const char * mode);
 
 	static inline void parseByColumnNumber(char *data, char * key, int position) {
         char * startPosOfKey = data;

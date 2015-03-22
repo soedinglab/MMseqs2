@@ -20,9 +20,9 @@ const MMseqsParameter Parameters::PARAM_SKIP={8,"--skip",              "[int]\tN
 const MMseqsParameter Parameters::PARAM_MAX_SEQS={9,"--max-seqs",      "[int]\tMaximum result sequences per query"};
 const MMseqsParameter Parameters::PARAM_SPLIT={10,"--split",            "[int]\tSplits target databases in n equal distrbuted junks"};
 const MMseqsParameter Parameters::PARAM_SUB_MAT={11,"--sub-mat",        "[file]\tAmino acid substitution matrix file"};
-const MMseqsParameter Parameters::PARAM_SEARCH_MODE={12,"--search-mode","[int]\tSearch mode loc: 1 glob: 2"};
+const MMseqsParameter Parameters::PARAM_SEARCH_MODE={12,"--search-mode","[int]\tSearch mode. Local: 1 Global: 2"};
 const MMseqsParameter Parameters::PARAM_NO_COMP_BIAS_CORR={13,"--no-comp-bias-corr","Switch off local amino acid composition bias correction"};
-const MMseqsParameter Parameters::PARAM_NO_SPACED_KMER={14,"--no-spaced-kmer","Switch off spaced kmers (use consecutive pattern)"};
+const MMseqsParameter Parameters::PARAM_SPACED_KMER_MODE={14,"--spaced-kmer-mode","Spaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1"};
 // alignment
 const MMseqsParameter Parameters::PARAM_E={15,"-e",                          "Maximum e-value"};
 const MMseqsParameter Parameters::PARAM_C={16,"-c",                          "Minimum alignment coverage"};
@@ -48,6 +48,7 @@ const MMseqsParameter Parameters::PARAM_ORF_MIN_LENGTH={24, "--min-length","[int
 const MMseqsParameter Parameters::PARAM_ORF_MAX_LENGTH={25, "--max-length","[int]\t\tMaximum length of open reading frame to be extracted from fasta file."};
 const MMseqsParameter Parameters::PARAM_ORF_MAX_GAP={26, "--max-gaps","[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected"};
 const MMseqsParameter Parameters::PARAM_K_SCORE={27,"--k-score","[int]\tSet the K-mer threshold for the K-mer generation"};
+const MMseqsParameter Parameters::PARAM_KEEP_TEMP_FILES={28,"--keep-temp-files","\tDo not delete temporary files."};
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -65,8 +66,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                                  size_t requiredParameterCount)
 {
     GetOpt::GetOpt_pp ops(argc, pargv);
-    ops.exceptions(std::ios::failbit); // throw exceptoin when parsing error
-    //ops.exceptions(std::ios::eofbit); // throw exceptoin when parsing error
+    ops.exceptions(std::ios::failbit); // throw exception when parsing error
+    //ops.exceptions(std::ios::eofbit); // throw exception when parsing error
 
     try
     {
@@ -85,7 +86,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             querySeqType  = Sequence::NUCLEOTIDES;
             targetSeqType = Sequence::NUCLEOTIDES;
         }
-        
+
         if((ops >> GetOpt::OptionPresent("z-score")) == false){
             // adapt z-score threshold to the sensitivity setting
             // user defined threshold overwrites the automatic setting
@@ -111,6 +112,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops >> GetOpt::Option('l',"max-seqs", maxResListLen);
         ops >> GetOpt::Option("split",    split);
         ops >> GetOpt::Option('m',"sub-mat",  scoringMatrixFile);
+
         int searchMode = 0;
         if (ops >> GetOpt::OptionPresent("search-mode")){
             ops >> GetOpt::Option("search-mode", searchMode);
@@ -120,14 +122,22 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         if (ops >> GetOpt::OptionPresent("no-comp-bias-corr")){
             compBiasCorrection = false;
         }
-        if (ops >> GetOpt::OptionPresent("no-spaced-kmer")){
-            spacedKmer = false;
+
+        int spacedKmerMode = 0;
+        if (ops >> GetOpt::OptionPresent("spaced-kmer-mode")){
+            ops >> GetOpt::Option("spaced-kmer-mode", spacedKmerMode);
+            spacedKmer = (spacedKmerMode == 1) ? true : false;
         }
-    // alignment
+
+        if (ops >> GetOpt::OptionPresent("keep-temp-files"))
+            keepTempFiles = true;
+
+        // alignment
         ops >> GetOpt::Option('e', evalThr);
         ops >> GetOpt::Option('c', covThr);
         ops >> GetOpt::Option("max-rejected", maxRejected);
-    // clustering
+
+        // clustering
         if (ops >> GetOpt::OptionPresent('g')) {
             clusteringMode = Parameters::GREEDY;
         }
@@ -143,14 +153,14 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops >> GetOpt::Option("damping", dampingFactor);
         ops >> GetOpt::Option("similarity-type", similarityScoreType);
 
-    // logging
+        // logging
         ops >> GetOpt::Option('v', verbosity);
 
         // clustering workflow
         ops >> GetOpt::Option("step", step);
         ops >> GetOpt::Option("restart", restart);
-    
-    // extractorf
+
+        // extractorf
         ops >> GetOpt::Option("min-length", min_length);
         ops >> GetOpt::Option("max-length", max_length);
         ops >> GetOpt::Option("max-gaps", max_gaps);
@@ -158,8 +168,6 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops.end_of_options();            // I'm done!
 
         ops.options_remain();
-
-
     }
     catch (GetOpt::GetOptEx ex)
     {
@@ -310,16 +318,17 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 else
                     Debug(Debug::WARNING) << "K-score:             " << "auto" << "\n";
                 break;
+            case 28:
+                if(this->keepTempFiles)
+                    Debug(Debug::WARNING) << "Keep temp files:          yes\n";
+                else
+                    Debug(Debug::WARNING) << "Keep temp files:          no\n";
+                break;
             default:
                 break;
         }
     }
     Debug(Debug::WARNING) << "\n";
-
-
-
-
-    
 }
 
 void Parameters::serialize( std::ostream &stream )  {
@@ -383,6 +392,7 @@ void Parameters::setDefaults() {
 
     restart = 0;
     step = 1;
+    keepTempFiles = false;
 
     verbosity = Debug::INFO;
 

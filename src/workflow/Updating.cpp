@@ -319,7 +319,9 @@ int clusterupdate (int argc, const char * argv[]){
         Parameters::PARAM_SUB_MAT,
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_MAX_SEQ_LEN,
-        Parameters::PARAM_V};
+        Parameters::PARAM_V,
+        Parameters::PARAM_KEEP_TEMP_FILES
+    };
     Parameters par;
     par.parseParameters(argc, argv, usage, perfPar, 5);
     
@@ -447,7 +449,9 @@ int clusterupdate (int argc, const char * argv[]){
     int sec = end.tv_sec - start.tv_sec;
     std::cout << "\nTime for updating: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
 
-    deleteTmpFiles(tmpFiles);
+    if (!par.keepTempFiles) {
+        deleteTmpFiles(tmpFiles);
+    }
     delete tmpFiles;
     return 0;
 }
