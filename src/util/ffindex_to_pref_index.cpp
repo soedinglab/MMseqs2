@@ -28,7 +28,7 @@ int createindex (int argc, const char * argv[])
         Parameters::PARAM_SUB_MAT,
         Parameters::PARAM_SEARCH_MODE,
         Parameters::PARAM_SKIP,
-        Parameters::PARAM_NO_SPACED_KMER,
+        Parameters::PARAM_SPACED_KMER_MODE,
         Parameters::PARAM_V};
     Parameters par;
     par.parseParameters(argc, argv, usage, perfPar, 2);

@@ -60,6 +60,7 @@ public:
     int    querySeqType;                // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    targetSeqType;               // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                     // Amounts of threads
+    bool   keepTempFiles;               // Do not delete temp files
     
     // PREFILTER
     float  sensitivity;                  // target sens
@@ -153,8 +154,9 @@ public:
     const static MMseqsParameter PARAM_SUB_MAT;
     const static MMseqsParameter PARAM_SEARCH_MODE;
     const static MMseqsParameter PARAM_NO_COMP_BIAS_CORR;
-    const static MMseqsParameter PARAM_NO_SPACED_KMER;
+    const static MMseqsParameter PARAM_SPACED_KMER_MODE;
     const static MMseqsParameter PARAM_K_SCORE;
+    const static MMseqsParameter PARAM_KEEP_TEMP_FILES;
     // alignment
     const static MMseqsParameter PARAM_E;
     const static MMseqsParameter PARAM_C;

@@ -29,7 +29,10 @@ void runSearch(Parameters par, std::string queryDB, std::string targetDB, std::s
     // copy the clustering databases to the right location
     copy(alnDBIndex, outDBIndex);
     copy(alnDB, outDB);
-    deleteTmpFiles(tmpFiles);
+
+    if (!par.keepTempFiles) {
+        deleteTmpFiles(tmpFiles);
+    }
     delete tmpFiles;
 }
 
@@ -44,11 +47,13 @@ int search (int argc, const char * argv[]){
         Parameters::PARAM_SEARCH_MODE,
         Parameters::PARAM_PROFILE,
         Parameters::PARAM_NUCL,
-        Parameters::PARAM_NO_SPACED_KMER,
+        Parameters::PARAM_SPACED_KMER_MODE,
         Parameters::PARAM_NO_COMP_BIAS_CORR,
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_MAX_SEQ_LEN,
-        Parameters::PARAM_V};
+        Parameters::PARAM_V,
+        Parameters::PARAM_KEEP_TEMP_FILES
+    };
     Parameters par;
     par.parseParameters(argc, argv, usage, perfPar, 4);
     
