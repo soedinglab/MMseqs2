@@ -32,6 +32,11 @@ const MMseqsParameter Parameters::PARAM_G={18,"-g","Greedy clustering by sequenc
 const MMseqsParameter Parameters::PARAM_A={28,"-a","Affinity clustering"};
 const MMseqsParameter Parameters::PARAM_MIN_SEQ_ID={19,"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
 const MMseqsParameter Parameters::PARAM_CASCADED={20,"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
+//affinity clustering
+const MMseqsParameter Parameters::PARAM_MAXITERATIONS={28,"--max-iterations","[int]\t Maximum number of iterations in affinity propagation clustering"};
+const MMseqsParameter Parameters::PARAM_CONVERGENCEITERATIONS={29,"--convergence_iterations","[int]\t Number of iterations the set of representatives has to stay constant"};
+const MMseqsParameter Parameters::PARAM_DAMPING={30,"--damping","Ratio of previous iteration entering values. Value between [0.5:1)."};
+const MMseqsParameter Parameters::PARAM_SIMILARITYSCORE={31,"--similarity-type","Type of score used for clustering [1:4]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value "};
 // logging
 const MMseqsParameter Parameters::PARAM_V={21,"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
 // clustering workflow
@@ -133,6 +138,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         if (ops >> GetOpt::OptionPresent("cascaded")){
             cascaded = true;
         }
+        ops >> GetOpt::Option("max-iterations", maxIteration);
+        ops >> GetOpt::Option("convergence_iterations", convergenceIterations);
+        ops >> GetOpt::Option("damping", dampingFactor);
+        ops >> GetOpt::Option("similarity-type", similarityScoreType);
 
     // logging
         ops >> GetOpt::Option('v', verbosity);
@@ -360,11 +369,18 @@ void Parameters::setDefaults() {
     evalThr = 0.001;
     covThr = 0.0;
     maxRejected = INT_MAX;
+    seqIdThr = 0.0;
     
     clusteringMode = Parameters::SET_COVER;
-    seqIdThr = 0.0;
     validateClustering = 0;
     cascaded = false;
+
+    maxIteration=1000;
+    convergenceIterations=100;
+    dampingFactor=0.6;
+    similarityScoreType=APC_SEQID;
+
+
     restart = 0;
     step = 1;
 
