@@ -81,7 +81,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
         Clustering* clu = new Clustering(inDBData, inDBWorkingIndex,
                 alnDB_step, alnDB_step_index,
                 cluDB_step, cluDB_step_index,
-                0, par.maxResListLen,par.maxIteration,par.convergenceIterations,par.dampingFactor,par.similarityScoreType);
+                0, par.maxResListLen,par.maxIteration,par.convergenceIterations,par.dampingFactor,par.similarityScoreType,par.preference);
         clu->run(Parameters::SET_COVER);
         delete clu;
 

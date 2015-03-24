@@ -9,7 +9,7 @@
 class AffinityClustering {
     public:
         AffinityClustering(size_t set_count, size_t unique_element_count, size_t all_element_count,
-                unsigned int *element_size_lookup, double **similarities, unsigned int **setids,  size_t iterationnumber, unsigned int convergenceIterations,double input_lambda);
+                unsigned int *element_size_lookup, double **similarities, unsigned int **setids,  size_t iterationnumber, unsigned int convergenceIterations,double input_lambda, double preference);
         ~AffinityClustering();
 
 
@@ -27,6 +27,7 @@ class AffinityClustering {
         double **similarities;
         unsigned int **setids;
         double input_lambda;
+        double preference;
 };
 
 #endif

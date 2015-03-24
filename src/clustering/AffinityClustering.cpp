@@ -4,7 +4,9 @@
 #include "AffinityClustering.h"
 
 
-AffinityClustering::AffinityClustering(size_t set_count, size_t unique_element_count, size_t all_element_count,unsigned int *element_size_lookup, double **similarities, unsigned int **setids,  size_t iterationnumber, unsigned int convergenceIterations,double input_lambda) {
+AffinityClustering::AffinityClustering(size_t set_count, size_t unique_element_count, size_t all_element_count,
+        unsigned int *element_size_lookup, double **similarities, unsigned int **setids,  size_t iterationnumber,
+        unsigned int convergenceIterations,double input_lambda,double preference) {
     this->set_count=set_count;
     this->unique_element_count=unique_element_count;
     this->all_element_count=all_element_count;
@@ -14,7 +16,7 @@ AffinityClustering::AffinityClustering(size_t set_count, size_t unique_element_c
     this->input_lambda=input_lambda;
     this->iterationnumber= iterationnumber;
     this->convergenceIterations=convergenceIterations;
-
+    this->preference=preference;
 }
 
 AffinityClustering::~AffinityClustering(){
@@ -25,6 +27,7 @@ AffinityClustering::~AffinityClustering(){
 
 std::list<set *> AffinityClustering::execute(){
     //dampening factor (default value is 0.5)
+    bool * convergence=new bool [set_count*convergenceIterations];
     double lambda=0;
     std::list<set *> result;
     double * currentsimilarities;
@@ -34,16 +37,16 @@ std::list<set *> AffinityClustering::execute(){
     double ** responsibilities=new double *[set_count];
     double * responsibilitiesData=new double [all_element_count];
     double * selfavailabilities=new double [set_count];
-    bool * convergence=new bool [set_count*convergenceIterations];
+
     bool converged=false;
 
     std::fill_n(convergence,set_count*convergenceIterations,0);
-    std::fill_n(availabilitiesData, all_element_count , 0);
+    std::fill_n(availabilitiesData, all_element_count , 0.0);
     size_t curr_pos  = 0;
     for(size_t i = 0; i < set_count; i++){
         availabilities[i] = &availabilitiesData[curr_pos];
         responsibilities[i] = &responsibilitiesData[curr_pos];
-        similarities[i][0]=0;//input preference minimal to get a lot of clusters TODO set by parameter
+        similarities[i][0]=preference;//input preference minimal to get a lot of clusters TODO set by parameter
         curr_pos  += element_size_lookup[i];
     }
 
@@ -130,14 +133,14 @@ std::list<set *> AffinityClustering::execute(){
 
         //after initialisation, set lambda input value
         lambda=input_lambda;
-        /*
+/*
         for(size_t i = 0; i < set_count; i++) {
-            currentset = setids[i];
+            const unsigned int *currentset = setids[i];
             for (int k = 0; k < element_size_lookup[i]; k++) {
                 std::cout << j <<"\t"<< i << "\t" << currentset[k] << "\t" << similarities[i][k] << "\t" << availabilities[i][k] << "\t" << responsibilities[i][k] << "\n";
             }
         }
-        */
+*/
     }
 
     //compute result

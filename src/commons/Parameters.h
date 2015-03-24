@@ -86,12 +86,13 @@ public:
     int    clusteringMode;
     int    validateClustering;
     bool   cascaded;
-    //AFFINITYCLUSTERIN
+    //AFFINITYCLUSTERING
     int maxIteration;                   // Maximum number of iterations of affinity clustering.
     int convergenceIterations;          // Number of iterations the representatives have to stay constant.
     float dampingFactor;                  // Reduces oscillation. Value in range of 0.5< <1.
     int similarityScoreType;            // Type of score to use for affinity clustering. (1) alignment score. (2) coverage (3)sequence identity (4)E-value.
-    
+    double preference;                  //Preference value influences the number of clusters (default=0). High values lead to more clusters.
+
     //extractorf
     size_t min_length;
     size_t max_length;
@@ -171,6 +172,7 @@ public:
         const static MMseqsParameter PARAM_CONVERGENCEITERATIONS;
         const static MMseqsParameter PARAM_DAMPING;
         const static MMseqsParameter PARAM_SIMILARITYSCORE;
+        const static MMseqsParameter PARAM_PREFERENCE;
 
     // logging
     const static MMseqsParameter PARAM_V;
