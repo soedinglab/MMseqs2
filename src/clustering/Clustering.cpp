@@ -5,7 +5,7 @@
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
         std::string outDB, std::string outDBIndex,
-        int validateClustering, int maxListLen,unsigned int maxIteration,unsigned int convergenceIterations,float dampingFactor,int similarityScoreType){
+        int validateClustering, int maxListLen,unsigned int maxIteration,unsigned int convergenceIterations,float dampingFactor,int similarityScoreType,double preference){
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
@@ -27,6 +27,7 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
     this->convergenceIterations=convergenceIterations;
     this->dampingFactor=dampingFactor;
     this->similarityScoreType=similarityScoreType;
+    this->preference=preference;
 }
 
 void Clustering::run(int mode){
@@ -100,8 +101,9 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "Convergence Iterations " <<convergenceIterations<<"\n";
         Debug(Debug::INFO) << "Damping Factor " <<dampingFactor<<"\n";
         Debug(Debug::INFO) << "Similarity Score Type " <<similarityScoreType<<"\n";
+        Debug(Debug::INFO) << "Preference " <<preference<<"\n";
         AffinityClustering affinityClustering(set_data.set_count, set_data.uniqu_element_count, set_data.all_element_count,
-                set_data.set_sizes, set_data.similarities, set_data.sets, maxIteration,convergenceIterations,dampingFactor);
+                set_data.set_sizes, set_data.similarities, set_data.sets, maxIteration,convergenceIterations,dampingFactor,preference);
 
 
 
@@ -310,15 +312,16 @@ Clustering::set_data Clustering::read_in_set_data(){
             // should be int because of memory constraints
 
             //get similarityscore
+            double factor=1;
             double similarityscore;
             if(similarityScoreType==Parameters::APC_ALIGNMENTSCORE){
                 Util::parseByColumnNumber(data, similarity, 1); //column 4 = sequence identity
                 similarityscore= atof(std::string(similarity).c_str());
             }else if(similarityScoreType==Parameters::APC_COVERAGE){
                 Util::parseByColumnNumber(data, similarity, 2); //column 4 = sequence identity
-                double querycoverage= atof(std::string(similarity).c_str());
+                double querycoverage= atof(std::string(similarity).c_str())*factor;
                 Util::parseByColumnNumber(data, similarity, 3); //column 4 = sequence identity
-                double dbcoverage= atof(std::string(similarity).c_str());
+                double dbcoverage= atof(std::string(similarity).c_str())*factor;
                 if(querycoverage<dbcoverage){
                     similarityscore=querycoverage;
                 }else{
@@ -327,13 +330,13 @@ Clustering::set_data Clustering::read_in_set_data(){
 
             }else if(similarityScoreType==Parameters::APC_SEQID){
                 Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-                similarityscore= atof(std::string(similarity).c_str());
+                similarityscore= atof(std::string(similarity).c_str())*factor;
             }
             else if(similarityScoreType==Parameters::APC_EVAL) {
                 Util::parseByColumnNumber(data, similarity, 5); //column 4 = sequence identity
-                similarityscore = atof(std::string(similarity).c_str());
+                similarityscore = -log(atof(std::string(similarity).c_str()))*factor;
             }
-
+         //   Debug(Debug::INFO)  << similarityscore <<"\n";
 
             element_similarity_buffer[element_counter] = similarityscore;
             element_buffer[element_counter++] = (unsigned int) curr_element;

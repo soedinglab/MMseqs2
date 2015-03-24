@@ -29,14 +29,16 @@ const MMseqsParameter Parameters::PARAM_C={16,"-c",                          "Mi
 const MMseqsParameter Parameters::PARAM_MAX_REJECTED={17,"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted"};
 // clustering
 const MMseqsParameter Parameters::PARAM_G={18,"-g","Greedy clustering by sequence length"};
-const MMseqsParameter Parameters::PARAM_A={28,"-a","Affinity clustering"};
+const MMseqsParameter Parameters::PARAM_A={29,"-a","Affinity clustering"};
 const MMseqsParameter Parameters::PARAM_MIN_SEQ_ID={19,"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
 const MMseqsParameter Parameters::PARAM_CASCADED={20,"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
 //affinity clustering
-const MMseqsParameter Parameters::PARAM_MAXITERATIONS={28,"--max-iterations","[int]\t Maximum number of iterations in affinity propagation clustering"};
-const MMseqsParameter Parameters::PARAM_CONVERGENCEITERATIONS={29,"--convergence_iterations","[int]\t Number of iterations the set of representatives has to stay constant"};
-const MMseqsParameter Parameters::PARAM_DAMPING={30,"--damping","Ratio of previous iteration entering values. Value between [0.5:1)."};
-const MMseqsParameter Parameters::PARAM_SIMILARITYSCORE={31,"--similarity-type","Type of score used for clustering [1:4]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value "};
+const MMseqsParameter Parameters::PARAM_MAXITERATIONS={30,"--max-iterations","[int]\t Maximum number of iterations in affinity propagation clustering"};
+const MMseqsParameter Parameters::PARAM_CONVERGENCEITERATIONS={31,"--convergence_iterations","[int]\t Number of iterations the set of representatives has to stay constant"};
+const MMseqsParameter Parameters::PARAM_DAMPING={32,"--damping","Ratio of previous iteration entering values. Value between [0.5:1)."};
+const MMseqsParameter Parameters::PARAM_SIMILARITYSCORE={33,"--similarity-type","Type of score used for clustering [1:4]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value "};
+const MMseqsParameter Parameters::PARAM_PREFERENCE={33,"--preference","Preference value influences the number of clusters (default=0). High values lead to more clusters."};
+
 // logging
 const MMseqsParameter Parameters::PARAM_V={21,"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
 // clustering workflow
@@ -152,6 +154,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops >> GetOpt::Option("convergence_iterations", convergenceIterations);
         ops >> GetOpt::Option("damping", dampingFactor);
         ops >> GetOpt::Option("similarity-type", similarityScoreType);
+        ops >> GetOpt::Option("preference", preference);
 
         // logging
         ops >> GetOpt::Option('v', verbosity);
@@ -388,6 +391,7 @@ void Parameters::setDefaults() {
     convergenceIterations=100;
     dampingFactor=0.6;
     similarityScoreType=APC_SEQID;
+    preference=0;
 
 
     restart = 0;

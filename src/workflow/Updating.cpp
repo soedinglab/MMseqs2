@@ -417,7 +417,7 @@ int clusterupdate (int argc, const char * argv[]){
         Clustering* clu = new Clustering(currentSeqDB, currentSeqDBIndex,
                 BB_base, BB_base + ".index",
                 BB_clu, BB_clu_index,
-                0, par.maxResListLen,par.maxIteration,par.convergenceIterations,par.dampingFactor,par.similarityScoreType);
+                0, par.maxResListLen,par.maxIteration,par.convergenceIterations,par.dampingFactor,par.similarityScoreType,par.preference);
         clu->run(Parameters::SET_COVER);
 
         std::cout << "Append generated clusters to the complete clustering...\n";
