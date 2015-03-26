@@ -25,6 +25,9 @@ public:
     // substitution matrix
     short** subMatrix;
 
+    // substitution matrix for pseudocounts
+    float** subMatrixPseudoCounts;
+
     // joint probability matrix
     double** probMatrix;
 
@@ -37,10 +40,10 @@ public:
     static void print(double** matrix, char* int2aa, int size);
 
     // generate the substitution matrix given the probability matrix, background probabilities and the alphabet size
-    static void generateSubMatrix(double ** probMatrix, double ** subMatrix, int size, double bitFactor = 1.0, double scoringBias = 0.0);
+    static void generateSubMatrix(double ** probMatrix, double ** subMatrix, float ** subMatrixPseudoCounts, int size, double bitFactor = 1.0, double scoringBias = 0.0);
 
     // generate a short data type substitution matrix
-    static void generateSubMatrix(double ** probMatrix, short ** subMatrix, int size, double bitFactor = 1.0, double scoringBias = 0.0);
+    static void generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix, int size, double bitFactor = 1.0, double scoringBias = 0.0);
 
     virtual double getBackgroundProb(size_t aa_index) {
         Debug(Debug::ERROR) << "getBackground is not Impl. for this type of Matrix \n";

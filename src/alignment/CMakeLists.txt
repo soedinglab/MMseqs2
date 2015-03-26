@@ -8,7 +8,9 @@ set(alignment_source_files
   smith_waterman_sse2.h
   MultipleAlignment.cpp
   MultipleAlignment.h
+  PSSM.cpp
+  PSSM.h
 )
-add_library(alignment ${alignment_source_files} MultipleAlignment.cpp MultipleAlignment.h)
+add_library(alignment ${alignment_source_files})
 
 target_link_libraries(alignment commons)

@@ -6,6 +6,8 @@
 //
 #include <iostream>
 #include <smith_waterman_sse2.h>
+#include <PSSM.h>
+#include <Tcl/tcl.h>
 #include "Sequence.h"
 #include "SubstitutionMatrix.h"
 #include "MultipleAlignment.h"
@@ -57,9 +59,11 @@ int main (int argc, const char * argv[])
     seqSet.push_back(s4);
     //seqSet.push_back(s5);
     MultipleAlignment msaAligner(1000,10,&subMat);
-    MultipleAlignment::MSAResult res = msaAligner.computeMSA(s1,seqSet);
+    MultipleAlignment::MSAResult res = msaAligner.computeMSA(s1, seqSet, true);
     MultipleAlignment::print(res);
-    msaAligner.computePSSMFromMSA(res);
+    PSSM pssm(&subMat, 1000);
+    pssm.computePSSMFromMSA(res);
+    pssm.print(res.centerLength);
     return 0;
 }
 

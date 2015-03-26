@@ -1,6 +1,6 @@
 #include "ReducedMatrix.h"
 
-ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
+ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize){
     
     // swap the matrix and alphabet mappings
     this->origAlphabetSize = this->alphabetSize;
@@ -26,7 +26,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
         probMatrix_new[i]=new double[origAlphabetSize-1];
     }
 
-    generateSubMatrix(probMatrix, subMatrix_tmp, origAlphabetSize-1);
+    generateSubMatrix(probMatrix, subMatrix_tmp, rMatrix,  origAlphabetSize-1);
 
 //    double info = calculateMutualInformation(probMatrix, subMatrix_tmp, origAlphabetSize-1);
 //    Debug(Debug::INFO) << "20 " << info << "\n";
@@ -45,7 +45,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
             }
         }
         //This is where the function to couple the two bases is called.
-        std::pair<int,int> reduce_bases=coupleWithBestInfo(probMatrix, probMatrix_new, origAlphabetSize-1-step);
+        std::pair<int,int> reduce_bases=coupleWithBestInfo(probMatrix, probMatrix_new, rMatrix,  origAlphabetSize-1-step);
         
         int reduced_index=reduce_bases.first;
         int lost_index=reduce_bases.second;
@@ -102,7 +102,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize){
     for (int i = 0; i<alphabetSize; i++)
         this->subMatrix[i] = new short[alphabetSize];
 
-    generateSubMatrix(probMatrix_new, this->subMatrix, alphabetSize, 2.0, 0.0);
+    generateSubMatrix(probMatrix_new, rMatrix, this->subMatrix, alphabetSize, 2.0, 0.0);
 
     for (size_t i = 0; i < origAlphabetSize-1; i++)
     {
@@ -177,7 +177,7 @@ void ReducedMatrix::coupleBases(double ** input, double ** output, size_t size, 
 
 
 
-std::pair<size_t,size_t> ReducedMatrix::coupleWithBestInfo(double ** pinput, double ** pMatrix, size_t size){
+std::pair<size_t,size_t> ReducedMatrix::coupleWithBestInfo(double ** pinput, double ** pMatrix, float ** rMatrix, size_t size){
     double bestInfo = 0;
     size_t besti = 0, bestj = 0;
     
@@ -202,7 +202,7 @@ std::pair<size_t,size_t> ReducedMatrix::coupleWithBestInfo(double ** pinput, dou
             coupleBases(pinput, tempp, size, i, j);
             
             // Generate the new substitution matrix after two bases have been coupled.
-            generateSubMatrix(tempp, tempsub, size-1);
+            generateSubMatrix(tempp, tempsub, rMatrix, size-1);
             
             // Storing mutual information in temp.
             temp = calculateMutualInformation(tempp, tempsub, size-1);
