@@ -30,8 +30,7 @@ public:
 
     ~MultipleAlignment();
 
-    MSAResult computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs);
-    void computePSSMFromMSA(MSAResult msaResult);
+    MultipleAlignment::MSAResult computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA);
     static void print(MSAResult msaResult);
 private:
     Matcher * aligner;
