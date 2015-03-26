@@ -14,6 +14,7 @@ QueryScoreLocal::QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, sh
     this->scoreSizes = new unsigned int[SCORE_RANGE];
     memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
     this->maxHitsPerQuery = maxHitsPerQuery;
+    this->logMatchProb = log(kmerMatchProb);
 }
 
 QueryScoreLocal::~QueryScoreLocal(){
@@ -59,14 +60,16 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult (int querySeqLen, unsigned
                     hit_t * result = (resList + elementCounter);
                     result->seqId = pos * SIMD_SHORT_SIZE + i;
                     // log(100) * log(100) /(log(qL)*log(dbL))
-
-                    float mu = kmerMatchProb * (seqLens[result->seqId]);
+                    double dbSeqLen = seqLens[result->seqId];
+                    float mu = kmerMatchProb * dbSeqLen;
                     //result->zScore = (((float)rawScore) - mu )/ sqrt(mu);
 
                     double score = (double) rawScore;
+                    // compute -log(p)
+                    // S_fact = score!
                     double S_fact = std::min(std::numeric_limits<double>::max(),
                             sqrt(2 * M_PI * score) * pow(score / exp(1), score) * exp(1 / (12  * score)));
-                    double mid_term = score * (log(kmerMatchProb) + log(seqLens[result->seqId]));
+                    double mid_term = score * (logMatchProb + log(dbSeqLen));
                     double first_term = -(mu * score /(score + 1));
                     double prob = first_term + mid_term - log(S_fact);
                     result->zScore = -prob;
