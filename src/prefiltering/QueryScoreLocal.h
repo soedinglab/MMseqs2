@@ -33,5 +33,6 @@ public:
 private:
 
     size_t maxHitsPerQuery;
+    double logMatchProb;
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */
