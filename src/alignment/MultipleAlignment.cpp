@@ -27,7 +27,7 @@ MultipleAlignment::~MultipleAlignment() {
     delete [] queryGaps;
 }
 
-MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs) {
+MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA) {
     aligner->initQuery(centerSeq);
     for(size_t i = 0; i < centerSeq->L; i++){
         queryGaps[i] = 0;
@@ -66,7 +66,9 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
                     ++targetPos;
                     currentQueryGapSize += 1;
                     size_t gapCount = queryGaps[queryPos];
+
                     queryGaps[queryPos] = std::max(gapCount, currentQueryGapSize);
+
                 }
             }
         }
@@ -80,8 +82,10 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
             EXIT(EXIT_FAILURE);
         }
         for (size_t gapIdx = 0; gapIdx < queryGaps[queryPos]; gapIdx++) {
-            msaSequence[0][queryMSASize] = '-';
-            queryMSASize++;
+            if(noDeletionMSA == false) {
+                msaSequence[0][queryMSASize] = '-';
+                queryMSASize++;
+            }
         }
         msaSequence[0][queryMSASize] = subMat->int2aa[centerSeq->int_sequence[queryPos]];
         queryMSASize++;
@@ -115,8 +119,10 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
                 // D state in target Sequence
                 if(bt.at(alnPos) == 'D'){
                     while(bt.at(alnPos) == 'D' &&  alnPos < bt.size() ){
-                        edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
-                        bufferPos++;
+                        if(noDeletionMSA == false) {
+                            edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
+                            bufferPos++;
+                        }
                         targetPos++;
                         alnPos++;
                     }
@@ -137,8 +143,10 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 
                     // add query deletion gaps
                     for(size_t gapIdx = 0; gapIdx < queryGaps[queryPos]; gapIdx++){
-                        edgeSeqMSA[bufferPos] = '-';
-                        bufferPos++;
+                        if(noDeletionMSA == false){
+                            edgeSeqMSA[bufferPos] = '-';
+                            bufferPos++;
+                        }
                     }
                     // M state
                     edgeSeqMSA[bufferPos] = subMat->int2aa[edgeSeq->int_sequence[targetPos]];
@@ -170,61 +178,3 @@ void MultipleAlignment::print(MSAResult msaResult){
     }
 }
 
-void MultipleAlignment::computePSSMFromMSA(MultipleAlignment::MSAResult msaResult) {
-    float * profile = new float[Sequence::PROFILE_AA_SIZE * msaResult.centerLength];
-    memset(profile, 0, Sequence::PROFILE_AA_SIZE * msaResult.centerLength * sizeof(float));
-    const char * centerSequence = msaResult.msaSequence[0];
-    bool * gapPosition = new bool[msaResult.msaSequenceLength];
-
-    // find gaps in query sequence
-    for (size_t pos = 0; pos < msaResult.msaSequenceLength; pos++) {
-        if(centerSequence[pos] == '-' ){
-            gapPosition[pos] = true;
-        }else{
-            gapPosition[pos] = false;
-        }
-    }
-    // compute position frequency matrix
-    // M_{aa,pos}=\frac{1}{N} \sum_{i=1}^N I(X_{i,pos}=aa)
-    for (size_t i = 0; i < msaResult.setSize; i++) {
-        const char * seq = msaResult.msaSequence[i];
-        size_t currPos = 0;
-
-        for (size_t pos = 0; pos < msaResult.msaSequenceLength; pos++) {
-            if(seq[pos] == '-' || gapPosition[pos] == true)
-                continue;
-            int aa = subMat->aa2int[seq[pos]];
-            profile[currPos * Sequence::PROFILE_AA_SIZE + aa] += 1;
-            currPos++;
-        }
-    }
-    // compute position-specific scoring matrix PSSM score
-    // 1.) convert PFM to PPM (position probability matrix)
-    //     Both PPMs assume statistical independence between positions in the pattern
-    // 2.) PSSM Log odds score
-    //     M_{aa,pos}={log(M_{aa,pos} / b_{aa}).
-    for(size_t pos = 0; pos < msaResult.centerLength; pos++){
-        float totalSum = 0;
-        for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
-            totalSum += profile[pos * Sequence::PROFILE_AA_SIZE + aa];
-        }
-        for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
-            float aaProb = profile[pos * Sequence::PROFILE_AA_SIZE + aa] / totalSum;
-            profile[pos * Sequence::PROFILE_AA_SIZE + aa] = log(aaProb / subMat->pBack[aa]);
-        }
-    }
-
-    printf("Pos ");
-    for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-        printf("%3c ", subMat->int2aa[aa]);
-    }
-    printf("\n");
-    for(size_t i = 0; i < msaResult.centerLength; i++){
-        printf("%3zu ", i);
-        for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
-            printf("%3f ", profile[i * Sequence::PROFILE_AA_SIZE + aa] );
-        }
-        printf("\n");
-    }
-    delete [] gapPosition;
-}
