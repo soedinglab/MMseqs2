@@ -173,8 +173,11 @@ void runClustering(Parameters par,
 
     // copy the clustering databases to the right location
     copy(cluDBIndex, outDBIndex);
-    copy(cluDB, outDB); 
-    deleteTmpFiles(tmpFiles);
+    copy(cluDB, outDB);
+
+    if(!par.keepTempFiles) {
+        deleteTmpFiles(tmpFiles);
+    }
     delete tmpFiles;
 }
 
@@ -289,8 +292,16 @@ void runCascadedClustering(Parameters par,
 
     std::cout << "--------------------------- Merging databases ---------------------------------------\n";
     mergeClusteringResults(inDB, outDB, cluSteps);
-    deleteTmpFiles(tmpFiles);
+
+    if(!par.keepTempFiles) {
+        deleteTmpFiles(tmpFiles);
+    }
     delete tmpFiles;
+}
+
+void setWorkflowDefaults(Parameters* p) {
+    p->localSearch = false;;
+    p->spacedKmer = false;
 }
 
 int clusteringworkflow (int argc, const char * argv[]){
@@ -312,13 +323,19 @@ int clusteringworkflow (int argc, const char * argv[]){
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_CASCADED,
         Parameters::PARAM_MAX_SEQ_LEN,
-            Parameters::PARAM_RESTART,
-            Parameters::PARAM_STEP,
-            Parameters::PARAM_V};
+        Parameters::PARAM_RESTART,
+        Parameters::PARAM_STEP,
+        Parameters::PARAM_V,
+        Parameters::PARAM_SEARCH_MODE,
+        Parameters::PARAM_SPACED_KMER_MODE,
+        Parameters::PARAM_KEEP_TEMP_FILES
+    };
+
     Parameters par;
+    setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, usage, perfPar, 3);
-    par.localSearch = false;
-    par.spacedKmer = false;
+    par.localSearch = par.localSearch;
+    par.spacedKmer = par.spacedKmer;
     par.covThr = 0.8;
     par.evalThr = 0.001;
     Debug::setDebugLevel(par.verbosity);
