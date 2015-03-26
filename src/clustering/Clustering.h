@@ -33,7 +33,7 @@ class Clustering {
         Clustering (std::string seqDB, std::string seqDBIndex,
                 std::string alnResultsDB, std::string alnResultsDBIndex,
                 std::string outDB, std::string outDBIndex, 
-                int validateClustering, int maxListLen);
+                int validateClustering, int maxListLen,unsigned int maxIteration,unsigned int convergenceIterations,float dampingFactor,int similarityScoreType, double preference);
 
         struct set_data {
             // one set contains pointers to the cluster member ids
@@ -74,5 +74,12 @@ class Clustering {
         // maximum length of the alignment lists 
         // after the maximum length, the reading of the alignment list for a query is aborted
         unsigned int maxListLen;
+
+    //values for affinity clustering
+        unsigned int maxIteration;
+        unsigned int convergenceIterations;
+        float dampingFactor;
+        int similarityScoreType;
+        double preference;
 };
 #endif

@@ -319,7 +319,9 @@ int clusterupdate (int argc, const char * argv[]){
         Parameters::PARAM_SUB_MAT,
         Parameters::PARAM_MAX_SEQS,
         Parameters::PARAM_MAX_SEQ_LEN,
-        Parameters::PARAM_V};
+        Parameters::PARAM_V,
+        Parameters::PARAM_KEEP_TEMP_FILES
+    };
     Parameters par;
     par.parseParameters(argc, argv, usage, perfPar, 5);
     
@@ -415,7 +417,7 @@ int clusterupdate (int argc, const char * argv[]){
         Clustering* clu = new Clustering(currentSeqDB, currentSeqDBIndex,
                 BB_base, BB_base + ".index",
                 BB_clu, BB_clu_index,
-                0, par.maxResListLen);
+                0, par.maxResListLen,par.maxIteration,par.convergenceIterations,par.dampingFactor,par.similarityScoreType,par.preference);
         clu->run(Parameters::SET_COVER);
 
         std::cout << "Append generated clusters to the complete clustering...\n";
@@ -447,7 +449,9 @@ int clusterupdate (int argc, const char * argv[]){
     int sec = end.tv_sec - start.tv_sec;
     std::cout << "\nTime for updating: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
 
-    deleteTmpFiles(tmpFiles);
+    if (!par.keepTempFiles) {
+        deleteTmpFiles(tmpFiles);
+    }
     delete tmpFiles;
     return 0;
 }
