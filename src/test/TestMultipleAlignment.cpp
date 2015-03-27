@@ -6,8 +6,9 @@
 //
 #include <iostream>
 #include <smith_waterman_sse2.h>
-#include <PSSM.h>
+#include "PSSMCalculator.h"
 #include <Tcl/tcl.h>
+#include <AudioToolbox/AudioToolbox.h>
 #include "Sequence.h"
 #include "SubstitutionMatrix.h"
 #include "MultipleAlignment.h"
@@ -61,9 +62,11 @@ int main (int argc, const char * argv[])
     MultipleAlignment msaAligner(1000,10,&subMat);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(s1, seqSet, true);
     MultipleAlignment::print(res);
-    PSSM pssm(&subMat, 1000);
-    pssm.computePSSMFromMSA(res);
-    pssm.print(res.centerLength);
+    PSSMCalculator pssm(&subMat, 1000);
+    pssm.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence);
+    pssm.printProfile(res.centerLength);
+    pssm.printPSSM(res.centerLength);
+
     return 0;
 }
 
