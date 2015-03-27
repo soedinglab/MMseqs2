@@ -8,44 +8,59 @@
 
 #include <SubstitutionMatrix.h>
 #include <stddef.h>
+#include <sys/cdefs.h>
+#include <zconf.h>
 #include "MultipleAlignment.h"
 
-class PSSM {
+class PSSMCalculator {
 public:
 
-    PSSM(SubstitutionMatrix *subMat, size_t maxSeqLength);
+    PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength);
 
-    ~PSSM();
+    ~PSSMCalculator();
 
-    void computePSSMFromMSA(MultipleAlignment::MSAResult msaResult);
-    void print(size_t queryLength);
+    void computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs);
+    void printProfile(size_t queryLength);
+    void printPSSM(size_t queryLength);
+
 private:
     SubstitutionMatrix * subMat;
     size_t maxSeqLength;
-    unsigned char * pssm;
+
+    // contains sequence weights (global)
+    float * seqWeight;
+
+    // contains MSA AA matchWeight
+    float * matchWeight;
+
+    // contains MSA AA pseudocount weight
+    float * pseudocountsWeight;
+
+    // Entropy of MSA
+    float * Neff_M;
+
+    // Profile of MSA
     float * profile;
-    bool * gapPosition;
-    // compute position frequency matrix
-    // M_{aa,pos}=\frac{1}{N} \sum_{i=1}^N I(X_{i,pos}=aa)
-    void computeFrequencyMatrix(size_t setSize, char const **msaSeqs, size_t msaSeqLength);
+
+    // PSSM contains log odds PSSM values
+    char * pssm;
+
+    // pseudocount matrix (mem aligned)
+    float * R;
 
     // compute position-specific scoring matrix PSSM score
     // 1.) convert PFM to PPM (position probability matrix)
     //     Both PPMs assume statistical independence between positions in the pattern
     // 2.) PSSM Log odds score
     //     M_{aa,pos}={log(M_{aa,pos} / b_{aa}).
-    void computeLogPSSM(float *profile, size_t queryLength);
+    void computeLogPSSM(char *pssm, float *profile, size_t queryLength, float scoreBias);
 
-    float * seqWeight;
-    float * frequency;
-    float * frequency_with_pseudocounts;
-    float * Neff_M;
 
     // normalize a fector to 1.0
     float NormalizeTo1(float *array, int length, double const *def_array);
 
-
-    void PreparePseudocounts(float *frequency, float *frequency_with_pseudocounts, size_t queryLength, const float **R);
+    // prepare pseudocounts
+    void PreparePseudocounts(float *frequency, float *frequency_with_pseudocounts, size_t queryLength, const float *R);
 
     // compute the Neff_M per column -p log(p)
     void computeNeff_M(float *frequency, float *seqWeight, float *Neff_M, size_t queryLength, size_t setSize, char const **msaSeqs);
@@ -56,6 +71,7 @@ private:
     // compute pseudocounts from Neff_M -p log(p) per column
     void computePseudoCounts(float *profile, float *frequency, float *frequency_with_pseudocounts, size_t length);
 
+    void computeMatchWeights(size_t setSize, size_t queryLength, const char **msaSeqs);
 };
 
 
