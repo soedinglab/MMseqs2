@@ -28,6 +28,20 @@ MultipleAlignment::~MultipleAlignment() {
 }
 
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA) {
+
+    // just center sequence is included
+    if(edgeSeqs.size() == 0 ){
+        size_t queryMSASize = 0;
+        for(size_t queryPos = 0; queryPos < centerSeq->L; queryPos++) {
+            if (queryMSASize >= maxSeqLen) {
+                Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxSeqLen (" << maxSeqLen << ")" << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            msaSequence[0][queryMSASize] = subMat->int2aa[centerSeq->int_sequence[queryPos]];
+            queryMSASize++;
+        }
+        return MSAResult(queryMSASize, centerSeq->L, edgeSeqs.size() + 1, (const char **) msaSequence);
+    }
     aligner->initQuery(centerSeq);
     for(size_t i = 0; i < centerSeq->L; i++){
         queryGaps[i] = 0;

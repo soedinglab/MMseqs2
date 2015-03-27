@@ -15,6 +15,7 @@
 #include <BaseMatrix.h>
 #include <SubstitutionMatrix.h>
 #include <Parameters.h>
+#include <Sequence.h>
 
 extern "C" {
 #include "ffindex.h"
@@ -148,7 +149,7 @@ int createprofiledb(int argn,const char **argv)
     }
     BaseMatrix * subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0);
 
-    char * profileBuffer= new char[maxElementSize];
+    char * profileBuffer= new char[maxElementSize * Sequence::PROFILE_AA_SIZE];
     Debug(Debug::WARNING) << "Start converting profile to mmseqs profile.\n";
     for(size_t i = 0; i < dbr_data.getSize(); i++){
         char * data = dbr_data.getData(i);
