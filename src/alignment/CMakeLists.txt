@@ -8,8 +8,8 @@ set(alignment_source_files
   smith_waterman_sse2.h
   MultipleAlignment.cpp
   MultipleAlignment.h
-  PSSM.cpp
-  PSSM.h
+  PSSMCalculator.cpp
+  PSSMCalculator.h
 )
 add_library(alignment ${alignment_source_files})
 
