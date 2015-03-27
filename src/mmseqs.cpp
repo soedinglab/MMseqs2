@@ -21,13 +21,14 @@ static struct Command commands[] = {
         {"createfasta", createfasta},
         {"createindex", createindex},
         {"mergeffindex", mergeffindex},
-        {"clusteringtofastadb", clusteringtofastadb},
+        {"clustertofastadb", clusteringtofastadb},
         {"swapresults", swapresults},
         {"extractorf", extractorf},
         {"createprofiledb", createprofiledb},
         {"translatenucleotide", translatenucleotide},
         {"timetest", timetest},
-        {"legacycs219", legacycs219}
+        {"legacycs219", legacycs219},
+        {"clustertoprofiledb", cluster2profile}
 };
 
 
@@ -46,7 +47,8 @@ void printUsage() {
             "createfasta        \tConvert ffindex to fasta\n"
             "createprofiledb    \tConvert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database.\n"
             "swapresults        \tSwaps results from the mapping A->A,B,C to A -> A, B -> A, C -> A\n"
-            "clusteringtofastadb\tCConvert Convert mmseqs clustering to ffindex indexed fasta format\n"
+            "clustertofastadb   \tConvert Convert mmseqs clustering to ffindex indexed fasta format\n"
+            "clustertoprofiledb \tCalculates profile from clustering\n"
             "mergeffindex       \tMerge multiple ffindex files based on similar id into one file\n"
             "extractorf         \tExtract all open reading frames from a nucleotide fasta file into a ffindex database\n"
             "translatenucleotide\tTranslate nucleotide sequences into aminoacid sequences in a ffindex database\n"

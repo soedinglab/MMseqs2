@@ -19,7 +19,7 @@ public:
 
     ~PSSMCalculator();
 
-    void computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs);
+    char const * computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs);
     void printProfile(size_t queryLength);
     void printPSSM(size_t queryLength);
 

@@ -33,7 +33,7 @@ PSSMCalculator::~PSSMCalculator() {
 }
 
 
-void PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs) {
+char const * PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs) {
 
     for(size_t pos = 0; pos < queryLength; pos++){
         if(msaSeqs[0][pos] == '-'){
@@ -56,6 +56,7 @@ void PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLength, cons
     computePseudoCounts(profile, matchWeight, pseudocountsWeight, queryLength);
     // create final Matrix
     computeLogPSSM(pssm, profile, queryLength, -0.2);
+    return pssm;
 }
 
 void PSSMCalculator::printProfile(size_t queryLength){
