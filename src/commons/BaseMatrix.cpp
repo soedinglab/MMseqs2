@@ -60,15 +60,17 @@ BaseMatrix::~BaseMatrix(){
     for (int i = 0; i < alphabetSize; i++){
         delete[] probMatrix[i];
         delete[] subMatrix[i];
+        delete[] subMatrixPseudoCounts[i];
     }
     delete[] probMatrix;
+    delete[] subMatrixPseudoCounts;
     delete[] subMatrix;
 }
 
 void BaseMatrix::print(short** matrix, char* int2aa, int size){
     std::cout << "\n";
     short avg = 0;
-    printf("%4c ", ' ');
+    printf("  ");
     for (int i = 0; i < size; i++)
         printf("%4c ", int2aa[i]);
     std::cout << "\n";
@@ -116,9 +118,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
     for (int i = 0; i < size; i++){
         for (int j = 0; j < size; j++){
             subMatrixPseudoCounts[i][j] = probMatrix[i][j]/(pBack[j]); //subMatrixPseudoCounts[a][b]=P(a|b)
-            printf("%.3f\t", subMatrixPseudoCounts[i][j]);
         }
-        printf("\n");
     }
 
 

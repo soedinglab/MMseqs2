@@ -26,6 +26,7 @@ PSSMCalculator::~PSSMCalculator() {
     delete [] profile;
     delete [] Neff_M;
     delete [] seqWeight;
+    delete [] pssm;
     free(pseudocountsWeight);
     free(matchWeight);
     free(R);
@@ -63,7 +64,7 @@ void PSSMCalculator::printProfile(size_t queryLength){
         printf("%2c    ", subMat->int2aa[aa]);
     }
     printf("\n");
-    for(size_t i = 0; i <  queryLength; i++){
+    for(size_t i = 0; i < queryLength; i++){
         printf("%3zu ", i);
         for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
             printf("% 03.2f ", profile[i * Sequence::PROFILE_AA_SIZE + aa] );
