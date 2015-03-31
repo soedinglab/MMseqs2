@@ -135,7 +135,7 @@ typedef __m512i simd_int;
 uint16_t simd_hmax16_avx(const __m256i buffer);
 uint8_t simd_hmax8_avx(const __m256i buffer);
 
-template  <unsigned int N> __m256i _mm256_shift_left(__m256i a)
+template  <unsigned int N> inline __m256i _mm256_shift_left(__m256i a)
 {
     __m256i mask = _mm256_permute2x128_si256(a, a, _MM_SHUFFLE(0,0,3,0) );
     return _mm256_alignr_epi8(a,mask,16-N);
@@ -178,7 +178,7 @@ typedef __m256i simd_int;
 //TODO fix like shift_left
 #define simdi8_shiftr(x,y)  _mm256_srli_si256(x,y)
 #define simdi8_movemask(x)  _mm256_movemask_epi8(x)
-#define simdi16_extract(x,y) _mm256_extract_epi16(x,y)
+#define simdi16_extract(x,y) extract_epi16(x,y)
 #define simdi16_slli(x,y)	_mm256_slli_epi16(x,y) // shift integers in a left by y
 #define simdi16_srli(x,y)	_mm256_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)   _mm256_slli_epi32(x,y) // shift integers in a left by y
@@ -335,7 +335,7 @@ typedef __m128i simd_int;
 #define simdi8_shiftl(x,y)  _mm_slli_si128(x,y)
 #define simdi8_shiftr(x,y)  _mm_srli_si128(x,y)
 #define simdi8_movemask(x)  _mm_movemask_epi8(x)
-#define simdi16_extract(x,y) sse2_extract_epi16(x,y)
+#define simdi16_extract(x,y) extract_epi16(x,y)
 #define simdi16_slli(x,y)	_mm_slli_epi16(x,y) // shift integers in a left by y
 #define simdi16_srli(x,y)	_mm_srli_epi16(x,y) // shift integers in a right by y
 #define simdi32_slli(x,y)	_mm_slli_epi32(x,y) // shift integers in a left by y
@@ -384,7 +384,32 @@ inline uint8_t simd_hmax8_avx(const __m256i buffer){
 #endif
 
 
-inline unsigned short sse2_extract_epi16(__m128i v, int pos) {
+
+#ifdef AVX2
+inline unsigned short extract_epi16(__m256i v, int pos) {
+    switch(pos){
+        case 0: return _mm256_extract_epi16(v, 0);
+        case 1: return _mm256_extract_epi16(v, 1);
+        case 2: return _mm256_extract_epi16(v, 2);
+        case 3: return _mm256_extract_epi16(v, 3);
+        case 4: return _mm256_extract_epi16(v, 4);
+        case 5: return _mm256_extract_epi16(v, 5);
+        case 6: return _mm256_extract_epi16(v, 6);
+        case 7: return _mm256_extract_epi16(v, 7);
+        case 8: return _mm256_extract_epi16(v, 8);
+        case 9: return _mm256_extract_epi16(v, 9);
+        case 10: return _mm256_extract_epi16(v, 10);
+        case 11: return _mm256_extract_epi16(v, 11);
+        case 12: return _mm256_extract_epi16(v, 12);
+        case 13: return _mm256_extract_epi16(v, 13);
+        case 14: return _mm256_extract_epi16(v, 14);
+        case 15: return _mm256_extract_epi16(v, 15);
+    }
+    return 0;
+}
+#else
+#ifdef SSE
+inline unsigned short extract_epi16(__m128i v, int pos) {
     switch(pos){
         case 0: return _mm_extract_epi16(v, 0);
         case 1: return _mm_extract_epi16(v, 1);
@@ -397,6 +422,9 @@ inline unsigned short sse2_extract_epi16(__m128i v, int pos) {
     }
     return 0;
 }
+#endif
+#endif
+
 
 /* horizontal max */
 template <typename F>
