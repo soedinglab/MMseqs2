@@ -166,6 +166,7 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
                 swResults.push_back(res);
                 passedNum++;
                 totalPassedNum++;
+                rejected = 0;
             }
             else{
                 rejected++;
