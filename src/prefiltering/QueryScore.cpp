@@ -7,13 +7,13 @@ QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, int seedLength, s
     this->dbSize = dbSize;
     this->kmerMatchProb = kmerMatchProb;
     this->kmerThr = kmerThr;
-    this->scores_128_size = (dbSize + SIMD_SHORT_SIZE -1)/ SIMD_SHORT_SIZE * SIMD_SHORT_SIZE;
+    this->scores_128_size = (dbSize + SIMD_SHORT_SIZE - 1)/ SIMD_SHORT_SIZE * SIMD_SHORT_SIZE;
     // 8 DB short int entries are stored in one __m128i vector
     // one __m128i vector needs 16 byte
-    scores_128 = (simd_int*) mem_align(ALIGN_INT, scores_128_size * 2);
+    scores_128 = (simd_int*) mem_align(ALIGN_INT, scores_128_size * sizeof(unsigned short));
     scores = (unsigned short * ) scores_128;
     // set scores to zero
-    memset (scores_128, 0, scores_128_size * 2);
+    memset (scores_128, 0, scores_128_size * sizeof(unsigned short));
     
     this->resList = (hit_t *) mem_align(ALIGN_INT, MAX_RES_LIST_LEN * sizeof(hit_t) );
     

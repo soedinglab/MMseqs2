@@ -109,7 +109,8 @@ public:
     void parseParameters(int argc, const char* argv[],
                          std::string programUsageHeader,
                          std::vector<MMseqsParameter> parameters,
-                         size_t requiredParameterCount);
+                         size_t requiredParameterCount,
+                         bool printParameters = true);
     void printUsageMessage(std::string programUsageHeader,
                            std::vector<MMseqsParameter> parameters);
     void printParameters(int argc, const char* pargv[],
