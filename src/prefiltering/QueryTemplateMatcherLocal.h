@@ -32,6 +32,11 @@ class QueryTemplateMatcherLocal : public virtual  QueryTemplateMatcher {
         /* calculates the score */
         QueryScoreLocal * queryScore;
 
+        // max hits per query
+        size_t maxHitsPerQuery;
+
+        // fast mode for extremly fast search (20.000 faster than BLAST)
+        bool fastMode;
 };
 
 #endif

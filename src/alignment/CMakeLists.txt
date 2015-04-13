@@ -6,6 +6,10 @@ set(alignment_source_files
   Matcher.h
   smith_waterman_sse2.cpp
   smith_waterman_sse2.h
+  MultipleAlignment.cpp
+  MultipleAlignment.h
+  PSSMCalculator.cpp
+  PSSMCalculator.h
 )
 add_library(alignment ${alignment_source_files})
 

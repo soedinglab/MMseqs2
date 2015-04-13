@@ -5,9 +5,9 @@ in whole or in part, without written consent of Michael Farrar.
 *******************************************************************/
 
 /*
-   Written by Michael Farrar, 2006 (alignment), and Maria Hauser, 2012 (traceback, modified alignment).
-   Please send bug reports and/or suggestions to mhauser@genzentrum.lmu.de.
-   */
+   Written by Michael Farrar, 2006 (alignment), Mengyao Zhao (SSW Library) and Martin Steinegger (add AVX2 support).
+   Please send bug reports and/or suggestions to martin.steinegger@campus.lmu.de.
+*/
 
 #include <Sequence.h>
 #include <simd.h>
@@ -26,11 +26,11 @@ SmithWaterman::SmithWaterman(int maxSequenceLength, int aaSize) {
 	profile->profile_rev_byte = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
 	profile->profile_rev_word = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
 	profile->query_rev_sequence = new int8_t[maxSequenceLength];
-	profile->query_sequence = new int8_t[maxSequenceLength];
-	profile->mat_rev = new int8_t[maxSequenceLength * Sequence::PROFILE_AA_SIZE];
+	profile->query_sequence     = new int8_t[maxSequenceLength];
+	profile->mat_rev            = new int8_t[maxSequenceLength * Sequence::PROFILE_AA_SIZE];
 
-	memset(profile->query_sequence, 0, maxSequenceLength*sizeof(int8_t));
-	memset(profile->query_rev_sequence, 0, maxSequenceLength*sizeof(int8_t));
+	memset(profile->query_sequence, 0, maxSequenceLength * sizeof(int8_t));
+	memset(profile->query_rev_sequence, 0, maxSequenceLength * sizeof(int8_t));
 	memset(profile->mat_rev, 0, maxSequenceLength * Sequence::PROFILE_AA_SIZE);
 
 	/* array to record the largest score of each reference position */
@@ -586,7 +586,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 		}
 
 		/* Lazy_F loop: has been revised to disallow adjecent insertion and then deletion, so don't update E(i, j), learn from SWPS3 */
-		for (k = 0; LIKELY(k < 8); ++k) {
+		for (k = 0; LIKELY(k < SIMD_SIZE); ++k) {
 			vF = simdi8_shiftl (vF, 2);
 			for (j = 0; LIKELY(j < segLen); ++j) {
 				vH = simdi_load(pvHStore + j);
@@ -683,7 +683,7 @@ void SmithWaterman::ssw_init (const Sequence* q,
 		int32_t bias = 0;
 		int32_t matSize =  alphabetSize * alphabetSize;
 		if(q->getSequenceType() == Sequence::HMM_PROFILE) {
-			matSize =  q->L * Sequence::PROFILE_AA_SIZE;
+			matSize = q->L * Sequence::PROFILE_AA_SIZE;
 		}
 		for (int32_t i = 0; i < matSize; i++){
 			if (mat[i] < bias){
@@ -708,23 +708,16 @@ void SmithWaterman::ssw_init (const Sequence* q,
 	}
 	// create reverse structures
 	seq_reverse( profile->query_rev_sequence, profile->query_sequence, q->L);
-	for(size_t i = 0; i < Sequence::PROFILE_AA_SIZE; i++){
-		const int8_t * startToRead  = profile->mat     + (i * q->L);
-		int8_t * startToWrite       = profile->mat_rev + (i * q->L);
-		std::reverse_copy(startToRead , startToRead + q->L, startToWrite);
+	if(q->getSequenceType() == Sequence::HMM_PROFILE) {
+		for (size_t i = 0; i < Sequence::PROFILE_AA_SIZE; i++) {
+			const int8_t *startToRead = profile->mat + (i * q->L);
+			int8_t *startToWrite      = profile->mat_rev + (i * q->L);
+			std::reverse_copy(startToRead, startToRead + q->L, startToWrite);
+		}
 	}
 	profile->query_length = q->L;
 	profile->alphabetSize = alphabetSize;
 
-//	printf("Pos ");
-//	printf("\n");
-//	for(size_t i = 0; i < q->L; i++){
-//		printf("%3d ", i);
-//		for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
-//			printf("%3d ", profile->mat_rev[aa * q->L + i] );
-//		}
-//		printf("\n");
-//	}
 }
 template <const unsigned int type>
 SmithWaterman::cigar * SmithWaterman::banded_sw(const int *db_sequence, const int8_t *query_sequence,

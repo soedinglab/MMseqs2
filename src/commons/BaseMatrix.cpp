@@ -38,14 +38,17 @@ BaseMatrix::BaseMatrix(){
     pBack = new double[alphabetSize];
     probMatrix = new double*[alphabetSize];
     subMatrix = new short*[alphabetSize];
+    subMatrixPseudoCounts = new float*[alphabetSize];
 
     for (int i = 0; i < alphabetSize; i++){
         pBack[i] = 0.0;
         probMatrix[i] = new double[alphabetSize];
         subMatrix[i] = new short[alphabetSize];
+        subMatrixPseudoCounts[i] = new float[alphabetSize];
         for (int j = 0; j < alphabetSize; j++){
             probMatrix[i][j] = 0.0;
             subMatrix[i][j] = 0;
+            subMatrixPseudoCounts[i][j] = 0.0;
         }
     }
 }
@@ -57,15 +60,17 @@ BaseMatrix::~BaseMatrix(){
     for (int i = 0; i < alphabetSize; i++){
         delete[] probMatrix[i];
         delete[] subMatrix[i];
+        delete[] subMatrixPseudoCounts[i];
     }
     delete[] probMatrix;
+    delete[] subMatrixPseudoCounts;
     delete[] subMatrix;
 }
 
 void BaseMatrix::print(short** matrix, char* int2aa, int size){
     std::cout << "\n";
     short avg = 0;
-    printf("%4c ", ' ');
+    printf("  ");
     for (int i = 0; i < size; i++)
         printf("%4c ", int2aa[i]);
     std::cout << "\n";
@@ -98,7 +103,8 @@ void BaseMatrix::print(double** matrix, char* int2aa, int size){
     std::cout << (avg/(double)(size*size)) << "\n";
 }
 
-void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, int size, double bitFactor, double scoringBias){
+void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, float ** subMatrixPseudoCounts,
+                                   int size, double bitFactor, double scoringBias){
 
     // calculate background distribution for the amino acids
     double pBack[size];
@@ -108,6 +114,14 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, in
             pBack[i] += probMatrix[i][j];
         }
     }
+    //Precompute matrix R for amino acid pseudocounts:
+    for (int i = 0; i < size; i++){
+        for (int j = 0; j < size; j++){
+            subMatrixPseudoCounts[i][j] = probMatrix[i][j]/(pBack[j]); //subMatrixPseudoCounts[a][b]=P(a|b)
+        }
+    }
+
+
     // calculate the substitution matrix
     for (int i = 0; i < size; i++){
         for (int j = 0; j < size; j++){
@@ -115,15 +129,17 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, in
         }
     }
 
+
     subMatrix[size-1][size-1] = 0.0;
 }
 
-void BaseMatrix::generateSubMatrix(double ** probMatrix, short ** subMatrix, int size, double bitFactor, double scoringBias){
+void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix,
+                                   int size, double bitFactor, double scoringBias){
     double** sm = new double* [size];
     for (int i = 0; i < size; i++)
         sm[i] = new double[size];
 
-    generateSubMatrix(probMatrix, sm, size, bitFactor, scoringBias);
+    generateSubMatrix(probMatrix, sm, subMatrixPseudoCounts, size, bitFactor, scoringBias);
 
     // convert to short data type matrix
     for (int i = 0; i < size; i++){

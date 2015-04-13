@@ -14,7 +14,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_, float
         EXIT(1);
     }
 
-    generateSubMatrix(this->probMatrix, this->subMatrix, this->alphabetSize, bitFactor, -0.2);
+    generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts, this->subMatrix,  this->alphabetSize, bitFactor, -0.2);
     this->bitFactor = bitFactor;
 }
 
@@ -95,6 +95,9 @@ void SubstitutionMatrix::readProbMatrix(){
     }
     
     for(int i=0; i<alphabetSize; ++i)pBack[i] /= sum;
+
+
+
     
 }
 

@@ -50,7 +50,7 @@ public:
             const unsigned char currDiagonal = i - entry.position_j;
             const unsigned char dbDiagonal = data[seqIndex];
             const unsigned char oldScore   = data[seqIndex + 1];
-            const unsigned char scoreToAdd = (UNLIKELY(currDiagonal == dbDiagonal) && LIKELY(oldScore < 255)) ? 1 : 0;
+            const unsigned char scoreToAdd = (UNLIKELY(currDiagonal >= dbDiagonal - 8 ) && UNLIKELY(currDiagonal <= dbDiagonal + 8   )  && LIKELY(oldScore < 255)) ? 1 : 0;
             const unsigned char newScore = oldScore + scoreToAdd;
             data[seqIndex]     = currDiagonal;
             data[seqIndex + 1] = newScore;
@@ -89,12 +89,6 @@ public:
         scoresSum += score * seqListSize;
         numMatches += seqListSize;
     }
-
-
-    virtual void setPrefilteringThresholds() = 0;
-
-    // get the list of the sequences with the score > z-score threshold
-    virtual std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId) = 0;
 
     // reset the prefiltering score counter for the next query sequence
     virtual void reset () = 0;
