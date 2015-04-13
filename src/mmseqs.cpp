@@ -27,7 +27,8 @@ static struct Command commands[] = {
         {"createprofiledb", createprofiledb},
         {"translatenucleotide", translatenucleotide},
         {"timetest", timetest},
-        {"legacycs219", legacycs219}
+        {"legacycs219", legacycs219},
+        {"findsorf", findsorf}
 };
 
 
