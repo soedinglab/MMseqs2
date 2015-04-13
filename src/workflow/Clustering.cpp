@@ -300,8 +300,10 @@ void runCascadedClustering(Parameters par,
 }
 
 void setWorkflowDefaults(Parameters* p) {
-    p->localSearch = false;;
+    p->localSearch = false;
     p->spacedKmer = false;
+    p->covThr = 0.8;
+    p->evalThr = 0.001;
 }
 
 int clusteringworkflow (int argc, const char * argv[]){
@@ -328,17 +330,16 @@ int clusteringworkflow (int argc, const char * argv[]){
         Parameters::PARAM_V,
         Parameters::PARAM_SEARCH_MODE,
         Parameters::PARAM_SPACED_KMER_MODE,
-        Parameters::PARAM_KEEP_TEMP_FILES
+        Parameters::PARAM_KEEP_TEMP_FILES,
+        Parameters::PARAM_C,
+        Parameters::PARAM_E
     };
 
     Parameters par;
     setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, usage, perfPar, 3);
-    par.localSearch = par.localSearch;
-    par.spacedKmer = par.spacedKmer;
-    par.covThr = 0.8;
-    par.evalThr = 0.001;
     Debug::setDebugLevel(par.verbosity);
+    
     int restart = par.restart;
     int step = par.step;
     
