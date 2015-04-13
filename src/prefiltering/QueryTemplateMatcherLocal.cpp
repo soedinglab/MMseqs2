@@ -16,7 +16,7 @@ QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m,
                                                        kmerSize, dbSize, aaBiasCorrection, maxSeqLen) {
     this->queryScore = new QueryScoreLocal(dbSize, seqLens, effectiveKmerSize, kmerThr, kmerMatchProb);
     this->maxHitsPerQuery = maxHitsPerQuery;
-    this->fastMode = true;
+    this->fastMode = false;
 }
 
 

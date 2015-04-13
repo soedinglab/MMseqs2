@@ -70,32 +70,52 @@ int cluster2profile(int argn,const char **argv)
     for(size_t i = 0; i < dbr_sequence_data.getSize(); i++) {
         maxSeqLen = std::max((size_t) dbr_sequence_data.getSeqLens()[i], maxSeqLen);
     }
-    size_t maxSeqSet = 10;
-    //TODO get max seq set
+    //Find the max set size
+    size_t maxSetSize = 0;
+    for(size_t i = 0; i < dbr_cluster_data.getSize(); i++) {
+        char * data = dbr_cluster_data.getData(i);
+        size_t currClusterEntry = 0;
+        size_t pos = 0;
+        while(data[pos] != '\0'){
+            if(data[pos] == '\n'){
+                currClusterEntry++;
+            }
+            pos++;
+        }
+        maxSetSize = std::max(maxSetSize, currClusterEntry);
+    }
+    maxSetSize += 1;
     SubstitutionMatrix * subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0);
 
     Debug(Debug::WARNING) << "Start computing profiles.\n";
     MultipleAlignment msaAligner(maxSeqLen, 10, subMat);
     PSSMCalculator pssmCalculator(subMat, maxSeqLen);
     Sequence centerSeq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, 0, false);
-    Sequence ** dbSeqs = new Sequence *[maxSeqSet];
-    for(size_t i = 0; i < maxSeqSet; i++) {
+    Sequence ** dbSeqs = new Sequence *[maxSetSize];
+    for(size_t i = 0; i < maxSetSize; i++) {
         dbSeqs[i] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, 0, false);
     }
 
     for(size_t i = 0; i < dbr_cluster_data.getSize(); i++){
         char dbKey[255+1];
         char * data = dbr_cluster_data.getData(i);
-        char * id   = dbr_cluster_data.getDbKey(i);
-        char * seqData = dbr_sequence_data.getDataByDBKey(id);
-        centerSeq.mapSequence(0, id, seqData);
+        char * queryId   = dbr_cluster_data.getDbKey(i);
+        char * seqData = dbr_sequence_data.getDataByDBKey(queryId);
+        centerSeq.mapSequence(0, queryId, seqData);
         std::vector<Sequence *> seqSet;
+        size_t pos = 0;
+
         while (*data != '\0' ){
             Util::parseKey(data, dbKey);
-            char * dbSeqData = dbr_sequence_data.getDataByDBKey(dbKey);
-            dbSeqs[i]->mapSequence(0, dbKey, dbSeqData);
-            seqSet.push_back(dbSeqs[i]);
+            if(strcmp(dbKey, queryId) != 0){
+                char * dbSeqData = dbr_sequence_data.getDataByDBKey(dbKey);
+                std::cout << dbKey << " " << dbSeqData << std::endl;
+                dbSeqs[pos]->mapSequence(0, dbKey, dbSeqData);
+                seqSet.push_back(dbSeqs[pos]);
+                pos++;
+            }
             data = Util::skipLine(data);
+
         }
         //parseHMM(data, profileBuffer, &elementSize, id, subMat);
         MultipleAlignment::MSAResult res = msaAligner.computeMSA(&centerSeq, seqSet, true);
@@ -108,12 +128,12 @@ int cluster2profile(int argn,const char **argv)
         //pssm.printPSSM(res.centerLength);
 
         ffindex_insert_memory(data_file,  index_file,     &offset_sequence,
-                (char *) pssmData,  pssmDataSize , id);
+                (char *) pssmData,  pssmDataSize , queryId);
 
         seqSet.clear();
     }
     // clean memeory
-    for(size_t i = 0; i < maxSeqSet; i++){
+    for(size_t i = 0; i < maxSetSize; i++){
         delete dbSeqs[i];
     }
     delete [] dbSeqs;
@@ -136,8 +156,8 @@ int cluster2profile(int argn,const char **argv)
     }
     fclose(index_file);
     ffindex_sort_index_file(index);
-    index_file = fopen(par.db2Index.c_str(), "w");
-    if(index_file == NULL) { perror(par.db2Index.c_str()); return EXIT_FAILURE; }
+    index_file = fopen(par.db3Index.c_str(), "w");
+    if(index_file == NULL) { perror(par.db3Index.c_str()); return EXIT_FAILURE; }
     err += ffindex_write(index, index_file);
     Debug(Debug::WARNING) << "Done.\n";
 
