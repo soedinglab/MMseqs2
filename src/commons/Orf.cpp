@@ -47,7 +47,7 @@ bool isStop(const char* codon) {
           ||(codon[0] == 'T' && codon[1] == 'G' && codon[2] == 'A');
 }
 
-static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector<Orf::Range>& ranges, size_t min_length, size_t max_length, size_t max_seq_gap) {
+static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector<Orf::Range>& ranges, size_t max_seq_gap) {
 
     // An open reading frame can beginning in any of the three codon start position
     // Frame 0:  AGA ATT GCC TGA ATA AAA GGA TTA CCT TGA TAG GGT AAA
@@ -83,12 +83,6 @@ static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector
 
             if(inOrf[cur_frame]) {
                 currentLength[cur_frame]++;
-
-                if(currentLength[cur_frame] >= max_length) {
-                    inOrf[cur_frame] = false;
-                    currentGaps[cur_frame] = 0;
-                    currentLength[cur_frame] = 0;
-                }
             }
 
             // ignore orfs with too many gaps or unknown codons
@@ -107,7 +101,7 @@ static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector
                 to[cur_frame] = pos;
 
                 // edge case 1: see above
-                if(from[cur_frame] == 0 && firstOrfFound[cur_frame] == false && currentLength[cur_frame] >= min_length) {
+                if(from[cur_frame] == 0 && firstOrfFound[cur_frame] == false) {
                     firstOrfFound[cur_frame] = true;
                     ranges.emplace_back(from[cur_frame], to[cur_frame]);
                     currentGaps[cur_frame] = 0;
@@ -115,12 +109,9 @@ static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector
                     continue;
                 }
 
-                if(currentLength[cur_frame] >= min_length) {
-                    ranges.emplace_back(from[cur_frame], to[cur_frame]);
-                    currentGaps[cur_frame] = 0;
-                    currentLength[cur_frame] = 0;
-                }
-
+                ranges.emplace_back(from[cur_frame], to[cur_frame]);
+                currentGaps[cur_frame] = 0;
+                currentLength[cur_frame] = 0;
                 continue;
             }
         }
@@ -129,7 +120,7 @@ static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector
     // edge case 2: we did not find an end codon, add the last orf
     // from the last found start to the end of the sequence
     for(size_t frame = 0; frame < FRAMES; frame++) {
-        if(from[frame] > to[frame] && currentLength[frame] >= min_length) {
+        if(from[frame] > to[frame]) {
             Orf::SequencePosition to = seq_length - ((seq_length - from[frame]) % 3);
             ranges.emplace_back(from[frame], to);
         }
@@ -165,7 +156,7 @@ void Orf::FindOrfs(std::vector<Orf::SequenceLocation>& results,
     std::vector<Orf::Range> ranges;
 
     // find ORFs on the forward sequence and report them as-is
-    FindForwardOrfs(seq, seq_length, ranges, min_length, max_length, max_seq_gap);
+    FindForwardOrfs(seq, seq_length, ranges, max_seq_gap);
     for(std::vector<Orf::Range>::const_iterator it = ranges.begin(); it != ranges.end(); ++it) {
         Orf::SequencePosition from = it->from, to = it->to;
         Orf::Uncertainty uncertainty_from = Orf::UNCERTAINTY_UNKOWN;
@@ -181,12 +172,16 @@ void Orf::FindOrfs(std::vector<Orf::SequenceLocation>& results,
             uncertainty_to = Orf::UNCERTAINTY_GREATER;
         }
 
+        size_t length = to - from;
+        if(length < min_length || length >= max_length)
+            continue;
+
         results.emplace_back(from, to, uncertainty_from, uncertainty_to, Orf::STRAND_PLUS);
     }
     ranges.clear();
 
     // find ORFs on the reverse complement
-    FindForwardOrfs(revcomp, seq_length, ranges, min_length, max_length, max_seq_gap);
+    FindForwardOrfs(revcomp, seq_length, ranges, max_seq_gap);
     for(std::vector<Orf::Range>::const_iterator it = ranges.begin(); it != ranges.end(); ++it) {
         Orf::SequencePosition from =  it->from ;
         Orf::Uncertainty uncertainty_from = Orf::UNCERTAINTY_UNKOWN;
@@ -202,6 +197,10 @@ void Orf::FindOrfs(std::vector<Orf::SequenceLocation>& results,
             // "beginning" of ORF is really end of sequence
             uncertainty_to = Orf::UNCERTAINTY_GREATER;
         }
+
+        size_t length = to - from;
+        if(length < min_length || length >= max_length)
+            continue;
 
         results.emplace_back(from, to, uncertainty_from, uncertainty_to, Orf::STRAND_MINUS);
     }

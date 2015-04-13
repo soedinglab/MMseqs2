@@ -94,9 +94,10 @@ public:
     double preference;                  //Preference value influences the number of clusters (default=0). High values lead to more clusters.
 
     //extractorf
-    size_t min_length;
-    size_t max_length;
-    size_t max_gaps;
+    size_t orfMinLength;
+    size_t orfMaxLength;
+    size_t orfMaxGaps;
+    bool   orfSkipIncomplete;
 
     // CLUSTERING WORKFLOW
     int restart;
@@ -184,6 +185,7 @@ public:
     const static MMseqsParameter PARAM_ORF_MIN_LENGTH;
     const static MMseqsParameter PARAM_ORF_MAX_LENGTH;
     const static MMseqsParameter PARAM_ORF_MAX_GAP;
+    const static MMseqsParameter PARAM_ORF_SKIP_INCOMPLETE;
 
 };
 
