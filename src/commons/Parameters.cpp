@@ -308,6 +308,15 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 else
                     Debug(Debug::WARNING) << "Cluster mode:             " << "single" << "\n";
                 break;
+            case 24:
+                Debug(Debug::WARNING) << "Minimum length:      " << this->orfMinLength  << "\n";
+                break;
+            case 25:
+                Debug(Debug::WARNING) << "Maximum length:      " << this->orfMaxLength  << "\n";
+                break;
+            case 26:
+                Debug(Debug::WARNING) << "Maximum gaps in ORF:     " << this->orfMaxGaps  << "\n";
+                break;
             case 27:
                 if(this->kmerScore != INT_MAX)
                     Debug(Debug::WARNING) << "K-score:             " << this->kmerScore << "\n";
