@@ -89,15 +89,15 @@ class Prefiltering {
         std::string outDBIndex;
         // parameter
         int kmerSize;
-        int kmerScore;
+        const int kmerScore;
         bool spacedKmer;
-        float sensitivity;
-        size_t maxResListLen;
+        const float sensitivity;
+        const size_t maxResListLen;
         int alphabetSize;
-        float zscoreThr;
-        size_t maxSeqLen;
-        int querySeqType;
-        int targetSeqType;
+        const float zscoreThr;
+        const size_t maxSeqLen;
+        const int querySeqType;
+        const int targetSeqType;
         bool templateDBIsIndex;
     
         bool aaBiasCorrection;
