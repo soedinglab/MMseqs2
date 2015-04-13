@@ -298,7 +298,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
         Parameters pars[3];
         for(size_t par_idx = 0; par_idx < 3; par_idx++){
             setWorkflowDefaults(&pars[par_idx]);
-            pars[par_idx].parseParameters(argc, argv, usage, perfPar, 3);
+            pars[par_idx].parseParameters(argc, argv, usage, perfPar, 3, false);
         }
         float targetSensitivity = par.sensitivity;
         // set parameter for first step
