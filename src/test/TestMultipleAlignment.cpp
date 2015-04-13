@@ -7,8 +7,6 @@
 #include <iostream>
 #include <smith_waterman_sse2.h>
 #include "PSSMCalculator.h"
-#include <Tcl/tcl.h>
-#include <AudioToolbox/AudioToolbox.h>
 #include "Sequence.h"
 #include "SubstitutionMatrix.h"
 #include "MultipleAlignment.h"
