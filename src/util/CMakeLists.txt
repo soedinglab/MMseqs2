@@ -10,6 +10,7 @@ set(util_source_files
   extract_orf.cpp
   translate_nucleotide.cpp
   legacycs219.cpp
+  findsorf.cpp
 )
 add_library(util ${util_source_files})
 
