@@ -33,9 +33,23 @@ class Matcher{
             float dbcov;
             float seqId;
             double eval;
+            unsigned int qStartPos;
+            unsigned int qEndPos;
+            unsigned int dbStartPos;
+            unsigned int dbEndPos;
+            std::string backtrace;
             result_t(std::string dbkey,int score,
                  float qcov, float dbcov,
-                 float seqId, double eval) : dbKey(dbkey), score(score), qcov(qcov), dbcov(dbcov), seqId(seqId), eval(eval) {};
+                 float seqId, double eval,
+                 unsigned int qStartPos,
+                 unsigned int qEndPos,
+                 unsigned int dbStartPos,
+                 unsigned int dbEndPos,
+                    std::string backtrace) : dbKey(dbkey), score(score), qcov(qcov),
+                                             dbcov(dbcov), seqId(seqId), eval(eval),
+                                             qStartPos(qStartPos), qEndPos(qEndPos),
+                                             dbStartPos(dbStartPos), dbEndPos(dbEndPos),
+                                             backtrace(backtrace) {};
         };
 
         Matcher(int maxSeqLen, BaseMatrix *m);

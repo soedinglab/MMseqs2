@@ -9,7 +9,7 @@
 
 class ReducedMatrix : public BaseMatrix {
     public: 
-        ReducedMatrix(double **probMatrix, size_t reducedAlphabetSize);
+        ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize);
         virtual ~ReducedMatrix();
         /*contains the original matrix before the alphabet reduction*/
         short ** origSubMatrix;
@@ -57,7 +57,7 @@ class ReducedMatrix : public BaseMatrix {
         /* This function finds the two best bases to couple such that we loose the minimum amount of information.
          * Returns the amount of mutual information in the best pairing.
          */
-        std::pair<size_t,size_t> coupleWithBestInfo(double ** pinput, double ** pMatrix, size_t size);
+        std::pair<size_t,size_t> coupleWithBestInfo(double ** pinput, double ** pMatrix, float ** rMatrix, size_t size);
 
 };
 

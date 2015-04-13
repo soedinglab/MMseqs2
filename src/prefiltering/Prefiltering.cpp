@@ -423,7 +423,7 @@ BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, i
     BaseMatrix* subMat;
     if (alphabetSize < 21){
         SubstitutionMatrix* sMat = new SubstitutionMatrix (scoringMatrixFile.c_str(), bitFactor);
-        subMat = new ReducedMatrix(sMat->probMatrix, alphabetSize);
+        subMat = new ReducedMatrix(sMat->probMatrix, sMat->subMatrixPseudoCounts, alphabetSize);
     }
     else
         subMat = new SubstitutionMatrix (scoringMatrixFile.c_str(), bitFactor);

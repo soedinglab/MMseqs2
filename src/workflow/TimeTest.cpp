@@ -81,7 +81,7 @@ void TimeTest::runTimeTest (){
         BaseMatrix* m = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
         BaseMatrix* subMat;
         if (alphabetSize < 21)
-            subMat = new ReducedMatrix(m->probMatrix, alphabetSize);
+            subMat = new ReducedMatrix(m->probMatrix, m->subMatrixPseudoCounts, alphabetSize);
         else
             subMat = m;
 

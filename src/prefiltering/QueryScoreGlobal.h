@@ -18,13 +18,14 @@ public:
     ~QueryScoreGlobal();
         
     void reset();
-    
+
     void setPrefilteringThresholds();
     
     float getZscore(int seqPos);
-    
+
+    // get the list of the sequences with the score > z-score threshold
     std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId);
-    
+
 private:
     int counter;
     

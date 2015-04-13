@@ -29,9 +29,16 @@ const MMseqsParameter Parameters::PARAM_C={16,"-c",                          "Mi
 const MMseqsParameter Parameters::PARAM_MAX_REJECTED={17,"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted"};
 // clustering
 const MMseqsParameter Parameters::PARAM_G={18,"-g","Greedy clustering by sequence length"};
-const MMseqsParameter Parameters::PARAM_A={28,"-a","Affinity clustering"};
+const MMseqsParameter Parameters::PARAM_A={29,"-a","Affinity clustering"};
 const MMseqsParameter Parameters::PARAM_MIN_SEQ_ID={19,"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
 const MMseqsParameter Parameters::PARAM_CASCADED={20,"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
+//affinity clustering
+const MMseqsParameter Parameters::PARAM_MAXITERATIONS={30,"--max-iterations","[int]\t Maximum number of iterations in affinity propagation clustering"};
+const MMseqsParameter Parameters::PARAM_CONVERGENCEITERATIONS={31,"--convergence_iterations","[int]\t Number of iterations the set of representatives has to stay constant"};
+const MMseqsParameter Parameters::PARAM_DAMPING={32,"--damping","Ratio of previous iteration entering values. Value between [0.5:1)."};
+const MMseqsParameter Parameters::PARAM_SIMILARITYSCORE={33,"--similarity-type","Type of score used for clustering [1:4]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value "};
+const MMseqsParameter Parameters::PARAM_PREFERENCE={33,"--preference","Preference value influences the number of clusters (default=0). High values lead to more clusters."};
+
 // logging
 const MMseqsParameter Parameters::PARAM_V={21,"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
 // clustering workflow
@@ -43,7 +50,7 @@ const MMseqsParameter Parameters::PARAM_ORF_MIN_LENGTH={24, "--min-length","[int
 const MMseqsParameter Parameters::PARAM_ORF_MAX_LENGTH={25, "--max-length","[int]\t\tMaximum length of open reading frame to be extracted from fasta file."};
 const MMseqsParameter Parameters::PARAM_ORF_MAX_GAP={26, "--max-gaps","[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected"};
 const MMseqsParameter Parameters::PARAM_K_SCORE={27,"--k-score","[int]\tSet the K-mer threshold for the K-mer generation"};
-const MMseqsParameter Parameters::PARAM_KEEP_TEMP_FILES={28,"--keep-temp-files","\tDo not delete temporary files."};
+const MMseqsParameter Parameters::PARAM_KEEP_TEMP_FILES={28,"--delete-tmp-files","\tDo not delete temporary files."};
 const MMseqsParameter Parameters::PARAM_ORF_SKIP_INCOMPLETE={29,"--skip-incomplete","\tSkip orfs that have only an end or only a start"};
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
@@ -59,7 +66,8 @@ void Parameters::printUsageMessage(std::string programUsageHeader,
 void Parameters::parseParameters(int argc, const char* pargv[],
                                  std::string programUsageHeader,
                                  std::vector<MMseqsParameter> parameters,
-                                 size_t requiredParameterCount)
+                                 size_t requiredParameterCount,
+                                 bool printPar)
 {
     GetOpt::GetOpt_pp ops(argc, pargv);
     ops.exceptions(std::ios::failbit); // throw exception when parsing error
@@ -125,8 +133,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             spacedKmer = (spacedKmerMode == 1) ? true : false;
         }
 
-        if (ops >> GetOpt::OptionPresent("keep-temp-files"))
-            keepTempFiles = true;
+        if (ops >> GetOpt::OptionPresent("delete-tmp-files"))
+            keepTempFiles = false;
 
         // alignment
         ops >> GetOpt::Option('e', evalThr);
@@ -144,6 +152,11 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         if (ops >> GetOpt::OptionPresent("cascaded")){
             cascaded = true;
         }
+        ops >> GetOpt::Option("max-iterations", maxIteration);
+        ops >> GetOpt::Option("convergence_iterations", convergenceIterations);
+        ops >> GetOpt::Option("damping", dampingFactor);
+        ops >> GetOpt::Option("similarity-type", similarityScoreType);
+        ops >> GetOpt::Option("preference", preference);
 
         // logging
         ops >> GetOpt::Option('v', verbosity);
@@ -207,7 +220,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             EXIT(EXIT_FAILURE);
             break;
     }
-    printParameters(argc,pargv,parameters);
+    if(printPar == true)
+        printParameters(argc,pargv,parameters);
 }
 
 void Parameters::printParameters(int argc, const char* pargv[],
@@ -325,9 +339,9 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 break;
             case 28:
                 if(this->keepTempFiles)
-                    Debug(Debug::WARNING) << "Keep temp files:          yes\n";
+                    Debug(Debug::WARNING) << "Delete tmp files:          yes\n";
                 else
-                    Debug(Debug::WARNING) << "Keep temp files:          no\n";
+                    Debug(Debug::WARNING) << "Delete tmp files:          no\n";
                 break;
             case 29:
                 if(this->orfSkipIncomplete)
@@ -343,7 +357,6 @@ void Parameters::printParameters(int argc, const char* pargv[],
 }
 
 void Parameters::serialize( std::ostream &stream )  {
-    //todo
 }
 
 void Parameters::deserialize( std::istream &stream ) {
@@ -389,14 +402,22 @@ void Parameters::setDefaults() {
     evalThr = 0.001;
     covThr = 0.0;
     maxRejected = INT_MAX;
+    seqIdThr = 0.0;
     
     clusteringMode = Parameters::SET_COVER;
-    seqIdThr = 0.0;
     validateClustering = 0;
     cascaded = false;
+
+    maxIteration=1000;
+    convergenceIterations=100;
+    dampingFactor=0.6;
+    similarityScoreType=APC_SEQID;
+    preference=0;
+
+
     restart = 0;
     step = 1;
-    keepTempFiles = false;
+    keepTempFiles = true;
 
     verbosity = Debug::INFO;
 

@@ -10,28 +10,36 @@
 #include "QueryScore.h"
 #include <vector>
 #include <map>
+#include <sys/cdefs.h>
+#include <zconf.h>
 
 
 class QueryScoreLocal : public QueryScore {
-    
+
 public:
-    QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb, size_t maxHitsPerQuery);
-    
+    QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb);
+
     ~QueryScoreLocal();
-    
-    std::pair<hit_t *, size_t> getResult (int querySeqLen, unsigned int identityId);
-    
+
+    // get the list of the sequences with the score > scoreThr
+    std::pair<hit_t *, size_t> getResult(const unsigned int querySeqLen, unsigned int scoreThr, const unsigned int identityId);
+
     void reset();
-    
-    bool checkForOverflowAndResizeArray();
-    
-    // NOT needed for Local scoring
-    void setPrefilteringThresholds();
 
     void updateScoreBins();
 
+    unsigned int computeScoreThreshold(size_t maxHitsPerQuery);
+
 private:
 
-    size_t maxHitsPerQuery;
+    //log match prob (mu) of poisson distribution
+    double logMatchProb;
+
+    //pre computed score factorials
+    // S_fact = score!
+    double *logScoreFactorial;
+
+    // compute -log(p)
+    double computeLogProbabiliy(const unsigned short rawScore, const unsigned int dbSeqLen);
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */
