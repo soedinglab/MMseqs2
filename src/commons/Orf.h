@@ -56,7 +56,7 @@ public:
         delete[] revcomp;
     }
 
-    /// Find all ORFs in both orientations that are at least min_length and at most max_length long.
+    /// Find all ORFs in both orientations that are at least orfMinLength and at most orfMaxLength long.
     /// Report results as SequenceLocations.
     /// seq must be in iupac.
     /// Do not allow more than max_seq_gap consecutive N-or-gap bases in an ORF
