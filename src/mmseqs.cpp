@@ -53,7 +53,7 @@ void printUsage() {
             "mergeffindex       \tMerge multiple ffindex files based on similar id into one file\n"
             "extractorf         \tExtract all open reading frames from a nucleotide fasta file into a ffindex database\n"
             "translatenucleotide\tTranslate nucleotide sequences into aminoacid sequences in a ffindex database\n"
-            "legacycs219        \tTranslates a cs219 ffindex database into its legacy format. This tool is part of the mmseqs-based HH-suite database pipeline"
+            "legacycs219        \tTranslates a cs219 ffindex database into its legacy format. This tool is part of the mmseqs-based HH-suite database pipeline\n"
     );
     Debug(Debug::INFO) << usage;
 }
