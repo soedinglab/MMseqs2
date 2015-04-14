@@ -2,7 +2,7 @@
 //  QueryScoreLocal.cpp
 //
 //  Created by Martin Steinegger on 03.06.13.
-//  Copyright (c) 2013 Martin Steinegger. All rights reserved.
+//  Copyright (c) 2015 Martin Steinegger. All rights reserved.
 //
 #include <random>
 #include "QueryScoreLocal.h"
@@ -40,9 +40,12 @@ void QueryScoreLocal::reset() {
 }
 
 std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySeqLen, unsigned int scoreThr, const unsigned int identityId) {
+    // scoreThr get all great than scoreThr
     // adjust score threshold because we use > for check later
     scoreThr = (scoreThr == 0 ) ? 0 : scoreThr - 1;
-    simd_int thr = simdi16_set( scoreThr );
+    if(scoreThr > 127)
+        scoreThr = 0;
+    simd_int thr = simdi8_set( 127 - scoreThr );
     simd_int zero =  simdi_setzero();
     const size_t lenght = scores_128_size / (SIMD_SHORT_SIZE); // *2for short
     simd_int* __restrict s   = scores_128;
@@ -51,22 +54,33 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
     // check if there is the identity of the query sequence in the database
     // the identity should be included in the results
     if (identityId != UINT_MAX){
+        hit_t * result = (resList + 0);
+        const unsigned char * data =  (unsigned char *) scores;
+        const unsigned int seqIndex = identityId * 2;
+        unsigned char rawScore  = data[seqIndex + 1];
+        rawScore = (rawScore == 0) ? 1 : rawScore;
+        result->zScore = -computeLogProbabiliy(rawScore, seqLens[result->seqId]);
+        result->seqId = identityId;
+        result->prefScore = rawScore;
         elementCounter++;
     }
 
     for (size_t pos = 0; pos < lenght; pos++ ){
         // look for entries above the threshold
         simd_int currElements = simdi_load(s + pos);
-        // shift out the diagonal information and move the score to the first byte
-        currElements = simdi16_srli(currElements, 8);
-        simd_int cmp = simdi16_gt(currElements, thr); // currElement > thr
+        // make a saturated add (significant bit has to set so that move mask sets a bit)
+        simd_int cmp = simdui8_adds(currElements, thr);
         const unsigned int cmp_set_bits = simdi8_movemask(cmp);
         // set zero so no memset is needed
         simdi_store(s + pos, zero);
-        if (cmp_set_bits != 0){
+#ifdef AVX2
+        if (UNLIKELY((cmp_set_bits & 0xAAAAAAAA) != 0)){
+#else
+        if (UNLIKELY((cmp_set_bits & 0xAAAA) != 0)){
+#endif
             for(size_t i = 0; i < SIMD_SHORT_SIZE; i++){
-                if( CHECK_BIT(cmp_set_bits,i*2) && pos * SIMD_SHORT_SIZE + i != identityId) {
-                    unsigned short rawScore = simdi16_extract (currElements,  i);
+                if( CHECK_BIT(cmp_set_bits, i * 2 + 1) && pos * SIMD_SHORT_SIZE + i != identityId) {
+                    unsigned short rawScore = simdi16_extract (currElements,  i) >> 8;
                     hit_t * result = (resList + elementCounter);
                     result->seqId = pos * SIMD_SHORT_SIZE + i;
                     //result->zScore = (((float)rawScore) - mu )/ sqrt(mu);
@@ -90,20 +104,11 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
     // sort hits by score
     // include the identity in results if its there
     if (identityId != UINT_MAX){
-        hit_t * result = (resList + 0);
-        const unsigned char * data =  (unsigned char *) scores;
-        const unsigned int seqIndex = identityId * 2;
-        unsigned char rawScore  = data[seqIndex + 1];
-        rawScore = (rawScore == 0) ? 1 : rawScore;
-        result->zScore = -computeLogProbabiliy(rawScore, seqLens[result->seqId]);
-        result->seqId = identityId;
-        result->prefScore = rawScore;
         std::sort(resList + 1, resList + elementCounter, compareHits);
     }
     else{
         std::sort(resList, resList + elementCounter, compareHits);
     }
-    //std::sort(resList, resList + elementCounter, compareHits);
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
     return pair;
 }

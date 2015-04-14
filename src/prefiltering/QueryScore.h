@@ -50,7 +50,8 @@ public:
             const unsigned char currDiagonal = i - entry.position_j;
             const unsigned char dbDiagonal = data[seqIndex];
             const unsigned char oldScore   = data[seqIndex + 1];
-            const unsigned char scoreToAdd = (UNLIKELY(currDiagonal >= dbDiagonal - 8 ) && UNLIKELY(currDiagonal <= dbDiagonal + 8   )  && LIKELY(oldScore < 255)) ? 1 : 0;
+            const unsigned char scoreToAdd = (UNLIKELY(currDiagonal >= dbDiagonal - 8 ) &&
+                                              UNLIKELY(currDiagonal <= dbDiagonal + 8 ) && LIKELY(oldScore < 255)) ? 1 : 0;
             const unsigned char newScore = oldScore + scoreToAdd;
             data[seqIndex]     = currDiagonal;
             data[seqIndex + 1] = newScore;
