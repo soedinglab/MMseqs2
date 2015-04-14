@@ -30,6 +30,7 @@ public:
     static const int APC_COVERAGE=2;
     static const int APC_SEQID=3;
     static const int APC_EVAL=4;
+    static const int APC_BITSCORE=5;
 
 
     // COMMON
