@@ -85,7 +85,9 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
         }
         pos++;
     }
-    queryScore->updateScoreBins();
+    if(fastMode == false) {
+        queryScore->updateScoreBins();
+    }
     // needed to call here to get the LocalResultSize
     //Debug(Debug::WARNING) << "QUERY: " << seq->getDbKey();
     //Debug(Debug::WARNING) << " score = " << overall_score;
