@@ -50,7 +50,8 @@ const MMseqsParameter Parameters::PARAM_ORF_MIN_LENGTH={24, "--min-length","[int
 const MMseqsParameter Parameters::PARAM_ORF_MAX_LENGTH={25, "--max-length","[int]\t\tMaximum length of open reading frame to be extracted from fasta file."};
 const MMseqsParameter Parameters::PARAM_ORF_MAX_GAP={26, "--max-gaps","[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected"};
 const MMseqsParameter Parameters::PARAM_K_SCORE={27,"--k-score","[int]\tSet the K-mer threshold for the K-mer generation"};
-const MMseqsParameter Parameters::PARAM_KEEP_TEMP_FILES={28,"--keep-temp-files","\tDo not delete temporary files."};
+const MMseqsParameter Parameters::PARAM_KEEP_TEMP_FILES={28,"--delete-tmp-files","\tDo not delete temporary files."};
+const MMseqsParameter Parameters::PARAM_ORF_SKIP_INCOMPLETE={29,"--skip-incomplete","\tSkip orfs that have only an end or only a start"};
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -65,7 +66,8 @@ void Parameters::printUsageMessage(std::string programUsageHeader,
 void Parameters::parseParameters(int argc, const char* pargv[],
                                  std::string programUsageHeader,
                                  std::vector<MMseqsParameter> parameters,
-                                 size_t requiredParameterCount)
+                                 size_t requiredParameterCount,
+                                 bool printPar)
 {
     GetOpt::GetOpt_pp ops(argc, pargv);
     ops.exceptions(std::ios::failbit); // throw exception when parsing error
@@ -131,8 +133,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             spacedKmer = (spacedKmerMode == 1) ? true : false;
         }
 
-        if (ops >> GetOpt::OptionPresent("keep-temp-files"))
-            keepTempFiles = true;
+        if (ops >> GetOpt::OptionPresent("delete-tmp-files"))
+            keepTempFiles = false;
 
         // alignment
         ops >> GetOpt::Option('e', evalThr);
@@ -164,9 +166,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops >> GetOpt::Option("restart", restart);
 
         // extractorf
-        ops >> GetOpt::Option("min-length", min_length);
-        ops >> GetOpt::Option("max-length", max_length);
-        ops >> GetOpt::Option("max-gaps", max_gaps);
+        ops >> GetOpt::Option("min-length", orfMinLength);
+        ops >> GetOpt::Option("max-length", orfMaxLength);
+        ops >> GetOpt::Option("max-gaps", orfMaxGaps);
+        if (ops >> GetOpt::OptionPresent("skip-incomplete")){
+            orfSkipIncomplete = true;
+        }
+
 
         ops.end_of_options();            // I'm done!
 
@@ -214,7 +220,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             EXIT(EXIT_FAILURE);
             break;
     }
-    printParameters(argc,pargv,parameters);
+    if(printPar == true)
+        printParameters(argc,pargv,parameters);
 }
 
 void Parameters::printParameters(int argc, const char* pargv[],
@@ -315,6 +322,15 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 else
                     Debug(Debug::WARNING) << "Cluster mode:             " << "single" << "\n";
                 break;
+            case 24:
+                Debug(Debug::WARNING) << "Minimum length:      " << this->orfMinLength  << "\n";
+                break;
+            case 25:
+                Debug(Debug::WARNING) << "Maximum length:      " << this->orfMaxLength  << "\n";
+                break;
+            case 26:
+                Debug(Debug::WARNING) << "Maximum gaps in ORF:     " << this->orfMaxGaps  << "\n";
+                break;
             case 27:
                 if(this->kmerScore != INT_MAX)
                     Debug(Debug::WARNING) << "K-score:             " << this->kmerScore << "\n";
@@ -323,9 +339,15 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 break;
             case 28:
                 if(this->keepTempFiles)
-                    Debug(Debug::WARNING) << "Keep temp files:          yes\n";
+                    Debug(Debug::WARNING) << "Delete tmp files:          yes\n";
                 else
-                    Debug(Debug::WARNING) << "Keep temp files:          no\n";
+                    Debug(Debug::WARNING) << "Delete tmp files:          no\n";
+                break;
+            case 29:
+                if(this->orfSkipIncomplete)
+                    Debug(Debug::WARNING) << "Skip incomplete ORFs:     yes\n";
+                else
+                    Debug(Debug::WARNING) << "Skip incomplete ORFs:     no\n";
                 break;
             default:
                 break;
@@ -335,7 +357,6 @@ void Parameters::printParameters(int argc, const char* pargv[],
 }
 
 void Parameters::serialize( std::ostream &stream )  {
-    //todo
 }
 
 void Parameters::deserialize( std::istream &stream ) {
@@ -396,14 +417,15 @@ void Parameters::setDefaults() {
 
     restart = 0;
     step = 1;
-    keepTempFiles = false;
+    keepTempFiles = true;
 
     verbosity = Debug::INFO;
 
     //extractorfs
-    min_length = 1;
-    max_length = SIZE_MAX;
-    max_gaps = SIZE_MAX;
+    orfMinLength = 1;
+    orfMaxLength = SIZE_MAX;
+    orfMaxGaps = SIZE_MAX;
+    orfSkipIncomplete = true;
 }
 
 

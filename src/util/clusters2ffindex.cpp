@@ -61,18 +61,20 @@ int clusteringtofastadb (int argc, const char **argv)
     
 	size_t offset = 0;
 	for (size_t i = 0; i < clusters.getSize(); i++){
-        char* clusterKey     = clusters.getDbKey(i);
+        char* clusterKey = clusters.getDbKey(i);
 		std::istringstream clusterEntries(clusters.getData(i));
 		std::string entry;
-		std::string fasta;
+		std::ostringstream fasta;
 		while (std::getline(clusterEntries, entry)) {
-	    	char* cEntry = const_cast<char *>(entry.c_str());
+            char* cEntry = const_cast<char *>(entry.c_str());
 			char* header = headers.getDataByDBKey(cEntry);
-        	char* body   =  bodies.getDataByDBKey(cEntry);
-            fasta += std::string(header) + std::string(body);
+            char* body   =  bodies.getDataByDBKey(cEntry);
+            if(header == NULL || body == NULL)
+                continue;
+            fasta << ">" << header << body;
 		}
 
-		ffindex_insert_memory(msaData, msaIndex, &offset, const_cast<char *>(fasta.c_str()), fasta.length(), clusterKey);
+		ffindex_insert_memory(msaData, msaIndex, &offset, const_cast<char *>(fasta.str().c_str()), fasta.str().length(), clusterKey);
     }
     Debug(Debug::WARNING) << "Done." << "\n";
 

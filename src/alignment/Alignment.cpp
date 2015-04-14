@@ -113,7 +113,7 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
         // get the prefiltering list
         char* prefList = prefdbr->getData(id);
         char* queryDbKey = prefdbr->getDbKey(id);
-
+        std::string queryDbKeyStr(queryDbKey);
         // map the query sequence
         char* querySeqData = qseqdbr->getDataByDBKey(queryDbKey);
         qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
@@ -126,9 +126,12 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
         unsigned int rejected = 0;
         while (std::getline(lineSs, val, '\t') && passedNum < maxAlnNum && rejected < maxRejected){
             // DB key of the db sequence
+            std::string dbKeyStr(val);
             for (unsigned int j = 0; j < val.length(); j++)
                 dbKeys[thread_idx][j] = val.at(j);
             dbKeys[thread_idx][val.length()] = '\0';
+            // sequence are identical if qID == dbID  (needed to cluster really short sequences)
+            const bool isIdentiy = queryDbKeyStr.compare(dbKeyStr);
             // prefiltering score
             std::getline(lineSs, val, '\t');
             //float prefScore = atof(val.c_str());
@@ -159,13 +162,15 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
             // calculate Smith-Waterman alignment
             Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->mode);
             alignmentsNum++;
-
-            if ((res.eval <= evalThr || (mode != Matcher::SCORE_ONLY && res.seqId == 1.0)) &&
-                (res.qcov >= covThr && res.dbcov >= covThr) && //TODO is qcov not enough? maybe two thresholds?
+            // check first if it is identity
+            if (isIdentiy ||
+                (res.eval <= evalThr || (mode != Matcher::SCORE_ONLY && res.seqId == 1.0)) &&
+                (res.qcov >= covThr && res.dbcov >= covThr) &&
                 (res.seqId > seqIdThr)) {
                 swResults.push_back(res);
                 passedNum++;
                 totalPassedNum++;
+
                 rejected = 0;
             }
             else{

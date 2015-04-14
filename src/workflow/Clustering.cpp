@@ -181,16 +181,18 @@ void runClustering(Parameters par,
     delete tmpFiles;
 }
 
-void runCascadedClustering(Parameters par,
-        std::string inDB, std::string outDB, std::string tmpDir, int restart, int step){
+void runCascadedClustering(Parameters *pars, size_t stepCount, std::string inDB, std::string outDB, std::string tmpDir,
+                           int restart, int step) {
 
     std::cout << "\nRunning cascaded clustering for the database " << inDB << "\n";
-    std::cout << "Target sensitivity: " << par.sensitivity << "\n";
+    std::cout << "Target sensitivity: " << pars[2].sensitivity << "\n";
 
     std::list<std::string>* tmpFiles = new std::list<std::string>();
-
+    // set up paths
     std::string inDBIndex = inDB + ".index";
-
+    std::string cluDBIndex;
+    std::string newIndexFileName =  tmpDir + "/seqs_tmp.index";
+    tmpFiles->push_back(newIndexFileName);
     // copy index to a new location, it will be overwritten
     std::string inDBWorkingIndex = tmpDir + "/input_seqs.index";
     tmpFiles->push_back(inDBWorkingIndex);
@@ -206,112 +208,62 @@ void runCascadedClustering(Parameters par,
     std::string cluDB = "";
 
     std::cout << "\n\n";
-    std::cout << "------------------------------- Step 1 ----------------------------------------------\n";
+    size_t stepCounts = 3;
+    for(size_t curr_step = 1; curr_step <= stepCounts; curr_step++){
+        std::cout << "------------------------------- Step " << curr_step << " ----------------------------------------------\n";
 
-    float targetSensitivity = par.sensitivity;
 
-    int local_restart;
-    if (step > 1) // skip step
-        local_restart = 4;
-    else if (step == 1) // set the starting point of the clustering step
-        local_restart = restart;
-    else
-        local_restart = 1;
-    // set parameter for first step
-    par.sensitivity = 1; // 1 is lowest sens
-    par.zscoreThr = getZscoreForSensitivity( par.sensitivity );
-    int oldMaxRejected = par.maxRejected;
-    par.maxRejected = 10;
-    int oldMaxResListLen= par.maxResListLen;
-    par.maxResListLen = 50;
-//    int oldSkip = par.skip;
-//    par.skip = 2;
-    cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
-                    par, 1, local_restart, false, tmpFiles);
-    par.maxRejected   = oldMaxRejected;
-    par.maxResListLen = oldMaxResListLen;
-//    par.skip = oldSkip;
+        int local_restart;
+        if (step > curr_step) // skip step
+            local_restart = 4;
+        else if (step == curr_step ) // set the starting point of the clustering step
+            local_restart = restart;
+        else
+            local_restart = 1;
 
-    cluSteps.push_back(cluDB);
 
-    std::cout << "\n##### Updating databases #####\n\n";
-    // extract new index containing only sequences remained after the clustering
-    // and overwrite old index with the extracted index
-    std::string cluDBIndex = cluDB + ".index";
-    std::string newIndexFileName =  tmpDir + "/seqs_tmp.index";
-    tmpFiles->push_back(newIndexFileName);
-    // copy representing cluster sequences.
-    // They are the input for the next iteration
-    extractNewIndex(inDBWorkingIndex, cluDBIndex, newIndexFileName);
-    copy(newIndexFileName, inDBWorkingIndex);
+        cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
+                        pars[curr_step - 1], curr_step, local_restart, false, tmpFiles);
 
-    std::cout << "------------------------------- Step 2 ----------------------------------------------\n";
 
-    if (step > 2)
-        // skip step
-        local_restart = 4;
-    else if (step == 2)
-        // set the starting point of the clustering step
-        local_restart = restart;
-    else
-        local_restart = 1;
+        cluSteps.push_back(cluDB);
 
-    par.sensitivity = targetSensitivity / 2.0;
-    par.zscoreThr =  getZscoreForSensitivity( par.sensitivity );
-    oldMaxResListLen = par.maxResListLen;
-    par.maxResListLen = 100;
-    oldMaxRejected = par.maxRejected;
-    par.maxRejected = 10;
-    cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
-            par, 2, local_restart, false, tmpFiles);
-    par.maxRejected   = oldMaxRejected;
-    par.maxResListLen = oldMaxResListLen;
-    cluSteps.push_back(cluDB);
-
-    std::cout << "\n##### Updating databases #####\n\n";
-    // extract new index containing only sequences remained after the clustering and overwrite old index with the extracted index
-    cluDBIndex = cluDB + ".index";
-    // copy cluster index into new index
-    extractNewIndex(inDBWorkingIndex, cluDBIndex, newIndexFileName);
-    copy(newIndexFileName, inDBWorkingIndex);
-
-    std::cout << "------------------------------- Step 3 ----------------------------------------------\n";
-    if (step > 3)
-        // skip step
-        local_restart = 4;
-    else if (step == 3)
-        // set the starting point of the clustering step
-        local_restart = restart;
-    else
-        local_restart = 1;
-    par.sensitivity = targetSensitivity;
-    par.zscoreThr = getZscoreForSensitivity( par.sensitivity );
-    cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
-                    par, 3, local_restart, false, tmpFiles);
-    cluSteps.push_back(cluDB);
-
+        // extract new index containing only sequences remained after the clustering
+        // and overwrite old index with the extracted index
+        cluDBIndex = cluDB + ".index";
+        // copy representing cluster sequences.
+        // They are the input for the next iteration
+        if(curr_step < stepCounts){
+            std::cout << "\n##### Updating databases #####\n\n";
+            extractNewIndex(inDBWorkingIndex, cluDBIndex, newIndexFileName);
+            copy(newIndexFileName, inDBWorkingIndex);
+        }
+    }
     std::cout << "--------------------------- Merging databases ---------------------------------------\n";
     mergeClusteringResults(inDB, outDB, cluSteps);
 
-    if(!par.keepTempFiles) {
+
+    if(!pars[0].keepTempFiles) {
         deleteTmpFiles(tmpFiles);
     }
     delete tmpFiles;
 }
 
 void setWorkflowDefaults(Parameters* p) {
-    p->localSearch = false;;
+    p->localSearch = false;
     p->spacedKmer = false;
+    p->covThr = 0.8;
+    p->evalThr = 0.001;
 }
 
-int clusteringworkflow (int argc, const char * argv[]){
+int clusteringworkflow (int argc, const char * argv[]) {
 
     std::string usage("\nCalculates the clustering of the sequences in the input database.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("USAGE: mmseqs_cluster <sequenceDB> <outDB> <tmpDir> [opts]\n");
-                 //            "--restart          \t[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
-                 //            "                \t     \tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering.\n"
-                 //            "CASCADED CLUSTERING OPTIONS:\n"
+    //            "--restart          \t[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
+    //            "                \t     \tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering.\n"
+    //            "CASCADED CLUSTERING OPTIONS:\n"
     /*            "--step          \t[int]\tRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the database merging.\n"
      "\nRESTART OPTIONS NOTE:\n"
      "                \t     \tIt is assumed that all valid intermediate results exist.\n"
@@ -328,23 +280,44 @@ int clusteringworkflow (int argc, const char * argv[]){
         Parameters::PARAM_V,
         Parameters::PARAM_SEARCH_MODE,
         Parameters::PARAM_SPACED_KMER_MODE,
-        Parameters::PARAM_KEEP_TEMP_FILES
+        Parameters::PARAM_KEEP_TEMP_FILES,
+        Parameters::PARAM_C,
+        Parameters::PARAM_E
     };
 
     Parameters par;
     setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, usage, perfPar, 3);
-    par.localSearch = par.localSearch;
-    par.spacedKmer = par.spacedKmer;
-    par.covThr = 0.8;
-    par.evalThr = 0.001;
     Debug::setDebugLevel(par.verbosity);
+    
     int restart = par.restart;
     int step = par.step;
-    
-    if (par.cascaded)
-        runCascadedClustering(par, par.db1, par.db2, par.db3, restart, step);
-    else
+
+    if (par.cascaded) {
+        Parameters pars[3];
+        for(size_t par_idx = 0; par_idx < 3; par_idx++){
+            setWorkflowDefaults(&pars[par_idx]);
+            pars[par_idx].parseParameters(argc, argv, usage, perfPar, 3, false);
+        }
+        float targetSensitivity = par.sensitivity;
+        // set parameter for first step
+        pars[0].sensitivity   = 1; // 1 is lowest sens
+        pars[0].zscoreThr     = getZscoreForSensitivity( pars[0].sensitivity );
+        pars[0].maxRejected   = 10;
+        pars[0].maxResListLen = 50;
+        // set parameter for second step
+        pars[1].sensitivity = targetSensitivity / 2.0;
+        pars[1].zscoreThr =  getZscoreForSensitivity( pars[1].sensitivity );
+        pars[1].maxResListLen = 100;
+        pars[1].maxRejected = 10;
+        // set parameter for last step
+        pars[2].sensitivity = targetSensitivity;
+        pars[2].zscoreThr = getZscoreForSensitivity( pars[2].sensitivity );
+
+        runCascadedClustering(pars, 3, par.db1,
+                              par.db2,
+                              par.db3, restart, step);
+    }   else
         runClustering(par, par.db1, par.db2, par.db3, restart);
 
     return 0;

@@ -97,7 +97,7 @@ void PSSMCalculator::computeLogPSSM(char *pssm, float *profile, size_t queryLeng
         for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
             float aaProb = profile[pos * Sequence::PROFILE_AA_SIZE + aa] ;
 
-            profile[pos * Sequence::PROFILE_AA_SIZE + aa] = subMat->getBitFactor() * SubstitutionMatrix::flog2(aaProb / subMat->pBack[aa]) + scoreBias;
+            profile[pos * Sequence::PROFILE_AA_SIZE + aa] = subMat->getBitFactor() * Util::flog2(aaProb / subMat->pBack[aa]) + scoreBias;
             pssm[pos * Sequence::PROFILE_AA_SIZE + aa] = (char) floor (profile[pos * Sequence::PROFILE_AA_SIZE + aa] + 0.5);
 
         }
@@ -142,13 +142,13 @@ void PSSMCalculator::computeNeff_M(float *frequency, float *seqWeight, float *Ne
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa){
             float freq_pos_aa = frequency[pos * Sequence::PROFILE_AA_SIZE + aa];
             if (freq_pos_aa > 1E-10)
-                sum -= freq_pos_aa * SubstitutionMatrix::flog2(freq_pos_aa);
+                sum -= freq_pos_aa * Util::flog2(freq_pos_aa);
         }
-        Neff_HMM += SubstitutionMatrix::fpow2(sum);
+        Neff_HMM += Util::fpow2(sum);
     }
     Neff_HMM /= queryLength;
     float Nlim = fmax(10.0, Neff_HMM + 1.0);    // limiting Neff
-    float scale = SubstitutionMatrix::flog2((Nlim - Neff_HMM) / (Nlim - 1.0));  // for calculating Neff for those seqs with inserts at specific pos
+    float scale = Util::flog2((Nlim - Neff_HMM) / (Nlim - 1.0));  // for calculating Neff for those seqs with inserts at specific pos
     for (size_t pos = 0; pos < queryLength; pos++) {
         float w_M = -1.0 / setSize;
         for (size_t k = 0; k < setSize; ++k)
@@ -157,7 +157,7 @@ void PSSMCalculator::computeNeff_M(float *frequency, float *seqWeight, float *Ne
         if (w_M < 0)
             Neff_M[pos] = 1.0;
         else
-            Neff_M[pos] = Nlim - (Nlim - 1.0) * SubstitutionMatrix::fpow2(scale * w_M);
+            Neff_M[pos] = Nlim - (Nlim - 1.0) * Util::fpow2(scale * w_M);
         //fprintf(stderr,"M  i=%3i  ncol=---  Neff_M=%5.2f  Nlim=%5.2f  w_M=%5.3f  Neff_M=%5.2f\n",pos,Neff_HMM,Nlim,w_M,Neff_M[pos]);
     }
 }
