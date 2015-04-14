@@ -25,4 +25,4 @@ set(commons_source_files
 )
 add_library(commons ${commons_source_files})
 
-target_link_libraries(commons)
+target_link_libraries(commons ffindex)

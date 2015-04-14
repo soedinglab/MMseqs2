@@ -19,7 +19,9 @@ int cluster(int argc, const char ** argv)
         Parameters::PARAM_MAXITERATIONS,
         Parameters::PARAM_CONVERGENCEITERATIONS,
         Parameters::PARAM_DAMPING,
-        Parameters::PARAM_SIMILARITYSCORE};
+        Parameters::PARAM_SIMILARITYSCORE,
+            Parameters::PARAM_PREFERENCE
+    };
     Parameters par;
     par.parseParameters(argc, argv, usage, perfPar, 3);
 

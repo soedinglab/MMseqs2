@@ -36,7 +36,7 @@ const MMseqsParameter Parameters::PARAM_CASCADED={20,"--cascaded", "\tStart the 
 const MMseqsParameter Parameters::PARAM_MAXITERATIONS={30,"--max-iterations","[int]\t Maximum number of iterations in affinity propagation clustering"};
 const MMseqsParameter Parameters::PARAM_CONVERGENCEITERATIONS={31,"--convergence_iterations","[int]\t Number of iterations the set of representatives has to stay constant"};
 const MMseqsParameter Parameters::PARAM_DAMPING={32,"--damping","Ratio of previous iteration entering values. Value between [0.5:1)."};
-const MMseqsParameter Parameters::PARAM_SIMILARITYSCORE={33,"--similarity-type","Type of score used for clustering [1:4]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value "};
+const MMseqsParameter Parameters::PARAM_SIMILARITYSCORE={33,"--similarity-type","Type of score used for clustering [1:5]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column "};
 const MMseqsParameter Parameters::PARAM_PREFERENCE={33,"--preference","Preference value influences the number of clusters (default=0). High values lead to more clusters."};
 
 // logging
@@ -411,7 +411,7 @@ void Parameters::setDefaults() {
     maxIteration=1000;
     convergenceIterations=100;
     dampingFactor=0.6;
-    similarityScoreType=APC_SEQID;
+    similarityScoreType=APC_BITSCORE;
     preference=0;
 
 
