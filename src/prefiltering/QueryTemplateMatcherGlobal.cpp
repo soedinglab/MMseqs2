@@ -84,7 +84,6 @@ void QueryTemplateMatcherGlobal::match(Sequence* seq){
     for (int i = 0; i < kmerSize && i < seq->L; i++)
         biasCorrection += deltaS[i];
 
-
     int pos = 0;
     short zero = 0;
     while(seq->hasNextKmer()){

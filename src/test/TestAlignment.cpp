@@ -35,7 +35,7 @@ int main (int argc, const char * argv[])
 //	std::string tim = "APRKFFVGGNWKMNGKRKSLGELIHTLDGAKLSADTEVVCGAPSIYLDFARQKLDAKIGVAAQNCYKVPKGAFTGEISPAMIKDIGAAWVILGH"
 //                      "SERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFQETKAIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLR"
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
-    std::string tim = "MSEILIVP";
+    std::string tim = "VCIYWWGS";
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
     const char* sequence = tim.c_str();
@@ -88,6 +88,18 @@ int main (int argc, const char * argv[])
     }
     std::cout <<  alignment->score1 << " " << alignment->qStartPos1  << " "<< alignment->qEndPos1 << " "
   	      << alignment->dbStartPos1 << " "<< alignment->dbEndPos1 << std::endl;
+
+
+    double evalue =  pow (exp(1), ((double)(-(alignment->score1)/(double)subMat.getBitFactor())));
+    std::cout << evalue << std::endl;
+    std::cout << (s->L) << std::endl;
+    std::cout << (dbSeq->L) << std::endl;
+    // calcuate stop score
+    const double qL = static_cast<double>(s->L);
+    const double dbL = static_cast<double>(dbSeq->L);
+    size_t dbSize = (qL * 47000000 * dbL);
+    std::cout << dbSize << std::endl;
+    std::cout << evalue * dbSize << std::endl;
     delete [] tinySubMat;
     delete [] alignment->cigar;
     delete alignment;

@@ -30,7 +30,7 @@ class QueryTemplateMatcherGlobal : public virtual  QueryTemplateMatcher {
         void match(Sequence* seq);
     private:
         /* calculates the score */
-        QueryScore * queryScore;
+        QueryScoreGlobal * queryScore;
 
         // local score correction values
         float* deltaS;

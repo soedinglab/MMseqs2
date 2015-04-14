@@ -17,7 +17,7 @@ QueryScoreGlobal::QueryScoreGlobal(size_t dbSize, unsigned int *dbSeqLens, int k
     steps_list.push_back(0);
     // check the sequence length and decide if it changed enough to recalculate the score threshold here
     // minimum step length is 8 (one __m128 register)
-    for (size_t i = 0; i < scores_128_size; i += 8){
+    for (size_t i = 0; i < scores_128_size; i += SIMD_SHORT_SIZE){
         if (this->seqLens[i]/seqLen < 0.9){
             steps_list.push_back(i);
             seqLen = this->seqLens[i];
@@ -45,8 +45,8 @@ QueryScoreGlobal::~QueryScoreGlobal(){
 
 
 void QueryScoreGlobal::reset() {
-    memset (scores_128, 0, scores_128_size * 2);
-    memset (thresholds_128, 0, scores_128_size * 2);
+    memset (scores_128, 0, scores_128_size * sizeof(unsigned short));
+    memset (thresholds_128, 0, scores_128_size * sizeof(unsigned short));
     scoresSum = 0;
     numMatches = 0;
 }
