@@ -46,3 +46,10 @@ add_executable(testdb ${testdb})
 target_link_libraries(testdb util)
 target_link_libraries(testdb workflow)
 target_link_libraries(testdb ffindex)
+
+set(testgo TestGO.cpp )
+add_executable(testgo ${testgo})
+
+target_link_libraries(testgo util)
+target_link_libraries(testgo workflow)
+target_link_libraries(testgo ffindex)
