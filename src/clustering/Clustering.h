@@ -48,6 +48,7 @@ class Clustering {
             unsigned short max_weight;
             unsigned int * startElementsArray;
             unsigned short * startWeightsArray;
+            std::list<int>* validids;
         };
 
         void run(int mode);
