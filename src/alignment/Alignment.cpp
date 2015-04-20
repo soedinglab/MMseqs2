@@ -131,7 +131,7 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
                 dbKeys[thread_idx][j] = val.at(j);
             dbKeys[thread_idx][val.length()] = '\0';
             // sequence are identical if qID == dbID  (needed to cluster really short sequences)
-            const bool isIdentiy = queryDbKeyStr.compare(dbKeyStr);
+            const bool isIdentiy = (queryDbKeyStr.compare(dbKeyStr) == 0) ? true : false;
             // prefiltering score
             std::getline(lineSs, val, '\t');
             //float prefScore = atof(val.c_str());

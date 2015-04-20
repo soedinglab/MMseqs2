@@ -55,7 +55,7 @@ void printUsage() {
             "translatenucleotide\tTranslate nucleotide sequences into aminoacid sequences in a ffindex database\n"
             "legacycs219        \tTranslates a cs219 ffindex database into its legacy format. This tool is part of the mmseqs-based HH-suite database pipeline\n"
     );
-    Debug(Debug::INFO) << usage;
+    Debug(Debug::INFO) << usage << "\n";
 }
 
 
