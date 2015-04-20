@@ -212,7 +212,6 @@ void runCascadedClustering(Parameters *pars, size_t stepCount, std::string inDB,
     for(size_t curr_step = 1; curr_step <= stepCounts; curr_step++){
         std::cout << "------------------------------- Step " << curr_step << " ----------------------------------------------\n";
 
-
         int local_restart;
         if (step > curr_step) // skip step
             local_restart = 4;
@@ -221,11 +220,8 @@ void runCascadedClustering(Parameters *pars, size_t stepCount, std::string inDB,
         else
             local_restart = 1;
 
-
         cluDB = runStep(inDB, inDBWorkingIndex, inDB, inDBWorkingIndex, tmpDir,
                         pars[curr_step - 1], curr_step, local_restart, false, tmpFiles);
-
-
         cluSteps.push_back(cluDB);
 
         // extract new index containing only sequences remained after the clustering
@@ -241,7 +237,6 @@ void runCascadedClustering(Parameters *pars, size_t stepCount, std::string inDB,
     }
     std::cout << "--------------------------- Merging databases ---------------------------------------\n";
     mergeClusteringResults(inDB, outDB, cluSteps);
-
 
     if(!pars[0].keepTempFiles) {
         deleteTmpFiles(tmpFiles);
@@ -292,7 +287,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
     
     int restart = par.restart;
     int step = par.step;
-
+    DBWriter::errorIfFileExist(par.db2.c_str());
     if (par.cascaded) {
         Parameters pars[3];
         for(size_t par_idx = 0; par_idx < 3; par_idx++){
@@ -317,8 +312,9 @@ int clusteringworkflow (int argc, const char * argv[]) {
         runCascadedClustering(pars, 3, par.db1,
                               par.db2,
                               par.db3, restart, step);
-    }   else
+    }   else{
         runClustering(par, par.db1, par.db2, par.db3, restart);
+    }
 
     return 0;
 }
