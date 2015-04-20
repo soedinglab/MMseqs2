@@ -30,7 +30,9 @@ Orf::Orf(const char* sequence) {
 
 bool IsGapOrN(const char* codon)
 {
-    return codon[0] == 'N' || codon[0] == 'n' || Complement(codon[0]) == '.';
+    return codon[0] == 'N' || Complement(codon[0]) == '.'
+        || codon[1] == 'N' || Complement(codon[1]) == '.'
+        || codon[2] == 'N' || Complement(codon[2]) == '.';
 }
 
 bool isStart(const char* codon) {
