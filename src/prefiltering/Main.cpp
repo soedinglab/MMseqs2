@@ -80,6 +80,7 @@ int prefilter(int argc, const char **argv)
             Parameters::PARAM_SPLIT,
             Parameters::PARAM_SEARCH_MODE,
             Parameters::PARAM_NO_COMP_BIAS_CORR,
+            Parameters::PARAM_FAST_MODE,
             Parameters::PARAM_SPACED_KMER_MODE,
             Parameters::PARAM_SUB_MAT,
             Parameters::PARAM_THREADS,
