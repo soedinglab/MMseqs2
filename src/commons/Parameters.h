@@ -9,12 +9,11 @@
 #include <vector>
 #include <map>
 
-
 struct MMseqsParameter {
     const int uniqid;
     const char *name;
     const char *description;
-    MMseqsParameter(int uid,const char * n,const char * d): uniqid(uid), name(n),description(d){}
+    constexpr MMseqsParameter(int uid,const char * n,const char * d): uniqid(uid), name(n),description(d){}
 };
 
 
@@ -71,6 +70,7 @@ public:
     float  zscoreThr;                    // z score threshold for global matching
     bool   localSearch;                  // Local search type
     bool   compBiasCorrection;           // Aminoacid composiont correction
+    bool   fastMode;                     // Search 20.000 times faster than BLAST in (local search only)
     bool   spacedKmer;                   // Spaced Kmers
     int    split;                        // Splite database in n equal Junks
     int    skip;                         // Skip amino acid positions
@@ -158,6 +158,7 @@ public:
     const static MMseqsParameter PARAM_SUB_MAT;
     const static MMseqsParameter PARAM_SEARCH_MODE;
     const static MMseqsParameter PARAM_NO_COMP_BIAS_CORR;
+    const static MMseqsParameter PARAM_FAST_MODE;
     const static MMseqsParameter PARAM_SPACED_KMER_MODE;
     const static MMseqsParameter PARAM_K_SCORE;
     const static MMseqsParameter PARAM_KEEP_TEMP_FILES;
@@ -170,12 +171,12 @@ public:
     const static MMseqsParameter PARAM_G;
     const static MMseqsParameter PARAM_A;
     const static MMseqsParameter PARAM_CASCADED;
-        //afinity clustering
-        const static MMseqsParameter PARAM_MAXITERATIONS;
-        const static MMseqsParameter PARAM_CONVERGENCEITERATIONS;
-        const static MMseqsParameter PARAM_DAMPING;
-        const static MMseqsParameter PARAM_SIMILARITYSCORE;
-        const static MMseqsParameter PARAM_PREFERENCE;
+    //afinity clustering
+    const static MMseqsParameter PARAM_MAXITERATIONS;
+    const static MMseqsParameter PARAM_CONVERGENCEITERATIONS;
+    const static MMseqsParameter PARAM_DAMPING;
+    const static MMseqsParameter PARAM_SIMILARITYSCORE;
+    const static MMseqsParameter PARAM_PREFERENCE;
 
     // logging
     const static MMseqsParameter PARAM_V;

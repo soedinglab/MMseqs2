@@ -3,20 +3,20 @@
 #include "QueryTemplateMatcher.h"
 
 QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m,
-        IndexTable *indexTable,
-        unsigned int *seqLens,
-        short kmerThr,
-        double kmerMatchProb,
-        int kmerSize,
-        size_t effectiveKmerSize,
-        size_t dbSize,
-        bool aaBiasCorrection,
-        unsigned int maxSeqLen,
-        size_t maxHitsPerQuery) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                       kmerSize, dbSize, aaBiasCorrection, maxSeqLen) {
+                                                     IndexTable *indexTable,
+                                                     unsigned int *seqLens,
+                                                     short kmerThr,
+                                                     double kmerMatchProb,
+                                                     int kmerSize,
+                                                     size_t effectiveKmerSize,
+                                                     size_t dbSize,
+                                                     bool fastMode,
+                                                     unsigned int maxSeqLen,
+                                                     size_t maxHitsPerQuery) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+                                                       kmerSize, dbSize, fastMode, maxSeqLen) {
     this->queryScore = new QueryScoreLocal(dbSize, seqLens, effectiveKmerSize, kmerThr, kmerMatchProb);
     this->maxHitsPerQuery = maxHitsPerQuery;
-    this->fastMode = false;
+    this->fastMode = fastMode;
 }
 
 
@@ -30,7 +30,6 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherLocal::matchQuery (Sequence * seq
     
     match(seq);
 
-//    queryScore->setPrefilteringThresholds();
     unsigned int scoreThreshold;
     if(fastMode == true){
         scoreThreshold = 1;
