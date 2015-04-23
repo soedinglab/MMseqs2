@@ -8,51 +8,50 @@
 
 
 
-constexpr MMseqsParameter Parameters::PARAM_S=MMseqsParameter(0,"-s",                    "[float]\tSensitivity in the range [1:9]");
-constexpr MMseqsParameter Parameters::PARAM_K={1,"-k",                    "[int]\tk-mer size in the range [4:7]"};
-constexpr MMseqsParameter Parameters::PARAM_THREADS={2,"--threads",        "[int]\tNumber of cores used for the computation"};
-constexpr MMseqsParameter Parameters::PARAM_ALPH_SIZE={3,"--alph-size",    "[int]\tAmino acid alphabet size"};
-constexpr MMseqsParameter Parameters::PARAM_MAX_SEQ_LEN={4,"--max-seq-len","[int]\tMaximum sequence length"};
-constexpr MMseqsParameter Parameters::PARAM_PROFILE={5,"--profile",        "\tHMM Profile input"};
-constexpr MMseqsParameter Parameters::PARAM_NUCL={6,"--nucl",              "\tNucleotide sequences input"};
-constexpr MMseqsParameter Parameters::PARAM_Z_SCORE={7,"--z-score",        "[float]\tZ-score threshold "};
-constexpr MMseqsParameter Parameters::PARAM_SKIP={8,"--skip",              "[int]\tNumber of skipped k-mers during the index table generation"};
-constexpr MMseqsParameter Parameters::PARAM_MAX_SEQS={9,"--max-seqs",      "[int]\tMaximum result sequences per query"};
-constexpr MMseqsParameter Parameters::PARAM_SPLIT={10,"--split",            "[int]\tSplits target databases in n equal distrbuted junks"};
-constexpr MMseqsParameter Parameters::PARAM_SUB_MAT={11,"--sub-mat",        "[file]\tAmino acid substitution matrix file"};
-constexpr MMseqsParameter Parameters::PARAM_SEARCH_MODE={12,"--search-mode","[int]\tSearch mode. Local: 1 Global: 2"};
-constexpr MMseqsParameter Parameters::PARAM_NO_COMP_BIAS_CORR={13,"--no-comp-bias-corr","Switch off local amino acid composition bias correction"};
-constexpr MMseqsParameter Parameters::PARAM_FAST_MODE={14,"--fast-mode","Fast search is using Z-score instead of logP-Value and extracts hits with a score higher than 6"};
-constexpr MMseqsParameter Parameters::PARAM_SPACED_KMER_MODE={15,"--spaced-kmer-mode","Spaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1"};
+const MMseqsParameter Parameters::PARAM_S=MMseqsParameter(PARAM_S_ID,"-s",                    "[float]\tSensitivity in the range [1:9]");
+const MMseqsParameter Parameters::PARAM_K=MMseqsParameter(PARAM_K_ID,"-k",                    "[int]\tk-mer size in the range [4:7]");
+const MMseqsParameter Parameters::PARAM_THREADS=MMseqsParameter(PARAM_THREADS_ID,"--threads",        "[int]\tNumber of cores used for the computation");
+const MMseqsParameter Parameters::PARAM_ALPH_SIZE=MMseqsParameter(PARAM_ALPH_SIZE_ID,"--alph-size",    "[int]\tAmino acid alphabet size");
+const MMseqsParameter Parameters::PARAM_MAX_SEQ_LEN=MMseqsParameter(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","[int]\tMaximum sequence length");
+const MMseqsParameter Parameters::PARAM_PROFILE=MMseqsParameter(PARAM_PROFILE_ID,"--profile",        "\tHMM Profile input");
+const MMseqsParameter Parameters::PARAM_NUCL=MMseqsParameter(PARAM_NUCL_ID,"--nucl",              "\tNucleotide sequences input");
+const MMseqsParameter Parameters::PARAM_Z_SCORE=MMseqsParameter(PARAM_Z_SCORE_ID,"--z-score",        "[float]\tZ-score threshold ");
+const MMseqsParameter Parameters::PARAM_SKIP=MMseqsParameter(PARAM_SKIP_ID,"--skip",              "[int]\tNumber of skipped k-mers during the index table generation");
+const MMseqsParameter Parameters::PARAM_MAX_SEQS=MMseqsParameter(PARAM_MAX_SEQS_ID,"--max-seqs",      "[int]\tMaximum result sequences per query");
+const MMseqsParameter Parameters::PARAM_SPLIT=MMseqsParameter(PARAM_SPLIT_ID,"--split",            "[int]\tSplits target databases in n equal distrbuted junks");
+const MMseqsParameter Parameters::PARAM_SUB_MAT=MMseqsParameter(PARAM_SUB_MAT_ID,"--sub-mat",        "[file]\tAmino acid substitution matrix file");
+const MMseqsParameter Parameters::PARAM_SEARCH_MODE=MMseqsParameter(PARAM_SEARCH_MODE_ID,"--search-mode","[int]\tSearch mode. Local: 1 Global: 2");
+const MMseqsParameter Parameters::PARAM_NO_COMP_BIAS_CORR=MMseqsParameter(PARAM_NO_COMP_BIAS_CORR_ID,"--no-comp-bias-corr","Switch off local amino acid composition bias correction");
+const MMseqsParameter Parameters::PARAM_FAST_MODE=MMseqsParameter(PARAM_FAST_MODE_ID,"--fast-mode","Fast search is using Z-score instead of logP-Value and extracts hits with a score higher than 6");
+const MMseqsParameter Parameters::PARAM_SPACED_KMER_MODE=MMseqsParameter(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode","Spaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1");
 // alignment
-constexpr MMseqsParameter Parameters::PARAM_E={16,"-e",                          "Maximum e-value"};
-constexpr MMseqsParameter Parameters::PARAM_C={17,"-c",                          "Minimum alignment coverage"};
-constexpr MMseqsParameter Parameters::PARAM_MAX_REJECTED={18,"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted"};
+const MMseqsParameter Parameters::PARAM_E=MMseqsParameter(PARAM_E_ID,"-e",                          "Maximum e-value");
+const MMseqsParameter Parameters::PARAM_C=MMseqsParameter(PARAM_C_ID,"-c",                          "Minimum alignment coverage");
+const MMseqsParameter Parameters::PARAM_MAX_REJECTED=MMseqsParameter(PARAM_MAX_REJECTED_ID,"--max-rejected","Maximum rejected alignments before alignment calculation for a query is aborted");
 // clustering
-constexpr MMseqsParameter Parameters::PARAM_G={19,"-g","Greedy clustering by sequence length"};
-constexpr MMseqsParameter Parameters::PARAM_A={20,"-a","Affinity clustering"};
-constexpr MMseqsParameter Parameters::PARAM_MIN_SEQ_ID={21,"--min-seq-id","Minimum sequence identity of sequences in a cluster"};
-constexpr MMseqsParameter Parameters::PARAM_CASCADED={22,"--cascaded", "\tStart the cascaded instead of simple clustering workflow"};
+const MMseqsParameter Parameters::PARAM_G=MMseqsParameter(PARAM_G_ID,"-g","Greedy clustering by sequence length");
+const MMseqsParameter Parameters::PARAM_A=MMseqsParameter(PARAM_A_ID,"-a","Affinity clustering");
+const MMseqsParameter Parameters::PARAM_MIN_SEQ_ID=MMseqsParameter(PARAM_MIN_SEQ_ID_ID,"--min-seq-id","Minimum sequence identity of sequences in a cluster");
+const MMseqsParameter Parameters::PARAM_CASCADED=MMseqsParameter(PARAM_CASCADED_ID,"--cascaded", "\tStart the cascaded instead of simple clustering workflow");
 //affinity clustering
-constexpr MMseqsParameter Parameters::PARAM_MAXITERATIONS={23,"--max-iterations","[int]\t Maximum number of iterations in affinity propagation clustering"};
-constexpr MMseqsParameter Parameters::PARAM_CONVERGENCEITERATIONS={24,"--convergence_iterations","[int]\t Number of iterations the set of representatives has to stay constant"};
-constexpr MMseqsParameter Parameters::PARAM_DAMPING={25,"--damping","Ratio of previous iteration entering values. Value between [0.5:1)."};
-constexpr MMseqsParameter Parameters::PARAM_SIMILARITYSCORE={26,"--similarity-type","Type of score used for clustering [1:5]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column "};
-constexpr MMseqsParameter Parameters::PARAM_PREFERENCE={27,"--preference","Preference value influences the number of clusters (default=0). High values lead to more clusters."};
-
+const MMseqsParameter Parameters::PARAM_MAXITERATIONS=MMseqsParameter(PARAM_MAXITERATIONS_ID,"--max-iterations","[int]\t Maximum number of iterations in affinity propagation clustering");
+const MMseqsParameter Parameters::PARAM_CONVERGENCEITERATIONS=MMseqsParameter(PARAM_CONVERGENCEITERATIONS_ID,"--convergence_iterations","[int]\t Number of iterations the set of representatives has to stay constant");
+const MMseqsParameter Parameters::PARAM_DAMPING=MMseqsParameter(PARAM_DAMPING_ID,"--damping","Ratio of previous iteration entering values. Value between [0.5:1).");
+const MMseqsParameter Parameters::PARAM_SIMILARITYSCORE=MMseqsParameter(PARAM_SIMILARITYSCORE_ID,"--similarity-type","Type of score used for clustering [1:5]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column ");
+const MMseqsParameter Parameters::PARAM_PREFERENCE=MMseqsParameter(PARAM_PREFERENCE_ID,"--preference","Preference value influences the number of clusters (default=0). High values lead to more clusters.");
 // logging
-constexpr MMseqsParameter Parameters::PARAM_V={28,"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO"};
+const MMseqsParameter Parameters::PARAM_V=MMseqsParameter(PARAM_V_ID,"-v","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO");
 // clustering workflow
-constexpr MMseqsParameter Parameters::PARAM_RESTART={29, "--restart","[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
-        "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering"};
-constexpr MMseqsParameter Parameters::PARAM_STEP={30, "--step","[int]\t\tRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the database merging"};
+const MMseqsParameter Parameters::PARAM_RESTART=MMseqsParameter(PARAM_RESTART_ID, "--restart","[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
+        "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering");
+const MMseqsParameter Parameters::PARAM_STEP=MMseqsParameter(PARAM_STEP_ID, "--step","[int]\t\tRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the database merging");
 
-constexpr MMseqsParameter Parameters::PARAM_ORF_MIN_LENGTH={31, "--min-length","[int]\t\tMinimum length of open reading frame to be extracted from fasta file"};
-constexpr MMseqsParameter Parameters::PARAM_ORF_MAX_LENGTH={32, "--max-length","[int]\t\tMaximum length of open reading frame to be extracted from fasta file."};
-constexpr MMseqsParameter Parameters::PARAM_ORF_MAX_GAP={33, "--max-gaps","[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected"};
-constexpr MMseqsParameter Parameters::PARAM_K_SCORE={34,"--k-score","[int]\tSet the K-mer threshold for the K-mer generation"};
-constexpr MMseqsParameter Parameters::PARAM_KEEP_TEMP_FILES={35,"--delete-tmp-files","\tDo not delete temporary files."};
-constexpr MMseqsParameter Parameters::PARAM_ORF_SKIP_INCOMPLETE={36,"--skip-incomplete","\tSkip orfs that have only an end or only a start"};
+const MMseqsParameter Parameters::PARAM_ORF_MIN_LENGTH=MMseqsParameter(PARAM_ORF_MIN_LENGTH_ID, "--min-length","[int]\t\tMinimum length of open reading frame to be extracted from fasta file");
+const MMseqsParameter Parameters::PARAM_ORF_MAX_LENGTH=MMseqsParameter(PARAM_ORF_MAX_LENGTH_ID, "--max-length","[int]\t\tMaximum length of open reading frame to be extracted from fasta file.");
+const MMseqsParameter Parameters::PARAM_ORF_MAX_GAP=MMseqsParameter(PARAM_ORF_MAX_GAP_ID, "--max-gaps","[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected");
+const MMseqsParameter Parameters::PARAM_K_SCORE=MMseqsParameter(PARAM_K_SCORE_ID,"--k-score","[int]\tSet the K-mer threshold for the K-mer generation");
+const MMseqsParameter Parameters::PARAM_KEEP_TEMP_FILES=MMseqsParameter(PARAM_KEEP_TEMP_FILES_ID,"--delete-tmp-files","\tDo not delete temporary files.");
+const MMseqsParameter Parameters::PARAM_ORF_SKIP_INCOMPLETE=MMseqsParameter(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete","\tSkip orfs that have only an end or only a start");
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -235,126 +234,125 @@ void Parameters::printParameters(int argc, const char* pargv[],
     for (int i = 0; i < argc; i++)
         Debug(Debug::WARNING) << pargv[i] << " ";
     Debug(Debug::WARNING) << "\n\n";
-    
     for (size_t i = 0; i < parameters.size(); i++) {
         switch (parameters[i].uniqid) {
-            case PARAM_S.uniqid:
+            case PARAM_S_ID:
                 Debug(Debug::WARNING) << "Sensitivity:             " << this->sensitivity << "\n";
                 break;
-            case PARAM_K.uniqid:
+            case PARAM_K_ID:
                 Debug(Debug::WARNING) << "K-mer size:              " << this->kmerSize << "\n";
                 break;
-            case PARAM_THREADS.uniqid:
+            case PARAM_THREADS_ID:
                 Debug(Debug::WARNING) << "Threads:                 " << this->threads << "\n";
                 break;
-            case PARAM_ALPH_SIZE.uniqid:
+            case PARAM_ALPH_SIZE_ID:
                 Debug(Debug::WARNING) << "Alphabet size:           " << this->alphabetSize << "\n";
                 break;
-            case PARAM_MAX_SEQ_LEN.uniqid:
+            case PARAM_MAX_SEQ_LEN_ID:
                 Debug(Debug::WARNING) << "Max. sequence length:    " << this->maxSeqLen  << "\n";
                 break;
-            case PARAM_PROFILE.uniqid:
+            case PARAM_PROFILE_ID:
                 if(this->querySeqType == Sequence::HMM_PROFILE){
                     Debug(Debug::WARNING) << "Query input:              AA Profile\n";
                     Debug(Debug::WARNING) << "DB    input:              AA\n";
                 }
                 break;
-            case PARAM_NUCL.uniqid:
+            case PARAM_NUCL_ID:
                 if(this->querySeqType == Sequence::NUCLEOTIDES){
                     Debug(Debug::WARNING) << "Query input:              Nucleotide\n";
                     Debug(Debug::WARNING) << "DB input:                 Nucleotide\n";
                 }
                 break;
-            case PARAM_Z_SCORE.uniqid:
+            case PARAM_Z_SCORE_ID:
                 Debug(Debug::WARNING) << "Z-Score threshold:       " << this->zscoreThr << "\n";
                 break;
-            case PARAM_SKIP.uniqid:
+            case PARAM_SKIP_ID:
                 Debug(Debug::WARNING) << "Skip Kmers:              " << this->skip << "\n";
                 break;
-            case PARAM_MAX_SEQS.uniqid:
+            case PARAM_MAX_SEQS_ID:
                 Debug(Debug::WARNING) << "Max. results per query:  " << this->maxResListLen  << "\n";
                 break;
-            case PARAM_SPLIT.uniqid:
+            case PARAM_SPLIT_ID:
                 Debug(Debug::WARNING) << "Split db:                " << this->split << "\n";
                 break;
-            case PARAM_SUB_MAT.uniqid:
+            case PARAM_SUB_MAT_ID:
                 Debug(Debug::WARNING) << "Sub Matrix:              " << this->scoringMatrixFile << "\n";
                 break;
-            case PARAM_SEARCH_MODE.uniqid:
+            case PARAM_SEARCH_MODE_ID:
                 if (this->localSearch)
                     Debug(Debug::WARNING) << "Search mode:             local\n";
                 else
                     Debug(Debug::WARNING) << "Search mode:             global\n";
                 break;
-            case PARAM_NO_COMP_BIAS_CORR.uniqid:
+            case PARAM_NO_COMP_BIAS_CORR_ID:
                 if (this->compBiasCorrection)
                     Debug(Debug::WARNING) << "Compositional bias:      on\n";
                 else
                     Debug(Debug::WARNING) << "Compositional bias:      off\n";
                 break;
-            case PARAM_FAST_MODE.uniqid:
+            case PARAM_FAST_MODE_ID:
                 if(this->fastMode)
                     Debug(Debug::WARNING) << "Fastmode:                 yes\n";
                 else
                     Debug(Debug::WARNING) << "Fastmode:                 off\n";
                 break;
-            case PARAM_SPACED_KMER_MODE.uniqid:
+            case PARAM_SPACED_KMER_MODE_ID:
                 if (this->spacedKmer)
                     Debug(Debug::WARNING) << "Spaced kmers:            on\n";
                 else
                     Debug(Debug::WARNING) << "Spaced kmers:            off\n";
                 break;
-            case PARAM_E.uniqid:
+            case PARAM_E_ID:
                 Debug(Debug::WARNING) << "Max. evalue:             " << this->evalThr << "\n";
                 break;
-            case PARAM_C.uniqid:
+            case PARAM_C_ID:
                 Debug(Debug::WARNING) << "Min. sequence coverage:  " << this->covThr  << "\n";
                 break;
-            case PARAM_MAX_REJECTED.uniqid:
+            case PARAM_MAX_REJECTED_ID:
                 Debug(Debug::WARNING) << "Max. rejected:           ";
                 if (this->maxRejected == INT_MAX)
                     Debug(Debug::WARNING) << "off\n";
                 else
                     Debug(Debug::WARNING) << this->maxRejected << "\n";
                 break;
-            case PARAM_G.uniqid:
+            case PARAM_G_ID:
                 if(this->clusteringMode == GREEDY){
                     Debug(Debug::WARNING) << "Cluster type:             " << "greedy" << "\n";
                 }else{
                     Debug(Debug::WARNING) << "Cluster type:             " << "simple" << "\n";
                 }
                 break;
-            case PARAM_MIN_SEQ_ID.uniqid:
+            case PARAM_MIN_SEQ_ID_ID:
                 Debug(Debug::WARNING) << "Min. sequence id:        " << this->seqIdThr  << "\n";
                 break;
-            case PARAM_CASCADED.uniqid:
+            case PARAM_CASCADED_ID:
                 if(this->cascaded)
                     Debug(Debug::WARNING) << "Cluster mode:             " << "cascaded" << "\n";
                 else
                     Debug(Debug::WARNING) << "Cluster mode:             " << "single" << "\n";
                 break;
-            case PARAM_ORF_MIN_LENGTH.uniqid:
+            case PARAM_ORF_MIN_LENGTH_ID:
                 Debug(Debug::WARNING) << "Minimum length:      " << this->orfMinLength  << "\n";
                 break;
-            case PARAM_ORF_MAX_LENGTH.uniqid:
+            case PARAM_ORF_MAX_LENGTH_ID:
                 Debug(Debug::WARNING) << "Maximum length:      " << this->orfMaxLength  << "\n";
                 break;
-            case PARAM_ORF_MAX_GAP.uniqid:
+            case PARAM_ORF_MAX_GAP_ID:
                 Debug(Debug::WARNING) << "Maximum gaps in ORF:     " << this->orfMaxGaps  << "\n";
                 break;
-            case PARAM_K_SCORE.uniqid:
+            case PARAM_K_SCORE_ID:
                 if(this->kmerScore != INT_MAX)
                     Debug(Debug::WARNING) << "K-score:             " << this->kmerScore << "\n";
                 else
                     Debug(Debug::WARNING) << "K-score:             " << "auto" << "\n";
                 break;
-            case PARAM_KEEP_TEMP_FILES.uniqid:
+            case PARAM_KEEP_TEMP_FILES_ID:
                 if(this->keepTempFiles)
                     Debug(Debug::WARNING) << "Delete tmp files:          yes\n";
                 else
                     Debug(Debug::WARNING) << "Delete tmp files:          no\n";
                 break;
-            case PARAM_ORF_SKIP_INCOMPLETE.uniqid:
+            case PARAM_ORF_SKIP_INCOMPLETE_ID:
                 if(this->orfSkipIncomplete)
                     Debug(Debug::WARNING) << "Skip incomplete ORFs:     yes\n";
                 else
