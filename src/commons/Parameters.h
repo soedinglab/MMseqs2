@@ -9,11 +9,16 @@
 #include <vector>
 #include <map>
 
+
+#define PARAMETER(x) const static int x##_ID = __COUNTER__; \
+                     const static MMseqsParameter x;
+
+
 struct MMseqsParameter {
     const int uniqid;
     const char *name;
     const char *description;
-    constexpr MMseqsParameter(int uid,const char * n,const char * d): uniqid(uid), name(n),description(d){}
+    MMseqsParameter(int uid,const char * n,const char * d): uniqid(uid), name(n),description(d){}
 };
 
 
@@ -144,50 +149,50 @@ public:
     //    "-g              \t[int]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
     //    "-a              \t[int]\taffinity clustering (default: set cover clustering algorithm).\n"
     //    "--min-seq-id    \t[float]\tMinimum sequence identity of query to target cluster (default = 0.0)\n"
-    const static MMseqsParameter PARAM_S;
-    const static MMseqsParameter PARAM_K;
-    const static MMseqsParameter PARAM_THREADS;
-    const static MMseqsParameter PARAM_ALPH_SIZE;
-    const static MMseqsParameter PARAM_MAX_SEQ_LEN;
-    const static MMseqsParameter PARAM_PROFILE;
-    const static MMseqsParameter PARAM_NUCL;
-    const static MMseqsParameter PARAM_Z_SCORE;
-    const static MMseqsParameter PARAM_SKIP;
-    const static MMseqsParameter PARAM_MAX_SEQS;
-    const static MMseqsParameter PARAM_SPLIT;
-    const static MMseqsParameter PARAM_SUB_MAT;
-    const static MMseqsParameter PARAM_SEARCH_MODE;
-    const static MMseqsParameter PARAM_NO_COMP_BIAS_CORR;
-    const static MMseqsParameter PARAM_FAST_MODE;
-    const static MMseqsParameter PARAM_SPACED_KMER_MODE;
-    const static MMseqsParameter PARAM_K_SCORE;
-    const static MMseqsParameter PARAM_KEEP_TEMP_FILES;
+    PARAMETER(PARAM_S);
+    PARAMETER(PARAM_K);
+    PARAMETER(PARAM_THREADS);
+    PARAMETER(PARAM_ALPH_SIZE);
+    PARAMETER(PARAM_MAX_SEQ_LEN);
+    PARAMETER(PARAM_PROFILE);
+    PARAMETER(PARAM_NUCL);
+    PARAMETER(PARAM_Z_SCORE);
+    PARAMETER(PARAM_SKIP);
+    PARAMETER(PARAM_MAX_SEQS);
+    PARAMETER(PARAM_SPLIT);
+    PARAMETER(PARAM_SUB_MAT);
+    PARAMETER(PARAM_SEARCH_MODE);
+    PARAMETER(PARAM_NO_COMP_BIAS_CORR);
+    PARAMETER(PARAM_FAST_MODE);
+    PARAMETER(PARAM_SPACED_KMER_MODE);
+    PARAMETER(PARAM_K_SCORE);
+    PARAMETER(PARAM_KEEP_TEMP_FILES);
     // alignment
-    const static MMseqsParameter PARAM_E;
-    const static MMseqsParameter PARAM_C;
-    const static MMseqsParameter PARAM_MAX_REJECTED;
-    const static MMseqsParameter PARAM_MIN_SEQ_ID;
+    PARAMETER(PARAM_E);
+    PARAMETER(PARAM_C);
+    PARAMETER(PARAM_MAX_REJECTED);
+    PARAMETER(PARAM_MIN_SEQ_ID);
     // clustering
-    const static MMseqsParameter PARAM_G;
-    const static MMseqsParameter PARAM_A;
-    const static MMseqsParameter PARAM_CASCADED;
+    PARAMETER(PARAM_G);
+    PARAMETER(PARAM_A);
+    PARAMETER(PARAM_CASCADED);
     //afinity clustering
-    const static MMseqsParameter PARAM_MAXITERATIONS;
-    const static MMseqsParameter PARAM_CONVERGENCEITERATIONS;
-    const static MMseqsParameter PARAM_DAMPING;
-    const static MMseqsParameter PARAM_SIMILARITYSCORE;
-    const static MMseqsParameter PARAM_PREFERENCE;
+    PARAMETER(PARAM_MAXITERATIONS);
+    PARAMETER(PARAM_CONVERGENCEITERATIONS);
+    PARAMETER(PARAM_DAMPING);
+    PARAMETER(PARAM_SIMILARITYSCORE);
+    PARAMETER(PARAM_PREFERENCE);
 
     // logging
-    const static MMseqsParameter PARAM_V;
+    PARAMETER(PARAM_V);
     // clustering workflow
-    const static MMseqsParameter PARAM_RESTART;
-    const static MMseqsParameter PARAM_STEP;
+    PARAMETER(PARAM_RESTART);
+    PARAMETER(PARAM_STEP);
     // extractorfs
-    const static MMseqsParameter PARAM_ORF_MIN_LENGTH;
-    const static MMseqsParameter PARAM_ORF_MAX_LENGTH;
-    const static MMseqsParameter PARAM_ORF_MAX_GAP;
-    const static MMseqsParameter PARAM_ORF_SKIP_INCOMPLETE;
+    PARAMETER(PARAM_ORF_MIN_LENGTH);
+    PARAMETER(PARAM_ORF_MAX_LENGTH);
+    PARAMETER(PARAM_ORF_MAX_GAP);
+    PARAMETER(PARAM_ORF_SKIP_INCOMPLETE);
 
 };
 
