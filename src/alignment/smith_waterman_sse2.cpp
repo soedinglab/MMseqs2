@@ -279,8 +279,8 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 #define max16(m, vm) ((m) = simdi8_hmax((vm)));
 
 	uint8_t max = 0;		                     /* the max alignment score */
-	int32_t end_read = query_lenght - 1;
-	int32_t end_ref = -1; /* 0_based best alignment ending point; Initialized as isn't aligned -1. */
+	int32_t end_query = query_lenght - 1;
+	int32_t end_db = -1; /* 0_based best alignment ending point; Initialized as isn't aligned -1. */
 	const int SIMD_SIZE = VECSIZE_INT * 4;
 	int32_t segLen = (query_lenght + SIMD_SIZE-1) / SIMD_SIZE; /* number of segment */
 	/* array to record the largest score of each reference position */
@@ -435,7 +435,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 			if (LIKELY(temp > max)) {
 				max = temp;
 				if (max + bias >= 255) break;	//overflow
-				end_ref = i;
+				end_db = i;
 
 				/* Store the column with the highest alignment score in order to trace the alignment ending position on read. */
 				for (j = 0; LIKELY(j < segLen); ++j) pvHmax[j] = pvHStore[j];
@@ -455,21 +455,21 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 		int32_t temp;
 		if (*t == max) {
 			temp = i / SIMD_SIZE + i % SIMD_SIZE * segLen;
-			if (temp < end_read) end_read = temp;
+			if (temp < end_query) end_query = temp;
 		}
 	}
 
 	/* Find the most possible 2nd best alignment. */
 	alignment_end* bests = (alignment_end*) calloc(2, sizeof(alignment_end));
 	bests[0].score = max + bias >= 255 ? 255 : max;
-	bests[0].ref = end_ref;
-	bests[0].read = end_read;
+	bests[0].ref = end_db;
+	bests[0].read = end_query;
 
 	bests[1].score = 0;
 	bests[1].ref = 0;
 	bests[1].read = 0;
 
-	edge = (end_ref - maskLen) > 0 ? (end_ref - maskLen) : 0;
+	edge = (end_db - maskLen) > 0 ? (end_db - maskLen) : 0;
 	for (i = 0; i < edge; i ++) {
 		//			fprintf (stderr, "maxColumn[%d]: %d\n", i, maxColumn[i]);
 		if (maxColumn[i] > bests[1].score) {
@@ -477,7 +477,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 			bests[1].ref = i;
 		}
 	}
-	edge = (end_ref + maskLen) > db_length ? db_length : (end_ref + maskLen);
+	edge = (end_db + maskLen) > db_length ? db_length : (end_db + maskLen);
 	for (i = edge + 1; i < db_length; i ++) {
 		//			fprintf (stderr, "db_length: %d\tmaxColumn[%d]: %d\n", db_length, i, maxColumn[i]);
 		if (maxColumn[i] > bests[1].score) {
