@@ -142,6 +142,12 @@ typedef struct __kstring_t {
 	__KS_GETC(__read, __bufsize)				\
 	__KS_GETUNTIL(__read, __bufsize)
 
+#if (__GNUC__ > 2) || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+#       define KSEQ_UNUSED		__attribute__((__unused__))
+#else
+#       define KSEQ_UNUSED
+#endif
+
 #define __KSEQ_BASIC(type_t)											\
 	static inline kseq_t *kseq_init(type_t fd)							\
 	{																	\
@@ -149,7 +155,7 @@ typedef struct __kstring_t {
 		s->f = ks_init(fd);												\
 		return s;														\
 	}																	\
-	static inline void kseq_rewind(kseq_t *ks)							\
+	KSEQ_UNUSED static inline void kseq_rewind(kseq_t *ks)				\
 	{																	\
 		ks->last_char = 0;												\
 		ks->f->is_eof = ks->f->begin = ks->f->end = 0;					\
