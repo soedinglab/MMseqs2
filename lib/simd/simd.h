@@ -106,6 +106,8 @@ typedef __m512i simd_int;
 #define simdi8_eq(x,y)      NOT_YET_IMP()
 #define simdi32_lt(x,y)     _mm512_cmplt_epi32(x,y)
 #define simdi16_lt(x,y)     NOT_YET_IMP()
+#define simdi8_lt(x,y)      NOT_YET_IMP()
+
 #define simdi_or(x,y)       _mm512_or_si512(x,y)
 #define simdi_and(x,y)      _mm512_and_si512(x,y)
 #define simdi_andnot(x,y)   _mm512_andnot_si512(x,y)
@@ -170,6 +172,7 @@ typedef __m256i simd_int;
 #define simdi16_eq(x,y)     _mm256_cmpeq_epi16(x,y)
 #define simdi32_lt(x,y)     _mm256_cmpgt_epi32(y,x) // inverse
 #define simdi16_lt(x,y)     _mm256_cmpgt_epi16(y,x) // inverse
+#define simdi8_lt(x,y)      _mm256_cmpgt_epi8(y,x)
 #define simdi_or(x,y)       _mm256_or_si256(x,y)
 #define simdi_and(x,y)      _mm256_and_si256(x,y)
 #define simdi_andnot(x,y)   _mm256_andnot_si256(x,y)
@@ -327,6 +330,7 @@ typedef __m128i simd_int;
 #define simdi8_eq(x,y)      _mm_cmpeq_epi8(x,y)
 #define simdi32_lt(x,y)     _mm_cmplt_epi32(x,y)
 #define simdi16_lt(x,y)     _mm_cmplt_epi16(x,y)
+#define simdi8_lt(x,y)      _mm_cmplt_epi8(x,y)
 #define simdi16_gt(x,y)     _mm_cmpgt_epi16(x,y)
 #define simdi_or(x,y)       _mm_or_si128(x,y)
 #define simdi_and(x,y)      _mm_and_si128(x,y)

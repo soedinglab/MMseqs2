@@ -49,12 +49,12 @@ class TimeTest {
 
         size_t maxSeqLen;
 
-        DBReader* qdbr;
-        DBReader* tdbr;
-        
         Sequence** seqs;
 
         std::string scoringMatrixFile;
+
+        std::string targetDBIndex;
+        std::string targetDB;
 };
 
 #endif

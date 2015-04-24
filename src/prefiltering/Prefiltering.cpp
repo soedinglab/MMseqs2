@@ -29,6 +29,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     querySeqType(par.querySeqType),
     targetSeqType(par.targetSeqType),
     aaBiasCorrection(par.compBiasCorrection),
+    fastMode(par.fastMode),
     split(par.split),
     skip(par.skip),
     isLocal(par.localSearch)
@@ -190,9 +191,13 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs){
 }
 
 
-QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, unsigned int *seqLens, short kmerThr, double kmerMatchProb,
-        int kmerSize, size_t effectiveKmerSize, size_t dbSize, bool aaBiasCorrection, unsigned int maxSeqLen,
-        float zscoreThr, bool isLocal, size_t maxHitsPerQuery) {
+QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
+                                                                unsigned int *seqLens, short kmerThr,
+                                                                double kmerMatchProb, int kmerSize,
+                                                                size_t effectiveKmerSize, size_t dbSize,
+                                                                bool aaBiasCorrection, bool fastMode,
+                                                                unsigned int maxSeqLen, float zscoreThr, bool isLocal,
+                                                                size_t maxHitsPerQuery) {
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher *[threads];
 
 #pragma omp parallel for schedule(static)
@@ -204,7 +209,7 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
         if (isLocal) {
             matchers[thread_idx] = new QueryTemplateMatcherLocal(m, indexTable, seqLens, kmerThr,
                                                                   kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
-                                                                  aaBiasCorrection, maxSeqLen, maxHitsPerQuery);
+                                                                  fastMode, maxSeqLen, maxHitsPerQuery);
 
         }else{
             matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
@@ -261,8 +266,11 @@ void Prefiltering::run (size_t split, size_t splitCount,
     struct timeval start, end;
 
     gettimeofday(&start, NULL);
-    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThr, kmerMatchProb,
-            kmerSize, qseq[0]->getEffectiveKmerSize(), tdbr->getSize(), aaBiasCorrection, maxSeqLen, zscoreThr, isLocal, maxResListLen);
+    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThr,
+                                                                  kmerMatchProb, kmerSize,
+                                                                  qseq[0]->getEffectiveKmerSize(), tdbr->getSize(),
+                                                                  aaBiasCorrection, fastMode, maxSeqLen, zscoreThr,
+                                                                  isLocal, maxResListLen);
 
     size_t kmersPerPos = 0;
     size_t dbMatches = 0;
@@ -548,14 +556,14 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
         gamma = 1.959421; // 1.997792;
     }
     else if (kmerSize == 6){ 
-        alpha = 1.141648e-01; // 1.114936e-01
-        beta = 9.033168e+05; // 9.331253e+05;
-        gamma = 1.411142; // 1.416222;
+        alpha = 2.574765e+00; // 1.114936e-01
+        beta = -6.845882e+07 ; // 9.331253e+05;
+        gamma =  1.729707e+02; // 1.416222;
     }
     else if (kmerSize == 7){ 
-        alpha = 6.356035e-02; //7.123599e-02; //6.438574e-02; // 6.530289e-02;
-        beta = 3.432066e+06; //3.148479e+06; //3.480680e+06; // 3.243035e+06;
-        gamma = 1.238231; //1.304421; // 1.753651; //1.137125;
+        alpha = 2.190170e-01; //7.123599e-02; //6.438574e-02; // 6.530289e-02;
+        beta = -8.744322e+07; //3.148479e+06; //3.480680e+06; // 3.243035e+06;
+        gamma = 1.759593e+02; //1.304421; // 1.753651; //1.137125;
     }
     else{
         Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
@@ -567,11 +575,9 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
 
 
     // Run using k=6, a=21, with k-mer similarity threshold 103
-    // k-mer list length was 117.6, k-mer match probability 1.12735e-06
-    // time reference value for these settings is 15.6
-    // Since we want to represent the time value in the form base^sensitivity with base=2.0, it yields sensitivity = 3.96 (~4.0)
-    double timevalMax = pow(2.0, sensitivity) * (1.0 + toleratedDeviation);
-    double timevalMin = pow(2.0, sensitivity) * (1.0 - toleratedDeviation);
+    // try to set sensitivity 1 to the total runtime of 230 - 256
+    double timevalMax = pow(2.0, sensitivity + 7) * (1.0);
+    double timevalMin = pow(2.0, sensitivity + 7) * (1.0 - toleratedDeviation);
 
     // in case the time value cannot be set within the threshold boundaries, the best value that could be reached will be returned with a warning
     double timevalBest = 0.0;
@@ -602,6 +608,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
 
         // check the parameters
         double timeval = alpha * stats.kmersPerPos + beta * kmerMatchProb + gamma;
+
         Debug(Debug::INFO) << "\tk-mers per position = " << stats.kmersPerPos << ", k-mer match probability: " << kmerMatchProb << "\n";
         Debug(Debug::INFO) << "\ttime value = " << timeval << ", allowed range: [" << timevalMin << ":" << timevalMax << "]\n";
         if(kmerScore != INT_MAX){ // if kmerScore is provided by commandline
@@ -643,8 +650,10 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
 statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,
                                                             unsigned int *querySeqsIds, bool reverseQuery, size_t kmerThrMid) {
     // determine k-mer match probability for kmerThrMid
-    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid, 1.0,
-            kmerSize, qseq[0]->getEffectiveKmerSize(), tdbr->getSize(), aaBiasCorrection, maxSeqLen, 500.0, isLocal, LONG_MAX);
+    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid,
+                                                                  1.0, kmerSize, qseq[0]->getEffectiveKmerSize(),
+                                                                  tdbr->getSize(), aaBiasCorrection, false, maxSeqLen,
+                                                                  500.0, isLocal, LONG_MAX);
     size_t dbMatchesSum = 0;
     size_t doubleMatches = 0;
     size_t querySeqLenSum = 0;
