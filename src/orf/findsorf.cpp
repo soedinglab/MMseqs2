@@ -19,11 +19,6 @@
 #include "Debug.h"
 #include "Util.h"
 
-struct blamap {
-    int start;
-    int end;
-};
-
 int findsorf(int argn, const char **argv)
 {
     std::string usage;
@@ -58,6 +53,8 @@ int findsorf(int argn, const char **argv)
 
     int start = 0, end = 0;
 
+    std::map<int, size_t> speciesAAlength;
+
     while ((read = getline(&line, &length, mapFile)) != -1) {
         ffnchomp(line, read);
         std::vector<std::string> fields = Util::split(line, "\t");
@@ -82,6 +79,12 @@ int findsorf(int argn, const char **argv)
     DBReader reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader::NOSORT);
 
+    DBReader hdr_reader(par.db3.c_str(), par.db3Index.c_str());
+    hdr_reader.open(DBReader::NOSORT);
+
+    DBReader bdy_reader(par.db4.c_str(), par.db4Index.c_str());
+    bdy_reader.open(DBReader::NOSORT);
+
     size_t num_clusters = reader.getSize();
     for (size_t i = 0; i < num_clusters; ++i) {
         const char* key = (const char*) reader.getDbKey(i);
@@ -93,9 +96,19 @@ int findsorf(int argn, const char **argv)
         std::string line;
         while (std::getline(iss, line))
         {
+            char* aa = bdy_reader.getDataByDBKey(const_cast<char*>(line.c_str()));
             std::vector<std::string> clusterOrf = Util::split(line, "_");
             int speciesId = atoi(clusterOrf[0].c_str());
             speciesSet.insert(speciesMap[speciesId]);
+
+            std::map<int, size_t>::iterator it;
+            if((it = speciesAAlength.find(speciesMap[speciesId])) != speciesAAlength.end())
+            {
+                it->second += strlen(aa);
+            } else {
+                speciesAAlength.emplace(speciesMap[speciesId], strlen(aa));
+            }
+
             entries++;
         }
 
@@ -103,7 +116,11 @@ int findsorf(int argn, const char **argv)
             continue;
 
         float speciesInSet = (float)speciesSet.size();
-        printf("%s\t%f \n", key, (speciesInSet/(float)totalSpeciesCount) * log2(speciesInSet / (float)totalSpeciesCount));
+        printf("%s\t%f\n", key, -(speciesInSet/(float)totalSpeciesCount) * log2(speciesInSet / (float)totalSpeciesCount));
+    }
+
+    for (std::map<int, size_t>::iterator it = speciesAAlength.begin(); it != speciesAAlength.end(); ++it) {
+        printf("%d\t%zu\n", it->first, it->second);
     }
 
 

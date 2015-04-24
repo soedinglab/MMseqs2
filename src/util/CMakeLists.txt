@@ -7,10 +7,8 @@ set(util_source_files
   ffindex_database_merge.cpp
   ffindex_to_pref_index.cpp
   ffindex_swap_results.cpp
-  extract_orf.cpp
   translate_nucleotide.cpp
   legacycs219.cpp
-  findsorf.cpp
 )
 add_library(util ${util_source_files})
 
