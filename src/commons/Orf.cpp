@@ -122,11 +122,12 @@ static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector
     // edge case 2: we did not find an end codon, add the last orf
     // from the last found start to the end of the sequence
     for(size_t frame = 0; frame < FRAMES; frame++) {
-        if(from[frame] > to[frame]) {
+        if(inOrf[frame] && from[frame] > to[frame]) {
             Orf::SequencePosition to = seq_length - ((seq_length - from[frame]) % 3);
             ranges.emplace_back(from[frame], to);
         }
-        
+
+        inOrf[frame] = false;
         currentGaps[frame] = 0;
         currentLength[frame] = 0;
     }
