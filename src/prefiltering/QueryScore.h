@@ -112,7 +112,7 @@ public:
     }
 
     // maximal resultList
-    static const size_t MAX_RES_LIST_LEN = 15000000;
+    static const size_t MAX_RES_LIST_LEN = 150000;
 
     short sse2_extract_epi16(__m128i v, int pos);
 

@@ -24,14 +24,12 @@ TimeTest::TimeTest(std::string queryDB,
 #endif
     std::cout << "\n";
 
-    this->qdbr = new DBReader(queryDB.c_str(), queryDBIndex.c_str());
-    qdbr->open(DBReader::NOSORT);
+//    this->qdbr = new DBReader(queryDB.c_str(), queryDBIndex.c_str());
+//    qdbr->open(DBReader::NOSORT);
+    this->targetDB = targetDB;
+    this->targetDBIndex = targetDBIndex;
 
-    this->tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
-    tdbr->open(DBReader::SORT);
-
-    std::cout << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
-    std::cout << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
+//    std::cout << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
 
     this->seqs = new Sequence*[threads];
 
@@ -41,7 +39,6 @@ TimeTest::TimeTest(std::string queryDB,
 }
 
 TimeTest::~TimeTest(){
-
     delete[] seqs;
 
 }
@@ -54,7 +51,8 @@ void TimeTest::runTimeTest (){
     logFileStream.open(logFile.c_str());
 
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher *[threads];
-
+    DBReader * tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
+    tdbr->open(DBReader::SORT);
     size_t targetSeqLenSum = 0;
     for (size_t i = 0; i < tdbr->getSize(); i++)
         targetSeqLenSum += tdbr->getSeqLens()[i];
@@ -77,6 +75,10 @@ void TimeTest::runTimeTest (){
 
     // adjust k-mer list length threshold
     for (int alphabetSize = 21; alphabetSize <= 21; alphabetSize += 4){
+
+
+
+        std::cout << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
 
         BaseMatrix* m = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
         BaseMatrix* subMat;
@@ -194,6 +196,7 @@ void TimeTest::runTimeTest (){
                         }
                     }
                     delete indexTable;
+
                 }
             }
         }
@@ -208,6 +211,8 @@ void TimeTest::runTimeTest (){
         delete _3merSubMatrix;
     }
 
+    tdbr->close();
+    delete tdbr;
     logFileStream.close();
     delete[] querySeqs;
     delete[] matchers;
