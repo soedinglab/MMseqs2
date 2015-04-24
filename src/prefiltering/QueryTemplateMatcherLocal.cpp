@@ -32,7 +32,7 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherLocal::matchQuery (Sequence * seq
 
     unsigned int scoreThreshold;
     if(fastMode == true){
-        scoreThreshold = 1;
+        scoreThreshold = 6;
     }else{
         scoreThreshold = queryScore->computeScoreThreshold(this->maxHitsPerQuery);
     }
