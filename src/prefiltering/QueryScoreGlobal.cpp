@@ -39,7 +39,6 @@ QueryScoreGlobal::QueryScoreGlobal(size_t dbSize, unsigned int *dbSeqLens, int k
 
 QueryScoreGlobal::~QueryScoreGlobal(){
     free(thresholds_128);
-    delete[] seqLens;
     delete[] steps;
 }
 

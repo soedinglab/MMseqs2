@@ -14,7 +14,6 @@ QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, int seedLength, s
     scores = (unsigned short * ) scores_128;
     // set scores to zero
     memset (scores_128, 0, scores_128_size * sizeof(unsigned short));
-    
     this->resList = (hit_t *) mem_align(ALIGN_INT, MAX_RES_LIST_LEN * sizeof(hit_t) );
     
     scoresSum = 0;
@@ -41,6 +40,7 @@ QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, int seedLength, s
 QueryScore::~QueryScore (){
     free(scores_128);
     free(resList);
+    delete[] seqLens;
 }
 
 bool QueryScore::compareHits(hit_t first, hit_t second){
