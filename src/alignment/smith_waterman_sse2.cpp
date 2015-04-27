@@ -15,6 +15,7 @@ in whole or in part, without written consent of Michael Farrar.
 #include "smith_waterman_sse2.h"
 
 SmithWaterman::SmithWaterman(int maxSequenceLength, int aaSize) {
+	maxSequenceLength += 1;
 	const int segSize = (maxSequenceLength+7)/8;
 	vHStore = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
 	vHLoad  = (simd_int*) mem_align(ALIGN_INT, segSize * sizeof(simd_int));
