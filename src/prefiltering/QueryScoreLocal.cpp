@@ -59,9 +59,9 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
         const unsigned int seqIndex = identityId * 2;
         unsigned char rawScore  = data[seqIndex + 1];
         rawScore = (rawScore == 0) ? 1 : rawScore;
-        result->zScore = -computeLogProbabiliy(rawScore, seqLens[result->seqId]);
         result->seqId = identityId;
         result->prefScore = rawScore;
+        result->zScore = -computeLogProbabiliy(rawScore, seqLens[identityId]);
         elementCounter++;
     }
 
@@ -84,11 +84,11 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
                     hit_t * result = (resList + elementCounter);
                     result->seqId = pos * SIMD_SHORT_SIZE + i;
                     //result->zScore = (((float)rawScore) - mu )/ sqrt(mu);
-                    //result->zScore = -computeLogProbabiliy(rawScore, seqLens[result->seqId]);
+                    result->prefScore = rawScore;
+                    result->zScore = -computeLogProbabiliy(rawScore, seqLens[result->seqId]);
                     //std::cout << result->zScore << std::endl;
 
-                    result->zScore = (rawScore);
-                    result->prefScore = rawScore;
+                    //result->zScore = (rawScore);
                     //scoreSizes += rawScore;
                     elementCounter++;
                     if(elementCounter >= MAX_RES_LIST_LEN){
