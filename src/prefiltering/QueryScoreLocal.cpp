@@ -104,15 +104,15 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
     }
     OuterLoop:
 
-    elementCounter--;
-
     // sort hits by score
     // include the identity in results if its there
-    if (identityId != UINT_MAX){
-        std::sort(resList + 1, resList + elementCounter, compareHits);
-    }
-    else{
-        std::sort(resList, resList + elementCounter, compareHits);
+    if(elementCounter > 1){
+        if (identityId != UINT_MAX){
+            std::sort(resList + 1, resList + elementCounter, compareHits);
+        }
+        else{
+            std::sort(resList, resList + elementCounter, compareHits);
+        }
     }
     return std::make_pair(this->resList, elementCounter);
 }
@@ -137,8 +137,9 @@ unsigned int QueryScoreLocal::computeScoreThreshold(size_t maxHitsPerQuery) {
 
 inline double QueryScoreLocal::computeLogProbabiliy(const unsigned short rawScore, const unsigned int dbSeqLen) {
     const double score = static_cast<double>(rawScore);
-    const double mu = kmerMatchProb * dbSeqLen;
-    const double mid_term = score * (logMatchProb + log(dbSeqLen));
+    const double dbSeqLenDbl = static_cast<double>(dbSeqLen);
+    const double mu = kmerMatchProb * dbSeqLenDbl;
+    const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
     const double first_term = -(mu * score /(score + 1));
     return first_term + mid_term - logScoreFactorial[rawScore];
 }
