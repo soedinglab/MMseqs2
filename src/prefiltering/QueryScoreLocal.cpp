@@ -84,16 +84,18 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
                     hit_t * result = (resList + elementCounter);
                     result->seqId = pos * SIMD_SHORT_SIZE + i;
                     //result->zScore = (((float)rawScore) - mu )/ sqrt(mu);
-                    result->zScore = -computeLogProbabiliy(rawScore, seqLens[result->seqId]);
+                    //result->zScore = -computeLogProbabiliy(rawScore, seqLens[result->seqId]);
                     //std::cout << result->zScore << std::endl;
 
-                    //result->zScore = (rawScore);
+                    result->zScore = (rawScore);
                     result->prefScore = rawScore;
                     //scoreSizes += rawScore;
                     elementCounter++;
                     if(elementCounter >= MAX_RES_LIST_LEN){
                         // because the memset will not be finished
-                        memset (s + pos, 0, scores_128_size * 2);
+                        for (size_t rest_pos = pos; rest_pos < lenght; rest_pos++ ) {
+                            simdi_store(s + rest_pos, zero);
+                        }
                         goto OuterLoop;
                     }
                 }
@@ -101,6 +103,9 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
         }
     }
     OuterLoop:
+
+    elementCounter--;
+
     // sort hits by score
     // include the identity in results if its there
     if (identityId != UINT_MAX){
@@ -109,8 +114,7 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
     else{
         std::sort(resList, resList + elementCounter, compareHits);
     }
-    std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
-    return pair;
+    return std::make_pair(this->resList, elementCounter);
 }
 
 void QueryScoreLocal::updateScoreBins() {
@@ -133,7 +137,7 @@ unsigned int QueryScoreLocal::computeScoreThreshold(size_t maxHitsPerQuery) {
 
 inline double QueryScoreLocal::computeLogProbabiliy(const unsigned short rawScore, const unsigned int dbSeqLen) {
     const double score = static_cast<double>(rawScore);
-    const float mu = kmerMatchProb * dbSeqLen;
+    const double mu = kmerMatchProb * dbSeqLen;
     const double mid_term = score * (logMatchProb + log(dbSeqLen));
     const double first_term = -(mu * score /(score + 1));
     return first_term + mid_term - logScoreFactorial[rawScore];
