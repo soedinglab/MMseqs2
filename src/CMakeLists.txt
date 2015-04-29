@@ -48,6 +48,11 @@ else ()
 		message(FATAL_ERROR "Your C++ compiler does not support C++0x.")
 endif ()
 
+# MPI
+find_package(MPI QUIET)
+if(MPI_FOUND)
+include_directories(${MPI_INCLUDE_PATH})
+endif()
 
 add_subdirectory(alignment)
 add_subdirectory(clustering)
@@ -64,3 +69,17 @@ target_link_libraries(mmseqs util)
 target_link_libraries(mmseqs workflow)
 target_link_libraries(mmseqs orf)
 target_link_libraries(mmseqs ffindex)
+
+if(MPI_FOUND)
+target_link_libraries(mmseqs ${MPI_LIBRARIES})
+
+if(MPI_COMPILE_FLAGS)
+  set_target_properties(mmseqs PROPERTIES
+    COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+
+if(MPI_LINK_FLAGS)
+  set_target_properties(mmseqs PROPERTIES
+    LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+endif()
