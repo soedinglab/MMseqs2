@@ -67,14 +67,14 @@ short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
 
 void QueryScore::printVector(__m128i v){
     for (int i = 0; i < 8; i++)
-        std::cout << (unsigned short) sse2_extract_epi16(v, i) << " ";
-    std::cout << "\n";
+        Debug(Debug::INFO) << (unsigned short) sse2_extract_epi16(v, i) << " ";
+    Debug(Debug::INFO) << "\n";
 }
 
 void QueryScore::printScores(){
-    std::cout << "Scores:\n";
+    Debug(Debug::INFO) << "Scores:\n";
     for (int i = 0; i < dbSize; i++)
-        std::cout << scores[i] << "\n";
+        Debug(Debug::INFO) << scores[i] << "\n";
 }
 
 
