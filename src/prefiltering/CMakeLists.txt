@@ -31,4 +31,16 @@ set(prefiltering_source_files
 )
 add_library(prefiltering STATIC ${prefiltering_source_files})
 
-target_link_libraries(prefiltering )
+if(MPI_FOUND)
+target_link_libraries(prefiltering ${MPI_LIBRARIES})
+
+if(MPI_COMPILE_FLAGS)
+set_target_properties(prefiltering PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+
+if(MPI_LINK_FLAGS)
+set_target_properties(prefiltering PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+else()
+target_link_libraries(prefiltering)
+endif()
