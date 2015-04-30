@@ -1,5 +1,6 @@
 #ifndef UTIL_H
 #define UTIL_H
+
 #include <cstddef>
 #include <math.h>
 #include <stdlib.h>
@@ -19,7 +20,11 @@ extern "C" {
 #include <omp.h>
 #endif
 
+#include "MMseqsMPI.h"
+
+#ifndef EXIT
 #define EXIT(exitCode) exit(exitCode)
+#endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 #define SSTR( x ) dynamic_cast< std::ostringstream& >( \
