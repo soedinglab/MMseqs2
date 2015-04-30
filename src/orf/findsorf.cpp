@@ -35,7 +35,7 @@ int findsorf(int argn, const char **argv)
     Debug::setDebugLevel(par.verbosity);
 
     FILE* mapFile = fopen(par.db2.c_str(), "r");
-    if(mapFile == NULL) { exit(EXIT_FAILURE); }
+    if(mapFile == NULL) { EXIT(EXIT_FAILURE); }
 
     /*std::string out_filename  = std::string(par.db3 + ".ffdata");
     std::string out_index_filename = std::string(par.db3 + ".ffindex");

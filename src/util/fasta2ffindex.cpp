@@ -110,7 +110,7 @@ int createdb(int argn,const char **argv)
         //sequence.append("\n");
         if(id.length() >= 31 ){
             std::cerr << "Id: " << id << " is too long. Maximal 32 characters are allowed." << std::endl;
-            exit(EXIT_FAILURE);
+            EXIT(EXIT_FAILURE);
         }
 
         ffindex_insert_memory(data_file,     index_file,     &offset_sequence, (char *) sequence.c_str(),  sequence.length() , (char *) id.c_str());
@@ -128,7 +128,7 @@ int createdb(int argn,const char **argv)
    if(index == NULL)
    {
         perror("ffindex_index_parse failed");
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
    }
    fclose(index_file);
    ffindex_sort_index_file(index);
@@ -141,7 +141,7 @@ int createdb(int argn,const char **argv)
    if(index == NULL)
    { 
          perror("ffindex_index_parse failed");
-         exit(EXIT_FAILURE);
+         EXIT(EXIT_FAILURE);
    }
    fclose(index_file_hdr);
    ffindex_sort_index_file(index_hdr);

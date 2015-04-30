@@ -22,7 +22,7 @@ void parseArgs(int argc, const char** argv,
                std::string* msaOutDB){
 	if (argc < 5){
         printUsageCusteringToFasta();
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 
     clusteredDB->assign(argv[1]);

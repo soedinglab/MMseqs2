@@ -238,7 +238,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
             unsigned int tId = currSeqDbr->getId(tKey);
             if (tId == UINT_MAX){
                 std::cerr << "ERROR: DB key " << tKey << " is in the B->A alignment lists, but not in the new database!\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
             // find out the representative sequence of the cluster of the hit
             int repId = id2rep[tId];
