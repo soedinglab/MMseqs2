@@ -1,4 +1,6 @@
 #include "Indexer.h"
+#include "Debug.h"
+
 Indexer::Indexer(const int alphabetSize, const int maxKmerSize){
     this->maxKmerSize = maxKmerSize;
     this->powers = new int[maxKmerSize];
@@ -60,11 +62,11 @@ void Indexer::reset(){
 void Indexer::printKmer(int kmerIdx, int kmerSize, char* int2aa){
     index2int(workspace, kmerIdx, kmerSize);
     for (int j = 0; j < kmerSize; j++)
-        std::cout << int2aa[workspace[j]];
+        Debug(Debug::INFO) << int2aa[workspace[j]];
 }
 
 void Indexer::printKmer(const int* kmer, int kmerSize, char* int2aa){
     for (int j = 0; j < kmerSize; j++)
-        std::cout << int2aa[kmer[j]];
+        Debug(Debug::INFO) << int2aa[kmer[j]];
 }
 
