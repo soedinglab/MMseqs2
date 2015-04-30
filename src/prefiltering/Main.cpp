@@ -14,6 +14,7 @@
 
 #ifdef HAVE_MPI
 #include <mpi.h>
+#define MPI_MASTER 0
 #endif
 
 
@@ -95,6 +96,10 @@ int prefilter(int argc, const char **argv)
     mpi_error = MPI_Init(&argc, &argv);
     mpi_error = MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     mpi_error = MPI_Comm_size(MPI_COMM_WORLD, &mpi_num_procs);
+
+    if(mpi_rank != MPI_MASTER)
+        Debug::setDebugLevel(Debug::NOTHING);
+
     Debug(Debug::WARNING) << "MPI Init...\n";
     Debug(Debug::WARNING) << "Rank: " << mpi_rank << " Size: " << mpi_num_procs << "\n";
 
@@ -128,8 +133,9 @@ int prefilter(int argc, const char **argv)
     sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "\nTime for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     delete pref;
+
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif
-    return 0;
+    return EXIT_SUCCESS;
 }
