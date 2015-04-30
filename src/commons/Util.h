@@ -15,19 +15,11 @@ extern "C" {
 #include "ffutil.h"
 }
 
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif
-
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-#ifdef HAVE_MPI
-#define EXIT(exitCode) MPI_Finalize(); exit(exitCode)
-#else
 #define EXIT(exitCode) exit(exitCode)
-#endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 #define SSTR( x ) dynamic_cast< std::ostringstream& >( \
