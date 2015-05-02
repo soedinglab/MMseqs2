@@ -18,7 +18,8 @@ const MMseqsParameter Parameters::PARAM_NUCL=MMseqsParameter(PARAM_NUCL_ID,"--nu
 const MMseqsParameter Parameters::PARAM_Z_SCORE=MMseqsParameter(PARAM_Z_SCORE_ID,"--z-score",        "[float]\tZ-score threshold ");
 const MMseqsParameter Parameters::PARAM_SKIP=MMseqsParameter(PARAM_SKIP_ID,"--skip",              "[int]\tNumber of skipped k-mers during the index table generation");
 const MMseqsParameter Parameters::PARAM_MAX_SEQS=MMseqsParameter(PARAM_MAX_SEQS_ID,"--max-seqs",      "[int]\tMaximum result sequences per query");
-const MMseqsParameter Parameters::PARAM_SPLIT=MMseqsParameter(PARAM_SPLIT_ID,"--split",            "[int]\tSplits target databases in n equal distrbuted junks");
+const MMseqsParameter Parameters::PARAM_SPLIT=MMseqsParameter(PARAM_SPLIT_ID,"--split",            "[int]\tSplits target databases in n equally distributed chunks");
+const MMseqsParameter Parameters::PARAM_SPLIT_AMINOACID=MMseqsParameter(PARAM_SPLIT_AMINOACID_ID,"--split-aa",            "\tTry to find the best split for the target database by amino acid count instead.");
 const MMseqsParameter Parameters::PARAM_SUB_MAT=MMseqsParameter(PARAM_SUB_MAT_ID,"--sub-mat",        "[file]\tAmino acid substitution matrix file");
 const MMseqsParameter Parameters::PARAM_SEARCH_MODE=MMseqsParameter(PARAM_SEARCH_MODE_ID,"--search-mode","[int]\tSearch mode. Local: 1 Global: 2");
 const MMseqsParameter Parameters::PARAM_NO_COMP_BIAS_CORR=MMseqsParameter(PARAM_NO_COMP_BIAS_CORR_ID,"--no-comp-bias-corr","Switch off local amino acid composition bias correction");
@@ -115,6 +116,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops >> GetOpt::Option("skip",     skip);
         ops >> GetOpt::Option('l',"max-seqs", maxResListLen);
         ops >> GetOpt::Option("split",    split);
+        if (ops >> GetOpt::OptionPresent("split-aa")) {
+            splitAA = true;
+        }
+        
         ops >> GetOpt::Option('m',"sub-mat",  scoringMatrixFile);
 
         int searchMode = 0;
@@ -275,6 +280,9 @@ void Parameters::printParameters(int argc, const char* pargv[],
             case PARAM_SPLIT_ID:
                 Debug(Debug::WARNING) << "Split db:                " << this->split << "\n";
                 break;
+            case PARAM_SPLIT_AMINOACID_ID:
+                Debug(Debug::WARNING) << "Split by amino acid:     " << (this->splitAA ? "yes" : "no") << "\n";
+                break;
             case PARAM_SUB_MAT_ID:
                 Debug(Debug::WARNING) << "Sub Matrix:              " << this->scoringMatrixFile << "\n";
                 break;
@@ -395,6 +403,7 @@ void Parameters::setDefaults() {
     maxResListLen = 300;
     sensitivity = 4.0f;
     split = 1;
+    splitAA = false;
     skip = 0;
     querySeqType  = Sequence::AMINO_ACIDS;
     targetSeqType = Sequence::AMINO_ACIDS;

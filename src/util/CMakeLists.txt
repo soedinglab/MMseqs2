@@ -5,6 +5,7 @@ set(util_source_files
   cluster2profile.cpp
   ffindex2fasta.cpp
   ffindex_database_merge.cpp
+  ffindex_database_split.cpp
   ffindex_to_pref_index.cpp
   ffindex_swap_results.cpp
   translate_nucleotide.cpp
