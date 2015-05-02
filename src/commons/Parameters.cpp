@@ -292,9 +292,9 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 break;
             case PARAM_FAST_MODE_ID:
                 if(this->fastMode)
-                    Debug(Debug::WARNING) << "Fastmode:                 yes\n";
+                    Debug(Debug::WARNING) << "Fastmode:                yes\n";
                 else
-                    Debug(Debug::WARNING) << "Fastmode:                 off\n";
+                    Debug(Debug::WARNING) << "Fastmode:                off\n";
                 break;
             case PARAM_SPACED_KMER_MODE_ID:
                 if (this->spacedKmer)
@@ -342,9 +342,9 @@ void Parameters::printParameters(int argc, const char* pargv[],
                 break;
             case PARAM_K_SCORE_ID:
                 if(this->kmerScore != INT_MAX)
-                    Debug(Debug::WARNING) << "K-score:             " << this->kmerScore << "\n";
+                    Debug(Debug::WARNING) << "K-score:                 " << this->kmerScore << "\n";
                 else
-                    Debug(Debug::WARNING) << "K-score:             " << "auto" << "\n";
+                    Debug(Debug::WARNING) << "K-score:                 " << "auto" << "\n";
                 break;
             case PARAM_KEEP_TEMP_FILES_ID:
                 if(this->keepTempFiles)
