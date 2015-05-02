@@ -20,5 +20,6 @@ extern int timetest(int argc, const char **argv);
 extern int legacycs219(int argc, const char **argv);
 extern int findsorf(int argc, const char **argv);
 extern int cluster2profile(int argc, const char **argv);
+extern int splitffindex(int argc, const char **argv);
 
 #endif
