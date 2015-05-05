@@ -70,3 +70,6 @@ target_link_libraries(mmseqs util)
 target_link_libraries(mmseqs workflow)
 target_link_libraries(mmseqs orf)
 target_link_libraries(mmseqs ffindex)
+
+install (TARGETS mmseqs
+		 DESTINATION bin)
