@@ -117,7 +117,7 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "...done.\n";
     } else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 
     if (validate == 1){

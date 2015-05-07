@@ -152,7 +152,7 @@ int cluster2profile(int argn,const char **argv)
     if(index == NULL)
     {
         perror("ffindex_index_parse failed");
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
     fclose(index_file);
     ffindex_sort_index_file(index);

@@ -1,13 +1,17 @@
+#include <cstddef>
+
 #include "Prefiltering.h"
 #include "PrefilteringIndexReader.h"
-#include "../commons/Util.h"
+#include "Util.h"
 #include "IndexTableGlobal.h"
 #include "IndexTableLocal.h"
 #include "QueryTemplateMatcherGlobal.h"
 #include "QueryTemplateMatcherLocal.h"
 #include "QueryTemplateMatcher.h"
-#include <stddef.h>
 
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
 
 Prefiltering::Prefiltering(std::string queryDB,
                            std::string queryDBIndex,

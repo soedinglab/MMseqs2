@@ -77,7 +77,8 @@ public:
     bool   compBiasCorrection;           // Aminoacid composiont correction
     bool   fastMode;                     // Search 20.000 times faster than BLAST in (local search only)
     bool   spacedKmer;                   // Spaced Kmers
-    int    split;                        // Splite database in n equal Junks
+    int    split;                        // Split database in n equal chunks
+    bool   splitAA;                      // Split database by amino acid count instead
     int    skip;                         // Skip amino acid positions
     
     // ALIGNMENT
@@ -135,7 +136,7 @@ public:
     //    "--search-mode   \t[int]\tSearch mode loc: 1 glob: 2 (default=1).\n"
     //    "--no-comp-bias-corr \t\tSwitch off local amino acid composition bias correction.\n"
     //    "--no-spaced-kmer \t\tSwitch off spaced kmers (consecutive pattern).\n"
-    //    "--split         \t[int]\tSplits target databases in n equal distrbuted junks (default=1)\n"
+    //    "--split         \t[int]\tSplits target databases in n equally distributed chunks (default=1)\n"
     //    "--threads       \t[int]\tNumber of threads used to compute. (Default=all cpus)\n"
     //    "--max-seqs      \t[int]\tMaximum result sequences per query (default=300).\n"
     //    "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
@@ -158,6 +159,7 @@ public:
     PARAMETER(PARAM_NUCL);
     PARAMETER(PARAM_Z_SCORE);
     PARAMETER(PARAM_SKIP);
+    PARAMETER(PARAM_SPLIT_AMINOACID);
     PARAMETER(PARAM_MAX_SEQS);
     PARAMETER(PARAM_SPLIT);
     PARAMETER(PARAM_SUB_MAT);
