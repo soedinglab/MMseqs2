@@ -1,4 +1,6 @@
 set(commons_source_files
+  MMseqsMPI.cpp
+  MMseqsMPI.h
   BaseMatrix.cpp
   CommandDeclarations.h
   DBReader.cpp

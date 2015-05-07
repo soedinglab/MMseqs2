@@ -105,7 +105,7 @@ void copy(std::string inFile, std::string outFile){
     }
     else{
         std::cerr << "Could not open file " << inFile << "\n";
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 }
 
