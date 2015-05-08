@@ -339,25 +339,27 @@ void  CompareGOTerms::compute_parentnodes(std::set<int>& result,int id){
 
 
 void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex,
-                                                     std::string cluster_ffindex_indexfile) {
+                                                     std::string cluster_ffindex_indexfile,
+                                                     std::string fileprefix,
+                                                     std::string filesuffix) {
     Debug(Debug::INFO) << "Opening clustering database...\n";
     DBReader* cluster_ffindex_reader = new DBReader(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
     cluster_ffindex_reader->open(DBReader::SORT);
     //files
     std::ofstream clusters_summary_file;
-    clusters_summary_file.open(evaluationfolder+"clusters_summary.go");
+    clusters_summary_file.open(evaluationfolder+fileprefix+"clusters_summary.go"+filesuffix);
     clusters_summary_file << "clusterid\tclustersize\twithgo\tmissinggo\tavggoscore\tmingoscore\tmaxgoscore\n";
 
     std::ofstream clusters_full_file;
-    clusters_full_file.open(evaluationfolder+"clusters_allscores.go");
+    clusters_full_file.open(evaluationfolder+fileprefix+"clusters_allscores.go"+filesuffix);
     clusters_full_file << "clusterid\tid1\tid2\tgoscore\n";
 
     std::ofstream summary_file;
-    summary_file.open(evaluationfolder+"summary.go");
+    summary_file.open(evaluationfolder+fileprefix+"summary.go"+filesuffix);
     summary_file <<"clusternumber\tnwithgo\tnmissinggo\toccurenceofgoterms\n";
 
     std::ofstream binned_scores_file;
-    binned_scores_file.open(evaluationfolder+"binned_scores.go");
+    binned_scores_file.open(evaluationfolder+fileprefix+"binned_scores.go"+filesuffix);
     binned_scores_file <<"goscore\tgoavg\tgomin\tgomax\n";
     int clusterwithgo=0;
     int clusterwithoutgo=0;
@@ -395,7 +397,8 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
 
                         withgo++;
                int clusterwithgo=0;
-    int clusterwithoutgo=0;     } else {
+    int clusterwithoutgo=0;
+                    } else {
                         //Debug(Debug::INFO) << representative << "\t" << idbuffer << "\t" << "not available" <<"\n";
                         withoutgo++;
                     }
@@ -412,9 +415,10 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                         clusters_full_file << representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
                     }
                 }
+                break;
             }
             if(idswithgo.size()>1){
-                binned_avg[(int)((averagescore / (idswithgo.size()*idswithgo.size()-idswithgo.size()))*binsize)%binsize]++;
+                binned_avg[(int)((averagescore / (idswithgo.size()-1))*binsize)%binsize]++;
                 binned_min[(int)(minscore*binsize)%binsize]++;
                 binned_max[(int)(std::min(maxscore,0.999)*binsize)%binsize]++;
                 clusterwithgo++;
@@ -422,7 +426,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                 clusterwithoutgo++;
             }
             clusters_summary_file << representative << "\t" << withgo +withoutgo << "\t" << withgo << "\t" << withoutgo << "\t" <<
-            averagescore / (idswithgo.size()*idswithgo.size()-idswithgo.size()) <<"\t"<<minscore<<"\t"<<maxscore<< "\n";
+            averagescore / (idswithgo.size()-1) <<"\t"<<minscore<<"\t"<<maxscore<< "\n";
 
     }
     for (int j = 0; j < binsize; ++j) {
