@@ -26,7 +26,10 @@ public:
     void all_against_all_comparison_proteinset();
     double compare_protein_ids(char* prot1, char* prot2);
 
-    void run_evaluation_mmseqsclustering(std::string cluster_ffindex,std::string cluster_ffindex_indexfile);
+    void run_evaluation_mmseqsclustering(std::string cluster_ffindex,
+                                         std::string cluster_ffindex_indexfile,
+                                         std::string fileprefix,
+                                         std::string filesuffix);
 private:
 
     DBReader* go_ffindex_reader;
