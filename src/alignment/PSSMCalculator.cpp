@@ -187,7 +187,9 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
         std::fill(nl, nl + Sequence::PROFILE_AA_SIZE,  0);
 
         for (size_t k = 0; k < setSize; ++k){
-            nl[ subMat->aa2int[msaSeqs[k][pos]]]++;
+            if (msaSeqs[k][pos] != '-') {
+                nl[subMat->aa2int[msaSeqs[k][pos]]]++;
+            }
         }
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa){
             if (nl[aa]){
