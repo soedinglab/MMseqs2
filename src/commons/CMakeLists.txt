@@ -1,4 +1,6 @@
 set(commons_source_files
+  MMseqsMPI.cpp
+  MMseqsMPI.h
   BaseMatrix.cpp
   CommandDeclarations.h
   DBReader.cpp
@@ -22,6 +24,8 @@ set(commons_source_files
   SubstitutionMatrix.h
   Util.cpp
   Util.h
+  CommandCaller.cpp
+  CommandCaller.h
 )
 add_library(commons ${commons_source_files})
 

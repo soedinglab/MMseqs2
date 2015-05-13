@@ -10,9 +10,9 @@
 
 MultipleAlignment::MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat) {
     this->maxSeqLen = maxSeqLen;
-    this->msaData = new char[maxSeqLen * maxSetSize];
-    this->msaSequence = new char *[maxSetSize];
-    for(size_t i = 0; i < maxSetSize; i++){
+    this->msaData = new char[maxSeqLen * (maxSetSize+ 1) ];
+    this->msaSequence = new char *[maxSetSize + 1];
+    for(size_t i = 0; i <= maxSetSize; i++){
         this->msaSequence[i] = this->msaData + (i *maxSeqLen);
     }
     this->aligner = new Matcher(maxSeqLen, subMat);

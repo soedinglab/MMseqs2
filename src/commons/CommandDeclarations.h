@@ -10,6 +10,7 @@ extern int createdb(int argc, const char **argv);
 extern int createfasta(int argc, const char **argv);
 extern int createindex(int argc, const char **argv);
 extern int mergeffindex(int argc, const char **argv);
+extern int mergecluster(int argc, const char **argv);
 extern int alignment(int argc, const char **argv);
 extern int clusteringtofastadb(int argc, const char **argv);
 extern int swapresults(int argc, const char **argv);
@@ -20,5 +21,6 @@ extern int timetest(int argc, const char **argv);
 extern int legacycs219(int argc, const char **argv);
 extern int findsorf(int argc, const char **argv);
 extern int cluster2profile(int argc, const char **argv);
+extern int splitffindex(int argc, const char **argv);
 
 #endif

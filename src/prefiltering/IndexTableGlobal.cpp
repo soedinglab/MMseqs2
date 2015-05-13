@@ -66,9 +66,9 @@ void IndexTableGlobal::print(char * int2aa){
         if (size > 0){
             idxer->printKmer(i, kmerSize, int2aa);
 //            std::cout << " " << size << " " << nextRow << " ";
-            std::cout << " size(= " << size << ")\n";
+            Debug(Debug::INFO) << " size(= " << size << ")\n";
             for (unsigned int j = 0; j < size; j++){
-                std::cout << "\t" << row[j] << "\n";
+                Debug(Debug::INFO) << "\t" << row[j] << "\n";
             }
         }
     }

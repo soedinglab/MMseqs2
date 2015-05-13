@@ -48,6 +48,12 @@ else ()
 		message(FATAL_ERROR "Your C++ compiler does not support C++0x.")
 endif ()
 
+# MPI
+find_package(MPI QUIET)
+if(MPI_FOUND)
+include_directories(${MPI_INCLUDE_PATH})
+ADD_DEFINITIONS("-DHAVE_MPI")
+endif()
 
 add_subdirectory(alignment)
 add_subdirectory(clustering)
@@ -64,3 +70,28 @@ target_link_libraries(mmseqs util)
 target_link_libraries(mmseqs workflow)
 target_link_libraries(mmseqs orf)
 target_link_libraries(mmseqs ffindex)
+
+install (TARGETS mmseqs
+		 DESTINATION bin)
+
+# copy shell scripts to bin
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/workflow/searching.sh
+     DESTINATION ${CMAKE_SOURCE_DIR}/bin/
+     FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
+     GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/workflow/clustering.sh
+     DESTINATION ${CMAKE_SOURCE_DIR}/bin/
+     FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
+     GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/workflow/cascaded_clustering.sh
+     DESTINATION ${CMAKE_SOURCE_DIR}/bin/
+     FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
+     GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/workflow/blastp.sh
+     DESTINATION ${CMAKE_SOURCE_DIR}/bin/
+     FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
+     GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/workflow/blastpgp.sh
+     DESTINATION ${CMAKE_SOURCE_DIR}/bin/
+     FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
+     GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)

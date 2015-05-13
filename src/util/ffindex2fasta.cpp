@@ -1,6 +1,9 @@
+#include <cstdio>
+
 #include "DBReader.h"
 #include "Debug.h"
-#include <stdio.h>
+#include "Util.h"
+
 void printUsageFFindexToFasta(){
     std::string usage("\nConverts a ffindex database to fasta \n");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
@@ -14,7 +17,7 @@ void parseArgs(int argc, const char** argv,
                std::string* ffindexHeaderDB){
     if (argc < 2){
         printUsageFFindexToFasta();
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
     ffindexSeqDB->assign(argv[1]);
     fastaOutDB->assign(argv[2]);

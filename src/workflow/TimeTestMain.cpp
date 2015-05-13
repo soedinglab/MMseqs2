@@ -23,7 +23,7 @@ void printUsageTimeTest(){
 void parseArgs(int argc, const char** argv, std::string* ffindexDBBase, std::string* logFile, std::string* scoringMatrixFile, size_t* maxSeqLen){
     if (argc < 3){
         printUsageTimeTest();
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 
     ffindexDBBase->assign(argv[1]);
@@ -39,7 +39,7 @@ void parseArgs(int argc, const char** argv, std::string* ffindexDBBase, std::str
             else {
                 printUsageTimeTest();
                 std::cerr << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else if (strcmp(argv[i], "--max-seq-len") == 0){
@@ -50,20 +50,20 @@ void parseArgs(int argc, const char** argv, std::string* ffindexDBBase, std::str
             else {
                 printUsageTimeTest();
                 std::cerr << "No value provided for " << argv[i-1] << "\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
         }
         else {
             printUsageTimeTest();
             std::cerr << "Wrong argument: " << argv[i] << "\n";
-            exit(EXIT_FAILURE);
+            EXIT(EXIT_FAILURE);
         }
     }
 
     if (strcmp (scoringMatrixFile->c_str(), "") == 0){
         printUsageTimeTest();
         std::cerr << "\nPlease provide a scoring matrix file. You can find scoring matrix files in $INSTALLDIR/data/.\n";
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
 }
 

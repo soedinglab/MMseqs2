@@ -111,9 +111,9 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
         filenames_to_delete.push_back(std::pair<std::string, std::string>(out_name,out_name_index));
 
         size_t startIndex = 0;
-        size_t endIndex = 0;
-        Util::decompose_domain(dbr.getSize(), split, splitSize, &startIndex, &endIndex);
-        for(size_t i = startIndex; i < endIndex; i++){
+        size_t domainSize = 0;
+        Util::decompose_domain(dbr.getSize(), split, splitSize, &startIndex, &domainSize);
+        for(size_t i = startIndex; i < (startIndex + domainSize); i++){
             char * outerKey = dbr.getDbKey(i);
             char * data = dbr.getData(i);
             if(*data == '\0'){ // check if file contains entry

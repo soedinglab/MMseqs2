@@ -1,5 +1,6 @@
 #ifndef UTIL_H
 #define UTIL_H
+
 #include <cstddef>
 #include <math.h>
 #include <stdlib.h>
@@ -15,17 +16,13 @@ extern "C" {
 #include "ffutil.h"
 }
 
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif
-
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-#ifdef HAVE_MPI
-#define EXIT(exitCode) MPI_Finalize(); exit(exitCode)
-#else
+#include "MMseqsMPI.h"
+
+#ifndef EXIT
 #define EXIT(exitCode) exit(exitCode)
 #endif
 
