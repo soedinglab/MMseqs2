@@ -40,7 +40,7 @@ class Clustering {
         struct set_data {
             // one set contains pointers to the cluster member ids
             unsigned int ** sets;
-            double ** similarities;
+            float ** similarities;
             unsigned short ** weights;
             unsigned int * set_sizes;
             unsigned int * element_size_lookup;
@@ -83,7 +83,7 @@ class Clustering {
         unsigned int convergenceIterations;
         float dampingFactor;
         int similarityScoreType;
-        double preference;
+        float preference;
         // sequence id. thr.
         float seqIdThr;
 };
