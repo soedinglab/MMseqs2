@@ -238,7 +238,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
             unsigned int tId = currSeqDbr->getId(tKey);
             if (tId == UINT_MAX){
                 std::cerr << "ERROR: DB key " << tKey << " is in the B->A alignment lists, but not in the new database!\n";
-                exit(EXIT_FAILURE);
+                EXIT(EXIT_FAILURE);
             }
             // find out the representative sequence of the cluster of the hit
             int repId = id2rep[tId];
@@ -315,15 +315,12 @@ int clusterupdate (int argc, const char * argv[]){
     std::string usage("\nUpdates the existing clustering of the previous database version with new sequences from the current version of the same database.\n");
         usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
         usage.append("USAGE: update <oldDB> <newDB> <oldDB_clustering> <outDB> <tmpDir> [opts]\n");
-    std::vector<MMseqsParameter> perfPar = {
-        Parameters::PARAM_SUB_MAT,
-        Parameters::PARAM_MAX_SEQS,
-        Parameters::PARAM_MAX_SEQ_LEN,
-        Parameters::PARAM_V,
-        Parameters::PARAM_KEEP_TEMP_FILES
-    };
+
+
     Parameters par;
-    par.parseParameters(argc, argv, usage, perfPar, 5);
+    std::vector<MMseqsParameter> params = par.combineList(par.alignment, par.prefilter);
+    params = par.combineList(params, par.clustering);
+    par.parseParameters(argc, argv, usage, params, 5);
     
     Debug::setDebugLevel(par.verbosity);
     
@@ -417,7 +414,7 @@ int clusterupdate (int argc, const char * argv[]){
         Clustering* clu = new Clustering(currentSeqDB, currentSeqDBIndex,
                 BB_base, BB_base + ".index",
                 BB_clu, BB_clu_index,
-                0, par.maxResListLen,par.maxIteration,par.convergenceIterations,par.dampingFactor,par.similarityScoreType,par.preference);
+                0, par.seqIdThr, par.maxResListLen,par.maxIteration,par.convergenceIterations,par.dampingFactor,par.similarityScoreType,par.preference);
         clu->run(Parameters::SET_COVER);
 
         std::cout << "Append generated clusters to the complete clustering...\n";

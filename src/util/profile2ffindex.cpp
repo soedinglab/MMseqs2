@@ -121,11 +121,9 @@ int createprofiledb(int argn,const char **argv)
     usage.append("Converts a ffindex profile database to ffindex.\n");
     usage.append("USAGE: <ffindexProfileDB>  <ffindexDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
-    std::vector<MMseqsParameter> profile_ffindex_par = {
-            Parameters::PARAM_SUB_MAT,
-            Parameters::PARAM_V};
+
     Parameters par;
-    par.parseParameters(argn, argv, usage, profile_ffindex_par, 2);
+    par.parseParameters(argn, argv, usage, par.createprofiledb, 2);
 
     struct stat st;
 
@@ -174,7 +172,7 @@ int createprofiledb(int argn,const char **argv)
     if(index == NULL)
     {
         perror("ffindex_index_parse failed");
-        exit(EXIT_FAILURE);
+        EXIT(EXIT_FAILURE);
     }
     fclose(index_file);
     ffindex_sort_index_file(index);

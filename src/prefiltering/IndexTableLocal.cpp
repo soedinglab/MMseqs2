@@ -40,10 +40,10 @@ void IndexTableLocal::print(char * int2aa){
 
         if (entrieSize > 0){
             idxer->printKmer(i, kmerSize, int2aa);
-            std::cout << "\n";
+            Debug(Debug::INFO) << "\n";
             IndexEntryLocal * entries = (IndexEntryLocal *) table[i];
             for (unsigned int j = 0; j < entrieSize; j++){
-                std::cout << "\t(" << entries[i].seqId << ", " << entries[i].position_j << ")\n";
+                Debug(Debug::INFO) << "\t(" << entries[i].seqId << ", " << entries[i].position_j << ")\n";
             }
         }
     }

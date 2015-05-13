@@ -3,62 +3,42 @@
 #include <time.h>
 #include <sys/time.h>
 #include <list>
-
+#include <CommandCaller.h>
 #include "WorkflowFunctions.h"
 #include "Parameters.h"
+#include "cluster2profile.h"
+
 extern "C" {
 #include "ffindex.h"
 #include "ffutil.h"
 }
 
-void runSearch(Parameters par, std::string queryDB, std::string targetDB, std::string outDB,std::string tmpDir)
-{
-    std::string queryDBIndex = queryDB + ".index";
-    std::string targetDBIndex = targetDB + ".index";
-    if (par.zscoreThr == 0.0)
-        par.zscoreThr = getZscoreForSensitivity(par.sensitivity);
-    
-    std::list<std::string>* tmpFiles = new std::list<std::string>();
-    
-    std::string alnDB = runStep(queryDB, queryDBIndex, targetDB, targetDBIndex, tmpDir,
-                                par, 1, 0, true, tmpFiles);
-    
-    std::string alnDBIndex = alnDB + ".index";
-    std::string outDBIndex = outDB + ".index";
-    
-    // copy the clustering databases to the right location
-    copy(alnDBIndex, outDBIndex);
-    copy(alnDB, outDB);
+int search (int argc, const char * argv[]) {
 
-    if (!par.keepTempFiles) {
-        deleteTmpFiles(tmpFiles);
-    }
-    delete tmpFiles;
-}
-
-int search (int argc, const char * argv[]){
-    
     std::string usage("\nCompares all sequences in the query database with all sequences in the target database.\n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+    usage.append(
+            "Written by Martin Steinegger (martin.steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("USAGE: search <queryDB> <targetDB> <outDB> <tmpDir> [opts]\n");
-    std::vector<MMseqsParameter> perfPar = {
-        Parameters::PARAM_S,
-        Parameters::PARAM_Z_SCORE,
-        Parameters::PARAM_SEARCH_MODE,
-        Parameters::PARAM_PROFILE,
-        Parameters::PARAM_NUCL,
-        Parameters::PARAM_SPACED_KMER_MODE,
-        Parameters::PARAM_NO_COMP_BIAS_CORR,
-        Parameters::PARAM_MAX_SEQS,
-        Parameters::PARAM_MAX_SEQ_LEN,
-        Parameters::PARAM_V,
-        Parameters::PARAM_KEEP_TEMP_FILES
-    };
+
     Parameters par;
-    par.parseParameters(argc, argv, usage, perfPar, 4);
-    
+    std::vector<MMseqsParameter> params = par.combineList(par.alignment, par.prefilter);
+    par.parseParameters(argc, argv, usage, params, 4);
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
+
     Debug::setDebugLevel(par.verbosity);
-    runSearch(par, par.db1, par.db2, par.db3, par.db4);
-    
+    if (par.numIterations > 1) {
+        CommandCaller cmd;
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
+        cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.createprofiledb));
+        cmd.callProgram(par.mmdir + "/bin/blastpgp.sh", (argv + 1), 4);
+    } else {
+        CommandCaller cmd;
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
+        cmd.callProgram(par.mmdir + "/bin/blastp.sh", (argv + 1), 4);
+    }
     return 0;
 }

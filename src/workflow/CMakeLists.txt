@@ -9,4 +9,4 @@ set(workflow_source_files
 )
 add_library(workflow ${workflow_source_files})
 
-target_link_libraries(workflow prefiltering alignment clustering)
+target_link_libraries(workflow prefiltering alignment util clustering)

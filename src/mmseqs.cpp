@@ -21,6 +21,7 @@ static struct Command commands[] = {
         {"createfasta", createfasta},
         {"createindex", createindex},
         {"mergeffindex", mergeffindex},
+        {"mergecluster", mergecluster},
         {"clustertofastadb", clusteringtofastadb},
         {"swapresults", swapresults},
         {"extractorf", extractorf},
@@ -29,7 +30,8 @@ static struct Command commands[] = {
         {"timetest", timetest},
         {"legacycs219", legacycs219},
         {"findsorf", findsorf},
-        {"clustertoprofiledb", cluster2profile}
+        {"clustertoprofiledb", cluster2profile},
+        {"splitffindex", splitffindex}
 };
 
 
@@ -51,6 +53,7 @@ void printUsage() {
             "clustertofastadb   \tConvert Convert mmseqs clustering to ffindex indexed fasta format\n"
             "clustertoprofiledb \tCalculates profile from clustering\n"
             "mergeffindex       \tMerge multiple ffindex files based on similar id into one file\n"
+            "splitffindex       \tSplits a ffindex database into multiple ffindex databases.\n"
             "extractorf         \tExtract all open reading frames from a nucleotide fasta file into a ffindex database\n"
             "translatenucleotide\tTranslate nucleotide sequences into aminoacid sequences in a ffindex database\n"
             "legacycs219        \tTranslates a cs219 ffindex database into its legacy format. This tool is part of the mmseqs-based HH-suite database pipeline\n"

@@ -3,19 +3,16 @@
 #include <string>
 #include <signal.h>
 #include <execinfo.h>
-#include "Prefiltering.h"
-#include "CommandDeclarations.h"
-
-#include "Parameters.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif
+#include "Prefiltering.h"
+#include "CommandDeclarations.h"
+#include "Parameters.h"
 
+#include "MMseqsMPI.h"
 
 void mmseqs_debug_catch_signal(int sig_num)
 {
@@ -61,44 +58,15 @@ void mmseqs_cuticle_init()
 
 int prefilter(int argc, const char **argv)
 {
+    MMseqsMPI::init(argc, argv);
 
     std::string usage("\nCalculates k-mer similarity scores between all sequences in the query database and all sequences in the target database.\n");
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n");
     usage.append("USAGE: prefilter <queryDB> <targetDB> <outDB> [opts]\n");
 
-    std::vector<MMseqsParameter> perfPar = {
-            Parameters::PARAM_S,
-            Parameters::PARAM_K,
-            Parameters::PARAM_K_SCORE,
-            Parameters::PARAM_ALPH_SIZE,
-            Parameters::PARAM_MAX_SEQ_LEN,
-            Parameters::PARAM_PROFILE,
-            Parameters::PARAM_NUCL,
-            Parameters::PARAM_Z_SCORE,
-            Parameters::PARAM_SKIP,
-            Parameters::PARAM_MAX_SEQS,
-            Parameters::PARAM_SPLIT,
-            Parameters::PARAM_SEARCH_MODE,
-            Parameters::PARAM_NO_COMP_BIAS_CORR,
-            Parameters::PARAM_FAST_MODE,
-            Parameters::PARAM_SPACED_KMER_MODE,
-            Parameters::PARAM_SUB_MAT,
-            Parameters::PARAM_THREADS,
-            Parameters::PARAM_V};
     Parameters par;
-    par.parseParameters(argc, argv, usage, perfPar, 3);
+    par.parseParameters(argc, argv, usage, par.prefilter, 3);
 
-
-
-#ifdef HAVE_MPI
-    int mpi_error,mpi_rank,mpi_num_procs;
-    mpi_error = MPI_Init(&argc, &argv);
-    mpi_error = MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-    mpi_error = MPI_Comm_size(MPI_COMM_WORLD, &mpi_num_procs);
-    Debug(Debug::WARNING) << "MPI Init...\n";
-    Debug(Debug::WARNING) << "Rank: " << mpi_rank << " Size: " << mpi_num_procs << "\n";
-
-#endif
     mmseqs_cuticle_init();
 
     struct timeval start, end;
@@ -108,8 +76,14 @@ int prefilter(int argc, const char **argv)
     omp_set_num_threads(par.threads);
 #endif
 
+#ifdef HAVE_MPI
+    if(MMseqsMPI::isMaster())
+    {
+        Debug::setDebugLevel(par.verbosity);
+    }
+#else
     Debug::setDebugLevel(par.verbosity);
-
+#endif
     Debug(Debug::WARNING) << "Initialising data structures...\n";
     Prefiltering* pref = new Prefiltering(par.db1,par.db1Index,
             par.db2,par.db2Index,
@@ -120,7 +94,7 @@ int prefilter(int argc, const char **argv)
     Debug(Debug::WARNING) << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
     gettimeofday(&start, NULL);
 #ifdef HAVE_MPI
-    pref->run(mpi_rank, mpi_num_procs);
+    pref->run(MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
     pref->run();
 #endif
@@ -128,8 +102,9 @@ int prefilter(int argc, const char **argv)
     sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "\nTime for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     delete pref;
+
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif
-    return 0;
+    return EXIT_SUCCESS;
 }
