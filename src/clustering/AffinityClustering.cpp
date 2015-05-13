@@ -1,6 +1,10 @@
 #include <glob.h>
 #include <stddef.h>
 #include <float.h>
+#include <algorithm>
+#include <cmath>
+
+
 #include "AffinityClustering.h"
 
 
