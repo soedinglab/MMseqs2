@@ -5,8 +5,8 @@
 
 
 AffinityClustering::AffinityClustering(size_t set_count, size_t unique_element_count, size_t all_element_count,
-        unsigned int *element_size_lookup, double **similarities, unsigned int **setids,  size_t iterationnumber,
-        unsigned int convergenceIterations,double input_lambda,double preference,std::list<int>*validids) {
+        unsigned int *element_size_lookup, float **similarities, unsigned int **setids,  size_t iterationnumber,
+        unsigned int convergenceIterations,float input_lambda,float preference,std::list<int>*validids) {
     this->set_count=set_count;
     this->unique_element_count=unique_element_count;
     this->all_element_count=all_element_count;
@@ -29,15 +29,15 @@ AffinityClustering::~AffinityClustering(){
 std::list<set *> AffinityClustering::execute(){
     //dampening factor (default value is 0.5)
     bool * convergence=new bool [set_count*convergenceIterations];
-    double lambda=0;
+    float lambda=0;
     std::list<set *> result;
-    double * currentsimilarities;
+    float * currentsimilarities;
     //data structures
-    double ** availabilities=new double *[set_count];
-    double * availabilitiesData = new double[all_element_count];
-    double ** responsibilities=new double *[set_count];
-    double * responsibilitiesData=new double [all_element_count];
-    double * selfavailabilities=new double [set_count];
+    float ** availabilities=new float *[set_count];
+    float * availabilitiesData = new float[all_element_count];
+    float ** responsibilities=new float *[set_count];
+    float * responsibilitiesData=new float [all_element_count];
+    float * selfavailabilities=new float [set_count];
 
     bool converged=false;
 
@@ -61,8 +61,8 @@ std::list<set *> AffinityClustering::execute(){
         currentsimilarities = similarities[i];
         const size_t currentsetsize=element_size_lookup[i];
 
-        double maxresp1 = -DBL_MAX;
-        double maxresp2 = -DBL_MAX;
+        float maxresp1 = -FLT_MAX;
+        float maxresp2 = -FLT_MAX;
         size_t maxposition1 = -1;
         // detemine 2 max values for responsibility formula
         for (size_t k = 0; k < currentsetsize ; k++) {
@@ -94,7 +94,7 @@ std::list<set *> AffinityClustering::execute(){
             const unsigned int *currentset = setids[i];
             for (size_t k = 1; k < element_size_lookup[i] ; k++) {
                 //random memory access
-                selfavailabilities[currentset[k]]+=std::max(0.0, responsibilities[i][k]);
+                selfavailabilities[currentset[k]]+=std::fmax(0.0, responsibilities[i][k]);
             }
         }
         //determine other availabilities
@@ -104,7 +104,8 @@ std::list<set *> AffinityClustering::execute(){
                 availabilities[i][0]=availabilities[i][0]*lambda+(1-lambda)*selfavailabilities[i];
             for (size_t k = 1; k < element_size_lookup[i] ; k++) {
                 //random memory access
-                 availabilities[i][k]=availabilities[i][k]*lambda+(1-lambda)*std::min(0.0,responsibilities[currentset[k]][0]+(selfavailabilities[currentset[k]]-std::max(0.0,responsibilities[i][k])));
+                 availabilities[i][k]=availabilities[i][k]*lambda+(1-lambda)*std::min(0.0,responsibilities[currentset[k]][0]+
+                         (selfavailabilities[currentset[k]]-std::fmax(0.0,responsibilities[i][k])));
             }
         }
         //check for convergence
@@ -172,7 +173,7 @@ std::list<set *> AffinityClustering::execute(){
         int i=*it;
         const unsigned int *currentset = setids[i];
         int maxk=0;
-        double maxvalue=-DBL_MAX;
+        float maxvalue=-FLT_MAX;
         for (size_t k = 0; k < element_size_lookup[i] ; k++) {
             //std::cout << i<<"\t"<< currentset[k]<<"\t"<< similarities[i][k]<<"\t"<< availabilities[i][k] <<"\t"<< responsibilities[i][k]<<"\n";
            // std::cout << i << "\t" << currentset[k] << "\t" << similarities[i][k] << "\n";

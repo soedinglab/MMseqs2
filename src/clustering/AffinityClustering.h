@@ -9,7 +9,7 @@
 class AffinityClustering {
     public:
         AffinityClustering(size_t set_count, size_t unique_element_count, size_t all_element_count,
-                unsigned int *element_size_lookup, double **similarities, unsigned int **setids,  size_t iterationnumber, unsigned int convergenceIterations,double input_lambda, double preference,std::list<int>*validids);
+                unsigned int *element_size_lookup, float **similarities, unsigned int **setids,  size_t iterationnumber, unsigned int convergenceIterations,float input_lambda, float preference,std::list<int>*validids);
         ~AffinityClustering();
 
 
@@ -24,10 +24,10 @@ class AffinityClustering {
         size_t all_element_count;
         unsigned int convergenceIterations;
         unsigned int *element_size_lookup;
-        double **similarities;
+        float **similarities;
         unsigned int **setids;
-        double input_lambda;
-        double preference;
+        float input_lambda;
+        float preference;
         std::list<int> * validids;
 };
 
