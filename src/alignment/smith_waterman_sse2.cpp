@@ -742,7 +742,8 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const int *db_sequence, const in
 	int32_t i, j, e, f, temp1, temp2, s = 16, s1 = 8, l, max = 0;
 	int64_t s2 = 1024;
 	char op, prev_op;
-	int32_t width, width_d, *h_b, *e_b, *h_c;
+	int64_t width, width_d;
+        int32_t *h_b, *e_b, *h_c;
 	int8_t *direction, *direction_line;
 	cigar* result = new cigar();
 	h_b = (int32_t*)malloc(s1 * sizeof(int32_t));
@@ -759,7 +760,8 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const int *db_sequence, const in
 			e_b = (int32_t*)realloc(e_b, s1 * sizeof(int32_t));
 			h_c = (int32_t*)realloc(h_c, s1 * sizeof(int32_t));
 		}
-		while (width_d * query_length * 3 >= s2) {
+		int64_t targetSize = width_d * query_length * 3; 
+		while (targetSize >= s2) {
 			++s2;
 			kroundup32(s2);
 			if (s2 < 0) {
@@ -776,7 +778,8 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(const int *db_sequence, const in
 			j = i + band_width; end = end < j ? end : j; // band end
 			edge = end + 1 < width - 1 ? end + 1 : width - 1;
 			f = h_b[0] = e_b[0] = h_b[edge] = e_b[edge] = h_c[0] = 0;
-			direction_line = direction + width_d * i * 3;
+                        int64_t directionOffset = width_d * i * 3;
+			direction_line = direction + directionOffset;
 
 			for (j = beg; LIKELY(j <= end); j ++) {
 				int32_t b, e1, f1, d, de, df, dh;

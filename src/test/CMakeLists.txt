@@ -53,3 +53,7 @@ add_executable(testgo ${testgo})
 target_link_libraries(testgo util)
 target_link_libraries(testgo workflow)
 target_link_libraries(testgo ffindex)
+
+set(testcommand TestCommandCaller.cpp )
+add_executable(testcommand ${testcommand})
+target_link_libraries(testcommand commons)
