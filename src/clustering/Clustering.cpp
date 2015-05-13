@@ -239,7 +239,7 @@ Clustering::set_data Clustering::read_in_set_data(){
 
     // n = overall sequence count
     size_t n = seqDbr->getSize();
-    // m = number of sets
+    // m = number of setscmake -DCMAKE_BUILD_TYPE=Release ..
     size_t m = alnDbr->getSize();
 
     ret_struct.uniqu_element_count = n;
@@ -259,7 +259,7 @@ Clustering::set_data Clustering::read_in_set_data(){
     unsigned int ** sets = new unsigned int*[m];
     ret_struct.sets = sets;
     // similarities scores
-    double ** sets_similarities = new double*[m];
+    float ** sets_similarities = new float*[m];
     ret_struct.similarities = sets_similarities;
     // set weights
     unsigned short ** weights = new unsigned short*[m];
@@ -280,7 +280,7 @@ Clustering::set_data Clustering::read_in_set_data(){
     size_t dataSize = alnDbr->getDataSize();
     size_t elementCount = Util::count_lines(data, dataSize);
     unsigned int * elements = new unsigned int[elementCount];
-    double * similarities = new double[elementCount];
+    float * similarities = new float[elementCount];
     unsigned short * weight = new unsigned short[elementCount];
     std::fill_n(weight, elementCount, 1);
     size_t curr_start_pos = 0;
