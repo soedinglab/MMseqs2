@@ -2,6 +2,7 @@ set(util_source_files
   fasta2ffindex.cpp
   profile2ffindex.cpp
   clusters2ffindex.cpp
+  cluster2profile.h
   cluster2profile.cpp
   ffindex2fasta.cpp
   ffindex_database_merge.cpp
@@ -10,6 +11,8 @@ set(util_source_files
   ffindex_swap_results.cpp
   translate_nucleotide.cpp
   legacycs219.cpp
+  mergecluster.cpp
+  mergecluster.h
 )
 add_library(util ${util_source_files})
 

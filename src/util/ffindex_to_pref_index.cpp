@@ -20,18 +20,9 @@ int createindex (int argc, const char * argv[])
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
     usage.append("USAGE: <ffindexDB> <ffindexOutDB> \n");
 
-    std::vector<MMseqsParameter> perfPar = {
-        Parameters::PARAM_K,
-        Parameters::PARAM_ALPH_SIZE,
-        Parameters::PARAM_MAX_SEQ_LEN,
-        Parameters::PARAM_SPLIT,
-        Parameters::PARAM_SUB_MAT,
-        Parameters::PARAM_SEARCH_MODE,
-        Parameters::PARAM_SKIP,
-        Parameters::PARAM_SPACED_KMER_MODE,
-        Parameters::PARAM_V};
+
     Parameters par;
-    par.parseParameters(argc, argv, usage, perfPar, 2);
+    par.parseParameters(argc, argv, usage, par.createindex, 2);
 
     Debug::setDebugLevel(par.verbosity);
     
@@ -41,7 +32,7 @@ int createindex (int argc, const char * argv[])
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f);
     Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, par.kmerSize, par.spacedKmer);
 
-    PrefilteringIndexReader::createIndexFile(par.db2, par.db2Index, &dbr, &seq, par.split, subMat->alphabetSize, par.kmerSize, par.skip, par.spacedKmer, par.localSearch);
+    PrefilteringIndexReader::createIndexFile(par.db2, par.db2Index, &dbr, &seq, par.split, subMat->alphabetSize, par.kmerSize, par.skip, par.spacedKmer, par.searchMode);
 
     // write code
     dbr.close();

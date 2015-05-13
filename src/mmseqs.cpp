@@ -21,6 +21,7 @@ static struct Command commands[] = {
         {"createfasta", createfasta},
         {"createindex", createindex},
         {"mergeffindex", mergeffindex},
+        {"mergecluster", mergecluster},
         {"clustertofastadb", clusteringtofastadb},
         {"swapresults", swapresults},
         {"extractorf", extractorf},

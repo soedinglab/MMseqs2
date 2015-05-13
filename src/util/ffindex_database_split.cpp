@@ -14,12 +14,9 @@ int splitffindex (int argc, const char * argv[])
     usage.append("\nSplits a ffindex database into multiple ffindex databases.\n");
     usage.append("Written by Milot Mirdita (milot@mirdita.de).\n\n");
     usage.append("USAGE: <ffindexInDB> <ffindexOutDB>\n");
-    std::vector<MMseqsParameter> split_ffindex_par = {
-        Parameters::PARAM_SPLIT,
-        Parameters::PARAM_SPLIT_AMINOACID
-    };
+
     Parameters par;
-    par.parseParameters(argc, argv, usage, split_ffindex_par, 2);
+    par.parseParameters(argc, argv, usage, par.splitffindex, 2);
 
     if(par.split < 1) {
         Debug(Debug::ERROR) << "Cannot split databases into 0 or negative chunks.";
