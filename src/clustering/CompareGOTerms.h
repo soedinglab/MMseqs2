@@ -15,8 +15,6 @@
 
 class CompareGOTerms{
 
-    ~CompareGOTerms();
-
 public:
 
     void init();
@@ -30,6 +28,9 @@ public:
                                          std::string cluster_ffindex_indexfile,
                                          std::string fileprefix,
                                          std::string filesuffix);
+
+    ~CompareGOTerms();
+
 private:
 
     DBReader* go_ffindex_reader;

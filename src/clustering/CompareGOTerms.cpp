@@ -9,10 +9,10 @@
 
 CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder) {
 
-    Debug(Debug::INFO) << "Opening sequence database...\n";
+    Debug(Debug::INFO) << "Opening GO database...\n";
     go_ffindex_reader = new DBReader(go_ffindex.c_str(), go_ffindex_indexfile.c_str());
     go_ffindex_reader->open(DBReader::NOSORT);
-    Debug(Debug::INFO) << "Opening sequence database...\n";
+    Debug(Debug::INFO) << "Opening Protein to GO database...\n";
     protid_go_ffindex_reader = new DBReader(protid_go_ffindex.c_str(), protid_go_ffindex_indexfile.c_str());
     protid_go_ffindex_reader->open(DBReader::NOSORT);
     if (evaluationfolder.back() != '/') {
@@ -32,86 +32,24 @@ CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_ind
 CompareGOTerms::~CompareGOTerms() {
     go_ffindex_reader->~DBReader();
     protid_go_ffindex_reader->~DBReader();
+    delete[] is_a_relation;
+    delete[] is_a_relation_data;
+    delete[] is_a_relation_size;
+    //counts of goterms
+    delete[] count_goterm;
+
+    delete[]count_accumulated_goterm;
+
+    delete[] parentsets;
+
+//    std::map<int, int> goterm_to_index;
+  //  std::map<int, int> index_togoterm;
 }
 
 void CompareGOTerms::init() {
 
-    /*
+
     //buffers
-
-
-    char * first2digits_buffer= new char[3];
-    char * last5digits_buffer= new char[5];
-    //constants
-    size_t n = go_ffindex_reader->getSize();
-    number_of_goterms=n;
-
-        //initialize arrays
-    index_to_go= new int [number_of_goterms];
-    go_to_index= new int* [100];
-    go_to_indexData=new int [number_of_goterms];
-        //calculate number of pairs for initialisation of array
-    is_a_relation_number=(go_ffindex_reader->getDataSize()-n*2)/10;
-    is_a_relation_data= new int[is_a_relation_number];
-    is_a_relation=new int*[number_of_goterms];
-    Debug(Debug::INFO) <<is_a_relation_number<< "\n";
-        //
-    for(size_t i = 0; i < n; i++) {
-        char * data = go_ffindex_reader->getData(i);
-        char * childterm = go_ffindex_reader->getDbKey(i);
-        strncpy(singletermbuffer,childterm+3,7);
-        singletermbuffer[7] = '\0';
-        index_to_go[i]=atof(std::string(singletermbuffer).c_str());
-
-        strncpy(first2digits_buffer,childterm+3,2);
-        first2digits_buffer[2] = '\0';
-        int first2digits=atof(std::striproteinid_to_indexng(first2digits_buffer).c_str());
-        go_to_index[first2digits]=go_to_indexData+i;
-        strncpy(last5digits_buffer,childterm+5,5);
-        last5digits_buffer[6] = '\0';
-        int last5digits=atof(std::string(last5digits_buffer).c_str());
-        go_to_indexData[i]=i;
-
-
-        Debug(Debug::INFO) << index_to_go[i]<< "\n";
-        if(*data == '\0'){ // check if proteinid_to_indexfile contains entry
-            Debug(Debug::ERROR) << "ERROR: Sequence " << i
-            << " does not contain any sequence for key " << childterm
-            << "!\n";goterm_to_index
-            continue;
-        }
-        while (*data != '\0' )
-        {
-            Debug(Debug::INFO) << childterm<< "\n";
-            Util::parseKey(data, parentterm);
-            Debug(Debug::INFO) << childterm<<"\t" <<parentterm<< "\n";
-            int counter=0;
-            char * position=parentterm;
-            while (parentterm[counter] != '\0'){
-                strncpy(singletermbuffer,position+3, 7);
-                singletermbuffer[10] = '\0';
-                Debug(Debug::INFO) << singletermbuffer << "\t";
-                counter+=10;goterm_to_index
-                position = position + 10;
-            }
-            Debug(Debug::INFO) << "\n";
-          //
-
-
-            data = Util::skipLine(data);
-        }
-        int gonumber= index_to_go  int CompareGOTstd::stringerms::convert_GOterm_to_index(int Goterm){
-            return goterm_to_index[Goterm];
-    }
-    int CompareGOTerms::convert_index_toGOterm(int index){
-            return index_togoterm[index];
-    }[i];
-        Debug(Debug::INFO) <<i<< "\t" <<index_to_go[i] <<"\t" <<  go_to_index[(gonumber-(gonumber% 100000))/100000][gonumber %100000]<<"\t" <<(gonumber-(gonumber% 100000))/100000<<"\t" <<gonumber %100000<<"\t" <<"\n";
-
-
-    }
-     */
-    //bufstd::list<int>getGOListforProtein(int protid)fers
     char *singletermbuffer = new char[11];
     char *parentterm = new char[255 + 1];
 //constants
@@ -150,7 +88,8 @@ void CompareGOTerms::init() {
         is_a_relation_size[i] = 0;
         while (*data != '\0') {
             Util::parseKey(data, parentterm);
-            int counter = 0;char *singletermbuffer = new char[11];
+            int counter = 0;
+            singletermbuffer = new char[11];
             char *position = parentterm;
             char *childterm = go_ffindex_reader->getDbKey(i);
             while (parentterm[counter] != '\0') {
@@ -228,8 +167,8 @@ void CompareGOTerms::init() {
     }
     //Debug(Debug::INFO) <<count_goterm_total_sum;
 
-
-
+delete [] singletermbuffer;
+delete[] parentterm;
 }
 
 double CompareGOTerms::compare_protein_ids(char *prot1, char *prot2) {
@@ -302,7 +241,7 @@ std::list<int> CompareGOTerms::getGOListforProtein(char* protid) {
     char *data = protid_go_ffindex_reader->getDataByDBKey(protid);
     std::list<int> result;
     if(NULL == data){ // check if file contains entry
-
+        delete [] singletermbuffer;
         return result;
     }
     size_t counter = 0;
@@ -313,6 +252,7 @@ std::list<int> CompareGOTerms::getGOListforProtein(char* protid) {
         }
         counter++;
     }
+    delete [] singletermbuffer;
     return result;
 }
 
@@ -348,19 +288,19 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
     //files
     std::ofstream clusters_summary_file;
     clusters_summary_file.open(evaluationfolder+fileprefix+"clusters_summary.go"+filesuffix);
-    clusters_summary_file << "clusterid\tclustersize\twithgo\tmissinggo\tavggoscore\tmingoscore\tmaxgoscore\n";
+    clusters_summary_file << "algorithm\tgocategory\tclusterid\tclustersize\twithgo\tmissinggo\tavggoscore\tmingoscore\tmaxgoscore\n";
 
     std::ofstream clusters_full_file;
     clusters_full_file.open(evaluationfolder+fileprefix+"clusters_allscores.go"+filesuffix);
-    clusters_full_file << "clusterid\tid1\tid2\tgoscore\n";
+    clusters_full_file << "algorithm\tgocategory\tclusterid\tid1\tid2\tgoscore\n";
 
     std::ofstream summary_file;
     summary_file.open(evaluationfolder+fileprefix+"summary.go"+filesuffix);
-    summary_file <<"clusternumber\tnwithgo\tnmissinggo\toccurenceofgoterms\n";
+    summary_file <<"algorithm\tgocategory\tclusternumber\tnwithgo\tnmissinggo\toccurenceofgoterms\n";
 
     std::ofstream binned_scores_file;
     binned_scores_file.open(evaluationfolder+fileprefix+"binned_scores.go"+filesuffix);
-    binned_scores_file <<"goscore\tgoavg\tgomin\tgomax\n";
+    binned_scores_file <<"algorithm\tgocategory\tgoscore\tgoavg\tgomin\tgomax\n";
     int clusterwithgo=0;
     int clusterwithoutgo=0;
     int binsize=10;
@@ -396,8 +336,8 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                         idswithgo.push_back(std::string(idbuffer));
 
                         withgo++;
-               int clusterwithgo=0;
-    int clusterwithoutgo=0;
+               clusterwithgo=0;
+            clusterwithoutgo=0;
                     } else {
                         //Debug(Debug::INFO) << representative << "\t" << idbuffer << "\t" << "not available" <<"\n";
                         withoutgo++;
@@ -412,7 +352,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                         averagescore += score;
                         minscore=std::min(score,minscore);
                         maxscore=std::max(score,maxscore);
-                        clusters_full_file << representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
+                        clusters_full_file << fileprefix << "\t"<< filesuffix<< "\t"<< representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
                     }
                 }
                 break;
@@ -425,17 +365,24 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
             }else{
                 clusterwithoutgo++;
             }
-            clusters_summary_file << representative << "\t" << withgo +withoutgo << "\t" << withgo << "\t" << withoutgo << "\t" <<
-            averagescore / (idswithgo.size()-1) <<"\t"<<minscore<<"\t"<<maxscore<< "\n";
-
+        if(idswithgo.size()>0) {
+            clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << representative << "\t" <<
+                                                   withgo + withoutgo << "\t" << withgo << "\t" << withoutgo << "\t" <<
+            averagescore / (idswithgo.size() - 1) << "\t" << minscore << "\t" << maxscore << "\n";
+        }
     }
     for (int j = 0; j < binsize; ++j) {
-        binned_scores_file << (j/(double)binsize)<<"\t"<<binned_avg[j]<<"\t"<<binned_min[j]<<"\t"<<binned_max[j]<<"\n";
+        binned_scores_file << fileprefix << "\t"<< filesuffix<< "\t"<< (j/(double)binsize)<<"\t"<<binned_avg[j]<<"\t"<<binned_min[j]<<"\t"<<binned_max[j]<<"\n";
     }
 
-    summary_file << cluster_ffindex_reader->getSize()<<"\t"<<clusterwithgo <<"\t"<<clusterwithoutgo <<"\t"<<this->count_goterm_total_sum <<"\n";
-            clusters_summary_file.close();
+    summary_file << fileprefix << "\t"<< filesuffix<< "\t"<< cluster_ffindex_reader->getSize()<<"\t"<<clusterwithgo <<"\t"<<clusterwithoutgo <<"\t"<<this->count_goterm_total_sum <<"\n";
+
+    clusters_summary_file.close();
     clusters_full_file.close();
     summary_file.close();
+    binned_scores_file.close();
+    cluster_ffindex_reader->close();
+    cluster_ffindex_reader->~DBReader();
+
 }
 
