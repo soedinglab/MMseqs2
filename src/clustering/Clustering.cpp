@@ -4,7 +4,10 @@
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,
         std::string outDB, std::string outDBIndex,
-        int validateClustering, int maxListLen,unsigned int maxIteration,unsigned int convergenceIterations,float dampingFactor,int similarityScoreType,double preference){
+        int validateClustering, float seqId,
+        int maxListLen, unsigned int maxIteration,
+        unsigned int convergenceIterations, float dampingFactor,
+        int similarityScoreType, double preference){
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
@@ -21,7 +24,7 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
     this->validate = validateClustering;
     this->maxListLen = maxListLen;
     Debug(Debug::INFO) << "done.\n";
-
+    this->seqIdThr = seqId;
     this->maxIteration=maxIteration;
     this->convergenceIterations=convergenceIterations;
     this->dampingFactor=dampingFactor;
@@ -313,7 +316,12 @@ Clustering::set_data Clustering::read_in_set_data(){
             // add an edge
             // should be int because of memory constraints
 
-
+            Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+            float seqId = atof(similarity);
+            if(seqId < this->seqIdThr){
+                data = Util::skipLine(data);
+                continue;
+            }
 
             //get similarityscore
             double factor=1;
