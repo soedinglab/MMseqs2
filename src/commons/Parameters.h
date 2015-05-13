@@ -4,28 +4,36 @@
 //
 #ifndef __MMseqs__Parameters__
 #define __MMseqs__Parameters__
-
-#include <iostream>
+#include <string>
 #include <vector>
 #include <map>
-
+#include <typeinfo>
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
-                     const static MMseqsParameter x;
+                     MMseqsParameter x;
 
 
 struct MMseqsParameter {
     const int uniqid;
     const char *name;
+    const char *display;
     const char *description;
-    MMseqsParameter(int uid,const char * n,const char * d): uniqid(uid), name(n),description(d){}
+    const std::type_info &type;
+    void * value;
+    MMseqsParameter(int uid,const char * n, const char *display,
+                    const char * d, const std::type_info &hash, void * value):
+                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value){}
 };
 
 
 class Parameters          // Parameters for gap penalties and pseudocounts
 {
 public:
-    
+
+    static const int SEARCH_GLOBAL = 0;
+    static const int SEARCH_LOCAL = 1;
+
+
     static const int SET_COVER = 0;
     static const int GREEDY = 1;
     static const int AFFINITY = 2;
@@ -56,9 +64,10 @@ public:
     
     std::string db5;
     std::string db5Index;
-   
-    
-    std::string scoringMatrixFile;     // path to scoring matrix
+
+    std::string mmdir;
+
+    std::string scoringMatrixFile;           // path to scoring matrix
     size_t maxSeqLen;                   // sequence length
     size_t maxResListLen;               // Maximal result list length per query
     int    verbosity;                   // log level
@@ -73,19 +82,21 @@ public:
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
     float  zscoreThr;                    // z score threshold for global matching
-    bool   localSearch;                  // Local search type
+    int searchMode;                     // Local search type
+    bool profile;                        // using profile information
+    bool nucl;                           // using nucl informatoin
     bool   compBiasCorrection;           // Aminoacid composiont correction
     bool   fastMode;                     // Search 20.000 times faster than BLAST in (local search only)
-    bool   spacedKmer;                   // Spaced Kmers
+    int   spacedKmer;                    // Spaced Kmers
     int    split;                        // Split database in n equal chunks
     bool   splitAA;                      // Split database by amino acid count instead
     int    skip;                         // Skip amino acid positions
     
     // ALIGNMENT
     std::string ffindexPrefDB;         // prefilter database (input for alignment module)
-    double  evalThr;                     // e-value threshold for acceptance
-    double  covThr;                      // coverage threshold for acceptance
-    int     maxRejected;                 // after n sequences that are above eval stop
+    float  evalThr;                     // e-value threshold for acceptance
+    float  covThr;                      // coverage threshold for acceptance
+    int    maxRejected;                 // after n sequences that are above eval stop
     float  seqIdThr;                     // sequence identity threshold for acceptance
 
     // CLUSTERING
@@ -93,12 +104,16 @@ public:
     int    clusteringMode;
     int    validateClustering;
     bool   cascaded;
+
+    // SEARCH WORKFLOW
+    int numIterations;
+
     //AFFINITYCLUSTERING
     int maxIteration;                   // Maximum number of iterations of affinity clustering.
     int convergenceIterations;          // Number of iterations the representatives have to stay constant.
     float dampingFactor;                  // Reduces oscillation. Value in range of 0.5< <1.
     int similarityScoreType;            // Type of score to use for affinity clustering. (1) alignment score. (2) coverage (3)sequence identity (4)E-value.
-    double preference;                  //Preference value influences the number of clusters (default=0). High values lead to more clusters.
+    float preference;                  //Preference value influences the number of clusters (default=0). High values lead to more clusters.
 
     //extractorf
     size_t orfMinLength;
@@ -116,13 +131,13 @@ public:
     void deserialize( std::istream &stream );
     void parseParameters(int argc, const char* argv[],
                          std::string programUsageHeader,
-                         std::vector<MMseqsParameter> parameters,
+                         std::vector<MMseqsParameter> par,
                          size_t requiredParameterCount,
                          bool printParameters = true);
     void printUsageMessage(std::string programUsageHeader,
                            std::vector<MMseqsParameter> parameters);
     void printParameters(int argc, const char* pargv[],
-                         std::vector<MMseqsParameter> parameters);
+                         std::vector<MMseqsParameter> par);
     Parameters();
     // parameter constants
     //    "-s              \t[float]\tSensitivity in the range [1:9] (default=4).\n"
@@ -158,43 +173,60 @@ public:
     PARAMETER(PARAM_PROFILE);
     PARAMETER(PARAM_NUCL);
     PARAMETER(PARAM_Z_SCORE);
+    PARAMETER(PARAM_K_SCORE);
     PARAMETER(PARAM_SKIP);
-    PARAMETER(PARAM_SPLIT_AMINOACID);
     PARAMETER(PARAM_MAX_SEQS);
     PARAMETER(PARAM_SPLIT);
+    PARAMETER(PARAM_SPLIT_AMINOACID);
     PARAMETER(PARAM_SUB_MAT);
     PARAMETER(PARAM_SEARCH_MODE);
     PARAMETER(PARAM_NO_COMP_BIAS_CORR);
     PARAMETER(PARAM_FAST_MODE);
     PARAMETER(PARAM_SPACED_KMER_MODE);
-    PARAMETER(PARAM_K_SCORE);
     PARAMETER(PARAM_KEEP_TEMP_FILES);
+    std::vector<MMseqsParameter> prefilter;
+
     // alignment
     PARAMETER(PARAM_E);
     PARAMETER(PARAM_C);
     PARAMETER(PARAM_MAX_REJECTED);
     PARAMETER(PARAM_MIN_SEQ_ID);
+    std::vector<MMseqsParameter> alignment;
     // clustering
-    PARAMETER(PARAM_G);
-    PARAMETER(PARAM_A);
+    PARAMETER(PARAM_CLUSTER_MODE);
+
     PARAMETER(PARAM_CASCADED);
+
     //afinity clustering
     PARAMETER(PARAM_MAXITERATIONS);
     PARAMETER(PARAM_CONVERGENCEITERATIONS);
     PARAMETER(PARAM_DAMPING);
     PARAMETER(PARAM_SIMILARITYSCORE);
     PARAMETER(PARAM_PREFERENCE);
+    std::vector<MMseqsParameter> clustering;
 
     // logging
     PARAMETER(PARAM_V);
     // clustering workflow
     PARAMETER(PARAM_RESTART);
     PARAMETER(PARAM_STEP);
+    // search workflow
+    PARAMETER(PARAM_NUM_ITERATIONS);
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH);
     PARAMETER(PARAM_ORF_MAX_LENGTH);
     PARAMETER(PARAM_ORF_MAX_GAP);
     PARAMETER(PARAM_ORF_SKIP_INCOMPLETE);
+    std::vector<MMseqsParameter> onlyverbosity;
+    std::vector<MMseqsParameter> createprofiledb;
+    std::vector<MMseqsParameter> extractorf;
+    std::vector<MMseqsParameter> splitffindex;
+    std::vector<MMseqsParameter> createindex;
+
+    std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
+                                              std::vector < MMseqsParameter > par2);
+
+    std::string createParameterString(std::vector < MMseqsParameter > vector);
 
 };
 

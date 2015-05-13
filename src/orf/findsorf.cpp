@@ -25,12 +25,10 @@ int findsorf(int argn, const char **argv)
     usage.append("Turns a cs219 FFindex database into the lagacy cs219 format.\n");
     usage.append("USAGE: <ffindexCS219InDB> <ffindexA3MInDB> <lagacyCS219Out>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-    std::vector<MMseqsParameter> orf_par = {
-        Parameters::PARAM_V
-    };
+
 
     Parameters par;
-    par.parseParameters(argn, argv, usage, orf_par, 3);
+    par.parseParameters(argn, argv, usage, par.onlyverbosity, 3);
 
     Debug::setDebugLevel(par.verbosity);
 
