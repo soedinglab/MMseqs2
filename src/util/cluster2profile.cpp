@@ -4,10 +4,9 @@
 // MMseqs just stores the position specific score in 1 byte
 //
 
-#include <unistd.h>
+#include "cluster2profile.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <vector>
 #include <iostream>
 #include <sys/types.h>
@@ -18,7 +17,6 @@
 #include <Sequence.h>
 #include <MultipleAlignment.h>
 #include <PSSMCalculator.h>
-
 extern "C" {
 #include "ffindex.h"
 #include "ffutil.h"
@@ -30,45 +28,43 @@ extern "C" {
 #define MAX_FILENAME_LIST_FILES 4096
 
 
-int cluster2profile(int argn,const char **argv)
-{
+int runResult2Profile(std::string resultDb, std::string queryDb, std::string targetDb,
+                      std::string outDb, std::string subMatPath){
     int err = EXIT_SUCCESS;
 
-    std::string usage;
-    usage.append("Converts a ffindex profile database to ffindex.\n");
-    usage.append("USAGE: <clusteredDB> <sequenceDB> <ffindexDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
-    std::vector<MMseqsParameter> profile_ffindex_par = {
-            Parameters::PARAM_SUB_MAT,
-            Parameters::PARAM_V};
-    Parameters par;
-    par.parseParameters(argn, argv, usage, profile_ffindex_par, 3);
-
     struct stat st;
-
 
     size_t offset_sequence = 0;
     size_t entry_num = 0;
 
-    DBReader dbr_cluster_data(par.db1.c_str(), par.db1Index.c_str());
+    DBReader dbr_cluster_data(resultDb.c_str(), (resultDb + ".index").c_str());
     dbr_cluster_data.open(DBReader::NOSORT);
+    DBReader * qdbr = NULL;
+    DBReader * tdbr = NULL;
+    bool sameDatabase = true;
+    qdbr = new DBReader(queryDb.c_str(), (queryDb + ".index").c_str());
+    qdbr->open(DBReader::NOSORT);
+    tdbr = qdbr;
+    if(queryDb.compare(targetDb) != 0){
+        sameDatabase = false;
+        tdbr = new DBReader(targetDb.c_str(), (targetDb + ".index").c_str());
+        tdbr->open(DBReader::NOSORT);
+    }
 
-
-    DBReader dbr_sequence_data(par.db2.c_str(), par.db2Index.c_str());
-    dbr_sequence_data.open(DBReader::NOSORT);
-
-    if(stat(par.db3.c_str(), &st) == 0) { errno = EEXIST; perror(par.db3.c_str()); return EXIT_FAILURE; }
-    FILE * data_file  = fopen(par.db3.c_str(), "wb"); // binary file
-    if( data_file == NULL) { perror(par.db3.c_str()); return EXIT_FAILURE; }
-
-    if(stat(par.db3Index.c_str(), &st) == 0) { errno = EEXIST; perror(par.db3Index.c_str()); return EXIT_FAILURE; }
-    FILE * index_file = fopen(par.db3Index.c_str(), "w+");
-    if(index_file == NULL) { perror(par.db3Index.c_str()); return EXIT_FAILURE; }
-
-
+    if(stat(outDb.c_str(), &st) == 0) { errno = EEXIST; perror(outDb.c_str()); return EXIT_FAILURE; }
+    FILE * data_file  = fopen(outDb.c_str(), "wb"); // binary file
+    if( data_file == NULL) { perror(outDb.c_str()); return EXIT_FAILURE; }
+    std::string outDbIndex = (outDb+".index");
+    if(stat(outDbIndex.c_str(), &st) == 0) { errno = EEXIST; perror(outDbIndex.c_str()); return EXIT_FAILURE; }
+    FILE * index_file = fopen(outDbIndex.c_str(), "w+");
+    if(index_file == NULL) { perror(outDbIndex.c_str()); return EXIT_FAILURE; }
+    // find longest sequence
     size_t maxSeqLen = 0;
-    for(size_t i = 0; i < dbr_sequence_data.getSize(); i++) {
-        maxSeqLen = std::max((size_t) dbr_sequence_data.getSeqLens()[i], maxSeqLen);
+    for(size_t i = 0; i < qdbr->getSize(); i++) {
+        maxSeqLen = std::max((size_t) qdbr->getSeqLens()[i], maxSeqLen);
+    }
+    for(size_t i = 0; i < tdbr->getSize(); i++) {
+        maxSeqLen = std::max((size_t) tdbr->getSeqLens()[i], maxSeqLen);
     }
     //Find the max set size
     size_t maxSetSize = 0;
@@ -85,10 +81,10 @@ int cluster2profile(int argn,const char **argv)
         maxSetSize = std::max(maxSetSize, currClusterEntry);
     }
     maxSetSize += 1;
-    SubstitutionMatrix * subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0);
+    SubstitutionMatrix * subMat = new SubstitutionMatrix(subMatPath.c_str(), 2.0);
 
     Debug(Debug::WARNING) << "Start computing profiles.\n";
-    MultipleAlignment msaAligner(maxSeqLen, 10, subMat);
+    MultipleAlignment msaAligner(maxSeqLen, maxSetSize, subMat);
     PSSMCalculator pssmCalculator(subMat, maxSeqLen);
     Sequence centerSeq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, 0, false);
     Sequence ** dbSeqs = new Sequence *[maxSetSize];
@@ -100,7 +96,7 @@ int cluster2profile(int argn,const char **argv)
         char dbKey[255+1];
         char * data = dbr_cluster_data.getData(i);
         char * queryId   = dbr_cluster_data.getDbKey(i);
-        char * seqData = dbr_sequence_data.getDataByDBKey(queryId);
+        char * seqData = qdbr->getDataByDBKey(queryId);
         centerSeq.mapSequence(0, queryId, seqData);
         std::vector<Sequence *> seqSet;
         size_t pos = 0;
@@ -108,18 +104,17 @@ int cluster2profile(int argn,const char **argv)
         while (*data != '\0' ){
             Util::parseKey(data, dbKey);
             if(strcmp(dbKey, queryId) != 0){
-                char * dbSeqData = dbr_sequence_data.getDataByDBKey(dbKey);
+                char * dbSeqData = tdbr->getDataByDBKey(dbKey);
                 std::cout << dbKey << " " << dbSeqData << std::endl;
                 dbSeqs[pos]->mapSequence(0, dbKey, dbSeqData);
                 seqSet.push_back(dbSeqs[pos]);
                 pos++;
             }
             data = Util::skipLine(data);
-
         }
         //parseHMM(data, profileBuffer, &elementSize, id, subMat);
         MultipleAlignment::MSAResult res = msaAligner.computeMSA(&centerSeq, seqSet, true);
-        MultipleAlignment::print(res);
+        //MultipleAlignment::print(res);
 
         const char * pssmData = pssmCalculator.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence);
         size_t pssmDataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
@@ -128,7 +123,7 @@ int cluster2profile(int argn,const char **argv)
         //pssm.printPSSM(res.centerLength);
 
         ffindex_insert_memory(data_file,  index_file,     &offset_sequence,
-                (char *) pssmData,  pssmDataSize , queryId);
+                              (char *) pssmData,  pssmDataSize , queryId);
 
         seqSet.clear();
     }
@@ -142,7 +137,12 @@ int cluster2profile(int argn,const char **argv)
     entry_num = dbr_cluster_data.getSize();
     // close reader
     dbr_cluster_data.close();
-    dbr_sequence_data.close();
+    qdbr->close();
+    delete qdbr;
+    if(sameDatabase == false) {
+        tdbr->close();
+        delete tdbr;
+    }
 
     fclose(data_file);
 
@@ -156,11 +156,25 @@ int cluster2profile(int argn,const char **argv)
     }
     fclose(index_file);
     ffindex_sort_index_file(index);
-    index_file = fopen(par.db3Index.c_str(), "w");
-    if(index_file == NULL) { perror(par.db3Index.c_str()); return EXIT_FAILURE; }
+    index_file = fopen(outDbIndex.c_str(), "w");
+    if(index_file == NULL) { perror(outDbIndex.c_str()); return EXIT_FAILURE; }
     err += ffindex_write(index, index_file);
     Debug(Debug::WARNING) << "Done.\n";
-
     return err;
 }
 
+
+int cluster2profile(int argn,const char **argv)
+{
+
+    std::string usage;
+    usage.append("Converts a ffindex profile database to ffindex.\n");
+    usage.append("USAGE: <clusteredDB> <queryDB> <targetDB> <outDB>\n");
+    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
+
+    Parameters par;
+    par.parseParameters(argn, argv, usage, par.createprofiledb, 4);
+
+    return runResult2Profile(par.db1, par.db2, par.db3,
+                             par.db4, par.scoringMatrixFile);
+}

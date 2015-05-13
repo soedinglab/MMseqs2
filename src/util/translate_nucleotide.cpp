@@ -28,12 +28,9 @@ int translatenucleotide(int argn, const char **argv)
     usage.append("Translate nucleotide sequences into aminoacid sequences in a FFindex database.\n");
     usage.append("USAGE: <ffindexInDB>  <ffindexOutDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-    std::vector<MMseqsParameter> orf_par = {
-        Parameters::PARAM_V
-    };
-    
+
     Parameters par;
-    par.parseParameters(argn, argv, usage, orf_par, 2);
+    par.parseParameters(argn, argv, usage, par.onlyverbosity, 2);
     
     Debug::setDebugLevel(par.verbosity);
     

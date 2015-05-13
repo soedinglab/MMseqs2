@@ -36,7 +36,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     fastMode(par.fastMode),
     split(par.split),
     skip(par.skip),
-    isLocal(par.localSearch)
+    isLocal(par.searchMode)
 {
     if(this->split == 0 )
         this->split = 1;
@@ -515,7 +515,7 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
 }
 
 std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader *qdbr, DBReader *tdbr, float sensitivity,
-        double toleratedDeviation, int kmerScore) {
+        double toleratedDeviation, const int kmerScore) {
 
     size_t targetDbSize = indexTable->getSize();
     size_t targetSeqLenSum = 0;
@@ -532,9 +532,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
 
     // do a binary search through the k-mer list length threshold space to adjust the k-mer list length threshold in order to get a match probability 
     // for a list of k-mers at one query position as close as possible to targetKmerMatchProb
-    size_t kmerThrMin = 3 * kmerSize;
-    size_t kmerThrMax = 80 * kmerSize;
-    size_t kmerThrMid;
+    size_t kmerThrBest;
 
     size_t dbMatchesExp_pc;
     // 1000 * 350 * 100000 * 350
@@ -542,113 +540,107 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
 
     double kmerMatchProb;
 
-    // parameters for searching
-    // fitted function: Time ~ alpha * kmer_list_len + beta * kmer_match_prob + gamma
-    double alpha;
-    double beta;
-    double gamma;
+    const unsigned int sens =  (int) ceil(sensitivity);
 
-    // the parameters of the fitted function depend on k
-    if (kmerSize == 4){ 
-        alpha = 6.974347e-01; // 6.717981e-01;
-        beta = 6.954641e+05; // 6.990462e+05;
-        gamma = 1.194005; // 1.718601;
-    }
-    else if (kmerSize == 5){ 
-        alpha = 2.133863e-01; // 2.013548e-01;
-        beta = 7.612418e+05; // 7.781889e+05;
-        gamma = 1.959421; // 1.997792;
-    }
-    else if (kmerSize == 6){ 
-        alpha = 2.574765e+00; // 1.114936e-01
-        beta = -6.845882e+07 ; // 9.331253e+05;
-        gamma =  1.729707e+02; // 1.416222;
-    }
-    else if (kmerSize == 7){ 
-        alpha = 2.190170e-01; //7.123599e-02; //6.438574e-02; // 6.530289e-02;
-        beta = -8.744322e+07; //3.148479e+06; //3.480680e+06; // 3.243035e+06;
-        gamma = 1.759593e+02; //1.304421; // 1.753651; //1.137125;
-    }
-    else{
-        Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
-        EXIT(EXIT_FAILURE);
+    kmerThrBest =  kmerScore;
+    if(kmerThrBest == INT_MAX){
+        if (kmerSize == 6){
+            switch(sens){
+                case 1:
+                    kmerThrBest = 125;
+                    break;
+                case 2:
+                    kmerThrBest = 115;
+                    break;
+                case 3:
+                    kmerThrBest = 110;
+                    break;
+                case 4:
+                    kmerThrBest = 100;
+                    break;
+                case 5:
+                    kmerThrBest = 95;
+                    break;
+                case 6:
+                    kmerThrBest = 90;
+                    break;
+                case 7:
+                    kmerThrBest = 85;
+                    break;
+                case 8:
+                    kmerThrBest = 80;
+                    break;
+                case 9:
+                    kmerThrBest = 70;
+                    break;
+                default:
+                    kmerThrBest = 100;
+                    break;
+            }
+
+        }
+        else if (kmerSize == 7){
+            switch(sens){
+                case 1:
+                    kmerThrBest = 130;
+                    break;
+                case 2:
+                    kmerThrBest = 120;
+                    break;
+                case 3:
+                    kmerThrBest = 110;
+                    break;
+                case 4:
+                    kmerThrBest = 100;
+                    break;
+                case 5:
+                    kmerThrBest = 95;
+                    break;
+                case 6:
+                    kmerThrBest = 90;
+                    break;
+                case 7:
+                    kmerThrBest = 85;
+                    break;
+                case 8:
+                    kmerThrBest = 80;
+                    break;
+                case 9:
+                    kmerThrBest = 75;
+                    break;
+                default:
+                    kmerThrBest = 100;
+                    break;
+            }
+        }
+        else{
+            Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
     //alpha = 0; //7.123599e-02; //6.438574e-02; // 6.530289e-02;
-    //beta = 1; //3.148479e+06; //3.480680e+06; // 3.243035e+06;
-    //gamma = 0; //1.304421; // 1.753651; //1.137125;
 
 
-    // Run using k=6, a=21, with k-mer similarity threshold 103
-    // try to set sensitivity 1 to the total runtime of 230 - 256
-    double timevalMax = pow(2.0, sensitivity + 7) * (1.0);
-    double timevalMin = pow(2.0, sensitivity + 7) * (1.0 - toleratedDeviation);
-
-    // in case the time value cannot be set within the threshold boundaries, the best value that could be reached will be returned with a warning
-    double timevalBest = 0.0;
-    size_t kmerThrBest = 0;
-    double kmerMatchProbBest = 0.0;
-
-    // adjust k-mer list length threshold
-    while (kmerThrMax >= kmerThrMin){
-
-        kmerThrMid = (kmerScore == INT_MAX) ? kmerThrMin + (kmerThrMax - kmerThrMin)*3/4 : kmerScore;
-
-        Debug(Debug::INFO) << "k-mer threshold range: [" << kmerThrMin  << ":" << kmerThrMax << "], trying threshold " << kmerThrMid << "\n";
-        statistics_t stats;
-        if(isLocal == true) {
-            stats = computeStatisticForKmerThreshold(indexTable, querySetSize, querySeqs, true, kmerThrMid);
-            // match probability with pseudocounts
-            stats.querySeqLen -= (querySetSize * qseq[0]->getEffectiveKmerSize());
-            kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
-            kmerMatchProb = kmerMatchProb / 256.0;
-        } else {
-            stats = computeStatisticForKmerThreshold(indexTable, querySetSize, querySeqs, false, kmerThrMid);
-            // add pseudo-counts
-            // 1/20^6 * kmerPerPos * length of pseudo counts
-            dbMatchesExp_pc = (size_t)(((double)lenSum_pc) * stats.kmersPerPos * pow((1.0/((double)(subMat->alphabetSize-1))), kmerSize));
-            // match probability with pseudocounts
-            kmerMatchProb = ((double)stats.dbMatches + dbMatchesExp_pc) / ((double) (stats.querySeqLen * targetSeqLenSum + lenSum_pc));
-        }
-
-        // check the parameters
-        double timeval = alpha * stats.kmersPerPos + beta * kmerMatchProb + gamma;
-
-        Debug(Debug::INFO) << "\tk-mers per position = " << stats.kmersPerPos << ", k-mer match probability: " << kmerMatchProb << "\n";
-        Debug(Debug::INFO) << "\ttime value = " << timeval << ", allowed range: [" << timevalMin << ":" << timevalMax << "]\n";
-        if(kmerScore != INT_MAX){ // if kmerScore is provided by commandline
-            delete[] querySeqs;
-            return std::pair<short, double> (kmerScore, kmerMatchProb);
-        }
-
-        if (timeval < timevalMin){
-            if ((timevalMin - timeval) < (timevalMin - timevalBest) || (timevalMin - timeval) < (timevalBest - timevalMax)){
-                // save new best values
-                timevalBest = timeval;
-                kmerThrBest = kmerThrMid;
-                kmerMatchProbBest = kmerMatchProb;
-            }
-            kmerThrMax = kmerThrMid - 1;
-        }
-        else if (timeval > timevalMax){
-            if ((timeval - timevalMax) < (timevalMin - timevalBest) || (timeval - timevalMax) < (timevalBest - timevalMax)){
-                // save new best values
-                timevalBest = timeval;
-                kmerThrBest = kmerThrMid;
-                kmerMatchProbBest = kmerMatchProb;
-            }
-            kmerThrMin = kmerThrMid + 1;
-        }
-        else if (timeval >= timevalMin && timeval <= timevalMax){
-            // delete data structures used before returning
-            delete[] querySeqs;
-            Debug(Debug::WARNING) << "\nk-mer threshold set, yielding sensitivity " << (log(timeval)/log(2.0)) << "\n\n";
-            return std::pair<short, double> (kmerThrMid, kmerMatchProb);
-        }
+    Debug(Debug::INFO) << "k-mer threshold threshold: " << kmerThrBest << "\n";
+    statistics_t stats;
+    stats = computeStatisticForKmerThreshold(indexTable, querySetSize, querySeqs, isLocal, kmerThrBest);
+    // match probability with pseudocounts
+    // add pseudo-counts (1/20^6 * kmerPerPos * length of pseudo counts)
+    dbMatchesExp_pc = (size_t)(((double)lenSum_pc) * stats.kmersPerPos * pow((1.0/((double)(subMat->alphabetSize-1))), kmerSize));
+    // match probability with pseudocounts
+    kmerMatchProb = ((double)stats.dbMatches + dbMatchesExp_pc) / ((double) (stats.querySeqLen * targetSeqLenSum + lenSum_pc));
+    // compute match prob for local match
+    if(isLocal == true){
+        kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
+        kmerMatchProb /= 256;
     }
+
+    Debug(Debug::INFO) << "\tk-mers per position = " << stats.kmersPerPos << ", k-mer match probability: " << kmerMatchProb << "\n";
+
+
     delete[] querySeqs;
 
-    Debug(Debug::WARNING) << "\nCould not set the k-mer threshold to meet the time value. Using the best value obtained so far, yielding sensitivity = " << (log(timevalBest)/log(2.0)) << "\n\n";
-    return std::pair<short, double> (kmerThrBest, kmerMatchProbBest);
+    return std::pair<short, double> (kmerThrBest, kmerMatchProb);
 }
 
 statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,

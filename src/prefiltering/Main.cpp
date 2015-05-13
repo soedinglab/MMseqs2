@@ -64,27 +64,8 @@ int prefilter(int argc, const char **argv)
     usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n");
     usage.append("USAGE: prefilter <queryDB> <targetDB> <outDB> [opts]\n");
 
-    std::vector<MMseqsParameter> perfPar = {
-            Parameters::PARAM_S,
-            Parameters::PARAM_K,
-            Parameters::PARAM_K_SCORE,
-            Parameters::PARAM_ALPH_SIZE,
-            Parameters::PARAM_MAX_SEQ_LEN,
-            Parameters::PARAM_PROFILE,
-            Parameters::PARAM_NUCL,
-            Parameters::PARAM_Z_SCORE,
-            Parameters::PARAM_SKIP,
-            Parameters::PARAM_MAX_SEQS,
-            Parameters::PARAM_SPLIT,
-            Parameters::PARAM_SEARCH_MODE,
-            Parameters::PARAM_NO_COMP_BIAS_CORR,
-            Parameters::PARAM_FAST_MODE,
-            Parameters::PARAM_SPACED_KMER_MODE,
-            Parameters::PARAM_SUB_MAT,
-            Parameters::PARAM_THREADS,
-            Parameters::PARAM_V};
     Parameters par;
-    par.parseParameters(argc, argv, usage, perfPar, 3);
+    par.parseParameters(argc, argv, usage, par.prefilter, 3);
 
     mmseqs_cuticle_init();
 

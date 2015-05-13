@@ -86,15 +86,10 @@ int extractorf(int argn, const char** argv)
     usage.append("Extract all open reading frames from a nucleotide fasta file into a ffindex database.\n");
     usage.append("USAGE: <fastaDB> <ffindexDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-    std::vector<MMseqsParameter> orf_par = {
-        Parameters::PARAM_ORF_MIN_LENGTH,
-        Parameters::PARAM_ORF_MAX_LENGTH,
-        Parameters::PARAM_ORF_MAX_GAP,
-        Parameters::PARAM_ORF_SKIP_INCOMPLETE
-    };
+
 
     Parameters par;
-    par.parseParameters(argn, argv, usage, orf_par, 2);
+    par.parseParameters(argn, argv, usage, par.extractorf, 2);
 
     const char* input = par.db1.c_str();
     

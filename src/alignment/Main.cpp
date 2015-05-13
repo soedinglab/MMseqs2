@@ -17,25 +17,11 @@ bool compareHits (Matcher::result_t first, Matcher::result_t second){
 
 int alignment(int argc, const char *argv[])
 {
-
     std::string usage("\nCalculates Smith-Waterman alignment scores between all sequences in the query database and the sequences of the target database which passed the prefiltering.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("USAGE: alignment <queryDB> <targetDB> <prefResultsDB> <outDB> [opts]\n");
-    std::vector<MMseqsParameter> perfPar = {
-            Parameters::PARAM_E,
-            Parameters::PARAM_C,
-            Parameters::PARAM_MIN_SEQ_ID,
-            Parameters::PARAM_MAX_SEQ_LEN,
-            Parameters::PARAM_MAX_SEQS,
-            Parameters::PARAM_MAX_REJECTED,
-            Parameters::PARAM_NUCL,
-            Parameters::PARAM_PROFILE,
-            Parameters::PARAM_SUB_MAT,
-            Parameters::PARAM_THREADS,
-            Parameters::PARAM_V};
     Parameters par;
-    par.parseParameters(argc, argv, usage, perfPar, 4);
-
+    par.parseParameters(argc, argv, usage, par.alignment, 4);
 
     Debug::setDebugLevel(Debug::INFO);
 
