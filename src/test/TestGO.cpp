@@ -43,11 +43,12 @@ int main(int argc, char **argv)
         goCategories[1]="_F";
         goCategories[2]="_P";
 
-        std::string* evidenceCategories= new std::string[2];
+        std::string* evidenceCategories= new std::string[3];
         evidenceCategories[0]="";
         evidenceCategories[1]="_EXP";
+        evidenceCategories[2]="_NON-IEA";
 
-        for (int j = 0; j <2 ; ++j) {
+        for (int j = 0; j <3 ; ++j) {
             for (int i = 0; i < 3; ++i) {
                 CompareGOTerms *go = new CompareGOTerms(gofolder + "go-fasta_db" + goCategories[i],
                                                         gofolder + "go-fasta_db" + goCategories[i] + ".index",
