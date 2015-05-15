@@ -52,37 +52,37 @@ int clusteringworkflow (int argc, const char * argv[]) {
     int step = par.step;
     DBWriter::errorIfFileExist(par.db2.c_str());
     if (par.cascaded) {
-        Parameters pars[3];
         CommandCaller cmd;
-        for(size_t par_idx = 0; par_idx < 3; par_idx++){
-            setWorkflowDefaults(&pars[par_idx]);
-            pars[par_idx].parseParameters(argc, argv, usage, params, 3, false);
-        }
 
         float targetSensitivity = par.sensitivity;
+        size_t maxResListLen = par.maxResListLen;
+
         // set parameter for first step
-        pars[0].sensitivity   = 1; // 1 is lowest sens
-        pars[0].fastMode      = true; // be as fast a possible
-        pars[0].zscoreThr     = getZscoreForSensitivity( pars[0].sensitivity );
-        pars[0].maxResListLen = 50;
-        cmd.addVariable("PREFILTER1_PAR", par.createParameterString(pars[0].prefilter));
-        cmd.addVariable("ALIGNMENT1_PAR", par.createParameterString(pars[0].alignment));
-        cmd.addVariable("CLUSTER1_PAR", par.createParameterString(pars[0].clustering));
+
+        par.sensitivity   = 1; // 1 is lowest sens
+        par.fastMode      = true; // be as fast a possible
+        par.zscoreThr     = getZscoreForSensitivity( par.sensitivity );
+        par.maxResListLen = 100;
+        cmd.addVariable("PREFILTER1_PAR", par.createParameterString(par.prefilter));
+        cmd.addVariable("ALIGNMENT1_PAR", par.createParameterString(par.alignment));
+        cmd.addVariable("CLUSTER1_PAR", par.createParameterString(par.clustering));
+        par.fastMode      = false; // be as fast a possible
 
         // set parameter for second step
-        pars[1].sensitivity = targetSensitivity / 2.0;
-        pars[1].zscoreThr =  getZscoreForSensitivity( pars[1].sensitivity );
-        pars[1].maxResListLen = 100;
-        cmd.addVariable("PREFILTER2_PAR", par.createParameterString(pars[1].prefilter));
-        cmd.addVariable("ALIGNMENT2_PAR", par.createParameterString(pars[1].alignment));
-        cmd.addVariable("CLUSTER2_PAR", par.createParameterString(pars[1].clustering));
+        par.sensitivity = targetSensitivity / 2.0;
+        par.zscoreThr =  getZscoreForSensitivity( par.sensitivity );
+        par.maxResListLen = 200;
+        cmd.addVariable("PREFILTER2_PAR", par.createParameterString(par.prefilter));
+        cmd.addVariable("ALIGNMENT2_PAR", par.createParameterString(par.alignment));
+        cmd.addVariable("CLUSTER2_PAR",   par.createParameterString(par.clustering));
 
         // set parameter for last step
-        pars[2].sensitivity = targetSensitivity;
-        pars[2].zscoreThr = getZscoreForSensitivity( pars[2].sensitivity );
-        cmd.addVariable("PREFILTER3_PAR", par.createParameterString(pars[2].prefilter));
-        cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(pars[2].alignment));
-        cmd.addVariable("CLUSTER3_PAR", par.createParameterString(pars[2].clustering));
+        par.sensitivity = targetSensitivity;
+        par.zscoreThr = getZscoreForSensitivity( par.sensitivity );
+        par.maxResListLen = maxResListLen;
+        cmd.addVariable("PREFILTER3_PAR", par.createParameterString(par.prefilter));
+        cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(par.alignment));
+        cmd.addVariable("CLUSTER3_PAR", par.createParameterString(par.clustering));
 
         cmd.callProgram(par.mmdir + "/bin/cascaded_clustering.sh",(argv+1), 3);
 
