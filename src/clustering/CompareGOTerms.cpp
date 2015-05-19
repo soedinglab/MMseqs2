@@ -358,20 +358,20 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                         clusters_full_file << fileprefix << "\t"<< filesuffix<< "\t"<< representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
                     }
                 }
-                break;
+               // break;
             }
             if(idswithgo.size()>1){
-                binned_avg[(int)((averagescore / (idswithgo.size()-1))*binsize)%binsize]++;
+                binned_avg[(int)((averagescore / (idswithgo.size()*idswithgo.size()-idswithgo.size()))*binsize)%binsize]++;
                 binned_min[(int)(minscore*binsize)%binsize]++;
                 binned_max[(int)(std::min(maxscore,0.999)*binsize)%binsize]++;
                 clusterwithgo++;
             }else{
                 clusterwithoutgo++;
             }
-        if(idswithgo.size()>0) {
+        if(idswithgo.size()>-1) {
             clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << representative << "\t" <<
                                                    withgo + withoutgo << "\t" << withgo << "\t" << withoutgo << "\t" <<
-            averagescore / (idswithgo.size() - 1) << "\t" << minscore << "\t" << maxscore << "\n";
+                    averagescore / (idswithgo.size()*idswithgo.size()-idswithgo.size()) << "\t" << minscore << "\t" << maxscore << "\n";
         }
     }
     for (int j = 0; j < binsize; ++j) {
