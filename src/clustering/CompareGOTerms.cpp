@@ -368,11 +368,11 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
             }else{
                 clusterwithoutgo++;
             }
-        if(idswithgo.size()>-1) {
+       // if(idswithgo.size()>0) {
             clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << representative << "\t" <<
                                                    withgo + withoutgo << "\t" << withgo << "\t" << withoutgo << "\t" <<
                     averagescore / (idswithgo.size()*idswithgo.size()-idswithgo.size()) << "\t" << minscore << "\t" << maxscore << "\n";
-        }
+        //}
     }
     for (int j = 0; j < binsize; ++j) {
         binned_scores_file << fileprefix << "\t"<< filesuffix<< "\t"<< (j/(double)binsize)<<"\t"<<binned_avg[j]<<"\t"<<binned_min[j]<<"\t"<<binned_max[j]<<"\n";
