@@ -165,7 +165,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                 } else if (typeid(bool) == par[i].type) {
                     if (ops >> GetOpt::OptionPresent(par[i].name + 2)) {
                         bool * value = (bool *) par[i].value;
-                        *value = true;
+                        // toggle Value
+                        *value = !*value;
                     }
                 } else {
                     Debug(Debug::ERROR) << "Wrong parameter type in parseParameters. Please inform developer\n";
@@ -186,7 +187,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                 } else if (typeid(bool) == par[i].type) {
                     if (ops >> GetOpt::OptionPresent(par[i].name[1])) {
                         bool * value = (bool *) par[i].value;
-                        *value = true;
+                        // toggle Value
+                        *value = !*value;
                     }
                 } else {
                     Debug(Debug::ERROR) << "Wrong parameter type in parseParameters. Please inform developer\n";
