@@ -162,6 +162,13 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
             // calculate Smith-Waterman alignment
             Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->mode);
             alignmentsNum++;
+            //set coverage and seqid if identity
+            if (isIdentiy){
+                res.qcov=1;
+                res.dbcov=1;
+                res.seqId=1;
+            }
+
             // check first if it is identity
             if (isIdentiy ||
                 (res.eval <= evalThr ) &&
