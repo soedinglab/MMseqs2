@@ -164,9 +164,11 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
             alignmentsNum++;
             // check first if it is identity
             if (isIdentiy ||
-                (res.eval <= evalThr || (mode != Matcher::SCORE_ONLY && res.seqId == 1.0)) &&
-                (res.qcov >= covThr && res.dbcov >= covThr) &&
-                (res.seqId > seqIdThr)) {
+                (res.eval <= evalThr ) &&
+                ( ( mode == Matcher::SCORE_ONLY )||
+                  ( mode == Matcher::SCORE_COV && res.qcov >= covThr && res.dbcov >= covThr) ||
+                  ( mode == Matcher::SCORE_COV_SEQID && res.seqId > seqIdThr&& res.qcov >= covThr && res.dbcov >= covThr))
+                    ) {
                 swResults.push_back(res);
                 passedNum++;
                 totalPassedNum++;
