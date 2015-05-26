@@ -31,9 +31,9 @@ int main(int argc, char **argv)
         std::string clustering_file=argv[4];
         std::string prefix=argv[5];
         std::string outputfolder=argv[6];
-        std::string comparisonmode=argv[7];
+        char * comparisonmode=argv[7];
         bool allagainstall=false;
-        if(strcmp(argv[8],"yes")){
+        if(strcmp(comparisonmode,"yes")){
             allagainstall=true;
         }
         //"-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder>"
