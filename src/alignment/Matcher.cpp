@@ -62,9 +62,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
     s_align * alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, scoreThr, 0, maskLen);
     // calculation of the coverage and e-value
-    float qcov = 1.0;
-    float dbcov = 1.0;
-    float seqId = 1.0;
+    float qcov = 0.0;
+    float dbcov = 0.0;
+    float seqId = 0.0;
     // compute sequence identity
     std::string backtrace;
     if(mode == SCORE_COV_SEQID){
