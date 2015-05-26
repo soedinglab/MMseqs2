@@ -27,7 +27,8 @@ public:
     void run_evaluation_mmseqsclustering(std::string cluster_ffindex,
                                          std::string cluster_ffindex_indexfile,
                                          std::string fileprefix,
-                                         std::string filesuffix);
+                                         std::string filesuffix,
+                                                bool allagainstall);
 
     ~CompareGOTerms();
 

@@ -20,7 +20,7 @@ int main(int argc, char **argv)
     if(strcmp(argv[0],"-go")){
         Debug(Debug::INFO) <<"GO-Evaluation" <<"\n";
 
-        if(argc != 7){
+        if(argc != 8){
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -31,7 +31,11 @@ int main(int argc, char **argv)
         std::string clustering_file=argv[4];
         std::string prefix=argv[5];
         std::string outputfolder=argv[6];
-
+        std::string comparisonmode=argv[7];
+        bool allagainstall=false;
+        if(strcmp(argv[8],"yes")){
+            allagainstall=true;
+        }
         //"-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder>"
         //std::string gofolder="/home/lars/masterarbeit/data/GO/db/";
         //std::string uniprot_go_folder="/home/lars/masterarbeit/data/uniprot/release-2015_04/uniprot_go/";
@@ -62,7 +66,7 @@ int main(int argc, char **argv)
                 //  go->all_against_all_comparison_proteinset();
                 go->run_evaluation_mmseqsclustering(clustering_file,
                                                     clustering_file+".index",
-                                                    prefix, evidenceCategories[j] + goCategories[i]);
+                                                    prefix, evidenceCategories[j] + goCategories[i],allagainstall);
                 go->~CompareGOTerms();
             }
         }
@@ -75,7 +79,7 @@ int main(int argc, char **argv)
 
 void printHelp() {
     std::string usage("\nEvaluation commands\n");
-    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder>");
+    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >");
     Debug(Debug::INFO) << usage << "\n";
     EXIT(EXIT_FAILURE);
 }
