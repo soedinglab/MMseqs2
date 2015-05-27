@@ -6,6 +6,7 @@
 #include "IndexTableGlobal.h"
 #include "IndexTableLocal.h"
 #include "QueryTemplateMatcherGlobal.h"
+#include "QueryTemplateMatcherExactMatch.h"
 #include "QueryTemplateMatcherLocal.h"
 #include "QueryTemplateMatcher.h"
 
@@ -216,9 +217,12 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
                                                                   fastMode, maxSeqLen, maxHitsPerQuery);
 
         }else{
-            matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
-                                                                  kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
-                                                                  aaBiasCorrection, maxSeqLen, zscoreThr);
+            matchers[thread_idx] = new QueryTemplateMatcherExactMatch(m, indexTable, seqLens, kmerThr,
+                                                                      kmerMatchProb, kmerSize, dbSize,
+                                                                      maxSeqLen, maxHitsPerQuery);
+//            matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
+//                                                                  kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
+//                                                                  aaBiasCorrection, maxSeqLen, zscoreThr);
         }
         if(querySeqType == Sequence::HMM_PROFILE){
             matchers[thread_idx]->setProfileMatrix(qseq[thread_idx]->profile_matrix);
