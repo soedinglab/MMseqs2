@@ -73,7 +73,7 @@ int main(int argc, char **argv)
             }
         }
     }else if (strcmp(argv[1],"-pn")==0){
-        if(argc != 6){
+        if(argc != 7){
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -84,7 +84,12 @@ int main(int argc, char **argv)
         std::string cluster_ffindex_indexfile=cluster_ffindex+".index";
         std::string fileprefix=argv[4];
         std::string evaluationfolder=argv[5];
-bool allagainstall=true;
+        char * comparisonmode=argv[6];
+        bool allagainstall=false;
+        if(strcmp(comparisonmode,"yes")==0){
+            allagainstall=true;
+            Debug(Debug::INFO)<<"all against all comparison";
+        }
             Debug(Debug::INFO) << "running protein name evaluation";
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
@@ -132,7 +137,10 @@ bool allagainstall=true;
             for(std::string id1:idswithgo){
                 for(std::string id2:idswithgo){
                     if (std::string(id1) != std::string(id2)) {
-                        double score = DistanceCalculator::uiLevenshteinDistance( protname_db_reader->getDataByDBKey((char *) id1.c_str()),  protname_db_reader->getDataByDBKey((char *) id2.c_str()));
+                        char* seq1=protname_db_reader->getDataByDBKey((char *) id1.c_str());
+                        char * seq2=protname_db_reader->getDataByDBKey((char *) id2.c_str());
+                        double score = DistanceCalculator::uiLevenshteinDistance( seq1,  seq2);
+                        score= 1- (score/std::max(strlen(seq1),strlen(seq2)));
                         sumofscore += score;
                         minscore=std::min(score,minscore);
                         maxscore=std::max(score,maxscore);
@@ -176,8 +184,8 @@ bool allagainstall=true;
 
 void printHelp() {
     std::string usage("\nEvaluation commands\n");
-    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >");
-    usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder>");
+    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
+    usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >");
     Debug(Debug::INFO) << usage << "\n";
     EXIT(EXIT_FAILURE);
 }
