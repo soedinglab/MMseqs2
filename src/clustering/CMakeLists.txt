@@ -13,7 +13,9 @@ set(clustering_source_files
   CompareGOTerms.h
   CompareGOTerms.cpp
   DistanceCalculator.h
+  SetCover2.cpp
+  SetCover2.h
 )
-add_library(clustering ${clustering_source_files})
+add_library(clustering ${clustering_source_files} )
 
 target_link_libraries(clustering commons)
