@@ -2,9 +2,7 @@
 // Created by mad on 5/26/15.
 //
 
-#include <CountInt32Array.h>
 #include "QueryTemplateMatcherExactMatch.h"
-#include "QueryTemplateMatcher.h"
 
 QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
                                                                unsigned int *seqLens, short kmerThr,
@@ -12,15 +10,15 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
                                                                unsigned int maxSeqLen, size_t maxHitsPerQuery) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
                                                                                                                                       kmerSize, dbSize, false, maxSeqLen) {
     this->maxHitsPerQuery = maxHitsPerQuery;
-    this->idxer = new Indexer(m->alphabetSize, kmerSize);
+    //this->idxer = new Indexer(m->alphabetSize, kmerSize);
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
-    this->foundSequences = new unsigned int[100000];
+    this->foundSequences = new unsigned int[MAX_DB_MATCHES];
     //this->counter = new CountInt32Array(dbSize, 2048);
 }
 
 
 QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
-    delete idxer;
+    //delete idxer;
     delete [] foundSequences;
     free(resList);
     //delete counter;
@@ -44,16 +42,21 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
     size_t pos = 0;
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();
-        // generate k-mer list
-        unsigned int kmerCode = idxer->getNextKmerIndex(kmer, kmerSize);
-        entries = indexTable->getDBSeqList<unsigned int>(kmerCode, &indexTabListSize);
 
-        // add the scores for the k-mer to the overall score for this query sequence
-        // for the overall score, bit/2 is a sufficient sensitivity and we can use the capacity of unsigned short max score in QueryScore better
-        // std::cout << "i: " << seq->getCurrentPosition() << std::endl;
-        for (unsigned int seqIdx = 0; LIKELY(seqIdx < indexTabListSize); seqIdx++){
-            foundSequences[pos] = entries[seqIdx];
-            pos++;
+        ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
+        kmerListLen += kmerList.elementSize;
+        // match the index table
+//        int pos_matched = 0;
+        for (unsigned int i = 0; i < kmerList.elementSize; i++) {
+            // generate k-mer list
+            entries = indexTable->getDBSeqList<unsigned int>(kmerList.index[i], &indexTabListSize);
+
+            if (pos + indexTabListSize >= MAX_DB_MATCHES)
+                break;
+            for (unsigned int seqIdx = 0; LIKELY(seqIdx < indexTabListSize); seqIdx++) {
+                foundSequences[pos] = entries[seqIdx];
+                pos++;
+            }
         }
     }
 

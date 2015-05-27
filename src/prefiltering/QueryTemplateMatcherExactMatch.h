@@ -6,7 +6,6 @@
 #define MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
 
 #include <sys/cdefs.h>
-#include <zconf.h>
 #include "QueryTemplateMatcher.h"
 
 
@@ -32,9 +31,10 @@ protected:
 
 
     // index the exact kmer
-    Indexer *idxer;
+    //Indexer *idxer;
 
     unsigned int * foundSequences;
+    const unsigned int MAX_DB_MATCHES = 10000000;
 
     std::pair<hit_t *, size_t> getResult(const int l, const unsigned int id,
                                                                          const unsigned short thr);
