@@ -26,6 +26,8 @@ set(prefiltering_source_files
   QueryTemplateMatcherGlobal.h
   QueryTemplateMatcherLocal.cpp
   QueryTemplateMatcherLocal.h
+  QueryTemplateMatcherExactMatch.cpp
+  QueryTemplateMatcherExactMatch.h
   ReducedMatrix.cpp
   ReducedMatrix.h
 )
