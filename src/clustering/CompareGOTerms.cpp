@@ -284,7 +284,7 @@ void  CompareGOTerms::compute_parentnodes(std::set<int>& result,int id){
 void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex,
                                                      std::string cluster_ffindex_indexfile,
                                                      std::string fileprefix,
-                                                     std::string filesuffix) {
+                                                     std::string filesuffix, bool allagainstall) {
     Debug(Debug::INFO) << "Opening clustering database...\n";
     DBReader* cluster_ffindex_reader = new DBReader(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
     cluster_ffindex_reader->open(DBReader::SORT);
@@ -323,7 +323,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
         char *idbuffer = new char[255 + 1];
         int withgo=0;
         int withoutgo=0;
-        double averagescore=0;
+        double sumofscore =0;
         double minscore=1;
         double maxscore=0;
 
@@ -352,16 +352,25 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                 for(std::string id2:idswithgo){
                     if (std::string(id1) != std::string(id2)) {
                         double score = compare_protein_ids((char *) id1.c_str(), (char *) id2.c_str());
-                        averagescore += score;
+                        sumofscore += score;
                         minscore=std::min(score,minscore);
                         maxscore=std::max(score,maxscore);
                         clusters_full_file << fileprefix << "\t"<< filesuffix<< "\t"<< representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
                     }
                 }
-               // break;
+                if(!allagainstall){
+                    break;
+                }
+
+            }
+            double averagescore;
+            if(allagainstall){
+                averagescore=(sumofscore / (idswithgo.size()*idswithgo.size()-idswithgo.size()));
+            }else{
+                averagescore=sumofscore /(idswithgo.size()-1);
             }
             if(idswithgo.size()>1){
-                binned_avg[(int)((averagescore / (idswithgo.size()*idswithgo.size()-idswithgo.size()))*binsize)%binsize]++;
+                binned_avg[(int)(averagescore*binsize)%binsize]++;
                 binned_min[(int)(minscore*binsize)%binsize]++;
                 binned_max[(int)(std::min(maxscore,0.999)*binsize)%binsize]++;
                 clusterwithgo++;
@@ -371,7 +380,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
        // if(idswithgo.size()>0) {
             clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << representative << "\t" <<
                                                    withgo + withoutgo << "\t" << withgo << "\t" << withoutgo << "\t" <<
-                    averagescore / (idswithgo.size()*idswithgo.size()-idswithgo.size()) << "\t" << minscore << "\t" << maxscore << "\n";
+                    averagescore << "\t" << minscore << "\t" << maxscore << "\n";
         //}
     }
     for (int j = 0; j < binsize; ++j) {
