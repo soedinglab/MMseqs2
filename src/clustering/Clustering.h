@@ -35,7 +35,7 @@ class Clustering {
                 std::string outDB, std::string outDBIndex, 
                 int validateClustering, float seqId, int maxListLen, unsigned int maxIteration,
                 unsigned int convergenceIterations,float dampingFactor,
-                int similarityScoreType, double preference);
+                int similarityScoreType, float preference);
 
         struct set_data {
             // one set contains pointers to the cluster member ids

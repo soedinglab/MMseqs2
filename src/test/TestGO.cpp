@@ -202,7 +202,7 @@ int main(int argc, char **argv)
             allagainstall=true;
             Debug(Debug::INFO)<<"all against all comparison";
         }
-        Debug(Debug::INFO) << "running protein name evaluation";
+        Debug(Debug::INFO) << "running keyword evaluation";
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader* cluster_ffindex_reader = new DBReader(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());

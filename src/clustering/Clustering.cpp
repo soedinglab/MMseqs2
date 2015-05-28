@@ -7,7 +7,7 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         int validateClustering, float seqId,
         int maxListLen, unsigned int maxIteration,
         unsigned int convergenceIterations, float dampingFactor,
-        int similarityScoreType, double preference){
+        int similarityScoreType, float preference){
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
@@ -248,7 +248,7 @@ Clustering::set_data Clustering::read_in_set_data(){
 
     // set element size lookup
     unsigned int * element_buffer = new unsigned int[n];
-    double * element_similarity_buffer = new double[n];
+    float * element_similarity_buffer = new float[n];
     unsigned int * element_size   = new unsigned int[n + 2];
     memset(element_size, 0, sizeof(unsigned int) * (n + 2));
     ret_struct.element_size_lookup = element_size;
@@ -324,16 +324,16 @@ Clustering::set_data Clustering::read_in_set_data(){
             }
 
             //get similarityscore
-            double factor=1;
-            double similarityscore;
+            float factor=1;
+            float similarityscore;
             if(similarityScoreType==Parameters::APC_ALIGNMENTSCORE){
                 Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
                 similarityscore= atof(std::string(similarity).c_str());
             }else if(similarityScoreType==Parameters::APC_COVERAGE){
                 Util::parseByColumnNumber(data, similarity, 2); //column 2 = querycoverage
-                double querycoverage= atof(std::string(similarity).c_str())*factor;
+                float querycoverage= atof(std::string(similarity).c_str())*factor;
                 Util::parseByColumnNumber(data, similarity, 3); //column 3 = dbcoverage
-                double dbcoverage= atof(std::string(similarity).c_str())*factor;
+                float dbcoverage= atof(std::string(similarity).c_str())*factor;
                 if(querycoverage<dbcoverage){
                     similarityscore=querycoverage;
                 }else{
@@ -352,10 +352,13 @@ Clustering::set_data Clustering::read_in_set_data(){
                 similarityscore= atof(std::string(similarity).c_str());
                 int queryLength=strlen(seqDbr->getData(i));
                 int dbSeqLength=strlen(seqDbr->getData(curr_element));
-                double maxSeqLength=std::max(queryLength,dbSeqLength);
-                //Debug(Debug::INFO)  << similarityscore <<"\t"<<queryLength<<"\t"<<dbSeqLength<<"\n";
+                float maxSeqLength=std::max(queryLength,dbSeqLength);
+
+                //
                 similarityscore= similarityscore/maxSeqLength;
-                //Debug(Debug::INFO)  << similarityscore <<"\n";
+                if(i==88){
+                    Debug(Debug::INFO)  << similarityscore <<"\t"<<i<<"\t"<<curr_element<<"\n";
+                }//Debug(Debug::INFO)  << similarityscore <<"\n";
             }
             //Debug(Debug::INFO)  << similarityscore <<"\n";
 
@@ -372,6 +375,9 @@ Clustering::set_data Clustering::read_in_set_data(){
             empty++;
         }
         ret_struct.validids->push_back(i);
+
+        std::cout <<i <<"\t"<<clusterId <<"\n";
+
         // max_weight can not be bigger than 2^16
         if(element_counter > SHRT_MAX){
             Debug(Debug::ERROR)  << "ERROR: Set has too many elements. Set name is "
@@ -380,7 +386,7 @@ Clustering::set_data Clustering::read_in_set_data(){
         ret_struct.max_weight = std::max((unsigned short)element_counter, ret_struct.max_weight);
         // set pointer
         memcpy(elements + curr_start_pos, element_buffer, sizeof(unsigned int) * element_counter);
-        memcpy(similarities + curr_start_pos, element_similarity_buffer, sizeof(double) * element_counter);
+        memcpy(similarities + curr_start_pos, element_similarity_buffer, sizeof(float) * element_counter);
         weights[i] = (weight + curr_start_pos);
         sets[i] = (elements + curr_start_pos);
         sets_similarities[i] = (similarities + curr_start_pos);
