@@ -217,9 +217,8 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
                                                                   fastMode, maxSeqLen, maxHitsPerQuery);
 
         }else{
-            matchers[thread_idx] = new QueryTemplateMatcherExactMatch(m, indexTable, seqLens, kmerThr,
-                                                                      kmerMatchProb, kmerSize, dbSize,
-                                                                      maxSeqLen, maxHitsPerQuery);
+            matchers[thread_idx] = new QueryTemplateMatcherExactMatch(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+                                                                      kmerSize, dbSize, maxSeqLen);
 //            matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
 //                                                                  kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
 //                                                                  aaBiasCorrection, maxSeqLen, zscoreThr);
