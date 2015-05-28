@@ -5,23 +5,25 @@
 #include "QueryTemplateMatcherExactMatch.h"
 
 QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
-                                                               unsigned int *seqLens, short kmerThr,
-                                                               double kmerMatchProb, int kmerSize, size_t dbSize,
-                                                               unsigned int maxSeqLen, size_t maxHitsPerQuery) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                                                                                                      kmerSize, dbSize, false, maxSeqLen) {
-    this->maxHitsPerQuery = maxHitsPerQuery;
+                                                                   unsigned int *seqLens, short kmerThr,
+                                                                   double kmerMatchProb, int kmerSize, size_t dbSize,
+                                                                   unsigned int maxSeqLen)
+        : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, false, maxSeqLen) {
     //this->idxer = new Indexer(m->alphabetSize, kmerSize);
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
     this->foundSequences = new unsigned int[MAX_DB_MATCHES];
-    //this->counter = new CountInt32Array(dbSize, 2048);
+    memset(foundSequences, 0, sizeof(unsigned int) * MAX_DB_MATCHES);
+    // needed as buffer
+    this->counterOutpot = new unsigned int[MAX_DB_MATCHES];
+    memset(counterOutpot, 0, sizeof(unsigned int) * MAX_DB_MATCHES);
+    this->counter = new CountInt32Array(dbSize, MAX_DB_MATCHES / 512);
 }
 
 
 QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
-    //delete idxer;
+    delete counter;
     delete [] foundSequences;
     free(resList);
-    //delete counter;
 }
 
 std::pair<hit_t *, size_t> QueryTemplateMatcherExactMatch::matchQuery (Sequence * seq, unsigned int identityId){
@@ -80,9 +82,9 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
 std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(const int l, const unsigned int id,
                                                                       const unsigned short thr) {
     size_t elementCounter = 0;
-    const size_t resultSize = stats->dbMatches;
-    std::sort(foundSequences, foundSequences + resultSize);
-
+    //std::sort(foundSequences, foundSequences + resultSize);
+    const size_t resultSize = counter->countElements(foundSequences, stats->dbMatches, counterOutpot);
+    std::sort(counterOutpot, counterOutpot + resultSize);
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
         const unsigned short rawScore  = l;
@@ -92,10 +94,10 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(const int 
         elementCounter++;
     }
 
-    unsigned int seqIdPrev = foundSequences[0];
+    unsigned int seqIdPrev = counterOutpot[0];
     unsigned short scoreMax = 1;
     for (unsigned int i = 1; i < resultSize; i++) {
-        const unsigned int seqIdCurr = foundSequences[i];
+        const unsigned int seqIdCurr = counterOutpot[i];
         // if new sequence occurs or end of data write the result back
         scoreMax += 1;
         if (seqIdCurr != seqIdPrev || i == (resultSize - 1)) {
