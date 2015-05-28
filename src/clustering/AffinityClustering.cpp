@@ -47,6 +47,7 @@ std::list<set *> AffinityClustering::execute(){
 
     std::fill_n(convergence,set_count*convergenceIterations,0);
     std::fill_n(availabilitiesData, all_element_count , 0.0);
+    std::fill_n(responsibilitiesData, all_element_count , 0.0);
     size_t curr_pos  = 0;
     for(std::list<int>::iterator it = validids->begin(); it != validids->end(); it++) {
         int i=*it;
@@ -54,6 +55,7 @@ std::list<set *> AffinityClustering::execute(){
         responsibilities[i] = &responsibilitiesData[curr_pos];
         similarities[i][0]=preference;//input preference minimal to get a lot of clusters TODO set by parameter
         curr_pos  += element_size_lookup[i];
+        std::cout <<i <<"\t"<< element_size_lookup[i]<<"\n";
     }
 
 
@@ -145,14 +147,15 @@ std::list<set *> AffinityClustering::execute(){
 
         //after initialisation, set lambda input value
         lambda=input_lambda;
-/*
-        for(size_t i = 0; i < set_count; i++) {
+
+        //      for(size_t i = 0; i < set_count; i++) {
+        int i=88;
             const unsigned int *currentset = setids[i];
             for (int k = 0; k < element_size_lookup[i]; k++) {
                 std::cout << j <<"\t"<< i << "\t" << currentset[k] << "\t" << similarities[i][k] << "\t" << availabilities[i][k] << "\t" << responsibilities[i][k] << "\n";
             }
-        }
-*/
+//        }
+
     }
 
     int nonconverged=0;
@@ -176,7 +179,7 @@ std::list<set *> AffinityClustering::execute(){
     for(std::list<int>::iterator it = validids->begin(); it != validids->end(); it++) {
         int i=*it;
         const unsigned int *currentset = setids[i];
-        int maxk=0;
+        int maxk=currentset[0];
         float maxvalue=-FLT_MAX;
         for (size_t k = 0; k < element_size_lookup[i] ; k++) {
             //std::cout << i<<"\t"<< currentset[k]<<"\t"<< similarities[i][k]<<"\t"<< availabilities[i][k] <<"\t"<< responsibilities[i][k]<<"\n";
@@ -190,6 +193,9 @@ std::list<set *> AffinityClustering::execute(){
         }
         //add i to set k
         add_to_set(i,&sets[maxk],maxk);
+        if(maxk==-1){
+            std::cout <<i <<"\t"<<maxk<<"\n";
+        }
     }
 
 
