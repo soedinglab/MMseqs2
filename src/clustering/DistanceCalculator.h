@@ -5,6 +5,10 @@
 #ifndef MMSEQS_DISTANCECALCULATOR_H
 #define MMSEQS_DISTANCECALCULATOR_H
 
+
+#include <Debug.h>
+#include <sstream>
+
 class DistanceCalculator {
 public:
 
@@ -51,6 +55,37 @@ public:
 
         return result;
     }
+    static double keywordDistance(const std::string &s1, const std::string &s2){
+        std::stringstream seq1(s1);
+        std::string segment;
+        std::vector<std::string> kwlist1;
+        while(std::getline(seq1, segment, ';'))
+        {
+            if(strcmp(segment.c_str(),"\n") != 0)
+            kwlist1.push_back(segment);
+        }
+        std::vector<std::string> kwlist2;
+        std::stringstream seq2(s2);
+        while(std::getline(seq2, segment, ';'))
+        {
+            if(strcmp(segment.c_str(),"\n")!=0)
+            kwlist2.push_back(segment);
+        }
+    double score=0.0;
+        for(std::string s1 : kwlist1){
+            for(std::string s2 : kwlist2){
+                if(strcmp(s1.c_str(),s2.c_str())==0){
+                    score++;
+                    break;
+                }
+            }
+        }
+        score=((score/std::max(kwlist1.size(),kwlist2.size()))+(score/std::min(kwlist1.size(),kwlist2.size())))/2;
+
+       // Debug(Debug::INFO) << s1 <<"compared to "<<s2 <<"score:"<<score <<"\n";
+        return score;
+    }
+
 };
 
 #endif //MMSEQS_DISTANCECALCULATOR_H
