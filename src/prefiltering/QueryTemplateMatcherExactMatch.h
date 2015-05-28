@@ -6,6 +6,7 @@
 #define MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
 
 #include <sys/cdefs.h>
+#include "CountInt32Array.h"
 #include "QueryTemplateMatcher.h"
 
 
@@ -14,7 +15,7 @@ public:
     QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
                                                                        unsigned int *seqLens, short kmerThr,
                                                                        double kmerMatchProb, int kmerSize, size_t dbSize,
-                                                                       unsigned int maxSeqLen, size_t maxHitsPerQuery);
+                                                                       unsigned int maxSeqLen);
     ~QueryTemplateMatcherExactMatch();
 
     // returns result for the sequence
@@ -25,19 +26,16 @@ protected:
 
     // match sequence against the IndexTable
     void match(Sequence* seq);
-
-    // max hits per query
-    size_t maxHitsPerQuery;
-
-
-    // index the exact kmer
-    //Indexer *idxer;
+    const unsigned int MAX_DB_MATCHES = 16777216;
 
     unsigned int * foundSequences;
-    const unsigned int MAX_DB_MATCHES = 10000000;
+    unsigned int * counterOutpot;
 
     std::pair<hit_t *, size_t> getResult(const int l, const unsigned int id,
                                                                          const unsigned short thr);
+
+    // result hit buffer
+    CountInt32Array *counter;
 
     // result hit buffer
     hit_t *resList;
