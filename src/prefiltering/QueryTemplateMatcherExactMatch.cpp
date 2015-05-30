@@ -33,6 +33,7 @@ size_t QueryTemplateMatcherExactMatch::evaluateBins(unsigned int *output) {
     const size_t N =  (diagonalBins[0] - binData);
     memcpy(output, binData, sizeof(unsigned int) * N);
     localResultSize += N;
+    const unsigned int * lastPointer = output + MAX_DB_MATCHES;
     for(size_t bin = 1; bin < BIN_COUNT; bin++){
         unsigned int *binStartPos = (binData + bin * BIN_SIZE);
         const size_t N =  (diagonalBins[bin] - binStartPos);
@@ -46,7 +47,7 @@ size_t QueryTemplateMatcherExactMatch::evaluateBins(unsigned int *output) {
 //            }
 //            prefId = currId;
 //        }
-        localResultSize += counter->countElements(binStartPos, N, output + localResultSize);
+        localResultSize += counter->countElements(binStartPos, N, output + localResultSize, lastPointer);
     }
     return localResultSize;
 }
@@ -124,7 +125,7 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
                 const unsigned int seqId = entry.seqId;
-                const unsigned char diagonal = i - j;
+                const unsigned char diagonal = (i - j)/8;
                 *diagonalBins[diagonal] = seqId;
                 diagonalBins[diagonal] += ((diagonalBins[diagonal] - lastPosition) != 0) ? 1 : 0; //TODO what to do with it?
                 //if((diagonalBins[diagonal] - lastPosition) == 0)
