@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <sys/cdefs.h>
+#include <zconf.h>
 
 #ifndef COUNTIN32ARRAY_H
 #define COUNTIN32ARRAY_H
@@ -15,8 +17,7 @@ public:
 
     ~CountInt32Array();
 
-    size_t countElements(unsigned int const *inputArray, size_t N,
-            unsigned int *outputArray);
+    size_t countElements(unsigned int *inputArray, const size_t N, unsigned int *outputArray, const unsigned int * lastOutputArrayPtr);
 
 private:
 
@@ -44,8 +45,7 @@ private:
     void hashElements(unsigned int const *inputArray, size_t N,
             unsigned int **hashBins);
 
-    size_t findDuplicates(unsigned int **bins,
-                          unsigned int binCount,
-                          unsigned int *outputArray);
+    size_t findDuplicates(unsigned int **bins, unsigned int binCount, unsigned int *outputArray,
+                                           const unsigned int * lastOutputArrayPtr);
 };
 #endif

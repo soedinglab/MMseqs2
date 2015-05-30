@@ -42,7 +42,7 @@ protected:
     hit_t *resList;
 
     // pointer to position to write in bin
-    const static unsigned int BIN_COUNT = 256; //TODO reduce to 32
+    const static unsigned int BIN_COUNT = 32; //TODO reduce to 32
     unsigned int * diagonalBins[BIN_COUNT];
     const static unsigned int BIN_SIZE = MAX_DB_MATCHES / BIN_COUNT;
     unsigned int * __restrict binData;
