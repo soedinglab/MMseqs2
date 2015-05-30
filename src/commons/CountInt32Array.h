@@ -7,8 +7,8 @@
 class CountInt32Array {
 public:
     // 00000000000000000000000111111111
-    static const unsigned int MASK_9 = 0x000001FF;
-    static const unsigned int MASK_9_BIT = 9;
+    static const unsigned int MASK_9 = 0x0000007F;
+    static const unsigned int MASK_9_BIT = 7;
 
     CountInt32Array(unsigned int maxElement,
             size_t initBinSize);
@@ -42,7 +42,7 @@ private:
             unsigned int *binDataFrame, const size_t binSize);
 
     void hashElements(unsigned int const *inputArray, size_t N,
-            unsigned int **hashBins, const unsigned int MASK);
+            unsigned int **hashBins);
 
     size_t findDuplicates(unsigned int **bins,
                           unsigned int binCount,
