@@ -52,16 +52,15 @@ size_t CountInt32Array::findDuplicates(unsigned int **bins, unsigned int binCoun
             const unsigned int byteArrayPos = hashBinElement >> 3; // equal to  hashBinElement / 8
             const unsigned char bitPosMask = 1 << (hashBinElement & 7);  // 7 = 00000111
             if (duplicateBitArray[byteArrayPos] & bitPosMask){
+                if(outputArray + pos == lastOutputArrayPtr)
+                    goto outer;
                 outputArray[pos] = element;
                 pos++;
-                if( (outputArray + pos) >= lastOutputArrayPtr)
-                    goto outer;
+
             }
             duplicateBitArray[byteArrayPos] |= bitPosMask;
         }
-        outer:
         // append first position by iterating checking the results
-        size_t endPos = pos;
 //        for(size_t p = startPos; p < endPos; p++){
 //            const unsigned int element = outputArray[p];
 //
@@ -76,6 +75,7 @@ size_t CountInt32Array::findDuplicates(unsigned int **bins, unsigned int binCoun
 //            duplicateBitArray[byteArrayPos] &= ~(bitPosMask);
 //        }
         // clean memory the fast way if size is smaller duplicateBitArraySize
+        outer:
         if(duplicateBitArraySize > N){
             for (size_t n = 0; n < N; n++) {
                 const unsigned int element = binStartPos[n];
@@ -87,6 +87,7 @@ size_t CountInt32Array::findDuplicates(unsigned int **bins, unsigned int binCoun
         }
 
     }
+
     return pos;
 }
 
