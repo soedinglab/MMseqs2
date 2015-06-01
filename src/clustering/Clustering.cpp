@@ -235,6 +235,9 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
 
 
 Clustering::set_data Clustering::read_in_set_data(){
+    std::default_random_engine generator;
+    std::uniform_int_distribution<int> distribution(1,100);
+
     Clustering::set_data ret_struct;
 
     // n = overall sequence count
@@ -356,12 +359,12 @@ Clustering::set_data Clustering::read_in_set_data(){
 
                 //
                 similarityscore= similarityscore/maxSeqLength;
-                if(i==88){
-                    Debug(Debug::INFO)  << similarityscore <<"\t"<<i<<"\t"<<curr_element<<"\n";
-                }//Debug(Debug::INFO)  << similarityscore <<"\n";
+
+                //    Debug(Debug::INFO)  << similarityscore <<"\t"<<i<<"\t"<<curr_element<<"\n";
+                //Debug(Debug::INFO)  << similarityscore <<"\n";
             }
             //Debug(Debug::INFO)  << similarityscore <<"\n";
-
+            similarityscore=similarityscore*0.99+0.01*distribution(generator)/100*similarityscore;
             element_similarity_buffer[element_counter] = similarityscore;
             element_buffer[element_counter++] = (unsigned int) curr_element;
             element_size[curr_element]++;
@@ -376,7 +379,7 @@ Clustering::set_data Clustering::read_in_set_data(){
         }
         ret_struct.validids->push_back(i);
 
-        std::cout <<i <<"\t"<<clusterId <<"\n";
+
 
         // max_weight can not be bigger than 2^16
         if(element_counter > SHRT_MAX){
