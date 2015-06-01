@@ -5,7 +5,8 @@
 CountInt32Array::CountInt32Array(unsigned int maxElement, size_t initBinSize) {
     // find nearest upper power of 2^(x)
     size_t size = pow(2, ceil(log(maxElement)/log(2)));
-    size = size  >> (MASK_9_BIT + 3);; // space needed in bit array
+    size = size  >> (MASK_9_BIT + 3); // space needed in bit array
+    size = std::max(size, (size_t) 1); // minimal size of 1;
     duplicateBitArraySize = size;
     duplicateBitArray = new unsigned char[size];
     memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
@@ -25,19 +26,19 @@ CountInt32Array::~CountInt32Array(){
     delete [] binDataFrame;
 }
 
-size_t CountInt32Array::countElements(unsigned int const *inputArray, size_t N,
-        unsigned int *outputArray) {
+size_t CountInt32Array::countElements(unsigned int *inputArray, const size_t N, unsigned int *outputArray,
+                                      const unsigned int * lastOutputArrayPtr) {
     newStart:
     setupBinPointer(bins, binCount, binDataFrame, binSize);
-    hashElements(inputArray, N, this->bins, MASK_9);
+    hashElements(inputArray, N, this->bins);
     if(checkForOverflowAndResizeArray(bins, binCount, binSize) == true) // overflowed occurred
         goto newStart;
-    return findDuplicates(this->bins, binCount, outputArray);
+    return findDuplicates(this->bins, binCount, outputArray, lastOutputArrayPtr);
 }
 
-size_t CountInt32Array::findDuplicates(unsigned int **bins,
-        unsigned int binCount,
-        unsigned int *outputArray) {
+size_t CountInt32Array::findDuplicates(unsigned int **bins, unsigned int binCount,
+                                       unsigned int *outputArray,
+                                       const unsigned int * lastOutputArrayPtr) {
     size_t pos = 0;
     const unsigned int * bin_ref_pointer = binDataFrame;
     for (size_t bin = 0; bin < binCount; bin++) {
@@ -53,26 +54,29 @@ size_t CountInt32Array::findDuplicates(unsigned int **bins,
             if (duplicateBitArray[byteArrayPos] & bitPosMask){
                 outputArray[pos] = element;
                 pos++;
+                if( (outputArray + pos) >= lastOutputArrayPtr)
+                    goto outer;
             }
             duplicateBitArray[byteArrayPos] |= bitPosMask;
         }
+        outer:
         // append first position by iterating checking the results
         size_t endPos = pos;
-        for(size_t p = startPos; p < endPos; p++){
-            const unsigned int element = outputArray[p];
-
-            const unsigned int hashBinElement = element >> (MASK_9_BIT);
-            const unsigned int byteArrayPos = hashBinElement >> 3; // equal to  hashBinElement / 8
-            const unsigned char bitPosMask = 1 << (hashBinElement & 7); // 7 = 00000111
-            if (duplicateBitArray[byteArrayPos] & bitPosMask){
-                outputArray[pos] = element;
-                pos++;
-            }
-            // unset position
-            duplicateBitArray[byteArrayPos] &= ~(bitPosMask);
-        }
+//        for(size_t p = startPos; p < endPos; p++){
+//            const unsigned int element = outputArray[p];
+//
+//            const unsigned int hashBinElement = element >> (MASK_9_BIT);
+//            const unsigned int byteArrayPos = hashBinElement >> 3; // equal to  hashBinElement / 8
+//            const unsigned char bitPosMask = 1 << (hashBinElement & 7); // 7 = 00000111
+//            if (duplicateBitArray[byteArrayPos] & bitPosMask){
+//                outputArray[pos] = element;
+//                pos++;
+//            }
+//            // unset position
+//            duplicateBitArray[byteArrayPos] &= ~(bitPosMask);
+//        }
         // clean memory the fast way if size is smaller duplicateBitArraySize
-        if(N < duplicateBitArraySize){
+        if(duplicateBitArraySize > N){
             for (size_t n = 0; n < N; n++) {
                 const unsigned int element = binStartPos[n];
                 const unsigned int byteArrayPos = element >> (MASK_9_BIT + 3) ;
@@ -94,7 +98,7 @@ bool CountInt32Array::checkForOverflowAndResizeArray(unsigned int **bins,
     for (size_t bin = 0; bin < binCount; bin++) {
         const unsigned int *binStartPos = (bin_ref_pointer + bin * binSize);
         const size_t n = (bins[bin] - binStartPos);
-        // if one bin has more elements than binSize
+        // if one bin has more elements than BIN_SIZE
         // or the current bin pointer is at the end of the binDataFrame
         // reallocate new memory
         if( n > binSize || (bins[bin] - lastPosition) == 0) {
@@ -132,12 +136,12 @@ void CountInt32Array::setupBinPointer(unsigned int **bins, const unsigned int bi
 
 
 void CountInt32Array::hashElements(unsigned int const *inputArray, size_t N,
-        unsigned int **hashBins, const unsigned int MASK)
+        unsigned int **hashBins)
 {
     unsigned int * lastPosition = (binDataFrame + binCount * binSize) - 1;
     for(size_t n = 0; n < N; n++) {
         const unsigned int element = inputArray[n];
-        const unsigned int bin_id = (element & MASK);
+        const unsigned int bin_id = (element & MASK_9);
         *hashBins[bin_id] = element;
         // do not write over boundary of the data frame
         hashBins[bin_id] += ((hashBins[bin_id] - lastPosition) != 0) ? 1 : 0;

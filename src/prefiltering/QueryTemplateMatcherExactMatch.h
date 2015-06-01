@@ -22,14 +22,15 @@ public:
     // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
     std::pair<hit_t *, size_t>  matchQuery (Sequence * seq, unsigned int identityId);
 
-protected:
 
+    size_t evaluateBins(unsigned int *output);
+
+protected:
     // match sequence against the IndexTable
     void match(Sequence* seq);
-    const unsigned int MAX_DB_MATCHES = 16777216;
+    const static unsigned int MAX_DB_MATCHES = 16777216; //TODO think about it more
 
-    unsigned int * foundSequences;
-    unsigned int * counterOutpot;
+    unsigned int *counterOutput;
 
     std::pair<hit_t *, size_t> getResult(const int l, const unsigned int id,
                                                                          const unsigned short thr);
@@ -39,6 +40,18 @@ protected:
 
     // result hit buffer
     hit_t *resList;
+
+    // pointer to position to write in bin
+    const static unsigned int BIN_COUNT = 32; //TODO reduce to 32
+    unsigned int * diagonalBins[BIN_COUNT];
+    const static unsigned int BIN_SIZE = MAX_DB_MATCHES / BIN_COUNT;
+    unsigned int * __restrict binData;
+
+    void reallocBinMemory(unsigned int const binCount, size_t const binSize);
+
+    bool checkForOverflowAndResizeArray();
+
+    void setupBinPointer();
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
