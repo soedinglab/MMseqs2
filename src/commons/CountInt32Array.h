@@ -1,22 +1,23 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <sys/cdefs.h>
+#include <zconf.h>
 
 #ifndef COUNTIN32ARRAY_H
 #define COUNTIN32ARRAY_H
 class CountInt32Array {
 public:
     // 00000000000000000000000111111111
-    static const unsigned int MASK_9 = 0x000001FF;
-    static const unsigned int MASK_9_BIT = 9;
+    static const unsigned int MASK_9 = 0x0000007F;
+    static const unsigned int MASK_9_BIT = 7;
 
     CountInt32Array(unsigned int maxElement,
             size_t initBinSize);
 
     ~CountInt32Array();
 
-    size_t countElements(unsigned int const *inputArray, size_t N,
-            unsigned int *outputArray);
+    size_t countElements(unsigned int *inputArray, const size_t N, unsigned int *outputArray, const unsigned int * lastOutputArrayPtr);
 
 private:
 
@@ -42,10 +43,9 @@ private:
             unsigned int *binDataFrame, const size_t binSize);
 
     void hashElements(unsigned int const *inputArray, size_t N,
-            unsigned int **hashBins, const unsigned int MASK);
+            unsigned int **hashBins);
 
-    size_t findDuplicates(unsigned int **bins,
-                          unsigned int binCount,
-                          unsigned int *outputArray);
+    size_t findDuplicates(unsigned int **bins, unsigned int binCount, unsigned int *outputArray,
+                                           const unsigned int * lastOutputArrayPtr);
 };
 #endif
