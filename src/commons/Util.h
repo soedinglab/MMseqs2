@@ -101,7 +101,17 @@ public:
         while( *data !='\n' ) { data++; }
         return (data+1);
     }
-    
+
+    static inline char * getLine(char * data,char * line){
+        int keySize=0;
+        while(( data[keySize] == '\n' ) == false ) {
+            keySize++;
+        }
+        strncpy(line, data, keySize+1);
+        line[keySize] = '\0';
+        return line;
+    }
+
     static inline size_t skipWhitespace(char * data){
         size_t counter = 0;
         while( (data[counter] == ' ' || data[counter] == '\t') == true ) {
