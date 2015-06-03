@@ -11,7 +11,7 @@ class convertfiles{
 public:
     void getAlignmentscoresForCluster(std::string clusteringfile, std::string alignmentfile, std::string outputfile);
 
-
+    void convertDomainFileToFFindex(std::string domainscorefile, std::string domainIdentifierFile, std::string outputfile);
 };
 
 
