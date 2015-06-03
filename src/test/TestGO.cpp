@@ -299,6 +299,19 @@ int main(int argc, char **argv)
         convertfiles *cf = new convertfiles();
         cf->getAlignmentscoresForCluster(clusteringfile,alignmentfile,outputfile);
 
+    }else if (strcmp(argv[1],"-df")==0) {
+        if (argc != 5) {
+            Debug(Debug::INFO) << argc << "\n";
+            printHelp();
+
+        }
+        std::string domainscorefile = argv[2];
+        std::string domainIdentifierFile = argv[3];
+        std::string outputfile = argv[4];
+
+        convertfiles *cf = new convertfiles();
+        cf->convertDomainFileToFFindex(domainscorefile,domainIdentifierFile,outputfile);
+
     }else{
         printHelp();
         Debug(Debug::INFO)<<DistanceCalculator::uiLevenshteinDistance("bla","bla21");
@@ -313,8 +326,10 @@ void printHelp() {
     std::string usage("\nEvaluation commands\n");
     usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
     usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
-    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >");
-    usage.append("-cs <clustering_file> <alignment_file> <outputfile>");
+    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
+    usage.append("-cs <clustering_file> <alignment_file> <outputfile>\n");
+    usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile>\n");
+
 
     Debug(Debug::INFO) << usage << "\n";
     EXIT(EXIT_FAILURE);
