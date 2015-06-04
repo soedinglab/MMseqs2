@@ -10,6 +10,38 @@
 #include <DBWriter.h>
 #include "convertfiles.h"
 
+void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string suffix,
+                                                std::string outputfile) {
+    Debug(Debug::INFO) <<"transfering: "<<clusteringfile <<" to "<<outputfile<<suffix<<"cluster.tsv";
+
+    std::string cluster_ffindex_indexfile=clusteringfile+".index";
+
+    DBReader* cluster_ffindex_reader = new DBReader(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
+    cluster_ffindex_reader->open(DBReader::SORT);
+
+       std::ofstream outfile_stream;
+    outfile_stream.open(outputfile+suffix+"cluster.tsv");
+
+    outfile_stream<<"algorithm\tclusterid\tid2\n";
+    for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
+
+
+        char *representative=cluster_ffindex_reader->getDbKey(i);
+        char *data = cluster_ffindex_reader->getData(i);
+        char *idbuffer = new char[255 + 1];
+        while (*data != '\0') {
+            Util::parseKey(data, idbuffer);
+            outfile_stream<<suffix<<"\t"<<representative<<"\t"<<idbuffer<<"\n";
+            data = Util::skipLine(data);
+        }
+        outfile_stream.flush();
+    }
+    cluster_ffindex_reader->close();
+    cluster_ffindex_reader->~DBReader();
+    outfile_stream.close();
+
+}
+
 
 void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std::string alignmentfile,
                                                 std::string outputfile) {
@@ -33,7 +65,7 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
         char *linebuffer=new char[255+1];
-     
+
 
         std::set<std::string> clusterset;
 
@@ -128,7 +160,7 @@ void convertfiles::convertDomainFileToFFindex(std::string domainscorefile, std::
             const char* cluResultsOutData = cluResultsOutString.c_str();
             if (BUFFER_SIZE < strlen(cluResultsOutData)){
                 Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
-                << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
+                << ")\nIncrease bclusterset.erase(idbuffer);uffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
                 continue;
             }
 
@@ -166,5 +198,82 @@ void convertfiles::convertDomainFileToFFindex(std::string domainscorefile, std::
     dbw->close();
     dbw->~DBWriter();
     domainIdentifierFile_stream.close();
+
+}
+
+void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::string alignmentfile,
+                                                std::string outputfile, std::string suffix) {
+    Debug(Debug::INFO) <<clusteringfile <<alignmentfile<<outputfile;
+
+    std::string cluster_ffindex_indexfile=clusteringfile+".index";
+    std::string alignment_ffindex_indexfile=alignmentfile+".index";
+    DBReader* cluster_ffindex_reader = new DBReader(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
+    cluster_ffindex_reader->open(DBReader::SORT);
+    DBReader* alignment_ffindex_reader = new DBReader(alignmentfile.c_str(), alignment_ffindex_indexfile.c_str());
+    alignment_ffindex_reader->open(DBReader::SORT);
+
+    std::ofstream outfile_stream;
+    outfile_stream.open(outputfile+"/"+suffix+"domainscore.tsv");
+
+    outfile_stream<<"algorithm\tclusterid\tid2\tdomain_score\n";
+    for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
+
+
+        char *representative=cluster_ffindex_reader->getDbKey(i);
+        char *data = cluster_ffindex_reader->getData(i);
+        char *idbuffer = new char[255 + 1];
+        char *linebuffer=new char[255+1];
+
+
+        std::set<char*> clusterset;
+
+
+
+
+        while (*data != '\0') {
+            char *idbuf=new char[255 + 1];
+            Util::parseKey(data, idbuf);
+            clusterset.insert(idbuf);
+            data = Util::skipLine(data);
+        }
+
+        char *data_alignment = alignment_ffindex_reader->getDataByDBKey(representative);
+        if (data_alignment== NULL) {
+            //  Debug(Debug::INFO) <<representative<<"\n";
+            continue;
+        }
+        while (*data_alignment != '\0') {
+            Util::parseKey(data_alignment, idbuffer);
+            //Debug(Debug::INFO) <<idbuffer;
+            if(clusterset.find(idbuffer)!= clusterset.end()){
+                clusterset.erase(idbuffer);
+                outfile_stream<<suffix<<"\t"<<representative<<"\t"<<Util::getLine(data_alignment,linebuffer)<<"\n";
+            }
+            data_alignment = Util::skipLine(data_alignment);
+        }
+        for(char * id :clusterset){
+            if(strcmp(representative,id)==0){
+
+            }else{
+                if(alignment_ffindex_reader->getDataByDBKey(id)!=NULL){
+                    outfile_stream<<suffix<<"\t"<<representative<<"\t"<<id<<"0"<<"\n";
+                }
+            }
+
+        }
+
+
+        outfile_stream.flush();
+
+    }
+
+
+
+
+    alignment_ffindex_reader->close();
+    alignment_ffindex_reader->~DBReader();
+    cluster_ffindex_reader->close();
+    cluster_ffindex_reader->~DBReader();
+    outfile_stream.close();
 
 }
