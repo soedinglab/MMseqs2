@@ -225,15 +225,14 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
         char *linebuffer=new char[255+1];
 
 
-        std::set<char*> clusterset;
-        std::set<char*> clusterset2;
+        std::set<std::string> clusterset;
+        std::set<std::string> clusterset2;
 
 
 
         while (*data != '\0') {
-            char *idbuf=new char[255 + 1];
-            Util::parseKey(data, idbuf);
-            clusterset.insert(idbuf);
+            Util::parseKey(data, idbuffer);
+            clusterset.insert(std::string(idbuffer));
             data = Util::skipLine(data);
         }
 
@@ -242,20 +241,24 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
             //  Debug(Debug::INFO) <<representative<<"\n";
             continue;
         }
+        Debug(Debug::INFO) <<representative<<"\n";
         while (*data_alignment != '\0') {
             Util::parseKey(data_alignment, idbuffer);
-            //Debug(Debug::INFO) <<idbuffer;
+            Debug(Debug::INFO) <<idbuffer;
             if(clusterset.find(idbuffer)!= clusterset.end()){
-                clusterset2.insert(idbuffer);
+                clusterset2.insert(std::string(idbuffer));
                 outfile_stream<< prefix <<"\t"<<representative<<"\t"<<Util::getLine(data_alignment,linebuffer)<<"\n";
             }
             data_alignment = Util::skipLine(data_alignment);
         }
-        for(char * id :clusterset){
-            if(strcmp(representative,id)==0||clusterset2.find(id)!= clusterset2.end()){
+        outfile_stream.flush();
+        for(std::string id :clusterset){
+            strncpy(idbuffer, id.c_str(), id.length());
+            idbuffer[id.length()] = '\0';
+            if(strcmp(representative,id.c_str())==0||clusterset2.find(id)!= clusterset2.end()){
 
             }else{
-                if(alignment_ffindex_reader->getDataByDBKey(id)!=NULL){
+                if(alignment_ffindex_reader->getDataByDBKey(idbuffer)!=NULL){
                     outfile_stream<< prefix <<"\t"<<representative<<"\t"<<id<<"\t"<<"0"<<"\n";
                 }
             }
