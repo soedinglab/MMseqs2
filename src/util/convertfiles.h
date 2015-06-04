@@ -12,6 +12,10 @@ public:
     void getAlignmentscoresForCluster(std::string clusteringfile, std::string alignmentfile, std::string outputfile);
 
     void convertDomainFileToFFindex(std::string domainscorefile, std::string domainIdentifierFile, std::string outputfile);
+
+    void getDomainScoresForCluster(std::string clusteringfile, std::string alignmentfile, std::string outputfile, std::string suffix);
+
+    void convertFfindexToTsv(std::string clusteringfile, std::string suffix, std::string outputfile);
 };
 
 

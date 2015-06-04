@@ -312,6 +312,33 @@ int main(int argc, char **argv)
         convertfiles *cf = new convertfiles();
         cf->convertDomainFileToFFindex(domainscorefile,domainIdentifierFile,outputfile);
 
+    }else if (strcmp(argv[1],"-ds")==0) {
+        if (argc != 6) {
+            Debug(Debug::INFO) << argc << "\n";
+            printHelp();
+
+        }
+        std::string clusteringfile = argv[2];
+        std::string alignmentfile = argv[3];
+        std::string suffix = argv[4];
+        std::string outputfile = argv[5];
+
+        convertfiles *cf = new convertfiles();
+        cf->getDomainScoresForCluster(clusteringfile,alignmentfile,outputfile,suffix);
+
+    }else if (strcmp(argv[1],"-clusterToTsv")==0) {
+        if (argc != 5) {
+            Debug(Debug::INFO) << argc << "\n";
+            printHelp();
+
+        }
+        std::string clusteringfile = argv[2];
+        std::string suffix = argv[3];
+        std::string outputfolder = argv[4];
+
+        convertfiles *cf = new convertfiles();
+        cf->convertFfindexToTsv(clusteringfile, suffix, outputfolder);
+
     }else{
         printHelp();
         Debug(Debug::INFO)<<DistanceCalculator::uiLevenshteinDistance("bla","bla21");
@@ -329,6 +356,8 @@ void printHelp() {
     usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
     usage.append("-cs <clustering_file> <alignment_file> <outputfile>\n");
     usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile>\n");
+    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder>\n");
+    usage.append("-clusterToTsv <clustering_file> <suffix> <outputfolder>\n");
 
 
     Debug(Debug::INFO) << usage << "\n";
