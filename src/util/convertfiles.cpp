@@ -202,8 +202,8 @@ void convertfiles::convertDomainFileToFFindex(std::string domainscorefile, std::
 }
 
 void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::string alignmentfile,
-                                                std::string outputfile, std::string suffix) {
-    Debug(Debug::INFO) <<clusteringfile <<alignmentfile<<outputfile;
+                                                std::string outputfolder, std::string prefix) {
+    Debug(Debug::INFO) <<clusteringfile <<alignmentfile<< outputfolder;
 
     std::string cluster_ffindex_indexfile=clusteringfile+".index";
     std::string alignment_ffindex_indexfile=alignmentfile+".index";
@@ -213,7 +213,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
     alignment_ffindex_reader->open(DBReader::SORT);
 
     std::ofstream outfile_stream;
-    outfile_stream.open(outputfile+"/"+suffix+"domainscore.tsv");
+    outfile_stream.open(outputfolder +"/"+ prefix +"domainscore.tsv");
 
     outfile_stream<<"algorithm\tclusterid\tid2\tdomain_score\n";
     for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
@@ -226,7 +226,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
 
 
         std::set<char*> clusterset;
-
+        std::set<char*> clusterset2;
 
 
 
@@ -246,17 +246,17 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
             Util::parseKey(data_alignment, idbuffer);
             //Debug(Debug::INFO) <<idbuffer;
             if(clusterset.find(idbuffer)!= clusterset.end()){
-                clusterset.erase(idbuffer);
-                outfile_stream<<suffix<<"\t"<<representative<<"\t"<<Util::getLine(data_alignment,linebuffer)<<"\n";
+                clusterset2.insert(idbuffer);
+                outfile_stream<< prefix <<"\t"<<representative<<"\t"<<Util::getLine(data_alignment,linebuffer)<<"\n";
             }
             data_alignment = Util::skipLine(data_alignment);
         }
         for(char * id :clusterset){
-            if(strcmp(representative,id)==0){
+            if(strcmp(representative,id)==0||clusterset2.find(id)!= clusterset2.end()){
 
             }else{
                 if(alignment_ffindex_reader->getDataByDBKey(id)!=NULL){
-                    outfile_stream<<suffix<<"\t"<<representative<<"\t"<<id<<"0"<<"\n";
+                    outfile_stream<< prefix <<"\t"<<representative<<"\t"<<id<<"\t"<<"0"<<"\n";
                 }
             }
 

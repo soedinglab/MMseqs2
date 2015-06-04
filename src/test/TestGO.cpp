@@ -357,7 +357,7 @@ void printHelp() {
     usage.append("-cs <clustering_file> <alignment_file> <outputfile>\n");
     usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile>\n");
     usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder>\n");
-    usage.append("-clusterToTsv <clustering_file> <suffix> <outputfolder>\n");
+    usage.append("-clusterToTsv <clustering_file> <prefix> <outputfolder>\n");
 
 
     Debug(Debug::INFO) << usage << "\n";

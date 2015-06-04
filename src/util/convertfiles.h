@@ -13,9 +13,9 @@ public:
 
     void convertDomainFileToFFindex(std::string domainscorefile, std::string domainIdentifierFile, std::string outputfile);
 
-    void getDomainScoresForCluster(std::string clusteringfile, std::string alignmentfile, std::string outputfile, std::string suffix);
+    void getDomainScoresForCluster(std::string clusteringfile, std::string alignmentfile, std::string outputfolder, std::string prefix);
 
-    void convertFfindexToTsv(std::string clusteringfile, std::string suffix, std::string outputfile);
+    void convertFfindexToTsv(std::string clusteringfile, std::string prefix, std::string outputfolder);
 };
 
 
