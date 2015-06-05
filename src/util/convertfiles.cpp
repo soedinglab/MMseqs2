@@ -126,6 +126,7 @@ void convertfiles::convertDomainFileToFFindex(std::string domainscorefile, std::
     std::string *domainIdentifier=new std::string[domainIdentifiers.size()+1];
     for(std::string id:domainIdentifiers){
         domainIdentifier[number] =id;
+       // Debug(Debug::INFO)<<id<<"\n";
         number++;
     }
     /*
@@ -165,8 +166,8 @@ void convertfiles::convertDomainFileToFFindex(std::string domainscorefile, std::
             }
 
 
-            memcpy(clusterid, domainIdentifier[a].c_str(), domainIdentifier[a].length() * sizeof(char));
-            clusterid[domainIdentifier[a].length()]='\0';
+            memcpy(clusterid, domainIdentifier[lastid].c_str(), domainIdentifier[lastid].length() * sizeof(char));
+            clusterid[domainIdentifier[lastid].length()]='\0';
             memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length() * sizeof(char));
             dbw->write(outBuffer, cluResultsOutString.length(), clusterid);
             //clear res
