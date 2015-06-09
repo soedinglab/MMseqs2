@@ -14,7 +14,7 @@ class AffinityClustering {
 
 
         std::list<set *> execute();
-    void add_to_set(const unsigned int element_id,  set * curr_set,const unsigned int set_id);
+    static void add_to_set(const unsigned int element_id,  set * curr_set,const unsigned int set_id);
 
     private:
         unsigned int iterationnumber;

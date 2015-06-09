@@ -45,7 +45,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
 
 void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std::string alignmentfile,
                                                 std::string outputfile) {
-    Debug(Debug::INFO) <<clusteringfile <<alignmentfile<<outputfile;
+    //Debug(Debug::INFO) <<clusteringfile <<alignmentfile<<outputfile;
 
     std::string cluster_ffindex_indexfile=clusteringfile+".index";
     std::string alignment_ffindex_indexfile=alignmentfile+".index";
@@ -204,7 +204,7 @@ void convertfiles::convertDomainFileToFFindex(std::string domainscorefile, std::
 
 void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::string alignmentfile,
                                                 std::string outputfolder, std::string prefix) {
-    Debug(Debug::INFO) <<clusteringfile <<alignmentfile<< outputfolder;
+   // Debug(Debug::INFO) <<clusteringfile <<alignmentfile<< outputfolder;
 
     std::string cluster_ffindex_indexfile=clusteringfile+".index";
     std::string alignment_ffindex_indexfile=alignmentfile+".index";
@@ -245,7 +245,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
         Debug(Debug::INFO) <<representative<<"\n";
         while (*data_alignment != '\0') {
             Util::parseKey(data_alignment, idbuffer);
-            Debug(Debug::INFO) <<idbuffer;
+           // Debug(Debug::INFO) <<idbuffer;
             if(clusterset.find(idbuffer)!= clusterset.end()){
                 clusterset2.insert(std::string(idbuffer));
                 outfile_stream<< prefix <<"\t"<<representative<<"\t"<<Util::getLine(data_alignment,linebuffer)<<"\n";
