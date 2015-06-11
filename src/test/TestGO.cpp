@@ -4,6 +4,7 @@
 
 #include <Util.h>
 #include <DistanceCalculator.h>
+#include <convertfiles.h>
 #include "CompareGOTerms.h"
 
 
@@ -240,6 +241,7 @@ int main(int argc, char **argv)
                 if (protname_db_reader->getDataByDBKey(idbuffer) != NULL) {
                     idswithgo.push_back(std::string(idbuffer));
 
+
                 } else {
                     //Debug(Debug::INFO) << representative << "\t" << idbuffer << "\t" << "not available" <<"\n";
                 }
@@ -284,9 +286,61 @@ int main(int argc, char **argv)
 
 
 
-    }
+    }else if (strcmp(argv[1],"-cs")==0) {
+        if (argc != 5) {
+            Debug(Debug::INFO) << argc << "\n";
+            printHelp();
 
-    else{
+        }
+        std::string clusteringfile = argv[2];
+        std::string alignmentfile = argv[3];
+        std::string outputfile = argv[4];
+
+        convertfiles *cf = new convertfiles();
+        cf->getAlignmentscoresForCluster(clusteringfile,alignmentfile,outputfile);
+
+    }else if (strcmp(argv[1],"-df")==0) {
+        if (argc != 5) {
+            Debug(Debug::INFO) << argc << "\n";
+            printHelp();
+
+        }
+        std::string domainscorefile = argv[2];
+        std::string domainIdentifierFile = argv[3];
+        std::string outputfile = argv[4];
+
+        convertfiles *cf = new convertfiles();
+        cf->convertDomainFileToFFindex(domainscorefile,domainIdentifierFile,outputfile);
+
+    }else if (strcmp(argv[1],"-ds")==0) {
+        if (argc != 6) {
+            Debug(Debug::INFO) << argc << "\n";
+            printHelp();
+
+        }
+        std::string clusteringfile = argv[2];
+        std::string alignmentfile = argv[3];
+        std::string suffix = argv[4];
+        std::string outputfile = argv[5];
+
+        convertfiles *cf = new convertfiles();
+        cf->getDomainScoresForCluster(clusteringfile,alignmentfile,outputfile,suffix);
+
+    }else if (strcmp(argv[1],"-clusterToTsv")==0) {
+        if (argc != 5) {
+            Debug(Debug::INFO) << argc << "\n";
+            printHelp();
+
+        }
+        std::string clusteringfile = argv[2];
+        std::string suffix = argv[3];
+        std::string outputfolder = argv[4];
+
+        convertfiles *cf = new convertfiles();
+        cf->convertFfindexToTsv(clusteringfile, suffix, outputfolder);
+
+    }else{
+        printHelp();
         Debug(Debug::INFO)<<DistanceCalculator::uiLevenshteinDistance("bla","bla21");
     }
 
@@ -299,7 +353,13 @@ void printHelp() {
     std::string usage("\nEvaluation commands\n");
     usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
     usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
-    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >");
+    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
+    usage.append("-cs <clustering_file> <alignment_file> <outputfile>\n");
+    usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile>\n");
+    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder>\n");
+    usage.append("-clusterToTsv <clustering_file> <prefix> <outputfolder>\n");
+
+
     Debug(Debug::INFO) << usage << "\n";
     EXIT(EXIT_FAILURE);
 }

@@ -13,7 +13,9 @@ set(util_source_files
   legacycs219.cpp
   mergecluster.cpp
   mergecluster.h
+  convertfiles.h
+  convertfiles.cpp
 )
-add_library(util ${util_source_files})
+add_library(util ${util_source_files} )
 
 target_link_libraries(util prefiltering commons)
