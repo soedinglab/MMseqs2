@@ -15,7 +15,9 @@ set(clustering_source_files
   DistanceCalculator.h
   SetCover2.cpp
   SetCover2.h
+  SetCover3.h
+  SetCover3.cpp
 )
-add_library(clustering ${clustering_source_files} )
+add_library(clustering ${clustering_source_files})
 
 target_link_libraries(clustering commons)
