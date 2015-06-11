@@ -18,23 +18,23 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
     // needed as buffer
     this->counterOutput = new unsigned int[MAX_DB_MATCHES];
     memset(counterOutput, 0, sizeof(unsigned int) * MAX_DB_MATCHES);
-    this->counter = new CountInt32Array(dbSize, MAX_DB_MATCHES / 512);
+    this->counter = new CountInt32Array(dbSize, BIN_SIZE ); //TODO what is the right choice?!?
 }
 
 QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
     delete counter;
     delete [] counterOutput;
-    delete binData;
+    delete [] binData;
     free(resList);
 }
 
 size_t QueryTemplateMatcherExactMatch::evaluateBins(unsigned int *output) {
     size_t localResultSize = 0;
-    const size_t N =  (diagonalBins[0] - binData);
-    memcpy(output, binData, sizeof(unsigned int) * N);
-    localResultSize += N;
+//    const size_t N =  (diagonalBins[0] - binData);
+//    memcpy(output, binData, sizeof(unsigned int) * N);
+//    localResultSize += N;
     const unsigned int * lastPointer = output + MAX_DB_MATCHES;
-    for(size_t bin = 1; bin < BIN_COUNT; bin++){
+    for(size_t bin = 0; bin < BIN_COUNT; bin++){
         unsigned int *binStartPos = (binData + bin * BIN_SIZE);
         const size_t N =  (diagonalBins[bin] - binStartPos);
 //        std::sort(binStartPos, binStartPos + N);
@@ -47,7 +47,11 @@ size_t QueryTemplateMatcherExactMatch::evaluateBins(unsigned int *output) {
 //            }
 //            prefId = currId;
 //        }
+        if(output + localResultSize >= lastPointer)
+            break;
+
         localResultSize += counter->countElements(binStartPos, N, output + localResultSize, lastPointer);
+
     }
     return localResultSize;
 }
@@ -120,14 +124,15 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
             // generate k-mer list
             const IndexEntryLocal * entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[kmerPos], &seqListSize);
 
-            unsigned int * lastPosition = (binData + BIN_COUNT * BIN_SIZE) - 1;
+            const unsigned int * lastPosition = (binData + BIN_COUNT * BIN_SIZE) - 1;
             for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
                 const unsigned int seqId = entry.seqId;
-                const unsigned char diagonal = (i - j)/8;
-                *diagonalBins[diagonal] = seqId;
-                diagonalBins[diagonal] += ((diagonalBins[diagonal] - lastPosition) != 0) ? 1 : 0; //TODO what to do with it?
+                const unsigned char diagonal = (i - j);
+                const unsigned char diagonal2 = diagonal/static_cast<unsigned char>(64);
+                *diagonalBins[diagonal2] = seqId;
+                diagonalBins[diagonal2] += ((diagonalBins[diagonal2] - lastPosition) != 0) ? 1 : 0; //TODO what to do with it?
                 //if((diagonalBins[diagonal] - lastPosition) == 0)
                // std::cout << (int)i << " " << (int) j << " " << (int) diagonal << std::endl;
             }
