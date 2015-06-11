@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-CountInt32Array::CountInt32Array(unsigned int maxElement, size_t initBinSize) {
+CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
     // find nearest upper power of 2^(x)
     size_t size = pow(2, ceil(log(maxElement)/log(2)));
     size = size  >> (MASK_9_BIT + 3); // space needed in bit array
@@ -43,21 +43,22 @@ size_t CountInt32Array::findDuplicates(unsigned int **bins, unsigned int binCoun
     const unsigned int * bin_ref_pointer = binDataFrame;
     for (size_t bin = 0; bin < binCount; bin++) {
         const unsigned int *binStartPos = (bin_ref_pointer + bin * binSize);
-        const size_t N = (bins[bin] - binStartPos);
-        size_t startPos = pos;
+        const size_t currBinSize = (bins[bin] - binStartPos);
         // find duplicates
-        for (size_t n = 0; n < N; n++) {
+        for (size_t n = 0; n < currBinSize; n++) {
             const unsigned int element = binStartPos[n];
             const unsigned int hashBinElement = element >> (MASK_9_BIT);
             const unsigned int byteArrayPos = hashBinElement >> 3; // equal to  hashBinElement / 8
             const unsigned char bitPosMask = 1 << (hashBinElement & 7);  // 7 = 00000111
+            // check if duplicate element was found before
             if (duplicateBitArray[byteArrayPos] & bitPosMask){
-                if(outputArray + pos == lastOutputArrayPtr)
+                if(outputArray + pos >= lastOutputArrayPtr){
                     goto outer;
+                }
                 outputArray[pos] = element;
                 pos++;
-
             }
+            // set element corresponding bit in byte
             duplicateBitArray[byteArrayPos] |= bitPosMask;
         }
         // append first position by iterating checking the results
@@ -74,12 +75,12 @@ size_t CountInt32Array::findDuplicates(unsigned int **bins, unsigned int binCoun
 //            // unset position
 //            duplicateBitArray[byteArrayPos] &= ~(bitPosMask);
 //        }
-        // clean memory the fast way if size is smaller duplicateBitArraySize
         outer:
-        if(duplicateBitArraySize > N){
-            for (size_t n = 0; n < N; n++) {
+        // clean memory faster if current bin size is smaller duplicateBitArraySize
+        if(currBinSize < duplicateBitArraySize){
+            for (size_t n = 0; n < currBinSize; n++) {
                 const unsigned int element = binStartPos[n];
-                const unsigned int byteArrayPos = element >> (MASK_9_BIT + 3) ;
+                const unsigned int byteArrayPos = element >> (MASK_9_BIT + 3);
                 duplicateBitArray[byteArrayPos] = 0;
             }
         }else{
@@ -102,7 +103,7 @@ bool CountInt32Array::checkForOverflowAndResizeArray(unsigned int **bins,
         // if one bin has more elements than BIN_SIZE
         // or the current bin pointer is at the end of the binDataFrame
         // reallocate new memory
-        if( n > binSize || (bins[bin] - lastPosition) == 0) {
+        if( n > binSize || bins[bin] >= lastPosition) {
             // overflow detected
             // find nearest upper power of 2^(x)
             std::cout << "Found overlow" << std::endl;
@@ -145,6 +146,6 @@ void CountInt32Array::hashElements(unsigned int const *inputArray, size_t N,
         const unsigned int bin_id = (element & MASK_9);
         *hashBins[bin_id] = element;
         // do not write over boundary of the data frame
-        hashBins[bin_id] += ((hashBins[bin_id] - lastPosition) != 0) ? 1 : 0;
+        hashBins[bin_id] += (hashBins[bin_id] >= lastPosition) ? 0 : 1;
     }
 }

@@ -12,8 +12,8 @@ public:
     static const unsigned int MASK_9 = 0x0000007F;
     static const unsigned int MASK_9_BIT = 7;
 
-    CountInt32Array(unsigned int maxElement,
-            size_t initBinSize);
+    CountInt32Array(size_t maxElement,
+                    size_t initBinSize);
 
     ~CountInt32Array();
 
