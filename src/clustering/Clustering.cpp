@@ -1,3 +1,4 @@
+#include <random>
 #include "Clustering.h"
 #include "SetCover3.h"
 
@@ -395,7 +396,7 @@ Clustering::set_data Clustering::read_in_set_data(){
             Debug(Debug::ERROR)  << "ERROR: Set has too many elements. Set name is "
                       << dbKey << " and has has the weight " << element_counter <<".\n";
         }
-        ret_struct.max_weight = std::max((unsigned short)element_counter, ret_struct.max_weight);
+        ret_struct.max_weight = std::max(element_counter, ret_struct.max_weight);
         // set pointer
         memcpy(elements + curr_start_pos, element_buffer, sizeof(unsigned int) * element_counter);
         memcpy(similarities + curr_start_pos, element_similarity_buffer, sizeof(float) * element_counter);
