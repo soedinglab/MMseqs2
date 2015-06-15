@@ -12,20 +12,20 @@
 
 int main (int argc, const char * argv[])
 {
-    
-    SubstitutionMatrix subMat("../../data/blosum62.out",8.0);
-    
+    const int reductionAlphabetSize = 4;
+    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out",8.0);
+    subMat.print(subMat.subMatrix, subMat.int2aa,21);
     for(int i = 0; i<subMat.alphabetSize;i++)
-        printf("(%d)%c\t",i,subMat.int2aa[i]);
+        printf("(%d, %c) ",i,subMat.int2aa[i]);
     printf("\n");
-    ReducedMatrix redMat(subMat.probMatrix, 5);
+    ReducedMatrix redMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, reductionAlphabetSize, subMat.getBitFactor());
     std::cout << "\n";
     printf("Normal alphabet : ");
     for(int i = 0; i<subMat.alphabetSize;i++)
-        printf("%c\t",subMat.int2aa[i]);
+        printf("(%c) ",subMat.int2aa[i]);
     printf("\nReduced alphabet: ");
     for(int i = 0; i<redMat.alphabetSize;i++)
-        printf("%c\t",redMat.int2aa[i]);
+        printf("(%c) ",redMat.int2aa[i]);
     std::cout << "\nReduced alphabet size: " << redMat.alphabetSize << "\n";
 
     std::cout << "aa2int: \n";
@@ -49,10 +49,13 @@ int main (int argc, const char * argv[])
     std::cout << "\n";
 
     printf("\n\nOriginal substitution matrix:\n");
-//    subMat.print();
+    subMat.print(subMat.subMatrix, subMat.int2aa,21);
+    subMat.print(subMat.probMatrix, subMat.int2aa,21);
 
     printf("\n\nReduced substitution matrix:\n");
-//    redMat.print();
+    subMat.print(redMat.subMatrix, redMat.int2aa,reductionAlphabetSize);
+    subMat.print(redMat.probMatrix, redMat.int2aa,reductionAlphabetSize);
+
 
     return 0;
 }
