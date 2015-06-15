@@ -30,6 +30,29 @@ public:
 
     unsigned int computeScoreThreshold(size_t maxHitsPerQuery);
 
+    // compute look up table based on stirling approximation
+    static void computeFactorial(double *output, const size_t range) {
+        output[0] = log(1.0);
+        for(size_t score = 1; score < range; score++){
+            const double scoreDbl = static_cast<double>(score);
+
+            const double S_fact = std::min(std::numeric_limits<double>::max(),
+                                           sqrt(2 * M_PI * scoreDbl) * pow(scoreDbl / exp(1), scoreDbl) * exp(1 / (12  * scoreDbl)));
+            output[score] = log(S_fact);
+        }
+    }
+
+    // compute -log(p)
+    static inline double computeLogProbability(const unsigned short rawScore, const unsigned int dbSeqLen,
+                                               const double kmerMatchProb, const double logMatchProb,
+                                               const double logScoreFactorial) {
+        const double score = static_cast<double>(rawScore);
+        const double dbSeqLenDbl = static_cast<double>(dbSeqLen);
+        const double mu = kmerMatchProb * dbSeqLenDbl;
+        const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
+        const double first_term = -(mu * score /(score + 1));
+        return first_term + mid_term - logScoreFactorial;
+    }
 private:
 
     //log match prob (mu) of poisson distribution
@@ -39,7 +62,5 @@ private:
     // S_fact = score!
     double *logScoreFactorial;
 
-    // compute -log(p)
-    double computeLogProbabiliy(const unsigned short rawScore, const unsigned int dbSeqLen);
 };
 #endif /* defined(QUERYSCORESEMILOCAL_H) */

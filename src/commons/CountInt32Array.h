@@ -9,8 +9,8 @@
 class CountInt32Array {
 public:
     // 00000000000000000000000111111111
-    static const unsigned int MASK_9 = 0x0000007F;
-    static const unsigned int MASK_9_BIT = 7;
+    static const unsigned int MASK_9 = 0x0000003F;
+    static const unsigned int MASK_9_BIT = 6;
 
     CountInt32Array(size_t maxElement,
                     size_t initBinSize);
