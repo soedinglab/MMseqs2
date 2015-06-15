@@ -22,6 +22,7 @@ int search (int argc, const char * argv[]) {
 
     Parameters par;
     std::vector<MMseqsParameter> params = par.combineList(par.alignment, par.prefilter);
+    params.push_back(par.PARAM_NUM_ITERATIONS);
     par.parseParameters(argc, argv, usage, params, 4);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
@@ -30,6 +31,7 @@ int search (int argc, const char * argv[]) {
     Debug::setDebugLevel(par.verbosity);
     if (par.numIterations > 1) {
         CommandCaller cmd;
+        cmd.addVariable("NUM_IT", SSTR(par.numIterations));
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.createprofiledb));

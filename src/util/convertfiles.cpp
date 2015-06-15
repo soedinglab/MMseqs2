@@ -4,9 +4,9 @@
 
 #include <Debug.h>
 #include <DBReader.h>
-#include <bits/stl_set.h>
+#include <set>
 #include <sstream>
-#include <bits/stl_list.h>
+#include <list>
 #include <DBWriter.h>
 #include "convertfiles.h"
 

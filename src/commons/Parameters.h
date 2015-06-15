@@ -32,11 +32,11 @@ public:
 
     static const int SEARCH_GLOBAL = 0;
     static const int SEARCH_LOCAL = 1;
-
+    static const int SEARCH_LOCAL_FAST = 2;
 
     static const int SET_COVER = 0;
-    static const int GREEDY = 2;
     static const int AFFINITY = 1;
+    static const int GREEDY = 2;
     static const int SET_COVER3 = 3;
 
     static const int APC_ALIGNMENTSCORE=1;
@@ -68,14 +68,14 @@ public:
 
     std::string mmdir;
 
-    std::string scoringMatrixFile;           // path to scoring matrix
-    size_t maxSeqLen;                   // sequence length
-    size_t maxResListLen;               // Maximal result list length per query
-    int    verbosity;                   // log level
-    int    querySeqType;                // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
-    int    targetSeqType;               // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
-    int    threads;                     // Amounts of threads
-    bool   keepTempFiles;               // Do not delete temp files
+    std::string scoringMatrixFile;       // path to scoring matrix
+    size_t maxSeqLen;                    // sequence length
+    size_t maxResListLen;                // Maximal result list length per query
+    int    verbosity;                    // log level
+    int    querySeqType;                 // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
+    int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
+    int    threads;                      // Amounts of threads
+    bool   keepTempFiles;                // Do not delete temp files
     
     // PREFILTER
     float  sensitivity;                  // target sens
@@ -83,21 +83,21 @@ public:
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
     float  zscoreThr;                    // z score threshold for global matching
-    int searchMode;                     // Local search type
-    bool profile;                        // using profile information
-    bool nucl;                           // using nucl informatoin
+    int    searchMode;                   // Local search type
+    bool   profile;                      // using profile information
+    bool   nucl;                         // using nucl informatoin
     bool   compBiasCorrection;           // Aminoacid composiont correction
     bool   fastMode;                     // Search 20.000 times faster than BLAST in (local search only)
-    int   spacedKmer;                    // Spaced Kmers
+    int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks
     bool   splitAA;                      // Split database by amino acid count instead
     int    skip;                         // Skip amino acid positions
     
     // ALIGNMENT
-    std::string ffindexPrefDB;         // prefilter database (input for alignment module)
-    float  evalThr;                     // e-value threshold for acceptance
-    float  covThr;                      // coverage threshold for acceptance
-    int    maxRejected;                 // after n sequences that are above eval stop
+    std::string ffindexPrefDB;           // prefilter database (input for alignment module)
+    float  evalThr;                      // e-value threshold for acceptance
+    float  covThr;                       // coverage threshold for acceptance
+    int    maxRejected;                  // after n sequences that are above eval stop
     float  seqIdThr;                     // sequence identity threshold for acceptance
 
     // CLUSTERING
@@ -112,9 +112,9 @@ public:
     //AFFINITYCLUSTERING
     int maxIteration;                   // Maximum number of iterations of affinity clustering.
     int convergenceIterations;          // Number of iterations the representatives have to stay constant.
-    float dampingFactor;                  // Reduces oscillation. Value in range of 0.5< <1.
+    float dampingFactor;                // Reduces oscillation. Value in range of 0.5< <1.
     int similarityScoreType;            // Type of score to use for affinity clustering. (1) alignment score. (2) coverage (3)sequence identity (4)E-value.
-    float preference;                  //Preference value influences the number of clusters (default=0). High values lead to more clusters.
+    float preference;                   // Preference value influences the number of clusters (default=0). High values lead to more clusters.
 
     //extractorf
     size_t orfMinLength;
