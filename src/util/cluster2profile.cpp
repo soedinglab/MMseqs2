@@ -105,7 +105,6 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
             Util::parseKey(data, dbKey);
             if(strcmp(dbKey, queryId) != 0){
                 char * dbSeqData = tdbr->getDataByDBKey(dbKey);
-                std::cout << dbKey << " " << dbSeqData << std::endl;
                 dbSeqs[pos]->mapSequence(0, dbKey, dbSeqData);
                 seqSet.push_back(dbSeqs[pos]);
                 pos++;
@@ -116,11 +115,13 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
         MultipleAlignment::MSAResult res = msaAligner.computeMSA(&centerSeq, seqSet, true);
         //MultipleAlignment::print(res);
 
-        const char * pssmData = pssmCalculator.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence);
+        char * pssmData = (char*) pssmCalculator.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence);
         size_t pssmDataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
-
+        for(size_t i = 0; i < pssmDataSize; i++){
+            pssmData[i] = pssmData[i] ^ 0x80;
+        }
         //pssm.printProfile(res.centerLength);
-        //pssm.printPSSM(res.centerLength);
+        //pssmCalculator.printPSSM(res.centerLength);
 
         ffindex_insert_memory(data_file,  index_file,     &offset_sequence,
                               (char *) pssmData,  pssmDataSize , queryId);

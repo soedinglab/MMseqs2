@@ -21,7 +21,7 @@ Parameters::Parameters():
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "[int]\tSplits target databases in n equally distributed chunks",typeid(int),(void *) &split),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","\tTry to find the best split for the target database by amino acid count instead.",typeid(int), (void *) &splitAA),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "[file]\tAmino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile),
-        PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Global: 0 Local: 1",typeid(int), (void *) &searchMode),
+        PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Global: 0 Local: 1 Local fast: 2",typeid(int), (void *) &searchMode),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--no-comp-bias-corr", "Compositional bias","Switch off local amino acid composition bias correction",typeid(bool), (void *) &compBiasCorrection),
         PARAM_FAST_MODE(PARAM_FAST_MODE_ID,"--fast-mode", "Fast Mode", "Fast search is using Z-score instead of logP-Value and extracts hits with a score higher than 6",typeid(bool), (void *) &fastMode),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "Spaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer ),
