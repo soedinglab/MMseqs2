@@ -83,7 +83,7 @@ void TimeTest::runTimeTest (){
         BaseMatrix* m = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
         BaseMatrix* subMat;
         if (alphabetSize < 21)
-            subMat = new ReducedMatrix(m->probMatrix, m->subMatrixPseudoCounts, alphabetSize);
+            subMat = new ReducedMatrix(m->probMatrix, m->subMatrixPseudoCounts, alphabetSize, 8.0);
         else
             subMat = m;
 
@@ -91,8 +91,8 @@ void TimeTest::runTimeTest (){
         ExtendedSubstitutionMatrix* _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, alphabetSize);
 
 
-        for(int isSpaced = 0; isSpaced < 2; isSpaced++ ){
-            for(int isLocal = 0; isLocal < 2; isLocal++ ){
+        for(int isSpaced = 1; isSpaced < 2; isSpaced++ ){
+            for(int isLocal = 1; isLocal < 2; isLocal++ ){
                 for (int kmerSize = 6; kmerSize <= 7; kmerSize++){
 #pragma omp parallel for schedule(static)
                     for (int i = 0; i < threads; i++){
