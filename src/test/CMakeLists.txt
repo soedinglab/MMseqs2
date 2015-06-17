@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
 set(testalignment TestAlignment.cpp )
-add_executable(test_alignment ${testalignment})
+add_executable(test_alignment ${testalignment} )
 
 target_link_libraries(test_alignment util)
 target_link_libraries(test_alignment workflow)
@@ -46,6 +46,28 @@ add_executable(testdb ${testdb})
 target_link_libraries(testdb util)
 target_link_libraries(testdb workflow)
 target_link_libraries(testdb ffindex)
+
+set(test_clustering TestClustering.cpp )
+add_executable(test_clustering ${test_clustering})
+
+target_link_libraries(test_clustering util)
+target_link_libraries(test_clustering workflow)
+target_link_libraries(test_clustering ffindex)
+
+
+set(test_counting TestCounting.cpp )
+add_executable(test_counting ${test_counting})
+
+target_link_libraries(test_counting util)
+target_link_libraries(test_counting workflow)
+target_link_libraries(test_counting ffindex)
+
+
+set(test_reduced TestReduceMatrix.cpp )
+add_executable(test_reduced ${test_reduced})
+
+target_link_libraries(test_reduced util)
+
 
 set(testgo TestGO.cpp )
 add_executable(testgo ${testgo})
