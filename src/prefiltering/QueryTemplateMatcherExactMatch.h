@@ -23,25 +23,29 @@ public:
     std::pair<hit_t *, size_t>  matchQuery (Sequence * seq, unsigned int identityId);
 
     // find duplicates in the diagonal bins
-    size_t evaluateBins(unsigned int *output);
+    size_t evaluateBins(CounterResult *output);
 
 protected:
     // match sequence against the IndexTable
     void match(Sequence* seq);
     const static unsigned int MAX_DB_MATCHES = 16777216;
 
-    unsigned int * counterOutput;
+    CounterResult * counterOutput;
 
     std::pair<hit_t *, size_t> getResult(const int l, const unsigned int id,
                                          const unsigned short thr);
     // result hit buffer
     CountInt32Array * counter;
 
+    static bool compareCounterResult(CounterResult first, CounterResult second){
+        return (first.id > second.id) ? true : false;
+    }
+
     // result hit buffer
     hit_t *resList;
 
     // pointer to position to write in bin
-    const static unsigned int BIN_COUNT = 4;
+    const static unsigned int BIN_COUNT = 16;
     unsigned int * diagonalBins[BIN_COUNT];
     const static unsigned int BIN_SIZE = MAX_DB_MATCHES / (BIN_COUNT / 2);
     unsigned int * __restrict binData;

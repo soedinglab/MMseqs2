@@ -1,7 +1,6 @@
 //
 // Created by mad on 5/26/15.
 //
-#include <strstream>
 #include "QueryTemplateMatcherExactMatch.h"
 #include "QueryScoreLocal.h"
 
@@ -12,8 +11,8 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
         : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, false, maxSeqLen) {
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
     this->binData = new unsigned int[BIN_COUNT * BIN_SIZE];
-    this->counterOutput = new unsigned int[MAX_DB_MATCHES];
-    memset(counterOutput, 0, sizeof(unsigned int) * MAX_DB_MATCHES);
+    this->counterOutput = new CounterResult[MAX_DB_MATCHES];
+    memset(counterOutput, 0, sizeof(CounterResult) * MAX_DB_MATCHES);
     this->counter = new CountInt32Array(dbSize, BIN_SIZE ); //TODO what is the right choice?!?
     // needed for p-value calc.
     this->mu = kmerMatchProb;
@@ -27,17 +26,17 @@ QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
     delete counter;
 }
 
-size_t QueryTemplateMatcherExactMatch::evaluateBins(unsigned int *output) {
+size_t QueryTemplateMatcherExactMatch::evaluateBins(CounterResult *output) {
     size_t localResultSize = 0;
-    const unsigned int * lastPointer = output + MAX_DB_MATCHES;
+    const CounterResult * lastPointer = output + MAX_DB_MATCHES;
     for(size_t bin = 0; bin < BIN_COUNT; bin++){
         unsigned int *binStartPos = binData + (bin * BIN_SIZE);
         const size_t N =  (diagonalBins[bin] - binStartPos);
 
-        // check if overflow occurred
-        if(output + localResultSize >= lastPointer)
+        // check if possible overflow can occurred
+        if(output + localResultSize + N >= lastPointer)
             break;
-        localResultSize += counter->countElements(binStartPos, N, output + localResultSize, lastPointer);
+        localResultSize += counter->countElements(binStartPos, N, output + localResultSize);
     }
     return localResultSize;
 }
@@ -102,7 +101,7 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
                 const unsigned char j = entry.position_j;
                 const unsigned int seqId = entry.seqId;
                 const unsigned char diagonal = (i - j);
-                const unsigned char diagonal2 = diagonal/static_cast<unsigned char>(64);
+                const unsigned char diagonal2 = diagonal/static_cast<unsigned char>(16);
                 *diagonalBins[diagonal2] = seqId;
                 diagonalBins[diagonal2] += (diagonalBins[diagonal2] >= lastPosition)  ? 0 : 1;
             }
@@ -122,13 +121,15 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
     stats->diagonalOverflow = (checkForOverflow() == true) ? 1 : 0;
 }
 
+
+
 std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(const int l,
                                                                       const unsigned int id,
                                                                       const unsigned short thr) {
     size_t elementCounter = 0;
     size_t resultSize = stats->doubleMatches;
     //std::sort(foundSequences, foundSequences + resultSize);
-    std::sort(counterOutput, counterOutput + resultSize);
+    std::sort(counterOutput, counterOutput + resultSize, compareCounterResult); // TODO
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
         const unsigned short rawScore  = l;
@@ -139,9 +140,9 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(const int 
         elementCounter++;
     }
 
-    unsigned int seqIdPrev = counterOutput[0];
-    unsigned short scoreMax = 1;
-
+    unsigned int   seqIdPrev = counterOutput[0].id;
+    unsigned short scoreMax =  counterOutput[0].count;
+  //  std::cout << seqIdPrev << " " << (int) counterOutput[0].count << std::endl;
     if(resultSize == 1){
         hit_t *result = (resList + elementCounter);
         result->seqId = seqIdPrev;
@@ -151,12 +152,14 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(const int 
         elementCounter++;
     }
     for (size_t i = 1; i < resultSize; i++) {
-        const unsigned int seqIdCurr = counterOutput[i];
+        const unsigned int seqIdCurr = counterOutput[i].id;
+        const unsigned int scoreCurr = counterOutput[i].count;
+
         // if new sequence occurs or end of data write the result back
-        scoreMax += 1;
         if (seqIdCurr != seqIdPrev || i == (resultSize - 1)) {
             // write result to list
             if(scoreMax > thr && id != seqIdPrev){
+                scoreMax += (seqIdCurr != seqIdPrev ) ? 0 : scoreCurr;
                 hit_t *result = (resList + elementCounter);
                 result->seqId = seqIdPrev;
                 result->prefScore = scoreMax;
@@ -170,6 +173,8 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(const int 
             // reset values
             scoreMax = 0;  // current best score
         }
+        scoreMax += scoreCurr;
+
     }
 
     if(elementCounter > 1){
