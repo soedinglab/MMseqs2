@@ -58,6 +58,11 @@ protected:
     // the following variables are needed to calculate the Z-score computation
     double mu;
     double sqrtMu;
+    // array to pre buffer diagonals
+    static const int ENTRIES_BUFFER_SIZE = 131072;
+    IndexEntryLocal * entriesBuffer;
+
+    void fillDiagonals(IndexEntryLocal *pLocal, size_t pos);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
