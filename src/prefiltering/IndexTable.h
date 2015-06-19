@@ -11,14 +11,15 @@
 #include <fstream>
 #include <algorithm>
 #include <list>
+#include <sys/mman.h>
 
 #include "Sequence.h"
 #include "Indexer.h"
 #include "Debug.h"
 #include "Util.h"
 
-// IndexEntryLocal is an entry with possition and seqId for a kmer
-// strucutre needs to be packed or it will need 8 bytes instead of 6
+// IndexEntryLocal is an entry with position and seqId for a kmer
+// structure needs to be packed or it will need 8 bytes instead of 6
 struct __attribute__((__packed__)) IndexEntryLocal {
     unsigned int seqId;
     unsigned short position_j;
@@ -38,7 +39,7 @@ class IndexTable {
             tableSize = Util::ipow(alphabetSize, kmerSize);
 
             table = new char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
-            memset(table, 0, sizeof(char * ) * (tableSize + 1));
+            memset(table, 0, sizeof(char * ) * (tableSize + 1)); // set all pointers to 0
 
             idxer = new Indexer(alphabetSize, kmerSize);
         
@@ -117,6 +118,8 @@ class IndexTable {
             Debug(Debug::WARNING) << "Copy " << this->tableEntriesNum
                                   << " Entries (" <<  this->tableEntriesNum*this->sizeOfEntry  << " byte)\n";
             memcpy ( this->entries , pentries, this->tableEntriesNum * this->sizeOfEntry );
+            munmap(pentries, this->tableEntriesNum * this->sizeOfEntry ); // free mapped memory
+
             Debug(Debug::WARNING) << "Setup Sizes  \n";
             char* it = this->entries;
             // set the pointers in the index table to the start of the list for a certain k-mer
@@ -124,6 +127,8 @@ class IndexTable {
                 table[i] = it;
                 it += sizes[i] * this->sizeOfEntry;
             }
+            munmap(sizes, tableSize * sizeof(size_t) ); // free mapped memory
+
             table[tableSize] = it;
             Debug(Debug::WARNING) << "Read IndexTable ... Done\n";
 
@@ -217,7 +222,8 @@ class IndexTable {
         // alphabetSize**kmerSize
         size_t tableSize;
     
-        // Index table: contains pointers to the point in the entries array where starts the list of sequence ids for a certain k-mer
+        // Index table: contains pointers to the k-mer start position in entries array
+        // Needed for fast access
         char** __restrict table;
 
         // Index table entries: ids of sequences containing a certain k-mer, stored sequentially in the memory
