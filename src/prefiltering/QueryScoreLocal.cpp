@@ -15,16 +15,8 @@ QueryScoreLocal::QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, sh
     memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
     this->logMatchProb = log(kmerMatchProb);
     this->logScoreFactorial = new double[SCORE_RANGE];
-
     // pre compute the factorial of all possible scores
-    logScoreFactorial[0] = log(1.0);
-    for(size_t score = 1; score < SCORE_RANGE; score++){
-        const double scoreDbl = static_cast<double>(score);
-
-        const double S_fact = std::min(std::numeric_limits<double>::max(),
-                             sqrt(2 * M_PI * scoreDbl) * pow(scoreDbl / exp(1), scoreDbl) * exp(1 / (12  * scoreDbl)));
-        logScoreFactorial[score] = log(S_fact);
-    }
+    computeFactorial(logScoreFactorial, SCORE_RANGE);
 }
 
 QueryScoreLocal::~QueryScoreLocal(){
@@ -61,7 +53,8 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
         rawScore = (rawScore == 0) ? 1 : rawScore;
         result->seqId = identityId;
         result->prefScore = rawScore;
-        result->zScore = -computeLogProbabiliy(rawScore, seqLens[identityId]);
+        result->zScore = -computeLogProbability(rawScore, seqLens[identityId],
+                                                kmerMatchProb, logMatchProb, logScoreFactorial[rawScore]);
         elementCounter++;
     }
 
@@ -85,7 +78,8 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
                     result->seqId = pos * SIMD_SHORT_SIZE + i;
                     //result->zScore = (((float)rawScore) - mu )/ sqrt(mu);
                     result->prefScore = rawScore;
-                    result->zScore = -computeLogProbabiliy(rawScore, seqLens[result->seqId]);
+                    result->zScore = -computeLogProbability(rawScore, seqLens[result->seqId],
+                                                           kmerMatchProb, logMatchProb, logScoreFactorial[rawScore]);
                     //std::cout << result->zScore << std::endl;
 
                     //result->zScore = (rawScore);
@@ -133,13 +127,4 @@ unsigned int QueryScoreLocal::computeScoreThreshold(size_t maxHitsPerQuery) {
             break;
     }
     return scoreThr;
-}
-
-inline double QueryScoreLocal::computeLogProbabiliy(const unsigned short rawScore, const unsigned int dbSeqLen) {
-    const double score = static_cast<double>(rawScore);
-    const double dbSeqLenDbl = static_cast<double>(dbSeqLen);
-    const double mu = kmerMatchProb * dbSeqLenDbl;
-    const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
-    const double first_term = -(mu * score /(score + 1));
-    return first_term + mid_term - logScoreFactorial[rawScore];
 }

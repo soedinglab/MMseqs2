@@ -70,7 +70,7 @@ BaseMatrix::~BaseMatrix(){
 void BaseMatrix::print(short** matrix, char* int2aa, int size){
     std::cout << "\n";
     short avg = 0;
-    printf("  ");
+    printf("     ");
     for (int i = 0; i < size; i++)
         printf("%4c ", int2aa[i]);
     std::cout << "\n";
@@ -121,14 +121,12 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
         }
     }
 
-
     // calculate the substitution matrix
     for (int i = 0; i < size; i++){
         for (int j = 0; j < size; j++){
             subMatrix[i][j] = bitFactor * _log2(probMatrix[i][j]/(pBack[i]*pBack[j])) + scoringBias;
         }
     }
-
 
     subMatrix[size-1][size-1] = 0.0;
 }
