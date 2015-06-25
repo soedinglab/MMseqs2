@@ -322,9 +322,14 @@ int main(int argc, char **argv)
         std::string alignmentfile = argv[3];
         std::string suffix = argv[4];
         std::string outputfile = argv[5];
-
+        char * comparisonmode=argv[6];
+        bool allagainstall=false;
+        if(strcmp(comparisonmode,"yes")==0){
+            allagainstall=true;
+            Debug(Debug::INFO)<<"all against all comparison";
+        }
         convertfiles *cf = new convertfiles();
-        cf->getDomainScoresForCluster(clusteringfile,alignmentfile,outputfile,suffix);
+        cf->getDomainScoresForCluster(clusteringfile,alignmentfile,outputfile,suffix,allagainstall);
 
     }else if (strcmp(argv[1],"-clusterToTsv")==0) {
         if (argc != 5) {

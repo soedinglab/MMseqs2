@@ -1,5 +1,6 @@
 #include "Clustering.h"
 #include "SetCover3.h"
+#include "AlignmentSymmetry.h"
 
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
@@ -120,13 +121,20 @@ void Clustering::run(int mode){
         writeData(ret);
         Debug(Debug::INFO) << "...done.\n";
     }else if (mode == Parameters::SET_COVER3){
+        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr,alnDbr,seqIdThr,0.0);
+        ret =alignmentSymmetry->execute();
+       // writeData(ret);
+        gettimeofday(&end, NULL);
+        int sec1 = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for clustering: " << (sec1 / 60) << " m " << (sec1 % 60) << "s\n\n";
+        EXIT(EXIT_SUCCESS);
         SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0);
         ret =setCover3->execute();
         writeData(ret);
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-        //return;
+        return;
     } else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
         EXIT(EXIT_FAILURE);
@@ -167,7 +175,7 @@ if(mode != Parameters::SET_COVER3) {
     delete[] set_data.set_sizes;
     delete[] set_data.element_size_lookup;
     delete  set_data.validids;
-}
+    }
 }
 
 void Clustering::writeData(std::list<set *> ret){
