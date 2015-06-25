@@ -1,5 +1,9 @@
 #include <iostream>
 #include <list>
+#include <algorithm>
+#include <math.h>
+#include <SetCover2.h>
+
 
 #include "Clustering.h"
 #include "SetElement.h"
@@ -12,8 +16,7 @@ int randBetween(size_t start, size_t end){
 }
 
 
-Clustering::set_data create_random_data(size_t elemSize,
-                                        size_t setSize){
+Clustering::set_data create_random_data(size_t elemSize, size_t setSize) {
 
     Clustering::set_data ret_struct;
 
@@ -57,7 +60,11 @@ Clustering::set_data create_random_data(size_t elemSize,
     for(unsigned int i = 0; i < setSize; i++) {
         unsigned int element_counter = 0;
         size_t cnt = 0;
-        for(unsigned int j = 0; j < distribution[i]; j++){
+        element_buffer[element_counter++] = i;
+        element_size[i]++;
+        ret_struct.all_element_count++;
+        cnt++;
+        for(unsigned int j = 1; j < distribution[i]; j++){
             unsigned int curr_element = randBetween(0, elemSize);
             cnt++;
             element_buffer[element_counter++] = curr_element;
@@ -73,7 +80,7 @@ Clustering::set_data create_random_data(size_t elemSize,
             Debug(Debug::ERROR)  << "ERROR: Set has too much elements. Set name is "
                     << dbKey << " and has has the weight " << element_counter <<".\n";
         }
-        ret_struct.max_weight = std::max((unsigned short)element_counter, ret_struct.max_weight);
+        ret_struct.max_weight = std::max((size_t)element_counter, ret_struct.max_weight);
         memcpy(elements + curr_start_pos, element_buffer, sizeof(unsigned int) * element_counter);
         weights[i] = (weight + curr_start_pos);
         sets[i] = (elements + curr_start_pos);
@@ -96,45 +103,56 @@ int main(int argc, char **argv)
     // DBReader test
     // argv[1] = ffindex_data_file, argv[2] = ffindex_index_file
     Clustering::set_data set_data;
-    std::list<set *> ret;
+    std::list<SetCover2::Set *> ret;
     // memory test
-    unsigned int* element_size_lookup = new unsigned int[86000000+2];
-    unsigned int all_element_count = 86000000*30;
-    for(unsigned int i = 0; i < 86000000; i++){
-        element_size_lookup[i] = 30;
-    }
-    linear_multi_array<set::element*> test(element_size_lookup, 86000000, all_element_count);
-    std::pair<set::element**, unsigned int> pair = test.get_array(1);
-    delete [] element_size_lookup;
+
     Debug(Debug::INFO) << "Clustering mode: SET COVER\n";
     Debug(Debug::INFO) << "Reading the data...\n";
-    for(unsigned int i = 1; i < 1000000; i++){
-        set_data = create_random_data(100,100);
+    for(unsigned int i = 1; i < 10000; i++){
+        set_data = create_random_data(1000, 1000);
 
-        Debug(Debug::INFO) << "\nInit set cover...\n";
-        SetCover setcover(set_data.set_count,
-                set_data.uniqu_element_count,
-                set_data.max_weight,
-                set_data.all_element_count,
-                set_data.element_size_lookup
-        );
+//        Debug(Debug::INFO) << "\nInit set cover...\n";
+        SetCover2 setcover2(set_data.set_count, (const unsigned int *) set_data.set_sizes,
+                            set_data.sets, (const unsigned short **) set_data.weights);
+//        for(size_t i = 0; i < set_data.set_count; i++) {
+//            std::cout << i << " ( ";
+//
+//            for (size_t j = 0; j < set_data.set_sizes[i]; j++) {
+//                std::cout << set_data.sets[i][j] << " ";
+//
+//            }
+//            std::cout << ")" << std::endl;
+//
+//        }
+//        Debug(Debug::INFO) << "Adding sets...\n";
+//        for(size_t i = 0; i < set_data.set_count; i++){
+//            setcover.add_set(i+1, set_data.set_sizes[i],
+//                    (const unsigned int*)   set_data.sets[i],
+//                    (const unsigned short*) set_data.weights[i],
+//                    set_data.set_sizes[i]);
+//        }
 
-        Debug(Debug::INFO) << "Adding sets...\n";
-        for(size_t i = 0; i < set_data.set_count; i++){
-            setcover.add_set(i+1, set_data.set_sizes[i],
-                    (const unsigned int*)   set_data.sets[i],
-                    (const unsigned short*) set_data.weights[i],
-                    set_data.set_sizes[i]);
-        }
-
-        Debug(Debug::WARNING) << "Calculating the clustering.\n";
-        ret = setcover.execute_set_cover();
-        Debug(Debug::INFO) << "done.\n";
-
-        Debug(Debug::INFO) << "Writing results...\n";
+//        Debug(Debug::WARNING) << "Calculating the clustering.\n";
+        ret = setcover2.execute_set_cover();
+//        Debug(Debug::INFO) << "done.\n";
+//
+//        Debug(Debug::INFO) << "Writing results...\n";
         //writeData(ret);
         std::cout << ret.size() << std::endl;
-        Debug(Debug::INFO) << "...done.\n";
+        std::list<SetCover2::Set *>::const_iterator iterator;
+//        for (iterator = ret.begin(); iterator != ret.end(); ++iterator) {
+//            std::cout << "Set: " << (*iterator)->setId << " ( ";
+//
+//            // first entry is the representative sequence
+//
+//            for(size_t i = 0; i < set_data.set_sizes[ (*iterator)->setId ]; i++){
+//                if((*iterator)->elements[i] != UINT_MAX)
+//                std::cout << (*iterator)->elements[i] <<  ", " ;
+//            }
+//            std::cout << " )" << std::endl;
+//
+//        }
+//        Debug(Debug::INFO) << "...done.\n";
         // DBWriter test
         delete[] set_data.startWeightsArray;
         delete[] set_data.startElementsArray;

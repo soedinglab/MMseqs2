@@ -9,7 +9,7 @@
 
 class ReducedMatrix : public BaseMatrix {
     public: 
-        ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize);
+        ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize, float bitFactor);
         virtual ~ReducedMatrix();
         /*contains the original matrix before the alphabet reduction*/
         short ** origSubMatrix;

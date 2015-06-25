@@ -47,7 +47,7 @@ class Clustering {
             size_t set_count;
             size_t uniqu_element_count;
             size_t all_element_count;
-            unsigned short max_weight;
+            size_t max_weight;
             unsigned int * startElementsArray;
             unsigned short * startWeightsArray;
             std::list<int>* validids;

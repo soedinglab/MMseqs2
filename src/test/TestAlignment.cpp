@@ -35,16 +35,19 @@ int main (int argc, const char * argv[])
 //	std::string tim = "APRKFFVGGNWKMNGKRKSLGELIHTLDGAKLSADTEVVCGAPSIYLDFARQKLDAKIGVAAQNCYKVPKGAFTGEISPAMIKDIGAAWVILGH"
 //                      "SERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFQETKAIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLR"
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
-    std::string tim = "VCIYWWGS";
+    std::string tim1 = "MALFNFLFSRKRNTANLAKERLQIIIAKKRQNEIIPDYLPQLKYDLLQVLCKYASITPEM"
+            "LSVQLEMKNGDISILEVQVIRPEMLDNNRLNNE";
+    std::string tim2 = "MTPLLCLHHLLQQVSVTKIQTTKMQRSSPLNRLQLPMVASQSQSLSLSPMSPLPSTLQSP\n"
+            "QIRLHNTLLSPVHLLLPLPLQVTYNGTTPLRLLIRPVGEL";
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
-    const char* sequence = tim.c_str();
+    const char* sequence = tim1.c_str();
     std::cout << sequence << "\n\n";
     Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     s->mapSequence(0,"lala",sequence);
     Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
-    dbSeq->mapSequence(1,"lala2",tim.c_str());
+    dbSeq->mapSequence(1,"lala2",tim2.c_str());
     SmithWaterman aligner(15000, subMat.alphabetSize);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (size_t i = 0; i < subMat.alphabetSize; i++) {
@@ -59,6 +62,9 @@ int main (int argc, const char * argv[])
     int32_t maskLen = s->L / 2;
     int gap_open = 10;
     int gap_extend = 1;
+    float seqId = 1.0;
+    int aaIds = 0;
+
     s_align * alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 0, 0, maskLen);
     if(alignment->cigar){
         std::cout << "Cigar" << std::endl;
@@ -72,6 +78,7 @@ int main (int argc, const char * argv[])
 		    fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
                     if (dbSeq->int_sequence[targetPos] == s->int_sequence[queryPos]){
                         fprintf(stdout, "|");
+                        aaIds++;
                     }
                     else fprintf(stdout, "*");
 		    fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
@@ -88,8 +95,9 @@ int main (int argc, const char * argv[])
     }
     std::cout <<  alignment->score1 << " " << alignment->qStartPos1  << " "<< alignment->qEndPos1 << " "
   	      << alignment->dbStartPos1 << " "<< alignment->dbEndPos1 << std::endl;
+    seqId = (float)aaIds/(float)(std::min(s->L, dbSeq->L)); //TODO
 
-
+    std::cout << "Seqid: "<< seqId << " aaIds " << aaIds <<std::endl;
     double evalue =  pow (exp(1), ((double)(-(alignment->score1)/(double)subMat.getBitFactor())));
     std::cout << evalue << std::endl;
     std::cout << (s->L) << std::endl;

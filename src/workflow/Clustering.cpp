@@ -43,6 +43,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
     setWorkflowDefaults(&par);
     std::vector<MMseqsParameter> params = par.combineList(par.prefilter, par.alignment);
     params.push_back(par.PARAM_CASCADED);
+    params.push_back(par.PARAM_KEEP_TEMP_FILES);
     params = par.combineList(params, par.clustering);
 
     par.parseParameters(argc, argv, usage, params, 3);

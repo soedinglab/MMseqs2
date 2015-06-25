@@ -53,7 +53,7 @@ class Prefiltering {
     
         static IndexTable* generateIndexTable(DBReader* dbr, Sequence* seq,
                                          int alphabetSize, int kmerSize,
-                                         size_t dbFrom, size_t dbTo, bool isLocal, int skip = 0);
+                                         size_t dbFrom, size_t dbTo, int searchMode, int skip = 0);
     
     
         static void countKmersForIndexTable (DBReader* dbr, Sequence* seq, IndexTable* indexTable,
@@ -106,19 +106,13 @@ class Prefiltering {
         double kmerMatchProb;
         int split;
         int skip;
-        bool isLocal;
-        // statistics
-        size_t kmersPerPos;
-        size_t resSize;
-        size_t realResSize;
-        size_t dbMatches;
-        size_t doubleMatches;
-
+        int searchMode;
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
-        std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader *qdbr, DBReader *tdbr, float targetKmerMatchProb, double toleratedDeviation, const int kmerScore);
+        std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader *qdbr, DBReader *tdbr,
+                                                  float targetKmerMatchProb, double toleratedDeviation, const int kmerScore);
         std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb);
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults);
@@ -128,13 +122,13 @@ class Prefiltering {
                                                                 double kmerMatchProb, int kmerSize,
                                                                 size_t effectiveKmerSize, size_t dbSize,
                                                                 bool aaBiasCorrection, bool fastMode,
-                                                                unsigned int maxSeqLen, float zscoreThr, bool isLocal,
+                                                                unsigned int maxSeqLen, float zscoreThr, int searchMode,
                                                                 size_t maxHitsPerQuery);
     
     
-        void printStatistics();
+        void printStatistics(statistics_t &stats);
 
-    statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize, unsigned int *querySeqsIds, bool reverseQuery, const size_t kmerThrMid);
+        statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize, unsigned int *querySeqsIds, bool reverseQuery, const size_t kmerThrMid);
 
 };
 
