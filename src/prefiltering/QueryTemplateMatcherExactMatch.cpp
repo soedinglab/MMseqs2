@@ -13,11 +13,10 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
     this->binData = new unsigned int[BIN_COUNT * BIN_SIZE];
     this->counterOutput = new CounterResult[MAX_DB_MATCHES];
     memset(counterOutput, 0, sizeof(CounterResult) * MAX_DB_MATCHES);
-    this->counter = new CountInt32Array(dbSize, BIN_SIZE ); //TODO what is the right choice?!?
+    this->counter = new CountInt32Array(dbSize, BIN_SIZE/2 );
     // needed for p-value calc.
     this->mu = kmerMatchProb;
     this->sqrtMu = sqrt(kmerMatchProb);
-    entriesBuffer = new IndexEntryLocal[ENTRIES_BUFFER_SIZE];
 }
 
 QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
@@ -25,7 +24,6 @@ QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
     delete [] binData;
     delete [] counterOutput;
     delete counter;
-    delete [] entriesBuffer;
 }
 
 size_t QueryTemplateMatcherExactMatch::evaluateBins(CounterResult *output) {
@@ -96,24 +94,19 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
             // generate k-mer list
             const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[kmerPos],
                                                                                        &seqListSize);
-            if(pos + seqListSize >= ENTRIES_BUFFER_SIZE) {
-                fillDiagonals(entriesBuffer, pos);
-                pos = 0;
-            }
             for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++) {
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
                 const unsigned int seqId = entry.seqId;
                 const unsigned char diagonal = (i - j);
                 const unsigned char diagonal2 = diagonal/static_cast<unsigned char>(16);
-                entriesBuffer[pos].seqId = seqId;
-                entriesBuffer[pos].position_j = diagonal2;
-                pos++;
+                const unsigned int * lastPosition = (binData + BIN_COUNT * BIN_SIZE) - 1;
+                *diagonalBins[diagonal] = seqId;
+                diagonalBins[diagonal] += (diagonalBins[diagonal] >= lastPosition)  ? 0 : 1;
             }
             numMatches += seqListSize;
         }
     }
-    fillDiagonals(entriesBuffer, pos);
 
     //fill the output
     size_t doubleMatches = evaluateBins(counterOutput);
@@ -123,18 +116,6 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
     stats->dbMatches     = numMatches;
     stats->diagonalOverflow = (checkForOverflow() == true) ? 1 : 0;
 }
-
-void QueryTemplateMatcherExactMatch::fillDiagonals(IndexEntryLocal *data, size_t length) {
-    const unsigned int * lastPosition = (binData + BIN_COUNT * BIN_SIZE) - 1;
-    for (unsigned int seqIdx = 0; LIKELY(seqIdx < length); seqIdx++){
-        const IndexEntryLocal entry = data[seqIdx];
-        const unsigned char diagonal = entry.position_j;
-        const unsigned int seqId = entry.seqId;
-        *diagonalBins[diagonal] = seqId;
-        diagonalBins[diagonal] += (diagonalBins[diagonal] >= lastPosition)  ? 0 : 1;
-    }
-}
-
 
 
 std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(const int l,
