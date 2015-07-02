@@ -13,11 +13,12 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
     this->binData = new unsigned int[BIN_COUNT * BIN_SIZE];
     this->counterOutput = new CounterResult[MAX_DB_MATCHES];
     memset(counterOutput, 0, sizeof(CounterResult) * MAX_DB_MATCHES);
-    this->counter = new CountInt32Array(dbSize, BIN_SIZE ); //TODO what is the right choice?!?
+    this->counter = new CountInt32Array(dbSize, BIN_SIZE/2 );
     // needed for p-value calc.
     this->mu = kmerMatchProb;
     this->sqrtMu = sqrt(kmerMatchProb);
-    entriesBuffer = new IndexEntryLocal[ENTRIES_BUFFER_SIZE];
+    this->entriesBufferSize = 131072;
+    entriesBuffer = new IndexEntryLocal[entriesBufferSize];
 }
 
 QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
@@ -96,7 +97,7 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
             // generate k-mer list
             const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[kmerPos],
                                                                                        &seqListSize);
-            if(pos + seqListSize >= ENTRIES_BUFFER_SIZE) {
+            if(pos + seqListSize >= entriesBufferSize) {
                 fillDiagonals(entriesBuffer, pos);
                 pos = 0;
             }
