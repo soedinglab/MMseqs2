@@ -59,7 +59,7 @@ protected:
     double mu;
     double sqrtMu;
     // array to pre buffer diagonals
-    static const int ENTRIES_BUFFER_SIZE = 131072;
+    size_t entriesBufferSize;
     IndexEntryLocal * entriesBuffer;
 
     void fillDiagonals(IndexEntryLocal *pLocal, size_t pos);
