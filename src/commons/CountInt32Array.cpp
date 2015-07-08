@@ -151,7 +151,7 @@ size_t CountInt32Array::countDuplicates(unsigned int ** subHashBin, unsigned int
             const unsigned char currDiagonal = (binStartPos[n] >> 28);
             const unsigned char score    = (lookup[id] & 0x0F); //00001111
             const unsigned char prevDiagonal = (lookup[id] & 0xF0) >> 4; //11110000 -> 00001010
-            const unsigned char newScore = score + (prevDiagonal == currDiagonal && score < 16) ? 1 : 0;
+            const unsigned char newScore = score + (prevDiagonal == currDiagonal && score < 16);
             lookup[id] = newScore;
             lookup[id] |= (prevDiagonal >> 4); // set diagonal
         }
@@ -159,9 +159,10 @@ size_t CountInt32Array::countDuplicates(unsigned int ** subHashBin, unsigned int
         for (size_t n = 0; n < currBinSize; n++) {
             const unsigned int id = (binStartPos[n] & 0x0FFFFFFF);
             const unsigned int element = id >> (MASK_6_11_BIT + MASK_0_5_BIT);
+            const unsigned char score    = (lookup[element] & 0x0F); //00001111
             output[pos].id    = id;
-            output[pos].count = lookup[element];
-            pos += (lookup[element] != 0) ? 1 : 0; //TODO avoid memory shit
+            output[pos].count = score;
+            pos += (score != 0) ? 1 : 0; //TODO avoid memory shit
             lookup[element] = 0;
         }
     }
