@@ -44,7 +44,7 @@ private:
     size_t subBinSize;
     unsigned int * subBinDataFrame;
     unsigned char * lookup;
-    unsigned int *tmpElementBuffer;
+unsigned int *tmpElementBuffer;
 
     bool checkForOverflowAndResizeArray(unsigned int **bins,
                                         const unsigned int binCount,
@@ -68,7 +68,7 @@ private:
 
 
     size_t countDuplicates(unsigned int **subBins, unsigned int subBinCount,
-                           unsigned int *inputArray, const unsigned int elementCount,
+                           const unsigned int *inputArray, const unsigned int elementCount,
                            CounterResult * output);
 
 };
