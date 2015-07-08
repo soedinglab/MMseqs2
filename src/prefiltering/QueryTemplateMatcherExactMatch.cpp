@@ -59,7 +59,7 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
             const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[kmerPos],
                                                                                        &seqListSize);
             // detected overflow while matching TODO smarter way
-          //  seqListSize = (sequenceHits + seqListSize >= lastSequenceHit) ? 0 : seqListSize;
+            seqListSize = (sequenceHits + seqListSize >= lastSequenceHit) ? 0 : seqListSize;
 
             for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++) {
                 IndexEntryLocal entry = entries[seqIdx];
