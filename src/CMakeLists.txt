@@ -51,6 +51,8 @@ endif ()
 # MPI
 find_package(MPI QUIET)
 if(MPI_FOUND)
+set(CMAKE_CXX_COMPILE_FLAGS ${CMAKE_CXX_COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
+set(CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS} ${MPI_LINK_FLAGS})
 include_directories(${MPI_INCLUDE_PATH})
 ADD_DEFINITIONS("-DHAVE_MPI")
 endif()
@@ -70,7 +72,9 @@ target_link_libraries(mmseqs util)
 target_link_libraries(mmseqs workflow)
 target_link_libraries(mmseqs orf)
 target_link_libraries(mmseqs ffindex)
-
+if(MPI_FOUND)
+target_link_libraries(mmseqs ${MPI_LIBRARIES}) 
+endif()
 install (TARGETS mmseqs
 		 DESTINATION bin)
 
