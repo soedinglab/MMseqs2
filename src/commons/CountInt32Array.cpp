@@ -68,31 +68,32 @@ size_t CountInt32Array::findDuplicates(unsigned int **bins, unsigned int binCoun
     for (size_t bin = 0; bin < binCount; bin++) {
         const unsigned int *binStartPos = (bin_ref_pointer + bin * binSize);
         const size_t currBinSize = (bins[bin] - binStartPos);
-        size_t elementCount = 0;
-        // find duplicates
-        for (size_t n = 0; n < currBinSize; n++) {
-            const unsigned int element = binStartPos[n];
-            const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
-            const unsigned int byteArrayPos = hashBinElement >> 3; // equal to  hashBinElement / 8
-            const unsigned char bitPosMask = 1 << (hashBinElement & 7);  // 7 = 00000111
-            // check if duplicate element was found before
-            tmpElementBuffer[elementCount] = element;
-            elementCount +=  (duplicateBitArray[byteArrayPos] & bitPosMask ) ? 1 : 0;
-            // set element corresponding bit in byte
-            duplicateBitArray[byteArrayPos] |= bitPosMask;
-        }
-        // clean memory faster if current bin size is smaller duplicateBitArraySize
-        if(currBinSize < duplicateBitArraySize){
-            for (size_t n = 0; n < currBinSize; n++) {
-                const unsigned int element = binStartPos[n];
-                const unsigned int byteArrayPos = element >> (MASK_0_5_BIT + 3);
-                duplicateBitArray[byteArrayPos] = 0;
-            }
-        }else{
-            memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
-        }
+//        size_t elementCount = 0;
+//        // find duplicates
+//        for (size_t n = 0; n < currBinSize; n++) {
+//            const unsigned int element = binStartPos[n];
+//            // turn off last four bits (they contain the diagonal)
+//            const unsigned int hashBinElement = (element & 0x0FFFFFFF) >> (MASK_0_5_BIT);
+//            const unsigned int byteArrayPos = (hashBinElement >> 3); // equal to  hashBinElement / 8
+//            const unsigned char bitPosMask = 1 << (hashBinElement & 7);  // 7 = 00000111
+//            // check if duplicate element was found before
+//            tmpElementBuffer[elementCount] = element;
+//            elementCount +=  (duplicateBitArray[byteArrayPos] & bitPosMask ) ? 1 : 0;
+//            // set element corresponding bit in byte
+//            duplicateBitArray[byteArrayPos] |= bitPosMask;
+//        }
+//        // clean memory faster if current bin size is smaller duplicateBitArraySize
+//        if(currBinSize < duplicateBitArraySize / 16){
+//            for (size_t n = 0; n < currBinSize; n++) {
+//                const unsigned int element = (binStartPos[n] & 0x0FFFFFFF);
+//                const unsigned int byteArrayPos = element >> (MASK_0_5_BIT + 3);
+//                duplicateBitArray[byteArrayPos] = 0;
+//            }
+//        }else{
+//            memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
+//        }
         setupBinPointer(subBins, subBinCount, subBinDataFrame, subBinSize);
-        doubleElementCount += countDuplicates(subBins, subBinCount, tmpElementBuffer, elementCount, output + doubleElementCount);
+        doubleElementCount += countDuplicates(subBins, subBinCount, binStartPos, currBinSize, output + doubleElementCount);
     }
 
     return doubleElementCount;
@@ -129,7 +130,7 @@ void CountInt32Array::reallocBinMemory(const unsigned int binCount, const size_t
 }
 
 size_t CountInt32Array::countDuplicates(unsigned int ** subHashBin, unsigned int subBinCount,
-                                      unsigned int *inputArray, const unsigned int N, CounterResult * output) {
+                                        const unsigned int *inputArray, const unsigned int N, CounterResult * output) {
     // hash element again
     unsigned int *lastPosition = (subBinDataFrame + subBinCount * subBinSize) - 1;
     for (size_t n = 0; n < N; n++) {
@@ -146,13 +147,19 @@ size_t CountInt32Array::countDuplicates(unsigned int ** subHashBin, unsigned int
         const unsigned int *binStartPos = (subBin_ref_pointer + subBin * subBinSize);
         const size_t currBinSize = (subHashBin[subBin] - binStartPos);
         for (size_t n = 0; n < currBinSize; n++) {
-            const unsigned int element = binStartPos[n] >> (MASK_6_11_BIT + MASK_0_5_BIT);
-            lookup[element] += (lookup[element] < 255) ? 1 : 0;
+            const unsigned int id            = (binStartPos[n] & 0x0FFFFFFF) >> (MASK_6_11_BIT + MASK_0_5_BIT);
+            const unsigned char currDiagonal = (binStartPos[n] >> 28);
+            const unsigned char score    = (lookup[id] & 0x0F); //00001111
+            const unsigned char prevDiagonal = (lookup[id] & 0xF0) >> 4; //11110000 -> 00001010
+            const unsigned char newScore = score + (prevDiagonal == currDiagonal && score < 16) ? 1 : 0;
+            lookup[id] = newScore;
+            lookup[id] |= (prevDiagonal >> 4); // set diagonal
         }
         // extract results and set memory to
         for (size_t n = 0; n < currBinSize; n++) {
-            const unsigned int element = binStartPos[n] >> (MASK_6_11_BIT + MASK_0_5_BIT);
-            output[pos].id    = binStartPos[n];
+            const unsigned int id = (binStartPos[n] & 0x0FFFFFFF);
+            const unsigned int element = id >> (MASK_6_11_BIT + MASK_0_5_BIT);
+            output[pos].id    = id;
             output[pos].count = lookup[element];
             pos += (lookup[element] != 0) ? 1 : 0; //TODO avoid memory shit
             lookup[element] = 0;
