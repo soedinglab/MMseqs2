@@ -23,7 +23,7 @@ public:
     std::pair<hit_t *, size_t>  matchQuery (Sequence * seq, unsigned int identityId);
 
     // find duplicates in the diagonal bins
-    size_t evaluateBins(CounterResult *output);
+    size_t evaluateBins(CounterResult *output, size_t i);
 
 protected:
     // match sequence against the IndexTable
@@ -46,23 +46,13 @@ protected:
 
     // pointer to position to write in bin
     const static unsigned int BIN_COUNT = 16;
-    unsigned int * diagonalBins[BIN_COUNT];
     const static unsigned int BIN_SIZE = MAX_DB_MATCHES / (BIN_COUNT / 2);
     unsigned int * __restrict binData;
 
-    void reallocBinMemory(unsigned int const binCount, size_t const binSize);
-
-    int checkForOverflow();
-
-    void setupBinPointer();
     // the following variables are needed to calculate the Z-score computation
     double mu;
     double sqrtMu;
-    // array to pre buffer diagonals
-    size_t entriesBufferSize;
-    IndexEntryLocal * entriesBuffer;
 
-    void fillDiagonals(IndexEntryLocal *pLocal, size_t pos);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
