@@ -18,7 +18,7 @@ else
 fi;
 
 reformat.pl fas a3m $out_tmp $a3m_tmp >/dev/null 2>&1 
-hhconsensus -i $a3m_tmp -o stdout 2>/dev/null
+hhconsensus -maxres 65535 -i $a3m_tmp -o stdout 2>/dev/null
 
 # Cleanup
 rm -f $in_tmp
