@@ -9,15 +9,16 @@ CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
     duplicateBitArraySize = size;
     duplicateBitArray = new unsigned char[size];
     memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
+
+
+
     // find nearest upper power of 2^(x)
     initBinSize = pow(2, ceil(log(initBinSize)/log(2)));
     binSize = initBinSize;
-    binDataFrame = new CounterResult[BINCOUNT * binSize];
     tmpElementBuffer = new unsigned int[binSize];
-
-    // find memory needed for lookup
-    unsigned int maxElementHighestBit = highest_bit_set((size_t)pow(2, ceil(log(maxElement)/log(2))));
-
+    
+    bins = new CounterResult*[BINCOUNT];
+    binDataFrame = new CounterResult[BINCOUNT * binSize];
 }
 
 unsigned int CountInt32Array::highest_bit_set(size_t num)
@@ -34,6 +35,7 @@ CountInt32Array::~CountInt32Array(){
     delete [] duplicateBitArray;
     delete [] binDataFrame;
     delete [] tmpElementBuffer;
+    delete [] bins;
 }
 
 size_t CountInt32Array::countElements(CounterResult *inputArray, const size_t N, CounterResult * output) {
@@ -120,7 +122,7 @@ bool CountInt32Array::checkForOverflowAndResizeArray(CounterResult **bins,
         if( n > binSize || bins[bin] >= lastPosition) {
             // overflow detected
             // find nearest upper power of 2^(x)
-            std::cout << "Found overlow" << std::endl;
+            std::cout << "Found overlow " << n << std::endl;
             this->binSize = pow(2, ceil(log(binSize + 1)/log(2)));
             reallocBinMemory(binCount, this->binSize);
             return true;
