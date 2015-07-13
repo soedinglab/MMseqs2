@@ -47,7 +47,7 @@ protected:
     // pointer to position to write in bin
     const static unsigned int BIN_COUNT = 16;
     const static unsigned int BIN_SIZE = MAX_DB_MATCHES / (BIN_COUNT / 2);
-    unsigned int * __restrict binData;
+    CounterResult * __restrict databaseHits;
 
     // the following variables are needed to calculate the Z-score computation
     double mu;

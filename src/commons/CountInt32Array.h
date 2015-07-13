@@ -24,7 +24,7 @@ public:
 
     ~CountInt32Array();
 
-    size_t countElements(unsigned int *inputArray, const size_t N, CounterResult * output);
+    size_t countElements(CounterResult *inputArray, const size_t N, CounterResult * output);
 
 private:
 
@@ -32,21 +32,16 @@ private:
     size_t duplicateBitArraySize;
     unsigned char * duplicateBitArray;
     // needed for lower bit hashing function
-    unsigned int binCount;
+    const static unsigned int BINCOUNT = MASK_0_5;
     size_t binSize;
-    unsigned int **bins;
+    // pointer for hashing
+    CounterResult * bins[BINCOUNT];
     // array to keep the bin elements
-    unsigned int * binDataFrame;
+    CounterResult * binDataFrame;
 
-    // sub bin data structure
-    unsigned int **subBins;
-    unsigned int subBinCount;
-    size_t subBinSize;
-    unsigned int * subBinDataFrame;
-    unsigned char * lookup;
-unsigned int *tmpElementBuffer;
+    unsigned int *tmpElementBuffer;
 
-    bool checkForOverflowAndResizeArray(unsigned int **bins,
+    bool checkForOverflowAndResizeArray(CounterResult **bins,
                                         const unsigned int binCount,
                                         const size_t binSize);
 
@@ -54,22 +49,15 @@ unsigned int *tmpElementBuffer;
     void reallocBinMemory(unsigned int const binCount, size_t const binSize);
 
 
-    void setupBinPointer(unsigned int **bins, const unsigned int binCount,
-                         unsigned int *binDataFrame, const size_t binSize);
+    void setupBinPointer(CounterResult **bins, const unsigned int binCount,
+                         CounterResult *binDataFrame, const size_t binSize);
 
-    void hashElements(unsigned int const *inputArray, size_t N,
-                      unsigned int **hashBins);
+    void hashElements(CounterResult *inputArray, size_t N, CounterResult **hashBins);
 
-    size_t findDuplicates(unsigned int **bins, unsigned int binCount,
-                          unsigned int **subBins, unsigned int subBinCount,
+    size_t findDuplicates(CounterResult **bins, unsigned int binCount,
                           CounterResult * output);
 
     unsigned int highest_bit_set(size_t num);
-
-
-    size_t countDuplicates(unsigned int **subBins, unsigned int subBinCount,
-                           const unsigned int *inputArray, const unsigned int elementCount,
-                           CounterResult * output);
 
 };
 #endif
