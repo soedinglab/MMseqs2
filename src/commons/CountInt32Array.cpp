@@ -1,6 +1,6 @@
 #include "CountInt32Array.h"
 #include <iostream>
-#include "util.h"
+#include "Util.h"
 
 CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
     // find nearest upper power of 2^(x)
@@ -17,8 +17,7 @@ CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
 
     // find memory needed for lookup
     unsigned int maxElementHighestBit = highest_bit_set((size_t)pow(2, ceil(log(maxElement)/log(2))));
-    unsigned int exponent = (maxElementHighestBit <= (MASK_0_5_BIT + MASK_6_11_BIT))
-                            ? 1 : maxElementHighestBit - (MASK_0_5_BIT + MASK_6_11_BIT);
+
 }
 
 unsigned int CountInt32Array::highest_bit_set(size_t num)
@@ -69,25 +68,7 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
             // set element corresponding bit in byte
             duplicateBitArray[hashBinElement] = currDiagonal;
         }
-        // set memory to zero
-        for (size_t n = 0; n < elementCount; n++) {
-            const unsigned int element = tmpElementBuffer[n] >> (MASK_0_5_BIT);
-            duplicateBitArray[element] = 0;
-        }
-        // sum up score
-        for (size_t n = 0; n < elementCount; n++) {
-            const unsigned int element = tmpElementBuffer[n] >> (MASK_0_5_BIT);
-            duplicateBitArray[element]  += (duplicateBitArray[element] < 255) ? 1 : 0;
-        }
-        // extract results
-        for (size_t n = 0; n < elementCount; n++) {
-            const unsigned int element = tmpElementBuffer[n];
-            const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
-            output[doubleElementCount].id    = element;
-            output[doubleElementCount].count = duplicateBitArray[hashBinElement];
-            doubleElementCount += (duplicateBitArray[hashBinElement] != 0) ? 1 : 0; //TODO avoid memory shit
-            duplicateBitArray[hashBinElement] = 0;
-        }
+
         // clean memory faster if current bin size is smaller duplicateBitArraySize
         if(currBinSize < duplicateBitArraySize / 16){
             for (size_t n = 0; n < currBinSize; n++) {
@@ -97,6 +78,28 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
             }
         }else{
             memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
+        }
+
+        // sum up score
+        for (size_t n = 0; n < elementCount; n++) {
+            const unsigned int element = tmpElementBuffer[n] >> (MASK_0_5_BIT);
+            duplicateBitArray[element]  += (duplicateBitArray[element] < 255) ? 1 : 0;
+        }
+
+        // extract results
+        for (size_t n = 0; n < elementCount; n++) {
+            const unsigned int element = tmpElementBuffer[n];
+            const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
+            output[doubleElementCount].id    = element;
+            output[doubleElementCount].count = duplicateBitArray[hashBinElement];
+            doubleElementCount += (duplicateBitArray[hashBinElement] != 0) ? 1 : 0; //TODO avoid memory shit
+            duplicateBitArray[hashBinElement] = 0;
+        }
+
+        // set memory to zero
+        for (size_t n = 0; n < elementCount; n++) {
+            const unsigned int element = tmpElementBuffer[n] >> (MASK_0_5_BIT);
+            duplicateBitArray[element] = 0;
         }
     }
 
