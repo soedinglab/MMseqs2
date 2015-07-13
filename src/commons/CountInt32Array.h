@@ -32,10 +32,10 @@ private:
     size_t duplicateBitArraySize;
     unsigned char * duplicateBitArray;
     // needed for lower bit hashing function
-    const static unsigned int BINCOUNT = MASK_0_5;
+    const static unsigned int BINCOUNT = MASK_0_5 + 1;
     size_t binSize;
     // pointer for hashing
-    CounterResult * bins[BINCOUNT];
+    CounterResult ** bins;
     // array to keep the bin elements
     CounterResult * binDataFrame;
 
