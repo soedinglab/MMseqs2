@@ -94,6 +94,7 @@ void DBReader::close(){
         fclose(dataFile);
         munmap(data, dataSize);
     }
+    munmap(index->index_data, index->index_data_size);
     free(index);
     closed = 1;
 }
