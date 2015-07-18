@@ -48,6 +48,23 @@ DBWriter::~DBWriter(){
 
 
 
+
+void DBWriter::sortDatafileByIdOrder(DBReader *dbr) {
+    Debug(Debug::INFO) << "Sorting the results...  " << dataFileName << " .. ";
+
+#pragma omp parallel for schedule(static)
+    for (size_t id = 0; id < dbr->getSize(); id++) {
+        int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
+        char * data = dbr->getData(id);
+        this->write(data, strlen(data), dbr->getDbKey(id), thread_idx);
+    }
+    Debug(Debug::INFO) << "Done\n";
+}
+
+
 void DBWriter::mergeFiles(DBReader * qdbr,
                           std::vector<std::pair<std::string, std::string> > files,
                           size_t maxLineLength)
@@ -247,6 +264,7 @@ int DBWriter::close(){
             // merge data and indexes
             ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, cnt);
             ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);
+            munmap(index_to_add->index_data, index_to_add->index_data_size);
             free(index_to_add);
             munmap(data_to_add,data_size);
         }
