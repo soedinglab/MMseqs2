@@ -15,44 +15,55 @@ public:
     QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
                                    unsigned int *seqLens, short kmerThr,
                                    double kmerMatchProb, int kmerSize, size_t dbSize,
-                                   unsigned int maxSeqLen);
+                                   unsigned int maxSeqLen, size_t maxHitsPerQuery);
     ~QueryTemplateMatcherExactMatch();
 
     // returns result for the sequence
     // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
-    std::pair<hit_t *, size_t>  matchQuery (Sequence * seq, unsigned int identityId);
+    std::pair<hit_t *, size_t>  matchQuery(Sequence * seq, unsigned int identityId);
 
     // find duplicates in the diagonal bins
-    size_t evaluateBins(CounterResult *output, size_t i);
+    size_t evaluateBins(CounterResult *inputOutput, size_t i);
 
+    void updateScoreBins(CounterResult *result, size_t elementCount);
 protected:
-    // match sequence against the IndexTable
-    void match(Sequence* seq);
+
     const static unsigned int MAX_DB_MATCHES = 16777216;
 
-    CounterResult * counterOutput;
-
-    std::pair<hit_t *, size_t> getResult(const int l, const unsigned int id,
-                                         const unsigned short thr);
     // result hit buffer
     CountInt32Array * counter;
 
-    static bool compareCounterResult(CounterResult first, CounterResult second){
-        return (first.id > second.id) ? true : false;
-    }
+    // score distribution of current query
+    unsigned int *scoreSizes;
 
     // result hit buffer
     hit_t *resList;
 
-    // pointer to position to write in bin
-    const static unsigned int BIN_COUNT = 16;
-    const static unsigned int BIN_SIZE = MAX_DB_MATCHES / (BIN_COUNT / 2);
+    // keeps data in inner loop
     CounterResult * __restrict databaseHits;
 
     // the following variables are needed to calculate the Z-score computation
     double mu;
-    double sqrtMu;
 
+    //log match prob (mu) of poisson distribution
+    double logMatchProb;
+
+    //pre computed score factorials
+    // S_fact = score!
+    double *logScoreFactorial;
+
+    // max seq. per query
+    size_t maxHitsPerQuery;
+
+    //pointer to seqLens
+    unsigned int *seqLens;
+
+    // match sequence against the IndexTable
+    void match(Sequence* seq);
+
+    // extract result from databaseHits
+    std::pair<hit_t *, size_t> getResult(const int l, const unsigned int id,
+                                         const unsigned short thr);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
