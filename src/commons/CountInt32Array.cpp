@@ -50,6 +50,7 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
             //const unsigned char bitPosMask = 1 << (hashBinElement & 7);  // 7 = 00000111
             // check if duplicate element was found before
             const unsigned char currDiagonal = element.count;
+            //currDiagonal = (currDiagonal == 0) ? 200 : currDiagonal;
             const unsigned char dbDiagonal = duplicateBitArray[hashBinElement];
             tmpElementBuffer[elementCount] = element.id;
             elementCount += (UNLIKELY(currDiagonal >= dbDiagonal - 8 ) &&
@@ -57,7 +58,7 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
             // set element corresponding bit in byte
             duplicateBitArray[hashBinElement] = currDiagonal;
         }
-
+        //memset(duplicateBitArray, 127, sizeof(unsigned char) * duplicateBitArraySize);
         // set memory to zero
         for (size_t n = 0; n < elementCount; n++) {
             const unsigned int element = tmpElementBuffer[n] >> (MASK_0_5_BIT);

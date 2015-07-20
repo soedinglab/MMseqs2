@@ -15,7 +15,7 @@ public:
     QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
                                    unsigned int *seqLens, short kmerThr,
                                    double kmerMatchProb, int kmerSize, size_t dbSize,
-                                   unsigned int maxSeqLen, size_t maxHitsPerQuery);
+                                   unsigned int maxSeqLen, int effectiveKmerSize, size_t maxHitsPerQuery);
     ~QueryTemplateMatcherExactMatch();
 
     // returns result for the sequence
@@ -56,14 +56,17 @@ protected:
     size_t maxHitsPerQuery;
 
     //pointer to seqLens
-    unsigned int *seqLens;
+    float *seqLens;
 
     // match sequence against the IndexTable
-    void match(Sequence* seq);
+    size_t match(Sequence *seq);
 
     // extract result from databaseHits
-    std::pair<hit_t *, size_t> getResult(const int l, const unsigned int id,
+    std::pair<hit_t *, size_t> getResult(size_t resultSize, const int l, const unsigned int id,
                                          const unsigned short thr);
+
+    // compute double hits
+    size_t getLocalResultSize();
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
