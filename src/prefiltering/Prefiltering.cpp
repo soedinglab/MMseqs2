@@ -221,7 +221,7 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
                                                                  fastMode, maxSeqLen, maxHitsPerQuery);
         } else if(searchMode == Parameters::SEARCH_LOCAL_FAST) {
             matchers[thread_idx] = new QueryTemplateMatcherExactMatch(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                                      kmerSize, dbSize, maxSeqLen, maxHitsPerQuery);
+                                                                      kmerSize, dbSize, maxSeqLen, effectiveKmerSize, maxHitsPerQuery);
         } else {
             matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
                                                                   kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
@@ -647,7 +647,8 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
     // match probability with pseudocounts
     kmerMatchProb = ((double)stats.dbMatches + dbMatchesExp_pc) / ((double) (stats.querySeqLen * targetSeqLenSum + lenSum_pc));
     // compute match prob for local match
-    if(searchMode == true){
+    if(searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST){
+        std::cout << "bamm: " << stats.doubleMatches << std::endl;
         kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
         kmerMatchProb /= 256;
     }
