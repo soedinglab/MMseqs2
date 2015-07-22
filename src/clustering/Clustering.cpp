@@ -23,7 +23,6 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
 
     dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str());
     dbw->open();
-
     this->validate = validateClustering;
     this->maxListLen = maxListLen;
     Debug(Debug::INFO) << "done.\n";
@@ -57,7 +56,7 @@ void Clustering::run(int mode){
 
         Debug(Debug::INFO) << "Adding sets...\n";
         for(size_t i = 0; i < set_data.set_count; i++){
-            setcover.add_set(i + 1, set_data.set_sizes[i], //TODO not sure why +1
+            setcover.add_set(i, set_data.set_sizes[i], //TODO not sure why +1
                     (const unsigned int*)   set_data.sets[i],
                     (const unsigned short*) set_data.weights[i],
                     set_data.set_sizes[i]);
@@ -122,13 +121,21 @@ void Clustering::run(int mode){
         writeData(ret);
         Debug(Debug::INFO) << "...done.\n";
     }else if (mode == Parameters::SET_COVER3){
-        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr,alnDbr,seqIdThr,0.0);
-        ret =alignmentSymmetry->execute();
+
+        DBWriter* alndbw;
+        alndbw = new DBWriter((std::string(alnDbr->getDataFileName())+"_symmetric").c_str(), (std::string(alnDbr->getDataFileName())+"_symmetric.index").c_str());
+        alndbw->open();
+        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr,alnDbr,alndbw,seqIdThr,0.0);
+       alignmentSymmetry->execute();
        // writeData(ret);
         gettimeofday(&end, NULL);
         int sec1 = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec1 / 60) << " m " << (sec1 % 60) << "s\n\n";
-        EXIT(EXIT_SUCCESS);
+
+        alnDbr->close();
+        alnDbr= new DBReader(alndbw->getDataFileName(),alndbw->getIndexFileName());
+        alndbw->close();
+        alnDbr->open(DBReader::NOSORT);
         SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0);
         ret =setCover3->execute();
         writeData(ret);

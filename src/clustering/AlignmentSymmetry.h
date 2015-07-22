@@ -12,13 +12,15 @@
 
 class AlignmentSymmetry {
 public:
-    AlignmentSymmetry(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage);
+    AlignmentSymmetry(DBReader * seqDbr, DBReader * alnDbr, DBWriter* alnWr, float seqIdThr, float coverage);
 
-    std::list<set *>  execute();
+    void  execute();
 private:
     DBReader* seqDbr;
 
     DBReader* alnDbr;
+
+    DBWriter* alnWr;
 
     float seqIdThr;
 
