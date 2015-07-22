@@ -13,7 +13,7 @@ QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m,
                                                      bool fastMode,
                                                      unsigned int maxSeqLen,
                                                      size_t maxHitsPerQuery) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                       kmerSize, dbSize, fastMode, maxSeqLen) {
+                                                       kmerSize, dbSize, false, maxSeqLen) {
     this->queryScore = new QueryScoreLocal(dbSize, seqLens, effectiveKmerSize, kmerThr, kmerMatchProb);
     this->maxHitsPerQuery = maxHitsPerQuery;
     this->fastMode = fastMode;
@@ -34,7 +34,7 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherLocal::matchQuery (Sequence * seq
     if(fastMode == true){
         scoreThreshold = 6;
     }else{
-        scoreThreshold = queryScore->computeScoreThreshold(this->maxHitsPerQuery);
+        scoreThreshold = queryScore->computeScoreThreshold(queryScore->scoreSizes, this->maxHitsPerQuery);
     }
 
     return queryScore->getResult(seq->L, scoreThreshold, identityId);
@@ -47,7 +47,6 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
     // go through the query sequence
     size_t kmerListLen = 0;
 
-    unsigned int pos = 0;
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();
         // generate k-mer list
@@ -82,7 +81,6 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
             // std::cout << "i: " << seq->getCurrentPosition() << std::endl;
             queryScore->addScoresLocal(entries, seq->getCurrentPosition(), indexTabListSize);
         }
-        pos++;
     }
     if(fastMode == false) {
         queryScore->updateScoreBins();
@@ -93,6 +91,8 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
     //Debug(Debug::WARNING) << " matched at " << match_pos << " positions. ";
     //Debug(Debug::WARNING) << match_num << " times.\n";
     // write statistics
+   // std::cout << queryScore->getLocalResultSize() << std::endl;
+
     stats->doubleMatches = queryScore->getLocalResultSize();
     stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
     stats->querySeqLen   = seq->L;

@@ -53,6 +53,8 @@ class DBWriter {
 
         void writeFile(FILE * file, char* key, int thrIdx);
 
+        void sortDatafileByIdOrder(DBReader *qdbr);
+
 private:
         void initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile);
 

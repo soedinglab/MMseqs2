@@ -72,8 +72,7 @@ class QueryTemplateMatcher {
     protected:
         // keeps stats for run
         statistics_t * stats;
-        // match sequence against the IndexTable
-        virtual void match(Sequence* seq) = 0;
+
         // scoring matrix for local amino acid bias correction
         BaseMatrix * m;
         /* generates kmer lists */

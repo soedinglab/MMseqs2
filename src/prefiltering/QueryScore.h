@@ -120,13 +120,15 @@ public:
 
     static bool compareHits(hit_t first, hit_t second);
 
+    const static size_t SCORE_RANGE = 256;
+
+    // score distribution of current query
+    unsigned int *scoreSizes;
+
+
 protected:
 
     const unsigned int SIMD_SHORT_SIZE = VECSIZE_INT * 2;  // *2 for short
-
-    // current position in Localresults while adding Score
-    unsigned int *scoreSizes;
-    const static size_t SCORE_RANGE = 256;
 
     // size of the database in scores_128 vector (the rest of the last _m128i vector is filled with zeros)
     int scores_128_size;

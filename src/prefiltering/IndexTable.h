@@ -118,7 +118,6 @@ class IndexTable {
             Debug(Debug::WARNING) << "Copy " << this->tableEntriesNum
                                   << " Entries (" <<  this->tableEntriesNum*this->sizeOfEntry  << " byte)\n";
             memcpy ( this->entries , pentries, this->tableEntriesNum * this->sizeOfEntry );
-            munmap(pentries, this->tableEntriesNum * this->sizeOfEntry ); // free mapped memory
 
             Debug(Debug::WARNING) << "Setup Sizes  \n";
             char* it = this->entries;
@@ -127,10 +126,11 @@ class IndexTable {
                 table[i] = it;
                 it += sizes[i] * this->sizeOfEntry;
             }
-            munmap(sizes, tableSize * sizeof(size_t) ); // free mapped memory
 
             table[tableSize] = it;
             Debug(Debug::WARNING) << "Read IndexTable ... Done\n";
+            munmap(pentries, this->tableEntriesNum * this->sizeOfEntry ); // free mapped memory
+            munmap(sizes, tableSize * sizeof(size_t) ); // free mapped memory
 
 
         }

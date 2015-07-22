@@ -148,7 +148,8 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
     fclose(data_file);
 
     /* Sort the index entries and write back */
-    rewind(index_file);
+    fclose(index_file);
+	index_file = fopen(outDbIndex.c_str(), "r+");
     ffindex_index_t* index = ffindex_index_parse(index_file, entry_num);
     if(index == NULL)
     {

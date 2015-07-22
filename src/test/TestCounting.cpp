@@ -34,7 +34,7 @@ void fillNumbers(unsigned int * data, size_t len) {
 int main(int argc, char **argv)
 {
     // DBR;ader test
-    CountInt32Array counter(3000000,2);
+/*    CountInt32Array counter(3000000,2);
 
     unsigned int input[] = {1000001,1000000,2000000,3000000,4000000,5000000,6000000,7000000,8000000,9000000
                                    ,1000000,2000000,3000000,4000000,4000000};
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
     for(size_t i = 0; i < resSize; i++){
         std::cout << output1[i].id << " " << (int) output1[i].count << std::endl;
     }
-    std::cout << std::endl;
+    std::cout << std::endl;*/
 //
 ////    // try big data
 //    unsigned int * number = new unsigned int[N];
