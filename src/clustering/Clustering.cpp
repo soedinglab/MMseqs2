@@ -142,7 +142,7 @@ void Clustering::run(int mode){
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-        return;
+
     } else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
         EXIT(EXIT_FAILURE);
