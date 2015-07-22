@@ -6,21 +6,25 @@
 #include <Debug.h>
 #include "AffinityClustering.h"
 
-AlignmentSymmetry::AlignmentSymmetry(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage){
+AlignmentSymmetry::AlignmentSymmetry(DBReader * seqDbr, DBReader * alnDbr, DBWriter* alnWr, float seqIdThr, float coverage){
 
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
     this->seqIdThr=seqIdThr;
     this->coverage=coverage;
     this->dbSize=alnDbr->getSize();
+    this->alnWr=alnWr;
 
 }
 
-std::list<set *>  AlignmentSymmetry::execute() {
+void AlignmentSymmetry::execute() {
     unsigned int dbcutnumber=5;
     unsigned int stepsize=dbSize/dbcutnumber+1;
     unsigned int missingnumber=0;
     unsigned int connections=0;
+
+    size_t BUFFER_SIZE = 1000000;
+    char* outBuffer = new char[BUFFER_SIZE];
 
     for (int step = 0; step < dbcutnumber; ++step) {
         std::set<int>*resultsets=new std::set<int>[stepsize];
@@ -55,7 +59,8 @@ std::list<set *>  AlignmentSymmetry::execute() {
                     if(resultsets[targetid-start].find(j) ==resultsets[targetid-start].end()){
                         missingnumber++;
                         Util::getLine(data,linebuffer);
-                    //    missinglines[targetid-start].insert(std::string(linebuffer));
+                        std::string stringbuffer=std::string(linebuffer);
+                        missinglines[targetid-start].insert(alnDbr->getDbKey(j)+stringbuffer.substr(stringbuffer.find("\t",0)));
                     }else{
                         connections++;
                     }
@@ -67,11 +72,28 @@ std::list<set *>  AlignmentSymmetry::execute() {
         //print
         for (int i = start; i < end; i++) {
             char *data = alnDbr->getData(i);
-            while (*data != '\0') {
-                Util::parseKey(data, idbuffer1);
+            std::string cluResultsOutString = std::string(data);
+                  // Debug(Debug::INFO)<<data;
+                if(!missinglines[i-start].empty()){
+                    for(std::string line :missinglines[i-start]){
+                      //  Debug(Debug::INFO)<<line<<"\n";
+                        cluResultsOutString=cluResultsOutString+line+"\n";
+                    }
+                }
 
-                data = Util::skipLine(data);
+            const char* cluResultsOutData = cluResultsOutString.c_str();
+            if (BUFFER_SIZE < strlen(cluResultsOutData)){
+                Debug(Debug::ERROR) << "Tried to process the alignment list for the query " << alnDbr->getDbKey(i)
+                << " , length of the list = " << "\n";
+                Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
+                << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
+                continue;
             }
+            memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
+            alnWr->write(outBuffer, cluResultsOutString.length(), alnDbr->getDbKey(i));
+
+              //  data = Util::skipLine(data);
+          //  }
         }
         delete[]resultsets;
         delete[]missinglines;
