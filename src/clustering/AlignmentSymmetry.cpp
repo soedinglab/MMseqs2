@@ -18,6 +18,7 @@ AlignmentSymmetry::AlignmentSymmetry(DBReader * seqDbr, DBReader * alnDbr, DBWri
 }
 
 void AlignmentSymmetry::execute() {
+    char *similarity = new char[255+1];
     unsigned int dbcutnumber=5;
     unsigned int stepsize=dbSize/dbcutnumber+1;
     unsigned int missingnumber=0;
@@ -42,6 +43,12 @@ void AlignmentSymmetry::execute() {
         char *data = alnDbr->getData(i);
         while (*data != '\0') {
             Util::parseKey(data, idbuffer1);
+            Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+            float seqId = atof(similarity);
+            if(seqId < this->seqIdThr){
+                data = Util::skipLine(data);
+                continue;
+            }
             resultsets[i-start].insert(alnDbr->getId(idbuffer1));
             data = Util::skipLine(data);
             }
@@ -54,6 +61,12 @@ void AlignmentSymmetry::execute() {
             char *data = alnDbr->getData(j);
             while (*data != '\0') {
                 Util::parseKey(data, idbuffer1);
+                Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                float seqId = atof(similarity);
+                if(seqId < this->seqIdThr){
+                    data = Util::skipLine(data);
+                    continue;
+                }
                 int targetid=alnDbr->getId(idbuffer1);
                 if(targetid>=start && targetid<end){
                     if(resultsets[targetid-start].find(j) ==resultsets[targetid-start].end()){
@@ -72,7 +85,18 @@ void AlignmentSymmetry::execute() {
         //print
         for (int i = start; i < end; i++) {
             char *data = alnDbr->getData(i);
-            std::string cluResultsOutString = std::string(data);
+            std::string cluResultsOutString = std::string("");
+            while (*data != '\0') {
+                Util::getLine(data, idbuffer1);
+                Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                float seqId = atof(similarity);
+                if (seqId < this->seqIdThr) {
+                    break;
+                }
+                cluResultsOutString=cluResultsOutString+idbuffer1+"\n";
+                data = Util::skipLine(data);
+            }
+
                   // Debug(Debug::INFO)<<data;
                 if(!missinglines[i-start].empty()){
                     for(std::string line :missinglines[i-start]){
