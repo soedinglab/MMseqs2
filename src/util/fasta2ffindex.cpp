@@ -123,7 +123,8 @@ int createdb(int argn,const char **argv)
     fclose(data_file_hdr);
 
     /* Sort the index entries and write back */
-   rewind(index_file);
+   fclose(index_file);
+   index_file = fopen(index_filename, "r+");
    ffindex_index_t* index = ffindex_index_parse(index_file, entries_num);
    if(index == NULL)
    {
@@ -136,7 +137,8 @@ int createdb(int argn,const char **argv)
    if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
    err += ffindex_write(index, index_file);
 
-   rewind(index_file_hdr);
+   fclose(index_file_hdr);
+   index_file_hdr = fopen(index_filename_hdr, "r+");
    ffindex_index_t* index_hdr = ffindex_index_parse(index_file_hdr, entries_num);
    if(index == NULL)
    { 

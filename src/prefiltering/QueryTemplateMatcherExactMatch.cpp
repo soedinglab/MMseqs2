@@ -3,89 +3,74 @@
 //
 #include "QueryTemplateMatcherExactMatch.h"
 #include "QueryScoreLocal.h"
+#include "QueryScore.h"
 
 QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
                                                                unsigned int *seqLens, short kmerThr,
                                                                double kmerMatchProb, int kmerSize, size_t dbSize,
-                                                               unsigned int maxSeqLen)
+                                                               unsigned int maxSeqLen, int effectiveKmerSize, size_t maxHitsPerQuery)
         : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, false, maxSeqLen) {
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
-    this->binData = new unsigned int[BIN_COUNT * BIN_SIZE];
-    this->counterOutput = new CounterResult[MAX_DB_MATCHES];
-    memset(counterOutput, 0, sizeof(CounterResult) * MAX_DB_MATCHES);
-    this->counter = new CountInt32Array(dbSize, BIN_SIZE ); //TODO what is the right choice?!?
+    this->databaseHits = new CounterResult[MAX_DB_MATCHES];
+    // data for histogram of score distribution
+    this->scoreSizes = new unsigned int[QueryScoreLocal::SCORE_RANGE];
+    memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
+
+    this->maxHitsPerQuery = maxHitsPerQuery;
+    this->counter = new CountInt32Array(dbSize, MAX_DB_MATCHES/32 );
     // needed for p-value calc.
+    kmerMatchProb = 1.51871e-11;
     this->mu = kmerMatchProb;
-    this->sqrtMu = sqrt(kmerMatchProb);
-    entriesBuffer = new IndexEntryLocal[ENTRIES_BUFFER_SIZE];
+    this->logMatchProb = log(kmerMatchProb);
+    this->logScoreFactorial = new double[QueryScoreLocal::SCORE_RANGE];
+    QueryScoreLocal::computeFactorial(logScoreFactorial, QueryScoreLocal::SCORE_RANGE);
+
+    // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
+    this->seqLens = new float[dbSize];
+    memset (this->seqLens, 0, dbSize * sizeof(float));
+    for (size_t i = 0; i < dbSize; i++){
+        if (seqLens[i] > (effectiveKmerSize - 1))
+            this->seqLens[i] = (float) (seqLens[i] - effectiveKmerSize + 1);
+        else
+            this->seqLens[i] = 1.0f;
+    }
+
 }
 
 QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
     free(resList);
-    delete [] binData;
-    delete [] counterOutput;
+    delete [] scoreSizes;
+    delete [] databaseHits;
     delete counter;
-    delete [] entriesBuffer;
+    delete [] logScoreFactorial;
+    delete [] seqLens;
 }
 
-size_t QueryTemplateMatcherExactMatch::evaluateBins(CounterResult *output) {
+size_t QueryTemplateMatcherExactMatch::evaluateBins(CounterResult *inputOutput, size_t N) {
     size_t localResultSize = 0;
-    const CounterResult * lastPointer = output + MAX_DB_MATCHES;
-    for(size_t bin = 0; bin < BIN_COUNT; bin++){
-        unsigned int *binStartPos = binData + (bin * BIN_SIZE);
-        const size_t N =  (diagonalBins[bin] - binStartPos);
-
-        // check if possible overflow can occurred
-        if(output + localResultSize + N >= lastPointer)
-            break;
-        localResultSize += counter->countElements(binStartPos, N, output + localResultSize);
-    }
+    localResultSize += counter->countElements(inputOutput, N);
     return localResultSize;
 }
 
-void QueryTemplateMatcherExactMatch::reallocBinMemory(const unsigned int binCount, const size_t binSize) {
-    delete [] binData;
-    binData = new unsigned int[binCount * binSize];
-}
-
-int QueryTemplateMatcherExactMatch::checkForOverflow() {
-    const unsigned int * bin_ref_pointer = binData;
-    int hasOverflow = 0;
-    for (size_t bin = 0; bin < BIN_COUNT; bin++) {
-        const unsigned int *binStartPos = (bin_ref_pointer + bin * BIN_SIZE);
-        const size_t n = (diagonalBins[bin] - binStartPos);
-        hasOverflow += ( n >= BIN_SIZE );
-    }
-    return hasOverflow;
-}
-
-void QueryTemplateMatcherExactMatch::setupBinPointer() {
-    // Example binCount = 3
-    // bin start             |-----------------------|-----------------------| bin end
-    //    segments[bin_step][0]
-    //                            segments[bin_step][1]
-    //                                                    segments[bin_step][2]
-    size_t curr_pos = 0;
-    for(size_t bin = 0; bin < BIN_COUNT; bin++){
-        diagonalBins[bin] = binData + curr_pos;
-        curr_pos += BIN_SIZE;
-    }
-}
 
 std::pair<hit_t *, size_t> QueryTemplateMatcherExactMatch::matchQuery (Sequence * seq, unsigned int identityId){
     seq->resetCurrPos();
-    setupBinPointer();
-    match(seq);
-    return getResult(seq->L, identityId, 0);
+    memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
+    size_t resultSize = match(seq);
+    unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
+    return getResult(resultSize, seq->L, identityId, thr);
 }
 
-void QueryTemplateMatcherExactMatch::match(Sequence* seq){
+size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
     // go through the query sequence
     size_t kmerListLen = 0;
     size_t numMatches = 0;
     //size_t pos = 0;
-    size_t seqListSize = 0;
-    size_t pos = 0;
+    stats->diagonalOverflow = false;
+
+    CounterResult* sequenceHits = databaseHits;
+    CounterResult * lastSequenceHit = databaseHits + MAX_DB_MATCHES;
+    size_t seqListSize;
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();
         const ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
@@ -96,99 +81,77 @@ void QueryTemplateMatcherExactMatch::match(Sequence* seq){
             // generate k-mer list
             const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[kmerPos],
                                                                                        &seqListSize);
-            if(pos + seqListSize >= ENTRIES_BUFFER_SIZE) {
-                fillDiagonals(entriesBuffer, pos);
-                pos = 0;
-            }
+            // detected overflow while matching TODO smarter way
+            seqListSize = (sequenceHits + seqListSize >= lastSequenceHit) ? 0 : seqListSize;
+
             for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++) {
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
                 const unsigned int seqId = entry.seqId;
                 const unsigned char diagonal = (i - j);
-                const unsigned char diagonal2 = diagonal/static_cast<unsigned char>(16);
-                entriesBuffer[pos].seqId = seqId;
-                entriesBuffer[pos].position_j = diagonal2;
-                pos++;
+                sequenceHits->id    = seqId;
+                sequenceHits->count = diagonal;
+                sequenceHits++;
             }
             numMatches += seqListSize;
         }
     }
-    fillDiagonals(entriesBuffer, pos);
-
     //fill the output
-    size_t doubleMatches = evaluateBins(counterOutput);
-    stats->doubleMatches = doubleMatches;
+    CounterResult* inputOutputHits = databaseHits;
+    size_t hitCount = evaluateBins(inputOutputHits, numMatches);
+    updateScoreBins(inputOutputHits, hitCount);
+    stats->doubleMatches = getLocalResultSize();
     stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
     stats->querySeqLen   = seq->L;
     stats->dbMatches     = numMatches;
-    stats->diagonalOverflow = (checkForOverflow() == true) ? 1 : 0;
+    return hitCount;
 }
 
-void QueryTemplateMatcherExactMatch::fillDiagonals(IndexEntryLocal *data, size_t length) {
-    const unsigned int * lastPosition = (binData + BIN_COUNT * BIN_SIZE) - 1;
-    for (unsigned int seqIdx = 0; LIKELY(seqIdx < length); seqIdx++){
-        const IndexEntryLocal entry = data[seqIdx];
-        const unsigned char diagonal = entry.position_j;
-        const unsigned int seqId = entry.seqId;
-        *diagonalBins[diagonal] = seqId;
-        diagonalBins[diagonal] += (diagonalBins[diagonal] >= lastPosition)  ? 0 : 1;
+size_t QueryTemplateMatcherExactMatch::getLocalResultSize(){
+    size_t retValue = 0;
+    for(size_t i = 1; i < QueryScoreLocal::SCORE_RANGE; i++){
+        retValue += scoreSizes[i] * i;
+    }
+    return retValue;
+}
+
+void QueryTemplateMatcherExactMatch::updateScoreBins(CounterResult *result, size_t elementCount) {
+    for(size_t i = 0; i < elementCount; i++){
+        scoreSizes[result[i].count]++;
     }
 }
 
-
-
-std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(const int l,
+std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(size_t resultSize, const int l,
                                                                       const unsigned int id,
                                                                       const unsigned short thr) {
     size_t elementCounter = 0;
-    size_t resultSize = stats->doubleMatches;
-    //std::sort(foundSequences, foundSequences + resultSize);
-    std::sort(counterOutput, counterOutput + resultSize, compareCounterResult); // TODO
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
         const unsigned short rawScore  = l;
         result->seqId = id;
         result->prefScore = rawScore;
-        //result->zScore = rawScore;
-        result->zScore = (((float)rawScore) - mu)/ sqrtMu;
+        //result->zScore = (((float)rawScore) - mu)/ sqrtMu;
+        result->zScore = -QueryScoreLocal::computeLogProbability(rawScore, seqLens[id],
+                                                                 mu, logMatchProb, logScoreFactorial[rawScore]);
         elementCounter++;
     }
 
-    unsigned int   seqIdPrev = counterOutput[0].id;
-    unsigned short scoreMax =  counterOutput[0].count;
-    //  std::cout << seqIdPrev << " " << (int) counterOutput[0].count << std::endl;
-    if(resultSize == 1){
-        hit_t *result = (resList + elementCounter);
-        result->seqId = seqIdPrev;
-        result->prefScore = scoreMax;
-        result->zScore = (((float)scoreMax) - mu)/ sqrtMu;
+    for (size_t i = 0; i < resultSize; i++) {
+        const unsigned int seqIdCurr = databaseHits[i].id;
+        const unsigned int scoreCurr = databaseHits[i].count;
+        // write result to list
+        if(scoreCurr >= thr && id != seqIdCurr){
+            hit_t *result = (resList + elementCounter);
+            result->seqId = seqIdCurr;
+            result->prefScore = scoreCurr;
+            //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
+            result->zScore = -QueryScoreLocal::computeLogProbability(scoreCurr, seqLens[seqIdCurr],
+                                                                     mu, logMatchProb, logScoreFactorial[scoreCurr]);
 
-        elementCounter++;
-    }
-    for (size_t i = 1; i < resultSize; i++) {
-        const unsigned int seqIdCurr = counterOutput[i].id;
-        const unsigned int scoreCurr = counterOutput[i].count;
-
-        // if new sequence occurs or end of data write the result back
-        if (seqIdCurr != seqIdPrev || i == (resultSize - 1)) {
-            // write result to list
-            if(scoreMax > thr && id != seqIdPrev){
-                scoreMax += (seqIdCurr != seqIdPrev ) ? 0 : scoreCurr;
-                hit_t *result = (resList + elementCounter);
-                result->seqId = seqIdPrev;
-                result->prefScore = scoreMax;
-                result->zScore = (((float)scoreMax) - mu)/ sqrtMu;
-
-                elementCounter++;
-                if (elementCounter >= QueryScore::MAX_RES_LIST_LEN)
-                    break;
-            }
-            seqIdPrev = seqIdCurr;
-            // reset values
-            scoreMax = 0;  // current best score
+            elementCounter++;
+            if (elementCounter >= QueryScore::MAX_RES_LIST_LEN)
+                break;
         }
-        scoreMax += scoreCurr;
-
     }
 
     if(elementCounter > 1){
@@ -202,4 +165,3 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(const int 
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
     return pair;
 }
-

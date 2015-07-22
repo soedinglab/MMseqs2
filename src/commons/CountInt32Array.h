@@ -14,62 +14,47 @@ struct CounterResult {
 class CountInt32Array {
 public:
     // 00000000000000000000000111111111
-    static const unsigned int MASK_0_5 = 0x0000003F;
-    static const unsigned int MASK_0_5_BIT = 6;
-    static const unsigned int MASK_6_11 = 0x00000FC0;
-    static const unsigned int MASK_6_11_BIT = 6;
+    static const unsigned int MASK_0_5 = 0x0000007F;
+    static const unsigned int MASK_0_5_BIT = 7;
 
     CountInt32Array(size_t maxElement,
                     size_t initBinSize);
 
     ~CountInt32Array();
 
-    size_t countElements(unsigned int *inputArray, const size_t N, CounterResult * output);
+    size_t countElements(CounterResult *inputOutputArray, const size_t N);
 
 private:
-
     // this bit array should fit in L1/L2
     size_t duplicateBitArraySize;
     unsigned char * duplicateBitArray;
     // needed for lower bit hashing function
-    unsigned int binCount;
+    const static unsigned int BINCOUNT = MASK_0_5 + 1;
     size_t binSize;
-    unsigned int **bins;
+    // pointer for hashing
+    CounterResult ** bins;
     // array to keep the bin elements
-    unsigned int * binDataFrame;
-
-    // sub bin data structure
-    unsigned int **subBins;
-    unsigned int subBinCount;
-    size_t subBinSize;
-    unsigned int * subBinDataFrame;
-    unsigned char * lookup;
+    CounterResult * binDataFrame;
+    // needed to temporary keep ids
     unsigned int *tmpElementBuffer;
-
-    bool checkForOverflowAndResizeArray(unsigned int **bins,
+    // detect if overflow occurs
+    bool checkForOverflowAndResizeArray(CounterResult **bins,
                                         const unsigned int binCount,
                                         const size_t binSize);
 
-
+    // extend the bin size
     void reallocBinMemory(unsigned int const binCount, size_t const binSize);
 
+    // reset pointer to the bin start pos
+    void setupBinPointer(CounterResult **bins, const unsigned int binCount,
+                         CounterResult *binDataFrame, const size_t binSize);
 
-    void setupBinPointer(unsigned int **bins, const unsigned int binCount,
-                         unsigned int *binDataFrame, const size_t binSize);
+    // hash input array based on MASK_0_5
+    void hashElements(CounterResult *inputArray, size_t N, CounterResult **hashBins);
 
-    void hashElements(unsigned int const *inputArray, size_t N,
-                      unsigned int **hashBins);
-
-    size_t findDuplicates(unsigned int **bins, unsigned int binCount,
-                          unsigned int **subBins, unsigned int subBinCount,
+    // detect duplicates in diagonal
+    size_t findDuplicates(CounterResult **bins, unsigned int binCount,
                           CounterResult * output);
-
-    unsigned int highest_bit_set(size_t num);
-
-
-    size_t countDuplicates(unsigned int **subBins, unsigned int subBinCount,
-                           unsigned int *inputArray, const unsigned int elementCount,
-                           CounterResult * output);
 
 };
 #endif

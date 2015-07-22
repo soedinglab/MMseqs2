@@ -126,14 +126,15 @@ int createprofiledb(int argn,const char **argv)
     par.parseParameters(argn, argv, usage, par.createprofiledb, 2);
 
     struct stat st;
+	const char* data_filename = par.db2.c_str();
+    if(stat(data_filename, &st) == 0) { errno = EEXIST; perror(data_filename); return EXIT_FAILURE; }
+    FILE * data_file  = fopen(data_filename, "wb"); // binary file
+    if( data_file == NULL) { perror(data_filename); return EXIT_FAILURE; }
 
-    if(stat(par.db2.c_str(), &st) == 0) { errno = EEXIST; perror(par.db2.c_str()); return EXIT_FAILURE; }
-    FILE * data_file  = fopen(par.db2.c_str(), "wb"); // binary file
-    if( data_file == NULL) { perror(par.db2.c_str()); return EXIT_FAILURE; }
-
-    if(stat(par.db2Index.c_str(), &st) == 0) { errno = EEXIST; perror(par.db2Index.c_str()); return EXIT_FAILURE; }
-    FILE * index_file = fopen(par.db2Index.c_str(), "w+");
-    if(index_file == NULL) { perror(par.db2Index.c_str()); return EXIT_FAILURE; }
+	const char* index_filename = par.db2Index.c_str();
+    if(stat(index_filename, &st) == 0) { errno = EEXIST; perror(index_filename); return EXIT_FAILURE; }
+    FILE * index_file = fopen(index_filename, "w+");
+    if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
 
     size_t offset_sequence = 0;
     size_t entry_num = 0;
@@ -167,7 +168,8 @@ int createprofiledb(int argn,const char **argv)
     fclose(data_file);
 
     /* Sort the index entries and write back */
-    rewind(index_file);
+    fclose(index_file);
+	index_file = fopen(index_filename, "r+");
     ffindex_index_t* index = ffindex_index_parse(index_file, entry_num);
     if(index == NULL)
     {

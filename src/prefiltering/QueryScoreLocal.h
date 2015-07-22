@@ -28,7 +28,16 @@ public:
 
     void updateScoreBins();
 
-    unsigned int computeScoreThreshold(size_t maxHitsPerQuery);
+    static unsigned int computeScoreThreshold(unsigned int * scoreSizes, size_t maxHitsPerQuery) {
+        size_t foundHits = 0;
+        size_t scoreThr = 0;
+        for(scoreThr = SCORE_RANGE - 1; scoreThr > 0 ; scoreThr--){
+            foundHits += scoreSizes[scoreThr];
+            if(foundHits >= maxHitsPerQuery)
+                break;
+        }
+        return scoreThr;
+    }
 
     // compute look up table based on stirling approximation
     static void computeFactorial(double *output, const size_t range) {
