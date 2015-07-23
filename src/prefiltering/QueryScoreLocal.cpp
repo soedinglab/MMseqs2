@@ -118,13 +118,3 @@ void QueryScoreLocal::updateScoreBins() {
     }
 }
 
-unsigned int QueryScoreLocal::computeScoreThreshold(size_t maxHitsPerQuery) {
-    size_t foundHits = 0;
-    size_t scoreThr = 0;
-    for(scoreThr = SCORE_RANGE - 1; scoreThr > 0 ; scoreThr--){
-        foundHits += scoreSizes[scoreThr];
-        if(foundHits >= maxHitsPerQuery)
-            break;
-    }
-    return scoreThr;
-}

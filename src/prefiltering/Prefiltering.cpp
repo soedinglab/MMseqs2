@@ -146,7 +146,12 @@ void Prefiltering::run(){
     } // prefiltering scores calculation end
 
     // merge output ffindex databases
-    this->mergeOutput(splitFiles);
+    if(splitCounter > 1){
+        this->mergeOutput(splitFiles);
+    }else{
+        std::rename(splitFiles[0].first.c_str(),  outDB.c_str());
+        std::rename(splitFiles[0].second.c_str(), outDBIndex.c_str());
+    }
     // remove temp databases
     this->removeDatabaes(splitFiles);
     // close reader to reduce memory
@@ -216,7 +221,7 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
                                                                  fastMode, maxSeqLen, maxHitsPerQuery);
         } else if(searchMode == Parameters::SEARCH_LOCAL_FAST) {
             matchers[thread_idx] = new QueryTemplateMatcherExactMatch(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                                      kmerSize, dbSize, maxSeqLen);
+                                                                      kmerSize, dbSize, maxSeqLen, effectiveKmerSize, maxHitsPerQuery);
         } else {
             matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
                                                                   kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
@@ -340,9 +345,18 @@ void Prefiltering::run (size_t split, size_t splitCount,
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-
     tmpDbw.close(); // sorts the index
+    // needed to speed up merge later one
+    // this sorts this datafile according to the index file
 
+    if(splitCount > 1){
+        DBReader tmpDbr(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
+        DBWriter tmpDbw2(resultDB.c_str(), resultDBIndex.c_str(), threads);
+        tmpDbw2.open();
+        tmpDbw2.sortDatafileByIdOrder(&tmpDbr);
+        tmpDbr.close();
+        tmpDbw2.close();
+    }
 }
 
 void Prefiltering::closeReader(){
@@ -475,6 +489,7 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
         Log::printProgress(id-dbFrom);
         char* seqData = dbr->getData(id);
         std::string str(seqData);
+        //TODO - dbFrom?!?
         seq->mapSequence(id, dbr->getDbKey(id), seqData);
         indexTable->addSequence(seq);
     }
@@ -632,11 +647,12 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
     // match probability with pseudocounts
     kmerMatchProb = ((double)stats.dbMatches + dbMatchesExp_pc) / ((double) (stats.querySeqLen * targetSeqLenSum + lenSum_pc));
     // compute match prob for local match
-    if(searchMode == true){
+    if(searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST){
+        std::cout << "bamm: " << stats.doubleMatches << std::endl;
         kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
         kmerMatchProb /= 256;
     }
-
+    kmerMatchProb = std::max(kmerMatchProb, std::numeric_limits<double>::min());
     Debug(Debug::INFO) << "\tk-mers per position = " << stats.kmersPerPos << ", k-mer match probability: " << kmerMatchProb << "\n";
 
 
