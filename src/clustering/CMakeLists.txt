@@ -17,6 +17,8 @@ set(clustering_source_files
   SetCover2.h
   SetCover3.h
   SetCover3.cpp
+  AlignmentSymmetry.h
+  AlignmentSymmetry.cpp
 )
 add_library(clustering ${clustering_source_files})
 
