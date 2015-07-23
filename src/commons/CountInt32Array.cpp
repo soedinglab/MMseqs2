@@ -8,7 +8,7 @@ CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
     size = std::max(size  >> MASK_0_5_BIT, (size_t) 1); // space needed in bit array
     duplicateBitArraySize = size;
     duplicateBitArray = new unsigned char[size];
-    memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
+    memset(duplicateBitArray, 246, duplicateBitArraySize * sizeof(unsigned char));
     // find nearest upper power of 2^(x)
     initBinSize = pow(2, ceil(log(initBinSize)/log(2)));
     binSize = initBinSize;
@@ -53,12 +53,12 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
             //currDiagonal = (currDiagonal == 0) ? 200 : currDiagonal;
             const unsigned char dbDiagonal = duplicateBitArray[hashBinElement];
             tmpElementBuffer[elementCount] = element.id;
-            elementCount += (UNLIKELY(currDiagonal >= dbDiagonal - 8 ) &&
-                             UNLIKELY(currDiagonal <= dbDiagonal + 8 ) ) ? 1 : 0;
+            elementCount += (UNLIKELY(currDiagonal > dbDiagonal - 8 ) &&
+                             UNLIKELY(currDiagonal < dbDiagonal + 8 ) ) ? 1 : 0;
             // set element corresponding bit in byte
             duplicateBitArray[hashBinElement] = currDiagonal;
         }
-        //memset(duplicateBitArray, 127, sizeof(unsigned char) * duplicateBitArraySize);
+
         // set memory to zero
         for (size_t n = 0; n < elementCount; n++) {
             const unsigned int element = tmpElementBuffer[n] >> (MASK_0_5_BIT);
@@ -81,8 +81,16 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
             doubleElementCount += (duplicateBitArray[hashBinElement] != 0) ? 1 : 0;
             duplicateBitArray[hashBinElement] = 0;
         }
+        // clean memory faster if current bin size is smaller duplicateBitArraySize
+        if(currBinSize < duplicateBitArraySize/16){
+            for (size_t n = 0; n < currBinSize; n++) {
+                const unsigned int byteArrayPos = binStartPos[n].id >> (MASK_0_5_BIT);
+                duplicateBitArray[byteArrayPos] = 246;
+            }
+        }else{
+            memset(duplicateBitArray, 246, duplicateBitArraySize * sizeof(unsigned char));
+        }
     }
-
     return doubleElementCount;
 }
 

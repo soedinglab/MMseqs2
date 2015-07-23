@@ -19,7 +19,6 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
     this->maxHitsPerQuery = maxHitsPerQuery;
     this->counter = new CountInt32Array(dbSize, MAX_DB_MATCHES/32 );
     // needed for p-value calc.
-    kmerMatchProb = 1.51871e-11;
     this->mu = kmerMatchProb;
     this->logMatchProb = log(kmerMatchProb);
     this->logScoreFactorial = new double[QueryScoreLocal::SCORE_RANGE];
@@ -88,7 +87,7 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
                 const unsigned int seqId = entry.seqId;
-                const unsigned char diagonal = (i - j);
+                const unsigned char diagonal = (i - j) % 237;
                 sequenceHits->id    = seqId;
                 sequenceHits->count = diagonal;
                 sequenceHits++;
