@@ -5,7 +5,6 @@
 #include <Util.h>
 #include <Debug.h>
 #include "SetCover3.h"
-#include "SetElement.h"
 #include "AffinityClustering.h"
 
 SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage){
@@ -59,7 +58,7 @@ std::list<set *>  SetCover3::execute() {
                 Util::parseKey(data, idbuffer1);
                 int elementtodelete=alnDbr->getId(idbuffer1);
                 bool representativefound=false;
-                if(elementtodelete== representative){
+                if(elementtodelete== representative|| clustersizes[elementtodelete]<1){
                     data = Util::skipLine(data);
                     continue;
                 }
@@ -74,7 +73,7 @@ std::list<set *>  SetCover3::execute() {
                         representativefound=true;
                     }
                     if(clustersizes[elementtodecrease]==1) {
-            //            Debug(Debug::ERROR)<<"there must be an error: "<<alnDbr->getDbKey(elementtodelete)<<" deleted from "<<alnDbr->getDbKey(elementtodecrease)<<" that now is empty, but not assigned to a cluster\n";
+                        Debug(Debug::ERROR)<<"there must be an error: "<<alnDbr->getDbKey(elementtodelete)<<" deleted from "<<alnDbr->getDbKey(elementtodecrease)<<" that now is empty, but not assigned to a cluster\n";
                     }else if (clustersizes[elementtodecrease]>0) {
                     orderedClustersizes[clustersizes[elementtodecrease]].erase(elementtodecrease);
                     clustersizes[elementtodecrease]--;
