@@ -1,6 +1,7 @@
 #include <random>
 #include "Clustering.h"
 #include "SetCover3.h"
+#include "AlignmentSymmetry.h"
 
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
@@ -22,7 +23,6 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
 
     dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str());
     dbw->open();
-
     this->validate = validateClustering;
     this->maxListLen = maxListLen;
     Debug(Debug::INFO) << "done.\n";
@@ -56,7 +56,7 @@ void Clustering::run(int mode){
 
         Debug(Debug::INFO) << "Adding sets...\n";
         for(size_t i = 0; i < set_data.set_count; i++){
-            setcover.add_set(i + 1, set_data.set_sizes[i], //TODO not sure why +1
+            setcover.add_set(i, set_data.set_sizes[i], //TODO not sure why +1
                     (const unsigned int*)   set_data.sets[i],
                     (const unsigned short*) set_data.weights[i],
                     set_data.set_sizes[i]);
@@ -121,13 +121,28 @@ void Clustering::run(int mode){
         writeData(ret);
         Debug(Debug::INFO) << "...done.\n";
     }else if (mode == Parameters::SET_COVER3){
+
+        DBWriter* alndbw;
+        alndbw = new DBWriter((std::string(alnDbr->getDataFileName())+"_symmetric").c_str(), (std::string(alnDbr->getDataFileName())+"_symmetric.index").c_str());
+        alndbw->open();
+        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr,alnDbr,alndbw,seqIdThr,0.0);
+       alignmentSymmetry->execute();
+       // writeData(ret);
+        gettimeofday(&end, NULL);
+        int sec1 = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for clustering: " << (sec1 / 60) << " m " << (sec1 % 60) << "s\n\n";
+
+        alnDbr->close();
+        alnDbr= new DBReader(alndbw->getDataFileName(),alndbw->getIndexFileName());
+        alndbw->close();
+        alnDbr->open(DBReader::NOSORT);
         SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0);
         ret =setCover3->execute();
         writeData(ret);
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-        //return;
+
     } else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
         EXIT(EXIT_FAILURE);
@@ -168,7 +183,7 @@ if(mode != Parameters::SET_COVER3) {
     delete[] set_data.set_sizes;
     delete[] set_data.element_size_lookup;
     delete  set_data.validids;
-}
+    }
 }
 
 void Clustering::writeData(std::list<set *> ret){
