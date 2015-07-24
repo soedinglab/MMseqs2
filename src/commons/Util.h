@@ -9,6 +9,7 @@
 #include <limits.h>
 
 #include <iostream>
+#include <sstream>
 #include <float.h>
 
 extern "C" {
@@ -153,7 +154,13 @@ public:
         ffindex_index_t* index = ffindex_index_parse(indexFile, cnt);
         return index;
     }
-    
+
+    static std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb){
+        std::string splitSuffix = std::string("_tmp_") + SSTR(numb);
+        std::string dataFile  = db + splitSuffix;
+        std::string indexFile = dbindex + splitSuffix;
+        return std::make_pair(dataFile, indexFile);
+    }
     
     static inline size_t getWordsOfLine(char * data, char ** words, size_t maxElement ){
         size_t elementCounter = 0;

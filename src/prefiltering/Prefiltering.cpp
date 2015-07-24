@@ -136,7 +136,7 @@ void Prefiltering::run(){
     unsigned int splitCounter =  this->split;
     std::vector<std::pair<std::string, std::string> > splitFiles;
     for(unsigned int split = 0; split < splitCounter; split++){
-        std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB,outDBIndex,split);
+        std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(outDB,outDBIndex,split);
         splitFiles.push_back(filenamePair);
 
         this->run (split, splitCounter,
@@ -165,16 +165,9 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
     writer.close();
 }
 
-std::pair<std::string, std::string> Prefiltering::createTmpFileNames(std::string db, std::string dbindex, int numb){
-    std::string splitSuffix = std::string("_tmp_") + SSTR(numb);
-    std::string dataFile  = db + splitSuffix;
-    std::string indexFile = dbindex + splitSuffix;
-    return std::make_pair(dataFile, indexFile);
-}
-
 void Prefiltering::run(int mpi_rank, int mpi_num_procs){
 
-    std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB, outDBIndex, mpi_rank);
+    std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(outDB, outDBIndex, mpi_rank);
 
     this->run (mpi_rank, mpi_num_procs,
                filenamePair.first.c_str(),
@@ -185,7 +178,7 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs){
     if(mpi_rank == 0){ // master reduces results
         std::vector<std::pair<std::string, std::string> > splitFiles;
         for(int procs = 0; procs < mpi_num_procs; procs++){
-            splitFiles.push_back(createTmpFileNames(outDB, outDBIndex, procs));
+            splitFiles.push_back(Util::createTmpFileNames(outDB, outDBIndex, procs));
         }
         // merge output ffindex databases
         this->mergeOutput(splitFiles);

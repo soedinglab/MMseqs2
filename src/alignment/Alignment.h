@@ -26,59 +26,69 @@
 
 class Alignment {
 
-    public:
+public:
 
-        Alignment (std::string querySeqDB, std::string querySeqDBIndex,
-                std::string targetSeqDB, std::string targetSeqDBIndex,
-                std::string prefDB, std::string prefDBIndex,
-                std::string outDB, std::string outDBIndex,
-                Parameters par);
+    Alignment (std::string querySeqDB, std::string querySeqDBIndex,
+               std::string targetSeqDB, std::string targetSeqDBIndex,
+               std::string prefDB, std::string prefDBIndex,
+               std::string outDB, std::string outDBIndex,
+               Parameters par);
 
-        ~Alignment();
+    ~Alignment();
+    //None MPI
+    void run (const unsigned int maxAlnNum, const unsigned int maxRejected);
+    //MPI function
+    void run (const unsigned int mpiRank, const unsigned int mpiNumProc,
+              const unsigned int maxAlnNum, const unsigned int maxRejected);
+    //Run parallel
+    void run (const char * outDB, const char * outDBIndex,
+              const size_t dbFrom, const size_t dbSize,
+              const unsigned int maxAlnNum, const unsigned int maxRejected);
 
-        void run (const unsigned int maxAlnNum, const unsigned int maxRejected);
-        void run (const unsigned int maxAlnNum, const unsigned int maxRejected, const unsigned int mpiRank, const unsigned int mpiNumProc);
+private:
 
-    private:
+    // keeps state of alignment mode (SCORE_ONLY, SCORE_COV or SCORE_COV_SEQID)
+    unsigned mode;
+    int threads;
 
-        // keeps state of alignment mode (SCORE_ONLY, SCORE_COV or SCORE_COV_SEQID)
-        unsigned mode;
-        int threads;
+    size_t BUFFER_SIZE;
 
-        size_t BUFFER_SIZE;
+    // sequence identity threshold
+    double seqIdThr;
 
-        // sequence identity threshold
-        double seqIdThr;
+    // query sequence coverage threshold
+    double covThr;
 
-        // query sequence coverage threshold
-        double covThr;
+    // e value threshold
+    double evalThr;
 
-        // e value threshold
-        double evalThr;
+    BaseMatrix* m;
 
-        BaseMatrix* m;
+    // 2 Sequence objects for each thread: one for the query, one for the DB sequence
+    Sequence** qSeqs;
 
-        // 2 Sequence objects for each thread: one for the query, one for the DB sequence
-        Sequence** qSeqs;
+    Sequence** dbSeqs;
 
-        Sequence** dbSeqs;
+    Matcher** matchers;
 
-        Matcher** matchers;
+    DBReader* qseqdbr;
 
-        DBReader* qseqdbr;
+    DBReader* tseqdbr;
 
-        DBReader* tseqdbr;
+    DBReader* prefdbr;
 
-        DBReader* prefdbr;
+    // buffers for the database keys (needed during the processing of the prefilterings lists)
+    char** dbKeys;
 
-        DBWriter* dbw;
+    // output buffers
+    char** outBuffers;
 
-        // buffers for the database keys (needed during the processing of the prefilterings lists)
-        char** dbKeys;
+    void closeReader();
 
-        // output buffers
-        char** outBuffers;
+    std::string outDB;
+    std::string outDBIndex;
 
+    void mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> vector);
 };
 
 #endif
