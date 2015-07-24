@@ -199,6 +199,7 @@ void Sequence::mapProfile(const char * sequenze){
             profile_for_alignment[aa_idx * this-> L + l] = profile_score[l * profile_row_size + aa_num] / 4;
         }
     }
+//    printProfile();
 }
 
 
