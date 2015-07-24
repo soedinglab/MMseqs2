@@ -8,6 +8,8 @@
 #include <omp.h>
 #endif
 
+#include "MMseqsMPI.h"
+
 bool compareHits (Matcher::result_t first, Matcher::result_t second){
     if (first.score > second.score)
         return true;
@@ -17,6 +19,8 @@ bool compareHits (Matcher::result_t first, Matcher::result_t second){
 
 int alignment(int argc, const char *argv[])
 {
+	MMseqsMPI::init(argc, argv);
+
     std::string usage("\nCalculates Smith-Waterman alignment scores between all sequences in the query database and the sequences of the target database which passed the prefiltering.\n");
     usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("USAGE: alignment <queryDB> <targetDB> <prefResultsDB> <outDB> [opts]\n");
@@ -29,8 +33,14 @@ int alignment(int argc, const char *argv[])
     omp_set_num_threads(par.threads);
 #endif
 
-    Debug::setDebugLevel(par.verbosity);
-
+#ifdef HAVE_MPI
+	    if(MMseqsMPI::isMaster())
+	    {
+	        Debug::setDebugLevel(par.verbosity);
+	    }
+#else
+		    Debug::setDebugLevel(par.verbosity);
+#endif
     Debug(Debug::WARNING) << "Init data structures...\n";
     Alignment* aln = new Alignment(par.db1,           par.db1Index,
                                    par.db2,           par.db2Index,
@@ -42,7 +52,12 @@ int alignment(int argc, const char *argv[])
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
+#ifdef HAVE_MPI
+    aln->run(par.maxResListLen, par.maxRejected, MMseqsMPI::rank, MMseqsMPI::numProc);
+#else
     aln->run(par.maxResListLen, par.maxRejected);
+#endif
+
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
@@ -50,6 +65,9 @@ int alignment(int argc, const char *argv[])
  
     delete aln;
 
+#ifdef HAVE_MPI
+	MPI_Finalize();
+#endif
     return 0;
 }
 
