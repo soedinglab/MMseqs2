@@ -60,6 +60,7 @@ class DBWriter {
         static void mergeFFindexFile(const char * outFileName, const char * outFileNameIndex, const char * datafileMode,
                                      const char **dataFileNames, const char **indexFileNames, int fileCount );
 
+        void mergeFilePair(const char *inData1, const char *inIndex1, const char *inData2, const char *inIndex2);
 private:
 
     void checkClosed();

@@ -152,17 +152,43 @@ void Prefiltering::run(){
         std::rename(splitFiles[0].first.c_str(),  outDB.c_str());
         std::rename(splitFiles[0].second.c_str(), outDBIndex.c_str());
     }
-    // remove temp databases
-    this->removeDatabaes(splitFiles);
+//    // remove temp databases
+//    this->removeDatabaes(splitFiles);
     // close reader to reduce memory
     this->closeReader();
 }
 
 void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> > filenames){
-    DBWriter writer(outDB.c_str(), outDBIndex.c_str());
-    writer.open();
-    writer.mergeFiles(qdbr, filenames, BUFFER_SIZE);
-    writer.close();
+    if(filenames.size() < 2){
+        Debug(Debug::INFO) << "No mergeing needed.\n";
+        return;
+    }
+
+    std::list<std::pair<std::string, std::string>> files(filenames.begin(), filenames.end());
+    size_t mergeStep = 0;
+    while(true){
+        std::pair<std::string, std::string> file1 = files.front();
+        files.pop_front();
+        std::pair<std::string, std::string> file2 = files.front();
+        files.pop_front();
+        std::pair<std::string, std::string> out   = std::make_pair((outDB + "_merge_"+ SSTR(mergeStep)).c_str(), (outDBIndex + "_merge_"+ SSTR(mergeStep)).c_str());
+        DBWriter writer(out.first.c_str(), out.second.c_str());
+        writer.open();
+        writer.mergeFilePair(file1.first.c_str(), file1.second.c_str(), file2.first.c_str(), file2.second.c_str());
+        remove(file1.first.c_str()); remove(file1.second.c_str());
+        remove(file2.first.c_str()); remove(file2.second.c_str());
+        writer.close();
+        files.push_back(out);
+        mergeStep++;
+        if(files.size() == 1 )
+            break;
+    }
+    std::pair<std::string, std::string> out = files.front();
+    std::cout << out.first  << " " << out.second << std::endl;
+
+    std::rename(out.first.c_str(),  outDB.c_str());
+    std::rename(out.second.c_str(), outDBIndex.c_str());
+
 }
 
 void Prefiltering::run(int mpi_rank, int mpi_num_procs){
@@ -183,7 +209,7 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs){
         // merge output ffindex databases
         this->mergeOutput(splitFiles);
         // remove temp databases
-        this->removeDatabaes(splitFiles);
+        //this->removeDatabaes(splitFiles);
         // close reader to reduce memory
         this->closeReader();
     } else {
@@ -344,11 +370,16 @@ void Prefiltering::run (size_t split, size_t splitCount,
 
     if(splitCount > 1){
         DBReader tmpDbr(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
-        DBWriter tmpDbw2(resultDB.c_str(), resultDBIndex.c_str(), threads);
+        tmpDbr.open(DBReader::NOSORT);
+        DBWriter tmpDbw2((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
         tmpDbw2.open();
         tmpDbw2.sortDatafileByIdOrder(&tmpDbr);
         tmpDbr.close();
         tmpDbw2.close();
+        remove(resultDB.c_str());
+        remove(resultDBIndex.c_str());
+        std::rename((resultDB+"_tmp").c_str(), resultDB.c_str());
+        std::rename((resultDBIndex+"_tmp").c_str(), resultDBIndex.c_str());
     }
 }
 
