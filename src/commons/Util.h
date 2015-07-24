@@ -284,5 +284,6 @@ public:
         *px += (lx << 23);                      // add integer power of 2 to exponent
         return x;
     }
+
 };
 #endif

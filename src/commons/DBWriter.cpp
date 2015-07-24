@@ -71,7 +71,6 @@ void DBWriter::mergeFiles(DBReader * qdbr,
 {
     Debug(Debug::INFO) << "Merging the results... to " << dataFileName << " .. ";
     const size_t file_count = files.size();
-
     // open DBReader
     DBReader * filesToMerge [file_count];
     for(size_t file = 0; file < file_count; file++){
@@ -201,7 +200,6 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
 
 
 void DBWriter::open(){
-
     for (int i = 0; i < maxThreadNum; i++){
         std::stringstream dataFileNameSs;
         dataFileNameSs << dataFileName << "." << i;
@@ -374,4 +372,35 @@ void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNa
     ffindex_write(index, index_file);
     fclose(index_file);
     free(index);
+}
+
+void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
+                             const char *inData2, const char *inIndex2) {
+
+    DBReader in1(inData1, inIndex1);
+    in1.open(DBReader::NOSORT);
+    DBReader in2(inData2, inIndex2);
+    in2.open(DBReader::NOSORT);
+    Debug(Debug::WARNING) << "Merge file " << inData1 << " and " << inData2 << "\n";
+
+    char * buffer = new char[6400000]; //6MB
+    for(size_t i = 0; i < in1.getSize(); i++){
+        char * dbKey = in1.getDbKey(i);
+        const char * data1 = in1.getData(i);
+        const char * data2 = in2.getData(i);
+        size_t entry1Size = in1.getSeqLens()[i];
+        size_t entry2Size = in2.getSeqLens()[i];
+        int64_t dataSize = entry1Size + entry2Size;
+        if(dataSize > 6400000){
+            Debug(Debug::ERROR) <<  "Entrie " << dbKey << " of " << inIndex2 << " and " << inIndex2 <<" is " << dataSize << " bytes long. "
+                                    "The allowed max size is 102400000 byte. \n";
+            EXIT(EXIT_FAILURE);
+        }
+        memcpy(buffer, data1, entry1Size - 1); // -1 for the nullbyte
+        memcpy(buffer + entry1Size -1, data2, entry2Size- 1);
+        this->write(buffer, dataSize - 2, dbKey, 0);
+    }
+    delete [] buffer;
+    in1.close();
+    in2.close();
 }
