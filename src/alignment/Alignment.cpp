@@ -1,11 +1,11 @@
 #include "Alignment.h"
 
 
-Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex, 
-        std::string targetSeqDB, std::string targetSeqDBIndex,
-        std::string prefDB, std::string prefDBIndex, 
-        std::string outDB, std::string outDBIndex,
-        Parameters par){
+Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
+                     std::string targetSeqDB, std::string targetSeqDBIndex,
+                     std::string prefDB, std::string prefDBIndex,
+                     std::string outDB, std::string outDBIndex,
+                     Parameters par){
 
     BUFFER_SIZE = 10000000;
 
@@ -53,8 +53,8 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     prefdbr = new DBReader(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader::NOSORT);
 
-    dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), threads);
-    dbw->open();
+    this->outDB = outDB;
+    this->outDBIndex = outDBIndex;
 
     matchers = new Matcher*[threads];
 # pragma omp parallel for schedule(static)
@@ -94,16 +94,57 @@ Alignment::~Alignment(){
     delete qseqdbr;
     delete tseqdbr;
     delete prefdbr;
-    delete dbw;
 }
 
-void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejected){
+void Alignment::run (const unsigned int mpiRank, const unsigned int mpiNumProc,
+                     const unsigned int maxAlnNum, const unsigned int maxRejected) {
+
+    size_t dbFrom = 0;
+    size_t dbSize = 0;
+    Util::decomposeDomainByAminoaAcid(qseqdbr->getAminoAcidDBSize(), qseqdbr->getSeqLens(), qseqdbr->getSize(),
+                                      mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    Debug(Debug::WARNING) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDB, outDBIndex, mpiRank);
+    run(tmpOutput.first.c_str(), tmpOutput.second.c_str(), dbFrom, dbSize, maxAlnNum, maxRejected);
+
+    // close reader to reduce memory
+    this->closeReader();
+#ifdef HAVE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+    if(mpiRank == 0){ // master reduces results
+        std::vector<std::pair<std::string, std::string> > splitFiles;
+        for(int procs = 0; procs < mpiNumProc; procs++){
+            splitFiles.push_back(Util::createTmpFileNames(outDB, outDBIndex, procs));
+        }
+        // merge output ffindex databases
+        this->mergeAndRemoveTmpDatabases(splitFiles);
+    }
+}
+
+
+void Alignment::closeReader(){
+    qseqdbr->close();
+    tseqdbr->close();
+    prefdbr->close();
+}
+
+void Alignment::run(const unsigned int maxAlnNum, const unsigned int maxRejected){
+    run(outDB.c_str(), outDBIndex.c_str(), 0, qseqdbr->getSize(), maxAlnNum, maxRejected);
+    this->closeReader();
+}
+
+
+void Alignment::run (const char * outDB, const char * outDBIndex,
+                     const size_t dbFrom, const size_t dbSize,
+                     const unsigned int maxAlnNum, const unsigned int maxRejected){
 
     size_t alignmentsNum = 0;
     size_t totalPassedNum = 0;
-
+    DBWriter dbw(outDB, outDBIndex, threads); //TODO
+    dbw.open();
 # pragma omp parallel for schedule(dynamic, 10) reduction (+: alignmentsNum, totalPassedNum)
-    for (size_t id = 0; id < prefdbr->getSize(); id++){
+    for (size_t id = dbFrom; id < dbFrom + dbSize; id++){
         Log::printProgress(id);
 
         int thread_idx = 0;
@@ -118,7 +159,7 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
         char* querySeqData = qseqdbr->getDataByDBKey(queryDbKey);
         qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
         matchers[thread_idx]->initQuery(qSeqs[thread_idx]);
-        // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list 
+        // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
         std::list<Matcher::result_t> swResults;
         std::stringstream lineSs (prefList);
         std::string val;
@@ -145,14 +186,14 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
 # pragma omp critical
                 {
                     Debug(Debug::ERROR) << "ERROR: Sequence " << dbKeys[thread_idx]
-                            << " is required in the prefiltering, but is not contained in the input sequence database!\n" <<
-                               "Please check your database.\n";
+                    << " is required in the prefiltering, but is not contained in the input sequence database!\n" <<
+                    "Please check your database.\n";
                     EXIT(1);
                 }
             }
             dbSeqs[thread_idx]->mapSequence(-1, dbKeys[thread_idx], dbSeqData);
 
-            // check if the sequences could pass the coverage threshold 
+            // check if the sequences could pass the coverage threshold
             if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
                  (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ) {
                 rejected++;
@@ -171,11 +212,11 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
 
             // check first if it is identity
             if (isIdentiy ||
-                (res.eval <= evalThr ) &&
-                ( ( mode == Matcher::SCORE_ONLY )||
-                  ( mode == Matcher::SCORE_COV && res.qcov >= covThr && res.dbcov >= covThr) ||
-                  ( mode == Matcher::SCORE_COV_SEQID && res.seqId > seqIdThr&& res.qcov >= covThr && res.dbcov >= covThr))
-                    ) {
+                ( (res.eval <= evalThr ) &&
+                  ( ( mode == Matcher::SCORE_ONLY )||
+                    ( mode == Matcher::SCORE_COV && res.qcov >= covThr && res.dbcov >= covThr) ||
+                    ( mode == Matcher::SCORE_COV_SEQID && res.seqId > seqIdThr&& res.qcov >= covThr && res.dbcov >= covThr))
+                ) ) {
                 swResults.push_back(res);
                 passedNum++;
                 totalPassedNum++;
@@ -193,38 +234,42 @@ void Alignment::run (const unsigned int maxAlnNum, const unsigned int maxRejecte
 
         // put the contents of the swResults list into ffindex DB
         for (it = swResults.begin(); it != swResults.end(); ++it){
-                swResultsSs << it->dbKey << "\t";
-                swResultsSs << it->score << "\t"; //TODO fix for formats
-                swResultsSs << std::fixed << std::setprecision(3) << it->qcov << "\t";
-                swResultsSs << it->dbcov << "\t";
-                swResultsSs << it->seqId << "\t";
-                swResultsSs << std::scientific << it->eval << "\n";
-       }
+            swResultsSs << it->dbKey << "\t";
+            swResultsSs << it->score << "\t"; //TODO fix for formats
+            swResultsSs << std::fixed << std::setprecision(3) << it->qcov << "\t";
+            swResultsSs << it->dbcov << "\t";
+            swResultsSs << it->seqId << "\t";
+            swResultsSs << std::scientific << it->eval << "\n";
+        }
         std::string swResultsString = swResultsSs.str();
         const char* swResultsStringData = swResultsString.c_str();
         if (BUFFER_SIZE <= swResultsString.length()){
             Debug(Debug::ERROR) << "Output buffer size < result size! ("
-                                << BUFFER_SIZE << " <= " << swResultsString.length()
-                                << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
+            << BUFFER_SIZE << " <= " << swResultsString.length()
+            << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
             EXIT(1);
         }
         memcpy(outBuffers[thread_idx], swResultsStringData, swResultsString.length()*sizeof(char));
-        dbw->write(outBuffers[thread_idx], swResultsString.length(), qSeqs[thread_idx]->getDbKey(), thread_idx);
+        dbw.write(outBuffers[thread_idx], swResultsString.length(), qSeqs[thread_idx]->getDbKey(), thread_idx);
 
     }
+    dbw.close();
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "All sequences processed.\n\n";
     Debug(Debug::INFO) << alignmentsNum << " alignments calculated.\n";
     Debug(Debug::INFO) << totalPassedNum << " sequence pairs passed the thresholds (" << ((float)totalPassedNum/(float)alignmentsNum) << " of overall calculated).\n";
-    size_t hits = totalPassedNum / prefdbr->getSize();
-    size_t hits_rest = totalPassedNum % prefdbr->getSize();
-    float hits_f = ((float) hits) + ((float)hits_rest) / (float) prefdbr->getSize();
+    size_t hits = totalPassedNum / dbSize;
+    size_t hits_rest = totalPassedNum % dbSize;
+    float hits_f = ((float) hits) + ((float)hits_rest) / (float) dbSize;
     Debug(Debug::INFO) << hits_f << " hits per query sequence.\n";
-
-    qseqdbr->close();
-    tseqdbr->close();
-    prefdbr->close();
-    dbw->close();
-
 }
 
+void Alignment::mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> files) {
+    const char * datafilesNames[files.size()];
+    const char * indexFilesNames[files.size()];
+    for(size_t i = 0; i < files.size(); i++){
+        datafilesNames[i] = files[i].first.c_str();
+        indexFilesNames[i] = files[i].second.c_str();
+    }
+    DBWriter::mergeFFindexFile(outDB.c_str(), outDBIndex.c_str(), "w", datafilesNames, indexFilesNames,files.size() );
+}

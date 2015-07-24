@@ -28,7 +28,7 @@ DBWriter::DBWriter (const char* dataFileName_,
         Debug(Debug::ERROR) <<  "No right mode for DBWriter " << indexFileName << "\n";
         EXIT(EXIT_FAILURE);
     }
-    
+
     closed = 1;
 }
 
@@ -135,7 +135,7 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
             char * data = dbr.getData(i);
             if(*data == '\0'){ // check if file contains entry
                 Debug(Debug::ERROR) << "\nSequence " << outerKey
-                        << " does not containe any sequence!\n";
+                << " does not containe any sequence!\n";
                 continue;
             }
 
@@ -220,30 +220,86 @@ void DBWriter::open(){
         strcpy(dataFileNames[i], dataFileNameCStr);
         strcpy(indexFileNames[i], indexFileNameCStr);
 
-        initFFIndexWrite(dataFileNameCStr, indexFileNameCStr, &dataFiles[i], &indexFiles[i]);
+        initFFIndexWrite(dataFileNameCStr, indexFileNameCStr, datafileMode.c_str(), &dataFiles[i], &indexFiles[i]);
     }
 
     closed = 0;
 }
 
 int DBWriter::close(){
+    // close all datafiles
+    for(int i = 0; i < maxThreadNum; i++){
+        fclose(dataFiles[i]);
+        fclose(indexFiles[i]);
+    }
+    mergeFFindexFile(dataFileName, indexFileName, datafileMode.c_str(), (const char **) dataFileNames, (const char **) indexFileNames, maxThreadNum);
+    closed = 1;
+
+    return EXIT_SUCCESS;
+}
+
+void DBWriter::writeFile(FILE * file, char* key, int thrIdx){
+    ffindex_insert_filestream(dataFiles[thrIdx], indexFiles[thrIdx],
+                              &offsets[thrIdx], file, key);
+
+}
+
+void DBWriter::write(char* data, int64_t dataSize, char* key, int thrIdx){
+    checkClosed();
+    if (thrIdx >= maxThreadNum){
+        Debug(Debug::ERROR) <<  "ERROR: Thread index " << thrIdx << " > maximum thread number " << maxThreadNum << "\n";
+        EXIT(1);
+    }
+    ffindex_insert_memory(dataFiles[thrIdx], indexFiles[thrIdx], &offsets[thrIdx], data, dataSize, key);
+}
+
+void DBWriter::errorIfFileExist(const char * file){
+    struct stat st;
+    if(stat(file, &st) == 0) { errno = EEXIST; perror(file); EXIT(EXIT_FAILURE); }
+}
+
+void DBWriter::initFFIndexWrite(const char* dataFileName,
+                                const char* indexFileName,
+                                const char* datafileMode,
+                                FILE** dataFile, FILE** indexFile){
+    DBWriter::errorIfFileExist(dataFileName);
+    DBWriter::errorIfFileExist(indexFileName);
+
+    *dataFile = fopen(dataFileName, datafileMode);
+    *indexFile = fopen(indexFileName, "w");
+
+    if( *dataFile == NULL)  { perror(dataFileName); EXIT(EXIT_FAILURE); }
+    if( *indexFile == NULL) { perror(indexFileName); EXIT(EXIT_FAILURE); }
+}
+
+void DBWriter::checkClosed(){
+    if (closed == 1){
+        Debug(Debug::ERROR) <<  "Trying to write to a closed database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+}
+
+void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNameIndex, const char * datafileMode,
+                                const char **dataFileNames, const char **indexFileNames, int fileCount ) {
     // merge ffindexes from each thread into one ffindex
-    
     FILE* data_file;
     FILE* index_file;
 
-    initFFIndexWrite(dataFileName, indexFileName, &data_file, &index_file);
+    initFFIndexWrite(outFileName, outFileNameIndex, datafileMode, &data_file, &index_file);
 
     size_t offset = 0;
-    for(int i = 0; i < maxThreadNum; i++)
+    for(int i = 0; i < fileCount; i++)
     {
-        fclose(dataFiles[i]);
-        fclose(indexFiles[i]);
-
         FILE* data_file_to_add  = fopen(dataFileNames[i], "r");
-        if( data_file_to_add == NULL) { perror(dataFileNames[i]); return EXIT_FAILURE; }
+        if( data_file_to_add == NULL) {
+            Debug(Debug::ERROR) << "Error while opening file " << dataFileNames[i] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         FILE* index_file_to_add = fopen(indexFileNames[i], "r");
-        if( index_file_to_add == NULL) { perror(indexFileNames[i]); return EXIT_FAILURE; }
+        if( index_file_to_add == NULL) {
+            Debug(Debug::ERROR) << "Error while opening file " << indexFileNames[i] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         size_t data_size;
         char *data_to_add = ffindex_mmap_data(data_file_to_add, &data_size);
         if (data_size > 0){
@@ -258,7 +314,7 @@ int DBWriter::close(){
                 index_file_cnt.close();
             }
             else{
-                std::cerr << "Could not open ffindex index file " << indexFileNames[i] << "\n";
+                Debug(Debug::ERROR) << "Could not open ffindex index file " << indexFileNames[i] << "\n";
                 EXIT(EXIT_FAILURE);
             }
             // merge data and indexes
@@ -283,7 +339,7 @@ int DBWriter::close(){
     // sort the index file
     char line[1000];
     int cnt = 0;
-    std::ifstream index_file_cnt(indexFileName);
+    std::ifstream index_file_cnt(outFileNameIndex);
     if (index_file_cnt.is_open()) {
         while ( index_file_cnt.getline (line, 1000) ){
             cnt++;
@@ -291,66 +347,31 @@ int DBWriter::close(){
         index_file_cnt.close();
     }
     else{
-        Debug(Debug::ERROR) <<  "Could not open ffindex index file " << indexFileName << "\n";
+        Debug(Debug::ERROR) <<  "Could not open ffindex index file " << outFileNameIndex << "\n";
         EXIT(EXIT_FAILURE);
     }
 
-    index_file = fopen(indexFileName, "r+");
-    if(index_file == NULL) { perror(indexFileName); return EXIT_FAILURE; }
+    index_file = fopen(outFileNameIndex, "r+");
+    if(index_file == NULL) {
+        Debug(Debug::ERROR) << "Error while opening file " << outFileNameIndex << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     ffindex_index_t* index = ffindex_index_parse(index_file, cnt);
-    if(index == NULL) { perror("ffindex_index_parse failed"); return (EXIT_FAILURE); }
-
+    if(index == NULL) {
+        Debug(Debug::ERROR) << "Error while parsing file " << outFileNameIndex << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    munmap(index->index_data, index->index_data_size);
     fclose(index_file);
 
     ffindex_sort_index_file(index);
-    index_file = fopen(indexFileName, "w");
-    if(index_file == NULL) { perror(indexFileName); return EXIT_FAILURE; }
+    index_file = fopen(outFileNameIndex, "w");
+    if(index_file == NULL) {
+        Debug(Debug::ERROR) << "Error while opening file " << outFileNameIndex << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     ffindex_write(index, index_file);
     fclose(index_file);
     free(index);
-
-    closed = 1;
-
-    return EXIT_SUCCESS;
-}
-
-void DBWriter::writeFile(FILE * file, char* key, int thrIdx){
-    ffindex_insert_filestream(dataFiles[thrIdx], indexFiles[thrIdx],
-                                 &offsets[thrIdx], file, key);
-
-}
-
-void DBWriter::write(char* data, int64_t dataSize, char* key, int thrIdx){
-    checkClosed();
-    if (thrIdx >= maxThreadNum){
-        Debug(Debug::ERROR) <<  "ERROR: Thread index " << thrIdx << " > maximum thread number " << maxThreadNum << "\n";
-        EXIT(1);
-    }
-    ffindex_insert_memory(dataFiles[thrIdx], indexFiles[thrIdx], &offsets[thrIdx], data, dataSize, key);
-}
-
-void DBWriter::errorIfFileExist(const char * file){
-    struct stat st;
-    if(stat(file, &st) == 0) { errno = EEXIST; perror(file); EXIT(EXIT_FAILURE); }
-}
-
-void DBWriter::initFFIndexWrite(const char* dataFileName,
-                                const char* indexFileName,
-                                FILE** dataFile, FILE** indexFile){
-    DBWriter::errorIfFileExist(dataFileName);
-    DBWriter::errorIfFileExist(indexFileName);
-
-    *dataFile = fopen(dataFileName, datafileMode.c_str());
-    *indexFile = fopen(indexFileName, "w");
-
-    if( *dataFile == NULL)  { perror(dataFileName); EXIT(EXIT_FAILURE); }
-    if( *indexFile == NULL) { perror(indexFileName); EXIT(EXIT_FAILURE); }
-}
-
-void DBWriter::checkClosed(){
-    if (closed == 1){
-        Debug(Debug::ERROR) <<  "Trying to write to a closed database.\n";
-        EXIT(EXIT_FAILURE);
-    }
 }

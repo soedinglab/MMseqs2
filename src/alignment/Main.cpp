@@ -34,13 +34,15 @@ int alignment(int argc, const char *argv[])
 #endif
 
 #ifdef HAVE_MPI
-	    if(MMseqsMPI::isMaster())
-	    {
-	        Debug::setDebugLevel(par.verbosity);
-	    }
+    if(MMseqsMPI::isMaster())
+    {
+        Debug::setDebugLevel(par.verbosity);
+    }
 #else
-		    Debug::setDebugLevel(par.verbosity);
+    Debug::setDebugLevel(par.verbosity);
 #endif
+
+
     Debug(Debug::WARNING) << "Init data structures...\n";
     Alignment* aln = new Alignment(par.db1,           par.db1Index,
                                    par.db2,           par.db2Index,
@@ -51,13 +53,12 @@ int alignment(int argc, const char *argv[])
     Debug(Debug::WARNING) << "Calculation of Smith-Waterman alignments.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
-
+    
 #ifdef HAVE_MPI
-    aln->run(par.maxResListLen, par.maxRejected, MMseqsMPI::rank, MMseqsMPI::numProc);
+    aln->run(MMseqsMPI::rank, MMseqsMPI::numProc, par.maxResListLen, par.maxRejected);
 #else
     aln->run(par.maxResListLen, par.maxRejected);
 #endif
-
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
@@ -66,7 +67,7 @@ int alignment(int argc, const char *argv[])
     delete aln;
 
 #ifdef HAVE_MPI
-	MPI_Finalize();
+    MPI_Finalize();
 #endif
     return 0;
 }
