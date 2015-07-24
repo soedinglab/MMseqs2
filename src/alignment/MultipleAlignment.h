@@ -29,7 +29,7 @@ public:
     MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat);
 
     ~MultipleAlignment();
-
+    // Compute center star multiple alignment from sequence input
     MultipleAlignment::MSAResult computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA);
     static void print(MSAResult msaResult);
 private:
@@ -39,6 +39,18 @@ private:
     char ** msaSequence;
     size_t maxSeqLen;
     unsigned int * queryGaps;
+
+    std::vector<Matcher::result_t> computeBacktrace(Sequence *center, std::vector<Sequence *> sequenes,
+                                                                       size_t dbSetSize);
+
+    void computeQueryGaps(unsigned int *queryGaps, Sequence *center, std::vector<Sequence *> seqs,
+                          std::vector<Matcher::result_t> alignmentResults);
+
+    size_t updateGapsInCenterSequence(char **msaSequence, Sequence *centerSeq, bool noDeletionMSA);
+
+    void updateGapsInSequenceSet(char **centerSeqSize, size_t seqs, std::vector<Sequence *> vector,
+                                                    std::vector<Matcher::result_t> queryGaps, unsigned int *noDeletionMSA,
+                                                    bool b);
 };
 
 

@@ -25,7 +25,6 @@ public:
 
 private:
     SubstitutionMatrix * subMat;
-    size_t maxSeqLength;
 
     // contains sequence weights (global)
     float * seqWeight;
@@ -60,7 +59,7 @@ private:
     float NormalizeTo1(float *array, int length, double const *def_array);
 
     // prepare pseudocounts
-    void PreparePseudocounts(float *frequency, float *frequency_with_pseudocounts, size_t queryLength, const float *R);
+    void preparePseudoCounts(float *frequency, float *frequency_with_pseudocounts, size_t queryLength, const float *R);
 
     // compute the Neff_M per column -p log(p)
     void computeNeff_M(float *frequency, float *seqWeight, float *Neff_M, size_t queryLength, size_t setSize, char const **msaSeqs);
