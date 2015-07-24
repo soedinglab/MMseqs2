@@ -41,7 +41,7 @@ void parsePSSM(char *data, char *profileBuffer, size_t *size, char *id, BaseMatr
     // header line
     int aa_index[20];
     for(size_t i = 0; i < 20; i++) {
-        aa_index[i] = subMat->aa2int[words[i][0]];
+        aa_index[i] = subMat->aa2int[(int)words[i][0]];
     }
     data = Util::skipLine(data);
     size_t curr_pos = 0;
