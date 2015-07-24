@@ -53,7 +53,7 @@ int alignment(int argc, const char *argv[])
     Debug(Debug::WARNING) << "Calculation of Smith-Waterman alignments.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    
+
 #ifdef HAVE_MPI
     aln->run(MMseqsMPI::rank, MMseqsMPI::numProc, par.maxResListLen, par.maxRejected);
 #else

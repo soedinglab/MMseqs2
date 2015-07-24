@@ -641,7 +641,6 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
     kmerMatchProb = ((double)stats.dbMatches + dbMatchesExp_pc) / ((double) (stats.querySeqLen * targetSeqLenSum + lenSum_pc));
     // compute match prob for local match
     if(searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST){
-        std::cout << "bamm: " << stats.doubleMatches << std::endl;
         kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
         kmerMatchProb /= 256;
     }
