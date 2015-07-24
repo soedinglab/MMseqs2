@@ -92,7 +92,7 @@ class Prefiltering {
         const int kmerScore;
         bool spacedKmer;
         const float sensitivity;
-        const size_t maxResListLen;
+        size_t maxResListLen;
         int alphabetSize;
         const float zscoreThr;
         const size_t maxSeqLen;

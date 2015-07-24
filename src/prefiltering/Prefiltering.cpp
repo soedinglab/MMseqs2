@@ -135,6 +135,9 @@ void Prefiltering::run(){
     // splits template database into x sequence steps
     unsigned int splitCounter =  this->split;
     std::vector<std::pair<std::string, std::string> > splitFiles;
+    if(splitCounter > 1){
+        maxResListLen = (maxResListLen / splitCounter)  + 1;
+    }
     for(unsigned int split = 0; split < splitCounter; split++){
         std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(outDB,outDBIndex,split);
         splitFiles.push_back(filenamePair);
@@ -194,6 +197,8 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
 void Prefiltering::run(int mpi_rank, int mpi_num_procs){
 
     std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(outDB, outDBIndex, mpi_rank);
+
+    maxResListLen = (maxResListLen / mpi_num_procs) + 1;
 
     this->run (mpi_rank, mpi_num_procs,
                filenamePair.first.c_str(),
@@ -418,7 +423,7 @@ int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size
         prefResultsOutString.append( buffer, len );
         l++;
         // maximum allowed result list length is reached
-        if (l == this->maxResListLen)
+        if (l >= this->maxResListLen)
             break;
     }
     // write prefiltering results string to ffindex database
