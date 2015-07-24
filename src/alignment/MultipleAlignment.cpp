@@ -3,6 +3,8 @@
 //
 
 #include <CommandDeclarations.h>
+#include <string>
+#include <memory>
 
 #include "MultipleAlignment.h"
 #include "Debug.h"
@@ -28,7 +30,6 @@ MultipleAlignment::~MultipleAlignment() {
 }
 
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA) {
-
     // just center sequence is included
     if(edgeSeqs.size() == 0 ){
         size_t queryMSASize = 0;
@@ -42,76 +43,114 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
         }
         return MSAResult(queryMSASize, centerSeq->L, edgeSeqs.size() + 1, (const char **) msaSequence);
     }
-    aligner->initQuery(centerSeq);
-    for(size_t i = 0; i < centerSeq->L; i++){
-        queryGaps[i] = 0;
-    }
+
     size_t dbSetSize = 0;
     for(size_t i = 0; i < edgeSeqs.size(); i++) {
         dbSetSize += edgeSeqs[i]->L;
     }
+    std::vector<Matcher::result_t> alignmentResults = computeBacktrace(centerSeq, edgeSeqs, dbSetSize);
+
+    computeQueryGaps(queryGaps, centerSeq, edgeSeqs, alignmentResults);
+    // process gaps in Query (update sequences)
+    // and write query Alignment at position 0
+    size_t centerSeqSize = updateGapsInCenterSequence(msaSequence, centerSeq, noDeletionMSA);
+
+    // compute the MSA alignment
+    updateGapsInSequenceSet(msaSequence, centerSeqSize, edgeSeqs, alignmentResults, queryGaps, noDeletionMSA);
+    // clean vector
+    alignmentResults.clear();
+    // +1 for the query
+    return MSAResult(centerSeqSize, centerSeq->L, edgeSeqs.size() + 1, (const char **) msaSequence);
+}
+
+void MultipleAlignment::print(MSAResult msaResult){
+    for(size_t i = 0; i < msaResult.setSize; i++) {
+        for(size_t pos = 0; pos < msaResult.msaSequenceLength; pos++){
+            printf("%c",msaResult.msaSequence[i][pos]);
+        }
+        printf("\n");
+    }
+}
+
+std::vector<Matcher::result_t> MultipleAlignment::computeBacktrace(Sequence *centerSeq, std::vector<Sequence *> seqs,
+                                                                   size_t dbSetSize) {
     std::vector<Matcher::result_t> btSequences;
-    for(size_t i = 0; i < edgeSeqs.size(); i++) {
-        Sequence *edgeSeq = edgeSeqs[i];
+    // init query with center star sequence
+    aligner->initQuery(centerSeq);
+    for(size_t i = 0; i < seqs.size(); i++) {
+        Sequence *edgeSeq = seqs[i];
         Matcher::result_t alignment = aligner->getSWResult(edgeSeq, dbSetSize, 0.0, Matcher::SCORE_COV_SEQID);
-        std::string bt = alignment.backtrace;
         btSequences.push_back(alignment);
-        size_t queryPos = 0;
-        size_t targetPos = 0;
-        size_t currentQueryGapSize = 0;
-        if(bt.size() > maxSeqLen){
+        if(alignment.backtrace.size() > maxSeqLen){
             Debug(Debug::ERROR) << "Alignment length is > maxSeqlen in MSA " << centerSeq->getDbKey() << "\n";
             EXIT(EXIT_FAILURE);
         }
+    }
+    return btSequences;
+}
+
+void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *centerSeq, std::vector<Sequence *> seqs,
+                                         std::vector<Matcher::result_t> alignmentResults) {
+    // init query gaps
+    memset(queryGaps, 0, sizeof(unsigned int) * centerSeq->L);
+    for(size_t i = 0; i < seqs.size(); i++) {
+        Matcher::result_t alignment = alignmentResults[i];
+        std::string bt = alignment.backtrace;
+        size_t queryPos = 0;
+        size_t targetPos = 0;
+        size_t currentQueryGapSize = 0;
         queryPos = alignment.qStartPos;
         targetPos = alignment.dbStartPos;
+        // compute query gaps (deletions)
         for (size_t pos = 0; pos < bt.size(); ++pos) {
             char bt_letter = bt.at(pos);
-            if (bt_letter == 'M') {
+            if (bt_letter == 'M') { // match state
                 ++queryPos;
                 ++targetPos;
                 currentQueryGapSize = 0;
             } else {
-                if (bt_letter == 'I') {
+                if (bt_letter == 'I') { // insertion
                     ++queryPos;
                     currentQueryGapSize = 0;
                 }
-                else {
+                else { // deletion
                     ++targetPos;
                     currentQueryGapSize += 1;
                     size_t gapCount = queryGaps[queryPos];
-
                     queryGaps[queryPos] = std::max(gapCount, currentQueryGapSize);
-
                 }
             }
         }
     }
-    // process gaps in Query (update sequences)
-    // and write query Alignment at position 0
-    size_t queryMSASize = 0;
+}
+
+size_t MultipleAlignment::updateGapsInCenterSequence(char **msaSequence, Sequence *centerSeq, bool noDeletionMSA) {
+    size_t centerSeqPos = 0;
     for(size_t queryPos = 0; queryPos < centerSeq->L; queryPos++) {
-        if(queryMSASize >= maxSeqLen ){
-            Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxSeqLen (" << maxSeqLen << ")" << "\n";
+        if(centerSeqPos >= maxSeqLen ){
+            Debug(Debug::ERROR) << "queryMSASize (" << centerSeqPos << ") is >= maxSeqLen (" << maxSeqLen << ")" << "\n";
             EXIT(EXIT_FAILURE);
         }
         for (size_t gapIdx = 0; gapIdx < queryGaps[queryPos]; gapIdx++) {
             if(noDeletionMSA == false) {
-                msaSequence[0][queryMSASize] = '-';
-                queryMSASize++;
+                msaSequence[0][centerSeqPos] = '-';
+                centerSeqPos++;
             }
         }
-        msaSequence[0][queryMSASize] = subMat->int2aa[centerSeq->int_sequence[queryPos]];
-        queryMSASize++;
+        msaSequence[0][centerSeqPos] = subMat->int2aa[centerSeq->int_sequence[queryPos]];
+        centerSeqPos++;
     }
+    return centerSeqPos;
+}
 
-    // compute the MSA alignment
-    for(size_t i = 0; i < edgeSeqs.size(); i++) {
-        Matcher::result_t result = btSequences[i];
+void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t centerSeqSize, std::vector<Sequence *> seqs,
+                                                std::vector<Matcher::result_t> alignmentResults, unsigned int *queryGaps,
+                                                bool noDeletionMSA) {
+    for(size_t i = 0; i < seqs.size(); i++) {
+        Matcher::result_t result = alignmentResults[i];
         std::string bt = result.backtrace;
         char *edgeSeqMSA = msaSequence[i+1];
-        Sequence *edgeSeq = edgeSeqs[i];
-
+        Sequence *edgeSeq = seqs[i];
         size_t bufferPos = 0;
         // fill initial positions with gaps (local alignment)
         for(size_t pos = 0; pos < result.qStartPos; pos++){
@@ -172,23 +211,9 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
             }
         }
         // fill up rest with gaps
-        for(size_t pos = bufferPos; pos < queryMSASize; pos++){
+        for(size_t pos = bufferPos; pos < centerSeqSize; pos++){
             edgeSeqMSA[bufferPos] = '-';
             bufferPos++;
         }
     }
-    // clean vector
-    btSequences.clear();
-    // +1 for the query
-    return MSAResult(queryMSASize, centerSeq->L, edgeSeqs.size() + 1, (const char **) msaSequence);
 }
-
-void MultipleAlignment::print(MSAResult msaResult){
-    for(size_t i = 0; i < msaResult.setSize; i++) {
-        for(size_t pos = 0; pos < msaResult.msaSequenceLength; pos++){
-            printf("%c",msaResult.msaSequence[i][pos]);
-        }
-        printf("\n");
-    }
-}
-
