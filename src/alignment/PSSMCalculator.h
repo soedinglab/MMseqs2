@@ -2,8 +2,8 @@
 // Created by mad on 3/24/15.
 //
 
-#ifndef _MMSEQS_PSSM_H_
-#define _MMSEQS_PSSM_H_
+#ifndef MMSEQS_PSSM_H
+#define MMSEQS_PSSM_H
 
 
 #include <SubstitutionMatrix.h>
@@ -74,4 +74,4 @@ private:
 };
 
 
-#endif //_MMSEQS_PSSM_H_
+#endif //MMSEQS_PSSM_H

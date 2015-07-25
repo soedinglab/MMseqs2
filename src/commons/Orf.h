@@ -51,7 +51,7 @@ public:
 
     static const size_t k_default_max_seq_gap = 30;
 
-    Orf(const char* sequence);
+    explicit Orf(const char* sequence);
     
     ~Orf() {
         delete[] revcomp;
@@ -66,7 +66,7 @@ public:
                   size_t max_length = SIZE_MAX,
                   size_t max_seq_gap = k_default_max_seq_gap);
 
-    std::unique_ptr<char> View(SequenceLocation& orf);
+    std::unique_ptr<char[]> View(SequenceLocation& orf);
     
 private:
     size_t seq_length;

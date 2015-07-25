@@ -8,11 +8,11 @@ in whole or in part, without written consent of Michael Farrar.
    Written by Michael Farrar, 2006 (alignment), Mengyao Zhao (SSW Library) and Martin Steinegger (add AVX2 support).
    Please send bug reports and/or suggestions to martin.steinegger@campus.lmu.de.
 */
+#include "smith_waterman_sse2.h"
 
 #include <Sequence.h>
 #include <simd.h>
 #include <Util.h>
-#include "smith_waterman_sse2.h"
 
 SmithWaterman::SmithWaterman(int maxSequenceLength, int aaSize) {
 	maxSequenceLength += 1;

@@ -2,15 +2,15 @@
 //
 // Represents a parameter of MMseqs
 //
-#ifndef __MMseqs__Parameters__
-#define __MMseqs__Parameters__
+#ifndef MMSEQS_PARAMETERS
+#define MMSEQS_PARAMETERS
 #include <string>
 #include <vector>
 #include <map>
 #include <typeinfo>
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
-                     MMseqsParameter x;
+    				 MMseqsParameter x;
 
 
 struct MMseqsParameter {
@@ -231,4 +231,4 @@ public:
 
 };
 
-#endif /* defined(__MMseqs__Parameters__) */
+#endif
