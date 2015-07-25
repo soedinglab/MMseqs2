@@ -1,4 +1,3 @@
-#include <cstddef>
 
 #include "Prefiltering.h"
 #include "PrefilteringIndexReader.h"
@@ -9,6 +8,8 @@
 #include "QueryTemplateMatcherExactMatch.h"
 #include "QueryTemplateMatcherLocal.h"
 #include "QueryTemplateMatcher.h"
+
+#include <cstddef>
 
 #ifdef HAVE_MPI
 #include <mpi.h>

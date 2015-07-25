@@ -171,8 +171,9 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, unsigned int* id2rep
         char* cluData = cluDbr->getData(i);
         strcpy(buf, cluData);
 
+		char* rest;
         // first cluster member
-        char* cluMemDbKey = strtok(buf, "\n");
+        char* cluMemDbKey = strtok_r(buf, "\n", &rest);
         clu_entry_t* prev = 0;
         clu_entry_t* curr = 0;
 
@@ -205,7 +206,7 @@ int readClustering(DBReader* currSeqDbr, std::string cluDB, unsigned int* id2rep
                 }
                 clusters[repId].last = curr;
             }
-            cluMemDbKey = strtok(NULL, "\n");
+            cluMemDbKey = strtok_r(NULL, "\n", &rest);
         }
     }
     delete [] buf;
@@ -233,7 +234,8 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
         char* alnData = BADbr->getData(i);
         strcpy(buf, alnData);
 
-        char* tKey = strtok(buf, "\t");
+		char* rest;
+        char* tKey = strtok_r(buf, "\t", &rest);
         if (tKey != 0){
             unsigned int tId = currSeqDbr->getId(tKey);
             if (tId == UINT_MAX){

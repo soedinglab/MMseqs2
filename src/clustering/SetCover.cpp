@@ -5,10 +5,10 @@
 //  Created by Martin Steinegger on 21.05.13.
 //  Copyright (c) 2013 Martin Steinegger. All rights reserved.
 //
-
-#include <Util.h>
 #include "SetCover.h"
 #include "Debug.h" // Logger
+
+#include <Util.h>
 #include <string.h> // memset
 
 
