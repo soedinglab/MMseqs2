@@ -2,14 +2,13 @@
 // optimze based on technolegy double, float and integer (32) SIMD instructions
 // writen by Martin Steinegger
 
+#ifndef SIMD_H
+#define SIMD_H
+#include <cstdlib>
 #include <limits>
 #include <algorithm>
 #include <iostream>
 
-
-#ifndef SIMD_H
-#define SIMD_H
-#include <stdlib.h>
 
 #ifdef AVX512
 #define AVX2
