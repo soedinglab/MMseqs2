@@ -1,5 +1,5 @@
-#include <BaseMatrix.h>
 #include "Matcher.h"
+#include <BaseMatrix.h>
 #include "Util.h"
 #include "smith_waterman_sse2.h"
 

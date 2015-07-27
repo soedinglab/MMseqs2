@@ -1,7 +1,7 @@
-#include <random>
 #include "Clustering.h"
 #include "SetCover3.h"
 #include "AlignmentSymmetry.h"
+#include <random>
 
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,

@@ -1,5 +1,5 @@
-#ifndef __graphcluster__LinearMultiArray__
-#define __graphcluster__LinearMultiArray__
+#ifndef GRAPHCLUSTER_LINEARMULTIARRAY
+#define GRAPHCLUSTER_LINEARMULTIARRAY
 #include <algorithm>
 #include <cstdlib>
 #include "Debug.h"

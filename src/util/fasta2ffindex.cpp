@@ -93,29 +93,34 @@ int createdb(int argn,const char **argv)
     std::string header_line;
     header_line.reserve(10000);
     while (kseq_read(seq) >= 0) {
-	//printf("name: %s %d\n", seq->name.s, seq->name.l);
-	//printf("seq:  %s %d\n", seq->seq.s,  seq->seq.l);
-    std::string id = Util::parseFastaHeader(std::string(seq->name.s));
-	header_line.append(seq->name.s, seq->name.l);
-	if(seq->comment.l)  { 
-		header_line.append(" ",1);
-                header_line.append(seq->comment.s,seq->comment.l); 
+        if (seq->name.l == 0|| seq->seq.l == 0) {
+            std::cerr << "Fasta entry: " << entries_num << " is invalid." << std::endl;
+            EXIT(EXIT_FAILURE);
         }
-        header_line.append("\n");
-	//if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
-	// header
-        ffindex_insert_memory(data_file_hdr, index_file_hdr, &offset_header,  (char *)  header_line.c_str(), header_line.length(),  (char *) id.c_str());
-	// sequence
-        std::string sequence = seq->seq.s;
-        sequence.append("\n");
-        if(id.length() >= 31 ){
+        
+        std::string id = Util::parseFastaHeader(std::string(seq->name.s));
+        if (id.length() >= 31) {
             std::cerr << "Id: " << id << " is too long. Maximal 32 characters are allowed." << std::endl;
             EXIT(EXIT_FAILURE);
         }
 
-        ffindex_insert_memory(data_file,     index_file,     &offset_sequence, (char *) sequence.c_str(),  sequence.length() , (char *) id.c_str());
-	    entries_num++;
-	    header_line.clear();
+        // header
+        header_line.append(seq->name.s, seq->name.l);
+        if (seq->comment.l) {
+            header_line.append(" ", 1);
+            header_line.append(seq->comment.s, seq->comment.l);
+        }
+        header_line.append("\n");
+
+        ffindex_insert_memory(data_file_hdr, index_file_hdr, &offset_header, (char*)header_line.c_str(), header_line.length(), (char*)id.c_str());
+
+        // sequence
+        std::string sequence = seq->seq.s;
+        sequence.append("\n");
+
+        ffindex_insert_memory(data_file, index_file, &offset_sequence, (char*)sequence.c_str(), sequence.length(), (char*)id.c_str());
+        entries_num++;
+        header_line.clear();
     }
     kseq_destroy(seq);
     fclose(fasta_file);

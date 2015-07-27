@@ -2,13 +2,13 @@
 // Created by lars on 02.06.15.
 //
 
-#include <Debug.h>
-#include <DBReader.h>
+#include "convertfiles.h"
+#include "Debug.h"
+#include "DBReader.h"
+#include "DBWriter.h"
 #include <set>
 #include <sstream>
 #include <list>
-#include <DBWriter.h>
-#include "convertfiles.h"
 
 void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string suffix,
                                                 std::string outputfile) {

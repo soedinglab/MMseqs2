@@ -199,7 +199,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         ops.end_of_options();            // I'm done!
         ops.options_remain();
     }
-    catch (GetOpt::GetOptEx ex) {
+    catch (const GetOpt::GetOptEx &ex) {
         printUsageMessage(programUsageHeader, par);
         Debug(Debug::INFO) << "Error in arguments" << "\n";
         EXIT(EXIT_FAILURE);

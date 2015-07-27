@@ -6,8 +6,8 @@
 //  Copyright (c) 2013 Martin Steinegger. All rights reserved.
 //
 
-#ifndef __graphcluster__SetCover__
-#define __graphcluster__SetCover__
+#ifndef GRAPHCLUSTER_SETCOVER
+#define GRAPHCLUSTER_SETCOVER
 
 #include <iostream>
 #include <list>
@@ -56,4 +56,4 @@ private:
                                         set * set_to_add);
 
 };
-#endif /* defined(__graphcluster__SetCover__) */
+#endif
