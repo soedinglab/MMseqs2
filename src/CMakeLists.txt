@@ -49,7 +49,7 @@ else ()
 endif ()
 
 # MPI
-if(${MPI_BUILD})
+if(${HAVE_MPI})
     find_package(MPI QUIET)
     if(MPI_FOUND)
         set(CMAKE_CXX_COMPILE_FLAGS ${CMAKE_CXX_COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
