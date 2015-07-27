@@ -48,12 +48,18 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
     Debug(Debug::INFO) << "\n";
-
+    DBWriter::errorIfFileExist(outDB.c_str());
+    DBWriter::errorIfFileExist(outDBIndex.c_str());
     this->qdbr = new DBReader(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open(DBReader::NOSORT);
 
     this->tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
-    tdbr->open(DBReader::SORT);
+    if(par.searchMode == Parameters::SEARCH_LOCAL || par.searchMode == Parameters::SEARCH_LOCAL_FAST){
+        tdbr->open(DBReader::NOSORT);
+    }else{
+        tdbr->open(DBReader::SORT);
+    }
+
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
     if(templateDBIsIndex == true){ // exchange reader with old ffindex reader
         this->tidxdbr = this->tdbr;
@@ -67,9 +73,6 @@ Prefiltering::Prefiltering(std::string queryDB,
         this->searchMode   = (data.local == 1) ? ((par.searchMode >= 1) ? par.searchMode : Parameters::SEARCH_LOCAL)
                                                : Parameters::SEARCH_GLOBAL;
     }
-
-    DBWriter::errorIfFileExist(outDB.c_str());
-    DBWriter::errorIfFileExist(outDBIndex.c_str());
 
     Debug(Debug::INFO) << "Query database: " << par.db1 << "(size=" << qdbr->getSize() << ")\n";
     Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
