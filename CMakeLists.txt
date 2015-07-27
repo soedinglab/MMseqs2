@@ -18,6 +18,10 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   message("-- Compilter is GNU ")
   set(CMAKE_COMPILER_IS_GNUCXX 1)
   set(CMAKE_COMPILER_IS_GNUCCC 1)
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.6.0")
+      message(FATAL_ERROR "Insufficient gcc version")
+  endif()
+
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
   # using Intel C++
   set(CMAKE_COMPILER_IS_ICC 1)
