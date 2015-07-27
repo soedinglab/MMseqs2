@@ -1,12 +1,12 @@
 //
 // Created by mad on 3/15/15.
 //
+#include "MultipleAlignment.h"
 
 #include <CommandDeclarations.h>
 #include <string>
 #include <memory>
 
-#include "MultipleAlignment.h"
 #include "Debug.h"
 #include "Util.h"
 

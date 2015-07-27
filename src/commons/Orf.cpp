@@ -133,9 +133,9 @@ static void FindForwardOrfs(const char* sequence, size_t seq_length, std::vector
     }
 }
 
-std::unique_ptr<char> Orf::View(SequenceLocation& loc) {
+std::unique_ptr<char[]> Orf::View(SequenceLocation& loc) {
     size_t length = loc.to - loc.from;
-    std::unique_ptr<char> buffer(new char[length + 2]);
+    std::unique_ptr<char[]> buffer(new char[length + 2]);
     
     if(loc.strand == Orf::STRAND_PLUS) {
         strncpy(buffer.get(), seq + loc.from, length);

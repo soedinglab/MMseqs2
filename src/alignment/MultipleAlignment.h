@@ -2,8 +2,8 @@
 // Created by mad on 3/15/15.
 //
 
-#ifndef _MMSEQS_MULTIPLEALIGNMENT_H_
-#define _MMSEQS_MULTIPLEALIGNMENT_H_
+#ifndef MMSEQS_MULTIPLEALIGNMENT_H
+#define MMSEQS_MULTIPLEALIGNMENT_H
 
 
 #include <stddef.h>
@@ -54,4 +54,4 @@ private:
 };
 
 
-#endif //_MMSEQS_MULTIPLEALIGNMENT_H_
+#endif //MMSEQS_MULTIPLEALIGNMENT_H

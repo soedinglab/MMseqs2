@@ -6,8 +6,8 @@
 //  Copyright (c) 2013 Martin Steinegger. All rights reserved.
 //
 
-#ifndef __graphcluster__element__
-#define __graphcluster__element__
+#ifndef GRAPHCLUSTER_ELEMENT
+#define GRAPHCLUSTER_ELEMENT
 
 struct set {
     struct element {
@@ -27,4 +27,4 @@ struct set {
 
 
 
-#endif /* defined(__graphcluster__element__) */
+#endif
