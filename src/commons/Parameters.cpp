@@ -159,9 +159,12 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                     ops >> GetOpt::Option(par[i].name + 2, *((float *) par[i].value));
                 } else if (typeid(std::string) == par[i].type) {
                     std::string val;
-                    ops >> GetOpt::Option(par[i].name + 2, val );
-                    if(val.length() != 0)
-                        par[i].value = (void *) &val;
+                    ops >> GetOpt::Option(par[i].name + 2, val);
+                    if(val.length() != 0){
+                        std::string * currVal = ((std::string *)par[i].value);
+                        currVal->assign( val );
+                        std::cout << currVal << " " << val << std::endl;
+                    }
                 } else if (typeid(bool) == par[i].type) {
                     if (ops >> GetOpt::OptionPresent(par[i].name + 2)) {
                         bool * value = (bool *) par[i].value;
@@ -181,8 +184,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                     std::string val;
                     ops >> GetOpt::Option(par[i].name[1], val);
                     if(val.length() != 0){
-                        std::string currVal = *((std::string *)par[i].value);
-                        currVal.assign( val );
+                        std::string * currVal = ((std::string *)par[i].value);
+                        currVal->assign( val );
                     }
                 } else if (typeid(bool) == par[i].type) {
                     if (ops >> GetOpt::OptionPresent(par[i].name[1])) {
