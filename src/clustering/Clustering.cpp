@@ -389,7 +389,7 @@ Clustering::set_data Clustering::read_in_set_data(){
                 //Debug(Debug::INFO)  << similarityscore <<"\n";
             }
             //Debug(Debug::INFO)  << similarityscore <<"\n";
-            similarityscore=-5.5+similarityscore*0.99+0.01*distribution(generator)/100*similarityscore;
+            similarityscore=similarityscore*0.99+0.01*distribution(generator)/100*similarityscore;
             element_similarity_buffer[element_counter] = similarityscore;
             element_buffer[element_counter++] = (unsigned int) curr_element;
             element_size[curr_element]++;
