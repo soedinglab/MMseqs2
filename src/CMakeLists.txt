@@ -10,10 +10,10 @@ if (OPENMP_FOUND)
 endif()
 
 #SSE
-if(${HAVE_AVX2_EXTENSIONS})
+if(${HAVE_AVX2})
     ADD_DEFINITIONS("-DAVX2")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -Wa,-q")
-elseif(${HAVE_SSE4_2_EXTENSIONS})
+elseif(${HAVE_SSE4_2})
     ADD_DEFINITIONS("-DSSE")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
 else()
