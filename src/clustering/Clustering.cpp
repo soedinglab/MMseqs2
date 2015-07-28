@@ -1,6 +1,7 @@
 #include "Clustering.h"
 #include "SetCover3.h"
 #include "AlignmentSymmetry.h"
+#include "SimpleClustering2.h"
 #include <random>
 
 
@@ -143,7 +144,18 @@ void Clustering::run(int mode){
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
 
-    } else{
+    } else if (mode == Parameters::GREEDY2){
+
+
+        // writeData(ret);
+        SimpleClustering2* simpleClustering2= new SimpleClustering2(seqDbr,alnDbr,seqIdThr,0.0);
+        ret =simpleClustering2->execute();
+        writeData(ret);
+        gettimeofday(&end, NULL);
+        int sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+
+    }else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
         EXIT(EXIT_FAILURE);
     }
@@ -174,7 +186,7 @@ void Clustering::run(int mode){
     Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
     Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
-if(mode != Parameters::SET_COVER3) {
+if(mode != Parameters::SET_COVER3 && mode != Parameters::GREEDY2) {
     delete[] set_data.startWeightsArray;
     delete[] set_data.startElementsArray;
     delete[] set_data.weights;

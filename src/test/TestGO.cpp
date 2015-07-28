@@ -313,7 +313,7 @@ int main(int argc, char **argv)
         cf->convertDomainFileToFFindex(domainscorefile,domainIdentifierFile,outputfile);
 
     }else if (strcmp(argv[1],"-ds")==0) {
-        if (argc != 6) {
+        if (argc != 7) {
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -361,7 +361,7 @@ void printHelp() {
     usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
     usage.append("-cs <clustering_file> <alignment_file> <outputfile>\n");
     usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile>\n");
-    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder>\n");
+    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
     usage.append("-clusterToTsv <clustering_file> <prefix> <outputfolder>\n");
 
 
