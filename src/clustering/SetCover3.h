@@ -30,7 +30,7 @@ private:
     std::set<int>*orderedClustersizes;
     unsigned int maxClustersize;
     unsigned int dbSize;
-    std::set<int>representatives;
+
 
 //methods
     void insertCluster(int clusterid, int clustersize);

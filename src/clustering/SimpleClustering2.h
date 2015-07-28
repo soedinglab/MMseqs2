@@ -16,6 +16,7 @@ public:
     SimpleClustering2(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage);
 
     std::list<set *>  execute();
+    ~SimpleClustering2();
 private:
     DBReader* seqDbr;
 

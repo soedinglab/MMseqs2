@@ -20,13 +20,13 @@ std::list<set *> SimpleClustering2::execute(){
     std::list<set *> result;
     size_t n = seqDbr->getSize();
     int* assignedcluster=new int[n];
-    memset(assignedcluster, -1, sizeof(int)*(n+1));
+    memset(assignedcluster, -1, sizeof(int)*(n));
     float* bestscore=new float[n];
-    memset(bestscore, -10, sizeof(float)*(n+1));
+    memset(bestscore, -10, sizeof(float)*(n));
     char *similarity = new char[255+1];
     char *idbuffer1 = new char[255 + 1];
     set* sets = new set[n];
-    memset(sets, 0, sizeof(set *)*(n+1));
+    memset(sets, 0, sizeof(set *)*(n));
 
     for(size_t i = 0; i < n; i++) {
         // seqDbr is descending sorted by length
@@ -76,7 +76,11 @@ std::list<set *> SimpleClustering2::execute(){
             continue;
         result.push_back(max_set); // O(1)
     }
-
+    delete[] sets;
+    delete[] idbuffer1;
+    delete[] bestscore;
+    delete[] assignedcluster;
+    delete[] similarity;
     return result;
 }
 

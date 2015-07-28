@@ -39,6 +39,7 @@ public:
     static const int GREEDY = 2;
     static const int SET_COVER3 = 3;
     static const int GREEDY2 = 4;
+    static const int SET_COVER4 = 5;
 
     static const int APC_ALIGNMENTSCORE=1;
     static const int APC_COVERAGE=2;
