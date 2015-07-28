@@ -19,7 +19,9 @@ set(clustering_source_files
   SetCover3.cpp
   AlignmentSymmetry.h
   AlignmentSymmetry.cpp
+  SimpleClustering2.h
+  SimpleClustering2.cpp
 )
-add_library(clustering ${clustering_source_files})
+add_library(clustering ${clustering_source_files} )
 
 target_link_libraries(clustering commons)
