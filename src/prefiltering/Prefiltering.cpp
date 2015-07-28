@@ -166,6 +166,11 @@ void Prefiltering::run(){
 }
 
 void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> > filenames){
+
+    struct timeval start, end;
+
+    gettimeofday(&start, NULL);
+
     if(filenames.size() < 2){
         Debug(Debug::INFO) << "No mergeing needed.\n";
         return;
@@ -195,6 +200,9 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
 
     std::rename(out.first.c_str(),  outDB.c_str());
     std::rename(out.second.c_str(), outDBIndex.c_str());
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::WARNING) << "\nTime for mergeing results: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
 }
 
