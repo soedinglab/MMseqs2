@@ -45,7 +45,7 @@ std::list<set *>  SetCover3::execute() {
         SetCover3::insertCluster(i,clustersizes[i]);
     }
     //delete from beginning
-    for (int cl_size = maxClustersize-1; cl_size > 0; cl_size--) {
+    for (int cl_size = maxClustersize; cl_size > 0; cl_size--) {
         while(orderedClustersizes[cl_size].size()>0) {
             int representative =*orderedClustersizes[cl_size].begin();
 //            Debug(Debug::INFO)<<alnDbr->getDbKey(representative)<<"\n";

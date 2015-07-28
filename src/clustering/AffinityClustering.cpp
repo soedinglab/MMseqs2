@@ -171,7 +171,8 @@ std::list<set *> AffinityClustering::execute(){
     //compute result
     set* sets = new set[set_count];
     memset(sets, 0, sizeof(set *)*(set_count+1));
-
+    int * maxks=new int[set_count];
+    memset(maxks, -1, sizeof(int)*(set_count+1));
     for(std::list<int>::iterator it = validids->begin(); it != validids->end(); it++) {
         int i=*it;
         const unsigned int *currentset = setids[i];
@@ -188,10 +189,20 @@ std::list<set *> AffinityClustering::execute(){
          //   add_to_set(currentset[k],&sets[i],i);
         }
         //add i to set k
-        add_to_set(i,&sets[maxk],maxk);
+        if(maxks[i]==-1){
+            maxks[i]=maxk;
+            maxks[maxk]=maxk;
+        }else{
+            maxks[i]=i;
+        }
+
+       // add_to_set(i,&sets[maxk],maxk);
 
     }
-
+    for(std::list<int>::iterator it = validids->begin(); it != validids->end(); it++) {
+        int i = *it;
+        add_to_set(i,&sets[maxks[i]],maxks[i]);
+    }
 
 
     for(std::list<int>::iterator it = validids->begin(); it != validids->end(); it++) {

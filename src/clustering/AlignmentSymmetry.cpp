@@ -45,7 +45,16 @@ void AlignmentSymmetry::execute() {
             Util::parseKey(data, idbuffer1);
             Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
             float seqId = atof(similarity);
-            if(seqId < this->seqIdThr){
+	    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+            seqId= atof(std::string(similarity).c_str());
+	    int queryLength=strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
+            int dbSeqLength=strlen(seqDbr->getDataByDBKey(idbuffer1));
+
+             float maxSeqLength=std::max(queryLength,dbSeqLength);
+
+            //
+            seqId= seqId/(maxSeqLength);       
+     if(seqId < this->seqIdThr){
                 data = Util::skipLine(data);
                 continue;
             }
@@ -63,6 +72,14 @@ void AlignmentSymmetry::execute() {
                 Util::parseKey(data, idbuffer1);
                 Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
                 float seqId = atof(similarity);
+ Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+            seqId= atof(std::string(similarity).c_str());
+int queryLength=strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(j)));
+            int dbSeqLength=strlen(seqDbr->getDataByDBKey(idbuffer1));          
+            float maxSeqLength=std::max(queryLength,dbSeqLength);
+
+            //
+            seqId= seqId/(maxSeqLength);
                 if(seqId < this->seqIdThr){
                     data = Util::skipLine(data);
                     continue;
@@ -87,13 +104,25 @@ void AlignmentSymmetry::execute() {
             char *data = alnDbr->getData(i);
             std::string cluResultsOutString = std::string("");
             while (*data != '\0') {
-                Util::getLine(data, idbuffer1);
+		 Util::parseKey(data, idbuffer1);
+                Util::getLine(data, linebuffer);
                 Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
                 float seqId = atof(similarity);
+ Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+            seqId= atof(std::string(similarity).c_str());
+
+int queryLength=strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
+            int dbSeqLength=strlen(seqDbr->getDataByDBKey(idbuffer1));
+            float maxSeqLength=std::max(queryLength,dbSeqLength);
+
+            //
+            seqId= seqId/(maxSeqLength);
+
                 if (seqId < this->seqIdThr) {
-                    break;
+                    data = Util::skipLine(data);
+                    continue;
                 }
-                cluResultsOutString=cluResultsOutString+idbuffer1+"\n";
+                cluResultsOutString=cluResultsOutString+linebuffer+"\n";
                 data = Util::skipLine(data);
             }
 
