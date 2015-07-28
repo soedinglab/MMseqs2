@@ -408,12 +408,6 @@ void Prefiltering::closeReader(){
         tidxdbr->close();
 }
 
-void Prefiltering::removeDatabaes(std::vector<std::pair<std::string, std::string> > filenames) {
-    for (size_t i = 0; i < filenames.size(); i++) {
-        remove(filenames[i].first.c_str());
-        remove(filenames[i].second.c_str());
-    }
-}
 
 // write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults){
