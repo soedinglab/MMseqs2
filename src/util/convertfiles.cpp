@@ -242,7 +242,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
             //  Debug(Debug::INFO) <<representative<<"\n";
             continue;
         }
-        Debug(Debug::INFO) <<representative<<"\n";
+       // Debug(Debug::INFO) <<representative<<"\n";
         while (*data_alignment != '\0') {
             Util::parseKey(data_alignment, idbuffer);
            // Debug(Debug::INFO) <<idbuffer;
