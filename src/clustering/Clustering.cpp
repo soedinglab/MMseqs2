@@ -2,6 +2,7 @@
 #include "SetCover3.h"
 #include "AlignmentSymmetry.h"
 #include "SimpleClustering2.h"
+#include "SetCover4.h"
 #include <random>
 
 
@@ -144,6 +145,9 @@ void Clustering::run(int mode){
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
 
+
+
+
     } else if (mode == Parameters::GREEDY2){
 
 
@@ -154,6 +158,32 @@ void Clustering::run(int mode){
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+
+    }else if (mode == Parameters::SET_COVER4){
+
+        DBWriter* alndbw;
+        alndbw = new DBWriter((std::string(alnDbr->getDataFileName())+"_symmetric").c_str(), (std::string(alnDbr->getDataFileName())+"_symmetric.index").c_str());
+        alndbw->open();
+        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr,alnDbr,alndbw,seqIdThr,0.0);
+        alignmentSymmetry->execute();
+        // writeData(ret);
+        gettimeofday(&end, NULL);
+        int sec1 = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for clustering: " << (sec1 / 60) << " m " << (sec1 % 60) << "s\n\n";
+
+        alnDbr->close();
+        alnDbr= new DBReader(alndbw->getDataFileName(),alndbw->getIndexFileName());
+        alndbw->close();
+        alnDbr->open(DBReader::NOSORT);
+        SetCover4* setCover4= new SetCover4(seqDbr,alnDbr,seqIdThr,0.0);
+        ret =setCover4->execute();
+        writeData(ret);
+        gettimeofday(&end, NULL);
+        int sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+
+
+
 
     }else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
@@ -186,7 +216,7 @@ void Clustering::run(int mode){
     Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
     Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
-if(mode != Parameters::SET_COVER3 && mode != Parameters::GREEDY2) {
+if(mode != Parameters::SET_COVER3 && mode != Parameters::GREEDY2&& mode != Parameters::SET_COVER4) {
     delete[] set_data.startWeightsArray;
     delete[] set_data.startElementsArray;
     delete[] set_data.weights;

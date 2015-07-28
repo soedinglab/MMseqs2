@@ -1,13 +1,16 @@
 //
+// Created by lars on 28.07.15.
+//
+//
 // Created by lars on 08.06.15.
 //
 
-#include "SetCover3.h"
+#include "SetCover4.h"
 #include "Util.h"
 #include "Debug.h"
 #include "AffinityClustering.h"
 
-SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage){
+SetCover4::SetCover4(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage){
 
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
@@ -17,7 +20,7 @@ SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float
 
 }
 
-std::list<set *>  SetCover3::execute() {
+std::list<set *>  SetCover4::execute() {
     std::list<set *> result;
     char *idbuffer1 = new char[255 + 1];
     char *idbuffer2 = new char[255 + 1];
@@ -34,31 +37,43 @@ std::list<set *>  SetCover3::execute() {
     //initialise
     clustersizes=new int[dbSize];
     memset(clustersizes,0,dbSize);
+    clusterweights=new float[dbSize];
+    memset(clusterweights,0,dbSize);
     maxClustersize=0;
+    maxClusterweight=0;
 
 //read in data and determine biggest cluster
     for (int i = 0; i < dbSize; i++) {
         unsigned int currentclustersize=0;
+        float currentclusterweight=0;
         char *data = alnDbr->getData(i);
         while (*data != '\0') {
-
+            Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+            float seqId = atof(similarity)+offset;
+            currentclusterweight+=seqId;
             currentclustersize++;
             data = Util::skipLine(data);
         }
         maxClustersize=std::max(currentclustersize,maxClustersize);
+        maxClusterweight=std::max(currentclusterweight,maxClusterweight);
         clustersizes[i]=currentclustersize;
+        clusterweights[i]=currentclusterweight;
     }
     //save ordered clustersizes
     orderedClustersizes=new std::set<int>[maxClustersize+1];
+    weightslength=(maxClusterweight+1)*spreadingfactor;
+    orderedClusterweights=new std::set<int>[weightslength];
     for (int i = 0; i < dbSize; i++) {
-        SetCover3::insertCluster(i,clustersizes[i]);
+        SetCover4::insertCluster(i,clustersizes[i]);
+        SetCover4::insertClusterWeight(i,clusterweights[i]);
     }
     //delete from beginning
-    for (int cl_size = maxClustersize; cl_size > 0; cl_size--) {
-        while(orderedClustersizes[cl_size].size()>0) {
-            int representative =*orderedClustersizes[cl_size].begin();
+    for (int cl_size = weightslength-1; cl_size >= 0; cl_size--) {
+        while(orderedClusterweights[cl_size].size()>0) {
+            int representative =*orderedClusterweights[cl_size].begin();
 //          Debug(Debug::INFO)<<alnDbr->getDbKey(representative)<<"\n";
-            orderedClustersizes[cl_size].erase(representative);
+            SetCover4::eraseClusterWeight(representative,clusterweights[representative]);
+            orderedClustersizes[clustersizes[representative]].erase(representative);
             clustersizes[representative]=0;
             assignedcluster[representative]=representative;
 
@@ -70,7 +85,8 @@ std::list<set *>  SetCover3::execute() {
                 bool representativefound=false;
                 //
                 Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-                float seqId = atof(similarity);
+                float seqId = atof(similarity)+offset;
+                float oldseqId=bestscore[elementtodelete];
                 if(seqId>bestscore[elementtodelete]) {
                     assignedcluster[elementtodelete] = representative;
                     bestscore[elementtodelete] = seqId;
@@ -84,21 +100,29 @@ std::list<set *>  SetCover3::execute() {
                     continue;
                 }
                 char *data2 = alnDbr->getData(elementtodelete);
+                SetCover4::eraseClusterWeight(elementtodelete,clusterweights[elementtodelete]);
                 orderedClustersizes[clustersizes[elementtodelete]].erase(elementtodelete);
+
                 clustersizes[elementtodelete]=0;
+                clusterweights[elementtodelete]=0;
                 //decrease clustersize of sets that contain the element
                 while (*data2 != '\0') {
                     Util::parseKey(data2, idbuffer2);
                     int elementtodecrease=alnDbr->getId(idbuffer2);
+                    Util::parseByColumnNumber(data2, similarity, 4); //column 4 = sequence identity
+                    float seqIdOfElement = atof(similarity)+offset;
                     if(representative == elementtodecrease){
                         representativefound=true;
                     }
                     if(clustersizes[elementtodecrease]==1) {
                         Debug(Debug::ERROR)<<"there must be an error: "<<alnDbr->getDbKey(elementtodelete)<<" deleted from "<<alnDbr->getDbKey(elementtodecrease)<<" that now is empty, but not assigned to a cluster\n";
                     }else if (clustersizes[elementtodecrease]>0) {
-                    orderedClustersizes[clustersizes[elementtodecrease]].erase(elementtodecrease);
-                    clustersizes[elementtodecrease]--;
-                            orderedClustersizes[clustersizes[elementtodecrease]].insert(elementtodecrease);
+                        orderedClustersizes[clustersizes[elementtodecrease]].erase(elementtodecrease);
+                        SetCover4::eraseClusterWeight(elementtodecrease,clusterweights[elementtodecrease]);
+                        clustersizes[elementtodecrease]--;
+                        clusterweights[elementtodecrease]+=std::min(oldseqId,seqIdOfElement)-std::max(std::min(oldseqId,seqIdOfElement),std::min(seqId,seqIdOfElement));
+                        orderedClustersizes[clustersizes[elementtodecrease]].insert(elementtodecrease);
+                        SetCover4::insertClusterWeight(elementtodecrease,clusterweights[elementtodecrease]);
                     }
 
                     data2 = Util::skipLine(data2);
@@ -129,9 +153,15 @@ std::list<set *>  SetCover3::execute() {
 }
 
 
-void SetCover3::insertCluster(int clusterid, int clustersize){
-        //if(orderedClustersizes[clustersize] ==NULL){
-            orderedClustersizes[clustersize].insert(clusterid);
-
-    
+void SetCover4::insertCluster(int clusterid, int clustersize){
+    //if(orderedClustersizes[clustersize] ==NULL){
+    orderedClustersizes[clustersize].insert(clusterid);
 }
+
+void SetCover4::insertClusterWeight(int clusterid,float clusterweight){
+    orderedClusterweights[(int)(clusterweight*1)*spreadingfactor].insert(clusterid);
+}
+void SetCover4::eraseClusterWeight(int clusterid,float clusterweight){
+    orderedClusterweights[(int)(clusterweight*1)*spreadingfactor].erase(clusterid);
+}
+
