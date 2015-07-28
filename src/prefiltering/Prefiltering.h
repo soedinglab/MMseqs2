@@ -48,7 +48,6 @@ class Prefiltering {
         void run ();
         void closeReader();
         void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
-        void removeDatabaes(std::vector<std::pair<std::string, std::string> > filenames);
         IndexTable * getIndexTable(int split, int splitCount); // needed for index lookup
     
         static IndexTable* generateIndexTable(DBReader* dbr, Sequence* seq,

@@ -100,7 +100,7 @@ int prefilter(int argc, const char **argv)
 #endif
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "\nTime for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::WARNING) << "\nOverall time for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     delete pref;
 
 #ifdef HAVE_MPI
