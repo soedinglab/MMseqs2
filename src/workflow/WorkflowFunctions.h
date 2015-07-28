@@ -1,3 +1,6 @@
+#ifndef WORKFLOW_FUNCTIONS_H
+#define WORKFLOW_FUNCTIONS_H
+
 #include <stdio.h>
 #include <iostream>
 #include <string>
@@ -34,3 +37,5 @@ void copy(std::string inFile, std::string outFile);
 float getZscoreForSensitivity (float sensitivity);
 
 void deleteTmpFiles(std::list<std::string>* tmpFiles);
+
+#endif

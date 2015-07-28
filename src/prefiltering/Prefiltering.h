@@ -92,7 +92,7 @@ class Prefiltering {
         const int kmerScore;
         bool spacedKmer;
         const float sensitivity;
-        const size_t maxResListLen;
+        size_t maxResListLen;
         int alphabetSize;
         const float zscoreThr;
         const size_t maxSeqLen;
@@ -113,7 +113,6 @@ class Prefiltering {
          */
         std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader *qdbr, DBReader *tdbr,
                                                   float targetKmerMatchProb, double toleratedDeviation, const int kmerScore);
-        std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb);
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults);
         // init QueryTemplateMatcher

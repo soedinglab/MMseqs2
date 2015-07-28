@@ -1,14 +1,11 @@
 //
 // Created by lars on 12.04.15.
 //
+#include "CompareGOTerms.h"
+#include "Util.h"
 
-#include <Util.h>
 #include <dirent.h>
 #include <cmath>
-
-
-#include "CompareGOTerms.h"
-
 
 CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder) {
 

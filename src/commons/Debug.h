@@ -14,7 +14,7 @@ class Debug
 
         static int debugLevel;
 
-        Debug( int level ); 
+        explicit Debug( int level ); 
 
         template<typename T>
             Debug& operator<<( T t)

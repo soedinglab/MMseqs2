@@ -9,6 +9,7 @@
 #include <limits.h>
 
 #include <iostream>
+#include <sstream>
 #include <float.h>
 
 extern "C" {
@@ -80,23 +81,22 @@ public:
     static bool startWith(std::string prefix, std::string str){
         return (!str.compare(0, prefix.size(), prefix));
     }
-    
-    static std::vector<std::string> split(std::string str,std::string sep){
-        char buffer[1024];
-        snprintf(buffer, 1024, "%s", str.c_str());
-        char* cstr = (char *) &buffer;
-        char* current;
-        std::vector<std::string> arr;
-        current=strtok(cstr,sep.c_str());
-        while(current!=NULL){
-            arr.push_back(current);
-            current=strtok(NULL,sep.c_str());
-        }
-        return arr;
+
+    static std::vector<std::string> split(std::string str, std::string sep) {
+		char buffer[1024];
+		snprintf(buffer, 1024, "%s", str.c_str());
+		char *cstr = (char *)&buffer;
+		char *current;
+		char *rest;
+		std::vector<std::string> arr;
+		current = strtok_r(cstr, sep.c_str(), &rest);
+		while (current != NULL) {
+			arr.push_back(current);
+			current = strtok_r(NULL, sep.c_str(), &rest);
+		}
+		return arr;
     }
 
-    
-    
     static inline char * skipLine(char * data){
         while( *data !='\n' ) { data++; }
         return (data+1);
@@ -153,7 +153,13 @@ public:
         ffindex_index_t* index = ffindex_index_parse(indexFile, cnt);
         return index;
     }
-    
+
+    static std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb){
+        std::string splitSuffix = std::string("_tmp_") + SSTR(numb);
+        std::string dataFile  = db + splitSuffix;
+        std::string indexFile = dbindex + splitSuffix;
+        return std::make_pair(dataFile, indexFile);
+    }
     
     static inline size_t getWordsOfLine(char * data, char ** words, size_t maxElement ){
         size_t elementCounter = 0;
@@ -277,5 +283,6 @@ public:
         *px += (lx << 23);                      // add integer power of 2 to exponent
         return x;
     }
+
 };
 #endif

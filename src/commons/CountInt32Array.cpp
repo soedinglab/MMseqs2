@@ -108,7 +108,7 @@ bool CountInt32Array::checkForOverflowAndResizeArray(CounterResult **bins,
         if( n > binSize || bins[bin] >= lastPosition) {
             // overflow detected
             // find nearest upper power of 2^(x)
-            std::cout << "Found overlow " << n << std::endl;
+            //std::cout << "Found overlow " << n << std::endl;
             this->binSize = pow(2, ceil(log(binSize + 1)/log(2)));
             reallocBinMemory(binCount, this->binSize);
             return true;

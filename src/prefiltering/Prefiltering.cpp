@@ -1,4 +1,3 @@
-#include <cstddef>
 
 #include "Prefiltering.h"
 #include "PrefilteringIndexReader.h"
@@ -9,6 +8,8 @@
 #include "QueryTemplateMatcherExactMatch.h"
 #include "QueryTemplateMatcherLocal.h"
 #include "QueryTemplateMatcher.h"
+
+#include <cstddef>
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -48,12 +49,18 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
     Debug(Debug::INFO) << "\n";
-
+    DBWriter::errorIfFileExist(outDB.c_str());
+    DBWriter::errorIfFileExist(outDBIndex.c_str());
     this->qdbr = new DBReader(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open(DBReader::NOSORT);
 
     this->tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
-    tdbr->open(DBReader::SORT);
+    if(par.searchMode == Parameters::SEARCH_LOCAL || par.searchMode == Parameters::SEARCH_LOCAL_FAST){
+        tdbr->open(DBReader::NOSORT);
+    }else{
+        tdbr->open(DBReader::SORT);
+    }
+
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
     if(templateDBIsIndex == true){ // exchange reader with old ffindex reader
         this->tidxdbr = this->tdbr;
@@ -67,9 +74,6 @@ Prefiltering::Prefiltering(std::string queryDB,
         this->searchMode   = (data.local == 1) ? ((par.searchMode >= 1) ? par.searchMode : Parameters::SEARCH_LOCAL)
                                                : Parameters::SEARCH_GLOBAL;
     }
-
-    DBWriter::errorIfFileExist(outDB.c_str());
-    DBWriter::errorIfFileExist(outDBIndex.c_str());
 
     Debug(Debug::INFO) << "Query database: " << par.db1 << "(size=" << qdbr->getSize() << ")\n";
     Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
@@ -135,8 +139,11 @@ void Prefiltering::run(){
     // splits template database into x sequence steps
     unsigned int splitCounter =  this->split;
     std::vector<std::pair<std::string, std::string> > splitFiles;
+    if(splitCounter > 1){
+        maxResListLen = (maxResListLen / splitCounter)  + 1;
+    }
     for(unsigned int split = 0; split < splitCounter; split++){
-        std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB,outDBIndex,split);
+        std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(outDB,outDBIndex,split);
         splitFiles.push_back(filenamePair);
 
         this->run (split, splitCounter,
@@ -152,29 +159,50 @@ void Prefiltering::run(){
         std::rename(splitFiles[0].first.c_str(),  outDB.c_str());
         std::rename(splitFiles[0].second.c_str(), outDBIndex.c_str());
     }
-    // remove temp databases
-    this->removeDatabaes(splitFiles);
+//    // remove temp databases
+//    this->removeDatabaes(splitFiles);
     // close reader to reduce memory
     this->closeReader();
 }
 
 void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> > filenames){
-    DBWriter writer(outDB.c_str(), outDBIndex.c_str());
-    writer.open();
-    writer.mergeFiles(qdbr, filenames, BUFFER_SIZE);
-    writer.close();
-}
+    if(filenames.size() < 2){
+        Debug(Debug::INFO) << "No mergeing needed.\n";
+        return;
+    }
 
-std::pair<std::string, std::string> Prefiltering::createTmpFileNames(std::string db, std::string dbindex, int numb){
-    std::string splitSuffix = std::string("_tmp_") + SSTR(numb);
-    std::string dataFile  = db + splitSuffix;
-    std::string indexFile = dbindex + splitSuffix;
-    return std::make_pair(dataFile, indexFile);
+    std::list<std::pair<std::string, std::string>> files(filenames.begin(), filenames.end());
+    size_t mergeStep = 0;
+    while(true){
+        std::pair<std::string, std::string> file1 = files.front();
+        files.pop_front();
+        std::pair<std::string, std::string> file2 = files.front();
+        files.pop_front();
+        std::pair<std::string, std::string> out   = std::make_pair((outDB + "_merge_"+ SSTR(mergeStep)).c_str(), (outDBIndex + "_merge_"+ SSTR(mergeStep)).c_str());
+        DBWriter writer(out.first.c_str(), out.second.c_str());
+        writer.open();
+        writer.mergeFilePair(file1.first.c_str(), file1.second.c_str(), file2.first.c_str(), file2.second.c_str());
+        remove(file1.first.c_str()); remove(file1.second.c_str());
+        remove(file2.first.c_str()); remove(file2.second.c_str());
+        writer.close();
+        files.push_back(out);
+        mergeStep++;
+        if(files.size() == 1 )
+            break;
+    }
+    std::pair<std::string, std::string> out = files.front();
+    std::cout << out.first  << " " << out.second << std::endl;
+
+    std::rename(out.first.c_str(),  outDB.c_str());
+    std::rename(out.second.c_str(), outDBIndex.c_str());
+
 }
 
 void Prefiltering::run(int mpi_rank, int mpi_num_procs){
 
-    std::pair<std::string, std::string> filenamePair = createTmpFileNames(outDB, outDBIndex, mpi_rank);
+    std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(outDB, outDBIndex, mpi_rank);
+
+    maxResListLen = (maxResListLen / mpi_num_procs) + 1;
 
     this->run (mpi_rank, mpi_num_procs,
                filenamePair.first.c_str(),
@@ -185,12 +213,12 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs){
     if(mpi_rank == 0){ // master reduces results
         std::vector<std::pair<std::string, std::string> > splitFiles;
         for(int procs = 0; procs < mpi_num_procs; procs++){
-            splitFiles.push_back(createTmpFileNames(outDB, outDBIndex, procs));
+            splitFiles.push_back(Util::createTmpFileNames(outDB, outDBIndex, procs));
         }
         // merge output ffindex databases
         this->mergeOutput(splitFiles);
         // remove temp databases
-        this->removeDatabaes(splitFiles);
+        //this->removeDatabaes(splitFiles);
         // close reader to reduce memory
         this->closeReader();
     } else {
@@ -351,11 +379,16 @@ void Prefiltering::run (size_t split, size_t splitCount,
 
     if(splitCount > 1){
         DBReader tmpDbr(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
-        DBWriter tmpDbw2(resultDB.c_str(), resultDBIndex.c_str(), threads);
+        tmpDbr.open(DBReader::NOSORT);
+        DBWriter tmpDbw2((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
         tmpDbw2.open();
         tmpDbw2.sortDatafileByIdOrder(&tmpDbr);
         tmpDbr.close();
         tmpDbw2.close();
+        remove(resultDB.c_str());
+        remove(resultDBIndex.c_str());
+        std::rename((resultDB+"_tmp").c_str(), resultDB.c_str());
+        std::rename((resultDBIndex+"_tmp").c_str(), resultDBIndex.c_str());
     }
 }
 
@@ -394,7 +427,7 @@ int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size
         prefResultsOutString.append( buffer, len );
         l++;
         // maximum allowed result list length is reached
-        if (l == this->maxResListLen)
+        if (l >= this->maxResListLen)
             break;
     }
     // write prefiltering results string to ffindex database
@@ -648,7 +681,6 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
     kmerMatchProb = ((double)stats.dbMatches + dbMatchesExp_pc) / ((double) (stats.querySeqLen * targetSeqLenSum + lenSum_pc));
     // compute match prob for local match
     if(searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST){
-        std::cout << "bamm: " << stats.doubleMatches << std::endl;
         kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
         kmerMatchProb /= 256;
     }
