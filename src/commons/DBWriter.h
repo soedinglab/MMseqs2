@@ -55,10 +55,15 @@ class DBWriter {
 
         void sortDatafileByIdOrder(DBReader *qdbr);
 
-private:
-        void initFFIndexWrite(const char* dataFileName, const char* indexFileName, FILE** dataFile, FILE** indexFile);
+        static void initFFIndexWrite(const char* dataFileName, const char* indexFileName, const char * dataFileMode, FILE** dataFile, FILE** indexFile);
 
-        void checkClosed();
+        static void mergeFFindexFile(const char * outFileName, const char * outFileNameIndex, const char * datafileMode,
+                                     const char **dataFileNames, const char **indexFileNames, int fileCount );
+
+        void mergeFilePair(const char *inData1, const char *inIndex1, const char *inData2, const char *inIndex2);
+private:
+
+    void checkClosed();
 
         char* dataFileName;
 

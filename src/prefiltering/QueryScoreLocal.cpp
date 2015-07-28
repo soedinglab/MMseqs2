@@ -4,9 +4,9 @@
 //  Created by Martin Steinegger on 03.06.13.
 //  Copyright (c) 2015 Martin Steinegger. All rights reserved.
 //
-#include <random>
 #include "QueryScoreLocal.h"
 #include "QueryScore.h"
+#include <random>
 
 QueryScoreLocal::QueryScoreLocal(size_t dbSize, unsigned int *seqLens, int k, short kmerThr, double kmerMatchProb)
 : QueryScore(dbSize, seqLens, k, kmerThr, kmerMatchProb)    // Call the QueryScore constructor

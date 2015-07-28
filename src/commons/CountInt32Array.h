@@ -1,16 +1,17 @@
+#ifndef COUNTIN32ARRAY_H
+#define COUNTIN32ARRAY_H
+
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #include <sys/cdefs.h>
 #include <zconf.h>
 
-#ifndef COUNTIN32ARRAY_H
-#define COUNTIN32ARRAY_H
-
 struct CounterResult {
     unsigned int  id;
     unsigned char count;
 };
+
 class CountInt32Array {
 public:
     // 00000000000000000000000111111111
@@ -57,4 +58,5 @@ private:
                           CounterResult * output);
 
 };
+
 #endif

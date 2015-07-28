@@ -2,9 +2,9 @@
 // Created by lars on 08.06.15.
 //
 
-#include <Util.h>
-#include <Debug.h>
 #include "SetCover3.h"
+#include "Util.h"
+#include "Debug.h"
 #include "AffinityClustering.h"
 
 SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage){

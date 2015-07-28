@@ -1,10 +1,9 @@
 //
 // Created by mad on 5/17/15.
 //
-
-#include <Debug.h>
-#include <Util.h>
 #include "SetCover2.h"
+#include "Debug.h"
+#include "Util.h"
 
 SetCover2::SetCover2(size_t elementSize, const unsigned int *setSizes,
                      unsigned int **inputSetsData,

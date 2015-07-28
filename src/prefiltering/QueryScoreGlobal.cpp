@@ -1,6 +1,6 @@
-#include <random>
 #include "QueryScoreGlobal.h"
 #include "simd.h"
+#include <random>
 
 QueryScoreGlobal::QueryScoreGlobal(size_t dbSize, unsigned int *dbSeqLens, int k, short kmerThr, double kmerMatchProb, float zscoreThr)
 : QueryScore(dbSize, dbSeqLens, k, kmerThr, kmerMatchProb)    // Call the QueryScore constructor

@@ -6,8 +6,8 @@
 #define MMSEQS_ALIGNMENTSYMMETRY_H
 #include <DBReader.h>
 #include <DBWriter.h>
-#include <bits/stl_set.h>
-#include <bits/stl_list.h>
+#include <set>
+#include <list>
 #include "SetElement.h"
 
 class AlignmentSymmetry {
