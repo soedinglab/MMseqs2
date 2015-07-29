@@ -382,9 +382,21 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
     DBReader in2(inData2, inIndex2);
     in2.open(DBReader::NOSORT);
     Debug(Debug::WARNING) << "Merge file " << inData1 << " and " << inData2 << "\n";
+    size_t dbSize = in1.getSize();
+    char ** buffer = new char*[maxThreadNum]; //6MB
 
-    char * buffer = new char[6400000]; //6MB
-    for(size_t i = 0; i < in1.getSize(); i++){
+#pragma omp parallel for schedule(static)
+    for(size_t i = 0; i < maxThreadNum; i++){
+        buffer[i] = new char[6400000]; //6MB
+
+    }
+#pragma omp parallel for schedule(static)
+    for(size_t i = 0; i < dbSize; i++){
+        int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
+
         char * dbKey = in1.getDbKey(i);
         const char * data1 = in1.getData(i);
         const char * data2 = in2.getData(i);
@@ -396,9 +408,12 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
                                     "The allowed max size is 102400000 byte. \n";
             EXIT(EXIT_FAILURE);
         }
-        memcpy(buffer, data1, entry1Size - 1); // -1 for the nullbyte
-        memcpy(buffer + entry1Size -1, data2, entry2Size- 1);
-        this->write(buffer, dataSize - 2, dbKey, 0);
+        memcpy(buffer[thread_idx], data1, entry1Size - 1); // -1 for the nullbyte
+        memcpy(buffer[thread_idx] + entry1Size -1, data2, entry2Size- 1);
+        this->write(buffer[thread_idx], dataSize - 2, dbKey, thread_idx);
+    }
+    for(size_t i = 0; i < maxThreadNum; i++) {
+        delete [] buffer[i];
     }
     delete [] buffer;
     in1.close();
