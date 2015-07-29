@@ -16,7 +16,9 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader *reader) {
     return (reader->getDataByDBKey((char *) VERSION) == NULL) ? false : true;
 }
 
-void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader *dbr, Sequence *seq, int split, int alphabetSize, int kmerSize, int skip, bool hasSpacedKmer, bool isLocal) {
+void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader *dbr, Sequence *seq,
+                                              int split, int alphabetSize, int kmerSize, int skip, bool hasSpacedKmer,
+                                              int searchMode) {
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
     writer.open();
     int stepCnt = split;
@@ -26,7 +28,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         Util::decomposeDomainByAminoaAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                 step, stepCnt, &splitStart, &splitSize);
         IndexTable *indexTable;
-        if (isLocal)
+        if (searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST)
             indexTable = new IndexTableLocal(alphabetSize, kmerSize, skip);
         else
             indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
@@ -72,7 +74,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         delete indexTable;
     }
     Debug(Debug::WARNING) << "Write " << META << "\n";
-    int local = (isLocal) ? 1 : 0;
+    int local = (searchMode) ? 1 : 0;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
     int metadata[] = {kmerSize, alphabetSize, skip, split, local, spacedKmer};
     char *metadataptr = (char *) &metadata;
