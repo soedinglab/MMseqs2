@@ -315,7 +315,7 @@ void Prefiltering::run (size_t split, size_t splitCount,
     struct timeval start, end;
 
     gettimeofday(&start, NULL);
-    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThr,
+    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens() + dbFrom, kmerThr,
                                                                   kmerMatchProb, kmerSize,
                                                                   qseq[0]->getEffectiveKmerSize(), dbSize,
                                                                   aaBiasCorrection, fastMode, maxSeqLen, zscoreThr,
