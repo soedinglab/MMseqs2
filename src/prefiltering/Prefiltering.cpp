@@ -341,10 +341,14 @@ void Prefiltering::run (size_t split, size_t splitCount,
         // get query sequence
         char* seqData = qdbr->getData(id);
         qseq[thread_idx]->mapSequence(id, qdbr->getDbKey(id), seqData);
-
+        // only the first split should include the id.
+        // in avg. this will leads to an occurrence of the ID two times.
+        unsigned int targetSeqId = UINT_MAX;
+        if(split == 0){
+            targetSeqId = tdbr->getId(qseq[thread_idx]->getDbKey());
+        }
         // calculate prefitlering results
-        std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx],
-                                                                                  tdbr->getId(qseq[thread_idx]->getDbKey()));
+        std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx], targetSeqId);
         const size_t resultSize = prefResults.second;
         // write
         if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults, dbFrom) != 0)
@@ -508,8 +512,7 @@ void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
     for (unsigned int id = dbFrom; id < dbTo; id++){
         Log::printProgress(id - dbFrom);
         char* seqData = dbr->getData(id);
-        std::string str(seqData);
-        seq->mapSequence(id, dbr->getDbKey(id), seqData);
+        seq->mapSequence(id - dbFrom, dbr->getDbKey(id), seqData);
         indexTable->addKmerCount(seq);
     }
 }
@@ -526,7 +529,6 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
     for (unsigned int id = dbFrom; id < dbTo; id++){
         Log::printProgress(id - dbFrom);
         char* seqData = dbr->getData(id);
-        std::string str(seqData);
         //TODO - dbFrom?!?
         seq->mapSequence(id - dbFrom, dbr->getDbKey(id), seqData);
         indexTable->addSequence(seq);
