@@ -8,6 +8,7 @@
 #include "QueryTemplateMatcherExactMatch.h"
 #include "QueryTemplateMatcherLocal.h"
 #include "QueryTemplateMatcher.h"
+#include "QueryScore.h"
 
 #include <cstddef>
 
@@ -184,7 +185,7 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
         std::pair<std::string, std::string> file2 = files.front();
         files.pop_front();
         std::pair<std::string, std::string> out   = std::make_pair((outDB + "_merge_"+ SSTR(mergeStep)).c_str(), (outDBIndex + "_merge_"+ SSTR(mergeStep)).c_str());
-        DBWriter writer(out.first.c_str(), out.second.c_str());
+        DBWriter writer(out.first.c_str(), out.second.c_str(), threads);
         writer.open();
         writer.mergeFilePair(file1.first.c_str(), file1.second.c_str(), file2.first.c_str(), file2.second.c_str());
         remove(file1.first.c_str()); remove(file1.second.c_str());
@@ -271,14 +272,10 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
     }
     return matchers;
 }
-IndexTable * Prefiltering::getIndexTable(int split, int splitCount){
+IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     if(templateDBIsIndex == true ){
         return PrefilteringIndexReader::generateIndexTable(tidxdbr, split);
     }else{
-        size_t dbFrom = 0;
-        size_t dbSize = 0;
-        Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
-                                          split, splitCount, &dbFrom, &dbSize);
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer);
         return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, skip);
     }
@@ -295,7 +292,12 @@ void Prefiltering::run (size_t split, size_t splitCount,
 
     memset(notEmpty, 0, queryDBSize * sizeof(int)); // init notEmpty
 
-    IndexTable * indexTable = getIndexTable(split, splitCount);
+    size_t dbFrom = 0;
+    size_t dbSize = 0;
+    Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
+                                      split, splitCount, &dbFrom, &dbSize);
+
+    IndexTable * indexTable = getIndexTable(split, dbFrom, dbSize);
 
     // set the k-mer similarity threshold
     std::pair<short, double> calibration;
@@ -315,7 +317,7 @@ void Prefiltering::run (size_t split, size_t splitCount,
     gettimeofday(&start, NULL);
     QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThr,
                                                                   kmerMatchProb, kmerSize,
-                                                                  qseq[0]->getEffectiveKmerSize(), tdbr->getSize(),
+                                                                  qseq[0]->getEffectiveKmerSize(), dbSize,
                                                                   aaBiasCorrection, fastMode, maxSeqLen, zscoreThr,
                                                                   searchMode, maxResListLen);
 
@@ -345,7 +347,7 @@ void Prefiltering::run (size_t split, size_t splitCount,
                                                                                   tdbr->getId(qseq[thread_idx]->getDbKey()));
         const size_t resultSize = prefResults.second;
         // write
-        if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults) != 0)
+        if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults, dbFrom) != 0)
             continue; // couldnt write result because of too much results
 
         // update statistics counters
@@ -410,7 +412,8 @@ void Prefiltering::closeReader(){
 
 
 // write prefiltering to ffindex database
-int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults){
+int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
+                                       std::pair<hit_t *, size_t> prefResults, size_t seqIdOffset) {
     // write prefiltering results to a string
     size_t l = 0;
     hit_t * resultVector = prefResults.first;
@@ -421,11 +424,11 @@ int Prefiltering::writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size
 
     for (size_t i = 0; i < resultSize; i++){
         hit_t * res = resultVector + i;
-
-        if (res->seqId >= tdbr->getSize()) {
-            Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << res->seqId << "\t" << res->prefScore << "\n";
+        size_t targetSeqId = res->seqId + seqIdOffset;
+        if (targetSeqId >= tdbr->getSize()) {
+            Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << targetSeqId << "\t" << res->prefScore << "\n";
         }
-        const int len = snprintf(buffer,100,"%s\t%.4f\t%d\n",tdbr->getDbKey(res->seqId), res->zScore, res->prefScore);
+        const int len = snprintf(buffer,100,"%s\t%.4f\t%d\n",tdbr->getDbKey(targetSeqId), res->zScore, res->prefScore);
         prefResultsOutString.append( buffer, len );
         l++;
         // maximum allowed result list length is reached
@@ -521,11 +524,11 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
 
     Debug(Debug::INFO) << "Index table: fill...\n";
     for (unsigned int id = dbFrom; id < dbTo; id++){
-        Log::printProgress(id-dbFrom);
+        Log::printProgress(id - dbFrom);
         char* seqData = dbr->getData(id);
         std::string str(seqData);
         //TODO - dbFrom?!?
-        seq->mapSequence(id, dbr->getDbKey(id), seqData);
+        seq->mapSequence(id - dbFrom, dbr->getDbKey(id), seqData);
         indexTable->addSequence(seq);
     }
 
@@ -700,7 +703,7 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
     // determine k-mer match probability for kmerThrMid
     QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid,
                                                                   1.0, kmerSize, qseq[0]->getEffectiveKmerSize(),
-                                                                  tdbr->getSize(), aaBiasCorrection, false, maxSeqLen,
+                                                                  indexTable->getSize(), aaBiasCorrection, false, maxSeqLen,
                                                                   500.0, searchMode, LONG_MAX);
     size_t dbMatchesSum = 0;
     size_t doubleMatches = 0;
