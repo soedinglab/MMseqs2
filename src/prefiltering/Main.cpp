@@ -14,47 +14,6 @@
 
 #include "MMseqsMPI.h"
 
-void mmseqs_debug_catch_signal(int sig_num)
-{
-    if(sig_num == SIGILL)
-    {
-        fprintf(stderr, "Your CPU does not support all the latest features that this version of mmseqs makes use of!\n"
-                "Please run on a newer machine.");
-        EXIT(sig_num);
-    }
-    else
-    {
-        fprintf (stderr, "\n\n-------------------------8<-----------------------\nExiting on error!\n");
-        fprintf (stderr, "Signal %d received\n",sig_num);
-        perror("ERROR (can be bogus)");
-
-        fprintf(stderr, "Backtrace:");
-        void *buffer[30];
-        int nptrs = backtrace(buffer, 30);
-        backtrace_symbols_fd(buffer, nptrs, 2);
-        fprintf (stderr, "------------------------->8-----------------------\n\n"
-                "Send the binary program that caused this error and the coredump (ls core.*).\n"
-                "Or send the backtrace:"
-                "\n$ gdb -ex=bt --batch PROGRAMM_NAME CORE_FILE\n"
-                "If there is no core file, enable coredumps in your shell and run again:\n"
-                "$ ulimit -c unlimited\n\n");
-    }
-
-    EXIT(1);
-}
-
-void mmseqs_cuticle_init()
-{
-    struct sigaction handler;
-    handler.sa_handler = mmseqs_debug_catch_signal;
-    sigemptyset(&handler.sa_mask);
-    handler.sa_flags = 0;
-
-    sigaction(SIGFPE, &handler, NULL);
-    sigaction(SIGSEGV, &handler, NULL);
-    sigaction(SIGBUS, &handler, NULL);
-    sigaction(SIGABRT, &handler, NULL);
-}
 
 int prefilter(int argc, const char **argv)
 {
@@ -66,8 +25,6 @@ int prefilter(int argc, const char **argv)
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.prefilter, 3);
-
-    mmseqs_cuticle_init();
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -100,7 +57,7 @@ int prefilter(int argc, const char **argv)
 #endif
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "\nTime for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::WARNING) << "\nOverall time for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     delete pref;
 
 #ifdef HAVE_MPI

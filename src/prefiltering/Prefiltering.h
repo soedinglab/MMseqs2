@@ -48,8 +48,7 @@ class Prefiltering {
         void run ();
         void closeReader();
         void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
-        void removeDatabaes(std::vector<std::pair<std::string, std::string> > filenames);
-        IndexTable * getIndexTable(int split, int splitCount); // needed for index lookup
+        IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
     
         static IndexTable* generateIndexTable(DBReader* dbr, Sequence* seq,
                                          int alphabetSize, int kmerSize,
@@ -114,7 +113,8 @@ class Prefiltering {
         std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader *qdbr, DBReader *tdbr,
                                                   float targetKmerMatchProb, double toleratedDeviation, const int kmerScore);
         // write prefiltering to ffindex database
-        int writePrefilterOutput(DBWriter * dbWriter, int thread_idx, size_t id, std::pair<hit_t *,size_t> prefResults);
+        int writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
+                                 std::pair<hit_t *, size_t> prefResults, size_t seqIdOffset);
         // init QueryTemplateMatcher
         QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
                                                                 unsigned int *seqLens, short kmerThr,
