@@ -341,11 +341,12 @@ void Prefiltering::run (size_t split, size_t splitCount,
         // get query sequence
         char* seqData = qdbr->getData(id);
         qseq[thread_idx]->mapSequence(id, qdbr->getDbKey(id), seqData);
-        // only the first split should include the id.
-        // in avg. this will leads to an occurrence of the ID two times.
+        // only the corresponding split should include the id (hack for the hack haha)
         unsigned int targetSeqId = UINT_MAX;
-        if(split == 0){
+        if(id >= dbFrom && id < (dbFrom + dbSize)){
             targetSeqId = tdbr->getId(qseq[thread_idx]->getDbKey());
+            if(targetSeqId != UINT_MAX)
+                targetSeqId = targetSeqId - dbFrom;
         }
         // calculate prefitlering results
         std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx], targetSeqId);
