@@ -62,7 +62,7 @@ class Clustering {
         bool validate_result(std::list<set *> * ret,unsigned int uniqu_element_count);
 
         // read data for set cover
-        set_data read_in_set_data();
+        set_data read_in_set_data(int mode);
 
         void writeData(std::list<set *> ret);
 
