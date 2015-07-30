@@ -4,6 +4,7 @@
 
 #include "AlignmentSymmetry.h"
 #include <Debug.h>
+#include <Log.h>
 #include "AffinityClustering.h"
 
 AlignmentSymmetry::AlignmentSymmetry(DBReader * seqDbr, DBReader * alnDbr, DBWriter* alnWr, float seqIdThr, float coverage){
@@ -40,6 +41,7 @@ void AlignmentSymmetry::execute() {
         memset(missinglines,0,sizeof(missinglines));
 //read in datachunk
         for (int i = start; i < end; i++) {
+            Log::printProgress(i);
         char *data = alnDbr->getData(i);
         while (*data != '\0') {
             Util::parseKey(data, idbuffer1);
@@ -52,6 +54,7 @@ void AlignmentSymmetry::execute() {
 
         //determine missing connections
         for (int j = 0; j < dbSize ; ++j) {
+            Log::printProgress(j);
             char *data = alnDbr->getData(j);
             while (*data != '\0') {
                 Util::parseKey(data, idbuffer1);
@@ -70,8 +73,10 @@ void AlignmentSymmetry::execute() {
                 data = Util::skipLine(data);
             }
         }
+        Debug(Debug::INFO)<<"determined missing connections finished:\t"<<step<<"\n";
         //print
         for (int i = start; i < end; i++) {
+            Log::printProgress(i);
             char *data = alnDbr->getData(i);
             std::string cluResultsOutString = std::string("");
             while (*data != '\0') {
@@ -103,6 +108,7 @@ void AlignmentSymmetry::execute() {
               //  data = Util::skipLine(data);
           //  }
         }
+        Debug(Debug::INFO)<<"Print of result finished:\t"<<step<<"\n";
         delete[]resultsets;
         delete[]missinglines;
         Debug(Debug::INFO)<<step<<"\t"<<missingnumber<<"\t"<<connections<<"\n";
