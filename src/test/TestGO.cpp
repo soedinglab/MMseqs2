@@ -367,7 +367,7 @@ int main(int argc, char **argv)
         DBReader* seqDbr=new DBReader(seqDbfile.c_str(),(seqDbfile+".index").c_str());
         seqDbr->open(DBReader::SORT);
         DBReader* alnDbr=new DBReader(alignmentfile.c_str(),(alignmentfile+".index").c_str());
-        seqDbr->open(DBReader::SORT);
+        alnDbr->open(DBReader::SORT);
         DBWriter* dbw = new DBWriter(outputfile.c_str(), (outputfile+".index").c_str());
         dbw->open();
 
@@ -439,6 +439,12 @@ int main(int argc, char **argv)
             //  data = Util::skipLine(data);
             //  }
         }
+        alnDbr->close();
+        seqDbr->close();
+        dbw->close();
+        alnDbr->~DBReader();
+        seqDbr->~DBReader();
+        dbw->~DBWriter();
     }else{
         printHelp();
         Debug(Debug::INFO)<<DistanceCalculator::uiLevenshteinDistance("bla","bla21");
