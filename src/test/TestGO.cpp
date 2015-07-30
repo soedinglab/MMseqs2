@@ -5,6 +5,8 @@
 #include <Util.h>
 #include <DistanceCalculator.h>
 #include <convertfiles.h>
+#include <DBWriter.h>
+#include <Parameters.h>
 #include "CompareGOTerms.h"
 
 
@@ -344,6 +346,99 @@ int main(int argc, char **argv)
         convertfiles *cf = new convertfiles();
         cf->convertFfindexToTsv(clusteringfile, suffix, outputfolder);
 
+    }else if(strcmp(argv[1],"-af")==0){
+        if (argc != 7) {
+            Debug(Debug::INFO) << argc << "\n";
+            printHelp();
+
+        }
+        std::string seqDbfile = argv[2];
+        std::string alignmentfile = argv[3];
+        std::string outputfile = argv[4];
+        float threshold = atof(argv[5]);
+        int similarityScoreType = atof(argv[6]);
+
+        size_t BUFFER_SIZE = 1000000;
+        char* outBuffer = new char[BUFFER_SIZE];
+        char *idbuffer1 = new char[255 + 1];
+        char *linebuffer = new char[255 + 1];
+        char *similarity = new char[255+1];
+
+        DBReader* seqDbr=new DBReader(seqDbfile.c_str(),(seqDbfile+".index").c_str());
+        seqDbr->open(DBReader::SORT);
+        DBReader* alnDbr=new DBReader(alignmentfile.c_str(),(alignmentfile+".index").c_str());
+        seqDbr->open(DBReader::SORT);
+        DBWriter* dbw = new DBWriter(outputfile.c_str(), (outputfile+".index").c_str());
+        dbw->open();
+
+        for (int i = 0; i < seqDbr->getSize(); i++) {
+            char *data = alnDbr->getData(i);
+            std::string cluResultsOutString = std::string("");
+            while (*data != '\0') {
+                Util::parseKey(data, idbuffer1);
+                Util::getLine(data, linebuffer);
+                //get similarityscore
+                float factor=1;
+                float similarityscore;
+                if(similarityScoreType==Parameters::APC_ALIGNMENTSCORE){
+                    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+                    similarityscore= atof(std::string(similarity).c_str());
+                }else if(similarityScoreType==Parameters::APC_COVERAGE){
+                    Util::parseByColumnNumber(data, similarity, 2); //column 2 = querycoverage
+                    float querycoverage= atof(std::string(similarity).c_str())*factor;
+                    Util::parseByColumnNumber(data, similarity, 3); //column 3 = dbcoverage
+                    float dbcoverage= atof(std::string(similarity).c_str())*factor;
+                    if(querycoverage<dbcoverage){
+                        similarityscore=querycoverage;
+                    }else{
+                        similarityscore=dbcoverage;
+                    }
+
+                }else if(similarityScoreType==Parameters::APC_SEQID){
+                    Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                    similarityscore= atof(std::string(similarity).c_str())*factor;
+                }
+                else if(similarityScoreType==Parameters::APC_EVAL) {
+                    Util::parseByColumnNumber(data, similarity, 5); //column 4 = e value
+                    similarityscore = -log(atof(std::string(similarity).c_str()))*factor;
+                } else if(similarityScoreType==Parameters::APC_BITSCORE) {
+                    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+                    similarityscore= atof(std::string(similarity).c_str());
+                    int queryLength=strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
+                    int dbSeqLength=strlen(seqDbr->getDataByDBKey(idbuffer1));
+                    float maxSeqLength=std::max(queryLength,dbSeqLength);
+
+                    //
+                    similarityscore= similarityscore/maxSeqLength;
+
+                    //    Debug(Debug::INFO)  << similarityscore <<"\t"<<i<<"\t"<<curr_element<<"\n";
+                    //Debug(Debug::INFO)  << similarityscore <<"\n";
+                }
+
+                if (similarityscore < threshold) {
+                    data = Util::skipLine(data);
+                    continue;
+                }
+                cluResultsOutString=cluResultsOutString+linebuffer+"\n";
+                data = Util::skipLine(data);
+            }
+
+            // Debug(Debug::INFO)<<data;
+
+            const char* cluResultsOutData = cluResultsOutString.c_str();
+            if (BUFFER_SIZE < strlen(cluResultsOutData)){
+                Debug(Debug::ERROR) << "Tried to process the alignment list for the query " << alnDbr->getDbKey(i)
+                << " , length of the list = " << "\n";
+                Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
+                << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
+                continue;
+            }
+            memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
+            dbw->write(outBuffer, cluResultsOutString.length(), alnDbr->getDbKey(i));
+
+            //  data = Util::skipLine(data);
+            //  }
+        }
     }else{
         printHelp();
         Debug(Debug::INFO)<<DistanceCalculator::uiLevenshteinDistance("bla","bla21");
@@ -363,7 +458,7 @@ void printHelp() {
     usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile>\n");
     usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
     usage.append("-clusterToTsv <clustering_file> <prefix> <outputfolder>\n");
-
+    usage.append("-af  <seqDbfile> <alignmentfile> <outputfile> <cutoff> <scoretype: 1-5>\n");
 
     Debug(Debug::INFO) << usage << "\n";
     EXIT(EXIT_FAILURE);
