@@ -11,7 +11,6 @@ void IndexTableLocal::addSequence (Sequence* s){
     unsigned int kmerIdx;
     this->size++; // amount of sequences added
     s->resetCurrPos();
-    this->s = s;
     idxer->reset();
     
     while(s->hasNextKmer()){
