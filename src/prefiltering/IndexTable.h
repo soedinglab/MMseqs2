@@ -75,7 +75,6 @@ class IndexTable {
                     idxer->getNextKmerIndex(s->nextKmer(), kmerSize);
                 }
             }
-            this->s = s;
         }
     
         // get list of DB sequences containing this k-mer
@@ -234,8 +233,6 @@ class IndexTable {
         int alphabetSize;
 
         int kmerSize;
-
-        Sequence* s;
 
         // number of skipped k-mers
         int skip;
