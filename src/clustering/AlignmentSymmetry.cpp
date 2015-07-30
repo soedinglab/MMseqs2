@@ -43,21 +43,6 @@ void AlignmentSymmetry::execute() {
         char *data = alnDbr->getData(i);
         while (*data != '\0') {
             Util::parseKey(data, idbuffer1);
-            Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-            float seqId = atof(similarity);
-	    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-            seqId= atof(std::string(similarity).c_str());
-	    int queryLength=strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
-            int dbSeqLength=strlen(seqDbr->getDataByDBKey(idbuffer1));
-
-             float maxSeqLength=std::max(queryLength,dbSeqLength);
-
-            //
-            seqId= seqId/(maxSeqLength);       
-     if(seqId < this->seqIdThr){
-                data = Util::skipLine(data);
-                continue;
-            }
             resultsets[i-start].insert(alnDbr->getId(idbuffer1));
             data = Util::skipLine(data);
             }
@@ -70,20 +55,6 @@ void AlignmentSymmetry::execute() {
             char *data = alnDbr->getData(j);
             while (*data != '\0') {
                 Util::parseKey(data, idbuffer1);
-                Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-                float seqId = atof(similarity);
- Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-            seqId= atof(std::string(similarity).c_str());
-int queryLength=strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(j)));
-            int dbSeqLength=strlen(seqDbr->getDataByDBKey(idbuffer1));          
-            float maxSeqLength=std::max(queryLength,dbSeqLength);
-
-            //
-            seqId= seqId/(maxSeqLength);
-                if(seqId < this->seqIdThr){
-                    data = Util::skipLine(data);
-                    continue;
-                }
                 int targetid=alnDbr->getId(idbuffer1);
                 if(targetid>=start && targetid<end){
                     if(resultsets[targetid-start].find(j) ==resultsets[targetid-start].end()){
@@ -106,22 +77,6 @@ int queryLength=strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(j)));
             while (*data != '\0') {
 		 Util::parseKey(data, idbuffer1);
                 Util::getLine(data, linebuffer);
-                Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-                float seqId = atof(similarity);
- Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-            seqId= atof(std::string(similarity).c_str());
-
-int queryLength=strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
-            int dbSeqLength=strlen(seqDbr->getDataByDBKey(idbuffer1));
-            float maxSeqLength=std::max(queryLength,dbSeqLength);
-
-            //
-            seqId= seqId/(maxSeqLength);
-
-                if (seqId < this->seqIdThr) {
-                    data = Util::skipLine(data);
-                    continue;
-                }
                 cluResultsOutString=cluResultsOutString+linebuffer+"\n";
                 data = Util::skipLine(data);
             }

@@ -46,7 +46,7 @@ void Clustering::run(int mode){
     if (mode == Parameters::SET_COVER){
         Debug(Debug::INFO) << "Clustering mode: SET COVER\n";
         Debug(Debug::INFO) << "Reading the data...\n";
-        set_data = read_in_set_data();
+        set_data = read_in_set_data(mode);
 
         Debug(Debug::INFO) << "\nInit set cover...\n";
         SetCover setcover(set_data.set_count,
@@ -75,7 +75,7 @@ void Clustering::run(int mode){
     else if (mode == Parameters::GREEDY){
         Debug(Debug::INFO) << "Clustering mode: GREEDY\n";
         Debug(Debug::INFO) << "Reading the data...\n";
-        set_data = read_in_set_data();
+        set_data = read_in_set_data(mode);
 
         Debug(Debug::INFO) << "Init simple clustering...\n";
         SimpleClustering simpleClustering(set_data.set_count,
@@ -100,7 +100,7 @@ void Clustering::run(int mode){
     }else if (mode == Parameters::AFFINITY){
         Debug(Debug::INFO) << "Clustering mode: AFFINITY\n";
         Debug(Debug::INFO) << "Reading the data...\n";
-        set_data = read_in_set_data();
+        set_data = read_in_set_data(mode);
 
         Debug(Debug::INFO) << "Init affinity clustering...\n";
         Debug(Debug::INFO) << "Maxiteration " <<maxIteration<<"\n";
@@ -274,7 +274,7 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
 }
 
 
-Clustering::set_data Clustering::read_in_set_data(){
+Clustering::set_data Clustering::read_in_set_data(int mode){
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution(1,100);
 
@@ -302,8 +302,11 @@ Clustering::set_data Clustering::read_in_set_data(){
     unsigned int ** sets = new unsigned int*[m];
     ret_struct.sets = sets;
     // similarities scores
-    float ** sets_similarities = new float*[m];
-    ret_struct.similarities = sets_similarities;
+    float **sets_similarities;
+    if (mode == Parameters::AFFINITY) {
+        sets_similarities = new float *[m];
+        ret_struct.similarities = sets_similarities;
+    }
     // set weights
     unsigned short ** weights = new unsigned short*[m];
     ret_struct.weights = weights;
@@ -323,7 +326,10 @@ Clustering::set_data Clustering::read_in_set_data(){
     size_t dataSize = alnDbr->getDataSize();
     size_t elementCount = Util::count_lines(data, dataSize);
     unsigned int * elements = new unsigned int[elementCount];
-    float * similarities = new float[elementCount];
+    float *similarities;
+    if (mode == Parameters::AFFINITY) {
+        similarities= new float[elementCount];
+    }
     unsigned short * weight = new unsigned short[elementCount];
     std::fill_n(weight, elementCount, 1);
     size_t curr_start_pos = 0;
@@ -366,46 +372,49 @@ Clustering::set_data Clustering::read_in_set_data(){
                 continue;
             }
 
-            //get similarityscore
-            float factor=1;
-            float similarityscore;
-            if(similarityScoreType==Parameters::APC_ALIGNMENTSCORE){
-                Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-                similarityscore= atof(std::string(similarity).c_str());
-            }else if(similarityScoreType==Parameters::APC_COVERAGE){
-                Util::parseByColumnNumber(data, similarity, 2); //column 2 = querycoverage
-                float querycoverage= atof(std::string(similarity).c_str())*factor;
-                Util::parseByColumnNumber(data, similarity, 3); //column 3 = dbcoverage
-                float dbcoverage= atof(std::string(similarity).c_str())*factor;
-                if(querycoverage<dbcoverage){
-                    similarityscore=querycoverage;
-                }else{
-                    similarityscore=dbcoverage;
+            if (mode == Parameters::AFFINITY) {
+                //get similarityscore
+                float factor = 1;
+                float similarityscore;
+                if (similarityScoreType == Parameters::APC_ALIGNMENTSCORE) {
+                    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+                    similarityscore = atof(std::string(similarity).c_str());
+                } else if (similarityScoreType == Parameters::APC_COVERAGE) {
+                    Util::parseByColumnNumber(data, similarity, 2); //column 2 = querycoverage
+                    float querycoverage = atof(std::string(similarity).c_str()) * factor;
+                    Util::parseByColumnNumber(data, similarity, 3); //column 3 = dbcoverage
+                    float dbcoverage = atof(std::string(similarity).c_str()) * factor;
+                    if (querycoverage < dbcoverage) {
+                        similarityscore = querycoverage;
+                    } else {
+                        similarityscore = dbcoverage;
+                    }
+
+                } else if (similarityScoreType == Parameters::APC_SEQID) {
+                    Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                    similarityscore = atof(std::string(similarity).c_str()) * factor;
                 }
+                else if (similarityScoreType == Parameters::APC_EVAL) {
+                    Util::parseByColumnNumber(data, similarity, 5); //column 4 = e value
+                    similarityscore = -log(atof(std::string(similarity).c_str())) * factor;
+                } else if (similarityScoreType == Parameters::APC_BITSCORE) {
+                    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+                    similarityscore = atof(std::string(similarity).c_str());
+                    int queryLength = strlen(seqDbr->getData(i));
+                    int dbSeqLength = strlen(seqDbr->getData(curr_element));
+                    float maxSeqLength = std::max(queryLength, dbSeqLength);
 
-            }else if(similarityScoreType==Parameters::APC_SEQID){
-                Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-                similarityscore= atof(std::string(similarity).c_str())*factor;
-            }
-            else if(similarityScoreType==Parameters::APC_EVAL) {
-                Util::parseByColumnNumber(data, similarity, 5); //column 4 = e value
-                similarityscore = -log(atof(std::string(similarity).c_str()))*factor;
-            } else if(similarityScoreType==Parameters::APC_BITSCORE) {
-                Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-                similarityscore= atof(std::string(similarity).c_str());
-                int queryLength=strlen(seqDbr->getData(i));
-                int dbSeqLength=strlen(seqDbr->getData(curr_element));
-                float maxSeqLength=std::max(queryLength,dbSeqLength);
+                    //
+                    similarityscore = similarityscore / maxSeqLength;
 
-                //
-                similarityscore= similarityscore/maxSeqLength;
-
-                //    Debug(Debug::INFO)  << similarityscore <<"\t"<<i<<"\t"<<curr_element<<"\n";
-                //Debug(Debug::INFO)  << similarityscore <<"\n";
+                    //    Debug(Debug::INFO)  << similarityscore <<"\t"<<i<<"\t"<<curr_element<<"\n";
+                    //Debug(Debug::INFO)  << similarityscore <<"\n";
+                }
+                similarityscore=similarityscore*0.99+0.01*distribution(generator)/100*similarityscore;
+                element_similarity_buffer[element_counter] = similarityscore;
             }
             //Debug(Debug::INFO)  << similarityscore <<"\n";
-            similarityscore=similarityscore*0.99+0.01*distribution(generator)/100*similarityscore;
-            element_similarity_buffer[element_counter] = similarityscore;
+
             element_buffer[element_counter++] = (unsigned int) curr_element;
             element_size[curr_element]++;
             ret_struct.all_element_count++;
@@ -429,22 +438,30 @@ Clustering::set_data Clustering::read_in_set_data(){
         ret_struct.max_weight = std::max(element_counter, ret_struct.max_weight);
         // set pointer
         memcpy(elements + curr_start_pos, element_buffer, sizeof(unsigned int) * element_counter);
-        memcpy(similarities + curr_start_pos, element_similarity_buffer, sizeof(float) * element_counter);
-        weights[i] = (weight + curr_start_pos);
+        if (mode == Parameters::AFFINITY) {
+            memcpy(similarities + curr_start_pos, element_similarity_buffer, sizeof(float) * element_counter);
+        }
+            weights[i] = (weight + curr_start_pos);
         sets[i] = (elements + curr_start_pos);
-        sets_similarities[i] = (similarities + curr_start_pos);
+        if (mode == Parameters::AFFINITY) {
+            sets_similarities[i] = (similarities + curr_start_pos);
+        }
         set_size[i] = element_counter;
         curr_start_pos += element_counter;
     }
     ret_struct.startElementsArray = elements;
     ret_struct.startWeightsArray = weight;
-    ret_struct.similarities=sets_similarities;
+    if (mode == Parameters::AFFINITY) {
+        ret_struct.similarities = sets_similarities;
+    }
     if (empty > 0)
         Debug(Debug::WARNING) << empty << " input sets were empty!\n";
     delete [] element_buffer;
-    delete [] element_similarity_buffer;
+    if (mode == Parameters::AFFINITY) {
+        delete[] element_similarity_buffer;
+        delete [] similarity;
+    }
     delete [] dbKey;
-    delete [] similarity;
     return ret_struct;
 }
 
