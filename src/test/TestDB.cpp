@@ -21,7 +21,7 @@ Clustering::set_data create_random_data(size_t elemSize, size_t setSize) {
     Clustering::set_data ret_struct;
 
 
-    ret_struct.uniqu_element_count = elemSize;
+    ret_struct.unique_element_count = elemSize;
     ret_struct.set_count = setSize;
 
     // set element size lookup

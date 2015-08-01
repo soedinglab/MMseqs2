@@ -12,7 +12,7 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         int validateClustering, float seqId,
         int maxListLen, unsigned int maxIteration,
         unsigned int convergenceIterations, float dampingFactor,
-        int similarityScoreType, float preference){
+        int similarityScoreType, float preference, int threads){
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
@@ -22,9 +22,6 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
     Debug(Debug::INFO) << "Opening alignment database...\n";
     alnDbr = new DBReader(alnDB.c_str(), alnDBIndex.c_str());
     alnDbr->open(DBReader::NOSORT);
-
-    dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str());
-    dbw->open();
     this->validate = validateClustering;
     this->maxListLen = maxListLen;
     Debug(Debug::INFO) << "done.\n";
@@ -34,12 +31,22 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
     this->dampingFactor=dampingFactor;
     this->similarityScoreType=similarityScoreType;
     this->preference=preference;
+    this->threads = threads;
+    this->outDB = outDB;
+    this->outDBIndex = outDBIndex;
 }
 
-void Clustering::run(int mode){
+void Clustering::run(int mode) {
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
+    DBWriter * dbw;
+    if (mode == Parameters::SYMMETRIC_ALIGNMENT) {
+        dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), this->threads);
+    } else {
+        dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1);
+    }
+    dbw->open();
 
     std::list<set *> ret;
     Clustering::set_data set_data;
@@ -50,7 +57,7 @@ void Clustering::run(int mode){
 
         Debug(Debug::INFO) << "\nInit set cover...\n";
         SetCover setcover(set_data.set_count,
-                          set_data.uniqu_element_count,
+                          set_data.unique_element_count,
                           set_data.max_weight,
                           set_data.all_element_count,
                           set_data.element_size_lookup
@@ -69,7 +76,7 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "done.\n";
 
         Debug(Debug::INFO) << "Writing results...\n";
-        writeData(ret);
+        writeData(dbw, ret);
         Debug(Debug::INFO) << "...done.\n";
     }
     else if (mode == Parameters::GREEDY){
@@ -79,7 +86,7 @@ void Clustering::run(int mode){
 
         Debug(Debug::INFO) << "Init simple clustering...\n";
         SimpleClustering simpleClustering(set_data.set_count,
-                set_data.uniqu_element_count,
+                set_data.unique_element_count,
                 set_data.all_element_count,
                 set_data.element_size_lookup);
 
@@ -95,7 +102,7 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "done.\n";
 
         Debug(Debug::INFO) << "Writing results...\n";
-        writeData(ret);
+        writeData(dbw, ret);
         Debug(Debug::INFO) << "...done.\n";
     }else if (mode == Parameters::AFFINITY){
         Debug(Debug::INFO) << "Clustering mode: AFFINITY\n";
@@ -108,7 +115,7 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "Damping Factor " <<dampingFactor<<"\n";
         Debug(Debug::INFO) << "Similarity Score Type " <<similarityScoreType<<"\n";
         Debug(Debug::INFO) << "Preference " <<preference<<"\n";
-        AffinityClustering affinityClustering(set_data.set_count, set_data.uniqu_element_count, set_data.all_element_count,
+        AffinityClustering affinityClustering(set_data.set_count, set_data.unique_element_count, set_data.all_element_count,
                 set_data.set_sizes, set_data.similarities, set_data.sets, maxIteration,convergenceIterations,dampingFactor,preference,set_data.validids);
 
 
@@ -120,19 +127,19 @@ void Clustering::run(int mode){
         Debug(Debug::INFO) << "done.\n";
 
         Debug(Debug::INFO) << "Writing results...\n";
-        writeData(ret);
+        writeData(dbw, ret);
         Debug(Debug::INFO) << "...done.\n";
     }else if (mode == Parameters::SET_COVER3){
         SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0);
         ret =setCover3->execute();
-        writeData(ret);
+        writeData(dbw, ret);
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
     } else if (mode == Parameters::GREEDY2){
         SimpleClustering2* simpleClustering2= new SimpleClustering2(seqDbr,alnDbr,seqIdThr,0.0);
         ret =simpleClustering2->execute();
-        writeData(ret);
+        writeData(dbw, ret);
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
@@ -140,23 +147,19 @@ void Clustering::run(int mode){
     }else if (mode == Parameters::SET_COVER4){
         SetCover4* setCover4= new SetCover4(seqDbr,alnDbr,seqIdThr,0.0);
         ret =setCover4->execute();
-        writeData(ret);
+        writeData(dbw, ret);
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
 
-
-
-
     }else if (mode == Parameters::SYMMETRIC_ALIGNMENT){
-        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr,alnDbr,dbw,seqIdThr,0.0);
+        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr, alnDbr, dbw, threads, seqIdThr, 0.0);
         alignmentSymmetry->execute();
         // writeData(ret);
         gettimeofday(&end, NULL);
         int sec1 = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for Symmatric alignment generation: " << (sec1 / 60) << " m " << (sec1 % 60) << "s\n\n";
-        dbw->close();
-       return;
+//        writeData(dbw, ret);
 
     }else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
@@ -165,7 +168,7 @@ void Clustering::run(int mode){
 
     if (validate == 1){
         Debug(Debug::INFO) << "Validating results...\n";
-        if(validate_result(&ret,set_data.uniqu_element_count))
+        if(validate_result(&ret,set_data.unique_element_count))
             Debug(Debug::INFO) << " VALID\n";
         else
             Debug(Debug::INFO) << " NOT VALID\n";
@@ -189,7 +192,7 @@ void Clustering::run(int mode){
     Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
     Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
-if(mode != Parameters::SET_COVER3 && mode != Parameters::GREEDY2&& mode != Parameters::SET_COVER4) {
+if(mode != Parameters::SET_COVER3 && mode != Parameters::GREEDY2 && mode != Parameters::SYMMETRIC_ALIGNMENT && mode != Parameters::SET_COVER4) {
     delete[] set_data.startWeightsArray;
     delete[] set_data.startElementsArray;
     delete[] set_data.weights;
@@ -201,7 +204,7 @@ if(mode != Parameters::SET_COVER3 && mode != Parameters::GREEDY2&& mode != Param
     }
 }
 
-void Clustering::writeData(std::list<set *> ret){
+void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
 
     size_t BUFFER_SIZE = 1000000;
     char* outBuffer = new char[BUFFER_SIZE];
@@ -267,7 +270,7 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
     if (uniqu_element_count==result_element_count)
         return true;
     else{
-        Debug(Debug::ERROR) << "uniqu_element_count: " << uniqu_element_count
+        Debug(Debug::ERROR) << "unique_element_count: " << uniqu_element_count
                             << ", result_element_count: " << result_element_count << "\n";
         return false;
     }
@@ -285,7 +288,7 @@ Clustering::set_data Clustering::read_in_set_data(int mode){
     // m = number of setscmake -DCMAKE_BUILD_TYPE=Release ..
     size_t m = alnDbr->getSize();
 
-    ret_struct.uniqu_element_count = n;
+    ret_struct.unique_element_count = n;
     ret_struct.set_count = m;
     ret_struct.validids=new std::list<int>;
 

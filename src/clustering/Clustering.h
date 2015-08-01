@@ -35,7 +35,7 @@ class Clustering {
                 std::string outDB, std::string outDBIndex, 
                 int validateClustering, float seqId, int maxListLen, unsigned int maxIteration,
                 unsigned int convergenceIterations,float dampingFactor,
-                int similarityScoreType, float preference);
+                int similarityScoreType, float preference, int threads);
 
         struct set_data {
             // one set contains pointers to the cluster member ids
@@ -45,7 +45,7 @@ class Clustering {
             unsigned int * set_sizes;
             unsigned int * element_size_lookup;
             size_t set_count;
-            size_t uniqu_element_count;
+            size_t unique_element_count;
             size_t all_element_count;
             size_t max_weight;
             unsigned int * startElementsArray;
@@ -64,13 +64,11 @@ class Clustering {
         // read data for set cover
         set_data read_in_set_data(int mode);
 
-        void writeData(std::list<set *> ret);
+
+        void writeData(DBWriter *dbw, std::list<set *> ret);
 
         DBReader* seqDbr;
-
         DBReader* alnDbr;
-
-        DBWriter* dbw;
 
         int validate;
 
@@ -86,5 +84,8 @@ class Clustering {
         float preference;
         // sequence id. thr.
         float seqIdThr;
+        int threads;
+        std::string outDBIndex;
+        std::string outDB;
 };
 #endif

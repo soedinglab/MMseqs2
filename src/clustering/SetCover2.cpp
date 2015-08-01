@@ -64,6 +64,9 @@ SetCover2::SetCover2(size_t elementSize, const unsigned int *setSizes,
     }
 }
 
+
+
+
 SetCover2::~SetCover2(){
     delete [] sets;
     delete [] elementLookupTable;

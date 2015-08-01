@@ -100,7 +100,7 @@ void SetCover::add_set(const unsigned int set_id,
         }
         curr_element_ptr->weight = weights[i];
         if(curr_element_ptr->weight != 1 ){
-            Debug(Debug::ERROR)  << "ERROR: Weight is of   " <<
+            Debug(Debug::ERROR)  << "ERROR: Weight of   " <<
             curr_element_ptr->element_id << " is  " << curr_element_ptr->weight << ".\n";
             EXIT(EXIT_FAILURE);
         }

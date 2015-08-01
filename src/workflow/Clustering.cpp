@@ -61,7 +61,9 @@ int clusteringworkflow (int argc, const char * argv[]) {
         // set parameter for first step
 
         par.sensitivity   = 1; // 1 is lowest sens
-        par.fastMode      = true; // be as fast a possible
+        par.searchMode    = 2; // be as fast a possible
+        par.kmerScore     = 130;
+
         par.zscoreThr     = getZscoreForSensitivity( par.sensitivity );
         par.maxResListLen = 100;
         cmd.addVariable("PREFILTER1_PAR", par.createParameterString(par.prefilter));
@@ -71,6 +73,9 @@ int clusteringworkflow (int argc, const char * argv[]) {
 
         // set parameter for second step
         par.sensitivity = targetSensitivity / 2.0;
+        par.searchMode    = 2; // be as fast a possible
+        par.kmerScore     = 110;
+
         par.zscoreThr =  getZscoreForSensitivity( par.sensitivity );
         par.maxResListLen = 200;
         cmd.addVariable("PREFILTER2_PAR", par.createParameterString(par.prefilter));
@@ -80,6 +85,9 @@ int clusteringworkflow (int argc, const char * argv[]) {
         // set parameter for last step
         par.sensitivity = targetSensitivity;
         par.zscoreThr = getZscoreForSensitivity( par.sensitivity );
+        par.searchMode    = 1; // be as fast a possible
+        par.kmerScore     = 100;
+
         par.maxResListLen = maxResListLen;
         cmd.addVariable("PREFILTER3_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(par.alignment));
