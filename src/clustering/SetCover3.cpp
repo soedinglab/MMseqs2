@@ -8,13 +8,11 @@
 #include "AffinityClustering.h"
 
 SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage){
-
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
     this->seqIdThr=seqIdThr;
     this->coverage=coverage;
     this->dbSize=alnDbr->getSize();
-
 }
 
 std::list<set *>  SetCover3::execute() {
@@ -130,8 +128,6 @@ std::list<set *>  SetCover3::execute() {
 
 
 void SetCover3::insertCluster(int clusterid, int clustersize){
-        //if(orderedClustersizes[clustersize] ==NULL){
-            orderedClustersizes[clustersize].insert(clusterid);
-
-    
+    //if(orderedClustersizes[clustersize] ==NULL){
+    orderedClustersizes[clustersize].insert(clusterid);
 }

@@ -388,7 +388,6 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
 #pragma omp parallel for schedule(static)
     for(size_t i = 0; i < maxThreadNum; i++){
         buffer[i] = new char[6400000]; //6MB
-
     }
 #pragma omp parallel for schedule(static)
     for(size_t i = 0; i < dbSize; i++){
