@@ -301,15 +301,20 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     size_t dbSize =  tdbr->getSize();
     size_t queryFrom = 0;
     size_t querySize = qdbr->getSize();
+    IndexTable * indexTable = NULL;
     if(splitMode == Parameters::TARGET_DB_SPLIT){
         Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                       split, splitCount, &dbFrom, &dbSize);
+        indexTable = getIndexTable(split, dbFrom, dbSize);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
         Util::decomposeDomainByAminoaAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
                                       split, splitCount, &queryFrom, &querySize);
+        indexTable = getIndexTable(1, dbFrom, dbSize);
+    } else{
+        Debug(Debug::ERROR) << "Wrong split mode. This should not happen. Please contact developer.\n";
+        EXIT(EXIT_FAILURE);
     }
     // create index table based on split parameter
-    IndexTable * indexTable = getIndexTable(split, dbFrom, dbSize);
     // run small query sample against the index table to calibrate p-match
     std::pair<short, double> calibration;
     calibration = setKmerThreshold(indexTable, qdbr, tdbr, sensitivity, 0.1, kmerScore);
