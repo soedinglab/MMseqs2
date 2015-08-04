@@ -130,7 +130,7 @@ void Clustering::run(int mode) {
         writeData(dbw, ret);
         Debug(Debug::INFO) << "...done.\n";
     }else if (mode == Parameters::SET_COVER3){
-        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0);
+        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads);
         ret =setCover3->execute();
         writeData(dbw, ret);
         gettimeofday(&end, NULL);
@@ -153,7 +153,7 @@ void Clustering::run(int mode) {
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
 
     }else if (mode == Parameters::SYMMETRIC_ALIGNMENT){
-        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr, alnDbr, dbw, threads, seqIdThr, 0.0);
+        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr, alnDbr, dbw, threads);
         alignmentSymmetry->execute();
         // writeData(ret);
         gettimeofday(&end, NULL);

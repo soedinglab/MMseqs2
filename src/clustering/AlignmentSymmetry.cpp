@@ -7,13 +7,10 @@
 #include <Log.h>
 #include "AffinityClustering.h"
 
-AlignmentSymmetry::AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWriter *alnWr, int threads,
-                                     float seqIdThr, float coverage) {
+AlignmentSymmetry::AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWriter *alnWr, int threads) {
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
-    this->seqIdThr=seqIdThr;
     this->threads = threads;
-    this->coverage=coverage;
     this->dbSize=alnDbr->getSize();
     this->alnWr=alnWr;
 }

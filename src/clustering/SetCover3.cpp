@@ -6,19 +6,65 @@
 #include "Util.h"
 #include "Debug.h"
 #include "AffinityClustering.h"
+#include "AlignmentSymmetry.h"
 
-SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage){
+SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage, int threads){
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
     this->seqIdThr=seqIdThr;
     this->coverage=coverage;
     this->dbSize=alnDbr->getSize();
+    this->threads=threads;
 }
 
 std::list<set *>  SetCover3::execute() {
+    clustersizes=new int[dbSize];
+    memset(clustersizes,0,dbSize);
+
+    const char * data = alnDbr->getData();
+    size_t dataSize = alnDbr->getDataSize();
+    size_t elementCount = Util::count_lines(data, dataSize);
+    unsigned int * elements = new unsigned int[elementCount];
+    unsigned int ** elementLookupTable = new unsigned int*[dbSize];
+    size_t *elementOffsets = new size_t[dbSize + 1];
+    int* maxClustersizes=new int [threads];
+    unsigned int * seqDbrIdToalnDBrId= new unsigned int[dbSize];
+#pragma omp parallel
+    {
+    int thread_idx = 0;
+#ifdef OPENMP
+    thread_idx = omp_get_thread_num();
+#endif
+        maxClustersizes[thread_idx]=0;
+#pragma omp for schedule(dynamic, 1000)
+    for(size_t i = 0; i < dbSize; i++) {
+        char *clusterId = seqDbr->getDbKey(i);
+        const size_t alnId = alnDbr->getId(clusterId);
+        seqDbrIdToalnDBrId[i]=alnId;
+        char *data = alnDbr->getData(alnId);
+        size_t dataSize = alnDbr->getSeqLens()[alnId];
+        size_t elementCount = Util::count_lines(data, dataSize);
+        elementOffsets[i] = elementCount;
+        maxClustersizes[thread_idx]=std::max((int)elementCount,maxClustersizes[thread_idx]);
+        clustersizes[i]=elementCount;
+    }
+
+    }
+    int maxClustersize=0;
+    for (int j = 0; j < threads; ++j) {
+        maxClustersize=std::max(maxClustersize,maxClustersizes[j]);
+    }
+    // make offset table
+    AlignmentSymmetry::computeOffsetTable(elementOffsets, dbSize);
+    // set element edge pointers by using the offset table
+    AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, elementOffsets, dbSize);
+    // fill elements
+    AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable);
+    // set element edge pointers by using the offset table
+    AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, elementOffsets, dbSize);
+
+
     std::list<set *> result;
-    char *idbuffer1 = new char[255 + 1];
-    char *idbuffer2 = new char[255 + 1];
     size_t n = seqDbr->getSize();
     int* assignedcluster=new int[n];
     memset(assignedcluster, -1, sizeof(int)*(n));
@@ -29,23 +75,7 @@ std::list<set *>  SetCover3::execute() {
     set* sets = new set[n];
     memset(sets, 0, sizeof(set *)*(n));
 
-    //initialise
-    clustersizes=new int[dbSize];
-    memset(clustersizes,0,dbSize);
-    maxClustersize=0;
 
-//read in data and determine biggest cluster
-    for (int i = 0; i < dbSize; i++) {
-        unsigned int currentclustersize=0;
-        char *data = alnDbr->getData(i);
-        while (*data != '\0') {
-
-            currentclustersize++;
-            data = Util::skipLine(data);
-        }
-        maxClustersize=std::max(currentclustersize,maxClustersize);
-        clustersizes[i]=currentclustersize;
-    }
     //save ordered clustersizes
     orderedClustersizes=new std::set<int>[maxClustersize+1];
     for (int i = 0; i < dbSize; i++) {
@@ -59,53 +89,53 @@ std::list<set *>  SetCover3::execute() {
             orderedClustersizes[cl_size].erase(representative);
             clustersizes[representative]=0;
             assignedcluster[representative]=representative;
-
+            char *data = alnDbr->getData(seqDbrIdToalnDBrId[representative]);
             //delete clusters of members;
-            char *data = alnDbr->getData(representative);
-            while (*data != '\0') {
-                Util::parseKey(data, idbuffer1);
-                int elementtodelete=alnDbr->getId(idbuffer1);
+            size_t elementSize = (elementOffsets[representative +1] - elementOffsets[representative]);
+            for(size_t elementId = 0; elementId < elementSize; elementId++) {
+
+                const unsigned int elementtodelete = elementLookupTable[representative][elementId];
+                const unsigned int currElementSize = (elementOffsets[elementtodelete +1] - elementOffsets[elementtodelete]);
+
                 bool representativefound=false;
                 //
+
+
                 Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                data = Util::skipLine(data);
                 float seqId = atof(similarity);
                 if(seqId>bestscore[elementtodelete]) {
                     assignedcluster[elementtodelete] = representative;
                     bestscore[elementtodelete] = seqId;
                 }
                 if(elementtodelete== representative){
-                    data = Util::skipLine(data);
                     continue;
                 }
                 if(clustersizes[elementtodelete]<1){
-                    data = Util::skipLine(data);
                     continue;
                 }
-                char *data2 = alnDbr->getData(elementtodelete);
+
                 orderedClustersizes[clustersizes[elementtodelete]].erase(elementtodelete);
                 clustersizes[elementtodelete]=0;
                 //decrease clustersize of sets that contain the element
-                while (*data2 != '\0') {
-                    Util::parseKey(data2, idbuffer2);
-                    int elementtodecrease=alnDbr->getId(idbuffer2);
+                for(size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
+                    const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
                     if(representative == elementtodecrease){
                         representativefound=true;
                     }
                     if(clustersizes[elementtodecrease]==1) {
                         Debug(Debug::ERROR)<<"there must be an error: "<<alnDbr->getDbKey(elementtodelete)<<" deleted from "<<alnDbr->getDbKey(elementtodecrease)<<" that now is empty, but not assigned to a cluster\n";
                     }else if (clustersizes[elementtodecrease]>0) {
-                    orderedClustersizes[clustersizes[elementtodecrease]].erase(elementtodecrease);
-                    clustersizes[elementtodecrease]--;
-                            orderedClustersizes[clustersizes[elementtodecrease]].insert(elementtodecrease);
+                        orderedClustersizes[clustersizes[elementtodecrease]].erase(elementtodecrease);
+                        clustersizes[elementtodecrease]--;
+                        orderedClustersizes[clustersizes[elementtodecrease]].insert(elementtodecrease);
                     }
-
-                    data2 = Util::skipLine(data2);
                 }
                 if(!representativefound){
                     Debug(Debug::ERROR)<<"error with cluster:\t"<<alnDbr->getDbKey(representative)<<"\tis not contained in set:\t"<<alnDbr->getDbKey(elementtodelete)<<".\n";
                 }
-                data = Util::skipLine(data);
-            }Util::parseKey(data, idbuffer1);
+
+            }
 
 
         }
@@ -114,7 +144,7 @@ std::list<set *>  SetCover3::execute() {
 
 
     for(size_t i = 0; i < n; i++) {
-        AffinityClustering::add_to_set(seqDbr->getId(alnDbr->getDbKey(i)),&sets[seqDbr->getId(alnDbr->getDbKey(assignedcluster[i]))],seqDbr->getId(alnDbr->getDbKey(assignedcluster[i])));
+        AffinityClustering::add_to_set(i,&sets[assignedcluster[i]],assignedcluster[i]);
     }
     for(size_t i = 0; i < n; i++) {
         set * max_set = &sets[i];
