@@ -153,7 +153,7 @@ void Clustering::run(int mode) {
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
 
     }else if (mode == Parameters::SYMMETRIC_ALIGNMENT){
-        AlignmentSymmetry alignmentSymmetry(seqDbr, alnDbr, dbw, threads, seqIdThr, 0.0);
+        AlignmentSymmetry alignmentSymmetry(seqDbr, alnDbr, dbw, threads);
         alignmentSymmetry.execute();
         // writeData(ret);
         gettimeofday(&end, NULL);
