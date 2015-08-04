@@ -14,7 +14,7 @@
 
 class SetCover3 {
 public:
-    SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage);
+    SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage,int threads);
 
     std::list<set *>  execute();
 private:
@@ -25,6 +25,8 @@ private:
     float seqIdThr;
 
     float coverage;
+
+    int threads;
 //datastructures
     int * clustersizes;
     std::set<int>*orderedClustersizes;

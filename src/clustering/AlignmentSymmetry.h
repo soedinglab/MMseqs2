@@ -12,10 +12,15 @@
 
 class AlignmentSymmetry {
 public:
-    AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWriter *alnWr, int threads,
-                                             float seqIdThr, float coverage);
+    AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWriter *alnWr, int threads);
 
     void  execute();
+    static void readInData(DBReader *pReader, DBReader *pDBReader, unsigned int **pInt);
+
+    static void computeOffsetTable(size_t *elementSizes, size_t dbSize);
+
+    static void setupElementLookupPointer(unsigned int *elements, unsigned int **elementLookupTable, size_t *elementOffset,
+                                          size_t dbSize);
 private:
     DBReader* seqDbr;
 
@@ -23,23 +28,13 @@ private:
 
     DBWriter* alnWr;
 
-    float seqIdThr;
-
-    float coverage;
 //datastructures
 
     size_t dbSize;
 
     int threads;
 
-    void readInData(DBReader *pReader, DBReader *pDBReader, unsigned int **pInt);
-
-    void computeOffsetTable(size_t *elementSizes, size_t dbSize);
-
     size_t findMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize);
-
-    void setupElementLookupPointer(unsigned int *elements, unsigned int **elementLookupTable, size_t *elementOffset,
-                                   size_t dbSize);
 
     void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize);
 
