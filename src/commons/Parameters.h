@@ -144,6 +144,7 @@ public:
     void printParameters(int argc, const char* pargv[],
                          std::vector<MMseqsParameter> par);
     Parameters();
+    ~Parameters();
     // parameter constants
     //    "-s              \t[float]\tSensitivity in the range [1:9] (default=4).\n"
     //    "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
