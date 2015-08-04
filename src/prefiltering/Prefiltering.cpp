@@ -309,7 +309,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
         Util::decomposeDomainByAminoaAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
                                       split, splitCount, &queryFrom, &querySize);
-        indexTable = getIndexTable(1, dbFrom, dbSize);
+        indexTable = getIndexTable(0, dbFrom, dbSize);
     } else{
         Debug(Debug::ERROR) << "Wrong split mode. This should not happen. Please contact developer.\n";
         EXIT(EXIT_FAILURE);
