@@ -174,27 +174,28 @@ void copy(std::string inFile, std::string outFile){
     }
 }
 
-float getZscoreForSensitivity (float sensitivity){
-    float zscoreThr = 50.0;
-
-    if (1.0 <= sensitivity && sensitivity < 2.0)
-        zscoreThr = 400.0;
-    else if (2.0 <= sensitivity && sensitivity < 3.0)
-        zscoreThr = 200.0;
-    else if (3.0 <= sensitivity && sensitivity < 4.0)
-        zscoreThr = 100.0;
-    else if (4.0 <= sensitivity && sensitivity < 5.0)
-        zscoreThr = 50.0;
-    else if (5.0 <= sensitivity && sensitivity < 6.0)
-        zscoreThr = 40.0;
-    else if (6.0 <= sensitivity && sensitivity < 7.0)
-        zscoreThr = 30.0;
-    else if (7.0 <= sensitivity && sensitivity < 8.0)
-        zscoreThr = 20.0;
-    else if (8.0 <= sensitivity && sensitivity <= 9.0)
-        zscoreThr = 10.0;
-
-    return zscoreThr;
+float getZscoreForSensitivity(int sensitivity){
+    switch (sensitivity){
+        case 1:
+            return 400.0;
+        case 2:
+            return 200.0;
+        case 3:
+            return 100.0;
+        case 4:
+            return 50.0;
+        case 5:
+            return 40.0;
+        case 6:
+            return 30.0;
+        case 7:
+            return 20.0;
+        case 8:
+        case 9:
+        case 10:
+            return 10.0;
+    }
+    return 50.0;
 }
 
 void deleteTmpFiles(std::list<std::string>* tmpFiles){
