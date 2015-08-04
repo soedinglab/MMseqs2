@@ -130,7 +130,7 @@ void Clustering::run(int mode) {
         writeData(dbw, ret);
         Debug(Debug::INFO) << "...done.\n";
     }else if (mode == Parameters::SET_COVER3){
-        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0);
+        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads);
         ret =setCover3->execute();
         writeData(dbw, ret);
         gettimeofday(&end, NULL);
