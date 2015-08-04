@@ -97,6 +97,8 @@ Parameters::Parameters():
     clustering.push_back(PARAM_SIMILARITYSCORE);
     clustering.push_back(PARAM_PREFERENCE);
     clustering.push_back(PARAM_MIN_SEQ_ID);
+    clustering.push_back(PARAM_THREADS);
+
 
     // find orf
     onlyverbosity.push_back(PARAM_V);
@@ -128,6 +130,18 @@ Parameters::Parameters():
 
     setDefaults();
 }
+
+Parameters::~Parameters(){
+    createindex.clear();
+    splitffindex.clear();
+    extractorf.clear();
+    onlyverbosity.clear();
+    clustering.clear();
+    alignment.clear();
+    prefilter.clear();
+    createprofiledb.clear();
+}
+
 
 
 void Parameters::printUsageMessage(std::string programUsageHeader,

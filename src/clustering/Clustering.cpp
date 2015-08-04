@@ -153,14 +153,14 @@ void Clustering::run(int mode) {
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
 
     }else if (mode == Parameters::SYMMETRIC_ALIGNMENT){
-        AlignmentSymmetry* alignmentSymmetry= new AlignmentSymmetry(seqDbr, alnDbr, dbw, threads, seqIdThr, 0.0);
-        alignmentSymmetry->execute();
+        AlignmentSymmetry alignmentSymmetry(seqDbr, alnDbr, dbw, threads, seqIdThr, 0.0);
+        alignmentSymmetry.execute();
         // writeData(ret);
         gettimeofday(&end, NULL);
         int sec1 = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for Symmatric alignment generation: " << (sec1 / 60) << " m " << (sec1 % 60) << "s\n\n";
 //        writeData(dbw, ret);
-
+        
     }else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
         EXIT(EXIT_FAILURE);

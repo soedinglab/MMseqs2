@@ -55,10 +55,12 @@ void AlignmentSymmetry::execute() {
     memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
     size_t newElementCount = findMissingLinks(elementLookupTable, newElementOffsets, dbSize);
     delete [] elements;
+    Debug(Debug::WARNING) << "\nFind missing connections.\n";
+
     // resize elements
     elements = new unsigned int[newElementCount];
     memset(elements, 0, sizeof( unsigned int) * (newElementCount ));
-
+    Debug(Debug::WARNING) << "\nFound "<< newElementCount - elementCount << " new connections.\n";
     setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
     Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
     readInData(alnDbr, seqDbr, elementLookupTable);
@@ -73,6 +75,7 @@ void AlignmentSymmetry::execute() {
     delete [] elementOffsets;
     delete [] newElementOffsets;
     delete [] elementLookupTable;
+    delete [] elements;
 }
 
 void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned int **elementLookupTable) {
@@ -168,7 +171,7 @@ void AlignmentSymmetry::computeOffsetTable(size_t *elementSizes, size_t dbSize) 
 }
 
 void AlignmentSymmetry::setupElementLookupPointer(unsigned int * elements, unsigned int ** elementLookupTable, size_t * elementOffset, size_t dbSize) {
-    for(size_t i = 0; i <= dbSize; i++) {
+    for(size_t i = 0; i < dbSize; i++) {
         elementLookupTable[i] = elements + elementOffset[i];
     }
 }
