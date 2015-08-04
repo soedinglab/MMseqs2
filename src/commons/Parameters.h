@@ -48,7 +48,8 @@ public:
     static const int APC_EVAL=4;
     static const int APC_BITSCORE=5;
 
-
+    static const int TARGET_DB_SPLIT = 0;
+    static const int QUERY_DB_SPLIT = 1;
     // COMMON
     const char** argv;            //command line parameters
     char argc;              //dimension of argv
@@ -81,7 +82,7 @@ public:
     bool   keepTempFiles;                // Do not delete temp files
     
     // PREFILTER
-    float  sensitivity;                  // target sens
+    int    sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
@@ -90,9 +91,9 @@ public:
     bool   profile;                      // using profile information
     bool   nucl;                         // using nucl informatoin
     bool   compBiasCorrection;           // Aminoacid composiont correction
-    bool   fastMode;                     // Search 20.000 times faster than BLAST in (local search only)
     int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks
+    int    splitMode;                    // Split by query or target DB (MPI only)
     bool   splitAA;                      // Split database by amino acid count instead
     int    skip;                         // Skip amino acid positions
     
@@ -181,11 +182,11 @@ public:
     PARAMETER(PARAM_SKIP);
     PARAMETER(PARAM_MAX_SEQS);
     PARAMETER(PARAM_SPLIT);
+    PARAMETER(PARAM_SPLIT_MODE);
     PARAMETER(PARAM_SPLIT_AMINOACID);
     PARAMETER(PARAM_SUB_MAT);
     PARAMETER(PARAM_SEARCH_MODE);
     PARAMETER(PARAM_NO_COMP_BIAS_CORR);
-    PARAMETER(PARAM_FAST_MODE);
     PARAMETER(PARAM_SPACED_KMER_MODE);
     PARAMETER(PARAM_KEEP_TEMP_FILES);
     std::vector<MMseqsParameter> prefilter;
@@ -231,6 +232,7 @@ public:
                                               std::vector < MMseqsParameter > par2);
 
     std::string createParameterString(std::vector < MMseqsParameter > vector);
+
 
 };
 

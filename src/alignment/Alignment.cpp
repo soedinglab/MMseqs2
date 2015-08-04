@@ -143,7 +143,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
     size_t totalPassedNum = 0;
     DBWriter dbw(outDB, outDBIndex, threads); //TODO
     dbw.open();
-# pragma omp parallel for schedule(dynamic, 10) reduction (+: alignmentsNum, totalPassedNum)
+# pragma omp parallel for schedule(dynamic, 100) reduction (+: alignmentsNum, totalPassedNum)
     for (size_t id = dbFrom; id < dbFrom + dbSize; id++){
         Log::printProgress(id);
 

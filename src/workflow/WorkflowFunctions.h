@@ -34,7 +34,7 @@ std::string runStep(std::string inDBData, std::string inDBWorkingIndex, std::str
 
 void copy(std::string inFile, std::string outFile);
 
-float getZscoreForSensitivity (float sensitivity);
+float getZscoreForSensitivity(int sensitivity);
 
 void deleteTmpFiles(std::list<std::string>* tmpFiles);
 
