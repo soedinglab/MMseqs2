@@ -128,7 +128,11 @@ void TimeTest::runTimeTest (){
 #endif
                             // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
                             if(isLocal == 1){
-                                matchers[thread_idx] = new QueryTemplateMatcherLocal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, seqs[0]->getEffectiveKmerSize(), tdbr->getSize(), false, maxSeqLen, 300);
+                                matchers[thread_idx] = new QueryTemplateMatcherLocal(subMat, indexTable,
+                                                                                     tdbr->getSeqLens(), kmerThr, 1.0,
+                                                                                     kmerSize,
+                                                                                     seqs[0]->getEffectiveKmerSize(),
+                                                                                     tdbr->getSize(), maxSeqLen, 300);
                             }
                             else{
                                 matchers[thread_idx] = new QueryTemplateMatcherGlobal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, seqs[0]->getEffectiveKmerSize(), tdbr->getSize(), false, maxSeqLen, 500.0);

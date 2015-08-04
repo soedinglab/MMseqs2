@@ -42,9 +42,8 @@ class Prefiltering {
                  Parameters par);
 
         ~Prefiltering();
-        void run (size_t dbFrom,size_t dbSize,
-                  std::string resultDB, std::string resultDBIndex);
-        void run(int mpi_rank, int mpi_num_procs);
+        void run(size_t dbFrom, size_t dbSize, int splitMode, std::string resultDB, std::string resultDBIndex);
+        void run(int mpi_rank, int mpi_num_procs, int splitMode);
         void run ();
         void closeReader();
         void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
@@ -90,7 +89,7 @@ class Prefiltering {
         int kmerSize;
         const int kmerScore;
         bool spacedKmer;
-        const float sensitivity;
+        const int sensitivity;
         size_t maxResListLen;
         int alphabetSize;
         const float zscoreThr;
@@ -100,7 +99,6 @@ class Prefiltering {
         bool templateDBIsIndex;
     
         bool aaBiasCorrection;
-        bool fastMode;
         short kmerThr;
         double kmerMatchProb;
         int split;
@@ -111,7 +109,8 @@ class Prefiltering {
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
          */
         std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader *qdbr, DBReader *tdbr,
-                                                  float targetKmerMatchProb, double toleratedDeviation, const int kmerScore);
+                                                  int targetKmerMatchProb, double toleratedDeviation,
+                                                  const int kmerScore);
         // write prefiltering to ffindex database
         int writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
                                  std::pair<hit_t *, size_t> prefResults, size_t seqIdOffset);
@@ -120,8 +119,8 @@ class Prefiltering {
                                                                 unsigned int *seqLens, short kmerThr,
                                                                 double kmerMatchProb, int kmerSize,
                                                                 size_t effectiveKmerSize, size_t dbSize,
-                                                                bool aaBiasCorrection, bool fastMode,
-                                                                unsigned int maxSeqLen, float zscoreThr, int searchMode,
+                                                                bool aaBiasCorrection, unsigned int maxSeqLen,
+                                                                float zscoreThr, int searchMode,
                                                                 size_t maxHitsPerQuery);
     
     
