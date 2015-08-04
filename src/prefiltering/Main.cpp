@@ -50,8 +50,9 @@ int prefilter(int argc, const char **argv)
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
     gettimeofday(&start, NULL);
+
 #ifdef HAVE_MPI
-    pref->run(MMseqsMPI::rank, MMseqsMPI::numProc);
+    pref->run(MMseqsMPI::rank, MMseqsMPI::numProc, par.splitMode);
 #else
     pref->run();
 #endif
