@@ -39,15 +39,7 @@ std::list<set *> SimpleClustering2::execute(){
                 //filter by alignment thresholds
                 Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
                 float seqId = atof(similarity);
-                Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-                seqId = atof(std::string(similarity).c_str());
-                int queryLength = strlen(seqDbr->getData(i));
-                int dbSeqLength = strlen(seqDbr->getDataByDBKey(idbuffer1));
-                float maxSeqLength = std::max(queryLength, dbSeqLength);
-
-                //
-                seqId = seqId / (maxSeqLength);
-                if (seqId < this->seqIdThr) {
+                    if (seqId < this->seqIdThr) {
                     data = Util::skipLine(data);
                     continue;
                 }
