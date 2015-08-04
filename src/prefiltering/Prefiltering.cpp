@@ -340,6 +340,8 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     size_t realResSize = 0;
     size_t diagonalOverflow = 0;
     Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step "<< split << " of " << splitCount << ")\n";
+    Debug(Debug::WARNING) << "Query db start  "<< queryFrom << " to " << queryFrom + querySize << "\n";
+    Debug(Debug::WARNING) << "Target db start  "<< dbFrom << " to " << dbFrom + dbSize << "\n";
 
 #pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
     for (size_t id = queryFrom; id < queryFrom + querySize; id++){
