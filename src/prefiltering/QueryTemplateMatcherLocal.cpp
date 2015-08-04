@@ -2,21 +2,12 @@
 #include "QueryScoreLocal.h"
 #include "QueryTemplateMatcher.h"
 
-QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m,
-                                                     IndexTable *indexTable,
-                                                     unsigned int *seqLens,
-                                                     short kmerThr,
-                                                     double kmerMatchProb,
-                                                     int kmerSize,
-                                                     size_t effectiveKmerSize,
-                                                     size_t dbSize,
-                                                     bool fastMode,
-                                                     unsigned int maxSeqLen,
-                                                     size_t maxHitsPerQuery) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+QueryTemplateMatcherLocal::QueryTemplateMatcherLocal(BaseMatrix *m, IndexTable *indexTable, unsigned int *seqLens, short kmerThr,
+                              double kmerMatchProb, int kmerSize, size_t effectiveKmerSize, size_t dbSize,
+                              unsigned int maxSeqLen, size_t maxHitsPerQuery) : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
                                                        kmerSize, dbSize, false, maxSeqLen) {
     this->queryScore = new QueryScoreLocal(dbSize, seqLens, effectiveKmerSize, kmerThr, kmerMatchProb);
     this->maxHitsPerQuery = maxHitsPerQuery;
-    this->fastMode = fastMode;
 }
 
 
@@ -30,12 +21,7 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherLocal::matchQuery (Sequence * seq
     
     match(seq);
 
-    unsigned int scoreThreshold;
-    if(fastMode == true){
-        scoreThreshold = 6;
-    }else{
-        scoreThreshold = queryScore->computeScoreThreshold(queryScore->scoreSizes, this->maxHitsPerQuery);
-    }
+    unsigned int scoreThreshold = queryScore->computeScoreThreshold(queryScore->scoreSizes, this->maxHitsPerQuery);
 
     return queryScore->getResult(seq->L, scoreThreshold, identityId);
 }
@@ -82,9 +68,7 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
             queryScore->addScoresLocal(entries, seq->getCurrentPosition(), indexTabListSize);
         }
     }
-    if(fastMode == false) {
-        queryScore->updateScoreBins();
-    }
+    queryScore->updateScoreBins();
     // needed to call here to get the LocalResultSize
     //Debug(Debug::WARNING) << "QUERY: " << seq->getDbKey();
     //Debug(Debug::WARNING) << " score = " << overall_score;

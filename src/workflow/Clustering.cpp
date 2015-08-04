@@ -55,7 +55,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
     if (par.cascaded) {
         CommandCaller cmd;
 
-        float targetSensitivity = par.sensitivity;
+        float targetSensitivity = (float) par.sensitivity;
         size_t maxResListLen = par.maxResListLen;
 
         // set parameter for first step
@@ -69,10 +69,9 @@ int clusteringworkflow (int argc, const char * argv[]) {
         cmd.addVariable("PREFILTER1_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT1_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("CLUSTER1_PAR", par.createParameterString(par.clustering));
-        par.fastMode      = false; // be as fast a possible
 
         // set parameter for second step
-        par.sensitivity = targetSensitivity / 2.0;
+        par.sensitivity = (int) targetSensitivity / 2.0;
         par.searchMode    = 2; // be as fast a possible
         par.kmerScore     = 110;
 
@@ -83,7 +82,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
         cmd.addVariable("CLUSTER2_PAR",   par.createParameterString(par.clustering));
 
         // set parameter for last step
-        par.sensitivity = targetSensitivity;
+        par.sensitivity = (int)  targetSensitivity;
         par.zscoreThr = getZscoreForSensitivity( par.sensitivity );
         par.searchMode    = 1; // be as fast a possible
         par.kmerScore     = 100;
