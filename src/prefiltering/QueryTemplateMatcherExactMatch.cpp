@@ -126,7 +126,7 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(size_t res
     size_t elementCounter = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
-        const unsigned short rawScore  = l;
+        const unsigned short rawScore  = std::min(QueryScoreLocal::SCORE_RANGE-1, (size_t) l);
         result->seqId = id;
         result->prefScore = rawScore;
         //result->zScore = (((float)rawScore) - mu)/ sqrtMu;
