@@ -29,14 +29,21 @@ private:
     int threads;
 //datastructures
     int * clustersizes;
-    std::set<int>*orderedClustersizes;
     unsigned int maxClustersize;
     unsigned int dbSize;
 
+    //
+    int* sorted_clustersizes;
+    int* clusterid_to_arrayposition;
+    int* borders_of_set;
 
 //methods
-    void insertCluster(int clusterid, int clustersize);
 
+    void initClustersizes();
+
+    void removeClustersize(int clusterid);
+
+    void decreaseClustersize(int clusterid);
 };
 
 
