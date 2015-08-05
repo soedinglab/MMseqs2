@@ -2,6 +2,7 @@
 // Created by lars on 08.06.15.
 //
 
+#include <sys/time.h>
 #include "SetCover3.h"
 #include "Util.h"
 #include "Debug.h"
@@ -18,6 +19,10 @@ SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float
 }
 
 std::list<set *>  SetCover3::execute() {
+    //time
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+    ///time
     clustersizes=new int[dbSize];
     memset(clustersizes,0,dbSize);
 
@@ -50,19 +55,48 @@ std::list<set *>  SetCover3::execute() {
     }
 
     }
+    //time
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Parallel read in: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     int maxClustersize=0;
     for (int j = 0; j < threads; ++j) {
         maxClustersize=std::max(maxClustersize,maxClustersizes[j]);
     }
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Maximum determination: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     // make offset table
     AlignmentSymmetry::computeOffsetTable(elementOffsets, dbSize);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for offset table: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     // set element edge pointers by using the offset table
     AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, elementOffsets, dbSize);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for lookuppointer: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     // fill elements
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable);
     // set element edge pointers by using the offset table
     AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, elementOffsets, dbSize);
-
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Read in: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
 
     std::list<set *> result;
     size_t n = seqDbr->getSize();
@@ -81,6 +115,12 @@ std::list<set *>  SetCover3::execute() {
     for (int i = 0; i < dbSize; i++) {
         SetCover3::insertCluster(i,clustersizes[i]);
     }
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Clustersize insertion " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     //delete from beginning
     for (int cl_size = maxClustersize; cl_size > 0; cl_size--) {
         while(orderedClustersizes[cl_size].size()>0) {
@@ -141,19 +181,30 @@ std::list<set *>  SetCover3::execute() {
         }
 
     }
-
+//time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Cluster computation: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
 
     for(size_t i = 0; i < n; i++) {
         AffinityClustering::add_to_set(i,&sets[assignedcluster[i]],assignedcluster[i]);
     }
+
     for(size_t i = 0; i < n; i++) {
         set * max_set = &sets[i];
         if (max_set->elements == NULL)
             continue;
         result.push_back(max_set); // O(1)
     }
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for preparing cluster sets: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     return result;
-
 }
 
 
