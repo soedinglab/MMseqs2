@@ -108,8 +108,7 @@ std::list<set *>  SetCover3::execute() {
     memset(bestscore, -10, sizeof(float)*(n));
     char *similarity = new char[255+1];
 
-    set* sets = new set[n];
-    memset(sets, 0, sizeof(set *)*(n));
+
 
 
     //time
@@ -191,13 +190,25 @@ std::list<set *>  SetCover3::execute() {
 
 
     }
+    //delete unnecessary datastructures
+    delete [] elementLookupTable;
+    delete [] elements;
+    delete [] elementOffsets;
+    delete [] maxClustersizes;
+    delete [] seqDbrIdToalnDBrId;
+    delete [] bestscore;
+    delete [] sorted_clustersizes;
+    delete [] clusterid_to_arrayposition;
+    delete [] borders_of_set;
+
 //time
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "\nTime for Cluster computation: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
     gettimeofday(&start, NULL);
     //time
-
+    set* sets = new set[n];
+    memset(sets, 0, sizeof(set *)*(n));
     for(size_t i = 0; i < n; i++) {
         AffinityClustering::add_to_set(i,&sets[assignedcluster[i]],assignedcluster[i]);
     }
