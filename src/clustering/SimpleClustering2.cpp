@@ -25,14 +25,14 @@ std::list<set *> SimpleClustering2::execute(){
     memset(bestscore, -10, sizeof(float)*(n));
     char *similarity = new char[255+1];
     char *idbuffer1 = new char[255 + 1];
-    set* sets = new set[n];
-    memset(sets, 0, sizeof(set *)*(n));
+
 
     for(size_t i = 0; i < n; i++) {
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
-        char *clusterId = seqDbr->getDbKey(i);
+
         if(assignedcluster[i]==-1){
+            char *clusterId = seqDbr->getDbKey(i);
             char *data = alnDbr->getDataByDBKey(clusterId);
             while (*data != '\0') {
                 Util::parseKey(data, idbuffer1);
@@ -59,6 +59,9 @@ std::list<set *> SimpleClustering2::execute(){
 
 
     }
+
+    set* sets = new set[n];
+    memset(sets, 0, sizeof(set *)*(n));
     for(size_t i = 0; i < n; i++) {
         AffinityClustering::add_to_set(i,&sets[assignedcluster[i]],assignedcluster[i]);
     }
@@ -68,7 +71,8 @@ std::list<set *> SimpleClustering2::execute(){
             continue;
         result.push_back(max_set); // O(1)
     }
-    delete[] sets;
+    Debug(Debug::ERROR)<<result.size()<<"\n";
+   // delete[] sets;
     delete[] idbuffer1;
     delete[] bestscore;
     delete[] assignedcluster;

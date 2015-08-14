@@ -197,10 +197,14 @@ if(mode != Parameters::SET_COVER3 && mode != Parameters::GREEDY2 && mode != Para
     delete[] set_data.startElementsArray;
     delete[] set_data.weights;
     delete[] set_data.sets;
-    delete[] set_data.similarities;
+
     delete[] set_data.set_sizes;
     delete[] set_data.element_size_lookup;
-    delete  set_data.validids;
+
+    if(mode==Parameters::AFFINITY){
+        delete[] set_data.similarities;
+        delete  set_data.validids;
+    }
     }
 }
 
@@ -429,8 +433,9 @@ Clustering::set_data Clustering::read_in_set_data(int mode){
         if (cnt == 0){
             empty++;
         }
-        ret_struct.validids->push_back(i);
-
+        if (mode == Parameters::AFFINITY) {
+            ret_struct.validids->push_back(i);
+        }
 
 
         // max_weight can not be bigger than 2^16
