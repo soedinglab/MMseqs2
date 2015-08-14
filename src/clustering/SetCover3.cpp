@@ -175,13 +175,13 @@ std::list<set *>  SetCover3::execute() {
                         representativefound=true;
                     }
                     if(clustersizes[elementtodecrease]==1) {
-                        Debug(Debug::ERROR)<<"there must be an error: "<<alnDbr->getDbKey(elementtodelete)<<" deleted from "<<alnDbr->getDbKey(elementtodecrease)<<" that now is empty, but not assigned to a cluster\n";
+                        Debug(Debug::ERROR)<<"there must be an error: "<<seqDbr->getDbKey(elementtodelete)<<" deleted from "<<seqDbr->getDbKey(elementtodecrease)<<" that now is empty, but not assigned to a cluster\n";
                     }else if (clustersizes[elementtodecrease]>0) {
                         decreaseClustersize(elementtodecrease);
                     }
                 }
                 if(!representativefound){
-                    Debug(Debug::ERROR)<<"error with cluster:\t"<<alnDbr->getDbKey(representative)<<"\tis not contained in set:\t"<<alnDbr->getDbKey(elementtodelete)<<".\n";
+                    Debug(Debug::ERROR)<<"error with cluster:\t"<<seqDbr->getDbKey(representative)<<"\tis not contained in set:\t"<<seqDbr->getDbKey(elementtodelete)<<".\n";
                 }
 
             }
@@ -191,7 +191,7 @@ std::list<set *>  SetCover3::execute() {
 
     }
     //delete unnecessary datastructures
-    delete [] elementLookupTable;
+   /* delete [] elementLookupTable;
     delete [] elements;
     delete [] elementOffsets;
     delete [] maxClustersizes;
@@ -200,7 +200,7 @@ std::list<set *>  SetCover3::execute() {
     delete [] sorted_clustersizes;
     delete [] clusterid_to_arrayposition;
     delete [] borders_of_set;
-
+*/
 //time
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
