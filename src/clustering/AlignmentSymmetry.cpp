@@ -5,6 +5,7 @@
 #include "AlignmentSymmetry.h"
 #include <Debug.h>
 #include <Log.h>
+#include <sys/time.h>
 #include "AffinityClustering.h"
 
 AlignmentSymmetry::AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWriter *alnWr, int threads) {
@@ -16,12 +17,17 @@ AlignmentSymmetry::AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWrite
 }
 
 void AlignmentSymmetry::execute() {
+    //time
+    struct timeval start, end;
     const char * data = alnDbr->getData();
     size_t dataSize = alnDbr->getDataSize();
     size_t elementCount = Util::count_lines(data, dataSize);
     unsigned int * elements = new unsigned int[elementCount];
     unsigned int ** elementLookupTable = new unsigned int*[dbSize];
     size_t *elementOffsets = new size_t[dbSize + 1];
+    //time
+     gettimeofday(&start, NULL);
+    //time
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         char *clusterId = seqDbr->getDbKey(i);
@@ -39,7 +45,12 @@ void AlignmentSymmetry::execute() {
     readInData(alnDbr, seqDbr, elementLookupTable);
     // set element edge pointers by using the offset table
     setupElementLookupPointer(elements, elementLookupTable, elementOffsets, dbSize);
-
+    //time
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Parallel read in: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nSort entries.\n";
     // sort each element vector for bsearch
 #pragma omp parallel for schedule(dynamic, 1000)
@@ -47,11 +58,23 @@ void AlignmentSymmetry::execute() {
         Log::printProgress(i);
         std::sort(elementLookupTable[i], elementLookupTable[i] + (elementOffsets[i+1] - elementOffsets[i]));
     }
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Sorting entries: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nFind missing connections.\n";
     size_t * newElementOffsets = new size_t[dbSize + 1];
     memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
     size_t newElementCount = findMissingLinks(elementLookupTable, newElementOffsets, dbSize);
     delete [] elements;
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for finding missing connections: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nFind missing connections.\n";
 
     // resize elements
@@ -59,16 +82,39 @@ void AlignmentSymmetry::execute() {
     memset(elements, 0, sizeof( unsigned int) * (newElementCount ));
     Debug(Debug::WARNING) << "\nFound "<< newElementCount - elementCount << " new connections.\n";
     setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
     readInData(alnDbr, seqDbr, elementLookupTable);
     // set element edge pointers by using the offset table
     setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
-
+//time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nAdd missing connections.\n";
     addMissingLinks(elementLookupTable, elementOffsets, dbSize);
     setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nReconstruct set.\n";
     reconstructSet(alnDbr, seqDbr, alnWr, elementOffsets, newElementOffsets, elementLookupTable);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     delete [] elementOffsets;
     delete [] newElementOffsets;
     delete [] elementLookupTable;
