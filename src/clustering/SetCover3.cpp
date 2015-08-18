@@ -9,6 +9,7 @@
 #include "Debug.h"
 #include "AffinityClustering.h"
 #include "AlignmentSymmetry.h"
+#include <queue>
 
 SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage, int threads){
     this->seqDbr=seqDbr;
@@ -19,7 +20,8 @@ SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float
     this->threads=threads;
 }
 
-std::list<set *>  SetCover3::execute() {
+std::list<set *>  SetCover3::execute(int mode) {
+
     set* sets = new set[dbSize];
     memset(sets, 0, sizeof(set *)*(dbSize));
     //time
@@ -186,21 +188,22 @@ std::list<set *>  SetCover3::execute() {
     gettimeofday(&start, NULL);
     //time
     //delete from beginning
-    for (int cl_size = dbSize-1; cl_size >= 0; cl_size--) {
-            int representative =sorted_clustersizes[cl_size];
-            if(representative<0){
+    if(mode==1) {
+        for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
+            int representative = sorted_clustersizes[cl_size];
+            if (representative < 0) {
                 continue;
             }
 //          Debug(Debug::INFO)<<alnDbr->getDbKey(representative)<<"\n";
             removeClustersize(representative);
-            assignedcluster[representative]=representative;
+            assignedcluster[representative] = representative;
 
             //delete clusters of members;
-            size_t elementSize = (newElementOffsets[representative +1] - newElementOffsets[representative]);
-            for(size_t elementId = 0; elementId < elementSize; elementId++) {
+            size_t elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
+            for (size_t elementId = 0; elementId < elementSize; elementId++) {
 
                 const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-               // float seqId = elementScoreTable[representative][elementId];
+                // float seqId = elementScoreTable[representative][elementId];
                 float seqId = elementScoreLookupTable[representative][elementId];
                 if (seqId > bestscore[elementtodelete]) {
                     assignedcluster[elementtodelete] = representative;
@@ -216,38 +219,67 @@ std::list<set *>  SetCover3::execute() {
                 removeClustersize(elementtodelete);
             }
 
-                for(size_t elementId = 0; elementId < elementSize; elementId++) {
-                    bool representativefound = false;
-                    const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-                    const unsigned int currElementSize = (newElementOffsets[elementtodelete +1] - newElementOffsets[elementtodelete]);
-                    if (elementtodelete == representative) {
-                        clustersizes[elementtodelete] = -1;
-                        continue;
-                    }
-                    if (clustersizes[elementtodelete] < 0) {
-                        continue;
-                    }
+            for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                bool representativefound = false;
+                const unsigned int elementtodelete = elementLookupTable[representative][elementId];
+                const unsigned int currElementSize = (newElementOffsets[elementtodelete + 1] -
+                                                      newElementOffsets[elementtodelete]);
+                if (elementtodelete == representative) {
                     clustersizes[elementtodelete] = -1;
+                    continue;
+                }
+                if (clustersizes[elementtodelete] < 0) {
+                    continue;
+                }
+                clustersizes[elementtodelete] = -1;
                 //decrease clustersize of sets that contain the element
-                for(size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
+                for (size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
                     const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
-                    if(representative == elementtodecrease){
-                        representativefound=true;
+                    if (representative == elementtodecrease) {
+                        representativefound = true;
                     }
-                    if(clustersizes[elementtodecrease]==1) {
-                        Debug(Debug::ERROR)<<"there must be an error: "<<seqDbr->getDbKey(elementtodelete)<<" deleted from "<<seqDbr->getDbKey(elementtodecrease)<<" that now is empty, but not assigned to a cluster\n";
-                    }else if (clustersizes[elementtodecrease]>0) {
+                    if (clustersizes[elementtodecrease] == 1) {
+                        Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(elementtodelete) <<
+                        " deleted from " << seqDbr->getDbKey(elementtodecrease) <<
+                        " that now is empty, but not assigned to a cluster\n";
+                    } else if (clustersizes[elementtodecrease] > 0) {
                         decreaseClustersize(elementtodecrease);
                     }
                 }
-                if(!representativefound){
-                    Debug(Debug::ERROR)<<"error with cluster:\t"<<seqDbr->getDbKey(representative)<<"\tis not contained in set:\t"<<seqDbr->getDbKey(elementtodelete)<<".\n";
+                if (!representativefound) {
+                    Debug(Debug::ERROR) << "error with cluster:\t" << seqDbr->getDbKey(representative) <<
+                    "\tis not contained in set:\t" << seqDbr->getDbKey(elementtodelete) << ".\n";
                 }
 
             }
 
 
+        }
+    }else if (mode==2){
+        Debug(Debug::INFO)<<"connected component mode"<<"\n";
+        for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
+            int representative = sorted_clustersizes[cl_size];
+            if(assignedcluster[representative]==-1){
+                assignedcluster[representative] = representative;
+                std::queue<int> myqueue;
+                    myqueue.push(representative);
+                //delete clusters of members;
+                while(!myqueue.empty()){
+                    int currentid=myqueue.front();
+                    assignedcluster[currentid]=representative;
+                    myqueue.pop();
+                    size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
+                    for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                        unsigned int elementtodelete = elementLookupTable[currentid][elementId];
+                        if(assignedcluster[elementtodelete]==-1){
+                            myqueue.push(elementtodelete);
+                        }
+                        assignedcluster[elementtodelete]=representative;
+                    }
+                }
 
+            }
+        }
 
     }
     //delete unnecessary datastructures

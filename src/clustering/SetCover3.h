@@ -16,7 +16,7 @@ class SetCover3 {
 public:
     SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage,int threads);
 
-    std::list<set *>  execute();
+    std::list<set *>  execute(int mode);
 private:
     DBReader* seqDbr;
 
