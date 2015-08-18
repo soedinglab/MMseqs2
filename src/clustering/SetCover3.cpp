@@ -3,6 +3,7 @@
 //
 
 #include <sys/time.h>
+#include <Log.h>
 #include "SetCover3.h"
 #include "Util.h"
 #include "Debug.h"
@@ -19,6 +20,8 @@ SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float
 }
 
 std::list<set *>  SetCover3::execute() {
+    set* sets = new set[dbSize];
+    memset(sets, 0, sizeof(set *)*(dbSize));
     //time
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -32,8 +35,8 @@ std::list<set *>  SetCover3::execute() {
     unsigned int * elements = new unsigned int[elementCount];
     unsigned int ** elementLookupTable = new unsigned int*[dbSize];
     size_t *elementOffsets = new size_t[dbSize + 1];
-    unsigned int* maxClustersizes=new unsigned int [threads];
-    memset(maxClustersizes,0,threads);
+    elementOffsets[dbSize]=0;
+
     unsigned int * seqDbrIdToalnDBrId= new unsigned int[dbSize];
 #pragma omp parallel
     {
@@ -41,7 +44,6 @@ std::list<set *>  SetCover3::execute() {
 #ifdef OPENMP
     thread_idx = omp_get_thread_num();
 #endif
-        maxClustersizes[thread_idx]=0;
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         char *clusterId = seqDbr->getDbKey(i);
@@ -51,8 +53,6 @@ std::list<set *>  SetCover3::execute() {
         size_t dataSize = alnDbr->getSeqLens()[alnId];
         size_t elementCount = Util::count_lines(data, dataSize);
         elementOffsets[i] = elementCount;
-        maxClustersizes[thread_idx]=std::max((unsigned int)elementCount,maxClustersizes[thread_idx]);
-        clustersizes[i]=elementCount;
     }
 
     }
@@ -61,17 +61,7 @@ std::list<set *>  SetCover3::execute() {
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "\nTime for Parallel read in: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
     gettimeofday(&start, NULL);
-    //time
-    maxClustersize=0;
-    for (int j = 0; j < threads; ++j) {
-        maxClustersize=std::max(maxClustersize,maxClustersizes[j]);
-    }
-    SetCover3::initClustersizes();
-    //time
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for Maximum determination: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
+
     //time
     // make offset table
     AlignmentSymmetry::computeOffsetTable(elementOffsets, dbSize);
@@ -100,14 +90,92 @@ std::list<set *>  SetCover3::execute() {
     gettimeofday(&start, NULL);
     //time
 
+    //time
+    Debug(Debug::WARNING) << "\nSort entries.\n";
+    // sort each element vector for bsearch
+#pragma omp parallel for schedule(dynamic, 1000)
+    for(size_t i = 0; i < dbSize; i++) {
+        Log::printProgress(i);
+        std::sort(elementLookupTable[i], elementLookupTable[i] + (elementOffsets[i+1] - elementOffsets[i]));
+    }
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Sorting entries: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
+    Debug(Debug::WARNING) << "\nFind missing connections.\n";
+    size_t * newElementOffsets = new size_t[dbSize + 1];
+    memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
+    size_t newElementCount = AlignmentSymmetry::findMissingLinks(elementLookupTable, newElementOffsets, dbSize,threads);
+    delete [] elements;
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for finding missing connections: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
+    Debug(Debug::WARNING) << "\nFind missing connections.\n";
+
+    // resize elements
+    elements = new unsigned int[newElementCount];
+    memset(elements, 0, sizeof( unsigned int) * (newElementCount ));
+    unsigned short *scoreelements=new unsigned short[newElementCount];
+    memset(scoreelements, 0, sizeof( unsigned short) * (newElementCount ));
+    unsigned short **elementScoreLookupTable= new unsigned short*[dbSize];
+    Debug(Debug::WARNING) << "\nFound "<< newElementCount - elementCount << " new connections.\n";
+    AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+    AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets, dbSize);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
+    Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
+    AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable,elementScoreLookupTable);
+    // set element edge pointers by using the offset table
+    AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+    AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets, dbSize);
+//time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
+    Debug(Debug::WARNING) << "\nAdd missing connections.\n";
+    AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, dbSize,elementScoreLookupTable);
+    AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+    AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets, dbSize);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
+
+    maxClustersize=0;
+    for(size_t i = 0; i < dbSize; i++) {
+        elementCount=newElementOffsets[i +1] - newElementOffsets[i];
+        maxClustersize= std::max((unsigned int) elementCount, maxClustersize);
+        clustersizes[i] = elementCount;
+
+
+    }
+    SetCover3::initClustersizes();
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Maximum determination: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+
+
     std::list<set *> result;
     size_t n = seqDbr->getSize();
     int* assignedcluster=new int[n];
     memset(assignedcluster, -1, sizeof(int)*(n));
     float* bestscore=new float[n];
     memset(bestscore, -10, sizeof(float)*(n));
-    char *similarity = new char[255+1];
-
 
 
 
@@ -126,22 +194,14 @@ std::list<set *>  SetCover3::execute() {
 //          Debug(Debug::INFO)<<alnDbr->getDbKey(representative)<<"\n";
             removeClustersize(representative);
             assignedcluster[representative]=representative;
-            char *data = alnDbr->getData(seqDbrIdToalnDBrId[representative]);
+
             //delete clusters of members;
-            size_t elementSize = (elementOffsets[representative +1] - elementOffsets[representative]);
+            size_t elementSize = (newElementOffsets[representative +1] - newElementOffsets[representative]);
             for(size_t elementId = 0; elementId < elementSize; elementId++) {
 
                 const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-                const unsigned int currElementSize = (elementOffsets[elementtodelete + 1] -
-                                                      elementOffsets[elementtodelete]);
-
-
-                //
-
-
-                Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-                data = Util::skipLine(data);
-                float seqId = atof(similarity);
+               // float seqId = elementScoreTable[representative][elementId];
+                float seqId = elementScoreLookupTable[representative][elementId];
                 if (seqId > bestscore[elementtodelete]) {
                     assignedcluster[elementtodelete] = representative;
                     bestscore[elementtodelete] = seqId;
@@ -159,7 +219,7 @@ std::list<set *>  SetCover3::execute() {
                 for(size_t elementId = 0; elementId < elementSize; elementId++) {
                     bool representativefound = false;
                     const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-                    const unsigned int currElementSize = (elementOffsets[elementtodelete +1] - elementOffsets[elementtodelete]);
+                    const unsigned int currElementSize = (newElementOffsets[elementtodelete +1] - newElementOffsets[elementtodelete]);
                     if (elementtodelete == representative) {
                         clustersizes[elementtodelete] = -1;
                         continue;
@@ -207,8 +267,7 @@ std::list<set *>  SetCover3::execute() {
     Debug(Debug::INFO) << "\nTime for Cluster computation: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
     gettimeofday(&start, NULL);
     //time
-    set* sets = new set[n];
-    memset(sets, 0, sizeof(set *)*(n));
+
     for(size_t i = 0; i < n; i++) {
         AffinityClustering::add_to_set(i,&sets[assignedcluster[i]],assignedcluster[i]);
     }
