@@ -16,11 +16,20 @@ public:
 
     void  execute();
     static void readInData(DBReader *pReader, DBReader *pDBReader, unsigned int **pInt);
+    static void readInData(DBReader *pReader, DBReader *pDBReader, unsigned int **pInt,unsigned short**elementScoreTable);
 
     static void computeOffsetTable(size_t *elementSizes, size_t dbSize);
 
     static void setupElementLookupPointer(unsigned int *elements, unsigned int **elementLookupTable, size_t *elementOffset,
                                           size_t dbSize);
+    static void setupElementLookupPointerShort(unsigned short * elements, unsigned short ** elementLookupTable, size_t * elementOffset, size_t dbSize);
+    static size_t findMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize, int threads);
+
+    static void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize);
+    static void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize,unsigned short**elementScoreTable);
+
+
+
 private:
     DBReader* seqDbr;
 
@@ -34,11 +43,8 @@ private:
 
     int threads;
 
-    size_t findMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize);
-
-    void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize);
-
     void reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWriter *alnWr, const size_t *elementLookupTable,
                         const size_t *pInt, unsigned int **pInt1);
+
 };
 #endif //MMSEQS_ALIGNMENTSYMMETRY_H
