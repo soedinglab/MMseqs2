@@ -162,11 +162,12 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
 }
 
 void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable) {
-    char *similarity = new char[255+1];
+
     size_t dbSize = seqDbr->getSize();
 #pragma omp parallel
     {
         char * dbKey = new char[255+1];
+        char *similarity = new char[255+1];
 #pragma omp for schedule(dynamic, 100)
         for(size_t i = 0; i < dbSize; i++) {
             Log::printProgress(i);
