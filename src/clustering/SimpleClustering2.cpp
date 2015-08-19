@@ -2,6 +2,7 @@
 // Created by lars on 28.07.15.
 //
 
+#include <Log.h>
 #include "SimpleClustering2.h"
 #include "Util.h"
 #include "Debug.h"
@@ -30,7 +31,7 @@ std::list<set *> SimpleClustering2::execute(){
     for(size_t i = 0; i < n; i++) {
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
-
+        Log::printProgress(i);
         if(assignedcluster[i]==-1){
             char *clusterId = seqDbr->getDbKey(i);
             char *data = alnDbr->getDataByDBKey(clusterId);

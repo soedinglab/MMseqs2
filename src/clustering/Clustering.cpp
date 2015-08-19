@@ -237,8 +237,9 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
             Debug(Debug::ERROR) << "Tried to process the clustering list for the query " << dbKey
                                 << " , length of the list = " << ret.size() << "\n";
             Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
-                                << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
-            continue;
+                                << ")\n Buffer size is increased\n";
+            BUFFER_SIZE=strlen(cluResultsOutData)+1;
+            outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
         dbw->write(outBuffer, cluResultsOutString.length(), dbKey);
