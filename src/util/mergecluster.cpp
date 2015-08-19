@@ -107,7 +107,8 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         if (BUFFER_SIZE < strlen(cluResultsOutData)){
             std::cerr << "Tried to process the clustering list for the query " << dbKey << " , the length of the list = " << mergedClustering[i]->size() << "\n";
             std::cerr << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
-            continue;
+            BUFFER_SIZE=strlen(cluResultsOutData)+1;
+            outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
         dbw->write(outBuffer, cluResultsOutString.length(), dbKey);

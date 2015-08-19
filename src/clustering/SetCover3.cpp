@@ -176,8 +176,8 @@ std::list<set *>  SetCover3::execute(int mode) {
     size_t n = seqDbr->getSize();
     int* assignedcluster=new int[n];
     memset(assignedcluster, -1, sizeof(int)*(n));
-    float* bestscore=new float[n];
-    memset(bestscore, -10, sizeof(float)*(n));
+    short* bestscore=new short[n];
+    memset(bestscore, -10, sizeof(short)*(n));
 
 
 
@@ -204,7 +204,8 @@ std::list<set *>  SetCover3::execute(int mode) {
 
                 const unsigned int elementtodelete = elementLookupTable[representative][elementId];
                 // float seqId = elementScoreTable[representative][elementId];
-                float seqId = elementScoreLookupTable[representative][elementId];
+                short seqId = elementScoreLookupTable[representative][elementId];
+               // Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
                 if (seqId > bestscore[elementtodelete]) {
                     assignedcluster[elementtodelete] = representative;
                     bestscore[elementtodelete] = seqId;

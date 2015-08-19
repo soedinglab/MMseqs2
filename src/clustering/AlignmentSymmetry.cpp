@@ -187,7 +187,7 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
 
                 size_t curr_element = seqDbr->getId(dbKey);
                 Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-                *elementScoreTable[i] = (short)atof(std::string(similarity).c_str())*1000;
+                *elementScoreTable[i] = (short)(atof(std::string(similarity).c_str())*1000);
                 elementScoreTable[i]++;
                 if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()) {
                     Debug(Debug::ERROR) << "ERROR: Element " << dbKey
