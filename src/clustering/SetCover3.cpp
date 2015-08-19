@@ -205,11 +205,12 @@ std::list<set *>  SetCover3::execute(int mode) {
                 const unsigned int elementtodelete = elementLookupTable[representative][elementId];
                 // float seqId = elementScoreTable[representative][elementId];
                 short seqId = elementScoreLookupTable[representative][elementId];
-               // Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
+              //  Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
                 if (seqId > bestscore[elementtodelete]) {
                     assignedcluster[elementtodelete] = representative;
                     bestscore[elementtodelete] = seqId;
                 }
+                //Debug(Debug::INFO)<<bestscore[elementtodelete]<<"\n";
                 if (elementtodelete == representative) {
                     continue;
                 }
