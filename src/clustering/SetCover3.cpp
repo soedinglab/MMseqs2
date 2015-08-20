@@ -257,7 +257,7 @@ std::list<set *>  SetCover3::execute(int mode) {
 
 
         }
-    }else if (mode==2){
+    }else if (mode==3){
         Debug(Debug::INFO)<<"connected component mode"<<"\n";
         for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
             int representative = sorted_clustersizes[cl_size];
@@ -277,6 +277,77 @@ std::list<set *>  SetCover3::execute(int mode) {
                             myqueue.push(elementtodelete);
                         }
                         assignedcluster[elementtodelete]=representative;
+                    }
+                }
+
+            }
+        }
+
+    }else if (mode==2){
+        Debug(Debug::INFO)<<"connected component mode"<<"\n";
+        int* ranks=new int[n];
+        memset(ranks, 0, sizeof(int)*(n));
+        int* incommingconnections=new int[n];
+        memset(incommingconnections, 0, sizeof(int)*(n));
+        int* connactionswithsamerank=new int[n];
+        memset(connactionswithsamerank, 0, sizeof(int)*(n));
+        int connectioncutoff=2;
+        for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
+            //  for (int cl_size =0 ;cl_size<dbSize ; cl_size++) {
+            int representative = sorted_clustersizes[cl_size];
+            if(assignedcluster[representative]==-1){
+                assignedcluster[representative] = representative;
+                connactionswithsamerank[representative]=connectioncutoff+1;
+                incommingconnections[representative]=connectioncutoff+1;
+                std::queue<int> myqueue;
+                std::queue<int> myqueue2;
+                myqueue.push(representative);
+                int elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
+                elementSize=std::min(elementSize,std::max(elementSize/5,10));
+                connectioncutoff=elementSize/3;
+                for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                    unsigned int elementtodelete = elementLookupTable[representative][elementId];
+                    if (assignedcluster[elementtodelete] == -1) {
+                        incommingconnections[elementtodelete]=connectioncutoff+1;
+                        assignedcluster[elementtodelete] = representative;
+                        ranks[elementtodelete] = 0;
+                    }
+                }
+
+                //delete clusters of members;
+                while(!myqueue.empty()) {
+                    while (!myqueue.empty()) {
+                        int currentid = myqueue.front();
+                        assignedcluster[currentid] = representative;
+                        myqueue.pop();
+                        size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
+                        for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                            unsigned int elementtodelete = elementLookupTable[currentid][elementId];
+                            if (assignedcluster[elementtodelete] == -1) {
+                                incommingconnections[elementtodelete]++;
+                            } else if (ranks[elementtodelete] == ranks[currentid]) {
+                                connactionswithsamerank[currentid]++;
+                            }
+
+                        }
+                        if (connactionswithsamerank[currentid] > connectioncutoff&& incommingconnections[currentid]>connectioncutoff) {
+                            myqueue2.push(currentid);
+                        }
+
+                    }
+                    while (!myqueue2.empty()) {
+                        int currentid = myqueue2.front();
+                        assignedcluster[currentid] = representative;
+                        myqueue2.pop();
+                        size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
+                        for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                            unsigned int elementtodelete = elementLookupTable[currentid][elementId];
+                            if (assignedcluster[elementtodelete] == -1) {
+                                myqueue.push(elementtodelete);
+                                ranks[elementtodelete] = ranks[currentid] + 1;
+                            }
+                            assignedcluster[elementtodelete] = representative;
+                        }
                     }
                 }
 

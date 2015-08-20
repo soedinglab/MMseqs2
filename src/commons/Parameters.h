@@ -42,6 +42,7 @@ public:
     static const int SET_COVER4 = 5;
     static const int SYMMETRIC_ALIGNMENT = 6;
     static const int CONNECTED_COMPONENT = 7;
+    static const int CONNECTED_COMPONENT2 = 8;
 
     static const int APC_ALIGNMENTSCORE=1;
     static const int APC_COVERAGE=2;
