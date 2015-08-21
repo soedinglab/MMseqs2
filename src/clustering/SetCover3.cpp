@@ -304,7 +304,7 @@ std::list<set *>  SetCover3::execute(int mode) {
                 myqueue.push(representative);
                 int elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
                 elementSize=std::min(elementSize,std::max(elementSize/5,10));
-                connectioncutoff=elementSize/3;
+                connectioncutoff=elementSize/2;
                 for (size_t elementId = 0; elementId < elementSize; elementId++) {
                     unsigned int elementtodelete = elementLookupTable[representative][elementId];
                     if (assignedcluster[elementtodelete] == -1) {
@@ -318,8 +318,14 @@ std::list<set *>  SetCover3::execute(int mode) {
                 while(!myqueue.empty()) {
                     while (!myqueue.empty()) {
                         int currentid = myqueue.front();
-                        assignedcluster[currentid] = representative;
+
                         myqueue.pop();
+                        if(incommingconnections[currentid]<=connectioncutoff){
+                            assignedcluster[currentid]=-1;
+                             incommingconnections[currentid]=0;
+                            continue;
+                        }
+                        assignedcluster[currentid] = representative;
                         size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
                         for (size_t elementId = 0; elementId < elementSize; elementId++) {
                             unsigned int elementtodelete = elementLookupTable[currentid][elementId];
@@ -332,7 +338,11 @@ std::list<set *>  SetCover3::execute(int mode) {
                         }
                         if (connactionswithsamerank[currentid] > connectioncutoff&& incommingconnections[currentid]>connectioncutoff) {
                             myqueue2.push(currentid);
+                        }else{
+                          //  assignedcluster[currentid]=-1;
+                           // incommingconnections[currentid]=0;
                         }
+
 
                     }
                     while (!myqueue2.empty()) {
