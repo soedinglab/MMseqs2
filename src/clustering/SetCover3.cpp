@@ -296,24 +296,29 @@ std::list<set *>  SetCover3::execute(int mode) {
             //  for (int cl_size =0 ;cl_size<dbSize ; cl_size++) {
             int representative = sorted_clustersizes[cl_size];
             if(assignedcluster[representative]==-1){
-                assignedcluster[representative] = representative;
-                connactionswithsamerank[representative]=connectioncutoff+1;
-                incommingconnections[representative]=connectioncutoff+1;
+               
+
+                ranks[representative]=0;
                 std::queue<int> myqueue;
                 std::queue<int> myqueue2;
                 myqueue.push(representative);
                 int elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
-                elementSize=std::min(elementSize,std::max(elementSize/5,10));
-                connectioncutoff=elementSize/2;
+                assignedcluster[representative] = representative;
+                connactionswithsamerank[representative]=elementSize+1;
+                incommingconnections[representative]=elementSize+1;
+              //  elementSize=std::min(elementSize,std::max(elementSize/5,10));
+                connectioncutoff=0;
                 for (size_t elementId = 0; elementId < elementSize; elementId++) {
                     unsigned int elementtodelete = elementLookupTable[representative][elementId];
                     if (assignedcluster[elementtodelete] == -1) {
-                        incommingconnections[elementtodelete]=connectioncutoff+1;
+                        incommingconnections[elementtodelete]=elementSize+1;
                         assignedcluster[elementtodelete] = representative;
                         ranks[elementtodelete] = 0;
+                        myqueue.push(elementtodelete);
+                        connectioncutoff++;
                     }
                 }
-
+                connectioncutoff=connectioncutoff/2;
                 //delete clusters of members;
                 while(!myqueue.empty()) {
                     while (!myqueue.empty()) {
@@ -323,7 +328,7 @@ std::list<set *>  SetCover3::execute(int mode) {
                         if(incommingconnections[currentid]<=connectioncutoff){
                             assignedcluster[currentid]=-1;
                              incommingconnections[currentid]=0;
-                            continue;
+                                         continue;
                         }
                         assignedcluster[currentid] = representative;
                         size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
@@ -339,8 +344,10 @@ std::list<set *>  SetCover3::execute(int mode) {
                         if (connactionswithsamerank[currentid] > connectioncutoff&& incommingconnections[currentid]>connectioncutoff) {
                             myqueue2.push(currentid);
                         }else{
-                          //  assignedcluster[currentid]=-1;
-                           // incommingconnections[currentid]=0;
+                            assignedcluster[currentid]=-1;
+                            incommingconnections[currentid]=0;
+                            connactionswithsamerank[currentid]=0;
+                            ranks[currentid]=0;
                         }
 
 
@@ -355,8 +362,9 @@ std::list<set *>  SetCover3::execute(int mode) {
                             if (assignedcluster[elementtodelete] == -1) {
                                 myqueue.push(elementtodelete);
                                 ranks[elementtodelete] = ranks[currentid] + 1;
+                                assignedcluster[elementtodelete] = representative;
                             }
-                            assignedcluster[elementtodelete] = representative;
+
                         }
                     }
                 }
