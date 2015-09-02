@@ -21,11 +21,18 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
 
        std::ofstream outfile_stream;
     outfile_stream.open(outputfile+suffix+"cluster.tsv");
+    std::ofstream outfile_stream_clustersize;
+    outfile_stream_clustersize.open(outputfile+suffix+"cluster_size.tsv");
+    std::ofstream outfile_stream_cluster_summary;
+    outfile_stream_cluster_summary.open(outputfile+suffix+"cluster_summary.tsv");
 
+    outfile_stream_clustersize<<"algorithm\tclusterid\tclustersize\n";
     outfile_stream<<"algorithm\tclusterid\tid2\n";
+    outfile_stream_cluster_summary<<"algorithm\tclusternumber\tsingletons\n";
+    int singletons=0;
     for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
-
+        int clustersize=0;
         char *representative=cluster_ffindex_reader->getDbKey(i);
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
@@ -33,13 +40,21 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
             Util::parseKey(data, idbuffer);
             outfile_stream<<suffix<<"\t"<<representative<<"\t"<<idbuffer<<"\n";
             data = Util::skipLine(data);
+            clustersize++;
+        }
+        if(clustersize==1){
+            singletons++;
         }
         outfile_stream.flush();
+        outfile_stream_clustersize<<suffix<<"\t"<<representative<<"\t"<<clustersize<<"\n";
     }
+    outfile_stream_cluster_summary<<suffix<<"\t"<<cluster_ffindex_reader->getSize()<<"\t"<<singletons<<"\n";
+
     cluster_ffindex_reader->close();
     cluster_ffindex_reader->~DBReader();
     outfile_stream.close();
-
+    outfile_stream_clustersize.close();
+    outfile_stream_cluster_summary.close();
 }
 
 

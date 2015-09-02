@@ -5,6 +5,7 @@
 #include "AlignmentSymmetry.h"
 #include <Debug.h>
 #include <Log.h>
+#include <sys/time.h>
 #include "AffinityClustering.h"
 
 AlignmentSymmetry::AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWriter *alnWr, int threads) {
@@ -16,12 +17,17 @@ AlignmentSymmetry::AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWrite
 }
 
 void AlignmentSymmetry::execute() {
+    //time
+    struct timeval start, end;
     const char * data = alnDbr->getData();
     size_t dataSize = alnDbr->getDataSize();
     size_t elementCount = Util::count_lines(data, dataSize);
     unsigned int * elements = new unsigned int[elementCount];
     unsigned int ** elementLookupTable = new unsigned int*[dbSize];
     size_t *elementOffsets = new size_t[dbSize + 1];
+    //time
+     gettimeofday(&start, NULL);
+    //time
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         char *clusterId = seqDbr->getDbKey(i);
@@ -39,7 +45,12 @@ void AlignmentSymmetry::execute() {
     readInData(alnDbr, seqDbr, elementLookupTable);
     // set element edge pointers by using the offset table
     setupElementLookupPointer(elements, elementLookupTable, elementOffsets, dbSize);
-
+    //time
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Parallel read in: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nSort entries.\n";
     // sort each element vector for bsearch
 #pragma omp parallel for schedule(dynamic, 1000)
@@ -47,11 +58,23 @@ void AlignmentSymmetry::execute() {
         Log::printProgress(i);
         std::sort(elementLookupTable[i], elementLookupTable[i] + (elementOffsets[i+1] - elementOffsets[i]));
     }
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for Sorting entries: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nFind missing connections.\n";
     size_t * newElementOffsets = new size_t[dbSize + 1];
     memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
-    size_t newElementCount = findMissingLinks(elementLookupTable, newElementOffsets, dbSize);
+    size_t newElementCount = findMissingLinks(elementLookupTable, newElementOffsets, dbSize,threads);
     delete [] elements;
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime for finding missing connections: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nFind missing connections.\n";
 
     // resize elements
@@ -59,16 +82,39 @@ void AlignmentSymmetry::execute() {
     memset(elements, 0, sizeof( unsigned int) * (newElementCount ));
     Debug(Debug::WARNING) << "\nFound "<< newElementCount - elementCount << " new connections.\n";
     setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
     readInData(alnDbr, seqDbr, elementLookupTable);
     // set element edge pointers by using the offset table
     setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
-
+//time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nAdd missing connections.\n";
     addMissingLinks(elementLookupTable, elementOffsets, dbSize);
     setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     Debug(Debug::WARNING) << "\nReconstruct set.\n";
     reconstructSet(alnDbr, seqDbr, alnWr, elementOffsets, newElementOffsets, elementLookupTable);
+    //time
+    gettimeofday(&end, NULL);
+    sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    gettimeofday(&start, NULL);
+    //time
     delete [] elementOffsets;
     delete [] newElementOffsets;
     delete [] elementLookupTable;
@@ -115,7 +161,51 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
     }
 }
 
-size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, size_t * offsetTable, size_t dbSize) {
+void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable) {
+
+    size_t dbSize = seqDbr->getSize();
+#pragma omp parallel
+    {
+        char * dbKey = new char[255+1];
+        char *similarity = new char[255+1];
+#pragma omp for schedule(dynamic, 100)
+        for(size_t i = 0; i < dbSize; i++) {
+            Log::printProgress(i);
+            // seqDbr is descending sorted by length
+            // the assumption is that clustering is B -> B (not A -> B)
+            char *clusterId = seqDbr->getDbKey(i);
+            char *data = alnDbr->getDataByDBKey(clusterId);
+
+            if (*data == '\0') { // check if file contains entry
+                Debug(Debug::ERROR) << "ERROR: Sequence " << i
+                << " does not contain any sequence for key " << clusterId
+                << "!\n";
+
+                continue;
+            }
+            while (*data != '\0' ) {
+                Util::parseKey(data, dbKey);
+
+                size_t curr_element = seqDbr->getId(dbKey);
+                Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                *elementScoreTable[i] = (short)(atof(std::string(similarity).c_str())*1000);
+                elementScoreTable[i]++;
+                if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()) {
+                    Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                    << " contained in some alignment list, but not contained in the sequence database!\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                *elementLookupTable[i] = curr_element;
+                elementLookupTable[i]++;
+                data = Util::skipLine(data);
+
+            }
+        }
+        delete [] dbKey;
+    }
+}
+
+size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, size_t * offsetTable, size_t dbSize, int threads) {
     // init memory for parallel merge
     unsigned short * tmpSize = new unsigned short[threads * dbSize];
     memset(tmpSize, 0, threads * dbSize * sizeof(unsigned short));
@@ -173,6 +263,12 @@ void AlignmentSymmetry::setupElementLookupPointer(unsigned int * elements, unsig
     }
 }
 
+void AlignmentSymmetry::setupElementLookupPointerShort(unsigned short * elements, unsigned short ** elementLookupTable, size_t * elementOffset, size_t dbSize) {
+    for(size_t i = 0; i < dbSize; i++) {
+        elementLookupTable[i] = elements + elementOffset[i];
+    }
+}
+
 void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
                                         size_t * offsetTable, size_t dbSize) {
 
@@ -194,6 +290,33 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
                 size_t pos;
                 for(pos = currElementSize; elementLookupTable[currElm][pos] != 0; pos++ );
                 elementLookupTable[currElm][pos] = setId;
+            }
+        }
+    }
+}
+
+void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
+                                        size_t * offsetTable, size_t dbSize, unsigned short **elementScoreTable) {
+
+    // iterate over all connections and check if it exists in the corresponding set
+    // if not add it
+    for(size_t setId = 0; setId < dbSize; setId++) {
+        Log::printProgress(setId);
+        size_t elementSize = (offsetTable[setId +1] - offsetTable[setId]);
+        for(size_t elementId = 0; elementId < elementSize; elementId++) {
+            const unsigned int currElm = elementLookupTable[setId][elementId];
+            const unsigned int currElementSize = (offsetTable[currElm +1] - offsetTable[currElm]);
+            bool found = false;
+            for(size_t pos = 0; pos < currElementSize && found == false; pos++){
+                found = (elementLookupTable[currElm][pos] == setId);
+            }
+            // this is a new connection
+            if(found == false){ // add connection if it could not be found
+                // find pos to write
+                size_t pos;
+                for(pos = currElementSize; elementLookupTable[currElm][pos] != 0; pos++ );
+                elementLookupTable[currElm][pos] = setId;
+                elementScoreTable[currElm][pos]=elementScoreTable[setId][elementId];
             }
         }
     }

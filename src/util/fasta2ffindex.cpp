@@ -93,7 +93,7 @@ int createdb(int argn,const char **argv)
     std::string header_line;
     header_line.reserve(10000);
     while (kseq_read(seq) >= 0) {
-        if (seq->name.l == 0|| seq->seq.l == 0) {
+        if (seq->name.l == 0) {
             std::cerr << "Fasta entry: " << entries_num << " is invalid." << std::endl;
             EXIT(EXIT_FAILURE);
         }

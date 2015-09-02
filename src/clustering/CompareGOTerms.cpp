@@ -91,16 +91,20 @@ void CompareGOTerms::init() {
             int counter = 0;
             singletermbuffer = new char[11];
             char *position = parentterm;
-            char *childterm = go_ffindex_reader->getDbKey(i);
             while (parentterm[counter] != '\0') {
                 strncpy(singletermbuffer, position + 3, 7);
                 singletermbuffer[10] = '\0';
                 //  Debug(Debug::INFO) << singletermbuffer << "\t";
                 counter += 10;
                 position = position + 10;
-                is_a_relation_data[is_a_relation_current_position++] = convert_GOterm_to_index(
-                        atof(std::string(singletermbuffer).c_str()));
-                is_a_relation_size[i]++;
+                if(atof(std::string(singletermbuffer).c_str())==0){
+
+                }else{
+                    is_a_relation_data[is_a_relation_current_position++] = convert_GOterm_to_index(
+                            atof(std::string(singletermbuffer).c_str()));
+                    is_a_relation_size[i]++;
+                }
+
             }
             //Debug(Debug::INFO) << "\n";
             //
@@ -116,6 +120,8 @@ void CompareGOTerms::init() {
         }
     }
     //bestimme vaterknoten
+
+    //Debug(Debug::INFO) << <<"\t";
     parentsets = new std::set<int>[total_go_number];
     for (size_t i = 0; i < total_go_number; i++) {
         parentsets[i] = *new std::set<int>();
@@ -264,7 +270,7 @@ int CompareGOTerms::convert_index_toGOterm(int index){
 }
 
 void  CompareGOTerms::compute_parentnodes(std::set<int>& result,int id){
-    result.insert(id);
+            result.insert(id);
     if(is_a_relation_size[id]==0){
         return;
     }else{
