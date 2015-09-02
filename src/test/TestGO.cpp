@@ -7,6 +7,7 @@
 #include <convertfiles.h>
 #include <DBWriter.h>
 #include <Parameters.h>
+#include <Log.h>
 #include "CompareGOTerms.h"
 
 
@@ -357,87 +358,101 @@ int main(int argc, char **argv)
         std::string outputfile = argv[4];
         float threshold = atof(argv[5]);
         int similarityScoreType = atof(argv[6]);
-
-        size_t BUFFER_SIZE = 1000000;
-        char* outBuffer = new char[BUFFER_SIZE];
-        char *idbuffer1 = new char[255 + 1];
-        char *linebuffer = new char[255 + 1];
-        char *similarity = new char[255+1];
-
+int numberofthreads=1;
+#ifdef OPENMP
+        omp_set_num_threads(numberofthreads);
+#endif
         DBReader* seqDbr=new DBReader(seqDbfile.c_str(),(seqDbfile+".index").c_str());
         seqDbr->open(DBReader::SORT);
         DBReader* alnDbr=new DBReader(alignmentfile.c_str(),(alignmentfile+".index").c_str());
         alnDbr->open(DBReader::SORT);
-        DBWriter* dbw = new DBWriter(outputfile.c_str(), (outputfile+".index").c_str());
+        DBWriter* dbw = new DBWriter(outputfile.c_str(), (outputfile+".index").c_str(),numberofthreads);
         dbw->open();
 
-        for (int i = 0; i < seqDbr->getSize(); i++) {
-            char *data = alnDbr->getData(i);
-            std::string cluResultsOutString = std::string("");
-            while (*data != '\0') {
-                Util::parseKey(data, idbuffer1);
-                Util::getLine(data, linebuffer);
-                //get similarityscore
-                float factor=1;
-                float similarityscore;
-                if(similarityScoreType==Parameters::APC_ALIGNMENTSCORE){
-                    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-                    similarityscore= atof(std::string(similarity).c_str());
-                }else if(similarityScoreType==Parameters::APC_COVERAGE){
-                    Util::parseByColumnNumber(data, similarity, 2); //column 2 = querycoverage
-                    float querycoverage= atof(std::string(similarity).c_str())*factor;
-                    Util::parseByColumnNumber(data, similarity, 3); //column 3 = dbcoverage
-                    float dbcoverage= atof(std::string(similarity).c_str())*factor;
-                    if(querycoverage<dbcoverage){
-                        similarityscore=querycoverage;
-                    }else{
-                        similarityscore=dbcoverage;
+#pragma omp parallel
+        {
+            size_t BUFFER_SIZE = 1000000;
+            char* outBuffer = new char[BUFFER_SIZE];
+            char *idbuffer1 = new char[255 + 1];
+            char *linebuffer = new char[255 + 1];
+            char *similarity = new char[255+1];
+
+#pragma omp for schedule(dynamic, 100)
+            for (size_t i = 0; i < seqDbr->getSize(); i++) {
+                Log::printProgress(i);
+                int thread_idx = 0;
+#ifdef OPENMP
+                thread_idx = omp_get_thread_num();
+#endif
+                // for (int i = 0; i < seqDbr->getSize(); i++) {
+                char *data = alnDbr->getData(i);
+                std::string cluResultsOutString = std::string("");
+                while (*data != '\0') {
+                    Util::parseKey(data, idbuffer1);
+                    Util::getLine(data, linebuffer);
+                    //get similarityscore
+                    float factor = 1;
+                    float similarityscore;
+                    if (similarityScoreType == Parameters::APC_ALIGNMENTSCORE) {
+                        Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+                        similarityscore = atof(std::string(similarity).c_str());
+                    } else if (similarityScoreType == Parameters::APC_COVERAGE) {
+                        Util::parseByColumnNumber(data, similarity, 2); //column 2 = querycoverage
+                        float querycoverage = atof(std::string(similarity).c_str()) * factor;
+                        Util::parseByColumnNumber(data, similarity, 3); //column 3 = dbcoverage
+                        float dbcoverage = atof(std::string(similarity).c_str()) * factor;
+                        if (querycoverage < dbcoverage) {
+                            similarityscore = querycoverage;
+                        } else {
+                            similarityscore = dbcoverage;
+                        }
+
+                    } else if (similarityScoreType == Parameters::APC_SEQID) {
+                        Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                        similarityscore = atof(std::string(similarity).c_str()) * factor;
+                    }
+                    else if (similarityScoreType == Parameters::APC_EVAL) {
+                        Util::parseByColumnNumber(data, similarity, 5); //column 4 = e value
+                        similarityscore = -log(atof(std::string(similarity).c_str())) * factor;
+                    } else if (similarityScoreType == Parameters::APC_BITSCORE) {
+                        Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+                        similarityscore = atof(std::string(similarity).c_str());
+                        int queryLength = strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
+                        int dbSeqLength = strlen(seqDbr->getDataByDBKey(idbuffer1));
+                        float maxSeqLength = std::max(queryLength, dbSeqLength);
+
+                        //
+                        similarityscore = similarityscore / maxSeqLength;
+
+                        //    Debug(Debug::INFO)  << similarityscore <<"\t"<<i<<"\t"<<curr_element<<"\n";
+                        //Debug(Debug::INFO)  << similarityscore <<"\n";
                     }
 
-                }else if(similarityScoreType==Parameters::APC_SEQID){
-                    Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-                    similarityscore= atof(std::string(similarity).c_str())*factor;
-                }
-                else if(similarityScoreType==Parameters::APC_EVAL) {
-                    Util::parseByColumnNumber(data, similarity, 5); //column 4 = e value
-                    similarityscore = -log(atof(std::string(similarity).c_str()))*factor;
-                } else if(similarityScoreType==Parameters::APC_BITSCORE) {
-                    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-                    similarityscore= atof(std::string(similarity).c_str());
-                    int queryLength=strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
-                    int dbSeqLength=strlen(seqDbr->getDataByDBKey(idbuffer1));
-                    float maxSeqLength=std::max(queryLength,dbSeqLength);
-
-                    //
-                    similarityscore= similarityscore/maxSeqLength;
-
-                    //    Debug(Debug::INFO)  << similarityscore <<"\t"<<i<<"\t"<<curr_element<<"\n";
-                    //Debug(Debug::INFO)  << similarityscore <<"\n";
-                }
-
-                if (similarityscore < threshold) {
+                    if (similarityscore < threshold) {
+                        data = Util::skipLine(data);
+                        continue;
+                    }
+                    cluResultsOutString = cluResultsOutString + linebuffer + "\n";
                     data = Util::skipLine(data);
+                }
+
+                // Debug(Debug::INFO)<<data;
+
+                const char *cluResultsOutData = cluResultsOutString.c_str();
+                if (BUFFER_SIZE < strlen(cluResultsOutData)) {
+                    Debug(Debug::ERROR) << "Tried to process the alignment list for the query " << alnDbr->getDbKey(i)
+                    << " , length of the list = " << "\n";
+                    Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " <<
+                    cluResultsOutString.length()
+                    << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
                     continue;
                 }
-                cluResultsOutString=cluResultsOutString+linebuffer+"\n";
-                data = Util::skipLine(data);
+                memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length() * sizeof(char));
+                dbw->write(outBuffer, cluResultsOutString.length(), alnDbr->getDbKey(i),thread_idx);
+
+                //  data = Util::skipLine(data);
+                //  }
             }
-
-            // Debug(Debug::INFO)<<data;
-
-            const char* cluResultsOutData = cluResultsOutString.c_str();
-            if (BUFFER_SIZE < strlen(cluResultsOutData)){
-                Debug(Debug::ERROR) << "Tried to process the alignment list for the query " << alnDbr->getDbKey(i)
-                << " , length of the list = " << "\n";
-                Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
-                << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
-                continue;
-            }
-            memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-            dbw->write(outBuffer, cluResultsOutString.length(), alnDbr->getDbKey(i));
-
-            //  data = Util::skipLine(data);
-            //  }
         }
         alnDbr->close();
         seqDbr->close();

@@ -130,7 +130,7 @@ void Alignment::closeReader(){
 }
 
 void Alignment::run(const unsigned int maxAlnNum, const unsigned int maxRejected){
-    run(outDB.c_str(), outDBIndex.c_str(), 0, qseqdbr->getSize(), maxAlnNum, maxRejected);
+    run(outDB.c_str(), outDBIndex.c_str(), 0, prefdbr->getSize(), maxAlnNum, maxRejected);
     this->closeReader();
 }
 

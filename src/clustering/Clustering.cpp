@@ -131,12 +131,26 @@ void Clustering::run(int mode) {
         Debug(Debug::INFO) << "...done.\n";
     }else if (mode == Parameters::SET_COVER3){
         SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads);
-        ret =setCover3->execute();
+        ret =setCover3->execute(1);
         writeData(dbw, ret);
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    } else if (mode == Parameters::GREEDY2){
+    } else if (mode == Parameters::CONNECTED_COMPONENT){
+        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads);
+        ret =setCover3->execute(3);
+        writeData(dbw, ret);
+        gettimeofday(&end, NULL);
+        int sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    }else if (mode == Parameters::CONNECTED_COMPONENT2){
+        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads);
+        ret =setCover3->execute(2);
+        writeData(dbw, ret);
+        gettimeofday(&end, NULL);
+        int sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+    }else if (mode == Parameters::GREEDY2){
         SimpleClustering2* simpleClustering2= new SimpleClustering2(seqDbr,alnDbr,seqIdThr,0.0);
         ret =simpleClustering2->execute();
         writeData(dbw, ret);
@@ -192,15 +206,19 @@ void Clustering::run(int mode) {
     Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
     Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
-if(mode != Parameters::SET_COVER3 && mode != Parameters::GREEDY2 && mode != Parameters::SYMMETRIC_ALIGNMENT && mode != Parameters::SET_COVER4) {
+if(mode != Parameters::SET_COVER3 && mode != Parameters::GREEDY2 && mode != Parameters::SYMMETRIC_ALIGNMENT && mode != Parameters::SET_COVER4 && mode  != Parameters::CONNECTED_COMPONENT&& mode  != Parameters::CONNECTED_COMPONENT2) {
     delete[] set_data.startWeightsArray;
     delete[] set_data.startElementsArray;
     delete[] set_data.weights;
     delete[] set_data.sets;
-    delete[] set_data.similarities;
+
     delete[] set_data.set_sizes;
     delete[] set_data.element_size_lookup;
-    delete  set_data.validids;
+
+    if(mode==Parameters::AFFINITY){
+        delete[] set_data.similarities;
+        delete  set_data.validids;
+    }
     }
 }
 
@@ -226,8 +244,9 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
             Debug(Debug::ERROR) << "Tried to process the clustering list for the query " << dbKey
                                 << " , length of the list = " << ret.size() << "\n";
             Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
-                                << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
-            continue;
+                                << ")\n Buffer size is increased\n";
+            BUFFER_SIZE=strlen(cluResultsOutData)+1;
+            outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
         dbw->write(outBuffer, cluResultsOutString.length(), dbKey);
@@ -429,8 +448,9 @@ Clustering::set_data Clustering::read_in_set_data(int mode){
         if (cnt == 0){
             empty++;
         }
-        ret_struct.validids->push_back(i);
-
+        if (mode == Parameters::AFFINITY) {
+            ret_struct.validids->push_back(i);
+        }
 
 
         // max_weight can not be bigger than 2^16
