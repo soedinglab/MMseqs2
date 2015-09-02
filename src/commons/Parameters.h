@@ -20,9 +20,10 @@ struct MMseqsParameter {
     const char *description;
     const std::type_info &type;
     void * value;
+    const std::string regex;
     MMseqsParameter(int uid,const char * n, const char *display,
-                    const char * d, const std::type_info &hash, void * value):
-                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value){}
+                    const char * d, const std::type_info &hash, void * value, std::string regex):
+                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex){}
 };
 
 
