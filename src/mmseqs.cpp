@@ -90,7 +90,7 @@ int main(int argc, const char **argv) {
             struct Command *p = commands + i;
             if (strcmp(p->cmd, argv[1]))
                 continue;
-            EXIT(runCommand(p, argc - 1, argv + 1));
+            EXIT(runCommand(p, argc - 2, argv + 2));
         }
     } else {
         printUsage();
