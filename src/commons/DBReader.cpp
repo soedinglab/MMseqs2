@@ -85,6 +85,13 @@ void DBReader::open(int sort){
     closed = 0;
 }
 
+void DBReader::unmapMemory(){
+    if(dataMode == DATA_AND_INDEX){
+        munmap(data, dataSize);
+    }
+    munmap(index->index_data, index->index_data_size);
+}
+
 void DBReader::close(){
     fclose(indexFile);
     delete[] id2local;
