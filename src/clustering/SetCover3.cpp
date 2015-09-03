@@ -135,6 +135,8 @@ std::list<set *>  SetCover3::execute(int mode) {
     gettimeofday(&start, NULL);
     //time
     Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
+    alnDbr->unmapMemory();
+    seqDbr->unmapMemory();
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable,elementScoreLookupTable);
     // set element edge pointers by using the offset table
     AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
