@@ -10,7 +10,6 @@
 #include <Log.h>
 #include "CompareGOTerms.h"
 
-
 void printHelp();
 
 int main(int argc, char **argv)
@@ -29,7 +28,7 @@ int main(int argc, char **argv)
     if(strcmp(argv[1],"-go")==0){
         Debug(Debug::INFO) <<"GO-Evaluation" <<"\n";
 
-        if(argc != 8){
+        if(argc != 9){
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -41,10 +40,16 @@ int main(int argc, char **argv)
         std::string prefix=argv[5];
         std::string outputfolder=argv[6];
         char * comparisonmode=argv[7];
+        char * randomnmode=argv[8];
         bool allagainstall=false;
+        bool randomized=false;
         if(strcmp(comparisonmode,"yes")==0){
             allagainstall=true;
             Debug(Debug::INFO)<<"all against all comparison";
+        }
+        if(strcmp(randomnmode,"yes")==0){
+            randomized=true;
+            Debug(Debug::INFO)<<"randomized representative comparison";
         }
         //"-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder>"
         //std::string gofolder="/home/lars/masterarbeit/data/GO/db/";
@@ -75,7 +80,7 @@ int main(int argc, char **argv)
                 //  go->all_against_all_comparison_proteinset();
                 go->run_evaluation_mmseqsclustering(clustering_file,
                                                     clustering_file+".index",
-                                                    prefix, evidenceCategories[j] + goCategories[i],allagainstall);
+                                                    prefix, evidenceCategories[j] + goCategories[i],allagainstall,randomized);
                 go->~CompareGOTerms();
             }
         }
@@ -84,7 +89,7 @@ int main(int argc, char **argv)
     /////Protein Name
     /////////
     else if (strcmp(argv[1],"-pn")==0){
-        if(argc != 7){
+        if(argc != 8){
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -96,10 +101,16 @@ int main(int argc, char **argv)
         std::string fileprefix=argv[4];
         std::string evaluationfolder=argv[5];
         char * comparisonmode=argv[6];
+        char * randomnmode=argv[7];
         bool allagainstall=false;
+        bool randomized=false;
         if(strcmp(comparisonmode,"yes")==0){
             allagainstall=true;
             Debug(Debug::INFO)<<"all against all comparison";
+        }
+        if(strcmp(randomnmode,"yes")==0){
+            randomized=true;
+            Debug(Debug::INFO)<<"randomized representative comparison";
         }
             Debug(Debug::INFO) << "running protein name evaluation";
 
@@ -145,7 +156,16 @@ int main(int argc, char **argv)
 
                 data = Util::skipLine(data);
             }
+
             for(std::string id1:idswithgo){
+                //Debug(Debug::INFO) <<id1<<"\t";
+                if(randomized){
+                    std::list<std::string>::iterator i = idswithgo.begin();
+                    std::advance(i, rand()%idswithgo.size());
+                    id1=*i;
+                }
+
+                //Debug(Debug::INFO) <<id1<<"\n";
                 for(std::string id2:idswithgo){
                     if (std::string(id1) != std::string(id2)) {
                         char* seq1=protname_db_reader->getDataByDBKey((char *) id1.c_str());
@@ -189,7 +209,7 @@ int main(int argc, char **argv)
         /////Key-WordEvaluation
         /////////
     else if (strcmp(argv[1],"-kw")==0){
-        if(argc != 7){
+        if(argc != 8){
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -201,10 +221,16 @@ int main(int argc, char **argv)
         std::string fileprefix=argv[4];
         std::string evaluationfolder=argv[5];
         char * comparisonmode=argv[6];
+        char * randomnmode=argv[7];
         bool allagainstall=false;
+        bool randomized=false;
         if(strcmp(comparisonmode,"yes")==0){
             allagainstall=true;
             Debug(Debug::INFO)<<"all against all comparison";
+        }
+        if(strcmp(randomnmode,"yes")==0){
+            randomized=true;
+            Debug(Debug::INFO)<<"randomized representative comparison";
         }
         Debug(Debug::INFO) << "running keyword evaluation";
 
@@ -252,6 +278,11 @@ int main(int argc, char **argv)
                 data = Util::skipLine(data);
             }
             for(std::string id1:idswithgo){
+                if(randomized){
+                    std::list<std::string>::iterator i = idswithgo.begin();
+                    std::advance(i, rand()%idswithgo.size());
+                    id1=*i;
+                }
                 for(std::string id2:idswithgo){
                     if (std::string(id1) != std::string(id2)) {
                         char* seq1=protname_db_reader->getDataByDBKey((char *) id1.c_str());
@@ -268,12 +299,12 @@ int main(int argc, char **argv)
                 }
 
             }
-            double averagescore;
+            /*double averagescore;
             if(allagainstall){
                 averagescore=(sumofscore / (idswithgo.size()*idswithgo.size()-idswithgo.size()));
             }else{
                 averagescore=sumofscore /(idswithgo.size()-1);
-            }
+            }*/
 
 
         }
@@ -316,7 +347,7 @@ int main(int argc, char **argv)
         cf->convertDomainFileToFFindex(domainscorefile,domainIdentifierFile,outputfile);
 
     }else if (strcmp(argv[1],"-ds")==0) {
-        if (argc != 7) {
+        if (argc != 8) {
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -326,13 +357,19 @@ int main(int argc, char **argv)
         std::string suffix = argv[4];
         std::string outputfile = argv[5];
         char * comparisonmode=argv[6];
+        char * randomnmode=argv[7];
         bool allagainstall=false;
+        bool randomized=false;
         if(strcmp(comparisonmode,"yes")==0){
             allagainstall=true;
             Debug(Debug::INFO)<<"all against all comparison";
         }
+        if(strcmp(randomnmode,"yes")==0){
+            randomized=true;
+            Debug(Debug::INFO)<<"randomized representative comparison";
+        }
         convertfiles *cf = new convertfiles();
-        cf->getDomainScoresForCluster(clusteringfile,alignmentfile,outputfile,suffix,allagainstall);
+        cf->getDomainScoresForCluster(clusteringfile,alignmentfile,outputfile,suffix,allagainstall,randomized);
 
     }else if (strcmp(argv[1],"-clusterToTsv")==0) {
         if (argc != 5) {
@@ -472,12 +509,12 @@ int numberofthreads=1;
 
 void printHelp() {
     std::string usage("\nEvaluation commands\n");
-    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
-    usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
-    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
+    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) >\n");
+    usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) >\n");
+    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) >\n");
     usage.append("-cs <clustering_file> <alignment_file> <outputfile>\n");
     usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile>\n");
-    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) >\n");
+    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) >\n");
     usage.append("-clusterToTsv <clustering_file> <prefix> <outputfolder>\n");
     usage.append("-af  <seqDbfile> <alignmentfile> <outputfile> <cutoff> <scoretype: 1-5>\n");
 
