@@ -32,7 +32,7 @@ Parameters::Parameters():
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "Maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "[1-9]{1}[0-9]*"),
 // clustering
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster",typeid(float), (void *) &seqIdThr, "\\d*(\\.\\d+)?"),
-        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 affinity clustering, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-2]{1}"),
+        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 affinity clustering, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-8]{1}"),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "\tStart the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
 //affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max iterations affinity", "[int]\tMaximum number of iterations in affinity propagation clustering",typeid(int), (void *) &maxIteration,  "[1-9]{1}[0-9]*"),
