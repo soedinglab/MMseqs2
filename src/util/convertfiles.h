@@ -13,7 +13,7 @@ public:
 
     void convertDomainFileToFFindex(std::string domainscorefile, std::string domainIdentifierFile, std::string outputfile);
 
-    void getDomainScoresForCluster(std::string clusteringfile, std::string alignmentfile, std::string outputfolder, std::string prefix, bool allagainstall);
+    void getDomainScoresForCluster(std::string clusteringfile, std::string alignmentfile, std::string outputfolder, std::string prefix, bool allagainstall,bool randomized);
 
     void convertFfindexToTsv(std::string clusteringfile, std::string prefix, std::string outputfolder);
 };

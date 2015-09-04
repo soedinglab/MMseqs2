@@ -28,7 +28,7 @@ public:
                                          std::string cluster_ffindex_indexfile,
                                          std::string fileprefix,
                                          std::string filesuffix,
-                                                bool allagainstall);
+                                                bool allagainstall,bool randomized);
 
     ~CompareGOTerms();
 
