@@ -3,54 +3,52 @@
 #include "Debug.h"
 #include "Util.h"
 #include <iomanip>
-#include <regex>
-
 
 Parameters::Parameters():
-        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","[int]\tSensitivity in the range [1:10]. From low (1) to high (10) sensitivity.", typeid(int), (void *) &sensitivity, "[1-9]{1}"),
-        PARAM_K(PARAM_K_ID,"-k", "K-mer size", "[int]\tk-mer size in the range [4:7]",typeid(int),  (void *) &kmerSize, "[6-7]{1}"),
-        PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "[int]\tNumber of cores used for the computation",typeid(int), (void *) &threads, "[1-9]{1}[0-9]*"),
-        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "[int]\tAmino acid alphabet size",typeid(int),(void *) &alphabetSize, "[6-7]{1}"),
-        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "[int]\tMaximum sequence length",typeid(int), (void *) &maxSeqLen, "[1-9]{1}[0-9]*"),
+        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","[int]\tSensitivity in the range [1:10]. From low (1) to high (10) sensitivity.", typeid(int), (void *) &sensitivity, "^[1-9]\{1\}$"),
+        PARAM_K(PARAM_K_ID,"-k", "K-mer size", "[int]\tk-mer size in the range [4:7]",typeid(int),  (void *) &kmerSize, "^[6-7]\{1\}$"),
+        PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "[int]\tNumber of cores used for the computation",typeid(int), (void *) &threads, "^[1-9]\{1\}[0-9]*$"),
+        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "[int]\tAmino acid alphabet size",typeid(int),(void *) &alphabetSize, "^[6-7]\{1\}$"),
+        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "[int]\tMaximum sequence length",typeid(int), (void *) &maxSeqLen, "^[1-9]\{1\}[0-9]*$"),
         PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "\tHMM Profile input",typeid(bool),(void *) &profile, ""),
         PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotid","\tNucleotide sequences input",typeid(bool),(void *) &nucl , ""),
-        PARAM_Z_SCORE(PARAM_Z_SCORE_ID,"--z-score", "Z-Score threshold", "[float]\tZ-score threshold (only implemented in global search mode)",typeid(float),(void *) &zscoreThr, "\\d*(\\.\\d+)?"),
-        PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "[int]\tSet the K-mer threshold for the K-mer generation",typeid(int),(void *) &kmerScore,  "[1-9]{1}[0-9]*"),
-        PARAM_SKIP(PARAM_SKIP_ID,"--skip", "Skip", "[int]\tNumber of skipped k-mers during the index table generation",typeid(int),(void *) &skip,  "[1-9]{1}[0-9]*"),
-        PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "[int]\tMaximum result sequences per query",typeid(int),(void *) &maxResListLen, "[1-9]{1}[0-9]*"),
-        PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "[int]\tSplits target set in n equally distributed chunks",typeid(int),(void *) &split,  "[1-9]{1}[0-9]*"),
-        PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "[int]\tMPI Option: Target set: 0 (low memory) or query set: 1 (faster but memory intensiv)",typeid(int),(void *) &splitMode,  "[0-1]{1}"),
-        PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","\tTry to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, ""),
+        PARAM_Z_SCORE(PARAM_Z_SCORE_ID,"--z-score", "Z-Score threshold", "[float]\tZ-score threshold (only implemented in global search mode)",typeid(float),(void *) &zscoreThr, "^[0-9]*(\\.[0-9])?$"),
+        PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "[int]\tSet the K-mer threshold for the K-mer generation",typeid(int),(void *) &kmerScore,  "^[1-9]\{1\}[0-9]*$"),
+        PARAM_SKIP(PARAM_SKIP_ID,"--skip", "Skip", "[int]\tNumber of skipped k-mers during the index table generation",typeid(int),(void *) &skip,  "^[1-9]\{1\}[0-9]*$"),
+        PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "[int]\tMaximum result sequences per query",typeid(int),(void *) &maxResListLen, "^[1-9]\{1\}[0-9]*$"),
+        PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "[int]\tSplits target set in n equally distributed chunks",typeid(int),(void *) &split,  "^[1-9]\{1\}[0-9]*$"),
+        PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "[int]\tMPI Option: Target set: 0 (low memory) or query set: 1 (faster but memory intensiv)",typeid(int),(void *) &splitMode,  "^[0-1]\{1\}$"),
+        PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","\tTry to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$"),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "[file]\tAmino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, ""),
-        PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Global: 0 Local: 1 Local fast: 2",typeid(int), (void *) &searchMode, "[0-2]{1}"),
+        PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Global: 0 Local: 1 Local fast: 2",typeid(int), (void *) &searchMode, "^[0-2]\{1\}$"),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--no-comp-bias-corr", "Compositional bias","Switch off local amino acid composition bias correction",typeid(bool), (void *) &compBiasCorrection, ""),
-        PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "[int]\tSpaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "[0-1]{1}" ),
+        PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "[int]\tSpaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]\{1\}" ),
         PARAM_KEEP_TEMP_FILES(PARAM_KEEP_TEMP_FILES_ID,"--keep-tmp-files", "Keep-tmp-files" ,"\tDo not delete temporary files.",typeid(bool),(void *) &keepTempFiles, ""),
 // alignment
-        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "Maximum e-value",typeid(float), (void *) &evalThr, "\\d*(\\.\\d+)?"),
-        PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "Minimum alignment coverage",typeid(float), (void *) &covThr, "0(\\.\\d+)?|1\\.0"),
-        PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "Maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "[1-9]{1}[0-9]*"),
+        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "Maximum e-value",typeid(float), (void *) &evalThr, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "Minimum alignment coverage",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$"),
+        PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "Maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]\{1\}[0-9]*$"),
 // clustering
-        PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster",typeid(float), (void *) &seqIdThr, "\\d*(\\.\\d+)?"),
-        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 affinity clustering, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-2]{1}"),
+        PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
+        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 affinity clustering, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-2]\{1\}$"),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "\tStart the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
 //affinity clustering
-        PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max iterations affinity", "[int]\tMaximum number of iterations in affinity propagation clustering",typeid(int), (void *) &maxIteration,  "[1-9]{1}[0-9]*"),
-        PARAM_CONVERGENCEITERATIONS(PARAM_CONVERGENCEITERATIONS_ID,"--convergence_iterations", "Convergence iterations", "[int]\t Number of iterations the set of representatives has to stay constant",typeid(int), (void *) &convergenceIterations,  "[1-9]{1}[0-9]*"),
-        PARAM_DAMPING(PARAM_DAMPING_ID,"--damping", "Damping", "Ratio of previous iteration entering values. Value between [0.5:1).",typeid(float), (void *) &dampingFactor, "\\d*(\\.\\d+)?"),
-        PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "Type of score used for clustering [1:5]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column ",typeid(int),(void *) &similarityScoreType,  "[1-9]{1}[0-9]*"),
-        PARAM_PREFERENCE(PARAM_PREFERENCE_ID,"--preference", "Preference", "Preference value influences the number of clusters (default=0). High values lead to more clusters.",typeid(float), (void *) &preference, "\\d*(\\.\\d+)?"),
+        PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max iterations affinity", "[int]\tMaximum number of iterations in affinity propagation clustering",typeid(int), (void *) &maxIteration,  "^[1-9]\{1\}[0-9]*$"),
+        PARAM_CONVERGENCEITERATIONS(PARAM_CONVERGENCEITERATIONS_ID,"--convergence_iterations", "Convergence iterations", "[int]\t Number of iterations the set of representatives has to stay constant",typeid(int), (void *) &convergenceIterations,  "^[1-9]\{1\}[0-9]*$"),
+        PARAM_DAMPING(PARAM_DAMPING_ID,"--damping", "Damping", "Ratio of previous iteration entering values. Value between [0.5:1).",typeid(float), (void *) &dampingFactor, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "Type of score used for clustering [1:5]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column ",typeid(int),(void *) &similarityScoreType,  "^[1-9]\{1\}[0-9]*$"),
+        PARAM_PREFERENCE(PARAM_PREFERENCE_ID,"--preference", "Preference", "Preference value influences the number of clusters (default=0). High values lead to more clusters.",typeid(float), (void *) &preference, "^[0-9]*(\\.[0-9]+)?$"),
 // logging
-        PARAM_V(PARAM_V_ID,"-v", "Verbosity","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "[0-3]{1}"),
+        PARAM_V(PARAM_V_ID,"-v", "Verbosity","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]\{1\}$"),
 // clustering workflow
         PARAM_RESTART(PARAM_RESTART_ID, "--restart", "Restart","[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
-                "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering",typeid(int),(void *) &restart, "[0-3]{1}"),
-        PARAM_STEP(PARAM_STEP_ID, "--step","Step","[int]\t\tRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the set merging",typeid(int),(void *) &step, "[0-4]{1}"),
+                "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering",typeid(int),(void *) &restart, "^[0-3]\{1\}$"),
+        PARAM_STEP(PARAM_STEP_ID, "--step","Step","[int]\t\tRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the set merging",typeid(int),(void *) &step, "^[0-4]\{1\}$"),
 // search workflow
-        PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","[int]\tSearch iterations",typeid(int),(void *) &numIterations, "[1-9]{1}[0-9]*"),
-        PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min orf length", "[int]\t\tMinimum length of open reading frame to be extracted from fasta file",typeid(int),(void *) &orfMinLength, "[1-9]{1}[0-9]*"),
-        PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max orf length", "[int]\t\tMaximum length of open reading frame to be extracted from fasta file.",typeid(int),(void *) &orfMaxLength, "[1-9]{1}[0-9]*"),
-        PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "[1-9]{1}[0-9]*"),
+        PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","[int]\tSearch iterations",typeid(int),(void *) &numIterations, "^[1-9]\{1\}[0-9]*$"),
+        PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min orf length", "[int]\t\tMinimum length of open reading frame to be extracted from fasta file",typeid(int),(void *) &orfMinLength, "^[1-9]\{1\}[0-9]*$"),
+        PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max orf length", "[int]\t\tMaximum length of open reading frame to be extracted from fasta file.",typeid(int),(void *) &orfMaxLength, "^[1-9]\{1\}[0-9]*$"),
+        PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^[1-9]\{1\}[0-9]*$"),
         PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "\tSkip orfs that have only an end or only a start",typeid(bool),(void *) &orfSkipIncomplete, "")
 {
     // alignment
@@ -142,6 +140,15 @@ Parameters::~Parameters(){
 }
 
 
+int Parameters::compileRegex(regex_t * regex, const char * regexText){
+    int status = regcomp(regex, regexText, REG_EXTENDED | REG_NEWLINE);
+    if (status != NULL ){
+        Debug(Debug::INFO) << "Error in regex " << regexText << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return 0;
+}
+
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -169,23 +176,30 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
                 if(parameter.compare(par[parIdx].name) == 0) {
                     if (typeid(int) == par[parIdx].type) {
-                        std::regex regex (par[parIdx].regex);
-                        if (std::regex_match (pargv[argIdx+1], regex)){
-                            *((int *) par[parIdx].value) = atoi(pargv[argIdx+1]);
-                        }else{
+                        regex_t regex;
+                        compileRegex(&regex, par[parIdx].regex);
+                        int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
+                        regfree(&regex);
+                        // if no match found or two matches found (we want exactly one match)
+                        if (nomatch){
                             printUsageMessage(programUsageHeader, par);
                             Debug(Debug::INFO) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
+                        }else{
+                            *((int *) par[parIdx].value) = atoi(pargv[argIdx+1]);
                         }
                         argIdx++;
                     } else if (typeid(float) == par[parIdx].type) {
-                        std::regex regex (par[parIdx].regex);
-                        if (std::regex_match (pargv[argIdx+1], regex)){
-                            *((float *) par[parIdx].value) = atof(pargv[argIdx+1]);
-                        }else{
+                        regex_t regex;
+                        compileRegex(&regex, par[parIdx].regex);
+                        int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
+                        regfree(&regex);
+                        if (nomatch){
                             printUsageMessage(programUsageHeader, par);
                             Debug(Debug::INFO) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
+                        }else{
+                            *((float *) par[parIdx].value) = atof(pargv[argIdx+1]);
                         }
                         argIdx++;
                     } else if (typeid(std::string) == par[parIdx].type) {

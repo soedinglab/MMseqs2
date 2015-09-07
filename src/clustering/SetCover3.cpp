@@ -135,8 +135,8 @@ std::list<set *>  SetCover3::execute(int mode) {
     gettimeofday(&start, NULL);
     //time
     Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
-    alnDbr->unmapMemory();
-    seqDbr->unmapMemory();
+    alnDbr->remapData();
+    seqDbr->remapData();
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable,elementScoreLookupTable);
     // set element edge pointers by using the offset table
     AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
@@ -180,8 +180,6 @@ std::list<set *>  SetCover3::execute(int mode) {
     memset(assignedcluster, -1, sizeof(int)*(n));
     short* bestscore=new short[n];
     memset(bestscore, -10, sizeof(short)*(n));
-
-
 
     //time
     gettimeofday(&end, NULL);
