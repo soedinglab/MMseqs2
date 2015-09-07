@@ -8,6 +8,7 @@
 #include <vector>
 #include <map>
 #include <typeinfo>
+#include <regex.h>
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
@@ -20,9 +21,9 @@ struct MMseqsParameter {
     const char *description;
     const std::type_info &type;
     void * value;
-    const std::string regex;
+    const char * regex;
     MMseqsParameter(int uid,const char * n, const char *display,
-                    const char * d, const std::type_info &hash, void * value, std::string regex):
+                    const char * d, const std::type_info &hash, void * value, const char * regex):
                     uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex){}
 };
 
@@ -237,7 +238,7 @@ public:
 
     std::string createParameterString(std::vector < MMseqsParameter > vector);
 
-
+    int compileRegex(regex_t *regex, const char *regexText);
 };
 
 #endif

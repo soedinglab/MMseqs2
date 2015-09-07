@@ -85,11 +85,11 @@ void DBReader::open(int sort){
     closed = 0;
 }
 
-void DBReader::unmapMemory(){
+void DBReader::remapData(){
     if(dataMode == DATA_AND_INDEX){
         munmap(data, dataSize);
+        data = ffindex_mmap_data(dataFile, &dataSize);
     }
-    munmap(index->index_data, index->index_data_size);
 }
 
 void DBReader::close(){

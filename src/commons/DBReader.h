@@ -56,7 +56,7 @@ class DBReader {
 
         unsigned int * getSeqLens();
 
-        void unmapMemory();
+        void remapData();
 
         // does a binary search in the ffindex and returns index of the entry with dbKey
         // returns UINT_MAX if the key is not contained in index
