@@ -29,7 +29,8 @@ std::list<set *>  SetCover3::execute(int mode) {
     gettimeofday(&start, NULL);
     ///time
     clustersizes=new int[dbSize];
-    memset(clustersizes,0,dbSize);
+    std::fill_n(clustersizes,dbSize,0);
+
 
     const char * data = alnDbr->getData();
     size_t dataSize = alnDbr->getDataSize();
@@ -121,9 +122,9 @@ std::list<set *>  SetCover3::execute(int mode) {
 
     // resize elements
     elements = new unsigned int[newElementCount];
-    memset(elements, 0, sizeof( unsigned int) * (newElementCount ));
+    std::fill_n(elements, newElementCount, 0);
     unsigned short *scoreelements=new unsigned short[newElementCount];
-    memset(scoreelements, 0, sizeof( unsigned short) * (newElementCount ));
+    std::fill_n(scoreelements, newElementCount, 0);
     unsigned short **elementScoreLookupTable= new unsigned short*[dbSize];
     Debug(Debug::WARNING) << "\nFound "<< newElementCount - elementCount << " new connections.\n";
     AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
@@ -177,9 +178,9 @@ std::list<set *>  SetCover3::execute(int mode) {
     std::list<set *> result;
     size_t n = seqDbr->getSize();
     int* assignedcluster=new int[n];
-    memset(assignedcluster, -1, sizeof(int)*(n));
+    std::fill_n(assignedcluster, n, -1);
     short* bestscore=new short[n];
-    memset(bestscore, -10, sizeof(short)*(n));
+    std::fill_n(bestscore, n, -10);
 
     //time
     gettimeofday(&end, NULL);
@@ -286,11 +287,11 @@ std::list<set *>  SetCover3::execute(int mode) {
     }else if (mode==2){
         Debug(Debug::INFO)<<"connected component mode"<<"\n";
         int* ranks=new int[n];
-        memset(ranks, 0, sizeof(int)*(n));
+        std::fill_n(ranks, n, 0);
         int* incommingconnections=new int[n];
-        memset(incommingconnections, 0, sizeof(int)*(n));
+        std::fill_n(incommingconnections, n, 0);
         int* connactionswithsamerank=new int[n];
-        memset(connactionswithsamerank, 0, sizeof(int)*(n));
+        std::fill_n(connactionswithsamerank, n, 0);
         int connectioncutoff=2;
         for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
             //  for (int cl_size =0 ;cl_size<dbSize ; cl_size++) {
@@ -415,7 +416,8 @@ std::list<set *>  SetCover3::execute(int mode) {
 
 void SetCover3::initClustersizes(){
     int * setsize_abundance=new int[maxClustersize+1];
-    memset(setsize_abundance,0,sizeof(int)*(maxClustersize+1));
+
+    std::fill_n(setsize_abundance,maxClustersize+1,0);
     //count how often a set size occurs
     for (int i = 0; i < dbSize; ++i) {
         setsize_abundance[clustersizes[i]]++;
@@ -428,11 +430,11 @@ void SetCover3::initClustersizes(){
     }
     //fill array
     sorted_clustersizes =new int [dbSize];
-    memset(sorted_clustersizes,0,sizeof(int)*dbSize);
+    std::fill_n(sorted_clustersizes,dbSize+1,0);
     clusterid_to_arrayposition=new int[dbSize];
-    memset(clusterid_to_arrayposition,0,sizeof(int)*dbSize);
+    std::fill_n(clusterid_to_arrayposition,dbSize+1,0);
     //reuse setsize_abundance as offset counter
-    memset(setsize_abundance,0,sizeof(int)*(maxClustersize+1));
+    std::fill_n(setsize_abundance,maxClustersize+1,0);
     for (int i = 0; i < dbSize; ++i) {
         int position=borders_of_set[clustersizes[i]]+setsize_abundance[clustersizes[i]];
         sorted_clustersizes[position]=i;

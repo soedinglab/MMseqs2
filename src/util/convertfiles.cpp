@@ -218,7 +218,7 @@ void convertfiles::convertDomainFileToFFindex(std::string domainscorefile, std::
 }
 
 void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::string alignmentfile,
-                                                std::string outputfolder, std::string prefix, bool allagainstall) {
+                                                std::string outputfolder, std::string prefix, bool allagainstall,bool randomized) {
    // Debug(Debug::INFO) <<clusteringfile <<alignmentfile<< outputfolder;
 
     std::string cluster_ffindex_indexfile=clusteringfile+".index";

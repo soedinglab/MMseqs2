@@ -287,7 +287,7 @@ void  CompareGOTerms::compute_parentnodes(std::set<int>& result,int id){
 void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex,
                                                      std::string cluster_ffindex_indexfile,
                                                      std::string fileprefix,
-                                                     std::string filesuffix, bool allagainstall) {
+                                                     std::string filesuffix, bool allagainstall, bool randomized) {
     Debug(Debug::INFO) << "Opening clustering database...\n";
     DBReader* cluster_ffindex_reader = new DBReader(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
     cluster_ffindex_reader->open(DBReader::SORT);
@@ -351,7 +351,13 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
 
                 data = Util::skipLine(data);
             }
+
             for(std::string id1:idswithgo){
+                if(randomized){
+                    std::list<std::string>::iterator i = idswithgo.begin();
+                    std::advance(i, rand()%idswithgo.size());
+                    id1=*i;
+                }
                 for(std::string id2:idswithgo){
                     if (std::string(id1) != std::string(id2)) {
                         double score = compare_protein_ids((char *) id1.c_str(), (char *) id2.c_str());
