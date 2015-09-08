@@ -52,7 +52,7 @@ int prefilter(int argc, const char **argv)
     gettimeofday(&start, NULL);
 
 #ifdef HAVE_MPI
-    pref->run(MMseqsMPI::rank, MMseqsMPI::numProc, par.splitMode);
+    pref->run(MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
     pref->run();
 #endif
