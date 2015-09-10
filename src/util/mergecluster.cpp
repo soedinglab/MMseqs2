@@ -137,7 +137,7 @@ int mergecluster(int argc,const char **argv)
     Parameters par;
     par.parseParameters(argc, argv, usage, par.onlyverbosity, 4);
     std::list<std::string> clusterings;
-    for(int i = 3; i < argc; i++){
+    for(int i = 2; i < argc; i++){
         clusterings.push_back(std::string(argv[i]));
     }
     mergeClusteringResults(par.db1, par.db2, clusterings);
