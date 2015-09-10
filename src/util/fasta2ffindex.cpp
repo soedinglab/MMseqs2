@@ -46,7 +46,7 @@ int createdb(int argn,const char **argv)
 {
     int err = EXIT_SUCCESS;
 
-    if(argn  <  3)
+    if(argn  <  2)
     {
         usage();
         return EXIT_FAILURE;
