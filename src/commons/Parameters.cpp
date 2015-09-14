@@ -368,7 +368,7 @@ void Parameters::setDefaults() {
     orfMinLength = 1;
     orfMaxLength = SIZE_MAX;
     orfMaxGaps = SIZE_MAX;
-    orfSkipIncomplete = true;
+    orfSkipIncomplete = false;
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> par1,
