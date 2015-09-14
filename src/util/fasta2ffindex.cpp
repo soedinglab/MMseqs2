@@ -52,8 +52,8 @@ int createdb(int argn,const char **argv)
         return EXIT_FAILURE;
     }
 
-    char *fasta_filename = (char *)   argv[optind++];
-    char *data_filename  = (char *)   argv[optind++];
+    char *fasta_filename = (char *)   argv[0];
+    char *data_filename  = (char *)   argv[1];
     std::string index_filename_str(data_filename);
     index_filename_str.append(".index");
     char *index_filename = (char *) index_filename_str.c_str();
