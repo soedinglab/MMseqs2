@@ -102,6 +102,7 @@ Parameters::Parameters():
 
     // create profile db
     createprofiledb.push_back(PARAM_SUB_MAT);
+    createprofiledb.push_back(PARAM_THREADS);
     createprofiledb.push_back(PARAM_V);
 
     // extract orf
