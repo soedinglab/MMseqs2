@@ -353,7 +353,7 @@ void Parameters::setDefaults() {
     maxIteration=1000;
     convergenceIterations=100;
     dampingFactor=0.6;
-    similarityScoreType=APC_BITSCORE;
+    similarityScoreType=APC_SEQID;
     preference=0;
 
     // Clustering workflow
