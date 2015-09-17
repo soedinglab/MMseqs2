@@ -11,13 +11,14 @@
 #include "AlignmentSymmetry.h"
 #include <queue>
 
-SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage, int threads){
+SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage, int threads, int scoretype){
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
     this->seqIdThr=seqIdThr;
     this->coverage=coverage;
     this->dbSize=alnDbr->getSize();
     this->threads=threads;
+    this->scoretype=scoretype;
 }
 
 std::list<set *>  SetCover3::execute(int mode) {
@@ -138,7 +139,7 @@ std::list<set *>  SetCover3::execute(int mode) {
     Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
     alnDbr->remapData();
     seqDbr->remapData();
-    AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable,elementScoreLookupTable);
+    AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable,elementScoreLookupTable,scoretype);
     // set element edge pointers by using the offset table
     AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
     AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets, dbSize);

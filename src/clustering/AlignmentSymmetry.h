@@ -16,7 +16,7 @@ public:
 
     void  execute();
     static void readInData(DBReader *pReader, DBReader *pDBReader, unsigned int **pInt);
-    static void readInData(DBReader *pReader, DBReader *pDBReader, unsigned int **pInt,unsigned short**elementScoreTable);
+    static void readInData(DBReader *pReader, DBReader *pDBReader, unsigned int **pInt,unsigned short**elementScoreTable, int scoretype);
 
     static void computeOffsetTable(size_t *elementSizes, size_t dbSize);
 
