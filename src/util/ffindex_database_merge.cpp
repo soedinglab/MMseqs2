@@ -15,7 +15,7 @@ void parseArgs(int argc, const char** argv,
 	       std::string* ffindexSeqDB, 
 	       std::string* ffindexOutDB, 
 	       std::vector<std::pair<std::string,std::string> > * files){
-    if (argc < 3){
+    if (argc < 2){
         printUsageFFindexMergeDb();
         exit(EXIT_FAILURE);
     }

@@ -101,7 +101,7 @@ void PSSMCalculator::preparePseudoCounts(float *frequency, float *frequency_with
     for (size_t pos = 0; pos < queryLength; pos++) {
         for (size_t aa = 0; aa < 20; aa++) {
             frequency_with_pseudocounts[pos * Sequence::PROFILE_AA_SIZE + aa] = ScalarProd20(&R[aa * Sequence::PROFILE_AA_SIZE],
-                    &frequency[pos * Sequence::PROFILE_AA_SIZE]);
+                                                                                             &frequency[pos * Sequence::PROFILE_AA_SIZE]);
         }
     }
 }
@@ -127,7 +127,7 @@ inline float PSSMCalculator::NormalizeTo1(float* array, int length, const double
 }
 
 void PSSMCalculator::computeNeff_M(float *frequency, float *seqWeight, float *Neff_M,
-        size_t queryLength, size_t setSize, char const **msaSeqs) {
+                                   size_t queryLength, size_t setSize, char const **msaSeqs) {
     float Neff_HMM = 0.0f;
     for (size_t pos = 0; pos < queryLength; pos++) {
         float sum = 0.0f;
@@ -188,17 +188,21 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
                 ++distinct_aa_count;
             }
         }
-        if(distinct_aa_count == 0){
-            Debug(Debug::ERROR) << "Error in computeSequenceWeights. Distinct amino acid count is 0.\n";
-            EXIT(EXIT_FAILURE);
-        }
+//        if(distinct_aa_count == 0){
+//            Debug(Debug::ERROR) << "Error in computeSequenceWeights. Distinct amino acid count is 0.\n";
+//            EXIT(EXIT_FAILURE);
+//        }
         // Compute sequence Weight
         // "Position-based Sequence Weights", Henikoff (1994)
         for (size_t k = 0; k < setSize; ++k) {
             if (msaSeqs[k][pos] != '-') {
-                const unsigned int aa_pos = subMat->aa2int[(int)msaSeqs[k][pos]];
-                if(aa_pos < Sequence::PROFILE_AA_SIZE){ // Treat score of X with other amino acid as 0.0
-                    seqWeight[k] += 1.0f / (float(nl[aa_pos]) * float(distinct_aa_count) * (float(number_res[k]) + 30.0f));
+                if(distinct_aa_count == 0){
+                    seqWeight[k] += 0.0;
+                } else {
+                    const unsigned int aa_pos = subMat->aa2int[(int)msaSeqs[k][pos]];
+                    if(aa_pos < Sequence::PROFILE_AA_SIZE){ // Treat score of X with other amino acid as 0.0
+                        seqWeight[k] += 1.0f / (float(nl[aa_pos]) * float(distinct_aa_count) * (float(number_res[k]) + 30.0f));
+                    }
                 }
                 // ensure that each residue of a short sequence contributes as much as a residue of a long sequence:
                 // contribution is proportional to one over sequence length nres[k] plus 30.

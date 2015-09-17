@@ -1,3 +1,3 @@
 [submodule "lib/ffindex"]
 	path = lib/ffindex
-	url = git@bitbucket.org:soedinglab/ffindex.git
+	url = git@github.com:soedinglab/ffindex.git

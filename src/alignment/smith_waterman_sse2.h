@@ -43,7 +43,6 @@ typedef struct {
 
 
 typedef struct {
-    uint16_t rawScore1;
 	uint16_t score1;
 	uint16_t score2;
 	int32_t dbStartPos1;
@@ -164,7 +163,7 @@ private:
         simd_int* profile_rev_word;	// 0: none
         int8_t* query_sequence;
         int8_t* query_rev_sequence;
-        const int8_t* mat;
+        int8_t* mat;
         // Memory layout of if mat + profile is qL * AA
         //    Query lenght
         // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3

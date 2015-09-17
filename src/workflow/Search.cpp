@@ -35,12 +35,12 @@ int search (int argc, const char * argv[]) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.createprofiledb));
-        cmd.callProgram(par.mmdir + "/bin/blastpgp.sh", (argv + 1), 4);
+        cmd.callProgram(par.mmdir + "/bin/blastpgp.sh", argv , 4);
     } else {
         CommandCaller cmd;
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
-        cmd.callProgram(par.mmdir + "/bin/blastp.sh", (argv + 1), 4);
+        cmd.callProgram(par.mmdir + "/bin/blastp.sh", argv, 4);
     }
     return 0;
 }
