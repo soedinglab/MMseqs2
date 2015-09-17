@@ -36,6 +36,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         targetSeqType(par.targetSeqType),
         aaBiasCorrection(par.compBiasCorrection),
         split(par.split),
+        splitMode(par.splitMode),
         skip(par.skip),
         searchMode(par.searchMode)
 {
@@ -138,21 +139,21 @@ void Prefiltering::run(){
     // splits template database into x sequence steps
     unsigned int splitCounter =  this->split;
     std::vector<std::pair<std::string, std::string> > splitFiles;
-    if(splitCounter > 1){
+    if(splitCounter > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
         maxResListLen = (maxResListLen / splitCounter)  + 1;
     }
     for(unsigned int split = 0; split < splitCounter; split++){
         std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(outDB,outDBIndex,split);
         splitFiles.push_back(filenamePair);
 
-        this->run(split, splitCounter, Parameters::TARGET_DB_SPLIT, filenamePair.first.c_str(),
+        this->run(split, splitCounter, splitMode, filenamePair.first.c_str(),
                   filenamePair.second.c_str());
 
     } // prefiltering scores calculation end
 
     // merge output ffindex databases
     if(splitCounter > 1){
-        this->mergeOutput(splitFiles);
+        mergeFiles(splitFiles, splitMode);
     }else{
         std::rename(splitFiles[0].first.c_str(),  outDB.c_str());
         std::rename(splitFiles[0].second.c_str(), outDBIndex.c_str());
@@ -204,7 +205,7 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
 
 }
 
-void Prefiltering::run(int mpi_rank, int mpi_num_procs, int splitMode) {
+void Prefiltering::run(int mpi_rank, int mpi_num_procs) {
 
     std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(outDB, outDBIndex, mpi_rank);
     if(splitMode == Parameters::TARGET_DB_SPLIT){
@@ -221,17 +222,7 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs, int splitMode) {
             splitFiles.push_back(Util::createTmpFileNames(outDB, outDBIndex, procs));
         }
         // merge output ffindex databases
-        if(splitMode == Parameters::TARGET_DB_SPLIT){
-            this->mergeOutput(splitFiles);
-        }else if (splitMode == Parameters::QUERY_DB_SPLIT){
-            const char * datafilesNames[splitFiles.size()];
-            const char * indexFilesNames[splitFiles.size()];
-            for(size_t i = 0; i < splitFiles.size(); i++){
-                datafilesNames[i] = splitFiles[i].first.c_str();
-                indexFilesNames[i] = splitFiles[i].second.c_str();
-            }
-            DBWriter::mergeFFindexFile(outDB.c_str(), outDBIndex.c_str(), "w", datafilesNames, indexFilesNames, splitFiles.size() );
-        }
+        mergeFiles(splitFiles, splitMode);
         // remove temp databases
         // this->removeDatabaes(splitFiles);
         // close reader to reduce memory
@@ -293,9 +284,6 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
 
     DBWriter tmpDbw(resultDB.c_str(), resultDBIndex.c_str(), threads);
     tmpDbw.open();
-    size_t queryDBSize = qdbr->getSize();
-
-    memset(notEmpty, 0, queryDBSize * sizeof(int)); // init notEmpty
 
     size_t dbFrom = 0;
     size_t dbSize =  tdbr->getSize();
@@ -309,7 +297,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
         Util::decomposeDomainByAminoaAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
                                       split, splitCount, &queryFrom, &querySize);
-        indexTable = getIndexTable(0, dbFrom, dbSize);
+        indexTable = getIndexTable(0, dbFrom, dbSize); // create the whole index table
     } else{
         Debug(Debug::ERROR) << "Wrong split mode. This should not happen. Please contact developer.\n";
         EXIT(EXIT_FAILURE);
@@ -327,7 +315,8 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens() + dbFrom,
+    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable,
+                                                                  tdbr->getSeqLens() + dbFrom, // offset for split mode
                                                                   kmerThr, kmerMatchProb, kmerSize,
                                                                   qseq[0]->getEffectiveKmerSize(), dbSize,
                                                                   aaBiasCorrection, maxSeqLen, zscoreThr, searchMode,
@@ -339,6 +328,9 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     size_t resSize = 0;
     size_t realResSize = 0;
     size_t diagonalOverflow = 0;
+    size_t totalQueryDBSize = querySize;
+    memset(notEmpty + queryFrom, 0, totalQueryDBSize * sizeof(int)); // init notEmpty
+
     Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step "<< split << " of " << splitCount << ")\n";
     Debug(Debug::WARNING) << "Query db start  "<< queryFrom << " to " << queryFrom + querySize << "\n";
     Debug(Debug::WARNING) << "Target db start  "<< dbFrom << " to " << dbFrom + dbSize << "\n";
@@ -382,13 +374,17 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
         reslens[thread_idx]->push_back(resultSize);
     } // step end
 
-    statistics_t stats(kmersPerPos/queryDBSize, dbMatches/queryDBSize, doubleMatches/queryDBSize,
-                       querySeqLenSum, diagonalOverflow, resSize/queryDBSize);
+    statistics_t stats(kmersPerPos/ totalQueryDBSize, dbMatches/ totalQueryDBSize, doubleMatches/ totalQueryDBSize,
+                       querySeqLenSum, diagonalOverflow, resSize/ totalQueryDBSize);
+    size_t empty = 0;
+    for (size_t id = queryFrom; id < queryFrom + querySize; id++){
+        if (notEmpty[id] == 0){
+            empty++;
+        }
+    }
+    this->printStatistics(stats, empty);
 
-    this->printStatistics(stats);
-
-
-    if (queryDBSize > 1000)
+    if (totalQueryDBSize > 1000)
         Debug(Debug::INFO) << "\n";
     Debug(Debug::WARNING) << "\n";
 
@@ -402,20 +398,24 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     tmpDbw.close(); // sorts the index
+
+
     // needed to speed up merge later one
-    // this sorts this datafile according to the index file
-    if(splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT){
-        DBReader tmpDbr(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
-        tmpDbr.open(DBReader::NOSORT);
-        DBWriter tmpDbw2((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
-        tmpDbw2.open();
-        tmpDbw2.sortDatafileByIdOrder(&tmpDbr);
-        tmpDbr.close();
-        tmpDbw2.close();
-        remove(resultDB.c_str());
-        remove(resultDBIndex.c_str());
-        std::rename((resultDB+"_tmp").c_str(), resultDB.c_str());
-        std::rename((resultDBIndex+"_tmp").c_str(), resultDBIndex.c_str());
+    // sorts this datafile according to the index file
+    if(splitMode == Parameters::TARGET_DB_SPLIT) {
+        if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
+            DBReader tmpDbr(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
+            tmpDbr.open(DBReader::NOSORT);
+            DBWriter tmpDbw2((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
+            tmpDbw2.open();
+            tmpDbw2.sortDatafileByIdOrder(&tmpDbr);
+            tmpDbr.close();
+            tmpDbw2.close();
+            remove(resultDB.c_str());
+            remove(resultDBIndex.c_str());
+            std::rename((resultDB + "_tmp").c_str(), resultDB.c_str());
+            std::rename((resultDBIndex + "_tmp").c_str(), resultDBIndex.c_str());
+        }
     }
 }
 
@@ -466,15 +466,7 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
 }
 
 
-void Prefiltering::printStatistics(statistics_t &stats){
-
-    size_t empty = 0;
-    for (unsigned int i = 0; i < qdbr->getSize(); i++){
-        if (notEmpty[i] == 0){
-            //Debug(Debug::INFO) << "No prefiltering results for id " << i << ", " << qdbr->getDbKey(i) << ", len = " << strlen(qdbr->getData(i)) << "\n";
-            empty++;
-        }
-    }
+void Prefiltering::printStatistics(statistics_t &stats, size_t empty) {
     // sort and merge the result list lengths (for median calculation)
     reslens[0]->sort();
     for (int i = 1; i < threads; i++){
@@ -584,7 +576,9 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
     return indexTable;
 }
 
-std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader *qdbr, DBReader *tdbr,
+std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable,
+                                                        DBReader *qdbr,
+                                                        DBReader *tdbr,
                                                         int sensitivity,
                                                         double toleratedDeviation, const int kmerScore) {
 
@@ -695,4 +689,18 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
 
     return statistics_t(kmersPerPos / (double)querySetSize, dbMatchesSum, doubleMatches,
                         querySeqLenSum, diagonalOverflow, resultsPassedPref/ querySetSize);
+}
+
+void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode) {
+    if(mode == Parameters::TARGET_DB_SPLIT){
+        this->mergeOutput(splitFiles);
+    }else if (mode == Parameters::QUERY_DB_SPLIT){
+        const char * datafilesNames[splitFiles.size()];
+        const char * indexFilesNames[splitFiles.size()];
+        for(size_t i = 0; i < splitFiles.size(); i++){
+            datafilesNames[i] = splitFiles[i].first.c_str();
+            indexFilesNames[i] = splitFiles[i].second.c_str();
+        }
+        DBWriter::mergeFFindexFile(outDB.c_str(), outDBIndex.c_str(), "w", datafilesNames, indexFilesNames, splitFiles.size() );
+    }
 }

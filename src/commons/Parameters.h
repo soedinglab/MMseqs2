@@ -31,7 +31,6 @@ struct MMseqsParameter {
 class Parameters          // Parameters for gap penalties and pseudocounts
 {
 public:
-
     static const int SEARCH_GLOBAL = 0;
     static const int SEARCH_LOCAL = 1;
     static const int SEARCH_LOCAL_FAST = 2;

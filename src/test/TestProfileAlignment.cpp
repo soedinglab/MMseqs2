@@ -32,36 +32,7 @@ int main (int argc, const char * argv[])
     //static const char ref_seq[40] = {'C', 'A', 'G', 'C', 'C', 'T', 'T', 'T', 'C', 'T', 'G', 'A', 'C', 'C', 'C', 'G', 'G', 'A', 'A', 'A', 'T',
     //						'C', 'A', 'A', 'A', 'A', 'T', 'A', 'G', 'G', 'C', 'A', 'C', 'A', 'A', 'C', 'A', 'A', 'A', '\0'};
     //static const char read_seq[16] = {'C', 'T', 'G', 'A', 'G', 'C', 'C', 'G', 'G', 'T', 'A', 'A', 'A', 'T', 'C', '\0'};	// read sequence
-    std::string profile = "#\n"
-            "NULL   3762     5295    4223    4226    4397    3752    5261    3875    4122    3320    5317    4501    4723    4910    4303    4114    4286    3783    6139    4901\n"
-            "HMM    A        C       D       E       F       G       H       I       K       L       M       N       P       Q       R       S       T       V       W       Y\n"
-            "M->M     M->I    M->D    I->M    I->I    D->M    D->D    Neff    Neff_I  Neff_D\n"
-            "       0        *       *       0       *       0       *       *       *       *\n"
-            "M 1    4271     5972    5972    5387    4387    5164    6387    3328    4972    2271    2480    5650    5972    5164    5164    4972    4650    3448    6972    5387    1\n"
-            "       0        *       *       *       *       *       *       1000    0       0\n"
-            "\n"
-            "S 2    3153     5715    4420    4317    5590    3965    5715    5087    4268    4590    6175    4268    5175    5005    4715    2077    3590    4651    7590    5853    2\n"
-            "       0        *       *       *       *       *       *       1000    0       0\n"
-            "\n"
-            "E 3    4205     7478    3449    1671    6063    4893    5363    5478    3741    4815    6478    4671    5256    3976    4420    4205    4671    5063    8063    6063    3\n"
-            "       0        *       *       *       *       *       *       1000    0       0\n"
-            "\n"
-            "I 4    4459     5829    5954    5829    4507    5713    6829    1836    5507    2568    4770    6244    6244    6414    5829    5326    4659    2507    7414    5507    4\n"
-            "       0        *       *       *       *       *       *       1000    0       0\n"
-            "\n"
-            "L 5    4542     5969    6161    5721    4161    5647    6799    3123    5384    1369    4268    6268    6268    5969    5445    5384    4924    3414    7161    5445    5\n"
-            "       0        *       *       *       *       *       *       1000    0       0\n"
-            "\n"
-            "I 6    4459     5829    5954    5829    4507    5713    6829    1836    5507    2568    4770    6244    6244    6414    5829    5326    4659    2507    7414    5507    6\n"
-            "       0        *       *       *       *       *       *       1000    0       0\n"
-            "\n"
-            "V 7    3891     5698    5921    5506    4862    5418    6921    2599    5258    2951    4982    6046    5921    6046    5599    4982    4377    1819    7506    5599    7\n"
-            "       0        *       *       *       *       *       *       1000    0       0\n"
-            "\n"
-//            "P 8    4174     6981    5107    4759    6244    4866    6244    5396    4659    4866    6566    5566    959     5566    5396    4566    4866    4981    8566    6566    8\n"
-//            "       0        *       *       *       *       *       *       1000    0       0\n"
-//            "\n"
-            "//\n";
+    std::string profile = "}|z{|zz\x80{~~z{{{{}\x86z|}{\x84\x82z{||}{|}\x85}|\x82}\x81z{{z\x87~z||z}zz\x83|}|}|zyz}|z{}zz\x7f{\x82~z{{{{}\x86{||z\x85\x86z{}z}z{~|~|}|zz{\x83{}\x84{|||~\x80|||~\x84}||{{\x86}{|{}{||||||||~}}{{}|z{}zz\x82{\x81~z{{{{}\x85{||z\x82\x84z|}z~z{\x83|~\x84\x82}{z{{{zz\x88z|}z~}zzzz{{|~\x80{{z{\x80z\x7f|{||{z|{{||\x7f\x89}|||{{||}||}|}\x83~\x87}{{|z\x85~z{|z\x82z{~{~\x85}|zz{\x82{|}{|\x88{}{|}{\x84}}|{{~||zz~yz\x7f{\x86\x7fzz{{{|~{|}{|{z\x87{y|yz}{{{}|z{z{{zz\x87z|}z\x82~zzzz{{}~\x7f\x81{\x83\x82{||}}||}|\x83|}\x82\x82z{||z{}z{~}\x84~{{|\x84{|\x82{|\x81{{}{{||\x82|||{~\x86}|\x81z{|{{}\x84{|}}\x81\x86|{\x85|||}|~}{|~z\x83\x84z\x82z|}|\x85}\x82}{{|\x84|{|\x84|{||||{\x85|{}|||~\x85|||{\x85{{|{{|||{~||{{}z||z\x83{z|z{|\x88|{||{zz\x84|{|{\x82{}||||||{\x82}\x83z{|{|\x83\x86z|}|~\x86{{}|||}}~\x86}{||}{}|\x82}{|||~}}{|||\x82{}z{\x84{\x82\x84{{{{{|\x7f{|||z{}\x83z~{\x84~{{{{{|\x81{|}{|}z\x84|z\x82{|}{\x83\x83}\x82{{{|z|}z{}z\x7f{||\x85~\x87||{z{|\x86\x85\x82z\x81|{|z{}{}{}|{zz|z\x84}z\x83|z}z{}\x85|\x82}|zzz||zz\x83z{\x7f{\x84~zz{{{|\x84|}|z\x84\x82z{}{~{{}{~\x85}\x82{z{||zz\x83z{~{\x85\x7fzz{{{|~|}{|yz~zz~{\x85~zz{{{|}\x88}||zz}zz\x82{\x84\x7fzz{{{|\x84{|\x83|}}{}|{\x83{|\x83|}}\x84}|z{\x82{|}z\x85|z}z{}{\x84|}|{{{|z||z\x81{z|z{{\x88|{||{zz\x81{{{{\x84{||}\x86|\x83|{}||{{\x83|||{\x84{{|{|}|||\x82\x84|{{}{||z\x84|z}z{}|}\x84\x85}{z{\x86}{|{}{||||||||~}}{{\x82|}|{\x84|{}{|}|}|\x84~|{{|z}~z|}z\x82{|\x84|\x85\x84}|{z{\x81{||z{{{}{{|\x87|\x82}|{z{|{{{}\x83{~|\x81\x88{{|{||}{|\x82|||z||{|{{}\x86||\x85}|z{\x82{\x86~z\x82|z|z{~||{}|{zz}{|}z\x86|z}z{}{\x84|}|z{{\x81{|\x82{{|}~||||}\x84}\x82\x82z{}|{||{{~}\x81}|{|\x84}\x84\x83{||z\x84}z{{z|z{|\x88|{||{yz|{|\x82\x84{}|\x82\x81}|{\x85}||||}\x83{||z|{{|{{{\x88|{}|{z{}z||z\x86|z}z{}{|\x83}|z{z}{||{\x86\x85z|z{}{|{}|z{|{{yz~{{{z{|yy{zz{z\x8c\x7f|{~}z|}{}z{\x87{}}~\x84{z{|z|}z{}z\x7f{||\x85~\x87||{z{|\x85zz\x83zz\x83z~~zzzz{|\x84{}|{|}|{\x87}}|}}{\x85}||\x83{}||zz\x83zz\x83{\x83~zz{{{|\x82|}|{|\x84|z|\x82}}}|{}\x83|}\x84z|}|z{|zz\x80{~~z{{{{}\x86z|\x83{\x84~z||{}{{}\x85\x83|}|{z{{z\x87\x7fz||z|zz~|}|}|zyz||zz}yz\x82{\x85\x7fzz{{{|~{|\x83{\x84\x84z||{}{{}\x83}|}|{z{\x86|{|{}||}||||}\x82~}}{{\x83||\x84|{|~|\x82}{{}|}}\x82{|\x81|z{|{z\x7f{\x82~z{{{|}\x85{|\x83{\x84}z||{|{{}\x85||~\x82|z{\x82z|\x82z|}z\x82{|}|~\x86}|{z{\x82|z{}{{~{\x84\x84z{|{||~{||z{}{{||\x7f\x82}|{~\x87|||{|\x84{}\x82z|}{~{|||\x85\x83}}|{{\x86|||{}|||{|\x83|||~}}z{}z|\x82z\x86{y|z{}{|{}|z{z\x84|z{||{\x82{\x82~{{{{}}\x82{|}|||{{{||\x81}|\x85||\x82\x85}z{{{{|\x87z|}|}}{z\x84|{{|~\x7f|z|\x83{{}{\x7f\x81}|{~\x86||{{{|{~|z\x84}z|z{\x86{}|}}zz{|z\x84\x86z{}z~z{}|~}}|zz{||zz}zz\x85{~~z{{z{}\x84z|}|{||z{\x82|~~{{\x84||}\x85{|}{\x82\x83z||{}{|}|\x83}\x82\x85|z{}{||{\x86\x85z|z{}{|{}|z{|\x83{{|{|{\x81}||{\x86|\x82}|}z{}{{{|\x86{z{z{|{{{|{z\x88|}{|{z\x87{y|yz}{{{}|z{z|z|~z{}z\x84{|}|\x83\x86}|{z{|{|~{{}|~\x82}}|\x88~}||{|\x82|{{|{{\x85|~}|{|{\x83}\x7f{|||zz~yz\x7f{\x86\x7fzz{{{|~{|\x82\x86z{}{z~{\x84~z{{{||}{|\x83|}\x84{{|}}|}||}\x83}}\x83z{{z\x87\x7fz||z|zz~|}|}|zyz|z||z{{z|z{{\x89|{||{yz\x83|||\x84}|||||}|||\x85~||}}{|{z\x87{y|yz}{{{}|z{z|{\x7f}z}~z}z{\x88{}}~}{z{}|{{}z{\x7f{\x82~{\x84{{|}\x85{|}|z{}zz\x84{\x7f~z{{{{}\x85{|}z\x7f\x87z{}z~{{}|\x7f}}}{{{";
 
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
@@ -72,7 +43,8 @@ int main (int argc, const char * argv[])
     s->printProfile();
     Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
-    const char* sequence2 = "MSEILLLIVP";
+    const char* sequence2 = "IIRLNHVAVATLQLEKLTSFYRDTLGLQVSEPVPQKEHGVTTVFVDVGNTKFELLLPLGDKSPIANFLEKNKGGGAHHVCLEVDDIEAAVADLKXXGIRMLAEKTRIGAHGKPVMFLHPKDCGGVLVELEQ\n";
+
     dbSeq->mapSequence(1,"lala2",sequence2);
     SmithWaterman aligner(15000, subMat.alphabetSize);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
@@ -81,7 +53,7 @@ int main (int argc, const char * argv[])
     int32_t maskLen = s->L / 2;
     int gap_open = 10;
     int gap_extend = 1;
-    s_align * alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 0, 0, maskLen);
+    s_align * alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 55, 0, maskLen);
     if(alignment->cigar){
         std::cout << "Cigar" << std::endl;
 
@@ -101,10 +73,10 @@ int main (int argc, const char * argv[])
                     ++targetPos;
                 } else {
                     if (letter == 'I'){
-                        fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
+                        fprintf(stdout,"%c |",subMat.int2aa[s->int_sequence[queryPos]]);
                         ++queryPos;
                     } else{
-                        fprintf(stdout,"  %c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
+                        fprintf(stdout,"| %c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
                         ++targetPos;
                     }
                 }

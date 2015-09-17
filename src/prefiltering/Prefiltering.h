@@ -43,7 +43,7 @@ class Prefiltering {
 
         ~Prefiltering();
         void run(size_t dbFrom, size_t dbSize, int splitMode, std::string resultDB, std::string resultDBIndex);
-        void run(int mpi_rank, int mpi_num_procs, int splitMode);
+        void run(int mpi_rank, int mpi_num_procs);
         void run ();
         void closeReader();
         void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
@@ -102,6 +102,7 @@ class Prefiltering {
         short kmerThr;
         double kmerMatchProb;
         int split;
+        int splitMode;
         int skip;
         int searchMode;
 
@@ -124,10 +125,11 @@ class Prefiltering {
                                                                 size_t maxHitsPerQuery);
     
     
-        void printStatistics(statistics_t &stats);
+        void printStatistics(statistics_t &stats, size_t empty);
 
         statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize, unsigned int *querySeqsIds, bool reverseQuery, const size_t kmerThrMid);
 
+    void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
 };
 
 #endif

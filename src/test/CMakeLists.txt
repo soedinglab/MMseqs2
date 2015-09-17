@@ -63,6 +63,16 @@ target_link_libraries(test_counting workflow)
 target_link_libraries(test_counting ffindex)
 
 
+
+set(test_orf TestOrf.cpp )
+add_executable(test_orf ${test_orf})
+
+target_link_libraries(test_orf util)
+target_link_libraries(test_orf workflow)
+target_link_libraries(test_orf ffindex)
+target_link_libraries(test_orf orf)
+
+
 set(test_reduced TestReduceMatrix.cpp )
 add_executable(test_reduced ${test_reduced})
 

@@ -28,7 +28,8 @@ SmithWaterman::SmithWaterman(int maxSequenceLength, int aaSize) {
 	profile->profile_rev_word = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
 	profile->query_rev_sequence = new int8_t[maxSequenceLength];
 	profile->query_sequence     = new int8_t[maxSequenceLength];
-	profile->mat_rev            = new int8_t[maxSequenceLength * Sequence::PROFILE_AA_SIZE];
+	profile->mat_rev            = new int8_t[maxSequenceLength * aaSize * 2];
+    profile->mat                = new int8_t[maxSequenceLength * aaSize * 2];
 
 	memset(profile->query_sequence, 0, maxSequenceLength * sizeof(int8_t));
 	memset(profile->query_rev_sequence, 0, maxSequenceLength * sizeof(int8_t));
@@ -53,7 +54,8 @@ SmithWaterman::~SmithWaterman(){
 	delete [] profile->query_rev_sequence;
 	delete [] profile->query_sequence;
 	delete [] profile->mat_rev;
-	delete profile;
+    delete [] profile->mat;
+    delete profile;
 	delete [] maxColumn;
 }
 
@@ -170,7 +172,7 @@ s_align* SmithWaterman::ssw_align (
 				r->score1, profile->bias, maskLen);
 	} else {
 		if(profile->sequence_type == Sequence::HMM_PROFILE) {
-			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_rev_word, profile->query_rev_sequence, profile->mat,
+			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_rev_word, profile->query_rev_sequence, profile->mat_rev,
 					r->qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
 
 		}else{
@@ -674,8 +676,14 @@ void SmithWaterman::ssw_init (const Sequence* q,
 
 	profile->bias = 0;
 	profile->sequence_type = q->getSequenceType();
-	profile->mat = mat;
-
+    // copy memory to local memory
+    if(profile->sequence_type == Sequence::HMM_PROFILE ){
+        memcpy(profile->mat, mat, q->L * Sequence::PROFILE_AA_SIZE * sizeof(int8_t));
+        // set neutral state 'X' (score=0)
+        memset(profile->mat + ((alphabetSize - 1) * q->L), 0, q->L * sizeof(int8_t ));
+    }else{
+        memcpy(profile->mat, mat, alphabetSize * alphabetSize * sizeof(int8_t));
+    }
 	for(int i = 0; i < q->L; i++){
 		profile->query_sequence[i] = (int8_t) q->int_sequence[i];
 	}
@@ -710,7 +718,7 @@ void SmithWaterman::ssw_init (const Sequence* q,
 	// create reverse structures
 	seq_reverse( profile->query_rev_sequence, profile->query_sequence, q->L);
 	if(q->getSequenceType() == Sequence::HMM_PROFILE) {
-		for (size_t i = 0; i < Sequence::PROFILE_AA_SIZE; i++) {
+		for (size_t i = 0; i < alphabetSize; i++) {
 			const int8_t *startToRead = profile->mat + (i * q->L);
 			int8_t *startToWrite      = profile->mat_rev + (i * q->L);
 			std::reverse_copy(startToRead, startToRead + q->L, startToWrite);

@@ -20,7 +20,7 @@ void parseArgs(int argc, const char** argv,
                std::string* fastaHeaderInDB,
                std::string* fastaBodyInDB,
                std::string* msaOutDB){
-	if (argc < 5){
+	if (argc < 4){
         printUsageCusteringToFasta();
         EXIT(EXIT_FAILURE);
     }
