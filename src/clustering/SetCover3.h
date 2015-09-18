@@ -14,7 +14,7 @@
 
 class SetCover3 {
 public:
-    SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage,int threads);
+    SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage,int threads,int scoretype);
 
     std::list<set *>  execute(int mode);
 private:
@@ -27,6 +27,7 @@ private:
     float coverage;
 
     int threads;
+    int scoretype;
 //datastructures
     int * clustersizes;
     unsigned int maxClustersize;
