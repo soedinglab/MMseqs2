@@ -6,6 +6,7 @@
 #include <Debug.h>
 #include <Log.h>
 #include <sys/time.h>
+#include <Parameters.h>
 #include "AffinityClustering.h"
 
 AlignmentSymmetry::AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWriter *alnWr, int threads) {
@@ -161,7 +162,7 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
     }
 }
 
-void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable) {
+void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable, int scoretype) {
 
     size_t dbSize = seqDbr->getSize();
 #pragma omp parallel
@@ -187,8 +188,14 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
                 Util::parseKey(data, dbKey);
 
                 size_t curr_element = seqDbr->getId(dbKey);
-                Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
-                *elementScoreTable[i] = (short)(atof(std::string(similarity).c_str())*1000);
+                if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
+                    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+                    *elementScoreTable[i] = (short)(atof(std::string(similarity).c_str()));
+                }else {
+                    Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                    *elementScoreTable[i] = (short)(atof(std::string(similarity).c_str())*1000);
+                }
+
                 elementScoreTable[i]++;
                 if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()) {
                     Debug(Debug::ERROR) << "ERROR: Element " << dbKey
