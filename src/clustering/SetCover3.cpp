@@ -11,7 +11,7 @@
 #include "AlignmentSymmetry.h"
 #include <queue>
 
-SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage, int threads, int scoretype){
+SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage, int threads, int scoretype, int maxiterations){
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
     this->seqIdThr=seqIdThr;
@@ -19,6 +19,7 @@ SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float
     this->dbSize=alnDbr->getSize();
     this->threads=threads;
     this->scoretype=scoretype;
+    this->maxiterations=maxiterations;
 }
 
 std::list<set *>  SetCover3::execute(int mode) {
@@ -267,16 +268,21 @@ std::list<set *>  SetCover3::execute(int mode) {
                 assignedcluster[representative] = representative;
                 std::queue<int> myqueue;
                     myqueue.push(representative);
+                std::queue<int> iterationcutoffs;
+                iterationcutoffs.push(0);
                 //delete clusters of members;
                 while(!myqueue.empty()){
                     int currentid=myqueue.front();
+                    int iterationcutoff= iterationcutoffs.front();
                     assignedcluster[currentid]=representative;
                     myqueue.pop();
+                    iterationcutoffs.pop();
                     size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
                     for (size_t elementId = 0; elementId < elementSize; elementId++) {
                         unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                        if(assignedcluster[elementtodelete]==-1){
+                        if(assignedcluster[elementtodelete]==-1 && iterationcutoff<maxiterations){
                             myqueue.push(elementtodelete);
+                            iterationcutoffs.push((iterationcutoff+1));
                         }
                         assignedcluster[elementtodelete]=representative;
                     }

@@ -130,21 +130,23 @@ void Clustering::run(int mode) {
         writeData(dbw, ret);
         Debug(Debug::INFO) << "...done.\n";
     }else if (mode == Parameters::SET_COVER3){
-        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads,similarityScoreType);
+        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads,similarityScoreType,maxIteration);
         ret =setCover3->execute(1);
         writeData(dbw, ret);
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
     } else if (mode == Parameters::CONNECTED_COMPONENT){
-        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads,similarityScoreType);
+        Debug(Debug::INFO) << "Clustering mode: connected component\n";
+        Debug(Debug::INFO) << "Maxiteration " <<maxIteration<<"\n";
+        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads,similarityScoreType,maxIteration);
         ret =setCover3->execute(3);
         writeData(dbw, ret);
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
     }else if (mode == Parameters::CONNECTED_COMPONENT2){
-        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads,similarityScoreType);
+        SetCover3* setCover3= new SetCover3(seqDbr,alnDbr,seqIdThr,0.0,threads,similarityScoreType,maxIteration);
         ret =setCover3->execute(2);
         writeData(dbw, ret);
         gettimeofday(&end, NULL);
