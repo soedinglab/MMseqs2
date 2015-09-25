@@ -161,7 +161,7 @@ void Clustering::run(int mode) {
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
 
     }else if (mode == Parameters::SET_COVER4){
-        SetCover4* setCover4= new SetCover4(seqDbr,alnDbr,seqIdThr,0.0);
+        SetCover4* setCover4= new SetCover4(seqDbr,alnDbr,seqIdThr,0.0,threads,similarityScoreType);
         ret =setCover4->execute();
         writeData(dbw, ret);
         gettimeofday(&end, NULL);
