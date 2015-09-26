@@ -258,7 +258,7 @@ std::list<set *>  SetCover4::execute() {
                                                       newElementOffsets[elementtodelete]);
                 for (size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
                     const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
-                    unsigned int seqIdOfElement =elementScoreLookupTable[representative][elementId]+offset;
+                    unsigned int seqIdOfElement =elementScoreLookupTable[elementtodelete][elementId2]+offset;
                     if(representative == elementtodecrease){
                         representativefound=true;
                     }
