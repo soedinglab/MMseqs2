@@ -329,7 +329,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     size_t realResSize = 0;
     size_t diagonalOverflow = 0;
     size_t totalQueryDBSize = querySize;
-    memset(notEmpty + queryFrom, 0, totalQueryDBSize * sizeof(int)); // init notEmpty
+    memset(notEmpty + queryFrom, 0, qdbr->getSize() * sizeof(int)); // init notEmpty
 
     Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step "<< split << " of " << splitCount << ")\n";
     Debug(Debug::WARNING) << "Query db start  "<< queryFrom << " to " << queryFrom + querySize << "\n";
@@ -588,7 +588,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable,
         targetSeqLenSum += (tdbr->getSeqLens()[i] - qseq[0]->getEffectiveKmerSize());
     }
     // generate a small random sequence set for testing
-    size_t querySetSize = std::min ( tdbr->getSize(), (size_t) 1000);
+    size_t querySetSize = std::min ( qdbr->getSize(), (size_t) 1000);
     unsigned int * querySeqs = new unsigned int[querySetSize];
     srand(1);
     for (size_t i = 0; i < querySetSize; i++){

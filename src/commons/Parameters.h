@@ -35,6 +35,9 @@ public:
     static const int SEARCH_LOCAL = 1;
     static const int SEARCH_LOCAL_FAST = 2;
 
+    static const int PROFILE_MODE_HMM = 0;
+    static const int PROFILE_MODE_PSSM = 1;
+
     static const int SET_COVER = 0;
     static const int AFFINITY = 1;
     static const int GREEDY = 2;
@@ -129,6 +132,9 @@ public:
     size_t orfMaxGaps;
     bool   orfSkipIncomplete;
 
+    // CREATE PROFILE
+    int profileMode;
+
     // CLUSTERING WORKFLOW
     int restart;
     int step;
@@ -213,7 +219,8 @@ public:
     PARAMETER(PARAM_SIMILARITYSCORE);
     PARAMETER(PARAM_PREFERENCE);
     std::vector<MMseqsParameter> clustering;
-
+    // create profile (HMM, PSSM)
+    PARAMETER(PARAM_PROFILE_TYPE);
     // logging
     PARAMETER(PARAM_V);
     // clustering workflow

@@ -66,9 +66,8 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
     size_t numMatches = 0;
     //size_t pos = 0;
     stats->diagonalOverflow = false;
-
     CounterResult* sequenceHits = databaseHits;
-    CounterResult * lastSequenceHit = databaseHits + MAX_DB_MATCHES;
+    CounterResult* lastSequenceHit = databaseHits + MAX_DB_MATCHES;
     size_t seqListSize;
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();
@@ -81,13 +80,12 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
             const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[kmerPos],
                                                                                        &seqListSize);
             // detected overflow while matching TODO smarter way
-            seqListSize = (sequenceHits + seqListSize >= lastSequenceHit) ? 0 : seqListSize;
-
+            seqListSize = (numMatches + seqListSize >= MAX_DB_MATCHES) ? 0 : seqListSize;
             for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++) {
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
                 const unsigned int seqId = entry.seqId;
-                const unsigned char diagonal = (i - j) % 237;
+                const unsigned char diagonal = (i - j) % 253;
                 sequenceHits->id    = seqId;
                 sequenceHits->count = diagonal;
                 sequenceHits++;
@@ -110,6 +108,7 @@ size_t QueryTemplateMatcherExactMatch::getLocalResultSize(){
     size_t retValue = 0;
     for(size_t i = 1; i < QueryScoreLocal::SCORE_RANGE; i++){
         retValue += scoreSizes[i] * i;
+        //std::cout << scoreSizes[i] * i << std::endl;
     }
     return retValue;
 }
