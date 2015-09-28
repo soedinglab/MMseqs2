@@ -41,8 +41,6 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
         dbSeqs[i] = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.targetSeqType, 0, false);
     }
 
-
-
     // open the sequence, prefiltering and output databases
     qseqdbr = new DBReader(querySeqDB.c_str(), querySeqDBIndex.c_str());
     qseqdbr->open(DBReader::NOSORT);
@@ -157,6 +155,15 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
         std::string queryDbKeyStr(queryDbKey);
         // map the query sequence
         char* querySeqData = qseqdbr->getDataByDBKey(queryDbKey);
+        if (querySeqData == NULL){
+# pragma omp critical
+            {
+                Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKey
+                << " is required in the prefiltering, but is not contained in the query sequence database!\n" <<
+                "Please check your database.\n";
+                EXIT(1);
+            }
+        }
         qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
         matchers[thread_idx]->initQuery(qSeqs[thread_idx]);
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
@@ -186,7 +193,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
 # pragma omp critical
                 {
                     Debug(Debug::ERROR) << "ERROR: Sequence " << dbKeys[thread_idx]
-                    << " is required in the prefiltering, but is not contained in the input sequence database!\n" <<
+                    << " is required in the prefiltering, but is not contained in the target sequence database!\n" <<
                     "Please check your database.\n";
                     EXIT(1);
                 }
