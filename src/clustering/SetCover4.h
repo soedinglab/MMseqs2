@@ -18,7 +18,7 @@
 
 class SetCover4 {
 public:
-    SetCover4(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage);
+    SetCover4(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage,int threads, int scoretype);
 
     std::list<set *>  execute();
 private:
@@ -35,17 +35,20 @@ private:
     std::set<int>*orderedClustersizes;
     std::set<int>*orderedClusterweights;
     unsigned int maxClustersize;
-    float maxClusterweight;
+    unsigned int maxClusterweight;
     unsigned int dbSize;
     int spreadingfactor=10;
     int weightslength;
-    float offset=0.8;
+    int offset=80;
 
 //methods
     void insertCluster(int clusterid, int clustersize);
 
     void insertClusterWeight(int clusterid, float clusterweight);
     void eraseClusterWeight(int clusterid, float clusterweight);
+
+    int threads;
+    int scoretype;
 };
 
 
