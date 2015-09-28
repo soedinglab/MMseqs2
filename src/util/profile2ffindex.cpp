@@ -99,7 +99,7 @@ void parseHMM(char *data, char *profileBuffer, size_t *size, char *id, BaseMatri
             profileBuffer[curr_pos] = (profileBuffer[curr_pos] ^ 0x80);
             if(profileBuffer[curr_pos] == 0){
                 Debug(Debug::ERROR) << "ERROR: 0 PSSM score is to big at id: " << id << ".hhm, pos: " << curr_pos << ", score:" <<
-                        (char)(profileBuffer[curr_pos] ^ 0x80) << "\n";
+                (char)(profileBuffer[curr_pos] ^ 0x80) << "\n";
                 EXIT(EXIT_FAILURE);
             }
             curr_pos++;
@@ -126,12 +126,12 @@ int createprofiledb(int argn,const char **argv)
     par.parseParameters(argn, argv, usage, par.createprofiledb, 2);
 
     struct stat st;
-	const char* data_filename = par.db2.c_str();
+    const char* data_filename = par.db2.c_str();
     if(stat(data_filename, &st) == 0) { errno = EEXIST; perror(data_filename); return EXIT_FAILURE; }
     FILE * data_file  = fopen(data_filename, "wb"); // binary file
     if( data_file == NULL) { perror(data_filename); return EXIT_FAILURE; }
 
-	const char* index_filename = par.db2Index.c_str();
+    const char* index_filename = par.db2Index.c_str();
     if(stat(index_filename, &st) == 0) { errno = EEXIST; perror(index_filename); return EXIT_FAILURE; }
     FILE * index_file = fopen(index_filename, "w+");
     if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
@@ -154,11 +154,17 @@ int createprofiledb(int argn,const char **argv)
         char * data = dbr_data.getData(i);
         char * id   = dbr_data.getDbKey(i);
         size_t elementSize = 0;
-        //parseHMM(data, profileBuffer, &elementSize, id, subMat);
-        parsePSSM(data, profileBuffer, &elementSize, id, subMat);
+        if(par.profileMode == Parameters::PROFILE_MODE_HMM){
+            parseHMM(data, profileBuffer, &elementSize, id, subMat);
+        } else if(par.profileMode == Parameters::PROFILE_MODE_HMM) {
+            parsePSSM(data, profileBuffer, &elementSize, id, subMat);
+        } else{
+            Debug(Debug::ERROR) << "Wrong profile mode.\n";
+            EXIT(EXIT_FAILURE);
+        }
 
         ffindex_insert_memory(data_file,  index_file,     &offset_sequence,
-                profileBuffer,  elementSize , id);
+                              profileBuffer,  elementSize , id);
     }
     entry_num = dbr_data.getSize();
 
@@ -169,7 +175,7 @@ int createprofiledb(int argn,const char **argv)
 
     /* Sort the index entries and write back */
     fclose(index_file);
-	index_file = fopen(index_filename, "r+");
+    index_file = fopen(index_filename, "r+");
     ffindex_index_t* index = ffindex_index_parse(index_file, entry_num);
     if(index == NULL)
     {

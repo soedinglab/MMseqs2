@@ -46,7 +46,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
             tmpScoreMatrix[j].first  = score;
             tmpScoreMatrix[j].second = j_index;
         }
-        std::sort (tmpScoreMatrix, tmpScoreMatrix + this->size, sort_by_score());
+        std::stable_sort (tmpScoreMatrix, tmpScoreMatrix + this->size, sort_by_score());
         for (size_t z = 0; z < this->size; z++) {
             score[(i_index * row_size) + z] = tmpScoreMatrix[z].first;
             index[(i_index * row_size) + z] = tmpScoreMatrix[z].second;

@@ -99,7 +99,7 @@ void PSSMCalculator::computeLogPSSM(char *pssm, float *profile,
 void PSSMCalculator::preparePseudoCounts(float *frequency, float *frequency_with_pseudocounts,
                                          size_t queryLength, float const *R) {
     for (size_t pos = 0; pos < queryLength; pos++) {
-        for (size_t aa = 0; aa < 20; aa++) {
+        for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
             frequency_with_pseudocounts[pos * Sequence::PROFILE_AA_SIZE + aa] = ScalarProd20(&R[aa * Sequence::PROFILE_AA_SIZE],
                                                                                              &frequency[pos * Sequence::PROFILE_AA_SIZE]);
         }

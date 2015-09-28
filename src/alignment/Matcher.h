@@ -60,7 +60,7 @@ class Matcher{
         result_t getSWResult(Sequence* dbSeq,const size_t seqDbSize,const double evalThr, const unsigned int mode);
 
         // need for sorting the results
-        static bool compareHits (result_t first, result_t second){ return (first.score > second.score); }
+        static bool compareHits (result_t first, result_t second){ return (first.eval < second.eval); }
     
         // map new query into memory (create profile, ...)
         void initQuery(Sequence* query);
