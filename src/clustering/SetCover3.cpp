@@ -30,7 +30,7 @@ std::list<set *>  SetCover3::execute(int mode) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     ///time
-    clustersizes=new int[dbSize];
+    clustersizes=new unsigned int[dbSize];
     std::fill_n(clustersizes,dbSize,0);
 
 
@@ -41,8 +41,17 @@ std::list<set *>  SetCover3::execute(int mode) {
     unsigned int ** elementLookupTable = new unsigned int*[dbSize];
     size_t *elementOffsets = new size_t[dbSize + 1];
     elementOffsets[dbSize]=0;
-
+    unsigned short *scoreelements;
+    unsigned short **elementScoreLookupTable;
     unsigned int * seqDbrIdToalnDBrId= new unsigned int[dbSize];
+
+
+    std::list<set *> result;
+    size_t n = seqDbr->getSize();
+    int *assignedcluster = new int[n];
+    std::fill_n(assignedcluster, n, -1);
+    short *bestscore = new short[n];
+    std::fill_n(bestscore, n, -10);
 #pragma omp parallel
     {
     int thread_idx = 0;
@@ -88,301 +97,383 @@ std::list<set *>  SetCover3::execute(int mode) {
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable);
     // set element edge pointers by using the offset table
     AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, elementOffsets, dbSize);
+    if (mode==2){
+        scoreelements=new unsigned short[elementCount];
+        std::fill_n(scoreelements, elementCount, 0);
+        elementScoreLookupTable= new unsigned short*[dbSize];
+        AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, elementOffsets, dbSize);
+    }
     //time
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "\nTime for Read in: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
     gettimeofday(&start, NULL);
     //time
+    if (mode==2){
 
-    //time
-    Debug(Debug::WARNING) << "\nSort entries.\n";
-    // sort each element vector for bsearch
-#pragma omp parallel for schedule(dynamic, 1000)
-    for(size_t i = 0; i < dbSize; i++) {
-        Log::printProgress(i);
-        std::sort(elementLookupTable[i], elementLookupTable[i] + (elementOffsets[i+1] - elementOffsets[i]));
-    }
-    //time
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for Sorting entries: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
-    //time
-    Debug(Debug::WARNING) << "\nFind missing connections.\n";
-    size_t * newElementOffsets = new size_t[dbSize + 1];
-    memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
-    size_t newElementCount = AlignmentSymmetry::findMissingLinks(elementLookupTable, newElementOffsets, dbSize,threads);
-    delete [] elements;
-    //time
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for finding missing connections: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
-    //time
-    Debug(Debug::WARNING) << "\nFind missing connections.\n";
-
-    // resize elements
-    elements = new unsigned int[newElementCount];
-    std::fill_n(elements, newElementCount, 0);
-    unsigned short *scoreelements=new unsigned short[newElementCount];
-    std::fill_n(scoreelements, newElementCount, 0);
-    unsigned short **elementScoreLookupTable= new unsigned short*[dbSize];
-    Debug(Debug::WARNING) << "\nFound "<< newElementCount - elementCount << " new connections.\n";
-    AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
-    AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets, dbSize);
-    //time
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
-    //time
-    Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
-    alnDbr->remapData();
-    seqDbr->remapData();
-    AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable,elementScoreLookupTable,scoretype);
-    // set element edge pointers by using the offset table
-    AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
-    AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets, dbSize);
-//time
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
-    //time
-    Debug(Debug::WARNING) << "\nAdd missing connections.\n";
-    AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, dbSize,elementScoreLookupTable);
-    AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
-    AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets, dbSize);
-    //time
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
-    //time
-
-    maxClustersize=0;
-    for(size_t i = 0; i < dbSize; i++) {
-        elementCount=newElementOffsets[i +1] - newElementOffsets[i];
-        maxClustersize= std::max((unsigned int) elementCount, maxClustersize);
-        clustersizes[i] = elementCount;
-
-
-    }
-    SetCover3::initClustersizes();
-    //time
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for Maximum determination: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
-
-
-    std::list<set *> result;
-    size_t n = seqDbr->getSize();
-    int* assignedcluster=new int[n];
-    std::fill_n(assignedcluster, n, -1);
-    short* bestscore=new short[n];
-    std::fill_n(bestscore, n, -10);
-
-    //time
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for Clustersize insertion " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
-    //time
-    //delete from beginning
-    if(mode==1) {
-        for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
-            int representative = sorted_clustersizes[cl_size];
-            if (representative < 0) {
-                continue;
-            }
-//          Debug(Debug::INFO)<<alnDbr->getDbKey(representative)<<"\n";
-            removeClustersize(representative);
-            assignedcluster[representative] = representative;
-
-            //delete clusters of members;
-            size_t elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
-            for (size_t elementId = 0; elementId < elementSize; elementId++) {
-
-                const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-                // float seqId = elementScoreTable[representative][elementId];
-                short seqId = elementScoreLookupTable[representative][elementId];
-              //  Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
-                if (seqId > bestscore[elementtodelete]) {
-                    assignedcluster[elementtodelete] = representative;
-                    bestscore[elementtodelete] = seqId;
-                }
-                //Debug(Debug::INFO)<<bestscore[elementtodelete]<<"\n";
-                if (elementtodelete == representative) {
-                    continue;
-                }
-                if (clustersizes[elementtodelete] < 1) {
-                    continue;
-                }
-
-                removeClustersize(elementtodelete);
-            }
-
-            for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                bool representativefound = false;
-                const unsigned int elementtodelete = elementLookupTable[representative][elementId];
-                const unsigned int currElementSize = (newElementOffsets[elementtodelete + 1] -
-                                                      newElementOffsets[elementtodelete]);
-                if (elementtodelete == representative) {
-                    clustersizes[elementtodelete] = -1;
-                    continue;
-                }
-                if (clustersizes[elementtodelete] < 0) {
-                    continue;
-                }
-                clustersizes[elementtodelete] = -1;
-                //decrease clustersize of sets that contain the element
-                for (size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
-                    const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
-                    if (representative == elementtodecrease) {
-                        representativefound = true;
-                    }
-                    if (clustersizes[elementtodecrease] == 1) {
-                        Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(elementtodelete) <<
-                        " deleted from " << seqDbr->getDbKey(elementtodecrease) <<
-                        " that now is empty, but not assigned to a cluster\n";
-                    } else if (clustersizes[elementtodecrease] > 0) {
-                        decreaseClustersize(elementtodecrease);
+        for(size_t i = 0; i < n; i++) {
+            // seqDbr is descending sorted by length
+            // the assumption is that clustering is B -> B (not A -> B)
+            Log::printProgress(i);
+            if(assignedcluster[i]==-1){
+                size_t elementSize = (elementOffsets[i + 1] - elementOffsets[i]);
+                for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                    unsigned int id = elementLookupTable[i][elementId];
+                    if(assignedcluster[id]==id){
+                        assignedcluster[i]=id;
+                        break;
                     }
                 }
-                if (!representativefound) {
-                    Debug(Debug::ERROR) << "error with cluster:\t" << seqDbr->getDbKey(representative) <<
-                    "\tis not contained in set:\t" << seqDbr->getDbKey(elementtodelete) << ".\n";
+                if(assignedcluster[i]==-1) {
+                    assignedcluster[i]=i;
                 }
 
             }
+
+
 
 
         }
-    }else if (mode==3){
-        Debug(Debug::INFO)<<"connected component mode"<<"\n";
+
+
+        /*
+        maxClustersize = 0;
+        for (size_t i = 0; i < dbSize; i++) {
+            elementCount = elementOffsets[i + 1] - elementOffsets[i];
+            clustersizes[i] += elementCount;
+            for (size_t elementId = 0; elementId < elementCount; elementId++) {
+                unsigned int elementtodelete = elementLookupTable[i][elementId];
+                clustersizes[elementtodelete]++;
+                maxClustersize = std::max(clustersizes[elementtodelete], maxClustersize);
+            }
+            maxClustersize = std::max(clustersizes[i], maxClustersize);
+
+        }
+        SetCover3::initClustersizes();
+
+        Debug(Debug::INFO) << "connected component mode" << "\n";
         for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
             int representative = sorted_clustersizes[cl_size];
-            if(assignedcluster[representative]==-1){
+            if (assignedcluster[representative] == -1) {
                 assignedcluster[representative] = representative;
                 std::queue<int> myqueue;
-                    myqueue.push(representative);
+                myqueue.push(representative);
                 std::queue<int> iterationcutoffs;
                 iterationcutoffs.push(0);
                 //delete clusters of members;
-                while(!myqueue.empty()){
-                    int currentid=myqueue.front();
-                    int iterationcutoff= iterationcutoffs.front();
-                    assignedcluster[currentid]=representative;
+                while (!myqueue.empty()) {
+                    int currentid = myqueue.front();
+                    int iterationcutoff = iterationcutoffs.front();
+                    assignedcluster[currentid] = representative;
                     myqueue.pop();
                     iterationcutoffs.pop();
-                    size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
+                    size_t elementSize = (elementOffsets[currentid + 1] - elementOffsets[currentid]);
                     for (size_t elementId = 0; elementId < elementSize; elementId++) {
                         unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                        if(assignedcluster[elementtodelete]==-1 && iterationcutoff<maxiterations){
+                        if (assignedcluster[elementtodelete] == -1 && iterationcutoff < maxiterations) {
                             myqueue.push(elementtodelete);
-                            iterationcutoffs.push((iterationcutoff+1));
+                            iterationcutoffs.push((iterationcutoff + 1));
                         }
-                        assignedcluster[elementtodelete]=representative;
+                        assignedcluster[elementtodelete] = representative;
                     }
                 }
 
             }
         }
 
-    }else if (mode==2){
-        Debug(Debug::INFO)<<"connected component mode"<<"\n";
-        int* ranks=new int[n];
-        std::fill_n(ranks, n, 0);
-        int* incommingconnections=new int[n];
-        std::fill_n(incommingconnections, n, 0);
-        int* connactionswithsamerank=new int[n];
-        std::fill_n(connactionswithsamerank, n, 0);
-        int connectioncutoff=2;
-        for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
-            //  for (int cl_size =0 ;cl_size<dbSize ; cl_size++) {
-            int representative = sorted_clustersizes[cl_size];
-            if(assignedcluster[representative]==-1){
-               
+*/
 
-                ranks[representative]=0;
-                std::queue<int> myqueue;
-                std::queue<int> myqueue2;
-                myqueue.push(representative);
-                int elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
-                assignedcluster[representative] = representative;
-                connactionswithsamerank[representative]=elementSize+1;
-                incommingconnections[representative]=elementSize+1;
-              //  elementSize=std::min(elementSize,std::max(elementSize/5,10));
-                connectioncutoff=0;
-                for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                    unsigned int elementtodelete = elementLookupTable[representative][elementId];
-                    if (assignedcluster[elementtodelete] == -1) {
-                        incommingconnections[elementtodelete]=elementSize+1;
-                        assignedcluster[elementtodelete] = representative;
-                        ranks[elementtodelete] = 0;
-                        myqueue.push(elementtodelete);
-                        connectioncutoff++;
-                    }
+
+    }else {
+        //time
+        Debug(Debug::WARNING) << "\nSort entries.\n";
+        // sort each element vector for bsearch
+#pragma omp parallel for schedule(dynamic, 1000)
+        for (size_t i = 0; i < dbSize; i++) {
+            Log::printProgress(i);
+            std::sort(elementLookupTable[i], elementLookupTable[i] + (elementOffsets[i + 1] - elementOffsets[i]));
+        }
+        //time
+        gettimeofday(&end, NULL);
+        sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for Sorting entries: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+        gettimeofday(&start, NULL);
+        //time
+        Debug(Debug::WARNING) << "\nFind missing connections.\n";
+        size_t *newElementOffsets = new size_t[dbSize + 1];
+        memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
+        size_t newElementCount = AlignmentSymmetry::findMissingLinks(elementLookupTable, newElementOffsets, dbSize,
+                                                                     threads);
+        delete[] elements;
+        //time
+        gettimeofday(&end, NULL);
+        sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for finding missing connections: " << (sec / 60) << " m " << (sec % 60) <<
+        "s\n\n";
+        gettimeofday(&start, NULL);
+        //time
+        Debug(Debug::WARNING) << "\nFind missing connections.\n";
+
+        // resize elements
+        elements = new unsigned int[newElementCount];
+        std::fill_n(elements, newElementCount, 0);
+        unsigned short *scoreelements = new unsigned short[newElementCount];
+        std::fill_n(scoreelements, newElementCount, 0);
+        unsigned short **elementScoreLookupTable = new unsigned short *[dbSize];
+        Debug(Debug::WARNING) << "\nFound " << newElementCount - elementCount << " new connections.\n";
+        AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+        AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets,
+                                                          dbSize);
+        //time
+        gettimeofday(&end, NULL);
+        sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+        gettimeofday(&start, NULL);
+        //time
+        Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
+        alnDbr->remapData();
+        seqDbr->remapData();
+        AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, elementScoreLookupTable, scoretype);
+        // set element edge pointers by using the offset table
+        AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+        AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets,
+                                                          dbSize);
+//time
+        gettimeofday(&end, NULL);
+        sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+        gettimeofday(&start, NULL);
+        //time
+        Debug(Debug::WARNING) << "\nAdd missing connections.\n";
+        AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, dbSize, elementScoreLookupTable);
+        AlignmentSymmetry::setupElementLookupPointer(elements, elementLookupTable, newElementOffsets, dbSize);
+        AlignmentSymmetry::setupElementLookupPointerShort(scoreelements, elementScoreLookupTable, newElementOffsets,
+                                                          dbSize);
+        //time
+        gettimeofday(&end, NULL);
+        sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+        gettimeofday(&start, NULL);
+        //time
+
+        maxClustersize = 0;
+        for (size_t i = 0; i < dbSize; i++) {
+            elementCount = newElementOffsets[i + 1] - newElementOffsets[i];
+            maxClustersize = std::max((unsigned int) elementCount, maxClustersize);
+            clustersizes[i] = elementCount;
+
+
+        }
+        SetCover3::initClustersizes();
+        //time
+        gettimeofday(&end, NULL);
+        sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for Maximum determination: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+        gettimeofday(&start, NULL);
+
+
+
+
+        //time
+        gettimeofday(&end, NULL);
+        sec = end.tv_sec - start.tv_sec;
+        Debug(Debug::INFO) << "\nTime for Clustersize insertion " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+        gettimeofday(&start, NULL);
+        //time
+        //delete from beginning
+        if (mode == 1) {
+            for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
+                int representative = sorted_clustersizes[cl_size];
+                if (representative < 0) {
+                    continue;
                 }
-                connectioncutoff=connectioncutoff/2;
+//          Debug(Debug::INFO)<<alnDbr->getDbKey(representative)<<"\n";
+                removeClustersize(representative);
+                assignedcluster[representative] = representative;
+
                 //delete clusters of members;
-                while(!myqueue.empty()) {
+                size_t elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
+                for (size_t elementId = 0; elementId < elementSize; elementId++) {
+
+                    const unsigned int elementtodelete = elementLookupTable[representative][elementId];
+                    // float seqId = elementScoreTable[representative][elementId];
+                    short seqId = elementScoreLookupTable[representative][elementId];
+                    //  Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
+                    if (seqId > bestscore[elementtodelete]) {
+                        assignedcluster[elementtodelete] = representative;
+                        bestscore[elementtodelete] = seqId;
+                    }
+                    //Debug(Debug::INFO)<<bestscore[elementtodelete]<<"\n";
+                    if (elementtodelete == representative) {
+                        continue;
+                    }
+                    if (clustersizes[elementtodelete] < 1) {
+                        continue;
+                    }
+
+                    removeClustersize(elementtodelete);
+                }
+
+                for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                    bool representativefound = false;
+                    const unsigned int elementtodelete = elementLookupTable[representative][elementId];
+                    const unsigned int currElementSize = (newElementOffsets[elementtodelete + 1] -
+                                                          newElementOffsets[elementtodelete]);
+                    if (elementtodelete == representative) {
+                        clustersizes[elementtodelete] = -1;
+                        continue;
+                    }
+                    if (clustersizes[elementtodelete] < 0) {
+                        continue;
+                    }
+                    clustersizes[elementtodelete] = -1;
+                    //decrease clustersize of sets that contain the element
+                    for (size_t elementId2 = 0; elementId2 < currElementSize; elementId2++) {
+                        const unsigned int elementtodecrease = elementLookupTable[elementtodelete][elementId2];
+                        if (representative == elementtodecrease) {
+                            representativefound = true;
+                        }
+                        if (clustersizes[elementtodecrease] == 1) {
+                            Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(elementtodelete) <<
+                            " deleted from " << seqDbr->getDbKey(elementtodecrease) <<
+                            " that now is empty, but not assigned to a cluster\n";
+                        } else if (clustersizes[elementtodecrease] > 0) {
+                            decreaseClustersize(elementtodecrease);
+                        }
+                    }
+                    if (!representativefound) {
+                        Debug(Debug::ERROR) << "error with cluster:\t" << seqDbr->getDbKey(representative) <<
+                        "\tis not contained in set:\t" << seqDbr->getDbKey(elementtodelete) << ".\n";
+                    }
+
+                }
+
+
+            }
+        } else if (mode == 3) {
+            Debug(Debug::INFO) << "connected component mode" << "\n";
+            for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
+                int representative = sorted_clustersizes[cl_size];
+                if (assignedcluster[representative] == -1) {
+                    assignedcluster[representative] = representative;
+                    std::queue<int> myqueue;
+                    myqueue.push(representative);
+                    std::queue<int> iterationcutoffs;
+                    iterationcutoffs.push(0);
+                    //delete clusters of members;
                     while (!myqueue.empty()) {
                         int currentid = myqueue.front();
-
+                        int iterationcutoff = iterationcutoffs.front();
+                        assignedcluster[currentid] = representative;
                         myqueue.pop();
-                        if(incommingconnections[currentid]<=connectioncutoff){
-                            assignedcluster[currentid]=-1;
-                             incommingconnections[currentid]=0;
-                                         continue;
-                        }
-                        assignedcluster[currentid] = representative;
+                        iterationcutoffs.pop();
                         size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
                         for (size_t elementId = 0; elementId < elementSize; elementId++) {
                             unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                            if (assignedcluster[elementtodelete] == -1) {
-                                incommingconnections[elementtodelete]++;
-                            } else if (ranks[elementtodelete] == ranks[currentid]) {
-                                connactionswithsamerank[currentid]++;
-                            }
-
-                        }
-                        if (connactionswithsamerank[currentid] > connectioncutoff&& incommingconnections[currentid]>connectioncutoff) {
-                            myqueue2.push(currentid);
-                        }else{
-                            assignedcluster[currentid]=-1;
-                            incommingconnections[currentid]=0;
-                            connactionswithsamerank[currentid]=0;
-                            ranks[currentid]=0;
-                        }
-
-
-                    }
-                    while (!myqueue2.empty()) {
-                        int currentid = myqueue2.front();
-                        assignedcluster[currentid] = representative;
-                        myqueue2.pop();
-                        size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
-                        for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                            unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                            if (assignedcluster[elementtodelete] == -1) {
+                            if (assignedcluster[elementtodelete] == -1 && iterationcutoff < maxiterations) {
                                 myqueue.push(elementtodelete);
-                                ranks[elementtodelete] = ranks[currentid] + 1;
-                                assignedcluster[elementtodelete] = representative;
+                                iterationcutoffs.push((iterationcutoff + 1));
                             }
-
+                            assignedcluster[elementtodelete] = representative;
                         }
                     }
+
                 }
-
             }
-        }
 
-    }
-    //delete unnecessary datastructures
-   /* delete [] elementLookupTable;
+        } else if (mode == 2) {
+            Debug(Debug::INFO) << "connected component mode" << "\n";
+            int *ranks = new int[n];
+            std::fill_n(ranks, n, 0);
+            int *incommingconnections = new int[n];
+            std::fill_n(incommingconnections, n, 0);
+            int *connactionswithsamerank = new int[n];
+            std::fill_n(connactionswithsamerank, n, 0);
+            int connectioncutoff = 2;
+            for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
+                //  for (int cl_size =0 ;cl_size<dbSize ; cl_size++) {
+                int representative = sorted_clustersizes[cl_size];
+                if (assignedcluster[representative] == -1) {
+
+
+                    ranks[representative] = 0;
+                    std::queue<int> myqueue;
+                    std::queue<int> myqueue2;
+                    myqueue.push(representative);
+                    int elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
+                    assignedcluster[representative] = representative;
+                    connactionswithsamerank[representative] = elementSize + 1;
+                    incommingconnections[representative] = elementSize + 1;
+                    //  elementSize=std::min(elementSize,std::max(elementSize/5,10));
+                    connectioncutoff = 0;
+                    for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                        unsigned int elementtodelete = elementLookupTable[representative][elementId];
+                        if (assignedcluster[elementtodelete] == -1) {
+                            incommingconnections[elementtodelete] = elementSize + 1;
+                            assignedcluster[elementtodelete] = representative;
+                            ranks[elementtodelete] = 0;
+                            myqueue.push(elementtodelete);
+                            connectioncutoff++;
+                        }
+                    }
+                    connectioncutoff = connectioncutoff / 2;
+                    //delete clusters of members;
+                    while (!myqueue.empty()) {
+                        while (!myqueue.empty()) {
+                            int currentid = myqueue.front();
+
+                            myqueue.pop();
+                            if (incommingconnections[currentid] <= connectioncutoff) {
+                                assignedcluster[currentid] = -1;
+                                incommingconnections[currentid] = 0;
+                                continue;
+                            }
+                            assignedcluster[currentid] = representative;
+                            size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
+                            for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                                unsigned int elementtodelete = elementLookupTable[currentid][elementId];
+                                if (assignedcluster[elementtodelete] == -1) {
+                                    incommingconnections[elementtodelete]++;
+                                } else if (ranks[elementtodelete] == ranks[currentid]) {
+                                    connactionswithsamerank[currentid]++;
+                                }
+
+                            }
+                            if (connactionswithsamerank[currentid] > connectioncutoff &&
+                                incommingconnections[currentid] > connectioncutoff) {
+                                myqueue2.push(currentid);
+                            } else {
+                                assignedcluster[currentid] = -1;
+                                incommingconnections[currentid] = 0;
+                                connactionswithsamerank[currentid] = 0;
+                                ranks[currentid] = 0;
+                            }
+
+
+                        }
+                        while (!myqueue2.empty()) {
+                            int currentid = myqueue2.front();
+                            assignedcluster[currentid] = representative;
+                            myqueue2.pop();
+                            size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
+                            for (size_t elementId = 0; elementId < elementSize; elementId++) {
+                                unsigned int elementtodelete = elementLookupTable[currentid][elementId];
+                                if (assignedcluster[elementtodelete] == -1) {
+                                    myqueue.push(elementtodelete);
+                                    ranks[elementtodelete] = ranks[currentid] + 1;
+                                    assignedcluster[elementtodelete] = representative;
+                                }
+
+                            }
+                        }
+                    }
+
+                }
+            }
+
+        }
+        //delete unnecessary datastructures
+        /* delete [] elementLookupTable;
     delete [] elements;
     delete [] elementOffsets;
     delete [] maxClustersizes;
@@ -392,6 +483,7 @@ std::list<set *>  SetCover3::execute(int mode) {
     delete [] clusterid_to_arrayposition;
     delete [] borders_of_set;
 */
+    }
 //time
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
