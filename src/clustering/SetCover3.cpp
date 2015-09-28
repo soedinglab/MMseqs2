@@ -436,9 +436,9 @@ void SetCover3::initClustersizes(){
         borders_of_set[i]=borders_of_set[i-1]+setsize_abundance[i-1];
     }
     //fill array
-    sorted_clustersizes =new int [dbSize];
+    sorted_clustersizes =new int [dbSize+1];
     std::fill_n(sorted_clustersizes,dbSize+1,0);
-    clusterid_to_arrayposition=new int[dbSize];
+    clusterid_to_arrayposition=new int[dbSize+1];
     std::fill_n(clusterid_to_arrayposition,dbSize+1,0);
     //reuse setsize_abundance as offset counter
     std::fill_n(setsize_abundance,maxClustersize+1,0);
