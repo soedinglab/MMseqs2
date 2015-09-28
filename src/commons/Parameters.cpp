@@ -40,6 +40,9 @@ Parameters::Parameters():
         PARAM_PREFERENCE(PARAM_PREFERENCE_ID,"--preference", "Preference", "Preference value influences the number of clusters (default=0). High values lead to more clusters.",typeid(float), (void *) &preference, "^[0-9]*(\\.[0-9]+)?$"),
 // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]\{1\}$"),
+// create profile (HMM, PSSM)
+        PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "[int]\tMPI Option: HMM 0 or PSSM",typeid(int),(void *) &profileMode,  "^[0-1]\{1\}$"),
+
 // clustering workflow
         PARAM_RESTART(PARAM_RESTART_ID, "--restart", "Restart","[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
                 "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering",typeid(int),(void *) &restart, "^[0-3]\{1\}$"),
@@ -102,6 +105,7 @@ Parameters::Parameters():
 
     // create profile db
     createprofiledb.push_back(PARAM_SUB_MAT);
+    createprofiledb.push_back(PARAM_PROFILE_TYPE);
     createprofiledb.push_back(PARAM_THREADS);
     createprofiledb.push_back(PARAM_V);
 
@@ -361,6 +365,9 @@ void Parameters::setDefaults() {
     restart = 0;
     step = 1;
     keepTempFiles = true;
+
+    // create profile
+    profileMode = PROFILE_MODE_HMM;
 
     // logging
     verbosity = Debug::INFO;
