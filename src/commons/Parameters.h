@@ -130,6 +130,7 @@ public:
     size_t orfMinLength;
     size_t orfMaxLength;
     size_t orfMaxGaps;
+    bool   orfUseNumericIndices;
     bool   orfSkipIncomplete;
 
     // CREATE PROFILE
@@ -233,6 +234,8 @@ public:
     PARAMETER(PARAM_ORF_MAX_LENGTH);
     PARAMETER(PARAM_ORF_MAX_GAP);
     PARAMETER(PARAM_ORF_SKIP_INCOMPLETE);
+    PARAMETER(PARAM_ORF_NUMERIC_INDICES);
+    
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createprofiledb;
     std::vector<MMseqsParameter> extractorf;
