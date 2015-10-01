@@ -147,7 +147,7 @@ Parameters::~Parameters(){
 
 int Parameters::compileRegex(regex_t * regex, const char * regexText){
     int status = regcomp(regex, regexText, REG_EXTENDED | REG_NEWLINE);
-    if (status != NULL ){
+    if (status != 0 ){
         Debug(Debug::INFO) << "Error in regex " << regexText << "\n";
         EXIT(EXIT_FAILURE);
     }
