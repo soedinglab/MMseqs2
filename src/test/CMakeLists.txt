@@ -1,5 +1,20 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
+find_package(GTest)
+if(GTEST_FOUND)
+	include_directories(${GTEST_INCLUDE_DIRS})
+	set(unittests TestOrf.cpp)
+
+	add_executable(unit_tests ${unittests})
+
+	target_link_libraries(unit_tests util)
+	target_link_libraries(unit_tests workflow)
+	target_link_libraries(unit_tests ffindex)
+	target_link_libraries(unit_tests orf)
+
+	target_link_libraries(unit_tests ${GTEST_BOTH_LIBRARIES})
+endif()
+
 set(testalignment TestAlignment.cpp )
 add_executable(test_alignment ${testalignment} )
 
@@ -61,16 +76,6 @@ add_executable(test_counting ${test_counting})
 target_link_libraries(test_counting util)
 target_link_libraries(test_counting workflow)
 target_link_libraries(test_counting ffindex)
-
-
-
-set(test_orf TestOrf.cpp )
-add_executable(test_orf ${test_orf})
-
-target_link_libraries(test_orf util)
-target_link_libraries(test_orf workflow)
-target_link_libraries(test_orf ffindex)
-target_link_libraries(test_orf orf)
 
 
 set(test_reduced TestReduceMatrix.cpp )
