@@ -116,6 +116,7 @@ Parameters::Parameters():
     extractorf.push_back(PARAM_ORF_MAX_LENGTH);
     extractorf.push_back(PARAM_ORF_MAX_GAP);
     extractorf.push_back(PARAM_ORF_SKIP_INCOMPLETE);
+    extractorf.push_back(PARAM_ORF_NUMERIC_INDICES);
 
     // splitffindex
     splitffindex.push_back(PARAM_SPLIT);
