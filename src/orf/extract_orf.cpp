@@ -71,7 +71,7 @@ int orfFastaToFFindex(
 
             hdr_writer.write(header_buffer, strlen(header_buffer), (char *)id.c_str());
 
-            std::unique_ptr<char[]> sequence(orf.View(loc));
+            std::unique_ptr<char[]> sequence(std::move(orf.View(loc)));
             char* seq = sequence.get();
             size_t length = strlen(seq);
             seq_writer.write(seq, length, (char *)id.c_str());

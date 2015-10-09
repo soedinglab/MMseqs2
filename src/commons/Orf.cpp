@@ -19,21 +19,17 @@ inline char Complement(const char c)
 Orf::Orf(const char* seq) {
     sequenceLength = strlen(seq);
 
-    sequence = new char[sequenceLength + 3];
+    sequence = new char[sequenceLength + 1];
     strncpy(sequence, seq, sequenceLength);
     sequence[sequenceLength + 0] = '\0';
-    sequence[sequenceLength + 1] = '\0';
-    sequence[sequenceLength + 2] = '\0';
 
     for(size_t i = 0; i < sequenceLength; ++i) {
         sequence[i] = toupper(sequence[i]);
     }
 
-    reverseComplement = new char[sequenceLength + 3];
+    reverseComplement = new char[sequenceLength + 1];
     strncpy(reverseComplement, sequence, sequenceLength);
     reverseComplement[sequenceLength + 0] = '\0';
-    reverseComplement[sequenceLength + 1] = '\0';
-    reverseComplement[sequenceLength + 2] = '\0';
 
     // compute the reverse complement
     std::reverse(reverseComplement, reverseComplement + sequenceLength);
