@@ -127,9 +127,9 @@ public:
     float preference;                   // Preference value influences the number of clusters (default=0). High values lead to more clusters.
 
     //extractorf
-    size_t orfMinLength;
-    size_t orfMaxLength;
-    size_t orfMaxGaps;
+    int orfMinLength;
+    int orfMaxLength;
+    int orfMaxGaps;
     bool   orfUseNumericIndices;
     bool   orfSkipIncomplete;
 
