@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
-find_package(GTest REQUIRED)
-find_package(GMock REQUIRED)
+find_package(GTest)
+find_package(GMock)
 if(GTEST_FOUND)
 if(GMOCK_FOUND)
 	include_directories(${GTEST_INCLUDE_DIRS})
