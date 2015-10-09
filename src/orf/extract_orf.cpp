@@ -50,7 +50,7 @@ int orfFastaToFFindex(
                 id = Util::parseFastaHeader(std::string(seq->name.s));
             }
 
-            id += "_"+ SSTR(orfs_num);
+            id += "_" + SSTR(orfs_num);
 
             if (id.length() >= 31) {
                 std::cerr << "Id: " << id << " is too long. Maximal 32 characters are allowed." << std::endl;
@@ -59,14 +59,14 @@ int orfFastaToFFindex(
 
             Orf::SequenceLocation loc = res[i];
 
-            if (par->orfSkipIncomplete && (loc.uncertainty_from != Orf::UNCERTAINTY_UNKOWN || loc.uncertainty_to != Orf::UNCERTAINTY_UNKOWN))
+            if (par->orfSkipIncomplete && (loc.hasIncompleteStart == true || loc.hasIncompleteEnd == true))
                 continue;
 
             if (seq->comment.l) {
-                snprintf(header_buffer, LINE_MAX, "%s %s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, seq->comment.s, loc.from, loc.to, loc.strand, loc.uncertainty_from, loc.uncertainty_to);
+                snprintf(header_buffer, LINE_MAX, "%s %s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, seq->comment.s, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
             }
             else {
-                snprintf(header_buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, loc.from, loc.to, loc.strand, loc.uncertainty_from, loc.uncertainty_to);
+                snprintf(header_buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
             }
 
             hdr_writer.write(header_buffer, strlen(header_buffer), (char *)id.c_str());
@@ -98,7 +98,6 @@ int extractorf(int argn, const char** argv)
     usage.append("Extract all open reading frames from a nucleotide fasta file into a ffindex database.\n");
     usage.append("USAGE: <fastaDB> <ffindexDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.extractorf, 2);

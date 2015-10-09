@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
-find_package(GTest)
+find_package(GTest REQUIRED)
+find_package(GMock REQUIRED)
 if(GTEST_FOUND)
+if(GMOCK_FOUND)
 	include_directories(${GTEST_INCLUDE_DIRS})
+	include_directories(${GMOCK_INCLUDE_DIRS})
+
 	set(unittests TestOrf.cpp)
 
 	add_executable(unit_tests ${unittests})
@@ -12,7 +16,8 @@ if(GTEST_FOUND)
 	target_link_libraries(unit_tests ffindex)
 	target_link_libraries(unit_tests orf)
 
-	target_link_libraries(unit_tests ${GTEST_BOTH_LIBRARIES})
+	target_link_libraries(unit_tests ${GMOCK_BOTH_LIBRARIES})
+endif()
 endif()
 
 set(testalignment TestAlignment.cpp )
