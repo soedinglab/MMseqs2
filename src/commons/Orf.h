@@ -48,7 +48,7 @@ public:
                   size_t maxLength = SIZE_MAX,
                   size_t maxGaps = 30);
 
-    std::unique_ptr<char[]> View(SequenceLocation&location);
+    char* View(SequenceLocation& location);
     
 private:
     size_t sequenceLength;

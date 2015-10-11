@@ -42,7 +42,9 @@ int orfFastaToFFindex(
         orf.FindOrfs(res, par->orfMinLength, par->orfMaxLength, par->orfMaxGaps);
 
         size_t orfs_num = 0;
-        for (size_t i = 0; i < res.size(); i++) {
+        for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
+            Orf::SequenceLocation loc = *it;
+
             std::string id;
             if (par->orfUseNumericIndices) {
                 id = SSTR(entries_num);
@@ -57,8 +59,6 @@ int orfFastaToFFindex(
                 EXIT(EXIT_FAILURE);
             }
 
-            Orf::SequenceLocation loc = res[i];
-
             if (par->orfSkipIncomplete && (loc.hasIncompleteStart == true || loc.hasIncompleteEnd == true))
                 continue;
 
@@ -71,10 +71,10 @@ int orfFastaToFFindex(
 
             hdr_writer.write(header_buffer, strlen(header_buffer), (char *)id.c_str());
 
-            std::unique_ptr<char[]> sequence(std::move(orf.View(loc)));
-            char* seq = sequence.get();
-            size_t length = strlen(seq);
-            seq_writer.write(seq, length, (char *)id.c_str());
+            char* sequence = orf.View(loc);
+            size_t length = strlen(sequence);
+            seq_writer.write(sequence, length, (char *)id.c_str());
+            delete sequence;
 
             orfs_num++;
         }

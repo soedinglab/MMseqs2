@@ -38,18 +38,19 @@ Orf::Orf(const char* seq) {
     }
 }
 
-std::unique_ptr<char[]> Orf::View(SequenceLocation& location) {
+char* Orf::View(SequenceLocation& location) {
+    assert(location.to > location.from);
+    
     size_t length = location.to - location.from;
-    std::unique_ptr<char[]> buffer(new char[length + 1]);
-    char* orf = buffer.get();
+    char* buffer = new char[length + 1];
     
     if(location.strand == Orf::STRAND_PLUS) {
-        strncpy(orf, sequence + location.from, length);
+        strncpy(buffer, sequence + location.from, length);
     } else {
-        strncpy(orf, reverseComplement + location.from, length);
+        strncpy(buffer, reverseComplement + location.from, length);
     }
 
-    orf[length + 1] = '\0';
+    buffer[length] = '\0';
     
     return buffer;
 }
@@ -61,22 +62,29 @@ void Orf::FindOrfs(std::vector<Orf::SequenceLocation>& results,
                     size_t maxLength,
                     size_t maxGaps)
 {
+    std::vector<Orf::SequenceLocation> resForward;
+    std::vector<Orf::SequenceLocation> resBackward;
     #pragma omp parallel sections
     {
         // find ORFs on the forward sequence and report them as-is
         #pragma omp section
         {
-            FindForwardOrfs(sequence, sequenceLength, results,
+
+            FindForwardOrfs(sequence, sequenceLength, resForward,
                             minLength, maxLength, maxGaps, FRAME_1 | FRAME_2 | FRAME_3, STRAND_PLUS);
         }
         
         // find ORFs on the reverse complement
         #pragma omp section
         {
-            FindForwardOrfs(reverseComplement, sequenceLength, results,
+
+            FindForwardOrfs(reverseComplement, sequenceLength, resBackward,
                             minLength, maxLength, maxGaps, FRAME_1 | FRAME_2 | FRAME_3, STRAND_MINUS);
         }
     }
+
+    results.insert(results.end(), resForward.begin(), resForward.end());
+    results.insert(results.end(), resBackward.begin(), resBackward.end());
 }
 
 inline bool isIncomplete(const char* codon)
