@@ -1,4 +1,3 @@
-#include <Rmath.h>
 #include <string>
 #include "BaseMatrix.h"
 
