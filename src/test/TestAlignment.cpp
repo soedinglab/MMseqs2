@@ -9,6 +9,8 @@
 #include "Sequence.h"
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
+#include "SubstitutionMatrixWithoutX.h"
+
 #include "SubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
@@ -19,7 +21,7 @@ int main (int argc, const char * argv[])
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out",2.0);
+    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out", 2.0, 0);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
@@ -35,12 +37,8 @@ int main (int argc, const char * argv[])
 //	std::string tim = "APRKFFVGGNWKMNGKRKSLGELIHTLDGAKLSADTEVVCGAPSIYLDFARQKLDAKIGVAAQNCYKVPKGAFTGEISPAMIKDIGAAWVILGH"
 //                      "SERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFQETKAIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLR"
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
-    std::string tim1 = "IGLNAIEMSYLRQSLSLSAAQVGQLTNHSEAEVLAWENAETQAPELAQKKLLDIDDIIEMQVLNTTDGIEALFKKEPKRHLAFVVYPTQAIYTQYNPEFLSSLPLTELYNTAAWRIKKECKLVLEVDVSLINLNVEAYKAYREQNGLSESRESRAKWAATQL";
-    std::string tim2 = "MSFLGSNIKVLRRKSGLTQTQLAEELGVQRTMISAYEDGRSEPRLTTLLTLSKIFDVSMD"
-            "ELTGWDIASKGRQFLQRERLKILTVTLDQDEQERISMVGKKASAGYLNGYADPEYMENLP"
-            "NFRLPNLDGNKTYRAFEISGDSMLPLMPGTVVVGAYIESPMEIKNGKTYVLVTKNDGIVY"
-            "KRVFNYIEERGKLFAVSDNQTYKPYDISIQDVMEIWEAKAFISSHFPDPTPSAPVSLEEI"
-            "GKMILEIKSDIRKISDH";
+    std::string tim1 = "MPAYVFSKESFLKFLEGHLEDDVVVVVSSDVTDFCKKLSESMVGEKEYCFAEFAFPADIFDADEDEIDEMMKYAIVFVEKEKLSEAGRNAIR";
+    std::string tim2 = "MPAYVFSKESFLKFLEGHLEDDVVVVVSSDVTDFCKKLSESMVGEKEYCFAEFAFPADIFDADEDEIDEMMKYAIVFVEKEKLSEAGRNAIR";
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
     const char* sequence = tim1.c_str();
@@ -100,16 +98,27 @@ int main (int argc, const char * argv[])
     seqId = (float)aaIds/(float)(std::min(s->L, dbSeq->L)); //TODO
 
     std::cout << "Seqid: "<< seqId << " aaIds " << aaIds <<std::endl;
-    double evalue =  pow (exp(1), ((double)(-(alignment->score1)/(double)subMat.getBitFactor())));
+    double evalue =  pow (2,-(double)alignment->score1/2.403);
+
+
+    //score* 1/lambda
+    //
     std::cout << evalue << std::endl;
     std::cout << (s->L) << std::endl;
     std::cout << (dbSeq->L) << std::endl;
     // calcuate stop score
     const double qL = static_cast<double>(s->L);
     const double dbL = static_cast<double>(dbSeq->L);
-    size_t dbSize = (qL * 47000000 * dbL);
+    size_t dbSize = (qL * 11000000 * dbL);
+    dbSize = 1.74e+10;
     std::cout << dbSize << std::endl;
     std::cout << evalue * dbSize << std::endl;
+
+    double lambda= 0.267;
+//    double K= 0.041;
+//    double Kmn=(qL * seqDbSize * dbSeq->L);
+    double Kmn=1.74e+12;
+    std::cout << dbSize/Kmn<< " " <<  Kmn * exp(-(alignment->score1 * lambda)) << std::endl;
     delete [] tinySubMat;
     delete [] alignment->cigar;
     delete alignment;

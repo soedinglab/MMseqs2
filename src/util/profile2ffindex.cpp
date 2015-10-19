@@ -146,7 +146,7 @@ int createprofiledb(int argn,const char **argv)
     for(size_t i = 0; i < dbr_data.getSize(); i++) {
         maxElementSize = std::max((size_t) dbr_data.getSeqLens()[i], maxElementSize);
     }
-    BaseMatrix * subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0);
+    BaseMatrix * subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
 
     char * profileBuffer= new char[maxElementSize * Sequence::PROFILE_AA_SIZE];
     Debug(Debug::WARNING) << "Start converting profile to mmseqs profile.\n";

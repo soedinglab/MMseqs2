@@ -5,7 +5,7 @@ NucleotideMatrix::NucleotideMatrix(){
     this->alphabetSize = 5;
     delete[] int2aa;
     delete[] aa2int;
-
+    matrixName = "NUCL";
     int2aa = new char[alphabetSize];
     int2aa[0] = 'a';
     int2aa[1] = 'c';

@@ -80,7 +80,7 @@ void TimeTest::runTimeTest (){
 
         std::cout << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
 
-        BaseMatrix* m = new SubstitutionMatrix (scoringMatrixFile.c_str(), 8.0);
+        BaseMatrix* m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 8.0, -0.2);
         BaseMatrix* subMat;
         if (alphabetSize < 21)
             subMat = new ReducedMatrix(m->probMatrix, m->subMatrixPseudoCounts, alphabetSize, 8.0);

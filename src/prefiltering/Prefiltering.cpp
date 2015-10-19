@@ -86,12 +86,14 @@ Prefiltering::Prefiltering(std::string queryDB,
             _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
             break;
         case Sequence::AMINO_ACIDS:
-            subMat = getSubstitutionMatrix(par.scoringMatrixFile, alphabetSize, 8.0);
+            subMat = getSubstitutionMatrix(par.scoringMatrixFile, alphabetSize, 8.0, false);
+            this->alphabetSize = subMat->alphabetSize;
+
             _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
             _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
             break;
         case Sequence::HMM_PROFILE:
-            subMat = getSubstitutionMatrix(par.scoringMatrixFile, alphabetSize, 8.0); // needed for Background distrubutions
+            subMat = getSubstitutionMatrix(par.scoringMatrixFile, alphabetSize, 8.0, false); // needed for Background distrubutions
             _2merSubMatrix = NULL;
             _3merSubMatrix = NULL;
             break;
@@ -329,7 +331,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     size_t realResSize = 0;
     size_t diagonalOverflow = 0;
     size_t totalQueryDBSize = querySize;
-    memset(notEmpty + queryFrom, 0, qdbr->getSize() * sizeof(int)); // init notEmpty
+    memset(notEmpty, 0, qdbr->getSize() * sizeof(int)); // init notEmpty
 
     Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step "<< split << " of " << splitCount << ")\n";
     Debug(Debug::WARNING) << "Query db start  "<< queryFrom << " to " << queryFrom + querySize << "\n";
@@ -494,16 +496,20 @@ void Prefiltering::printStatistics(statistics_t &stats, size_t empty) {
     Debug(Debug::INFO) << empty << " sequences with 0 size result lists.\n";
 }
 
-BaseMatrix* Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSize, float bitFactor){
+BaseMatrix * Prefiltering::getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSize, float bitFactor,
+                                                      bool ignoreX) {
     Debug(Debug::INFO) << "Substitution matrices...\n";
     BaseMatrix* subMat;
     if (alphabetSize < 21){
-        SubstitutionMatrix* sMat = new SubstitutionMatrix (scoringMatrixFile.c_str(), bitFactor);
-        subMat = new ReducedMatrix(sMat->probMatrix, sMat->subMatrixPseudoCounts, alphabetSize, bitFactor);
+        SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2);
+        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, alphabetSize, bitFactor);
+    }else if(ignoreX == true){
+        SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2);
+        subMat = new SubstitutionMatrixWithoutX(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.subMatrix, bitFactor);
+        subMat->print(subMat->subMatrix, subMat->int2aa, subMat->alphabetSize);
+    }else{
+        subMat = new SubstitutionMatrix(scoringMatrixFile.c_str(), bitFactor, -0.2);
     }
-    else
-        subMat = new SubstitutionMatrix (scoringMatrixFile.c_str(), bitFactor);
-
     return subMat;
 }
 

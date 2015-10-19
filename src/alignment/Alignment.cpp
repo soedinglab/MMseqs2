@@ -1,4 +1,5 @@
 #include "Alignment.h"
+#include "BlastScoreUtils.h"
 
 
 Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
@@ -22,10 +23,11 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
         Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
         this->mode = Matcher::SCORE_COV_SEQID; // slowest
     }
-    if (par.querySeqType == Sequence::AMINO_ACIDS || par.querySeqType == Sequence::HMM_PROFILE)
-        this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0);
-    else
+    if (par.querySeqType == Sequence::AMINO_ACIDS || par.querySeqType == Sequence::HMM_PROFILE){
+        this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+    }else{
         this->m = new NucleotideMatrix();
+    }
 
     threads = 1;
 #ifdef OPENMP
@@ -57,7 +59,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     matchers = new Matcher*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++) {
-        matchers[i] = new Matcher(par.maxSeqLen, this->m);
+        matchers[i] = new Matcher(par.maxSeqLen, this->m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize());
     }
 
     dbKeys = new char*[threads];

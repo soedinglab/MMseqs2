@@ -26,7 +26,8 @@ public:
     };
 
 
-    MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat);
+    MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat,
+                                             Matcher *aligner);
 
     ~MultipleAlignment();
     // Compute center star multiple alignment from sequence input
