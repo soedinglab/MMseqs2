@@ -2,11 +2,13 @@
 #include "Util.h"
 
 
-SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_, float bitFactor):
+SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_, float bitFactor, float scoreBias = 0.2) :
     scoringMatrixFileName(scoringMatrixFileName_)
 {
     // read amino acid substitution matrix from file
     std::string fileName(scoringMatrixFileName);
+    matrixName = Util::base_name(fileName, "/\\");
+    matrixName = Util::remove_extension(matrixName);
     if (fileName.substr(fileName.length()-4, 4).compare(".out") == 0)
         readProbMatrix();
     else{
@@ -14,7 +16,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char* scoringMatrixFileName_, float
         EXIT(1);
     }
 
-    generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts, this->subMatrix,  this->alphabetSize, bitFactor, -0.2);
+    generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts, this->subMatrix,  this->alphabetSize, bitFactor, scoreBias);
     this->bitFactor = bitFactor;
 }
 

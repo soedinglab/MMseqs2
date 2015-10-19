@@ -30,6 +30,7 @@ set(prefiltering_source_files
   QueryTemplateMatcherExactMatch.h
   ReducedMatrix.cpp
   ReducedMatrix.h
+  SubstitutionMatrixWithoutX.h
 )
 add_library(prefiltering STATIC ${prefiltering_source_files})
 

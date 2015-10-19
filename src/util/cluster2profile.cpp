@@ -72,11 +72,12 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
         maxSetSize = std::max(maxSetSize, currClusterEntry);
     }
     maxSetSize += 1;
-    SubstitutionMatrix * subMat = new SubstitutionMatrix(subMatPath.c_str(), 2.0);
+    SubstitutionMatrix * subMat = new SubstitutionMatrix(subMatPath.c_str(), 2.0, -0.2);
     Debug(Debug::WARNING) << "Start computing profiles.\n";
 #pragma omp parallel
     {
-        MultipleAlignment msaAligner(maxSeqLen, maxSetSize, subMat);
+        Matcher aligner(maxSeqLen, subMat, tdbr->getAminoAcidDBSize(), tdbr->getSize());
+        MultipleAlignment msaAligner(maxSeqLen, maxSetSize, subMat, &aligner);
         PSSMCalculator pssmCalculator(subMat, maxSeqLen);
         Sequence centerSeq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, 0, false);
         Sequence **dbSeqs = new Sequence *[maxSetSize];

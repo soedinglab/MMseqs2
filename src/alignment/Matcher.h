@@ -15,10 +15,11 @@
 #include "Sequence.h"
 #include "BaseMatrix.h"
 #include "smith_waterman_sse2.h"
+#include "BlastScoreUtils.h"
 
 class Matcher{
 
-    public:
+public:
 
 
 
@@ -26,65 +27,71 @@ class Matcher{
     static const unsigned int SCORE_COV = 1;
     static const unsigned int SCORE_COV_SEQID = 2;
 
-        struct result_t {
-            std::string dbKey;
-            int score;
-            float qcov;
-            float dbcov;
-            float seqId;
-            double eval;
-            unsigned int qStartPos;
-            unsigned int qEndPos;
-            unsigned int dbStartPos;
-            unsigned int dbEndPos;
-            std::string backtrace;
-            result_t(std::string dbkey,int score,
+    struct result_t {
+        std::string dbKey;
+        int score;
+        float qcov;
+        float dbcov;
+        float seqId;
+        double eval;
+        unsigned int qStartPos;
+        unsigned int qEndPos;
+        unsigned int dbStartPos;
+        unsigned int dbEndPos;
+        std::string backtrace;
+        result_t(std::string dbkey,int score,
                  float qcov, float dbcov,
                  float seqId, double eval,
                  unsigned int qStartPos,
                  unsigned int qEndPos,
                  unsigned int dbStartPos,
                  unsigned int dbEndPos,
-                    std::string backtrace) : dbKey(dbkey), score(score), qcov(qcov),
-                                             dbcov(dbcov), seqId(seqId), eval(eval),
-                                             qStartPos(qStartPos), qEndPos(qEndPos),
-                                             dbStartPos(dbStartPos), dbEndPos(dbEndPos),
-                                             backtrace(backtrace) {};
-        };
+                 std::string backtrace) : dbKey(dbkey), score(score), qcov(qcov),
+                                          dbcov(dbcov), seqId(seqId), eval(eval),
+                                          qStartPos(qStartPos), qEndPos(qEndPos),
+                                          dbStartPos(dbStartPos), dbEndPos(dbEndPos),
+                                          backtrace(backtrace) {};
+    };
 
-        Matcher(int maxSeqLen, BaseMatrix *m);
+    Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize);
 
-        ~Matcher();
+    ~Matcher();
 
-        // run SSE2 parallelized Smith-Waterman alignment calculation and traceback
-        result_t getSWResult(Sequence* dbSeq,const size_t seqDbSize,const double evalThr, const unsigned int mode);
+    // run SSE2 parallelized Smith-Waterman alignment calculation and traceback
+    result_t getSWResult(Sequence* dbSeq,const size_t seqDbSize,const double evalThr, const unsigned int mode);
 
-        // need for sorting the results
-        static bool compareHits (result_t first, result_t second){ return (first.eval < second.eval); }
-    
-        // map new query into memory (create profile, ...)
-        void initQuery(Sequence* query);
+    // need for sorting the results
+    static bool compareHits (result_t first, result_t second){ return (first.eval < second.eval); }
+
+    // map new query into memory (create profile, ...)
+    void initQuery(Sequence* query);
 
 
 private:
 
-        // calculate the query profile for SIMD registers processing 8 elements
-        int maxSeqLen;
-    
-        // holds values of the current active query
-        Sequence * currentQuery;
-    
-        // aligner Class
-        SmithWaterman * aligner;
-        // parameter for alignment
-        const unsigned short GAP_OPEN = 10;
-        const unsigned short GAP_EXTEND = 1;
-        // substitution matrix
-        BaseMatrix* m;
-        // byte version of substitution matrix
-        int8_t * tinySubMat;
-        // set substituion matrix
-        void setSubstitutionMatrix(BaseMatrix *m);
+    // calculate the query profile for SIMD registers processing 8 elements
+    int maxSeqLen;
+
+    // holds values of the current active query
+    Sequence * currentQuery;
+
+    // aligner Class
+    SmithWaterman * aligner;
+    // parameter for alignment
+    const unsigned short GAP_OPEN = 11;
+    const unsigned short GAP_EXTEND = 1;
+    // substitution matrix
+    BaseMatrix* m;
+    // byte version of substitution matrix
+    int8_t * tinySubMat;
+    // set substituion matrix
+    void setSubstitutionMatrix(BaseMatrix *m);
+
+    // BLAST statistics
+    double *kmnByLen; // contains Kmn for
+    double logKLog2; // log(k)/log(2)
+    double lambdaLog2; //lambda/log(2)
+    double lambda;
 };
 
 #endif

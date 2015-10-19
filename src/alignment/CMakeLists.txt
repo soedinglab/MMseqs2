@@ -10,7 +10,8 @@ set(alignment_source_files
   MultipleAlignment.h
   PSSMCalculator.cpp
   PSSMCalculator.h
-)
+  BlastScoreUtils.cpp
+  BlastScoreUtils.h)
 add_library(alignment ${alignment_source_files})
 
 target_link_libraries(alignment commons)
