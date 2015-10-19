@@ -49,10 +49,12 @@ Parameters::Parameters():
         PARAM_STEP(PARAM_STEP_ID, "--step","Step","[int]\t\tRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the set merging",typeid(int),(void *) &step, "^[0-4]\{1\}$"),
 // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","[int]\tSearch iterations",typeid(int),(void *) &numIterations, "^[1-9]\{1\}[0-9]*$"),
-        PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min orf length", "[int]\t\tMinimum length of open reading frame to be extracted from fasta file",typeid(int),(void *) &orfMinLength, "^[1-9]\{1\}[0-9]*$"),
-        PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max orf length", "[int]\t\tMaximum length of open reading frame to be extracted from fasta file.",typeid(int),(void *) &orfMaxLength, "^[1-9]\{1\}[0-9]*$"),
-        PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^[1-9]\{1\}[0-9]*$"),
-        PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "\tSkip orfs that have only an end or only a start",typeid(bool),(void *) &orfSkipIncomplete, "")
+// Orfs
+        PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min orf length", "[int]\t\tMinimum nucleotide length of open reading frame to be extracted from fasta file",typeid(int),(void *) &orfMinLength, "^[1-9]\{1\}[0-9]*$"),
+        PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max orf length", "[int]\t\tMaximum nucleotide length of open reading frame to be extracted from fasta file.",typeid(int),(void *) &orfMaxLength, "^[1-9]\{1\}[0-9]*$"),
+        PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
+        PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "\tSkip orfs that have only an end or only a start",typeid(bool),(void *) &orfSkipIncomplete, ""),
+        PARAM_ORF_NUMERIC_INDICES(PARAM_ORF_NUMERIC_INDICES_ID,"--numeric-indices", "Use numeric indices", "\tUse numeric indices as the ffindex key instead of trying to parse fasta headers",typeid(bool),(void *) &orfUseNumericIndices, "")
 {
     // alignment
     alignment.push_back(PARAM_E);
@@ -114,6 +116,7 @@ Parameters::Parameters():
     extractorf.push_back(PARAM_ORF_MAX_LENGTH);
     extractorf.push_back(PARAM_ORF_MAX_GAP);
     extractorf.push_back(PARAM_ORF_SKIP_INCOMPLETE);
+    extractorf.push_back(PARAM_ORF_NUMERIC_INDICES);
 
     // splitffindex
     splitffindex.push_back(PARAM_SPLIT);
@@ -147,7 +150,7 @@ Parameters::~Parameters(){
 
 int Parameters::compileRegex(regex_t * regex, const char * regexText){
     int status = regcomp(regex, regexText, REG_EXTENDED | REG_NEWLINE);
-    if (status != NULL ){
+    if (status != 0 ){
         Debug(Debug::INFO) << "Error in regex " << regexText << "\n";
         EXIT(EXIT_FAILURE);
     }
@@ -376,6 +379,7 @@ void Parameters::setDefaults() {
     orfMinLength = 1;
     orfMaxLength = SIZE_MAX;
     orfMaxGaps = SIZE_MAX;
+    orfUseNumericIndices = false;
     orfSkipIncomplete = false;
 }
 
