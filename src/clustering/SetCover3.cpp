@@ -30,7 +30,7 @@ std::list<set *>  SetCover3::execute(int mode) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     ///time
-    clustersizes=new unsigned int[dbSize];
+    clustersizes=new int[dbSize];
     std::fill_n(clustersizes,dbSize,0);
 
 
