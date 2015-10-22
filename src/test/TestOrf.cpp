@@ -1,49 +1,150 @@
-#include <iostream>
-#include <list>
-#include <algorithm>
-#include <math.h>
-#include <SetCover2.h>
+#include "gmock/gmock.h"
+
 #include <Orf.h>
 
+class OrfTest : public testing::Test {
+protected:
 
-#include "Clustering.h"
-#include "SetElement.h"
+    const char* sequence = "CGAAGCGGGTGATGGCCGGCGCCGCGCCGGTTGGCGGCTGGCCATTCAAGGAGTGAGGAGATGGTCACTGGGCAGCGCGCCGGGGGGCGGCAGCAGCCCAAGGGTCGGGTCATTCCCGATTGGCCGCACCAGGCGCCCGCCACAGCCGGA";
 
-#include "DBReader.h"
-#include "DBWriter.h"
+    const char* reverseComplement = "TCCGGCTGTGGCGGGCGCCTGGTGCGGCCAATCGGGAATGACCCGACCCTTGGGCTGCTGCCGCCCCCCGGCGCGCTGCCCAGTGACCATCTCCTCACTCCTTGAATGGCCAGCCGCCAACCGGCGCGGCGCCGGCCATCACCCGCTTCG";
 
+    size_t sequenceLength = 150;
 
+    Orf* orf;
 
-int main(int argc, char **argv)
-{
-
-    const char * seq = "CGAAGCGGGTGATGGCCGGCGCCGCGCCGGTTGGCGGCTGGCCATTCAAGGAGTTGAGGAGATGGTCACTGGGCAGCGCGCCGGGGGGCGGCAGCAGCCCAAGGGTCGGGTCATTCCCGATTGGCCGCACCAGGCGCCCGCCACAGCCGGA";
-    Orf orf(seq);
-    std::vector<Orf::SequenceLocation> res;
-    size_t orfMinLength = 1;
-    size_t orfMaxLength = SIZE_MAX;
-    size_t orfMaxGaps = SIZE_MAX;
-    bool orfSkipIncomplete = false;
-
-    orf.FindOrfs(res, orfMinLength, orfMaxLength, orfMaxGaps);
-
-    size_t orfs_num = 0;
-    printf("Orf found: %d\n", res.size());
-
-    for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); it++) {
-
-        Orf::SequenceLocation loc = (Orf::SequenceLocation) * it;
-
-        if (orfSkipIncomplete && (loc.uncertainty_from != Orf::UNCERTAINTY_UNKOWN || loc.uncertainty_to != Orf::UNCERTAINTY_UNKOWN))
-            continue;
-
-        printf("%s [Orf: %zu, %zu, %d, %d, %d]\n", "Test", loc.from, loc.to, loc.strand, loc.uncertainty_from, loc.uncertainty_to);
-
-        std::unique_ptr<char[]> sequence(orf.View(loc));
-        char* seq = sequence.get();
-        size_t length = strlen(seq);
-        printf("%s\n", seq);
-
-        orfs_num++;
+    virtual void SetUp() {
+        orf = new Orf(sequence);
     }
+
+    virtual void TearDown() {
+        delete orf;
+    }
+};
+
+TEST_F(OrfTest, Frame_1) {
+    std::vector<std::string> computedOrfs;
+
+    std::vector<Orf::SequenceLocation> results;
+    FindForwardOrfs(sequence, sequenceLength, results, 1, 300, 0, Orf::FRAME_1, Orf::STRAND_PLUS);
+    for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
+        Orf::SequenceLocation loc = *it;
+        char* buffer = orf->View(loc);
+        computedOrfs.emplace_back(buffer);
+        delete buffer;
+    }
+
+    std::vector<std::string> expectedOrfs;
+    expectedOrfs.emplace_back("CGAAGCGGGTGA");
+    expectedOrfs.emplace_back(
+        "ATGGTCACTGGGCAGCGCGCCGGGGGGCGGCAGCAGCCCAAGGGTCGGGTCATTCCCGATTGGCCGCACCAGGCGCCCGCCACAGCCGGA"
+    );
+
+    EXPECT_THAT(computedOrfs, testing::ContainerEq(expectedOrfs));
+}
+
+TEST_F(OrfTest, Frame_2) {
+    std::vector<std::string> computedOrfs;
+
+    std::vector<Orf::SequenceLocation> results;
+    FindForwardOrfs(sequence, sequenceLength, results, 1, 300, 0, Orf::FRAME_2, Orf::STRAND_PLUS);
+    for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
+        Orf::SequenceLocation loc = *it;
+        char* buffer = orf->View(loc);
+        computedOrfs.emplace_back(buffer);
+        delete buffer;
+    }
+
+    std::vector<std::string> expectedOrfs;
+    expectedOrfs.emplace_back(
+"GAAGCGGGTGATGGCCGGCGCCGCGCCGGTTGGCGGCTGGCCATTCAAGGAGTGAGGAGATGGTCACTGGGCAGCGCGCCGGGGGGCGGCAGCAGCCCAAGGGTCGGGTCATTCCCGATTGGCCGCACCAGGCGCCCGCCACAGCCGGA"
+    );
+
+    EXPECT_THAT(computedOrfs, testing::ContainerEq(expectedOrfs));
+}
+
+TEST_F(OrfTest, Frame_3) {
+    std::vector<std::string> computedOrfs;
+
+    std::vector<Orf::SequenceLocation> results;
+    FindForwardOrfs(sequence, sequenceLength, results, 1, 300, 0, Orf::FRAME_3, Orf::STRAND_PLUS);
+    for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
+        Orf::SequenceLocation loc = *it;
+        char* buffer = orf->View(loc);
+        computedOrfs.emplace_back(buffer);
+        delete buffer;
+    }
+
+    std::vector<std::string> expectedOrfs;
+    expectedOrfs.emplace_back("ATGGCCGGCGCCGCGCCGGTTGGCGGCTGGCCATTCAAGGAGTGA");
+
+    EXPECT_THAT(computedOrfs, testing::ContainerEq(expectedOrfs));
+}
+
+TEST_F(OrfTest, Frame_R_1) {
+    std::vector<std::string> computedOrfs;
+
+    std::vector<Orf::SequenceLocation> results;
+    FindForwardOrfs(reverseComplement, sequenceLength, results, 1, 300, 0, Orf::FRAME_1, Orf::STRAND_MINUS);
+    for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
+        Orf::SequenceLocation loc = *it;
+        char* buffer = orf->View(loc);
+        computedOrfs.emplace_back(buffer);
+        delete buffer;
+    }
+
+    std::vector<std::string> expectedOrfs;
+    expectedOrfs.emplace_back(
+"TCCGGCTGTGGCGGGCGCCTGGTGCGGCCAATCGGGAATGACCCGACCCTTGGGCTGCTGCCGCCCCCCGGCGCGCTGCCCAGTGACCATCTCCTCACTCCTTGA"
+    );
+    expectedOrfs.emplace_back("ATGGCCAGCCGCCAACCGGCGCGGCGCCGGCCATCACCCGCTTCG");
+
+    EXPECT_THAT(computedOrfs, testing::ContainerEq(expectedOrfs));
+}
+
+TEST_F(OrfTest, Frame_R_2) {
+    std::vector<std::string> computedOrfs;
+
+    std::vector<Orf::SequenceLocation> results;
+    FindForwardOrfs(reverseComplement, sequenceLength, results, 1, 300, 0, Orf::FRAME_3, Orf::STRAND_MINUS);
+    for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
+        Orf::SequenceLocation loc = *it;
+        char* buffer = orf->View(loc);
+        computedOrfs.emplace_back(buffer);
+        delete buffer;
+    }
+
+    std::vector<std::string> expectedOrfs;
+    expectedOrfs.emplace_back("CGGCTGTGGCGGGCGCCTGGTGCGGCCAATCGGGAATGA");
+
+    EXPECT_THAT(computedOrfs, testing::ContainerEq(expectedOrfs));
+}
+
+TEST_F(OrfTest, Frame_R_3) {
+    std::vector<std::string> computedOrfs;
+
+    std::vector<Orf::SequenceLocation> results;
+    FindForwardOrfs(reverseComplement, sequenceLength, results, 1, 300, 0, Orf::FRAME_2, Orf::STRAND_MINUS);
+    for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
+        Orf::SequenceLocation loc = *it;
+        char* buffer = orf->View(loc);
+        computedOrfs.emplace_back(buffer);
+        delete buffer;
+    }
+
+    std::vector<std::string> expectedOrfs;
+    expectedOrfs.emplace_back(
+"ATGACCCGACCCTTGGGCTGCTGCCGCCCCCCGGCGCGCTGCCCAGTGACCATCTCCTCACTCCTTGAATGGCCAGCCGCCAACCGGCGCGGCGCCGGCCATCACCCGCTTCG"
+    );
+
+    EXPECT_THAT(computedOrfs, testing::ContainerEq(expectedOrfs));
+}
+
+TEST_F(OrfTest, Orf_All) {
+    std::vector<Orf::SequenceLocation> computedOrfs;
+
+    orf->FindOrfs(computedOrfs);
+
+
+    EXPECT_EQ(computedOrfs.size(), 8);
 }

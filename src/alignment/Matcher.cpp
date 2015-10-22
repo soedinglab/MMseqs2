@@ -3,12 +3,22 @@
 #include "Util.h"
 #include "smith_waterman_sse2.h"
 
-Matcher::Matcher(int maxSeqLen, BaseMatrix *m) {
+Matcher::Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize){
     this->m = m;
     this->tinySubMat = NULL;
     setSubstitutionMatrix(m);
     this->maxSeqLen = maxSeqLen;
     aligner = new SmithWaterman(maxSeqLen, m->alphabetSize);
+    kmnByLen = new double[maxSeqLen];
+    BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(m->getMatrixName(), GAP_OPEN, GAP_EXTEND);
+    for(size_t len = 0; len < maxSeqLen; len++){
+        kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta, dbLen, dbSize);
+    }
+    double logK = log( stats.K);
+    this->lambda = stats.lambda;
+    this->lambdaLog2 =  stats.lambda / log(2.0);
+    this->logKLog2 = logK / log(2.0);
+    //std::cout << "lambda=" << lambdaLog2 << " logKLog2=" << logKLog2 << std::endl;
 }
 
 
@@ -27,6 +37,7 @@ Matcher::~Matcher(){
         delete [] tinySubMat;
         tinySubMat = NULL;
     }
+    delete[] kmnByLen;
 }
 
 void Matcher::initQuery(Sequence* query){
@@ -39,7 +50,7 @@ void Matcher::initQuery(Sequence* query){
 
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
-                                        const double evalThr, const unsigned int mode){
+                                       const double evalThr, const unsigned int mode){
     unsigned int qStartPos = 0;
     unsigned int qEndPos = 0;
     unsigned int dbStartPos = 0;
@@ -48,7 +59,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
 
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
-    
+
     // calcuate stop score
     const double qL = static_cast<double>(currentQuery->L);
     const double dbL = static_cast<double>(dbSeq->L);
@@ -98,24 +109,30 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
             seqId = (float)aaIds/(float)(std::min(currentQuery->L, dbSeq->L)); //TODO
         }
     }
-    
+
     qStartPos = alignment->qStartPos1;
     dbStartPos = alignment->dbStartPos1;
     qEndPos = alignment->qEndPos1;
     dbEndPos = alignment->dbEndPos1;
     // normalize score
-    alignment->score1 = alignment->score1 - log2(dbSeq->L);
+//    alignment->score1 = alignment->score1 - log2(dbSeq->L);
     if(mode == SCORE_COV || mode == SCORE_COV_SEQID) {
         qcov = (std::min(currentQuery->L, (int) qEndPos) - qStartPos + 1) / (float) currentQuery->L;
         dbcov = (std::min(dbSeq->L, (int) dbEndPos) - dbStartPos + 1) / (float) dbSeq->L;
     }
     // 100 because the score is normalized
 
-    // Karlin-Altschul statistics
-    //  E =  qL dL * exp(-S)
-    double evalue =  pow (exp(1), ((double)(-(alignment->score1)/(double)m->getBitFactor())));
-    evalue *= (qL * seqDbSize * dbSeq->L);
-    result_t result(std::string(dbSeq->getDbKey()), alignment->score1, qcov, dbcov, seqId, evalue, qStartPos, qEndPos, dbStartPos, dbEndPos, backtrace);
+    // statistics
+    //  E =  qL dL * 2^(-S)
+    double evalue = BlastScoreUtils::computeEvalue(alignment->score1, kmnByLen[currentQuery->L], this->lambda);
+    int bitScore =(short) (BlastScoreUtils::computeBitScore(alignment->score1, lambdaLog2, logKLog2)+0.5);
+
+    //blast stat
+//    double lambda= 0.267;
+//    double K= 0.041;
+//    double Kmn=(qL * seqDbSize * dbSeq->L);
+//    double evalue = Kmn * exp(-(alignment->score1 * lambda));
+    result_t result(std::string(dbSeq->getDbKey()), bitScore, qcov, dbcov, seqId, evalue, qStartPos, qEndPos, dbStartPos, dbEndPos, backtrace);
     delete [] alignment->cigar;
     delete alignment;
     return result;

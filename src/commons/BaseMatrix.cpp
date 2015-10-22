@@ -1,3 +1,4 @@
+#include <string>
 #include "BaseMatrix.h"
 
 BaseMatrix::BaseMatrix(){
@@ -26,7 +27,7 @@ BaseMatrix::BaseMatrix(){
     int2aa[18] = 'W';
     int2aa[19] = 'Y';
     int2aa[20] = 'X';
-    
+
 
     aa2int = new int['Z'+1];
     for (int i = 0; i <= 'Z'; ++i) aa2int[i]=-1;
@@ -125,10 +126,11 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
     for (int i = 0; i < size; i++){
         for (int j = 0; j < size; j++){
             subMatrix[i][j] = bitFactor * _log2(probMatrix[i][j]/(pBack[i]*pBack[j])) + scoringBias;
+
         }
     }
 
-    subMatrix[size-1][size-1] = 0.0;
+    //subMatrix[size-1][size-1] = 0.0;
 }
 
 void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix,
@@ -151,4 +153,6 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseud
     delete[] sm;
 }
 
-
+std::string BaseMatrix::getMatrixName() {
+    return matrixName;
+}

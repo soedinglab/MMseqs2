@@ -22,6 +22,8 @@
 
 #include "ExtendedSubstitutionMatrix.h"
 #include "ReducedMatrix.h"
+#include "SubstitutionMatrixWithoutX.h"
+
 #include "KmerGenerator.h"
 #include "QueryTemplateMatcher.h"
 
@@ -62,7 +64,8 @@ class Prefiltering {
 
 
         // get substituion matrix
-        static BaseMatrix* getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSize, float bitFactor);
+        static BaseMatrix *getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSize, float bitFactor,
+                                                       bool ignoreX);
 
 
     private:

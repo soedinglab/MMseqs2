@@ -25,7 +25,7 @@
 class SubstitutionMatrix: public BaseMatrix {
 
     public:
-        SubstitutionMatrix(const char* scoringMatrixFileName_, float bitFactor);
+        SubstitutionMatrix(const char *scoringMatrixFileName_, float bitFactor, float scoreBias);
 
         virtual ~SubstitutionMatrix();
 

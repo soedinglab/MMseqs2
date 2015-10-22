@@ -8,7 +8,7 @@ CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
     size = std::max(size  >> MASK_0_5_BIT, (size_t) 1); // space needed in bit array
     duplicateBitArraySize = size;
     duplicateBitArray = new unsigned char[size];
-    memset(duplicateBitArray, 254, duplicateBitArraySize * sizeof(unsigned char));
+    memset(duplicateBitArray, 255, duplicateBitArraySize * sizeof(unsigned char));
     // find nearest upper power of 2^(x)
     initBinSize = pow(2, ceil(log(initBinSize)/log(2)));
     binSize = initBinSize;
@@ -53,8 +53,7 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
             //currDiagonal = (currDiagonal == 0) ? 200 : currDiagonal;
             const unsigned char dbDiagonal = duplicateBitArray[hashBinElement];
             tmpElementBuffer[elementCount] = element.id;
-            elementCount += (UNLIKELY(currDiagonal > dbDiagonal - 1 ) &&
-                             UNLIKELY(currDiagonal < dbDiagonal + 1 ) ) ? 1 : 0;
+            elementCount += (UNLIKELY(currDiagonal == dbDiagonal  ) ) ? 1 : 0;
             // set element corresponding bit in byte
             duplicateBitArray[hashBinElement] = currDiagonal;
         }
@@ -85,10 +84,10 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
         if(currBinSize < duplicateBitArraySize/16){
             for (size_t n = 0; n < currBinSize; n++) {
                 const unsigned int byteArrayPos = binStartPos[n].id >> (MASK_0_5_BIT);
-                duplicateBitArray[byteArrayPos] = 254;
+                duplicateBitArray[byteArrayPos] = 255;
             }
         }else{
-            memset(duplicateBitArray, 254, duplicateBitArraySize * sizeof(unsigned char));
+            memset(duplicateBitArray, 255, duplicateBitArraySize * sizeof(unsigned char));
         }
     }
     return doubleElementCount;
@@ -108,7 +107,7 @@ bool CountInt32Array::checkForOverflowAndResizeArray(CounterResult **bins,
         if( n > binSize || bins[bin] >= lastPosition) {
             // overflow detected
             // find nearest upper power of 2^(x)
-            std::cout << "Found overlow " << n << std::endl;
+//            std::cout << "Found overlow " << n << std::endl;
             this->binSize = pow(2, ceil(log(binSize + 1)/log(2)));
             reallocBinMemory(binCount, this->binSize);
             return true;

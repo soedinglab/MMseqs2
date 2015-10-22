@@ -4,8 +4,6 @@
 
 #include <memory>
 #include <vector>
-#include <cstdint>
-#include <cstdlib>
 
 //
 // class Orf implements a simple open reading frame search.
@@ -18,43 +16,27 @@
 class Orf
 {
 public:
-    typedef size_t SequencePosition;
-
     enum Strand {
         STRAND_PLUS = 1,
         STRAND_MINUS = -1
     };
 
-    // matches NCBI ELim values
-    enum Uncertainty {
-        UNCERTAINTY_UNKOWN = 0,
-        UNCERTAINTY_GREATER = 1,
-        UNCERTAINTY_LESS = 2,
-        UNCERTAINTY_OTHER = 255
+    enum Frame {
+        FRAME_1 = (1u << 0),
+        FRAME_2 = (1u << 1),
+        FRAME_3 = (1u << 2)
     };
 
-    class SequenceLocation {
-    public:
-        SequencePosition from, to;
+    struct SequenceLocation {
+        size_t from, to;
+        bool hasIncompleteStart, hasIncompleteEnd;
         Strand strand;
-        Uncertainty uncertainty_from, uncertainty_to;
-
-        SequenceLocation(SequencePosition from, SequencePosition to, Uncertainty uncertainty_from, Uncertainty uncertainty_to, Strand strand)
-            : from(from), to(to), strand(strand), uncertainty_from(uncertainty_from), uncertainty_to(uncertainty_to) {}
     };
-
-    class Range {
-    public:
-        SequencePosition from, to;
-        Range(SequencePosition from, SequencePosition to) : from(from), to(to) {}
-    };
-
-    static const size_t k_default_max_seq_gap = 30;
 
     explicit Orf(const char* sequence);
     
     ~Orf() {
-        delete[] revcomp;
+        delete[] reverseComplement;
     }
 
     /// Find all ORFs in both orientations that are at least orfMinLength and at most orfMaxLength long.
@@ -62,16 +44,19 @@ public:
     /// seq must be in iupac.
     /// Do not allow more than max_seq_gap consecutive N-or-gap bases in an ORF
     void FindOrfs(std::vector<SequenceLocation>& results,
-                  size_t min_length = 1,
-                  size_t max_length = SIZE_MAX,
-                  size_t max_seq_gap = k_default_max_seq_gap);
+                  size_t minLength = 1,
+                  size_t maxLength = SIZE_MAX,
+                  size_t maxGaps = 30);
 
-    std::unique_ptr<char[]> View(SequenceLocation& orf);
+    char* View(SequenceLocation& location);
     
 private:
-    size_t seq_length;
-    const char* seq;
-    char* revcomp;
+    size_t sequenceLength;
+    char* sequence;
+    char* reverseComplement;
 };
+
+void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Orf::SequenceLocation>& ranges,
+                     size_t minLength, size_t maxLength, size_t maxGaps, int frames, Orf::Strand strand);
 
 #endif
