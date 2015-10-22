@@ -34,46 +34,52 @@ int orfFastaToFFindex(
     kseq_t* seq = kseq_init(fileno(fasta_file));
 
     char header_buffer[LINE_MAX];
-    //char id_buffer[LINE_MAX];
 
     std::vector<Orf::SequenceLocation> res;
-    //size_t entries_num = 0;
+    size_t entries_num = 0;
     while (kseq_read(seq) >= 0) {
         Orf orf(seq->seq.s);
         orf.FindOrfs(res, par->orfMinLength, par->orfMaxLength, par->orfMaxGaps);
 
         size_t orfs_num = 0;
-        for (size_t i = 0; i < res.size(); i++) {
-            //snprintf(id_buffer, LINE_MAX, "%zu_%zu", entries_num, orfs_num);
-            std::string id = Util::parseFastaHeader(std::string(seq->name.s)) + "_" + SSTR(orfs_num);
+        for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
+            Orf::SequenceLocation loc = *it;
+
+            std::string id;
+            if (par->orfUseNumericIndices) {
+                id = SSTR(entries_num);
+            } else {
+                id = Util::parseFastaHeader(std::string(seq->name.s));
+            }
+
+            id += "_" + SSTR(orfs_num);
+
             if (id.length() >= 31) {
                 std::cerr << "Id: " << id << " is too long. Maximal 32 characters are allowed." << std::endl;
                 EXIT(EXIT_FAILURE);
             }
 
-            Orf::SequenceLocation loc = res[i];
-
-            if (par->orfSkipIncomplete && (loc.uncertainty_from != Orf::UNCERTAINTY_UNKOWN || loc.uncertainty_to != Orf::UNCERTAINTY_UNKOWN))
+            if (par->orfSkipIncomplete && (loc.hasIncompleteStart == true || loc.hasIncompleteEnd == true))
                 continue;
 
             if (seq->comment.l) {
-                snprintf(header_buffer, LINE_MAX, "%s %s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, seq->comment.s, loc.from, loc.to, loc.strand, loc.uncertainty_from, loc.uncertainty_to);
+                snprintf(header_buffer, LINE_MAX, "%s %s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, seq->comment.s, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
             }
             else {
-                snprintf(header_buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, loc.from, loc.to, loc.strand, loc.uncertainty_from, loc.uncertainty_to);
+                snprintf(header_buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
             }
 
             hdr_writer.write(header_buffer, strlen(header_buffer), (char *)id.c_str());
 
-            std::unique_ptr<char[]> sequence(orf.View(loc));
-            char* seq = sequence.get();
-            size_t length = strlen(seq);
-            seq_writer.write(seq, length, (char *)id.c_str());
+            char* sequence = orf.View(loc);
+            size_t length = strlen(sequence);
+            seq_writer.write(sequence, length, (char *)id.c_str());
+            delete sequence;
 
             orfs_num++;
         }
 
-        //entries_num++;
+        entries_num++;
         res.clear();
     }
 
@@ -92,7 +98,6 @@ int extractorf(int argn, const char** argv)
     usage.append("Extract all open reading frames from a nucleotide fasta file into a ffindex database.\n");
     usage.append("USAGE: <fastaDB> <ffindexDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.extractorf, 2);

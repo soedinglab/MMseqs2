@@ -10,7 +10,12 @@
 struct CounterResult {
     unsigned int  id;
     unsigned char count;
+    static bool sortCounterResultById (CounterResult first, CounterResult second){
+        return (first.id < second.id);
+    }
 };
+
+
 
 class CountInt32Array {
 public:

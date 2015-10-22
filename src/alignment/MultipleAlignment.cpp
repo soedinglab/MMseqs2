@@ -10,14 +10,15 @@
 #include "Debug.h"
 #include "Util.h"
 
-MultipleAlignment::MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat) {
+MultipleAlignment::MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat,
+                                     Matcher *aligner) {
     this->maxSeqLen = maxSeqLen;
     this->msaData = new char[maxSeqLen * (maxSetSize+ 1) ];
     this->msaSequence = new char *[maxSetSize + 1];
     for(size_t i = 0; i <= maxSetSize; i++){
         this->msaSequence[i] = this->msaData + (i *maxSeqLen);
     }
-    this->aligner = new Matcher(maxSeqLen, subMat);
+    this->aligner = aligner;
     this->subMat = subMat;
     this->queryGaps = new unsigned int[maxSeqLen];
 }
@@ -25,7 +26,6 @@ MultipleAlignment::MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, Substi
 MultipleAlignment::~MultipleAlignment() {
     delete [] msaData;
     delete [] msaSequence;
-    delete aligner;
     delete [] queryGaps;
 }
 

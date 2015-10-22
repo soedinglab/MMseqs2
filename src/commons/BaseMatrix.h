@@ -55,7 +55,8 @@ public:
 
     static inline double _log2 (double x) { return log10(x)/0.301029996; }
 
-private:
+    std::string getMatrixName();
 
+    std::string matrixName;
 };
 #endif

@@ -64,6 +64,8 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
     // go through the query sequence
     size_t kmerListLen = 0;
     size_t numMatches = 0;
+    size_t lastOverflowNumMatch = 0;
+    size_t lastOverflowHitCount = 0;
     //size_t pos = 0;
     stats->diagonalOverflow = false;
     CounterResult* sequenceHits = databaseHits;
@@ -79,13 +81,32 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
             // generate k-mer list
             const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[kmerPos],
                                                                                        &seqListSize);
-            // detected overflow while matching TODO smarter way
-            seqListSize = (numMatches + seqListSize >= MAX_DB_MATCHES) ? 0 : seqListSize;
+            // detected overflow while matching
+            if (sequenceHits + seqListSize >= lastSequenceHit) {
+                sequenceHits = databaseHits + lastOverflowHitCount;
+                const size_t hitCount = evaluateBins(sequenceHits, numMatches);
+                //updateScoreBins(inputOutputHits, hitCount);
+                if(lastOverflowHitCount != 0){ //merge lists
+                    if(lastOverflowHitCount + hitCount > MAX_DB_MATCHES)
+                        goto stopMatching;
+                    lastOverflowHitCount = mergeDatabaseHits(databaseHits, lastOverflowHitCount + hitCount);
+                }else{
+                    lastOverflowHitCount = hitCount;
+                }
+                sequenceHits = databaseHits + lastOverflowHitCount;
+                lastOverflowNumMatch += numMatches;
+                numMatches = 0;
+                if(lastOverflowHitCount > MAX_DB_MATCHES * 0.9 )
+                    goto stopMatching;
+            };
+
+//            seqListSize = (sequenceHits + seqListSize >= lastSequenceHit) ? 0 : seqListSize;
+
             for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++) {
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
                 const unsigned int seqId = entry.seqId;
-                const unsigned char diagonal = (i - j) % 253;
+                const unsigned char diagonal = (i - j) % 255;
                 sequenceHits->id    = seqId;
                 sequenceHits->count = diagonal;
                 sequenceHits++;
@@ -93,14 +114,18 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
             numMatches += seqListSize;
         }
     }
-    //fill the output
-    CounterResult* inputOutputHits = databaseHits;
+    stopMatching:
+    CounterResult* inputOutputHits = databaseHits + lastOverflowHitCount;
     size_t hitCount = evaluateBins(inputOutputHits, numMatches);
-    updateScoreBins(inputOutputHits, hitCount);
+    //fill the output
+    if(lastOverflowHitCount != 0){ // overflow occurred
+        hitCount = mergeDatabaseHits(databaseHits, lastOverflowHitCount + hitCount);
+    }
+    updateScoreBins(databaseHits, hitCount);
     stats->doubleMatches = getLocalResultSize();
     stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
     stats->querySeqLen   = seq->L;
-    stats->dbMatches     = numMatches;
+    stats->dbMatches     = lastOverflowNumMatch + numMatches;
     return hitCount;
 }
 
@@ -162,4 +187,21 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(size_t res
     }
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
     return pair;
+}
+
+size_t QueryTemplateMatcherExactMatch::mergeDatabaseHits(CounterResult *databaseHits, size_t hitCount) {
+    size_t writePosition = 0;
+    std::sort(databaseHits, databaseHits + hitCount, CounterResult::sortCounterResultById );
+    for (size_t hitIdx = 1; hitIdx < hitCount; hitIdx++){
+        if (databaseHits[hitIdx].id == databaseHits[hitIdx-1].id){
+            databaseHits[writePosition].count =  (databaseHits[writePosition].count > 0xFF - databaseHits[hitIdx].count) ? 0xFF :
+                                                                    databaseHits[writePosition].count + databaseHits[hitIdx].count;
+
+        }else{
+            writePosition++;
+            databaseHits[writePosition].count = databaseHits[hitIdx].count;
+            databaseHits[writePosition].id = databaseHits[hitIdx].id;
+        }
+    }
+    return writePosition;
 }

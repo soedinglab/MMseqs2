@@ -22,6 +22,7 @@
 
 #include "Matcher.h"
 #include "Parameters.h"
+#include "BlastScoreUtils.h"
 
 
 class Alignment {
@@ -89,6 +90,7 @@ private:
     std::string outDBIndex;
 
     void mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> vector);
+
 };
 
 #endif
