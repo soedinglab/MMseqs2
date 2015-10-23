@@ -8,9 +8,11 @@
 #include "Debug.h"
 
 class ReducedMatrix : public BaseMatrix {
-    public: 
+    public:
         ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize, float bitFactor);
         virtual ~ReducedMatrix();
+    private:
+
         /*contains the original matrix before the alphabet reduction*/
         short ** origSubMatrix;
         int*   orig_aa2int;
@@ -21,11 +23,9 @@ class ReducedMatrix : public BaseMatrix {
         // base class aa2int and int2aa mappings contain now:
         // aa2int: mapping aa (orig. alphabet) -> int code of the representative amino acid
         // int2aa: mapping int code (orig. alphabet) -> the representative amino acid char
-        
+
         // reducedAlphabet contains only the "representative" amino acids
         std::vector<char>* reducedAlphabet;
-
-    private: 
 
         /* The function adds two rows of a given m x n input matrix and produces a
          * m-1 x n matrix. row1 and row2 (where row1 < row2) are the rows that are
@@ -49,7 +49,7 @@ class ReducedMatrix : public BaseMatrix {
          * numRows and numCols are the number of rows and columns respectively in the
          * matrices that contain meaningful information.
          *
-         * Mutual information measures the information that two random variables X and Y share: 
+         * Mutual information measures the information that two random variables X and Y share:
          * it measures how much knowing one of these variables reduces uncertainty about the other.
          * (Knowing the amino acid X - how much we know about the aligned amino acid?).
          */
@@ -62,4 +62,4 @@ class ReducedMatrix : public BaseMatrix {
 };
 
 
-#endif  
+#endif

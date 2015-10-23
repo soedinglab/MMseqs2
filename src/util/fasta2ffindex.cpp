@@ -1,13 +1,7 @@
 /*
- * FFindex
- * written by Andy Hauser <hauser@genzentrum.lmu.de>.
+ * createdb
+ * written by Martin Steinegger <hauser@genzentrum.lmu.de>.
  * modified by Maria Hauser <mhauser@genzentrum.lmu.de> (splitting into sequences/headers databases)
- * 
- * FFindex is provided under the Create Commons license "Attribution-ShareAlike
- * 3.0", which basically captures the spirit of the Gnu Public License (GPL).
- * 
- * See:
- * http://creativecommons.org/licenses/by-sa/3.0/
  */
 
 #define _GNU_SOURCE 1
@@ -98,12 +92,7 @@ int createdb(int argn,const char **argv)
             EXIT(EXIT_FAILURE);
         }
         
-        std::string id = Util::parseFastaHeader(std::string(seq->name.s));
-        if (id.length() >= 31) {
-            std::cerr << "Id: " << id << " is too long. Maximal 32 characters are allowed." << std::endl;
-            EXIT(EXIT_FAILURE);
-        }
-
+        std::string id = SSTR(entries_num);
         // header
         header_line.append(seq->name.s, seq->name.l);
         if (seq->comment.l) {

@@ -132,7 +132,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            char *representative=cluster_ffindex_reader->getDbKey(i);
+            const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
             char *data = cluster_ffindex_reader->getData(i);
             char *idbuffer = new char[255 + 1];
             double sumofscore =0;
@@ -252,7 +252,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            char *representative=cluster_ffindex_reader->getDbKey(i);
+            const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
             char *data = cluster_ffindex_reader->getData(i);
             char *idbuffer = new char[255 + 1];
             double sumofscore =0;
@@ -454,7 +454,7 @@ int numberofthreads=1;
                     } else if (similarityScoreType == Parameters::APC_BITSCORE) {
                         Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
                         similarityscore = atof(std::string(similarity).c_str());
-                        int queryLength = strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
+                        int queryLength = strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i).c_str()));
                         int dbSeqLength = strlen(seqDbr->getDataByDBKey(idbuffer1));
                         float maxSeqLength = std::max(queryLength, dbSeqLength);
 
@@ -485,7 +485,7 @@ int numberofthreads=1;
                     continue;
                 }
                 memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length() * sizeof(char));
-                dbw->write(outBuffer, cluResultsOutString.length(), alnDbr->getDbKey(i),thread_idx);
+                dbw->write(outBuffer, cluResultsOutString.length(), (char*) alnDbr->getDbKey(i).c_str(),thread_idx);
 
                 //  data = Util::skipLine(data);
                 //  }

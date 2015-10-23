@@ -33,7 +33,7 @@ std::list<set *> SimpleClustering2::execute(){
         // the assumption is that clustering is B -> B (not A -> B)
         Log::printProgress(i);
         if(assignedcluster[i]==-1){
-            char *clusterId = seqDbr->getDbKey(i);
+            const char *clusterId = seqDbr->getDbKey(i).c_str();
             char *data = alnDbr->getDataByDBKey(clusterId);
             while (*data != '\0') {
                 Util::parseKey(data, idbuffer1);

@@ -15,6 +15,7 @@ set(util_source_files
   mergecluster.h
   convertfiles.h
   convertfiles.cpp
+  format_alignment.cpp
 )
 add_library(util ${util_source_files} )
 

@@ -54,9 +54,9 @@ int createfasta (int argc, const char * argv[])
     for(size_t i = 0; i < dbr_data.getSize(); i++){
         
         fwrite(header_start, sizeof(char), 1, fastaFP);
-        char * key = dbr_data.getDbKey(i);
+        const char * key = dbr_data.getDbKey(i).c_str();
         if(dbr_header != NULL){
-            char * header_data =dbr_header->getDataByDBKey(key);
+            char * header_data = dbr_header->getDataByDBKey(key);
             fwrite(header_data, sizeof(char), strlen(header_data) - 1, fastaFP);
         }else{
             fwrite(key, sizeof(char), strlen(key), fastaFP);

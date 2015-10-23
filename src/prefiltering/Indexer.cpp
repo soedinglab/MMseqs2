@@ -38,12 +38,7 @@ unsigned int Indexer::int2index( const int *int_seq){
     return this->lastKmerIndex;
 }
 
-void Indexer::index2int(int* int_seq, unsigned int idx, int kmerSize){
-    for (int i = kmerSize - 1; i >= 0; i--){
-        int_seq[i] = idx / powers[i];
-        idx = idx - int_seq[i] * powers[i];
-    }
-}
+
 
 unsigned int Indexer::getNextKmerIndex (const int* kmer, int kmerSize){
     if (this->lastKmerIndex == this->maxKmerIndex)

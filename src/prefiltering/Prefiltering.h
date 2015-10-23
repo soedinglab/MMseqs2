@@ -58,7 +58,8 @@ class Prefiltering {
     
         static void countKmersForIndexTable (DBReader* dbr, Sequence* seq, IndexTable* indexTable,
                                         size_t dbFrom, size_t dbTo);
-    
+        static void maskLowComplexKmer(IndexTable *pTable, int kmerSize, int alphaSize, char *int2aa);
+
         static void fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * indexTable,
                                  size_t dbFrom, size_t dbTo);
 
@@ -108,6 +109,7 @@ class Prefiltering {
         int splitMode;
         int skip;
         int searchMode;
+        bool sameQTDB;
 
         /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
          * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
@@ -132,7 +134,8 @@ class Prefiltering {
 
         statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize, unsigned int *querySeqsIds, bool reverseQuery, const size_t kmerThrMid);
 
-    void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
+        void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
+
 };
 
 #endif

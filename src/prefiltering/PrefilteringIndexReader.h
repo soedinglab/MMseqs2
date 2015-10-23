@@ -18,6 +18,7 @@ struct PrefilteringIndexData {
 
 class PrefilteringIndexReader {
 public:
+    static const char *CURRENT_VERSION;
     static const char *VERSION;
     static const char *ENTRIES;
     static const char *ENTRIESIZES;

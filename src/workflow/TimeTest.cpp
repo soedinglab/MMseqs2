@@ -55,7 +55,7 @@ void TimeTest::runTimeTest (){
     tdbr->open(DBReader::SORT);
     size_t targetSeqLenSum = 0;
     for (size_t i = 0; i < tdbr->getSize(); i++)
-        targetSeqLenSum += tdbr->getSeqLens()[i];
+        targetSeqLenSum += tdbr->getSeqLens(i);
 
     // generate a small random sequence set for testing
     size_t querySetSize = tdbr->getSize();
@@ -67,7 +67,7 @@ void TimeTest::runTimeTest (){
     size_t querySeqLenSum = 0;
     for (int i = 0; i < querySetSize; i++){
         querySeqs[i] = rand() % tdbr->getSize();
-        querySeqLenSum += tdbr->getSeqLens()[querySeqs[i]];
+        querySeqLenSum += tdbr->getSeqLens(querySeqs[i]);
     }
 
     short kmerThrPerPosMin = 1;
@@ -152,7 +152,7 @@ void TimeTest::runTimeTest (){
                     thread_idx = omp_get_thread_num();
 #endif
                             char* seqData = tdbr->getData(id);
-                            seqs[thread_idx]->mapSequence(id, tdbr->getDbKey(id), seqData);
+                            seqs[thread_idx]->mapSequence(id,(char *) tdbr->getDbKey(id).c_str(), seqData);
 
                             matchers[thread_idx]->matchQuery(seqs[thread_idx], UINT_MAX);
 

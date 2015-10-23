@@ -60,7 +60,7 @@ std::list<set *>  SetCover3::execute(int mode) {
 #endif
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
-        char *clusterId = seqDbr->getDbKey(i);
+        const char *clusterId = seqDbr->getDbKey(i).c_str();
         const size_t alnId = alnDbr->getId(clusterId);
         seqDbrIdToalnDBrId[i]=alnId;
         char *data = alnDbr->getData(alnId);

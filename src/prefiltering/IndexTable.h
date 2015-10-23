@@ -37,7 +37,6 @@ class IndexTable {
             this->skip = skip;
             this->sizeOfEntry = sizeOfEntry;
             tableSize = Util::ipow(alphabetSize, kmerSize);
-
             table = new char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
             memset(table, 0, sizeof(char * ) * (tableSize + 1)); // set all pointers to 0
 
@@ -76,8 +75,16 @@ class IndexTable {
                 }
             }
         }
-    
-        // get list of DB sequences containing this k-mer
+
+        inline  char * getTable(unsigned int kmer){
+            return table[kmer];
+        }
+
+        inline void setTable(unsigned int kmer, size_t number){
+            table[kmer] = (char *) number;
+        }
+
+    // get list of DB sequences containing this k-mer
         template<typename T> inline T* getDBSeqList (int kmer, size_t* matchedListSize){
             const ptrdiff_t diff =  (table[kmer + 1] - table[kmer]) / sizeof( T );
             *matchedListSize = diff;
@@ -90,7 +97,9 @@ class IndexTable {
         }
     
         // init the arrays for the sequence lists
-        void initMemory(){
+        void initMemory(size_t tableEntriesNum) {
+            this->tableEntriesNum = tableEntriesNum;
+//            std::cout << tableEntriesNum << std::endl;
             // allocate memory for the sequence id lists
             // tablesSizes is added to put the Size of the entry infront fo the memory
             entries = new char [(tableEntriesNum + 1) * this->sizeOfEntry]; // +1 for table[tableSize] pointer address
@@ -113,7 +122,7 @@ class IndexTable {
                                      char * pentries, size_t sequenzeCount){
             this->tableEntriesNum = tableEntriesNum;
             this->size = sequenzeCount;
-            initMemory();
+            initMemory(this->tableEntriesNum);
             Debug(Debug::WARNING) << "Copy " << this->tableEntriesNum
                                   << " Entries (" <<  this->tableEntriesNum*this->sizeOfEntry  << " byte)\n";
             memcpy ( this->entries , pentries, this->tableEntriesNum * this->sizeOfEntry );

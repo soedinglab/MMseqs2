@@ -49,7 +49,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
 
     tseqdbr = new DBReader(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
     tseqdbr->open(DBReader::NOSORT);
-
+    sameQTDB = (querySeqDB.compare(targetSeqDB) == 0);
     prefdbr = new DBReader(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader::NOSORT);
 
@@ -153,20 +153,19 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
 #endif
         // get the prefiltering list
         char* prefList = prefdbr->getData(id);
-        char* queryDbKey = prefdbr->getDbKey(id);
-        std::string queryDbKeyStr(queryDbKey);
+        std::string queryDbKeyStr = prefdbr->getDbKey(id);
         // map the query sequence
-        char* querySeqData = qseqdbr->getDataByDBKey(queryDbKey);
+        char* querySeqData = qseqdbr->getDataByDBKey(queryDbKeyStr.c_str());
         if (querySeqData == NULL){
 # pragma omp critical
             {
-                Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKey
+                Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKeyStr
                 << " is required in the prefiltering, but is not contained in the query sequence database!\n" <<
                 "Please check your database.\n";
                 EXIT(1);
             }
         }
-        qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
+        qSeqs[thread_idx]->mapSequence(id, (char*)queryDbKeyStr.c_str(), querySeqData);
         matchers[thread_idx]->initQuery(qSeqs[thread_idx]);
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
         std::list<Matcher::result_t> swResults;
@@ -181,7 +180,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 dbKeys[thread_idx][j] = val.at(j);
             dbKeys[thread_idx][val.length()] = '\0';
             // sequence are identical if qID == dbID  (needed to cluster really short sequences)
-            const bool isIdentiy = (queryDbKeyStr.compare(dbKeyStr) == 0) ? true : false;
+            const bool isIdentiy = (queryDbKeyStr.compare(dbKeyStr) == 0 && sameQTDB) ? true : false;
             // prefiltering score
             std::getline(lineSs, val, '\t');
             //float prefScore = atof(val.c_str());
@@ -248,7 +247,13 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
             swResultsSs << std::fixed << std::setprecision(3) << it->qcov << "\t";
             swResultsSs << it->dbcov << "\t";
             swResultsSs << it->seqId << "\t";
-            swResultsSs << std::scientific << it->eval << "\n";
+            swResultsSs << std::scientific << it->eval << "\t";
+            swResultsSs << it->qStartPos << "\t";
+            swResultsSs << it->qEndPos << "\t";
+            swResultsSs << it->qLen << "\t";
+            swResultsSs << it->dbStartPos << "\t";
+            swResultsSs << it->dbEndPos << "\t";
+            swResultsSs << it->dbLen << "\n";
         }
         std::string swResultsString = swResultsSs.str();
         const char* swResultsStringData = swResultsString.c_str();

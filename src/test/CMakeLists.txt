@@ -99,3 +99,13 @@ target_link_libraries(testgo ffindex)
 set(testcommand TestCommandCaller.cpp )
 add_executable(testcommand ${testcommand})
 target_link_libraries(testcommand commons)
+
+
+
+
+set(test_dbreader TestDBReader.cpp )
+add_executable(test_dbreader ${test_dbreader})
+target_link_libraries(test_dbreader util)
+target_link_libraries(test_dbreader workflow)
+target_link_libraries(test_dbreader ffindex)
+

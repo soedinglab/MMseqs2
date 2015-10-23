@@ -50,9 +50,9 @@ int splitffindex (int argc, const char * argv[])
         }
 
         for(size_t i = startIndex; i < (startIndex + domainSize); i++){
-            char * outerKey = dbr.getDbKey(i);
+            const char * outerKey = dbr.getDbKey(i).c_str();
             char * data = dbr.getData(i);
-            writer.write(data, sizes[i], outerKey);
+            writer.write(data, sizes[i], (char *) outerKey);
         }
         writer.close();
     }

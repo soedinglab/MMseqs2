@@ -31,7 +31,7 @@ void AlignmentSymmetry::execute() {
     //time
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
-        char *clusterId = seqDbr->getDbKey(i);
+        const char *clusterId = seqDbr->getDbKey(i).c_str();
         const size_t alnId = alnDbr->getId(clusterId);
         char *data = alnDbr->getData(alnId);
         size_t dataSize = alnDbr->getSeqLens()[alnId];
@@ -133,7 +133,7 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
             Log::printProgress(i);
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            char *clusterId = seqDbr->getDbKey(i);
+            const char *clusterId = seqDbr->getDbKey(i).c_str();
             char *data = alnDbr->getDataByDBKey(clusterId);
 
             if (*data == '\0') { // check if file contains entry
@@ -174,7 +174,7 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
             Log::printProgress(i);
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            char *clusterId = seqDbr->getDbKey(i);
+            const char *clusterId = seqDbr->getDbKey(i).c_str();
             char *data = alnDbr->getDataByDBKey(clusterId);
 
             if (*data == '\0') { // check if file contains entry
@@ -347,7 +347,7 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
 #endif
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            const char *clusterId = seqDbr->getDbKey(set_i);
+            const char *clusterId = seqDbr->getDbKey(set_i).c_str();
             size_t setiIdlength = strlen(clusterId);
 
             const size_t alnId = alnDbr->getId(clusterId);
@@ -360,7 +360,7 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
             if(newElementSize > oldElementSize){
                 for(size_t j = oldElementSize; j < newElementSize; j++){
                     const unsigned int set_j = elementLookupTable[set_i][j];
-                    const char *clusterId = seqDbr->getDbKey(set_j);
+                    const char *clusterId = seqDbr->getDbKey(set_j).c_str();
                     const size_t alnId = alnDbr->getId(clusterId);
                     char * setJData = alnDbr->getData(alnId);
 
