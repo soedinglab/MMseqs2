@@ -1,6 +1,8 @@
 #include "Util.h"
 #include "Debug.h"
 #include "kseq.h"
+#include <unistd.h>
+
 #include  <stdio.h>
 KSEQ_INIT(int, read)
 
