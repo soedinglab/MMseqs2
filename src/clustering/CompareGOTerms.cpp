@@ -336,6 +336,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
             //Debug(Debug::INFO) << representative << "\t" << "not available" << "\n";
 
             while (*data != '\0') {
+
                 Util::parseKey(data, idbuffer);
 
                     if (protid_go_ffindex_reader->getDataByDBKey(idbuffer) != NULL) {

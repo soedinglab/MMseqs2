@@ -16,6 +16,7 @@
 #include <iostream>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <map>
 
 extern "C" {
 #include "ffindex.h"
@@ -29,10 +30,11 @@ extern "C" {
 
 KSEQ_INIT(int, read)
 
+
 void usage()
 {
     fprintf(stderr, "Converts a fasta database to ffindex.\n");
-    fprintf(stderr, "USAGE: <fastaDB>  <ffindexDB>\n"
+    fprintf(stderr, "USAGE: <fastaDB>  <ffindexDB> [mappingFasta]\n"
             "\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
 }
 
@@ -48,6 +50,10 @@ int createdb(int argn,const char **argv)
 
     char *fasta_filename = (char *)   argv[0];
     char *data_filename  = (char *)   argv[1];
+    char *mapping_filename = NULL;
+    if(argn == 3){
+        mapping_filename = (char *) argv[2];
+    }
     std::string index_filename_str(data_filename);
     index_filename_str.append(".index");
     char *index_filename = (char *) index_filename_str.c_str();
@@ -86,13 +92,27 @@ int createdb(int argn,const char **argv)
     size_t entries_num = 0;
     std::string header_line;
     header_line.reserve(10000);
+
+    std::map<std::string, size_t> mapping;
+    if(mapping_filename != NULL){
+        mapping = Util::readMapping(mapping_filename);
+    }
     while (kseq_read(seq) >= 0) {
         if (seq->name.l == 0) {
             std::cerr << "Fasta entry: " << entries_num << " is invalid." << std::endl;
             EXIT(EXIT_FAILURE);
         }
-        
-        std::string id = SSTR(entries_num);
+        std::string id;
+        if(mapping_filename!=NULL){
+            std::string key = Util::parseFastaHeader(seq->name.s);
+            if(mapping.find(key) == mapping.end()){
+                std::cerr << "Could not find entry: " << key << " in mapping file." << std::endl;
+                EXIT(EXIT_FAILURE);
+            }
+            id = SSTR(mapping[key]);
+        }else {
+            id = SSTR(entries_num);
+        }
         // header
         header_line.append(seq->name.s, seq->name.l);
         if (seq->comment.l) {
@@ -147,4 +167,6 @@ int createdb(int argn,const char **argv)
    
    return err;
 }
+
+
 

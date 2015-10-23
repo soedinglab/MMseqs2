@@ -11,6 +11,7 @@
 #include <iostream>
 #include <sstream>
 #include <float.h>
+#include <map>
 
 extern "C" {
 #include "ffindex.h"
@@ -294,5 +295,7 @@ public:
         typename std::string::size_type const p(filename.find_last_of('.'));
         return p > 0 && p != std::string::npos ? filename.substr(0, p) : filename;
     }
+
+    static std::map<std::string, size_t> readMapping(char *fastaFile);
 };
 #endif

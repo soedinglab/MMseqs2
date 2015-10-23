@@ -244,9 +244,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
         for (it = swResults.begin(); it != swResults.end(); ++it){
             swResultsSs << it->dbKey << "\t";
             swResultsSs << it->score << "\t"; //TODO fix for formats
-            swResultsSs << std::fixed << std::setprecision(3) << it->qcov << "\t";
-            swResultsSs << it->dbcov << "\t";
-            swResultsSs << it->seqId << "\t";
+            swResultsSs << std::fixed << std::setprecision(3) << it->seqId << "\t";
             swResultsSs << std::scientific << it->eval << "\t";
             swResultsSs << it->qStartPos << "\t";
             swResultsSs << it->qEndPos << "\t";

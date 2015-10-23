@@ -1,5 +1,8 @@
 #include "Util.h"
 #include "Debug.h"
+#include "kseq.h"
+#include  <stdio.h>
+KSEQ_INIT(int, read)
 
 #include <sys/stat.h>
 
@@ -28,6 +31,25 @@ void Util::decompose_domain(size_t domain_size, size_t world_rank,
         // Give remainder to last process
         *subdomain_size += domain_size % world_size;
     }
+}
+
+std::map<std::string, size_t> Util::readMapping(char *fastaFile) {
+    std::map<std::string, size_t> map;
+    FILE * fasta_file = fopen(fastaFile, "r");
+    if(fasta_file == NULL) { perror(fastaFile);  }
+    kseq_t *seq = kseq_init(fileno(fasta_file));
+    size_t i = 0;
+    while (kseq_read(seq) >= 0) {
+        std::string key = Util::parseFastaHeader(seq->name.s);
+        if(map.find(key) == map.end()){
+            map[key] = i;
+            i++;
+        }else{
+            Debug(Debug::ERROR) << "Duplicated key "<< key <<" in function readMapping.\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    return map;
 }
 
 void Util::decomposeDomainByAminoaAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
