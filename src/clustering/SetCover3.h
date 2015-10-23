@@ -29,7 +29,7 @@ private:
     int threads;
     int scoretype;
 //datastructures
-    unsigned int * clustersizes;
+    int * clustersizes;
     unsigned int maxClustersize;
     unsigned int dbSize;
 
