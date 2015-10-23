@@ -4,16 +4,16 @@
 #include "IndexTableGlobal.h"
 #include "IndexTableLocal.h"
 
-
-const char *PrefilteringIndexReader::VERSION = "MMSEQSVERSION";
-const char *PrefilteringIndexReader::ENTRIES = "MMSEQSENTRIES";
-const char *PrefilteringIndexReader::ENTRIESIZES = "MMSEQSENTRIESIZES";
-const char *PrefilteringIndexReader::ENTRIESNUM = "MMSEQSENTRIESNUM";
-const char *PrefilteringIndexReader::TABLESIZE = "MMSEQSTABLESIZE";
-const char *PrefilteringIndexReader::META = "MMSEQSMETA";
+const char *PrefilteringIndexReader::CURRENT_VERSION="2.0.0";
+const char *PrefilteringIndexReader::VERSION = "0";
+const char *PrefilteringIndexReader::ENTRIES = "1";
+const char *PrefilteringIndexReader::ENTRIESIZES = "2";
+const char *PrefilteringIndexReader::ENTRIESNUM = "3";
+const char *PrefilteringIndexReader::TABLESIZE = "4";
+const char *PrefilteringIndexReader::META = "5";
 
 bool PrefilteringIndexReader::checkIfIndexFile(DBReader *reader) {
-    return (reader->getDataByDBKey((char *) VERSION) == NULL) ? false : true;
+    return (strncmp(reader->getDataByDBKey((char *) VERSION), CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader *dbr, Sequence *seq,
@@ -22,19 +22,22 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
     writer.open();
     int stepCnt = split;
+
     for (int step = 0; step < stepCnt; step++) {
         size_t splitStart = 0;
         size_t splitSize  = 0;
         Util::decomposeDomainByAminoaAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                 step, stepCnt, &splitStart, &splitSize);
         IndexTable *indexTable;
-        if (searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST)
+        if (searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST) {
             indexTable = new IndexTableLocal(alphabetSize, kmerSize, skip);
-        else
+        }else{
             indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
-
+        }
         Prefiltering::countKmersForIndexTable(dbr, seq, indexTable, splitStart, splitStart + splitSize);
-
+        Debug(Debug::INFO) << "\n";
+        Prefiltering::maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
+        Debug(Debug::INFO) << "\n";
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize);
 
         // save the entries
@@ -61,7 +64,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         // ENTRIESNUM
         std::string entriesnum_key = std::string(ENTRIESNUM) + SSTR(step);
         Debug(Debug::WARNING) << "Write " << entriesnum_key << "\n";
-        int64_t entriesNum = {indexTable->getTableEntriesNum()};
+        int64_t entriesNum = indexTable->getTableEntriesNum();
         char *entriesNumPtr = (char *) &entriesNum;
         writer.write(entriesNumPtr, 1 * sizeof(int64_t), (char *) entriesnum_key.c_str(), 0);
         // TABLESIZE
@@ -81,9 +84,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
     writer.write(metadataptr, 6 * sizeof(int), (char *) META, 0);
 
     Debug(Debug::WARNING) << "Write " << VERSION << "\n";
-    int version = 1;
-    char *versionptr = (char *) &version;
-    writer.write(versionptr, sizeof(int), (char *) VERSION, 0);
+    writer.write((char*)CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), (char *) VERSION, 0);
 
     Debug(Debug::WARNING) << "Write MMSEQSFFINDEX \n";
     std::ifstream src(dbr->getIndexFileName(), std::ios::binary);

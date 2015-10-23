@@ -117,25 +117,68 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     // normalize score
 //    alignment->score1 = alignment->score1 - log2(dbSeq->L);
     if(mode == SCORE_COV || mode == SCORE_COV_SEQID) {
-        qcov = (std::min(currentQuery->L, (int) qEndPos) - qStartPos + 1) / (float) currentQuery->L;
-        dbcov = (std::min(dbSeq->L, (int) dbEndPos) - dbStartPos + 1) / (float) dbSeq->L;
+        qcov  = computeCov(qStartPos, qEndPos, currentQuery->L);
+        dbcov = computeCov(dbStartPos, dbEndPos, dbSeq->L);
     }
-    // 100 because the score is normalized
 
     // statistics
     //  E =  qL dL * 2^(-S)
     double evalue = BlastScoreUtils::computeEvalue(alignment->score1, kmnByLen[currentQuery->L], this->lambda);
     int bitScore =(short) (BlastScoreUtils::computeBitScore(alignment->score1, lambdaLog2, logKLog2)+0.5);
+    size_t alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
 
     //blast stat
 //    double lambda= 0.267;
 //    double K= 0.041;
 //    double Kmn=(qL * seqDbSize * dbSeq->L);
 //    double evalue = Kmn * exp(-(alignment->score1 * lambda));
-    result_t result(std::string(dbSeq->getDbKey()), bitScore, qcov, dbcov, seqId, evalue, qStartPos, qEndPos, dbStartPos, dbEndPos, backtrace);
+    result_t result(std::string(dbSeq->getDbKey()), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbStartPos, dbEndPos, dbSeq->L, backtrace);
     delete [] alignment->cigar;
     delete alignment;
     return result;
 }
 
 
+float Matcher::computeCov(unsigned int startPos, unsigned int endPos, unsigned int len) {
+    return (std::min(len, endPos) - startPos + 1) / (float) len;
+}
+
+std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
+    std::vector<Matcher::result_t> ret;
+    while(*data != '\0'){
+        char * entry[255];
+        char key[255];
+        size_t elmCount = Util::getWordsOfLine(data, entry, 255 );
+        ptrdiff_t keySize =  (entry[1] - data);
+        strncpy(key, data, keySize);
+        key[keySize] = '\0';
+
+        std::string targetId = std::string(key);
+        double score = strtod(entry[1],NULL);
+        double seqId = strtod(entry[4],NULL);
+        double eval = strtod(entry[5],NULL);
+        size_t missMatchCount = 0;
+        size_t gapOpenCount = 0;
+
+        size_t qStart = strtol(entry[6],NULL,0);
+        size_t qEnd = strtol(entry[7],NULL,0);
+        size_t qLen = strtol(entry[8],NULL,0);
+        size_t dbStart = strtol(entry[9],NULL,0);
+        size_t dbEnd = strtol(entry[10],NULL,0);
+        size_t dbLen = strtol(entry[11],NULL,0);
+        double qCov = Matcher::computeCov(qStart, qEnd, qLen);
+        double dbCov = Matcher::computeCov(dbStart, dbEnd, dbLen);
+        size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
+
+        Matcher::result_t result(targetId, score, qCov, dbCov, seqId, eval, alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
+                                 dbLen, "");
+        ret.push_back(result);
+
+        data = Util::skipLine(data);
+    }
+    return ret;
+}
+
+size_t Matcher::computeAlnLength(size_t qStart, size_t qEnd, size_t dbStart, size_t dbEnd) {
+    return std::max(qEnd - qStart, dbEnd - dbStart);
+}

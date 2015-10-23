@@ -95,9 +95,9 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
 
             char dbKey[255 + 1];
             char *data = dbr_cluster_data.getData(id);
-            char *queryId = dbr_cluster_data.getDbKey(id);
+            const char *queryId = dbr_cluster_data.getDbKey(id).c_str();
             char *seqData = qdbr->getDataByDBKey(queryId);
-            centerSeq.mapSequence(0, queryId, seqData);
+            centerSeq.mapSequence(0, (char*)queryId, seqData);
             std::vector<Sequence *> seqSet;
             size_t pos = 0;
 
@@ -123,7 +123,7 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
             //pssm.printProfile(res.centerLength);
             //pssmCalculator.printPSSM(res.centerLength);
 
-            dbWriter.write(pssmData, pssmDataSize, queryId, thread_idx);
+            dbWriter.write(pssmData, pssmDataSize, (char*)queryId, thread_idx);
             seqSet.clear();
         }
         // clean memeory

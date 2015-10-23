@@ -29,7 +29,7 @@ extern "C" {
 
 
 
-void parsePSSM(char *data, char *profileBuffer, size_t *size, char *id, BaseMatrix * subMat){
+void parsePSSM(char *data, char *profileBuffer, size_t *size, const char *id, BaseMatrix * subMat){
     // go to readin position
     for(size_t i = 0; i < 2; i++){
         data = Util::skipLine(data);
@@ -61,7 +61,7 @@ void parsePSSM(char *data, char *profileBuffer, size_t *size, char *id, BaseMatr
 
 
 // pasre HMM format
-void parseHMM(char *data, char *profileBuffer, size_t *size, char *id, BaseMatrix * subMat){
+void parseHMM(char *data, char *profileBuffer, size_t *size,const char *id, BaseMatrix * subMat){
     size_t l = 0;
     // find beging of profile information
     while( data[0] != '#') {
@@ -152,7 +152,7 @@ int createprofiledb(int argn,const char **argv)
     Debug(Debug::WARNING) << "Start converting profile to mmseqs profile.\n";
     for(size_t i = 0; i < dbr_data.getSize(); i++){
         char * data = dbr_data.getData(i);
-        char * id   = dbr_data.getDbKey(i);
+        const char * id   = dbr_data.getDbKey(i).c_str();
         size_t elementSize = 0;
         if(par.profileMode == Parameters::PROFILE_MODE_HMM){
             parseHMM(data, profileBuffer, &elementSize, id, subMat);
@@ -164,7 +164,7 @@ int createprofiledb(int argn,const char **argv)
         }
 
         ffindex_insert_memory(data_file,  index_file,     &offset_sequence,
-                              profileBuffer,  elementSize , id);
+                              profileBuffer,  elementSize , (char *)id);
     }
     entry_num = dbr_data.getSize();
 

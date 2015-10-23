@@ -233,10 +233,10 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
         std::stringstream res;
         set::element * element =(*iterator)->elements;
         // first entry is the representative sequence
-        char* dbKey = seqDbr->getDbKey(element->element_id);
+        const char* dbKey = seqDbr->getDbKey(element->element_id).c_str();
 
         do{
-            char* nextDbKey = seqDbr->getDbKey(element->element_id);
+            std::string nextDbKey = seqDbr->getDbKey(element->element_id);
             res << nextDbKey << "\n";
         }while((element=element->next)!=NULL);
 
@@ -251,7 +251,7 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
             outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->write(outBuffer, cluResultsOutString.length(), dbKey);
+        dbw->write(outBuffer, cluResultsOutString.length(), (char*)dbKey);
     }
     delete[] outBuffer;
 }
@@ -275,7 +275,7 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
         if (control[i] == 0){
             Debug(Debug::INFO) << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is missing in the clustering!\n";
             Debug(Debug::INFO) << "len = " <<  seqDbr->getSeqLens()[i] << "\n";
-            Debug(Debug::INFO) << "alignment results len = " << strlen(alnDbr->getDataByDBKey(seqDbr->getDbKey(i))) << "\n";
+            Debug(Debug::INFO) << "alignment results len = " << strlen(alnDbr->getDataByDBKey(seqDbr->getDbKey(i).c_str())) << "\n";
             notin++;
         }
         else if (control[i] > 1){
@@ -364,7 +364,7 @@ Clustering::set_data Clustering::read_in_set_data(int mode){
         Log::printProgress(i);
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
-        char * clusterId = seqDbr->getDbKey(i);
+        const char * clusterId = seqDbr->getDbKey(i).c_str();
         char * data = alnDbr->getDataByDBKey(clusterId);
         size_t element_counter = 0;
 

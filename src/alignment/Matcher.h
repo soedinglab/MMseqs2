@@ -34,22 +34,29 @@ public:
         float dbcov;
         float seqId;
         double eval;
+        unsigned int alnLength;
         unsigned int qStartPos;
         unsigned int qEndPos;
+        unsigned int qLen;
         unsigned int dbStartPos;
         unsigned int dbEndPos;
+        unsigned int dbLen;
+
         std::string backtrace;
         result_t(std::string dbkey,int score,
                  float qcov, float dbcov,
                  float seqId, double eval,
+                 unsigned int alnLength,
                  unsigned int qStartPos,
                  unsigned int qEndPos,
+                 unsigned int qLen,
                  unsigned int dbStartPos,
                  unsigned int dbEndPos,
+                 unsigned int dbLen,
                  std::string backtrace) : dbKey(dbkey), score(score), qcov(qcov),
-                                          dbcov(dbcov), seqId(seqId), eval(eval),
-                                          qStartPos(qStartPos), qEndPos(qEndPos),
-                                          dbStartPos(dbStartPos), dbEndPos(dbEndPos),
+                                          dbcov(dbcov), seqId(seqId), eval(eval), alnLength(alnLength),
+                                          qStartPos(qStartPos), qEndPos(qEndPos), qLen(qLen),
+                                          dbStartPos(dbStartPos), dbEndPos(dbEndPos), dbLen(dbLen),
                                           backtrace(backtrace) {};
     };
 
@@ -66,6 +73,9 @@ public:
     // map new query into memory (create profile, ...)
     void initQuery(Sequence* query);
 
+    static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
+
+    static std::vector<result_t> readAlignmentResults(char *data);
 
 private:
 
@@ -92,6 +102,8 @@ private:
     double logKLog2; // log(k)/log(2)
     double lambdaLog2; //lambda/log(2)
     double lambda;
+
+    static size_t computeAlnLength(size_t anEnd, size_t start, size_t dbEnd, size_t dbStart);
 };
 
 #endif

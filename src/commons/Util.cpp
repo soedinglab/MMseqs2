@@ -1,4 +1,5 @@
 #include "Util.h"
+#include "Debug.h"
 
 #include <sys/stat.h>
 
@@ -18,7 +19,8 @@ void Util::decompose_domain(size_t domain_size, size_t world_rank,
     if (world_size > domain_size) {
         // Don't worry about this special case. Assume the domain size
         // is greater than the world size.
-        EXIT(1);
+        Debug(Debug::ERROR) << "World Size: " << world_size << " aaSize: " << domain_size << "\n";
+        EXIT(EXIT_FAILURE);
     }
     *subdomain_start = domain_size / world_size * world_rank;
     *subdomain_size = domain_size / world_size;
@@ -32,7 +34,8 @@ void Util::decomposeDomainByAminoaAcid(size_t aaSize, unsigned int *seqSizes, si
         size_t worldRank, size_t worldSize, size_t *start, size_t *size){
     if (worldSize > aaSize) {
         // Assume the domain size is greater than the world size.
-        EXIT(1);
+        Debug(Debug::ERROR) << "World Size: " << worldSize << " aaSize: " << aaSize << "\n";
+        EXIT(EXIT_FAILURE);
     }
     if (worldSize == 1) {
         *start = 0;
@@ -131,3 +134,6 @@ FILE* Util::openFileOrDie(const char * fileName, const char * mode) {
     if(file == NULL) { perror(fileName); EXIT(EXIT_FAILURE); }
     return file;
 }
+
+
+

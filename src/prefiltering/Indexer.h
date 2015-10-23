@@ -22,7 +22,12 @@ class Indexer{
         unsigned int int2index( const int *int_seq);
         
         // get the int sequence for the k-mer with the index idx of kmerSize
-        void index2int(int* int_seq, unsigned int idx, int kmerSize);
+        inline void index2int(int* int_seq, unsigned int idx, int kmerSize){
+            for (int i = kmerSize - 1; i >= 0; i--){
+                int_seq[i] = idx / powers[i];
+                idx = idx - int_seq[i] * powers[i];
+            }
+        }
        
         // k-mer iterator, remembers the last k-mer
         unsigned int getNextKmerIndex(const int* kmer, int kmerSize);

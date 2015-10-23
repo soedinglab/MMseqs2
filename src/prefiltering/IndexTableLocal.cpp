@@ -1,7 +1,8 @@
 #include "IndexTableLocal.h"
 
 IndexTableLocal::IndexTableLocal (int alphabetSize, int kmerSize, int skip)
-: IndexTable(alphabetSize, kmerSize, skip, sizeof(IndexEntryLocal)) { }
+: IndexTable(alphabetSize, kmerSize, skip, sizeof(IndexEntryLocal)) {
+}
 
 IndexTableLocal::~IndexTableLocal(){ }
 
@@ -15,12 +16,14 @@ void IndexTableLocal::addSequence (Sequence* s){
     
     while(s->hasNextKmer()){
         kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
-
+        // if region got masked do not add kmer
+        if((table[kmerIdx+1] - table[kmerIdx]) == 0)
+            continue;
         IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
-        table[kmerIdx] += sizeof(IndexEntryLocal);
         entry->seqId      = s->getId();
-        entry->position_j = s->getCurrentPosition() % 256;
-        
+        entry->position_j = s->getCurrentPosition();
+        table[kmerIdx] += sizeof(IndexEntryLocal);
+
         //unsigned int* row = (unsigned int *) table[kmerIdx];
         //row[currPos[kmerIdx]++] = s->getId();
         for (int i = 0; i < skip && s->hasNextKmer(); i++){

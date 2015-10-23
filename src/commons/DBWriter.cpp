@@ -46,9 +46,6 @@ DBWriter::~DBWriter(){
     delete[] offsets;
 }
 
-
-
-
 void DBWriter::sortDatafileByIdOrder(DBReader *dbr) {
     Debug(Debug::INFO) << "Sorting the results...  " << dataFileName << " .. ";
 
@@ -59,7 +56,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader *dbr) {
             thread_idx = omp_get_thread_num();
 #endif
         char * data = dbr->getData(id);
-        this->write(data, strlen(data), dbr->getDbKey(id), thread_idx);
+        this->write(data, strlen(data), (char *)dbr->getDbKey(id).c_str(), thread_idx);
     }
     Debug(Debug::INFO) << "Done\n";
 }
@@ -93,7 +90,7 @@ void DBWriter::mergeFiles(DBReader * qdbr,
         }
         // write result
         char* mergeResultsOutData = (char *) mergeResultsOutString.c_str();
-        this->write(mergeResultsOutData, mergeResultsOutString.length(), qdbr->getDbKey(id), 0);
+        this->write(mergeResultsOutData, mergeResultsOutString.length(), (char *) qdbr->getDbKey(id).c_str(), 0);
     }
     // close all reader
     for(size_t file = 0; file < file_count; file++){
@@ -130,7 +127,7 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
         size_t domainSize = 0;
         Util::decompose_domain(dbr.getSize(), split, splitSize, &startIndex, &domainSize);
         for(size_t i = startIndex; i < (startIndex + domainSize); i++){
-            char * outerKey = dbr.getDbKey(i);
+            const char * outerKey = dbr.getDbKey(i).c_str();
             char * data = dbr.getData(i);
             if(*data == '\0'){ // check if file contains entry
                 Debug(Debug::ERROR) << "\nSequence " << outerKey
@@ -196,9 +193,6 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
 
 }
 
-
-
-
 void DBWriter::open(){
     for (int i = 0; i < maxThreadNum; i++){
         std::stringstream dataFileNameSs;
@@ -234,12 +228,6 @@ int DBWriter::close(){
     closed = 1;
 
     return EXIT_SUCCESS;
-}
-
-void DBWriter::writeFile(FILE * file, char* key, int thrIdx){
-    ffindex_insert_filestream(dataFiles[thrIdx], indexFiles[thrIdx],
-                              &offsets[thrIdx], file, key);
-
 }
 
 void DBWriter::write(char* data, int64_t dataSize, char* key, int thrIdx){
@@ -302,19 +290,7 @@ void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNa
         char *data_to_add = ffindex_mmap_data(data_file_to_add, &data_size);
         if (data_size > 0){
             // count the number of entries
-            char line[1000];
-            int cnt = 0;
-            std::ifstream index_file_cnt(indexFileNames[i]);
-            if (index_file_cnt.is_open()) {
-                while ( index_file_cnt.getline (line, 1000) ){
-                    cnt++;
-                }
-                index_file_cnt.close();
-            }
-            else{
-                Debug(Debug::ERROR) << "Could not open ffindex index file " << indexFileNames[i] << "\n";
-                EXIT(EXIT_FAILURE);
-            }
+            size_t cnt = DBReader::countLine(indexFileNames[i]);
             // merge data and indexes
             ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, cnt);
             ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);
@@ -396,11 +372,11 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
             thread_idx = omp_get_thread_num();
 #endif
 
-        char * dbKey = in1.getDbKey(i);
+        const char * dbKey = in1.getDbKey(i).c_str();
         const char * data1 = in1.getData(i);
         const char * data2 = in2.getData(i);
-        size_t entry1Size = in1.getSeqLens()[i];
-        size_t entry2Size = in2.getSeqLens()[i];
+        size_t entry1Size = in1.getSeqLens(i);
+        size_t entry2Size = in2.getSeqLens(i);
         int64_t dataSize = entry1Size + entry2Size;
         if(dataSize > 6400000){
             Debug(Debug::ERROR) <<  "Entrie " << dbKey << " of " << inIndex2 << " and " << inIndex2 <<" is " << dataSize << " bytes long. "
@@ -409,7 +385,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
         }
         memcpy(buffer[thread_idx], data1, entry1Size - 1); // -1 for the nullbyte
         memcpy(buffer[thread_idx] + entry1Size -1, data2, entry2Size- 1);
-        this->write(buffer[thread_idx], dataSize - 2, dbKey, thread_idx);
+        this->write(buffer[thread_idx], dataSize - 2, (char*)dbKey, thread_idx);
     }
     for(size_t i = 0; i < maxThreadNum; i++) {
         delete [] buffer[i];

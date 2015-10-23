@@ -22,7 +22,7 @@ public:
 //runmodes
     void all_against_all_comparison();
     void all_against_all_comparison_proteinset();
-    double compare_protein_ids(char* prot1, char* prot2);
+    double compare_protein_ids(const char* prot1, const char* prot2);
 
     void run_evaluation_mmseqsclustering(std::string cluster_ffindex,
                                          std::string cluster_ffindex_indexfile,
@@ -77,7 +77,7 @@ private:
     int most_specific_parent(int id1, int id2);
     double similarity_of_list(std::list<int>ids1,std::list<int>ids2);
 
-    std::list <int> getGOListforProtein(char * protid);
+    std::list <int> getGOListforProtein(const char * protid);
 };
 
 #endif //MMSEQS_COMPAREGOTERMS_H

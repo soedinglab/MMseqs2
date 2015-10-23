@@ -1,15 +1,10 @@
 #ifndef DBREADER_H
 #define DBREADER_H
 
-// Written by Maria Hauser mhauser@genzentrum.lmu.de
-// 
-// Manages ffindex DB read access.
+// Written by Martin Steinegger & Maria Hauser mhauser@genzentrum.lmu.de
 //
-
-extern "C" {
-#include "ffindex.h"
-#include "ffutil.h"
-}
+// Manages DB read access.
+//
 
 #include <cstdlib>
 #include <iostream>
@@ -18,104 +13,108 @@ extern "C" {
 #include <climits>
 #include <map>
 #include <cstring>
+#include <string>
 #include <sys/mman.h>
-
-struct StrCompare : public std::binary_function<const char*, const char*, bool> {
-    public:
-        bool operator() (const char* str1, const char* str2) const
-        { return std::strcmp(str1, str2) < 0; }
-};
 
 class DBReader {
 
-    public:
-
-        DBReader(const char* dataFileName, const char* indexFileName, int mode = DATA_AND_INDEX);
-
-        ~DBReader();
-
-        void open(int sort);
-
-        void close();
-
-        char* getDataFileName() { return dataFileName; }
-
-        char* getIndexFileName() { return indexFileName; }
-    
-        size_t getAminoAcidDBSize(){ return aaDbSize; }
-
-        char* getData(size_t id);
-    
-        char* getDataByDBKey(char* key);
-    
-        size_t getSize();
-
-        char* getDbKey(size_t id);
-    
-        FILE* getDataAsFile(char* key);
-
-        unsigned int * getSeqLens();
-
-        void remapData();
-
-        // does a binary search in the ffindex and returns index of the entry with dbKey
-        // returns UINT_MAX if the key is not contained in index
-        size_t getId (const char* dbKey);
-
-
-        static const int NOSORT = 0;
-        static const int SORT = 1;
-    
-        static const int INDEXONLY = 1;
-        static const int DATA_AND_INDEX = 0;
-
-        const char * getData(){
-            return data;
+public:
+    struct Index {
+        unsigned int id;
+        char * data;
+        static bool compareById(Index x, Index y){
+            return (x.id <= y.id);
         }
+    };
+    DBReader(const char* dataFileName, const char* indexFileName, int mode = DATA_AND_INDEX);
 
-        size_t getDataSize(){
-            return dataSize;
+    ~DBReader();
+
+    void open(int sort);
+
+    void close();
+
+    char* getDataFileName() { return dataFileName; }
+
+    char* getIndexFileName() { return indexFileName; }
+
+    size_t getAminoAcidDBSize(){ return aaDbSize; }
+
+    char* getData(size_t id);
+
+    char* getDataByDBKey(const char* key);
+
+    size_t getSize();
+
+    std::string getDbKey(size_t id);
+
+    unsigned int * getSeqLens();
+
+    size_t getSeqLens(size_t id);
+
+    void remapData();
+
+    size_t bsearch(const Index * index, size_t size, unsigned int value);
+
+    // does a binary search in the ffindex and returns index of the entry with dbKey
+    // returns UINT_MAX if the key is not contained in index
+    size_t getId (const char* dbKey);
+
+
+    static const int NOSORT = 0;
+    static const int SORT = 1;
+
+    static const int INDEXONLY = 1;
+    static const int DATA_AND_INDEX = 0;
+
+    const char * getData(){
+        return data;
+    }
+
+    size_t getDataSize(){
+        return dataSize;
+    }
+
+    static char *mmapData(FILE *file, size_t *dataSize);
+
+    static void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
+
+    static size_t countLine(const char *name);
+
+private:
+
+
+    struct compareIndexLengthPair {
+        bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
+            return (lhs.first.id < rhs.first.id);
         }
-    private:
+    };
 
-        void sort(size_t* ids, size_t* workspace);
+    void checkClosed();
 
-        void merge(size_t* ids, size_t iLeft, size_t iRight, size_t iEnd, size_t* workspace);
+    char* dataFileName;
 
-        void calcLocalIdMapping();
+    char* indexFileName;
 
-        void checkClosed();
+    FILE* dataFile;
 
-        size_t* id2local;
+    int dataMode;
 
-        size_t* local2id;
+    char* data;
 
-        char* dataFileName;
+    unsigned int * ids;
+    // number of entries in the index
+    size_t size;
+    // size of all data stored in ffindex
+    size_t dataSize;
+    // amino acid size
+    size_t aaDbSize;
+    // flag to check if db was closed
+    int closed;
 
-        char* indexFileName;
-
-        unsigned int* seqLens;
-
-        FILE* dataFile;
-    
-        int dataMode;
-
-        FILE* indexFile;
-        
-        char* data;
-        
-        ffindex_index_t* index; 
-        // number of entries in the index
-        size_t size;
-        // size of all data stored in ffindex
-        size_t dataSize;
-        // mapping id -> ffindex_entry
-        ffindex_entry_t** id2entry;
-        // amino acid size
-        size_t aaDbSize;
-        // flag to check if db was closed
-        int closed;
-
+    Index * index;
+    unsigned int *seqLens;
+    size_t maxId;
 };
 
 

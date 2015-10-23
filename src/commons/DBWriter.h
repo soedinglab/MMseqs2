@@ -51,8 +51,6 @@ class DBWriter {
 
         static void errorIfFileExist(const char * file);
 
-        void writeFile(FILE * file, char* key, int thrIdx);
-
         void sortDatafileByIdOrder(DBReader *qdbr);
 
         static void initFFIndexWrite(const char* dataFileName, const char* indexFileName, const char * dataFileMode, FILE** dataFile, FILE** indexFile);

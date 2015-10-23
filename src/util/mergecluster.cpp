@@ -34,7 +34,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     cluStepDbr->open(DBReader::NOSORT);
 
     for (size_t i = 0; i < cluStepDbr->getSize(); i++){
-        size_t cluId = dbr->getId(cluStepDbr->getDbKey(i));
+        size_t cluId = dbr->getId(cluStepDbr->getDbKey(i).c_str());
         std::stringstream lineSs (cluStepDbr->getData(i));
         std::string val;
         // go through the sequences in the cluster and add them to the initial clustering
@@ -60,7 +60,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
         // go through the clusters and merge them into the clusters from the previous clustering step
         for (size_t i = 0; i < cluStepDbr->getSize(); i++){
-            size_t cluId = dbr->getId(cluStepDbr->getDbKey(i));
+            size_t cluId = dbr->getId(cluStepDbr->getDbKey(i).c_str());
             char* cluData = cluStepDbr->getData(i);
             std::stringstream lineSs(cluData);
             std::string val;
@@ -95,7 +95,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
             continue;
 
         // representative
-        char* dbKey = dbr->getDbKey(i);
+        const char* dbKey = dbr->getDbKey(i).c_str();
 
         std::stringstream res;
         for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
@@ -111,7 +111,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
             outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->write(outBuffer, cluResultsOutString.length(), dbKey);
+        dbw->write(outBuffer, cluResultsOutString.length(), (char*)dbKey);
     }
     dbw->close();
     delete dbw;

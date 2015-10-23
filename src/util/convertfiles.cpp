@@ -33,7 +33,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
     for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
         int clustersize=0;
-        char *representative=cluster_ffindex_reader->getDbKey(i);
+        const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
         while (*data != '\0') {
@@ -76,7 +76,7 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
     for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-        char *representative=cluster_ffindex_reader->getDbKey(i);
+        const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
         char *linebuffer=new char[255+1];
@@ -234,8 +234,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
     outfile_stream<<"algorithm\tclusterid\tid2\tdomain_score\n";
     for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
-
-        char *representative=cluster_ffindex_reader->getDbKey(i);
+        const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
         char *linebuffer=new char[255+1];

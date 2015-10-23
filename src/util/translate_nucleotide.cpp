@@ -50,11 +50,11 @@ int translatenucleotide(int argn, const char **argv)
     unsigned int* entries_length = reader.getSeqLens();
     
     for (size_t i = 0; i < entries; ++i) {
-        char* key = reader.getDbKey(i);
+        const char* key = reader.getDbKey(i).c_str();
         char* data = reader.getData(i);
         
         // ignore null char at the end
-        unsigned int length = entries_length[i] - 1;
+        unsigned int length = reader.getSeqLens(i) - 1;
         
         if(length < 3)  {
             Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is too short. Skipping entry.\n";
@@ -71,7 +71,7 @@ int translatenucleotide(int argn, const char **argv)
                                seqan::GeneticCode<seqan::GeneticCodeSpec::CANONICAL>());
         aa[length/3] = '\n';
         
-        writer.write(aa, (length / 3) + 1, key);
+        writer.write(aa, (length / 3) + 1, (char*)key);
     }
     
     writer.close();
