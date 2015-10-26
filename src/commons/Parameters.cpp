@@ -32,14 +32,11 @@ Parameters::Parameters():
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "Maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]\{1\}[0-9]*$"),
 // clustering
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
-        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 affinity clustering, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-8]\{1\}$"),
+        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-3]\{1\}$"),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "\tStart the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
 //affinity clustering
-        PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max iterations affinity", "[int]\tMaximum number of iterations in affinity propagation clustering",typeid(int), (void *) &maxIteration,  "^[1-9]\{1\}[0-9]*$"),
-        PARAM_CONVERGENCEITERATIONS(PARAM_CONVERGENCEITERATIONS_ID,"--convergence_iterations", "Convergence iterations", "[int]\t Number of iterations the set of representatives has to stay constant",typeid(int), (void *) &convergenceIterations,  "^[1-9]\{1\}[0-9]*$"),
-        PARAM_DAMPING(PARAM_DAMPING_ID,"--damping", "Damping", "Ratio of previous iteration entering values. Value between [0.5:1).",typeid(float), (void *) &dampingFactor, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "[int]\tMaximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]\{1\}[0-9]*$"),
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "Type of score used for clustering [1:5]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column ",typeid(int),(void *) &similarityScoreType,  "^[1-9]\{1\}[0-9]*$"),
-        PARAM_PREFERENCE(PARAM_PREFERENCE_ID,"--preference", "Preference", "Preference value influences the number of clusters (default=0). High values lead to more clusters.",typeid(float), (void *) &preference, "^[0-9]*(\\.[0-9]+)?$"),
 // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]\{1\}$"),
 // create profile (HMM, PSSM)
@@ -97,11 +94,7 @@ Parameters::Parameters():
     clustering.push_back(PARAM_MAX_SEQS);
     clustering.push_back(PARAM_V);
     clustering.push_back(PARAM_MAXITERATIONS);
-    clustering.push_back(PARAM_CONVERGENCEITERATIONS);
-    clustering.push_back(PARAM_DAMPING);
     clustering.push_back(PARAM_SIMILARITYSCORE);
-    clustering.push_back(PARAM_PREFERENCE);
-    clustering.push_back(PARAM_MIN_SEQ_ID);
     clustering.push_back(PARAM_THREADS);
 
 
@@ -366,10 +359,7 @@ void Parameters::setDefaults() {
 
     // affinity clustering
     maxIteration=1000;
-    convergenceIterations=100;
-    dampingFactor=0.6;
     similarityScoreType=APC_SEQID;
-    preference=0;
 
     // Clustering workflow
     restart = 0;

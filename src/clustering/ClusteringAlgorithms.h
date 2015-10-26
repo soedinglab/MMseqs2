@@ -2,8 +2,8 @@
 // Created by lars on 08.06.15.
 //
 
-#ifndef MMSEQS_SETCOVER3_H
-#define MMSEQS_SETCOVER3_H
+#ifndef MMSEQS_CLUSTERINGALGORITHMS_H
+#define MMSEQS_CLUSTERINGALGORITHMS_H
 
 
 #include <DBReader.h>
@@ -12,9 +12,9 @@
 #include <list>
 #include "SetElement.h"
 
-class SetCover3 {
+class ClusteringAlgorithms {
 public:
-    SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage,int threads,int scoretype, int maxiterations);
+ClusteringAlgorithms(DBReader * seqDbr, DBReader * alnDbr, int threads,int scoretype, int maxiterations);
 
     std::list<set *>  execute(int mode);
 private:
@@ -22,9 +22,6 @@ private:
 
     DBReader* alnDbr;
 
-    float seqIdThr;
-
-    float coverage;
 
     int threads;
     int scoretype;
@@ -51,4 +48,4 @@ private:
 
 
 
-#endif //MMSEQS_SETCOVER3_H
+#endif //MMSEQS_CLUSTERINGALGORITHMS_H
