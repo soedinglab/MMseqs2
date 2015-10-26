@@ -39,14 +39,10 @@ public:
     static const int PROFILE_MODE_PSSM = 1;
 
     static const int SET_COVER = 0;
-    static const int AFFINITY = 1;
+    static const int CONNECTED_COMPONENT = 1;
     static const int GREEDY = 2;
-    static const int SET_COVER3 = 3;
-    static const int GREEDY2 = 4;
-    static const int SET_COVER4 = 5;
-    static const int SYMMETRIC_ALIGNMENT = 6;
-    static const int CONNECTED_COMPONENT = 7;
-    static const int CONNECTED_COMPONENT2 = 8;
+    static const int AFFINITY = 3;
+
 
     static const int APC_ALIGNMENTSCORE=1;
     static const int APC_COVERAGE=2;
@@ -120,12 +116,9 @@ public:
     // SEARCH WORKFLOW
     int numIterations;
 
-    //AFFINITYCLUSTERING
-    int maxIteration;                   // Maximum number of iterations of affinity clustering.
-    int convergenceIterations;          // Number of iterations the representatives have to stay constant.
-    float dampingFactor;                // Reduces oscillation. Value in range of 0.5< <1.
-    int similarityScoreType;            // Type of score to use for affinity clustering. (1) alignment score. (2) coverage (3)sequence identity (4)E-value.
-    float preference;                   // Preference value influences the number of clusters (default=0). High values lead to more clusters.
+    //CLUSTERING
+    int maxIteration;                   // Maximum depth of breadth first search in connected component
+    int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
 
     //extractorf
     int orfMinLength;
@@ -217,10 +210,7 @@ public:
 
     //afinity clustering
     PARAMETER(PARAM_MAXITERATIONS);
-    PARAMETER(PARAM_CONVERGENCEITERATIONS);
-    PARAMETER(PARAM_DAMPING);
     PARAMETER(PARAM_SIMILARITYSCORE);
-    PARAMETER(PARAM_PREFERENCE);
     std::vector<MMseqsParameter> clustering;
     // create profile (HMM, PSSM)
     PARAMETER(PARAM_PROFILE_TYPE);

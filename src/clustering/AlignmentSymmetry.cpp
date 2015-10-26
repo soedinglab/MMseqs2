@@ -192,7 +192,7 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
                     Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
                     *elementScoreTable[i] = (short)(atof(std::string(similarity).c_str()));
                 }else {
-                    Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                    Util::parseByColumnNumber(data, similarity, 2); //column 2 = sequence identity
                     *elementScoreTable[i] = (short)(atof(std::string(similarity).c_str())*1000);
                 }
 
