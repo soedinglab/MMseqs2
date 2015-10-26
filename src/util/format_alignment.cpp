@@ -44,7 +44,7 @@ int formatalignment (int argc, const char * argv[])
 
     FILE *fastaFP =  fopen(par.db4.c_str(), "w");
 
-    Debug(Debug::WARNING) << "Start writing file to " << par.db3 << "\n";
+    Debug(Debug::WARNING) << "Start writing file to " << par.db4 << "\n";
     for(size_t i = 0; i < dbr_aln.getSize(); i++){
         const char * queryKey = dbr_aln.getDbKey(i).c_str();
         char * header = q_header.getDataByDBKey(queryKey);

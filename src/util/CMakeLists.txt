@@ -16,6 +16,7 @@ set(util_source_files
   convertfiles.h
   convertfiles.cpp
   format_alignment.cpp
+  ffindex2tsv.cpp
 )
 add_library(util ${util_source_files} )
 
