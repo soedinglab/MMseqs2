@@ -84,7 +84,7 @@ public:
 private:
 
 
-    struct compareIndexLengthPair {
+    struct compareIndexLengthPairById {
         bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
             return (lhs.first.id < rhs.first.id);
         }

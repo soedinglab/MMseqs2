@@ -37,7 +37,7 @@ void DBReader::open(int sort){
     for(size_t i = 0; i < size; i++){
         sortArray[i] = std::make_pair( index[i], seqLens[i] );
     }
-    std::sort(sortArray, sortArray + size, compareIndexLengthPair() );
+    std::sort(sortArray, sortArray + size, compareIndexLengthPairById() );
 
     for(size_t i = 0; i < size; ++i )
     {
@@ -92,6 +92,10 @@ size_t DBReader::bsearch(const Index * index, size_t N, unsigned int value)
     Index val;
     val.id = value;
     return std::upper_bound(index, index + N, val, Index::compareById) - index;
+
+//    while(key == min){
+//
+//    }
 
 }
 
