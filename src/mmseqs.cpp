@@ -19,6 +19,7 @@ static struct Command commands[] = {
         {"prefilter", prefilter},
         {"createdb", createdb},
         {"createfasta", createfasta},
+        {"createtsv", createtsv},
         {"formatalignment", formatalignment},
         {"createindex", createindex},
         {"mergeffindex", mergeffindex},
@@ -49,6 +50,7 @@ void printUsage() {
             "createdb           \tConvert fasta to ffindex (all programs need ffindex as input)\n"
             "createindex        \tConvert ffindex to fast index for prefiltering\n"
             "createfasta        \tConvert ffindex to fasta\n"
+            "createtsv          \tConvert ffindex to tsv\n"
             "formatalignment    \tConvert a ffindex alignment database to BLAST tab or SAM flat file.\n"
             "createprofiledb    \tConvert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database.\n"
             "swapresults        \tSwaps results from the mapping A->A,B,C to A -> A, B -> A, C -> A\n"
