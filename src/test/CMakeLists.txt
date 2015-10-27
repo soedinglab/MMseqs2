@@ -109,3 +109,11 @@ target_link_libraries(test_dbreader util)
 target_link_libraries(test_dbreader workflow)
 target_link_libraries(test_dbreader ffindex)
 
+
+set(test_kmerscore TestKmerScore.cpp )
+add_executable(test_kmerscore ${test_kmerscore})
+target_link_libraries(test_kmerscore util)
+target_link_libraries(test_kmerscore workflow)
+target_link_libraries(test_kmerscore ffindex)
+
+
