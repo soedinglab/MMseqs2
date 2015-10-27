@@ -4,28 +4,26 @@
 
 #include <sys/time.h>
 #include <Log.h>
-#include "SetCover3.h"
+#include "ClusteringAlgorithms.h"
 #include "Util.h"
 #include "Debug.h"
 #include "AffinityClustering.h"
 #include "AlignmentSymmetry.h"
 #include <queue>
 
-SetCover3::SetCover3(DBReader * seqDbr, DBReader * alnDbr, float seqIdThr, float coverage, int threads, int scoretype, int maxiterations){
+ClusteringAlgorithms::ClusteringAlgorithms(DBReader * seqDbr, DBReader * alnDbr,int threads, int scoretype, int maxiterations){
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
-    this->seqIdThr=seqIdThr;
-    this->coverage=coverage;
     this->dbSize=alnDbr->getSize();
     this->threads=threads;
     this->scoretype=scoretype;
     this->maxiterations=maxiterations;
 }
 
-std::list<set *>  SetCover3::execute(int mode) {
+std::list<set *>  ClusteringAlgorithms::execute(int mode) {
 
     set* sets = new set[dbSize];
-    memset(sets, 0, sizeof(set *)*(dbSize));
+    memset(sets, 0, sizeof(set)*(dbSize));
     //time
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -136,52 +134,7 @@ std::list<set *>  SetCover3::execute(int mode) {
         }
 
 
-        /*
-        maxClustersize = 0;
-        for (size_t i = 0; i < dbSize; i++) {
-            elementCount = elementOffsets[i + 1] - elementOffsets[i];
-            clustersizes[i] += elementCount;
-            for (size_t elementId = 0; elementId < elementCount; elementId++) {
-                unsigned int elementtodelete = elementLookupTable[i][elementId];
-                clustersizes[elementtodelete]++;
-                maxClustersize = std::max(clustersizes[elementtodelete], maxClustersize);
-            }
-            maxClustersize = std::max(clustersizes[i], maxClustersize);
 
-        }
-        SetCover3::initClustersizes();
-
-        Debug(Debug::INFO) << "connected component mode" << "\n";
-        for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
-            int representative = sorted_clustersizes[cl_size];
-            if (assignedcluster[representative] == -1) {
-                assignedcluster[representative] = representative;
-                std::queue<int> myqueue;
-                myqueue.push(representative);
-                std::queue<int> iterationcutoffs;
-                iterationcutoffs.push(0);
-                //delete clusters of members;
-                while (!myqueue.empty()) {
-                    int currentid = myqueue.front();
-                    int iterationcutoff = iterationcutoffs.front();
-                    assignedcluster[currentid] = representative;
-                    myqueue.pop();
-                    iterationcutoffs.pop();
-                    size_t elementSize = (elementOffsets[currentid + 1] - elementOffsets[currentid]);
-                    for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                        unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                        if (assignedcluster[elementtodelete] == -1 && iterationcutoff < maxiterations) {
-                            myqueue.push(elementtodelete);
-                            iterationcutoffs.push((iterationcutoff + 1));
-                        }
-                        assignedcluster[elementtodelete] = representative;
-                    }
-                }
-
-            }
-        }
-
-*/
 
 
     }else {
@@ -264,7 +217,7 @@ std::list<set *>  SetCover3::execute(int mode) {
 
 
         }
-        SetCover3::initClustersizes();
+        ClusteringAlgorithms::initClustersizes();
         //time
         gettimeofday(&end, NULL);
         sec = end.tv_sec - start.tv_sec;
@@ -381,108 +334,17 @@ std::list<set *>  SetCover3::execute(int mode) {
                 }
             }
 
-        } else if (mode == 2) {
-            Debug(Debug::INFO) << "connected component mode" << "\n";
-            int *ranks = new int[n];
-            std::fill_n(ranks, n, 0);
-            int *incommingconnections = new int[n];
-            std::fill_n(incommingconnections, n, 0);
-            int *connactionswithsamerank = new int[n];
-            std::fill_n(connactionswithsamerank, n, 0);
-            int connectioncutoff = 2;
-            for (int cl_size = dbSize - 1; cl_size >= 0; cl_size--) {
-                //  for (int cl_size =0 ;cl_size<dbSize ; cl_size++) {
-                int representative = sorted_clustersizes[cl_size];
-                if (assignedcluster[representative] == -1) {
-
-
-                    ranks[representative] = 0;
-                    std::queue<int> myqueue;
-                    std::queue<int> myqueue2;
-                    myqueue.push(representative);
-                    int elementSize = (newElementOffsets[representative + 1] - newElementOffsets[representative]);
-                    assignedcluster[representative] = representative;
-                    connactionswithsamerank[representative] = elementSize + 1;
-                    incommingconnections[representative] = elementSize + 1;
-                    //  elementSize=std::min(elementSize,std::max(elementSize/5,10));
-                    connectioncutoff = 0;
-                    for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                        unsigned int elementtodelete = elementLookupTable[representative][elementId];
-                        if (assignedcluster[elementtodelete] == -1) {
-                            incommingconnections[elementtodelete] = elementSize + 1;
-                            assignedcluster[elementtodelete] = representative;
-                            ranks[elementtodelete] = 0;
-                            myqueue.push(elementtodelete);
-                            connectioncutoff++;
-                        }
-                    }
-                    connectioncutoff = connectioncutoff / 2;
-                    //delete clusters of members;
-                    while (!myqueue.empty()) {
-                        while (!myqueue.empty()) {
-                            int currentid = myqueue.front();
-
-                            myqueue.pop();
-                            if (incommingconnections[currentid] <= connectioncutoff) {
-                                assignedcluster[currentid] = -1;
-                                incommingconnections[currentid] = 0;
-                                continue;
-                            }
-                            assignedcluster[currentid] = representative;
-                            size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
-                            for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                                unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                                if (assignedcluster[elementtodelete] == -1) {
-                                    incommingconnections[elementtodelete]++;
-                                } else if (ranks[elementtodelete] == ranks[currentid]) {
-                                    connactionswithsamerank[currentid]++;
-                                }
-
-                            }
-                            if (connactionswithsamerank[currentid] > connectioncutoff &&
-                                incommingconnections[currentid] > connectioncutoff) {
-                                myqueue2.push(currentid);
-                            } else {
-                                assignedcluster[currentid] = -1;
-                                incommingconnections[currentid] = 0;
-                                connactionswithsamerank[currentid] = 0;
-                                ranks[currentid] = 0;
-                            }
-
-
-                        }
-                        while (!myqueue2.empty()) {
-                            int currentid = myqueue2.front();
-                            assignedcluster[currentid] = representative;
-                            myqueue2.pop();
-                            size_t elementSize = (newElementOffsets[currentid + 1] - newElementOffsets[currentid]);
-                            for (size_t elementId = 0; elementId < elementSize; elementId++) {
-                                unsigned int elementtodelete = elementLookupTable[currentid][elementId];
-                                if (assignedcluster[elementtodelete] == -1) {
-                                    myqueue.push(elementtodelete);
-                                    ranks[elementtodelete] = ranks[currentid] + 1;
-                                    assignedcluster[elementtodelete] = representative;
-                                }
-
-                            }
-                        }
-                    }
-
-                }
-            }
-
         }
         //delete unnecessary datastructures
-        /* delete [] elementLookupTable;
+        delete [] elementLookupTable;
     delete [] elements;
     delete [] elementOffsets;
-    delete [] maxClustersizes;
     delete [] seqDbrIdToalnDBrId;
     delete [] bestscore;
     delete [] sorted_clustersizes;
     delete [] clusterid_to_arrayposition;
     delete [] borders_of_set;
-*/
+
     }
 //time
     gettimeofday(&end, NULL);
@@ -513,7 +375,7 @@ std::list<set *>  SetCover3::execute(int mode) {
 
 
 
-void SetCover3::initClustersizes(){
+void ClusteringAlgorithms::initClustersizes(){
     int * setsize_abundance=new int[maxClustersize+1];
 
     std::fill_n(setsize_abundance,maxClustersize+1,0);
@@ -543,13 +405,13 @@ void SetCover3::initClustersizes(){
 }
 
 
-void SetCover3::removeClustersize(int clusterid){
+void ClusteringAlgorithms::removeClustersize(int clusterid){
     clustersizes[clusterid]=0;
     sorted_clustersizes[clusterid_to_arrayposition[clusterid]]=-1;
     clusterid_to_arrayposition[clusterid]=-1;
 }
 
-void SetCover3::decreaseClustersize(int clusterid){
+void ClusteringAlgorithms::decreaseClustersize(int clusterid){
     int oldposition=clusterid_to_arrayposition[clusterid];
     int newposition=borders_of_set[clustersizes[clusterid]];
     int swapid=sorted_clustersizes[newposition];

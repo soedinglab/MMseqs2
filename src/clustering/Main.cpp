@@ -18,9 +18,7 @@ int cluster(int argc, const char ** argv)
     Debug::setDebugLevel(par.verbosity);
 
     Clustering* clu = new Clustering(par.db1, par.db1Index, par.db2, par.db2Index,
-                                     par.db3, par.db3Index, par.validateClustering, par.seqIdThr,
-                                     par.maxResListLen,par.maxIteration,par.convergenceIterations,
-                                     par.dampingFactor, par.similarityScoreType, par.preference, par.threads);
+                                     par.db3, par.db3Index, par.validateClustering, par.maxIteration, par.similarityScoreType, par.threads);
 
     clu->run(par.clusteringMode);
 

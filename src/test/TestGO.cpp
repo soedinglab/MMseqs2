@@ -139,7 +139,7 @@ int main(int argc, char **argv)
             double minscore=1;
             double maxscore=0;
 
-            std::list<std::string> idswithgo;
+            std::list<std::string> idswithproteinname;
 
 
             //Debug(Debug::INFO) << representative << "\t" << "not available" << "\n";
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
                 Util::parseKey(data, idbuffer);
 
                 if (protname_db_reader->getDataByDBKey(idbuffer) != NULL) {
-                    idswithgo.push_back(std::string(idbuffer));
+                    idswithproteinname.push_back(std::string(idbuffer));
 
                 } else {
                     //Debug(Debug::INFO) << representative << "\t" << idbuffer << "\t" << "not available" <<"\n";
@@ -157,25 +157,26 @@ int main(int argc, char **argv)
                 data = Util::skipLine(data);
             }
 
-            for(std::string id1:idswithgo){
+            for(std::string id1:idswithproteinname){
                 //Debug(Debug::INFO) <<id1<<"\t";
                 if(randomized){
-                    std::list<std::string>::iterator i = idswithgo.begin();
-                    std::advance(i, rand()%idswithgo.size());
+                    std::list<std::string>::iterator i = idswithproteinname.begin();
+                    std::advance(i, rand()% idswithproteinname.size());
                     id1=*i;
                 }
 
                 //Debug(Debug::INFO) <<id1<<"\n";
-                for(std::string id2:idswithgo){
+                for(std::string id2:idswithproteinname){
                     if (std::string(id1) != std::string(id2)) {
-                        char* seq1=protname_db_reader->getDataByDBKey((char *) id1.c_str());
-                        char * seq2=protname_db_reader->getDataByDBKey((char *) id2.c_str());
-                        double score = DistanceCalculator::uiLevenshteinDistance( seq1,  seq2);
-                        score= 1- (score/std::max(strlen(seq1),strlen(seq2)));
-                        sumofscore += score;
-                        minscore=std::min(score,minscore);
-                        maxscore=std::max(score,maxscore);
-                        clusters_full_file << fileprefix << "\t"<<  representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
+                        char*proteinName1 =protname_db_reader->getDataByDBKey((char *) id1.c_str());
+                        char *proteinName2 =protname_db_reader->getDataByDBKey((char *) id2.c_str());
+                        double levenshteinScore = DistanceCalculator::uiLevenshteinDistance(proteinName1, proteinName2);
+                        levenshteinScore = 1- (levenshteinScore /std::max(strlen(proteinName1),strlen(proteinName2)));
+                        sumofscore += levenshteinScore;
+                        minscore=std::min(levenshteinScore,minscore);
+                        maxscore=std::max(levenshteinScore,maxscore);
+                        clusters_full_file << fileprefix << "\t"<<  representative << "\t" << id1 << "\t" << id2 << "\t" <<
+                                                                                                                    levenshteinScore << "\n";
                     }
                 }
                 if(!allagainstall){
@@ -185,9 +186,9 @@ int main(int argc, char **argv)
             }
             double averagescore;
             if(allagainstall){
-                averagescore=(sumofscore / (idswithgo.size()*idswithgo.size()-idswithgo.size()));
+                averagescore=(sumofscore / (idswithproteinname.size()* idswithproteinname.size()- idswithproteinname.size()));
             }else{
-                averagescore=sumofscore /(idswithgo.size()-1);
+                averagescore=sumofscore /(idswithproteinname.size()-1);
             }
 
 
@@ -259,7 +260,7 @@ int main(int argc, char **argv)
             double minscore=1;
             double maxscore=0;
 
-            std::list<std::string> idswithgo;
+            std::list<std::string> idswithkeyword;
 
 
             //Debug(Debug::INFO) << representative << "\t" << "not available" << "\n";
@@ -268,7 +269,7 @@ int main(int argc, char **argv)
                 Util::parseKey(data, idbuffer);
 
                 if (protname_db_reader->getDataByDBKey(idbuffer) != NULL) {
-                    idswithgo.push_back(std::string(idbuffer));
+                    idswithkeyword.push_back(std::string(idbuffer));
 
 
                 } else {
@@ -277,13 +278,13 @@ int main(int argc, char **argv)
 
                 data = Util::skipLine(data);
             }
-            for(std::string id1:idswithgo){
+            for(std::string id1:idswithkeyword){
                 if(randomized){
-                    std::list<std::string>::iterator i = idswithgo.begin();
-                    std::advance(i, rand()%idswithgo.size());
+                    std::list<std::string>::iterator i = idswithkeyword.begin();
+                    std::advance(i, rand()% idswithkeyword.size());
                     id1=*i;
                 }
-                for(std::string id2:idswithgo){
+                for(std::string id2:idswithkeyword){
                     if (std::string(id1) != std::string(id2)) {
                         char* seq1=protname_db_reader->getDataByDBKey((char *) id1.c_str());
                         char * seq2=protname_db_reader->getDataByDBKey((char *) id2.c_str());
