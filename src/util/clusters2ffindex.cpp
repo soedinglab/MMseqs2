@@ -25,10 +25,10 @@ void parseArgs(int argc, const char** argv,
         EXIT(EXIT_FAILURE);
     }
 
-    clusteredDB->assign(argv[1]);
-    fastaHeaderInDB->assign(argv[2]);
-    fastaBodyInDB->assign(argv[3]);
-    msaOutDB->assign(argv[4]);
+    clusteredDB->assign(argv[0]);
+    fastaHeaderInDB->assign(argv[1]);
+    fastaBodyInDB->assign(argv[2]);
+    msaOutDB->assign(argv[3]);
 }
 
 int clusteringtofastadb (int argc, const char **argv)

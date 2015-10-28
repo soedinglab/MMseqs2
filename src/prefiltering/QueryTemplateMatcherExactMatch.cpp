@@ -10,14 +10,18 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
                                                                double kmerMatchProb, int kmerSize, size_t dbSize,
                                                                unsigned int maxSeqLen, int effectiveKmerSize, size_t maxHitsPerQuery)
         : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, false, maxSeqLen) {
+    // assure that the whole database can be matched (extreme case)
+    // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
+    this->maxDbMatches = dbSize * 2;
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
-    this->databaseHits = new CounterResult[MAX_DB_MATCHES];
+    this->databaseHits = new CounterResult[maxDbMatches];
     // data for histogram of score distribution
     this->scoreSizes = new unsigned int[QueryScoreLocal::SCORE_RANGE];
     memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
 
     this->maxHitsPerQuery = maxHitsPerQuery;
-    this->counter = new CountInt32Array(dbSize, MAX_DB_MATCHES/32 );
+    // this array will need 128 * (maxDbMatches / 128) * 5byte ~ 500MB for 50 Mio. Sequences
+    this->counter = new CountInt32Array(dbSize, maxDbMatches / 128 );
     // needed for p-value calc.
     this->mu = kmerMatchProb;
     this->logMatchProb = log(kmerMatchProb);
@@ -64,12 +68,12 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
     // go through the query sequence
     size_t kmerListLen = 0;
     size_t numMatches = 0;
-    size_t lastOverflowNumMatch = 0;
-    size_t lastOverflowHitCount = 0;
+    size_t overflowNumMatches = 0;
+    size_t overflowHitCount = 0;
     //size_t pos = 0;
     stats->diagonalOverflow = false;
     CounterResult* sequenceHits = databaseHits;
-    CounterResult* lastSequenceHit = databaseHits + MAX_DB_MATCHES;
+    CounterResult* lastSequenceHit = databaseHits + this->maxDbMatches;
     size_t seqListSize;
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();
@@ -83,21 +87,17 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
                                                                                        &seqListSize);
             // detected overflow while matching
             if (sequenceHits + seqListSize >= lastSequenceHit) {
-                sequenceHits = databaseHits + lastOverflowHitCount;
+                sequenceHits = databaseHits + overflowHitCount;
                 const size_t hitCount = evaluateBins(sequenceHits, numMatches);
-                //updateScoreBins(inputOutputHits, hitCount);
-                if(lastOverflowHitCount != 0){ //merge lists
-                    if(lastOverflowHitCount + hitCount > MAX_DB_MATCHES)
-                        goto stopMatching;
-                    lastOverflowHitCount = mergeDatabaseHits(databaseHits, lastOverflowHitCount + hitCount);
+                if(overflowHitCount != 0){ //merge lists
+                    // hitCount is max. dbSize so there can be no overflow in mergeElemens
+                    overflowHitCount = counter->mergeElements(databaseHits, overflowHitCount + hitCount);
                 }else{
-                    lastOverflowHitCount = hitCount;
+                    overflowHitCount = hitCount;
                 }
-                sequenceHits = databaseHits + lastOverflowHitCount;
-                lastOverflowNumMatch += numMatches;
+                sequenceHits = databaseHits + overflowHitCount;
+                overflowNumMatches += numMatches;
                 numMatches = 0;
-                if(lastOverflowHitCount > MAX_DB_MATCHES * 0.9 )
-                    goto stopMatching;
             };
 
 //            seqListSize = (sequenceHits + seqListSize >= lastSequenceHit) ? 0 : seqListSize;
@@ -114,18 +114,17 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
             numMatches += seqListSize;
         }
     }
-    stopMatching:
-    CounterResult* inputOutputHits = databaseHits + lastOverflowHitCount;
+    CounterResult* inputOutputHits = databaseHits + overflowHitCount;
     size_t hitCount = evaluateBins(inputOutputHits, numMatches);
     //fill the output
-    if(lastOverflowHitCount != 0){ // overflow occurred
-        hitCount = mergeDatabaseHits(databaseHits, lastOverflowHitCount + hitCount);
+    if(overflowHitCount != 0){ // overflow occurred
+        hitCount = counter->mergeElements(databaseHits, overflowHitCount + hitCount);
     }
     updateScoreBins(databaseHits, hitCount);
     stats->doubleMatches = getLocalResultSize();
     stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
     stats->querySeqLen   = seq->L;
-    stats->dbMatches     = lastOverflowNumMatch + numMatches;
+    stats->dbMatches     = overflowNumMatches + numMatches;
     return hitCount;
 }
 
@@ -187,21 +186,4 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(size_t res
     }
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
     return pair;
-}
-
-size_t QueryTemplateMatcherExactMatch::mergeDatabaseHits(CounterResult *databaseHits, size_t hitCount) {
-    size_t writePosition = 0;
-    std::sort(databaseHits, databaseHits + hitCount, CounterResult::sortCounterResultById );
-    for (size_t hitIdx = 1; hitIdx < hitCount; hitIdx++){
-        if (databaseHits[hitIdx].id == databaseHits[hitIdx-1].id){
-            databaseHits[writePosition].count =  (databaseHits[writePosition].count > 0xFF - databaseHits[hitIdx].count) ? 0xFF :
-                                                                    databaseHits[writePosition].count + databaseHits[hitIdx].count;
-
-        }else{
-            writePosition++;
-            databaseHits[writePosition].count = databaseHits[hitIdx].count;
-            databaseHits[writePosition].id = databaseHits[hitIdx].id;
-        }
-    }
-    return writePosition;
 }

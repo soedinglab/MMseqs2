@@ -26,6 +26,7 @@ Parameters::Parameters():
 
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "[int]\tSpaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]\{1\}" ),
         PARAM_KEEP_TEMP_FILES(PARAM_KEEP_TEMP_FILES_ID,"--keep-tmp-files", "Keep-tmp-files" ,"\tDo not delete temporary files.",typeid(bool),(void *) &keepTempFiles, ""),
+
 // alignment
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "Maximum e-value",typeid(float), (void *) &evalThr, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "Minimum alignment coverage [0,1]",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$"),
@@ -58,6 +59,7 @@ Parameters::Parameters():
     // alignment
     alignment.push_back(PARAM_E);
     alignment.push_back(PARAM_C);
+    alignment.push_back(PARAM_MASK);
     alignment.push_back(PARAM_MIN_SEQ_ID);
     alignment.push_back(PARAM_MAX_SEQ_LEN);
     alignment.push_back(PARAM_MAX_SEQS);
@@ -342,6 +344,7 @@ void Parameters::setDefaults() {
 #endif
     compBiasCorrection = true;
     mask = true;
+
     spacedKmer = true;
     searchMode = true;
     profile = false;

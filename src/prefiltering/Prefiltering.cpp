@@ -35,6 +35,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         maxSeqLen(par.maxSeqLen),
         querySeqType(par.querySeqType),
         targetSeqType(par.targetSeqType),
+        mask(par.mask),
         aaBiasCorrection(par.compBiasCorrection),
         split(par.split),
         splitMode(par.splitMode),
@@ -280,7 +281,7 @@ IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize
         return PrefilteringIndexReader::generateIndexTable(tidxdbr, split);
     }else{
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer);
-        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, skip);
+        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, skip, mask);
     }
 }
 
@@ -567,8 +568,8 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
 }
 
 
-IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
-                                              int kmerSize, size_t dbFrom, size_t dbTo, int searchMode, int skip){
+IndexTable * Prefiltering::generateIndexTable(DBReader *dbr, Sequence *seq, int alphabetSize, int kmerSize,
+                                                   size_t dbFrom, size_t dbTo, int searchMode, int skip, bool mask) {
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -581,8 +582,9 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
 
     countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
     Debug(Debug::INFO) << "\n";
-
-    maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
+    if(mask == true){
+        maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
+    }
     Debug(Debug::INFO) << "\n";
 
     fillDatabase(dbr, seq, indexTable, dbFrom, dbTo);
@@ -736,7 +738,7 @@ void Prefiltering::maskLowComplexKmer(IndexTable *indexTable, int kmerSize, int 
         char * tmpKmer = new char[kmerSize];
         int * intSeq = new int[kmerSize];
         Indexer indexer(alphabetSize, kmerSize);
-        Seg seg(kmerSize);
+        Seg seg(kmerSize, kmerSize);
 #pragma omp for schedule(static) reduction (+: deleteCnt, deletedKmer)
         for (size_t kmer = 0; kmer < tableSize; kmer++) {
             indexer.index2int(intSeq, kmer, kmerSize);

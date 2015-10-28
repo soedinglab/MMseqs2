@@ -51,9 +51,8 @@ class Prefiltering {
         void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
         IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
     
-        static IndexTable* generateIndexTable(DBReader* dbr, Sequence* seq,
-                                         int alphabetSize, int kmerSize,
-                                         size_t dbFrom, size_t dbTo, int searchMode, int skip = 0);
+        static IndexTable *generateIndexTable(DBReader *dbr, Sequence *seq, int alphabetSize, int kmerSize,
+                                                           size_t dbFrom, size_t dbTo, int searchMode, int skip, bool mask);
     
     
         static void countKmersForIndexTable (DBReader* dbr, Sequence* seq, IndexTable* indexTable,
@@ -101,7 +100,7 @@ class Prefiltering {
         const int querySeqType;
         const int targetSeqType;
         bool templateDBIsIndex;
-    
+        bool mask;
         bool aaBiasCorrection;
         short kmerThr;
         double kmerMatchProb;
