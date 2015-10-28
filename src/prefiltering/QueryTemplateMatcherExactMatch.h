@@ -28,7 +28,7 @@ public:
     void updateScoreBins(CounterResult *result, size_t elementCount);
 protected:
 
-    const static unsigned int MAX_DB_MATCHES = 16777216;
+    unsigned int maxDbMatches;
 
     // result hit buffer
     CountInt32Array * counter;
@@ -67,8 +67,6 @@ protected:
 
     // compute double hits
     size_t getLocalResultSize();
-
-    size_t mergeDatabaseHits(CounterResult *databaseHIts, size_t hitCount);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

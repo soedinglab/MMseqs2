@@ -2,7 +2,6 @@
 #include <list>
 #include <algorithm>
 #include <math.h>
-#include <SetCover2.h>
 
 
 #include "Clustering.h"

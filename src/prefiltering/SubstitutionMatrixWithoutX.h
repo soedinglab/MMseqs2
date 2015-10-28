@@ -32,8 +32,8 @@ class SubstitutionMatrixWithoutX : public BaseMatrix {
 
         // remove X
         this->alphabetSize = 20;
-        int toIndex =  this->aa2int[(int)'X'];
-        int fromIndex = this->aa2int[(int)'L'];
+        //int toIndex =  this->aa2int[(int)'X'];
+        //int fromIndex = this->aa2int[(int)'L'];
         this->aa2int[(int)'X'] = this->aa2int[(int)'L'];
         //this->int2aa[toIndex] = this->int2aa[fromIndex];
 

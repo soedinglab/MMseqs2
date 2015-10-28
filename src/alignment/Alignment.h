@@ -19,6 +19,8 @@
 #include "SubstitutionMatrix.h"
 #include "Debug.h"
 #include "Log.h"
+#include "Seg.h"
+
 
 #include "Matcher.h"
 #include "Parameters.h"
@@ -70,6 +72,8 @@ private:
 
     Sequence** dbSeqs;
 
+    Seg **seg;
+
     Matcher** matchers;
 
     DBReader* qseqdbr;
@@ -92,6 +96,7 @@ private:
     void mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> vector);
 
     bool sameQTDB;
+    bool mask;
 };
 
 #endif

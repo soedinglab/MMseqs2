@@ -32,7 +32,7 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
     size_t indexTabListSize = 0;
     // go through the query sequence
     size_t kmerListLen = 0;
-    Indexer indexer(21, kmerSize);
+//    Indexer indexer(21, kmerSize);
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();
         // generate k-mer list
@@ -43,17 +43,17 @@ void QueryTemplateMatcherLocal::match(Sequence* seq){
         for (unsigned int i = 0; i < kmerList.elementSize; i++){
 
             entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[i], &indexTabListSize);
-            if(indexTabListSize != 0){
-                indexer.printKmer(kmerList.index[i], kmerSize, m->int2aa);
-                std::cout << std::endl;
-
-                for (unsigned int seqIdx = 0; LIKELY(seqIdx < indexTabListSize); seqIdx++) {
-                    const unsigned char currDiagonal = seq->getCurrentPosition() - entries[seqIdx].position_j ;
-
-                    std::cout << "(" << seq->getCurrentPosition() << " " <<entries[seqIdx].position_j << " " << (int) currDiagonal << " " << entries[seqIdx].seqId << ") ";
-                }
-                std::cout << std::endl;
-            }
+//            if(indexTabListSize != 0){
+//                indexer.printKmer(kmerList.index[i], kmerSize, m->int2aa);
+//                std::cout << std::endl;
+//
+//                for (unsigned int seqIdx = 0; LIKELY(seqIdx < indexTabListSize); seqIdx++) {
+//                    const unsigned char currDiagonal = seq->getCurrentPosition() - entries[seqIdx].position_j ;
+//
+//                    std::cout << "(" << seq->getCurrentPosition() << " " <<entries[seqIdx].position_j << " " << (int) currDiagonal << " " << entries[seqIdx].seqId << ") ";
+//                }
+//                std::cout << std::endl;
+//            }
             /*            if (seq->getId() == 1 && pos == 2 ){
              std::cout << "\t\t";
              indexer->printKmer(retList[i].second, kmerSize, m->int2aa);
