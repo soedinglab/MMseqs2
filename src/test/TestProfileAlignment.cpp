@@ -49,7 +49,7 @@ int main (int argc, const char * argv[])
     SmithWaterman aligner(15000, subMat.alphabetSize);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
 
-    aligner.ssw_init(s, s->getAlignmentProfile(), subMat.alphabetSize, 2);
+    aligner.ssw_init(s, s->getAlignmentProfile(), &subMat, subMat.alphabetSize, 2);
     int32_t maskLen = s->L / 2;
     int gap_open = 10;
     int gap_extend = 1;

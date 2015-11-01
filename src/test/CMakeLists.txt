@@ -103,3 +103,9 @@ target_link_libraries(test_kmerscore workflow)
 target_link_libraries(test_kmerscore ffindex)
 
 
+
+set(test_compbias TestCompositionBias.cpp )
+add_executable(test_compbias ${test_compbias})
+target_link_libraries(test_compbias util)
+target_link_libraries(test_compbias workflow)
+target_link_libraries(test_compbias ffindex)

@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <simd.h>
+#include <BaseMatrix.h>
 
 #if !defined(__APPLE__)
 #include <malloc.h>
@@ -143,10 +144,8 @@ public:
      -2 -2 -2  2 //T
      mat is the pointer to the array {2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2, -2, -2, -2, -2, 2}
      */
-    void ssw_init (const Sequence* q,
-                   const int8_t* mat,
-                   const int32_t alphabetSize,
-                   const int8_t score_size);
+    void ssw_init(const Sequence *q, const int8_t *mat, const BaseMatrix *m, const int32_t alphabetSize,
+                  const int8_t score_size);
     
     static char cigar_int_to_op (uint32_t cigar_int);
     
@@ -163,6 +162,8 @@ private:
         simd_int* profile_rev_word;	// 0: none
         int8_t* query_sequence;
         int8_t* query_rev_sequence;
+        int8_t* composition_bias;
+        int8_t* composition_bias_rev;
         int8_t* mat;
         // Memory layout of if mat + profile is qL * AA
         //    Query lenght
@@ -248,7 +249,8 @@ private:
     const static unsigned int PROFILE = 2;
 
     template <typename T, size_t Elements, const unsigned int type>
-    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
+    void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
 
+    float *tmp_composition_bias;
 };
 #endif /* SMITH_WATERMAN_SSE2_H */

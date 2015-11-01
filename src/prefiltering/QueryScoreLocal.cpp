@@ -53,7 +53,7 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
         rawScore = (rawScore == 0) ? 1 : rawScore;
         result->seqId = identityId;
         result->prefScore = rawScore;
-        result->zScore = -computeLogProbability(rawScore, seqLens[identityId],
+        result->pScore = -computeLogProbability(rawScore, seqLens[identityId],
                                                 kmerMatchProb, logMatchProb, logScoreFactorial[rawScore]);
         elementCounter++;
     }
@@ -76,13 +76,13 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
                     unsigned short rawScore = simdi16_extract (currElements,  i) >> 8;
                     hit_t * result = (resList + elementCounter);
                     result->seqId = pos * SIMD_SHORT_SIZE + i;
-                    //result->zScore = (((float)rawScore) - mu )/ sqrt(mu);
+                    //result->pScore = (((float)rawScore) - mu )/ sqrt(mu);
                     result->prefScore = rawScore;
-                    result->zScore = -computeLogProbability(rawScore, seqLens[result->seqId],
-                                                           kmerMatchProb, logMatchProb, logScoreFactorial[rawScore]);
-                    //std::cout << result->zScore << std::endl;
+                    result->pScore = -computeLogProbability(rawScore, seqLens[result->seqId],
+                                                            kmerMatchProb, logMatchProb, logScoreFactorial[rawScore]);
+                    //std::cout << result->pScore << std::endl;
 
-                    //result->zScore = (rawScore);
+                    //result->pScore = (rawScore);
                     //scoreSizes += rawScore;
                     elementCounter++;
                     if(elementCounter >= MAX_RES_LIST_LEN){

@@ -66,7 +66,9 @@ protected:
                                          const unsigned short thr);
 
     // compute double hits
-    size_t getLocalResultSize();
+    size_t getDoubleDiagonalMatches();
+
+    float *compositionBias;
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

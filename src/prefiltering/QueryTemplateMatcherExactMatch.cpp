@@ -1,6 +1,7 @@
 //
 // Created by mad on 5/26/15.
 //
+#include <SubstitutionMatrix.h>
 #include "QueryTemplateMatcherExactMatch.h"
 #include "QueryScoreLocal.h"
 #include "QueryScore.h"
@@ -37,7 +38,7 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
         else
             this->seqLens[i] = 1.0f;
     }
-
+    compositionBias = new float[maxSeqLen];
 }
 
 QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
@@ -47,6 +48,7 @@ QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
     delete counter;
     delete [] logScoreFactorial;
     delete [] seqLens;
+    delete [] compositionBias;
 }
 
 size_t QueryTemplateMatcherExactMatch::evaluateBins(CounterResult *inputOutput, size_t N) {
@@ -64,6 +66,8 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherExactMatch::matchQuery (Sequence 
     return getResult(resultSize, seq->L, identityId, thr);
 }
 
+
+
 size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
     // go through the query sequence
     size_t kmerListLen = 0;
@@ -74,9 +78,21 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
     stats->diagonalOverflow = false;
     CounterResult* sequenceHits = databaseHits;
     CounterResult* lastSequenceHit = databaseHits + this->maxDbMatches;
+    // bias correction
+    SubstitutionMatrix::calcLocalAaBiasCorrection(m, seq->int_sequence, seq->L, compositionBias);
+
     size_t seqListSize;
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();
+        const int * pos = seq->getKmerPositons();
+        float biasCorrection = 0;
+        for (int i = 0; i < kmerSize; i++){
+            biasCorrection += compositionBias[pos[i]];
+        }
+        short bias = (short) (biasCorrection < 0.0)? biasCorrection -0.5: biasCorrection+ 0.5;
+        short kmerMatchScore = std::max(kmerThr - bias, 0);
+        // adjust kmer threshold based on composition bias
+        kmerGenerator->setThreshold(kmerMatchScore);
         const ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
         kmerListLen += kmerList.elementSize;
         const unsigned short i =  seq->getCurrentPosition();
@@ -87,6 +103,7 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
                                                                                        &seqListSize);
             // detected overflow while matching
             if (sequenceHits + seqListSize >= lastSequenceHit) {
+                stats->diagonalOverflow = true;
                 sequenceHits = databaseHits + overflowHitCount;
                 const size_t hitCount = evaluateBins(sequenceHits, numMatches);
                 if(overflowHitCount != 0){ //merge lists
@@ -121,14 +138,14 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
         hitCount = counter->mergeElements(databaseHits, overflowHitCount + hitCount);
     }
     updateScoreBins(databaseHits, hitCount);
-    stats->doubleMatches = getLocalResultSize();
+    stats->doubleMatches = getDoubleDiagonalMatches();
     stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
     stats->querySeqLen   = seq->L;
     stats->dbMatches     = overflowNumMatches + numMatches;
     return hitCount;
 }
 
-size_t QueryTemplateMatcherExactMatch::getLocalResultSize(){
+size_t QueryTemplateMatcherExactMatch::getDoubleDiagonalMatches(){
     size_t retValue = 0;
     for(size_t i = 1; i < QueryScoreLocal::SCORE_RANGE; i++){
         retValue += scoreSizes[i] * i;
@@ -152,8 +169,8 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(size_t res
         const unsigned short rawScore  = std::min(QueryScoreLocal::SCORE_RANGE-1, (size_t) l);
         result->seqId = id;
         result->prefScore = rawScore;
-        //result->zScore = (((float)rawScore) - mu)/ sqrtMu;
-        result->zScore = -QueryScoreLocal::computeLogProbability(rawScore, seqLens[id],
+        //result->pScore = (((float)rawScore) - mu)/ sqrtMu;
+        result->pScore = -QueryScoreLocal::computeLogProbability(rawScore, seqLens[id],
                                                                  mu, logMatchProb, logScoreFactorial[rawScore]);
         elementCounter++;
     }
@@ -167,7 +184,7 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(size_t res
             result->seqId = seqIdCurr;
             result->prefScore = scoreCurr;
             //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
-            result->zScore = -QueryScoreLocal::computeLogProbability(scoreCurr, seqLens[seqIdCurr],
+            result->pScore = -QueryScoreLocal::computeLogProbability(scoreCurr, seqLens[seqIdCurr],
                                                                      mu, logMatchProb, logScoreFactorial[scoreCurr]);
 
             elementCounter++;

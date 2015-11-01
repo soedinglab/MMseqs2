@@ -21,7 +21,7 @@ int main (int argc, const char * argv[])
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out", 2.0, 0);
+    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out", 2.0, 0.0);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
 
@@ -39,8 +39,8 @@ int main (int argc, const char * argv[])
 //	std::string tim = "APRKFFVGGNWKMNGKRKSLGELIHTLDGAKLSADTEVVCGAPSIYLDFARQKLDAKIGVAAQNCYKVPKGAFTGEISPAMIKDIGAAWVILGH"
 //                      "SERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFQETKAIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLR"
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
-    std::string tim1 = "MPAYVFSKESFLKFLEGHLEDDVVVVVSSDVTDFCKKLSESMVGEKEYCFAEFAFPADIFDADEDEIDEMMKYAIVFVEKEKLSEAGRNAIR";
-    std::string tim2 = "MPAYVFSKESFLKFLEGHLEDDVVVVVSSDVTDFCKKLSESMVGEKEYCFAEFAFPADIFDADEDEIDEMMKYAIVFVEKEKLSEAGRNAIR";
+    std::string tim1 = "MDDVKIERLKRLNEDVLEDLIEVYMRGYEGLEEYGGEGRDYARDYIKWCWKKAPDGFFVAKVGDRIVGFIVCDRDWYSRYEGKIVGAIHEFVVDKGWQGKGIGKKLLTKCLEFLGKYNDTIELWVGEKNFGAMRLYEKFGFKKVGKSGIWIRMVRRQLS";
+    std::string tim2 = "LRSKETFNDMNLPSRHAIAKVVSIEQQLYDNLAYPELLFYQAAHQWPNSQFICRDNNDILAYAMYAPAEKANTLWLMSAAVKPGCQGRGVGTKLLSDSLRSLDEQGVTCVLLSVAPSNAAAISVYQKLGFEVVRKAEHYLKNLREQGLRMTREIIHK";
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
     const char* sequence = tim1.c_str();
@@ -60,7 +60,7 @@ int main (int argc, const char * argv[])
 	    }
 	    std::cout << std::endl;
     }
-    aligner.ssw_init(s, tinySubMat, subMat.alphabetSize, 2);
+    aligner.ssw_init(s, tinySubMat, &subMat, subMat.alphabetSize, 2);
     int32_t maskLen = s->L / 2;
     int gap_open = 10;
     int gap_extend = 1;
@@ -100,7 +100,7 @@ int main (int argc, const char * argv[])
     seqId = (float)aaIds/(float)(std::min(s->L, dbSeq->L)); //TODO
 
     std::cout << "Seqid: "<< seqId << " aaIds " << aaIds <<std::endl;
-    double evalue =  pow (2,-(double)alignment->score1/2.403);
+    double evalue =  pow (2,-(double)alignment->score1/2);
 
 
     //score* 1/lambda

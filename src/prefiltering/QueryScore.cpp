@@ -43,7 +43,7 @@ QueryScore::~QueryScore (){
 }
 
 bool QueryScore::compareHits(hit_t first, hit_t second){
-    return (first.zScore > second.zScore) ? true : false;
+    return (first.pScore > second.pScore) ? true : false;
 }
 
 short QueryScore::sse2_extract_epi16(__m128i v, int pos) {
