@@ -33,6 +33,7 @@ class SubstitutionMatrix: public BaseMatrix {
     
         virtual double getBackgroundProb(size_t aa_index) { return pBack[aa_index]; }
 
+        static void calcLocalAaBiasCorrection(const BaseMatrix *m ,const int *int_sequence, const int N, float *compositionBias);
 
     private:
 

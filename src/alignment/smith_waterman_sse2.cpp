@@ -13,6 +13,8 @@ in whole or in part, without written consent of Michael Farrar.
 #include <Sequence.h>
 #include <simd.h>
 #include <Util.h>
+#include <BaseMatrix.h>
+#include <SubstitutionMatrix.h>
 
 SmithWaterman::SmithWaterman(int maxSequenceLength, int aaSize) {
 	maxSequenceLength += 1;
@@ -28,8 +30,11 @@ SmithWaterman::SmithWaterman(int maxSequenceLength, int aaSize) {
 	profile->profile_rev_word = (simd_int*)mem_align(ALIGN_INT, aaSize * segSize * sizeof(simd_int));
 	profile->query_rev_sequence = new int8_t[maxSequenceLength];
 	profile->query_sequence     = new int8_t[maxSequenceLength];
+	profile->composition_bias   = new int8_t[maxSequenceLength];
+	profile->composition_bias_rev   = new int8_t[maxSequenceLength];
 	profile->mat_rev            = new int8_t[maxSequenceLength * aaSize * 2];
     profile->mat                = new int8_t[maxSequenceLength * aaSize * 2];
+	tmp_composition_bias   = new float[maxSequenceLength];
 
 	memset(profile->query_sequence, 0, maxSequenceLength * sizeof(int8_t));
 	memset(profile->query_rev_sequence, 0, maxSequenceLength * sizeof(int8_t));
@@ -52,6 +57,9 @@ SmithWaterman::~SmithWaterman(){
 	free(profile->profile_rev_word);
 
 	delete [] profile->query_rev_sequence;
+	delete [] profile->composition_bias;
+	delete [] profile->composition_bias_rev;
+	delete [] tmp_composition_bias;
 	delete [] profile->query_sequence;
 	delete [] profile->mat_rev;
     delete [] profile->mat;
@@ -62,7 +70,7 @@ SmithWaterman::~SmithWaterman(){
 
 /* Generate query profile rearrange query sequence & calculate the weight of match/mismatch. */
 template <typename T, size_t Elements, const unsigned int type>
-void SmithWaterman::createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t *mat,
+void SmithWaterman::createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat,
 		const int32_t query_length, const int32_t aaSize, uint8_t bias,
 		const int32_t offset, const int32_t entryLength) {
 
@@ -79,7 +87,7 @@ void SmithWaterman::createQueryProfile(simd_int *profile, const int8_t *query_se
 				// if will be optmized out by compiler
 				if(type == SUBSTITUTIONMATRIX) {     // substitution score for query_seq constrained by nt
 					// query_sequence starts from 1 to n
-					*t++ = ( j >= query_length) ? bias : mat[nt * aaSize + query_sequence[j +offset ]] + bias; // mat[nt][q[j]] mat eq 20*20
+					*t++ = ( j >= query_length) ? bias : mat[nt * aaSize + query_sequence[j + offset ]] + composition_bias[j + offset] + bias; // mat[nt][q[j]] mat eq 20*20
 //					printf("(%1d, %1d) ", query_sequence[j ], *(t-1));
 
 				} if(type == PROFILE) {
@@ -162,21 +170,21 @@ s_align* SmithWaterman::ssw_align (
 	// Find the beginning position of the best alignment.
 	if (word == 0) {
 		if(profile->sequence_type == Sequence::HMM_PROFILE){
-			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_rev_byte, profile->query_rev_sequence, profile->mat_rev,
+			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_rev_byte, profile->query_rev_sequence, NULL, profile->mat_rev,
 					r->qEndPos1 + 1, profile->alphabetSize, profile->bias, queryOffset, profile->query_length);
 		}else{
-			createQueryProfile<int8_t, VECSIZE_INT * 4, SUBSTITUTIONMATRIX>(profile->profile_rev_byte, profile->query_rev_sequence, profile->mat,
+			createQueryProfile<int8_t, VECSIZE_INT * 4, SUBSTITUTIONMATRIX>(profile->profile_rev_byte, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
 					r->qEndPos1 + 1, profile->alphabetSize, profile->bias, queryOffset, 0);
 		}
 		bests_reverse = sw_sse2_byte(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_byte,
 				r->score1, profile->bias, maskLen);
 	} else {
 		if(profile->sequence_type == Sequence::HMM_PROFILE) {
-			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_rev_word, profile->query_rev_sequence, profile->mat_rev,
+			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_rev_word, profile->query_rev_sequence, NULL, profile->mat_rev,
 					r->qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
 
 		}else{
-			createQueryProfile<int16_t, VECSIZE_INT * 2, SUBSTITUTIONMATRIX>(profile->profile_rev_word, profile->query_rev_sequence, profile->mat,
+			createQueryProfile<int16_t, VECSIZE_INT * 2, SUBSTITUTIONMATRIX>(profile->profile_rev_word, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
 					r->qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
 		}
 		bests_reverse = sw_sse2_word(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_word,
@@ -671,11 +679,17 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 
 void SmithWaterman::ssw_init (const Sequence* q,
 		const int8_t* mat,
+		const BaseMatrix *m,
 		const int32_t alphabetSize,
 		const int8_t score_size) {
 
 	profile->bias = 0;
 	profile->sequence_type = q->getSequenceType();
+	SubstitutionMatrix::calcLocalAaBiasCorrection(m, q->int_sequence, q->L, tmp_composition_bias);
+	for(size_t i =0; i < q->L; i++){
+		profile->composition_bias[i] = (int8_t) (tmp_composition_bias[i] < 0.0)? tmp_composition_bias[i] - 0.5: tmp_composition_bias[i] + 0.5;
+	}
+	//memset(profile->composition_bias, 0, q->L* sizeof(int8_t));
     // copy memory to local memory
     if(profile->sequence_type == Sequence::HMM_PROFILE ){
         memcpy(profile->mat, mat, q->L * Sequence::PROFILE_AA_SIZE * sizeof(int8_t));
@@ -703,20 +717,22 @@ void SmithWaterman::ssw_init (const Sequence* q,
 
 		profile->bias = bias;
 		if(q->getSequenceType() == Sequence::HMM_PROFILE){
-			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_byte, profile->query_sequence, profile->mat, q->L, alphabetSize, bias, 1, q->L);
+			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_byte, profile->query_sequence, NULL, profile->mat, q->L, alphabetSize, bias, 1, q->L);
 		}else{
-			createQueryProfile<int8_t, VECSIZE_INT * 4, SUBSTITUTIONMATRIX>(profile->profile_byte, profile->query_sequence, profile->mat, q->L, alphabetSize, bias, 0, 0);
+			createQueryProfile<int8_t, VECSIZE_INT * 4, SUBSTITUTIONMATRIX>(profile->profile_byte, profile->query_sequence, profile->composition_bias, profile->mat, q->L, alphabetSize, bias, 0, 0);
 		}
 	}
 	if (score_size == 1 || score_size == 2) {
 		if(q->getSequenceType() == Sequence::HMM_PROFILE){
-			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_word, profile->query_sequence, profile->mat, q->L, alphabetSize, 0, 1, q->L);
+			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_word, profile->query_sequence, NULL, profile->mat, q->L, alphabetSize, 0, 1, q->L);
 		}else{
-			createQueryProfile<int16_t, VECSIZE_INT * 2, SUBSTITUTIONMATRIX>(profile->profile_word, profile->query_sequence, profile->mat, q->L, alphabetSize, 0, 0, 0);
+			createQueryProfile<int16_t, VECSIZE_INT * 2, SUBSTITUTIONMATRIX>(profile->profile_word, profile->query_sequence, profile->composition_bias, profile->mat, q->L, alphabetSize, 0, 0, 0);
 		}
 	}
 	// create reverse structures
 	seq_reverse( profile->query_rev_sequence, profile->query_sequence, q->L);
+	seq_reverse( profile->composition_bias_rev, profile->composition_bias, q->L);
+
 	if(q->getSequenceType() == Sequence::HMM_PROFILE) {
 		for (size_t i = 0; i < alphabetSize; i++) {
 			const int8_t *startToRead = profile->mat + (i * q->L);

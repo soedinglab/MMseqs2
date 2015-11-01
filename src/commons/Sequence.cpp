@@ -22,8 +22,11 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType, const 
     this->spacedPatternSize = spacedKmerInformation.second;
     this->kmerSize = kmerSize;
     this->kmerWindow = NULL;
-    if(spacedPatternSize)
+    this->kmerPos = NULL;
+    if(spacedPatternSize){
        this->kmerWindow = new int[kmerSize];
+       this->kmerPos = new int[kmerSize];
+    }
     // init memory for profile search
     if (seqType == HMM_PROFILE) {
         // setup memory for profiles
@@ -47,8 +50,12 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType, const 
 Sequence::~Sequence()
 {
     delete[] int_sequence;
-    if(kmerWindow)
-        delete [] kmerWindow;
+    if(kmerWindow) {
+        delete[] kmerWindow;
+    }
+    if(kmerPos){
+        delete [] kmerPos;
+    }
     if (seqType == HMM_PROFILE) {
         for (size_t i = 0; i < kmerSize; i++) {
             delete profile_matrix[i];
@@ -317,15 +324,23 @@ const int * Sequence::nextKmer() {
 
         const int * posToRead = int_sequence + currItPos;
         int * currWindowPos = kmerWindow;
+        int * currKmerPositons = kmerPos;
+
         for(int i = 0; i < this->spacedPatternSize; i++) {
             if(spacedPattern[i]) {
                 currWindowPos[0] = posToRead[i];
+                currKmerPositons[0] = currItPos + i;
+                currKmerPositons++;
                 currWindowPos++;
             }
         }
         return (const int *) kmerWindow;
     }
     return 0;
+}
+
+const int * Sequence::getKmerPositons(){
+    return kmerPos;
 }
 
 int8_t const * Sequence::getAlignmentProfile()const {

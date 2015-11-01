@@ -2,6 +2,7 @@
 #include "Util.h"
 
 
+
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_, float bitFactor, float scoreBias = 0.2) :
     scoringMatrixFileName(scoringMatrixFileName_)
 {
@@ -20,6 +21,33 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_, float
     this->bitFactor = bitFactor;
 }
 
+
+void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m, const int * int_sequence, const int N, float * compositionBias){
+    const int windowSize = 40;
+    // calculate local amino acid bias
+    if (N < windowSize + 1){
+        memset(compositionBias, 0, N * sizeof(float));
+    }else {
+        for (int i = 0; i < N; i++){
+            const int minPos = std::max(0, (i - windowSize/2));
+            const int maxPos = std::min(N, (i + windowSize/2));
+            const int _2d = maxPos - minPos;
+            // negative score for the amino acids in the neighborhood of i
+            int sumSubScores = 0;
+            short * subMat = m->subMatrix[int_sequence[i]];
+            for (int j = minPos; j < maxPos; j++){
+                sumSubScores += (j != i) ? subMat[int_sequence[j]] : 0;
+            }
+            float deltaS_i = (float) sumSubScores;
+            deltaS_i /= -1.0 * _2d;
+            // positive score for the background score distribution for i
+            for (int a = 0; a < m->alphabetSize; a++){
+                deltaS_i += m->pBack[a] * subMat[a];
+            }
+            compositionBias[i] = (int8_t) deltaS_i;
+        }
+    }
+}
 
 SubstitutionMatrix::~SubstitutionMatrix(){
 }

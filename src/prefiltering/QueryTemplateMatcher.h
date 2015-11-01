@@ -85,7 +85,7 @@ class QueryTemplateMatcher {
         bool aaBiasCorrection;
 
         // kmer threshold for kmer generator
-        unsigned short kmerThr;
+        short kmerThr;
 
 
 };

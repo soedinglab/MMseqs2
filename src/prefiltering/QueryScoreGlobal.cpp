@@ -131,7 +131,7 @@ std::pair<hit_t *, size_t> QueryScoreGlobal::getResult (int querySeqLen, unsigne
                     const float zscore = getZscore(pos * SIMD_SHORT_SIZE + i);
                     hit_t * result = (resList + elementCounter);
                     result->seqId = pos * SIMD_SHORT_SIZE + i;
-                    result->zScore = zscore;
+                    result->pScore = zscore;
                     result->prefScore = scores[pos * SIMD_SHORT_SIZE + i];
                     elementCounter++;
                     if(elementCounter >= MAX_RES_LIST_LEN)
@@ -148,7 +148,7 @@ OuterLoop:
         const float zscore = getZscore(identityId);
         hit_t * result = (resList + 0);
         result->seqId = identityId;
-        result->zScore = zscore;
+        result->pScore = zscore;
         result->prefScore = scores[identityId];
         std::sort(resList + 1, resList + elementCounter, compareHits);
     }

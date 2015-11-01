@@ -26,31 +26,27 @@ QueryTemplateMatcherGlobal::~QueryTemplateMatcherGlobal(){
 
 // calculate local amino acid bias correction score for each position in the sequence
 void QueryTemplateMatcherGlobal::calcLocalAaBiasCorrection(Sequence* seq){
-    int windowSize = 40;
+    const int windowSize = 40;
     if (seq->L < windowSize + 1)
         memset(this->deltaS, 0, seq->L * sizeof(float));
     else{
-        float deltaS_i;
-        int minPos;
-        int maxPos;
-        int _2d;
         // calculate local amino acid bias
         for (int i = 0; i < seq->L; i++){
-            deltaS_i = 0.0;
-            minPos = std::max(0, (i - windowSize/2));
-            maxPos = std::min(seq->L, (i + windowSize/2));
-            _2d = maxPos - minPos;
-
+            const int minPos = std::max(0, (i - windowSize/2));
+            const int maxPos = std::min(seq->L, (i + windowSize/2));
+            const int _2d = maxPos - minPos;
             // negative score for the amino acids in the neighborhood of i
+            int sumSubScores = 0;
+            short * subMat = m->subMatrix[seq->int_sequence[i]];
             for (int j = minPos; j < maxPos; j++){
-                if (j != i){
-                    deltaS_i += m->subMatrix[seq->int_sequence[i]][seq->int_sequence[j]];
-                }
+                sumSubScores += (j != i) ? subMat[seq->int_sequence[j]] : 0;
             }
+            float deltaS_i = (float) sumSubScores;
             deltaS_i /= -1.0 * _2d;
             // positive score for the background score distribution for i
-            for (int a = 0; a < m->alphabetSize; a++)
-                deltaS_i += m->pBack[a] * m->subMatrix[seq->int_sequence[i]][a];
+            for (int a = 0; a < m->alphabetSize; a++){
+                deltaS_i += m->pBack[a] * subMat[a];
+            }
 
             deltaS[i] = deltaS_i;
         }
@@ -93,6 +89,7 @@ void QueryTemplateMatcherGlobal::match(Sequence* seq){
         kmerListLen += kmerList.elementSize;
         // match the index table
 //        int pos_matched = 0;
+
         short biasCorrection_short = (short) biasCorrection;
         for (unsigned int i = 0; i < kmerList.elementSize; i++){
             // avoid unsigned short overflow

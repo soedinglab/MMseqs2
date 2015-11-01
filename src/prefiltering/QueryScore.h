@@ -30,7 +30,7 @@
 
 typedef struct {
     size_t seqId;
-    float zScore;
+    float pScore;
     unsigned short prefScore;
 } hit_t;
 
