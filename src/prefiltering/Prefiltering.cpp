@@ -743,16 +743,16 @@ void Prefiltering::maskLowComplexKmer(IndexTable *indexTable, int kmerSize, int 
     std::cout << "Max: " << maxKmerSize << std::endl;
 //    unsigned int * hist = new unsigned int[maxKmerSize];
 //    memset(hist,0 ,maxKmerSize *sizeof(unsigned int));
-//    for (size_t kmer = 0; kmer < tableSize; kmer++) {
-//        size_t kmerSize = (size_t) indexTable->getTable(kmer);
-////        hist[kmerSize]++;
-//        if(kmerSize > avgKmer * 50){
-//                    deleteCnt++;
-//                    // remove low compl. kmer from table
-//                    deletedKmer += kmerSize;
-//                    indexTable->setTable(kmer, 0);
-//        }
-//    }
+    for (size_t kmer = 0; kmer < tableSize; kmer++) {
+        size_t kmerSize = (size_t) indexTable->getTable(kmer);
+//        hist[kmerSize]++;
+        if(kmerSize > avgKmer * 50){
+                    deleteCnt++;
+                    // remove low compl. kmer from table
+                    deletedKmer += kmerSize;
+                    indexTable->setTable(kmer, 0);
+        }
+    }
 //    for (size_t i = 0; i < maxKmerSize; i++) {
 //        if(hist[i] != 0){
 //            std::cout << i << " " << hist[i] << std::endl;
