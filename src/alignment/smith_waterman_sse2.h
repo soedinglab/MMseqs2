@@ -36,14 +36,6 @@
 #include "../commons/Sequence.h"
 
 typedef struct {
-    short qStartPos;
-    short dbStartPos;
-    short qEndPos;
-    short dbEndPos;
-} aln_t;
-
-
-typedef struct {
 	uint16_t score1;
 	uint16_t score2;
 	int32_t dbStartPos1;
@@ -58,7 +50,7 @@ typedef struct {
 class SmithWaterman{
 public:
 
-    SmithWaterman(int maxSequenceLength, int aaSize);
+    SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection);
     ~SmithWaterman();
 
     // prints a __m128 vector containing 8 signed shorts
@@ -182,6 +174,7 @@ private:
         int32_t sequence_type;
         int32_t alphabetSize;
         uint8_t bias;
+        short ** profile_word_linear;
     };
     simd_int* vHStore;
     simd_int* vHLoad;
@@ -200,6 +193,13 @@ private:
         uint32_t* seq;
         int32_t length;
     } cigar;
+
+    //needed for SW backtrace
+    struct scores{
+        short H;
+        short F;
+        short E;
+    };
     
     /* Striped Smith-Waterman
      Record the highest score of each reference position.
@@ -232,8 +232,10 @@ private:
                   uint16_t terminate,
                   int32_t maskLen);
 
-    template <const unsigned int type>
-    SmithWaterman::cigar *banded_sw(const int *db_sequence, const int8_t *query_sequence, int32_t db_length, int32_t query_length, int32_t queryStart, int32_t score, const uint32_t gap_open, const uint32_t gap_extend, int32_t band_width, const int8_t *mat, int32_t n);
+    SmithWaterman::cigar * banded_sw(const int *db_sequence, const short ** profile_word,
+                                     int32_t query_start, int32_t query_end,
+                                     int32_t target_start, int32_t target_end,
+                                     const short gap_open, const short gap_extend);
     
     /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
      @param	length		length of CIGAR
@@ -244,6 +246,10 @@ private:
 
     s_profile* profile;
 
+    // needed for the backtrace
+    scores *workspace;
+    unsigned char *btMatrix;
+
 
     const static unsigned int SUBSTITUTIONMATRIX = 1;
     const static unsigned int PROFILE = 2;
@@ -252,5 +258,7 @@ private:
     void createQueryProfile(simd_int *profile, const int8_t *query_sequence, const int8_t * composition_bias, const int8_t *mat, const int32_t query_length, const int32_t aaSize, uint8_t bias, const int32_t offset, const int32_t entryLength);
 
     float *tmp_composition_bias;
+    short * profile_word_linear_data;
+    bool aaBiasCorrection;
 };
 #endif /* SMITH_WATERMAN_SSE2_H */

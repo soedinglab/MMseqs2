@@ -29,7 +29,7 @@ extern "C" {
 #include "Debug.h"
 
 int runResult2Profile(std::string resultDb, std::string queryDb, std::string targetDb, std::string outDb,
-                      std::string subMatPath, int cpu) {
+                      std::string subMatPath, int cpu, bool aaBiasCorrection) {
     int err = EXIT_SUCCESS;
 
     DBReader dbr_cluster_data(resultDb.c_str(), (resultDb + ".index").c_str());
@@ -76,7 +76,7 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
     Debug(Debug::WARNING) << "Start computing profiles.\n";
 #pragma omp parallel
     {
-        Matcher aligner(maxSeqLen, subMat, tdbr->getAminoAcidDBSize(), tdbr->getSize());
+        Matcher aligner(maxSeqLen, subMat, tdbr->getAminoAcidDBSize(), tdbr->getSize(), aaBiasCorrection);
         MultipleAlignment msaAligner(maxSeqLen, maxSetSize, subMat, &aligner);
         PSSMCalculator pssmCalculator(subMat, maxSeqLen);
         Sequence centerSeq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, 0, false);
@@ -165,5 +165,6 @@ int cluster2profile(int argn,const char **argv)
                              par.db3,
                              par.db4,
                              par.scoringMatrixFile,
-                             par.threads);
+                             par.threads,
+                             par.compBiasCorrection);
 }

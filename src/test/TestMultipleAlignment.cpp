@@ -87,7 +87,7 @@ int main (int argc, const char * argv[])
     seqSet.push_back(&s3);
 //    seqSet.push_back(&s4);
     //seqSet.push_back(s5);
-    Matcher aligner(10000, &subMat, 100000 ,seqSet.size());
+    Matcher aligner(10000, &subMat, 100000 ,seqSet.size(), false);
     MultipleAlignment msaAligner(1000, 10, &subMat, &aligner);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s1, seqSet, true);
     MultipleAlignment::print(res);

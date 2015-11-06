@@ -22,7 +22,7 @@ Parameters::Parameters():
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "[file]\tAmino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, ""),
         PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Global: 0 Local: 1 Local fast: 2",typeid(int), (void *) &searchMode, "^[0-2]\{1\}$"),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--no-comp-bias-corr", "Compositional bias","Switch off local amino acid composition bias correction",typeid(bool), (void *) &compBiasCorrection, ""),
-        PARAM_MASK(PARAM_MASK_ID,"--no-mask", "Masking database","Switch off masking",typeid(bool), (void *) &mask, ""),
+        PARAM_MASK(PARAM_MASK_ID,"--mask", "Masking database","Switch seg masking on",typeid(bool), (void *) &mask, ""),
 
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "[int]\tSpaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]\{1\}" ),
         PARAM_KEEP_TEMP_FILES(PARAM_KEEP_TEMP_FILES_ID,"--keep-tmp-files", "Keep-tmp-files" ,"\tDo not delete temporary files.",typeid(bool),(void *) &keepTempFiles, ""),
@@ -60,6 +60,7 @@ Parameters::Parameters():
     alignment.push_back(PARAM_E);
     alignment.push_back(PARAM_C);
     alignment.push_back(PARAM_MASK);
+    alignment.push_back(PARAM_NO_COMP_BIAS_CORR);
     alignment.push_back(PARAM_MIN_SEQ_ID);
     alignment.push_back(PARAM_MAX_SEQ_LEN);
     alignment.push_back(PARAM_MAX_SEQS);
@@ -106,6 +107,7 @@ Parameters::Parameters():
     // create profile db
     createprofiledb.push_back(PARAM_SUB_MAT);
     createprofiledb.push_back(PARAM_PROFILE_TYPE);
+    createprofiledb.push_back(PARAM_NO_COMP_BIAS_CORR);
     createprofiledb.push_back(PARAM_THREADS);
     createprofiledb.push_back(PARAM_V);
 
@@ -343,7 +345,7 @@ void Parameters::setDefaults() {
     threads = Util::omp_thread_count();
 #endif
     compBiasCorrection = true;
-    mask = true;
+    mask = false;
 
     spacedKmer = true;
     searchMode = true;

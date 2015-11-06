@@ -46,7 +46,7 @@ int main (int argc, const char * argv[])
     const char* sequence2 = "IIRLNHVAVATLQLEKLTSFYRDTLGLQVSEPVPQKEHGVTTVFVDVGNTKFELLLPLGDKSPIANFLEKNKGGGAHHVCLEVDDIEAAVADLKXXGIRMLAEKTRIGAHGKPVMFLHPKDCGGVLVELEQ\n";
 
     dbSeq->mapSequence(1,"lala2",sequence2);
-    SmithWaterman aligner(15000, subMat.alphabetSize);
+    SmithWaterman aligner(15000, subMat.alphabetSize, false);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
 
     aligner.ssw_init(s, s->getAlignmentProfile(), &subMat, subMat.alphabetSize, 2);
