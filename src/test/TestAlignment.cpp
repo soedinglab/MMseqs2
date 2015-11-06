@@ -16,12 +16,20 @@
 #include "KmerGenerator.h"
 #include "BaseMatrix.h"
 #include "../alignment/smith_waterman_sse2.h"
+
+
+
+
+
+
+
 int main (int argc, const char * argv[])
 {
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out", 2.0, 0.0);
+    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out",
+                              2.0, 0.0);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
 
@@ -50,15 +58,15 @@ int main (int argc, const char * argv[])
     Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     dbSeq->mapSequence(1,"lala2",tim2.c_str());
-    SmithWaterman aligner(15000, subMat.alphabetSize);
+    SmithWaterman aligner(15000, subMat.alphabetSize, false);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (size_t i = 0; i < subMat.alphabetSize; i++) {
-            for (size_t j = 0; j < subMat.alphabetSize; j++) {
-		std::cout << ( i*subMat.alphabetSize + j) << " " << subMat.subMatrix[i][j] << " ";
+        for (size_t j = 0; j < subMat.alphabetSize; j++) {
+            std::cout << ( i*subMat.alphabetSize + j) << " " << subMat.subMatrix[i][j] << " ";
 
- 	        tinySubMat[i*subMat.alphabetSize + j] = (int8_t)subMat.subMatrix[i][j];
-	    }
-	    std::cout << std::endl;
+            tinySubMat[i*subMat.alphabetSize + j] = (int8_t)subMat.subMatrix[i][j];
+        }
+        std::cout << std::endl;
     }
     aligner.ssw_init(s, tinySubMat, &subMat, subMat.alphabetSize, 2);
     int32_t maskLen = s->L / 2;
@@ -77,13 +85,13 @@ int main (int argc, const char * argv[])
             uint32_t length = SmithWaterman::cigar_int_to_len(alignment->cigar[c]);
             for (uint32_t i = 0; i < length; ++i){
                 if (letter == 'M') {
-		    fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
+                    fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
                     if (dbSeq->int_sequence[targetPos] == s->int_sequence[queryPos]){
                         fprintf(stdout, "|");
                         aaIds++;
                     }
                     else fprintf(stdout, "*");
-		    fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
+                    fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
                     ++queryPos;
                     ++targetPos;
                 } else {
@@ -91,12 +99,12 @@ int main (int argc, const char * argv[])
                     if (letter == 'I') ++queryPos;
                     else ++targetPos;
                 }
-    		std::cout << std::endl; 
+                std::cout << std::endl;
             }
         }
     }
     std::cout <<  alignment->score1 << " " << alignment->qStartPos1  << " "<< alignment->qEndPos1 << " "
-  	      << alignment->dbStartPos1 << " "<< alignment->dbEndPos1 << std::endl;
+    << alignment->dbStartPos1 << " "<< alignment->dbEndPos1 << std::endl;
     seqId = (float)aaIds/(float)(std::min(s->L, dbSeq->L)); //TODO
 
     std::cout << "Seqid: "<< seqId << " aaIds " << aaIds <<std::endl;

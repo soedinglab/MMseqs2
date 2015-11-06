@@ -44,7 +44,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     for (int i = 0; i < threads; i++){
         qSeqs[i]  = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.querySeqType, 0, false);
         dbSeqs[i] = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.targetSeqType, 0, false);
-        seg[i] = new Seg(10, par.maxSeqLen);
+        seg[i] = new Seg(12, par.maxSeqLen);
     }
 
     // open the sequence, prefiltering and output databases
@@ -63,7 +63,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     matchers = new Matcher*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++) {
-        matchers[i] = new Matcher(par.maxSeqLen, this->m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize());
+        matchers[i] = new Matcher(par.maxSeqLen, this->m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize(), par.compBiasCorrection);
     }
 
     dbKeys = new char*[threads];

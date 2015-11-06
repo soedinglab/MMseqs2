@@ -61,7 +61,7 @@ int main (int argc, const char * argv[])
     Sequence* query = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
-    SmithWaterman aligner(15000, subMat.alphabetSize);
+    SmithWaterman aligner(15000, subMat.alphabetSize, false);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (size_t i = 0; i < subMat.alphabetSize; i++) {
         for (size_t j = 0; j < subMat.alphabetSize; j++) {

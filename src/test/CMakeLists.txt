@@ -28,6 +28,14 @@ target_link_libraries(test_alignment workflow)
 target_link_libraries(test_alignment ffindex)
 
 
+set(testalignmenttraceback TestAlignmentTraceback.cpp )
+add_executable(test_alignmenttraceback ${testalignmenttraceback} )
+
+target_link_libraries(test_alignmenttraceback util)
+target_link_libraries(test_alignmenttraceback workflow)
+target_link_libraries(test_alignmenttraceback ffindex)
+
+
 set(testmsaalignment TestMultipleAlignment.cpp )
 add_executable(test_msaalignment ${testmsaalignment})
 
