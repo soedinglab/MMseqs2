@@ -731,67 +731,67 @@ void Prefiltering::maskLowComplexKmer(IndexTable *indexTable, int kmerSize, int 
     Debug(Debug::INFO) << "Index table: masking k-mers...\n";
     size_t deleteCnt = 0;
     size_t deletedKmer = 0;
-
+//
     size_t tableSize = Util::ipow(alphabetSize, kmerSize);
     size_t kmerSum = 0.0;
-    size_t maxKmerSize = 0.0;
+//    size_t maxKmerSize = 0.0;
     for (size_t kmer = 0; kmer < tableSize; kmer++) {
         kmerSum += (size_t) indexTable->getTable(kmer);
-        maxKmerSize = std::max((size_t) indexTable->getTable(kmer), maxKmerSize);
+//        maxKmerSize = std::max((size_t) indexTable->getTable(kmer), maxKmerSize);
     }
     double avgKmer = ((double)kmerSum) / ((double)tableSize);
-    std::cout << "Max: " << maxKmerSize << std::endl;
+//    std::cout << "Max: " << maxKmerSize << std::endl;
 //    unsigned int * hist = new unsigned int[maxKmerSize];
 //    memset(hist,0 ,maxKmerSize *sizeof(unsigned int));
-    for (size_t kmer = 0; kmer < tableSize; kmer++) {
-        size_t kmerSize = (size_t) indexTable->getTable(kmer);
-//        hist[kmerSize]++;
-        if(kmerSize > avgKmer * 50){
-                    deleteCnt++;
-                    // remove low compl. kmer from table
-                    deletedKmer += kmerSize;
-                    indexTable->setTable(kmer, 0);
-        }
-    }
+//    for (size_t kmer = 0; kmer < tableSize; kmer++) {
+//        size_t kmerSize = (size_t) indexTable->getTable(kmer);
+////        hist[kmerSize]++;
+//        if(kmerSize > avgKmer * 50){
+//                    deleteCnt++;
+//                    // remove low compl. kmer from table
+//                    deletedKmer += kmerSize;
+//                    indexTable->setTable(kmer, 0);
+//        }
+//    }
 //    for (size_t i = 0; i < maxKmerSize; i++) {
 //        if(hist[i] != 0){
 //            std::cout << i << " " << hist[i] << std::endl;
 //        }
 //    }
 
-//#pragma omp parallel
-//    {
-//        char * tmpKmer = new char[kmerSize];
-//        int * intSeq = new int[kmerSize];
-//        Indexer indexer(alphabetSize, kmerSize);
-//        Seg seg(kmerSize, kmerSize);
-//#pragma omp for schedule(static) reduction (+: deleteCnt, deletedKmer)
-//        for (size_t kmer = 0; kmer < tableSize; kmer++) {
-//            indexer.index2int(intSeq, kmer, kmerSize);
-//            for (int kmerPos = 0; kmerPos < kmerSize; kmerPos++) {
-//                tmpKmer[kmerPos] = int2aa[intSeq[kmerPos]];
-//            }
-//            // mask the kmer
-//            char *seqMask = seg.maskseq(tmpKmer);
-//            int lowComplexCount = 0;
-//            for (int kmerPos = 0; kmerPos < kmerSize; kmerPos++) {
-//                if (seqMask[kmerPos] == 'X') {
-//                    lowComplexCount++;
-//                }
-//            }
-//            if (lowComplexCount >= (kmerSize - 1)) {
-//                size_t kmerSize = (size_t)indexTable->getTable(kmer);
-//                if(avgKmer*4 < kmerSize){
-//                    deleteCnt++;
-//                    // remove low compl. kmer from table
-//                    deletedKmer += kmerSize;
-//                    indexTable->setTable(kmer, 0);
-//                }
-//            }
-//        }
-//        delete[] intSeq;
-//        delete[] tmpKmer;
-//    }
+#pragma omp parallel
+    {
+        char * tmpKmer = new char[kmerSize];
+        int * intSeq = new int[kmerSize];
+        Indexer indexer(alphabetSize, kmerSize);
+        Seg seg(kmerSize, kmerSize);
+#pragma omp for schedule(static) reduction (+: deleteCnt, deletedKmer)
+        for (size_t kmer = 0; kmer < tableSize; kmer++) {
+            indexer.index2int(intSeq, kmer, kmerSize);
+            for (int kmerPos = 0; kmerPos < kmerSize; kmerPos++) {
+                tmpKmer[kmerPos] = int2aa[intSeq[kmerPos]];
+            }
+            // mask the kmer
+            char *seqMask = seg.maskseq(tmpKmer);
+            int lowComplexCount = 0;
+            for (int kmerPos = 0; kmerPos < kmerSize; kmerPos++) {
+                if (seqMask[kmerPos] == 'X') {
+                    lowComplexCount++;
+                }
+            }
+            if (lowComplexCount >= kmerSize ) {
+                size_t kmerSize = (size_t)indexTable->getTable(kmer);
+                if(avgKmer*4 < kmerSize){
+                    deleteCnt++;
+                    // remove low compl. kmer from table
+                    deletedKmer += kmerSize;
+                    indexTable->setTable(kmer, 0);
+                }
+            }
+        }
+        delete[] intSeq;
+        delete[] tmpKmer;
+    }
     Debug(Debug::INFO) << "Index table: masked "<< deleteCnt <<" out of "<< tableSize << " k-mer. ";
     Debug(Debug::INFO) << "Deleted "<< deletedKmer <<" out of "<< indexTable->getTableEntriesNum() << " k-mer.\n";
 
