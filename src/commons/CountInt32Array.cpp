@@ -106,6 +106,7 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
             // set element corresponding bit in byte
             duplicateBitArrayChar[idx] = currDiagonal;
         }
+
         // set memory to zero
         for (size_t n = 0; n < elementCount; n++) {
             const unsigned int element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
