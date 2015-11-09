@@ -39,8 +39,6 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
             this->seqLens[i] = 1.0f;
     }
     compositionBias = new float[maxSeqLen];
-
-    kmerThrSorPerCol = std::max(((((float) kmerThr / 2.0) / kmerSize) + 0.5) - 2, 0.0);
 }
 
 QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
@@ -120,12 +118,7 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
             };
 
 //            seqListSize = (sequenceHits + seqListSize >= lastSequenceHit) ? 0 : seqListSize;
-            // 1/4 bit score per column
-            float score = kmerList.score[kmerPos] + bias;
 
-            const char scorePerCol = (((score / 2.0) / kmerSize) + 0.5) - kmerThrSorPerCol;
-//            std::cout << (int) scorePerCol << std::endl;
-            //const char scorePerCol = 1;
             for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++) {
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
@@ -133,8 +126,6 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
                 const unsigned char diagonal = (i - j) % 255;
                 sequenceHits->id    = seqId;
                 sequenceHits->count = diagonal;
-                sequenceHits->score = scorePerCol;
-
                 sequenceHits++;
             }
             numMatches += seqListSize;
