@@ -69,6 +69,7 @@ protected:
     size_t getDoubleDiagonalMatches();
 
     float *compositionBias;
+    float kmerThrSorPerCol;
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
