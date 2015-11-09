@@ -10,7 +10,6 @@
 struct  __attribute__((__packed__))  CounterResult {
     unsigned int  id;
     unsigned char count;
-    unsigned char score;
 };
 
 
@@ -34,7 +33,7 @@ public:
 private:
     // this bit array should fit in L1/L2
     size_t duplicateBitArraySize;
-    unsigned short * duplicateBitArray;
+    unsigned char * duplicateBitArray;
     // needed for lower bit hashing function
     const static unsigned int BINCOUNT = MASK_0_5 + 1;
     size_t binSize;
@@ -43,7 +42,7 @@ private:
     // array to keep the bin elements
     CounterResult * binDataFrame;
     // needed to temporary keep ids
-    CounterResult *tmpElementBuffer;
+    unsigned int *tmpElementBuffer;
     // detect if overflow occurs
     bool checkForOverflowAndResizeArray(CounterResult **bins,
                                         const unsigned int binCount,
