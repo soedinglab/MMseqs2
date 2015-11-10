@@ -775,7 +775,7 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(
 	int query_length = (query_end - query_start);
 	int target_length = (target_end - target_start);
 	scores * prev_sM_G_D_vec = &workspace[query_length + 1];
-	memset(prev_sM_G_D_vec, 0, sizeof(scores) * (query_length + 1));
+	memset(prev_sM_G_D_vec, 0, sizeof(scores) * (query_end + 1));
 	short goe = gap_open + gap_extend;
 	int pos = 0;
 	memset(btMatrix , 0, target_length * (query_length/4 +3) * sizeof(unsigned char));
