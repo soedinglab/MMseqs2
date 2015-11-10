@@ -47,8 +47,19 @@ int main (int argc, const char * argv[])
 //	std::string tim = "APRKFFVGGNWKMNGKRKSLGELIHTLDGAKLSADTEVVCGAPSIYLDFARQKLDAKIGVAAQNCYKVPKGAFTGEISPAMIKDIGAAWVILGH"
 //                      "SERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFQETKAIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLR"
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
-    std::string tim1 = "MDDVKIERLKRLNEDVLEDLIEVYMRGYEGLEEYGGEGRDYARDYIKWCWKKAPDGFFVAKVGDRIVGFIVCDRDWYSRYEGKIVGAIHEFVVDKGWQGKGIGKKLLTKCLEFLGKYNDTIELWVGEKNFGAMRLYEKFGFKKVGKSGIWIRMVRRQLS";
-    std::string tim2 = "LRSKETFNDMNLPSRHAIAKVVSIEQQLYDNLAYPELLFYQAAHQWPNSQFICRDNNDILAYAMYAPAEKANTLWLMSAAVKPGCQGRGVGTKLLSDSLRSLDEQGVTCVLLSVAPSNAAAISVYQKLGFEVVRKAEHYLKNLREQGLRMTREIIHK";
+    std::string tim1 = "MTKPVLQDGETVVCQGTHAAIASELQAIAPEVAQSLAEFFAVLADPNRLRLLSLLARSEL"
+            "CVGDLAQAIGVSESAVSHQLRSLRNLRLVSYRKQGRHVYYQLQDHHIVALYQNALDHLQE"
+            "CR";
+    std::string tim2 = "MTMSDTDRSVEKRAATTRAITAAVVSAAVAVLFSALPARSEISELRARDAAIALSRGDSV"
+            "AAVDHYTAILAEENIPDDRRATLLNDRAVAYVRLGKTREAIEDYNKAVVLFPEYAAVYNN"
+            "RGNLLMALGLHGEALKDFNRAIALAPGYAAAYNNRAGAQSRLGHADDAIRDYTRAIKLMP"
+            "SSPAPLAGRGKAYLSQDRPHAAIRDFSRAVGADARFATGYRNRAEAKIEVAHYNEAIEDL"
+            "SRAIAFDVANPEAYLLRGHSYLAIGDAPAAVTDFTRVIELAPSDTIGYEARGLANTMAEA"
+            "FDAAFADLNEAIRLNPRSATAFAYRGFAYVRNGQPDIAQRDLDAAAALEKDNPEVLWALA"
+            "ESEEAQGRSEKAIEHLRRALAIKPDFKRAADSLQRLGFVLASASDTPVKGLGGFGWQVIA"
+            "NSGRFYAVSDNHPNIRVPLEPLGEGQPRILSWELKDAPFRDIGVLTYHGGVIEGREKPEE"
+            "VELAAIIDLKSNSVVAIEPHRQGKEVSNWTWGENGRVTIASVDGVTDEFTLRQVRQEPTV"
+            "SRYRQQDRGESSDPYWAPWNEGPWASDPSHRSRSASRARKAKKPKSFFQLLFGN";
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
     const char* sequence = tim1.c_str();
@@ -85,19 +96,29 @@ int main (int argc, const char * argv[])
             uint32_t length = SmithWaterman::cigar_int_to_len(alignment->cigar[c]);
             for (uint32_t i = 0; i < length; ++i){
                 if (letter == 'M') {
-                    fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
+                    fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
+
                     if (dbSeq->int_sequence[targetPos] == s->int_sequence[queryPos]){
                         fprintf(stdout, "|");
                         aaIds++;
                     }
                     else fprintf(stdout, "*");
-                    fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
+                    fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
+
                     ++queryPos;
                     ++targetPos;
                 } else {
-                    fprintf(stdout, " ");
-                    if (letter == 'I') ++queryPos;
-                    else ++targetPos;
+                    if (letter == 'I'){
+                        fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
+                        fprintf(stdout, " ");
+                        fprintf(stdout, "|");
+                        ++queryPos;
+                    }else{
+                        fprintf(stdout, "|");
+                        fprintf(stdout, " ");
+                        fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
+                        ++targetPos;
+                    };
                 }
                 std::cout << std::endl;
             }
