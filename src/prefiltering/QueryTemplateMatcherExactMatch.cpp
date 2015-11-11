@@ -89,7 +89,8 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
         for (int i = 0; i < kmerSize; i++){
             biasCorrection += compositionBias[pos[i]];
         }
-        short bias = (short) (biasCorrection < 0.0)? biasCorrection -0.5: biasCorrection+ 0.5;
+        // round bias to next higher or lower value
+        short bias = (short) (biasCorrection < 0.0) ? biasCorrection - 0.5: biasCorrection + 0.5;
         short kmerMatchScore = std::max(kmerThr - bias, 0);
         // adjust kmer threshold based on composition bias
         kmerGenerator->setThreshold(kmerMatchScore);
