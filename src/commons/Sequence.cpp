@@ -314,14 +314,6 @@ const int * Sequence::nextKmer() {
     }
     if (hasNextKmer()) {
         currItPos++;
-        if(seqType == HMM_PROFILE) {
-            nextProfileKmer();
-            for(unsigned int i = 0; i < this->kmerSize; i++) {
-                kmerWindow[i] = 0;
-            }
-            return kmerWindow;
-        }
-
         const int * posToRead = int_sequence + currItPos;
         int * currWindowPos = kmerWindow;
         int * currKmerPositons = kmerPos;
@@ -334,6 +326,15 @@ const int * Sequence::nextKmer() {
                 currWindowPos++;
             }
         }
+        if(seqType == HMM_PROFILE) {
+            nextProfileKmer();
+            for(unsigned int i = 0; i < this->kmerSize; i++) {
+                kmerWindow[i] = 0;
+            }
+            return kmerWindow;
+        }
+
+
         return (const int *) kmerWindow;
     }
     return 0;
