@@ -362,7 +362,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
             if(targetSeqId != UINT_MAX)
                 targetSeqId = targetSeqId - dbFrom;
         }
-        // calculate prefitlering results
+        // calculate prefiltering results
         std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx], targetSeqId);
         const size_t resultSize = prefResults.second;
         // write
