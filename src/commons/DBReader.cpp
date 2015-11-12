@@ -201,10 +201,12 @@ void DBReader::readIndex(char *indexFileName, Index * index, char *data, unsigne
         size_t i = 0;
 
         while (std::getline(index_file, line)) {
-            size_t id, offset, length;
+            std::string id;
+            size_t  offset, length;
             std::stringstream ss(line);
             ss >> id >> offset >> length;
-            index[i].id = id;
+
+            index[i].id = strtol(id.c_str(),NULL, 0);
             index[i].data = data + (offset);
             entryLength[i] = length;
             i++;
