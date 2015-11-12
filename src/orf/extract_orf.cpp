@@ -48,7 +48,7 @@ int orfFastaToFFindex(
 
             std::string id;
             if (par->orfUseNumericIndices) {
-                id = SSTR(UINT_MAX - total_num);
+                id = SSTR(UINT_MAX - total_num - 1);
             } else {
                 id = Util::parseFastaHeader(seq->name.s) + std::string("_") + SSTR(orf_num);
             }
