@@ -9,8 +9,9 @@
 QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
                                                                unsigned int *seqLens, short kmerThr,
                                                                double kmerMatchProb, int kmerSize, size_t dbSize,
-                                                               unsigned int maxSeqLen, int effectiveKmerSize, size_t maxHitsPerQuery)
-        : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, false, maxSeqLen) {
+                                                               unsigned int maxSeqLen, int effectiveKmerSize,
+                                                               size_t maxHitsPerQuery, bool aaBiasCorrection)
+        : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, aaBiasCorrection, maxSeqLen) {
     // assure that the whole database can be matched (extreme case)
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
     this->maxDbMatches = dbSize * 2;
@@ -79,8 +80,11 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
     CounterResult* sequenceHits = databaseHits;
     CounterResult* lastSequenceHit = databaseHits + this->maxDbMatches;
     // bias correction
-    SubstitutionMatrix::calcLocalAaBiasCorrection(m, seq->int_sequence, seq->L, compositionBias);
-
+    if(aaBiasCorrection == true){
+        SubstitutionMatrix::calcLocalAaBiasCorrection(m, seq->int_sequence, seq->L, compositionBias);
+    } else {
+        memset(compositionBias, 0, sizeof(float) * seq->L);
+    }
     size_t seqListSize;
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();

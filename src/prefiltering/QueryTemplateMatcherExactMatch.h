@@ -15,7 +15,8 @@ public:
     QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
                                    unsigned int *seqLens, short kmerThr,
                                    double kmerMatchProb, int kmerSize, size_t dbSize,
-                                   unsigned int maxSeqLen, int effectiveKmerSize, size_t maxHitsPerQuery);
+                                   unsigned int maxSeqLen, int effectiveKmerSize,
+                                   size_t maxHitsPerQuery, bool aaBiasCorrection);
     ~QueryTemplateMatcherExactMatch();
 
     // returns result for the sequence
