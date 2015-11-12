@@ -47,12 +47,10 @@ int orfFastaToFFindex(
 
             std::string id;
             if (par->orfUseNumericIndices) {
-                id = SSTR(entries_num);
+                id = SSTR(entries_num) + SSTR(orfs_num);
             } else {
-                id = Util::parseFastaHeader(std::string(seq->name.s));
+                id = Util::parseFastaHeader(std::string(seq->name.s)) + std::string("_") + SSTR(orfs_num);;
             }
-
-            id += "_" + SSTR(orfs_num);
 
             if (id.length() >= 31) {
                 std::cerr << "Id: " << id << " is too long. Maximum of 32 characters are allowed." << std::endl;
