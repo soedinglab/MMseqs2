@@ -262,7 +262,8 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
                                                                  maxHitsPerQuery);
         } else if(searchMode == Parameters::SEARCH_LOCAL_FAST) {
             matchers[thread_idx] = new QueryTemplateMatcherExactMatch(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                                      kmerSize, dbSize, maxSeqLen, effectiveKmerSize, maxHitsPerQuery);
+                                                                      kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
+                                                                      maxHitsPerQuery, aaBiasCorrection);
         } else {
             matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
                                                                   kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
