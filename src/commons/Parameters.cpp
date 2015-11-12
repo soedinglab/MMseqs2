@@ -379,8 +379,8 @@ void Parameters::setDefaults() {
 
     //extractorfs
     orfMinLength = 1;
-    orfMaxLength = SIZE_MAX;
-    orfMaxGaps = SIZE_MAX;
+    orfMaxLength = INT_MAX;
+    orfMaxGaps = INT_MAX;
     orfUseNumericIndices = false;
     orfSkipIncomplete = false;
 }
