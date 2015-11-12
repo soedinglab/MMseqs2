@@ -35,10 +35,10 @@ int orfFastaToFFindex(
 
     char header_buffer[LINE_MAX];
 
-    std::vector<Orf::SequenceLocation> res;
     size_t entries_num = 0;
     while (kseq_read(seq) >= 0) {
         Orf orf(seq->seq.s);
+        std::vector<Orf::SequenceLocation> res;
         orf.FindOrfs(res, par->orfMinLength, par->orfMaxLength, par->orfMaxGaps);
 
         size_t orfs_num = 0;
@@ -55,7 +55,7 @@ int orfFastaToFFindex(
             id += "_" + SSTR(orfs_num);
 
             if (id.length() >= 31) {
-                std::cerr << "Id: " << id << " is too long. Maximal 32 characters are allowed." << std::endl;
+                std::cerr << "Id: " << id << " is too long. Maximum of 32 characters are allowed." << std::endl;
                 EXIT(EXIT_FAILURE);
             }
 
@@ -80,7 +80,6 @@ int orfFastaToFFindex(
         }
 
         entries_num++;
-        res.clear();
     }
 
     kseq_destroy(seq);
