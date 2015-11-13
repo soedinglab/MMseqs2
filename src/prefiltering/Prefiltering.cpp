@@ -541,7 +541,7 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
                                 size_t dbFrom, size_t dbTo)
 {
     Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
-    size_t tableEntriesNum;
+    size_t tableEntriesNum = 0;
     for(size_t i = 0; i < indexTable->getTableSize(); i++){
         tableEntriesNum += (size_t) indexTable->getTable(i);
     }

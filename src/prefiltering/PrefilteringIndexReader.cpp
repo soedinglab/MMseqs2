@@ -22,7 +22,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader *reader) {
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader *dbr, Sequence *seq,
                                               int split, int alphabetSize, int kmerSize, int skip, bool hasSpacedKmer,
-                                              int searchMode) {
+                                              int searchMode, bool mask) {
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
     writer.open();
     int stepCnt = split;
@@ -40,7 +40,9 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         }
         Prefiltering::countKmersForIndexTable(dbr, seq, indexTable, splitStart, splitStart + splitSize);
         Debug(Debug::INFO) << "\n";
-        Prefiltering::maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
+        if(mask == true){
+            Prefiltering::maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
+        }
         Debug(Debug::INFO) << "\n";
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize);
 
