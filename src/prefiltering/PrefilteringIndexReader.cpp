@@ -13,7 +13,11 @@ const char *PrefilteringIndexReader::TABLESIZE = "4";
 const char *PrefilteringIndexReader::META = "5";
 
 bool PrefilteringIndexReader::checkIfIndexFile(DBReader *reader) {
-    return (strncmp(reader->getDataByDBKey((char *) VERSION), CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
+    char * version = reader->getDataByDBKey((char *) VERSION);
+    if(version == NULL){
+        return false;
+    }
+    return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader *dbr, Sequence *seq,
