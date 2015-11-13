@@ -205,9 +205,16 @@ void DBReader::readIndex(char *indexFileName, Index * index, char *data, unsigne
             size_t  offset, length;
             std::stringstream ss(line);
             ss >> id >> offset >> length;
-
+            if(i >= this->size){
+                Debug(Debug::ERROR) << "Corrupte memory\n";
+                EXIT(EXIT_FAILURE);
+            }
             index[i].id = strtol(id.c_str(),NULL, 0);
-            index[i].data = data + (offset);
+            if(dataMode  ==  DATA_AND_INDEX) {
+                index[i].data = data + (offset);
+            }else{
+                index[i].data = NULL;
+            }
             entryLength[i] = length;
             i++;
         }

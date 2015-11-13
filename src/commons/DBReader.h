@@ -77,7 +77,7 @@ public:
 
     static char *mmapData(FILE *file, size_t *dataSize);
 
-    static void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
+    void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
 
     static size_t countLine(const char *name);
 
