@@ -29,9 +29,7 @@ TEST_F(OrfTest, Frame_1) {
     FindForwardOrfs(sequence, sequenceLength, results, 1, 300, 0, Orf::FRAME_1, Orf::STRAND_PLUS);
     for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
         Orf::SequenceLocation loc = *it;
-        char* buffer = orf->View(loc);
-        computedOrfs.emplace_back(buffer);
-        delete buffer;
+        computedOrfs.emplace_back(orf->View(loc));
     }
 
     std::vector<std::string> expectedOrfs;
@@ -50,9 +48,7 @@ TEST_F(OrfTest, Frame_2) {
     FindForwardOrfs(sequence, sequenceLength, results, 1, 300, 0, Orf::FRAME_2, Orf::STRAND_PLUS);
     for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
         Orf::SequenceLocation loc = *it;
-        char* buffer = orf->View(loc);
-        computedOrfs.emplace_back(buffer);
-        delete buffer;
+        computedOrfs.emplace_back(orf->View(loc));
     }
 
     std::vector<std::string> expectedOrfs;
@@ -70,9 +66,7 @@ TEST_F(OrfTest, Frame_3) {
     FindForwardOrfs(sequence, sequenceLength, results, 1, 300, 0, Orf::FRAME_3, Orf::STRAND_PLUS);
     for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
         Orf::SequenceLocation loc = *it;
-        char* buffer = orf->View(loc);
-        computedOrfs.emplace_back(buffer);
-        delete buffer;
+        computedOrfs.emplace_back(orf->View(loc));
     }
 
     std::vector<std::string> expectedOrfs;
@@ -88,9 +82,7 @@ TEST_F(OrfTest, Frame_R_1) {
     FindForwardOrfs(reverseComplement, sequenceLength, results, 1, 300, 0, Orf::FRAME_1, Orf::STRAND_MINUS);
     for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
         Orf::SequenceLocation loc = *it;
-        char* buffer = orf->View(loc);
-        computedOrfs.emplace_back(buffer);
-        delete buffer;
+        computedOrfs.emplace_back(orf->View(loc));
     }
 
     std::vector<std::string> expectedOrfs;
@@ -109,9 +101,7 @@ TEST_F(OrfTest, Frame_R_2) {
     FindForwardOrfs(reverseComplement, sequenceLength, results, 1, 300, 0, Orf::FRAME_3, Orf::STRAND_MINUS);
     for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
         Orf::SequenceLocation loc = *it;
-        char* buffer = orf->View(loc);
-        computedOrfs.emplace_back(buffer);
-        delete buffer;
+        computedOrfs.emplace_back(orf->View(loc));
     }
 
     std::vector<std::string> expectedOrfs;
@@ -127,9 +117,7 @@ TEST_F(OrfTest, Frame_R_3) {
     FindForwardOrfs(reverseComplement, sequenceLength, results, 1, 300, 0, Orf::FRAME_2, Orf::STRAND_MINUS);
     for(std::vector<Orf::SequenceLocation>::const_iterator it = results.begin(); it != results.end(); it++) {
         Orf::SequenceLocation loc = *it;
-        char* buffer = orf->View(loc);
-        computedOrfs.emplace_back(buffer);
-        delete buffer;
+        computedOrfs.emplace_back(orf->View(loc));
     }
 
     std::vector<std::string> expectedOrfs;

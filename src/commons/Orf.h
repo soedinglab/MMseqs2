@@ -2,8 +2,8 @@
 #define ORF_H
 #pragma once
 
-#include <memory>
 #include <vector>
+#include <string>
 
 //
 // class Orf implements a simple open reading frame search.
@@ -48,7 +48,7 @@ public:
                   size_t maxLength = SIZE_MAX,
                   size_t maxGaps = 30);
 
-    char* View(SequenceLocation& location);
+    std::string View(SequenceLocation& location);
     
 private:
     size_t sequenceLength;

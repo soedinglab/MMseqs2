@@ -68,12 +68,10 @@ int orfFastaToFFindex(
                 snprintf(header_buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
             }
 
-            hdr_writer.write(header_buffer, strlen(header_buffer), (char *)id.c_str());
+            hdr_writer.write(header_buffer, strlen(header_buffer), id.c_str());
 
-            char* sequence = orf.View(loc);
-            size_t length = strlen(sequence);
-            seq_writer.write(sequence, length, (char *)id.c_str());
-            delete sequence;
+            std::string sequence = orf.View(loc);
+            seq_writer.write(sequence.c_str(), sequence.length(), id.c_str());
 
             orf_num++;
             total_num++;
