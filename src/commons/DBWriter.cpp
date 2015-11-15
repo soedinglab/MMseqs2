@@ -230,14 +230,17 @@ int DBWriter::close(){
     return EXIT_SUCCESS;
 }
 
-void DBWriter::write(char* data, int64_t dataSize, char* key, int thrIdx){
+void DBWriter::write(const char* data, int64_t dataSize, const char* key, int thrIdx){
     checkClosed();
     if (thrIdx >= maxThreadNum){
         Debug(Debug::ERROR) <<  "ERROR: Thread index " << thrIdx << " > maximum thread number " << maxThreadNum << "\n";
         EXIT(1);
     }
-    ffindex_insert_memory(dataFiles[thrIdx], indexFiles[thrIdx], &offsets[thrIdx], data, dataSize, key);
+
+    // legacy ffindex uses char* instead of const char*, the data is not change however so the const cast is safe
+    ffindex_insert_memory(dataFiles[thrIdx], indexFiles[thrIdx], &offsets[thrIdx], const_cast<char*>(data), dataSize, const_cast<char*>(key));
 }
+
 
 void DBWriter::errorIfFileExist(const char * file){
     struct stat st;

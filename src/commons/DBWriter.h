@@ -41,7 +41,7 @@ class DBWriter {
     
         char* getIndexFileName() { return indexFileName; }
 
-        void write(char* data, int64_t dataSize, char* key, int threadIdx = 0);
+        void write(const char* data, int64_t dataSize, const char* key, int threadIdx = 0);
     
         void mergeFiles(DBReader * qdbr,
                         std::vector<std::pair<std::string, std::string> > files,
