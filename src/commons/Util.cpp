@@ -123,7 +123,7 @@ void Util::rankedDescSort20(short *val, unsigned int *index){
 
 std::string Util::parseFastaHeader(std::string header){
     if(header.length() == 0)
-        return std::string();
+        return "";
 
     std::vector<std::string> arr = Util::split(header,"|");
     if(arr.size() > 1) {
