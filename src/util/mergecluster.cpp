@@ -4,6 +4,7 @@
 
 #include "mergecluster.h"
 #include <list>
+#include <sstream>
 #include <Debug.h>
 #include "DBReader.h"
 #include "DBWriter.h"

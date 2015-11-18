@@ -7,14 +7,8 @@
 //
 
 #include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <algorithm>
-#include <climits>
-#include <map>
-#include <cstring>
+#include <utility>
 #include <string>
-#include <sys/mman.h>
 
 class DBReader {
 

@@ -12,6 +12,7 @@
 #include "Debug.h"
 #include <set>
 #include <list>
+#include <map>
 
 class CompareGOTerms{
 
