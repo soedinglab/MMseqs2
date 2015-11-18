@@ -56,10 +56,15 @@ int clusteringtofastadb (int argc, const char **argv)
             const char* cEntry = entry.c_str();
 			char* header = headers.getDataByDBKey(cEntry);
             char* body   =  bodies.getDataByDBKey(cEntry);
-            if(header == NULL || body == NULL) {
-                Debug(Debug::WARNING) << "Entry (" << entry << ") is incomplete!" << "\n";
+            if(header == NULL) {
+                Debug(Debug::WARNING) << "Entry " << entry << " does not contain a header!" << "\n";
                 continue;
             }
+            if(body == NULL) {
+                Debug(Debug::WARNING) << "Entry " << entry << " does not contain a sequence!" << "\n";
+                continue;
+            }
+
             fastaStream << ">" << header << body;
 		}
 
