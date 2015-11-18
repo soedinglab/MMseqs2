@@ -37,8 +37,7 @@ void Util::decompose_domain(size_t domain_size, size_t world_rank,
 
 std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
     std::map<std::string, size_t> map;
-    FILE * fasta_file = fopen(fastaFile, "r");
-    if(fasta_file == NULL) { perror(fastaFile);  }
+    FILE * fasta_file = Util::openFileOrDie(fastaFile, "r");
     kseq_t *seq = kseq_init(fileno(fasta_file));
     size_t i = 0;
     while (kseq_read(seq) >= 0) {
