@@ -14,9 +14,10 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
         : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, aaBiasCorrection, maxSeqLen) {
     // assure that the whole database can be matched (extreme case)
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
-    this->maxDbMatches = dbSize * 2;
+    this->maxDbMatches = dbSize * 4;
+    this->binSize =  this->maxDbMatches/BINCOUNT;
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
-    this->databaseHits = new CounterResult[maxDbMatches];
+    this->binData = new CounterResult[maxDbMatches];
     // data for histogram of score distribution
     this->scoreSizes = new unsigned int[QueryScoreLocal::SCORE_RANGE];
     memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
@@ -45,7 +46,7 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
 QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
     free(resList);
     delete [] scoreSizes;
-    delete [] databaseHits;
+    delete [] binData;
     delete counter;
     delete [] logScoreFactorial;
     delete [] seqLens;
@@ -54,17 +55,32 @@ QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
 
 size_t QueryTemplateMatcherExactMatch::evaluateBins(CounterResult *inputOutput, size_t N) {
     size_t localResultSize = 0;
-    localResultSize += counter->countElements(inputOutput, N);
+    localResultSize += counter->findDuplicates(binData, binSize, diagonalBins, BINCOUNT, binData);
     return localResultSize;
 }
 
 
 std::pair<hit_t *, size_t> QueryTemplateMatcherExactMatch::matchQuery (Sequence * seq, unsigned int identityId){
     seq->resetCurrPos();
+    setupBinPointer();
     memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
     size_t resultSize = match(seq);
     unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
     return getResult(resultSize, seq->L, identityId, thr);
+}
+
+
+void QueryTemplateMatcherExactMatch::setupBinPointer() {
+    // Example binCount = 3
+    // bin start             |-----------------------|-----------------------| bin end
+    //    segments[bin_step][0]
+    //                            segments[bin_step][1]
+    //                                                    segments[bin_step][2]
+    size_t curr_pos = 0;
+    for(size_t bin = 0; bin < BINCOUNT; bin++){
+        diagonalBins[bin] = binData + curr_pos;
+        curr_pos += binSize;
+    }
 }
 
 
@@ -77,8 +93,8 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
     size_t overflowHitCount = 0;
     //size_t pos = 0;
     stats->diagonalOverflow = false;
-    CounterResult* sequenceHits = databaseHits;
-    CounterResult* lastSequenceHit = databaseHits + this->maxDbMatches;
+    CounterResult* sequenceHits = binData;
+    CounterResult* lastSequenceHit = binData + this->maxDbMatches;
     // bias correction
     if(aaBiasCorrection == true){
         SubstitutionMatrix::calcLocalAaBiasCorrection(m, seq->int_sequence, seq->L, compositionBias);
@@ -86,6 +102,7 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
         memset(compositionBias, 0, sizeof(float) * seq->L);
     }
     size_t seqListSize;
+    const CounterResult * lastPosition = (binData + BINCOUNT * binSize);
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();
         const int * pos = seq->getKmerPositons();
@@ -109,15 +126,15 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
             // detected overflow while matching
             if (sequenceHits + seqListSize >= lastSequenceHit) {
                 stats->diagonalOverflow = true;
-                sequenceHits = databaseHits + overflowHitCount;
+                sequenceHits = binData + overflowHitCount;
                 const size_t hitCount = evaluateBins(sequenceHits, numMatches);
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
-                    overflowHitCount = counter->mergeElements(databaseHits, overflowHitCount + hitCount);
+                    overflowHitCount = counter->mergeElements(binData, overflowHitCount + hitCount);
                 }else{
                     overflowHitCount = hitCount;
                 }
-                sequenceHits = databaseHits + overflowHitCount;
+                sequenceHits = binData + overflowHitCount;
                 overflowNumMatches += numMatches;
                 numMatches = 0;
             };
@@ -127,22 +144,23 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
             for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++) {
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
-                const unsigned int seqId = entry.seqId;
-                const unsigned char diagonal = (i - j) % 255;
-                sequenceHits->id    = seqId;
-                sequenceHits->count = diagonal;
-                sequenceHits++;
+                const unsigned int binId = entry.seqId & CountInt32Array::MASK_0_5;
+                const unsigned int seqId = entry.seqId ;
+                const unsigned char diagonal = (i - j);
+                diagonalBins[binId]->id = seqId;
+                diagonalBins[binId]->count = diagonal;
+                diagonalBins[binId] += (diagonalBins[binId] < lastPosition) ? 1 : 0;
             }
             numMatches += seqListSize;
         }
     }
-    CounterResult* inputOutputHits = databaseHits + overflowHitCount;
+    CounterResult* inputOutputHits = binData + overflowHitCount;
     size_t hitCount = evaluateBins(inputOutputHits, numMatches);
     //fill the output
     if(overflowHitCount != 0){ // overflow occurred
-        hitCount = counter->mergeElements(databaseHits, overflowHitCount + hitCount);
+        hitCount = counter->mergeElements(binData, overflowHitCount + hitCount);
     }
-    updateScoreBins(databaseHits, hitCount);
+    updateScoreBins(binData, hitCount);
     stats->doubleMatches = getDoubleDiagonalMatches();
     stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
     stats->querySeqLen   = seq->L;
@@ -181,8 +199,8 @@ std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(size_t res
     }
 
     for (size_t i = 0; i < resultSize; i++) {
-        const unsigned int seqIdCurr = databaseHits[i].id;
-        const unsigned int scoreCurr = databaseHits[i].count;
+        const unsigned int seqIdCurr = binData[i].id;
+        const unsigned int scoreCurr = binData[i].count;
         // write result to list
         if(scoreCurr >= thr && id != seqIdCurr){
             hit_t *result = (resList + elementCounter);

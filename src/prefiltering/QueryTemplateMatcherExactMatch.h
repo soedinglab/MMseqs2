@@ -41,7 +41,7 @@ protected:
     hit_t *resList;
 
     // keeps data in inner loop
-    CounterResult * __restrict databaseHits;
+    CounterResult * __restrict binData;
 
     // the following variables are needed to calculate the Z-score computation
     double mu;
@@ -70,6 +70,11 @@ protected:
     size_t getDoubleDiagonalMatches();
 
     float *compositionBias;
+
+    void setupBinPointer();
+    const static unsigned int BINCOUNT = CountInt32Array::MASK_0_5 + 1;
+    CounterResult * diagonalBins[BINCOUNT];
+    unsigned int binSize;
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

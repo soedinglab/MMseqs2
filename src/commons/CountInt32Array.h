@@ -30,6 +30,10 @@ public:
     // assumption is that each element (counter.id) exists maximal two times
     size_t mergeElements(CounterResult *inputOutputArray, const size_t N);
 
+
+    // detect duplicates in diagonal
+    size_t findDuplicates(const CounterResult * binData, const size_t binSize, CounterResult **bins, unsigned int binCount,
+                          CounterResult * output);
 private:
     // this bit array should fit in L1/L2
     size_t duplicateBitArraySize;
@@ -57,11 +61,6 @@ private:
 
     // hash input array based on MASK_0_5
     void hashElements(CounterResult *inputArray, size_t N, CounterResult **hashBins);
-
-    // detect duplicates in diagonal
-    size_t findDuplicates(CounterResult **bins, unsigned int binCount,
-                          CounterResult * output);
-
 
     size_t mergeDuplicates(CounterResult **bins, unsigned int binCount, CounterResult *output);
 };
