@@ -1,6 +1,19 @@
+#include <cstdlib>
+#include <iostream>
+#include <sys/stat.h>
+#include <sstream>
+#include <fstream>
+#include <stdio.h>
+#include <sys/mman.h>
+
 #include "DBWriter.h"
+#include "DBReader.h"
 #include "Debug.h"
 #include "Util.h"
+
+extern "C" {
+#include "ffindex.h"
+}
 
 DBWriter::DBWriter (const char* dataFileName_,
                     const char* indexFileName_,
