@@ -2,49 +2,39 @@
  * createdb
  * written by Martin Steinegger <hauser@genzentrum.lmu.de>.
  * modified by Maria Hauser <mhauser@genzentrum.lmu.de> (splitting into sequences/headers databases)
+ * modified by Milot Mirdita <milot@mirdita.de>
  */
 
 #define _GNU_SOURCE 1
 #define _LARGEFILE64_SOURCE 1
 #define _FILE_OFFSET_BITS 64
 
-#include <unistd.h>
-#include <cstdlib>
-#include <cstdio>
+#include <cstdio> // fclose
 
 #include <string>
-#include <vector>
-#include <iostream>
-#include <sys/types.h>
 #include <map>
 
+#include "Debug.h"
 #include "Util.h"
 #include "DBWriter.h"
 
 #include "kseq.h"
-
-#define MAX_FILENAME_LIST_FILES 4096
-
+#include <unistd.h> // read
 KSEQ_INIT(int, read)
 
 void usage() {
-    fprintf(stderr, "Converts a fasta database to ffindex.\n");
-    fprintf(stderr, "USAGE: <fastaDB>  <ffindexDB> [mappingFasta]\n"
-            "\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
+    Debug(Debug::INFO) <<  "Converts a fasta database to ffindex.\n";
+    Debug(Debug::INFO) <<  "USAGE: <fastaDB>  <ffindexDB> [mappingFasta]\n";
+    Debug(Debug::INFO) <<  "\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n";
 }
 
 int createdb(int argn, const char **argv) {
-    if (argn < 2) {
+    if (argn < 2 || argn > 3) {
         usage();
         return EXIT_FAILURE;
     }
 
-    const char *fasta_filename = argv[0];
-    FILE *fasta_file = fopen(fasta_filename, "r");
-    if (fasta_file == NULL) {
-        perror(fasta_filename);
-        return EXIT_FAILURE;
-    }
+    FILE *fasta_file = Util::openFileOrDie(argv[0], "r");
 
     const char *data_filename = argv[1];
 
@@ -81,20 +71,21 @@ int createdb(int argn, const char **argv) {
     kseq_t *seq = kseq_init(fileno(fasta_file));
     while (kseq_read(seq) >= 0) {
         if (seq->name.l == 0) {
-            std::cerr << "Fasta entry: " << entries_num << " is invalid." << std::endl;
-            EXIT(EXIT_FAILURE);
+            Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
+            return EXIT_FAILURE;
         }
         std::string id;
         if (mapping_filename != NULL) {
             std::string key = Util::parseFastaHeader(seq->name.s);
             if (mapping.find(key) == mapping.end()) {
-                std::cerr << "Could not find entry: " << key << " in mapping file." << std::endl;
-                EXIT(EXIT_FAILURE);
+                Debug(Debug::ERROR) << "Could not find entry: " << key << " in mapping file.\n";
+                return EXIT_FAILURE;
             }
             id = SSTR(mapping[key]);
         } else {
             id = SSTR(entries_num);
         }
+
         // header
         header_line.append(seq->name.s, seq->name.l);
         if (seq->comment.l) {
