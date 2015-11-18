@@ -34,7 +34,7 @@ int createdb(int argn, const char **argv) {
         return EXIT_FAILURE;
     }
 
-    FILE *fasta_file = Util::openFileOrDie(argv[0], "r");
+    FILE *fasta_file = Util::openFileOrDie(argv[0], "r", true);
 
     const char *data_filename = argv[1];
 
