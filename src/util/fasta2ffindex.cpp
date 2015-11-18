@@ -9,108 +9,90 @@
 #define _FILE_OFFSET_BITS 64
 
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+
+#include <string>
 #include <vector>
 #include <iostream>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <map>
 
-extern "C" {
-#include "ffindex.h"
-#include "ffutil.h"
-}
-
 #include "Util.h"
+#include "DBWriter.h"
 
 #include "kseq.h"
+
 #define MAX_FILENAME_LIST_FILES 4096
 
 KSEQ_INIT(int, read)
 
-
-void usage()
-{
+void usage() {
     fprintf(stderr, "Converts a fasta database to ffindex.\n");
     fprintf(stderr, "USAGE: <fastaDB>  <ffindexDB> [mappingFasta]\n"
             "\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
 }
 
-int createdb(int argn,const char **argv)
-{
-    int err = EXIT_SUCCESS;
-
-    if(argn  <  2)
-    {
+int createdb(int argn, const char **argv) {
+    if (argn < 2) {
         usage();
         return EXIT_FAILURE;
     }
 
-    char *fasta_filename = (char *)   argv[0];
-    char *data_filename  = (char *)   argv[1];
-    char *mapping_filename = NULL;
-    if(argn == 3){
-        mapping_filename = (char *) argv[2];
+    const char *fasta_filename = argv[0];
+    FILE *fasta_file = fopen(fasta_filename, "r");
+    if (fasta_file == NULL) {
+        perror(fasta_filename);
+        return EXIT_FAILURE;
     }
+
+    const char *data_filename = argv[1];
+
     std::string index_filename_str(data_filename);
     index_filename_str.append(".index");
-    char *index_filename = (char *) index_filename_str.c_str();
+
     std::string data_filename_hdr_str(data_filename);
     data_filename_hdr_str.append("_h");
-    char *data_filename_hdr  = (char *)data_filename_hdr_str.c_str() ;
+
     std::string index_filename_hdr_str(data_filename);
     index_filename_hdr_str.append("_h.index");
-    char *index_filename_hdr = (char *)index_filename_hdr_str.c_str() ;
-    FILE *data_file, *index_file, *fasta_file, *data_file_hdr, *index_file_hdr;
-    struct stat st;
 
-    if(stat(data_filename, &st) == 0) { errno = EEXIST; perror(data_filename); return EXIT_FAILURE; }
-    data_file  = fopen(data_filename, "w");
-    if( data_file == NULL) { perror(data_filename); return EXIT_FAILURE; }
+    DBWriter out_writer(data_filename, index_filename_str.c_str());
+    DBWriter out_hdr_writer(data_filename_hdr_str.c_str(), index_filename_hdr_str.c_str());
 
-    if(stat(index_filename, &st) == 0) { errno = EEXIST; perror(index_filename); return EXIT_FAILURE; }
-    index_file = fopen(index_filename, "w+");
-    if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
+    out_writer.open();
+    out_hdr_writer.open();
 
-    fasta_file = fopen(fasta_filename, "r");
-    if(fasta_file == NULL) { perror(fasta_filename); return EXIT_FAILURE; }
+    const char *mapping_filename = NULL;
+    if (argn == 3) {
+        mapping_filename = argv[2];
+    }
 
-    if(stat(data_filename_hdr, &st) == 0) { errno = EEXIST; perror(data_filename_hdr); return EXIT_FAILURE; }
-    data_file_hdr  = fopen(data_filename_hdr, "w");
-    if( data_file_hdr == NULL) { perror(data_filename_hdr); return EXIT_FAILURE; }
+    std::map<std::string, size_t> mapping;
+    if (mapping_filename != NULL) {
+        mapping = Util::readMapping(mapping_filename);
+    }
 
-    if(stat(index_filename_hdr, &st) == 0) { errno = EEXIST; perror(index_filename_hdr); return EXIT_FAILURE; }
-    index_file_hdr = fopen(index_filename_hdr, "w+");
-    if(index_file_hdr == NULL) { perror(index_filename_hdr); return EXIT_FAILURE; }
-    
-    kseq_t *seq;
-    seq = kseq_init(fileno(fasta_file));
-    size_t offset_header = 0;
-    size_t offset_sequence = 0;
     size_t entries_num = 0;
+
     std::string header_line;
     header_line.reserve(10000);
 
-    std::map<std::string, size_t> mapping;
-    if(mapping_filename != NULL){
-        mapping = Util::readMapping(mapping_filename);
-    }
+    kseq_t *seq = kseq_init(fileno(fasta_file));
     while (kseq_read(seq) >= 0) {
         if (seq->name.l == 0) {
             std::cerr << "Fasta entry: " << entries_num << " is invalid." << std::endl;
             EXIT(EXIT_FAILURE);
         }
         std::string id;
-        if(mapping_filename!=NULL){
+        if (mapping_filename != NULL) {
             std::string key = Util::parseFastaHeader(seq->name.s);
-            if(mapping.find(key) == mapping.end()){
+            if (mapping.find(key) == mapping.end()) {
                 std::cerr << "Could not find entry: " << key << " in mapping file." << std::endl;
                 EXIT(EXIT_FAILURE);
             }
             id = SSTR(mapping[key]);
-        }else {
+        } else {
             id = SSTR(entries_num);
         }
         // header
@@ -121,51 +103,24 @@ int createdb(int argn,const char **argv)
         }
         header_line.append("\n");
 
-        ffindex_insert_memory(data_file_hdr, index_file_hdr, &offset_header, (char*)header_line.c_str(), header_line.length(), (char*)id.c_str());
+        out_hdr_writer.write(header_line.c_str(), header_line.length(), id.c_str());
+        header_line.clear();
 
         // sequence
         std::string sequence = seq->seq.s;
         sequence.append("\n");
 
-        ffindex_insert_memory(data_file, index_file, &offset_sequence, (char*)sequence.c_str(), sequence.length(), (char*)id.c_str());
+        out_writer.write(sequence.c_str(), sequence.length(), id.c_str());
+
         entries_num++;
-        header_line.clear();
     }
     kseq_destroy(seq);
+
     fclose(fasta_file);
-    fclose(data_file);
-    fclose(data_file_hdr);
+    out_hdr_writer.close();
+    out_writer.close();
 
-    /* Sort the index entries and write back */
-   fclose(index_file);
-   index_file = fopen(index_filename, "r+");
-   ffindex_index_t* index = ffindex_index_parse(index_file, entries_num);
-   if(index == NULL)
-   {
-        perror("ffindex_index_parse failed");
-        EXIT(EXIT_FAILURE);
-   }
-   fclose(index_file);
-   ffindex_sort_index_file(index);
-   index_file = fopen(index_filename, "w");
-   if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
-   err += ffindex_write(index, index_file);
-
-   fclose(index_file_hdr);
-   index_file_hdr = fopen(index_filename_hdr, "r+");
-   ffindex_index_t* index_hdr = ffindex_index_parse(index_file_hdr, entries_num);
-   if(index == NULL)
-   { 
-         perror("ffindex_index_parse failed");
-         EXIT(EXIT_FAILURE);
-   }
-   fclose(index_file_hdr);
-   ffindex_sort_index_file(index_hdr);
-   index_file_hdr = fopen(index_filename_hdr, "w");
-   if(index_file_hdr == NULL) { perror(index_filename_hdr); return EXIT_FAILURE; }
-   err += ffindex_write(index_hdr, index_file_hdr);
-   
-   return err;
+    return EXIT_SUCCESS;
 }
 
 

@@ -296,6 +296,6 @@ public:
         return p > 0 && p != std::string::npos ? filename.substr(0, p) : filename;
     }
 
-    static std::map<std::string, size_t> readMapping(char *fastaFile);
+    static std::map<std::string, size_t> readMapping(const char *fastaFile);
 };
 #endif

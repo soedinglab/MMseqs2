@@ -35,7 +35,7 @@ void Util::decompose_domain(size_t domain_size, size_t world_rank,
     }
 }
 
-std::map<std::string, size_t> Util::readMapping(char *fastaFile) {
+std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
     std::map<std::string, size_t> map;
     FILE * fasta_file = fopen(fastaFile, "r");
     if(fasta_file == NULL) { perror(fastaFile);  }
