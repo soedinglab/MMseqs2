@@ -680,7 +680,8 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
     size_t diagonalOverflow = 0;
     size_t resultsPassedPref = 0;
     double kmersPerPos = 0.0;
-
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
 #pragma omp parallel for schedule(dynamic, 10) reduction (+: dbMatchesSum, doubleMatches, kmersPerPos, querySeqLenSum, diagonalOverflow, resultsPassedPref)
     for (size_t i = 0; i < querySetSize; i++){
         size_t id = querySeqsIds[i];
@@ -709,6 +710,9 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
         delete matchers[j];
     }
     delete[] matchers;
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::WARNING) << "\nTime for computeStatisticForKmerThreshold results: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
     return statistics_t(kmersPerPos / (double)querySetSize, dbMatchesSum, doubleMatches,
                         querySeqLenSum, diagonalOverflow, resultsPassedPref/ querySetSize);
