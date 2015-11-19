@@ -37,6 +37,7 @@ void DBReader::open(int sort){
         dataFile = fopen(dataFileName, "r");
         if( dataFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", dataFileName);  EXIT(EXIT_FAILURE); }
         data = mmapData(dataFile, &dataSize);
+        dataMapped = true;
     }
     index = new Index[this->size];
     seqLens = new unsigned int[size];
@@ -86,7 +87,7 @@ void DBReader::remapData(){
 void DBReader::close(){
     if(dataMode == DATA_AND_INDEX){
         fclose(dataFile);
-        munmap(data, dataSize);
+        unmapData();
     }
     delete [] index;
     delete [] seqLens;
@@ -230,5 +231,13 @@ void DBReader::readIndex(char *indexFileName, Index * index, char *data, unsigne
     }else {
         Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
         EXIT(EXIT_FAILURE);
+    }
+}
+
+
+void DBReader::unmapData() {
+    if(dataMapped == true){
+        munmap(data, dataSize);
+        dataMapped = false;
     }
 }
