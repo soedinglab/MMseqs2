@@ -131,7 +131,7 @@ public:
         return counter;
     }
     
-    
+
     static ffindex_index_t* openIndex(const char* indexFileName){
         // count the number of entries in the clustering
         char line [1000];
@@ -142,7 +142,7 @@ public:
                 cnt++;
             }
             index_file.close();
-        }
+        }   
         else{
             std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
             EXIT(EXIT_FAILURE);
@@ -150,7 +150,7 @@ public:
         // open clustering ffindex
         FILE* indexFile = fopen(indexFileName, "r");
         if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", indexFileName);  EXIT(EXIT_FAILURE); }
-        
+
         ffindex_index_t* index = ffindex_index_parse(indexFile, cnt);
         return index;
     }
