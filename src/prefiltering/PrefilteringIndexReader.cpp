@@ -128,6 +128,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader *dbr, int split
         retTable = new IndexTableGlobal(data.alphabetSize, data.kmerSize, data.skip);
 
     retTable->initTableByExternalData(entriesNum[0], entrieSizes, entries, tableSize[0]);
+    dbr->unmapData();
     return retTable;
 }
 

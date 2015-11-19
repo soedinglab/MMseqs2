@@ -20,7 +20,6 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
     // data for histogram of score distribution
     this->scoreSizes = new unsigned int[QueryScoreLocal::SCORE_RANGE];
     memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
-
     this->maxHitsPerQuery = maxHitsPerQuery;
     // this array will need 128 * (maxDbMatches / 128) * 5byte ~ 500MB for 50 Mio. Sequences
     this->counter = new CountInt32Array(dbSize, maxDbMatches / 128 );
@@ -128,9 +127,9 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
                 IndexEntryLocal entry = entries[seqIdx];
                 const unsigned char j = entry.position_j;
                 const unsigned int seqId = entry.seqId;
-                const unsigned char diagonal = (i - j) % 255;
+                const unsigned char diagonal = (i - j);
                 sequenceHits->id    = seqId;
-                sequenceHits->count = diagonal;
+                sequenceHits->count = (diagonal == 255) ? 0 : diagonal;
                 sequenceHits++;
             }
             numMatches += seqListSize;

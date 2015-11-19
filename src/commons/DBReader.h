@@ -75,6 +75,8 @@ public:
 
     static size_t countLine(const char *name);
 
+    void unmapData();
+
 private:
 
 
@@ -109,6 +111,8 @@ private:
     Index * index;
     unsigned int *seqLens;
     size_t maxId;
+
+    bool dataMapped;
 };
 
 

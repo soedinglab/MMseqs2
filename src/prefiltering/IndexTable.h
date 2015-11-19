@@ -137,10 +137,6 @@ class IndexTable {
 
             table[tableSize] = it;
             Debug(Debug::WARNING) << "Read IndexTable ... Done\n";
-            munmap(pentries, this->tableEntriesNum * this->sizeOfEntry ); // free mapped memory
-            munmap(sizes, tableSize * sizeof(size_t) ); // free mapped memory
-
-
         }
     
         void revertPointer(){
