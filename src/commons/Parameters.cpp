@@ -54,7 +54,7 @@ Parameters::Parameters():
         PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max orf length", "[int]\t\tMaximum nucleotide length of open reading frame to be extracted from fasta file.",typeid(int),(void *) &orfMaxLength, "^[1-9]\{1\}[0-9]*$"),
         PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "\tSkip orfs that have only an end or only a start",typeid(bool),(void *) &orfSkipIncomplete, ""),
-        PARAM_ORF_NUMERIC_INDICES(PARAM_ORF_NUMERIC_INDICES_ID,"--numeric-indices", "Use numeric indices", "\tUse numeric indices as the ffindex key instead of trying to parse fasta headers",typeid(bool),(void *) &orfUseNumericIndices, "")
+        PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "\tUse the id parsed from the fasta header as the ffindex key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, "")
 {
     // alignment
     alignment.push_back(PARAM_E);
@@ -116,7 +116,7 @@ Parameters::Parameters():
     extractorf.push_back(PARAM_ORF_MAX_LENGTH);
     extractorf.push_back(PARAM_ORF_MAX_GAP);
     extractorf.push_back(PARAM_ORF_SKIP_INCOMPLETE);
-    extractorf.push_back(PARAM_ORF_NUMERIC_INDICES);
+    extractorf.push_back(PARAM_USE_HEADER);
 
     // splitffindex
     splitffindex.push_back(PARAM_SPLIT);
@@ -136,10 +136,15 @@ Parameters::Parameters():
     createindex.push_back(PARAM_SPACED_KMER_MODE);
     createindex.push_back(PARAM_V);
 
+    // create db
+    createdb.push_back(PARAM_USE_HEADER);
+    createdb.push_back(PARAM_V);
+
     setDefaults();
 }
 
 Parameters::~Parameters(){
+    createdb.clear();
     createindex.clear();
     splitffindex.clear();
     extractorf.clear();
@@ -381,8 +386,10 @@ void Parameters::setDefaults() {
     orfMinLength = 1;
     orfMaxLength = INT_MAX;
     orfMaxGaps = INT_MAX;
-    orfUseNumericIndices = false;
     orfSkipIncomplete = false;
+
+    // createdb
+    useHeader = false;
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> par1,

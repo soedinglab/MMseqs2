@@ -47,10 +47,12 @@ int orfFastaToFFindex(
             Orf::SequenceLocation loc = *it;
 
             std::string id;
-            if (par->orfUseNumericIndices) {
-                id = SSTR(UINT_MAX - total_num - 1);
+            if (par->useHeader) {
+                id = Util::parseFastaHeader(seq->name.s);
+                id.append("_");
+                id.append(SSTR(orf_num));
             } else {
-                id = Util::parseFastaHeader(seq->name.s) + std::string("_") + SSTR(orf_num);
+                id = SSTR(UINT_MAX - total_num - 1);
             }
 
             if (id.length() >= 31) {
