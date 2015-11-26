@@ -79,7 +79,7 @@ int createdb(int argn, const char **argv) {
         } else if(par.useHeader) {
             id = Util::parseFastaHeader(seq->name.s);
         } else {
-            id = SSTR(entries_num);
+            id = SSTR(par.identifierOffset + entries_num);
         }
 
         // header

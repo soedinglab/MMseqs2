@@ -54,7 +54,8 @@ Parameters::Parameters():
         PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max orf length", "[int]\t\tMaximum nucleotide length of open reading frame to be extracted from fasta file.",typeid(int),(void *) &orfMaxLength, "^[1-9]\{1\}[0-9]*$"),
         PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "\tSkip orfs that have only an end or only a start",typeid(bool),(void *) &orfSkipIncomplete, ""),
-        PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "\tUse the id parsed from the fasta header as the ffindex key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, "")
+        PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "\tUse the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
+        PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "[int]\t\tNumeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^[1-9]\{1\}[0-9]*$")
 {
     // alignment
     alignment.push_back(PARAM_E);
@@ -117,6 +118,7 @@ Parameters::Parameters():
     extractorf.push_back(PARAM_ORF_MAX_GAP);
     extractorf.push_back(PARAM_ORF_SKIP_INCOMPLETE);
     extractorf.push_back(PARAM_USE_HEADER);
+    extractorf.push_back(PARAM_ID_OFFSET);
 
     // splitffindex
     splitffindex.push_back(PARAM_SPLIT);
@@ -138,6 +140,7 @@ Parameters::Parameters():
 
     // create db
     createdb.push_back(PARAM_USE_HEADER);
+    createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
 
     setDefaults();
@@ -390,6 +393,7 @@ void Parameters::setDefaults() {
 
     // createdb
     useHeader = false;
+    identifierOffset = 0;
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> par1,

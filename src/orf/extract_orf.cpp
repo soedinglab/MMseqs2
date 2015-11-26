@@ -52,7 +52,7 @@ int orfFastaToFFindex(
                 id.append("_");
                 id.append(SSTR(orf_num));
             } else {
-                id = SSTR(UINT_MAX - total_num - 1);
+                id = SSTR(par->identifierOffset + total_num);
             }
 
             if (id.length() >= 31) {
