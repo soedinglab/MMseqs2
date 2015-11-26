@@ -131,6 +131,7 @@ public:
 
     // createdb
     bool useHeader;
+    int identifierOffset;
 
     // CLUSTERING WORKFLOW
     int restart;
@@ -231,6 +232,7 @@ public:
 
     // createdb
     PARAMETER(PARAM_USE_HEADER); // also used by extractorf
+    PARAMETER(PARAM_ID_OFFSET);  // same
     
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createprofiledb;
