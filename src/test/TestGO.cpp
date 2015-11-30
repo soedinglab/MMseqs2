@@ -126,7 +126,7 @@ int main(int argc, char **argv)
         DBReader* protname_db_reader = new DBReader(protname_db.c_str(), protname_db_indexfile.c_str());
         protname_db_reader->open(DBReader::NOSORT);
 
-        DBReader * targetdb_header=new DBReader(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+        DBReader* targetdb_header=new DBReader(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
         targetdb_header->open(DBReader::NOSORT);
 
 
@@ -548,7 +548,7 @@ void printHelp() {
     EXIT(EXIT_FAILURE);
 }
 
-std::string getProteinNameForID(DBReader* targetdb_header,const char * dbKey){
+std::string getProteinNameForID(DBReader *targetdb_header,const char * dbKey){
 
     char * header_data = targetdb_header->getDataByDBKey(dbKey);
     std::string parsedDbkey = Util::parseFastaHeader(header_data);
