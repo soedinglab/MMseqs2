@@ -22,10 +22,11 @@ Parameters::Parameters():
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "[file]\tAmino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, ""),
         PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Global: 0 Local: 1 Local fast: 2",typeid(int), (void *) &searchMode, "^[0-2]\{1\}$"),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--no-comp-bias-corr", "Compositional bias","Switch off local amino acid composition bias correction",typeid(bool), (void *) &compBiasCorrection, ""),
-        PARAM_MASK(PARAM_MASK_ID,"--no-mask", "Masking database","Switch off masking",typeid(bool), (void *) &mask, ""),
+        PARAM_MASK(PARAM_MASK_ID,"--mask", "Masking database","Switch seg masking on",typeid(bool), (void *) &mask, ""),
 
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "[int]\tSpaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]\{1\}" ),
         PARAM_KEEP_TEMP_FILES(PARAM_KEEP_TEMP_FILES_ID,"--keep-tmp-files", "Keep-tmp-files" ,"\tDo not delete temporary files.",typeid(bool),(void *) &keepTempFiles, ""),
+
 // alignment
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "Maximum e-value",typeid(float), (void *) &evalThr, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "Minimum alignment coverage [0,1]",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$"),
@@ -53,11 +54,14 @@ Parameters::Parameters():
         PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max orf length", "[int]\t\tMaximum nucleotide length of open reading frame to be extracted from fasta file.",typeid(int),(void *) &orfMaxLength, "^[1-9]\{1\}[0-9]*$"),
         PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "\tSkip orfs that have only an end or only a start",typeid(bool),(void *) &orfSkipIncomplete, ""),
-        PARAM_ORF_NUMERIC_INDICES(PARAM_ORF_NUMERIC_INDICES_ID,"--numeric-indices", "Use numeric indices", "\tUse numeric indices as the ffindex key instead of trying to parse fasta headers",typeid(bool),(void *) &orfUseNumericIndices, "")
+        PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "\tUse the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
+        PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "[int]\t\tNumeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^[1-9]\{1\}[0-9]*$")
 {
     // alignment
     alignment.push_back(PARAM_E);
     alignment.push_back(PARAM_C);
+    alignment.push_back(PARAM_MASK);
+    alignment.push_back(PARAM_NO_COMP_BIAS_CORR);
     alignment.push_back(PARAM_MIN_SEQ_ID);
     alignment.push_back(PARAM_MAX_SEQ_LEN);
     alignment.push_back(PARAM_MAX_SEQS);
@@ -104,6 +108,7 @@ Parameters::Parameters():
     // create profile db
     createprofiledb.push_back(PARAM_SUB_MAT);
     createprofiledb.push_back(PARAM_PROFILE_TYPE);
+    createprofiledb.push_back(PARAM_NO_COMP_BIAS_CORR);
     createprofiledb.push_back(PARAM_THREADS);
     createprofiledb.push_back(PARAM_V);
 
@@ -112,7 +117,8 @@ Parameters::Parameters():
     extractorf.push_back(PARAM_ORF_MAX_LENGTH);
     extractorf.push_back(PARAM_ORF_MAX_GAP);
     extractorf.push_back(PARAM_ORF_SKIP_INCOMPLETE);
-    extractorf.push_back(PARAM_ORF_NUMERIC_INDICES);
+    extractorf.push_back(PARAM_USE_HEADER);
+    extractorf.push_back(PARAM_ID_OFFSET);
 
     // splitffindex
     splitffindex.push_back(PARAM_SPLIT);
@@ -132,10 +138,16 @@ Parameters::Parameters():
     createindex.push_back(PARAM_SPACED_KMER_MODE);
     createindex.push_back(PARAM_V);
 
+    // create db
+    createdb.push_back(PARAM_USE_HEADER);
+    createdb.push_back(PARAM_ID_OFFSET);
+    createdb.push_back(PARAM_V);
+
     setDefaults();
 }
 
 Parameters::~Parameters(){
+    createdb.clear();
     createindex.clear();
     splitffindex.clear();
     extractorf.clear();
@@ -341,7 +353,8 @@ void Parameters::setDefaults() {
     threads = Util::omp_thread_count();
 #endif
     compBiasCorrection = true;
-    mask = true;
+    mask = false;
+
     spacedKmer = true;
     searchMode = true;
     profile = false;
@@ -374,10 +387,13 @@ void Parameters::setDefaults() {
 
     //extractorfs
     orfMinLength = 1;
-    orfMaxLength = SIZE_MAX;
-    orfMaxGaps = SIZE_MAX;
-    orfUseNumericIndices = false;
+    orfMaxLength = INT_MAX;
+    orfMaxGaps = INT_MAX;
     orfSkipIncomplete = false;
+
+    // createdb
+    useHeader = false;
+    identifierOffset = 0;
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> par1,

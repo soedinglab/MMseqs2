@@ -3,12 +3,12 @@
 #include "Util.h"
 #include "smith_waterman_sse2.h"
 
-Matcher::Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize){
+Matcher::Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize, bool aaBiasCorrection){
     this->m = m;
     this->tinySubMat = NULL;
     setSubstitutionMatrix(m);
     this->maxSeqLen = maxSeqLen;
-    aligner = new SmithWaterman(maxSeqLen, m->alphabetSize);
+    aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
     kmnByLen = new double[maxSeqLen];
     BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(m->getMatrixName(), GAP_OPEN, GAP_EXTEND);
     for(size_t len = 0; len < maxSeqLen; len++){
@@ -42,10 +42,11 @@ Matcher::~Matcher(){
 
 void Matcher::initQuery(Sequence* query){
     currentQuery = query;
-    if(query->getSeqType() == Sequence::HMM_PROFILE)
-        aligner->ssw_init(query, query->getAlignmentProfile(), this->m->alphabetSize, 2);
-    else
-        aligner->ssw_init(query, this->tinySubMat, this->m->alphabetSize, 2);
+    if(query->getSeqType() == Sequence::HMM_PROFILE){
+        aligner->ssw_init(query, query->getAlignmentProfile(), this->m, this->m->alphabetSize, 2);
+    }else{
+        aligner->ssw_init(query, this->tinySubMat, this->m, this->m->alphabetSize, 2);
+    }
 }
 
 

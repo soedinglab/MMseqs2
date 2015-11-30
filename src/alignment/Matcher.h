@@ -60,7 +60,7 @@ public:
                                           backtrace(backtrace) {};
     };
 
-    Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize);
+    Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize, bool aaBiasCorrection);
 
     ~Matcher();
 

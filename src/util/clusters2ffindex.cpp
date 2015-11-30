@@ -1,88 +1,82 @@
-#include <stdio.h>
 #include <sstream>
-#include <iostream>
-#include <fstream>
 
 #include "DBReader.h"
+#include "DBWriter.h"
 #include "Debug.h"
 
 #include "Util.h"
 
 void printUsageCusteringToFasta(){
-    std::string usage("\nConvert a mmseqs ffindex clustering to an clustering fasta format.\n");
-    usage.append("Written by Milot Mirdita (milot@mirdita.de) & Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE:  <clusteredDB> <fastaHeaderInDB> <fastaBodyInDB> <msaOutDB>\n");
-    Debug(Debug::ERROR) << usage;
-}
-
-void parseArgs(int argc, const char** argv,
-               std::string* clusteredDB,
-               std::string* fastaHeaderInDB,
-               std::string* fastaBodyInDB,
-               std::string* msaOutDB){
-	if (argc < 4){
-        printUsageCusteringToFasta();
-        EXIT(EXIT_FAILURE);
-    }
-
-    clusteredDB->assign(argv[1]);
-    fastaHeaderInDB->assign(argv[2]);
-    fastaBodyInDB->assign(argv[3]);
-    msaOutDB->assign(argv[4]);
+    Debug(Debug::ERROR) << "\nConvert a mmseqs ffindex clustering to an clustering fasta format.\n";
+    Debug(Debug::ERROR) << "Written by Milot Mirdita (milot@mirdita.de), Martin Steinegger (Martin.Steinegger@campus.lmu.de) and Maria Hauser (mhauser@genzentrum.lmu.de).\n\n";
+    Debug(Debug::ERROR) << "USAGE:  <clusteredDB> <fastaHeaderInDB> <fastaBodyInDB> <msaOutDB>\n";
 }
 
 int clusteringtofastadb (int argc, const char **argv)
 {
-    
-    std::string clusteredDB = "";
-    std::string fastaHeaderInDB = "";
-    std::string fastaBodyInDB = "";
-    std::string msaOutDB = "";
+    if (argc < 4){
+        printUsageCusteringToFasta();
+        return EXIT_FAILURE;
+    }
 
-    parseArgs(argc, argv, &clusteredDB, &fastaHeaderInDB, &fastaBodyInDB, &msaOutDB);
+    std::string clusteredDB(argv[0]);
+    std::string fastaHeaderInDB(argv[1]);
+    std::string fastaBodyInDB(argv[2]);
+    std::string msaOutDB(argv[3]);
+
+    std::string clusteredDBIndex(std::string(clusteredDB).append(".index"));
+    std::string fastaHeaderInDBIndex(std::string(fastaHeaderInDB).append(".index"));
+    std::string fastaBodyInDBIndex(std::string(fastaBodyInDB).append(".index"));
+    std::string msaOutDBIndex(std::string(msaOutDB).append(".index"));
+
     Debug(Debug::WARNING) << "Clustered database file: " << clusteredDB << "\n";
-    DBReader clusters(clusteredDB.c_str(), std::string(clusteredDB+".index").c_str());
+    Debug(Debug::WARNING) << "Fasta header input file: " << fastaHeaderInDB << "\n";
+    Debug(Debug::WARNING) << "Fasta body input file: " << fastaBodyInDB << "\n";
+
+    DBReader clusters(clusteredDB.c_str(), clusteredDBIndex.c_str());
     clusters.open(DBReader::NOSORT);
-    
-	Debug(Debug::WARNING) << "Fasta header input file: " << fastaHeaderInDB << "\n";
-    DBReader headers(fastaHeaderInDB.c_str(), std::string(fastaHeaderInDB+".index").c_str());
+
+    DBReader headers(fastaHeaderInDB.c_str(), fastaHeaderInDBIndex.c_str());
     headers.open(DBReader::NOSORT);
-    
-	Debug(Debug::WARNING) << "Fasta body input file: " << fastaBodyInDB << "\n";
-    DBReader bodies(fastaBodyInDB.c_str(), std::string(fastaBodyInDB+".index").c_str());
+
+    DBReader bodies(fastaBodyInDB.c_str(), fastaBodyInDBIndex.c_str());
     bodies.open(DBReader::NOSORT);
-    
-	std::string msaOutIndex = std::string(msaOutDB + ".index");
 
-	FILE* msaData  = Util::openFileOrDie(msaOutDB.c_str(), "w");
-	FILE* msaIndex = Util::openFileOrDie(msaOutIndex.c_str(), "w+");
+    DBWriter msaOut(msaOutDB.c_str(), msaOutDBIndex.c_str());
+    msaOut.open();
 
-    Debug(Debug::WARNING) << "Start writing file to " << msaOutDB << "\n";
-    
-	size_t offset = 0;
+    Debug(Debug::WARNING) << "Start writing results to " << msaOutDB << "\n";
+
 	for (size_t i = 0; i < clusters.getSize(); i++){
-        const char* clusterKey = clusters.getDbKey(i).c_str();
-		std::istringstream clusterEntries(clusters.getData(i));
-		std::string entry;
-		std::ostringstream fasta;
+		std::ostringstream fastaStream;
+
+        std::string entry;
+        std::istringstream clusterEntries(clusters.getData(i));
 		while (std::getline(clusterEntries, entry)) {
-            char* cEntry = const_cast<char *>(entry.c_str());
+            const char* cEntry = entry.c_str();
 			char* header = headers.getDataByDBKey(cEntry);
             char* body   =  bodies.getDataByDBKey(cEntry);
-            if(header == NULL || body == NULL)
+            if(header == NULL) {
+                Debug(Debug::WARNING) << "Entry " << entry << " does not contain a header!" << "\n";
                 continue;
-            fasta << ">" << header << body;
+            }
+            if(body == NULL) {
+                Debug(Debug::WARNING) << "Entry " << entry << " does not contain a sequence!" << "\n";
+                continue;
+            }
+
+            fastaStream << ">" << header << body;
 		}
 
-		ffindex_insert_memory(msaData, msaIndex, &offset, const_cast<char *>(fasta.str().c_str()), fasta.str().length(), (char*) clusterKey);
+        std::string fasta = fastaStream.str();
+        std::string key = clusters.getDbKey(i);
+        msaOut.write(fasta.c_str(), fasta.length(), key.c_str());
     }
-    Debug(Debug::WARNING) << "Done." << "\n";
 
-	fclose(msaData);
-	fclose(msaIndex);
+	msaOut.close();
     bodies.close();
     headers.close();
     clusters.close();
 
-    return 0;
+    return EXIT_SUCCESS;
 }

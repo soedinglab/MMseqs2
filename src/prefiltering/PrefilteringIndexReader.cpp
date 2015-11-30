@@ -13,12 +13,16 @@ const char *PrefilteringIndexReader::TABLESIZE = "4";
 const char *PrefilteringIndexReader::META = "5";
 
 bool PrefilteringIndexReader::checkIfIndexFile(DBReader *reader) {
-    return (strncmp(reader->getDataByDBKey((char *) VERSION), CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
+    char * version = reader->getDataByDBKey((char *) VERSION);
+    if(version == NULL){
+        return false;
+    }
+    return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader *dbr, Sequence *seq,
                                               int split, int alphabetSize, int kmerSize, int skip, bool hasSpacedKmer,
-                                              int searchMode) {
+                                              int searchMode, bool mask) {
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
     writer.open();
     int stepCnt = split;
@@ -36,7 +40,9 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         }
         Prefiltering::countKmersForIndexTable(dbr, seq, indexTable, splitStart, splitStart + splitSize);
         Debug(Debug::INFO) << "\n";
-        Prefiltering::maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
+        if(mask == true){
+            Prefiltering::maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
+        }
         Debug(Debug::INFO) << "\n";
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize);
 
@@ -122,6 +128,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader *dbr, int split
         retTable = new IndexTableGlobal(data.alphabetSize, data.kmerSize, data.skip);
 
     retTable->initTableByExternalData(entriesNum[0], entrieSizes, entries, tableSize[0]);
+    dbr->unmapData();
     return retTable;
 }
 

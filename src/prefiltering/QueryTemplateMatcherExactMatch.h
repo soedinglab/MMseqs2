@@ -15,7 +15,8 @@ public:
     QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
                                    unsigned int *seqLens, short kmerThr,
                                    double kmerMatchProb, int kmerSize, size_t dbSize,
-                                   unsigned int maxSeqLen, int effectiveKmerSize, size_t maxHitsPerQuery);
+                                   unsigned int maxSeqLen, int effectiveKmerSize,
+                                   size_t maxHitsPerQuery, bool aaBiasCorrection);
     ~QueryTemplateMatcherExactMatch();
 
     // returns result for the sequence
@@ -28,7 +29,7 @@ public:
     void updateScoreBins(CounterResult *result, size_t elementCount);
 protected:
 
-    const static unsigned int MAX_DB_MATCHES = 16777216;
+    unsigned int maxDbMatches;
 
     // result hit buffer
     CountInt32Array * counter;
@@ -66,9 +67,9 @@ protected:
                                          const unsigned short thr);
 
     // compute double hits
-    size_t getLocalResultSize();
+    size_t getDoubleDiagonalMatches();
 
-    size_t mergeDatabaseHits(CounterResult *databaseHIts, size_t hitCount);
+    float *compositionBias;
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

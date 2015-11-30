@@ -28,6 +28,14 @@ target_link_libraries(test_alignment workflow)
 target_link_libraries(test_alignment ffindex)
 
 
+set(testalignmenttraceback TestAlignmentTraceback.cpp )
+add_executable(test_alignmenttraceback ${testalignmenttraceback} )
+
+target_link_libraries(test_alignmenttraceback util)
+target_link_libraries(test_alignmenttraceback workflow)
+target_link_libraries(test_alignmenttraceback ffindex)
+
+
 set(testmsaalignment TestMultipleAlignment.cpp )
 add_executable(test_msaalignment ${testmsaalignment})
 
@@ -95,3 +103,17 @@ target_link_libraries(test_dbreader util)
 target_link_libraries(test_dbreader workflow)
 target_link_libraries(test_dbreader ffindex)
 
+
+set(test_kmerscore TestKmerScore.cpp )
+add_executable(test_kmerscore ${test_kmerscore})
+target_link_libraries(test_kmerscore util)
+target_link_libraries(test_kmerscore workflow)
+target_link_libraries(test_kmerscore ffindex)
+
+
+
+set(test_compbias TestCompositionBias.cpp )
+add_executable(test_compbias ${test_compbias})
+target_link_libraries(test_compbias util)
+target_link_libraries(test_compbias workflow)
+target_link_libraries(test_compbias ffindex)

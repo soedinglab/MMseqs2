@@ -97,6 +97,7 @@ class Sequence
 
         std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
+        const int *getKmerPositons();
 
         void printProfile();
 
@@ -135,6 +136,9 @@ private:
 
         // sequence window will be filled by newxtKmer (needed for spaced patterns)
         int * kmerWindow;
+
+        // contains sequence positions for current kmer
+        int *kmerPos;
 
 };
 #endif

@@ -1,6 +1,14 @@
 #include "DBReader.h"
+
+#include <iostream>
+#include <fstream>
+#include <algorithm>
+#include <climits>
+#include <cstring>
+
 #include <sys/mman.h>
 #include <sys/stat.h>
+
 #include "Debug.h"
 #include "Util.h"
 
@@ -29,6 +37,7 @@ void DBReader::open(int sort){
         dataFile = fopen(dataFileName, "r");
         if( dataFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", dataFileName);  EXIT(EXIT_FAILURE); }
         data = mmapData(dataFile, &dataSize);
+        dataMapped = true;
     }
     index = new Index[this->size];
     seqLens = new unsigned int[size];
@@ -78,7 +87,7 @@ void DBReader::remapData(){
 void DBReader::close(){
     if(dataMode == DATA_AND_INDEX){
         fclose(dataFile);
-        munmap(data, dataSize);
+        unmapData();
     }
     delete [] index;
     delete [] seqLens;
@@ -201,11 +210,20 @@ void DBReader::readIndex(char *indexFileName, Index * index, char *data, unsigne
         size_t i = 0;
 
         while (std::getline(index_file, line)) {
-            size_t id, offset, length;
+            std::string id;
+            size_t  offset, length;
             std::stringstream ss(line);
             ss >> id >> offset >> length;
-            index[i].id = id;
-            index[i].data = data + (offset);
+            if(i >= this->size){
+                Debug(Debug::ERROR) << "Corrupte memory\n";
+                EXIT(EXIT_FAILURE);
+            }
+            index[i].id = strtol(id.c_str(),NULL, 0);
+            if(dataMode  ==  DATA_AND_INDEX) {
+                index[i].data = data + (offset);
+            }else{
+                index[i].data = NULL;
+            }
             entryLength[i] = length;
             i++;
         }
@@ -213,5 +231,13 @@ void DBReader::readIndex(char *indexFileName, Index * index, char *data, unsigne
     }else {
         Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
         EXIT(EXIT_FAILURE);
+    }
+}
+
+
+void DBReader::unmapData() {
+    if(dataMapped == true){
+        munmap(data, dataSize);
+        dataMapped = false;
     }
 }
