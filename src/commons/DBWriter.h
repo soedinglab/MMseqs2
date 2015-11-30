@@ -7,21 +7,10 @@
 // For parallel write access, one ffindex DB per thread is generated. 
 // After the parallel calculation is done, all ffindexes are merged into one.
 //
-#include "DBReader.h"
 
-extern "C" {
-#include "ffindex.h"
-#include "ffutil.h"
-}
-
-#include <cstdlib>
 #include <vector>
-#include <iostream>
-#include <sys/stat.h>
-#include <sstream>
-#include <fstream>
-#include <stdio.h>
-#include <sys/mman.h>
+
+class DBReader;
 
 class DBWriter {
     public:
@@ -41,7 +30,7 @@ class DBWriter {
     
         char* getIndexFileName() { return indexFileName; }
 
-        void write(char* data, int64_t dataSize, char* key, int threadIdx = 0);
+        void write(const char* data, int64_t dataSize, const char* key, int threadIdx = 0);
     
         void mergeFiles(DBReader * qdbr,
                         std::vector<std::pair<std::string, std::string> > files,

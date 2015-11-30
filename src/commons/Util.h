@@ -131,7 +131,7 @@ public:
         return counter;
     }
     
-    
+
     static ffindex_index_t* openIndex(const char* indexFileName){
         // count the number of entries in the clustering
         char line [1000];
@@ -142,7 +142,7 @@ public:
                 cnt++;
             }
             index_file.close();
-        }
+        }   
         else{
             std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
             EXIT(EXIT_FAILURE);
@@ -150,7 +150,7 @@ public:
         // open clustering ffindex
         FILE* indexFile = fopen(indexFileName, "r");
         if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", indexFileName);  EXIT(EXIT_FAILURE); }
-        
+
         ffindex_index_t* index = ffindex_index_parse(indexFile, cnt);
         return index;
     }
@@ -229,7 +229,9 @@ public:
         key[keySize] = '\0';
     }
 
-    static FILE* openFileOrDie(const char * fileName, const char * mode);
+    static bool fileExists(const char* fileName);
+
+    static FILE* openFileOrDie(const char * fileName, const char * mode, bool shouldExist);
 
 	static inline void parseByColumnNumber(char *data, char * key, int position) {
         char * startPosOfKey = data;
@@ -296,6 +298,6 @@ public:
         return p > 0 && p != std::string::npos ? filename.substr(0, p) : filename;
     }
 
-    static std::map<std::string, size_t> readMapping(char *fastaFile);
+    static std::map<std::string, size_t> readMapping(const char *fastaFile);
 };
 #endif

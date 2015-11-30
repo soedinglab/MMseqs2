@@ -7,12 +7,9 @@
 #include <sys/cdefs.h>
 #include <zconf.h>
 
-struct CounterResult {
+struct  __attribute__((__packed__))  CounterResult {
     unsigned int  id;
     unsigned char count;
-    static bool sortCounterResultById (CounterResult first, CounterResult second){
-        return (first.id < second.id);
-    }
 };
 
 
@@ -29,6 +26,9 @@ public:
     ~CountInt32Array();
 
     size_t countElements(CounterResult *inputOutputArray, const size_t N);
+    // merge elements in CounterResult
+    // assumption is that each element (counter.id) exists maximal two times
+    size_t mergeElements(CounterResult *inputOutputArray, const size_t N);
 
 private:
     // this bit array should fit in L1/L2
@@ -62,6 +62,8 @@ private:
     size_t findDuplicates(CounterResult **bins, unsigned int binCount,
                           CounterResult * output);
 
+
+    size_t mergeDuplicates(CounterResult **bins, unsigned int binCount, CounterResult *output);
 };
 
 #endif

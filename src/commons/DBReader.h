@@ -7,14 +7,8 @@
 //
 
 #include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <algorithm>
-#include <climits>
-#include <map>
-#include <cstring>
+#include <utility>
 #include <string>
-#include <sys/mman.h>
 
 class DBReader {
 
@@ -77,9 +71,11 @@ public:
 
     static char *mmapData(FILE *file, size_t *dataSize);
 
-    static void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
+    void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
 
     static size_t countLine(const char *name);
+
+    void unmapData();
 
 private:
 
@@ -115,6 +111,8 @@ private:
     Index * index;
     unsigned int *seqLens;
     size_t maxId;
+
+    bool dataMapped;
 };
 
 

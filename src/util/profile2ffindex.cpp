@@ -27,7 +27,8 @@ extern "C" {
 #include "Debug.h"
 #define MAX_FILENAME_LIST_FILES 4096
 
-
+int openFile(const char *filename, FILE **pFILE);
+int sortIndex(char *index_filename, size_t entry_num);
 
 void parsePSSM(char *data, char *profileBuffer, size_t *size, const char *id, BaseMatrix * subMat){
     // go to readin position
@@ -61,8 +62,17 @@ void parsePSSM(char *data, char *profileBuffer, size_t *size, const char *id, Ba
 
 
 // pasre HMM format
-void parseHMM(char *data, char *profileBuffer, size_t *size,const char *id, BaseMatrix * subMat){
+void parseHMM(char *data, std::string *header, char *profileBuffer, size_t *size, const char *id, BaseMatrix *subMat) {
     size_t l = 0;
+    // find name tag
+    while(data[0] !='N' && data[1] != 'A' && data[2] != 'M' && data[3] != 'E') {
+        data = Util::skipLine(data);
+    }
+    // parse NAME entry
+    const char * startData = data;
+    data = Util::skipLine(data);
+    const char * endData = data;
+    header->append(startData + 6, endData - (startData + 6));
     // find beging of profile information
     while( data[0] != '#') {
         data = Util::skipLine(data);
@@ -124,19 +134,26 @@ int createprofiledb(int argn,const char **argv)
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.createprofiledb, 2);
-
+    std::string index_filename_str(par.db2);
+    index_filename_str.append(".index");
+    char *index_filename = (char *) index_filename_str.c_str();
+    std::string data_filename_hdr_str(par.db2);
+    data_filename_hdr_str.append("_h");
+    char *data_filename_hdr  = (char *)data_filename_hdr_str.c_str() ;
+    std::string index_filename_hdr_str(par.db2);
+    index_filename_hdr_str.append("_h.index");
+    char *index_filename_hdr = (char *)index_filename_hdr_str.c_str() ;
+    FILE *data_file, *index_file, *fasta_file, *data_file_hdr, *index_file_hdr;
     struct stat st;
-    const char* data_filename = par.db2.c_str();
-    if(stat(data_filename, &st) == 0) { errno = EEXIST; perror(data_filename); return EXIT_FAILURE; }
-    FILE * data_file  = fopen(data_filename, "wb"); // binary file
-    if( data_file == NULL) { perror(data_filename); return EXIT_FAILURE; }
 
-    const char* index_filename = par.db2Index.c_str();
-    if(stat(index_filename, &st) == 0) { errno = EEXIST; perror(index_filename); return EXIT_FAILURE; }
-    FILE * index_file = fopen(index_filename, "w+");
-    if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
+    openFile(par.db2.c_str(), &data_file);
+    openFile(index_filename, &index_file);
+    openFile(data_filename_hdr, &data_file_hdr);
+    openFile(index_filename_hdr, &index_file_hdr);
 
-    size_t offset_sequence = 0;
+    size_t offset_profile = 0;
+    size_t offset_header = 0;
+
     size_t entry_num = 0;
 
     DBReader dbr_data(par.db1.c_str(), std::string(par.db1  + ".index").c_str());
@@ -152,19 +169,21 @@ int createprofiledb(int argn,const char **argv)
     Debug(Debug::WARNING) << "Start converting profile to mmseqs profile.\n";
     for(size_t i = 0; i < dbr_data.getSize(); i++){
         char * data = dbr_data.getData(i);
-        const char * id   = dbr_data.getDbKey(i).c_str();
+        std::string idStr = SSTR(i);
         size_t elementSize = 0;
+        std::string header;
         if(par.profileMode == Parameters::PROFILE_MODE_HMM){
-            parseHMM(data, profileBuffer, &elementSize, id, subMat);
+            parseHMM(data, &header, profileBuffer, &elementSize, idStr.c_str(), subMat);
         } else if(par.profileMode == Parameters::PROFILE_MODE_HMM) {
-            parsePSSM(data, profileBuffer, &elementSize, id, subMat);
+            parsePSSM(data, profileBuffer, &elementSize, idStr.c_str(), subMat);
         } else{
             Debug(Debug::ERROR) << "Wrong profile mode.\n";
             EXIT(EXIT_FAILURE);
         }
-
-        ffindex_insert_memory(data_file,  index_file,     &offset_sequence,
-                              profileBuffer,  elementSize , (char *)id);
+        ffindex_insert_memory(data_file_hdr,  index_file_hdr,     &offset_header,
+                              (char*)header.c_str(),  header.length() , (char *)idStr.c_str());
+        ffindex_insert_memory(data_file,  index_file,     &offset_profile,
+                              profileBuffer,  elementSize , (char *)idStr.c_str());
     }
     entry_num = dbr_data.getSize();
 
@@ -172,10 +191,19 @@ int createprofiledb(int argn,const char **argv)
     delete subMat;
     dbr_data.close();
     fclose(data_file);
+    fclose(data_file_hdr);
 
     /* Sort the index entries and write back */
     fclose(index_file);
-    index_file = fopen(index_filename, "r+");
+    sortIndex(index_filename, entry_num);
+    fclose(index_file_hdr);
+    sortIndex(index_filename_hdr, entry_num);
+    Debug(Debug::WARNING) << "Done.\n";
+
+}
+
+int sortIndex(char *index_filename, size_t entry_num) {
+    FILE * index_file = fopen(index_filename, "r+");
     ffindex_index_t* index = ffindex_index_parse(index_file, entry_num);
     if(index == NULL)
     {
@@ -184,11 +212,15 @@ int createprofiledb(int argn,const char **argv)
     }
     fclose(index_file);
     ffindex_sort_index_file(index);
-    index_file = fopen(par.db2Index.c_str(), "w");
-    if(index_file == NULL) { perror(par.db2Index.c_str()); return EXIT_FAILURE; }
-    err += ffindex_write(index, index_file);
-    Debug(Debug::WARNING) << "Done.\n";
+    index_file = fopen(index_filename, "w");
+    if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
+    return ffindex_write(index, index_file);
+}
 
-    return err;
+int openFile(const char *filename, FILE **pFILE) {
+    struct stat st;
+    if(stat(filename, &st) == 0) { errno = EEXIST; perror(filename); return EXIT_FAILURE; }
+    *pFILE = fopen(filename, "w+");
+    if(filename == NULL) { perror(filename); return EXIT_FAILURE; }
 }
 

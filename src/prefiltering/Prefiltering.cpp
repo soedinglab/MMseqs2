@@ -35,6 +35,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         maxSeqLen(par.maxSeqLen),
         querySeqType(par.querySeqType),
         targetSeqType(par.targetSeqType),
+        mask(par.mask),
         aaBiasCorrection(par.compBiasCorrection),
         split(par.split),
         splitMode(par.splitMode),
@@ -261,7 +262,8 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
                                                                  maxHitsPerQuery);
         } else if(searchMode == Parameters::SEARCH_LOCAL_FAST) {
             matchers[thread_idx] = new QueryTemplateMatcherExactMatch(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                                      kmerSize, dbSize, maxSeqLen, effectiveKmerSize, maxHitsPerQuery);
+                                                                      kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
+                                                                      maxHitsPerQuery, aaBiasCorrection);
         } else {
             matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
                                                                   kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
@@ -280,7 +282,7 @@ IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize
         return PrefilteringIndexReader::generateIndexTable(tidxdbr, split);
     }else{
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer);
-        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, skip);
+        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, skip, mask);
     }
 }
 
@@ -360,7 +362,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
             if(targetSeqId != UINT_MAX)
                 targetSeqId = targetSeqId - dbFrom;
         }
-        // calculate prefitlering results
+        // calculate prefiltering results
         std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx], targetSeqId);
         const size_t resultSize = prefResults.second;
         // write
@@ -452,7 +454,7 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
         if (targetSeqId >= tdbr->getSize()) {
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << targetSeqId << "\t" << res->prefScore << "\n";
         }
-        const int len = snprintf(buffer,100,"%s\t%.4f\t%d\n",tdbr->getDbKey(targetSeqId).c_str(), res->zScore, res->prefScore);
+        const int len = snprintf(buffer, 100, "%s\t%.4f\t%d\n", tdbr->getDbKey(targetSeqId).c_str(), res->pScore, res->prefScore);
         prefResultsOutString.append( buffer, len );
         l++;
         // maximum allowed result list length is reached
@@ -539,7 +541,7 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
                                 size_t dbFrom, size_t dbTo)
 {
     Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
-    size_t tableEntriesNum;
+    size_t tableEntriesNum = 0;
     for(size_t i = 0; i < indexTable->getTableSize(); i++){
         tableEntriesNum += (size_t) indexTable->getTable(i);
     }
@@ -567,8 +569,8 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
 }
 
 
-IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int alphabetSize,
-                                              int kmerSize, size_t dbFrom, size_t dbTo, int searchMode, int skip){
+IndexTable * Prefiltering::generateIndexTable(DBReader *dbr, Sequence *seq, int alphabetSize, int kmerSize,
+                                                   size_t dbFrom, size_t dbTo, int searchMode, int skip, bool mask) {
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -581,8 +583,9 @@ IndexTable* Prefiltering::generateIndexTable (DBReader* dbr, Sequence* seq, int 
 
     countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
     Debug(Debug::INFO) << "\n";
-
-    maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
+    if(mask == true){
+        maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
+    }
     Debug(Debug::INFO) << "\n";
 
     fillDatabase(dbr, seq, indexTable, dbFrom, dbTo);
@@ -729,14 +732,40 @@ void Prefiltering::maskLowComplexKmer(IndexTable *indexTable, int kmerSize, int 
     Debug(Debug::INFO) << "Index table: masking k-mers...\n";
     size_t deleteCnt = 0;
     size_t deletedKmer = 0;
-
+//
     size_t tableSize = Util::ipow(alphabetSize, kmerSize);
+    size_t kmerSum = 0.0;
+//    size_t maxKmerSize = 0.0;
+    for (size_t kmer = 0; kmer < tableSize; kmer++) {
+        kmerSum += (size_t) indexTable->getTable(kmer);
+//        maxKmerSize = std::max((size_t) indexTable->getTable(kmer), maxKmerSize);
+    }
+    double avgKmer = ((double)kmerSum) / ((double)tableSize);
+//    std::cout << "Max: " << maxKmerSize << std::endl;
+//    unsigned int * hist = new unsigned int[maxKmerSize];
+//    memset(hist,0 ,maxKmerSize *sizeof(unsigned int));
+//    for (size_t kmer = 0; kmer < tableSize; kmer++) {
+//        size_t kmerSize = (size_t) indexTable->getTable(kmer);
+////        hist[kmerSize]++;
+//        if(kmerSize > avgKmer * 50){
+//                    deleteCnt++;
+//                    // remove low compl. kmer from table
+//                    deletedKmer += kmerSize;
+//                    indexTable->setTable(kmer, 0);
+//        }
+//    }
+//    for (size_t i = 0; i < maxKmerSize; i++) {
+//        if(hist[i] != 0){
+//            std::cout << i << " " << hist[i] << std::endl;
+//        }
+//    }
+
 #pragma omp parallel
     {
         char * tmpKmer = new char[kmerSize];
         int * intSeq = new int[kmerSize];
         Indexer indexer(alphabetSize, kmerSize);
-        Seg seg(kmerSize);
+        Seg seg(kmerSize, kmerSize);
 #pragma omp for schedule(static) reduction (+: deleteCnt, deletedKmer)
         for (size_t kmer = 0; kmer < tableSize; kmer++) {
             indexer.index2int(intSeq, kmer, kmerSize);
@@ -751,11 +780,14 @@ void Prefiltering::maskLowComplexKmer(IndexTable *indexTable, int kmerSize, int 
                     lowComplexCount++;
                 }
             }
-            if (lowComplexCount >= (kmerSize - 1)) {
-                deleteCnt++;
-                // remove low compl. kmer from table
-                deletedKmer += (size_t)indexTable->getTable(kmer);
-                indexTable->setTable(kmer, 0);
+            if (lowComplexCount >= kmerSize ) {
+                size_t kmerSize = (size_t)indexTable->getTable(kmer);
+                if(avgKmer*4 < kmerSize){
+                    deleteCnt++;
+                    // remove low compl. kmer from table
+                    deletedKmer += kmerSize;
+                    indexTable->setTable(kmer, 0);
+                }
             }
         }
         delete[] intSeq;

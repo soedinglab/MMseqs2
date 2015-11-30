@@ -59,8 +59,8 @@ int legacycs219(int argn, const char **argv)
     std::string out_filename  = std::string(par.db3 + ".cs219");
     std::string out_sizes_filename = std::string(par.db3 + ".cs219.sizes");
 
-    FILE* out_file = Util::openFileOrDie(out_filename.c_str(), "wb");
-    FILE* out_size = Util::openFileOrDie(out_sizes_filename.c_str(), "w");
+    FILE* out_file = Util::openFileOrDie(out_filename.c_str(), "wb", false);
+    FILE* out_size = Util::openFileOrDie(out_sizes_filename.c_str(), "w", false);
 
     size_t entries = reader.getSize();
     unsigned int* entries_length = reader.getSeqLens();

@@ -38,21 +38,15 @@ Orf::Orf(const char* seq) {
     }
 }
 
-char* Orf::View(SequenceLocation& location) {
+std::string Orf::View(SequenceLocation& location) {
     assert(location.to > location.from);
     
     size_t length = location.to - location.from;
-    char* buffer = new char[length + 1];
-    
     if(location.strand == Orf::STRAND_PLUS) {
-        strncpy(buffer, sequence + location.from, length);
+        return std::string(&sequence[location.from], length);
     } else {
-        strncpy(buffer, reverseComplement + location.from, length);
+        return std::string(&reverseComplement[location.from], length);
     }
-
-    buffer[length] = '\0';
-    
-    return buffer;
 }
 
 //
@@ -156,10 +150,8 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
             if(!(frames & frameLookup[frame])) {
                 continue;
             }
-
-            // dont check for if we are inside a frame here
-            // we want the shortest frame
-            if(isStart(codon)) {
+            
+            if(!isInsideOrf[frame] && isStart(codon)) {
                 isInsideOrf[frame] = true;
                 from[frame] = position;
 
@@ -179,19 +171,12 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
             bool isLastCodonIncomplete = !isStopCodon && (i + FRAMES >= sequenceLength);
             if(isInsideOrf[frame] && (isStopCodon || isLastCodonIncomplete)) {
                 isInsideOrf[frame] = false;
-                size_t to = position + 3;
+                size_t to = position;
 
                 if(to == from[frame])
                     continue;
 
                 assert(to > from[frame]);
-
-                // edge case 2: we did not find an end codon, add the last orf
-                // from the last found start to the end of the sequence
-                bool hasIncompleteEnd = false;
-                if(isLastCodonIncomplete) {
-                    hasIncompleteEnd = true;
-                }
 
                 // ignore orfs with too many gaps or unknown codons
                 // also ignore orfs shorter than the min size and longer than max
@@ -208,7 +193,7 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
                     hasIncompleteStart = true;
                 }
 
-                ranges.emplace_back(Orf::SequenceLocation{from[frame], to, hasIncompleteStart, hasIncompleteEnd, strand});
+                ranges.emplace_back(Orf::SequenceLocation{from[frame], to, hasIncompleteStart, isLastCodonIncomplete, strand});
             }
         }
     }

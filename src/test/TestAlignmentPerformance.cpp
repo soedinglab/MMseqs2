@@ -61,7 +61,7 @@ int main (int argc, const char * argv[])
     Sequence* query = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
-    SmithWaterman aligner(15000, subMat.alphabetSize);
+    SmithWaterman aligner(15000, subMat.alphabetSize, false);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (size_t i = 0; i < subMat.alphabetSize; i++) {
         for (size_t j = 0; j < subMat.alphabetSize; j++) {
@@ -79,7 +79,7 @@ int main (int argc, const char * argv[])
     std::vector<std::string> sequences = readData("/Users/mad/Documents/databases/rfam/Rfam.fasta");
     for(size_t seq_i = 0; seq_i < sequences.size(); seq_i++){
         query->mapSequence(1,"lala2",sequences[seq_i].c_str());
-        aligner.ssw_init(query, tinySubMat, subMat.alphabetSize, 2);
+        aligner.ssw_init(query, tinySubMat, &subMat, subMat.alphabetSize, 2);
 
         for(size_t seq_j = 0; seq_j < sequences.size(); seq_j++) {
             dbSeq->mapSequence(2, "WTF", sequences[seq_j].c_str());

@@ -77,6 +77,7 @@ class Seg
 
     int	thewindow;
     double*	entray;
+    char *maskedseq;
 
     int aaindex[128];
     unsigned char   aaflag[128];
@@ -84,7 +85,7 @@ class Seg
 
     public:
     Seg(void);
-    Seg(int window_inp);
+    Seg(int window_inp, int max_seq_len);
     void	initialize(int window_inp);
     ~Seg(void);
     char*	maskseq(const char *seq);
@@ -118,6 +119,7 @@ class Seg
     void	incrementsv(register int *sv, int thisclass);
     double	lnass(int *sv);
     void	upper(register char *string, size_t len);
+
 };
 
 #endif

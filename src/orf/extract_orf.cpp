@@ -4,6 +4,7 @@
 
 #include <unistd.h>
 #include <Util.h>
+#include <climits>
 
 #include "Parameters.h"
 #include "DBWriter.h"
@@ -35,27 +36,27 @@ int orfFastaToFFindex(
 
     char header_buffer[LINE_MAX];
 
-    std::vector<Orf::SequenceLocation> res;
-    size_t entries_num = 0;
+    size_t total_num = 0;
     while (kseq_read(seq) >= 0) {
         Orf orf(seq->seq.s);
+        std::vector<Orf::SequenceLocation> res;
         orf.FindOrfs(res, par->orfMinLength, par->orfMaxLength, par->orfMaxGaps);
 
-        size_t orfs_num = 0;
+        size_t orf_num = 0;
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
             Orf::SequenceLocation loc = *it;
 
             std::string id;
-            if (par->orfUseNumericIndices) {
-                id = SSTR(entries_num);
+            if (par->useHeader) {
+                id = Util::parseFastaHeader(seq->name.s);
+                id.append("_");
+                id.append(SSTR(orf_num));
             } else {
-                id = Util::parseFastaHeader(std::string(seq->name.s));
+                id = SSTR(par->identifierOffset + total_num);
             }
 
-            id += "_" + SSTR(orfs_num);
-
             if (id.length() >= 31) {
-                std::cerr << "Id: " << id << " is too long. Maximal 32 characters are allowed." << std::endl;
+                std::cerr << "Id: " << id << " is too long. Maximum of 32 characters are allowed." << std::endl;
                 EXIT(EXIT_FAILURE);
             }
 
@@ -69,18 +70,14 @@ int orfFastaToFFindex(
                 snprintf(header_buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
             }
 
-            hdr_writer.write(header_buffer, strlen(header_buffer), (char *)id.c_str());
+            hdr_writer.write(header_buffer, strlen(header_buffer), id.c_str());
 
-            char* sequence = orf.View(loc);
-            size_t length = strlen(sequence);
-            seq_writer.write(sequence, length, (char *)id.c_str());
-            delete sequence;
+            std::string sequence = orf.View(loc);
+            seq_writer.write(sequence.c_str(), sequence.length(), id.c_str());
 
-            orfs_num++;
+            orf_num++;
+            total_num++;
         }
-
-        entries_num++;
-        res.clear();
     }
 
     kseq_destroy(seq);

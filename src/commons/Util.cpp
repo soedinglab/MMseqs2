@@ -35,10 +35,9 @@ void Util::decompose_domain(size_t domain_size, size_t world_rank,
     }
 }
 
-std::map<std::string, size_t> Util::readMapping(char *fastaFile) {
+std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
     std::map<std::string, size_t> map;
-    FILE * fasta_file = fopen(fastaFile, "r");
-    if(fasta_file == NULL) { perror(fastaFile);  }
+    FILE * fasta_file = Util::openFileOrDie(fastaFile, "r", true);
     kseq_t *seq = kseq_init(fileno(fasta_file));
     size_t i = 0;
     while (kseq_read(seq) >= 0) {
@@ -123,37 +122,50 @@ void Util::rankedDescSort20(short *val, unsigned int *index){
 
 std::string Util::parseFastaHeader(std::string header){
     if(header.length() == 0)
-        return std::string();
+        return "";
 
     std::vector<std::string> arr = Util::split(header,"|");
-    for(unsigned int i = 0; i < arr.size(); i++)
-        if(arr.size() > 1) {
-            if (Util::startWith("cl|",   header) ||
-                    Util::startWith("sp|",   header) ||
-                    Util::startWith("tr|",   header) ||
-                    Util::startWith("ref|",  header) ||
-                    Util::startWith("pdb|",  header) ||
-                    Util::startWith("bbs|",  header) ||
-                    Util::startWith("lcl|",  header) ||
-                    Util::startWith("pir||", header) ||
-                    Util::startWith("prf||", header)) {
-                return arr[1];
-            }
-            else if (Util::startWith("gnl|", header) || Util::startWith("pat|", header))
-                return arr[2];
-            else if (Util::startWith("gi|", header))
-                return arr[3];
-
+    if(arr.size() > 1) {
+        if (Util::startWith("cl|",   header) ||
+                Util::startWith("sp|",   header) ||
+                Util::startWith("tr|",   header) ||
+                Util::startWith("ref|",  header) ||
+                Util::startWith("pdb|",  header) ||
+                Util::startWith("bbs|",  header) ||
+                Util::startWith("lcl|",  header) ||
+                Util::startWith("pir||", header) ||
+                Util::startWith("prf||", header)) {
+            return arr[1];
         }
+        else if (Util::startWith("gnl|", header) || Util::startWith("pat|", header))
+            return arr[2];
+        else if (Util::startWith("gi|", header))
+            return arr[3];
+
+    }
     arr = Util::split(header," ");
     return arr[0];
 }
 
-
-FILE* Util::openFileOrDie(const char * fileName, const char * mode) {
+bool Util::fileExists(const char* fileName) {
     struct stat st;
+    return stat(fileName, &st) == 0;
+}
+
+FILE* Util::openFileOrDie(const char * fileName, const char * mode, bool shouldExist) {
+    bool exists = Util::fileExists(fileName);
+    if(exists && !shouldExist) {
+        errno = EEXIST;
+        perror(fileName);
+        EXIT(EXIT_FAILURE);
+    }
+    if(!exists && shouldExist) {
+        errno = ENOENT;
+        perror(fileName);
+        EXIT(EXIT_FAILURE);
+    }
+
     FILE* file;
-    if(stat(fileName, &st) == 0) { errno = EEXIST; perror(fileName); EXIT(EXIT_FAILURE); }
     file = fopen(fileName, mode);
     if(file == NULL) { perror(fileName); EXIT(EXIT_FAILURE); }
     return file;

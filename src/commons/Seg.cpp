@@ -1271,9 +1271,11 @@ Seg::Seg(void)
 {
     initialize(12);
 }
-Seg::Seg(int window_inp)
+Seg::Seg(int window_inp, int max_seq_len)
 {
     initialize(window_inp);
+    maskedseq = new char[max_seq_len];
+
 }
 
 void Seg::initialize(int window_inp)
@@ -1304,6 +1306,7 @@ void Seg::initialize(int window_inp)
 
 Seg::~Seg(void)
 {
+        delete [] maskedseq;
     free(entray);
 }
 
@@ -1806,7 +1809,6 @@ char* Seg::singreport(Sequen *seq, Segment *segs)
     char	*proseq, *proseqmax;
     Segment	*seg;
     int	begin, end, i, ctr;
-    char	*maskedseq = new char[seq -> length + 1];
     maskedseq[0] = 0;
     int	add = 0;
 

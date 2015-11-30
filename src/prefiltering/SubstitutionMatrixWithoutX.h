@@ -11,8 +11,8 @@ class SubstitutionMatrixWithoutX : public BaseMatrix {
     public:
     SubstitutionMatrixWithoutX(double **probMatrix, float **rMatrix, short **subMat, float bitFactor) {
         // copy data
-        for(size_t i = 0; i < this->alphabetSize; i++) {
-            for (size_t j = 0; j < this->alphabetSize; j++) {
+        for(int i = 0; i < this->alphabetSize; i++) {
+            for (int j = 0; j < this->alphabetSize; j++) {
                 this->probMatrix[i][j] = probMatrix[i][j];
             }
         }
@@ -21,8 +21,8 @@ class SubstitutionMatrixWithoutX : public BaseMatrix {
 //                this->subMatrixPseudoCounts[i][j] = rMatrix[i][j];
 //            }
 //        }
-        for(size_t i = 0; i < this->alphabetSize; i++) {
-            for (size_t j = 0; j < this->alphabetSize; j++) {
+        for(int i = 0; i < this->alphabetSize; i++) {
+            for (int j = 0; j < this->alphabetSize; j++) {
                 this->subMatrix[i][j] = subMat[i][j];
             }
         }
@@ -32,8 +32,8 @@ class SubstitutionMatrixWithoutX : public BaseMatrix {
 
         // remove X
         this->alphabetSize = 20;
-        int toIndex =  this->aa2int[(int)'X'];
-        int fromIndex = this->aa2int[(int)'L'];
+        //int toIndex =  this->aa2int[(int)'X'];
+        //int fromIndex = this->aa2int[(int)'L'];
         this->aa2int[(int)'X'] = this->aa2int[(int)'L'];
         //this->int2aa[toIndex] = this->int2aa[fromIndex];
 

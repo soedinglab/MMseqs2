@@ -41,7 +41,8 @@ class KmerGenerator
     
     
         /* maximum return values */
-        const static size_t MAX_KMER_RESULT_SIZE = 262144*2;
+        /* 48   MB */
+        const static size_t MAX_KMER_RESULT_SIZE = 262144*32;
         /* min score  */
         short threshold;
         /* size of kmer  */
