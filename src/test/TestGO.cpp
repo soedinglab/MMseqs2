@@ -12,7 +12,16 @@
 
 void printHelp();
 
-std::string getProteinNameForID(DBReader targetdb_header,const char * dbKey);
+
+std::string getProteinNameForID(DBReader *targetdb_header,const char * dbKey){
+
+    char * header_data = targetdb_header->getDataByDBKey(dbKey);
+    std::string parsedDbkey = Util::parseFastaHeader(header_data);
+    return parsedDbkey;
+
+
+}
+
 
 int main(int argc, char **argv)
 {
@@ -548,12 +557,4 @@ void printHelp() {
     EXIT(EXIT_FAILURE);
 }
 
-std::string getProteinNameForID(DBReader *targetdb_header,const char * dbKey){
-
-    char * header_data = targetdb_header->getDataByDBKey(dbKey);
-    std::string parsedDbkey = Util::parseFastaHeader(header_data);
-    return parsedDbkey;
-
-
-}
 
