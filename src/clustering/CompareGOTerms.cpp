@@ -7,7 +7,7 @@
 #include <dirent.h>
 #include <cmath>
 
-CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder) {
+CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder, std::string sequencedb) {
 
     Debug(Debug::INFO) << "Opening GO database...\n";
     go_ffindex_reader = new DBReader(go_ffindex.c_str(), go_ffindex_indexfile.c_str());
@@ -15,6 +15,9 @@ CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_ind
     Debug(Debug::INFO) << "Opening Protein to GO database...\n";
     protid_go_ffindex_reader = new DBReader(protid_go_ffindex.c_str(), protid_go_ffindex_indexfile.c_str());
     protid_go_ffindex_reader->open(DBReader::NOSORT);
+    targetdb_header=new DBReader(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+    targetdb_header->open(DBReader::NOSORT);
+
     if (evaluationfolder.back() != '/') {
         evaluationfolder = evaluationfolder + '/';
     }
@@ -362,7 +365,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                         sumofscore += score;
                         minscore=std::min(score,minscore);
                         maxscore=std::max(score,maxscore);
-                        clusters_full_file << fileprefix << "\t"<< filesuffix<< "\t"<< representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
+                        clusters_full_file << fileprefix << "\t"<< filesuffix<< "\t"<< getProteinNameForID(representative) << "\t" << getProteinNameForID(id1.c_str()) << "\t" << getProteinNameForID(id2.c_str()) << "\t" << score << "\n";
                     }
                 }
                 if(!allagainstall){
@@ -385,7 +388,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                 clusterwithoutgo++;
             }
        // if(idswithgo.size()>0) {
-            clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << representative << "\t" <<
+            clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << getProteinNameForID(representative) << "\t" <<
                                                    withgo + withoutgo << "\t" << withgo << "\t" << withoutgo << "\t" <<
                     averagescore << "\t" << minscore << "\t" << maxscore << "\n";
         //}
@@ -405,3 +408,12 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
 
 }
 
+
+std::string CompareGOTerms::getProteinNameForID(const char * dbKey){
+
+    char * header_data = targetdb_header->getDataByDBKey(dbKey);
+    std::string parsedDbkey = Util::parseFastaHeader(header_data);
+    return parsedDbkey;
+
+
+}

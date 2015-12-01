@@ -11,55 +11,48 @@
 
 #include <cstdio> // fclose
 
-#include <string>
 #include <map>
+#include <string>
 
-#include "Debug.h"
-#include "Util.h"
 #include "DBWriter.h"
+#include "Debug.h"
+#include "Parameters.h"
+#include "Util.h"
 
 #include "kseq.h"
 #include <unistd.h> // read
+
 KSEQ_INIT(int, read)
 
-void usage() {
-    Debug(Debug::INFO) <<  "Converts a fasta database to ffindex.\n";
-    Debug(Debug::INFO) <<  "USAGE: <fastaDB>  <ffindexDB> [mappingFasta]\n";
-    Debug(Debug::INFO) <<  "\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n";
-}
-
 int createdb(int argn, const char **argv) {
-    if (argn < 2 || argn > 3) {
-        usage();
-        return EXIT_FAILURE;
-    }
+    std::string usage("Converts a fasta database to ffindex.\n");
+    usage.append("USAGE: <fastaDB>  <ffindexDB> [mappingFasta]\n");
+    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
 
-    FILE *fasta_file = Util::openFileOrDie(argv[0], "r", true);
+    Parameters par;
+    par.parseParameters(argn, argv, usage, par.createdb, 2);
+    Debug::setDebugLevel(par.verbosity);
 
-    const char *data_filename = argv[1];
+    FILE *fasta_file = Util::openFileOrDie(par.db1.c_str(), "r", true);
 
-    std::string index_filename_str(data_filename);
-    index_filename_str.append(".index");
+    std::string data_filename = par.db2;
+    std::string index_filename = par.db2Index;
 
-    std::string data_filename_hdr_str(data_filename);
-    data_filename_hdr_str.append("_h");
+    std::string data_filename_hdr(data_filename);
+    data_filename_hdr.append("_h");
 
-    std::string index_filename_hdr_str(data_filename);
-    index_filename_hdr_str.append("_h.index");
+    std::string index_filename_hdr(data_filename);
+    index_filename_hdr.append("_h.index");
 
-    DBWriter out_writer(data_filename, index_filename_str.c_str());
-    DBWriter out_hdr_writer(data_filename_hdr_str.c_str(), index_filename_hdr_str.c_str());
+    DBWriter out_writer(data_filename.c_str(), index_filename.c_str());
+    DBWriter out_hdr_writer(data_filename_hdr.c_str(), index_filename_hdr.c_str());
 
     out_writer.open();
     out_hdr_writer.open();
 
-    const char *mapping_filename = NULL;
-    if (argn == 3) {
-        mapping_filename = argv[2];
-    }
-
     std::map<std::string, size_t> mapping;
-    if (mapping_filename != NULL) {
+    if (par.db3.length() > 0) {
+        const char *mapping_filename = par.db3.c_str();
         mapping = Util::readMapping(mapping_filename);
     }
 
@@ -74,16 +67,19 @@ int createdb(int argn, const char **argv) {
             Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
             return EXIT_FAILURE;
         }
+
         std::string id;
-        if (mapping_filename != NULL) {
+        if (par.db3.length() > 0) {
             std::string key = Util::parseFastaHeader(seq->name.s);
             if (mapping.find(key) == mapping.end()) {
                 Debug(Debug::ERROR) << "Could not find entry: " << key << " in mapping file.\n";
                 return EXIT_FAILURE;
             }
             id = SSTR(mapping[key]);
+        } else if(par.useHeader) {
+            id = Util::parseFastaHeader(seq->name.s);
         } else {
-            id = SSTR(entries_num);
+            id = SSTR(par.identifierOffset + entries_num);
         }
 
         // header

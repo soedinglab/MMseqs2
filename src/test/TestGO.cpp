@@ -11,6 +11,10 @@
 #include "CompareGOTerms.h"
 
 void printHelp();
+std::string getProteinNameForID(DBReader *targetdb_header,const char * dbKey);
+
+
+
 
 int main(int argc, char **argv)
 {
@@ -19,6 +23,10 @@ int main(int argc, char **argv)
         printHelp();
 
     }
+    for(int i=0;i<argc;i++){
+        Debug(Debug::INFO)<<argv[i]<<" ";
+    }
+    Debug(Debug::INFO)<<"\n";
    // for (int k = 0; k < 8; ++k) {
     //    Debug(Debug::INFO) << argv[k] <<"\n";
     //}
@@ -28,7 +36,7 @@ int main(int argc, char **argv)
     if(strcmp(argv[1],"-go")==0){
         Debug(Debug::INFO) <<"GO-Evaluation" <<"\n";
 
-        if(argc != 9){
+        if(argc != 10){
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -40,14 +48,16 @@ int main(int argc, char **argv)
         std::string prefix=argv[5];
         std::string outputfolder=argv[6];
         char * comparisonmode=argv[7];
-        char * randomnmode=argv[8];
+        char *randommode =argv[8];
+        std::string sequencedb=argv[9];
+
         bool allagainstall=false;
         bool randomized=false;
         if(strcmp(comparisonmode,"yes")==0){
             allagainstall=true;
             Debug(Debug::INFO)<<"all against all comparison";
         }
-        if(strcmp(randomnmode,"yes")==0){
+        if(strcmp(randommode,"yes")==0){
             randomized=true;
             Debug(Debug::INFO)<<"randomized representative comparison";
         }
@@ -74,7 +84,7 @@ int main(int argc, char **argv)
                                                         evidenceCategories[j] + goCategories[i],
                                                         uniprot_go_folder + "uniprot_sprot.dat_go_db" +
                                                         evidenceCategories[j] + goCategories[i] + ".index",
-                                                        outputfolder);
+                                                        outputfolder,sequencedb);
                 go->init();
                 //go->all_against_all_comparison();
                 //  go->all_against_all_comparison_proteinset();
@@ -89,7 +99,7 @@ int main(int argc, char **argv)
     /////Protein Name
     /////////
     else if (strcmp(argv[1],"-pn")==0){
-        if(argc != 8){
+        if(argc != 9){
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -102,6 +112,7 @@ int main(int argc, char **argv)
         std::string evaluationfolder=argv[5];
         char * comparisonmode=argv[6];
         char * randomnmode=argv[7];
+        std::string sequencedb=argv[8];
         bool allagainstall=false;
         bool randomized=false;
         if(strcmp(comparisonmode,"yes")==0){
@@ -120,6 +131,10 @@ int main(int argc, char **argv)
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader* protname_db_reader = new DBReader(protname_db.c_str(), protname_db_indexfile.c_str());
         protname_db_reader->open(DBReader::NOSORT);
+
+        DBReader* targetdb_header=new DBReader(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+        targetdb_header->open(DBReader::NOSORT);
+
 
 
         //files
@@ -175,7 +190,7 @@ int main(int argc, char **argv)
                         sumofscore += levenshteinScore;
                         minscore=std::min(levenshteinScore,minscore);
                         maxscore=std::max(levenshteinScore,maxscore);
-                        clusters_full_file << fileprefix << "\t"<<  representative << "\t" << id1 << "\t" << id2 << "\t" <<
+                        clusters_full_file << fileprefix << "\t"<<  getProteinNameForID(targetdb_header,representative) << "\t" << getProteinNameForID(targetdb_header,id1.c_str()) << "\t" << getProteinNameForID(targetdb_header,id2.c_str()) << "\t" <<
                                                                                                                     levenshteinScore << "\n";
                     }
                 }
@@ -210,7 +225,7 @@ int main(int argc, char **argv)
         /////Key-WordEvaluation
         /////////
     else if (strcmp(argv[1],"-kw")==0){
-        if(argc != 8){
+        if(argc != 9){
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -223,6 +238,7 @@ int main(int argc, char **argv)
         std::string evaluationfolder=argv[5];
         char * comparisonmode=argv[6];
         char * randomnmode=argv[7];
+        std::string sequencedb=argv[8];
         bool allagainstall=false;
         bool randomized=false;
         if(strcmp(comparisonmode,"yes")==0){
@@ -241,6 +257,9 @@ int main(int argc, char **argv)
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader* protname_db_reader = new DBReader(keyword_db.c_str(), keyword_indexfile.c_str());
         protname_db_reader->open(DBReader::NOSORT);
+
+        DBReader * targetdb_header=new DBReader(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+        targetdb_header->open(DBReader::NOSORT);
 
 
         //files
@@ -292,7 +311,7 @@ int main(int argc, char **argv)
                         sumofscore += score;
                         minscore=std::min(score,minscore);
                         maxscore=std::max(score,maxscore);
-                        clusters_full_file << fileprefix << "\t"<<  representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
+                        clusters_full_file << fileprefix << "\t"<<  getProteinNameForID(targetdb_header,representative) << "\t" << getProteinNameForID(targetdb_header,id1.c_str()) << "\t" << getProteinNameForID(targetdb_header,id2.c_str()) << "\t" << score << "\n";
                     }
                 }
                 if(!allagainstall){
@@ -322,7 +341,7 @@ int main(int argc, char **argv)
 
 
     }else if (strcmp(argv[1],"-cs")==0) {
-        if (argc != 5) {
+        if (argc != 6) {
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -330,12 +349,13 @@ int main(int argc, char **argv)
         std::string clusteringfile = argv[2];
         std::string alignmentfile = argv[3];
         std::string outputfile = argv[4];
+        std::string sequencedb=argv[5];
 
-        convertfiles *cf = new convertfiles();
+        convertfiles *cf = new convertfiles(sequencedb);
         cf->getAlignmentscoresForCluster(clusteringfile,alignmentfile,outputfile);
 
     }else if (strcmp(argv[1],"-df")==0) {
-        if (argc != 5) {
+        if (argc != 6) {
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -343,12 +363,13 @@ int main(int argc, char **argv)
         std::string domainscorefile = argv[2];
         std::string domainIdentifierFile = argv[3];
         std::string outputfile = argv[4];
+        std::string sequencedb=argv[5];
 
-        convertfiles *cf = new convertfiles();
+        convertfiles *cf = new convertfiles(sequencedb);
         cf->convertDomainFileToFFindex(domainscorefile,domainIdentifierFile,outputfile);
 
     }else if (strcmp(argv[1],"-ds")==0) {
-        if (argc != 8) {
+        if (argc != 9) {
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -359,6 +380,7 @@ int main(int argc, char **argv)
         std::string outputfile = argv[5];
         char * comparisonmode=argv[6];
         char * randomnmode=argv[7];
+        std::string sequencedb=argv[8];
         bool allagainstall=false;
         bool randomized=false;
         if(strcmp(comparisonmode,"yes")==0){
@@ -369,11 +391,11 @@ int main(int argc, char **argv)
             randomized=true;
             Debug(Debug::INFO)<<"randomized representative comparison";
         }
-        convertfiles *cf = new convertfiles();
+        convertfiles *cf = new convertfiles(sequencedb);
         cf->getDomainScoresForCluster(clusteringfile,alignmentfile,outputfile,suffix,allagainstall,randomized);
 
     }else if (strcmp(argv[1],"-clusterToTsv")==0) {
-        if (argc != 5) {
+        if (argc != 6) {
             Debug(Debug::INFO) << argc << "\n";
             printHelp();
 
@@ -381,8 +403,9 @@ int main(int argc, char **argv)
         std::string clusteringfile = argv[2];
         std::string suffix = argv[3];
         std::string outputfolder = argv[4];
+        std::string sequencedb=argv[5];
 
-        convertfiles *cf = new convertfiles();
+        convertfiles *cf = new convertfiles(sequencedb);
         cf->convertFfindexToTsv(clusteringfile, suffix, outputfolder);
 
     }else if(strcmp(argv[1],"-af")==0){
@@ -391,6 +414,10 @@ int main(int argc, char **argv)
             printHelp();
 
         }
+        for(int i=0;i<argc;i++){
+            Debug(Debug::INFO)<<argv[i]<<" ";
+        }
+        Debug(Debug::INFO)<<"\n";
         std::string seqDbfile = argv[2];
         std::string alignmentfile = argv[3];
         std::string outputfile = argv[4];
@@ -434,7 +461,11 @@ int numberofthreads=1;
                     if (similarityScoreType == Parameters::APC_ALIGNMENTSCORE) {
                         Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
                         similarityscore = atof(std::string(similarity).c_str());
+                        Debug(Debug::INFO) << "type of score not supported yet with new alignment format" << "\n";
+                        EXIT(EXIT_FAILURE);
                     } else if (similarityScoreType == Parameters::APC_COVERAGE) {
+                        Debug(Debug::INFO) << "type of score not supported yet with new alignment format" << "\n";
+                        EXIT(EXIT_FAILURE);
                         Util::parseByColumnNumber(data, similarity, 2); //column 2 = querycoverage
                         float querycoverage = atof(std::string(similarity).c_str()) * factor;
                         Util::parseByColumnNumber(data, similarity, 3); //column 3 = dbcoverage
@@ -446,14 +477,18 @@ int numberofthreads=1;
                         }
 
                     } else if (similarityScoreType == Parameters::APC_SEQID) {
-                        Util::parseByColumnNumber(data, similarity, 4); //column 4 = sequence identity
+                        Util::parseByColumnNumber(data, similarity, 2); //column 4 = sequence identity
                         similarityscore = atof(std::string(similarity).c_str()) * factor;
                     }
                     else if (similarityScoreType == Parameters::APC_EVAL) {
-                        Util::parseByColumnNumber(data, similarity, 5); //column 4 = e value
+                        Debug(Debug::INFO) << "type of score not supported yet with new alignment format" << "\n";
+                        EXIT(EXIT_FAILURE);
+                        Util::parseByColumnNumber(data, similarity, 3); //column 4 = e value
                         similarityscore = -log(atof(std::string(similarity).c_str())) * factor;
                     } else if (similarityScoreType == Parameters::APC_BITSCORE) {
-                        Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
+                        Debug(Debug::INFO) << "type of score not supported yet with new alignment format" << "\n";
+                        EXIT(EXIT_FAILURE);
+                        Util::parseByColumnNumber(data, similarity, 3); //column 1 = alignmentscore
                         similarityscore = atof(std::string(similarity).c_str());
                         int queryLength = strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i).c_str()));
                         int dbSeqLength = strlen(seqDbr->getDataByDBKey(idbuffer1));
@@ -510,16 +545,25 @@ int numberofthreads=1;
 
 void printHelp() {
     std::string usage("\nEvaluation commands\n");
-    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) >\n");
-    usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) >\n");
-    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) >\n");
-    usage.append("-cs <clustering_file> <alignment_file> <outputfile>\n");
-    usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile>\n");
-    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) >\n");
-    usage.append("-clusterToTsv <clustering_file> <prefix> <outputfolder>\n");
+    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > <sequencedb>\n");
+    usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > <sequencedb>\n");
+    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > <sequencedb>\n");
+    usage.append("-cs <clustering_file> <alignment_file> <outputfile> <sequencedb>\n");
+    usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile> <sequencedb>\n");
+    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > <sequencedb>\n");
+    usage.append("-clusterToTsv <clustering_file> <prefix> <outputfolder> <sequencedb>\n");
     usage.append("-af  <seqDbfile> <alignmentfile> <outputfile> <cutoff> <scoretype: 1-5>\n");
 
     Debug(Debug::INFO) << usage << "\n";
     EXIT(EXIT_FAILURE);
 }
 
+
+std::string getProteinNameForID(DBReader *targetdb_header,const char * dbKey){
+
+    char * header_data = targetdb_header->getDataByDBKey(dbKey);
+    std::string parsedDbkey = Util::parseFastaHeader(header_data);
+    return parsedDbkey;
+
+
+}

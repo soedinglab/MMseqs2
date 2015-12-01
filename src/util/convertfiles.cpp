@@ -10,6 +10,14 @@
 #include <sstream>
 #include <list>
 
+convertfiles::convertfiles(std::string sequencedb) {
+
+
+    targetdb_header=new DBReader(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+    targetdb_header->open(DBReader::NOSORT);
+
+}
+
 void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string suffix,
                                                 std::string outputfile) {
     Debug(Debug::INFO) <<"transfering: "<<clusteringfile <<" to "<<outputfile<<suffix<<"cluster.tsv";
@@ -38,7 +46,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
         char *idbuffer = new char[255 + 1];
         while (*data != '\0') {
             Util::parseKey(data, idbuffer);
-            outfile_stream<<suffix<<"\t"<<representative<<"\t"<<idbuffer<<"\n";
+            outfile_stream<<suffix<<"\t"<<getProteinNameForID(representative)<<"\t"<<getProteinNameForID(idbuffer)<<"\n";
             data = Util::skipLine(data);
             clustersize++;
         }
@@ -46,7 +54,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
             singletons++;
         }
         outfile_stream.flush();
-        outfile_stream_clustersize<<suffix<<"\t"<<representative<<"\t"<<clustersize<<"\n";
+        outfile_stream_clustersize<<suffix<<"\t"<<getProteinNameForID(representative)<<"\t"<<clustersize<<"\n";
     }
     outfile_stream_cluster_summary<<suffix<<"\t"<<cluster_ffindex_reader->getSize()<<"\t"<<singletons<<"\n";
 
@@ -102,7 +110,7 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
             Util::parseKey(data_alignment, idbuffer);
             //Debug(Debug::INFO) <<idbuffer;
             if(clusterset.find(idbuffer)!= clusterset.end()){
-                outfile_stream<<representative<<"\t"<<Util::getLine(data_alignment,linebuffer)<<"\n";
+                outfile_stream<<getProteinNameForID(representative)<<"\t"<<getProteinNameForID(Util::getLine(data_alignment,linebuffer))<<"\n";
             }
             data_alignment = Util::skipLine(data_alignment);
         }
@@ -262,7 +270,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
            // Debug(Debug::INFO) <<idbuffer;
             if(clusterset.find(idbuffer)!= clusterset.end()){
                 clusterset2.insert(std::string(idbuffer));
-                outfile_stream<< prefix <<"\t"<<representative<<"\t"<<Util::getLine(data_alignment,linebuffer)<<"\n";
+                outfile_stream<< prefix <<"\t"<<getProteinNameForID(representative)<<"\t"<<getProteinNameForID(Util::getLine(data_alignment,linebuffer))<<"\n";
             }
             data_alignment = Util::skipLine(data_alignment);
         }
@@ -277,7 +285,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
 
             }else{
                 if(alignment_ffindex_reader->getDataByDBKey(idbuffer)!=NULL){
-                    outfile_stream<< prefix <<"\t"<<representative<<"\t"<<id<<"\t"<<"0"<<"\n";
+                    outfile_stream<< prefix <<"\t"<<getProteinNameForID(representative)<<"\t"<<getProteinNameForID(id.c_str())<<"\t"<<"0"<<"\n";
                 }
             }
 
@@ -296,5 +304,15 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
     cluster_ffindex_reader->close();
     cluster_ffindex_reader->~DBReader();
     outfile_stream.close();
+
+}
+
+
+std::string convertfiles::getProteinNameForID(const char * dbKey){
+
+    char * header_data = targetdb_header->getDataByDBKey(dbKey);
+    std::string parsedDbkey = Util::parseFastaHeader(header_data);
+    return parsedDbkey;
+
 
 }
