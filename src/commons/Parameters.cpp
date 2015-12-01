@@ -283,6 +283,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         case 2:
             db2 = getFilename[1];
             db2Index = db2 + ".index";
+        case 1:
             db1 = getFilename[0];
             db1Index = db1 + ".index";
             break;
