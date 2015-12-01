@@ -55,7 +55,8 @@ Parameters::Parameters():
         PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "\tSkip orfs that have only an end or only a start",typeid(bool),(void *) &orfSkipIncomplete, ""),
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "\tUse the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
-        PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "[int]\t\tNumeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^[1-9]\{1\}[0-9]*$")
+        PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "[int]\t\tNumeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^[1-9]\{1\}[0-9]*$"),
+        PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "\tUse the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, "")
 {
     // alignment
     alignment.push_back(PARAM_E);
@@ -142,6 +143,10 @@ Parameters::Parameters():
     createdb.push_back(PARAM_USE_HEADER);
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
+
+    // rebuildfasta
+    rebuildfasta.push_back(PARAM_USE_HEADER_FILE);
+    rebuildfasta.push_back(PARAM_V);
 
     setDefaults();
 }
@@ -394,6 +399,9 @@ void Parameters::setDefaults() {
     // createdb
     useHeader = false;
     identifierOffset = 0;
+
+    // rebuildfasta
+    useHeaderFile = false;
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> par1,
