@@ -39,6 +39,7 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType, const 
         this->profile_score = (short *)            mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(short));
         this->profile_index = (unsigned int *)     mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(int));
         this->profile_for_alignment = (int8_t *)   mem_align(ALIGN_INT, maxLen * PROFILE_AA_SIZE * sizeof(int8_t));
+        memset(this->profile_for_alignment, 0, maxLen * PROFILE_AA_SIZE * sizeof(int8_t));
         for(size_t i = 0; i < maxLen * profile_row_size; i++){
             profile_score[i] = -SHRT_MAX;
             profile_index[i] = -1;

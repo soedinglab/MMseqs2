@@ -31,8 +31,8 @@ void AlignmentSymmetry::execute() {
     //time
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
-        const char *clusterId = seqDbr->getDbKey(i).c_str();
-        const size_t alnId = alnDbr->getId(clusterId);
+        std::string clusterId = seqDbr->getDbKey(i);
+        const size_t alnId = alnDbr->getId(clusterId.c_str());
         char *data = alnDbr->getData(alnId);
         size_t dataSize = alnDbr->getSeqLens()[alnId];
         size_t elementCount = Util::count_lines(data, dataSize);
@@ -133,8 +133,8 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
             Log::printProgress(i);
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            const char *clusterId = seqDbr->getDbKey(i).c_str();
-            char *data = alnDbr->getDataByDBKey(clusterId);
+            std::string clusterId = seqDbr->getDbKey(i).c_str();
+            char *data = alnDbr->getDataByDBKey(clusterId.c_str());
 
             if (*data == '\0') { // check if file contains entry
                 Debug(Debug::ERROR) << "ERROR: Sequence " << i
@@ -174,8 +174,8 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
             Log::printProgress(i);
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            const char *clusterId = seqDbr->getDbKey(i).c_str();
-            char *data = alnDbr->getDataByDBKey(clusterId);
+            std::string clusterId = seqDbr->getDbKey(i).c_str();
+            char *data = alnDbr->getDataByDBKey(clusterId.c_str());
 
             if (*data == '\0') { // check if file contains entry
                 Debug(Debug::ERROR) << "ERROR: Sequence " << i
@@ -347,10 +347,10 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
 #endif
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            const char *clusterId = seqDbr->getDbKey(set_i).c_str();
-            size_t setiIdlength = strlen(clusterId);
+            std::string clusterId = seqDbr->getDbKey(set_i).c_str();
+            size_t setiIdlength = clusterId.length();
 
-            const size_t alnId = alnDbr->getId(clusterId);
+            const size_t alnId = alnDbr->getId(clusterId.c_str());
             const char *data = alnDbr->getData(alnId);
             const size_t dataSize = alnDbr->getSeqLens()[alnId];
             memcpy(buffer, data, dataSize - 1); // -1 for the nullbyte
@@ -360,8 +360,8 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
             if(newElementSize > oldElementSize){
                 for(size_t j = oldElementSize; j < newElementSize; j++){
                     const unsigned int set_j = elementLookupTable[set_i][j];
-                    const char *clusterId = seqDbr->getDbKey(set_j).c_str();
-                    const size_t alnId = alnDbr->getId(clusterId);
+                    std::string clusterId = seqDbr->getDbKey(set_j).c_str();
+                    const size_t alnId = alnDbr->getId(clusterId.c_str());
                     char * setJData = alnDbr->getData(alnId);
 
                     const unsigned int setjElementSize = (oldElementOffset[set_j +1] - oldElementOffset[set_j]);
@@ -398,8 +398,8 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
                         std::cout << buffer << std::endl;
                         EXIT(EXIT_FAILURE);
                     }
-                    size_t clusterIdlength = strlen(clusterId);
-                    memcpy(buffer + dataPos, clusterId, clusterIdlength );
+                    size_t clusterIdlength = clusterId.length();
+                    memcpy(buffer + dataPos, clusterId.c_str(), clusterIdlength );
                     dataPos += clusterIdlength;
                     memcpy(buffer + dataPos, beforePosSetJData + setiIdlength, entrySize -setiIdlength );
                     dataPos += entrySize - setiIdlength;
@@ -412,7 +412,7 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
                 EXIT(EXIT_FAILURE);
             }
 
-            alnWr->write(buffer, dataPos, (char *) clusterId, thread_idx);
+            alnWr->write(buffer, dataPos, (char *) clusterId.c_str(), thread_idx);
         }
         delete[] buffer;
 //        delete[] dbKey;

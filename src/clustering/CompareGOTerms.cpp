@@ -70,8 +70,8 @@ void CompareGOTerms::init() {
         count_goterm[i]=0;
         count_accumulated_goterm[i]=0;
         // char *data = go_ffindex_reader->getData(i);
-        const char *childterm = go_ffindex_reader->getDbKey(i).c_str();
-        strncpy(singletermbuffer, childterm + 3, 7);
+        std::string childterm = go_ffindex_reader->getDbKey(i).c_str();
+        strncpy(singletermbuffer, childterm.c_str() + 3, 7);
         singletermbuffer[7] = '\0';
         index_togoterm[i] = atof(std::string(singletermbuffer).c_str());
         goterm_to_index[atof(std::string(singletermbuffer).c_str())] = i;
@@ -142,7 +142,6 @@ void CompareGOTerms::init() {
     for (size_t j = 0; j < m; j++) {
 
         char *data = protid_go_ffindex_reader->getData(j);
-        const char *protid = protid_go_ffindex_reader->getDbKey(j).c_str();
         size_t counter = 0;
         count_goterm[convert_GOterm_to_index(atof(strncpy(singletermbuffer, data + counter + 3, 7)))]++;
         while (data[counter] != '\0') {
@@ -194,13 +193,11 @@ void CompareGOTerms::all_against_all_comparison() {
 }
 void CompareGOTerms::all_against_all_comparison_proteinset() {
     for (size_t i = 0; i < count_goterm_total_sum; i++) {
-        const char*protein1=protid_go_ffindex_reader->getDbKey(i).c_str();
+        std::string protein1=protid_go_ffindex_reader->getDbKey(i).c_str();
         Debug(Debug::INFO) <<protein1 << "\t";
         for (int j = 0; j < total_go_number; ++j) {
-            const char*protein2=protid_go_ffindex_reader->getDbKey(j).c_str();
-
-                Debug(Debug::INFO) << compare_protein_ids(protein1, protein2) << "\t";
-
+            std::string protein2=protid_go_ffindex_reader->getDbKey(j).c_str();
+            Debug(Debug::INFO) << compare_protein_ids(protein1.c_str(), protein2.c_str()) << "\t";
         }
         Debug(Debug::INFO) <<"\n";
     }
@@ -321,7 +318,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
     for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-        const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
+        std::string representative=cluster_ffindex_reader->getDbKey(i).c_str();
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
         int withgo=0;

@@ -132,7 +132,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
+            std::string representative=cluster_ffindex_reader->getDbKey(i).c_str();
             char *data = cluster_ffindex_reader->getData(i);
             char *idbuffer = new char[255 + 1];
             double sumofscore =0;
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
+            std::string representative=cluster_ffindex_reader->getDbKey(i).c_str();
             char *data = cluster_ffindex_reader->getData(i);
             char *idbuffer = new char[255 + 1];
             double sumofscore =0;
