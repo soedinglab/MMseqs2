@@ -19,7 +19,6 @@ extern "C" {
 
 
 void setWorkflowDefaults(Parameters* p) {
-    p->searchMode = 1;
     p->spacedKmer = true;
     p->covThr = 0.8;
     p->evalThr = 0.001;
@@ -61,7 +60,6 @@ int clusteringworkflow (int argc, const char * argv[]) {
         // set parameter for first step
 
         par.sensitivity   = 1; // 1 is lowest sens
-        par.searchMode    = 2; // be as fast a possible
         par.kmerScore     = 130;
 
         par.zscoreThr     = getZscoreForSensitivity( par.sensitivity );
@@ -72,7 +70,6 @@ int clusteringworkflow (int argc, const char * argv[]) {
 
         // set parameter for second step
         par.sensitivity = (int) targetSensitivity / 2.0;
-        par.searchMode    = 2; // be as fast a possible
         par.kmerScore     = 110;
 
         par.zscoreThr =  getZscoreForSensitivity( par.sensitivity );
@@ -84,7 +81,6 @@ int clusteringworkflow (int argc, const char * argv[]) {
         // set parameter for last step
         par.sensitivity = (int)  targetSensitivity;
         par.zscoreThr = getZscoreForSensitivity( par.sensitivity );
-        par.searchMode    = 1; // be as fast a possible
         par.kmerScore     = 100;
 
         par.maxResListLen = maxResListLen;

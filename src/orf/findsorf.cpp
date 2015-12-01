@@ -85,7 +85,7 @@ int findsorf(int argn, const char **argv)
 
     size_t num_clusters = reader.getSize();
     for (size_t i = 0; i < num_clusters; ++i) {
-        const char* key = reader.getDbKey(i).c_str();
+        std::string key = reader.getDbKey(i);
         std::set<int> speciesSet;
 
         const char* clusters = (const char*)reader.getData(i);
@@ -114,7 +114,7 @@ int findsorf(int argn, const char **argv)
             continue;
 
         float speciesInSet = (float)speciesSet.size();
-        printf("%s\t%f\n", key, -(speciesInSet/(float)totalSpeciesCount) * log2(speciesInSet / (float)totalSpeciesCount));
+        printf("%s\t%f\n", key.c_str(), -(speciesInSet/(float)totalSpeciesCount) * log2(speciesInSet / (float)totalSpeciesCount));
     }
 
     for (std::map<int, size_t>::iterator it = speciesAAlength.begin(); it != speciesAAlength.end(); ++it) {

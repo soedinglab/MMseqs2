@@ -58,8 +58,8 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
 #endif
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
-        const char *clusterId = seqDbr->getDbKey(i).c_str();
-        const size_t alnId = alnDbr->getId(clusterId);
+        std::string clusterId = seqDbr->getDbKey(i);
+        const size_t alnId = alnDbr->getId(clusterId.c_str());
         seqDbrIdToalnDBrId[i]=alnId;
         char *data = alnDbr->getData(alnId);
         size_t dataSize = alnDbr->getSeqLens()[alnId];

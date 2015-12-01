@@ -12,7 +12,7 @@ CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
     // find nearest upper power of 2^(x)
     initBinSize = pow(2, ceil(log(initBinSize)/log(2)));
     binSize = initBinSize;
-    tmpElementBuffer = new unsigned int[binSize];
+    tmpElementBuffer = new unsigned int[binSize*2];
 
     bins = new CounterResult*[BINCOUNT];
     binDataFrame = new CounterResult[BINCOUNT * binSize];
@@ -102,6 +102,7 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
         // set memory to zero
         for (size_t n = 0; n < elementCount; n++) {
             const unsigned int element = tmpElementBuffer[n] >> (MASK_0_5_BIT);
+            tmpElementBuffer[elementCount+n] = duplicateBitArray[element];
             duplicateBitArray[element] = 0;
         }
 
@@ -114,7 +115,7 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins, unsigned int binCou
         // extract results
         for (size_t n = 0; n < elementCount; n++) {
             const unsigned int element = tmpElementBuffer[n];
-            const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
+               const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
             output[doubleElementCount].id    = element;
             output[doubleElementCount].count = duplicateBitArray[hashBinElement];
             // memory overflow can not happen since input array = output array
@@ -161,7 +162,7 @@ void CountInt32Array::reallocBinMemory(const unsigned int binCount, const size_t
     delete [] binDataFrame;
     delete [] tmpElementBuffer;
     binDataFrame     = new CounterResult[binCount * binSize];
-    tmpElementBuffer = new unsigned int[binSize];
+    tmpElementBuffer = new unsigned int[binSize*2];
 }
 
 void CountInt32Array::setupBinPointer(CounterResult **bins, const unsigned int binCount,

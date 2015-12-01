@@ -147,7 +147,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
+            std::string representative=cluster_ffindex_reader->getDbKey(i);
             char *data = cluster_ffindex_reader->getData(i);
             char *idbuffer = new char[255 + 1];
             double sumofscore =0;
@@ -190,7 +190,7 @@ int main(int argc, char **argv)
                         sumofscore += levenshteinScore;
                         minscore=std::min(levenshteinScore,minscore);
                         maxscore=std::max(levenshteinScore,maxscore);
-                        clusters_full_file << fileprefix << "\t"<<  getProteinNameForID(targetdb_header,representative) << "\t" << getProteinNameForID(targetdb_header,id1.c_str()) << "\t" << getProteinNameForID(targetdb_header,id2.c_str()) << "\t" <<
+                        clusters_full_file << fileprefix << "\t"<<  getProteinNameForID(targetdb_header,representative.c_str()) << "\t" << getProteinNameForID(targetdb_header,id1.c_str()) << "\t" << getProteinNameForID(targetdb_header,id2.c_str()) << "\t" <<
                                                                                                                     levenshteinScore << "\n";
                     }
                 }
@@ -272,7 +272,7 @@ int main(int argc, char **argv)
         for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
+            std::string representative=cluster_ffindex_reader->getDbKey(i);
             char *data = cluster_ffindex_reader->getData(i);
             char *idbuffer = new char[255 + 1];
             double sumofscore =0;
@@ -311,7 +311,7 @@ int main(int argc, char **argv)
                         sumofscore += score;
                         minscore=std::min(score,minscore);
                         maxscore=std::max(score,maxscore);
-                        clusters_full_file << fileprefix << "\t"<<  getProteinNameForID(targetdb_header,representative) << "\t" << getProteinNameForID(targetdb_header,id1.c_str()) << "\t" << getProteinNameForID(targetdb_header,id2.c_str()) << "\t" << score << "\n";
+                        clusters_full_file << fileprefix << "\t"<<  getProteinNameForID(targetdb_header,representative.c_str()) << "\t" << getProteinNameForID(targetdb_header,id1.c_str()) << "\t" << getProteinNameForID(targetdb_header,id2.c_str()) << "\t" << score << "\n";
                     }
                 }
                 if(!allagainstall){
