@@ -85,7 +85,7 @@ int findsorf(int argn, const char **argv)
 
     size_t num_clusters = reader.getSize();
     for (size_t i = 0; i < num_clusters; ++i) {
-        std::string key = reader.getDbKey(i).c_str();
+        std::string key = reader.getDbKey(i);
         std::set<int> speciesSet;
 
         const char* clusters = (const char*)reader.getData(i);

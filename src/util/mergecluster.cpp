@@ -36,7 +36,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     cluStepDbr->open(DBReader::NOSORT);
 
     for (size_t i = 0; i < cluStepDbr->getSize(); i++){
-        std::string clusterId = cluStepDbr->getDbKey(i).c_str();
+        std::string clusterId = cluStepDbr->getDbKey(i);
         size_t cluId = dbr->getId(clusterId.c_str());
         std::stringstream lineSs (cluStepDbr->getData(i));
         std::string val;
@@ -98,7 +98,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
             continue;
 
         // representative
-        std::string dbKey = dbr->getDbKey(i).c_str();
+        std::string dbKey = dbr->getDbKey(i);
 
         std::stringstream res;
         for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){

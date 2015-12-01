@@ -46,7 +46,7 @@ int formatalignment (int argc, const char * argv[])
 
     Debug(Debug::WARNING) << "Start writing file to " << par.db4 << "\n";
     for(size_t i = 0; i < dbr_aln.getSize(); i++){
-        std::string queryKey = dbr_aln.getDbKey(i).c_str();
+        std::string queryKey = dbr_aln.getDbKey(i);
         char * header = q_header.getDataByDBKey(queryKey.c_str());
         char * data = dbr_aln.getData(i);
         std::string queryId = Util::parseFastaHeader(header);

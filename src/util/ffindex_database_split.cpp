@@ -50,7 +50,7 @@ int splitffindex (int argc, const char * argv[])
         }
 
         for(size_t i = startIndex; i < (startIndex + domainSize); i++){
-            std::string outerKey = dbr.getDbKey(i).c_str();
+            std::string outerKey = dbr.getDbKey(i);
             char * data = dbr.getData(i);
             writer.write(data, sizes[i], (char *) outerKey.c_str());
         }
