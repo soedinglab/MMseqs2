@@ -28,27 +28,30 @@ extern "C" {
 #include "Util.h"
 #include "Debug.h"
 
-int runResult2Profile(std::string resultDb, std::string queryDb, std::string targetDb, std::string outDb,
+int runResult2Profile(std::string queryDb, std::string targetDb, std::string resultDb, std::string outDb,
                       std::string subMatPath, int cpu, bool aaBiasCorrection) {
     int err = EXIT_SUCCESS;
 
-    DBReader dbr_cluster_data(resultDb.c_str(), (resultDb + ".index").c_str());
-    dbr_cluster_data.open(DBReader::NOSORT);
-    DBReader * qdbr = NULL;
-    DBReader * tdbr = NULL;
+
     bool sameDatabase = true;
-    qdbr = new DBReader(queryDb.c_str(), (queryDb + ".index").c_str());
+    DBReader * qdbr  = new DBReader(queryDb.c_str(), (queryDb + ".index").c_str());
     qdbr->open(DBReader::NOSORT);
+    DBReader * tdbr = NULL;
     tdbr = qdbr;
     if(queryDb.compare(targetDb) != 0){
         sameDatabase = false;
         tdbr = new DBReader(targetDb.c_str(), (targetDb + ".index").c_str());
         tdbr->open(DBReader::NOSORT);
     }
+
+    DBReader resultdbr(resultDb.c_str(), (resultDb + ".index").c_str());
+    resultdbr.open(DBReader::NOSORT);
+
     DBWriter::errorIfFileExist(outDb.c_str());
     DBWriter::errorIfFileExist((std::string(outDb)+".index").c_str());
     DBWriter dbWriter(outDb.c_str(), (std::string(outDb)+".index").c_str(), cpu, DBWriter::BINARY_MODE);
     dbWriter.open();
+
     // find longest sequence
     size_t maxSeqLen = 0;
     for(size_t i = 0; i < qdbr->getSize(); i++) {
@@ -59,8 +62,8 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
     }
     //Find the max set size
     size_t maxSetSize = 0;
-    for(size_t i = 0; i < dbr_cluster_data.getSize(); i++) {
-        char * data = dbr_cluster_data.getData(i);
+    for(size_t i = 0; i < resultdbr.getSize(); i++) {
+        char * data = resultdbr.getData(i);
         size_t currClusterEntry = 0;
         size_t pos = 0;
         while(data[pos] != '\0'){
@@ -72,20 +75,20 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
         maxSetSize = std::max(maxSetSize, currClusterEntry);
     }
     maxSetSize += 1;
-    SubstitutionMatrix * subMat = new SubstitutionMatrix(subMatPath.c_str(), 2.0, -0.2);
+    SubstitutionMatrix subMat(subMatPath.c_str(), 2.0, -0.2);
     Debug(Debug::WARNING) << "Start computing profiles.\n";
 #pragma omp parallel
     {
-        Matcher aligner(maxSeqLen, subMat, tdbr->getAminoAcidDBSize(), tdbr->getSize(), aaBiasCorrection);
-        MultipleAlignment msaAligner(maxSeqLen, maxSetSize, subMat, &aligner);
-        PSSMCalculator pssmCalculator(subMat, maxSeqLen);
-        Sequence centerSeq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, 0, false);
+        Matcher aligner(maxSeqLen, &subMat, tdbr->getAminoAcidDBSize(), tdbr->getSize(), aaBiasCorrection);
+        MultipleAlignment msaAligner(maxSeqLen, maxSetSize, &subMat, &aligner);
+        PSSMCalculator pssmCalculator(&subMat, maxSeqLen);
+        Sequence centerSeq(maxSeqLen, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0, false);
         Sequence **dbSeqs = new Sequence *[maxSetSize];
         for (size_t i = 0; i < maxSetSize; i++) {
-            dbSeqs[i] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, 0, false);
+            dbSeqs[i] = new Sequence(maxSeqLen, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0, false);
         }
 #pragma omp for schedule(dynamic, 1000)
-        for (size_t id = 0; id < dbr_cluster_data.getSize(); id++) {
+        for (size_t id = 0; id < resultdbr.getSize(); id++) {
             Log::printProgress(id);
 
             int thread_idx = 0;
@@ -94,16 +97,16 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
 #endif
 
             char dbKey[255 + 1];
-            char *data = dbr_cluster_data.getData(id);
-            const char *queryId = dbr_cluster_data.getDbKey(id).c_str();
-            char *seqData = qdbr->getDataByDBKey(queryId);
-            centerSeq.mapSequence(0, (char*)queryId, seqData);
+            char *data = resultdbr.getData(id);
+            std::string queryId = resultdbr.getDbKey(id);
+            char *seqData = qdbr->getDataByDBKey(queryId.c_str());
+            centerSeq.mapSequence(0, (char*)queryId.c_str(), seqData);
             std::vector<Sequence *> seqSet;
             size_t pos = 0;
 
             while (*data != '\0') {
                 Util::parseKey(data, dbKey);
-                if (strcmp(dbKey, queryId) != 0) {
+                if ( (strcmp(dbKey, queryId.c_str()) == 0 && sameDatabase) == false ) {
                     char *dbSeqData = tdbr->getDataByDBKey(dbKey);
                     dbSeqs[pos]->mapSequence(0, dbKey, dbSeqData);
                     seqSet.push_back(dbSeqs[pos]);
@@ -123,7 +126,7 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
             //pssm.printProfile(res.centerLength);
             //pssmCalculator.printPSSM(res.centerLength);
 
-            dbWriter.write(pssmData, pssmDataSize, (char*)queryId, thread_idx);
+            dbWriter.write(pssmData, pssmDataSize, (char*)queryId.c_str(), thread_idx);
             seqSet.clear();
         }
         // clean memeory
@@ -132,9 +135,8 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
         }
         delete[] dbSeqs;
     }
-    delete subMat;
     // close reader
-    dbr_cluster_data.close();
+    resultdbr.close();
     qdbr->close();
     delete qdbr;
     if(sameDatabase == false) {
@@ -148,11 +150,11 @@ int runResult2Profile(std::string resultDb, std::string queryDb, std::string tar
 }
 
 
-int cluster2profile(int argn,const char **argv)
+int result2profile(int argn, const char **argv)
 {
     std::string usage;
     usage.append("Converts a ffindex profile database to ffindex.\n");
-    usage.append("USAGE: <clusteredDB> <queryDB> <targetDB> <outDB>\n");
+    usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
 
     Parameters par;

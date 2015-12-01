@@ -36,9 +36,9 @@ int createfasta (int argc, const char * argv[])
     for(size_t i = 0; i < dbr_data.getSize(); i++){
         
         fwrite(header_start, sizeof(char), 1, fastaFP);
-        const char * key = dbr_data.getDbKey(i).c_str();
+        std::string key = dbr_data.getDbKey(i);
 
-        char * header_data = querydb_header.getDataByDBKey(key);
+        char * header_data = querydb_header.getDataByDBKey(key.c_str());
         fwrite(header_data, sizeof(char), strlen(header_data) - 1, fastaFP);
 
         fwrite(newline, sizeof(char), 1, fastaFP);
@@ -46,7 +46,7 @@ int createfasta (int argc, const char * argv[])
         char * data = dbr_data.getData(i);
         while(*data != '\0') {
             Util::parseKey(data, dbKey);
-            char * header_data = targetdb_header.getDataByDBKey(key);
+            char * header_data = targetdb_header.getDataByDBKey(key.c_str());
             std::string dbkey = Util::parseFastaHeader(header_data);
             fwrite(dbkey.c_str(), sizeof(char), dbkey.length(), fastaFP);
             data = Util::skipLine(data);

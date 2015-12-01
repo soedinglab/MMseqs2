@@ -50,7 +50,7 @@ int translatenucleotide(int argn, const char **argv)
     unsigned int* entries_length = reader.getSeqLens();
     
     for (size_t i = 0; i < entries; ++i) {
-        const char* key = reader.getDbKey(i).c_str();
+        std::string key = reader.getDbKey(i);
         char* data = reader.getData(i);
         
         // ignore null char at the end
@@ -71,7 +71,7 @@ int translatenucleotide(int argn, const char **argv)
                                seqan::GeneticCode<seqan::GeneticCodeSpec::CANONICAL>());
         aa[length/3] = '\n';
         
-        writer.write(aa, (length / 3) + 1, (char*)key);
+        writer.write(aa, (length / 3) + 1, (char*)key.c_str());
     }
     
     writer.close();

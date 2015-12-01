@@ -102,10 +102,6 @@ size_t DBReader::bsearch(const Index * index, size_t N, unsigned int value)
     val.id = value;
     return std::upper_bound(index, index + N, val, Index::compareById) - index;
 
-//    while(key == min){
-//
-//    }
-
 }
 
 

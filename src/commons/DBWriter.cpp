@@ -140,7 +140,7 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
         size_t domainSize = 0;
         Util::decompose_domain(dbr.getSize(), split, splitSize, &startIndex, &domainSize);
         for(size_t i = startIndex; i < (startIndex + domainSize); i++){
-            const char * outerKey = dbr.getDbKey(i).c_str();
+            std::string outerKey = dbr.getDbKey(i);
             char * data = dbr.getData(i);
             if(*data == '\0'){ // check if file contains entry
                 Debug(Debug::ERROR) << "\nSequence " << outerKey
@@ -388,7 +388,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
             thread_idx = omp_get_thread_num();
 #endif
 
-        const char * dbKey = in1.getDbKey(i).c_str();
+        std::string dbKey = in1.getDbKey(i);
         const char * data1 = in1.getData(i);
         const char * data2 = in2.getData(i);
         size_t entry1Size = in1.getSeqLens(i);
@@ -401,7 +401,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
         }
         memcpy(buffer[thread_idx], data1, entry1Size - 1); // -1 for the nullbyte
         memcpy(buffer[thread_idx] + entry1Size -1, data2, entry2Size- 1);
-        this->write(buffer[thread_idx], dataSize - 2, (char*)dbKey, thread_idx);
+        this->write(buffer[thread_idx], dataSize - 2, (char*)dbKey.c_str(), thread_idx);
     }
     for(size_t i = 0; i < maxThreadNum; i++) {
         delete [] buffer[i];

@@ -5,6 +5,6 @@
 int runResult2Profile(std::string resultDb, std::string queryDb, std::string targetDb, std::string outDb,
                       std::string subMatPath, int cpu);
 
-int cluster2profile(int argn,const char **argv);
+int result2profile(int argn, const char **argv);
 
 #endif
