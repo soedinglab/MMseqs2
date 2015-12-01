@@ -33,6 +33,7 @@ static struct Command commands[] = {
         {"legacycs219",         legacycs219},
         {"findsorf",            findsorf},
         {"resulttoprofiledb",   result2profile},
+        {"rebuildfasta", rebuildfasta},
         {"splitffindex",        splitffindex}
 };
 
@@ -61,6 +62,7 @@ void printUsage() {
             "extractorf         \tExtract all open reading frames from a nucleotide fasta file into a ffindex database\n"
             "translatenucleotide\tTranslate nucleotide sequences into aminoacid sequences in a ffindex database\n"
             "legacycs219        \tTranslates a cs219 ffindex database into its legacy format. This tool is part of the mmseqs-based HH-suite database pipeline\n"
+            "rebuildfasta       \tRebuild a fasta file from a ffindex database\n"
     );
     Debug(Debug::INFO) << usage << "\n";
 }

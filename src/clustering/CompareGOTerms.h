@@ -19,7 +19,7 @@ class CompareGOTerms{
 public:
 
     void init();
-    CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder);
+    CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder, std::string sequencedb);
 //runmodes
     void all_against_all_comparison();
     void all_against_all_comparison_proteinset();
@@ -38,6 +38,8 @@ private:
     DBReader* go_ffindex_reader;
 
     DBReader* protid_go_ffindex_reader;
+
+    DBReader* targetdb_header;
 
     std::string evaluationfolder;
 
@@ -79,6 +81,7 @@ private:
     double similarity_of_list(std::list<int>ids1,std::list<int>ids2);
 
     std::list <int> getGOListforProtein(const char * protid);
+    std::string getProteinNameForID(const char * dbKey);
 };
 
 #endif //MMSEQS_COMPAREGOTERMS_H

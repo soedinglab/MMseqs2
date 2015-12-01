@@ -150,10 +150,8 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
             if(!(frames & frameLookup[frame])) {
                 continue;
             }
-
-            // dont check for if we are inside a frame here
-            // we want the shortest frame
-            if(isStart(codon)) {
+            
+            if(!isInsideOrf[frame] && isStart(codon)) {
                 isInsideOrf[frame] = true;
                 from[frame] = position;
 

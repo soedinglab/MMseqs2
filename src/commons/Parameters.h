@@ -124,11 +124,17 @@ public:
     int orfMinLength;
     int orfMaxLength;
     int orfMaxGaps;
-    bool   orfUseNumericIndices;
     bool   orfSkipIncomplete;
 
     // CREATE PROFILE
     int profileMode;
+
+    // createdb
+    bool useHeader;
+    int identifierOffset;
+
+    // rebuildfasta
+    bool useHeaderFile;
 
     // CLUSTERING WORKFLOW
     int restart;
@@ -226,7 +232,13 @@ public:
     PARAMETER(PARAM_ORF_MAX_LENGTH);
     PARAMETER(PARAM_ORF_MAX_GAP);
     PARAMETER(PARAM_ORF_SKIP_INCOMPLETE);
-    PARAMETER(PARAM_ORF_NUMERIC_INDICES);
+
+    // createdb
+    PARAMETER(PARAM_USE_HEADER); // also used by extractorf
+    PARAMETER(PARAM_ID_OFFSET);  // same
+
+    // rebuildfasta
+    PARAMETER(PARAM_USE_HEADER_FILE)
     
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createprofiledb;
@@ -234,6 +246,8 @@ public:
     std::vector<MMseqsParameter> splitffindex;
     std::vector<MMseqsParameter> createindex;
     std::vector<MMseqsParameter> formatalignment;
+    std::vector<MMseqsParameter> createdb;
+    std::vector<MMseqsParameter> rebuildfasta;
 
     std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
                                               std::vector < MMseqsParameter > par2);
