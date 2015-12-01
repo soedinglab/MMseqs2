@@ -227,8 +227,8 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
     seqsWithoutMatches = 0;
     char* buf = new char[1000000];
     for (unsigned int i = 0; i < BADbr->getSize(); i++){
-        const char* qKey = BADbr->getDbKey(i).c_str();
-        unsigned int qId = currSeqDbr->getId(qKey);
+        std::string qKey = BADbr->getDbKey(i).c_str();
+        unsigned int qId = currSeqDbr->getId(qKey.c_str());
 
         // find out which cluster the sequence belongs to
         char* alnData = BADbr->getData(i);
@@ -263,7 +263,7 @@ void appendToClustering(DBReader* currSeqDbr, std::string BIndexFile, std::strin
             seqsWithMatches++;
         }
         else{
-            ffindex_entry_t* e = ffindex_get_entry_by_name(Bindex, (char*)qKey);
+            ffindex_entry_t* e = ffindex_get_entry_by_name(Bindex, (char*)qKey.c_str());
             fprintf(Brest_index_file, "%s\t%zd\t%zd\n", e->name, e->offset, e->length);
 
             seqsWithoutMatches++;

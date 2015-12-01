@@ -348,7 +348,7 @@ void Parameters::setDefaults() {
     mask = false;
 
     spacedKmer = true;
-    searchMode = true;
+    searchMode = SEARCH_LOCAL_FAST;
     profile = false;
     nucl = false;
     zscoreThr = 50.0f;

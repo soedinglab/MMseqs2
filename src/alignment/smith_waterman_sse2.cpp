@@ -48,6 +48,7 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
 	maxColumn = new uint8_t[maxSequenceLength*sizeof(uint16_t)];
 	memset(maxColumn, 0, maxSequenceLength*sizeof(uint16_t));
 	workspace = new scores[maxSequenceLength * 2  + 2];
+	memset(workspace, 0, sizeof(scores) * 2 + 2 * sizeof(scores));
 	btMatrix = new unsigned char[(maxSequenceLength*maxSequenceLength)/4];
 }
 

@@ -33,7 +33,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
     for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
         int clustersize=0;
-        const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
+        std::string representative=cluster_ffindex_reader->getDbKey(i).c_str();
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
         while (*data != '\0') {
@@ -76,7 +76,7 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
     for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-        const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
+        std::string representative=cluster_ffindex_reader->getDbKey(i).c_str();
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
         char *linebuffer=new char[255+1];
@@ -93,7 +93,7 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
             data = Util::skipLine(data);
         }
 
-        char *data_alignment = alignment_ffindex_reader->getDataByDBKey(representative);
+        char *data_alignment = alignment_ffindex_reader->getDataByDBKey(representative.c_str());
         if (data_alignment== NULL) {
           //  Debug(Debug::INFO) <<representative<<"\n";
             continue;
@@ -234,7 +234,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
     outfile_stream<<"algorithm\tclusterid\tid2\tdomain_score\n";
     for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
-        const char *representative=cluster_ffindex_reader->getDbKey(i).c_str();
+        std::string representative=cluster_ffindex_reader->getDbKey(i).c_str();
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
         char *linebuffer=new char[255+1];
@@ -251,7 +251,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
             data = Util::skipLine(data);
         }
 
-        char *data_alignment = alignment_ffindex_reader->getDataByDBKey(representative);
+        char *data_alignment = alignment_ffindex_reader->getDataByDBKey(representative.c_str());
         if (data_alignment== NULL) {
             //  Debug(Debug::INFO) <<representative<<"\n";
             continue;
@@ -273,7 +273,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
         for(std::string id :clusterset){
             strncpy(idbuffer, id.c_str(), id.length());
             idbuffer[id.length()] = '\0';
-            if(strcmp(representative,id.c_str())==0||clusterset2.find(id)!= clusterset2.end()){
+            if(strcmp(representative.c_str(),id.c_str())==0||clusterset2.find(id)!= clusterset2.end()){
 
             }else{
                 if(alignment_ffindex_reader->getDataByDBKey(idbuffer)!=NULL){

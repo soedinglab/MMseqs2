@@ -107,7 +107,7 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
         std::stringstream res;
         set::element * element =(*iterator)->elements;
         // first entry is the representative sequence
-        const char* dbKey = seqDbr->getDbKey(element->element_id).c_str();
+        std::string dbKey = seqDbr->getDbKey(element->element_id);
 
         do{
             std::string nextDbKey = seqDbr->getDbKey(element->element_id);
@@ -125,7 +125,7 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
             outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->write(outBuffer, cluResultsOutString.length(), (char*)dbKey);
+        dbw->write(outBuffer, cluResultsOutString.length(), (char*)dbKey.c_str());
     }
     delete[] outBuffer;
 }
