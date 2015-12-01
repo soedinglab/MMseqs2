@@ -34,7 +34,7 @@ int createtsv (int argc, const char * argv[])
     char * dbKey = new char[par.maxSeqLen + 1];
 
     for(size_t i = 0; i < dbr_data.getSize(); i++){
-        std::string queryKey = dbr_data.getDbKey(i).c_str();
+        std::string queryKey = dbr_data.getDbKey(i);
 
         char * header_data = querydb_header.getDataByDBKey(queryKey.c_str());
         std::string queryHeader = Util::parseFastaHeader(header_data);

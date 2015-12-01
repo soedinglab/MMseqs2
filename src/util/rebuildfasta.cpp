@@ -53,15 +53,15 @@ int rebuildfasta(int argc, const char * argv[])
 
     Debug(Debug::INFO) << "Start writing file to " << par.db2 << "\n";
     for(size_t i = 0; i < from.getSize(); i++){
-        const char* key = from.getDbKey(i).c_str();
+        std::string key = from.getDbKey(i);
 
-        const char* header_data = db_header.getDataByDBKey(key);
+        const char* header_data = db_header.getDataByDBKey(key.c_str());
 
         fwrite(header_start, sizeof(char), 1, fastaFP);
         fwrite(header_data, sizeof(char), strlen(header_data) - 1, fastaFP);
         fwrite(newline, sizeof(char), 1, fastaFP);
 
-        const char* body_data = db.getDataByDBKey(key);
+        const char* body_data = db.getDataByDBKey(key.c_str());
         fwrite(body_data, sizeof(char), strlen(body_data) - 1, fastaFP);
         fwrite(newline, sizeof(char), 1, fastaFP);
 

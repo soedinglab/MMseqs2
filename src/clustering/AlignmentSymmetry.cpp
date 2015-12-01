@@ -133,7 +133,7 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
             Log::printProgress(i);
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            std::string clusterId = seqDbr->getDbKey(i).c_str();
+            std::string clusterId = seqDbr->getDbKey(i);
             char *data = alnDbr->getDataByDBKey(clusterId.c_str());
 
             if (*data == '\0') { // check if file contains entry
@@ -174,7 +174,7 @@ void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned 
             Log::printProgress(i);
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            std::string clusterId = seqDbr->getDbKey(i).c_str();
+            std::string clusterId = seqDbr->getDbKey(i);
             char *data = alnDbr->getDataByDBKey(clusterId.c_str());
 
             if (*data == '\0') { // check if file contains entry
@@ -347,7 +347,7 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
 #endif
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            std::string clusterId = seqDbr->getDbKey(set_i).c_str();
+            std::string clusterId = seqDbr->getDbKey(set_i);
             size_t setiIdlength = clusterId.length();
 
             const size_t alnId = alnDbr->getId(clusterId.c_str());
@@ -360,7 +360,7 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
             if(newElementSize > oldElementSize){
                 for(size_t j = oldElementSize; j < newElementSize; j++){
                     const unsigned int set_j = elementLookupTable[set_i][j];
-                    std::string clusterId = seqDbr->getDbKey(set_j).c_str();
+                    std::string clusterId = seqDbr->getDbKey(set_j);
                     const size_t alnId = alnDbr->getId(clusterId.c_str());
                     char * setJData = alnDbr->getData(alnId);
 

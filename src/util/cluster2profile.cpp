@@ -98,7 +98,7 @@ int runResult2Profile(std::string queryDb, std::string targetDb, std::string res
 
             char dbKey[255 + 1];
             char *data = resultdbr.getData(id);
-            std::string queryId = resultdbr.getDbKey(id).c_str();
+            std::string queryId = resultdbr.getDbKey(id);
             char *seqData = qdbr->getDataByDBKey(queryId.c_str());
             centerSeq.mapSequence(0, (char*)queryId.c_str(), seqData);
             std::vector<Sequence *> seqSet;
