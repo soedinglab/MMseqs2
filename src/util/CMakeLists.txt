@@ -17,6 +17,7 @@ set(util_source_files
   convertfiles.cpp
   format_alignment.cpp
   ffindex2tsv.cpp
+  rebuildfasta.cpp
 )
 add_library(util ${util_source_files} )
 

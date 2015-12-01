@@ -24,4 +24,5 @@ extern int cluster2profile(int argc, const char **argv);
 extern int splitffindex(int argc, const char **argv);
 extern int formatalignment(int argc, const char **argv);
 extern int createtsv(int argc, const char **argv);
+extern int rebuildfasta(int argc, const char **argv);
 #endif
