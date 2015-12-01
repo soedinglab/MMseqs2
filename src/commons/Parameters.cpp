@@ -291,10 +291,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             printUsageMessage(programUsageHeader, par);
             Debug(Debug::INFO) << "Unrecognized parameters!" << "\n";
             EXIT(EXIT_FAILURE);
-            break;
     }
-    if(printPar == true)
+    if(printPar == true) {
         printParameters(argc, pargv, par);
+    }
 }
 
 void Parameters::printParameters(int argc, const char* pargv[],
