@@ -23,6 +23,10 @@ int main(int argc, char **argv)
         printHelp();
 
     }
+    for(int i=0;i<argc;i++){
+        Debug(Debug::INFO)<<argv[i]<<" ";
+    }
+    Debug(Debug::INFO)<<"\n";
    // for (int k = 0; k < 8; ++k) {
     //    Debug(Debug::INFO) << argv[k] <<"\n";
     //}
@@ -410,6 +414,10 @@ int main(int argc, char **argv)
             printHelp();
 
         }
+        for(int i=0;i<argc;i++){
+            Debug(Debug::INFO)<<argv[i]<<" ";
+        }
+        Debug(Debug::INFO)<<"\n";
         std::string seqDbfile = argv[2];
         std::string alignmentfile = argv[3];
         std::string outputfile = argv[4];
