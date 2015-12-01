@@ -365,7 +365,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                         sumofscore += score;
                         minscore=std::min(score,minscore);
                         maxscore=std::max(score,maxscore);
-                        clusters_full_file << fileprefix << "\t"<< filesuffix<< "\t"<< getProteinNameForID(representative) << "\t" << getProteinNameForID(id1.c_str()) << "\t" << getProteinNameForID(id2.c_str()) << "\t" << score << "\n";
+                        clusters_full_file << fileprefix << "\t"<< filesuffix<< "\t"<< getProteinNameForID(representative.c_str()) << "\t" << getProteinNameForID(id1.c_str()) << "\t" << getProteinNameForID(id2.c_str()) << "\t" << score << "\n";
                     }
                 }
                 if(!allagainstall){
@@ -388,7 +388,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                 clusterwithoutgo++;
             }
        // if(idswithgo.size()>0) {
-            clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << getProteinNameForID(representative) << "\t" <<
+            clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << getProteinNameForID(representative.c_str()) << "\t" <<
                                                    withgo + withoutgo << "\t" << withgo << "\t" << withoutgo << "\t" <<
                     averagescore << "\t" << minscore << "\t" << maxscore << "\n";
         //}
