@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 
 
 
-        for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
+        for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
             std::string representative=cluster_ffindex_reader->getDbKey(i);
@@ -199,13 +199,6 @@ int main(int argc, char **argv)
                 }
 
             }
-            double averagescore;
-            if(allagainstall){
-                averagescore=(sumofscore / (idswithproteinname.size()* idswithproteinname.size()- idswithproteinname.size()));
-            }else{
-                averagescore=sumofscore /(idswithproteinname.size()-1);
-            }
-
 
         }
 
@@ -269,7 +262,7 @@ int main(int argc, char **argv)
 
 
 
-        for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
+        for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
             std::string representative=cluster_ffindex_reader->getDbKey(i);

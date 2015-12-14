@@ -50,7 +50,7 @@ int main (int argc, const char * argv[])
     std::string tim1 = "MTKPVLQDGETVVCQGTHAAIASELQAIAPEVAQSLAEFFAVLADPNRLRLLSLLARSEL"
             "CVGDLAQAIGVSESAVSHQLRSLRNLRLVSYRKQGRHVYYQLQDHHIVALYQNALDHLQE"
             "CR";
-    std::string tim2 = "MTMSDTDRSVEKRAATTRAITAAVVSAAVAVLFSALPARSEISELRARDAAIALSRGDSV    "
+    std::string tim2 = "MTMSDTDRSVEKRAATTRAITAAVVSAAVAVLFSALPARSEISELRARDAAIALSRGDSV"
             "AAVDHYTAILAEENIPDDRRATLLNDRAVAYVRLGKTREAIEDYNKAVVLFPEYAAVYNN"
             "RGNLLMALGLHGEALKDFNRAIALAPGYAAAYNNRAGAQSRLGHADDAIRDYTRAIKLMP"
             "SSPAPLAGRGKAYLSQDRPHAAIRDFSRAVGADARFATGYRNRAEAKIEVAHYNEAIEDL"
@@ -71,8 +71,8 @@ int main (int argc, const char * argv[])
     dbSeq->mapSequence(1,"lala2",tim2.c_str());
     SmithWaterman aligner(15000, subMat.alphabetSize, false);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
-    for (size_t i = 0; i < subMat.alphabetSize; i++) {
-        for (size_t j = 0; j < subMat.alphabetSize; j++) {
+    for (int i = 0; i < subMat.alphabetSize; i++) {
+        for (int j = 0; j < subMat.alphabetSize; j++) {
             std::cout << ( i*subMat.alphabetSize + j) << " " << subMat.subMatrix[i][j] << " ";
 
             tinySubMat[i*subMat.alphabetSize + j] = (int8_t)subMat.subMatrix[i][j];

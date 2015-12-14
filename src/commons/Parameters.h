@@ -93,7 +93,6 @@ public:
     bool   profile;                      // using profile information
     bool   nucl;                         // using nucl informatoin
     bool   compBiasCorrection;           // Aminoacid composiont correction
-    bool   mask;                         // Mask kmer index or sequence
     int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB (MPI only)
@@ -198,7 +197,6 @@ public:
     PARAMETER(PARAM_SUB_MAT);
     PARAMETER(PARAM_SEARCH_MODE);
     PARAMETER(PARAM_NO_COMP_BIAS_CORR);
-    PARAMETER(PARAM_MASK);
     PARAMETER(PARAM_SPACED_KMER_MODE);
     PARAMETER(PARAM_KEEP_TEMP_FILES);
     std::vector<MMseqsParameter> prefilter;

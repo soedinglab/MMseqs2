@@ -1,16 +1,13 @@
 #include "Prefiltering.h"
 #include "PrefilteringIndexReader.h"
 #include "Util.h"
-#include "IndexTableGlobal.h"
-#include "IndexTableLocal.h"
-#include "QueryTemplateMatcherGlobal.h"
+#include "IndexTable.h"
 #include "QueryTemplateMatcherExactMatch.h"
 #include "QueryTemplateMatcherLocal.h"
 #include "QueryTemplateMatcher.h"
 #include "QueryScore.h"
 
 #include <cstddef>
-#include <Seg.h>
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -35,7 +32,6 @@ Prefiltering::Prefiltering(std::string queryDB,
         maxSeqLen(par.maxSeqLen),
         querySeqType(par.querySeqType),
         targetSeqType(par.targetSeqType),
-        mask(par.mask),
         aaBiasCorrection(par.compBiasCorrection),
         split(par.split),
         splitMode(par.splitMode),
@@ -193,16 +189,18 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
         DBWriter writer(out.first.c_str(), out.second.c_str(), threads);
         writer.open();
         writer.mergeFilePair(file1.first.c_str(), file1.second.c_str(), file2.first.c_str(), file2.second.c_str());
+        // remove split
         remove(file1.first.c_str()); remove(file1.second.c_str());
         remove(file2.first.c_str()); remove(file2.second.c_str());
         writer.close();
+        // push back the current merge to result to the end
         files.push_back(out);
         mergeStep++;
         if(files.size() == 1 )
             break;
     }
     std::pair<std::string, std::string> out = files.front();
-    std::cout << out.first  << " " << out.second << std::endl;
+    Debug(Debug::WARNING) << out.first  << " " << out.second << "\n";
 
     std::rename(out.first.c_str(),  outDB.c_str());
     std::rename(out.second.c_str(), outDBIndex.c_str());
@@ -240,7 +238,6 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs) {
     }
 }
 
-
 QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
                                                                  unsigned int *seqLens, short kmerThr,
                                                                  double kmerMatchProb, int kmerSize,
@@ -265,9 +262,8 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
                                                                       kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
                                                                       maxHitsPerQuery, aaBiasCorrection);
         } else {
-            matchers[thread_idx] = new QueryTemplateMatcherGlobal(m, indexTable, seqLens, kmerThr,
-                                                                  kmerMatchProb, kmerSize, effectiveKmerSize, dbSize,
-                                                                  aaBiasCorrection, maxSeqLen, zscoreThr);
+            Debug(Debug::ERROR) << "Seach mode is not valid.\n";
+            EXIT(EXIT_FAILURE);
         }
         if(querySeqType == Sequence::HMM_PROFILE){
             matchers[thread_idx]->setProfileMatrix(qseq[thread_idx]->profile_matrix);
@@ -277,12 +273,13 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
     }
     return matchers;
 }
+
 IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     if(templateDBIsIndex == true ){
         return PrefilteringIndexReader::generateIndexTable(tidxdbr, split);
     }else{
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer);
-        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, skip, mask);
+        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, skip);
     }
 }
 
@@ -313,7 +310,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     // create index table based on split parameter
     // run small query sample against the index table to calibrate p-match
     std::pair<short, double> calibration;
-    calibration = setKmerThreshold(indexTable, qdbr, tdbr, sensitivity, 0.1, kmerScore);
+    calibration = setKmerThreshold(indexTable, qdbr, tdbr, sensitivity, kmerScore);
     //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
     this->kmerThr = calibration.first;
     this->kmerMatchProb = calibration.second;
@@ -436,7 +433,6 @@ void Prefiltering::closeReader(){
         tidxdbr->close();
 }
 
-
 // write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
                                        std::pair<hit_t *, size_t> prefResults, size_t seqIdOffset) {
@@ -520,7 +516,6 @@ BaseMatrix * Prefiltering:: getSubstitutionMatrix(std::string scoringMatrixFile,
     return subMat;
 }
 
-
 void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
                                             IndexTable* indexTable,
                                             size_t dbFrom, size_t dbTo){
@@ -535,7 +530,6 @@ void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
         indexTable->addKmerCount(seq);
     }
 }
-
 
 void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * indexTable,
                                 size_t dbFrom, size_t dbTo)
@@ -563,29 +557,25 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
 
     Debug(Debug::INFO) << "Index table: removing duplicate entries...\n";
     indexTable->revertPointer();
-    indexTable->removeDuplicateEntries();
     Debug(Debug::INFO) << "Index table init done.\n\n";
 
 }
 
-
 IndexTable * Prefiltering::generateIndexTable(DBReader *dbr, Sequence *seq, int alphabetSize, int kmerSize,
-                                                   size_t dbFrom, size_t dbTo, int searchMode, int skip, bool mask) {
+                                              size_t dbFrom, size_t dbTo, int searchMode, int skip) {
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
     IndexTable * indexTable;
     if (searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST) {
-        indexTable = new IndexTableLocal(alphabetSize, kmerSize, skip);
+        indexTable = new IndexTable(alphabetSize, kmerSize, skip);
     } else{
-        indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
+        Debug(Debug::ERROR) << "Seach mode is not valid.\n";
+        EXIT(EXIT_FAILURE);
     }
 
+
     countKmersForIndexTable(dbr, seq, indexTable, dbFrom, dbTo);
-    Debug(Debug::INFO) << "\n";
-    if(mask == true){
-        maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
-    }
     Debug(Debug::INFO) << "\n";
 
     fillDatabase(dbr, seq, indexTable, dbFrom, dbTo);
@@ -602,8 +592,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable,
                                                         DBReader *qdbr,
                                                         DBReader *tdbr,
                                                         int sensitivity,
-                                                        double toleratedDeviation, const int kmerScore) {
-
+                                                        const int kmerScore) {
     size_t targetDbSize = indexTable->getSize();
     size_t targetSeqLenSum = 0;
     for (size_t i = 0; i < targetDbSize; i++){
@@ -629,15 +618,13 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable,
 
     const unsigned int sens =  sensitivity;
 
-    kmerThrBest =  kmerScore;
+    kmerThrBest = kmerScore;
     if(kmerThrBest == INT_MAX){
         if (kmerSize == 5){
             kmerThrBest = 115 - (sens * 5);
-        }
-        if (kmerSize == 6){
+        } else if (kmerSize == 6){
             kmerThrBest = 125 - (sens * 5);
-        }
-        else if (kmerSize == 7){
+        } else if (kmerSize == 7){
             kmerThrBest = 135 - (sens * 5);
         }
         else{
@@ -726,74 +713,4 @@ void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> s
         }
         DBWriter::mergeFFindexFile(outDB.c_str(), outDBIndex.c_str(), "w", datafilesNames, indexFilesNames, splitFiles.size() );
     }
-}
-
-void Prefiltering::maskLowComplexKmer(IndexTable *indexTable, int kmerSize, int alphabetSize, char * int2aa) {
-    Debug(Debug::INFO) << "Index table: masking k-mers...\n";
-    size_t deleteCnt = 0;
-    size_t deletedKmer = 0;
-//
-    size_t tableSize = Util::ipow(alphabetSize, kmerSize);
-    size_t kmerSum = 0.0;
-//    size_t maxKmerSize = 0.0;
-    for (size_t kmer = 0; kmer < tableSize; kmer++) {
-        kmerSum += (size_t) indexTable->getTable(kmer);
-//        maxKmerSize = std::max((size_t) indexTable->getTable(kmer), maxKmerSize);
-    }
-    double avgKmer = ((double)kmerSum) / ((double)tableSize);
-//    std::cout << "Max: " << maxKmerSize << std::endl;
-//    unsigned int * hist = new unsigned int[maxKmerSize];
-//    memset(hist,0 ,maxKmerSize *sizeof(unsigned int));
-//    for (size_t kmer = 0; kmer < tableSize; kmer++) {
-//        size_t kmerSize = (size_t) indexTable->getTable(kmer);
-////        hist[kmerSize]++;
-//        if(kmerSize > avgKmer * 50){
-//                    deleteCnt++;
-//                    // remove low compl. kmer from table
-//                    deletedKmer += kmerSize;
-//                    indexTable->setTable(kmer, 0);
-//        }
-//    }
-//    for (size_t i = 0; i < maxKmerSize; i++) {
-//        if(hist[i] != 0){
-//            std::cout << i << " " << hist[i] << std::endl;
-//        }
-//    }
-
-#pragma omp parallel
-    {
-        char * tmpKmer = new char[kmerSize];
-        int * intSeq = new int[kmerSize];
-        Indexer indexer(alphabetSize, kmerSize);
-        Seg seg(kmerSize, kmerSize);
-#pragma omp for schedule(static) reduction (+: deleteCnt, deletedKmer)
-        for (size_t kmer = 0; kmer < tableSize; kmer++) {
-            indexer.index2int(intSeq, kmer, kmerSize);
-            for (int kmerPos = 0; kmerPos < kmerSize; kmerPos++) {
-                tmpKmer[kmerPos] = int2aa[intSeq[kmerPos]];
-            }
-            // mask the kmer
-            char *seqMask = seg.maskseq(tmpKmer);
-            int lowComplexCount = 0;
-            for (int kmerPos = 0; kmerPos < kmerSize; kmerPos++) {
-                if (seqMask[kmerPos] == 'X') {
-                    lowComplexCount++;
-                }
-            }
-            if (lowComplexCount >= kmerSize ) {
-                size_t kmerSize = (size_t)indexTable->getTable(kmer);
-                if(avgKmer*4 < kmerSize){
-                    deleteCnt++;
-                    // remove low compl. kmer from table
-                    deletedKmer += kmerSize;
-                    indexTable->setTable(kmer, 0);
-                }
-            }
-        }
-        delete[] intSeq;
-        delete[] tmpKmer;
-    }
-    Debug(Debug::INFO) << "Index table: masked "<< deleteCnt <<" out of "<< tableSize << " k-mer. ";
-    Debug(Debug::INFO) << "Deleted "<< deletedKmer <<" out of "<< indexTable->getTableEntriesNum() << " k-mer.\n";
-
 }

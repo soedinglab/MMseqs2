@@ -31,7 +31,6 @@ int main (int argc, const char * argv[])
     std::cout <<  std::endl;
     std::cout << "ExtSupMatrix:"<< std::endl;
 
-    const int  testSeq[]={1,2,3,1,1,1};
     ExtendedSubstitutionMatrix extMattwo(subMat.subMatrix, 2,subMat.alphabetSize);
     ExtendedSubstitutionMatrix extMatthree(subMat.subMatrix, 3,subMat.alphabetSize);
 

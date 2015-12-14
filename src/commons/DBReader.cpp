@@ -118,7 +118,7 @@ char* DBReader::getData (size_t id){
         EXIT(EXIT_FAILURE);
     }
 
-    if (index[id].data - data >= dataSize){
+    if ((size_t) (index[id].data - data) >= dataSize){
         Debug(Debug::ERROR) << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
         Debug(Debug::ERROR) << "getData: global id (" << id << ")\n";
         Debug(Debug::ERROR) << "Size of data: " << dataSize << "\n";

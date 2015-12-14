@@ -33,7 +33,7 @@ int createindex (int argc, const char * argv[])
 
     Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, par.kmerSize, par.spacedKmer);
 
-    PrefilteringIndexReader::createIndexFile(par.db2, par.db2Index, &dbr, &seq, par.split, subMat->alphabetSize, par.kmerSize, par.skip, par.spacedKmer, par.searchMode, par.mask);
+    PrefilteringIndexReader::createIndexFile(par.db2, par.db2Index, &dbr, &seq, par.split, subMat->alphabetSize, par.kmerSize, par.skip, par.spacedKmer, par.searchMode);
 
     // write code
     dbr.close();

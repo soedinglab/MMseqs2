@@ -241,7 +241,7 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
     for(size_t setId = 0; setId < dbSize; setId++) {
         size_t elementSize = (offsetTable[setId + 1] - offsetTable[setId]);
         offsetTable[setId] = elementSize;
-        for (size_t thread_idx = 0; thread_idx < threads; thread_idx++) {
+        for (int thread_idx = 0; thread_idx < threads; thread_idx++) {
             offsetTable[setId] += tmpSize[setId * threads + thread_idx];
         }
         symmetricElementCount += offsetTable[setId];

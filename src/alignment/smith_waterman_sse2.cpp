@@ -128,7 +128,7 @@ s_align* SmithWaterman::ssw_align (
 		const int32_t maskLen) {
 
 	alignment_end* bests = 0, *bests_reverse = 0;
-	int32_t word = 0, band_width = 0, query_length = profile->query_length;
+	int32_t word = 0, query_length = profile->query_length;
 	cigar* path;
 	s_align* r = new s_align;
 	r->dbStartPos1 = -1;
@@ -214,9 +214,6 @@ s_align* SmithWaterman::ssw_align (
 		goto end;
 
 	// Generate cigar.
-	db_length = r->dbEndPos1 - r->dbStartPos1 + 1;
-	query_length = r->qEndPos1 - r->qStartPos1 + 1;
-	band_width = abs(db_length - query_length) + 1;
 	path = banded_sw(db_sequence,(const short **) profile->profile_word_linear, r->qStartPos1, r->qEndPos1 + 1,
 					 r->dbStartPos1, r->dbEndPos1 + 1, gap_open, gap_extend);
 

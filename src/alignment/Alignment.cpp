@@ -13,7 +13,6 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
-    this->mask = par.mask;
     if(this->covThr == 0.0 && this->seqIdThr == 0.0){
         Debug(Debug::WARNING) << "Compute score only.\n";
         this->mode = Matcher::SCORE_ONLY; //fastest
@@ -37,14 +36,11 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
 #endif
 
     qSeqs = new Sequence*[threads];
-    seg = new Seg*[threads]; ;
-
     dbSeqs = new Sequence*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
         qSeqs[i]  = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.querySeqType, 0, false);
         dbSeqs[i] = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.targetSeqType, 0, false);
-        seg[i] = new Seg(12, par.maxSeqLen);
     }
 
     // open the sequence, prefiltering and output databases
@@ -82,7 +78,6 @@ Alignment::~Alignment(){
     for (int i = 0; i < threads; i++){
         delete qSeqs[i];
         delete dbSeqs[i];
-        delete seg[i];
         delete matchers[i];
         delete[] dbKeys[i];
         delete[] outBuffers[i];
@@ -90,7 +85,6 @@ Alignment::~Alignment(){
 
     delete[] qSeqs;
     delete[] dbSeqs;
-    delete[] seg;
     delete[] matchers;
     delete[] dbKeys;
     delete[] outBuffers;
@@ -170,9 +164,6 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 "Please check your database.\n";
                 EXIT(1);
             }
-        }
-        if(this->mask == true && qSeqs[thread_idx]->getSeqType() == Sequence::AMINO_ACIDS ){
-            querySeqData = seg[thread_idx]->maskseq(querySeqData);
         }
         qSeqs[thread_idx]->mapSequence(id, (char*)queryDbKeyStr.c_str(), querySeqData);
         matchers[thread_idx]->initQuery(qSeqs[thread_idx]);

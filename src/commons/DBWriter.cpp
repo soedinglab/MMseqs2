@@ -189,7 +189,7 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
     std::string tmp_name_index = (tmp_name + ".index");
     FILE* all_index = fopen(tmp_name_index.c_str(), "w");
     for(SwapIt it = swapMap.begin(); it != swapMap.end(); it++) {
-        fprintf(all_index, "%s\t%zd\t%zd\n", it->first.c_str(), 0, 0);
+        fprintf(all_index, "%s\t%d\t%d\n", it->first.c_str(), 0, 0);
     }
     fclose(all_index);
     swapMap.clear();
@@ -378,7 +378,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
     char ** buffer = new char*[maxThreadNum]; //6MB
 
 #pragma omp parallel for schedule(static)
-    for(size_t i = 0; i < maxThreadNum; i++){
+    for(int i = 0; i < maxThreadNum; i++){
         buffer[i] = new char[6400000]; //6MB
     }
 #pragma omp parallel for schedule(static)
@@ -403,7 +403,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
         memcpy(buffer[thread_idx] + entry1Size -1, data2, entry2Size- 1);
         this->write(buffer[thread_idx], dataSize - 2, (char*)dbKey.c_str(), thread_idx);
     }
-    for(size_t i = 0; i < maxThreadNum; i++) {
+    for(int i = 0; i < maxThreadNum; i++) {
         delete [] buffer[i];
     }
     delete [] buffer;

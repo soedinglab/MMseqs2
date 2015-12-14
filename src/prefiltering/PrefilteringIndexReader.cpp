@@ -1,8 +1,6 @@
 #include "PrefilteringIndexReader.h"
 #include "DBWriter.h"
 #include "Prefiltering.h"
-#include "IndexTableGlobal.h"
-#include "IndexTableLocal.h"
 
 const char *PrefilteringIndexReader::CURRENT_VERSION="2.0.0";
 const char *PrefilteringIndexReader::VERSION = "0";
@@ -22,7 +20,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader *reader) {
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader *dbr, Sequence *seq,
                                               int split, int alphabetSize, int kmerSize, int skip, bool hasSpacedKmer,
-                                              int searchMode, bool mask) {
+                                              int searchMode) {
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
     writer.open();
     int stepCnt = split;
@@ -34,15 +32,12 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
                 step, stepCnt, &splitStart, &splitSize);
         IndexTable *indexTable;
         if (searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST) {
-            indexTable = new IndexTableLocal(alphabetSize, kmerSize, skip);
+            indexTable = new IndexTable(alphabetSize, kmerSize, skip);
         }else{
-            indexTable = new IndexTableGlobal(alphabetSize, kmerSize, skip);
+            Debug(Debug::ERROR) << "Seach mode is not valid.\n";
+            EXIT(EXIT_FAILURE);
         }
         Prefiltering::countKmersForIndexTable(dbr, seq, indexTable, splitStart, splitStart + splitSize);
-        Debug(Debug::INFO) << "\n";
-        if(mask == true){
-            Prefiltering::maskLowComplexKmer(indexTable, kmerSize, alphabetSize, seq->int2aa);
-        }
         Debug(Debug::INFO) << "\n";
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize);
 
@@ -122,11 +117,12 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader *dbr, int split
 
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
-    if (data.local)
-        retTable = new IndexTableLocal(data.alphabetSize, data.kmerSize, data.skip);
-    else
-        retTable = new IndexTableGlobal(data.alphabetSize, data.kmerSize, data.skip);
-
+    if (data.local) {
+        retTable = new IndexTable(data.alphabetSize, data.kmerSize, data.skip);
+    }else {
+        Debug(Debug::ERROR) << "Seach mode is not valid.\n";
+        EXIT(EXIT_FAILURE);
+    }
     retTable->initTableByExternalData(entriesNum[0], entrieSizes, entries, tableSize[0]);
     dbr->unmapData();
     return retTable;
