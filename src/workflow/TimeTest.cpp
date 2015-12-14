@@ -1,14 +1,13 @@
 #include "TimeTest.h"
-#include "QueryTemplateMatcherGlobal.h"
 #include "QueryTemplateMatcherLocal.h"
 
 TimeTest::TimeTest(std::string queryDB,
-        std::string queryDBIndex,
-        std::string targetDB,
-        std::string targetDBIndex,
-        std::string scoringMatrixFile,
-        size_t maxSeqLen,
-        std::string logFile){
+                   std::string queryDBIndex,
+                   std::string targetDB,
+                   std::string targetDBIndex,
+                   std::string scoringMatrixFile,
+                   size_t maxSeqLen,
+                   std::string logFile){
 
     std::cout << "Init data structures...\n";
     BUFFER_SIZE = 1000000;
@@ -45,7 +44,7 @@ TimeTest::~TimeTest(){
 
 void TimeTest::runTimeTest (){
 
-    int QUERY_SET_SIZE = 50000;
+    size_t QUERY_SET_SIZE = 50000;
 
     std::ofstream logFileStream;
     logFileStream.open(logFile.c_str());
@@ -98,7 +97,7 @@ void TimeTest::runTimeTest (){
                     for (int i = 0; i < threads; i++){
                         int thread_idx = 0;
 #ifdef OPENMP
-            thread_idx = omp_get_thread_num();
+                        thread_idx = omp_get_thread_num();
 #endif
                         seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, kmerSize, isSpaced);
                     }
@@ -108,7 +107,7 @@ void TimeTest::runTimeTest (){
 
                     std::cout << "------------------ a = " << alphabetSize << ",  k = " << kmerSize << " -----------------------------\n";
                     IndexTable* indexTable = Prefiltering::generateIndexTable(tdbr, seqs[0], alphabetSize, kmerSize, 0,
-                                                                              tdbr->getSize(), isLocal, 0, false);
+                                                                              tdbr->getSize(), isLocal, 0);
 
                     short decr = 1;
                     if (kmerSize == 6 || kmerSize == 7)
@@ -125,7 +124,7 @@ void TimeTest::runTimeTest (){
                         for (int i = 0; i < threads; i++){
                             int thread_idx = 0;
 #ifdef OPENMP
-                        thread_idx = omp_get_thread_num();
+                            thread_idx = omp_get_thread_num();
 #endif
                             // set a current k-mer list length threshold and a high prefitlering threshold (we don't need the prefiltering results in this test run)
                             if(isLocal == 1){
@@ -134,9 +133,6 @@ void TimeTest::runTimeTest (){
                                                                                      kmerSize,
                                                                                      seqs[0]->getEffectiveKmerSize(),
                                                                                      tdbr->getSize(), maxSeqLen, 300);
-                            }
-                            else{
-                                matchers[thread_idx] = new QueryTemplateMatcherGlobal(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0, kmerSize, seqs[0]->getEffectiveKmerSize(), tdbr->getSize(), false, maxSeqLen, 500.0);
                             }
                             matchers[thread_idx]->setSubstitutionMatrix(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix );
                         }
@@ -150,7 +146,7 @@ void TimeTest::runTimeTest (){
 
                             int thread_idx = 0;
 #ifdef OPENMP
-                    thread_idx = omp_get_thread_num();
+                            thread_idx = omp_get_thread_num();
 #endif
                             char* seqData = tdbr->getData(id);
                             seqs[thread_idx]->mapSequence(id,(char *) tdbr->getDbKey(id).c_str(), seqData);

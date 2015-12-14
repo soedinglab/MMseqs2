@@ -9,7 +9,7 @@
 QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
                                                                unsigned int *seqLens, short kmerThr,
                                                                double kmerMatchProb, int kmerSize, size_t dbSize,
-                                                               unsigned int maxSeqLen, int effectiveKmerSize,
+                                                               unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                                                                size_t maxHitsPerQuery, bool aaBiasCorrection)
         : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, aaBiasCorrection, maxSeqLen) {
     // assure that the whole database can be matched (extreme case)
@@ -109,6 +109,7 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
             if (sequenceHits + seqListSize >= lastSequenceHit) {
                 stats->diagonalOverflow = true;
                 sequenceHits = databaseHits + overflowHitCount;
+
                 const size_t hitCount = evaluateBins(sequenceHits, numMatches);
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens

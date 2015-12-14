@@ -169,7 +169,6 @@ void Sequence::mapNucleotideSequence(const char * sequence){
     this->L = l;
 }
 
-
 void Sequence::mapProfile(const char * sequenze){
     size_t l = 0;
     char * data = (char *) sequenze;

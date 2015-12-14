@@ -28,10 +28,14 @@ void QueryScoreLocal::reset() {
 //    memset (scores_128, 0, scores_128_size * 2);
     scoresSum = 0;
     numMatches = 0;
+    distanceCnt =0;
+    normalDistCnt =0;
     memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
 }
 
 std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySeqLen, unsigned int scoreThr, const unsigned int identityId) {
+    std::cout << "Normal " << normalDistCnt << " to far " << distanceCnt << std::endl;
+
     // scoreThr get all great than scoreThr
     // adjust score threshold because we use > for check later
     scoreThr = (scoreThr == 0 ) ? 0 : scoreThr - 1;
@@ -97,6 +101,7 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
         }
     }
     OuterLoop:
+
 
     // sort hits by score
     // include the identity in results if its there

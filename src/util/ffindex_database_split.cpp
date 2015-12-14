@@ -29,12 +29,12 @@ int splitffindex (int argc, const char * argv[])
     unsigned int* sizes = dbr.getSeqLens();
     size_t size = dbr.getSize();
 
-    if(par.split > size) {
+    if((size_t)par.split > size) {
         Debug(Debug::ERROR) << "Cannot split databases into more chunks than database contains.";
         EXIT(EXIT_FAILURE);
     }
 
-    for (size_t split = 0; split < par.split; split++) {
+    for (int split = 0; split < par.split; split++) {
         std::ostringstream outName;
         outName << par.db2 << "_" << split << "_" << par.split;
         DBWriter writer(outName.str().c_str(), std::string(outName.str() + ".index").c_str());

@@ -2,7 +2,7 @@
 #include "simd.h"
 #include <stddef.h>
 
-QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, int seedLength, short kmerThr, float kmerMatchProb) {
+QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, unsigned int seedLength, short kmerThr, float kmerMatchProb) {
     this->dbSize = dbSize;
     this->kmerMatchProb = kmerMatchProb;
     this->kmerThr = kmerThr;
@@ -72,7 +72,7 @@ void QueryScore::printVector(__m128i v){
 
 void QueryScore::printScores(){
     Debug(Debug::INFO) << "Scores:\n";
-    for (int i = 0; i < dbSize; i++)
+    for (size_t i = 0; i < dbSize; i++)
         Debug(Debug::INFO) << scores[i] << "\n";
 }
 

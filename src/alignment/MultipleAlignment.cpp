@@ -33,7 +33,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
     // just center sequence is included
     if(edgeSeqs.size() == 0 ){
         size_t queryMSASize = 0;
-        for(size_t queryPos = 0; queryPos < centerSeq->L; queryPos++) {
+        for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
             if (queryMSASize >= maxSeqLen) {
                 Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxSeqLen (" << maxSeqLen << ")" << "\n";
                 EXIT(EXIT_FAILURE);
@@ -125,8 +125,8 @@ void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *cent
 }
 
 size_t MultipleAlignment::updateGapsInCenterSequence(char **msaSequence, Sequence *centerSeq, bool noDeletionMSA) {
-    size_t centerSeqPos = 0;
-    for(size_t queryPos = 0; queryPos < centerSeq->L; queryPos++) {
+    int centerSeqPos = 0;
+    for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
         if(centerSeqPos >= maxSeqLen ){
             Debug(Debug::ERROR) << "queryMSASize (" << centerSeqPos << ") is >= maxSeqLen (" << maxSeqLen << ")" << "\n";
             EXIT(EXIT_FAILURE);

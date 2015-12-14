@@ -19,9 +19,6 @@
 #include "SubstitutionMatrix.h"
 #include "Debug.h"
 #include "Log.h"
-#include "Seg.h"
-
-
 #include "Matcher.h"
 #include "Parameters.h"
 #include "BlastScoreUtils.h"
@@ -71,8 +68,6 @@ private:
     Sequence** qSeqs;
 
     Sequence** dbSeqs;
-
-    Seg **seg;
 
     Matcher** matchers;
 

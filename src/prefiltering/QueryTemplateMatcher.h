@@ -11,7 +11,6 @@
 #include "Sequence.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "QueryScore.h"
-#include "QueryScoreGlobal.h"
 #include "IndexTable.h"
 #include "KmerGenerator.h"
 #include "Indexer.h"

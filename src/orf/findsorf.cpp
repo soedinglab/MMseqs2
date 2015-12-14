@@ -49,7 +49,6 @@ int findsorf(int argn, const char **argv)
     size_t length = 0;
     ssize_t read = 0;
 
-    int start = 0, end = 0;
 
     std::map<int, size_t> speciesAAlength;
 
@@ -63,10 +62,8 @@ int findsorf(int argn, const char **argv)
 
         speciesMap.emplace(atoi(fields[0].c_str()), currentSpeciesIndex);
 
-        end = currentSpeciesIndex;
         if(fields[1] != lastSpeciesName) {
             lastSpeciesName = fields[1];
-            start = currentSpeciesIndex++;
         }
     }
     fclose(mapFile);

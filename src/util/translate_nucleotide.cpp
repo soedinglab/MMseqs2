@@ -47,8 +47,7 @@ int translatenucleotide(int argn, const char **argv)
     writer.open();
     
     size_t entries = reader.getSize();
-    unsigned int* entries_length = reader.getSeqLens();
-    
+
     for (size_t i = 0; i < entries; ++i) {
         std::string key = reader.getDbKey(i);
         char* data = reader.getData(i);

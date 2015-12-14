@@ -38,11 +38,11 @@ typedef struct {
 class QueryScore {
 public:
 
-    QueryScore(size_t dbSize, unsigned int *seqLens, int seedLength, short kmerThr, float kmerMatchProb);
+    QueryScore(size_t dbSize, unsigned int *seqLens, unsigned int seedLength, short kmerThr, float kmerMatchProb);
 
     virtual ~QueryScore ();
 
-    inline void addScoresLocal(IndexEntryLocal *seqList, const unsigned short i, const int seqListSize) {
+    inline void addScoresLocal(IndexEntryLocal *seqList, const unsigned short i, const int unsigned seqListSize) {
         unsigned char * data =  (unsigned char *) scores;
         for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
             const IndexEntryLocal entry = seqList[seqIdx];
@@ -142,8 +142,9 @@ protected:
 
     unsigned short  * __restrict scores;
 
-    unsigned int numMatches;
-
+    size_t numMatches;
+    size_t distanceCnt;
+    size_t normalDistCnt;
     // number of sequences in the target DB
     size_t dbSize;
 

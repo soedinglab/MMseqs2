@@ -52,10 +52,7 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
     std::fill_n(bestscore, n, -10);
 #pragma omp parallel
     {
-    int thread_idx = 0;
-#ifdef OPENMP
-    thread_idx = omp_get_thread_num();
-#endif
+
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         std::string clusterId = seqDbr->getDbKey(i);
@@ -380,13 +377,13 @@ void ClusteringAlgorithms::initClustersizes(){
 
     std::fill_n(setsize_abundance,maxClustersize+1,0);
     //count how often a set size occurs
-    for (int i = 0; i < dbSize; ++i) {
+    for (unsigned int i = 0; i < dbSize; ++i) {
         setsize_abundance[clustersizes[i]]++;
     }
     //compute offsets
     borders_of_set= new int [maxClustersize+1];
     borders_of_set[0]=0;
-    for (int i = 1; i < maxClustersize+1; ++i) {
+    for (unsigned int i = 1; i < maxClustersize+1; ++i) {
         borders_of_set[i]=borders_of_set[i-1]+setsize_abundance[i-1];
     }
     //fill array
@@ -396,7 +393,7 @@ void ClusteringAlgorithms::initClustersizes(){
     std::fill_n(clusterid_to_arrayposition,dbSize+1,0);
     //reuse setsize_abundance as offset counter
     std::fill_n(setsize_abundance,maxClustersize+1,0);
-    for (int i = 0; i < dbSize; ++i) {
+    for (unsigned int i = 0; i < dbSize; ++i) {
         int position=borders_of_set[clustersizes[i]]+setsize_abundance[clustersizes[i]];
         sorted_clustersizes[position]=i;
         clusterid_to_arrayposition[i]=position;
