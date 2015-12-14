@@ -18,8 +18,8 @@ set(prefiltering_source_files
       QueryTemplateMatcher.h
       QueryTemplateMatcherLocal.cpp
       QueryTemplateMatcherLocal.h
-      QueryTemplateMatcherExactMatch.cpp
-      QueryTemplateMatcherExactMatch.h
+      QueryTemplateLocalFast.cpp
+      QueryTemplateLocalFast.h
       ReducedMatrix.cpp
       ReducedMatrix.h
       SequenceIndex.cpp

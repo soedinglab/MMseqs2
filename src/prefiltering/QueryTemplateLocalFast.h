@@ -10,14 +10,14 @@
 #include "QueryTemplateMatcher.h"
 
 
-class QueryTemplateMatcherExactMatch : public virtual QueryTemplateMatcher {
+class QueryTemplateLocalFast : public virtual QueryTemplateMatcher {
 public:
-    QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
-                                   unsigned int *seqLens, short kmerThr,
-                                   double kmerMatchProb, int kmerSize, size_t dbSize,
-                                   unsigned int maxSeqLen, unsigned int effectiveKmerSize,
-                                   size_t maxHitsPerQuery, bool aaBiasCorrection);
-    ~QueryTemplateMatcherExactMatch();
+    QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexTable,
+                           unsigned int *seqLens, short kmerThr,
+                           double kmerMatchProb, int kmerSize, size_t dbSize,
+                           unsigned int maxSeqLen, unsigned int effectiveKmerSize,
+                           size_t maxHitsPerQuery, bool aaBiasCorrection);
+    ~QueryTemplateLocalFast();
 
     // returns result for the sequence
     // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
