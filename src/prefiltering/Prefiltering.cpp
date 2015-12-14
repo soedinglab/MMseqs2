@@ -2,7 +2,7 @@
 #include "PrefilteringIndexReader.h"
 #include "Util.h"
 #include "IndexTable.h"
-#include "QueryTemplateMatcherExactMatch.h"
+#include "QueryTemplateLocalFast.h"
 #include "QueryTemplateMatcherLocal.h"
 #include "QueryTemplateMatcher.h"
 #include "QueryScore.h"
@@ -258,9 +258,9 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
                                                                  kmerSize, effectiveKmerSize, dbSize, maxSeqLen,
                                                                  maxHitsPerQuery);
         } else if(searchMode == Parameters::SEARCH_LOCAL_FAST) {
-            matchers[thread_idx] = new QueryTemplateMatcherExactMatch(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                                      kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
-                                                                      maxHitsPerQuery, aaBiasCorrection);
+            matchers[thread_idx] = new QueryTemplateLocalFast(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+                                                              kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
+                                                              maxHitsPerQuery, aaBiasCorrection);
         } else {
             Debug(Debug::ERROR) << "Seach mode is not valid.\n";
             EXIT(EXIT_FAILURE);

@@ -2,15 +2,15 @@
 // Created by mad on 5/26/15.
 //
 #include <SubstitutionMatrix.h>
-#include "QueryTemplateMatcherExactMatch.h"
+#include "QueryTemplateLocalFast.h"
 #include "QueryScoreLocal.h"
 #include "QueryScore.h"
 
-QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, IndexTable *indexTable,
-                                                               unsigned int *seqLens, short kmerThr,
-                                                               double kmerMatchProb, int kmerSize, size_t dbSize,
-                                                               unsigned int maxSeqLen, unsigned int effectiveKmerSize,
-                                                               size_t maxHitsPerQuery, bool aaBiasCorrection)
+QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexTable,
+                                               unsigned int *seqLens, short kmerThr,
+                                               double kmerMatchProb, int kmerSize, size_t dbSize,
+                                               unsigned int maxSeqLen, unsigned int effectiveKmerSize,
+                                               size_t maxHitsPerQuery, bool aaBiasCorrection)
         : QueryTemplateMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb, kmerSize, dbSize, aaBiasCorrection, maxSeqLen) {
     // assure that the whole database can be matched (extreme case)
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
@@ -41,7 +41,7 @@ QueryTemplateMatcherExactMatch::QueryTemplateMatcherExactMatch(BaseMatrix *m, In
     compositionBias = new float[maxSeqLen];
 }
 
-QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
+QueryTemplateLocalFast::~QueryTemplateLocalFast(){
     free(resList);
     delete [] scoreSizes;
     delete [] databaseHits;
@@ -51,14 +51,14 @@ QueryTemplateMatcherExactMatch::~QueryTemplateMatcherExactMatch(){
     delete [] compositionBias;
 }
 
-size_t QueryTemplateMatcherExactMatch::evaluateBins(CounterResult *inputOutput, size_t N) {
+size_t QueryTemplateLocalFast::evaluateBins(CounterResult *inputOutput, size_t N) {
     size_t localResultSize = 0;
     localResultSize += counter->countElements(inputOutput, N);
     return localResultSize;
 }
 
 
-std::pair<hit_t *, size_t> QueryTemplateMatcherExactMatch::matchQuery (Sequence * seq, unsigned int identityId){
+std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, unsigned int identityId){
     seq->resetCurrPos();
     memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
     size_t resultSize = match(seq);
@@ -68,7 +68,7 @@ std::pair<hit_t *, size_t> QueryTemplateMatcherExactMatch::matchQuery (Sequence 
 
 
 
-size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
+size_t QueryTemplateLocalFast::match(Sequence *seq){
     // go through the query sequence
     size_t kmerListLen = 0;
     size_t numMatches = 0;
@@ -150,7 +150,7 @@ size_t QueryTemplateMatcherExactMatch::match(Sequence *seq){
     return hitCount;
 }
 
-size_t QueryTemplateMatcherExactMatch::getDoubleDiagonalMatches(){
+size_t QueryTemplateLocalFast::getDoubleDiagonalMatches(){
     size_t retValue = 0;
     for(size_t i = 1; i < QueryScoreLocal::SCORE_RANGE; i++){
         retValue += scoreSizes[i] * i;
@@ -159,15 +159,15 @@ size_t QueryTemplateMatcherExactMatch::getDoubleDiagonalMatches(){
     return retValue;
 }
 
-void QueryTemplateMatcherExactMatch::updateScoreBins(CounterResult *result, size_t elementCount) {
+void QueryTemplateLocalFast::updateScoreBins(CounterResult *result, size_t elementCount) {
     for(size_t i = 0; i < elementCount; i++){
         scoreSizes[result[i].count]++;
     }
 }
 
-std::pair<hit_t *, size_t>  QueryTemplateMatcherExactMatch::getResult(size_t resultSize, const int l,
-                                                                      const unsigned int id,
-                                                                      const unsigned short thr) {
+std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(size_t resultSize, const int l,
+                                                              const unsigned int id,
+                                                              const unsigned short thr) {
     size_t elementCounter = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
