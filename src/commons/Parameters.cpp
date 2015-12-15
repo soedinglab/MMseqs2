@@ -56,7 +56,8 @@ Parameters::Parameters():
         PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "\tSkip orfs that have only an end or only a start",typeid(bool),(void *) &orfSkipIncomplete, ""),
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "\tUse the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "[int]\t\tNumeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^[1-9]\{1\}[0-9]*$"),
-        PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "\tUse the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, "")
+        PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "\tUse the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
+        PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "\tType in the GFF file to filter by",typeid(std::string),(void *) &gffType, "")
 {
     // alignment
     alignment.push_back(PARAM_E);
@@ -148,6 +149,12 @@ Parameters::Parameters():
     rebuildfasta.push_back(PARAM_USE_HEADER_FILE);
     rebuildfasta.push_back(PARAM_V);
 
+    // gff2ffindex
+    gff2ffindex.push_back(PARAM_GFF_TYPE);
+    gff2ffindex.push_back(PARAM_USE_HEADER);
+    gff2ffindex.push_back(PARAM_ID_OFFSET);
+    gff2ffindex.push_back(PARAM_V);
+
     setDefaults();
 }
 
@@ -161,6 +168,8 @@ Parameters::~Parameters(){
     alignment.clear();
     prefilter.clear();
     createprofiledb.clear();
+    rebuildfasta.clear();
+    gff2ffindex.clear();
 }
 
 
