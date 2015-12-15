@@ -34,7 +34,8 @@ static struct Command commands[] = {
         {"findsorf",            findsorf},
         {"resulttoprofiledb",   result2profile},
         {"rebuildfasta", rebuildfasta},
-        {"splitffindex",        splitffindex}
+        {"splitffindex",        splitffindex},
+        {"gff2ffindex",         gff2ffindex}
 };
 
 
@@ -63,6 +64,7 @@ void printUsage() {
             "translatenucleotide\tTranslate nucleotide sequences into aminoacid sequences in a ffindex database\n"
             "legacycs219        \tTranslates a cs219 ffindex database into its legacy format. This tool is part of the mmseqs-based HH-suite database pipeline\n"
             "rebuildfasta       \tRebuild a fasta file from a ffindex database\n"
+            "gff2ffindex        \tTurn a GFF3 file into a ffindex database\n"
     );
     Debug(Debug::INFO) << usage << "\n";
 }

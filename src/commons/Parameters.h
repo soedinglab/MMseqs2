@@ -139,6 +139,9 @@ public:
     // CLUSTERING WORKFLOW
     int restart;
     int step;
+
+    // gff2ffindex
+    std::string gffType;
     
     void setDefaultPaths();
     void setDefaults();
@@ -239,7 +242,10 @@ public:
 
     // rebuildfasta
     PARAMETER(PARAM_USE_HEADER_FILE)
-    
+
+    // gff2ffindex
+    PARAMETER(PARAM_GFF_TYPE)
+
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createprofiledb;
     std::vector<MMseqsParameter> extractorf;
@@ -248,6 +254,7 @@ public:
     std::vector<MMseqsParameter> formatalignment;
     std::vector<MMseqsParameter> createdb;
     std::vector<MMseqsParameter> rebuildfasta;
+    std::vector<MMseqsParameter> gff2ffindex;
 
     std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
                                               std::vector < MMseqsParameter > par2);
