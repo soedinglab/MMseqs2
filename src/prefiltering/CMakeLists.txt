@@ -22,9 +22,11 @@ set(prefiltering_source_files
       QueryTemplateLocalFast.h
       ReducedMatrix.cpp
       ReducedMatrix.h
-      SequenceIndex.cpp
-      SequenceIndex.h
+      SequenceLookup.cpp
+      SequenceLookup.h
       SubstitutionMatrixWithoutX.h
+      DiagonalMatcher.cpp
+      DiagonalMatcher.h
 )
 add_library(prefiltering STATIC ${prefiltering_source_files})
 
