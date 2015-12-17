@@ -7,7 +7,7 @@
 
 #include <simd.h>
 #include "QueryScore.h"
-
+#include "SequenceLookup.h"
 
 class DiagonalMatcher {
 
