@@ -71,18 +71,18 @@ int findsorf(int argn, const char **argv)
 
     int totalSpeciesCount = currentSpeciesIndex;
 
-    DBReader reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader::NOSORT);
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    reader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader hdr_reader(par.db3.c_str(), par.db3Index.c_str());
-    hdr_reader.open(DBReader::NOSORT);
+    DBReader<unsigned int> hdr_reader(par.db3.c_str(), par.db3Index.c_str());
+    hdr_reader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader bdy_reader(par.db4.c_str(), par.db4Index.c_str());
-    bdy_reader.open(DBReader::NOSORT);
+    DBReader<unsigned int> bdy_reader(par.db4.c_str(), par.db4Index.c_str());
+    bdy_reader.open(DBReader<unsigned int>::NOSORT);
 
     size_t num_clusters = reader.getSize();
     for (size_t i = 0; i < num_clusters; ++i) {
-        std::string key = reader.getDbKey(i);
+        unsigned int key = reader.getDbKey(i);
         std::set<int> speciesSet;
 
         const char* clusters = (const char*)reader.getData(i);
@@ -91,7 +91,8 @@ int findsorf(int argn, const char **argv)
         std::string line;
         while (std::getline(iss, line))
         {
-            char* aa = bdy_reader.getDataByDBKey(const_cast<char*>(line.c_str()));
+            unsigned int dbKey = (unsigned int) std::strtoul(line.c_str(), NULL, 10);
+            char* aa = bdy_reader.getDataByDBKey(dbKey);
             std::vector<std::string> clusterOrf = Util::split(line, "_");
             int speciesId = atoi(clusterOrf[0].c_str());
             speciesSet.insert(speciesMap[speciesId]);
@@ -111,7 +112,7 @@ int findsorf(int argn, const char **argv)
             continue;
 
         float speciesInSet = (float)speciesSet.size();
-        printf("%s\t%f\n", key.c_str(), -(speciesInSet/(float)totalSpeciesCount) * log2(speciesInSet / (float)totalSpeciesCount));
+        printf("%d\t%f\n", key, -(speciesInSet/(float)totalSpeciesCount) * log2(speciesInSet / (float)totalSpeciesCount));
     }
 
     for (std::map<int, size_t>::iterator it = speciesAAlength.begin(); it != speciesAAlength.end(); ++it) {

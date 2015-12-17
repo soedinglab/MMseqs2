@@ -16,17 +16,17 @@ int createfasta (int argc, const char * argv[])
 
     Debug(Debug::WARNING) << "Query file is " <<  par.db1 << "\n";
     std::string queryHeaderDB =  par.db1 + "_h";
-    DBReader querydb_header(queryHeaderDB.c_str(), std::string(queryHeaderDB+".index").c_str());
-    querydb_header.open(DBReader::NOSORT);
+    DBReader<std::string> querydb_header(queryHeaderDB.c_str(), std::string(queryHeaderDB+".index").c_str());
+    querydb_header.open(DBReader<std::string>::NOSORT);
 
     Debug(Debug::WARNING) << "Target file is " << par.db2 << "\n";
     std::string targetHeaderDB =  par.db2 + "_h";
-    DBReader targetdb_header(targetHeaderDB.c_str(), std::string(targetHeaderDB+".index").c_str());
-    targetdb_header.open(DBReader::NOSORT);
+    DBReader<std::string> targetdb_header(targetHeaderDB.c_str(), std::string(targetHeaderDB+".index").c_str());
+    targetdb_header.open(DBReader<std::string>::NOSORT);
 
     Debug(Debug::WARNING) << "Data file is " << par.db3 << "\n";
-    DBReader dbr_data( par.db3.c_str(), std::string( par.db3+".index").c_str());
-    dbr_data.open(DBReader::NOSORT);
+    DBReader<std::string> dbr_data( par.db3.c_str(), std::string( par.db3+".index").c_str());
+    dbr_data.open(DBReader<std::string>::NOSORT);
 
     FILE *fastaFP =  fopen(par.db4.c_str(), "w");
     char header_start[] = {'>'};
@@ -38,7 +38,7 @@ int createfasta (int argc, const char * argv[])
         fwrite(header_start, sizeof(char), 1, fastaFP);
         std::string key = dbr_data.getDbKey(i);
 
-        char * header_data = querydb_header.getDataByDBKey(key.c_str());
+        char * header_data = querydb_header.getDataByDBKey(key);
         fwrite(header_data, sizeof(char), strlen(header_data) - 1, fastaFP);
 
         fwrite(newline, sizeof(char), 1, fastaFP);
@@ -46,7 +46,7 @@ int createfasta (int argc, const char * argv[])
         char * data = dbr_data.getData(i);
         while(*data != '\0') {
             Util::parseKey(data, dbKey);
-            char * header_data = targetdb_header.getDataByDBKey(key.c_str());
+            char * header_data = targetdb_header.getDataByDBKey(key);
             std::string dbkey = Util::parseFastaHeader(header_data);
             fwrite(dbkey.c_str(), sizeof(char), dbkey.length(), fastaFP);
             data = Util::skipLine(data);

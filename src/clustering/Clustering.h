@@ -47,8 +47,8 @@ class Clustering {
 
         void writeData(DBWriter *dbw, std::list<set *> ret);
 
-        DBReader* seqDbr;
-        DBReader* alnDbr;
+        DBReader<unsigned int>* seqDbr;
+        DBReader<unsigned int>* alnDbr;
 
         int validate;
 

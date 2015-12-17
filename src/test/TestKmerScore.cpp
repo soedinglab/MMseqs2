@@ -15,11 +15,11 @@ int main (int argc, const char * argv[]) {
 
     char * ref   = "GKILII";
     Sequence refSeq(1000, subMat.aa2int, subMat.int2aa, 0,kmer_size, false);
-    refSeq.mapSequence(0, "key1", ref);
+    refSeq.mapSequence(0, 0, ref);
 
     char * similar   = "GKVLYL";
     Sequence similarSeq(1000, subMat.aa2int, subMat.int2aa, 0, kmer_size, false);
-    similarSeq.mapSequence(0, "key2", similar);
+    similarSeq.mapSequence(0, 1, similar);
 
 
     short score = 0;

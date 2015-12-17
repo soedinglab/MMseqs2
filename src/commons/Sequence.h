@@ -37,7 +37,7 @@ class Sequence
         ~Sequence();
 
         // Map char -> int
-        void mapSequence(size_t id, char *dbKey, const char *seq);
+        void mapSequence(size_t id, unsigned int dbKey, const char *seq);
     
         // map profile HMM, *data points to start position of Profile
         void mapProfile(const char *data);
@@ -58,7 +58,7 @@ class Sequence
         int getCurrentPosition() { return currItPos; }
 
 
-        char* getDbKey() { return dbKey; }
+        unsigned int getDbKey() { return dbKey; }
     
         int getSeqType() { return seqType; }
 
@@ -111,7 +111,7 @@ private:
         void mapProteinSequence(const char *seq);
         void mapNucleotideSequence(const char *seq);
         size_t id;
-        char* dbKey;
+        unsigned int dbKey;
 
         // current iterator position
         int currItPos;

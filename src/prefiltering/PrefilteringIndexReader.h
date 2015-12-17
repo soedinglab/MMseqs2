@@ -18,24 +18,24 @@ struct PrefilteringIndexData {
 
 class PrefilteringIndexReader {
 public:
-    static const char *CURRENT_VERSION;
-    static const char *VERSION;
-    static const char *ENTRIES;
-    static const char *ENTRIESIZES;
-    static const char *ENTRIESNUM;
-    static const char *TABLESIZE;
-    static const char *META;
+    static const char*  CURRENT_VERSION;
+    static unsigned int VERSION;
+    static unsigned int ENTRIES;
+    static unsigned int ENTRIESIZES;
+    static unsigned int ENTRIESNUM;
+    static unsigned int TABLESIZE;
+    static unsigned int META;
 
-    static bool checkIfIndexFile(DBReader *reader);
+    static bool checkIfIndexFile(DBReader<unsigned int> *reader);
 
-    static void createIndexFile(std::string outDb, std::string outDbIndex, DBReader *dbr, Sequence *seq, int split,
+    static void createIndexFile(std::string outDb, std::string outDbIndex, DBReader<unsigned int> *dbr, Sequence *seq, int split,
                                 int alphabetSize, int kmerSize, int skip, bool hasSpacedKmer, int searchMode);
 
-    static DBReader *openNewReader(DBReader *dbr);
+    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr);
 
-    static IndexTable *generateIndexTable(DBReader *dbr, int split);
+    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, int split);
 
-    static PrefilteringIndexData getMetadata(DBReader *dbr);
+    static PrefilteringIndexData getMetadata(DBReader<unsigned int> *dbr);
 };
 
 #endif

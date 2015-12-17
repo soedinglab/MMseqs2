@@ -71,14 +71,14 @@ private:
 
     Matcher** matchers;
 
-    DBReader* qseqdbr;
+    DBReader<unsigned int>* qseqdbr;
 
-    DBReader* tseqdbr;
+    DBReader<unsigned int>* tseqdbr;
 
-    DBReader* prefdbr;
+    DBReader<unsigned int>* prefdbr;
 
     // buffers for the database keys (needed during the processing of the prefilterings lists)
-    char** dbKeys;
+    unsigned int* dbKeys;
 
     // output buffers
     char** outBuffers;

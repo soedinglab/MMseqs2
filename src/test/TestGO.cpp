@@ -11,10 +11,7 @@
 #include "CompareGOTerms.h"
 
 void printHelp();
-std::string getProteinNameForID(DBReader *targetdb_header,const char * dbKey);
-
-
-
+std::string getProteinNameForID(DBReader<std::string>* targetdb_header,const char * dbKey);
 
 int main(int argc, char **argv)
 {
@@ -126,14 +123,14 @@ int main(int argc, char **argv)
             Debug(Debug::INFO) << "running protein name evaluation";
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
-        DBReader* cluster_ffindex_reader = new DBReader(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
-        cluster_ffindex_reader->open(DBReader::SORT);
+        DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
+        cluster_ffindex_reader->open(DBReader<std::string>::SORT);
         Debug(Debug::INFO) << "Opening clustering database...\n";
-        DBReader* protname_db_reader = new DBReader(protname_db.c_str(), protname_db_indexfile.c_str());
-        protname_db_reader->open(DBReader::NOSORT);
+        DBReader<std::string>* protname_db_reader = new DBReader<std::string>(protname_db.c_str(), protname_db_indexfile.c_str());
+        protname_db_reader->open(DBReader<std::string>::NOSORT);
 
-        DBReader* targetdb_header=new DBReader(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
-        targetdb_header->open(DBReader::NOSORT);
+        DBReader<std::string>* targetdb_header=new DBReader<std::string>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+        targetdb_header->open(DBReader<std::string>::NOSORT);
 
 
 
@@ -245,14 +242,14 @@ int main(int argc, char **argv)
         Debug(Debug::INFO) << "running keyword evaluation";
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
-        DBReader* cluster_ffindex_reader = new DBReader(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
-        cluster_ffindex_reader->open(DBReader::SORT);
+        DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
+        cluster_ffindex_reader->open(DBReader<std::string>::SORT);
         Debug(Debug::INFO) << "Opening clustering database...\n";
-        DBReader* protname_db_reader = new DBReader(keyword_db.c_str(), keyword_indexfile.c_str());
-        protname_db_reader->open(DBReader::NOSORT);
+        DBReader<std::string>* protname_db_reader = new DBReader<std::string>(keyword_db.c_str(), keyword_indexfile.c_str());
+        protname_db_reader->open(DBReader<std::string>::NOSORT);
 
-        DBReader * targetdb_header=new DBReader(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
-        targetdb_header->open(DBReader::NOSORT);
+        DBReader<std::string>* targetdb_header=new DBReader<std::string>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+        targetdb_header->open(DBReader<std::string>::NOSORT);
 
 
         //files
@@ -420,10 +417,10 @@ int numberofthreads=1;
 #ifdef OPENMP
         omp_set_num_threads(numberofthreads);
 #endif
-        DBReader* seqDbr=new DBReader(seqDbfile.c_str(),(seqDbfile+".index").c_str());
-        seqDbr->open(DBReader::SORT);
-        DBReader* alnDbr=new DBReader(alignmentfile.c_str(),(alignmentfile+".index").c_str());
-        alnDbr->open(DBReader::SORT);
+        DBReader<std::string>* seqDbr=new DBReader<std::string>(seqDbfile.c_str(),(seqDbfile+".index").c_str());
+        seqDbr->open(DBReader<std::string>::SORT);
+        DBReader<std::string>* alnDbr=new DBReader<std::string>(alignmentfile.c_str(),(alignmentfile+".index").c_str());
+        alnDbr->open(DBReader<std::string>::SORT);
         DBWriter* dbw = new DBWriter(outputfile.c_str(), (outputfile+".index").c_str(),numberofthreads);
         dbw->open();
 
@@ -552,11 +549,8 @@ void printHelp() {
 }
 
 
-std::string getProteinNameForID(DBReader *targetdb_header,const char * dbKey){
-
+std::string getProteinNameForID(DBReader<std::string>* targetdb_header, const char * dbKey){
     char * header_data = targetdb_header->getDataByDBKey(dbKey);
     std::string parsedDbkey = Util::parseFastaHeader(header_data);
     return parsedDbkey;
-
-
 }

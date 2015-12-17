@@ -38,15 +38,15 @@ int rebuildfasta(int argc, const char * argv[])
     std::string index_filename_hdr(data_filename);
     index_filename_hdr.append("_h.index");
 
-    DBReader db(data_filename.c_str(), index_filename.c_str());
-    db.open(DBReader::NOSORT);
+    DBReader<std::string> db(data_filename.c_str(), index_filename.c_str());
+    db.open(DBReader<std::string>::NOSORT);
 
-    DBReader db_header(data_filename_hdr.c_str(), index_filename_hdr.c_str());
-    db_header.open(DBReader::NOSORT);
+    DBReader<std::string> db_header(data_filename_hdr.c_str(), index_filename_hdr.c_str());
+    db_header.open(DBReader<std::string>::NOSORT);
 
     FILE *fastaFP =  Util::openFileOrDie(par.db2.c_str(), "w", false);
 
-    DBReader& from = db;
+    DBReader<std::string>& from = db;
     if(par.useHeaderFile) {
         from = db_header;
     }

@@ -9,7 +9,7 @@
 #include <Parameters.h>
 #include "AffinityClustering.h"
 
-AlignmentSymmetry::AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWriter *alnWr, int threads) {
+AlignmentSymmetry::AlignmentSymmetry(DBReader<unsigned int>*seqDbr, DBReader<unsigned int>*alnDbr, DBWriter *alnWr, int threads) {
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
     this->threads = threads;
@@ -31,8 +31,8 @@ void AlignmentSymmetry::execute() {
     //time
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
-        std::string clusterId = seqDbr->getDbKey(i);
-        const size_t alnId = alnDbr->getId(clusterId.c_str());
+        unsigned int clusterId = seqDbr->getDbKey(i);
+        const size_t alnId = alnDbr->getId(clusterId);
         char *data = alnDbr->getData(alnId);
         size_t dataSize = alnDbr->getSeqLens()[alnId];
         size_t elementCount = Util::count_lines(data, dataSize);
@@ -122,93 +122,88 @@ void AlignmentSymmetry::execute() {
     delete [] elements;
 }
 
-void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned int **elementLookupTable) {
+void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, unsigned int **elementLookupTable) {
 
     size_t dbSize = seqDbr->getSize();
-#pragma omp parallel
-    {
-        char * dbKey = new char[255+1];
-#pragma omp for schedule(dynamic, 100)
-        for(size_t i = 0; i < dbSize; i++) {
-            Log::printProgress(i);
-            // seqDbr is descending sorted by length
-            // the assumption is that clustering is B -> B (not A -> B)
-            std::string clusterId = seqDbr->getDbKey(i);
-            char *data = alnDbr->getDataByDBKey(clusterId.c_str());
+#pragma omp parallel for schedule(dynamic, 100)
+    for(size_t i = 0; i < dbSize; i++) {
+        Log::printProgress(i);
+        // seqDbr is descending sorted by length
+        // the assumption is that clustering is B -> B (not A -> B)
+        unsigned int clusterId = seqDbr->getDbKey(i);
+        char *data = alnDbr->getDataByDBKey(clusterId);
 
-            if (*data == '\0') { // check if file contains entry
-                Debug(Debug::ERROR) << "ERROR: Sequence " << i
-                << " does not contain any sequence for key " << clusterId
-                << "!\n";
+        if (*data == '\0') { // check if file contains entry
+            Debug(Debug::ERROR) << "ERROR: Sequence " << i
+            << " does not contain any sequence for key " << clusterId
+            << "!\n";
 
-                continue;
-            }
-            while (*data != '\0' ) {
-                Util::parseKey(data, dbKey);
-
-                size_t curr_element = seqDbr->getId(dbKey);
-                if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()) {
-                    Debug(Debug::ERROR) << "ERROR: Element " << dbKey
-                    << " contained in some alignment list, but not contained in the sequence database!\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                *elementLookupTable[i] = curr_element;
-                elementLookupTable[i]++;
-                data = Util::skipLine(data);
-
-            }
+            continue;
         }
-        delete [] dbKey;
+        while (*data != '\0' ) {
+            char dbKey[255 + 1];
+            Util::parseKey(data, dbKey);
+            unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+            unsigned int curr_element = seqDbr->getId(key);
+            if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()) {
+                Debug(Debug::ERROR) << "ERROR: Element " << key
+                << " contained in some alignment list, but not contained in the sequence database!\n";
+                EXIT(EXIT_FAILURE);
+            }
+            *elementLookupTable[i] = curr_element;
+            elementLookupTable[i]++;
+            data = Util::skipLine(data);
+
+        }
     }
 }
 
-void AlignmentSymmetry::readInData(DBReader *alnDbr, DBReader *seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable, int scoretype) {
+void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable, int scoretype) {
 
     size_t dbSize = seqDbr->getSize();
-#pragma omp parallel
-    {
-        char * dbKey = new char[255+1];
-        char *similarity = new char[255+1];
-#pragma omp for schedule(dynamic, 100)
-        for(size_t i = 0; i < dbSize; i++) {
-            Log::printProgress(i);
-            // seqDbr is descending sorted by length
-            // the assumption is that clustering is B -> B (not A -> B)
-            std::string clusterId = seqDbr->getDbKey(i);
-            char *data = alnDbr->getDataByDBKey(clusterId.c_str());
+#pragma omp parallel for schedule(dynamic, 100)
+    for(size_t i = 0; i < dbSize; i++) {
+        Log::printProgress(i);
+        // seqDbr is descending sorted by length
+        // the assumption is that clustering is B -> B (not A -> B)
+        unsigned int clusterId = seqDbr->getDbKey(i);
+        char *data = alnDbr->getDataByDBKey(clusterId);
 
-            if (*data == '\0') { // check if file contains entry
-                Debug(Debug::ERROR) << "ERROR: Sequence " << i
-                << " does not contain any sequence for key " << clusterId
-                << "!\n";
+        if (*data == '\0') { // check if file contains entry
+            Debug(Debug::ERROR) << "ERROR: Sequence " << i
+            << " does not contain any sequence for key " << clusterId
+            << "!\n";
 
-                continue;
-            }
-            while (*data != '\0' ) {
-                Util::parseKey(data, dbKey);
-
-                size_t curr_element = seqDbr->getId(dbKey);
-                if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
-                    Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-                    *elementScoreTable[i] = (short)(atof(std::string(similarity).c_str()));
-                }else {
-                    Util::parseByColumnNumber(data, similarity, 2); //column 2 = sequence identity
-                    *elementScoreTable[i] = (short)(atof(std::string(similarity).c_str())*1000);
-                }
-
-                elementScoreTable[i]++;
-                if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()) {
-                    Debug(Debug::ERROR) << "ERROR: Element " << dbKey
-                    << " contained in some alignment list, but not contained in the sequence database!\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                *elementLookupTable[i] = curr_element;
-                elementLookupTable[i]++;
-                data = Util::skipLine(data);
-
-            }
+            continue;
         }
-        delete [] dbKey;
+        while (*data != '\0' ) {
+            char similarity[255+1];
+            char dbKey[255 + 1];
+            Util::parseKey(data, dbKey);
+            unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+
+            size_t curr_element = seqDbr->getId(key);
+            if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
+                //column 1 = alignment score
+                Util::parseByColumnNumber(data, similarity, 1);
+                *elementScoreTable[i] = (unsigned short)(atof(similarity));
+            }else {
+                //column 2 = sequence identity
+                Util::parseByColumnNumber(data, similarity, 2);
+                *elementScoreTable[i] = (unsigned short)(atof(similarity)*1000);
+            }
+
+            elementScoreTable[i]++;
+            if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()) {
+                Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                << " contained in some alignment list, but not contained in the sequence database!\n";
+                EXIT(EXIT_FAILURE);
+            }
+            *elementLookupTable[i] = curr_element;
+            elementLookupTable[i]++;
+            data = Util::skipLine(data);
+
+        }
     }
 }
 
@@ -329,7 +324,7 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
     }
 }
 
-void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWriter *alnWr,
+void AlignmentSymmetry::reconstructSet(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, DBWriter *alnWr,
                                        const size_t *oldElementOffset,
                                        const size_t *newElementOffset, unsigned int **elementLookupTable) {
     size_t dbSize = seqDbr->getSize();
@@ -347,10 +342,11 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
 #endif
             // seqDbr is descending sorted by length
             // the assumption is that clustering is B -> B (not A -> B)
-            std::string clusterId = seqDbr->getDbKey(set_i);
+            unsigned int clusterIdVal = seqDbr->getDbKey(set_i);
+            std::string clusterId = SSTR(clusterIdVal);
             size_t setiIdlength = clusterId.length();
 
-            const size_t alnId = alnDbr->getId(clusterId.c_str());
+            const size_t alnId = alnDbr->getId(clusterIdVal);
             const char *data = alnDbr->getData(alnId);
             const size_t dataSize = alnDbr->getSeqLens()[alnId];
             memcpy(buffer, data, dataSize - 1); // -1 for the nullbyte
@@ -360,8 +356,9 @@ void AlignmentSymmetry::reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWri
             if(newElementSize > oldElementSize){
                 for(size_t j = oldElementSize; j < newElementSize; j++){
                     const unsigned int set_j = elementLookupTable[set_i][j];
-                    std::string clusterId = seqDbr->getDbKey(set_j);
-                    const size_t alnId = alnDbr->getId(clusterId.c_str());
+                    unsigned int clusterIdVal = seqDbr->getDbKey(set_j);
+                    std::string clusterId = SSTR(clusterIdVal);
+                    const size_t alnId = alnDbr->getId(clusterIdVal);
                     char * setJData = alnDbr->getData(alnId);
 
                     const unsigned int setjElementSize = (oldElementOffset[set_j +1] - oldElementOffset[set_j]);

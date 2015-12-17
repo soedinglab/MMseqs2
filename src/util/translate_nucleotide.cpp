@@ -40,8 +40,8 @@ int translatenucleotide(int argn, const char **argv)
     const char *out_filename  = par.db2.c_str();
     const char *out_index_filename = par.db2Index.c_str();
     
-    DBReader reader(in_filename, in_index_filename);
-    reader.open(DBReader::NOSORT);
+    DBReader<std::string> reader(in_filename, in_index_filename);
+    reader.open(DBReader<std::string>::NOSORT);
     
     DBWriter writer(out_filename, out_index_filename);
     writer.open();

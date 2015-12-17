@@ -35,11 +35,11 @@ public:
 
 private:
 
-    DBReader* go_ffindex_reader;
+    DBReader<std::string>* go_ffindex_reader;
 
-    DBReader* protid_go_ffindex_reader;
+    DBReader<std::string>* protid_go_ffindex_reader;
 
-    DBReader* targetdb_header;
+    DBReader<std::string>* targetdb_header;
 
     std::string evaluationfolder;
 

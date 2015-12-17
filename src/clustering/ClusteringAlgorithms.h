@@ -14,13 +14,13 @@
 
 class ClusteringAlgorithms {
 public:
-ClusteringAlgorithms(DBReader * seqDbr, DBReader * alnDbr, int threads,int scoretype, int maxiterations);
+ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr, int threads,int scoretype, int maxiterations);
 
     std::list<set *>  execute(int mode);
 private:
-    DBReader* seqDbr;
+    DBReader<unsigned int>* seqDbr;
 
-    DBReader* alnDbr;
+    DBReader<unsigned int>* alnDbr;
 
 
     int threads;

@@ -10,6 +10,7 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Parameters.h"
+#include "Util.h"
 
 
 void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std::string> cluSteps)
@@ -17,8 +18,8 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     // open the sequence database
     // it will serve as the reference for sequence indexes
     std::string seqDBIndex = seqDB + ".index";
-    DBReader* dbr = new DBReader(seqDB.c_str(), seqDBIndex.c_str());
-    dbr->open(DBReader::NOSORT);
+    DBReader<unsigned int>* dbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str());
+    dbr->open(DBReader<unsigned int>::NOSORT);
 
     // init the structure for cluster merging
     // it has the size of all possible cluster (sequence amount)
@@ -32,17 +33,18 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     std::string firstCluStep = cluSteps.front();
     cluSteps.pop_front();
     std::string firstCluStepIndex = firstCluStep + ".index";
-    DBReader* cluStepDbr = new DBReader(firstCluStep.c_str(), firstCluStepIndex.c_str());
-    cluStepDbr->open(DBReader::NOSORT);
+    DBReader<unsigned int>* cluStepDbr = new DBReader<unsigned int>(firstCluStep.c_str(), firstCluStepIndex.c_str());
+    cluStepDbr->open(DBReader<unsigned int>::NOSORT);
 
     for (size_t i = 0; i < cluStepDbr->getSize(); i++){
-        std::string clusterId = cluStepDbr->getDbKey(i);
-        size_t cluId = dbr->getId(clusterId.c_str());
+        unsigned int clusterId = cluStepDbr->getDbKey(i);
+        size_t cluId = dbr->getId(clusterId);
         std::stringstream lineSs (cluStepDbr->getData(i));
         std::string val;
         // go through the sequences in the cluster and add them to the initial clustering
         while (std::getline(lineSs, val)){
-            size_t seqId = dbr->getId(val.c_str());
+            unsigned int key = (unsigned  int) strtoul(val.c_str(), NULL, 10);
+            size_t seqId = dbr->getId(key);
             mergedClustering[cluId]->push_back(seqId);
         }
     }
@@ -58,19 +60,20 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         std::string cluStepIndex = cluStep + ".index";
         cluSteps.pop_front();
 
-        cluStepDbr = new DBReader(cluStep.c_str(), cluStepIndex.c_str());
-        cluStepDbr->open(DBReader::NOSORT);
+        cluStepDbr = new DBReader<unsigned int>(cluStep.c_str(), cluStepIndex.c_str());
+        cluStepDbr->open(DBReader<unsigned int>::NOSORT);
 
         // go through the clusters and merge them into the clusters from the previous clustering step
         for (size_t i = 0; i < cluStepDbr->getSize(); i++){
-            size_t cluId = dbr->getId(cluStepDbr->getDbKey(i).c_str());
+            size_t cluId = dbr->getId(cluStepDbr->getDbKey(i));
             char* cluData = cluStepDbr->getData(i);
             std::stringstream lineSs(cluData);
             std::string val;
             // go through the sequences in the cluster and add them and their clusters to the cluster of cluId
             // afterwards, delete the added cluster from the clustering
             while (std::getline(lineSs, val, '\n')){
-                size_t seqId = dbr->getId(val.c_str());
+                unsigned int key = (unsigned  int) strtoul(val.c_str(), NULL, 10);
+                size_t seqId = dbr->getId(key);
                 if(seqId != cluId) // to avoid copies of the same cluster list
                     mergedClustering[cluId]->splice(mergedClustering[cluId]->end(), *mergedClustering[seqId]);
             }
@@ -98,7 +101,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
             continue;
 
         // representative
-        std::string dbKey = dbr->getDbKey(i);
+        unsigned int dbKey = dbr->getDbKey(i);
 
         std::stringstream res;
         for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
@@ -114,7 +117,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
             outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->write(outBuffer, cluResultsOutString.length(), (char*)dbKey.c_str());
+        dbw->write(outBuffer, cluResultsOutString.length(), SSTR(dbKey).c_str());
     }
     dbw->close();
     delete dbw;

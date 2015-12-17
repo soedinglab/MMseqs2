@@ -33,14 +33,14 @@ int clusteringtofastadb (int argc, const char **argv)
     Debug(Debug::WARNING) << "Fasta header input file: " << fastaHeaderInDB << "\n";
     Debug(Debug::WARNING) << "Fasta body input file: " << fastaBodyInDB << "\n";
 
-    DBReader clusters(clusteredDB.c_str(), clusteredDBIndex.c_str());
-    clusters.open(DBReader::NOSORT);
+    DBReader<unsigned int> clusters(clusteredDB.c_str(), clusteredDBIndex.c_str());
+    clusters.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader headers(fastaHeaderInDB.c_str(), fastaHeaderInDBIndex.c_str());
-    headers.open(DBReader::NOSORT);
+    DBReader<unsigned int> headers(fastaHeaderInDB.c_str(), fastaHeaderInDBIndex.c_str());
+    headers.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader bodies(fastaBodyInDB.c_str(), fastaBodyInDBIndex.c_str());
-    bodies.open(DBReader::NOSORT);
+    DBReader<unsigned int> bodies(fastaBodyInDB.c_str(), fastaBodyInDBIndex.c_str());
+    bodies.open(DBReader<unsigned int>::NOSORT);
 
     DBWriter msaOut(msaOutDB.c_str(), msaOutDBIndex.c_str());
     msaOut.open();
@@ -53,9 +53,9 @@ int clusteringtofastadb (int argc, const char **argv)
         std::string entry;
         std::istringstream clusterEntries(clusters.getData(i));
 		while (std::getline(clusterEntries, entry)) {
-            const char* cEntry = entry.c_str();
-			char* header = headers.getDataByDBKey(cEntry);
-            char* body   =  bodies.getDataByDBKey(cEntry);
+            unsigned int entryId = strtoul(entry.c_str(), NULL, 10);
+			char* header = headers.getDataByDBKey(entryId);
+            char* body   =  bodies.getDataByDBKey(entryId);
             if(header == NULL) {
                 Debug(Debug::WARNING) << "Entry " << entry << " does not contain a header!" << "\n";
                 continue;
@@ -69,7 +69,7 @@ int clusteringtofastadb (int argc, const char **argv)
 		}
 
         std::string fasta = fastaStream.str();
-        std::string key = clusters.getDbKey(i);
+        std::string key = SSTR(clusters.getDbKey(i));
         msaOut.write(fasta.c_str(), fasta.length(), key.c_str());
     }
 

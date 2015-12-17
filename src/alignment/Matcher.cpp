@@ -133,7 +133,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
 //    double K= 0.041;
 //    double Kmn=(qL * seqDbSize * dbSeq->L);
 //    double evalue = Kmn * exp(-(alignment->score1 * lambda));
-    result_t result(std::string(dbSeq->getDbKey()), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbStartPos, dbEndPos, dbSeq->L, backtrace);
+    result_t result(dbSeq->getDbKey(), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbStartPos, dbEndPos, dbSeq->L, backtrace);
     delete [] alignment->cigar;
     delete alignment;
     return result;
@@ -154,18 +154,18 @@ std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
         strncpy(key, data, keySize);
         key[keySize] = '\0';
 
-        std::string targetId = std::string(key);
+        unsigned int targetId = (unsigned int) strtoul(key, NULL, 10);
         double score = strtod(entry[1],NULL);
         double seqId = strtod(entry[2],NULL);
         double eval = strtod(entry[3],NULL);
 
 
-        size_t qStart = strtol(entry[4],NULL,0);
-        size_t qEnd = strtol(entry[5],NULL,0);
-        size_t qLen = strtol(entry[6],NULL,0);
-        size_t dbStart = strtol(entry[7],NULL,0);
-        size_t dbEnd = strtol(entry[8],NULL,0);
-        size_t dbLen = strtol(entry[9],NULL,0);
+        size_t qStart = strtoull(entry[4],NULL,0);
+        size_t qEnd = strtoull(entry[5],NULL,0);
+        size_t qLen = strtoull(entry[6],NULL,0);
+        size_t dbStart = strtoull(entry[7],NULL,0);
+        size_t dbEnd = strtoull(entry[8],NULL,0);
+        size_t dbLen = strtoull(entry[9],NULL,0);
         double qCov = Matcher::computeCov(qStart, qEnd, qLen);
         double dbCov = Matcher::computeCov(dbStart, dbEnd, dbLen);
         size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);

@@ -163,10 +163,10 @@ int main (int argc, const char * argv[])
     const char* sequence = tim1.c_str();
     std::cout << sequence << "\n\n";
     Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
-    s->mapSequence(0,"lala",sequence);
+    s->mapSequence(0,0,sequence);
     Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
-    dbSeq->mapSequence(1,"lala2",tim2.c_str());
+    dbSeq->mapSequence(1,1,tim2.c_str());
     SmithWaterman aligner(15000, subMat.alphabetSize, false);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (int i = 0; i < subMat.alphabetSize; i++) {

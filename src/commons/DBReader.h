@@ -10,11 +10,12 @@
 #include <utility>
 #include <string>
 
+template <typename T>
 class DBReader {
 
 public:
     struct Index {
-        unsigned int id;
+        T id;
         char * data;
         static bool compareById(Index x, Index y){
             return (x.id <= y.id);
@@ -36,11 +37,11 @@ public:
 
     char* getData(size_t id);
 
-    char* getDataByDBKey(const char* key);
+    char* getDataByDBKey(T key);
 
     size_t getSize();
 
-    std::string getDbKey(size_t id);
+    T getDbKey(size_t id);
 
     unsigned int * getSeqLens();
 
@@ -48,11 +49,11 @@ public:
 
     void remapData();
 
-    size_t bsearch(const Index * index, size_t size, unsigned int value);
+    size_t bsearch(const Index * index, size_t size, T value);
 
     // does a binary search in the ffindex and returns index of the entry with dbKey
     // returns UINT_MAX if the key is not contained in index
-    size_t getId (const char* dbKey);
+    size_t getId (T dbKey);
 
 
     static const int NOSORT = 0;
@@ -98,7 +99,6 @@ private:
 
     char* data;
 
-    unsigned int * ids;
     // number of entries in the index
     size_t size;
     // size of all data stored in ffindex
@@ -110,10 +110,8 @@ private:
 
     Index * index;
     unsigned int *seqLens;
-    size_t maxId;
 
     bool dataMapped;
 };
-
 
 #endif

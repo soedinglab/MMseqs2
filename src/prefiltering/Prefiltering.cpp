@@ -49,14 +49,14 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "\n";
     DBWriter::errorIfFileExist(outDB.c_str());
     DBWriter::errorIfFileExist(outDBIndex.c_str());
-    this->qdbr = new DBReader(queryDB.c_str(), queryDBIndex.c_str());
-    qdbr->open(DBReader::NOSORT);
+    this->qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
+    qdbr->open(DBReader<unsigned int>::NOSORT);
 
-    this->tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
+    this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
     if(par.searchMode == Parameters::SEARCH_LOCAL || par.searchMode == Parameters::SEARCH_LOCAL_FAST){
-        tdbr->open(DBReader::NOSORT);
+        tdbr->open(DBReader<unsigned int>::NOSORT);
     }else{
-        tdbr->open(DBReader::SORT);
+        tdbr->open(DBReader<unsigned int>::SORT);
     }
     sameQTDB = (queryDB.compare(targetDB) == 0);
 
@@ -350,8 +350,8 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
 #endif
         // get query sequence
         char* seqData = qdbr->getData(id);
-        std::string qKey = qdbr->getDbKey(id);
-        qseq[thread_idx]->mapSequence(id, (char*) qKey.c_str(), seqData);
+        unsigned int qKey = qdbr->getDbKey(id);
+        qseq[thread_idx]->mapSequence(id, qKey, seqData);
         // only the corresponding split should include the id (hack for the hack)
         unsigned int targetSeqId = UINT_MAX;
         if(id >= dbFrom && id < (dbFrom + dbSize) && sameQTDB){
@@ -410,8 +410,8 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     // sorts this datafile according to the index file
     if(splitMode == Parameters::TARGET_DB_SPLIT) {
         if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
-            DBReader tmpDbr(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
-            tmpDbr.open(DBReader::NOSORT);
+            DBReader<unsigned int> tmpDbr(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
+            tmpDbr.open(DBReader<unsigned int>::NOSORT);
             DBWriter tmpDbw2((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
             tmpDbw2.open();
             tmpDbw2.sortDatafileByIdOrder(&tmpDbr);
@@ -450,7 +450,7 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
         if (targetSeqId >= tdbr->getSize()) {
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << targetSeqId << "\t" << res->prefScore << "\n";
         }
-        const int len = snprintf(buffer, 100, "%s\t%.4f\t%d\n", tdbr->getDbKey(targetSeqId).c_str(), res->pScore, res->prefScore);
+        const int len = snprintf(buffer, 100, "%s\t%.4f\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(), res->pScore, res->prefScore);
         prefResultsOutString.append( buffer, len );
         l++;
         // maximum allowed result list length is reached
@@ -465,7 +465,7 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
         return -1;
     }
     char* prefResultsOutData = (char *) prefResultsOutString.c_str();
-    dbWriter->write(prefResultsOutData, prefResultsLength, (char*)qdbr->getDbKey(id).c_str(), thread_idx);
+    dbWriter->write(prefResultsOutData, prefResultsLength, SSTR(qdbr->getDbKey(id)).c_str(), thread_idx);
     return 0;
 
 }
@@ -516,7 +516,7 @@ BaseMatrix * Prefiltering:: getSubstitutionMatrix(std::string scoringMatrixFile,
     return subMat;
 }
 
-void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
+void Prefiltering::countKmersForIndexTable (DBReader<unsigned int>* dbr, Sequence* seq,
                                             IndexTable* indexTable,
                                             size_t dbFrom, size_t dbTo){
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
@@ -525,13 +525,13 @@ void Prefiltering::countKmersForIndexTable (DBReader* dbr, Sequence* seq,
     for (unsigned int id = dbFrom; id < dbTo; id++){
         Log::printProgress(id - dbFrom);
         char* seqData = dbr->getData(id);
-        std::string qKey = dbr->getDbKey(id);
-        seq->mapSequence(id - dbFrom, (char*)qKey.c_str(), seqData);
+        unsigned int qKey = dbr->getDbKey(id);
+        seq->mapSequence(id - dbFrom, qKey, seqData);
         indexTable->addKmerCount(seq);
     }
 }
 
-void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * indexTable,
+void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, IndexTable * indexTable,
                                 size_t dbFrom, size_t dbTo)
 {
     Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
@@ -547,8 +547,8 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
         Log::printProgress(id - dbFrom);
         char* seqData = dbr->getData(id);
         //TODO - dbFrom?!?
-        std::string qKey = dbr->getDbKey(id);
-        seq->mapSequence(id - dbFrom, (char*)qKey.c_str(), seqData);
+        unsigned int qKey = dbr->getDbKey(id);
+        seq->mapSequence(id - dbFrom, qKey, seqData);
         indexTable->addSequence(seq);
     }
 
@@ -561,9 +561,8 @@ void Prefiltering::fillDatabase(DBReader* dbr, Sequence* seq, IndexTable * index
 
 }
 
-IndexTable * Prefiltering::generateIndexTable(DBReader *dbr, Sequence *seq, int alphabetSize, int kmerSize,
-                                              size_t dbFrom, size_t dbTo, int searchMode, int skip) {
-
+IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, int alphabetSize, int kmerSize,
+                                                   size_t dbFrom, size_t dbTo, int searchMode, int skip) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     IndexTable * indexTable;
@@ -589,8 +588,8 @@ IndexTable * Prefiltering::generateIndexTable(DBReader *dbr, Sequence *seq, int 
 }
 
 std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable,
-                                                        DBReader *qdbr,
-                                                        DBReader *tdbr,
+                                                        DBReader<unsigned int>*qdbr,
+                                                        DBReader<unsigned int>*tdbr,
                                                         int sensitivity,
                                                         const int kmerScore) {
     size_t targetDbSize = indexTable->getSize();
@@ -677,8 +676,8 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
         thread_idx = omp_get_thread_num();
 #endif
         char* seqData = qdbr->getData(id);
-        std::string qKey = qdbr->getDbKey(id);
-        qseq[thread_idx]->mapSequence(id, (char*) qKey.c_str(), seqData);
+        unsigned int qKey = qdbr->getDbKey(id);
+        qseq[thread_idx]->mapSequence(id, qKey, seqData);
         if(reverseQuery == true){
             qseq[thread_idx]->reverse();
         }

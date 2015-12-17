@@ -21,7 +21,7 @@ public:
     void convertFfindexToTsv(std::string clusteringfile, std::string prefix, std::string outputfolder);
 
 private:
-    DBReader* targetdb_header;
+    DBReader<std::string>* targetdb_header;
     std::string getProteinNameForID(const char * dbKey);
 
     };

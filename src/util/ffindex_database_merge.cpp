@@ -39,8 +39,8 @@ int mergeffindex (int argc, const char * argv[])
     std::vector<std::pair<std::string, std::string> > filenames;
     parseArgs(argc, argv, &seqDB, &outDB, &filenames); 
 
-    DBReader qdbr(seqDB.c_str(), std::string(seqDB+".index").c_str());
-    qdbr.open(DBReader::NOSORT);
+    DBReader<unsigned int> qdbr(seqDB.c_str(), std::string(seqDB+".index").c_str());
+    qdbr.open(DBReader<unsigned int>::NOSORT);
     DBWriter writer(outDB.c_str(), std::string( outDB +".index").c_str());
     writer.open();
     writer.mergeFiles(&qdbr, filenames, 1000000);
