@@ -22,7 +22,7 @@ struct MMseqsParameter {
     const std::type_info &type;
     void * value;
     const char * regex;
-    MMseqsParameter(int uid,const char * n, const char *display,
+    MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash, void * value, const char * regex):
                     uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex){}
 };
@@ -210,6 +210,7 @@ public:
     PARAMETER(PARAM_MAX_REJECTED);
     PARAMETER(PARAM_MIN_SEQ_ID);
     std::vector<MMseqsParameter> alignment;
+
     // clustering
     PARAMETER(PARAM_CLUSTER_MODE);
 
@@ -218,11 +219,13 @@ public:
     //afinity clustering
     PARAMETER(PARAM_MAXITERATIONS);
     PARAMETER(PARAM_SIMILARITYSCORE);
-    std::vector<MMseqsParameter> clustering;
-    // create profile (HMM, PSSM)
-    PARAMETER(PARAM_PROFILE_TYPE);
     // logging
     PARAMETER(PARAM_V);
+    std::vector<MMseqsParameter> clustering;
+
+    // create profile (HMM, PSSM)
+    PARAMETER(PARAM_PROFILE_TYPE);
+
     // clustering workflow
     PARAMETER(PARAM_RESTART);
     PARAMETER(PARAM_STEP);

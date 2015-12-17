@@ -182,7 +182,7 @@ int main (int argc, const char * argv[])
 
     for(int i = 0; i< subMat.alphabetSize; i++) {
         profile[i] = &profile_data[i*s->L];
-        for (size_t j = 0; j < s->L; j++) {
+        for (int j = 0; j < s->L; j++) {
             profile[i][j] = tinySubMat[i*subMat.alphabetSize + s->int_sequence[j]];
         }
     }

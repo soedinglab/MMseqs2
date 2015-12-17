@@ -47,9 +47,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
 
     par.parseParameters(argc, argv, usage, params, 3);
     Debug::setDebugLevel(par.verbosity);
-    
-    int restart = par.restart;
-    int step = par.step;
+
     DBWriter::errorIfFileExist(par.db2.c_str());
     if (par.cascaded) {
         CommandCaller cmd;

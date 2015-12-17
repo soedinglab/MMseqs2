@@ -15,7 +15,8 @@
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
 #include "BaseMatrix.h"
-#include "../alignment/smith_waterman_sse2.h"
+#include "smith_waterman_sse2.h"
+#include "Parameters.h"
 
 
 
@@ -25,10 +26,11 @@
 
 int main (int argc, const char * argv[])
 {
+    Parameters par;
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out",
+    SubstitutionMatrix subMat(std::string(par.mmdir + "/data/blosum62.out").c_str(),
                               2.0, 0.0);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);

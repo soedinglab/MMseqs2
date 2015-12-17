@@ -55,8 +55,9 @@ int formatalignment (int argc, const char * argv[])
             Matcher::result_t res = results[j];
             char *headerLine = db_header.getDataByDBKey(res.dbKey.c_str());
             std::string targetId = Util::parseFastaHeader(headerLine);
-            size_t missMatchCount = res.seqId * std::min(res.qLen, res.dbLen);
-            size_t gapOpenCount = 0;
+            unsigned int missMatchCount = (unsigned int)(res.seqId * std::min(res.qLen, res.dbLen));
+            // TODO
+            unsigned int gapOpenCount = 0;
             fprintf(fastaFP, "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
                     queryId.c_str(), targetId.c_str(),  res.seqId, res.alnLength, missMatchCount, gapOpenCount,
                     res.qStartPos,res.qEndPos, res.dbStartPos,res.dbEndPos, res.eval, res.score);
