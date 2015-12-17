@@ -20,7 +20,7 @@ public:
     void addSequence(Sequence * seq);
 
     // get sequence data
-    std::pair<char *, unsigned int> getSequence(size_t id);
+    std::pair<const unsigned char *, const unsigned int> getSequence(size_t id);
 
 private:
 
