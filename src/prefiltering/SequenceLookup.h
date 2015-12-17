@@ -9,12 +9,12 @@
 #include <stddef.h>
 #include <Sequence.h>
 
-class SequenceIndex {
+class SequenceLookup {
 
 public:
-    SequenceIndex(size_t dbSize, size_t entrySize);
+    SequenceLookup(size_t dbSize, size_t entrySize);
 
-    ~SequenceIndex();
+    ~SequenceLookup();
 
     // add sequence to index
     void addSequence(Sequence * seq);

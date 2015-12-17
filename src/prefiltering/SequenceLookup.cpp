@@ -3,9 +3,9 @@
 //
 
 #include <string.h>
-#include "SequenceIndex.h"
+#include "SequenceLookup.h"
 
-SequenceIndex::SequenceIndex(size_t dbSize, size_t entrySize) {
+SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize) {
     sequence = new char*[dbSize + 1];
     data = new char[entrySize + 1];
     currWritePos = data;
@@ -13,12 +13,12 @@ SequenceIndex::SequenceIndex(size_t dbSize, size_t entrySize) {
     sequence[dbSize] = &data[entrySize];
 }
 
-SequenceIndex::~SequenceIndex() {
+SequenceLookup::~SequenceLookup() {
     delete [] sequence;
     delete [] data;
 }
 
-void SequenceIndex::addSequence(Sequence * seq) {
+void SequenceLookup::addSequence(Sequence * seq) {
     sequence[seq->getId()] = currWritePos;
     for(size_t pos = 0; pos < seq->L; pos++){
         sequence[seq->getId()][pos] = seq->int_sequence[pos];
@@ -26,7 +26,7 @@ void SequenceIndex::addSequence(Sequence * seq) {
     currWritePos = currWritePos + seq->L;
 }
 
-std::pair<char *, unsigned int> SequenceIndex::getSequence(size_t id) {
-    unsigned int N = (sequence[id + 1] - sequence[id])/ sizeof(char);
-    return std::make_pair(sequence[id], N);
+std::pair<const unsigned char *, const unsigned int> SequenceLookup::getSequence(size_t id) {
+    const unsigned int N = (sequence[id + 1] - sequence[id])/ sizeof(char);
+    return std::make_pair(( const unsigned char *)sequence[id], N);
 }
