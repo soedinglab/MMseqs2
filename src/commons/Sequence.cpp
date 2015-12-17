@@ -1,6 +1,6 @@
 #include "Sequence.h"
-#include "../commons/Debug.h"
-#include "../commons/Util.h"
+#include "Debug.h"
+#include "Util.h"
 #include "simd.h"
 
 #include <limits.h> // short_max

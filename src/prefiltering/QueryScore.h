@@ -16,7 +16,6 @@
 #include <math.h>
 #include <fstream>
 #include <sstream>
-#include <unordered_map>
 #include <vector>
 #include <sys/cdefs.h>
 #include <zconf.h>
