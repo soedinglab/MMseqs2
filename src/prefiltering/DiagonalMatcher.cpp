@@ -12,8 +12,8 @@ DiagonalMatcher::DiagonalMatcher(const unsigned int maxSeqLen,
                                  SequenceLookup * sequenceLookup) {
     score_arr = new unsigned int[VECSIZE_INT*4];
     vectorSequence = (unsigned char *) malloc_simd_int(VECSIZE_INT * 4 * maxSeqLen);
-    queryProfile   = (char *) malloc_simd_int(32 * maxSeqLen);
-    memset(queryProfile, 0, 32 * maxSeqLen);
+    queryProfile   = (char *) malloc_simd_int(PROFILESIZE * maxSeqLen);
+    memset(queryProfile, 0, PROFILESIZE * maxSeqLen);
     this->subMatrix = substitutionMatrix;
     this->sequenceLookup = sequenceLookup;
 }
@@ -35,19 +35,19 @@ void DiagonalMatcher::processQuery(Sequence * query, hit_t * results, size_t res
         }
     }
     bias = abs(bias);
-    memset(queryProfile, bias, 32 * query->L);
+    memset(queryProfile, bias, PROFILESIZE * query->L);
     // create profile
     for (size_t pos = 0; pos < query->L; pos++) {
         unsigned int aaIdx = query->int_sequence[pos];
         for (size_t i = 0; i < subMatrix->alphabetSize; i++) {
-            queryProfile[pos * 32 + i] = subMat[aaIdx][i]+bias;
+            queryProfile[pos * PROFILESIZE + i] = subMat[aaIdx][i]+bias;
         }
     }
     computeScores(queryProfile, query->L, results, resultSize, bias);
 
 }
 
-const unsigned int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
+const int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
                                                           const unsigned int profileSize,
                                                           const int bias,
                                                           const unsigned int seqLen,
@@ -81,7 +81,7 @@ inline const __m256i DiagonalMatcher::Shuffle(const __m256i & value, const __m25
                            _mm256_shuffle_epi8(_mm256_permute4x64_epi64(value, 0x4E), _mm256_add_epi8(shuffle, K1)));
 }
 
-const unsigned int *DiagonalMatcher::vectorDiagonalScoring(const char *profile,
+const simd_int  DiagonalMatcher::vectorDiagonalScoring(const char *profile,
                                                            const unsigned int profileSize,
                                                            const char bias,
                                                            const unsigned int seqLen,
@@ -96,7 +96,7 @@ const unsigned int *DiagonalMatcher::vectorDiagonalScoring(const char *profile,
     for(unsigned int pos = 0; pos < seqLen; pos++){
         simd_int template01 = simdi_load((simd_int *)&dbSeq[pos*VECSIZE_INT*4]);
 #ifdef AVX2
-        __m256i score_matrix_vec01 = _mm256_load_si256((simd_int *)&profile[pos * 32]);
+        __m256i score_matrix_vec01 = _mm256_load_si256((simd_int *)&profile[pos * PROFILESIZE]);
         //TODO check
 
         __m256i score_vec_8bit = Shuffle(score_matrix_vec01, template01);
@@ -137,29 +137,11 @@ const unsigned int *DiagonalMatcher::vectorDiagonalScoring(const char *profile,
         vscore    = simdui8_subs(vscore, vBias);
         vMaxScore = simdui8_max(vMaxScore, vscore);
     }
-#ifdef AVX2
-#define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi8(vMaxScore, i)
-    EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
-    EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
-    EXTRACT_AVX(8);  EXTRACT_AVX(9);  EXTRACT_AVX(10);  EXTRACT_AVX(11);
-    EXTRACT_AVX(12);  EXTRACT_AVX(13);  EXTRACT_AVX(14);  EXTRACT_AVX(15);
-    EXTRACT_AVX(16);  EXTRACT_AVX(17);  EXTRACT_AVX(18);  EXTRACT_AVX(19);
-    EXTRACT_AVX(20);  EXTRACT_AVX(21);  EXTRACT_AVX(22);  EXTRACT_AVX(23);
-    EXTRACT_AVX(24);  EXTRACT_AVX(25);  EXTRACT_AVX(26);  EXTRACT_AVX(27);
-    EXTRACT_AVX(28);  EXTRACT_AVX(29);  EXTRACT_AVX(30);  EXTRACT_AVX(31);
-#undef EXTRACT_AVX
-#elif SSE
-#define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi8(vMaxScore, i)
-    EXTRACT_SSE(0);  EXTRACT_SSE(1);  EXTRACT_SSE(2);  EXTRACT_SSE(3);
-    EXTRACT_SSE(4);  EXTRACT_SSE(5);  EXTRACT_SSE(6);  EXTRACT_SSE(7);
-    EXTRACT_SSE(8);  EXTRACT_AVX(9);  EXTRACT_SSE(10);  EXTRACT_SSE(11);
-    EXTRACT_SSE(12);  EXTRACT_SSE(13);  EXTRACT_SSE(14);  EXTRACT_SSE(15);
-#undef EXTRACT_SSE
-#endif
-    return score_arr;
+
+    return vMaxScore;
 }
 
-unsigned char * DiagonalMatcher::mapSequences(hit_t * seqIds, unsigned int seqCount) {
+std::pair<unsigned char *, unsigned int> DiagonalMatcher::mapSequences(hit_t * seqIds, unsigned int seqCount) {
     std::pair<unsigned char *, unsigned int> seqs[VECSIZE_INT*4];
     unsigned int maxLen = 0;
     for(unsigned int seqIdx = 0; seqIdx < seqCount;  seqIdx++) {
@@ -172,7 +154,7 @@ unsigned char * DiagonalMatcher::mapSequences(hit_t * seqIds, unsigned int seqCo
             vectorSequence[pos * VECSIZE_INT * 4 + seqIdx] = (seqIdx < seqCount) ? seqs[seqIdx].first[pos] : 0;
         }
     }
-    return vectorSequence;
+    return std::make_pair(vectorSequence, maxLen);
 }
 
 void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
@@ -181,20 +163,60 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
                                                  hit_t * hits,
                                                  const unsigned int hitSize,
                                                  const short bias) {
+
+
+
+    unsigned int i_splits = std::max((unsigned int)1, queryLen / DIAGONALCOUNT);
     if(hitSize > (VECSIZE_INT * 4) / 4){
-        vectorSequence = mapSequences(hits, hitSize);
-        const unsigned int * scores = vectorDiagonalScoring(queryProfile, 21, bias, queryLen, vectorSequence);
+        std::pair<unsigned char *, unsigned int> seq = mapSequences(hits, hitSize);
+        simd_int vMaxScore = simdi_setzero();
+        unsigned int j_splits = std::max((unsigned int)1, seq.second / DIAGONALCOUNT);
+        for(unsigned int i = 0; i < i_splits; i++) {
+            for(unsigned int j = 0; j < j_splits; j++) {
+                simd_int ret = vectorDiagonalScoring(queryProfile + (i * DIAGONALCOUNT * PROFILESIZE + diagonal * PROFILESIZE ), PROFILESIZE, bias, queryLen,
+                                                                   seq.first + (j * DIAGONALCOUNT * VECSIZE_INT*4));
+                vMaxScore = simdui8_max(ret, vMaxScore);
+            }
+        }
+#ifdef AVX2
+#define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi8(vMaxScore, i)
+        EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
+        EXTRACT_AVX(4);  EXTRACT_AVX(5);  EXTRACT_AVX(6);  EXTRACT_AVX(7);
+        EXTRACT_AVX(8);  EXTRACT_AVX(9);  EXTRACT_AVX(10);  EXTRACT_AVX(11);
+        EXTRACT_AVX(12);  EXTRACT_AVX(13);  EXTRACT_AVX(14);  EXTRACT_AVX(15);
+        EXTRACT_AVX(16);  EXTRACT_AVX(17);  EXTRACT_AVX(18);  EXTRACT_AVX(19);
+        EXTRACT_AVX(20);  EXTRACT_AVX(21);  EXTRACT_AVX(22);  EXTRACT_AVX(23);
+        EXTRACT_AVX(24);  EXTRACT_AVX(25);  EXTRACT_AVX(26);  EXTRACT_AVX(27);
+        EXTRACT_AVX(28);  EXTRACT_AVX(29);  EXTRACT_AVX(30);  EXTRACT_AVX(31);
+#undef EXTRACT_AVX
+#elif SSE
+        #define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi8(vMaxScore, i)
+    EXTRACT_SSE(0);  EXTRACT_SSE(1);  EXTRACT_SSE(2);  EXTRACT_SSE(3);
+    EXTRACT_SSE(4);  EXTRACT_SSE(5);  EXTRACT_SSE(6);  EXTRACT_SSE(7);
+    EXTRACT_SSE(8);  EXTRACT_AVX(9);  EXTRACT_SSE(10);  EXTRACT_SSE(11);
+    EXTRACT_SSE(12);  EXTRACT_SSE(13);  EXTRACT_SSE(14);  EXTRACT_SSE(15);
+#undef EXTRACT_SSE
+#endif
+
         // update score
         for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
-            hits[hitIdx].diagonalScore = scores[hitIdx];
+            hits[hitIdx].diagonalScore = score_arr[hitIdx];
         }
     }else {
         for (size_t hitIdx = 0; hitIdx < hitSize; hitIdx++) {
             const unsigned int seqId = hits[hitIdx].seqId;
             std::pair<const unsigned char *, const unsigned int> dbSeq =  sequenceLookup->getSequence(seqId);
+            unsigned int j_splits = std::max((unsigned int)1, dbSeq.second / DIAGONALCOUNT);
             const unsigned int seqLen = std::min(queryLen, dbSeq.second);
-            unsigned int scores = scalarDiagonalScoring(queryProfile, 32, bias, seqLen, dbSeq.first);
-            hits[hitIdx].diagonalScore = scores;
+            int max = 0;
+            for(unsigned int i = 0; i < i_splits; i++) {
+                for (unsigned int j = 0; j < j_splits; j++) {
+                    int scores = scalarDiagonalScoring(queryProfile +  (i * 256 * PROFILESIZE + diagonal * PROFILESIZE), PROFILESIZE,
+                                                                bias, seqLen, dbSeq.first );
+                    max = std::max(scores, max);
+                }
+            }
+            hits[hitIdx].diagonalScore = max;
         }
     }
 }
