@@ -29,9 +29,11 @@
 
 
 typedef struct {
-    size_t seqId;
+    unsigned int seqId;
     float pScore;
     unsigned short prefScore;
+    unsigned char diagonal;
+    unsigned char diagonalScore;
 } hit_t;
 
 
