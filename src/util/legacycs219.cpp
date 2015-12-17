@@ -44,20 +44,30 @@ int legacycs219(int argn, const char **argv)
 
     Debug::setDebugLevel(par.verbosity);
 
-    std::string in_filename = std::string(par.db1 + ".ffdata");
-    std::string in_index_filename = std::string(par.db1 + ".ffindex");
+    std::string in_filename = par.db1;
+    in_filename.append(".ffdata");
 
-    DBReader reader(in_filename.c_str(), in_index_filename.c_str());
-    reader.open(DBReader::NOSORT);
+    std::string in_index_filename = par.db1;
+    in_index_filename.append(".ffindex");
 
-    std::string a3m_filename = std::string(par.db2 + ".ffdata");
-    std::string a3m_index_filename = std::string(par.db2 + ".ffindex");
+    DBReader<std::string> reader(in_filename.c_str(), in_index_filename.c_str());
+    reader.open(DBReader<std::string>::NOSORT);
 
-    DBReader a3m_reader(a3m_filename.c_str(), a3m_index_filename.c_str());
-    a3m_reader.open(DBReader::NOSORT);
+    std::string a3m_filename = par.db2;
+    a3m_filename.append(".ffdata");
 
-    std::string out_filename  = std::string(par.db3 + ".cs219");
-    std::string out_sizes_filename = std::string(par.db3 + ".cs219.sizes");
+    std::string a3m_index_filename = par.db2;
+    a3m_index_filename.append(".ffindex");
+
+    DBReader<std::string> a3m_reader(a3m_filename.c_str(), a3m_index_filename.c_str());
+    a3m_reader.open(DBReader<std::string>::NOSORT);
+
+    std::string out_filename  = par.db3;
+    out_filename.append(".cs219");
+
+    std::string out_sizes_filename = par.db3 ;
+    out_filename.append(".cs219.sizes"
+    );
 
     FILE* out_file = Util::openFileOrDie(out_filename.c_str(), "wb", false);
     FILE* out_size = Util::openFileOrDie(out_sizes_filename.c_str(), "w", false);

@@ -29,8 +29,13 @@ extern "C" {
 #endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
-#define SSTR( x ) dynamic_cast< std::ostringstream& >( \
+#if __cplusplus <= 199711L
+#define SSTR( x ) \
+dynamic_cast< std::ostringstream& >( \
 ( std::ostringstream().flush() << std::dec << x ) ).str()
+#else
+#define SSTR( x ) std::to_string(x)
+#endif
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
@@ -299,5 +304,13 @@ public:
     }
 
     static std::map<std::string, size_t> readMapping(const char *fastaFile);
+
+
+    static inline unsigned int concatenate(unsigned int x, unsigned int y) {
+        unsigned int pow = 10;
+        while(y >= pow)
+            pow *= 10;
+        return x * pow + y;
+    }
 };
 #endif

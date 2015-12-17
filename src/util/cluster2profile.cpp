@@ -34,18 +34,18 @@ int runResult2Profile(std::string queryDb, std::string targetDb, std::string res
 
 
     bool sameDatabase = true;
-    DBReader * qdbr  = new DBReader(queryDb.c_str(), (queryDb + ".index").c_str());
-    qdbr->open(DBReader::NOSORT);
-    DBReader * tdbr = NULL;
+    DBReader<unsigned int>* qdbr  = new DBReader<unsigned int>(queryDb.c_str(), (queryDb + ".index").c_str());
+    qdbr->open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int>* tdbr = NULL;
     tdbr = qdbr;
     if(queryDb.compare(targetDb) != 0){
         sameDatabase = false;
-        tdbr = new DBReader(targetDb.c_str(), (targetDb + ".index").c_str());
-        tdbr->open(DBReader::NOSORT);
+        tdbr = new DBReader<unsigned int>(targetDb.c_str(), (targetDb + ".index").c_str());
+        tdbr->open(DBReader<unsigned int>::NOSORT);
     }
 
-    DBReader resultdbr(resultDb.c_str(), (resultDb + ".index").c_str());
-    resultdbr.open(DBReader::NOSORT);
+    DBReader<unsigned int> resultdbr(resultDb.c_str(), (resultDb + ".index").c_str());
+    resultdbr.open(DBReader<unsigned int>::NOSORT);
 
     DBWriter::errorIfFileExist(outDb.c_str());
     DBWriter::errorIfFileExist((std::string(outDb)+".index").c_str());
@@ -98,17 +98,18 @@ int runResult2Profile(std::string queryDb, std::string targetDb, std::string res
 
             char dbKey[255 + 1];
             char *data = resultdbr.getData(id);
-            std::string queryId = resultdbr.getDbKey(id);
-            char *seqData = qdbr->getDataByDBKey(queryId.c_str());
-            centerSeq.mapSequence(0, (char*)queryId.c_str(), seqData);
+            unsigned int queryId = resultdbr.getDbKey(id);
+            char *seqData = qdbr->getDataByDBKey(queryId);
+            centerSeq.mapSequence(0, queryId, seqData);
             std::vector<Sequence *> seqSet;
             size_t pos = 0;
 
             while (*data != '\0') {
                 Util::parseKey(data, dbKey);
-                if ( (strcmp(dbKey, queryId.c_str()) == 0 && sameDatabase) == false ) {
-                    char *dbSeqData = tdbr->getDataByDBKey(dbKey);
-                    dbSeqs[pos]->mapSequence(0, dbKey, dbSeqData);
+                unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                if (key != queryId || !sameDatabase) {
+                    char *dbSeqData = tdbr->getDataByDBKey(key);
+                    dbSeqs[pos]->mapSequence(0, key, dbSeqData);
                     seqSet.push_back(dbSeqs[pos]);
                     pos++;
                 }
@@ -126,7 +127,7 @@ int runResult2Profile(std::string queryDb, std::string targetDb, std::string res
             //pssm.printProfile(res.centerLength);
             //pssmCalculator.printPSSM(res.centerLength);
 
-            dbWriter.write(pssmData, pssmDataSize, (char*)queryId.c_str(), thread_idx);
+            dbWriter.write(pssmData, pssmDataSize, SSTR(queryId).c_str(), thread_idx);
             seqSet.clear();
         }
         // clean memeory

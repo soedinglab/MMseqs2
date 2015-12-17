@@ -13,12 +13,12 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
-    seqDbr = new DBReader(seqDB.c_str(), seqDBIndex.c_str());
-    seqDbr->open(DBReader::SORT);
+    seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str());
+    seqDbr->open(DBReader<unsigned int>::SORT);
 
     Debug(Debug::INFO) << "Opening alignment database...\n";
-    alnDbr = new DBReader(alnDB.c_str(), alnDBIndex.c_str());
-    alnDbr->open(DBReader::NOSORT);
+    alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str());
+    alnDbr->open(DBReader<unsigned int>::NOSORT);
     this->validate = validateClustering;
     Debug(Debug::INFO) << "done.\n";
     this->maxIteration=maxIteration;
@@ -107,12 +107,12 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
         std::stringstream res;
         set::element * element =(*iterator)->elements;
         // first entry is the representative sequence
-        std::string dbKey = seqDbr->getDbKey(element->element_id);
+        unsigned int dbKey = seqDbr->getDbKey(element->element_id);
 
         do{
-            std::string nextDbKey = seqDbr->getDbKey(element->element_id);
+            unsigned int nextDbKey = seqDbr->getDbKey(element->element_id);
             res << nextDbKey << "\n";
-        }while((element=element->next)!=NULL);
+        } while((element=element->next)!=NULL);
 
         std::string cluResultsOutString = res.str();
         const char* cluResultsOutData = cluResultsOutString.c_str();
@@ -125,7 +125,7 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
             outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->write(outBuffer, cluResultsOutString.length(), (char*)dbKey.c_str());
+        dbw->write(outBuffer, cluResultsOutString.length(), SSTR(dbKey).c_str());
     }
     delete[] outBuffer;
 }
@@ -149,7 +149,7 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
         if (control[i] == 0){
             Debug(Debug::INFO) << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is missing in the clustering!\n";
             Debug(Debug::INFO) << "len = " <<  seqDbr->getSeqLens()[i] << "\n";
-            Debug(Debug::INFO) << "alignment results len = " << strlen(alnDbr->getDataByDBKey(seqDbr->getDbKey(i).c_str())) << "\n";
+            Debug(Debug::INFO) << "alignment results len = " << strlen(alnDbr->getDataByDBKey(seqDbr->getDbKey(i))) << "\n";
             notin++;
         }
         else if (control[i] > 1){

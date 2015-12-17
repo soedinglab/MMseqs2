@@ -39,13 +39,13 @@ int main (int argc, const char * argv[])
     const char* sequence = profile.c_str();
     std::cout << sequence << "\n\n";
     Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, kmer_size, true);
-    s->mapSequence(0,"lala",sequence);
+    s->mapSequence(0,0,sequence);
     s->printProfile();
     Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, kmer_size, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     const char* sequence2 = "IIRLNHVAVATLQLEKLTSFYRDTLGLQVSEPVPQKEHGVTTVFVDVGNTKFELLLPLGDKSPIANFLEKNKGGGAHHVCLEVDDIEAAVADLKXXGIRMLAEKTRIGAHGKPVMFLHPKDCGGVLVELEQ\n";
 
-    dbSeq->mapSequence(1,"lala2",sequence2);
+    dbSeq->mapSequence(1,1,sequence2);
     SmithWaterman aligner(15000, subMat.alphabetSize, false);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
 

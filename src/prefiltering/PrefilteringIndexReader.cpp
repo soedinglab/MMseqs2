@@ -2,23 +2,23 @@
 #include "DBWriter.h"
 #include "Prefiltering.h"
 
-const char *PrefilteringIndexReader::CURRENT_VERSION="2.0.0";
-const char *PrefilteringIndexReader::VERSION = "0";
-const char *PrefilteringIndexReader::ENTRIES = "1";
-const char *PrefilteringIndexReader::ENTRIESIZES = "2";
-const char *PrefilteringIndexReader::ENTRIESNUM = "3";
-const char *PrefilteringIndexReader::TABLESIZE = "4";
-const char *PrefilteringIndexReader::META = "5";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="2.0.0";
+unsigned int PrefilteringIndexReader::VERSION = 0;
+unsigned int PrefilteringIndexReader::ENTRIES = 1;
+unsigned int PrefilteringIndexReader::ENTRIESIZES = 2;
+unsigned int PrefilteringIndexReader::ENTRIESNUM = 3;
+unsigned int PrefilteringIndexReader::TABLESIZE = 4;
+unsigned int PrefilteringIndexReader::META = 5;
 
-bool PrefilteringIndexReader::checkIfIndexFile(DBReader *reader) {
-    char * version = reader->getDataByDBKey((char *) VERSION);
+bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
+    char * version = reader->getDataByDBKey(VERSION);
     if(version == NULL){
         return false;
     }
     return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
-void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader *dbr, Sequence *seq,
+void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader<unsigned int>*dbr, Sequence *seq,
                                               int split, int alphabetSize, int kmerSize, int skip, bool hasSpacedKmer,
                                               int searchMode) {
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
@@ -42,7 +42,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize);
 
         // save the entries
-        std::string entries_key = std::string(ENTRIES) + SSTR(step);
+        std::string entries_key = SSTR(Util::concatenate(ENTRIES, step));
         Debug(Debug::WARNING) << "Write " << entries_key << "\n";
         char *entries = (char *) indexTable->getEntries();
         writer.write(entries,
@@ -51,7 +51,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         indexTable->deleteEntries();
 
         // save the size
-        std::string entriesizes_key = std::string(ENTRIESIZES) + SSTR(step);
+        std::string entriesizes_key = SSTR(Util::concatenate(ENTRIESIZES, step));
         Debug(Debug::WARNING) << "Write " << entriesizes_key << "\n";
         char **sizes = indexTable->getTable();
         size_t *size = new size_t[indexTable->getTableSize()];
@@ -63,13 +63,13 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         delete[] size;
         // meta data
         // ENTRIESNUM
-        std::string entriesnum_key = std::string(ENTRIESNUM) + SSTR(step);
+        std::string entriesnum_key = SSTR(Util::concatenate(ENTRIESNUM, step));
         Debug(Debug::WARNING) << "Write " << entriesnum_key << "\n";
         int64_t entriesNum = indexTable->getTableEntriesNum();
         char *entriesNumPtr = (char *) &entriesNum;
         writer.write(entriesNumPtr, 1 * sizeof(int64_t), (char *) entriesnum_key.c_str(), 0);
         // TABLESIZE
-        std::string tablesize_key = std::string(TABLESIZE) + SSTR(step);
+        std::string tablesize_key = SSTR(Util::concatenate(TABLESIZE, step));
         Debug(Debug::WARNING) << "Write " << tablesize_key << "\n";
         size_t tablesize = {indexTable->getSize()};
         char *tablesizePtr = (char *) &tablesize;
@@ -82,10 +82,10 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
     int metadata[] = {kmerSize, alphabetSize, skip, split, local, spacedKmer};
     char *metadataptr = (char *) &metadata;
-    writer.write(metadataptr, 6 * sizeof(int), (char *) META, 0);
+    writer.write(metadataptr, 6 * sizeof(int), SSTR(META).c_str(), 0);
 
     Debug(Debug::WARNING) << "Write " << VERSION << "\n";
-    writer.write((char*)CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), (char *) VERSION, 0);
+    writer.write((char*)CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), SSTR(VERSION).c_str(), 0);
 
     Debug(Debug::WARNING) << "Write MMSEQSFFINDEX \n";
     std::ifstream src(dbr->getIndexFileName(), std::ios::binary);
@@ -97,23 +97,19 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
     Debug(Debug::WARNING) << "Done. \n";
 }
 
-DBReader *PrefilteringIndexReader::openNewReader(DBReader *dbr) {
+DBReader<unsigned int>*PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr) {
     std::string filePath(dbr->getDataFileName());
     std::string fullPath = filePath + std::string(".mmseqsindex");
-    DBReader *reader = new DBReader("", fullPath.c_str(), DBReader::INDEXONLY);
-    reader->open(DBReader::SORT);
+    DBReader<unsigned int>*reader = new DBReader<unsigned int>("", fullPath.c_str(), DBReader<unsigned int>::INDEXONLY);
+    reader->open(DBReader<unsigned int>::SORT);
     return reader;
 }
 
-IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader *dbr, int split) {
-    std::string entriesizes_key = std::string(ENTRIESIZES) + SSTR(split);
-    size_t *entrieSizes         = (size_t *) dbr->getDataByDBKey((char *) entriesizes_key.c_str());
-    std::string entries_key     = std::string(ENTRIES) + SSTR(split);
-    char *entries               = (char *) dbr->getDataByDBKey((char *) entries_key.c_str());
-    std::string entriesnum_key  = std::string(ENTRIESNUM) + SSTR(split);
-    int64_t *entriesNum         = (int64_t *) dbr->getDataByDBKey((char *) entriesnum_key.c_str());
-    std::string tablesize_key   = std::string(TABLESIZE) + SSTR(split);
-    size_t *tableSize           = (size_t *) dbr->getDataByDBKey((char *) tablesize_key.c_str());
+IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*dbr, int split) {
+    size_t *entrieSizes         = (size_t *) dbr->getDataByDBKey(Util::concatenate(ENTRIESIZES, split));
+    char *entries               = (char *) dbr->getDataByDBKey(Util::concatenate(ENTRIES, split));
+    int64_t *entriesNum         = (int64_t *) dbr->getDataByDBKey(Util::concatenate(ENTRIESNUM, split));
+    size_t *tableSize           = (size_t *) dbr->getDataByDBKey(Util::concatenate(TABLESIZE, split));
 
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
@@ -129,11 +125,11 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader *dbr, int split
 }
 
 
-PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader *dbr) {
+PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int>*dbr) {
     PrefilteringIndexData prefData;
-    int *version_tmp = (int *) dbr->getDataByDBKey((char *) VERSION);
+    int *version_tmp = (int *) dbr->getDataByDBKey(VERSION);
     Debug(Debug::WARNING) << "Index version: " << version_tmp[0] << "\n";
-    int *metadata_tmp = (int *) dbr->getDataByDBKey((char *) META);
+    int *metadata_tmp = (int *) dbr->getDataByDBKey(META);
 
     Debug(Debug::WARNING) << "KmerSize:     " << metadata_tmp[0] << "\n";
     Debug(Debug::WARNING) << "AlphabetSize: " << metadata_tmp[1] << "\n";

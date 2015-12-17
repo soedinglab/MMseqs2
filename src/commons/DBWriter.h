@@ -10,7 +10,7 @@
 
 #include <vector>
 
-class DBReader;
+template <typename T> class DBReader;
 
 class DBWriter {
     public:
@@ -32,7 +32,7 @@ class DBWriter {
 
         void write(const char* data, int64_t dataSize, const char* key, int threadIdx = 0);
     
-        void mergeFiles(DBReader * qdbr,
+        void mergeFiles(DBReader<unsigned int>* qdbr,
                         std::vector<std::pair<std::string, std::string> > files,
                         size_t maxLineLength);
 
@@ -40,7 +40,7 @@ class DBWriter {
 
         static void errorIfFileExist(const char * file);
 
-        void sortDatafileByIdOrder(DBReader *qdbr);
+        void sortDatafileByIdOrder(DBReader<unsigned int> *qdbr);
 
         static void initFFIndexWrite(const char* dataFileName, const char* indexFileName, const char * dataFileMode, FILE** dataFile, FILE** indexFile);
 

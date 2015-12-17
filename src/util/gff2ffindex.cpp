@@ -35,11 +35,11 @@ int gff2ffindex(int argn, const char **argv) {
     std::string ffindex_index_filename_hdr(ffindex_filename);
     ffindex_index_filename_hdr.append("_h.index");
 
-    DBReader ffindex_reader(ffindex_filename.c_str(), ffindex_index_filename.c_str());
-    DBReader ffindex_hdr_reader(ffindex_filename_hdr.c_str(), ffindex_index_filename_hdr.c_str());
+    DBReader<std::string> ffindex_reader(ffindex_filename.c_str(), ffindex_index_filename.c_str());
+    DBReader<std::string> ffindex_hdr_reader(ffindex_filename_hdr.c_str(), ffindex_index_filename_hdr.c_str());
 
-    ffindex_reader.open(DBReader::NOSORT);
-    ffindex_hdr_reader.open(DBReader::NOSORT);
+    ffindex_reader.open(DBReader<std::string>::NOSORT);
+    ffindex_hdr_reader.open(DBReader<std::string>::NOSORT);
 
     std::string data_filename = par.db3;
     std::string index_filename = par.db3Index;
@@ -102,8 +102,13 @@ int gff2ffindex(int argn, const char **argv) {
         char* fastaHeader = ffindex_hdr_reader.getDataByDBKey(name.c_str());
         char* fastaBody = ffindex_reader.getDataByDBKey(name.c_str());
 
+        if(!fastaHeader || !fastaBody) {
+            Debug(Debug::ERROR) << "GFF entry not found in fasta ffindex: " << name << "!";
+            return EXIT_FAILURE;
+        }
+
         std::string id;
-        if(par.useHeader) {
+        if (par.useHeader) {
             id = Util::parseFastaHeader(fastaHeader);
         } else {
             id = SSTR(par.identifierOffset + entries_num);

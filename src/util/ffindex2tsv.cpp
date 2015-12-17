@@ -16,17 +16,17 @@ int createtsv (int argc, const char * argv[])
 
     Debug(Debug::WARNING) << "Query file is " <<  par.db1 << "\n";
     std::string queryHeaderDB =  par.db1 + "_h";
-    DBReader querydb_header(queryHeaderDB.c_str(), std::string(queryHeaderDB+".index").c_str());
-    querydb_header.open(DBReader::NOSORT);
+    DBReader<unsigned int> querydb_header(queryHeaderDB.c_str(), std::string(queryHeaderDB+".index").c_str());
+    querydb_header.open(DBReader<unsigned int>::NOSORT);
 
     Debug(Debug::WARNING) << "Target file is " << par.db2 << "\n";
     std::string targetHeaderDB =  par.db2 + "_h";
-    DBReader targetdb_header(targetHeaderDB.c_str(), std::string(targetHeaderDB+".index").c_str());
-    targetdb_header.open(DBReader::NOSORT);
+    DBReader<unsigned int> targetdb_header(targetHeaderDB.c_str(), std::string(targetHeaderDB+".index").c_str());
+    targetdb_header.open(DBReader<unsigned int>::NOSORT);
 
     Debug(Debug::WARNING) << "Data file is " << par.db3 << "\n";
-    DBReader dbr_data( par.db3.c_str(), std::string( par.db3+".index").c_str());
-    dbr_data.open(DBReader::NOSORT);
+    DBReader<unsigned int> dbr_data( par.db3.c_str(), std::string( par.db3+".index").c_str());
+    dbr_data.open(DBReader<unsigned int>::NOSORT);
 
     FILE *tsvFP =  fopen(par.db4.c_str(), "w");
     char newline[] = {'\n'};
@@ -34,9 +34,9 @@ int createtsv (int argc, const char * argv[])
     char * dbKey = new char[par.maxSeqLen + 1];
 
     for(size_t i = 0; i < dbr_data.getSize(); i++){
-        std::string queryKey = dbr_data.getDbKey(i);
+        unsigned int queryKey = dbr_data.getDbKey(i);
 
-        char * header_data = querydb_header.getDataByDBKey(queryKey.c_str());
+        char * header_data = querydb_header.getDataByDBKey(queryKey);
         std::string queryHeader = Util::parseFastaHeader(header_data);
 
 
@@ -47,7 +47,9 @@ int createtsv (int argc, const char * argv[])
             Util::parseKey(data, dbKey);
             size_t keyLen = strlen(dbKey);
 
-            char * header_data = targetdb_header.getDataByDBKey(dbKey);
+            unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+
+            char * header_data = targetdb_header.getDataByDBKey(key);
             std::string parsedDbkey = Util::parseFastaHeader(header_data);
             char * nextLine = Util::skipLine(data);
             // write to file

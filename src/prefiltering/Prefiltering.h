@@ -26,16 +26,14 @@
 
 #include "KmerGenerator.h"
 #include "QueryTemplateMatcher.h"
-#include "SequenceIndex.h"
+#include "SequenceLookup.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
 class Prefiltering {
-
 public:
-
     Prefiltering(std::string queryDB,
                  std::string queryDBIndex,
                  std::string targetDB,
@@ -52,15 +50,14 @@ public:
     void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
 
-    static IndexTable *generateIndexTable(DBReader *dbr, Sequence *seq, int alphabetSize, int kmerSize,
+    static IndexTable *generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, int alphabetSize, int kmerSize,
                                           size_t dbFrom, size_t dbTo, int searchMode, int skip);
 
 
-    static void countKmersForIndexTable (DBReader* dbr, Sequence* seq, IndexTable* indexTable,
+    static void countKmersForIndexTable (DBReader<unsigned int>* dbr, Sequence* seq, IndexTable* indexTable,
                                          size_t dbFrom, size_t dbTo);
 
-    static void fillDatabase(DBReader* dbr, Sequence* seq,
-                             IndexTable * indexTable,
+    static void fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, IndexTable * indexTable,
                              size_t dbFrom, size_t dbTo);
 
 
@@ -74,9 +71,9 @@ private:
 
     int threads;
 
-    DBReader* qdbr;
-    DBReader* tdbr;
-    DBReader* tidxdbr;
+    DBReader<unsigned int>* qdbr;
+    DBReader<unsigned int>* tdbr;
+    DBReader<unsigned int>* tidxdbr;
 
 
     Sequence** qseq;
@@ -114,7 +111,7 @@ private:
     /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
      * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
      */
-    std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader *qdbr, DBReader *tdbr,
+    std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, DBReader<unsigned int> *tdbr,
                                               int targetKmerMatchProb, const int kmerScore);
     // write prefiltering to ffindex database
     int writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
@@ -134,7 +131,6 @@ private:
     statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize, unsigned int *querySeqsIds, bool reverseQuery, const size_t kmerThrMid);
 
     void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
-
 };
 
 #endif

@@ -59,7 +59,7 @@ DBWriter::~DBWriter(){
     delete[] offsets;
 }
 
-void DBWriter::sortDatafileByIdOrder(DBReader *dbr) {
+void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int>*dbr) {
     Debug(Debug::INFO) << "Sorting the results...  " << dataFileName << " .. ";
 
 #pragma omp parallel for schedule(static)
@@ -69,24 +69,24 @@ void DBWriter::sortDatafileByIdOrder(DBReader *dbr) {
             thread_idx = omp_get_thread_num();
 #endif
         char * data = dbr->getData(id);
-        this->write(data, strlen(data), (char *)dbr->getDbKey(id).c_str(), thread_idx);
+        this->write(data, strlen(data), SSTR(dbr->getDbKey(id)).c_str(), thread_idx);
     }
     Debug(Debug::INFO) << "Done\n";
 }
 
 
-void DBWriter::mergeFiles(DBReader * qdbr,
+void DBWriter::mergeFiles(DBReader<unsigned int>* qdbr,
                           std::vector<std::pair<std::string, std::string> > files,
                           size_t maxLineLength)
 {
     Debug(Debug::INFO) << "Merging the results... to " << dataFileName << " .. ";
     const size_t file_count = files.size();
     // open DBReader
-    DBReader * filesToMerge [file_count];
+    DBReader<unsigned int>* filesToMerge [file_count];
     for(size_t file = 0; file < file_count; file++){
-        filesToMerge[file] = new DBReader(files[file].first.c_str(),
+        filesToMerge[file] = new DBReader<unsigned int>(files[file].first.c_str(),
                                           files[file].second.c_str());
-        filesToMerge[file]->open(DBReader::NOSORT);
+        filesToMerge[file]->open(DBReader<unsigned int>::NOSORT);
     }
     for (size_t id = 0; id < qdbr->getSize(); id++){
         std::string mergeResultsOutString;
@@ -103,7 +103,7 @@ void DBWriter::mergeFiles(DBReader * qdbr,
         }
         // write result
         char* mergeResultsOutData = (char *) mergeResultsOutString.c_str();
-        this->write(mergeResultsOutData, mergeResultsOutString.length(), (char *) qdbr->getDbKey(id).c_str(), 0);
+        this->write(mergeResultsOutData, mergeResultsOutString.length(), SSTR(qdbr->getDbKey(id)).c_str(), 0);
     }
     // close all reader
     for(size_t file = 0; file < file_count; file++){
@@ -117,8 +117,8 @@ void DBWriter::mergeFiles(DBReader * qdbr,
 
 void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
 
-    DBReader dbr(inputDb.c_str(), std::string(inputDb+".index").c_str());
-    dbr.open(DBReader::NOSORT);
+    DBReader<unsigned int> dbr(inputDb.c_str(), std::string(inputDb+".index").c_str());
+    dbr.open(DBReader<unsigned int>::NOSORT);
 
     char dbKey[255+1];
     Debug(Debug::WARNING) << "Start to swap results. Write to " << this->dataFileName << ".\n";
@@ -140,7 +140,7 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
         size_t domainSize = 0;
         Util::decompose_domain(dbr.getSize(), split, splitSize, &startIndex, &domainSize);
         for(size_t i = startIndex; i < (startIndex + domainSize); i++){
-            std::string outerKey = dbr.getDbKey(i);
+            std::string outerKey = SSTR(dbr.getDbKey(i));
             char * data = dbr.getData(i);
             if(*data == '\0'){ // check if file contains entry
                 Debug(Debug::ERROR) << "\nSequence " << outerKey
@@ -194,8 +194,8 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
     fclose(all_index);
     swapMap.clear();
     // make temp. DBReader with all ids
-    DBReader all_ids(inputDb.c_str() /*can be everything that exists */, tmp_name_index.c_str());
-    all_ids.open(DBReader::NOSORT);
+    DBReader<unsigned int> all_ids(inputDb.c_str() /*can be everything that exists */, tmp_name_index.c_str());
+    all_ids.open(DBReader<unsigned int>::NOSORT);
     this->mergeFiles(&all_ids, filenames_to_delete, 1000000);
     all_ids.close();
     remove(tmp_name_index.c_str());
@@ -306,7 +306,7 @@ void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNa
         char *data_to_add = ffindex_mmap_data(data_file_to_add, &data_size);
         if (data_size > 0){
             // count the number of entries
-            size_t cnt = DBReader::countLine(indexFileNames[i]);
+            size_t cnt = DBReader<unsigned int>::countLine(indexFileNames[i]);
             // merge data and indexes
             ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, cnt);
             ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);
@@ -369,10 +369,10 @@ void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNa
 void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
                              const char *inData2, const char *inIndex2) {
 
-    DBReader in1(inData1, inIndex1);
-    in1.open(DBReader::NOSORT);
-    DBReader in2(inData2, inIndex2);
-    in2.open(DBReader::NOSORT);
+    DBReader<unsigned int> in1(inData1, inIndex1);
+    in1.open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> in2(inData2, inIndex2);
+    in2.open(DBReader<unsigned int>::NOSORT);
     Debug(Debug::WARNING) << "Merge file " << inData1 << " and " << inData2 << "\n";
     size_t dbSize = in1.getSize();
     char ** buffer = new char*[maxThreadNum]; //6MB
@@ -388,7 +388,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
             thread_idx = omp_get_thread_num();
 #endif
 
-        std::string dbKey = in1.getDbKey(i);
+        unsigned int dbKey = in1.getDbKey(i);
         const char * data1 = in1.getData(i);
         const char * data2 = in2.getData(i);
         size_t entry1Size = in1.getSeqLens(i);
@@ -401,7 +401,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
         }
         memcpy(buffer[thread_idx], data1, entry1Size - 1); // -1 for the nullbyte
         memcpy(buffer[thread_idx] + entry1Size -1, data2, entry2Size- 1);
-        this->write(buffer[thread_idx], dataSize - 2, (char*)dbKey.c_str(), thread_idx);
+        this->write(buffer[thread_idx], dataSize - 2, SSTR(dbKey).c_str(), thread_idx);
     }
     for(int i = 0; i < maxThreadNum; i++) {
         delete [] buffer[i];

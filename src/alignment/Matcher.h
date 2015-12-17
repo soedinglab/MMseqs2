@@ -28,7 +28,7 @@ public:
     static const unsigned int SCORE_COV_SEQID = 2;
 
     struct result_t {
-        std::string dbKey;
+        unsigned int dbKey;
         int score;
         float qcov;
         float dbcov;
@@ -43,7 +43,7 @@ public:
         unsigned int dbLen;
 
         std::string backtrace;
-        result_t(std::string dbkey,int score,
+        result_t(unsigned int dbkey,int score,
                  float qcov, float dbcov,
                  float seqId, double eval,
                  unsigned int alnLength,

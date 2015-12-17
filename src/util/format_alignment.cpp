@@ -29,31 +29,31 @@ int formatalignment (int argc, const char * argv[])
 
     std::string qffindexHeaderDB = (par.db1 + "_h");
     Debug(Debug::WARNING) << "Query Header file: " << qffindexHeaderDB << "\n";
-    DBReader q_header( qffindexHeaderDB.c_str(), (qffindexHeaderDB+".index").c_str());
-    q_header.open(DBReader::NOSORT);
+    DBReader<unsigned int> q_header( qffindexHeaderDB.c_str(), (qffindexHeaderDB+".index").c_str());
+    q_header.open(DBReader<unsigned int>::NOSORT);
 
     std::string  dbffindexHeaderDB = (par.db2 + "_h");
     Debug(Debug::WARNING) << "Target Header file: " << dbffindexHeaderDB << "\n";
-    DBReader db_header( dbffindexHeaderDB.c_str(), (dbffindexHeaderDB+".index").c_str());
-    db_header.open(DBReader::NOSORT);
+    DBReader<unsigned int> db_header( dbffindexHeaderDB.c_str(), (dbffindexHeaderDB+".index").c_str());
+    db_header.open(DBReader<unsigned int>::NOSORT);
 
 
     Debug(Debug::WARNING) << "Alignment database: " << par.db3 << "\n";
-    DBReader dbr_aln(par.db3.c_str(), std::string(par.db3+".index").c_str());
-    dbr_aln.open(DBReader::NOSORT);
+    DBReader<unsigned int> dbr_aln(par.db3.c_str(), std::string(par.db3+".index").c_str());
+    dbr_aln.open(DBReader<unsigned int>::NOSORT);
 
     FILE *fastaFP =  fopen(par.db4.c_str(), "w");
 
     Debug(Debug::WARNING) << "Start writing file to " << par.db4 << "\n";
     for(size_t i = 0; i < dbr_aln.getSize(); i++){
-        std::string queryKey = dbr_aln.getDbKey(i);
-        char * header = q_header.getDataByDBKey(queryKey.c_str());
+        unsigned int queryKey = dbr_aln.getDbKey(i);
+        char * header = q_header.getDataByDBKey(queryKey);
         char * data = dbr_aln.getData(i);
         std::string queryId = Util::parseFastaHeader(header);
         std::vector<Matcher::result_t> results = Matcher::readAlignmentResults(data);
         for(size_t j = 0; j < results.size(); j++){
             Matcher::result_t res = results[j];
-            char *headerLine = db_header.getDataByDBKey(res.dbKey.c_str());
+            char *headerLine = db_header.getDataByDBKey(res.dbKey);
             std::string targetId = Util::parseFastaHeader(headerLine);
             unsigned int missMatchCount = (unsigned int)(res.seqId * std::min(res.qLen, res.dbLen));
             // TODO

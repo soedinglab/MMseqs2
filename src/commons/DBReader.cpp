@@ -12,7 +12,7 @@
 #include "Debug.h"
 #include "Util.h"
 
-DBReader::DBReader(const char* dataFileName_, const char* indexFileName_,int dataMode /*DATA_AND_INDEX*/)
+template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode)
 {
     dataSize = 0;
     this->dataMode = dataMode;
@@ -23,12 +23,12 @@ DBReader::DBReader(const char* dataFileName_, const char* indexFileName_,int dat
     closed = 1;
 }
 
-DBReader::~DBReader(){
+template <typename T> DBReader<T>::~DBReader(){
     delete[] dataFileName;
     delete[] indexFileName;
 }
 
-void DBReader::open(int sort){
+template <typename T> void DBReader<T>::open(int sort){
     // count the number of entries
     this->size = countLine(indexFileName);
 
@@ -69,7 +69,7 @@ void DBReader::open(int sort){
     closed = 0;
 }
 
-char * DBReader::mmapData(FILE * file, size_t *dataSize){
+template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize){
     struct stat sb;
     fstat(fileno(file), &sb);
     *dataSize = sb.st_size;
@@ -77,14 +77,14 @@ char * DBReader::mmapData(FILE * file, size_t *dataSize){
     return (char*)mmap(NULL, *dataSize, PROT_READ, MAP_PRIVATE, fd, 0);
 }
 
-void DBReader::remapData(){
+template <typename T> void DBReader<T>::remapData(){
     if(dataMode == DATA_AND_INDEX){
         munmap(data, dataSize);
         data = mmapData(dataFile, &dataSize);
     }
 }
 
-void DBReader::close(){
+template <typename T> void DBReader<T>::close(){
     if(dataMode == DATA_AND_INDEX){
         fclose(dataFile);
         unmapData();
@@ -94,9 +94,7 @@ void DBReader::close(){
     closed = 1;
 }
 
-
-
-size_t DBReader::bsearch(const Index * index, size_t N, unsigned int value)
+template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N, T value)
 {
     Index val;
     val.id = value;
@@ -104,9 +102,7 @@ size_t DBReader::bsearch(const Index * index, size_t N, unsigned int value)
 
 }
 
-
-
-char* DBReader::getData (size_t id){
+template <typename T> char* DBReader<T>::getData (size_t id){
     checkClosed();
     if(dataMode == INDEXONLY){
         Debug(Debug::ERROR) << "DBReader is just open in INDEXONLY mode. Call of getData is not allowed" << "\n";
@@ -129,44 +125,41 @@ char* DBReader::getData (size_t id){
 }
 
 
-char* DBReader::getDataByDBKey (const char* dbKey){
+template <typename T> char* DBReader<T>::getDataByDBKey (T dbKey){
     checkClosed();
     if(dataMode ==INDEXONLY){
         Debug(Debug::ERROR) << "DBReader is just open in INDEX_ONLY mode. Call of getData is not allowed" << "\n";
         EXIT(EXIT_FAILURE);
     }
-    size_t key = strtol(dbKey,NULL, 0);
-    size_t id = bsearch(index, size, key);
-
-    return (index[id].id == key) ? index[id].data : NULL;
+    size_t id = bsearch(index, size, dbKey);
+    return (index[id].id == dbKey) ? index[id].data : NULL;
 }
 
-size_t DBReader::getSize (){
+template <typename T> size_t DBReader<T>::getSize (){
     checkClosed();
     return size;
 }
 
-std::string DBReader::getDbKey (size_t id){
+template <typename T> T DBReader<T>::getDbKey (size_t id){
     checkClosed();
     if (id >= size){
         Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
         Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
         EXIT(EXIT_FAILURE);
     }
-    return std::to_string(index[id].id);
+    return index[id].id;
 }
 
-size_t DBReader::getId (const char* dbKey){
-    size_t key = strtol(dbKey,NULL, 0);
-    size_t id = bsearch(index, size, key);
-    return (index[id].id == key) ? id : UINT_MAX;
+template <typename T> size_t DBReader<T>::getId (T dbKey){
+    size_t id = bsearch(index, size, dbKey);
+    return (index[id].id == dbKey) ? id : UINT_MAX;
 }
 
-unsigned int * DBReader::getSeqLens(){
+template <typename T> unsigned int* DBReader<T>::getSeqLens(){
     return seqLens;
 }
 
-size_t DBReader::getSeqLens(size_t id){
+template <typename T> size_t DBReader<T>::getSeqLens(size_t id){
     if (id >= size){
         Debug(Debug::ERROR) << "Invalid database read for id=" << id << ", database index=" << indexFileName << "\n";
         Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
@@ -175,14 +168,14 @@ size_t DBReader::getSeqLens(size_t id){
     return seqLens[id];
 }
 
-void DBReader::checkClosed(){
+template <typename T> void DBReader<T>::checkClosed(){
     if (closed == 1){
         Debug(Debug::ERROR) << "Trying to read a closed database.\n";
         EXIT(EXIT_FAILURE);
     }
 }
 
-size_t DBReader::countLine(const char *indexFileName) {
+template <typename T> size_t DBReader<T>::countLine(const char *indexFileName) {
     size_t cnt = 0;
     std::string line;
     std::ifstream index_file(indexFileName);
@@ -199,7 +192,7 @@ size_t DBReader::countLine(const char *indexFileName) {
     return cnt;
 }
 
-void DBReader::readIndex(char *indexFileName, Index * index, char *data, unsigned int * entryLength) {
+template <typename T> void DBReader<T>::readIndex(char *indexFileName, Index * index, char *data, unsigned int * entryLength) {
     std::ifstream index_file(indexFileName);
     std::string line;
     if (index_file.is_open()) {
@@ -230,10 +223,13 @@ void DBReader::readIndex(char *indexFileName, Index * index, char *data, unsigne
     }
 }
 
-
-void DBReader::unmapData() {
-    if(dataMapped == true){
+template <typename T> void DBReader<T>::unmapData() {
+    if(dataMapped){
         munmap(data, dataSize);
         dataMapped = false;
     }
 }
+
+
+template class DBReader<unsigned int>;
+template class DBReader<std::string>;

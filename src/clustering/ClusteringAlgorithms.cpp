@@ -11,7 +11,7 @@
 #include "AlignmentSymmetry.h"
 #include <queue>
 
-ClusteringAlgorithms::ClusteringAlgorithms(DBReader * seqDbr, DBReader * alnDbr,int threads, int scoretype, int maxiterations){
+ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr,int threads, int scoretype, int maxiterations){
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
     this->dbSize=alnDbr->getSize();
@@ -55,8 +55,8 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
 
 #pragma omp for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
-        std::string clusterId = seqDbr->getDbKey(i);
-        const size_t alnId = alnDbr->getId(clusterId.c_str());
+        unsigned int clusterId = seqDbr->getDbKey(i);
+        const size_t alnId = alnDbr->getId(clusterId);
         seqDbrIdToalnDBrId[i]=alnId;
         char *data = alnDbr->getData(alnId);
         size_t dataSize = alnDbr->getSeqLens()[alnId];

@@ -12,11 +12,11 @@
 
 class AlignmentSymmetry {
 public:
-    AlignmentSymmetry(DBReader *seqDbr, DBReader *alnDbr, DBWriter *alnWr, int threads);
+    AlignmentSymmetry(DBReader<unsigned int>*seqDbr, DBReader<unsigned int>*alnDbr, DBWriter *alnWr, int threads);
 
     void  execute();
-    static void readInData(DBReader *pReader, DBReader *pDBReader, unsigned int **pInt);
-    static void readInData(DBReader *pReader, DBReader *pDBReader, unsigned int **pInt,unsigned short**elementScoreTable, int scoretype);
+    static void readInData(DBReader<unsigned int>*pReader, DBReader<unsigned int>*pDBReader, unsigned int **pInt);
+    static void readInData(DBReader<unsigned int>*pReader, DBReader<unsigned int>*pDBReader, unsigned int **pInt,unsigned short**elementScoreTable, int scoretype);
 
     static void computeOffsetTable(size_t *elementSizes, size_t dbSize);
 
@@ -31,9 +31,9 @@ public:
 
 
 private:
-    DBReader* seqDbr;
+    DBReader<unsigned int>* seqDbr;
 
-    DBReader* alnDbr;
+    DBReader<unsigned int>* alnDbr;
 
     DBWriter* alnWr;
 
@@ -43,7 +43,7 @@ private:
 
     int threads;
 
-    void reconstructSet(DBReader *alnDbr, DBReader *seqDbr, DBWriter *alnWr, const size_t *elementLookupTable,
+    void reconstructSet(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, DBWriter *alnWr, const size_t *elementLookupTable,
                         const size_t *pInt, unsigned int **pInt1);
 
 };

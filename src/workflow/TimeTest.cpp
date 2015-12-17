@@ -23,8 +23,8 @@ TimeTest::TimeTest(std::string queryDB,
 #endif
     std::cout << "\n";
 
-//    this->qdbr = new DBReader(queryDB.c_str(), queryDBIndex.c_str());
-//    qdbr->open(DBReader::NOSORT);
+//    this->qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
+//    qdbr->open(DBReader<unsigned int>::NOSORT);
     this->targetDB = targetDB;
     this->targetDBIndex = targetDBIndex;
 
@@ -50,8 +50,8 @@ void TimeTest::runTimeTest (){
     logFileStream.open(logFile.c_str());
 
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher *[threads];
-    DBReader * tdbr = new DBReader(targetDB.c_str(), targetDBIndex.c_str());
-    tdbr->open(DBReader::SORT);
+    DBReader<unsigned int>* tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
+    tdbr->open(DBReader<unsigned int>::SORT);
     size_t targetSeqLenSum = 0;
     for (size_t i = 0; i < tdbr->getSize(); i++)
         targetSeqLenSum += tdbr->getSeqLens(i);
@@ -149,7 +149,7 @@ void TimeTest::runTimeTest (){
                             thread_idx = omp_get_thread_num();
 #endif
                             char* seqData = tdbr->getData(id);
-                            seqs[thread_idx]->mapSequence(id,(char *) tdbr->getDbKey(id).c_str(), seqData);
+                            seqs[thread_idx]->mapSequence(id, tdbr->getDbKey(id), seqData);
 
                             matchers[thread_idx]->matchQuery(seqs[thread_idx], UINT_MAX);
 

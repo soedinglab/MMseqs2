@@ -111,7 +111,7 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
 }
 
 
-void Sequence::mapSequence(size_t id, char *dbKey, const char *sequence){
+void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence){
     this->id = id;
     this->dbKey = dbKey;
     if (this->seqType == Sequence::AMINO_ACIDS)
@@ -256,7 +256,7 @@ void Sequence::mapProteinSequence(const char * sequence){
 
 
 void Sequence::printProfile(){
-    printf("Query profile of sequence %s\n", dbKey);
+    printf("Query profile of sequence %d\n", dbKey);
     printf("Pos ");
     for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
         printf("%3c ", this->int2aa[aa]);

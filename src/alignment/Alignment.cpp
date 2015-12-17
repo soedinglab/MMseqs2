@@ -44,14 +44,14 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     }
 
     // open the sequence, prefiltering and output databases
-    qseqdbr = new DBReader(querySeqDB.c_str(), querySeqDBIndex.c_str());
-    qseqdbr->open(DBReader::NOSORT);
+    qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
+    qseqdbr->open(DBReader<unsigned int>::NOSORT);
 
-    tseqdbr = new DBReader(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
-    tseqdbr->open(DBReader::NOSORT);
+    tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
+    tseqdbr->open(DBReader<unsigned int>::NOSORT);
     sameQTDB = (querySeqDB.compare(targetSeqDB) == 0);
-    prefdbr = new DBReader(prefDB.c_str(), prefDBIndex.c_str());
-    prefdbr->open(DBReader::NOSORT);
+    prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
+    prefdbr->open(DBReader<unsigned int>::NOSORT);
 
     this->outDB = outDB;
     this->outDBIndex = outDBIndex;
@@ -62,10 +62,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
         matchers[i] = new Matcher(par.maxSeqLen, this->m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize(), par.compBiasCorrection);
     }
 
-    dbKeys = new char*[threads];
-# pragma omp parallel for schedule(static)
-    for (int i = 0; i < threads; i++)
-        dbKeys[i] = new char[100];
+    dbKeys = new unsigned int[threads];
 
     outBuffers = new char*[threads];
 # pragma omp parallel for schedule(static)
@@ -79,7 +76,6 @@ Alignment::~Alignment(){
         delete qSeqs[i];
         delete dbSeqs[i];
         delete matchers[i];
-        delete[] dbKeys[i];
         delete[] outBuffers[i];
     }
 
@@ -153,19 +149,20 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
 #endif
         // get the prefiltering list
         char* prefList = prefdbr->getData(id);
-        std::string queryDbKeyStr = prefdbr->getDbKey(id);
+        unsigned int queryDbKey = prefdbr->getDbKey(id);
         // map the query sequence
-        char* querySeqData = qseqdbr->getDataByDBKey(queryDbKeyStr.c_str());
+        char* querySeqData = qseqdbr->getDataByDBKey(queryDbKey);
         if (querySeqData == NULL){
 # pragma omp critical
             {
-                Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKeyStr
+                Debug(Debug::ERROR) << "ERROR: Query sequence " << queryDbKey
                 << " is required in the prefiltering, but is not contained in the query sequence database!\n" <<
                 "Please check your database.\n";
                 EXIT(1);
             }
         }
-        qSeqs[thread_idx]->mapSequence(id, (char*)queryDbKeyStr.c_str(), querySeqData);
+
+        qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
         matchers[thread_idx]->initQuery(qSeqs[thread_idx]);
         // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
         std::list<Matcher::result_t> swResults;
@@ -175,12 +172,11 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
         unsigned int rejected = 0;
         while (std::getline(lineSs, val, '\t') && passedNum < maxAlnNum && rejected < maxRejected){
             // DB key of the db sequence
-            std::string dbKeyStr(val);
-            for (unsigned int j = 0; j < val.length(); j++)
-                dbKeys[thread_idx][j] = val.at(j);
-            dbKeys[thread_idx][val.length()] = '\0';
+            unsigned int dbKey = (unsigned int) std::strtoul(val.c_str(), NULL, 10);
+
+            dbKeys[thread_idx] = dbKey;
             // sequence are identical if qID == dbID  (needed to cluster really short sequences)
-            const bool isIdentiy = (queryDbKeyStr.compare(dbKeyStr) == 0 && sameQTDB) ? true : false;
+            const bool isIdentiy = (queryDbKey == dbKey && sameQTDB) ? true : false;
             // prefiltering score
             std::getline(lineSs, val, '\t');
             //float prefScore = atof(val.c_str());
@@ -263,7 +259,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
             EXIT(1);
         }
         memcpy(outBuffers[thread_idx], swResultsStringData, swResultsString.length()*sizeof(char));
-        dbw.write(outBuffers[thread_idx], swResultsString.length(), qSeqs[thread_idx]->getDbKey(), thread_idx);
+        dbw.write(outBuffers[thread_idx], swResultsString.length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
 
     }
     dbw.close();

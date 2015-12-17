@@ -10,13 +10,13 @@
 CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder, std::string sequencedb) {
 
     Debug(Debug::INFO) << "Opening GO database...\n";
-    go_ffindex_reader = new DBReader(go_ffindex.c_str(), go_ffindex_indexfile.c_str());
-    go_ffindex_reader->open(DBReader::NOSORT);
+    go_ffindex_reader = new DBReader<std::string>(go_ffindex.c_str(), go_ffindex_indexfile.c_str());
+    go_ffindex_reader->open(DBReader<std::string>::NOSORT);
     Debug(Debug::INFO) << "Opening Protein to GO database...\n";
-    protid_go_ffindex_reader = new DBReader(protid_go_ffindex.c_str(), protid_go_ffindex_indexfile.c_str());
-    protid_go_ffindex_reader->open(DBReader::NOSORT);
-    targetdb_header=new DBReader(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
-    targetdb_header->open(DBReader::NOSORT);
+    protid_go_ffindex_reader = new DBReader<std::string>(protid_go_ffindex.c_str(), protid_go_ffindex_indexfile.c_str());
+    protid_go_ffindex_reader->open(DBReader<std::string>::NOSORT);
+    targetdb_header=new DBReader<std::string>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+    targetdb_header->open(DBReader<std::string>::NOSORT);
 
     if (evaluationfolder.back() != '/') {
         evaluationfolder = evaluationfolder + '/';
@@ -289,8 +289,8 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                                                      std::string fileprefix,
                                                      std::string filesuffix, bool allagainstall, bool randomized) {
     Debug(Debug::INFO) << "Opening clustering database...\n";
-    DBReader* cluster_ffindex_reader = new DBReader(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
-    cluster_ffindex_reader->open(DBReader::SORT);
+    DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
+    cluster_ffindex_reader->open(DBReader<std::string>::SORT);
     //files
     std::ofstream clusters_summary_file;
     clusters_summary_file.open(evaluationfolder+fileprefix+"clusters_summary.go"+filesuffix);

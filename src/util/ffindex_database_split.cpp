@@ -3,7 +3,6 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
-#include <vector>
 #include <sstream>
 
 int splitffindex (int argc, const char * argv[])
@@ -23,8 +22,8 @@ int splitffindex (int argc, const char * argv[])
         EXIT(EXIT_FAILURE);
     }
 
-    DBReader dbr(par.db1.c_str(), par.db1Index.c_str());
-    dbr.open(DBReader::NOSORT);
+    DBReader<std::string> dbr(par.db1.c_str(), par.db1Index.c_str());
+    dbr.open(DBReader<std::string>::NOSORT);
 
     unsigned int* sizes = dbr.getSeqLens();
     size_t size = dbr.getSize();

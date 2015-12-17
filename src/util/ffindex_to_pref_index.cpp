@@ -26,8 +26,8 @@ int createindex (int argc, const char * argv[])
 
     Debug::setDebugLevel(par.verbosity);
     
-    DBReader dbr(par.db1.c_str(), par.db1Index.c_str());
-    dbr.open(DBReader::SORT);
+    DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
+    dbr.open(DBReader<unsigned int>::SORT);
 
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
 
