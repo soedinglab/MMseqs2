@@ -17,6 +17,7 @@
 #include "Indexer.h"
 #include "Debug.h"
 #include "Util.h"
+#include "SequenceLookup.h"
 
 // IndexEntryLocal is an entry with position and seqId for a kmer
 // structure needs to be packed or it will need 8 bytes instead of 6
@@ -37,18 +38,20 @@ public:
         tableSize = Util::ipow(alphabetSize, kmerSize);
         table = new char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
         memset(table, 0, sizeof(char * ) * (tableSize + 1)); // set all pointers to 0
-
         idxer = new Indexer(alphabetSize, kmerSize);
-
+        //TODO fix this later
         this->tableEntriesNum = 0;
-
         entries = NULL;
+        sequenceLookup = NULL;
     }
 
     virtual ~IndexTable(){
         deleteEntries();
         delete[] table;
         delete idxer;
+        if(sequenceLookup != NULL){
+            delete sequenceLookup;
+        }
     }
 
     void deleteEntries(){
@@ -78,10 +81,6 @@ public:
         return table[kmer];
     }
 
-    inline void setTable(unsigned int kmer, size_t number){
-        table[kmer] = (char *) number;
-    }
-
     // get list of DB sequences containing this k-mer
     template<typename T> inline T* getDBSeqList (int kmer, size_t* matchedListSize){
         const ptrdiff_t diff =  (table[kmer + 1] - table[kmer]) / sizeof( T );
@@ -95,9 +94,10 @@ public:
     }
 
     // init the arrays for the sequence lists
-    void initMemory(size_t tableEntriesNum) {
+    void initMemory(size_t sequenzeCount, size_t tableEntriesNum) {
         this->tableEntriesNum = tableEntriesNum;
-//            std::cout << tableEntriesNum << std::endl;
+        sequenceLookup = new SequenceLookup(sequenzeCount, tableEntriesNum);
+
         // allocate memory for the sequence id lists
         // tablesSizes is added to put the Size of the entry infront fo the memory
         entries = new char [(tableEntriesNum + 1) * this->sizeOfEntry]; // +1 for table[tableSize] pointer address
@@ -120,7 +120,7 @@ public:
                                  char * pentries, size_t sequenzeCount){
         this->tableEntriesNum = tableEntriesNum;
         this->size = sequenzeCount;
-        initMemory(this->tableEntriesNum);
+        initMemory(sequenzeCount, tableEntriesNum);
         Debug(Debug::WARNING) << "Copy " << this->tableEntriesNum
         << " Entries (" <<  this->tableEntriesNum*this->sizeOfEntry  << " byte)\n";
         memcpy ( this->entries , pentries, this->tableEntriesNum * this->sizeOfEntry );
@@ -187,7 +187,7 @@ public:
             Debug(Debug::WARNING) << "\t\t" << topElements[j].first << "\n";
         }
         Debug(Debug::WARNING) << "Min Kmer Size:   " << minKmer << "\n";
-        Debug(Debug::WARNING) << "Empty Kmer list: " << emptyKmer << "\n";
+        Debug(Debug::WARNING) << "Empty KTestDBReader.cppmer list: " << emptyKmer << "\n";
         Debug(Debug::WARNING) << "\n";
 
     }
@@ -195,7 +195,6 @@ public:
     // FUNCTIONS TO OVERWRITE
     // add k-mers of the sequence to the index table
     void addSequence (Sequence* s){
-
         // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
         unsigned int kmerIdx;
         this->size++; // amount of sequences added
@@ -218,6 +217,7 @@ public:
                 idxer->getNextKmerIndex(s->nextKmer(), kmerSize);
             }
         }
+        sequenceLookup->addSequence(s);
     }
 
     // prints the IndexTable
@@ -278,6 +278,9 @@ protected:
 
     // entry size
     size_t sizeOfEntry;
+
+    // sequence lookup
+    SequenceLookup *sequenceLookup;
 
 };
 #endif

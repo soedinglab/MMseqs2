@@ -39,19 +39,19 @@ private:
                        const short bias);
 
     const int scalarDiagonalScoring(const char *profile,
-                                             const unsigned int profileSize,
                                              const int bias,
                                              const unsigned int seqLen,
                                              const unsigned char *dbSeq);
 
-    std::pair<unsigned char *, unsigned int> mapSequences(hit_t *seqIds, unsigned int seqCount);
+
+    const simd_int vectorDiagonalScoring(const char *profile,
+                                         const char bias, const unsigned int seqLen, const unsigned char *dbSeq);
+    std::pair<unsigned char *, unsigned int> mapSequences(hit_t *seqIds, unsigned int seqCount, unsigned char bias);
 
     void scoreDiagonalAndUpdateHits(const char *queryProfile, const unsigned int queryLen,
                                     const unsigned char diagonal, hit_t *hits, const unsigned int hitSize,
                                     const short bias);
 
-    const simd_int vectorDiagonalScoring(const char *profile, const unsigned int profileSize,
-                                         const char bias, const unsigned int seqLen, const unsigned char *dbSeq);
 
     const __m256i Shuffle(const __m256i &value, const __m256i &shuffle);
 };

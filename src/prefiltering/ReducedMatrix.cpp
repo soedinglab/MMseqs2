@@ -105,7 +105,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
     for (int i = 0; i<alphabetSize; i++)
         this->subMatrix[i] = new short[alphabetSize];
 
-    generateSubMatrix(probMatrix_new, rMatrix, this->subMatrix, alphabetSize, bitFactor, 0.0);
+    generateSubMatrix(probMatrix_new, rMatrix, this->subMatrix, this->subMatrixDouble, alphabetSize, bitFactor, 0.0);
 
     for (size_t i = 0; i < origAlphabetSize-1; i++)
     {
