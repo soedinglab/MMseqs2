@@ -15,6 +15,8 @@ public:
     
     ~ExtendedSubstitutionMatrix();
 
+    static short calcScore(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix);
+
     size_t size;
 
     ScoreMatrix * scoreMatrix;
@@ -26,7 +28,6 @@ private:
                                 std::vector<int>&  current_result,   // current result
                                 std::vector<std::vector<int> >::const_iterator current_input, // current input
                                 std::vector<std::vector<int> >::const_iterator end); // final input
-    short calcScore(int * i_seq,int * j_seq,size_t seq_size,short **subMatrix);
-    
+
 };
 #endif

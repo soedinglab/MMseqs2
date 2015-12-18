@@ -48,15 +48,14 @@ void DiagonalMatcher::processQuery(Sequence * query, hit_t * results, size_t res
 }
 
 const int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
-                                                          const unsigned int profileSize,
-                                                          const int bias,
-                                                          const unsigned int seqLen,
-                                                          const unsigned char * dbSeq) {
+                                                 const int bias,
+                                                 const unsigned int seqLen,
+                                                 const unsigned char * dbSeq) {
     int max = 0;
     int sum = 0;
     for(unsigned int pos = 0; pos < seqLen; pos++){
 //            int curr = *((profile + (pos * 20)) + number[i][pos]);
-        int curr = *((profile + pos * profileSize) +  dbSeq[pos]);
+        int curr = *((profile + pos * PROFILESIZE) +  dbSeq[pos]);
         sum = (curr - bias) + max;
         std::cout << (int) dbSeq[pos] << "\t" << curr << "\t" << bias << "\t" << (curr - bias) << std::endl;
         sum = (sum < 0) ? 0 : sum;
@@ -82,17 +81,16 @@ inline const __m256i DiagonalMatcher::Shuffle(const __m256i & value, const __m25
 }
 
 const simd_int  DiagonalMatcher::vectorDiagonalScoring(const char *profile,
-                                                           const unsigned int profileSize,
-                                                           const char bias,
-                                                           const unsigned int seqLen,
-                                                           const unsigned char *dbSeq) {
+                                                       const char bias,
+                                                       const unsigned int seqLen,
+                                                       const unsigned char *dbSeq) {
     simd_int vscore        = simdi_setzero();
     simd_int vMaxScore     = simdi_setzero();
     const simd_int vBias   = simdi8_set(bias);
     const simd_int sixten  = simdi8_set(16);
     const simd_int fiveten = simdi8_set(15);
 
-    std::cout << std::endl;
+//    std::cout << std::endl;
     for(unsigned int pos = 0; pos < seqLen; pos++){
         simd_int template01 = simdi_load((simd_int *)&dbSeq[pos*VECSIZE_INT*4]);
 #ifdef AVX2
@@ -141,7 +139,7 @@ const simd_int  DiagonalMatcher::vectorDiagonalScoring(const char *profile,
     return vMaxScore;
 }
 
-std::pair<unsigned char *, unsigned int> DiagonalMatcher::mapSequences(hit_t * seqIds, unsigned int seqCount) {
+std::pair<unsigned char *, unsigned int> DiagonalMatcher::mapSequences(hit_t * seqIds, unsigned int seqCount, unsigned char bias) {
     std::pair<unsigned char *, unsigned int> seqs[VECSIZE_INT*4];
     unsigned int maxLen = 0;
     for(unsigned int seqIdx = 0; seqIdx < seqCount;  seqIdx++) {
@@ -149,9 +147,13 @@ std::pair<unsigned char *, unsigned int> DiagonalMatcher::mapSequences(hit_t * s
         seqs[seqIdx] = std::make_pair((unsigned  char *)tmp.first, (unsigned int) tmp.second);
         maxLen = (maxLen < seqs[seqIdx].second) ? seqs[seqIdx].second  : maxLen;
     }
-    for(unsigned int pos = 0; pos < maxLen;  pos++){
-        for(unsigned int seqIdx = 0; seqIdx < VECSIZE_INT*4;  seqIdx++){
-            vectorSequence[pos * VECSIZE_INT * 4 + seqIdx] = (seqIdx < seqCount) ? seqs[seqIdx].first[pos] : 0;
+    memset(vectorSequence, bias, maxLen * VECSIZE_INT * 4 * sizeof(unsigned char));
+    for(unsigned int seqIdx = 0; seqIdx < VECSIZE_INT*4;  seqIdx++){
+        unsigned char * seq = seqs[seqIdx].first;
+        unsigned char seqSize = seqs[seqIdx].second;
+
+        for(unsigned int pos = 0; pos < seqSize;  pos++){
+            vectorSequence[pos * VECSIZE_INT * 4 + seqIdx] = seq[pos];
         }
     }
     return std::make_pair(vectorSequence, maxLen);
@@ -168,13 +170,14 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
 
     unsigned int i_splits = std::max((unsigned int)1, queryLen / DIAGONALCOUNT);
     if(hitSize > (VECSIZE_INT * 4) / 4){
-        std::pair<unsigned char *, unsigned int> seq = mapSequences(hits, hitSize);
+      //  std::cout << "tt" << std::endl;
+        std::pair<unsigned char *, unsigned int> seq = mapSequences(hits, hitSize, bias);
         simd_int vMaxScore = simdi_setzero();
         unsigned int j_splits = std::max((unsigned int)1, seq.second / DIAGONALCOUNT);
         for(unsigned int i = 0; i < i_splits; i++) {
             for(unsigned int j = 0; j < j_splits; j++) {
-                simd_int ret = vectorDiagonalScoring(queryProfile + (i * DIAGONALCOUNT * PROFILESIZE + diagonal * PROFILESIZE ), PROFILESIZE, bias, queryLen,
-                                                                   seq.first + (j * DIAGONALCOUNT * VECSIZE_INT*4));
+                simd_int ret = vectorDiagonalScoring(queryProfile + (i * DIAGONALCOUNT * PROFILESIZE + diagonal * PROFILESIZE ), bias, queryLen,
+                                                     seq.first + (j * DIAGONALCOUNT * VECSIZE_INT*4));
                 vMaxScore = simdui8_max(ret, vMaxScore);
             }
         }
@@ -211,8 +214,8 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
             int max = 0;
             for(unsigned int i = 0; i < i_splits; i++) {
                 for (unsigned int j = 0; j < j_splits; j++) {
-                    int scores = scalarDiagonalScoring(queryProfile +  (i * 256 * PROFILESIZE + diagonal * PROFILESIZE), PROFILESIZE,
-                                                                bias, seqLen, dbSeq.first );
+                    int scores = scalarDiagonalScoring(queryProfile +  (i * 256 * PROFILESIZE + diagonal * PROFILESIZE),
+                                                       bias, seqLen, dbSeq.first );
                     max = std::max(scores, max);
                 }
             }

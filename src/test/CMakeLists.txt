@@ -117,3 +117,22 @@ add_executable(test_compbias ${test_compbias})
 target_link_libraries(test_compbias util)
 target_link_libraries(test_compbias workflow)
 target_link_libraries(test_compbias ffindex)
+
+
+set(test_sequenceindex TestSequenceIndex.cpp )
+add_executable(test_sequenceindex ${test_sequenceindex})
+target_link_libraries(test_sequenceindex util)
+target_link_libraries(test_sequenceindex workflow)
+target_link_libraries(test_sequenceindex ffindex)
+
+set(test_diagonalscoring TestDiagonalScoring.cpp )
+add_executable(test_diagonalscoring ${test_diagonalscoring})
+target_link_libraries(test_diagonalscoring util)
+target_link_libraries(test_diagonalscoring workflow)
+target_link_libraries(test_diagonalscoring ffindex)
+
+set(test_diagonalscoringperf TestDiagonalScoringPerformance.cpp)
+add_executable(test_diagonalscoringperf ${test_diagonalscoringperf})
+target_link_libraries(test_diagonalscoringperf util)
+target_link_libraries(test_diagonalscoringperf workflow)
+target_link_libraries(test_diagonalscoringperf ffindex)

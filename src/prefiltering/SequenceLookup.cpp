@@ -21,7 +21,8 @@ SequenceLookup::~SequenceLookup() {
 void SequenceLookup::addSequence(Sequence * seq) {
     sequence[seq->getId()] = currWritePos;
     for(size_t pos = 0; pos < seq->L; pos++){
-        sequence[seq->getId()][pos] = seq->int_sequence[pos];
+        unsigned char aa = seq->int_sequence[pos];
+        sequence[seq->getId()][pos] = aa;
     }
     currWritePos = currWritePos + seq->L;
 }

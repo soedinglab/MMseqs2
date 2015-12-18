@@ -539,7 +539,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
     for(size_t i = 0; i < indexTable->getTableSize(); i++){
         tableEntriesNum += (size_t) indexTable->getTable(i);
     }
-    indexTable->initMemory(tableEntriesNum);
+    indexTable->initMemory(0, tableEntriesNum);
     indexTable->init();
 
     Debug(Debug::INFO) << "Index table: fill...\n";

@@ -39,15 +39,18 @@ BaseMatrix::BaseMatrix(){
     pBack = new double[alphabetSize];
     probMatrix = new double*[alphabetSize];
     subMatrix = new short*[alphabetSize];
+    subMatrixDouble = new double*[alphabetSize];
     subMatrixPseudoCounts = new float*[alphabetSize];
 
     for (int i = 0; i < alphabetSize; i++){
         pBack[i] = 0.0;
         probMatrix[i] = new double[alphabetSize];
         subMatrix[i] = new short[alphabetSize];
+        subMatrixDouble[i] = new double[alphabetSize];
         subMatrixPseudoCounts[i] = new float[alphabetSize];
         for (int j = 0; j < alphabetSize; j++){
             probMatrix[i][j] = 0.0;
+            subMatrixDouble[i][j] = 0.0;
             subMatrix[i][j] = 0;
             subMatrixPseudoCounts[i][j] = 0.0;
         }
@@ -134,7 +137,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
 }
 
 void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix,
-                                   int size, double bitFactor, double scoringBias){
+                                   double ** subMatrixDouble, int size, double bitFactor, double scoringBias){
     double** sm = new double* [size];
     for (int i = 0; i < size; i++)
         sm[i] = new double[size];
@@ -145,6 +148,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseud
     for (int i = 0; i < size; i++){
         for (int j = 0; j < size; j++){
             subMatrix[i][j] = (short) floor (sm[i][j] + 0.5);
+            subMatrixDouble[i][j] = sm[i][j];
         }
     }
 

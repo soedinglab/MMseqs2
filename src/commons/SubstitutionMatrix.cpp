@@ -4,7 +4,7 @@
 
 
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_, float bitFactor, float scoreBias = 0.2) :
-    scoringMatrixFileName(scoringMatrixFileName_)
+        scoringMatrixFileName(scoringMatrixFileName_)
 {
     // read amino acid substitution matrix from file
     std::string fileName(scoringMatrixFileName);
@@ -17,20 +17,23 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_, float
         EXIT(1);
     }
 
-    generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts, this->subMatrix,  this->alphabetSize, bitFactor, scoreBias);
+    generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts, this->subMatrix, this->subMatrixDouble,  this->alphabetSize, bitFactor, scoreBias);
     this->bitFactor = bitFactor;
 }
 
 
-void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m, const int * int_sequence, const int N, float * compositionBias){
+void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
+                                                   const int * int_sequence,
+                                                   const int N,
+                                                   float * compositionBias){
     const int windowSize = 40;
     for (int i = 0; i < N; i++){
         const int minPos = std::max(0, (i - windowSize/2));
         const int maxPos = std::min(N, (i + windowSize/2));
         const int windowLength = maxPos - minPos;
         // negative score for the amino acids in the neighborhood of i
-        int sumSubScores = 0;
-        short * subMat = m->subMatrix[int_sequence[i]];
+        double sumSubScores = 0.0;
+        double * subMat = m->subMatrixDouble[int_sequence[i]];
         for (int j = minPos; j < maxPos; j++){
             sumSubScores += subMat[int_sequence[j]];
         }
@@ -43,7 +46,7 @@ void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m, const in
         for (int a = 0; a < m->alphabetSize; a++){
             deltaS_i += m->pBack[a] * subMat[a];
         }
-        compositionBias[i] = (int8_t)deltaS_i;
+        compositionBias[i] = deltaS_i;
 //        std::cout << compositionBias[i] << std::endl;
     }
 }
@@ -52,7 +55,7 @@ SubstitutionMatrix::~SubstitutionMatrix(){
 }
 
 void SubstitutionMatrix::readProbMatrix(){
-    
+
     std::ifstream in(scoringMatrixFileName);
     if( in.fail() ) {
         std::cerr << "Cannot read " << scoringMatrixFileName << "\n";
@@ -71,7 +74,7 @@ void SubstitutionMatrix::readProbMatrix(){
             capture=true;
             continue;
         }
-        // all are read amino acids 
+        // all are read amino acids
         if( row == 20 ) break;
         std::stringstream stream(line);
         std::string h;
@@ -105,7 +108,7 @@ void SubstitutionMatrix::readProbMatrix(){
         }
     }
     in.close();
-    
+
     double sum=0.0;
     for(int i=0; i<alphabetSize; ++i)
         for(int j=0; j<alphabetSize; ++j){
@@ -113,7 +116,7 @@ void SubstitutionMatrix::readProbMatrix(){
             else       pBack[i] += (probMatrix[i][j]/2.0f);
             if( j<=i ) sum += probMatrix[i][j];
         }
-    
+
     const double _2sum = 2.0*sum;
     double pbsum = 0.0;
     for(int i=0; i<alphabetSize; ++i){
@@ -122,11 +125,11 @@ void SubstitutionMatrix::readProbMatrix(){
             if( i==j ) probMatrix[i][j] = probMatrix[i][j] / sum;
             else       probMatrix[i][j] = probMatrix[i][j] / _2sum;
     }
-    
+
     for(int i=0; i<alphabetSize; ++i)pBack[i] /= sum;
 
 
 
-    
+
 }
 
