@@ -192,35 +192,46 @@ template <typename T> size_t DBReader<T>::countLine(const char *indexFileName) {
     return cnt;
 }
 
-template <typename T> void DBReader<T>::readIndex(char *indexFileName, Index * index, char *data, unsigned int * entryLength) {
-    std::ifstream index_file(indexFileName);
-    std::string line;
-    if (index_file.is_open()) {
-        size_t i = 0;
+template<typename T>
+void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength) {
+    std::ifstream indexFile(indexFileName);
 
-        while (std::getline(index_file, line)) {
-            std::string id;
-            size_t  offset, length;
-            std::stringstream ss(line);
-            ss >> id >> offset >> length;
-            if(i >= this->size){
-                Debug(Debug::ERROR) << "Corrupte memory\n";
-                EXIT(EXIT_FAILURE);
-            }
-            index[i].id = strtol(id.c_str(),NULL, 0);
-            if(dataMode  ==  DATA_AND_INDEX) {
-                index[i].data = data + (offset);
-            }else{
-                index[i].data = NULL;
-            }
-            entryLength[i] = length;
-            i++;
-        }
-        index_file.close();
-    }else {
+    if (indexFile.fail() || !indexFile.is_open()) {
         Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
         EXIT(EXIT_FAILURE);
     }
+
+    size_t i = 0;
+    std::string line;
+    while (std::getline(indexFile, line)) {
+        std::istringstream ss(line);
+        T id;
+        size_t offset = 0, length = 0;
+        ss >> id >> offset >> length;
+
+        if (ss.fail()) {
+            Debug(Debug::ERROR) << "Corrupted line number " << i << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        if (i >= this->size) {
+            Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        index[i].id = id;
+
+        if (dataMode == DATA_AND_INDEX) {
+            index[i].data = data + offset;
+        } else {
+            index[i].data = NULL;
+        }
+
+        entryLength[i] = length;
+        i++;
+    }
+
+    indexFile.close();
 }
 
 template <typename T> void DBReader<T>::unmapData() {
