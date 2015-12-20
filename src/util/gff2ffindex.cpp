@@ -88,22 +88,22 @@ int gff2ffindex(int argn, const char **argv) {
         char* rest;
         size_t start = strtoull(fields[3].c_str(), &rest, 10);
         if ((rest != fields[3].c_str() && *rest != '\0') || errno == ERANGE) {
-            Debug(Debug::WARNING) << "Invalid start position format in line " << entries_num << "!";
+            Debug(Debug::WARNING) << "Invalid start position format in line " << entries_num << "!\n";
             continue;
         }
         size_t end = strtoull(fields[4].c_str(), &rest, 10);
         if ((rest != fields[4].c_str() && *rest != '\0') || errno == ERANGE) {
-            Debug(Debug::WARNING) << "Invalid end position format in line " << entries_num << "!";
+            Debug(Debug::WARNING) << "Invalid end position format in line " << entries_num << "!\n";
             continue;
         }
 
         size_t length = end - start;
 
-        char* fastaHeader = ffindex_hdr_reader.getDataByDBKey(name.c_str());
-        char* fastaBody = ffindex_reader.getDataByDBKey(name.c_str());
+        char* fastaHeader = ffindex_hdr_reader.getDataByDBKey(name);
+        char* fastaBody = ffindex_reader.getDataByDBKey(name);
 
         if(!fastaHeader || !fastaBody) {
-            Debug(Debug::ERROR) << "GFF entry not found in fasta ffindex: " << name << "!";
+            Debug(Debug::ERROR) << "GFF entry not found in fasta ffindex: " << name << "!\n";
             return EXIT_FAILURE;
         }
 
