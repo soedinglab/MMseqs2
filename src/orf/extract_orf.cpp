@@ -6,88 +6,12 @@
 #include <Util.h>
 #include <climits>
 
+#include "Debug.h"
 #include "Parameters.h"
+#include "DBReader.h"
 #include "DBWriter.h"
 
 #include "Orf.h"
-
-#include "kseq.h"
-
-KSEQ_INIT(int, read)
-
-int orfFastaToFFindex(
-        const char* fasta_filename,
-        const char* data_filename, const char* index_filename,
-        const char* data_filename_hdr, const char* index_filename_hdr,
-        Parameters* par)
-{
-    FILE* fasta_file = fopen(fasta_filename, "r");
-    if (fasta_file == NULL) {
-        perror(fasta_filename);
-        return EXIT_FAILURE;
-    }
-
-    DBWriter seq_writer(data_filename, index_filename);
-    seq_writer.open();
-    DBWriter hdr_writer(data_filename_hdr, index_filename_hdr);
-    hdr_writer.open();
-
-    kseq_t* seq = kseq_init(fileno(fasta_file));
-
-    char header_buffer[LINE_MAX];
-
-    size_t total_num = 0;
-    while (kseq_read(seq) >= 0) {
-        Orf orf(seq->seq.s);
-        std::vector<Orf::SequenceLocation> res;
-        orf.FindOrfs(res, par->orfMinLength, par->orfMaxLength, par->orfMaxGaps);
-
-        size_t orf_num = 0;
-        for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
-            Orf::SequenceLocation loc = *it;
-
-            std::string id;
-            if (par->useHeader) {
-                id = Util::parseFastaHeader(seq->name.s);
-                id.append("_");
-                id.append(SSTR(orf_num));
-            } else {
-                id = SSTR(par->identifierOffset + total_num);
-            }
-
-            if (id.length() >= 31) {
-                std::cerr << "Id: " << id << " is too long. Maximum of 32 characters are allowed." << std::endl;
-                EXIT(EXIT_FAILURE);
-            }
-
-            if (par->orfSkipIncomplete && (loc.hasIncompleteStart == true || loc.hasIncompleteEnd == true))
-                continue;
-
-            if (seq->comment.l) {
-                snprintf(header_buffer, LINE_MAX, "%s %s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, seq->comment.s, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
-            }
-            else {
-                snprintf(header_buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", seq->name.s, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
-            }
-
-            hdr_writer.write(header_buffer, strlen(header_buffer), id.c_str());
-
-            std::string sequence = orf.View(loc);
-            seq_writer.write(sequence.c_str(), sequence.length(), id.c_str());
-
-            orf_num++;
-            total_num++;
-        }
-    }
-
-    kseq_destroy(seq);
-    hdr_writer.close();
-    seq_writer.close();
-
-    fclose(fasta_file);
-
-    return EXIT_SUCCESS;
-}
 
 int extractorf(int argn, const char** argv)
 {
@@ -99,21 +23,82 @@ int extractorf(int argn, const char** argv)
     Parameters par;
     par.parseParameters(argn, argv, usage, par.extractorf, 2);
 
-    const char* input = par.db1.c_str();
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    reader.open(DBReader<unsigned int>::NOSORT);
 
-    const char* data_filename = par.db2.c_str();
-    const char* index_filename = par.db2Index.c_str();
+    std::string headerIn(par.db1);
+    headerIn.append("_h");
 
-    std::string data_filename_hdr_str(data_filename);
-    data_filename_hdr_str.append("_h");
-    const char* data_filename_hdr = data_filename_hdr_str.c_str();
+    std::string headerInIndex(par.db1);
+    headerInIndex.append("_h.index");
 
-    std::string index_filename_hdr_str(data_filename);
-    index_filename_hdr_str.append("_h.index");
-    const char* index_filename_hdr = index_filename_hdr_str.c_str();
+    DBReader<unsigned int> headerReader(headerIn.c_str(), headerInIndex.c_str());
+    headerReader.open(DBReader<unsigned int>::NOSORT);
 
-    return orfFastaToFFindex(input,
-                             data_filename, index_filename,
-                             data_filename_hdr, index_filename_hdr,
-                             &par);
+    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str());
+    sequenceWriter.open();
+
+    std::string headerOut(par.db2);
+    headerOut.append("_h");
+
+    std::string headerIndexOut(par.db2Index);
+    headerIndexOut.append("_h.index");
+
+    DBWriter headerWriter(headerOut.c_str(), headerIndexOut.c_str());
+    headerWriter.open();
+
+    char buffer[LINE_MAX];
+    size_t total = 0;
+    for (unsigned int i = 0; i < reader.getSize(); ++i){
+        Orf orf(reader.getData(i));
+        std::vector<Orf::SequenceLocation> res;
+        orf.FindOrfs(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps);
+
+        char* header = headerReader.getData(i);
+        size_t headerLength = headerReader.getSeqLens(i);
+
+        // remove newline in header
+        char headerBuffer[headerLength - 1];
+        strncpy(headerBuffer, header, headerLength - 1);
+        headerBuffer[headerLength - 2] = '\0';
+
+        size_t orfNum = 0;
+        for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
+            Orf::SequenceLocation loc = *it;
+
+            std::string id;
+            if (par.useHeader) {
+                id.assign(Util::parseFastaHeader(header));
+                id.append("_");
+                id.append(SSTR(orfNum));
+            } else {
+                id = SSTR(total + par.identifierOffset);
+            }
+
+            if (id.length() >= 31) {
+                Debug(Debug::ERROR) << "Id: " << id << " is too long. Maximum of 32 characters are allowed.\n";
+                EXIT(EXIT_FAILURE);
+            }
+
+            if (par.orfSkipIncomplete && (loc.hasIncompleteStart || loc.hasIncompleteEnd))
+                continue;
+
+            snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", headerBuffer, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+
+            headerWriter.write(buffer, strlen(buffer), id.c_str());
+
+            std::string sequence = orf.View(loc);
+            sequenceWriter.write(sequence.c_str(), sequence.length(), id.c_str());
+
+            orfNum++;
+            total++;
+        }
+    }
+
+    headerWriter.close();
+    sequenceWriter.close();
+    headerReader.close();
+    reader.close();
+    
+    return EXIT_SUCCESS;
 }
