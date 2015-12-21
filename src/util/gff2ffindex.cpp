@@ -60,8 +60,6 @@ int gff2ffindex(int argn, const char **argv) {
 
     size_t entries_num = 0;
 
-    std::stringstream header_line;
-
     std::ifstream  file_in(par.db1);
     std::string    gff_line;
     while(std::getline(file_in, gff_line)) {
@@ -71,15 +69,16 @@ int gff2ffindex(int argn, const char **argv) {
         }
 
         std::vector<std::string> fields = Util::split(gff_line, "\t");
+
         // gff has always 9 fields
         if(fields.size() != 9) {
             Debug(Debug::WARNING) << "Invalid GFF format in line " << entries_num << "!";
             continue;
         }
 
-        std::string name = fields[0];
+        std::string name(fields[0]);
 
-        std::string type = fields[2];
+        std::string type(fields[2]);
 
         if(shouldCompareType && type.compare(par.gffType) != 0) {
             continue;
@@ -99,37 +98,41 @@ int gff2ffindex(int argn, const char **argv) {
 
         size_t length = end - start;
 
-        char* fastaHeader = ffindex_hdr_reader.getDataByDBKey(name);
-        char* fastaBody = ffindex_reader.getDataByDBKey(name);
+        size_t headerId = ffindex_hdr_reader.getId(name);
+        char* header = ffindex_hdr_reader.getData(headerId);
+        size_t headerLength = ffindex_hdr_reader.getSeqLens(headerId);
 
-        if(!fastaHeader || !fastaBody) {
+        char* body = ffindex_reader.getDataByDBKey(name);
+
+        if(!header || !body) {
             Debug(Debug::ERROR) << "GFF entry not found in fasta ffindex: " << name << "!\n";
             return EXIT_FAILURE;
         }
 
         std::string id;
         if (par.useHeader) {
-            id = Util::parseFastaHeader(fastaHeader);
+            id = Util::parseFastaHeader(body);
         } else {
             id = SSTR(par.identifierOffset + entries_num);
         }
 
         // header
-        header_line.str(fastaHeader);
-        header_line << " ";
+        char buffer[headerLength + 128];
         if(shouldCompareType) {
-            header_line << type << ":";
+            snprintf(buffer, headerLength + 128, "%s %s:%zu-%zu\n", header, type.c_str(), start, end);
+        } else {
+            snprintf(buffer, headerLength + 128, "%s %zu-%zu\n", header, start, end);
         }
-        header_line  << start << "-" << end << "\n";
-        std::string header = header_line.str();
-        out_hdr_writer.write(header.c_str(), header.length(), id.c_str());
-        header_line.clear();
+
+        // hack: header contains a new line, lets just overwrite the new line with a space
+        buffer[headerLength - 2] = ' ';
+        out_hdr_writer.write(buffer, strlen(buffer), id.c_str());
 
         // sequence
-        std::string sequence(fastaBody, start, length);
-        sequence.append("\n");
-
-        out_writer.write(sequence.c_str(), sequence.length(), id.c_str());
+        char bodyBuffer[length + 1];
+        strncpy(bodyBuffer, body + start, length);
+        bodyBuffer[length] = '\n';
+        out_writer.write(bodyBuffer, length + 1, id.c_str());
 
         entries_num++;
     }
