@@ -47,10 +47,10 @@ int extractorf(int argn, const char** argv)
     DBWriter headerWriter(headerOut.c_str(), headerIndexOut.c_str());
     headerWriter.open();
 
-    char buffer[LINE_MAX];
     size_t total = 0;
     for (unsigned int i = 0; i < reader.getSize(); ++i){
-        Orf orf(reader.getData(i));
+        const char* data = reader.getData(i);
+        Orf orf(data);
         std::vector<Orf::SequenceLocation> res;
         orf.FindOrfs(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps);
 
@@ -83,6 +83,7 @@ int extractorf(int argn, const char** argv)
             if (par.orfSkipIncomplete && (loc.hasIncompleteStart || loc.hasIncompleteEnd))
                 continue;
 
+            char buffer[LINE_MAX];
             snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", headerBuffer, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
             headerWriter.write(buffer, strlen(buffer), id.c_str());
