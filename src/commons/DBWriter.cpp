@@ -250,7 +250,7 @@ void DBWriter::write(const char* data, int64_t dataSize, const char* key, int th
         EXIT(1);
     }
 
-    // legacy ffindex uses char* instead of const char*, the data is not change however so the const cast is safe
+    // legacy ffindex uses char* instead of const char*, the data is not changed however so the const cast is safe
     ffindex_insert_memory(dataFiles[thrIdx], indexFiles[thrIdx], &offsets[thrIdx], const_cast<char*>(data), dataSize, const_cast<char*>(key));
 }
 
