@@ -248,6 +248,8 @@ public:
     // gff2ffindex
     PARAMETER(PARAM_GFF_TYPE)
 
+    std::vector<MMseqsParameter> empty;
+
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createprofiledb;
     std::vector<MMseqsParameter> extractorf;
@@ -257,6 +259,10 @@ public:
     std::vector<MMseqsParameter> createdb;
     std::vector<MMseqsParameter> rebuildfasta;
     std::vector<MMseqsParameter> gff2ffindex;
+
+    std::vector<MMseqsParameter> search;
+    std::vector<MMseqsParameter> clusteringWorkflow;
+    std::vector<MMseqsParameter> clusterUpdate;
 
     std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
                                               std::vector < MMseqsParameter > par2);
