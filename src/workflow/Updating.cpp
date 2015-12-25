@@ -320,9 +320,7 @@ int clusterupdate (int argc, const char * argv[]){
 
 
     Parameters par;
-    std::vector<MMseqsParameter> params = par.combineList(par.alignment, par.prefilter);
-    params = par.combineList(params, par.clustering);
-    par.parseParameters(argc, argv, usage, params, 5);
+    par.parseParameters(argc, argv, usage, par.clusterUpdate, 5);
     
     Debug::setDebugLevel(par.verbosity);
     

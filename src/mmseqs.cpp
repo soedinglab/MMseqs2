@@ -1,41 +1,45 @@
 #include "Debug.h"
 #include "CommandDeclarations.h"
 #include "Util.h"
+#include "Parameters.h"
 
+Parameters par;
 
 struct Command {
     const char *cmd;
 
     int (*commandFunction)(int, const char **);
+
+    std::vector<MMseqsParameter>* params;
 };
 
-
 static struct Command commands[] = {
-        {"alignment", alignment},
-        {"cluster", cluster},
-        {"search", search},
-        {"clusteringworkflow", clusteringworkflow},
-        {"clusterupdate", clusterupdate},
-        {"prefilter", prefilter},
-        {"createdb", createdb},
-        {"createfasta", createfasta},
-        {"createtsv", createtsv},
-        {"formatalignment",     formatalignment},
-        {"createindex",         createindex},
-        {"mergeffindex",        mergeffindex},
-        {"mergecluster",        mergecluster},
-        {"clustertofastadb",    clusteringtofastadb},
-        {"swapresults",         swapresults},
-        {"extractorf",          extractorf},
-        {"createprofiledb",     createprofiledb},
-        {"translatenucleotide", translatenucleotide},
-        {"timetest",            timetest},
-        {"legacycs219",         legacycs219},
-        {"findsorf",            findsorf},
-        {"resulttoprofiledb",   result2profile},
-        {"rebuildfasta", rebuildfasta},
-        {"splitffindex",        splitffindex},
-        {"gff2ffindex",         gff2ffindex}
+    {"alignment",           alignment,              &par.alignment},
+    {"cluster",             cluster,                &par.clustering},
+    {"search",              search,                 &par.search},
+    {"clusteringworkflow",  clusteringworkflow,     &par.clusteringWorkflow},
+    {"clusterupdate",       clusterupdate,          &par.clusterUpdate},
+    {"prefilter",           prefilter,              &par.prefilter},
+    {"createdb",            createdb,               &par.createdb},
+    {"createfasta",         createfasta,            &par.onlyverbosity},
+    {"createtsv",           createtsv,              &par.onlyverbosity},
+    {"formatalignment",     formatalignment,        &par.formatalignment},
+    {"createindex",         createindex,            &par.formatalignment},
+    {"mergeffindex",        mergeffindex,           &par.empty},
+    {"mergecluster",        mergecluster,           &par.onlyverbosity},
+    {"clustertofastadb",    clusteringtofastadb,    &par.empty},
+    {"swapresults",         swapresults,            &par.empty},
+    {"extractorf",          extractorf,             &par.extractorf},
+    {"createprofiledb",     createprofiledb,        &par.createprofiledb},
+    {"translatenucleotide", translatenucleotide,    &par.onlyverbosity},
+    {"timetest",            timetest,               &par.empty},
+    {"legacycs219",         legacycs219,            &par.onlyverbosity},
+    {"findsorf",            findsorf,               &par.onlyverbosity},
+    {"resulttoprofiledb",   result2profile,         &par.createprofiledb},
+    {"rebuildfasta",        rebuildfasta,           &par.rebuildfasta},
+    {"splitffindex",        splitffindex,           &par.splitffindex},
+    {"gff2ffindex",         gff2ffindex ,           &par.gff2ffindex},
+    {"shellcompletion",     shellcompletion,        &par.empty}
 };
 
 
@@ -87,6 +91,33 @@ int runCommand(Command *p, int argc, const char **argv) {
     return 0;
 }
 
+int shellcompletion(int argc, const char** argv) {
+    if(argc == 0) {
+        for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
+            struct Command *p = commands + i;
+            if(!strcmp(p->cmd, "shellcompletion"))
+                continue;
+            Debug(Debug::INFO) << p->cmd << " ";
+        }
+        Debug(Debug::INFO) << "\n";
+    }
+
+    if(argc == 1) {
+        for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
+            struct Command *p = commands + i;
+            if(strcmp(p->cmd, argv[0]) != 0)
+                continue;
+            if(!p->params)
+                continue;
+            for(std::vector<MMseqsParameter>::const_iterator it = p->params->begin(); it != p->params->end(); ++it) {
+                Debug(Debug::INFO) << it->name << " ";
+            }
+            Debug(Debug::INFO) << "\n";
+            break;
+        }
+        Debug(Debug::INFO) << "\n";
+    }
+}
 
 int main(int argc, const char **argv) {
     if (argc < 2) {
