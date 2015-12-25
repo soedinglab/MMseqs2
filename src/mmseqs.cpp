@@ -92,6 +92,7 @@ int runCommand(Command *p, int argc, const char **argv) {
 }
 
 int shellcompletion(int argc, const char** argv) {
+    // mmseqs programs
     if(argc == 0) {
         for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
             struct Command *p = commands + i;
@@ -102,6 +103,7 @@ int shellcompletion(int argc, const char** argv) {
         Debug(Debug::INFO) << "\n";
     }
 
+    // mmseqs parameters for given program
     if(argc == 1) {
         for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
             struct Command *p = commands + i;
