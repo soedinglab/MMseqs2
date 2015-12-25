@@ -26,4 +26,5 @@ extern int formatalignment(int argc, const char **argv);
 extern int createtsv(int argc, const char **argv);
 extern int rebuildfasta(int argc, const char **argv);
 extern int gff2ffindex(int argc, const char **argv);
+extern int shellcompletion(int argc, const char** argv);
 #endif

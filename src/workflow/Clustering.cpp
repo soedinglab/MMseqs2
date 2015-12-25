@@ -40,12 +40,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
 
     Parameters par;
     setWorkflowDefaults(&par);
-    std::vector<MMseqsParameter> params = par.combineList(par.prefilter, par.alignment);
-    params.push_back(par.PARAM_CASCADED);
-    params.push_back(par.PARAM_KEEP_TEMP_FILES);
-    params = par.combineList(params, par.clustering);
-
-    par.parseParameters(argc, argv, usage, params, 3);
+    par.parseParameters(argc, argv, usage, par.clusteringWorkflow, 3);
     Debug::setDebugLevel(par.verbosity);
 
     DBWriter::errorIfFileExist(par.db2.c_str());

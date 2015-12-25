@@ -21,9 +21,7 @@ int search (int argc, const char * argv[]) {
     usage.append("USAGE: search <queryDB> <targetDB> <outDB> <tmpDir> [opts]\n");
 
     Parameters par;
-    std::vector<MMseqsParameter> params = par.combineList(par.alignment, par.prefilter);
-    params.push_back(par.PARAM_NUM_ITERATIONS);
-    par.parseParameters(argc, argv, usage, params, 4);
+    par.parseParameters(argc, argv, usage, par.search, 4);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
