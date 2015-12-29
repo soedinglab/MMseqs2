@@ -5,10 +5,11 @@
 #include <math.h>
 #include <string.h>
 #include <sys/cdefs.h>
-#include <zconf.h>
+#include <IndexTable.h>
 
 struct  __attribute__((__packed__))  CounterResult {
     unsigned int  id;
+    unsigned short diagonal;
     unsigned char count;
 };
 
@@ -25,7 +26,8 @@ public:
 
     ~CountInt32Array();
 
-    size_t countElements(CounterResult *inputOutputArray, const size_t N);
+    size_t countElements(IndexEntryLocal **input, CounterResult *output, unsigned int outputSize,
+                         unsigned short indexFrom, unsigned short indexTo);
     // merge elements in CounterResult
     // assumption is that each element (counter.id) exists maximal two times
     size_t mergeElements(CounterResult *inputOutputArray, const size_t N);
@@ -41,8 +43,14 @@ private:
     CounterResult ** bins;
     // array to keep the bin elements
     CounterResult * binDataFrame;
+
+
+    struct  __attribute__((__packed__))  TmpResult {
+        unsigned int  id;
+        unsigned short diagonal;
+    };
     // needed to temporary keep ids
-    unsigned int *tmpElementBuffer;
+    TmpResult *tmpElementBuffer;
     // detect if overflow occurs
     bool checkForOverflowAndResizeArray(CounterResult **bins,
                                         const unsigned int binCount,
@@ -58,9 +66,13 @@ private:
     // hash input array based on MASK_0_5
     void hashElements(CounterResult *inputArray, size_t N, CounterResult **hashBins);
 
+    // hash index entry and compute diagonal
+    void hashIndexEntry(unsigned short position_i, IndexEntryLocal *inputArray,
+                        size_t N, CounterResult **hashBins, CounterResult * lastPosition);
+
     // detect duplicates in diagonal
     size_t findDuplicates(CounterResult **bins, unsigned int binCount,
-                          CounterResult * output);
+                          CounterResult * output, unsigned int outputSize);
 
 
     size_t mergeDuplicates(CounterResult **bins, unsigned int binCount, CounterResult *output);

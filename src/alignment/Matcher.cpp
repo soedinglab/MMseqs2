@@ -107,7 +107,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
                 }
             }
             // compute sequence id
-            seqId = (float)aaIds/(float)(std::min(currentQuery->L, dbSeq->L)); //TODO
+            seqId = (float)aaIds/(float)(std::min(currentQuery->L, dbSeq->L));
         }
     }
 

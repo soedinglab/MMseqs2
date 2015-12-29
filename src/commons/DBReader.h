@@ -78,6 +78,12 @@ public:
 
     void unmapData();
 
+    FILE* getDatafile(){
+        return dataFile;
+    }
+
+    size_t getDataOffset(T i);
+
 private:
 
 

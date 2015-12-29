@@ -23,17 +23,18 @@
 // structure needs to be packed or it will need 8 bytes instead of 6
 struct __attribute__((__packed__)) IndexEntryLocal {
     unsigned int seqId;
-    unsigned char position_j;
+    unsigned short position_j;
 };
 
 class IndexTable {
 
 public:
 
-    IndexTable (int alphabetSize, int kmerSize, int skip) {
+    IndexTable (int alphabetSize, int kmerSize, bool hasSequenceLookup) {
         this->alphabetSize = alphabetSize;
         this->kmerSize = kmerSize;
         this->size = 0;
+        this->hasSequenceLookup = hasSequenceLookup;
         this->sizeOfEntry = sizeof(IndexEntryLocal);
         tableSize = Util::ipow(alphabetSize, kmerSize);
         table = new char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
@@ -71,9 +72,6 @@ public:
             kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
             table[kmerIdx] += 1; // size increases by one
             tableEntriesNum++;
-            for (int i = 0; i < skip && s->hasNextKmer(); i++){
-                idxer->getNextKmerIndex(s->nextKmer(), kmerSize);
-            }
         }
     }
 
@@ -94,10 +92,11 @@ public:
     }
 
     // init the arrays for the sequence lists
-    void initMemory(size_t sequenzeCount, size_t tableEntriesNum) {
+    void initMemory(size_t sequenzeCount, size_t tableEntriesNum, size_t aaDbSize) {
         this->tableEntriesNum = tableEntriesNum;
-        sequenceLookup = new SequenceLookup(sequenzeCount, tableEntriesNum);
-
+        if(hasSequenceLookup == true){
+            sequenceLookup = new SequenceLookup(sequenzeCount, aaDbSize);
+        }
         // allocate memory for the sequence id lists
         // tablesSizes is added to put the Size of the entry infront fo the memory
         entries = new char [(tableEntriesNum + 1) * this->sizeOfEntry]; // +1 for table[tableSize] pointer address
@@ -116,15 +115,33 @@ public:
     }
 
     // init index table with external data (needed for index readin)
-    void initTableByExternalData(uint64_t tableEntriesNum, size_t * sizes,
-                                 char * pentries, size_t sequenzeCount){
+    void initTableByExternalData(FILE * data, int64_t tableEntriesNum,
+                                 size_t sizeOffset, size_t entriesOffset,
+                                 size_t sequenzeCount, size_t seqSizesOffset,
+                                 size_t seqDataOffset, int64_t seqDataSize) {
         this->tableEntriesNum = tableEntriesNum;
         this->size = sequenzeCount;
-        initMemory(sequenzeCount, tableEntriesNum);
+        initMemory(sequenzeCount, tableEntriesNum, seqDataSize);
+        if(hasSequenceLookup == true){
+            sequenceLookup->initLookupByExternalData(data, seqSizesOffset, seqDataOffset);
+        }
         Debug(Debug::WARNING) << "Copy " << this->tableEntriesNum
         << " Entries (" <<  this->tableEntriesNum*this->sizeOfEntry  << " byte)\n";
-        memcpy ( this->entries , pentries, this->tableEntriesNum * this->sizeOfEntry );
 
+        fseek (data , entriesOffset, SEEK_SET);
+        size_t errcode = fread (entries, 1, this->tableEntriesNum * this->sizeOfEntry ,data);
+        if (errcode != this->tableEntriesNum * this->sizeOfEntry) {
+            Debug(Debug::ERROR) << "IndexTable error while reading entries.\n";
+            EXIT (EXIT_FAILURE);
+        }
+
+        size_t *sizes = new size_t[tableSize];
+        fseek (data , sizeOffset, SEEK_SET);
+        errcode = fread (sizes, 1, this->tableSize * sizeof(size_t) , data);
+        if (errcode != this->tableSize * sizeof(size_t)) {
+            Debug(Debug::ERROR) << "IndexTable error while reading sizeTable.\n";
+            EXIT (EXIT_FAILURE);
+        }
         Debug(Debug::WARNING) << "Setup Sizes  \n";
         char* it = this->entries;
         // set the pointers in the index table to the start of the list for a certain k-mer
@@ -132,6 +149,7 @@ public:
             table[i] = it;
             it += sizes[i] * this->sizeOfEntry;
         }
+        delete [] sizes;
 
         table[tableSize] = it;
         Debug(Debug::WARNING) << "Read IndexTable ... Done\n";
@@ -187,7 +205,7 @@ public:
             Debug(Debug::WARNING) << "\t\t" << topElements[j].first << "\n";
         }
         Debug(Debug::WARNING) << "Min Kmer Size:   " << minKmer << "\n";
-        Debug(Debug::WARNING) << "Empty KTestDBReader.cppmer list: " << emptyKmer << "\n";
+        Debug(Debug::WARNING) << "Empty list: " << emptyKmer << "\n";
         Debug(Debug::WARNING) << "\n";
 
     }
@@ -210,14 +228,10 @@ public:
             entry->seqId      = s->getId();
             entry->position_j = s->getCurrentPosition();
             table[kmerIdx] += sizeof(IndexEntryLocal);
-
-            //unsigned int* row = (unsigned int *) table[kmerIdx];
-            //row[currPos[kmerIdx]++] = s->getId();
-            for (int i = 0; i < skip && s->hasNextKmer(); i++){
-                idxer->getNextKmerIndex(s->nextKmer(), kmerSize);
-            }
         }
-        sequenceLookup->addSequence(s);
+        if(hasSequenceLookup == true){
+            sequenceLookup->addSequence(s);
+        }
     }
 
     // prints the IndexTable
@@ -250,6 +264,9 @@ public:
 
     // returns the size of the entry (int for global) (IndexEntryLocal for local)
     size_t getSizeOfEntry() { return sizeOfEntry; }
+
+    SequenceLookup *getSequenceLookup(){ return sequenceLookup; }
+
 protected:
     // number of entries in all sequence lists
     int64_t tableEntriesNum; // must be 64bit
@@ -270,8 +287,8 @@ protected:
 
     int kmerSize;
 
-    // number of skipped k-mers
-    int skip;
+    // is sequence lookup needed
+    bool hasSequenceLookup;
 
     // amount of sequences in Index
     size_t size;

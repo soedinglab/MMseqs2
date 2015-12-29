@@ -30,8 +30,8 @@
 typedef struct {
     unsigned int seqId;
     float pScore;
-    unsigned short prefScore;
-    unsigned char diagonal;
+    unsigned short diagonal;
+    unsigned char prefScore;
     unsigned char diagonalScore;
 } hit_t;
 
@@ -52,6 +52,9 @@ public:
             const unsigned char dbDiagonal = data[seqIndex];
             const unsigned char oldScore   = data[seqIndex + 1];
             const unsigned char scoreToAdd = (UNLIKELY(currDiagonal == dbDiagonal ) && LIKELY(oldScore < 255)) ? 1 : 0;
+            if(UNLIKELY(currDiagonal == dbDiagonal )){
+                std::cout << "seq=" << seqIndex << "\tdiag=" << (int) currDiagonal << std::endl;
+            }
             const unsigned char newScore = oldScore + scoreToAdd;
             data[seqIndex]     = currDiagonal;
             data[seqIndex + 1] = newScore;
@@ -118,7 +121,10 @@ public:
 
     void printVector(__m128i v);
 
-    static bool compareHits(hit_t first, hit_t second);
+    // sorting functions for the hitlist
+    static bool compareHitsByPValue(hit_t first, hit_t second);
+    static bool compareHitsByDiagonalScore(hit_t first, hit_t second);
+
 
     const static size_t SCORE_RANGE = 256;
 
