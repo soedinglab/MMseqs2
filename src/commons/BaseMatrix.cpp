@@ -64,9 +64,11 @@ BaseMatrix::~BaseMatrix(){
     for (int i = 0; i < alphabetSize; i++){
         delete[] probMatrix[i];
         delete[] subMatrix[i];
+        delete[] subMatrixDouble[i];
         delete[] subMatrixPseudoCounts[i];
     }
     delete[] probMatrix;
+    delete[] subMatrixDouble;
     delete[] subMatrixPseudoCounts;
     delete[] subMatrix;
 }

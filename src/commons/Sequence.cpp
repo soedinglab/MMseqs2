@@ -8,14 +8,14 @@
 
 Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType, const unsigned int kmerSize, const bool spaced)
 {
-    this->int_sequence = new int[maxLen];
     if(aa2int == NULL){
         Debug(Debug::ERROR) << "BaseMatrix must be set in Sequence (Profile Mode)\n";
         EXIT(EXIT_FAILURE);
     }
+    this->int_sequence = new int[maxLen];
+    this->maxLen = maxLen;
     this->aa2int = aa2int;
     this->int2aa = int2aa;
-    this->maxLen = maxLen;
     this->seqType = seqType;
     std::pair<const char *, unsigned int> spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
     this->spacedPattern = spacedKmerInformation.first;

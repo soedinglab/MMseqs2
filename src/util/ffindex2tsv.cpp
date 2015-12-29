@@ -29,7 +29,6 @@ int createtsv (int argc, const char * argv[])
     dbr_data.open(DBReader<unsigned int>::NOSORT);
 
     FILE *tsvFP =  fopen(par.db4.c_str(), "w");
-    char newline[] = {'\n'};
     Debug(Debug::WARNING) << "Start writing file to " << par.db4 << "\n";
     char * dbKey = new char[par.maxSeqLen + 1];
 

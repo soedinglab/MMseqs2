@@ -107,10 +107,10 @@ std::pair<hit_t *, size_t> QueryScoreLocal::getResult(const unsigned int querySe
     // include the identity in results if its there
     if(elementCounter > 1){
         if (identityId != UINT_MAX){
-            std::sort(resList + 1, resList + elementCounter, compareHits);
+            std::sort(resList + 1, resList + elementCounter, compareHitsByPValue);
         }
         else{
-            std::sort(resList, resList + elementCounter, compareHits);
+            std::sort(resList, resList + elementCounter, compareHitsByPValue);
         }
     }
     return std::make_pair(this->resList, elementCounter);

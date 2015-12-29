@@ -51,11 +51,7 @@ public:
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
 
     static IndexTable *generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, int alphabetSize, int kmerSize,
-                                          size_t dbFrom, size_t dbTo, int searchMode, int skip);
-
-
-    static void countKmersForIndexTable (DBReader<unsigned int>* dbr, Sequence* seq, IndexTable* indexTable,
-                                         size_t dbFrom, size_t dbTo);
+                                          size_t dbFrom, size_t dbTo, int searchMode, bool diagonalScoring);
 
     static void fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, IndexTable * indexTable,
                              size_t dbFrom, size_t dbTo);
@@ -99,12 +95,12 @@ private:
     const int targetSeqType;
     bool templateDBIsIndex;
     bool mask;
+    bool diagonalScoring;
     bool aaBiasCorrection;
     short kmerThr;
     double kmerMatchProb;
     int split;
     int splitMode;
-    int skip;
     int searchMode;
     bool sameQTDB;
 
@@ -121,8 +117,8 @@ private:
                                                       unsigned int *seqLens, short kmerThr,
                                                       double kmerMatchProb, int kmerSize,
                                                       size_t effectiveKmerSize, size_t dbSize,
-                                                      bool aaBiasCorrection, unsigned int maxSeqLen,
-                                                      float zscoreThr, int searchMode,
+                                                      bool aaBiasCorrection, bool diagonalScoring,
+                                                      unsigned int maxSeqLen, int searchMode,
                                                       size_t maxHitsPerQuery);
 
 

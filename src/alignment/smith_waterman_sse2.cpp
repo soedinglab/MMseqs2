@@ -783,7 +783,6 @@ SmithWaterman::cigar * SmithWaterman::banded_sw(
 		curr_sM_G_D_vec[query_start].H = 0;
 		curr_sM_G_D_vec[query_start].E = 0;
 		const short * profile = profile_word[db_sequence[i]];
-		//TODO problem if query_start == 0
 		for (int j = query_start+1; LIKELY(j <= query_end); j++) {
 			curr_sM_G_D_vec[j].E = std::max(curr_sM_G_D_vec[j-1].H - goe, curr_sM_G_D_vec[j-1].E - gap_extend); // j-1
 			curr_sM_G_D_vec[j].F = std::max(prev_sM_G_D_vec[j].H   - goe, prev_sM_G_D_vec[j].F - gap_extend);   // i-1

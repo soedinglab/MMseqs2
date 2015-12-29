@@ -2,14 +2,16 @@
 #include "DBWriter.h"
 #include "Prefiltering.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION="2.0.0";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="2.0.1";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::ENTRIES = 1;
 unsigned int PrefilteringIndexReader::ENTRIESIZES = 2;
 unsigned int PrefilteringIndexReader::ENTRIESNUM = 3;
-unsigned int PrefilteringIndexReader::TABLESIZE = 4;
+unsigned int PrefilteringIndexReader::SEQCOUNT = 4;
 unsigned int PrefilteringIndexReader::META = 5;
-
+unsigned int PrefilteringIndexReader::SEQINDEXDATA = 6;
+unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 7;
+unsigned int PrefilteringIndexReader::SEQINDEXSEQSIZE = 8;
 bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     char * version = reader->getDataByDBKey(VERSION);
     if(version == NULL){
@@ -19,8 +21,8 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 }
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader<unsigned int>*dbr, Sequence *seq,
-                                              int split, int alphabetSize, int kmerSize, int skip, bool hasSpacedKmer,
-                                              int searchMode) {
+                                              int split, int alphabetSize, int kmerSize, int skip,
+                                              bool hasSpacedKmer, int searchMode) {
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
     writer.open();
     int stepCnt = split;
@@ -32,13 +34,12 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
                 step, stepCnt, &splitStart, &splitSize);
         IndexTable *indexTable;
         if (searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST) {
-            indexTable = new IndexTable(alphabetSize, kmerSize, skip);
+            indexTable = new IndexTable(alphabetSize, kmerSize, true);
         }else{
             Debug(Debug::ERROR) << "Seach mode is not valid.\n";
             EXIT(EXIT_FAILURE);
         }
-        Prefiltering::countKmersForIndexTable(dbr, seq, indexTable, splitStart, splitStart + splitSize);
-        Debug(Debug::INFO) << "\n";
+
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize);
 
         // save the entries
@@ -53,6 +54,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         // save the size
         std::string entriesizes_key = SSTR(Util::concatenate(ENTRIESIZES, step));
         Debug(Debug::WARNING) << "Write " << entriesizes_key << "\n";
+
         char **sizes = indexTable->getTable();
         size_t *size = new size_t[indexTable->getTableSize()];
         for (size_t i = 0; i < indexTable->getTableSize(); i++) {
@@ -61,6 +63,28 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         }
         writer.write((char *) size, indexTable->getTableSize() * sizeof(size_t), (char *) entriesizes_key.c_str(), 0);
         delete[] size;
+
+        SequenceLookup *lookup = indexTable->getSequenceLookup();
+        std::string seqindexdata_key = SSTR(Util::concatenate(SEQINDEXDATA, step));
+        Debug(Debug::WARNING) << "Write " << seqindexdata_key << "\n";
+        writer.write(lookup->getData(), lookup->getDataSize(), seqindexdata_key.c_str(), 0);
+
+        std::string seqindex_datasize_key = SSTR(Util::concatenate(SEQINDEXDATASIZE, step));
+        Debug(Debug::WARNING) << "Write " << seqindex_datasize_key << "\n";
+        int64_t seqindexDataSize = lookup->getDataSize();
+        char *seqindexDataSizePtr = (char *) &seqindexDataSize;
+        writer.write(seqindexDataSizePtr, 1 * sizeof(int64_t), (char *) seqindex_datasize_key.c_str(), 0);
+
+        unsigned int *sequenceSizes = new unsigned int[lookup->getSequenceCount()];
+        for (size_t i = 0; i < lookup->getSequenceCount(); i++) {
+            unsigned int size = lookup->getSequence(i).second;
+            sequenceSizes[i] = size;
+        }
+        std::string seqindex_seqsize = SSTR(Util::concatenate(SEQINDEXSEQSIZE, step));
+        Debug(Debug::WARNING) << "Write " << seqindex_seqsize << "\n";
+        writer.write((char *) sequenceSizes, lookup->getSequenceCount() * sizeof(unsigned int), (char *) seqindex_seqsize.c_str(), 0);
+        delete[] sequenceSizes;
+
         // meta data
         // ENTRIESNUM
         std::string entriesnum_key = SSTR(Util::concatenate(ENTRIESNUM, step));
@@ -68,8 +92,8 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
         int64_t entriesNum = indexTable->getTableEntriesNum();
         char *entriesNumPtr = (char *) &entriesNum;
         writer.write(entriesNumPtr, 1 * sizeof(int64_t), (char *) entriesnum_key.c_str(), 0);
-        // TABLESIZE
-        std::string tablesize_key = SSTR(Util::concatenate(TABLESIZE, step));
+        // SEQCOUNT
+        std::string tablesize_key = SSTR(Util::concatenate(SEQCOUNT, step));
         Debug(Debug::WARNING) << "Write " << tablesize_key << "\n";
         size_t tablesize = {indexTable->getSize()};
         char *tablesizePtr = (char *) &tablesize;
@@ -105,22 +129,27 @@ DBReader<unsigned int>*PrefilteringIndexReader::openNewReader(DBReader<unsigned 
     return reader;
 }
 
-IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*dbr, int split) {
-    size_t *entrieSizes         = (size_t *) dbr->getDataByDBKey(Util::concatenate(ENTRIESIZES, split));
-    char *entries               = (char *) dbr->getDataByDBKey(Util::concatenate(ENTRIES, split));
-    int64_t *entriesNum         = (int64_t *) dbr->getDataByDBKey(Util::concatenate(ENTRIESNUM, split));
-    size_t *tableSize           = (size_t *) dbr->getDataByDBKey(Util::concatenate(TABLESIZE, split));
-
+IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*dbr, int split, bool diagonalScoring) {
+    int64_t   entriesNum    = *((int64_t *) dbr->getDataByDBKey(Util::concatenate(ENTRIESNUM, split)));
+    size_t sequenceCount    = *((size_t *)dbr->getDataByDBKey(Util::concatenate(SEQCOUNT, split)));
+    int64_t  seqDataSize    = *((int64_t *)dbr->getDataByDBKey(Util::concatenate(SEQINDEXDATASIZE, split)));
     PrefilteringIndexData data = getMetadata(dbr);
+    dbr->unmapData();
+    FILE * dataFile = dbr->getDatafile();
+    size_t entriesOffset  = dbr->getDataOffset(Util::concatenate(ENTRIES, split));
+    size_t entrieSizesOffset  = dbr->getDataOffset(Util::concatenate(ENTRIESIZES, split));
+    size_t seqDataOffset  = dbr->getDataOffset(Util::concatenate(SEQINDEXDATA, split));
+    size_t seqSizesOffset = dbr->getDataOffset(Util::concatenate(SEQINDEXSEQSIZE, split));
     IndexTable *retTable;
     if (data.local) {
-        retTable = new IndexTable(data.alphabetSize, data.kmerSize, data.skip);
+        retTable = new IndexTable(data.alphabetSize, data.kmerSize, diagonalScoring);
     }else {
         Debug(Debug::ERROR) << "Seach mode is not valid.\n";
         EXIT(EXIT_FAILURE);
     }
-    retTable->initTableByExternalData(entriesNum[0], entrieSizes, entries, tableSize[0]);
-    dbr->unmapData();
+    retTable->initTableByExternalData(dataFile, entriesNum,
+                                      entrieSizesOffset, entriesOffset, sequenceCount,
+                                      seqSizesOffset, seqDataOffset, seqDataSize);
     return retTable;
 }
 

@@ -227,7 +227,7 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
                                                   setId);
             // this is a new connection
             if(found == false){
-                tmpSize[currElm * threads + thread_idx] += 1; //TODO false sharing?
+                tmpSize[currElm * threads + thread_idx] += 1;
             }
         }
     }

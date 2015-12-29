@@ -224,12 +224,17 @@ template <typename T> void DBReader<T>::readIndex(char *indexFileName, Index * i
 }
 
 template <typename T> void DBReader<T>::unmapData() {
-    if(dataMapped){
+    if(dataMapped == true){
         munmap(data, dataSize);
         dataMapped = false;
     }
 }
 
+template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
+    size_t id = bsearch(index, size, i);
+    return index[id].data - data;
+}
 
 template class DBReader<unsigned int>;
 template class DBReader<std::string>;
+

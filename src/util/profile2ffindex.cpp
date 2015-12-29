@@ -125,7 +125,6 @@ void parseHMM(char *data, std::string *header, char *profileBuffer, size_t *size
 
 int createprofiledb(int argn,const char **argv)
 {
-    int err = EXIT_SUCCESS;
 
     std::string usage;
     usage.append("Converts a ffindex profile database to ffindex.\n");
@@ -143,8 +142,7 @@ int createprofiledb(int argn,const char **argv)
     std::string index_filename_hdr_str(par.db2);
     index_filename_hdr_str.append("_h.index");
     char *index_filename_hdr = (char *)index_filename_hdr_str.c_str() ;
-    FILE *data_file, *index_file, *fasta_file, *data_file_hdr, *index_file_hdr;
-    struct stat st;
+    FILE *data_file, *index_file, *data_file_hdr, *index_file_hdr;
 
     openFile(par.db2.c_str(), &data_file);
     openFile(index_filename, &index_file);

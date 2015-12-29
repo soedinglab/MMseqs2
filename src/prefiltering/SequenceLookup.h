@@ -22,6 +22,14 @@ public:
     // get sequence data
     std::pair<const unsigned char *, const unsigned int> getSequence(size_t id);
 
+    const char *getData();
+
+    int64_t getDataSize();
+
+    size_t getSequenceCount();
+
+    void initLookupByExternalData(FILE *datafile, size_t seqSizesOffset, size_t seqDataOffset);
+
 private:
 
     // data contains sequence data
@@ -32,6 +40,9 @@ private:
 
     // write position
     char * currWritePos;
+    size_t sequenceCount;
+    size_t dataSize;
+
 };
 
 

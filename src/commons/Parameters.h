@@ -93,6 +93,7 @@ public:
     bool   profile;                      // using profile information
     bool   nucl;                         // using nucl informatoin
     bool   compBiasCorrection;           // Aminoacid composiont correction
+    bool   diagonalScoring;              // switch diagonal scoring
     int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB (MPI only)
@@ -190,7 +191,7 @@ public:
     PARAMETER(PARAM_MAX_SEQ_LEN);
     PARAMETER(PARAM_PROFILE);
     PARAMETER(PARAM_NUCL);
-    PARAMETER(PARAM_Z_SCORE);
+    PARAMETER(PARAM_DIAGONAL_SCORING);
     PARAMETER(PARAM_K_SCORE);
     PARAMETER(PARAM_SKIP);
     PARAMETER(PARAM_MAX_SEQS);
