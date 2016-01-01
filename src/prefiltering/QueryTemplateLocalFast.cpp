@@ -134,7 +134,7 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
             biasCorrection += compositionBias[pos[i]];
         }
         // round bias to next higher or lower value
-        short bias = static_cast<char>((biasCorrection < 0.0) ? biasCorrection - 0.5: biasCorrection + 0.5);
+        short bias = static_cast<short>((biasCorrection < 0.0) ? biasCorrection - 0.5: biasCorrection + 0.5);
         short kmerMatchScore = std::max(kmerThr - bias, 0);
         // adjust kmer threshold based on composition bias
         kmerGenerator->setThreshold(kmerMatchScore);
@@ -150,7 +150,6 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
             // detected overflow while matching
             if ((sequenceHits + seqListSize) >= lastSequenceHit) {
                 stats->diagonalOverflow = true;
-                std::cout << seq->getId() << " " << seq->getDbKey() <<  std::endl;
                 // last pointer
                 indexPointer[current_i + 1] = sequenceHits;
 //                std::cout << "Overflow in i=" << indexStart << " IndexTo=" << i << std::endl;
