@@ -68,7 +68,7 @@ const int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
         int curr = *((profile + pos * PROFILESIZE) + dbSeq[pos]);
         score = (curr - bias) + score;
         score = (score < 0) ? 0 : score;
-        std::cout << (int) dbSeq[pos] << "\t" << curr << "\t" << max << "\t" << score <<  "\t" << (curr - bias) << std::endl;
+//        std::cout << (int) dbSeq[pos] << "\t" << curr << "\t" << max << "\t" << score <<  "\t" << (curr - bias) << std::endl;
         max = (score > max)? score : max;
     }
     return std::min(max, 255);
@@ -140,7 +140,7 @@ const simd_int  DiagonalMatcher::vectorDiagonalScoring(const char *profile,
 
         vscore    = simdui8_adds(vscore, score_vec_8bit);
         vscore    = simdui8_subs(vscore, vBias);
-        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
+//        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
         vMaxScore = simdui8_max(vMaxScore, vscore);
 
     }
