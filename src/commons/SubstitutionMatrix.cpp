@@ -3,7 +3,8 @@
 
 
 
-SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_, float bitFactor, float scoreBias = 0.2) :
+SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
+                                       float bitFactor, float scoreBias = 0.2) :
         scoringMatrixFileName(scoringMatrixFileName_)
 {
     // read amino acid substitution matrix from file
@@ -17,7 +18,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_, float
         EXIT(1);
     }
 
-    generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts, this->subMatrix, this->subMatrixDouble,  this->alphabetSize, bitFactor, scoreBias);
+    generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts, this->subMatrix, this->subMatrix2Bit, this->alphabetSize, bitFactor, scoreBias);
     this->bitFactor = bitFactor;
 }
 
@@ -32,8 +33,8 @@ void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
         const int maxPos = std::min(N, (i + windowSize/2));
         const int windowLength = maxPos - minPos;
         // negative score for the amino acids in the neighborhood of i
-        double sumSubScores = 0.0;
-        double * subMat = m->subMatrixDouble[int_sequence[i]];
+        int sumSubScores = 0;
+        short    * subMat = m->subMatrix[int_sequence[i]];
         for (int j = minPos; j < maxPos; j++){
             sumSubScores += subMat[int_sequence[j]];
         }
@@ -41,13 +42,13 @@ void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
         sumSubScores -= subMat[int_sequence[i]];
         float deltaS_i = (float) sumSubScores;
         // negative avg.
-        deltaS_i /= -1.0 * windowLength;
+        deltaS_i /= -1.0 * static_cast<float>(windowLength);
         // positive score for the background score distribution for i
         for (int a = 0; a < m->alphabetSize; a++){
-            deltaS_i += m->pBack[a] * subMat[a];
+            deltaS_i += m->pBack[a] * static_cast<float>(subMat[a]);
         }
         compositionBias[i] = deltaS_i;
-//        std::cout << compositionBias[i] << std::endl;
+//        std::cout << i << " " << compositionBias[i] << std::endl;
     }
 }
 

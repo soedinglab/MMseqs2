@@ -39,18 +39,18 @@ BaseMatrix::BaseMatrix(){
     pBack = new double[alphabetSize];
     probMatrix = new double*[alphabetSize];
     subMatrix = new short*[alphabetSize];
-    subMatrixDouble = new double*[alphabetSize];
+    subMatrix2Bit = new short*[alphabetSize];
     subMatrixPseudoCounts = new float*[alphabetSize];
 
     for (int i = 0; i < alphabetSize; i++){
         pBack[i] = 0.0;
         probMatrix[i] = new double[alphabetSize];
         subMatrix[i] = new short[alphabetSize];
-        subMatrixDouble[i] = new double[alphabetSize];
+        subMatrix2Bit[i] = new short[alphabetSize];
         subMatrixPseudoCounts[i] = new float[alphabetSize];
         for (int j = 0; j < alphabetSize; j++){
             probMatrix[i][j] = 0.0;
-            subMatrixDouble[i][j] = 0.0;
+            subMatrix2Bit[i][j] = 0.0;
             subMatrix[i][j] = 0;
             subMatrixPseudoCounts[i][j] = 0.0;
         }
@@ -64,11 +64,11 @@ BaseMatrix::~BaseMatrix(){
     for (int i = 0; i < alphabetSize; i++){
         delete[] probMatrix[i];
         delete[] subMatrix[i];
-        delete[] subMatrixDouble[i];
+        delete[] subMatrix2Bit[i];
         delete[] subMatrixPseudoCounts[i];
     }
     delete[] probMatrix;
-    delete[] subMatrixDouble;
+    delete[] subMatrix2Bit;
     delete[] subMatrixPseudoCounts;
     delete[] subMatrix;
 }
@@ -110,7 +110,7 @@ void BaseMatrix::print(double** matrix, char* int2aa, int size){
 }
 
 void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, float ** subMatrixPseudoCounts,
-                                   int size, double bitFactor, double scoringBias){
+                                   int size){
 
     // calculate background distribution for the amino acids
     double pBack[size];
@@ -130,8 +130,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
     // calculate the substitution matrix
     for (int i = 0; i < size; i++){
         for (int j = 0; j < size; j++){
-            subMatrix[i][j] = bitFactor * _log2(probMatrix[i][j]/(pBack[i]*pBack[j])) + scoringBias;
-
+            subMatrix[i][j] = _log2(probMatrix[i][j]/(pBack[i]*pBack[j]));
         }
     }
 
@@ -139,18 +138,20 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
 }
 
 void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix,
-                                   double ** subMatrixDouble, int size, double bitFactor, double scoringBias){
+                                   short **subMatrix2Bit, int size, double bitFactor, double scoringBias){
     double** sm = new double* [size];
     for (int i = 0; i < size; i++)
         sm[i] = new double[size];
 
-    generateSubMatrix(probMatrix, sm, subMatrixPseudoCounts, size, bitFactor, scoringBias);
+    generateSubMatrix(probMatrix, sm, subMatrixPseudoCounts, size);
 
     // convert to short data type matrix
     for (int i = 0; i < size; i++){
         for (int j = 0; j < size; j++){
-            subMatrix[i][j] = (short) floor (sm[i][j] + 0.5);
-            subMatrixDouble[i][j] = sm[i][j];
+            double pValNBitScale = (bitFactor * sm[i][j] + scoringBias);
+            subMatrix[i][j] = (pValNBitScale < 0.0) ? pValNBitScale - 0.5 : pValNBitScale + 0.5;
+            double pVal2BitScale = (sm[i][j] * 2.0 + scoringBias);
+            subMatrix2Bit[i][j] = (pVal2BitScale < 0.0) ? pVal2BitScale - 0.5 : pVal2BitScale + 0.5;
         }
     }
 
