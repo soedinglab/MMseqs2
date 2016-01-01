@@ -135,12 +135,12 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins,
             output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
             const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
             // memory overflow can not happen since input array = output array
-            doubleElementCount += (duplicateBitArray[hashBinElement] != diagonal) ? 1 : 0;
+            doubleElementCount += (duplicateBitArray[hashBinElement] != 0) ? 1 : 0;
 //            if(duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal){
 //                std::cout << "seq="<< output[doubleElementCount].id << "\tDiag=" << (int) output[doubleElementCount].diagonal
 //                          <<  " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int) diagonal << std::endl;
 //            }
-            duplicateBitArray[hashBinElement] = diagonal;
+            duplicateBitArray[hashBinElement] = 0;
         }
         // clean memory faster if current bin size is smaller duplicateBitArraySize
 //        if(currBinSize < duplicateBitArraySize/16){
@@ -208,8 +208,8 @@ void CountInt32Array::hashElements(CounterResult *inputArray, size_t N, CounterR
         const CounterResult element = inputArray[n];
         const unsigned int bin_id  = (element.id & MASK_0_5);
         hashBins[bin_id]->id       = element.id;
-        hashBins[bin_id]->count    = element.count;
         hashBins[bin_id]->diagonal = element.diagonal;
+        hashBins[bin_id]->count    = element.count;
 
         // do not write over boundary of the data frame
         hashBins[bin_id] += (hashBins[bin_id] >= lastPosition) ? 0 : 1;
