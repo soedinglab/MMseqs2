@@ -33,7 +33,7 @@ DiagonalMatcher::~DiagonalMatcher() {
 
 void DiagonalMatcher::processQuery(Sequence *query, float *biasCorrection,
                                    std::pair<hit_t *, size_t> results) {
-    short **subMat = subMatrix->subMatrix;
+    short **subMat = subMatrix->subMatrix2Bit;
     short bias = 0;
     for (size_t i = 0; i < subMatrix->alphabetSize; i++) {
         for (size_t j = 0; j < subMatrix->alphabetSize; j++) {
@@ -51,7 +51,8 @@ void DiagonalMatcher::processQuery(Sequence *query, float *biasCorrection,
         char aaBiasCorrection = (char) (aaBias < 0.0) ? aaBias - 0.5: aaBias + 0.5;
 
         for (size_t i = 0; i < subMatrix->alphabetSize; i++) {
-            queryProfile[pos * PROFILESIZE + i] = subMat[aaIdx][i] + aaBiasCorrection + bias;
+            queryProfile[pos * PROFILESIZE + i] = (subMat[aaIdx][i] + aaBiasCorrection + bias);
+//            std::cout << aaIdx << "\t" << (int) queryProfile[pos * PROFILESIZE + i] << "\t" << (int) subMat[aaIdx][i] << "\t" << (int) aaBiasCorrection << "\t" << (int) bias << std::endl;
         }
     }
     computeScores(queryProfile, query->L, results, bias);
@@ -139,7 +140,7 @@ const simd_int  DiagonalMatcher::vectorDiagonalScoring(const char *profile,
 
         vscore    = simdui8_adds(vscore, score_vec_8bit);
         vscore    = simdui8_subs(vscore, vBias);
-//        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((unsigned char *)&score_vec_8bit)[0]) << "\t" << SSTR(((unsigned char *)&vMaxScore)[0]) << "\t" << SSTR(((unsigned char *)&vscore)[0]) << std::endl;
+//        std::cout << (int)((char *)&template01)[0] << "\t" <<  SSTR(((char *)&score_vec_8bit)[0]) << "\t" << SSTR(((char *)&vMaxScore)[0]) << "\t" << SSTR(((char *)&vscore)[0]) << std::endl;
         vMaxScore = simdui8_max(vMaxScore, vscore);
 
     }
