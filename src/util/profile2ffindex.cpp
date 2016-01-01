@@ -25,9 +25,7 @@ extern "C" {
 #include "DBReader.h"
 #include "Util.h"
 #include "Debug.h"
-#define MAX_FILENAME_LIST_FILES 4096
 
-int openFile(const char *filename, FILE **pFILE);
 int sortIndex(char *index_filename, size_t entry_num);
 
 void parsePSSM(char *data, char *profileBuffer, size_t *size, const char *id, BaseMatrix * subMat){
@@ -138,16 +136,17 @@ int createprofiledb(int argn,const char **argv)
     char *index_filename = (char *) index_filename_str.c_str();
     std::string data_filename_hdr_str(par.db2);
     data_filename_hdr_str.append("_h");
-    char *data_filename_hdr  = (char *)data_filename_hdr_str.c_str() ;
+    char *data_filename_hdr  = (char *)data_filename_hdr_str.c_str();
     std::string index_filename_hdr_str(par.db2);
     index_filename_hdr_str.append("_h.index");
-    char *index_filename_hdr = (char *)index_filename_hdr_str.c_str() ;
+    char *index_filename_hdr = (char *)index_filename_hdr_str.c_str();
+
     FILE *data_file, *index_file, *data_file_hdr, *index_file_hdr;
 
-    openFile(par.db2.c_str(), &data_file);
-    openFile(index_filename, &index_file);
-    openFile(data_filename_hdr, &data_file_hdr);
-    openFile(index_filename_hdr, &index_file_hdr);
+    data_file = Util::openFileOrDie(par.db2.c_str(), "w+", false);
+    index_file = Util::openFileOrDie(index_filename, "w+", false);
+    data_file_hdr = Util::openFileOrDie(data_filename_hdr, "w+", false);
+    index_file_hdr = Util::openFileOrDie(index_filename_hdr, "w+", false);
 
     size_t offset_profile = 0;
     size_t offset_header = 0;
@@ -176,7 +175,7 @@ int createprofiledb(int argn,const char **argv)
             parsePSSM(data, profileBuffer, &elementSize, idStr.c_str(), subMat);
         } else{
             Debug(Debug::ERROR) << "Wrong profile mode.\n";
-            EXIT(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
         ffindex_insert_memory(data_file_hdr,  index_file_hdr,     &offset_header,
                               (char*)header.c_str(),  header.length() , (char *)idStr.c_str());
@@ -198,6 +197,7 @@ int createprofiledb(int argn,const char **argv)
     sortIndex(index_filename_hdr, entry_num);
     Debug(Debug::WARNING) << "Done.\n";
 
+    return EXIT_SUCCESS;
 }
 
 int sortIndex(char *index_filename, size_t entry_num) {
@@ -214,11 +214,3 @@ int sortIndex(char *index_filename, size_t entry_num) {
     if(index_file == NULL) { perror(index_filename); return EXIT_FAILURE; }
     return ffindex_write(index, index_file);
 }
-
-int openFile(const char *filename, FILE **pFILE) {
-    struct stat st;
-    if(stat(filename, &st) == 0) { errno = EEXIST; perror(filename); return EXIT_FAILURE; }
-    *pFILE = fopen(filename, "w+");
-    if(filename == NULL) { perror(filename); return EXIT_FAILURE; }
-}
-

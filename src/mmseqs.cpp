@@ -119,6 +119,8 @@ int shellcompletion(int argc, const char** argv) {
         }
         Debug(Debug::INFO) << "\n";
     }
+
+    return EXIT_SUCCESS;
 }
 
 int main(int argc, const char **argv) {

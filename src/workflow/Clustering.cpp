@@ -1,21 +1,11 @@
 #include "Parameters.h"
 
-#include <iostream>
 #include <string>
-#include <time.h>
-#include <sys/time.h>
+#include <iostream>
 #include <list>
 #include <CommandCaller.h>
 
 #include "WorkflowFunctions.h"
-
-extern "C" {
-#include "ffindex.h"
-#include "ffutil.h"
-}
-
-#include "Util.h"
-#include "mergecluster.h"
 
 
 void setWorkflowDefaults(Parameters* p) {
@@ -44,6 +34,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
     Debug::setDebugLevel(par.verbosity);
 
     DBWriter::errorIfFileExist(par.db2.c_str());
+
     if (par.cascaded) {
         CommandCaller cmd;
 
