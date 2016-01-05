@@ -135,7 +135,7 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins,
         while ( n != static_cast<size_t>(-1) )
         {
             const unsigned int element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
-            duplicateBitArray[element] = static_cast<char>(tmpElementBuffer[n].diagonal) + 1;
+            duplicateBitArray[element] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal) + 1;
             --n;
         }
 
@@ -148,12 +148,12 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins,
             output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
 //            const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
             // memory overflow can not happen since input array = output array
-            doubleElementCount += (duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal) ? 1 : 0;
+            doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
 //            if(duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal){
 //                std::cout << "seq="<< output[doubleElementCount].id << "\tDiag=" << (int) output[doubleElementCount].diagonal
 //                          <<  " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int) diagonal << std::endl;
 //            }
-            duplicateBitArray[hashBinElement] = tmpElementBuffer[n].diagonal;
+            duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
         }
         // clean memory faster if current bin size is smaller duplicateBitArraySize
         if(currBinSize < duplicateBitArraySize/16){
