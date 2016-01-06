@@ -48,6 +48,7 @@ private:
     struct  __attribute__((__packed__))  TmpResult {
         unsigned int  id;
         unsigned short diagonal;
+        unsigned char score;
     };
     // needed to temporary keep ids
     TmpResult *tmpElementBuffer;
