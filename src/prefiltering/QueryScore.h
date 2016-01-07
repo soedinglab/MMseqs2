@@ -32,7 +32,6 @@ typedef struct {
     float pScore;
     unsigned short diagonal;
     unsigned char prefScore;
-    unsigned char diagonalScore;
 } hit_t;
 
 
@@ -48,12 +47,12 @@ public:
         for (unsigned int seqIdx = 0; LIKELY(seqIdx < seqListSize); seqIdx++){
             const IndexEntryLocal entry = seqList[seqIdx];
             const unsigned int seqIndex = entry.seqId * 2;
-            const unsigned char currDiagonal = i - entry.position_j;
+            const unsigned short currDiagonal = i - entry.position_j;
             const unsigned char dbDiagonal = data[seqIndex];
             const unsigned char oldScore   = data[seqIndex + 1];
             const unsigned char scoreToAdd = (UNLIKELY(currDiagonal == dbDiagonal ) && LIKELY(oldScore < 255)) ? 1 : 0;
             if(UNLIKELY(currDiagonal == dbDiagonal )){
-                std::cout << "seq=" << seqIndex << "\tdiag=" << (int) currDiagonal << std::endl;
+                std::cout << "seq=" << seqIndex << "\ti=" << i  << "\tj=" << entry.position_j << "\tdiag=" << (unsigned short) currDiagonal << std::endl;
             }
             const unsigned char newScore = oldScore + scoreToAdd;
             data[seqIndex]     = currDiagonal;

@@ -81,7 +81,8 @@ protected:
     std::pair<hit_t *, size_t> getResult(CounterResult * results,
                                          size_t resultSize,
                                          const int l, const unsigned int id,
-                                         const unsigned short thr);
+                                         const unsigned short thr,
+                                         const bool diagonalScoring);
     // compute double hits
     size_t getDoubleDiagonalMatches();
 
@@ -89,6 +90,7 @@ protected:
 
     // diagonal scoring active
     bool diagonalScoring;
+
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
