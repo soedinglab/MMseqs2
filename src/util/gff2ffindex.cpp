@@ -96,9 +96,20 @@ int gff2ffindex(int argn, const char **argv) {
             continue;
         }
 
+        if (start == end) {
+            Debug(Debug::WARNING) << "Invalid sequence length in line " << entries_num << "!\n";
+            continue;
+        }
+
         size_t length = end - start;
 
         size_t headerId = ffindex_hdr_reader.getId(name);
+
+        if(headerId == UINT_MAX) {
+            Debug(Debug::ERROR) << "GFF entry not found in fasta ffindex: " << name << "!\n";
+            return EXIT_FAILURE;
+        }
+
         char* header = ffindex_hdr_reader.getData(headerId);
         size_t headerLength = ffindex_hdr_reader.getSeqLens(headerId);
 
