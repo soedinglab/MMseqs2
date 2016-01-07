@@ -11,9 +11,9 @@ DiagonalMatcher::DiagonalMatcher(const unsigned int maxSeqLen,
     queryProfile   = (char *) malloc_simd_int(PROFILESIZE * maxSeqLen);
     memset(queryProfile, 0, PROFILESIZE * maxSeqLen);
 
-    diagonalMatches = new hit_t**[DIAGONALCOUNT];
+    diagonalMatches = new CounterResult**[DIAGONALCOUNT];
     for(size_t i = 0; i < DIAGONALCOUNT; i++){
-        diagonalMatches[i] = new hit_t *[VECSIZE_INT*4];
+        diagonalMatches[i] = new CounterResult *[VECSIZE_INT*4];
     }
     diagonalCounter = new unsigned char[DIAGONALCOUNT];
     this->subMatrix = substitutionMatrix;
@@ -31,31 +31,13 @@ DiagonalMatcher::~DiagonalMatcher() {
     free(queryProfile);
 }
 
-void DiagonalMatcher::processQuery(Sequence *query, float *biasCorrection,
-                                   std::pair<hit_t *, size_t> results) {
-    short **subMat = subMatrix->subMatrix2Bit;
-    short bias = 0;
-    for (size_t i = 0; i < subMatrix->alphabetSize; i++) {
-        for (size_t j = 0; j < subMatrix->alphabetSize; j++) {
-            if (subMat[i][j] < bias) {
-                bias = subMat[i][j];
-            }
-        }
-    }
-    bias = abs(bias);
-    memset(queryProfile, bias, PROFILESIZE * query->L);
-    // create profile
-    for (size_t pos = 0; pos < query->L; pos++) {
-        unsigned int aaIdx = query->int_sequence[pos];
-        float aaBias = biasCorrection[pos];
-        char aaBiasCorrection = (char) (aaBias < 0.0) ? aaBias - 0.5: aaBias + 0.5;
-
-        for (size_t i = 0; i < subMatrix->alphabetSize; i++) {
-            queryProfile[pos * PROFILESIZE + i] = (subMat[aaIdx][i] + aaBiasCorrection + bias);
-//            std::cout << aaIdx << "\t" << (int) queryProfile[pos * PROFILESIZE + i] << "\t" << (int) subMat[aaIdx][i] << "\t" << (int) aaBiasCorrection << "\t" << (int) bias << std::endl;
-        }
-    }
-    computeScores(queryProfile, query->L, results, bias);
+void DiagonalMatcher::processQuery(Sequence *seq,
+                                   float *biasCorrection,
+                                   CounterResult *results,
+                                   size_t resultSize,
+                                   unsigned int thr) {
+    short bias = createProfile(seq, biasCorrection, subMatrix->subMatrix2Bit, subMatrix->alphabetSize);
+    computeScores(queryProfile, seq->L, results, resultSize, bias, thr);
 }
 
 const int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
@@ -78,11 +60,11 @@ const int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
 inline const __m256i DiagonalMatcher::Shuffle(const __m256i & value, const __m256i & shuffle)
 {
     const __m256i K0 = _mm256_setr_epi8(
-                                        0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,
-                                        0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0);
+            0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70,
+            0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0);
     const __m256i K1 = _mm256_setr_epi8(
-                                        0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0,
-                                        0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70);
+            0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0,
+            0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70, 0x70);
     return _mm256_or_si256(_mm256_shuffle_epi8(value, _mm256_add_epi8(shuffle, K0)),
                            _mm256_shuffle_epi8(_mm256_permute4x64_epi64(value, 0x4E), _mm256_add_epi8(shuffle, K1)));
 }
@@ -167,7 +149,7 @@ std::pair<unsigned char *, unsigned int> DiagonalMatcher::mapSequences(std::pair
 void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
                                                  const unsigned int queryLen,
                                                  const unsigned short diagonal,
-                                                 hit_t ** hits,
+                                                 CounterResult ** hits,
                                                  const unsigned int hitSize,
                                                  const short bias) {
     //    unsigned char minDistToDiagonal = distanceFromDiagonal(diagonal);
@@ -178,7 +160,7 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
         std::pair<unsigned char *, unsigned int> seqs[VECSIZE_INT*4];
         for(unsigned int seqIdx = 0; seqIdx < hitSize;  seqIdx++) {
             std::pair<const unsigned char *, const unsigned int> tmp = sequenceLookup->getSequence(
-                                                                                                   hits[seqIdx]->seqId);
+                    hits[seqIdx]->id);
             seqs[seqIdx] = std::make_pair((unsigned char *) tmp.first, (unsigned int) tmp.second);
         }
         std::pair<unsigned char *, unsigned int> seq = mapSequences(seqs, hitSize);
@@ -198,12 +180,12 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
         extractScores(score_arr, vMaxScore);
         // update score
         for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
-            hits[hitIdx]->diagonalScore = normalizeScore(score_arr[hitIdx], seqs[hitIdx].second);
+            hits[hitIdx]->count = normalizeScore(score_arr[hitIdx], seqs[hitIdx].second);
         }
 
     }else {
         for (size_t hitIdx = 0; hitIdx < hitSize; hitIdx++) {
-            const unsigned int seqId = hits[hitIdx]->seqId;
+            const unsigned int seqId = hits[hitIdx]->id;
             std::pair<const unsigned char *, const unsigned int> dbSeq =  sequenceLookup->getSequence(seqId);
             int max = 0;
 
@@ -217,18 +199,24 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
                 int scores = scalarDiagonalScoring(queryProfile, bias, minSeqLen, dbSeq.first + minDistToDiagonal);
                 max = std::max(scores, max);
             }
-            hits[hitIdx]->diagonalScore = normalizeScore(static_cast<unsigned char>(std::min(255, max)), dbSeq.second);
+            hits[hitIdx]->count = normalizeScore(static_cast<unsigned char>(std::min(255, max)), dbSeq.second);
         }
     }
 }
 void DiagonalMatcher::computeScores(const char *queryProfile,
                                     const unsigned int queryLen,
-                                    std::pair<hit_t *, size_t > results,
-                                    const short bias) {
+                                    CounterResult * results,
+                                    const size_t resultSize,
+                                    const short bias,
+                                    unsigned int thr) {
     memset(diagonalCounter, 0, DIAGONALCOUNT * sizeof(unsigned char));
-    for(size_t i = 0; i < results.second; i++){
-        const unsigned short currDiag = results.first[i].diagonal;
-        diagonalMatches[currDiag][diagonalCounter[currDiag]] = &results.first[i];
+    for(size_t i = 0; i < resultSize; i++){
+        // skip all that count not find enough diagonals
+        if(results[i].count < thr){
+            continue;
+        }
+        const unsigned short currDiag = results[i].diagonal;
+        diagonalMatches[currDiag][diagonalCounter[currDiag]] = &results[i];
         diagonalCounter[currDiag]++;
         if(diagonalCounter[currDiag] >= (VECSIZE_INT * 4) ) {
             scoreDiagonalAndUpdateHits(queryProfile, queryLen, currDiag,
@@ -272,7 +260,7 @@ void DiagonalMatcher::extractScores(unsigned int *score_arr, simd_int score) {
     EXTRACT_AVX(28);  EXTRACT_AVX(29);  EXTRACT_AVX(30);  EXTRACT_AVX(31);
 #undef EXTRACT_AVX
 #elif defined(SSE)
-#define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi8(score, i)
+    #define EXTRACT_SSE(i) score_arr[i] = _mm_extract_epi8(score, i)
     EXTRACT_SSE(0);  EXTRACT_SSE(1);   EXTRACT_SSE(2);  EXTRACT_SSE(3);
     EXTRACT_SSE(4);  EXTRACT_SSE(5);   EXTRACT_SSE(6);  EXTRACT_SSE(7);
     EXTRACT_SSE(8);  EXTRACT_SSE(9);   EXTRACT_SSE(10); EXTRACT_SSE(11);
@@ -285,4 +273,31 @@ unsigned char DiagonalMatcher::normalizeScore(const unsigned char score, const u
     float log2Len = Util::flog2(static_cast<float>(len));
     float floatScore = static_cast<float>(score);
     return static_cast<unsigned char>((log2Len > floatScore) ? 0.0 : floatScore - log2Len );
+}
+
+short DiagonalMatcher::createProfile(Sequence *seq,
+                                     float * biasCorrection,
+                                     short **subMat, int alphabetSize) {
+    short bias = 0;
+    for (size_t i = 0; i < alphabetSize; i++) {
+        for (size_t j = 0; j < alphabetSize; j++) {
+            if (subMat[i][j] < bias) {
+                bias = subMat[i][j];
+            }
+        }
+    }
+    bias = abs(bias);
+    memset(queryProfile, bias, PROFILESIZE * seq->L);
+    // create profile
+    for (size_t pos = 0; pos < seq->L; pos++) {
+        unsigned int aaIdx = seq->int_sequence[pos];
+        float aaBias = biasCorrection[pos];
+        char aaBiasCorrection = (char) (aaBias < 0.0) ? aaBias - 0.5: aaBias + 0.5;
+
+        for (size_t i = 0; i < subMatrix->alphabetSize; i++) {
+            queryProfile[pos * PROFILESIZE + i] = (subMat[aaIdx][i] + aaBiasCorrection + bias);
+//            std::cout << aaIdx << "\t" << (int) queryProfile[pos * PROFILESIZE + i] << "\t" << (int) subMat[aaIdx][i] << "\t" << (int) aaBiasCorrection << "\t" << (int) bias << std::endl;
+        }
+    }
+    return bias;
 }
