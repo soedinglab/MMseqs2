@@ -47,7 +47,7 @@ bool QueryScore::compareHitsByPValue(hit_t first, hit_t second){
 }
 
 bool QueryScore::compareHitsByDiagonalScore(hit_t first, hit_t second){
-    return (first.diagonalScore > second.diagonalScore) ? true : false;
+    return (first.prefScore > second.prefScore) ? true : false;
 }
 
 short QueryScore::sse2_extract_epi16(__m128i v, int pos) {

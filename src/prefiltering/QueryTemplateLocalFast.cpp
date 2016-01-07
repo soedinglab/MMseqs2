@@ -17,11 +17,11 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
                                dbSize, aaBiasCorrection, maxSeqLen) {
     // assure that the whole database can be matched (extreme case)
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
-    this->maxDbMatches = dbSize * 2;
+    this->maxDbMatches = std::max((size_t)1000, dbSize * 2);
     this->dbSize = dbSize;
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
     this->databaseHits = new IndexEntryLocal[maxDbMatches];
-    this->foundDiagonals = new CounterResult[dbSize];
+    this->foundDiagonals = new CounterResult[ std::max((size_t)100, dbSize)];
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new IndexEntryLocal*[maxSeqLen + 1];
     this->diagonalScoring = diagonalScoring;
@@ -91,9 +91,16 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
 
     size_t resultSize = match(seq, compositionBias);
     unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
-    std::pair<hit_t *, size_t > queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, thr);
+    std::pair<hit_t *, size_t > queryResult;
     if(diagonalScoring == true) {
-        diagonalMatcher->processQuery(seq, compositionBias, queryResult);
+        // write diagonal scores in count value
+        diagonalMatcher->processQuery(seq, compositionBias, foundDiagonals, resultSize, thr);
+        memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
+        updateScoreBins(foundDiagonals, resultSize);
+        unsigned int diagonalThr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
+        queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, diagonalThr, true);
+    }else{
+        queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, thr, false);
     }
     if(queryResult.second > 1){
         if (identityId != UINT_MAX){
@@ -161,7 +168,7 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
                     overflowHitCount = counter->mergeElements(foundDiagonals,
                                                               overflowHitCount + hitCount);
-                }else{
+                } else {
                     overflowHitCount = hitCount;
                 }
                 // reset pointer position
@@ -178,7 +185,8 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
         indexTo = current_i;
     }
     indexPointer[indexTo + 1] = databaseHits + numMatches;
-    size_t hitCount = evaluateBins(indexPointer, foundDiagonals + overflowHitCount, maxDbMatches - overflowHitCount, indexStart, indexTo);
+    size_t hitCount = evaluateBins(indexPointer, foundDiagonals + overflowHitCount,
+                                   maxDbMatches - overflowHitCount, indexStart, indexTo);
     //fill the output
     if(overflowHitCount != 0){ // overflow occurred
         hitCount = counter->mergeElements(foundDiagonals,
@@ -210,7 +218,8 @@ void QueryTemplateLocalFast::updateScoreBins(CounterResult *result, size_t eleme
 std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * results,
                                                               size_t resultSize, const int l,
                                                               const unsigned int id,
-                                                              const unsigned short thr) {
+                                                              const unsigned short thr,
+                                                              const bool diagonalScoring) {
     size_t elementCounter = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
@@ -218,10 +227,9 @@ std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * re
         result->seqId = id;
         result->prefScore = rawScore;
         result->diagonal = 0;
-        result->diagonalScore = rawScore;
         //result->pScore = (((float)rawScore) - mu)/ sqrtMu;
-        result->pScore = -QueryScoreLocal::computeLogProbability(rawScore, seqLens[id],
-                                                                 mu, logMatchProb, logScoreFactorial[rawScore]);
+        result->pScore = (diagonalScoring) ? 0.0 : -QueryScoreLocal::computeLogProbability(rawScore, seqLens[id],
+                                                                                           mu, logMatchProb, logScoreFactorial[rawScore]);
         elementCounter++;
     }
 
@@ -235,10 +243,9 @@ std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * re
             result->seqId = seqIdCurr;
             result->prefScore = scoreCurr;
             result->diagonal = diagCurr;
-            result->diagonalScore = 0;
             //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
-            result->pScore = -QueryScoreLocal::computeLogProbability(scoreCurr, seqLens[seqIdCurr],
-                                                                     mu, logMatchProb, logScoreFactorial[scoreCurr]);
+            result->pScore =  (diagonalScoring) ? 0.0 :  -QueryScoreLocal::computeLogProbability(scoreCurr, seqLens[seqIdCurr],
+                                                                                                 mu, logMatchProb, logScoreFactorial[scoreCurr]);
             elementCounter++;
             if (elementCounter >= QueryScore::MAX_RES_LIST_LEN)
                 break;
