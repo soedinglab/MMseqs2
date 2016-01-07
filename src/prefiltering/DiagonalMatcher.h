@@ -7,6 +7,7 @@
 
 #include <SubstitutionMatrix.h>
 #include <simd.h>
+#include <CountInt32Array.h>
 #include "QueryScore.h"
 #include "SequenceLookup.h"
 class DiagonalMatcher {
@@ -14,13 +15,14 @@ class DiagonalMatcher {
 public:
 
     DiagonalMatcher(const unsigned int maxSeqLen, BaseMatrix *substitutionMatrix,
-                        SequenceLookup *sequenceLookup);
+                    SequenceLookup *sequenceLookup);
 
     ~DiagonalMatcher();
 
-    // This function computes the diagonal score for each hit_t object
-    // it assigns the diagonal score to the hit_t object
-    void processQuery(Sequence *query, float *compositionBias, std::pair<hit_t *, size_t> results);
+    // This function computes the diagonal score for each CounterResult object
+    // it assigns the diagonal score to the CounterResult object
+    void processQuery(Sequence *seq, float *compositionBias, CounterResult *results,
+                      size_t resultSize, unsigned int thr);
 
 private:
     const static unsigned int DIAGONALCOUNT = 0xFFFF + 1;
@@ -29,7 +31,7 @@ private:
     unsigned int *score_arr;
     unsigned char *vectorSequence;
     char *queryProfile;
-    hit_t *** diagonalMatches;
+    CounterResult *** diagonalMatches;
     unsigned char * diagonalCounter;
     BaseMatrix *subMatrix;
     SequenceLookup *sequenceLookup;
@@ -38,8 +40,10 @@ private:
     // the function scoreDiagonalAndUpdateHits is called for each bin that reaches its maximum (16 or 32)
     void computeScores(const char *queryProfile,
                        const unsigned int queryLen,
-                       std::pair<hit_t *, size_t > results,
-                       const short bias);
+                       CounterResult * results,
+                       const size_t resultSize,
+                       const short bias,
+                       unsigned int thr);
     // scores a single diagonal
     const int scalarDiagonalScoring(const char *profile,
                                     const int bias,
@@ -55,7 +59,7 @@ private:
     // calles vectorDiagonalScoring or scalarDiagonalScoring depending on the hitSize
     // and updates diagonalScore of the hit_t objects
     void scoreDiagonalAndUpdateHits(const char *queryProfile, const unsigned int queryLen,
-                                    const unsigned short diagonal, hit_t **hits, const unsigned int hitSize,
+                                    const unsigned short diagonal, CounterResult **hits, const unsigned int hitSize,
                                     const short bias);
 
 #ifdef AVX2
@@ -69,6 +73,8 @@ private:
     void extractScores(unsigned int *score_arr, simd_int score);
 
     unsigned char normalizeScore(const unsigned char score, const unsigned int len);
+
+    short createProfile(Sequence *seq, float *biasCorrection, short **subMat, int alphabetSize);
 };
 
 

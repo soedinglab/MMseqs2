@@ -449,8 +449,8 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
         if (targetSeqId >= tdbr->getSize()) {
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << targetSeqId << "\t" << res->prefScore << "\n";
         }
-        const int len = snprintf(buffer, 100, "%s\t%.4f\t%d\t%d\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
-                                 res->pScore, res->prefScore, res->diagonalScore, res->diagonal);
+        const int len = snprintf(buffer, 100, "%s\t%.4f\t%d\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
+                                 res->pScore, res->prefScore, res->diagonal);
         prefResultsOutString.append( buffer, len );
         l++;
         // maximum allowed result list length is reached

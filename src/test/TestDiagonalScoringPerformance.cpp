@@ -72,20 +72,20 @@ int main(int argc, char **argv)
     kseq_destroy(seq);
     std::cout << maxLen << std::endl;
     DiagonalMatcher matcher(maxLen, &subMat, &lookup);
-    hit_t hits[16000];
-    hits[0].seqId =142424;
+    CounterResult hits[16000];
+    hits[0].id =142424;
     hits[0].diagonal = 50;
-    hits[1].seqId = 191382;
+    hits[1].id = 191382;
     hits[1].diagonal = 4;
-    hits[2].seqId = 135950;
+    hits[2].id = 135950;
     hits[2].diagonal = 4;
-    hits[3].seqId = 63969;
+    hits[3].id = 63969;
     hits[3].diagonal = 4;
-    hits[4].seqId = 244188;
+    hits[4].id = 244188;
     hits[4].diagonal = 4;
 
     for(size_t i = 5; i < 16; i++) {
-        hits[i].seqId = 159147;
+        hits[i].id = 159147;
         hits[i].diagonal = 31;
     }
 
@@ -94,33 +94,33 @@ int main(int argc, char **argv)
 
 
 
-    matcher.processQuery(&s1,compositionBias, std::make_pair(hits, 16));
-    std::cout << (int)hits[0].diagonalScore << " ";
-    std::cout << (int)hits[1].diagonalScore << " ";
-    std::cout << (int)hits[2].diagonalScore << " ";
-    std::cout << (int)hits[3].diagonalScore << std::endl;
+    matcher.processQuery(&s1,compositionBias, hits, 16, 0);
+    std::cout << (int)hits[0].count << " ";
+    std::cout << (int)hits[1].count << " ";
+    std::cout << (int)hits[2].count << " ";
+    std::cout << (int)hits[3].count << std::endl;
 
-    matcher.processQuery(&s1, compositionBias, std::make_pair(hits, 1));
-    matcher.processQuery(&s1, compositionBias, std::make_pair(hits + 1, 1));
-    matcher.processQuery(&s1, compositionBias, std::make_pair(hits + 2, 1));
-    matcher.processQuery(&s1, compositionBias, std::make_pair(hits + 3, 1));
+    matcher.processQuery(&s1, compositionBias, hits, 1, 0);
+    matcher.processQuery(&s1, compositionBias, hits + 1, 1, 0);
+    matcher.processQuery(&s1, compositionBias, hits + 2, 1, 0);
+    matcher.processQuery(&s1, compositionBias, hits + 3, 1, 0);
 
-    std::cout << (int)hits[0].diagonalScore<< " ";
-    std::cout << (int)hits[1].diagonalScore<< " ";
-    std::cout << (int)hits[2].diagonalScore<< " ";
-    std::cout << (int)hits[3].diagonalScore<< std::endl;
+    std::cout << (int)hits[0].count<< " ";
+    std::cout << (int)hits[1].count<< " ";
+    std::cout << (int)hits[2].count<< " ";
+    std::cout << (int)hits[3].count<< std::endl;
     for(size_t i = 0; i < 10000; i++){
         for(int j = 1; j < 16000; j++){
-            hits[j].seqId = rand()%dbCnt;
+            hits[j].id = rand()%dbCnt;
             hits[j].diagonal =  rand()%s1.L;
         }
         //   std::reverse(hits, hits+1000);
-        matcher.processQuery(&s1, compositionBias, std::make_pair(hits, 16000));
+        matcher.processQuery(&s1, compositionBias, hits, 16000, 0);
     }
 //    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].diagonalScore <<  std::endl;
 //    std::cout << (int)hits[0].diagonalScore <<  std::endl;
     for(int i = 0; i < 1000; i++){
-        std::cout << hits[i].seqId << "\t" << (int) hits[i].diagonal  << "\t" << (int)hits[i].diagonalScore <<  std::endl;
+        std::cout << hits[i].id << "\t" << (int) hits[i].diagonal  << "\t" << (int)hits[i].count <<  std::endl;
     }
     delete [] compositionBias;
 }
