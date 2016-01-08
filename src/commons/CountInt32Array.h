@@ -26,8 +26,8 @@ public:
 
     ~CountInt32Array();
 
-    size_t countElements(IndexEntryLocal **input, CounterResult *output, unsigned int outputSize,
-                         unsigned short indexFrom, unsigned short indexTo);
+    size_t countElements(IndexEntryLocal **input, CounterResult *output,
+                         size_t outputSize, unsigned short indexFrom, unsigned short indexTo);
     // merge elements in CounterResult
     // assumption is that each element (counter.id) exists maximal two times
     size_t mergeElements(CounterResult *inputOutputArray, const size_t N);
@@ -73,7 +73,7 @@ private:
 
     // detect duplicates in diagonal
     size_t findDuplicates(CounterResult **bins, unsigned int binCount,
-                          CounterResult * output, unsigned int outputSize);
+                          CounterResult * output, size_t outputSize);
 
 
     size_t mergeDuplicates(CounterResult **bins, unsigned int binCount, CounterResult *output);
