@@ -27,7 +27,7 @@ CountInt32Array::~CountInt32Array(){
 }
 
 size_t CountInt32Array::countElements(IndexEntryLocal **input, CounterResult *output,
-                                      unsigned int outputSize, unsigned short indexFrom, unsigned short indexTo)
+                                      size_t outputSize, unsigned short indexFrom, unsigned short indexTo)
 {
     newStart:
     setupBinPointer(bins, BINCOUNT, binDataFrame, binSize);
@@ -87,7 +87,7 @@ size_t CountInt32Array::mergeDuplicates(CounterResult **bins, unsigned int binCo
 size_t CountInt32Array::findDuplicates(CounterResult **bins,
                                        unsigned int binCount,
                                        CounterResult * output,
-                                       unsigned int outputSize) {
+                                       size_t outputSize) {
     size_t doubleElementCount = 0;
     const CounterResult * bin_ref_pointer = binDataFrame;
     for (size_t bin = 0; bin < binCount; bin++) {
@@ -148,11 +148,12 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins,
             output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
 //            const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
             // memory overflow can not happen since input array = output array
-            doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
 //            if(duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal){
 //                std::cout << "seq="<< output[doubleElementCount].id << "\tDiag=" << (int) output[doubleElementCount].diagonal
-//                          <<  " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int) diagonal << std::endl;
+//                <<  " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int)tmpElementBuffer[n].diagonal << std::endl;
 //            }
+            doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
+
             duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
         }
         // clean memory faster if current bin size is smaller duplicateBitArraySize
