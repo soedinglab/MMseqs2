@@ -42,7 +42,7 @@ size_t CountInt32Array::countElements(IndexEntryLocal **input, CounterResult *ou
     return findDuplicates(this->bins, this->BINCOUNT, output, outputSize);
 }
 
-size_t CountInt32Array::mergeElements(CounterResult *inputOutputArray, const size_t N) {
+size_t CountInt32Array::mergeElementsByScore(CounterResult *inputOutputArray, const size_t N) {
     newStart:
     setupBinPointer(bins, BINCOUNT, binDataFrame, binSize);
     hashElements(inputOutputArray, N, this->bins);
@@ -50,6 +50,50 @@ size_t CountInt32Array::mergeElements(CounterResult *inputOutputArray, const siz
         goto newStart;
     return mergeDuplicates(this->bins, this->BINCOUNT, inputOutputArray);
 }
+
+
+size_t CountInt32Array::mergeElementsByDiagonal(CounterResult *inputOutputArray, const size_t N) {
+    newStart:
+    setupBinPointer(bins, BINCOUNT, binDataFrame, binSize);
+    hashElements(inputOutputArray, N, this->bins);
+    if(checkForOverflowAndResizeArray(bins, BINCOUNT, binSize) == true) // overflowed occurred
+        goto newStart;
+    return mergeDiagonalDuplicates(this->bins, this->BINCOUNT, inputOutputArray);
+}
+
+size_t CountInt32Array::mergeDiagonalDuplicates(CounterResult **bins, unsigned int binCount,
+                                        CounterResult * output) {
+    size_t doubleElementCount = 0;
+    const CounterResult *bin_ref_pointer = binDataFrame;
+
+    for (size_t bin = 0; bin < binCount; bin++) {
+        const CounterResult *binStartPos = (bin_ref_pointer + bin * binSize);
+        const size_t currBinSize = (bins[bin] - binStartPos);
+        size_t n = currBinSize - 1;
+        // write diagonals + 1 in reverse order in the byte array
+        while ( n != static_cast<size_t>(-1) )
+        {
+            const unsigned int element = binStartPos[n].id >> (MASK_0_5_BIT);
+            duplicateBitArray[element] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal) + 1;
+            --n;
+        }
+        // combine diagonals
+        for (size_t n = 0; n < currBinSize; n++) {
+            const CounterResult element = binStartPos[n];
+            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            output[doubleElementCount].id    = element.id;
+            output[doubleElementCount].count = element.count;
+            output[doubleElementCount].diagonal = element.diagonal;
+            std::cout << output[doubleElementCount].id << " " << (int)output[doubleElementCount].count << " " << (int)static_cast<unsigned char>(output[doubleElementCount].diagonal) << std::endl;
+            // memory overflow can not happen since input array = output array
+            doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
+
+            duplicateBitArray[hashBinElement] = static_cast<unsigned char>(element.diagonal);
+        }
+    }
+    return doubleElementCount;
+}
+
 
 size_t CountInt32Array::mergeDuplicates(CounterResult **bins, unsigned int binCount,
                                         CounterResult * output) {
@@ -78,7 +122,7 @@ size_t CountInt32Array::mergeDuplicates(CounterResult **bins, unsigned int binCo
             output[doubleElementCount].diagonal = element.diagonal;
             // memory overflow can not happen since input array = output array
             doubleElementCount += (UNLIKELY(duplicateBitArray[hashBinElement] != 0  ) ) ? 1 : 0;
-            duplicateBitArray[hashBinElement] = 0;
+            duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
         }
     }
     return doubleElementCount;
@@ -213,7 +257,6 @@ void CountInt32Array::setupBinPointer(CounterResult **bins, const unsigned int b
         curr_pos += binSize;
     }
 }
-
 
 void CountInt32Array::hashElements(CounterResult *inputArray, size_t N, CounterResult **hashBins)
 {

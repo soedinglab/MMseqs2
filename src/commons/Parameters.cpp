@@ -151,8 +151,8 @@ Parameters::Parameters():
     gff2ffindex.push_back(PARAM_ID_OFFSET);
     gff2ffindex.push_back(PARAM_V);
 
-    search = combineList(alignment, prefilter);
-    search.push_back(PARAM_NUM_ITERATIONS);
+    searchworkflow = combineList(alignment, prefilter);
+    searchworkflow.push_back(PARAM_NUM_ITERATIONS);
 
     clusteringWorkflow = combineList(prefilter, alignment);
     clusteringWorkflow = combineList(clusteringWorkflow, clustering);
