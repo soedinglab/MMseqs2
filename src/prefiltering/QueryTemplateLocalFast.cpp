@@ -167,8 +167,13 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
                                                      indexStart, current_i);
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
-                    overflowHitCount = counter->mergeElements(foundDiagonals,
+                    if(diagonalScoring == true) {
+                        overflowHitCount = counter->mergeElementsByDiagonal(foundDiagonals,
+                                                                    overflowHitCount + hitCount);
+                    }else{
+                        overflowHitCount = counter->mergeElementsByScore(foundDiagonals,
                                                               overflowHitCount + hitCount);
+                    }
                 } else {
                     overflowHitCount = hitCount;
                 }
@@ -194,8 +199,15 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
                                    dbSize - overflowHitCount, indexStart, indexTo);
     //fill the output
     if(overflowHitCount != 0){ // overflow occurred
-        hitCount = counter->mergeElements(foundDiagonals,
-                                          overflowHitCount + hitCount);
+        if(diagonalScoring == true){
+            hitCount = counter->mergeElementsByDiagonal(foundDiagonals,
+                                                     overflowHitCount + hitCount);
+
+        }else {
+            hitCount = counter->mergeElementsByScore(foundDiagonals,
+                                                     overflowHitCount + hitCount);
+
+        }
     }
     updateScoreBins(foundDiagonals, hitCount);
     stats->doubleMatches = getDoubleDiagonalMatches();
