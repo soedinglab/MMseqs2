@@ -61,6 +61,16 @@ size_t CountInt32Array::mergeElementsByDiagonal(CounterResult *inputOutputArray,
     return mergeDiagonalDuplicates(this->bins, this->BINCOUNT, inputOutputArray);
 }
 
+size_t CountInt32Array::keepMaxScoreElementOnly(CounterResult *inputOutputArray, const size_t N) {
+    newStart:
+    setupBinPointer(bins, BINCOUNT, binDataFrame, binSize);
+    hashElements(inputOutputArray, N, this->bins);
+    if(checkForOverflowAndResizeArray(bins, BINCOUNT, binSize) == true) // overflowed occurred
+        goto newStart;
+    return keepMaxElement(this->bins, this->BINCOUNT, inputOutputArray);
+}
+
+
 size_t CountInt32Array::mergeDiagonalDuplicates(CounterResult **bins, unsigned int binCount,
                                         CounterResult * output) {
     size_t doubleElementCount = 0;
@@ -93,7 +103,6 @@ size_t CountInt32Array::mergeDiagonalDuplicates(CounterResult **bins, unsigned i
     }
     return doubleElementCount;
 }
-
 
 size_t CountInt32Array::mergeDuplicates(CounterResult **bins, unsigned int binCount,
                                         CounterResult * output) {
@@ -286,4 +295,36 @@ void CountInt32Array::hashIndexEntry(unsigned short position_i, IndexEntryLocal 
 //        << element.position_j << " " << hashBins[bin_id]->diagonal << " " << position_i - element.position_j   << std::endl;
         hashBins[bin_id] += (hashBins[bin_id] >= lastPosition) ? 0 : 1;
     }
+}
+
+size_t CountInt32Array::keepMaxElement(CounterResult **bins, unsigned int binCount,
+                                       CounterResult * output) {
+    size_t doubleElementCount = 0;
+    const CounterResult *bin_ref_pointer = binDataFrame;
+    for (size_t bin = 0; bin < binCount; bin++) {
+        const CounterResult *binStartPos = (bin_ref_pointer + bin * binSize);
+        const size_t currBinSize = (bins[bin] - binStartPos);
+        // found max element and store it in duplicateBitArray
+        for (size_t n = 0; n < currBinSize; n++) {
+            const CounterResult element = binStartPos[n];
+            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            const unsigned char currScore = element.count;
+            const unsigned char dbScore = duplicateBitArray[hashBinElement];
+            const unsigned char maxScore = (currScore > dbScore) ? currScore : dbScore;
+            duplicateBitArray[hashBinElement] = maxScore;
+        }
+        // extract final scores and set dubplicateBitArray to 0
+        for (size_t n = 0; n < currBinSize; n++) {
+            const CounterResult element = binStartPos[n];
+            const unsigned int hashBinElement = element.id >> (MASK_0_5_BIT);
+            output[doubleElementCount].id = element.id;
+            output[doubleElementCount].count = element.count;
+            output[doubleElementCount].diagonal = element.diagonal;
+            // memory overflow can not happen since input array = output array
+            bool found = (UNLIKELY(duplicateBitArray[hashBinElement] == element.count)) ? 1 : 0;
+            doubleElementCount += found;
+            duplicateBitArray[hashBinElement] = duplicateBitArray[hashBinElement] * (found - 1);
+        }
+    }
+    return doubleElementCount;
 }
