@@ -35,6 +35,7 @@ public:
     // merge elements in CounterResult by diagonal
     // it combines elements with same ids that occurs after each other
     size_t mergeElementsByDiagonal(CounterResult *inputOutputArray, const size_t N);
+    size_t keepMaxScoreElementOnly(CounterResult *inputOutputArray, const size_t N);
 private:
     // this bit array should fit in L1/L2
     size_t duplicateBitArraySize;
@@ -83,6 +84,8 @@ private:
 
     //
     size_t mergeDiagonalDuplicates(CounterResult **bins, unsigned int binCount, CounterResult *output);
+
+    size_t keepMaxElement(CounterResult **pResult, const unsigned int bincount, CounterResult *pCounterResult);
 };
 
 #endif

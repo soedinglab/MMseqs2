@@ -97,6 +97,7 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
         // write diagonal scores in count value
         diagonalMatcher->processQuery(seq, compositionBias, foundDiagonals, resultSize, thr);
         memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
+        resultSize = counter->keepMaxScoreElementOnly(foundDiagonals, resultSize);
         updateScoreBins(foundDiagonals, resultSize);
         unsigned int diagonalThr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, diagonalThr, true);
