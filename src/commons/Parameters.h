@@ -260,7 +260,7 @@ public:
     std::vector<MMseqsParameter> rebuildfasta;
     std::vector<MMseqsParameter> gff2ffindex;
 
-    std::vector<MMseqsParameter> search;
+    std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdate;
 

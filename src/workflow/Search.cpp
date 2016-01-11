@@ -21,7 +21,7 @@ int search (int argc, const char * argv[]) {
     usage.append("USAGE: search <queryDB> <targetDB> <outDB> <tmpDir> [opts]\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.search, 4);
+    par.parseParameters(argc, argv, usage, par.searchworkflow, 4);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
