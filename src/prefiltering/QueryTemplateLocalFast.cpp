@@ -17,11 +17,11 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
                                dbSize, aaBiasCorrection, maxSeqLen) {
     // assure that the whole database can be matched (extreme case)
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
-    this->maxDbMatches = std::max((size_t)1000, dbSize * 2);
+    this->maxDbMatches = dbSize * 2;
     this->dbSize = dbSize;
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
     this->databaseHits = new IndexEntryLocal[maxDbMatches];
-    this->foundDiagonals = new CounterResult[ std::max((size_t)100, dbSize)];
+    this->foundDiagonals = new CounterResult[dbSize];
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new IndexEntryLocal*[maxSeqLen + 1];
     this->diagonalScoring = diagonalScoring;
@@ -69,7 +69,8 @@ QueryTemplateLocalFast::~QueryTemplateLocalFast(){
 }
 
 size_t QueryTemplateLocalFast::evaluateBins(IndexEntryLocal **hitsByIndex,
-                                            CounterResult *output, unsigned int outputSize,
+                                            CounterResult *output,
+                                            size_t outputSize,
                                             unsigned short indexFrom,
                                             unsigned short indexTo) {
     size_t localResultSize = 0;
@@ -90,16 +91,17 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
     }
 
     size_t resultSize = match(seq, compositionBias);
-    unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
     std::pair<hit_t *, size_t > queryResult;
     if(diagonalScoring == true) {
         // write diagonal scores in count value
-        diagonalMatcher->processQuery(seq, compositionBias, foundDiagonals, resultSize, thr);
+        diagonalMatcher->processQuery(seq, compositionBias, foundDiagonals, resultSize, 0);
         memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
+        resultSize = counter->keepMaxScoreElementOnly(foundDiagonals, resultSize);
         updateScoreBins(foundDiagonals, resultSize);
         unsigned int diagonalThr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, diagonalThr, true);
     }else{
+        unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, thr, false);
     }
     if(queryResult.second > 1){
@@ -162,21 +164,29 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
 //                std::cout << "Overflow in i=" << indexStart << " IndexTo=" << i << std::endl;
                 const size_t hitCount = evaluateBins(indexPointer,
                                                      foundDiagonals + overflowHitCount,
-                                                     maxDbMatches - overflowHitCount,
+                                                     dbSize - overflowHitCount,
                                                      indexStart, current_i);
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
-                    overflowHitCount = counter->mergeElements(foundDiagonals,
-                                                              overflowHitCount + hitCount);
+                    if(diagonalScoring == true) {
+                        overflowHitCount = counter->mergeElementsByDiagonal(foundDiagonals,
+                                                                    overflowHitCount + hitCount);
+                    }else{
+                        overflowHitCount = counter->mergeElementsByScore(foundDiagonals,
+                                                                    overflowHitCount + hitCount);
+                    }
                 } else {
                     overflowHitCount = hitCount;
                 }
                 // reset pointer position
                 sequenceHits = databaseHits;
+                indexPointer[current_i] = databaseHits;
                 indexStart = current_i;
-                indexPointer[current_i] = sequenceHits;
                 overflowNumMatches += numMatches;
                 numMatches = 0;
+                if((sequenceHits + seqListSize) >= lastSequenceHit){
+                    goto outer;
+                }
             };
             memcpy(sequenceHits, entries, sizeof(IndexEntryLocal) * seqListSize);
             sequenceHits += seqListSize;
@@ -184,13 +194,21 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
         }
         indexTo = current_i;
     }
+    outer:
     indexPointer[indexTo + 1] = databaseHits + numMatches;
     size_t hitCount = evaluateBins(indexPointer, foundDiagonals + overflowHitCount,
-                                   maxDbMatches - overflowHitCount, indexStart, indexTo);
+                                   dbSize - overflowHitCount, indexStart, indexTo);
     //fill the output
     if(overflowHitCount != 0){ // overflow occurred
-        hitCount = counter->mergeElements(foundDiagonals,
-                                          overflowHitCount + hitCount);
+        if(diagonalScoring == true){
+            hitCount = counter->mergeElementsByDiagonal(foundDiagonals,
+                                                     overflowHitCount + hitCount);
+
+        }else {
+            hitCount = counter->mergeElementsByScore(foundDiagonals,
+                                                     overflowHitCount + hitCount);
+
+        }
     }
     updateScoreBins(foundDiagonals, hitCount);
     stats->doubleMatches = getDoubleDiagonalMatches();
