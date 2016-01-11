@@ -94,7 +94,7 @@ size_t CountInt32Array::mergeDiagonalDuplicates(CounterResult **bins, unsigned i
             output[doubleElementCount].id    = element.id;
             output[doubleElementCount].count = element.count;
             output[doubleElementCount].diagonal = element.diagonal;
-            std::cout << output[doubleElementCount].id << " " << (int)output[doubleElementCount].count << " " << (int)static_cast<unsigned char>(output[doubleElementCount].diagonal) << std::endl;
+//            std::cout << output[doubleElementCount].id << " " << (int)output[doubleElementCount].count << " " << (int)static_cast<unsigned char>(output[doubleElementCount].diagonal) << std::endl;
             // memory overflow can not happen since input array = output array
             doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
 
@@ -301,6 +301,7 @@ size_t CountInt32Array::keepMaxElement(CounterResult **bins, unsigned int binCou
                                        CounterResult * output) {
     size_t doubleElementCount = 0;
     const CounterResult *bin_ref_pointer = binDataFrame;
+    memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
     for (size_t bin = 0; bin < binCount; bin++) {
         const CounterResult *binStartPos = (bin_ref_pointer + bin * binSize);
         const size_t currBinSize = (bins[bin] - binStartPos);
