@@ -89,6 +89,7 @@ int extractorf(int argn, const char** argv)
             headerWriter.write(buffer, strlen(buffer), id.c_str());
 
             std::string sequence = orf.View(loc);
+            sequence.append("\n");
             sequenceWriter.write(sequence.c_str(), sequence.length(), id.c_str());
 
             orfNum++;
