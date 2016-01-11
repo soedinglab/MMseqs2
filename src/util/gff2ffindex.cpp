@@ -63,6 +63,8 @@ int gff2ffindex(int argn, const char **argv) {
     std::ifstream  file_in(par.db1);
     std::string    gff_line;
     while(std::getline(file_in, gff_line)) {
+        entries_num++;
+
         // line is a comment
         if(gff_line.find_first_of("#", 0, 1) != std::string::npos) {
             continue;
@@ -144,8 +146,6 @@ int gff2ffindex(int argn, const char **argv) {
         strncpy(bodyBuffer, body + start, length);
         bodyBuffer[length] = '\n';
         out_writer.write(bodyBuffer, length + 1, id.c_str());
-
-        entries_num++;
     }
     file_in.close();
 
