@@ -91,17 +91,17 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
     }
 
     size_t resultSize = match(seq, compositionBias);
-    unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
     std::pair<hit_t *, size_t > queryResult;
     if(diagonalScoring == true) {
         // write diagonal scores in count value
-        diagonalMatcher->processQuery(seq, compositionBias, foundDiagonals, resultSize, thr);
+        diagonalMatcher->processQuery(seq, compositionBias, foundDiagonals, resultSize, 0);
         memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
         resultSize = counter->keepMaxScoreElementOnly(foundDiagonals, resultSize);
         updateScoreBins(foundDiagonals, resultSize);
         unsigned int diagonalThr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, diagonalThr, true);
     }else{
+        unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, thr, false);
     }
     if(queryResult.second > 1){
@@ -173,7 +173,7 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
                                                                     overflowHitCount + hitCount);
                     }else{
                         overflowHitCount = counter->mergeElementsByScore(foundDiagonals,
-                                                              overflowHitCount + hitCount);
+                                                                    overflowHitCount + hitCount);
                     }
                 } else {
                     overflowHitCount = hitCount;
