@@ -324,7 +324,7 @@ size_t CountInt32Array::keepMaxElement(CounterResult **bins, unsigned int binCou
             // memory overflow can not happen since input array = output array
             bool found = (UNLIKELY(duplicateBitArray[hashBinElement] == element.count)) ? 1 : 0;
             doubleElementCount += found;
-            duplicateBitArray[hashBinElement] = duplicateBitArray[hashBinElement] * (found - 1);
+            duplicateBitArray[hashBinElement] = duplicateBitArray[hashBinElement] * (1 - found);
         }
     }
     return doubleElementCount;
