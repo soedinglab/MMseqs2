@@ -33,6 +33,7 @@ private:
     char *queryProfile;
     CounterResult *** diagonalMatches;
     unsigned char * diagonalCounter;
+    char * aaCorrectionScore;
     BaseMatrix *subMatrix;
     SequenceLookup *sequenceLookup;
 
@@ -75,6 +76,7 @@ private:
     unsigned char normalizeScore(const unsigned char score, const unsigned int len);
 
     short createProfile(Sequence *seq, float *biasCorrection, short **subMat, int alphabetSize);
+
 };
 
 
