@@ -17,7 +17,7 @@ Parameters::Parameters():
         PARAM_SKIP(PARAM_SKIP_ID,"--skip", "Skip", "[int]\tNumber of skipped k-mers during the index table generation",typeid(int),(void *) &skip,  "^[0-9]{1}[0-9]*$"),
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "[int]\tMaximum result sequences per query",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$"),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "[int]\tSplits target set in n equally distributed chunks",typeid(int),(void *) &split,  "^[1-9]{1}[0-9]*$"),
-        PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "[int]\tMPI Option: Target set: 0 (low memory) or query set: 1 (faster but memory intensiv)",typeid(int),(void *) &splitMode,  "^[0-1]{1}$"),
+        PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "[int]\tMPI Option: Target set: 0 (low memory) or query set: 1 (faster but memory intensive)",typeid(int),(void *) &splitMode,  "^[0-1]{1}$"),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","\tTry to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$"),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "[file]\tAmino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, ""),
         PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Local: 1 Local fast: 2",typeid(int), (void *) &searchMode, "^[0-2]{1}$"),

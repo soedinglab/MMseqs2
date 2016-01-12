@@ -41,7 +41,7 @@ int extractorf(int argn, const char** argv)
     std::string headerOut(par.db2);
     headerOut.append("_h");
 
-    std::string headerIndexOut(par.db2Index);
+    std::string headerIndexOut(par.db2);
     headerIndexOut.append("_h.index");
 
     DBWriter headerWriter(headerOut.c_str(), headerIndexOut.c_str());
@@ -89,6 +89,7 @@ int extractorf(int argn, const char** argv)
             headerWriter.write(buffer, strlen(buffer), id.c_str());
 
             std::string sequence = orf.View(loc);
+            sequence.append("\n");
             sequenceWriter.write(sequence.c_str(), sequence.length(), id.c_str());
 
             orfNum++;

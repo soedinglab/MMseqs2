@@ -63,6 +63,8 @@ int createdb(int argn, const char **argv) {
 
     kseq_t *seq = kseq_init(fileno(fasta_file));
     while (kseq_read(seq) >= 0) {
+        entries_num++;
+
         if (seq->name.l == 0) {
             Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
             return EXIT_FAILURE;
@@ -98,8 +100,6 @@ int createdb(int argn, const char **argv) {
         sequence.append("\n");
 
         out_writer.write(sequence.c_str(), sequence.length(), id.c_str());
-
-        entries_num++;
     }
     kseq_destroy(seq);
 
