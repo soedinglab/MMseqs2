@@ -10,6 +10,7 @@ DiagonalMatcher::DiagonalMatcher(const unsigned int maxSeqLen,
     vectorSequence = (unsigned char *) malloc_simd_int(VECSIZE_INT * 4 * maxSeqLen);
     queryProfile   = (char *) malloc_simd_int(PROFILESIZE * maxSeqLen);
     memset(queryProfile, 0, PROFILESIZE * maxSeqLen);
+    aaCorrectionScore = (char *) malloc_simd_int(maxSeqLen);
 
     diagonalMatches = new CounterResult**[DIAGONALCOUNT];
     for(size_t i = 0; i < DIAGONALCOUNT; i++){
@@ -29,6 +30,7 @@ DiagonalMatcher::~DiagonalMatcher() {
     delete [] diagonalMatches;
     free(vectorSequence);
     free(queryProfile);
+    free(aaCorrectionScore);
 }
 
 void DiagonalMatcher::processQuery(Sequence *seq,
@@ -286,16 +288,22 @@ short DiagonalMatcher::createProfile(Sequence *seq,
             }
         }
     }
-    bias = abs(bias);
+    int aaBias = 0;
+    for (size_t pos = 0; pos < seq->L; pos++) {
+        float aaCorrBias = biasCorrection[pos];
+        aaCorrBias = (aaCorrBias < 0.0) ? aaCorrBias/4 - 0.5 : aaCorrBias/4 + 0.5;
+        aaCorrectionScore[pos] = static_cast<char>(aaCorrBias);
+        aaBias = (aaCorrectionScore[pos] < aaBias) ? aaCorrectionScore[pos] : aaBias;
+    }
+    aaBias = std::min(aaBias, 0);
+
+    bias = abs(bias) + abs(aaBias);
     memset(queryProfile, bias, PROFILESIZE * seq->L);
     // create profile
     for (size_t pos = 0; pos < seq->L; pos++) {
         unsigned int aaIdx = seq->int_sequence[pos];
-        float aaBias = biasCorrection[pos];
-        char aaBiasCorrection = (char) (aaBias < 0.0) ? aaBias - 0.5: aaBias + 0.5;
-
         for (size_t i = 0; i < subMatrix->alphabetSize; i++) {
-            queryProfile[pos * PROFILESIZE + i] = (subMat[aaIdx][i] + aaBiasCorrection + bias);
+            queryProfile[pos * PROFILESIZE + i] = (subMat[aaIdx][i] + aaCorrectionScore[pos] + bias);
 //            std::cout << aaIdx << "\t" << (int) queryProfile[pos * PROFILESIZE + i] << "\t" << (int) subMat[aaIdx][i] << "\t" << (int) aaBiasCorrection << "\t" << (int) bias << std::endl;
         }
     }

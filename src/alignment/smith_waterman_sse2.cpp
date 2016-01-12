@@ -683,13 +683,19 @@ void SmithWaterman::ssw_init (const Sequence* q,
 
 	profile->bias = 0;
 	profile->sequence_type = q->getSequenceType();
+	int32_t compositionBias = 0;
 	if(aaBiasCorrection == true) {
 		SubstitutionMatrix::calcLocalAaBiasCorrection(m, q->int_sequence, q->L, tmp_composition_bias);
 		for(int i =0; i < q->L; i++){
 			profile->composition_bias[i] = (int8_t) (tmp_composition_bias[i] < 0.0)? tmp_composition_bias[i] - 0.5: tmp_composition_bias[i] + 0.5;
+			compositionBias = (static_cast<int8_t>(compositionBias) < profile->composition_bias[i])
+							   ? compositionBias  :  profile->composition_bias[i];
 		}
+		compositionBias = std::min(compositionBias, 0);
+//		std::cout << compositionBias << std::endl;
+	}else{
+		memset(profile->composition_bias, 0, q->L* sizeof(int8_t));
 	}
-	//memset(profile->composition_bias, 0, q->L* sizeof(int8_t));
 	// copy memory to local memory
 	if(profile->sequence_type == Sequence::HMM_PROFILE ){
 		memcpy(profile->mat, mat, q->L * Sequence::PROFILE_AA_SIZE * sizeof(int8_t));
@@ -713,7 +719,7 @@ void SmithWaterman::ssw_init (const Sequence* q,
 				bias = mat[i];
 			}
 		}
-		bias = abs(bias);
+		bias = abs(bias) + abs(compositionBias);
 
 		profile->bias = bias;
 		if(q->getSequenceType() == Sequence::HMM_PROFILE){
