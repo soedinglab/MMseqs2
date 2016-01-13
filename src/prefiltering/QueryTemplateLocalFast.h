@@ -25,8 +25,8 @@ public:
     std::pair<hit_t *, size_t>  matchQuery(Sequence * seq, unsigned int identityId);
 
     // find duplicates in the diagonal bins
-    size_t evaluateBins(IndexEntryLocal **hitsByIndex, CounterResult *output, size_t outputSize,
-                        unsigned short indexFrom, unsigned short indexTo, bool diagonalScoring);
+    size_t evaluateBins(IndexEntryLocal **hitsByIndex, CounterResult *output,
+                        size_t outputSize, unsigned short indexFrom, unsigned short indexTo);
 
     void updateScoreBins(CounterResult *result, size_t elementCount);
 protected:

@@ -26,11 +26,8 @@ public:
 
     ~CountInt32Array();
 
-    size_t extractDiagonals(IndexEntryLocal **input, CounterResult *output,
-                            size_t outputSize, unsigned short indexFrom, unsigned short indexTo);
-
-    size_t scoreDiagonals(IndexEntryLocal **input, CounterResult *output,
-            size_t outputSize, unsigned short indexFrom, unsigned short indexTo);
+    size_t countElements(IndexEntryLocal **input, CounterResult *output,
+                         size_t outputSize, unsigned short indexFrom, unsigned short indexTo);
     // merge elements in CounterResult
     // assumption is that each element (counter.id) exists maximal two times
     size_t mergeElementsByScore(CounterResult *inputOutputArray, const size_t N);
@@ -78,14 +75,9 @@ private:
     void hashIndexEntry(unsigned short position_i, IndexEntryLocal *inputArray,
                         size_t N, CounterResult **hashBins, CounterResult * lastPosition);
 
-    // detect duplicates in diagonal and extract them
-    size_t extractDuplicates(CounterResult **bins, unsigned int binCount,
-                             CounterResult *output, size_t outputSize);
-
-
-    // sum all double diagonals hits up
-    size_t scoreDiagonals(CounterResult **bins, unsigned int binCount,
-                             CounterResult *output, size_t outputSize);
+    // detect duplicates in diagonal
+    size_t findDuplicates(CounterResult **bins, unsigned int binCount,
+                          CounterResult * output, size_t outputSize);
 
     // merge by id and combine score
     size_t mergeDuplicates(CounterResult **bins, unsigned int binCount, CounterResult *output);
