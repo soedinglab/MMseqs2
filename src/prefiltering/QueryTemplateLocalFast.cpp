@@ -68,14 +68,13 @@ QueryTemplateLocalFast::~QueryTemplateLocalFast(){
     }
 }
 
-size_t QueryTemplateLocalFast::evaluateBins(IndexEntryLocal **hitsByIndex, CounterResult *output, size_t outputSize,
-                                            unsigned short indexFrom, unsigned short indexTo, bool diagonalScoring) {
+size_t QueryTemplateLocalFast::evaluateBins(IndexEntryLocal **hitsByIndex,
+                                            CounterResult *output,
+                                            size_t outputSize,
+                                            unsigned short indexFrom,
+                                            unsigned short indexTo) {
     size_t localResultSize = 0;
-    if(diagonalScoring == true){
-        localResultSize += counter->extractDiagonals(hitsByIndex, output, outputSize, indexFrom, indexTo);
-    } else{
-        localResultSize += counter->scoreDiagonals(hitsByIndex, output, outputSize, indexFrom, indexTo);
-    }
+    localResultSize += counter->countElements(hitsByIndex, output, outputSize, indexFrom, indexTo);
     return localResultSize;
 }
 
@@ -100,7 +99,6 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
         resultSize = counter->keepMaxScoreElementOnly(foundDiagonals, resultSize);
         updateScoreBins(foundDiagonals, resultSize);
         unsigned int diagonalThr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
-        diagonalThr = std::max((unsigned int)30, diagonalThr);
         queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, diagonalThr, true);
     }else{
         unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
@@ -164,8 +162,10 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
                 // last pointer
                 indexPointer[current_i + 1] = sequenceHits;
 //                std::cout << "Overflow in i=" << indexStart << " IndexTo=" << i << std::endl;
-                const size_t hitCount = evaluateBins(indexPointer, foundDiagonals + overflowHitCount,
-                                                     dbSize - overflowHitCount, indexStart, current_i, diagonalScoring);
+                const size_t hitCount = evaluateBins(indexPointer,
+                                                     foundDiagonals + overflowHitCount,
+                                                     dbSize - overflowHitCount,
+                                                     indexStart, current_i);
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
                     if(diagonalScoring == true) {
@@ -196,8 +196,8 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
     }
     outer:
     indexPointer[indexTo + 1] = databaseHits + numMatches;
-    size_t hitCount = evaluateBins(indexPointer, foundDiagonals + overflowHitCount, dbSize - overflowHitCount,
-                                   indexStart, indexTo, diagonalScoring);
+    size_t hitCount = evaluateBins(indexPointer, foundDiagonals + overflowHitCount,
+                                   dbSize - overflowHitCount, indexStart, indexTo);
     //fill the output
     if(overflowHitCount != 0){ // overflow occurred
         if(diagonalScoring == true){
@@ -246,7 +246,7 @@ std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * re
         result->prefScore = rawScore;
         result->diagonal = 0;
         //result->pScore = (((float)rawScore) - mu)/ sqrtMu;
-        result->pScore = (diagonalScoring == true) ? 0.0 : -QueryScoreLocal::computeLogProbability(rawScore, seqLens[id],
+        result->pScore = (diagonalScoring) ? 0.0 : -QueryScoreLocal::computeLogProbability(rawScore, seqLens[id],
                                                                                            mu, logMatchProb, logScoreFactorial[rawScore]);
         elementCounter++;
     }
@@ -262,7 +262,7 @@ std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * re
             result->prefScore = scoreCurr;
             result->diagonal = diagCurr;
             //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
-            result->pScore =  (diagonalScoring == true) ? 0.0 :  -QueryScoreLocal::computeLogProbability(scoreCurr, seqLens[seqIdCurr],
+            result->pScore =  (diagonalScoring) ? 0.0 :  -QueryScoreLocal::computeLogProbability(scoreCurr, seqLens[seqIdCurr],
                                                                                                  mu, logMatchProb, logScoreFactorial[scoreCurr]);
             elementCounter++;
             if (elementCounter >= QueryScore::MAX_RES_LIST_LEN)
