@@ -173,6 +173,8 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
     gettimeofday(&start, NULL);
 
     if(filenames.size() < 2){
+        std::rename(filenames[0].first.c_str(),  outDB.c_str());
+        std::rename(filenames[0].second.c_str(), outDBIndex.c_str());
         Debug(Debug::INFO) << "No mergeing needed.\n";
         return;
     }
@@ -309,7 +311,14 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     // create index table based on split parameter
     // run small query sample against the index table to calibrate p-match
     std::pair<short, double> calibration;
-    calibration = setKmerThreshold(indexTable, qdbr, tdbr, sensitivity, kmerScore);
+
+
+    const int kmerScore = getKmerThreshold(sensitivity, kmerScore);
+    if(diagonalScoring == true){
+        calibration = std::pair<short, double>(kmerScore, 0.0);
+    }else{
+        calibration = setKmerThreshold(indexTable, qdbr, tdbr, kmerScore);
+    }
     //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
     this->kmerThr = calibration.first;
     this->kmerMatchProb = calibration.second;
@@ -585,11 +594,8 @@ IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequen
     return indexTable;
 }
 
-std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable,
-                                                        DBReader<unsigned int>*qdbr,
-                                                        DBReader<unsigned int>*tdbr,
-                                                        int sensitivity,
-                                                        const int kmerScore) {
+std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr,
+                                                        DBReader<unsigned int> *tdbr, const int kmerScore) {
     size_t targetDbSize = indexTable->getSize();
     size_t targetSeqLenSum = 0;
     for (size_t i = 0; i < targetDbSize; i++){
@@ -605,7 +611,6 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable,
 
     // do a binary search through the k-mer list length threshold space to adjust the k-mer list length threshold in order to get a match probability
     // for a list of k-mers at one query position as close as possible to targetKmerMatchProb
-    size_t kmerThrBest;
 
     size_t dbMatchesExp_pc;
     // 1000 * 350 * 100000 * 350
@@ -613,26 +618,9 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable,
 
     double kmerMatchProb;
 
-    const unsigned int sens =  sensitivity;
 
-    kmerThrBest = kmerScore;
-    if(kmerThrBest == INT_MAX){
-        if (kmerSize == 5){
-            kmerThrBest = 115 - (sens * 5);
-        } else if (kmerSize == 6){
-            kmerThrBest = 125 - (sens * 5);
-        } else if (kmerSize == 7){
-            kmerThrBest = 135 - (sens * 5);
-        }
-        else{
-            Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-
-    Debug(Debug::INFO) << "k-mer threshold threshold: " << kmerThrBest << "\n";
     statistics_t stats;
-    stats = computeStatisticForKmerThreshold(indexTable, querySetSize, querySeqs, searchMode, kmerThrBest);
+    stats = computeStatisticForKmerThreshold(indexTable, querySetSize, querySeqs, searchMode, kmerScore);
     // match probability with pseudocounts
     // add pseudo-counts (1/20^6 * kmerPerPos * length of pseudo counts)
     dbMatchesExp_pc = (size_t)(((double)lenSum_pc) * stats.kmersPerPos * pow((1.0/((double)(subMat->alphabetSize-1))), kmerSize));
@@ -648,7 +636,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable,
 
     delete[] querySeqs;
 
-    return std::pair<short, double> (kmerThrBest, kmerMatchProb);
+    return std::pair<short, double> (kmerScore, kmerMatchProb);
 }
 
 statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,
@@ -710,4 +698,24 @@ void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> s
         }
         DBWriter::mergeFFindexFile(outDB.c_str(), outDBIndex.c_str(), "w", datafilesNames, indexFilesNames, splitFiles.size() );
     }
+}
+
+const int Prefiltering::getKmerThreshold(const int sensitivity, const int score) {
+    const unsigned int sens =  sensitivity;
+
+    int kmerThrBest = kmerScore;
+    if(kmerThrBest == INT_MAX){
+        if (kmerSize == 5){
+            kmerThrBest = 115 - (sens * 5);
+        } else if (kmerSize == 6){
+            kmerThrBest = 125 - (sens * 5);
+        } else if (kmerSize == 7){
+            kmerThrBest = 135 - (sens * 5);
+        }
+        else{
+            Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    return kmerThrBest;
 }
