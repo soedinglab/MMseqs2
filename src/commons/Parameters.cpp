@@ -360,7 +360,7 @@ void Parameters::setDefaults() {
     kmerSize =  6;
     kmerScore = INT_MAX;
     alphabetSize = 21;
-    maxSeqLen = 50000;
+    maxSeqLen = 32768; // 2^15
     maxResListLen = 300;
     sensitivity = 4;
     split = 1;

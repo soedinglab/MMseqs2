@@ -60,7 +60,7 @@ private:
     // calles vectorDiagonalScoring or scalarDiagonalScoring depending on the hitSize
     // and updates diagonalScore of the hit_t objects
     void scoreDiagonalAndUpdateHits(const char *queryProfile, const unsigned int queryLen,
-                                    const unsigned short diagonal, CounterResult **hits, const unsigned int hitSize,
+                                    const short diagonal, CounterResult **hits, const unsigned int hitSize,
                                     const short bias);
 
 #ifdef AVX2
@@ -68,8 +68,6 @@ private:
 #endif
 
     unsigned short distanceFromDiagonal(const unsigned short diagonal);
-
-    unsigned int computeSplit(unsigned int second, const unsigned int i);
 
     void extractScores(unsigned int *score_arr, simd_int score);
 
