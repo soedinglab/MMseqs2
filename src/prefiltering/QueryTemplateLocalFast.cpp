@@ -11,7 +11,7 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
                                                double kmerMatchProb, int kmerSize, size_t dbSize,
                                                unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                                                size_t maxHitsPerQuery, bool aaBiasCorrection,
-                                               bool diagonalScoring)
+                                               bool diagonalScoring, unsigned int minDiagScoreThr)
         : QueryTemplateMatcher(m, indexTable, seqLens,
                                kmerThr, kmerMatchProb, kmerSize,
                                dbSize, aaBiasCorrection, maxSeqLen) {
@@ -25,6 +25,7 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new IndexEntryLocal*[maxSeqLen + 1];
     this->diagonalScoring = diagonalScoring;
+    this->minDiagScoreThr = minDiagScoreThr;
     // data for histogram of score distribution
     this->scoreSizes = new unsigned int[QueryScoreLocal::SCORE_RANGE];
     memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
@@ -99,6 +100,7 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
         resultSize = counter->keepMaxScoreElementOnly(foundDiagonals, resultSize);
         updateScoreBins(foundDiagonals, resultSize);
         unsigned int diagonalThr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
+        diagonalThr = std::max(minDiagScoreThr, diagonalThr);
         queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, diagonalThr, true);
     }else{
         unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);

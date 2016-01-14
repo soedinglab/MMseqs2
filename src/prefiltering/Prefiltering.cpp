@@ -33,6 +33,7 @@ Prefiltering::Prefiltering(std::string queryDB,
         querySeqType(par.querySeqType),
         targetSeqType(par.targetSeqType),
         diagonalScoring(par.diagonalScoring),
+        minDiagScoreThr(par.minDiagScoreThr),
         aaBiasCorrection(par.compBiasCorrection),
         split(par.split),
         splitMode(par.splitMode),
@@ -261,7 +262,7 @@ QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, 
         } else if(searchMode == Parameters::SEARCH_LOCAL_FAST) {
             matchers[thread_idx] = new QueryTemplateLocalFast(m, indexTable, seqLens, kmerThr, kmerMatchProb,
                                                               kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
-                                                              maxHitsPerQuery, aaBiasCorrection, diagonalScoring);
+                                                              maxHitsPerQuery, aaBiasCorrection, diagonalScoring, minDiagScoreThr);
         } else {
             Debug(Debug::ERROR) << "Seach mode is not valid.\n";
             EXIT(EXIT_FAILURE);
@@ -371,7 +372,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
         std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx], targetSeqId);
         const size_t resultSize = prefResults.second;
         // write
-        if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults, dbFrom) != 0)
+        if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults, dbFrom, diagonalScoring) != 0)
             continue; // could not write result because of too much results
 
         // update statistics counters
@@ -443,7 +444,8 @@ void Prefiltering::closeReader(){
 
 // write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
-                                       std::pair<hit_t *, size_t> prefResults, size_t seqIdOffset) {
+                                       std::pair<hit_t *, size_t> prefResults,
+                                       size_t seqIdOffset, bool diagonalScoring) {
     // write prefiltering results to a string
     size_t l = 0;
     hit_t * resultVector = prefResults.first;
@@ -458,8 +460,14 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
         if (targetSeqId >= tdbr->getSize()) {
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << targetSeqId << "\t" << res->prefScore << "\n";
         }
-        const int len = snprintf(buffer, 100, "%s\t%.4f\t%d\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
-                                 res->pScore, res->prefScore, res->diagonal);
+        int len;
+        if(diagonalScoring == true){
+            len = snprintf(buffer, 100, "%s\t%d\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
+                           res->prefScore, res->diagonal);
+        }else {
+            len = snprintf(buffer, 100, "%s\t%.4f\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
+                           res->pScore, res->prefScore);
+        }
         prefResultsOutString.append( buffer, len );
         l++;
         // maximum allowed result list length is reached
@@ -572,7 +580,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 }
 
 IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, int alphabetSize, int kmerSize,
-                                                   size_t dbFrom, size_t dbTo, int searchMode, bool diagonalScoring) {
+                                              size_t dbFrom, size_t dbTo, int searchMode, bool diagonalScoring) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     IndexTable * indexTable;

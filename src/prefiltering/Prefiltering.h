@@ -94,8 +94,8 @@ private:
     const int querySeqType;
     const int targetSeqType;
     bool templateDBIsIndex;
-    bool mask;
-    bool diagonalScoring;
+    const bool diagonalScoring;
+    const unsigned int minDiagScoreThr;
     bool aaBiasCorrection;
     short kmerThr;
     double kmerMatchProb;
@@ -111,7 +111,7 @@ private:
                                               DBReader<unsigned int> *tdbr, const int kmerScore);
     // write prefiltering to ffindex database
     int writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
-                             std::pair<hit_t *, size_t> prefResults, size_t seqIdOffset);
+                             std::pair<hit_t *, size_t> prefResults, size_t seqIdOffset, bool diagonalScoring);
     // init QueryTemplateMatcher
     QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
                                                       unsigned int *seqLens, short kmerThr,

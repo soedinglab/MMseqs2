@@ -17,7 +17,7 @@ public:
                            unsigned int *seqLens, short kmerThr,
                            double kmerMatchProb, int kmerSize, size_t dbSize,
                            unsigned int maxSeqLen, unsigned int effectiveKmerSize,
-                           size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring);
+                           size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring, unsigned int minDiagScoreThr);
     ~QueryTemplateLocalFast();
 
     // returns result for the sequence
@@ -90,7 +90,7 @@ protected:
 
     // diagonal scoring active
     bool diagonalScoring;
-
+    unsigned int minDiagScoreThr;
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
