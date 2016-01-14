@@ -13,6 +13,7 @@ Parameters::Parameters():
         PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "\tHMM Profile input",typeid(bool),(void *) &profile, ""),
         PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotid","\tNucleotide sequences input",typeid(bool),(void *) &nucl , ""),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--no-diag-score", "Diagonal Scoring", "\tUse diagonal score for sorting the prefilter results", typeid(bool),(void *) &diagonalScoring, ""),
+        PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-diag-score", "Minimum Diagonal score", "\tAccepts only hits with a ungapped diagonal score above the min score threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$"),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "[int]\tSet the K-mer threshold for the K-mer generation",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$"),
         PARAM_SKIP(PARAM_SKIP_ID,"--skip", "Skip", "[int]\tNumber of skipped k-mers during the index table generation",typeid(int),(void *) &skip,  "^[0-9]{1}[0-9]*$"),
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "[int]\tMaximum result sequences per query",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$"),
@@ -86,6 +87,7 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_SEARCH_MODE);
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     prefilter.push_back(PARAM_DIAGONAL_SCORING);
+    prefilter.push_back(PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
     prefilter.push_back(PARAM_SUB_MAT);
     prefilter.push_back(PARAM_THREADS);
@@ -376,6 +378,7 @@ void Parameters::setDefaults() {
 #endif
     compBiasCorrection = true;
     diagonalScoring = true;
+    minDiagScoreThr = 0;
     spacedKmer = true;
     searchMode = SEARCH_LOCAL_FAST;
     profile = false;
