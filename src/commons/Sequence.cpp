@@ -200,7 +200,7 @@ void Sequence::mapProfile(const char * sequenze){
     this->L = l;
 
     // write alignemnt profile
-    for(size_t l = 0; l < this->L; l++){
+    for(int l = 0; l < this->L; l++){
         for(size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
             unsigned int aa_idx = profile_index[l * profile_row_size + aa_num];
             profile_for_alignment[aa_idx * this-> L + l] = profile_score[l * profile_row_size + aa_num] / 4;
@@ -262,8 +262,8 @@ void Sequence::printProfile(){
         printf("%3c ", this->int2aa[aa]);
     }
     printf("\n");
-    for(size_t i = 0; i < this->L; i++){
-        printf("%3zu ", i);
+    for(int i = 0; i < this->L; i++){
+        printf("%3d ", i);
         for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
             printf("%3d ", profile_for_alignment[aa * L + i] );
         }
@@ -279,7 +279,7 @@ void Sequence::reverse() {
         int i_curr = 0 * profile_row_size;
         int j_curr = (this->L - 1)  * profile_row_size;
 
-        for (size_t i = 0; i < this->L/2; i++) {
+        for (int i = 0; i < this->L/2; i++) {
             memcpy(&tmpScore[0], profile_score + i_curr, profile_row_size * sizeof(short));
             memcpy(&tmpIndex[0], profile_index + i_curr, profile_row_size * sizeof(unsigned int));
             memcpy(profile_score + i_curr, profile_score + j_curr, profile_row_size * sizeof(short));

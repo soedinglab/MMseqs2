@@ -30,7 +30,7 @@ int main (int argc, const char * argv[])
 
     std::cout << "aa2int: \n";
     for (char c = 'A'; c <= 'Z'; c++)
-        printf("%c%3d\t", c, subMat.aa2int[c]);
+        printf("%c%3d\t", c, subMat.aa2int[(int)c]);
     std::cout << "\n";
 
     std::cout << "int2aa: \n";
@@ -40,7 +40,7 @@ int main (int argc, const char * argv[])
 
     std::cout << "reduced aa2int:\n";
     for (char c = 'A'; c <= 'Z'; c++)
-        printf("%c%3d\t", c, redMat.aa2int[c]);
+        printf("%c%3d\t", c, redMat.aa2int[(int)c]);
     std::cout << "\n";
 
     std::cout << "reduced int2aa: \n";

@@ -10,12 +10,6 @@
 
 #include "MMseqsMPI.h"
 
-bool compareHits (Matcher::result_t first, Matcher::result_t second){
-    if (first.score > second.score)
-        return true;
-    return false;
-}
-
 
 int alignment(int argc, const char *argv[])
 {

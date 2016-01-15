@@ -23,7 +23,7 @@ std::pair<float, bool> setAutomaticThreshold(float seqId){
     } else if (seqId > 0.7){
         sens = 7.0;
     } else {
-        sens = 1.0 + (1.5 * (seqId - 0.3) * 10);
+        sens = 1.0 + (1.5 * (0.7 - seqId) * 10);
     }
     if(sens <= 2.0){
         cascaded = false;
@@ -69,13 +69,12 @@ int clusteringworkflow (int argc, const char * argv[]) {
     if (par.cascaded) {
         CommandCaller cmd;
 
-        float targetSensitivity = (float) par.sensitivity;
+        float targetSensitivity = par.sensitivity;
         size_t maxResListLen = par.maxResListLen;
 
 // set parameter for first step
 
         par.sensitivity   = 1; // 1 is lowest sens
-        par.kmerScore     = 130;
 
         par.zscoreThr     = getZscoreForSensitivity( par.sensitivity );
         par.maxResListLen = 100;
@@ -84,9 +83,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
         cmd.addVariable("CLUSTER1_PAR", par.createParameterString(par.clustering));
 
 // set parameter for second step
-        par.sensitivity = (int) targetSensitivity / 2.0;
-        par.kmerScore     = 110;
-
+        par.sensitivity = targetSensitivity / 2.0;
         par.zscoreThr =  getZscoreForSensitivity( par.sensitivity );
         par.maxResListLen = 200;
         cmd.addVariable("PREFILTER2_PAR", par.createParameterString(par.prefilter));
@@ -94,10 +91,8 @@ int clusteringworkflow (int argc, const char * argv[]) {
         cmd.addVariable("CLUSTER2_PAR",   par.createParameterString(par.clustering));
 
 // set parameter for last step
-        par.sensitivity = (int)  targetSensitivity;
+        par.sensitivity =  targetSensitivity;
         par.zscoreThr = getZscoreForSensitivity( par.sensitivity );
-        par.kmerScore     = 100;
-
         par.maxResListLen = maxResListLen;
         cmd.addVariable("PREFILTER3_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(par.alignment));

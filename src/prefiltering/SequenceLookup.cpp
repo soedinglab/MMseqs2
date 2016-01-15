@@ -24,7 +24,7 @@ SequenceLookup::~SequenceLookup() {
 
 void SequenceLookup::addSequence(Sequence * seq) {
     sequence[seq->getId()] = currWritePos;
-    for(size_t pos = 0; pos < seq->L; pos++){
+    for(int pos = 0; pos < seq->L; pos++){
         unsigned char aa = seq->int_sequence[pos];
         sequence[seq->getId()][pos] = aa;
     }

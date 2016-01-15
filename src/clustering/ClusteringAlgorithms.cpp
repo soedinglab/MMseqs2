@@ -46,7 +46,7 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
 
     std::list<set *> result;
     size_t n = seqDbr->getSize();
-    int *assignedcluster = new int[n];
+    int *assignedcluster = new int[n]; //TODO ask lars
     std::fill_n(assignedcluster, n, -1);
     short *bestscore = new short[n];
     std::fill_n(bestscore, n, -10);

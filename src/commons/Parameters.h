@@ -93,8 +93,8 @@ public:
     int    searchMode;                   // Local search type
     bool   profile;                      // using profile information
     bool   nucl;                         // using nucl informatoin
-    bool   compBiasCorrection;           // Aminoacid composiont correction
-    bool   diagonalScoring;              // switch diagonal scoring
+    int    compBiasCorrection;           // Aminoacid composiont correction
+    int    diagonalScoring;              // switch diagonal scoring
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks

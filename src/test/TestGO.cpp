@@ -447,7 +447,7 @@ int numberofthreads=1;
                     Util::getLine(data, linebuffer);
                     //get similarityscore
                     float factor = 1;
-                    float similarityscore;
+                    float similarityscore=0.0;
                     if (similarityScoreType == Parameters::APC_ALIGNMENTSCORE) {
                         Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
                         similarityscore = atof(std::string(similarity).c_str());

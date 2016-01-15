@@ -118,7 +118,7 @@ void CompareGOTerms::init() {
     }
     for (size_t i = 0; i < total_go_number; i++) {
         //Debug(Debug::INFO) << convert_index_toGOterm(i)<<":\t";
-        for (size_t j = 0; j < is_a_relation_size[i]; j++) {
+        for (int j = 0; j < is_a_relation_size[i]; j++) {
             //   Debug(Debug::INFO) << is_a_relation[i][j]<<"\t";
         }
     }
@@ -186,7 +186,7 @@ double CompareGOTerms::compare_protein_ids(const char *prot1,const char *prot2) 
 void CompareGOTerms::all_against_all_comparison() {
     for (size_t i = 0; i < total_go_number; i++) {
         Debug(Debug::INFO) <<convert_index_toGOterm(i) << "\t";
-        for (int j = 0; j < total_go_number; ++j) {
+        for (size_t j = 0; j < total_go_number; ++j) {
             if(count_goterm[i]>0&&count_goterm[j]>0) {
                 Debug(Debug::INFO) << similarity(i, j) << "\t";
             }
@@ -198,7 +198,7 @@ void CompareGOTerms::all_against_all_comparison_proteinset() {
     for (size_t i = 0; i < count_goterm_total_sum; i++) {
         std::string protein1=protid_go_ffindex_reader->getDbKey(i);
         Debug(Debug::INFO) <<protein1 << "\t";
-        for (int j = 0; j < total_go_number; ++j) {
+        for (size_t j = 0; j < total_go_number; ++j) {
             std::string protein2=protid_go_ffindex_reader->getDbKey(j);
             Debug(Debug::INFO) << compare_protein_ids(protein1.c_str(), protein2.c_str()) << "\t";
         }
@@ -318,7 +318,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
         binned_min[j]=0;
         binned_max[j]=0;
     }
-    for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
+    for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
         std::string representative=cluster_ffindex_reader->getDbKey(i);

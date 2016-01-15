@@ -314,7 +314,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     std::pair<short, double> calibration;
 
 
-    const int kmerScore = getKmerThreshold(sensitivity, kmerScore);
+    const int kmerScore = getKmerThreshold(this->sensitivity, this->kmerScore);
     if(diagonalScoring == true){
         calibration = std::pair<short, double>(kmerScore, 0.0);
     }else{
