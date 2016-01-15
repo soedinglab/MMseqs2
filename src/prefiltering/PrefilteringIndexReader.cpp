@@ -20,9 +20,10 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
-void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex, DBReader<unsigned int>*dbr, Sequence *seq,
-                                              int split, int alphabetSize, int kmerSize, int skip,
-                                              bool hasSpacedKmer, int searchMode) {
+void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex,
+                                             DBReader<unsigned int> *dbr, Sequence *seq, int split,
+                                             int alphabetSize, int kmerSize, bool hasSpacedKmer,
+                                             int searchMode) {
     DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
     writer.open();
     int stepCnt = split;
@@ -104,7 +105,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
     Debug(Debug::WARNING) << "Write " << META << "\n";
     int local = (searchMode) ? 1 : 0;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
-    int metadata[] = {kmerSize, alphabetSize, skip, split, local, spacedKmer};
+    int metadata[] = {kmerSize, alphabetSize, 0, split, local, spacedKmer};
     char *metadataptr = (char *) &metadata;
     writer.write(metadataptr, 6 * sizeof(int), SSTR(META).c_str(), 0);
 

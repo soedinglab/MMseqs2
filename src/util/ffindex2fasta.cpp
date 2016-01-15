@@ -9,7 +9,7 @@
 int createfasta (int argc, const char * argv[])
 {
     std::string usage("Converts a ffindex database to fasta \n");
-    usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
+    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <fastaDB>\n");
     Parameters par;
     par.parseParameters(argc, argv, usage, par.onlyverbosity, 4);

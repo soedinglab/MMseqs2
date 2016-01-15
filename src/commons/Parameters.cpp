@@ -5,40 +5,39 @@
 #include <iomanip>
 
 Parameters::Parameters():
-        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","[int]\tSensitivity in the range [1:10]. From low (1) to high (10) sensitivity.", typeid(int), (void *) &sensitivity, "^[1-9]{1}$"),
+        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","[real]\tSensitivity in the range [1.0:10.0]. From low (1.0) to high (10.0) sensitivity.", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_K(PARAM_K_ID,"-k", "K-mer size", "[int]\tk-mer size in the range [4:7]",typeid(int),  (void *) &kmerSize, "^[6-7]{1}$"),
-        PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "[int]\tNumber of cores used for the computation",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$"),
-        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "[int]\tAmino acid alphabet size",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]{1}$"),
-        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "[int]\tMaximum sequence length",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$"),
+        PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "[int]\tNumber of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$"),
+        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "[int]\tAmino acid alphabet size[2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]{1}$"),
+        PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "[int]\tMaximum sequence length[1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$"),
         PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "\tHMM Profile input",typeid(bool),(void *) &profile, ""),
         PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotid","\tNucleotide sequences input",typeid(bool),(void *) &nucl , ""),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--no-diag-score", "Diagonal Scoring", "\tUse diagonal score for sorting the prefilter results", typeid(bool),(void *) &diagonalScoring, ""),
-        PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-diag-score", "Minimum Diagonal score", "\tAccepts only hits with a ungapped diagonal score above the min score threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$"),
+        PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-diag-score", "Minimum Diagonal score", "[int]\tAccepts only hits with a ungapped diagonal score above the min score threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$"),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "[int]\tSet the K-mer threshold for the K-mer generation",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$"),
-        PARAM_SKIP(PARAM_SKIP_ID,"--skip", "Skip", "[int]\tNumber of skipped k-mers during the index table generation",typeid(int),(void *) &skip,  "^[0-9]{1}[0-9]*$"),
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "[int]\tMaximum result sequences per query",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$"),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "[int]\tSplits target set in n equally distributed chunks",typeid(int),(void *) &split,  "^[1-9]{1}[0-9]*$"),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "[int]\tMPI Option: Target set: 0 (low memory) or query set: 1 (faster but memory intensive)",typeid(int),(void *) &splitMode,  "^[0-1]{1}$"),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","\tTry to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$"),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "[file]\tAmino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, ""),
         PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Local: 1 Local fast: 2",typeid(int), (void *) &searchMode, "^[0-2]{1}$"),
-        PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--no-comp-bias-corr", "Compositional bias","Switch off local amino acid composition bias correction",typeid(bool), (void *) &compBiasCorrection, ""),
+        PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--no-comp-bias-corr", "Compositional bias","\tSwitch off local amino acid composition bias correction",typeid(bool), (void *) &compBiasCorrection, ""),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "[int]\tSpaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}" ),
         PARAM_KEEP_TEMP_FILES(PARAM_KEEP_TEMP_FILES_ID,"--keep-tmp-files", "Keep-tmp-files" ,"\tDo not delete temporary files.",typeid(bool),(void *) &keepTempFiles, ""),
 
 // alignment
-        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "Maximum e-value",typeid(float), (void *) &evalThr, "^[0-9]*(\\.[0-9]+)?$"),
-        PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "Minimum alignment coverage [0,1]",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$"),
-        PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "Maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$"),
+        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "[real]\tMaximum e-value[0.0,1.0]",typeid(float), (void *) &evalThr, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "[real]\tMinimum alignment coverage [0.0,1.0]",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$"),
+        PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "[int]\tMaximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$"),
 // clustering
-        PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
-        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-3]{1}$"),
+        PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","[real]\tMinimum sequence identity of sequences in a cluster[0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
+        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "\t0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-3]{1}$"),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "\tStart the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
 //affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "[int]\tMaximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]{1}[0-9]*$"),
-        PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "Type of score used for clustering [1:5]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column ",typeid(int),(void *) &similarityScoreType,  "^[1-9]{1}[0-9]*$"),
+        PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "\tType of score used for clustering [1:5]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column ",typeid(int),(void *) &similarityScoreType,  "^[1-9]{1}[0-9]*$"),
 // logging
-        PARAM_V(PARAM_V_ID,"-v", "Verbosity","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]{1}$"),
+        PARAM_V(PARAM_V_ID,"-v", "Verbosity","\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]{1}$"),
 // create profile (HMM, PSSM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "[int]\tMPI Option: HMM 0 or PSSM",typeid(int),(void *) &profileMode,  "^[0-1]{1}$"),
 
@@ -80,7 +79,6 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_MAX_SEQ_LEN);
     prefilter.push_back(PARAM_PROFILE);
     prefilter.push_back(PARAM_NUCL);
-    prefilter.push_back(PARAM_SKIP);
     prefilter.push_back(PARAM_MAX_SEQS);
     prefilter.push_back(PARAM_SPLIT);
     prefilter.push_back(PARAM_SPLIT_MODE);
@@ -134,7 +132,6 @@ Parameters::Parameters():
     createindex.push_back(PARAM_SPLIT);
     createindex.push_back(PARAM_SUB_MAT);
     createindex.push_back(PARAM_SEARCH_MODE);
-    createindex.push_back(PARAM_SKIP);
     createindex.push_back(PARAM_SPACED_KMER_MODE);
     createindex.push_back(PARAM_V);
 
@@ -197,7 +194,19 @@ void Parameters::printUsageMessage(std::string programUsageHeader,
     std::stringstream ss;
     ss << programUsageHeader << std::endl;
     for(std::size_t i = 0; i < parameters.size(); i++) {
-        ss << std::setw(25) << std::left << parameters[i].name << parameters[i].description << std::endl;
+        ss << std::setw(25) << std::left << parameters[i].name << parameters[i].description <<
+              " (default=";
+        if (typeid(int) == parameters[i].type) {
+            ss <<  *((int *) parameters[i].value);
+        }else if(typeid(float) == parameters[i].type){
+            ss <<  *((float *) parameters[i].value);
+        }else if(typeid(bool) == parameters[i].type) {
+            std::string out = (*((bool *) parameters[i].value))? "true" : "false";
+            ss << out;
+        }else if (typeid(std::string) == parameters[i].type) {
+            ss << ((std::string *)parameters[i].value)->c_str();
+        }
+        ss << ")" << std::endl;
     }
     Debug(Debug::INFO) << ss.str();
 }
@@ -229,6 +238,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                             EXIT(EXIT_FAILURE);
                         }else{
                             *((int *) par[parIdx].value) = atoi(pargv[argIdx+1]);
+                            par[parIdx].wasSet = true;
                         }
                         argIdx++;
                     } else if (typeid(float) == par[parIdx].type) {
@@ -242,6 +252,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                             EXIT(EXIT_FAILURE);
                         }else{
                             *((float *) par[parIdx].value) = atof(pargv[argIdx+1]);
+                            par[parIdx].wasSet = true;
                         }
                         argIdx++;
                     } else if (typeid(std::string) == par[parIdx].type) {
@@ -249,10 +260,12 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         if(val.length() != 0){
                             std::string * currVal = ((std::string *)par[parIdx].value);
                             currVal->assign( val );
+                            par[parIdx].wasSet = true;
                         }
                         argIdx++;
                     } else if (typeid(bool) == par[parIdx].type) {
                         bool * value = (bool *) par[parIdx].value;
+                        par[parIdx].wasSet = true;
                         // toggle Value
                         *value = !*value;
                     } else {
@@ -368,7 +381,6 @@ void Parameters::setDefaults() {
     split = 1;
     splitMode = TARGET_DB_SPLIT;
     splitAA = false;
-    skip = 0;
     querySeqType  = Sequence::AMINO_ACIDS;
     targetSeqType = Sequence::AMINO_ACIDS;
     numIterations = 1;

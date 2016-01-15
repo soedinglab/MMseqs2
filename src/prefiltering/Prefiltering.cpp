@@ -708,17 +708,17 @@ void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> s
     }
 }
 
-const int Prefiltering::getKmerThreshold(const int sensitivity, const int score) {
+const int Prefiltering::getKmerThreshold(const float sensitivity, const int score) {
     const unsigned int sens =  sensitivity;
 
     int kmerThrBest = kmerScore;
     if(kmerThrBest == INT_MAX){
         if (kmerSize == 5){
-            kmerThrBest = 115 - (sens * 5);
+            kmerThrBest = 123.75 - (sens * 8.75);
         } else if (kmerSize == 6){
-            kmerThrBest = 125 - (sens * 5);
+            kmerThrBest = 133.75 - (sens * 8.75);
         } else if (kmerSize == 7){
-            kmerThrBest = 135 - (sens * 5);
+            kmerThrBest = 143.75 - (sens * 8.75);
         }
         else{
             Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";

@@ -8,7 +8,7 @@
 
 void printUsageFFindexSwapResults(){
     std::string usage("Swaps results of ffindex database. A -> A, B, C to A->A, B->A, C->A \n");
-    usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de).\n\n");
+    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n\n");
     usage.append("USAGE: <ffindexDB> <fastaDB> [ffindexHeaderDB]\n");
     Debug(Debug::ERROR) << usage;
 }

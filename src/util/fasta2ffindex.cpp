@@ -27,7 +27,7 @@ KSEQ_INIT(int, read)
 int createdb(int argn, const char **argv) {
     std::string usage("Converts a fasta database to ffindex.\n");
     usage.append("USAGE: <fastaDB>  <ffindexDB> [mappingFasta]\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
+    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.createdb, 2);

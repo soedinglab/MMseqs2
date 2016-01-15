@@ -21,7 +21,7 @@ int formatalignment (int argc, const char * argv[])
     std::string usage;
     usage.append("Convert a ffindex alignment database to BLAST tab or SAM flat file.\n");
     usage.append("USAGE: <queryDb> <targetDb> <alignmentDB> <outFile>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
+    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.formatalignment, 4);

@@ -17,7 +17,7 @@ int search (int argc, const char * argv[]) {
 
     std::string usage("\nCompares all sequences in the query database with all sequences in the target database.\n");
     usage.append(
-            "Written by Martin Steinegger (martin.steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+            "Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("USAGE: search <queryDB> <targetDB> <outDB> <tmpDir> [opts]\n");
 
     Parameters par;

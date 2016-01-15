@@ -86,7 +86,7 @@ private:
     int kmerSize;
     const int kmerScore;
     bool spacedKmer;
-    const int sensitivity;
+    const float sensitivity;
     size_t maxResListLen;
     int alphabetSize;
     const float zscoreThr;
@@ -128,7 +128,7 @@ private:
 
     void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
 
-    const int getKmerThreshold(const int sensitivity, const int score);
+    const int getKmerThreshold(const float sensitivity, const int score);
 };
 
 #endif

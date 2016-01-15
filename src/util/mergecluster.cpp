@@ -138,7 +138,7 @@ int mergecluster(int argc,const char **argv)
     std::string usage;
     usage.append("Combines n cluster steps to a final clustering\n");
     usage.append("USAGE: <sequenceDB> <outDB> <cluDB1> ... <cluDBn>\n");
-    usage.append("\nDesigned and implemented by Maria Hauser, Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
+    usage.append("\nDesigned and implemented by Maria Hauser, Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.onlyverbosity, 4);

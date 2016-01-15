@@ -14,10 +14,27 @@ void setWorkflowDefaults(Parameters* p) {
     p->evalThr = 0.001;
 }
 
+std::pair<float, bool> setAutomaticThreshold(float seqId){
+    float sens;
+    bool cascaded = true;
+    if(seqId <= 0.3){
+        sens = 1.0;
+        cascaded = true;
+    } else if (seqId > 0.7){
+        sens = 7.0;
+    } else {
+        sens = 1.0 + (1.5 * (seqId - 0.3) * 10);
+    }
+    if(sens <= 2.0){
+        cascaded = false;
+    }
+    return std::make_pair(sens, cascaded);
+}
+
 int clusteringworkflow (int argc, const char * argv[]) {
 
     std::string usage("\nCalculates the clustering of the sequences in the input database.\n");
-    usage.append("Written by Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+    usage.append("Written by Martin Steinegger(martin.steinegger@mpibpc.mpg.de) Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("USAGE: mmseqs_cluster <sequenceDB> <outDB> <tmpDir> [opts]\n");
     //            "--restart          \t[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
     //            "                \t     \tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering.\n"
@@ -32,7 +49,21 @@ int clusteringworkflow (int argc, const char * argv[]) {
     setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, usage, par.clusteringWorkflow, 3);
     Debug::setDebugLevel(par.verbosity);
-
+    bool parameterSet = false;
+    for(size_t i = 0; i < par.clusteringWorkflow.size(); i++) {
+        if (par.clusteringWorkflow[i].uniqid == par.PARAM_S.uniqid && par.clusteringWorkflow[i].wasSet) {
+            parameterSet = true;
+        }
+        if (par.clusteringWorkflow[i].uniqid == par.PARAM_CASCADED.uniqid && par.clusteringWorkflow[i].wasSet){
+            parameterSet = true;
+        }
+    }
+    if(parameterSet == false){
+        std::pair<float, bool> settings = setAutomaticThreshold(par.seqIdThr);
+        par.sensitivity = settings.first;
+        par.cascaded = settings.second;
+        Debug(Debug::WARNING) << "Set cluster settings automatic to s=" << par.sensitivity << " cascaded="<<par.cascaded << "\n";
+    }
     DBWriter::errorIfFileExist(par.db2.c_str());
 
     if (par.cascaded) {
@@ -41,7 +72,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
         float targetSensitivity = (float) par.sensitivity;
         size_t maxResListLen = par.maxResListLen;
 
-        // set parameter for first step
+// set parameter for first step
 
         par.sensitivity   = 1; // 1 is lowest sens
         par.kmerScore     = 130;
@@ -52,7 +83,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
         cmd.addVariable("ALIGNMENT1_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("CLUSTER1_PAR", par.createParameterString(par.clustering));
 
-        // set parameter for second step
+// set parameter for second step
         par.sensitivity = (int) targetSensitivity / 2.0;
         par.kmerScore     = 110;
 
@@ -62,7 +93,7 @@ int clusteringworkflow (int argc, const char * argv[]) {
         cmd.addVariable("ALIGNMENT2_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("CLUSTER2_PAR",   par.createParameterString(par.clustering));
 
-        // set parameter for last step
+// set parameter for last step
         par.sensitivity = (int)  targetSensitivity;
         par.zscoreThr = getZscoreForSensitivity( par.sensitivity );
         par.kmerScore     = 100;

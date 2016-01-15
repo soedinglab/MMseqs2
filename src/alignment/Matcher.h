@@ -2,7 +2,7 @@
 #define MATCHER_H
 
 //
-// Written by Maria Hauser, mhauser@genzentrum.lmu.de
+// Written by Martin Steinegger & Maria Hauser, mhauser@genzentrum.lmu.de
 //
 // Calls SSE2 parallelized calculation of Smith-Waterman alignment and non-parallelized traceback afterwards.
 //

@@ -1,4 +1,4 @@
-// Written by Martin Steinegger martin.steinegger@campus.lmu.de
+// Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de
 //
 // Computes PSSM from clustering or alignment result
 // MMseqs just stores the position specific score in 1 byte
@@ -156,7 +156,7 @@ int result2profile(int argn, const char **argv)
     std::string usage;
     usage.append("Converts a ffindex profile database to ffindex.\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@campus.lmu.de>.\n");
+    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.createprofiledb, 4);
