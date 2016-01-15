@@ -78,9 +78,11 @@ const simd_int  DiagonalMatcher::vectorDiagonalScoring(const char *profile,
     simd_int vscore        = simdi_setzero();
     simd_int vMaxScore     = simdi_setzero();
     const simd_int vBias   = simdi8_set(bias);
+#ifndef AVX2
 #ifdef SSE
     const simd_int sixten  = simdi8_set(16);
     const simd_int fiveten = simdi8_set(15);
+#endif
 #endif
     for(unsigned int pos = 0; pos < seqLen; pos++){
         simd_int template01 = simdi_load((simd_int *)&dbSeq[pos*VECSIZE_INT*4]);
@@ -283,14 +285,14 @@ short DiagonalMatcher::createProfile(Sequence *seq,
         }
         memset(aaCorrectionScore, 0, sizeof(char) * seq->L);
     } else {
-        for (size_t i = 0; i < alphabetSize; i++) {
-            for (size_t j = 0; j < alphabetSize; j++) {
+        for (int i = 0; i < alphabetSize; i++) {
+            for (int j = 0; j < alphabetSize; j++) {
                 if (subMat[i][j] < bias) {
                     bias = subMat[i][j];
                 }
             }
         }
-        for (size_t pos = 0; pos < seq->L; pos++) {
+        for (int pos = 0; pos < seq->L; pos++) {
             float aaCorrBias = biasCorrection[pos];
             aaCorrBias = (aaCorrBias < 0.0) ? aaCorrBias/4 - 0.5 : aaCorrBias/4 + 0.5;
             aaCorrectionScore[pos] = static_cast<char>(aaCorrBias);
@@ -305,16 +307,16 @@ short DiagonalMatcher::createProfile(Sequence *seq,
         const short * profile_score = seq->profile_score;
         const unsigned int * profile_index = seq->profile_index;
         const size_t profile_row_size = seq->profile_row_size;
-        for (size_t pos = 0; pos < seq->L; pos++) {
+        for (int pos = 0; pos < seq->L; pos++) {
             for (size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
                 unsigned int aa_idx = profile_index[pos * profile_row_size + aa_num];
                 queryProfile[pos * PROFILESIZE + aa_idx] = (profile_score[pos * profile_row_size + aa_num] / 4) + aaCorrectionScore[pos] + bias;
             }
         }
     }else{
-        for (size_t pos = 0; pos < seq->L; pos++) {
+        for (int pos = 0; pos < seq->L; pos++) {
             unsigned int aaIdx = seq->int_sequence[pos];
-            for (size_t i = 0; i < subMatrix->alphabetSize; i++) {
+            for (int i = 0; i < subMatrix->alphabetSize; i++) {
                 queryProfile[pos * PROFILESIZE + i] = (subMat[aaIdx][i] + aaCorrectionScore[pos] + bias);
             }
         }

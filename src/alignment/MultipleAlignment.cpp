@@ -125,7 +125,7 @@ void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *cent
 }
 
 size_t MultipleAlignment::updateGapsInCenterSequence(char **msaSequence, Sequence *centerSeq, bool noDeletionMSA) {
-    int centerSeqPos = 0;
+    size_t centerSeqPos = 0;
     for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
         if(centerSeqPos >= maxSeqLen ){
             Debug(Debug::ERROR) << "queryMSASize (" << centerSeqPos << ") is >= maxSeqLen (" << maxSeqLen << ")" << "\n";

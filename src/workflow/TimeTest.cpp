@@ -64,7 +64,7 @@ void TimeTest::runTimeTest (){
     int* querySeqs = new int[querySetSize];
     srand(1);
     size_t querySeqLenSum = 0;
-    for (int i = 0; i < querySetSize; i++){
+    for (size_t i = 0; i < querySetSize; i++){
         querySeqs[i] = rand() % tdbr->getSize();
         querySeqLenSum += tdbr->getSeqLens(querySeqs[i]);
     }
@@ -141,7 +141,7 @@ void TimeTest::runTimeTest (){
                         gettimeofday(&start, NULL);
 
 #pragma omp parallel for schedule(dynamic, 10) reduction (+: dbMatchesSum, kmersPerPos, doubleMatches)
-                        for (int i = 0; i < querySetSize; i++){
+                        for (size_t i = 0; i < querySetSize; i++){
                             int id = querySeqs[i];
 
                             int thread_idx = 0;

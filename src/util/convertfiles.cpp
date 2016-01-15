@@ -38,7 +38,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
     outfile_stream<<"algorithm\tclusterid\tid2\n";
     outfile_stream_cluster_summary<<"algorithm\tclusternumber\tsingletons\n";
     int singletons=0;
-    for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
+    for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
         int clustersize=0;
         std::string representative=cluster_ffindex_reader->getDbKey(i);
@@ -81,7 +81,7 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
     outfile_stream.open(outputfile);
 
     outfile_stream<<"clusterid\tid2\taliscore\tqcov\tdbcov\tseqId\teval\n";
-    for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
+    for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
         std::string representative=cluster_ffindex_reader->getDbKey(i);
@@ -240,7 +240,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
     outfile_stream.open(outputfolder +"/"+ prefix +"domainscore.tsv");
 
     outfile_stream<<"algorithm\tclusterid\tid2\tdomain_score\n";
-    for (int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
+    for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
         std::string representative=cluster_ffindex_reader->getDbKey(i);
         char *data = cluster_ffindex_reader->getData(i);

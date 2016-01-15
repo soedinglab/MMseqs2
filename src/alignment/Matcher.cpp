@@ -11,7 +11,7 @@ Matcher::Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize, bool
     aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
     kmnByLen = new double[maxSeqLen];
     BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(m->getMatrixName(), GAP_OPEN, GAP_EXTEND);
-    for(size_t len = 0; len < maxSeqLen; len++){
+    for(int len = 0; len < maxSeqLen; len++){
         kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta, dbLen, dbSize);
     }
     double logK = log( stats.K);
@@ -149,7 +149,7 @@ std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
     while(*data != '\0'){
         char * entry[255];
         char key[255];
-        size_t elmCount = Util::getWordsOfLine(data, entry, 255 );
+        Util::getWordsOfLine(data, entry, 255 );
         ptrdiff_t keySize =  (entry[1] - data);
         strncpy(key, data, keySize);
         key[keySize] = '\0';

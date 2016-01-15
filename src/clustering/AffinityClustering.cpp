@@ -127,7 +127,7 @@ std::list<set *> AffinityClustering::execute(){
             for(std::list<int>::iterator it = validids->begin(); it != validids->end(); it++) {
                 int i=*it;
                     bool first=convergence[(i*convergenceIterations)];
-                for(int c=1;c<convergenceIterations;c++) {
+                for(unsigned int c=1;c<convergenceIterations;c++) {
                     if(first!=convergence[(i*convergenceIterations)+c]){
                         converged=false;
                         //std::cout <<j << "\t"<< i << "\n";
@@ -158,7 +158,7 @@ std::list<set *> AffinityClustering::execute(){
     for(std::list<int>::iterator it = validids->begin(); it != validids->end(); it++) {
         int i=*it;
         bool first=convergence[(i*convergenceIterations)];
-        for(int c=1;c<convergenceIterations;c++) {
+        for(unsigned int c=1;c<convergenceIterations;c++) {
             if(first!=convergence[(i*convergenceIterations)+c]){
 
                 nonconverged++;

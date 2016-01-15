@@ -8,8 +8,8 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
     this->orig_int2aa = this->int2aa;
     this->origSubMatrix = this->subMatrix;
 
-    for(size_t i = 0; i < this->alphabetSize; i++) {
-        for (size_t j = 0; j < this->alphabetSize; j++) {
+    for(int i = 0; i < this->alphabetSize; i++) {
+        for (int j = 0; j < this->alphabetSize; j++) {
             this->probMatrix[i][j] = probMatrix[i][j];
         }
     }

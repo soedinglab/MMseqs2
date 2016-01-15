@@ -110,16 +110,16 @@ void PSSMCalculator::preparePseudoCounts(float *frequency, float *frequency_with
 // If it sums to 0 then assign def_array elements to array (optional)
 inline float PSSMCalculator::NormalizeTo1(float* array, int length, const double* def_array = NULL) {
     float sum = 0.0f;
-    for (size_t k = 0; k < length; k++){
+    for (int k = 0; k < length; k++){
         sum += array[k];
     }
     if (sum != 0.0f) {
         float fac = 1.0 / sum;
-        for (size_t i = 0; i < length; i++) {
+        for (int i = 0; i < length; i++) {
             array[i] *= fac;
         }
     } else if (def_array) {
-        for (size_t i = 0; i < length; i++) {
+        for (int i = 0; i < length; i++) {
             array[i] = def_array[i];
         }
     }
