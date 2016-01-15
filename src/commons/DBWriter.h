@@ -1,7 +1,7 @@
 #ifndef DBWRITER_H
 #define DBWRITER_H
 
-// Written by Maria Hauser mhauser@genzentrum.lmu.de
+// Written by Martin Steinegger & Maria Hauser mhauser@genzentrum.lmu.de
 // 
 // Manages ffindex DB write access. 
 // For parallel write access, one ffindex DB per thread is generated. 

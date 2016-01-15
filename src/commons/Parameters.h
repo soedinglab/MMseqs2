@@ -1,4 +1,4 @@
-// Written by Martin Steinegger Martin.Steinegger@campus.lmu.de
+// Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de
 //
 // Represents a parameter of MMseqs
 //
@@ -22,9 +22,10 @@ struct MMseqsParameter {
     const std::type_info &type;
     void * value;
     const char * regex;
+    bool wasSet;
     MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash, void * value, const char * regex):
-                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex){}
+                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false){}
 };
 
 
@@ -84,7 +85,7 @@ public:
     bool   keepTempFiles;                // Do not delete temp files
     
     // PREFILTER
-    int    sensitivity;                  // target sens
+    float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
@@ -99,8 +100,7 @@ public:
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB (MPI only)
     bool   splitAA;                      // Split database by amino acid count instead
-    int    skip;                         // Skip amino acid positions
-    
+
     // ALIGNMENT
     std::string ffindexPrefDB;           // prefilter database (input for alignment module)
     float  evalThr;                      // e-value threshold for acceptance
@@ -195,7 +195,6 @@ public:
     PARAMETER(PARAM_DIAGONAL_SCORING);
     PARAMETER(PARAM_MIN_DIAG_SCORE);
     PARAMETER(PARAM_K_SCORE);
-    PARAMETER(PARAM_SKIP);
     PARAMETER(PARAM_MAX_SEQS);
     PARAMETER(PARAM_SPLIT);
     PARAMETER(PARAM_SPLIT_MODE);

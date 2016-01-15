@@ -45,7 +45,7 @@ static struct Command commands[] = {
 
 void printUsage() {
     std::string usage("\nAll possible mmseqs commands\n");
-    usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("Main tools: \n"
             "prefilter          \tCalculates similarity scores between all sequences in the query db and all sequences in the target db\n"
             "alignment          \tCalculates Smith-Waterman alignment scores from prefilter output\n"

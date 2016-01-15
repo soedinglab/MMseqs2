@@ -6,7 +6,7 @@
 
 void printUsageFFindexMergeDb(){
     std::string usage("\nMerge multiple ffindex files based on similar id into one file. \n");
-    usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de).\n\n");
+    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n\n");
     usage.append("USAGE: <ffindexDB1> <ffindexDB2>\n");
     Debug(Debug::ERROR) << usage;
 }

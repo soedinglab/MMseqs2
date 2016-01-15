@@ -1,7 +1,7 @@
 #ifndef QUERY_SCORE_H
 #define QUERY_SCORE_H
 
-// Written by Martin Steinegger martin.steinegger@campus.lmu.de & Maria Hauser mhauser@genzentrum.lmu.de
+// Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de & Maria Hauser mhauser@genzentrum.lmu.de
 //
 // Calculates the overall prefiltering score for the template database sequences and returns all sequences
 // with the prefiltering score >= prefiltering threshold.

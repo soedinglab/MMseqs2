@@ -2,7 +2,7 @@
 #define SEQUENCE_H
 #define READ_BUFFER_SIZE 20971520
 
-// Written by Maria Hauser mhauser@genzentrum.lmu.de, Martin Steinegger Martin.Steinegger@campus.lmu.de
+// Written by Martin Steinegger & Maria Hauser mhauser@genzentrum.lmu.de, Martin Steinegger martin.steinegger@mpibpc.mpg.de
 // 
 // Represents a database sequence object, holds its representation in the int array form.
 //

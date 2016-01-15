@@ -78,15 +78,12 @@ Alignment::~Alignment(){
         delete matchers[i];
         delete[] outBuffers[i];
     }
-
     delete[] qSeqs;
     delete[] dbSeqs;
     delete[] matchers;
     delete[] dbKeys;
     delete[] outBuffers;
-
     delete m;
-
     delete qseqdbr;
     delete tseqdbr;
     delete prefdbr;
@@ -110,7 +107,7 @@ void Alignment::run (const unsigned int mpiRank, const unsigned int mpiNumProc,
 #endif
     if(mpiRank == 0){ // master reduces results
         std::vector<std::pair<std::string, std::string> > splitFiles;
-        for(int procs = 0; procs < mpiNumProc; procs++){
+        for(unsigned int procs = 0; procs < mpiNumProc; procs++){
             splitFiles.push_back(Util::createTmpFileNames(outDB, outDBIndex, procs));
         }
         // merge output ffindex databases
@@ -173,7 +170,6 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
         while (std::getline(lineSs, val, '\t') && passedNum < maxAlnNum && rejected < maxRejected){
             // DB key of the db sequence
             unsigned int dbKey = (unsigned int) std::strtoul(val.c_str(), NULL, 10);
-
             dbKeys[thread_idx] = dbKey;
             // sequence are identical if qID == dbID  (needed to cluster really short sequences)
             const bool isIdentiy = (queryDbKey == dbKey && sameQTDB) ? true : false;

@@ -20,7 +20,7 @@ int prefilter(int argc, const char **argv)
     MMseqsMPI::init(argc, argv);
 
     std::string usage("\nCalculates k-mer similarity scores between all sequences in the query database and all sequences in the target database.\n");
-    usage.append("Written by Martin Steinegger (Martin.Steinegger@campus.lmu.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n");
+    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n");
     usage.append("USAGE: prefilter <queryDB> <targetDB> <outDB> [opts]\n");
 
     Parameters par;
