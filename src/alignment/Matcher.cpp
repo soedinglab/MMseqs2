@@ -72,7 +72,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         scoreThr = 0;
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
-    s_align * alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, scoreThr, 0, maskLen);
+    s_align alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, scoreThr, 0, maskLen);
     // calculation of the coverage and e-value
     float qcov = 0.0;
     float dbcov = 0.0;
@@ -80,12 +80,12 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     // compute sequence identity
     std::string backtrace;
     if(mode == SCORE_COV_SEQID){
-        if(alignment->cigar){
-            backtrace.reserve(alignment->cigarLen);
-            int32_t targetPos = alignment->dbStartPos1, queryPos = alignment->qStartPos1;
-            for (int32_t c = 0; c < alignment->cigarLen; ++c) {
-                char letter = SmithWaterman::cigar_int_to_op(alignment->cigar[c]);
-                uint32_t length = SmithWaterman::cigar_int_to_len(alignment->cigar[c]);
+        if(alignment.cigar){
+            backtrace.reserve(alignment.cigarLen);
+            int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
+            for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+                char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
+                uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
                 for (uint32_t i = 0; i < length; ++i){
                     if (letter == 'M') {
                         if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
@@ -111,10 +111,10 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         }
     }
 
-    qStartPos = alignment->qStartPos1;
-    dbStartPos = alignment->dbStartPos1;
-    qEndPos = alignment->qEndPos1;
-    dbEndPos = alignment->dbEndPos1;
+    qStartPos = alignment.qStartPos1;
+    dbStartPos = alignment.dbStartPos1;
+    qEndPos = alignment.qEndPos1;
+    dbEndPos = alignment.dbEndPos1;
     // normalize score
 //    alignment->score1 = alignment->score1 - log2(dbSeq->L);
     if(mode == SCORE_COV || mode == SCORE_COV_SEQID) {
@@ -124,8 +124,8 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
 
     // statistics
     //  E =  qL dL * 2^(-S)
-    double evalue = BlastScoreUtils::computeEvalue(alignment->score1, kmnByLen[currentQuery->L], this->lambda);
-    int bitScore =(short) (BlastScoreUtils::computeBitScore(alignment->score1, lambdaLog2, logKLog2)+0.5);
+    double evalue = BlastScoreUtils::computeEvalue(alignment.score1, kmnByLen[currentQuery->L], this->lambda);
+    int bitScore =(short) (BlastScoreUtils::computeBitScore(alignment.score1, lambdaLog2, logKLog2)+0.5);
     size_t alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
 
     //blast stat
@@ -134,8 +134,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
 //    double Kmn=(qL * seqDbSize * dbSeq->L);
 //    double evalue = Kmn * exp(-(alignment->score1 * lambda));
     result_t result(dbSeq->getDbKey(), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbStartPos, dbEndPos, dbSeq->L, backtrace);
-    delete [] alignment->cigar;
-    delete alignment;
+    delete [] alignment.cigar;
     return result;
 }
 

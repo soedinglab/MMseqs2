@@ -88,14 +88,14 @@ int main (int argc, const char * argv[])
     float seqId = 1.0;
     int aaIds = 0;
 
-    s_align * alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 0, 0, maskLen);
-    if(alignment->cigar){
+    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 0, 0, maskLen);
+    if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 
-        int32_t targetPos = alignment->dbStartPos1, queryPos = alignment->qStartPos1;
-        for (int32_t c = 0; c < alignment->cigarLen; ++c) {
-            char letter = SmithWaterman::cigar_int_to_op(alignment->cigar[c]);
-            uint32_t length = SmithWaterman::cigar_int_to_len(alignment->cigar[c]);
+        int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
+        for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+            char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
+            uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
             for (uint32_t i = 0; i < length; ++i){
                 if (letter == 'M') {
                     fprintf(stdout,"%c",subMat.int2aa[s->int_sequence[queryPos]]);
@@ -126,12 +126,12 @@ int main (int argc, const char * argv[])
             }
         }
     }
-    std::cout <<  alignment->score1 << " " << alignment->qStartPos1  << " "<< alignment->qEndPos1 << " "
-    << alignment->dbStartPos1 << " "<< alignment->dbEndPos1 << std::endl;
+    std::cout <<  alignment.score1 << " " << alignment.qStartPos1  << " "<< alignment.qEndPos1 << " "
+    << alignment.dbStartPos1 << " "<< alignment.dbEndPos1 << std::endl;
     seqId = (float)aaIds/(float)(std::min(s->L, dbSeq->L)); //TODO
 
     std::cout << "Seqid: "<< seqId << " aaIds " << aaIds <<std::endl;
-    double evalue =  pow (2,-(double)alignment->score1/2);
+    double evalue =  pow (2,-(double)alignment.score1/2);
 
 
     //score* 1/lambda
@@ -151,10 +151,9 @@ int main (int argc, const char * argv[])
 //    double K= 0.041;
 //    double Kmn=(qL * seqDbSize * dbSeq->L);
     double Kmn=1.74e+12;
-    std::cout << dbSize/Kmn<< " " <<  Kmn * exp(-(alignment->score1 * lambda)) << std::endl;
+    std::cout << dbSize/Kmn<< " " <<  Kmn * exp(-(alignment.score1 * lambda)) << std::endl;
     delete [] tinySubMat;
-    delete [] alignment->cigar;
-    delete alignment;
+    delete [] alignment.cigar;
     delete s;
     delete dbSeq;
     return 0;

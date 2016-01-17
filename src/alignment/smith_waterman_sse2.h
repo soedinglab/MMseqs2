@@ -109,7 +109,7 @@ public:
      while bit 8 is not, the function will return cigar only when both criteria are fulfilled. All returned positions are
      0-based coordinate.
      */
-    s_align* ssw_align (const int*db_sequence,
+    s_align ssw_align (const int*db_sequence,
                         int32_t db_length,
                         const uint8_t gap_open,
                         const uint8_t gap_extend,
