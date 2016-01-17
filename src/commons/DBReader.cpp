@@ -21,6 +21,7 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
     this->indexFileName = new char [strlen(indexFileName_) + 1];
     memcpy(indexFileName, indexFileName_, sizeof(char) * (strlen(indexFileName_) + 1));
     closed = 1;
+    accessType = 0;
 }
 
 template <typename T> DBReader<T>::~DBReader(){
@@ -28,10 +29,10 @@ template <typename T> DBReader<T>::~DBReader(){
     delete[] indexFileName;
 }
 
-template <typename T> void DBReader<T>::open(int sort){
+template <typename T> void DBReader<T>::open(int accessType){
     // count the number of entries
     this->size = countLine(indexFileName);
-
+    this->accessType = accessType;
     // open ffindex
     if(dataMode == DATA_AND_INDEX){
         dataFile = fopen(dataFileName, "r");
@@ -46,8 +47,11 @@ template <typename T> void DBReader<T>::open(int sort){
     for(size_t i = 0; i < size; i++){
         sortArray[i] = std::make_pair( index[i], seqLens[i] );
     }
-    std::sort(sortArray, sortArray + size, compareIndexLengthPairById() );
-
+    if(accessType == LINEAR_ACCCESS){
+        std::sort(sortArray, sortArray + size, compareIndexLengthPairByOffset() );
+    }else{
+        std::sort(sortArray, sortArray + size, compareIndexLengthPairById() );
+    }
     for(size_t i = 0; i < size; ++i )
     {
         index[i].id = sortArray[i].first.id;
@@ -96,10 +100,13 @@ template <typename T> void DBReader<T>::close(){
 
 template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N, T value)
 {
+    if(accessType == LINEAR_ACCCESS){
+        Debug(Debug::ERROR) << "DBReader is just open in LINEAR_ACCESS mode. Call of bsearch is not allowed" << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     Index val;
     val.id = value;
     return std::upper_bound(index, index + N, val, Index::compareById) - index;
-
 }
 
 template <typename T> char* DBReader<T>::getData (size_t id){
@@ -246,6 +253,13 @@ template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
     return index[id].data - data;
 }
 
+
+template <typename T>  void DBReader<T>::unmapDataById(size_t id) {
+    if(dataMapped == true) {
+        munmap(index[id].data, seqLens[id]);
+    }
+}
+
+
 template class DBReader<unsigned int>;
 template class DBReader<std::string>;
-

@@ -58,6 +58,7 @@ public:
 
     static const int NOSORT = 0;
     static const int SORT = 1;
+    static const int LINEAR_ACCCESS = 2;
 
     static const int INDEXONLY = 1;
     static const int DATA_AND_INDEX = 0;
@@ -84,12 +85,21 @@ public:
 
     size_t getDataOffset(T i);
 
+    void unmapDataById(size_t id);
+
 private:
 
 
     struct compareIndexLengthPairById {
         bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
             return (lhs.first.id < rhs.first.id);
+        }
+    };
+
+
+    struct compareIndexLengthPairByOffset {
+        bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
+            return (lhs.first.data < rhs.first.data);
         }
     };
 
@@ -118,6 +128,7 @@ private:
     unsigned int *seqLens;
 
     bool dataMapped;
+    int accessType;
 };
 
 #endif
