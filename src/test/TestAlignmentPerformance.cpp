@@ -84,13 +84,13 @@ int main (int argc, const char * argv[])
         for(size_t seq_j = 0; seq_j < sequences.size(); seq_j++) {
             dbSeq->mapSequence(2, 2, sequences[seq_j].c_str());
             int32_t maskLen = query->L / 2;
-            s_align *alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, mode, 0, 0, maskLen);
+            s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, mode, 0, 0, maskLen);
             if(mode == 0 ){
                 cells += query->L * dbSeq->L;
-                std::cout << alignment->qEndPos1 << " " << alignment->dbEndPos1 << "\n";
+                std::cout << alignment.qEndPos1 << " " << alignment.dbEndPos1 << "\n";
             } else {
-                std::cout << alignment->qStartPos1 << " " << alignment->qEndPos1 << " "
-                        << alignment->dbStartPos1 << " " << alignment->dbEndPos1 << "\n";
+                std::cout << alignment.qStartPos1 << " " << alignment.qEndPos1 << " "
+                        << alignment.dbStartPos1 << " " << alignment.dbEndPos1 << "\n";
             }
         }
     }

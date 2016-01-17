@@ -117,7 +117,7 @@ void SmithWaterman::createQueryProfile(simd_int *profile, const int8_t *query_se
 }
 
 
-s_align* SmithWaterman::ssw_align (
+s_align SmithWaterman::ssw_align (
 		const int *db_sequence,
 		int32_t db_length,
 		const uint8_t gap_open,
@@ -130,11 +130,11 @@ s_align* SmithWaterman::ssw_align (
 	alignment_end* bests = 0, *bests_reverse = 0;
 	int32_t word = 0, query_length = profile->query_length;
 	cigar* path;
-	s_align* r = new s_align;
-	r->dbStartPos1 = -1;
-	r->qStartPos1 = -1;
-	r->cigar = 0;
-	r->cigarLen = 0;
+	s_align r;
+	r.dbStartPos1 = -1;
+	r.qStartPos1 = -1;
+	r.cigar = 0;
+	r.cigarLen = 0;
 	//if (maskLen < 15) {
 	//	fprintf(stderr, "When maskLen < 15, the function ssw_align doesn't return 2nd best alignment information.\n");
 	//}
@@ -149,31 +149,27 @@ s_align* SmithWaterman::ssw_align (
 			word = 1;
 		} else if (bests[0].score == 255) {
 			fprintf(stderr, "Please set 2 to the score_size parameter of the function ssw_init, otherwise the alignment results will be incorrect.\n");
-			delete r;
-			return NULL;
 		}
 	}else if (profile->profile_word) {
 		bests = sw_sse2_word(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_word, -1, maskLen);
 		word = 1;
 	}else {
 		fprintf(stderr, "Please call the function ssw_init before ssw_align.\n");
-		delete r;
-		return NULL;
 	}
-	r->score1 = bests[0].score;
-	r->dbEndPos1 = bests[0].ref;
-	r->qEndPos1 = bests[0].read;
+	r.score1 = bests[0].score;
+	r.dbEndPos1 = bests[0].ref;
+	r.qEndPos1 = bests[0].read;
 	if (maskLen >= 15) {
-		r->score2 = bests[1].score;
-		r->ref_end2 = bests[1].ref;
+		r.score2 = bests[1].score;
+		r.ref_end2 = bests[1].ref;
 	} else {
-		r->score2 = 0;
-		r->ref_end2 = -1;
+		r.score2 = 0;
+		r.ref_end2 = -1;
 	}
 	free(bests);
-	int32_t queryOffset = query_length - r->qEndPos1;
+	int32_t queryOffset = query_length - r.qEndPos1;
 
-	if (flag == 0 || ((flag == 2 || flag == 1) && r->score1 < filters)){
+	if (flag == 0 || ((flag == 2 || flag == 1) && r.score1 < filters)){
 		goto end;
 	}
 
@@ -181,49 +177,46 @@ s_align* SmithWaterman::ssw_align (
 	if (word == 0) {
 		if(profile->sequence_type == Sequence::HMM_PROFILE){
 			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_rev_byte, profile->query_rev_sequence, NULL, profile->mat_rev,
-																 r->qEndPos1 + 1, profile->alphabetSize, profile->bias, queryOffset, profile->query_length);
+																 r.qEndPos1 + 1, profile->alphabetSize, profile->bias, queryOffset, profile->query_length);
 		}else{
 			createQueryProfile<int8_t, VECSIZE_INT * 4, SUBSTITUTIONMATRIX>(profile->profile_rev_byte, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
-																			r->qEndPos1 + 1, profile->alphabetSize, profile->bias, queryOffset, 0);
+																			r.qEndPos1 + 1, profile->alphabetSize, profile->bias, queryOffset, 0);
 		}
-		bests_reverse = sw_sse2_byte(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_byte,
-									 r->score1, profile->bias, maskLen);
+		bests_reverse = sw_sse2_byte(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_byte,
+									 r.score1, profile->bias, maskLen);
 	} else {
 		if(profile->sequence_type == Sequence::HMM_PROFILE) {
 			createQueryProfile<int16_t, VECSIZE_INT * 2, PROFILE>(profile->profile_rev_word, profile->query_rev_sequence, NULL, profile->mat_rev,
-																  r->qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
+																  r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, profile->query_length);
 
 		}else{
 			createQueryProfile<int16_t, VECSIZE_INT * 2, SUBSTITUTIONMATRIX>(profile->profile_rev_word, profile->query_rev_sequence, profile->composition_bias_rev, profile->mat,
-																			 r->qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
+																			 r.qEndPos1 + 1, profile->alphabetSize, 0, queryOffset, 0);
 		}
-		bests_reverse = sw_sse2_word(db_sequence, 1, r->dbEndPos1 + 1, r->qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_word,
-									 r->score1, maskLen);
+		bests_reverse = sw_sse2_word(db_sequence, 1, r.dbEndPos1 + 1, r.qEndPos1 + 1, gap_open, gap_extend, profile->profile_rev_word,
+									 r.score1, maskLen);
 	}
-	if(bests_reverse->score != r->score1){
+	if(bests_reverse->score != r.score1){
 		fprintf(stderr, "Score of forward/backward SW differ. This should not happen.\n");
-		delete r;
-		return NULL;
 	}
 
-	r->dbStartPos1 = bests_reverse[0].ref;
-	r->qStartPos1 = r->qEndPos1 - bests_reverse[0].read;
+	r.dbStartPos1 = bests_reverse[0].ref;
+	r.qStartPos1 = r.qEndPos1 - bests_reverse[0].read;
 
 	free(bests_reverse);
 	if (flag == 1) // just start and end point are needed
 		goto end;
 
 	// Generate cigar.
-	path = banded_sw(db_sequence,(const short **) profile->profile_word_linear, r->qStartPos1, r->qEndPos1 + 1,
-					 r->dbStartPos1, r->dbEndPos1 + 1, gap_open, gap_extend);
+	path = banded_sw(db_sequence,(const short **) profile->profile_word_linear, r.qStartPos1, r.qEndPos1 + 1,
+					 r.dbStartPos1, r.dbEndPos1 + 1, gap_open, gap_extend);
 
 	if (path == 0) {
-		delete r;
-		r = NULL;
+		;
 	}
 	else {
-		r->cigar = path->seq;
-		r->cigarLen = path->length;
+		r.cigar = path->seq;
+		r.cigarLen = path->length;
 	}	delete(path);
 
 

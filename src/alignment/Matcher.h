@@ -41,7 +41,6 @@ public:
         unsigned int dbStartPos;
         unsigned int dbEndPos;
         unsigned int dbLen;
-
         std::string backtrace;
         result_t(unsigned int dbkey,int score,
                  float qcov, float dbcov,

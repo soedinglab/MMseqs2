@@ -53,14 +53,14 @@ int main (int argc, const char * argv[])
     int32_t maskLen = s->L / 2;
     int gap_open = 10;
     int gap_extend = 1;
-    s_align * alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 55, 0, maskLen);
-    if(alignment->cigar){
+    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 55, 0, maskLen);
+    if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 
-        int32_t targetPos = alignment->dbStartPos1, queryPos = alignment->qStartPos1;
-        for (int32_t c = 0; c < alignment->cigarLen; ++c) {
-            char letter = SmithWaterman::cigar_int_to_op(alignment->cigar[c]);
-            uint32_t length = SmithWaterman::cigar_int_to_len(alignment->cigar[c]);
+        int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
+        for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+            char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
+            uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
             for (uint32_t i = 0; i < length; ++i){
                 if (letter == 'M') {
                     fprintf(stdout,"%c",subMat.int2aa[dbSeq->int_sequence[targetPos]]);
@@ -84,11 +84,10 @@ int main (int argc, const char * argv[])
             }
         }
     }
-    std::cout << alignment->score1 << " "<< alignment->qEndPos1 << " " << alignment->qStartPos1  << " "<< alignment->qEndPos1 << " "
-            << alignment->dbStartPos1 << " "<< alignment->dbEndPos1 << std::endl;
+    std::cout << alignment.score1 << " "<< alignment.qEndPos1 << " " << alignment.qStartPos1  << " "<< alignment.qEndPos1 << " "
+            << alignment.dbStartPos1 << " "<< alignment.dbEndPos1 << std::endl;
     delete [] tinySubMat;
-    delete [] alignment->cigar;
-    delete alignment;
+    delete [] alignment.cigar;
     delete s;
     delete dbSeq;
     return 0;
