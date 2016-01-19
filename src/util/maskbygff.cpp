@@ -101,7 +101,7 @@ int maskbygff(int argn, const char** argv) {
     std::string headerFilename(par.db2);
     headerFilename.append("_h");
 
-    std::string headerIndexFilename(par.db2Index);
+    std::string headerIndexFilename(par.db2);
     headerIndexFilename.append("_h.index");
 
     DBReader<std::string> headerReader(headerFilename.c_str(), headerIndexFilename.c_str());
@@ -113,7 +113,7 @@ int maskbygff(int argn, const char** argv) {
     std::string headerOutFilename(par.db3);
     headerOutFilename.append("_h");
 
-    std::string headerIndexOutFilename(par.db3Index);
+    std::string headerIndexOutFilename(par.db3);
     headerIndexOutFilename.append("_h.index");
 
     DBWriter headerWriter(headerOutFilename.c_str(), headerIndexOutFilename.c_str());
