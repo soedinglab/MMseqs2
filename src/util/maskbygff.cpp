@@ -84,7 +84,7 @@ int maskbygff(int argn, const char** argv) {
         }
 
         char* body = index[id].data;
-        for (char* i = body + start; i != body + end; ++i)
+        for (char* i = body + start; i <= body + end; ++i)
         {
             *i = 'X';
         }
@@ -95,7 +95,7 @@ int maskbygff(int argn, const char** argv) {
     unsigned int* seqLengths = ffindexReader.getSeqLens();
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str());
     writer.open();
-    for(size_t i = 0; i <= ffindexReader.getSize(); ++i ) {
+    for(size_t i = 0; i < ffindexReader.getSize(); ++i ) {
         writer.write(index[i].data, seqLengths[i], index[i].id.c_str());
     }
     writer.close();
