@@ -19,8 +19,8 @@
 
 int gff2ffindex(int argn, const char **argv) {
     std::string usage("Converts a gff file and the matching ffindex database into a ffindex.\n");
-    usage.append("USAGE: <gff3>  <ffindexInDB> <ffindexOutDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
+    usage.append("USAGE: <gff3> <ffindexInDB> <ffindexOutDB>\n");
+    usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.gff2ffindex, 3);
