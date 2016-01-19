@@ -87,6 +87,10 @@ public:
 
     void unmapDataById(size_t id);
 
+    Index* getIndex() {
+        return index;
+    }
+
 private:
 
 
