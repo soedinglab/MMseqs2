@@ -124,7 +124,7 @@ int gff2ffindex(int argn, const char **argv) {
 
         std::string id;
         if (par.useHeader) {
-            id = Util::parseFastaHeader(body);
+            id = Util::parseFastaHeader(header);
         } else {
             id = SSTR(par.identifierOffset + entries_num);
         }
