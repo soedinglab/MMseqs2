@@ -125,7 +125,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
 DBReader<unsigned int>*PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr) {
     std::string filePath(dbr->getDataFileName());
     std::string fullPath = filePath + std::string(".mmseqsindex");
-    DBReader<unsigned int>*reader = new DBReader<unsigned int>("", fullPath.c_str(), DBReader<unsigned int>::INDEXONLY);
+    DBReader<unsigned int>*reader = new DBReader<unsigned int>("", fullPath.c_str(), 0);
     reader->open(DBReader<unsigned int>::SORT);
     return reader;
 }
