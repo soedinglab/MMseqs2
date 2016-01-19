@@ -20,7 +20,8 @@ int maskbygff(int argn, const char** argv) {
     par.parseParameters(argn, argv, usage, par.gff2ffindex, 3);
     Debug::setDebugLevel(par.verbosity);
 
-    DBReader<std::string> ffindexReader(par.db2.c_str(), par.db2Index.c_str(), DBReader<std::string>::USE_DATA | DBReader<std::string>::USE_WRITABLE);
+    DBReader<std::string> ffindexReader(par.db2.c_str(), par.db2Index.c_str(),
+                                        DBReader<std::string>::USE_DATA | DBReader<std::string>::USE_WRITABLE);
     ffindexReader.open(DBReader<std::string>::NOSORT);
 
     bool shouldCompareType = par.gffType.length() > 0;
@@ -93,11 +94,43 @@ int maskbygff(int argn, const char** argv) {
     gffFile.close();
 
     unsigned int* seqLengths = ffindexReader.getSeqLens();
+
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str());
     writer.open();
+
+    std::string headerFilename(par.db2);
+    headerFilename.append("_h");
+
+    std::string headerIndexFilename(par.db2Index);
+    headerIndexFilename.append("_h.index");
+
+    DBReader<std::string> headerReader(headerFilename.c_str(), headerIndexFilename.c_str());
+    headerReader.open(DBReader<std::string>::NOSORT);
+
+    DBReader<std::string>::Index* headerIndex = headerReader.getIndex();
+    unsigned int* headerLengths = ffindexReader.getSeqLens();
+
+    std::string headerOutFilename(par.db3);
+    headerOutFilename.append("_h");
+
+    std::string headerIndexOutFilename(par.db3Index);
+    headerIndexOutFilename.append("_h.index");
+
+    DBWriter headerWriter(headerOutFilename.c_str(), headerIndexOutFilename.c_str());
+    headerWriter.open();
+
     for(size_t i = 0; i < ffindexReader.getSize(); ++i ) {
-        writer.write(index[i].data, seqLengths[i], index[i].id.c_str());
+        std::string id;
+        if (par.useHeader) {
+            id = index[i].id;
+        } else {
+            id = SSTR(par.identifierOffset + i);
+        }
+
+        writer.write(index[i].data, seqLengths[i], id.c_str());
+        headerWriter.write(headerIndex[i].data, headerLengths[i], id.c_str());
     }
+    headerWriter.close();
     writer.close();
 
     return EXIT_SUCCESS;
