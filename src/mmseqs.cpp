@@ -39,7 +39,8 @@ static struct Command commands[] = {
     {"rebuildfasta",        rebuildfasta,           &par.rebuildfasta},
     {"splitffindex",        splitffindex,           &par.splitffindex},
     {"gff2ffindex",         gff2ffindex ,           &par.gff2ffindex},
-    {"shellcompletion",     shellcompletion,        &par.empty}
+    {"shellcompletion",     shellcompletion,        &par.empty},
+    {"maskbygff",           maskbygff,              &par.gff2ffindex}
 };
 
 
@@ -69,6 +70,7 @@ void printUsage() {
             "legacycs219        \tTranslates a cs219 ffindex database into its legacy format. This tool is part of the mmseqs-based HH-suite database pipeline\n"
             "rebuildfasta       \tRebuild a fasta file from a ffindex database\n"
             "gff2ffindex        \tTurn a GFF3 file into a ffindex database\n"
+            "maskbygff          \tMasks the sequences in an ffindex database by the selected rows in a gff file"
     );
     Debug(Debug::INFO) << usage << "\n";
 }

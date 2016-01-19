@@ -19,6 +19,7 @@ set(util_source_files
   ffindex2tsv.cpp
   rebuildfasta.cpp
   gff2ffindex.cpp
+  maskbygff.cpp
 )
 add_library(util ${util_source_files} )
 
