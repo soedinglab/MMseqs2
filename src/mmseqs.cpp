@@ -34,7 +34,6 @@ static struct Command commands[] = {
     {"translatenucleotide", translatenucleotide,    &par.onlyverbosity},
     {"timetest",            timetest,               &par.empty},
     {"legacycs219",         legacycs219,            &par.onlyverbosity},
-    {"findsorf",            findsorf,               &par.onlyverbosity},
     {"resulttoprofiledb",   result2profile,         &par.createprofiledb},
     {"rebuildfasta",        rebuildfasta,           &par.rebuildfasta},
     {"splitffindex",        splitffindex,           &par.splitffindex},

@@ -20,6 +20,7 @@ set(util_source_files
   rebuildfasta.cpp
   gff2ffindex.cpp
   maskbygff.cpp
+  extract_orf.cpp
 )
 add_library(util ${util_source_files} )
 
