@@ -42,7 +42,7 @@ int addsequences(int argc, const char **argv)
         char* data = clusters.getData(i);
 
         if(par.minSequences > 1) {
-            size_t entries = Util::count_lines(data, dataLengths[i] - 1);
+            size_t entries = Util::countLines(data, dataLengths[i] - 1);
             if(entries < par.minSequences) {
                 continue;
             }

@@ -34,7 +34,7 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
 
     const char * data = alnDbr->getData();
     size_t dataSize = alnDbr->getDataSize();
-    size_t elementCount = Util::count_lines(data, dataSize);
+    size_t elementCount = Util::countLines(data, dataSize);
     unsigned int * elements = new unsigned int[elementCount];
     unsigned int ** elementLookupTable = new unsigned int*[dbSize];
     size_t *elementOffsets = new size_t[dbSize + 1];
@@ -60,7 +60,7 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
         seqDbrIdToalnDBrId[i]=alnId;
         char *data = alnDbr->getData(alnId);
         size_t dataSize = alnDbr->getSeqLens()[alnId];
-        size_t elementCount = Util::count_lines(data, dataSize);
+        size_t elementCount = Util::countLines(data, dataSize);
         elementOffsets[i] = elementCount;
     }
 
