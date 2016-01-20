@@ -108,7 +108,7 @@ int maskbygff(int argn, const char** argv) {
     headerReader.open(DBReader<std::string>::NOSORT);
 
     DBReader<std::string>::Index* headerIndex = headerReader.getIndex();
-    unsigned int* headerLengths = ffindexReader.getSeqLens();
+    unsigned int* headerLengths = headerReader.getSeqLens();
 
     std::string headerOutFilename(par.db3);
     headerOutFilename.append("_h");
