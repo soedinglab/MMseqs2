@@ -127,8 +127,9 @@ int maskbygff(int argn, const char** argv) {
             id = SSTR(par.identifierOffset + i);
         }
 
-        writer.write(index[i].data, seqLengths[i], id.c_str());
-        headerWriter.write(headerIndex[i].data, headerLengths[i], id.c_str());
+        // ignore nulls
+        writer.write(index[i].data, seqLengths[i] - 1, id.c_str());
+        headerWriter.write(headerIndex[i].data, headerLengths[i] - 1, id.c_str());
     }
     headerWriter.close();
     writer.close();
