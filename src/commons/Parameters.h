@@ -143,6 +143,9 @@ public:
 
     // gff2ffindex
     std::string gffType;
+
+    // translate nucleotide
+    int translationTable;
     
     void setDefaultPaths();
     void setDefaults();
@@ -224,6 +227,9 @@ public:
     // gff2ffindex
     PARAMETER(PARAM_GFF_TYPE)
 
+    // translate_nucleotide
+    PARAMETER(PARAM_TRANSLATION_TABLE)
+
     std::vector<MMseqsParameter> empty;
 
     std::vector<MMseqsParameter> onlyverbosity;
@@ -239,6 +245,7 @@ public:
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdate;
+    std::vector<MMseqsParameter> translateNucleotide;
 
     std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
                                               std::vector < MMseqsParameter > par2);
