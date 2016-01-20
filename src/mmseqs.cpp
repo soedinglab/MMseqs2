@@ -27,11 +27,11 @@ static struct Command commands[] = {
     {"createindex",         createindex,            &par.formatalignment},
     {"mergeffindex",        mergeffindex,           &par.empty},
     {"mergecluster",        mergecluster,           &par.onlyverbosity},
-    {"clustertofastadb",    clusteringtofastadb,    &par.empty},
+    {"addsequences",        addsequences,           &par.addSequences},
     {"swapresults",         swapresults,            &par.empty},
     {"extractorf",          extractorf,             &par.extractorf},
     {"createprofiledb",     createprofiledb,        &par.createprofiledb},
-    {"translatenucleotide", translatenucleotide,    &par.onlyverbosity},
+    {"translatenucleotide", translatenucleotide,    &par.translateNucleotide},
     {"timetest",            timetest,               &par.empty},
     {"legacycs219",         legacycs219,            &par.onlyverbosity},
     {"resulttoprofiledb",   result2profile,         &par.createprofiledb},
@@ -60,7 +60,7 @@ void printUsage() {
             "formatalignment    \tConvert a ffindex alignment database to BLAST tab or SAM flat file.\n"
             "createprofiledb    \tConvert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database.\n"
             "swapresults        \tSwaps results from the mapping A->A,B,C to A -> A, B -> A, C -> A\n"
-            "clustertofastadb   \tConvert Convert mmseqs clustering to ffindex indexed fasta format\n"
+            "addsequences       \tAdds sequences in fasta format to an mmseqs clustering\n"
             "clustertoprofiledb \tCalculates profile from clustering\n"
             "mergeffindex       \tMerge multiple ffindex files based on similar id into one file\n"
             "splitffindex       \tSplits a ffindex database into multiple ffindex databases.\n"
