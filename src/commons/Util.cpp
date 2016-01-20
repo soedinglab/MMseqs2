@@ -8,7 +8,7 @@ KSEQ_INIT(int, read)
 
 #include <sys/stat.h>
 
-size_t Util::count_lines(const char* data, size_t length) {
+size_t Util::countLines(const char *data, size_t length) {
     size_t newlines = 0;
     for (size_t i = 0; i < length; i++ ) {
         if (data[i] == '\n' ) {
@@ -18,9 +18,9 @@ size_t Util::count_lines(const char* data, size_t length) {
     return newlines;
 }
 
-void Util::decompose_domain(size_t domain_size, size_t world_rank,
-        size_t world_size, size_t *subdomain_start,
-        size_t *subdomain_size) {
+void Util::decomposeDomain(size_t domain_size, size_t world_rank,
+                           size_t world_size, size_t *subdomain_start,
+                           size_t *subdomain_size) {
     if (world_size > domain_size) {
         // Don't worry about this special case. Assume the domain size
         // is greater than the world size.

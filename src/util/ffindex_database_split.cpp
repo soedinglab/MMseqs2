@@ -45,7 +45,7 @@ int splitffindex (int argc, const char * argv[])
         if(par.splitAA) {
             Util::decomposeDomainByAminoaAcid(dbr.getAminoAcidDBSize(), sizes, size, split, par.split, &startIndex, &domainSize);
         } else {
-            Util::decompose_domain(size, split, par.split, &startIndex, &domainSize);
+            Util::decomposeDomain(size, split, par.split, &startIndex, &domainSize);
         }
 
         for(size_t i = startIndex; i < (startIndex + domainSize); i++){

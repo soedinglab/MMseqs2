@@ -22,7 +22,7 @@ void AlignmentSymmetry::execute() {
     struct timeval start, end;
     const char * data = alnDbr->getData();
     size_t dataSize = alnDbr->getDataSize();
-    size_t elementCount = Util::count_lines(data, dataSize);
+    size_t elementCount = Util::countLines(data, dataSize);
     unsigned int * elements = new unsigned int[elementCount];
     unsigned int ** elementLookupTable = new unsigned int*[dbSize];
     size_t *elementOffsets = new size_t[dbSize + 1];
@@ -35,7 +35,7 @@ void AlignmentSymmetry::execute() {
         const size_t alnId = alnDbr->getId(clusterId);
         char *data = alnDbr->getData(alnId);
         size_t dataSize = alnDbr->getSeqLens()[alnId];
-        size_t elementCount = Util::count_lines(data, dataSize);
+        size_t elementCount = Util::countLines(data, dataSize);
         elementOffsets[i] = elementCount;
     }
     // make offset table
