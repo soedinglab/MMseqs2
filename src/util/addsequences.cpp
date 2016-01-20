@@ -50,8 +50,17 @@ int addsequences(int argc, const char **argv)
 
         std::string entry;
         std::istringstream clusterEntries(data);
+        size_t entries_num = 0;
 		while (std::getline(clusterEntries, entry)) {
-            unsigned int entryId = strtoul(entry.c_str(), NULL, 10);
+            entries_num++;
+
+            char* rest;
+            unsigned int entryId = strtoul(entry.c_str(), &rest, 10);
+            if ((rest != entry.c_str() && *rest != '\0') || errno == ERANGE) {
+                Debug(Debug::WARNING) << "Invalid entry in line " << entries_num << "!\n";
+                continue;
+            }
+
 			char* header = headers.getDataByDBKey(entryId);
             if(header == NULL) {
                 Debug(Debug::WARNING) << "Entry " << entry << " does not contain a header!" << "\n";
