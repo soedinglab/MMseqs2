@@ -14,7 +14,6 @@ if(GMOCK_FOUND)
 	target_link_libraries(unit_tests util)
 	target_link_libraries(unit_tests workflow)
 	target_link_libraries(unit_tests ffindex)
-	target_link_libraries(unit_tests orf)
 
 	target_link_libraries(unit_tests ${GMOCK_BOTH_LIBRARIES})
 endif()
