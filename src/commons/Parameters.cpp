@@ -55,7 +55,8 @@ Parameters::Parameters():
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "\tUse the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "[int]\tNumeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "\tUse the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
-        PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "\tType in the GFF file to filter by",typeid(std::string),(void *) &gffType, "")
+        PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "\tType in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
+        PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "\t1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (default=1, Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)")
 {
     // alignment
     alignment.push_back(PARAM_E);
@@ -160,6 +161,10 @@ Parameters::Parameters():
 
     clusterUpdate = combineList(alignment, prefilter);
     clusterUpdate = combineList(clusterUpdate, clustering);
+
+    // translate nucleotide
+    translateNucleotide.push_back(PARAM_TRANSLATION_TABLE);
+    translateNucleotide.push_back(PARAM_V);
 
     setDefaults();
 }
@@ -433,6 +438,9 @@ void Parameters::setDefaults() {
 
     // rebuildfasta
     useHeaderFile = false;
+
+    // translate nucleotide
+    translationTable = 1;
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> par1,
