@@ -7,32 +7,49 @@
 
 #include "Util.h"
 
-int clusteringtofastadb (int argc, const char **argv)
+int addsequences(int argc, const char **argv)
 {
-    std::string usage("Convert a mmseqs ffindex clustering to an clustering fasta format.\n");
+    std::string usage("Adds sequences in fasta format to an mmseqs clustering.\n");
     usage.append("Written by Milot Mirdita (milot@mirdita.de).\n");
-    usage.append("USAGE:  <clusteredDB> <fastaHeaderInDB> <fastaBodyInDB> <fastaOut>\n");
+    usage.append("USAGE: <clusteredDB> <fastaInDB> <fastaOut>\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.onlyverbosity, 4);
+    par.parseParameters(argc, argv, usage, par.addSequences, 3);
 
     DBReader<unsigned int> clusters(par.db1.c_str(), par.db1Index.c_str());
     clusters.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> headers(par.db2.c_str(), par.db2Index.c_str());
-    headers.open(DBReader<unsigned int>::NOSORT);
-
-    DBReader<unsigned int> bodies(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> bodies(par.db2.c_str(), par.db2Index.c_str());
     bodies.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter msaOut(par.db4.c_str(), par.db4Index.c_str());
+    std::string headerFilename(par.db2);
+    headerFilename.append("_h");
+
+    std::string headerIndexFilename(par.db2);
+    headerIndexFilename.append("_h.index");
+
+    DBReader<unsigned int> headers(headerFilename.c_str(), headerIndexFilename.c_str());
+    headers.open(DBReader<unsigned int>::NOSORT);
+
+    DBWriter msaOut(par.db3.c_str(), par.db3Index.c_str());
     msaOut.open();
+
+    unsigned int* dataLengths = clusters.getSeqLens();
 
 	for (size_t i = 0; i < clusters.getSize(); i++){
 		std::ostringstream fastaStream;
 
+        char* data = clusters.getData(i);
+
+        if(par.minSequences > 1) {
+            size_t entries = Util::count_lines(data, dataLengths[i] - 1);
+            if(entries < par.minSequences) {
+                continue;
+            }
+        }
+
         std::string entry;
-        std::istringstream clusterEntries(clusters.getData(i));
+        std::istringstream clusterEntries(data);
 		while (std::getline(clusterEntries, entry)) {
             unsigned int entryId = strtoul(entry.c_str(), NULL, 10);
 			char* header = headers.getDataByDBKey(entryId);
@@ -56,8 +73,8 @@ int clusteringtofastadb (int argc, const char **argv)
     }
 
 	msaOut.close();
-    bodies.close();
     headers.close();
+    bodies.close();
     clusters.close();
 
     return EXIT_SUCCESS;

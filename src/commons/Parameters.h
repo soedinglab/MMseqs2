@@ -146,6 +146,9 @@ public:
 
     // translate nucleotide
     int translationTable;
+
+    // addSequences
+    int minSequences;
     
     void setDefaultPaths();
     void setDefaults();
@@ -230,6 +233,9 @@ public:
     // translate_nucleotide
     PARAMETER(PARAM_TRANSLATION_TABLE)
 
+    // addsequences
+    PARAMETER(PARAM_MIN_SEQUENCES)
+
     std::vector<MMseqsParameter> empty;
 
     std::vector<MMseqsParameter> onlyverbosity;
@@ -246,6 +252,7 @@ public:
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdate;
     std::vector<MMseqsParameter> translateNucleotide;
+    std::vector<MMseqsParameter> addSequences;
 
     std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
                                               std::vector < MMseqsParameter > par2);

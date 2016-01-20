@@ -18,7 +18,7 @@ mkdir -p ${TMPDIR}
 MPIRUNNER=mpirun
 FASTADB="${TMPDIR}/hhsuite_database.$RANDOM"
 #FASTADB="/cbscratch/martin/unref50/uniref50"
-mmseqs clustertofastadb ${CLUSTERDB} ${INDB}_h ${INDB} ${FASTADB}
+mmseqs addsequences ${CLUSTERDB} ${INDB} ${FASTADB}
 
 #MPIARGS="--hostfile $HOME/soeding/hostfile_cip -np 30"
 #MPIARGS="-np 32"

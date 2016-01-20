@@ -8,10 +8,10 @@ KSEQ_INIT(int, read)
 
 #include <sys/stat.h>
 
-size_t Util::count_lines(const char * file, size_t endPos ) {
+size_t Util::count_lines(const char* data, size_t length) {
     size_t newlines = 0;
-    for ( size_t i = 0; i < endPos; i++ ) {
-        if ( file[i] == '\n' ) {
+    for (size_t i = 0; i < length; i++ ) {
+        if (data[i] == '\n' ) {
             newlines++;
         }
     }
