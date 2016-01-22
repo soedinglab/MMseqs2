@@ -103,10 +103,13 @@ public:
 
     // ALIGNMENT
     std::string ffindexPrefDB;           // prefilter database (input for alignment module)
+    int alignmentMode;                   // alignment mode 0=fastest on parameters,
+                                         // 1=score only, 2=score, cov, start/end pos, 3=score, cov, start/end pos, seq.id,
     float  evalThr;                      // e-value threshold for acceptance
     float  covThr;                       // coverage threshold for acceptance
     int    maxRejected;                  // after n sequences that are above eval stop
     float  seqIdThr;                     // sequence identity threshold for acceptance
+    bool   fragmentMerge;
 
     // CLUSTERING
     std::string ffindexAlnDBBase;
@@ -207,10 +210,14 @@ public:
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
+    PARAMETER(PARAM_ALIGNMENT_MODE);
     PARAMETER(PARAM_E);
     PARAMETER(PARAM_C);
+    PARAMETER(PARAM_FRAG_MERGE);
+
     PARAMETER(PARAM_MAX_REJECTED);
     PARAMETER(PARAM_MIN_SEQ_ID);
+
     std::vector<MMseqsParameter> alignment;
 
     // clustering
