@@ -1,18 +1,9 @@
 #ifndef ORF_H
 #define ORF_H
-#pragma once
 
 #include <vector>
 #include <string>
 
-//
-// class Orf implements a simple open reading frame search.
-//
-// This class reports, as a series of seq-locs, all the possible open
-// reading frames in a given sequence.  The sequence can be represented
-// as either
-/// This class provides functions for finding all the ORFs
-/// of a specified minimum length in a DNA sequence.
 class Orf
 {
 public:
@@ -46,7 +37,9 @@ public:
     void FindOrfs(std::vector<SequenceLocation>& results,
                   size_t minLength = 1,
                   size_t maxLength = SIZE_MAX,
-                  size_t maxGaps = 30);
+                  size_t maxGaps = 30,
+                  int forwardFrames = FRAME_1 | FRAME_2 | FRAME_3,
+                  int reverseFrames = FRAME_1 | FRAME_2 | FRAME_3);
 
     std::string View(SequenceLocation& location);
     

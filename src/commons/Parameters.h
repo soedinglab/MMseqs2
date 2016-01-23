@@ -126,6 +126,8 @@ public:
     int orfMaxLength;
     int orfMaxGaps;
     bool   orfSkipIncomplete;
+    std::string forwardFrames;
+    std::string reverseFrames;
 
     // CREATE PROFILE
     int profileMode;
@@ -212,13 +214,17 @@ public:
     // clustering workflow
     PARAMETER(PARAM_RESTART);
     PARAMETER(PARAM_STEP);
+
     // search workflow
     PARAMETER(PARAM_NUM_ITERATIONS);
+
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH);
     PARAMETER(PARAM_ORF_MAX_LENGTH);
     PARAMETER(PARAM_ORF_MAX_GAP);
     PARAMETER(PARAM_ORF_SKIP_INCOMPLETE);
+    PARAMETER(PARAM_ORF_FORWARD_FRAMES);
+    PARAMETER(PARAM_ORF_REVERSE_FRAMES);
 
     // createdb
     PARAMETER(PARAM_USE_HEADER); // also used by extractorf
