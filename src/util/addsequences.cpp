@@ -43,7 +43,7 @@ int addsequences(int argc, const char **argv)
 
         if(par.minSequences > 1) {
             size_t entries = Util::countLines(data, dataLengths[i] - 1);
-            if(entries < par.minSequences) {
+            if(entries < (unsigned int) par.minSequences) {
                 continue;
             }
         }
