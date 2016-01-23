@@ -55,12 +55,12 @@ int extractorf(int argn, const char** argv)
         orf.FindOrfs(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps);
 
         char* header = headerReader.getData(i);
-        size_t headerLength = headerReader.getSeqLens(i);
+        size_t headerLength = headerReader.getSeqLens(i) - 1;
 
         // remove newline in header
-        char headerBuffer[headerLength - 1];
-        strncpy(headerBuffer, header, headerLength - 1);
-        headerBuffer[headerLength - 2] = '\0';
+        char headerBuffer[headerLength];
+        strncpy(headerBuffer, header, headerLength);
+        headerBuffer[headerLength - 1] = '\0';
 
         size_t orfNum = 0;
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
