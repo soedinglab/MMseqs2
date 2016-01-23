@@ -54,7 +54,9 @@ std::string Orf::View(SequenceLocation& location) {
 void Orf::FindOrfs(std::vector<Orf::SequenceLocation>& results,
                     size_t minLength,
                     size_t maxLength,
-                    size_t maxGaps)
+                    size_t maxGaps,
+                    int forwardFrames,
+                    int reverseFrames)
 {
     std::vector<Orf::SequenceLocation> resForward;
     std::vector<Orf::SequenceLocation> resBackward;
@@ -65,7 +67,7 @@ void Orf::FindOrfs(std::vector<Orf::SequenceLocation>& results,
         {
 
             FindForwardOrfs(sequence, sequenceLength, resForward,
-                            minLength, maxLength, maxGaps, FRAME_1 | FRAME_2 | FRAME_3, STRAND_PLUS);
+                            minLength, maxLength, maxGaps, forwardFrames, STRAND_PLUS);
         }
         
         // find ORFs on the reverse complement
@@ -73,7 +75,7 @@ void Orf::FindOrfs(std::vector<Orf::SequenceLocation>& results,
         {
 
             FindForwardOrfs(reverseComplement, sequenceLength, resBackward,
-                            minLength, maxLength, maxGaps, FRAME_1 | FRAME_2 | FRAME_3, STRAND_MINUS);
+                            minLength, maxLength, maxGaps, reverseFrames, STRAND_MINUS);
         }
     }
 
@@ -118,6 +120,8 @@ inline bool isStop(const char* codon) {
 
 void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Orf::SequenceLocation>& ranges,
     size_t minLength, size_t maxLength, size_t maxGaps, int frames, Orf::Strand strand) {
+    if (frames == 0)
+        return;
 
     // An open reading frame can beginning in any of the three codon start position
     // Frame 0:  AGA ATT GCC TGA ATA AAA GGA TTA CCT TGA TAG GGT AAA
