@@ -35,7 +35,14 @@ class SubstitutionMatrix: public BaseMatrix {
 
         static void calcLocalAaBiasCorrection(const BaseMatrix *m ,const int *int_sequence, const int N, float *compositionBias);
 
-    private:
+        static void calcGlobalAaBiasCorrection(const BaseMatrix *m,
+                                               const short *profileScores,
+                                               const unsigned int *profileIndex,
+                                               const size_t profileAASize,
+                                               const int N,
+                                               float * compositionBias);
+
+private:
 
         const char* scoringMatrixFileName;
 

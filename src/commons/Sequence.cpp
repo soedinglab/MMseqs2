@@ -2,16 +2,12 @@
 #include "Debug.h"
 #include "Util.h"
 #include "simd.h"
-
 #include <limits.h> // short_max
 
 
-Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType, const unsigned int kmerSize, const bool spaced)
+Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
+                   int seqType, const unsigned int kmerSize, const bool spaced)
 {
-    if(aa2int == NULL){
-        Debug(Debug::ERROR) << "BaseMatrix must be set in Sequence (Profile Mode)\n";
-        EXIT(EXIT_FAILURE);
-    }
     this->int_sequence = new int[maxLen];
     this->maxLen = maxLen;
     this->aa2int = aa2int;
