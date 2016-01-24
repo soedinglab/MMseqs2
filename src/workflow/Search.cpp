@@ -22,11 +22,11 @@ int search(int argc, const char *argv[]) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("PROFILE_PAR", par.createParameterString(par.createprofiledb));
-        cmd.execProgram(par.mmdir + "/bin/blastpgp.sh", argc, argv);
+        cmd.execProgram(par.mmdir + "/bin/blastpgp.sh", 4, argv);
     } else {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
-        cmd.execProgram(par.mmdir + "/bin/blastp.sh", argc, argv);
+        cmd.execProgram(par.mmdir + "/bin/blastp.sh", 4, argv);
     }
 
     // Should never get here
