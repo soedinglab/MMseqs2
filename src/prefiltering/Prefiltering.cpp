@@ -54,11 +54,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     qdbr->open(DBReader<unsigned int>::NOSORT);
 
     this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
-    if(par.searchMode == Parameters::SEARCH_LOCAL || par.searchMode == Parameters::SEARCH_LOCAL_FAST){
-        tdbr->open(DBReader<unsigned int>::NOSORT);
-    }else{
-        tdbr->open(DBReader<unsigned int>::SORT);
-    }
+    tdbr->open(DBReader<unsigned int>::NOSORT);
+
     sameQTDB = (queryDB.compare(targetDB) == 0);
 
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
@@ -497,7 +494,7 @@ void Prefiltering::printStatistics(statistics_t &stats, size_t empty) {
     }
 
 //    size_t prefRealPassedPerSeq = realResSize/queryDBSize;
-    Debug(Debug::INFO) << stats.kmersPerPos << " k-mers per position.\n";
+    Debug(Debug::INFO) << "\n" << stats.kmersPerPos << " k-mers per position.\n";
     Debug(Debug::INFO) << stats.dbMatches << " DB matches per sequence.\n";
     if(searchMode){
         Debug(Debug::INFO) << stats.doubleMatches << " Double diagonal matches per sequence.\n";

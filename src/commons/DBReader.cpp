@@ -49,7 +49,7 @@ template <typename T> void DBReader<T>::open(int accessType){
     }
     if(accessType == LINEAR_ACCCESS){
         std::sort(sortArray, sortArray + size, compareIndexLengthPairByOffset() );
-    }else{
+    } else {
         std::sort(sortArray, sortArray + size, compareIndexLengthPairById() );
     }
     for(size_t i = 0; i < size; ++i )
@@ -59,6 +59,25 @@ template <typename T> void DBReader<T>::open(int accessType){
         seqLens[i] = sortArray[i].second;
     }
     delete [] sortArray;
+
+    if(accessType == SORT_BY_LENGTH){
+        // sort the enties by the length of the sequences
+        std::pair<unsigned int, unsigned  int> * sortForMapping = new std::pair<unsigned int, unsigned  int>[size];
+        id2local = new unsigned int[size];
+        local2id = new unsigned int[size];
+        for (size_t i = 0; i < size; i++){
+            id2local[i] = i;
+            local2id[i] = i;
+            sortForMapping[i] = std::make_pair(i, seqLens[i]);
+        }
+        std::sort(sortForMapping, sortForMapping + size, comparePairBySeqLength() );
+        for (size_t i = 0; i < size; i++){
+            id2local[sortForMapping[i].first] = i;
+            local2id[i] = sortForMapping[i].first;
+            seqLens[i] = sortForMapping[i].second;
+        }
+        delete [] sortForMapping;
+    }
     // init seq lens array and dbKey mapping
     aaDbSize = 0;
     for (size_t i = 0; i < size; i++){
@@ -69,7 +88,6 @@ template <typename T> void DBReader<T>::open(int accessType){
         Debug(Debug::ERROR) << "Invalid database in data file=" << dataFileName << ", database index=" << indexFileName << "\n";
         EXIT(EXIT_FAILURE);
     }
-
     closed = 0;
 }
 
@@ -93,6 +111,10 @@ template <typename T> void DBReader<T>::close(){
         fclose(dataFile);
         unmapData();
     }
+    if(accessType == SORT_BY_LENGTH){
+        delete [] id2local;
+        delete [] local2id;
+    }
     delete [] index;
     delete [] seqLens;
     closed = 1;
@@ -109,7 +131,7 @@ template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N,
     return std::upper_bound(index, index + N, val, Index::compareById) - index;
 }
 
-template <typename T> char* DBReader<T>::getData (size_t id){
+template <typename T> char* DBReader<T>::getData(size_t id){
     checkClosed();
     if(dataMode == INDEXONLY){
         Debug(Debug::ERROR) << "DBReader is just open in INDEXONLY mode. Call of getData is not allowed" << "\n";
@@ -128,11 +150,15 @@ template <typename T> char* DBReader<T>::getData (size_t id){
         Debug(Debug::ERROR) << "Requested offset: " << (size_t)  (index[id].data - data) << "\n";
         EXIT(EXIT_FAILURE);
     }
-    return index[id].data;
+    if(accessType == SORT_BY_LENGTH){
+        return index[local2id[id]].data;
+    }else{
+        return index[id].data;
+    }
 }
 
 
-template <typename T> char* DBReader<T>::getDataByDBKey (T dbKey){
+template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey){
     checkClosed();
     if(dataMode ==INDEXONLY){
         Debug(Debug::ERROR) << "DBReader is just open in INDEX_ONLY mode. Call of getData is not allowed" << "\n";
@@ -154,11 +180,18 @@ template <typename T> T DBReader<T>::getDbKey (size_t id){
         Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
         EXIT(EXIT_FAILURE);
     }
+    if(accessType == SORT_BY_LENGTH){
+        id = local2id[id];
+    }
     return index[id].id;
 }
 
 template <typename T> size_t DBReader<T>::getId (T dbKey){
+
     size_t id = bsearch(index, size, dbKey);
+    if(accessType == SORT_BY_LENGTH){
+        return id2local[id];
+    }
     return (index[id].id == dbKey) ? id : UINT_MAX;
 }
 
@@ -172,7 +205,11 @@ template <typename T> size_t DBReader<T>::getSeqLens(size_t id){
         Debug(Debug::ERROR) << "getDbKey: local id (" << id << ") >= db size (" << size << ")\n";
         EXIT(EXIT_FAILURE);
     }
-    return seqLens[id];
+//    if(accessType == SORT_BY_LENGTH){
+//        return seqLens[local2id[id]];
+//    }else{
+        return seqLens[id];
+//    }
 }
 
 template <typename T> void DBReader<T>::checkClosed(){
@@ -252,14 +289,6 @@ template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
     size_t id = bsearch(index, size, i);
     return index[id].data - data;
 }
-
-
-template <typename T>  void DBReader<T>::unmapDataById(size_t id) {
-    if(dataMapped == true) {
-        munmap(index[id].data, seqLens[id]);
-    }
-}
-
 
 template class DBReader<unsigned int>;
 template class DBReader<std::string>;

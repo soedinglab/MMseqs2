@@ -54,15 +54,15 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
     {
 
 #pragma omp for schedule(dynamic, 1000)
-    for(size_t i = 0; i < dbSize; i++) {
-        unsigned int clusterId = seqDbr->getDbKey(i);
-        const size_t alnId = alnDbr->getId(clusterId);
-        seqDbrIdToalnDBrId[i]=alnId;
-        char *data = alnDbr->getData(alnId);
-        size_t dataSize = alnDbr->getSeqLens()[alnId];
-        size_t elementCount = Util::count_lines(data, dataSize);
-        elementOffsets[i] = elementCount;
-    }
+        for(size_t i = 0; i < dbSize; i++) {
+            unsigned int clusterId = seqDbr->getDbKey(i);
+            const size_t alnId = alnDbr->getId(clusterId);
+            seqDbrIdToalnDBrId[i]=alnId;
+            char *data = alnDbr->getData(alnId);
+            size_t dataSize = alnDbr->getSeqLens()[alnId];
+            size_t elementCount = Util::count_lines(data, dataSize);
+            elementOffsets[i] = elementCount;
+        }
 
     }
     //time
@@ -334,13 +334,13 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
         }
         //delete unnecessary datastructures
         delete [] elementLookupTable;
-    delete [] elements;
-    delete [] elementOffsets;
-    delete [] seqDbrIdToalnDBrId;
-    delete [] bestscore;
-    delete [] sorted_clustersizes;
-    delete [] clusterid_to_arrayposition;
-    delete [] borders_of_set;
+        delete [] elements;
+        delete [] elementOffsets;
+        delete [] seqDbrIdToalnDBrId;
+        delete [] bestscore;
+        delete [] sorted_clustersizes;
+        delete [] clusterid_to_arrayposition;
+        delete [] borders_of_set;
 
     }
 //time
