@@ -91,7 +91,8 @@ void PSSMCalculator::computeLogPSSM(char *pssm, float *profile,
             const float aaProb = profile[pos * Sequence::PROFILE_AA_SIZE + aa];
             const unsigned int idx = pos * Sequence::PROFILE_AA_SIZE + aa;
             profile[idx] = subMat->getBitFactor() * Util::flog2(aaProb / subMat->pBack[aa]) + scoreBias;
-            pssm[idx] = (char) floor (profile[pos * Sequence::PROFILE_AA_SIZE + aa] + 0.5);
+            const float pssmVal = profile[pos * Sequence::PROFILE_AA_SIZE + aa];
+            pssm[idx] = static_cast<char>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
         }
     }
 }
