@@ -28,6 +28,11 @@ extern "C" {
 #include "Util.h"
 #include "Debug.h"
 
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 int runResult2Profile(std::string queryDb, std::string targetDb, std::string resultDb, std::string outDb,
                       std::string subMatPath, int cpu, bool aaBiasCorrection) {
     int err = EXIT_SUCCESS;

@@ -8,6 +8,10 @@ KSEQ_INIT(int, read)
 
 #include <sys/stat.h>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 size_t Util::countLines(const char *data, size_t length) {
     size_t newlines = 0;
     for (size_t i = 0; i < length; i++ ) {
@@ -171,5 +175,11 @@ FILE* Util::openFileOrDie(const char * fileName, const char * mode, bool shouldE
     return file;
 }
 
+int Util::omp_thread_count() {
+    int n = 0;
+    #pragma omp parallel reduction(+:n)
+        n += 1;
 
+    return n;
+}
 

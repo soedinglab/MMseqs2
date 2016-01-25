@@ -19,10 +19,6 @@
 #include "../prefiltering/QueryTemplateMatcher.h"
 #include "../prefiltering/Prefiltering.h"
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
 class TimeTest {
 
     public:
