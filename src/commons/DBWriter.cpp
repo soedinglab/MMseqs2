@@ -15,6 +15,10 @@ extern "C" {
 #include "ffindex.h"
 }
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 DBWriter::DBWriter (const char* dataFileName_,
                     const char* indexFileName_,
                     int maxThreadNum_,
