@@ -4,6 +4,10 @@
 #include "Util.h"
 #include <iomanip>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 Parameters::Parameters():
         PARAM_S(PARAM_S_ID,"-s", "Sensitivity","[real]\tSensitivity in the range [1.0:10.0]. From low (1.0) to high (10.0) sensitivity.", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_K(PARAM_K_ID,"-k", "K-mer size", "[int]\tk-mer size in the range [4:7]",typeid(int),  (void *) &kmerSize, "^[6-7]{1}$"),
@@ -400,7 +404,7 @@ void Parameters::setDefaults() {
     numIterations = 1;
     threads = 1;
 #ifdef OPENMP
-    threads = Util::omp_thread_count();
+    threads = omp_get_max_threads();
 #endif
     compBiasCorrection = 1;
     diagonalScoring = 1;
