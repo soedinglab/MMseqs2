@@ -9,6 +9,10 @@
 #include <Parameters.h>
 #include "AffinityClustering.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 AlignmentSymmetry::AlignmentSymmetry(DBReader<unsigned int>*seqDbr, DBReader<unsigned int>*alnDbr, DBWriter *alnWr, int threads) {
     this->seqDbr=seqDbr;
     this->alnDbr=alnDbr;
