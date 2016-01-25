@@ -46,9 +46,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     if(this->split == 0 )
         this->split = 1;
 
-    this->threads = 1;
+    this->threads = par.threads;
 #ifdef OPENMP
-    this->threads = omp_get_max_threads();
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
     Debug(Debug::INFO) << "\n";

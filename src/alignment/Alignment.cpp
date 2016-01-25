@@ -33,9 +33,8 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
         this->m = new NucleotideMatrix();
     }
 
-    threads = 1;
+    threads = par.threads;
 #ifdef OPENMP
-    threads = omp_get_max_threads();
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
 

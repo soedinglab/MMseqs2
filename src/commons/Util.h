@@ -64,9 +64,6 @@ public:
         }
         return val;
     }
-    
-    // this is needed because with GCC4.7 omp_get_num_threads() returns just 1.
-    static int omp_thread_count();
 
     static int ipow (int base, int exponent){
         int res = 1;
