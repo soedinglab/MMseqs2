@@ -1,11 +1,6 @@
 #ifndef ALIGNMENT_H
 #define ALIGNMENT_H
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
-
 #include <string>
 #include <list>
 #include <iomanip>

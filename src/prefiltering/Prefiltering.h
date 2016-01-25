@@ -28,10 +28,6 @@
 #include "QueryTemplateMatcher.h"
 #include "SequenceLookup.h"
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
 class Prefiltering {
 public:
     Prefiltering(std::string queryDB,

@@ -9,6 +9,10 @@
 
 #include <cstddef>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 #ifdef HAVE_MPI
 #include <mpi.h>
 #endif

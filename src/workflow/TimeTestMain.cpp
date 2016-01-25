@@ -6,10 +6,6 @@
 
 #include "TimeTest.h"
 
-#ifdef OPENMP
-#include <omp.h>
-#endif
-
 void printUsageTimeTest(){
 
     std::string usage("\nRuns time benchmark on a database.\n");
