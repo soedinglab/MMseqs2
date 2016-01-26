@@ -140,8 +140,7 @@ public:
     bool useHeaderFile;
 
     // CLUSTERING WORKFLOW
-    int restart;
-    int step;
+    bool noAutomaticThreshold;
 
     // gff2ffindex
     std::string gffType;
@@ -212,8 +211,7 @@ public:
     PARAMETER(PARAM_PROFILE_TYPE);
 
     // clustering workflow
-    PARAMETER(PARAM_RESTART);
-    PARAMETER(PARAM_STEP);
+    PARAMETER(PARAM_NO_AUTOMATED_THRESHOLD);
 
     // search workflow
     PARAMETER(PARAM_NUM_ITERATIONS);
