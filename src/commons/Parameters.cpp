@@ -46,9 +46,7 @@ Parameters::Parameters():
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "[int]\tMPI Option: HMM 0 or PSSM",typeid(int),(void *) &profileMode,  "^[0-1]{1}$"),
 
 // clustering workflow
-        PARAM_RESTART(PARAM_RESTART_ID, "--restart", "Restart","[int]\tRestart the clustering workflow starting with alignment or clustering.\n"
-                "\t\tThe value is in the range [1:3]: 1: restart from prefiltering  2: from alignment; 3: from clustering",typeid(int),(void *) &restart, "^[0-3]{1}$"),
-        PARAM_STEP(PARAM_STEP_ID, "--step","Step","[int]\t\tRestart the step of the cascaded clustering. For values in [1:3], the resprective step number, 4 is only the set merging",typeid(int),(void *) &step, "^[0-4]{1}$"),
+        PARAM_NO_AUTOMATED_THRESHOLD(PARAM_NO_AUTOMATED_THRESHOLD_ID, "--no-automatic-threshold", "No Automatic Threshold", "\tPrevent mmseqs from changing sensitivity and cascaded clustering settings", typeid(bool), (void *) &noAutomaticThreshold, ""),
 // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","[int]\tSearch iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$"),
 // Orfs
@@ -166,6 +164,7 @@ Parameters::Parameters():
     clusteringWorkflow = combineList(prefilter, alignment);
     clusteringWorkflow = combineList(clusteringWorkflow, clustering);
     clusteringWorkflow.push_back(PARAM_CASCADED);
+    clusteringWorkflow.push_back(PARAM_NO_AUTOMATED_THRESHOLD);
     clusteringWorkflow.push_back(PARAM_KEEP_TEMP_FILES);
 
     clusterUpdate = combineList(alignment, prefilter);
@@ -429,8 +428,7 @@ void Parameters::setDefaults() {
     similarityScoreType=APC_SEQID;
 
     // Clustering workflow
-    restart = 0;
-    step = 1;
+    noAutomaticThreshold = false;
     keepTempFiles = true;
 
     // create profile
