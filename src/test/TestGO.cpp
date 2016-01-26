@@ -128,15 +128,13 @@ int main(int argc, char **argv)
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
-        cluster_ffindex_reader->open(DBReader<std::string>::SORT);
+        cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader<std::string>* protname_db_reader = new DBReader<std::string>(protname_db.c_str(), protname_db_indexfile.c_str());
         protname_db_reader->open(DBReader<std::string>::NOSORT);
 
         DBReader<std::string>* targetdb_header=new DBReader<std::string>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
         targetdb_header->open(DBReader<std::string>::NOSORT);
-
-
 
         //files
         std::ofstream clusters_full_file;
@@ -247,7 +245,7 @@ int main(int argc, char **argv)
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
-        cluster_ffindex_reader->open(DBReader<std::string>::SORT);
+        cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader<std::string>* protname_db_reader = new DBReader<std::string>(keyword_db.c_str(), keyword_indexfile.c_str());
         protname_db_reader->open(DBReader<std::string>::NOSORT);
@@ -422,9 +420,9 @@ int numberofthreads=1;
         omp_set_num_threads(numberofthreads);
 #endif
         DBReader<std::string>* seqDbr=new DBReader<std::string>(seqDbfile.c_str(),(seqDbfile+".index").c_str());
-        seqDbr->open(DBReader<std::string>::SORT);
+        seqDbr->open(DBReader<std::string>::SORT_BY_LENGTH);
         DBReader<std::string>* alnDbr=new DBReader<std::string>(alignmentfile.c_str(),(alignmentfile+".index").c_str());
-        alnDbr->open(DBReader<std::string>::SORT);
+        alnDbr->open(DBReader<std::string>::SORT_BY_LENGTH);
         DBWriter* dbw = new DBWriter(outputfile.c_str(), (outputfile+".index").c_str(),numberofthreads);
         dbw->open();
 

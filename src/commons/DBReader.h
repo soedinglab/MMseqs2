@@ -21,7 +21,7 @@ public:
             return (x.id <= y.id);
         }
     };
-    DBReader(const char* dataFileName, const char* indexFileName, int mode = USE_DATA);
+    DBReader(const char* dataFileName, const char* indexFileName, int mode = USE_DATA|USE_INDEX);
 
     ~DBReader();
 
@@ -57,11 +57,11 @@ public:
 
 
     static const int NOSORT = 0;
-    static const int SORT = 1;
+    static const int SORT_BY_LENGTH = 1;
     static const int LINEAR_ACCCESS = 2;
-
-    static const int USE_DATA     = 0x1 << 0;
-    static const int USE_WRITABLE = 0x1 << 1;
+    static const int USE_INDEX    = 0;
+    static const int USE_DATA     = 1;
+    static const int USE_WRITABLE = 2;
 
     const char * getData(){
         return data;
@@ -85,7 +85,6 @@ public:
 
     size_t getDataOffset(T i);
 
-    void unmapDataById(size_t id);
 
     Index* getIndex() {
         return index;
@@ -100,10 +99,15 @@ private:
         }
     };
 
-
     struct compareIndexLengthPairByOffset {
         bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
             return (lhs.first.data < rhs.first.data);
+        }
+    };
+
+    struct comparePairBySeqLength {
+        bool operator() (const std::pair<unsigned int, unsigned  int>& lhs, const std::pair<unsigned int, unsigned  int>& rhs) const{
+            return (lhs.second > rhs.second);
         }
     };
 
@@ -130,6 +134,8 @@ private:
 
     Index * index;
     unsigned int *seqLens;
+    unsigned int * id2local;
+    unsigned int * local2id;
 
     bool dataMapped;
     int accessType;

@@ -17,15 +17,37 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
-    if(this->covThr == 0.0 && this->seqIdThr == 0.0){
-        Debug(Debug::WARNING) << "Compute score only.\n";
-        this->mode = Matcher::SCORE_ONLY; //fastest
-    } else if(this->covThr > 0.0 && this->seqIdThr == 0.0) {
-        Debug(Debug::WARNING) << "Compute score and coverage.\n";
-        this->mode = Matcher::SCORE_COV; // fast
-    } else { // if seq id is needed
+    this->fragmentMerge = par.fragmentMerge;
+    if(fragmentMerge == true){
         Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
         this->mode = Matcher::SCORE_COV_SEQID; // slowest
+    } else{
+        switch (par.alignmentMode){
+            case 0:
+                if(this->covThr == 0.0 && this->seqIdThr == 0.0){
+                    Debug(Debug::WARNING) << "Compute score only.\n";
+                    this->mode = Matcher::SCORE_ONLY; //fastest
+                } else if(this->covThr > 0.0 && this->seqIdThr == 0.0) {
+                    Debug(Debug::WARNING) << "Compute score and coverage.\n";
+                    this->mode = Matcher::SCORE_COV; // fast
+                } else { // if seq id is needed
+                    Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
+                    this->mode = Matcher::SCORE_COV_SEQID; // slowest
+                }
+                break;
+            case 1:
+                Debug(Debug::WARNING) << "Compute score only.\n";
+                this->mode = Matcher::SCORE_ONLY; // fast
+                break;
+            case 2:
+                Debug(Debug::WARNING) << "Compute score and coverage.\n";
+                this->mode = Matcher::SCORE_COV; // fast
+                break;
+            case 3:
+                Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
+                this->mode = Matcher::SCORE_COV_SEQID; // fast
+                break;
+        }
     }
     if (par.querySeqType == Sequence::AMINO_ACIDS || par.querySeqType == Sequence::HMM_PROFILE){
         this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
@@ -203,12 +225,13 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 dbSeqs[thread_idx]->mapSequence(-1, dbKeys[thread_idx], dbSeqData);
 
                 // check if the sequences could pass the coverage threshold
-                if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
-                     (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ) {
-                    rejected++;
-                    continue;
+                if(fragmentMerge == false){
+                    if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
+                         (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ) {
+                        rejected++;
+                        continue;
+                    }
                 }
-
                 // calculate Smith-Waterman alignment
                 Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->mode);
                 alignmentsNum++;
@@ -222,10 +245,13 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 // check first if it is identity
                 if (isIdentiy ||
                     ( (res.eval <= evalThr ) &&
-                      ( ( mode == Matcher::SCORE_ONLY )||
+                      ( ( mode == Matcher::SCORE_ONLY ) ||
                         ( mode == Matcher::SCORE_COV && res.qcov >= covThr && res.dbcov >= covThr) ||
-                        ( mode == Matcher::SCORE_COV_SEQID && res.seqId > seqIdThr&& res.qcov >= covThr && res.dbcov >= covThr))
-                    ) ) {
+                        ( mode == Matcher::SCORE_COV_SEQID && res.seqId > seqIdThr&& res.qcov >= covThr && res.dbcov >= covThr) ||
+                        ( mode == Matcher::SCORE_COV_SEQID && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 )
+                      )
+                    ) )
+                {
                     swResults.push_back(res);
                     passedNum++;
                     totalPassedNum++;
@@ -235,6 +261,8 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 else{
                     rejected++;
                 }
+                // check for fragment
+
             }
             // write the results
             swResults.sort(Matcher::compareHits);

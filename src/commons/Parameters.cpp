@@ -28,10 +28,11 @@ Parameters::Parameters():
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","[int]\tSwitch off local amino acid composition bias correction[0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$"),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "[int]\tSpaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}" ),
         PARAM_KEEP_TEMP_FILES(PARAM_KEEP_TEMP_FILES_ID,"--keep-tmp-files", "Keep-tmp-files" ,"\tDo not delete temporary files.",typeid(bool),(void *) &keepTempFiles, ""),
-
 // alignment
+        PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "[int]\tAlignment mode 0=fastest based on parameters, 1=score; 2=score,cov,start/end pos; 3=score,cov,start/end pos,seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$"),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "[real]\tMaximum e-value[0.0,1.0]",typeid(float), (void *) &evalThr, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "[real]\tMinimum alignment coverage [0.0,1.0]",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$"),
+        PARAM_FRAG_MERGE(PARAM_FRAG_MERGE_ID,"--frag-merge", "Detect fragments", "\tAdd Hits with cov > 0.95 and seq. id > 0.90",typeid(bool), (void *) &fragmentMerge, ""),
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "[int]\tMaximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$"),
 // clustering
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","[real]\tMinimum sequence identity of sequences in a cluster[0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
@@ -64,8 +65,10 @@ Parameters::Parameters():
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "\tMinimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$")
 {
     // alignment
+    alignment.push_back(PARAM_ALIGNMENT_MODE);
     alignment.push_back(PARAM_E);
     alignment.push_back(PARAM_C);
+    alignment.push_back(PARAM_FRAG_MERGE);
     alignment.push_back(PARAM_NO_COMP_BIAS_CORR);
     alignment.push_back(PARAM_MIN_SEQ_ID);
     alignment.push_back(PARAM_MAX_SEQ_LEN);
@@ -338,6 +341,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         default:
             printUsageMessage(programUsageHeader, par);
             Debug(Debug::INFO) << "Unrecognized parameters!" << "\n";
+            printParameters(argc, pargv, par);
             EXIT(EXIT_FAILURE);
     }
     if(printPar == true) {
@@ -414,8 +418,10 @@ void Parameters::setDefaults() {
     nucl = false;
     zscoreThr = 50.0f;
 
+    alignmentMode = 0;
     evalThr = 0.001;
     covThr = 0.0;
+    fragmentMerge = false;
     maxRejected = INT_MAX;
     seqIdThr = 0.0;
 

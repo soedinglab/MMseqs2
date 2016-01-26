@@ -55,7 +55,7 @@ void TimeTest::runTimeTest (){
 
     QueryTemplateMatcher** matchers = new QueryTemplateMatcher *[threads];
     DBReader<unsigned int>* tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
-    tdbr->open(DBReader<unsigned int>::SORT);
+    tdbr->open(DBReader<unsigned int>::NOSORT);
     size_t targetSeqLenSum = 0;
     for (size_t i = 0; i < tdbr->getSize(); i++)
         targetSeqLenSum += tdbr->getSeqLens(i);

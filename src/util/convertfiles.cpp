@@ -26,7 +26,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
     std::string cluster_ffindex_indexfile=clusteringfile+".index";
 
     DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
-    cluster_ffindex_reader->open(DBReader<std::string>::SORT);
+    cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
 
        std::ofstream outfile_stream;
     outfile_stream.open(outputfile+suffix+"cluster.tsv");
@@ -74,9 +74,9 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
     std::string cluster_ffindex_indexfile=clusteringfile+".index";
     std::string alignment_ffindex_indexfile=alignmentfile+".index";
     DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
-    cluster_ffindex_reader->open(DBReader<std::string>::SORT);
+    cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
     DBReader<std::string>* alignment_ffindex_reader = new DBReader<std::string>(alignmentfile.c_str(), alignment_ffindex_indexfile.c_str());
-    alignment_ffindex_reader->open(DBReader<std::string>::SORT);
+    alignment_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
 
     std::ofstream outfile_stream;
     outfile_stream.open(outputfile);
@@ -233,9 +233,9 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
     std::string cluster_ffindex_indexfile=clusteringfile+".index";
     std::string alignment_ffindex_indexfile=alignmentfile+".index";
     DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
-    cluster_ffindex_reader->open(DBReader<std::string>::SORT);
+    cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
     DBReader<std::string>* alignment_ffindex_reader = new DBReader<std::string>(alignmentfile.c_str(), alignment_ffindex_indexfile.c_str());
-    alignment_ffindex_reader->open(DBReader<std::string>::SORT);
+    alignment_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
 
     std::ofstream outfile_stream;
     outfile_stream.open(outputfolder +"/"+ prefix +"domainscore.tsv");
