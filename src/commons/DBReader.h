@@ -21,7 +21,7 @@ public:
             return (x.id <= y.id);
         }
     };
-    DBReader(const char* dataFileName, const char* indexFileName, int mode = DATA_AND_INDEX);
+    DBReader(const char* dataFileName, const char* indexFileName, int mode = USE_DATA|USE_INDEX);
 
     ~DBReader();
 
@@ -59,9 +59,9 @@ public:
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
     static const int LINEAR_ACCCESS = 2;
-
-    static const int INDEXONLY = 1;
-    static const int DATA_AND_INDEX = 0;
+    static const int USE_INDEX    = 0;
+    static const int USE_DATA     = 1;
+    static const int USE_WRITABLE = 2;
 
     const char * getData(){
         return data;
@@ -71,7 +71,7 @@ public:
         return dataSize;
     }
 
-    static char *mmapData(FILE *file, size_t *dataSize);
+    char *mmapData(FILE *file, size_t *dataSize);
 
     void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
 
@@ -84,6 +84,11 @@ public:
     }
 
     size_t getDataOffset(T i);
+
+
+    Index* getIndex() {
+        return index;
+    }
 
 private:
 

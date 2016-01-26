@@ -9,7 +9,12 @@
 #include <Parameters.h>
 #include "AffinityClustering.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 AlignmentSymmetry::AlignmentSymmetry() { }
+
 
 void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, unsigned int **elementLookupTable) {
 

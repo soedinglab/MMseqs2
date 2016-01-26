@@ -1,6 +1,10 @@
 #include "TimeTest.h"
 #include "QueryTemplateMatcherLocal.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 TimeTest::TimeTest(std::string queryDB,
                    std::string queryDBIndex,
                    std::string targetDB,

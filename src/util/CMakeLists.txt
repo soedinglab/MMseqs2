@@ -1,7 +1,7 @@
 set(util_source_files
   fasta2ffindex.cpp
   profile2ffindex.cpp
-  clusters2ffindex.cpp
+  addsequences.cpp
   cluster2profile.h
   cluster2profile.cpp
   ffindex2fasta.cpp
@@ -19,6 +19,8 @@ set(util_source_files
   ffindex2tsv.cpp
   rebuildfasta.cpp
   gff2ffindex.cpp
+  maskbygff.cpp
+  extract_orf.cpp
 )
 add_library(util ${util_source_files} )
 

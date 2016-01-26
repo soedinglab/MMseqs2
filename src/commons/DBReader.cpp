@@ -34,7 +34,7 @@ template <typename T> void DBReader<T>::open(int accessType){
     this->size = countLine(indexFileName);
     this->accessType = accessType;
     // open ffindex
-    if(dataMode == DATA_AND_INDEX){
+    if(dataMode & USE_DATA){
         dataFile = fopen(dataFileName, "r");
         if( dataFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", dataFileName);  EXIT(EXIT_FAILURE); }
         data = mmapData(dataFile, &dataSize);
@@ -96,18 +96,22 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
     fstat(fileno(file), &sb);
     *dataSize = sb.st_size;
     int fd =  fileno(file);
-    return (char*)mmap(NULL, *dataSize, PROT_READ, MAP_PRIVATE, fd, 0);
+    int mode = PROT_READ;
+    if(dataMode & USE_WRITABLE) {
+        mode |= PROT_WRITE;
+    }
+    return (char*)mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0);
 }
 
 template <typename T> void DBReader<T>::remapData(){
-    if(dataMode == DATA_AND_INDEX){
+    if(dataMode & USE_DATA){
         munmap(data, dataSize);
         data = mmapData(dataFile, &dataSize);
     }
 }
 
 template <typename T> void DBReader<T>::close(){
-    if(dataMode == DATA_AND_INDEX){
+    if(dataMode & USE_DATA){
         fclose(dataFile);
         unmapData();
     }
@@ -133,7 +137,7 @@ template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N,
 
 template <typename T> char* DBReader<T>::getData(size_t id){
     checkClosed();
-    if(dataMode == INDEXONLY){
+    if(!(dataMode & USE_DATA)) {
         Debug(Debug::ERROR) << "DBReader is just open in INDEXONLY mode. Call of getData is not allowed" << "\n";
         EXIT(EXIT_FAILURE);
     }
@@ -160,7 +164,7 @@ template <typename T> char* DBReader<T>::getData(size_t id){
 
 template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey){
     checkClosed();
-    if(dataMode ==INDEXONLY){
+    if(!(dataMode & USE_DATA)) {
         Debug(Debug::ERROR) << "DBReader is just open in INDEX_ONLY mode. Call of getData is not allowed" << "\n";
         EXIT(EXIT_FAILURE);
     }
@@ -265,7 +269,7 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
 
         index[i].id = id;
 
-        if (dataMode == DATA_AND_INDEX) {
+        if (dataMode & USE_DATA) {
             index[i].data = data + offset;
         } else {
             index[i].data = NULL;

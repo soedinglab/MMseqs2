@@ -10,6 +10,10 @@
 #include <Log.h>
 #include "CompareGOTerms.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 void printHelp();
 std::string getProteinNameForID(DBReader<std::string>* targetdb_header,const char * dbKey);
 

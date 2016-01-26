@@ -15,6 +15,10 @@ extern "C" {
 #include "ffindex.h"
 }
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 DBWriter::DBWriter (const char* dataFileName_,
                     const char* indexFileName_,
                     int maxThreadNum_,
@@ -138,7 +142,7 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
 
         size_t startIndex = 0;
         size_t domainSize = 0;
-        Util::decompose_domain(dbr.getSize(), split, splitSize, &startIndex, &domainSize);
+        Util::decomposeDomain(dbr.getSize(), split, splitSize, &startIndex, &domainSize);
         for(size_t i = startIndex; i < (startIndex + domainSize); i++){
             std::string outerKey = SSTR(dbr.getDbKey(i));
             char * data = dbr.getData(i);
