@@ -11,6 +11,8 @@ public:
 
     // Does not return on success
     void execProgram(std::string program, size_t argc, const char **argv);
+
+    int spawnProgram(std::string program, size_t argc, const char **argv);
 };
 
 #endif //MMSEQS_COMMANDCALLER_H
