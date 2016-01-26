@@ -129,6 +129,8 @@ public:
     int orfMaxLength;
     int orfMaxGaps;
     bool   orfSkipIncomplete;
+    std::string forwardFrames;
+    std::string reverseFrames;
 
     // CREATE PROFILE
     int profileMode;
@@ -146,6 +148,12 @@ public:
 
     // gff2ffindex
     std::string gffType;
+
+    // translate nucleotide
+    int translationTable;
+
+    // addSequences
+    int minSequences;
     
     void setDefaultPaths();
     void setDefaults();
@@ -162,32 +170,7 @@ public:
                          std::vector<MMseqsParameter> par);
     Parameters();
     ~Parameters();
-    // parameter constants
-    //    "-s              \t[float]\tSensitivity in the range [1:9] (default=4).\n"
-    //    "-k              \t[int]\tk-mer size in the range [4:7] (default=6).\n"
-    //    "-cpu            \t[int]\tNumber of cores used for the computation (default=all cores).\n"
-    //    "--alph-size     \t[int]\tAmino acid alphabet size (default=21).\n"
-    //    "--z-score       \t[float]\tZ-score threshold (default: 50.0).\n"
-    //    "--max-seq-len   \t[int]\tMaximum sequence length (default=50000).\n"
-    //    "--profile       \t\tHMM Profile input.\n"
-    //    "--nucl          \t\tNucleotide sequences input.\n"
-    //    "--search-mode   \t[int]\tSearch mode loc: 1 glob: 2 (default=1).\n"
-    //    "--no-comp-bias-corr \t\tSwitch off local amino acid composition bias correction.\n"
-    //    "--no-spaced-kmer \t\tSwitch off spaced kmers (consecutive pattern).\n"
-    //    "--split         \t[int]\tSplits target databases in n equally distributed chunks (default=1)\n"
-    //    "--threads       \t[int]\tNumber of threads used to compute. (Default=all cpus)\n"
-    //    "--max-seqs      \t[int]\tMaximum result sequences per query (default=300).\n"
-    //    "--skip          \t[int]\tNumber of skipped k-mers during the index table generation.\n"
-    //    "--sub-mat       \t[file]\tAmino acid substitution matrix file.\n"
-    //    "-v              \t[int]\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO (default=3).\n");
-    // alignment
-    //    "-e          \t[float]\tMaximum e-value (default=0.01).\n"
-    //    "-c          \t[float]\tMinimum alignment coverage (default=0.8).\n"
-    //    "--max-rejected\t[int]\tMaximum rejected alignments before alignment calculation for a query is aborted. (default=INT_MAX)\n"
-    // clustering
-    //    "-g              \t[int]\tgreedy clustering by sequence length (default: set cover clustering algorithm).\n"
-    //    "-a              \t[int]\taffinity clustering (default: set cover clustering algorithm).\n"
-    //    "--min-seq-id    \t[float]\tMinimum sequence identity of query to target cluster (default = 0.0)\n"
+
     PARAMETER(PARAM_S);
     PARAMETER(PARAM_K);
     PARAMETER(PARAM_THREADS);
@@ -238,13 +221,17 @@ public:
     // clustering workflow
     PARAMETER(PARAM_RESTART);
     PARAMETER(PARAM_STEP);
+
     // search workflow
     PARAMETER(PARAM_NUM_ITERATIONS);
+
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH);
     PARAMETER(PARAM_ORF_MAX_LENGTH);
     PARAMETER(PARAM_ORF_MAX_GAP);
     PARAMETER(PARAM_ORF_SKIP_INCOMPLETE);
+    PARAMETER(PARAM_ORF_FORWARD_FRAMES);
+    PARAMETER(PARAM_ORF_REVERSE_FRAMES);
 
     // createdb
     PARAMETER(PARAM_USE_HEADER); // also used by extractorf
@@ -255,6 +242,12 @@ public:
 
     // gff2ffindex
     PARAMETER(PARAM_GFF_TYPE)
+
+    // translate_nucleotide
+    PARAMETER(PARAM_TRANSLATION_TABLE)
+
+    // addsequences
+    PARAMETER(PARAM_MIN_SEQUENCES)
 
     std::vector<MMseqsParameter> empty;
 
@@ -271,6 +264,8 @@ public:
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdate;
+    std::vector<MMseqsParameter> translateNucleotide;
+    std::vector<MMseqsParameter> addSequences;
 
     std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
                                               std::vector < MMseqsParameter > par2);

@@ -4,6 +4,10 @@
 #include "Util.h"
 #include <iomanip>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 Parameters::Parameters():
         PARAM_S(PARAM_S_ID,"-s", "Sensitivity","[real]\tSensitivity in the range [1.0:10.0]. From low (1.0) to high (10.0) sensitivity.", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_K(PARAM_K_ID,"-k", "K-mer size", "[int]\tk-mer size in the range [4:7]",typeid(int),  (void *) &kmerSize, "^[6-7]{1}$"),
@@ -49,14 +53,18 @@ Parameters::Parameters():
 // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","[int]\tSearch iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$"),
 // Orfs
-        PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min orf length", "[int]\t\tMinimum nucleotide length of open reading frame to be extracted from fasta file",typeid(int),(void *) &orfMinLength, "^[1-9]{1}[0-9]*$"),
-        PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max orf length", "[int]\t\tMaximum nucleotide length of open reading frame to be extracted from fasta file.",typeid(int),(void *) &orfMaxLength, "^[1-9]{1}[0-9]*$"),
-        PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\t\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
+        PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min orf length", "[int]\tMinimum nucleotide length of open reading frame to be extracted from fasta file",typeid(int),(void *) &orfMinLength, "^[1-9]{1}[0-9]*$"),
+        PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max orf length", "[int]\tMaximum nucleotide length of open reading frame to be extracted from fasta file.",typeid(int),(void *) &orfMaxLength, "^[1-9]{1}[0-9]*$"),
+        PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "[int]\tMaximum number of gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "\tSkip orfs that have only an end or only a start",typeid(bool),(void *) &orfSkipIncomplete, ""),
+        PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "\tComma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
+        PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "\tComma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "\tUse the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
-        PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "[int]\t\tNumeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
+        PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "[int]\tNumeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "\tUse the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
-        PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "\tType in the GFF file to filter by",typeid(std::string),(void *) &gffType, "")
+        PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "\tType in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
+        PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "\t1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
+        PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "\tMinimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$")
 {
     // alignment
     alignment.push_back(PARAM_ALIGNMENT_MODE);
@@ -118,6 +126,8 @@ Parameters::Parameters():
     extractorf.push_back(PARAM_ORF_MAX_LENGTH);
     extractorf.push_back(PARAM_ORF_MAX_GAP);
     extractorf.push_back(PARAM_ORF_SKIP_INCOMPLETE);
+    extractorf.push_back(PARAM_ORF_FORWARD_FRAMES);
+    extractorf.push_back(PARAM_ORF_REVERSE_FRAMES);
     extractorf.push_back(PARAM_USE_HEADER);
     extractorf.push_back(PARAM_ID_OFFSET);
 
@@ -163,6 +173,14 @@ Parameters::Parameters():
 
     clusterUpdate = combineList(alignment, prefilter);
     clusterUpdate = combineList(clusterUpdate, clustering);
+
+    // translate nucleotide
+    translateNucleotide.push_back(PARAM_TRANSLATION_TABLE);
+    translateNucleotide.push_back(PARAM_V);
+
+    // addSequences
+    addSequences.push_back(PARAM_MIN_SEQUENCES);
+    addSequences.push_back(PARAM_V);
 
     setDefaults();
 }
@@ -390,7 +408,7 @@ void Parameters::setDefaults() {
     numIterations = 1;
     threads = 1;
 #ifdef OPENMP
-    threads = Util::omp_thread_count();
+    threads = omp_get_max_threads();
 #endif
     compBiasCorrection = 1;
     diagonalScoring = 1;
@@ -432,6 +450,8 @@ void Parameters::setDefaults() {
     orfMaxLength = INT_MAX;
     orfMaxGaps = INT_MAX;
     orfSkipIncomplete = false;
+    forwardFrames = "1,2,3";
+    reverseFrames = "1,2,3";
 
     // createdb
     useHeader = false;
@@ -439,6 +459,12 @@ void Parameters::setDefaults() {
 
     // rebuildfasta
     useHeaderFile = false;
+
+    // translate nucleotide
+    translationTable = 1;
+
+    // addSequences
+    minSequences = 1;
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> par1,

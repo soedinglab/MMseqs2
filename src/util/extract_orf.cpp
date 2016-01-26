@@ -3,15 +3,37 @@
 #define _FILE_OFFSET_BITS 64
 
 #include <unistd.h>
-#include <Util.h>
 #include <climits>
+#include <algorithm>
+#include <vector>
 
 #include "Debug.h"
 #include "Parameters.h"
 #include "DBReader.h"
 #include "DBWriter.h"
+#include "Util.h"
 
 #include "Orf.h"
+
+int getFrames(std::string frames) {
+    int result = 0;
+
+    std::vector<std::string> frame = Util::split(frames, ",");
+
+    if(std::find(frame.begin(), frame.end(), "1") != frame.end()) {
+        result |= Orf::FRAME_1;
+    }
+
+    if(std::find(frame.begin(), frame.end(), "2") != frame.end()) {
+        result |= Orf::FRAME_2;
+    }
+
+    if(std::find(frame.begin(), frame.end(), "3") != frame.end()) {
+        result |= Orf::FRAME_3;
+    }
+
+    return result;
+}
 
 int extractorf(int argn, const char** argv)
 {
@@ -47,20 +69,23 @@ int extractorf(int argn, const char** argv)
     DBWriter headerWriter(headerOut.c_str(), headerIndexOut.c_str());
     headerWriter.open();
 
+    int forwardFrames = getFrames(par.forwardFrames);
+    int reverseFrames = getFrames(par.reverseFrames);
+
     size_t total = 0;
     for (unsigned int i = 0; i < reader.getSize(); ++i){
         const char* data = reader.getData(i);
         Orf orf(data);
         std::vector<Orf::SequenceLocation> res;
-        orf.FindOrfs(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps);
+        orf.FindOrfs(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames);
 
         char* header = headerReader.getData(i);
-        size_t headerLength = headerReader.getSeqLens(i);
+        size_t headerLength = headerReader.getSeqLens(i) - 1;
 
         // remove newline in header
-        char headerBuffer[headerLength - 1];
-        strncpy(headerBuffer, header, headerLength - 1);
-        headerBuffer[headerLength - 2] = '\0';
+        char headerBuffer[headerLength];
+        strncpy(headerBuffer, header, headerLength);
+        headerBuffer[headerLength - 1] = '\0';
 
         size_t orfNum = 0;
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {

@@ -27,19 +27,19 @@ static struct Command commands[] = {
     {"createindex",         createindex,            &par.formatalignment},
     {"mergeffindex",        mergeffindex,           &par.empty},
     {"mergecluster",        mergecluster,           &par.onlyverbosity},
-    {"clustertofastadb",    clusteringtofastadb,    &par.empty},
+    {"addsequences",        addsequences,           &par.addSequences},
     {"swapresults",         swapresults,            &par.empty},
     {"extractorf",          extractorf,             &par.extractorf},
     {"createprofiledb",     createprofiledb,        &par.createprofiledb},
-    {"translatenucleotide", translatenucleotide,    &par.onlyverbosity},
+    {"translatenucleotide", translatenucleotide,    &par.translateNucleotide},
     {"timetest",            timetest,               &par.empty},
     {"legacycs219",         legacycs219,            &par.onlyverbosity},
-    {"findsorf",            findsorf,               &par.onlyverbosity},
     {"resulttoprofiledb",   result2profile,         &par.createprofiledb},
     {"rebuildfasta",        rebuildfasta,           &par.rebuildfasta},
     {"splitffindex",        splitffindex,           &par.splitffindex},
     {"gff2ffindex",         gff2ffindex ,           &par.gff2ffindex},
-    {"shellcompletion",     shellcompletion,        &par.empty}
+    {"shellcompletion",     shellcompletion,        &par.empty},
+    {"maskbygff",           maskbygff,              &par.gff2ffindex}
 };
 
 
@@ -60,7 +60,7 @@ void printUsage() {
             "formatalignment    \tConvert a ffindex alignment database to BLAST tab or SAM flat file.\n"
             "createprofiledb    \tConvert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database.\n"
             "swapresults        \tSwaps results from the mapping A->A,B,C to A -> A, B -> A, C -> A\n"
-            "clustertofastadb   \tConvert Convert mmseqs clustering to ffindex indexed fasta format\n"
+            "addsequences       \tAdds sequences in fasta format to a mmseqs clustering\n"
             "clustertoprofiledb \tCalculates profile from clustering\n"
             "mergeffindex       \tMerge multiple ffindex files based on similar id into one file\n"
             "splitffindex       \tSplits a ffindex database into multiple ffindex databases.\n"
@@ -69,6 +69,7 @@ void printUsage() {
             "legacycs219        \tTranslates a cs219 ffindex database into its legacy format. This tool is part of the mmseqs-based HH-suite database pipeline\n"
             "rebuildfasta       \tRebuild a fasta file from a ffindex database\n"
             "gff2ffindex        \tTurn a GFF3 file into a ffindex database\n"
+            "maskbygff          \tMasks the sequences in an ffindex database by the selected rows in a gff file"
     );
     Debug(Debug::INFO) << usage << "\n";
 }
