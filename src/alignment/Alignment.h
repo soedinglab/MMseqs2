@@ -86,6 +86,8 @@ private:
     void mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> vector);
 
     bool sameQTDB;
+    // merge fragments
+    bool fragmentMerge;
 };
 
 #endif

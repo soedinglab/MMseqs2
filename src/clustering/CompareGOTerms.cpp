@@ -290,7 +290,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                                                      std::string filesuffix, bool allagainstall, bool randomized) {
     Debug(Debug::INFO) << "Opening clustering database...\n";
     DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
-    cluster_ffindex_reader->open(DBReader<std::string>::SORT);
+    cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
     //files
     std::ofstream clusters_summary_file;
     clusters_summary_file.open(evaluationfolder+fileprefix+"clusters_summary.go"+filesuffix);

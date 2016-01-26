@@ -86,7 +86,13 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
 
     // bias correction
     if(aaBiasCorrection == true){
-        SubstitutionMatrix::calcLocalAaBiasCorrection(m, seq->int_sequence, seq->L, compositionBias);
+        if(seq->getSeqType() == Sequence::HMM_PROFILE){
+            SubstitutionMatrix::calcGlobalAaBiasCorrection(m, seq->profile_score,
+                                                           seq->profile_index,seq->profile_row_size,
+                                                           seq->L, compositionBias);
+        }else {
+            SubstitutionMatrix::calcLocalAaBiasCorrection(m, seq->int_sequence, seq->L, compositionBias);
+        }
     } else {
         memset(compositionBias, 0, sizeof(float) * seq->L);
     }

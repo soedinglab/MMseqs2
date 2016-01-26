@@ -52,6 +52,56 @@ void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
     }
 }
 
+/* Compute aa correction
+   => p(a) =  ( \prod_{i=1}^L pi(a) )^(1/L)
+   => p(a) = 2^[ (1/L) * \log2 ( \prod_{i=1}^L pi(a) )
+   => p(a) = 2^[ (1/L) * \sum_{i=1}^L  \log2 pi(a) ]
+   => p(a) = 2^[ (1/L) * \sum_{i=1}^L  \log2 ( pi(a) / f(a) )  + log2 f(a) ]
+   => p(a) = f(a) * 2^[ (1/L) * \sum_{i=1}^L  S(pi, a) ]
+ */
+
+void SubstitutionMatrix::calcGlobalAaBiasCorrection(const BaseMatrix *m,
+                                                    const short *profileScores,
+                                                    const unsigned int *profileIndex,
+                                                    const size_t profileAASize,
+                                                    const int N,
+                                                    float * compositionBias){
+
+    const int windowSize = 40;
+    for (int i = 0; i < N; i++){
+        const int minPos = std::max(0, (i - windowSize/2));
+        const int maxPos = std::min(N, (i + windowSize/2));
+        const int windowLength = maxPos - minPos;
+        // negative score for the amino acids in the neighborhood of i
+        int aaSum[20];
+        for (int j = minPos; j < maxPos; j++){
+            const short * subMat = profileScores + (j * profileAASize);
+            const unsigned int * aaIdx = profileIndex + (j * profileAASize);
+            if(i == j )
+                continue;
+            for(size_t aa = 0; aa < 20; aa++){
+                const unsigned int aaPos = aaIdx[aa];
+                aaSum[aaPos] += subMat[aaPos];
+            }
+        }
+        const unsigned int * aaIdx = profileIndex + (i * profileAASize);
+        const short * subMat = profileScores + (i * profileAASize);
+        for(size_t aa = 0; aa < 20; aa++) {
+            const unsigned int aaPos = aaIdx[aa];
+            float deltaS_i_aa = (float) aaSum[aaPos];
+            // negative avg.
+            deltaS_i_aa /= -1.0 * static_cast<float>(windowLength);
+            // positive score for the background score distribution for i
+            deltaS_i_aa += m->pBack[aaPos] * static_cast<float>(subMat[aaPos]);
+            compositionBias[i*20 +aaIdx[aa]] = deltaS_i_aa;
+        }
+//        std::cout << i << " " << compositionBias[i] << std::endl;
+    }
+
+}
+
+
+
 SubstitutionMatrix::~SubstitutionMatrix(){
 }
 
