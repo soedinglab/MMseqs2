@@ -725,7 +725,7 @@ const int Prefiltering::getKmerThreshold(const float sensitivity, const int scor
         } else if (kmerSize == 6){
             kmerThrBest = 133.75 - (sens * 8.75);
         } else if (kmerSize == 7){
-            kmerThrBest = 143.75 - (sens * 8.75);
+            kmerThrBest = 154.75 - (sens * 9.75);
         }
         else{
             Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";

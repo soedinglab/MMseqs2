@@ -18,37 +18,42 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
     this->fragmentMerge = par.fragmentMerge;
-    if(fragmentMerge == true){
-        Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
-        this->mode = Matcher::SCORE_COV_SEQID; // slowest
-    } else{
-        switch (par.alignmentMode){
-            case 0:
-                if(this->covThr == 0.0 && this->seqIdThr == 0.0){
-                    Debug(Debug::WARNING) << "Compute score only.\n";
-                    this->mode = Matcher::SCORE_ONLY; //fastest
-                } else if(this->covThr > 0.0 && this->seqIdThr == 0.0) {
-                    Debug(Debug::WARNING) << "Compute score and coverage.\n";
-                    this->mode = Matcher::SCORE_COV; // fast
-                } else { // if seq id is needed
-                    Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
-                    this->mode = Matcher::SCORE_COV_SEQID; // slowest
-                }
-                break;
-            case 1:
+
+    switch (par.alignmentMode){
+        case 0:
+            if(this->covThr == 0.0 && this->seqIdThr == 0.0){
                 Debug(Debug::WARNING) << "Compute score only.\n";
-                this->mode = Matcher::SCORE_ONLY; // fast
-                break;
-            case 2:
+                this->mode = Matcher::SCORE_ONLY; //fastest
+                if(fragmentMerge == true){
+                    Debug(Debug::ERROR) << "Fragment merge does not work with Score only mode. Set --alignment-mode to 2 or 3.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+            } else if(this->covThr > 0.0 && this->seqIdThr == 0.0) {
                 Debug(Debug::WARNING) << "Compute score and coverage.\n";
                 this->mode = Matcher::SCORE_COV; // fast
-                break;
-            case 3:
+            } else { // if seq id is needed
                 Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
-                this->mode = Matcher::SCORE_COV_SEQID; // fast
-                break;
-        }
+                this->mode = Matcher::SCORE_COV_SEQID; // slowest
+            }
+            break;
+        case 1:
+            Debug(Debug::WARNING) << "Compute score only.\n";
+            this->mode = Matcher::SCORE_ONLY; // fast
+            if(fragmentMerge == true){
+                Debug(Debug::ERROR) << "Fragment merge does not work with Score only mode. Set --alignment-mode to 2 or 3.\n";
+                EXIT(EXIT_FAILURE);
+            }
+            break;
+        case 2:
+            Debug(Debug::WARNING) << "Compute score and coverage.\n";
+            this->mode = Matcher::SCORE_COV; // fast
+            break;
+        case 3:
+            Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
+            this->mode = Matcher::SCORE_COV_SEQID; // fast
+            break;
     }
+
     if (par.querySeqType == Sequence::AMINO_ACIDS || par.querySeqType == Sequence::HMM_PROFILE){
         this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }else{

@@ -88,14 +88,14 @@ public:
 
     static inline bool getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength) {
         size_t keySize = 0;
-        while (((data[keySize] != '\n') || (data[keySize] != '\0')) && keySize < dataLength) {
+        while (((data[keySize] != '\n') && (data[keySize] != '\0')) && keySize < dataLength) {
             keySize++;
         }
         size_t maxLength = std::min(keySize + 1, bufferLength);
         strncpy(buffer, data, maxLength);
         buffer[maxLength - 1] = '\0';
 
-        return bufferLength <= dataLength;
+        return bufferLength > dataLength;
     }
 
     static inline size_t skipWhitespace(char * data){
