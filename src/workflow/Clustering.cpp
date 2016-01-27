@@ -53,7 +53,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         }
     }
 
-    if (parameterSet == false) {
+    if (!par.noAutomaticThreshold && parameterSet == false) {
         std::pair<float, bool> settings = setAutomaticThreshold(par.seqIdThr);
         par.sensitivity = settings.first;
         par.cascaded = settings.second;
@@ -93,18 +93,15 @@ int clusteringworkflow(int argc, const char *argv[]) {
         cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("CLUSTER3_PAR", par.createParameterString(par.clustering));
 
-        cmd.execProgram(par.mmdir + "/bin/cascaded_clustering.sh", 3, argv);
+        cmd.spawnProgram(par.mmdir + "/bin/cascaded_clustering.sh", 3, argv);
 
     } else {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clustering));
 
-        cmd.execProgram(par.mmdir + "/bin/clustering.sh", 3, argv);
+        cmd.spawnProgram(par.mmdir + "/bin/clustering.sh", 3, argv);
     }
-
-    // Unreachable
-    assert(false);
 
     return 0;
 }
