@@ -107,7 +107,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
                 }
             }
             // compute sequence id
-            seqId = (float)aaIds/(float)(std::min(currentQuery->L, dbSeq->L));
+            unsigned int len = std::max(alignment.cigarLen, static_cast<int32_t>(1));
+            seqId =  static_cast<float>(aaIds) / static_cast<float>(len);
+
         }
     }
 
@@ -122,10 +124,16 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         dbcov = computeCov(dbStartPos, dbEndPos, dbSeq->L);
     }
     // try to estimate sequence id
-    if(mode == SCORE_ONLY || mode == SCORE_COV){
+    if( mode == SCORE_COV){
         // "20%   30%   40%   50%   60%   70%   80%   90%   99%"
         // "0.52  1.12  1.73  2.33  2.93  3.53  4.14  4.74  5.28"
-        seqId = (alignment.score1 / (static_cast<float>(std::min(currentQuery->L, dbSeq->L))))  * 0.1656 + 0.1141;
+        unsigned int qAlnLength = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
+        unsigned int dbAlnLength = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
+        seqId = (alignment.score1 / static_cast<float>(std::max(qAlnLength, dbAlnLength)))  * 0.1656 + 0.1141;
+    }else if ( mode == SCORE_ONLY){
+        unsigned int qAlnLen = std::max(qEndPos, static_cast<unsigned int>(1));
+        unsigned int dbAlnLen = std::max(dbEndPos, static_cast<unsigned int>(1));
+        seqId = (alignment.score1 / static_cast<float>(std::max(dbAlnLen, qAlnLen)))  * 0.1656 + 0.1141;
     }
 
     // statistics
