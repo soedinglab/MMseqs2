@@ -23,22 +23,22 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
         case 0:
             if(this->covThr == 0.0 && this->seqIdThr == 0.0){
                 Debug(Debug::WARNING) << "Compute score only.\n";
-                this->mode = Matcher::SCORE_ONLY; //fastest
+                this->mode = Parameters::ALIGNMENT_MODE_SCORE_ONLY; //fastest
                 if(fragmentMerge == true){
                     Debug(Debug::ERROR) << "Fragment merge does not work with Score only mode. Set --alignment-mode to 2 or 3.\n";
                     EXIT(EXIT_FAILURE);
                 }
             } else if(this->covThr > 0.0 && this->seqIdThr == 0.0) {
                 Debug(Debug::WARNING) << "Compute score and coverage.\n";
-                this->mode = Matcher::SCORE_COV; // fast
+                this->mode = Parameters::ALIGNMENT_MODE_SCORE_COV; // fast
             } else { // if seq id is needed
                 Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
-                this->mode = Matcher::SCORE_COV_SEQID; // slowest
+                this->mode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID; // slowest
             }
             break;
         case 1:
             Debug(Debug::WARNING) << "Compute score only.\n";
-            this->mode = Matcher::SCORE_ONLY; // fast
+            this->mode = Parameters::ALIGNMENT_MODE_SCORE_ONLY; // fast
             if(fragmentMerge == true){
                 Debug(Debug::ERROR) << "Fragment merge does not work with Score only mode. Set --alignment-mode to 2 or 3.\n";
                 EXIT(EXIT_FAILURE);
@@ -46,11 +46,11 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
             break;
         case 2:
             Debug(Debug::WARNING) << "Compute score and coverage.\n";
-            this->mode = Matcher::SCORE_COV; // fast
+            this->mode = Parameters::ALIGNMENT_MODE_SCORE_COV; // fast
             break;
         case 3:
             Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
-            this->mode = Matcher::SCORE_COV_SEQID; // fast
+            this->mode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID; // fast
             break;
     }
 
@@ -250,10 +250,10 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 // check first if it is identity
                 if (isIdentity ||
                     ( (res.eval <= evalThr ) &&
-                      ( ( mode == Matcher::SCORE_ONLY ) ||
-                        ( mode == Matcher::SCORE_COV && res.qcov >= covThr && res.dbcov >= covThr) ||
-                        ( mode == Matcher::SCORE_COV_SEQID && res.seqId > seqIdThr&& res.qcov >= covThr && res.dbcov >= covThr) ||
-                        ( mode == Matcher::SCORE_COV_SEQID && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 )
+                      (( mode == Parameters::ALIGNMENT_MODE_SCORE_ONLY) ||
+                       ( mode == Parameters::ALIGNMENT_MODE_SCORE_COV && res.qcov >= covThr && res.dbcov >= covThr) ||
+                       ( mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID && res.seqId > seqIdThr && res.qcov >= covThr && res.dbcov >= covThr) ||
+                       ( mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 )
                       )
                     ) )
                 {

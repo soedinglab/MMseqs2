@@ -22,11 +22,6 @@ class Matcher{
 public:
 
 
-
-    static const unsigned int SCORE_ONLY = 0;
-    static const unsigned int SCORE_COV = 1;
-    static const unsigned int SCORE_COV_SEQID = 2;
-
     struct result_t {
         unsigned int dbKey;
         int score;

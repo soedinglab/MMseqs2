@@ -2,6 +2,7 @@
 #include <BaseMatrix.h>
 #include "Util.h"
 #include "smith_waterman_sse2.h"
+#include "Parameters.h"
 
 Matcher::Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize, bool aaBiasCorrection){
     this->m = m;
@@ -79,7 +80,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     float seqId = 0.0;
     // compute sequence identity
     std::string backtrace;
-    if(mode == SCORE_COV_SEQID){
+    if(mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID){
         if(alignment.cigar){
             backtrace.reserve(alignment.cigarLen);
             int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
@@ -119,18 +120,18 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     dbEndPos = alignment.dbEndPos1;
     // normalize score
 //    alignment->score1 = alignment->score1 - log2(dbSeq->L);
-    if(mode == SCORE_COV || mode == SCORE_COV_SEQID) {
+    if(mode == Parameters::ALIGNMENT_MODE_SCORE_COV || mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID) {
         qcov  = computeCov(qStartPos, qEndPos, currentQuery->L);
         dbcov = computeCov(dbStartPos, dbEndPos, dbSeq->L);
     }
     // try to estimate sequence id
-    if( mode == SCORE_COV){
+    if( mode == Parameters::ALIGNMENT_MODE_SCORE_COV){
         // "20%   30%   40%   50%   60%   70%   80%   90%   99%"
         // "0.52  1.12  1.73  2.33  2.93  3.53  4.14  4.74  5.28"
         unsigned int qAlnLength = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
         unsigned int dbAlnLength = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
         seqId = (alignment.score1 / static_cast<float>(std::max(qAlnLength, dbAlnLength)))  * 0.1656 + 0.1141;
-    }else if ( mode == SCORE_ONLY){
+    }else if ( mode == Parameters::ALIGNMENT_MODE_SCORE_ONLY){
         unsigned int qAlnLen = std::max(qEndPos, static_cast<unsigned int>(1));
         unsigned int dbAlnLen = std::max(dbEndPos, static_cast<unsigned int>(1));
         seqId = (alignment.score1 / static_cast<float>(std::max(dbAlnLen, qAlnLen)))  * 0.1656 + 0.1141;

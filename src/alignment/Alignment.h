@@ -42,7 +42,7 @@ public:
 
 private:
 
-    // keeps state of alignment mode (SCORE_ONLY, SCORE_COV or SCORE_COV_SEQID)
+    // keeps state of alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
     unsigned mode;
     int threads;
 
