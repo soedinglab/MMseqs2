@@ -75,6 +75,8 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.sensitivity = 1;
         par.maxResListLen = 20;
         par.fragmentMerge = true;
+        par.diagonalScoring = 0;
+        par.compBiasCorrection = 0;
         cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.alignment).c_str());
         cmd.addVariable("CLUSTER0_PAR", par.createParameterString(par.clustering).c_str());
@@ -84,6 +86,8 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.sensitivity = targetSensitivity / 3.0;
         par.maxResListLen = 100;
         par.fragmentMerge = false;
+        par.diagonalScoring = 1;
+        par.compBiasCorrection = 1;
         cmd.addVariable("PREFILTER1_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT1_PAR", par.createParameterString(par.alignment).c_str());
         cmd.addVariable("CLUSTER1_PAR", par.createParameterString(par.clustering).c_str());
