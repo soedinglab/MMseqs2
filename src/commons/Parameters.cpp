@@ -2,7 +2,12 @@
 #include "Sequence.h"
 #include "Debug.h"
 #include "Util.h"
+
 #include <iomanip>
+#include <regex.h>
+#include <string>
+#include <sstream>
+#include <climits>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -189,6 +194,7 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_THREADS);
     filterDb.push_back(PARAM_V);
 
+    checkSaneEnvironment();
     setDefaults();
 }
 
@@ -205,17 +211,6 @@ Parameters::~Parameters(){
     rebuildfasta.clear();
     gff2ffindex.clear();
 }
-
-
-int Parameters::compileRegex(regex_t * regex, const char * regexText){
-    int status = regcomp(regex, regexText, REG_EXTENDED | REG_NEWLINE);
-    if (status != 0 ){
-        Debug(Debug::INFO) << "Error in regex " << regexText << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    return 0;
-}
-
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
@@ -237,6 +232,15 @@ void Parameters::printUsageMessage(std::string programUsageHeader,
         ss << ")" << std::endl;
     }
     Debug(Debug::INFO) << ss.str();
+}
+
+int compileRegex(regex_t * regex, const char * regexText){
+    int status = regcomp(regex, regexText, REG_EXTENDED | REG_NEWLINE);
+    if (status != 0 ){
+        Debug(Debug::ERROR) << "Error in regex " << regexText << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return 0;
 }
 
 void Parameters::parseParameters(int argc, const char* pargv[],
@@ -390,16 +394,24 @@ void Parameters::deserialize( std::istream &stream ) {
 
 }
 
-void Parameters::setDefaults() {
+void Parameters::checkSaneEnvironment() {
+    bool isInsane = false;
 
-    // get environment
-    char* mmdirStr = getenv ("MMDIR");
-    if (mmdirStr == 0){
-        std::cerr << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+    char* mmdirStr = getenv("MMDIR");
+    if (mmdirStr == NULL){
+        Debug(Debug::ERROR) << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
+        isInsane = true;
+    }
+
+    if(isInsane) {
         EXIT(EXIT_FAILURE);
     }
-    mmdir = std::string(mmdirStr);
-    scoringMatrixFile += mmdir + "/data/blosum62.out";
+}
+
+void Parameters::setDefaults() {
+    mmdir = getenv("MMDIR");
+    scoringMatrixFile = mmdir;
+    scoringMatrixFile.append("/data/blosum62.out");
 
     kmerSize =  6;
     kmerScore = INT_MAX;
