@@ -74,6 +74,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.sensitivity = 1;
         par.maxResListLen = 20;
         par.fragmentMerge = true;
+        par.alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
         cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.alignment).c_str());
         cmd.addVariable("CLUSTER0_PAR", par.createParameterString(par.clustering).c_str());
