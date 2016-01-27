@@ -1,16 +1,29 @@
 #include "CommandCaller.h"
 #include "Util.h"
+#include "Debug.h"
 
 #include <cstdlib>
 #include <unistd.h>
 #include <sstream>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
-void CommandCaller::addVariable(std::string key, std::string value) {
-    setenv(key.c_str(), value.c_str(), true);
+
+CommandCaller::CommandCaller() {
+#ifdef OPENMP
+    if(omp_get_proc_bind() != omp_proc_bind_false){
+        Debug(Debug::WARNING) << "Warning: Calling program has OMP_PROC_BIND set in its environment. Performance may be degraded!\n";
+    }
+#endif
 }
 
-int CommandCaller::callProgram(std::string program, size_t argc, const char **argv) {
+void CommandCaller::addVariable(const char* key, const char* value) {
+    setenv(key, value, true);
+}
+
+int CommandCaller::callProgram(const char* program, size_t argc, const char **argv) {
     std::stringstream argString(program);
     for (size_t i = 0; i < argc; i++) {
         argString << " " << argv[i];
@@ -23,20 +36,17 @@ int CommandCaller::callProgram(std::string program, size_t argc, const char **ar
     return 0;
 }
 
-void CommandCaller::execProgram(std::string program, size_t argc, const char **argv) {
-    char *name = strdup(program.c_str());
-
+void CommandCaller::execProgram(const char* program, size_t argc, const char **argv) {
     // hack: our argv string does not contain a program name anymore, readd it
-    char *pArgv[argc + 2];
-    pArgv[0] = name;
+    const char *pArgv[argc + 2];
+    pArgv[0] = program;
     for (size_t i = 0; i < argc; ++i) {
-        pArgv[i + 1] = (char *) argv[i];
+        pArgv[i + 1] = argv[i];
     }
     pArgv[argc + 1] = NULL;
 
-    int res = execvp(program.c_str(), pArgv);
+    int res = execvp(program, (char * const *) pArgv);
 
     // should not be reached in the normal case
-    free(name);
     EXIT(res);
 }

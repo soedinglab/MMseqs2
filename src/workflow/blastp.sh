@@ -16,6 +16,8 @@ notExists () {
 [   -f "$3" ] &&  echo "$3 exsists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && exit 1;
 
+export OMP_PROC_BIND=TRUE
+
 # processing
 # call prefilter module
 notExists "$4/pref" && mmseqs prefilter "$1" "$2" "$4/pref" $PREFILTER_PAR           && checkReturnCode "Prefilter died"
