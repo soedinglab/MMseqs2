@@ -3,6 +3,7 @@
 #include <string>
 #include <cassert>
 
+#include "DBWriter.h"
 #include "CommandCaller.h"
 #include "Debug.h"
 #include "WorkflowFunctions.h"
@@ -68,18 +69,26 @@ int clusteringworkflow(int argc, const char *argv[]) {
         float targetSensitivity = par.sensitivity;
         size_t maxResListLen = par.maxResListLen;
 
-        // set parameter for first step
-        par.sensitivity = 1; // 1 is lowest sens
+        // 1 is lowest sens
+        par.clusteringMode = Parameters::GREEDY;
+        par.sensitivity = 1;
+        par.maxResListLen = 20;
+        par.fragmentMerge = true;
+        cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
+        cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.alignment).c_str());
+        cmd.addVariable("CLUSTER0_PAR", par.createParameterString(par.clustering).c_str());
 
-        par.zscoreThr = getZscoreForSensitivity(par.sensitivity);
+        // set parameter for first step
+        par.clusteringMode = Parameters::SET_COVER;
+        par.sensitivity = targetSensitivity / 3.0;
         par.maxResListLen = 100;
+        par.fragmentMerge = false;
         cmd.addVariable("PREFILTER1_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT1_PAR", par.createParameterString(par.alignment).c_str());
         cmd.addVariable("CLUSTER1_PAR", par.createParameterString(par.clustering).c_str());
 
         // set parameter for second step
-        par.sensitivity = targetSensitivity / 2.0;
-        par.zscoreThr = getZscoreForSensitivity(par.sensitivity);
+        par.sensitivity = targetSensitivity * (2.0 / 3.0);
         par.maxResListLen = 200;
         cmd.addVariable("PREFILTER2_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT2_PAR", par.createParameterString(par.alignment).c_str());
@@ -87,7 +96,6 @@ int clusteringworkflow(int argc, const char *argv[]) {
 
         // set parameter for last step
         par.sensitivity = targetSensitivity;
-        par.zscoreThr = getZscoreForSensitivity(par.sensitivity);
         par.maxResListLen = maxResListLen;
         cmd.addVariable("PREFILTER3_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(par.alignment).c_str());

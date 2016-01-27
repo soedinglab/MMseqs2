@@ -436,7 +436,6 @@ void Parameters::setDefaults() {
     searchMode = SEARCH_LOCAL_FAST;
     profile = false;
     nucl = false;
-    zscoreThr = 50.0f;
 
     alignmentMode = 0;
     evalThr = 0.001;

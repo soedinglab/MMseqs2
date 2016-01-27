@@ -85,7 +85,6 @@ private:
     const float sensitivity;
     size_t maxResListLen;
     int alphabetSize;
-    const float zscoreThr;
     const size_t maxSeqLen;
     const int querySeqType;
     const int targetSeqType;

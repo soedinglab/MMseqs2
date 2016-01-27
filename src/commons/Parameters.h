@@ -91,7 +91,6 @@ public:
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
-    float  zscoreThr;                    // z score threshold for global matching
     int    searchMode;                   // Local search type
     bool   profile;                      // using profile information
     bool   nucl;                         // using nucl informatoin
