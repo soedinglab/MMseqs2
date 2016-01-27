@@ -6,13 +6,10 @@
 #define MMSEQS_PARAMETERS
 #include <string>
 #include <vector>
-#include <map>
 #include <typeinfo>
-#include <regex.h>
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
-
 
 struct MMseqsParameter {
     const int uniqid;
@@ -155,6 +152,7 @@ public:
     int minSequences;
     
     void setDefaultPaths();
+    void checkSaneEnvironment();
     void setDefaults();
     void serialize( std::ostream &stream );
     void deserialize( std::istream &stream );
@@ -269,9 +267,6 @@ public:
                                               std::vector < MMseqsParameter > par2);
 
     std::string createParameterString(std::vector < MMseqsParameter > vector);
-
-    int compileRegex(regex_t *regex, const char *regexText);
-
 };
 
 #endif
