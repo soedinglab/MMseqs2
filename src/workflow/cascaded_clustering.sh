@@ -21,6 +21,8 @@ hasCommand () {
 hasCommand ffindex_order
 hasCommand awk
 
+export OMP_PROC_BIND=TRUE
+
 # processing
 ################ clustering step 1 ################
 # call prefilter module

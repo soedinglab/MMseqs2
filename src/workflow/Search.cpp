@@ -18,15 +18,21 @@ int search(int argc, const char *argv[]) {
 
     CommandCaller cmd;
     if (par.numIterations > 1) {
-        cmd.addVariable("NUM_IT", SSTR(par.numIterations));
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
-        cmd.addVariable("PROFILE_PAR", par.createParameterString(par.createprofiledb));
-        cmd.execProgram(par.mmdir + "/bin/blastpgp.sh", 4, argv);
+        cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
+        cmd.addVariable("PROFILE_PAR", par.createParameterString(par.createprofiledb).c_str());
+
+        std::string program(par.mmdir);
+        program.append("/bin/blastpgp.sh");
+        cmd.execProgram(program.c_str(), 4, argv);
     } else {
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
-        cmd.execProgram(par.mmdir + "/bin/blastp.sh", 4, argv);
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
+
+        std::string program(par.mmdir);
+        program.append("/bin/blastp.sh");
+        cmd.execProgram(program.c_str(), 4, argv);
     }
 
     // Should never get here
