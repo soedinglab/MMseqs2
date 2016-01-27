@@ -82,13 +82,16 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
     outfile_stream.open(outputfile);
 
     outfile_stream<<"clusterid\tid2\taliscore\tqcov\tdbcov\tseqId\teval\n";
+
+    const size_t LINE_BUFFER_SIZE = 255+1;
+
     for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
         std::string representative=cluster_ffindex_reader->getDbKey(i);
         char *data = cluster_ffindex_reader->getData(i);
-        char *idbuffer = new char[255 + 1];
-        char *linebuffer=new char[255+1];
+        char *idbuffer = new char[LINE_BUFFER_SIZE];
+        char *linebuffer=new char[LINE_BUFFER_SIZE];
 
 
         std::set<std::string> clusterset;
@@ -102,7 +105,9 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
             data = Util::skipLine(data);
         }
 
-        char *data_alignment = alignment_ffindex_reader->getDataByDBKey(representative.c_str());
+        size_t dbKey = alignment_ffindex_reader->getId(representative.c_str());
+        char *data_alignment = alignment_ffindex_reader->getData(dbKey);
+        size_t data_alignment_length = alignment_ffindex_reader->getSeqLens(dbKey);
         if (data_alignment== NULL) {
           //  Debug(Debug::INFO) <<representative<<"\n";
             continue;
@@ -111,7 +116,10 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
             Util::parseKey(data_alignment, idbuffer);
             //Debug(Debug::INFO) <<idbuffer;
             if(clusterset.find(idbuffer)!= clusterset.end()){
-                outfile_stream<<getProteinNameForID(representative.c_str())<<"\t"<<getProteinNameForID(Util::getLine(data_alignment,linebuffer))<<"\n";
+                if(!Util::getLine(data_alignment, data_alignment_length, linebuffer, LINE_BUFFER_SIZE)) {
+                    Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
+                }
+                outfile_stream<<getProteinNameForID(representative.c_str())<<"\t"<<getProteinNameForID(linebuffer)<<"\n";
             }
             data_alignment = Util::skipLine(data_alignment);
         }
@@ -241,12 +249,14 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
     outfile_stream.open(outputfolder +"/"+ prefix +"domainscore.tsv");
 
     outfile_stream<<"algorithm\tclusterid\tid2\tdomain_score\n";
+    const size_t LINE_BUFFER_SIZE = 255+1;
+
     for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
         std::string representative=cluster_ffindex_reader->getDbKey(i);
         char *data = cluster_ffindex_reader->getData(i);
-        char *idbuffer = new char[255 + 1];
-        char *linebuffer=new char[255+1];
+        char *idbuffer = new char[LINE_BUFFER_SIZE];
+        char *linebuffer=new char[LINE_BUFFER_SIZE];
 
 
         std::set<std::string> clusterset;
@@ -260,7 +270,9 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
             data = Util::skipLine(data);
         }
 
-        char *data_alignment = alignment_ffindex_reader->getDataByDBKey(representative.c_str());
+        size_t dbKey = alignment_ffindex_reader->getId(representative.c_str());
+        char *data_alignment = alignment_ffindex_reader->getData(dbKey);
+        size_t data_alignment_length = alignment_ffindex_reader->getSeqLens(dbKey);
         if (data_alignment== NULL) {
             //  Debug(Debug::INFO) <<representative<<"\n";
             continue;
@@ -271,7 +283,10 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
            // Debug(Debug::INFO) <<idbuffer;
             if(clusterset.find(idbuffer)!= clusterset.end()){
                 clusterset2.insert(std::string(idbuffer));
-                outfile_stream<< prefix <<"\t"<<getProteinNameForID(representative.c_str())<<"\t"<<getProteinNameForID(Util::getLine(data_alignment,linebuffer))<<"\n";
+                if(!Util::getLine(data_alignment, data_alignment_length, linebuffer, LINE_BUFFER_SIZE)) {
+                    Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
+                }
+                outfile_stream<< prefix <<"\t"<<getProteinNameForID(representative.c_str())<<"\t"<<getProteinNameForID(linebuffer)<<"\n";
             }
             data_alignment = Util::skipLine(data_alignment);
         }

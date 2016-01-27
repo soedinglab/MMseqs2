@@ -426,13 +426,15 @@ int numberofthreads=1;
         DBWriter* dbw = new DBWriter(outputfile.c_str(), (outputfile+".index").c_str(),numberofthreads);
         dbw->open();
 
+        const size_t BUFFER_SIZE = 1000000;
+        const size_t LINE_BUFFER_SIZE = 255+1;
+
 #pragma omp parallel
         {
-            size_t BUFFER_SIZE = 1000000;
             char* outBuffer = new char[BUFFER_SIZE];
-            char *idbuffer1 = new char[255 + 1];
-            char *linebuffer = new char[255 + 1];
-            char *similarity = new char[255+1];
+            char *idbuffer1 = new char[LINE_BUFFER_SIZE];
+            char *linebuffer = new char[LINE_BUFFER_SIZE];
+            char *similarity = new char[LINE_BUFFER_SIZE];
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t i = 0; i < seqDbr->getSize(); i++) {
@@ -443,10 +445,13 @@ int numberofthreads=1;
 #endif
                 // for (int i = 0; i < seqDbr->getSize(); i++) {
                 char *data = alnDbr->getData(i);
+                size_t dataLength = alnDbr->getSeqLens(i);
                 std::string cluResultsOutString = std::string("");
                 while (*data != '\0') {
                     Util::parseKey(data, idbuffer1);
-                    Util::getLine(data, linebuffer);
+                    if(!Util::getLine(data, dataLength, linebuffer, LINE_BUFFER_SIZE)) {
+                        Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
+                    }
                     //get similarityscore
                     float factor = 1;
                     float similarityscore=0.0;

@@ -20,7 +20,9 @@ set(util_source_files
   gff2ffindex.cpp
   maskbygff.cpp
   extract_orf.cpp
-        filterdb.cpp)
+  filterdb.cpp
+  mapcodons.cpp
+)
 add_library(util ${util_source_files} )
 
 target_link_libraries(util prefiltering commons)
