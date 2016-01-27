@@ -93,15 +93,18 @@ int clusteringworkflow(int argc, const char *argv[]) {
         cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("CLUSTER3_PAR", par.createParameterString(par.clustering));
 
-        cmd.spawnProgram(par.mmdir + "/bin/cascaded_clustering.sh", 3, argv);
+        cmd.execProgram(par.mmdir + "/bin/cascaded_clustering.sh", 3, argv);
 
     } else {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter));
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment));
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clustering));
 
-        cmd.spawnProgram(par.mmdir + "/bin/clustering.sh", 3, argv);
+        cmd.execProgram(par.mmdir + "/bin/clustering.sh", 3, argv);
     }
+
+    // Unreachable
+    assert(false);
 
     return 0;
 }
