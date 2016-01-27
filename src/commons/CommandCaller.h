@@ -11,6 +11,8 @@ public:
 
     // Does not return on success
     void execProgram(std::string program, size_t argc, const char **argv);
+
+    bool resetAffinity();
 };
 
 #endif //MMSEQS_COMMANDCALLER_H
