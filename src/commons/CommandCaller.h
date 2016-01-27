@@ -1,16 +1,18 @@
 #ifndef MMSEQS_COMMANDCALLER_H
 #define MMSEQS_COMMANDCALLER_H
 
-#include <string>
+#include <cstddef>
 
 class CommandCaller {
 public:
-    void addVariable(std::string key, std::string value);
+    CommandCaller();
 
-    int callProgram(std::string program, size_t argc, const char **argv);
+    void addVariable(const char* key, const char* value);
+
+    int callProgram(const char* program, size_t argc, const char **argv);
 
     // Does not return on success
-    void execProgram(std::string program, size_t argc, const char **argv);
+    void execProgram(const char* program, size_t argc, const char **argv);
 };
 
 #endif //MMSEQS_COMMANDCALLER_H

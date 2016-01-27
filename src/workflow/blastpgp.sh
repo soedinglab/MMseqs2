@@ -15,6 +15,9 @@ notExists () {
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
 [   -f "$3" ] &&  echo "$3 exsists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && exit 1;
+
+export OMP_PROC_BIND=TRUE
+
 STEP=0
 QUERYDB="$1"
 # processing

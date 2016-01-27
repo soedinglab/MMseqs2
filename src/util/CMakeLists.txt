@@ -10,7 +10,6 @@ set(util_source_files
   ffindex_to_pref_index.cpp
   ffindex_swap_results.cpp
   translate_nucleotide.cpp
-  legacycs219.cpp
   mergecluster.cpp
   mergecluster.h
   convertfiles.h
