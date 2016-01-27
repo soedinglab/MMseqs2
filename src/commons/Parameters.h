@@ -30,9 +30,10 @@ class Parameters          // Parameters for gap penalties and pseudocounts
 {
 public:
 
-    static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 0;
-    static const unsigned int ALIGNMENT_MODE_SCORE_COV = 1;
-    static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 2;
+    static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
+    static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
+    static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
+    static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
 
     static const int SEARCH_GLOBAL = 0;
     static const int SEARCH_LOCAL = 1;

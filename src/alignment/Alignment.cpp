@@ -20,7 +20,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     this->fragmentMerge = par.fragmentMerge;
 
     switch (par.alignmentMode){
-        case 0:
+        case Parameters::ALIGNMENT_MODE_FAST_AUTO:
             if(this->covThr == 0.0 && this->seqIdThr == 0.0){
                 Debug(Debug::WARNING) << "Compute score only.\n";
                 this->mode = Parameters::ALIGNMENT_MODE_SCORE_ONLY; //fastest
@@ -36,7 +36,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
                 this->mode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID; // slowest
             }
             break;
-        case 1:
+        case Parameters::ALIGNMENT_MODE_SCORE_ONLY:
             Debug(Debug::WARNING) << "Compute score only.\n";
             this->mode = Parameters::ALIGNMENT_MODE_SCORE_ONLY; // fast
             if(fragmentMerge == true){
@@ -44,11 +44,11 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
                 EXIT(EXIT_FAILURE);
             }
             break;
-        case 2:
+        case Parameters::ALIGNMENT_MODE_SCORE_COV:
             Debug(Debug::WARNING) << "Compute score and coverage.\n";
             this->mode = Parameters::ALIGNMENT_MODE_SCORE_COV; // fast
             break;
-        case 3:
+        case Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID:
             Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
             this->mode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID; // fast
             break;
