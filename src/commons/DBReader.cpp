@@ -209,7 +209,7 @@ template <typename T> T DBReader<T>::getDbKey (size_t id){
 template <typename T> size_t DBReader<T>::getId (T dbKey){
     size_t id = bsearch(index, size, dbKey);
     if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS){
-        return  (index[id].id != dbKey) ? id2local[id] : UINT_MAX;
+        return  (index[id].id == dbKey) ? id2local[id] : UINT_MAX;
     }
     return (index[id].id == dbKey) ? id : UINT_MAX;
 }
