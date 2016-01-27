@@ -55,18 +55,19 @@ int dofilter(std::string inputDb, std::string outputDb, int threads, int column,
                 }
                 // if column is last column
                 if(column == foundElements){
-                    const ptrdiff_t entrySize = Util::skipLine(data) - columnPointer[column];
-                    memcpy(columnValue, columnPointer[column], entrySize);
+                    const ptrdiff_t entrySize = Util::skipLine(data) - columnPointer[(column - 1)];
+                    memcpy(columnValue, columnPointer[column - 1], entrySize);
                     columnValue[entrySize] = '\0';
                 }else{
-                    const ptrdiff_t entrySize = columnPointer[column + 1] - columnPointer[column];
-                    memcpy(columnValue, columnPointer[column], entrySize);
+                    const ptrdiff_t entrySize = columnPointer[column] - columnPointer[(column - 1)];
+                    memcpy(columnValue, columnPointer[column - 1], entrySize);
                     columnValue[entrySize] = '\0';
                 }
                 int nomatch = regexec(&regex, columnValue, 0, NULL, 0);
 
                 if(!(nomatch)){
                     buffer.append(lineBuffer);
+                    buffer.append("\n");
                 }
                 data = Util::skipLine(data);
             }
