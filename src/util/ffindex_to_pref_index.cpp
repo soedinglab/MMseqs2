@@ -18,11 +18,11 @@ int createindex (int argc, const char * argv[])
     
     std::string usage("\nCreate index for fast readin.\n");
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE: <ffindexDB> <ffindexOutDB> \n");
+    usage.append("USAGE: <ffindexDb> \n");
 
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.createindex, 2);
+    par.parseParameters(argc, argv, usage, par.createindex, 1);
 
     Debug::setDebugLevel(par.verbosity);
     
@@ -33,8 +33,7 @@ int createindex (int argc, const char * argv[])
 
     Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, par.kmerSize, par.spacedKmer);
 
-    PrefilteringIndexReader::createIndexFile(par.db2,
-                                             par.db2Index, &dbr, &seq, par.split,
+    PrefilteringIndexReader::createIndexFile(par.db1, &dbr, &seq, par.split,
                                              subMat->alphabetSize, par.kmerSize, par.spacedKmer, par.searchMode);
 
     // write code

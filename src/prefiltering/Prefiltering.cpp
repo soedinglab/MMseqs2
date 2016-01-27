@@ -6,6 +6,7 @@
 #include "QueryTemplateMatcherLocal.h"
 #include "QueryTemplateMatcher.h"
 #include "QueryScore.h"
+#include <regex.h>
 
 #include <cstddef>
 
@@ -58,8 +59,14 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader<unsigned int>::NOSORT);
-
-    sameQTDB = (queryDB.compare(targetDB) == 0);
+    std::string check(targetDB);
+    check.replace(check.find(queryDB), queryDB.length(), "");
+    regex_t regex;
+    regcomp(&regex, "^\\.s?k[5-7]$", REG_EXTENDED | REG_NEWLINE);
+    int nomatch = regexec(&regex, check.c_str(), 0, NULL, 0);
+    regfree(&regex);
+    // if no match found or two matches found (we want exactly one match)
+    sameQTDB = (queryDB.compare(targetDB) == 0 || (nomatch == false) );
 
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
     if(templateDBIsIndex == true){ // exchange reader with old ffindex reader
@@ -365,8 +372,9 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
         unsigned int targetSeqId = UINT_MAX;
         if(id >= dbFrom && id < (dbFrom + dbSize) && sameQTDB){
             targetSeqId = tdbr->getId(qseq[thread_idx]->getDbKey());
-            if(targetSeqId != UINT_MAX)
+            if(targetSeqId != UINT_MAX){
                 targetSeqId = targetSeqId - dbFrom;
+            }
         }
         // calculate prefiltering results
         std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx], targetSeqId);

@@ -111,6 +111,12 @@ private:
         }
     };
 
+    struct comparePairByOffset{
+        bool operator() (const std::pair<unsigned int, size_t >& lhs, const std::pair<unsigned int, size_t >& rhs) const{
+            return (lhs.second < rhs.second);
+        }
+    };
+
     void checkClosed();
 
     char* dataFileName;
@@ -133,7 +139,7 @@ private:
     int closed;
 
     Index * index;
-    unsigned int *seqLens;
+    unsigned int * seqLens;
     unsigned int * id2local;
     unsigned int * local2id;
 

@@ -202,7 +202,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 unsigned int dbKey = (unsigned int) std::strtoul(val.c_str(), NULL, 10);
                 dbKeys[thread_idx] = dbKey;
                 // sequence are identical if qID == dbID  (needed to cluster really short sequences)
-                const bool isIdentiy = (queryDbKey == dbKey && sameQTDB) ? true : false;
+                const bool isIdentity = (queryDbKey == dbKey && sameQTDB) ? true : false;
                 // prefiltering score
                 std::getline(lineSs, val, '\t');
                 //float prefScore = atof(val.c_str());
@@ -236,14 +236,14 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->mode);
                 alignmentsNum++;
                 //set coverage and seqid if identity
-                if (isIdentiy){
+                if (isIdentity){
                     res.qcov=1;
                     res.dbcov=1;
                     res.seqId=1;
                 }
 
                 // check first if it is identity
-                if (isIdentiy ||
+                if (isIdentity ||
                     ( (res.eval <= evalThr ) &&
                       ( ( mode == Matcher::SCORE_ONLY ) ||
                         ( mode == Matcher::SCORE_COV && res.qcov >= covThr && res.dbcov >= covThr) ||
