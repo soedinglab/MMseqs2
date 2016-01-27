@@ -20,11 +20,14 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
-void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string outDBIndex,
-                                             DBReader<unsigned int> *dbr, Sequence *seq, int split,
-                                             int alphabetSize, int kmerSize, bool hasSpacedKmer,
+void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr, Sequence *seq,
+                                             int split, int alphabetSize, int kmerSize, bool hasSpacedKmer,
                                              int searchMode) {
-    DBWriter writer(outDB.c_str(), outDBIndex.c_str(), DBWriter::BINARY_MODE);
+    std::string outIndexName(outDB); // db.sk6
+    std::string spaced = (hasSpacedKmer == true) ? "s" : "";
+    outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
+
+    DBWriter writer(outIndexName.c_str(), std::string(outIndexName).append(".index").c_str(), DBWriter::BINARY_MODE);
     writer.open();
     int stepCnt = split;
 
@@ -114,7 +117,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, std::string out
 
     Debug(Debug::WARNING) << "Write MMSEQSFFINDEX \n";
     std::ifstream src(dbr->getIndexFileName(), std::ios::binary);
-    std::ofstream dst(std::string(outDB + ".mmseqsindex").c_str(), std::ios::binary);
+    std::ofstream dst(std::string(outIndexName + ".mmseqsindex").c_str(), std::ios::binary);
     dst << src.rdbuf();
     src.close();
     dst.close();
