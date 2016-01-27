@@ -7,15 +7,11 @@
 // Represents a database sequence object, holds its representation in the int array form.
 //
 
+#include <cstdint>
+#include <cstddef>
+#include <utility>
 
-#include <string>
-#include <cstring>
-#include <cstdio>
-#include <vector>
-#include <iostream>
-#include <cstdlib>
-#include <cmath>
-#include "../commons/ScoreMatrix.h"      // for ScoreMatrix
+struct ScoreMatrix;
 
 const int8_t seed_4[]        = {1, 1, 1, 1};
 const int8_t seed_4_spaced[] = {1, 1, 1, 0, 1};

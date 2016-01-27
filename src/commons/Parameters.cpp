@@ -2,8 +2,12 @@
 #include "Sequence.h"
 #include "Debug.h"
 #include "Util.h"
+
 #include <iomanip>
 #include <regex.h>
+#include <string>
+#include <sstream>
+#include <climits>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -398,7 +402,8 @@ void Parameters::checkSaneEnvironment() {
 
 void Parameters::setDefaults() {
     mmdir = getenv("MMDIR");
-    scoringMatrixFile += mmdir + "/data/blosum62.out";
+    scoringMatrixFile = mmdir;
+    scoringMatrixFile.append("/data/blosum62.out");
 
     kmerSize =  6;
     kmerScore = INT_MAX;

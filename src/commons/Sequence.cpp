@@ -2,6 +2,8 @@
 #include "Debug.h"
 #include "Util.h"
 #include "simd.h"
+#include "ScoreMatrix.h"
+
 #include <limits.h> // short_max
 
 
