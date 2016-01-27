@@ -125,7 +125,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     if(mode == SCORE_ONLY || mode == SCORE_COV){
         // "20%   30%   40%   50%   60%   70%   80%   90%   99%"
         // "0.52  1.12  1.73  2.33  2.93  3.53  4.14  4.74  5.28"
-        seqId = (alignment.score1 / (static_cast<float>(std::min(currentQuery->L, dbSeq->L)))  * 0.1656 + 0.1141;
+        seqId = (alignment.score1 / (static_cast<float>(std::min(currentQuery->L, dbSeq->L))))  * 0.1656 + 0.1141;
     }
 
     // statistics
