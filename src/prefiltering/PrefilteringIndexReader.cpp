@@ -1,6 +1,7 @@
 #include "PrefilteringIndexReader.h"
 #include "DBWriter.h"
 #include "Prefiltering.h"
+#include "MathUtil.h"
 
 const char*  PrefilteringIndexReader::CURRENT_VERSION="2.0.1";
 unsigned int PrefilteringIndexReader::VERSION = 0;
@@ -47,7 +48,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize);
 
         // save the entries
-        std::string entries_key = SSTR(Util::concatenate(ENTRIES, step));
+        std::string entries_key = SSTR(MathUtil::concatenate(ENTRIES, step));
         Debug(Debug::WARNING) << "Write " << entries_key << "\n";
         char *entries = (char *) indexTable->getEntries();
         writer.write(entries,
@@ -56,7 +57,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         indexTable->deleteEntries();
 
         // save the size
-        std::string entriesizes_key = SSTR(Util::concatenate(ENTRIESIZES, step));
+        std::string entriesizes_key = SSTR(MathUtil::concatenate(ENTRIESIZES, step));
         Debug(Debug::WARNING) << "Write " << entriesizes_key << "\n";
 
         char **sizes = indexTable->getTable();
@@ -69,11 +70,11 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         delete[] size;
 
         SequenceLookup *lookup = indexTable->getSequenceLookup();
-        std::string seqindexdata_key = SSTR(Util::concatenate(SEQINDEXDATA, step));
+        std::string seqindexdata_key = SSTR(MathUtil::concatenate(SEQINDEXDATA, step));
         Debug(Debug::WARNING) << "Write " << seqindexdata_key << "\n";
         writer.write(lookup->getData(), lookup->getDataSize(), seqindexdata_key.c_str(), 0);
 
-        std::string seqindex_datasize_key = SSTR(Util::concatenate(SEQINDEXDATASIZE, step));
+        std::string seqindex_datasize_key = SSTR(MathUtil::concatenate(SEQINDEXDATASIZE, step));
         Debug(Debug::WARNING) << "Write " << seqindex_datasize_key << "\n";
         int64_t seqindexDataSize = lookup->getDataSize();
         char *seqindexDataSizePtr = (char *) &seqindexDataSize;
@@ -84,20 +85,20 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
             unsigned int size = lookup->getSequence(i).second;
             sequenceSizes[i] = size;
         }
-        std::string seqindex_seqsize = SSTR(Util::concatenate(SEQINDEXSEQSIZE, step));
+        std::string seqindex_seqsize = SSTR(MathUtil::concatenate(SEQINDEXSEQSIZE, step));
         Debug(Debug::WARNING) << "Write " << seqindex_seqsize << "\n";
         writer.write((char *) sequenceSizes, lookup->getSequenceCount() * sizeof(unsigned int), (char *) seqindex_seqsize.c_str(), 0);
         delete[] sequenceSizes;
 
         // meta data
         // ENTRIESNUM
-        std::string entriesnum_key = SSTR(Util::concatenate(ENTRIESNUM, step));
+        std::string entriesnum_key = SSTR(MathUtil::concatenate(ENTRIESNUM, step));
         Debug(Debug::WARNING) << "Write " << entriesnum_key << "\n";
         int64_t entriesNum = indexTable->getTableEntriesNum();
         char *entriesNumPtr = (char *) &entriesNum;
         writer.write(entriesNumPtr, 1 * sizeof(int64_t), (char *) entriesnum_key.c_str(), 0);
         // SEQCOUNT
-        std::string tablesize_key = SSTR(Util::concatenate(SEQCOUNT, step));
+        std::string tablesize_key = SSTR(MathUtil::concatenate(SEQCOUNT, step));
         Debug(Debug::WARNING) << "Write " << tablesize_key << "\n";
         size_t tablesize = {indexTable->getSize()};
         char *tablesizePtr = (char *) &tablesize;
@@ -134,16 +135,16 @@ DBReader<unsigned int>*PrefilteringIndexReader::openNewReader(DBReader<unsigned 
 }
 
 IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*dbr, int split, bool diagonalScoring) {
-    int64_t   entriesNum    = *((int64_t *) dbr->getDataByDBKey(Util::concatenate(ENTRIESNUM, split)));
-    size_t sequenceCount    = *((size_t *)dbr->getDataByDBKey(Util::concatenate(SEQCOUNT, split)));
-    int64_t  seqDataSize    = *((int64_t *)dbr->getDataByDBKey(Util::concatenate(SEQINDEXDATASIZE, split)));
+    int64_t   entriesNum    = *((int64_t *) dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESNUM, split)));
+    size_t sequenceCount    = *((size_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQCOUNT, split)));
+    int64_t  seqDataSize    = *((int64_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQINDEXDATASIZE, split)));
     PrefilteringIndexData data = getMetadata(dbr);
     dbr->unmapData();
     FILE * dataFile = dbr->getDatafile();
-    size_t entriesOffset  = dbr->getDataOffset(Util::concatenate(ENTRIES, split));
-    size_t entrieSizesOffset  = dbr->getDataOffset(Util::concatenate(ENTRIESIZES, split));
-    size_t seqDataOffset  = dbr->getDataOffset(Util::concatenate(SEQINDEXDATA, split));
-    size_t seqSizesOffset = dbr->getDataOffset(Util::concatenate(SEQINDEXSEQSIZE, split));
+    size_t entriesOffset  = dbr->getDataOffset(MathUtil::concatenate(ENTRIES, split));
+    size_t entrieSizesOffset  = dbr->getDataOffset(MathUtil::concatenate(ENTRIESIZES, split));
+    size_t seqDataOffset  = dbr->getDataOffset(MathUtil::concatenate(SEQINDEXDATA, split));
+    size_t seqSizesOffset = dbr->getDataOffset(MathUtil::concatenate(SEQINDEXSEQSIZE, split));
     IndexTable *retTable;
     if (data.local) {
         retTable = new IndexTable(data.alphabetSize, data.kmerSize, diagonalScoring);

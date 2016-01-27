@@ -4,6 +4,7 @@
 #include "PSSMCalculator.h"
 #include <stddef.h>
 #include "simd.h"
+#include "MathUtil.h"
 
 PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength) :subMat(subMat) {
     profile            = new float[Sequence::PROFILE_AA_SIZE * maxSeqLength];
@@ -90,7 +91,7 @@ void PSSMCalculator::computeLogPSSM(char *pssm, float *profile,
         for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
             const float aaProb = profile[pos * Sequence::PROFILE_AA_SIZE + aa];
             const unsigned int idx = pos * Sequence::PROFILE_AA_SIZE + aa;
-            profile[idx] = subMat->getBitFactor() * Util::flog2(aaProb / subMat->pBack[aa]) + scoreBias;
+            profile[idx] = subMat->getBitFactor() * MathUtil::flog2(aaProb / subMat->pBack[aa]) + scoreBias;
             const float pssmVal = profile[pos * Sequence::PROFILE_AA_SIZE + aa];
             pssm[idx] = static_cast<char>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
         }
@@ -135,14 +136,14 @@ void PSSMCalculator::computeNeff_M(float *frequency, float *seqWeight, float *Ne
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa){
             float freq_pos_aa = frequency[pos * Sequence::PROFILE_AA_SIZE + aa];
             if (freq_pos_aa > 1E-10) {
-                sum -= freq_pos_aa * Util::flog2(freq_pos_aa);
+                sum -= freq_pos_aa * MathUtil::flog2(freq_pos_aa);
             }
         }
-        Neff_HMM += Util::fpow2(sum);
+        Neff_HMM += MathUtil::fpow2(sum);
     }
     Neff_HMM /= queryLength;
     float Nlim = fmax(10.0, Neff_HMM + 1.0);    // limiting Neff
-    float scale = Util::flog2((Nlim - Neff_HMM) / (Nlim - 1.0));  // for calculating Neff for those seqs with inserts at specific pos
+    float scale = MathUtil::flog2((Nlim - Neff_HMM) / (Nlim - 1.0));  // for calculating Neff for those seqs with inserts at specific pos
     for (size_t pos = 0; pos < queryLength; pos++) {
         float w_M = -1.0 / setSize;
         for (size_t k = 0; k < setSize; ++k){
@@ -150,7 +151,7 @@ void PSSMCalculator::computeNeff_M(float *frequency, float *seqWeight, float *Ne
                 w_M += seqWeight[k];
             }
         }
-        Neff_M[pos] = (w_M < 0) ? 1.0 : Nlim - (Nlim - 1.0) * Util::fpow2(scale * w_M);
+        Neff_M[pos] = (w_M < 0) ? 1.0 : Nlim - (Nlim - 1.0) * MathUtil::fpow2(scale * w_M);
         //fprintf(stderr,"M  i=%3i  ncol=---  Neff_M=%5.2f  Nlim=%5.2f  w_M=%5.3f  Neff_M=%5.2f\n",pos,Neff_HMM,Nlim,w_M,Neff_M[pos]);
     }
 }
