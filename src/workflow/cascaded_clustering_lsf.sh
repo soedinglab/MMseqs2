@@ -1,4 +1,7 @@
 #!/bin/bash -e
+hasCommand () {
+    command -v $1 >/dev/null 2>&1 || { echo >&2 "Please make sure that $1 is in $PATH."; exit 1; }
+}
 [ -z "$MMDIR" ] && echo "Please set the environment variable $MMDIR to your MMSEQS installation directory." && exit 1;
 # check number of input variables
 [ "$#" -lt 4 ] && echo "Please provide <sequenceDB> <outDB> <tmpDir> <jobname> [clustermode=0] [minseqid=30] [coverage=0.8] [logDir=.]" && exit 1;
@@ -6,6 +9,8 @@
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && exit 1;
+hasCommand ffindex_order
+hasCommand awk
 
 jobname="$4_$RANDOM"
 
@@ -127,4 +132,4 @@ smalljob merge_step3 clu_step3 $ncore \
 
 # post processing
 smalljob postprocess merge_step3 1 \
-	"cp $3/clu $2 && cp $3/clu.index $2.index"
+	"mv -f $3/clu $2 && mv -f $3/clu.index $2.index"
