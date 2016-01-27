@@ -413,7 +413,7 @@ void Parameters::setDefaults() {
     scoringMatrixFile = mmdir;
     scoringMatrixFile.append("/data/blosum62.out");
 
-    kmerSize =  6;
+    kmerSize =  7;
     kmerScore = INT_MAX;
     alphabetSize = 21;
     maxSeqLen = 32768; // 2^15
