@@ -153,6 +153,10 @@ public:
 
     // addSequences
     int minSequences;
+
+    // filterDb
+    int filterColumn;
+    std::string filterColumnRegex;
     
     void setDefaultPaths();
     void setDefaults();
@@ -247,6 +251,10 @@ public:
     // addsequences
     PARAMETER(PARAM_MIN_SEQUENCES)
 
+    // filterDb
+    PARAMETER(PARAM_FILTER_COL)
+    PARAMETER(PARAM_FILTER_REGEX)
+
     std::vector<MMseqsParameter> empty;
 
     std::vector<MMseqsParameter> onlyverbosity;
@@ -264,6 +272,7 @@ public:
     std::vector<MMseqsParameter> clusterUpdate;
     std::vector<MMseqsParameter> translateNucleotide;
     std::vector<MMseqsParameter> addSequences;
+    std::vector<MMseqsParameter> filterDb;
 
     std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
                                               std::vector < MMseqsParameter > par2);
@@ -271,6 +280,7 @@ public:
     std::string createParameterString(std::vector < MMseqsParameter > vector);
 
     int compileRegex(regex_t *regex, const char *regexText);
+
 
 };
 

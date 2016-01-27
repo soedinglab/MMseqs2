@@ -27,4 +27,6 @@ extern int rebuildfasta(int argc, const char **argv);
 extern int gff2ffindex(int argc, const char **argv);
 extern int shellcompletion(int argc, const char** argv);
 extern int maskbygff(int argc, const char** argv);
+extern int filterdb(int argc, const char** argv);
+
 #endif

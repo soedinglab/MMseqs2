@@ -24,7 +24,8 @@ static struct Command commands[] = {
     {"createfasta",         createfasta,            &par.onlyverbosity},
     {"createtsv",           createtsv,              &par.onlyverbosity},
     {"formatalignment",     formatalignment,        &par.formatalignment},
-    {"createindex",         createindex,            &par.formatalignment},
+    {"createindex",         createindex,            &par.createindex},
+    {"filterdb",            filterdb,               &par.filterDb},
     {"mergeffindex",        mergeffindex,           &par.empty},
     {"mergecluster",        mergecluster,           &par.onlyverbosity},
     {"addsequences",        addsequences,           &par.addSequences},
@@ -50,13 +51,14 @@ void printUsage() {
             "prefilter          \tCalculates similarity scores between all sequences in the query db and all sequences in the target db\n"
             "alignment          \tCalculates Smith-Waterman alignment scores from prefilter output\n"
             "cluster            \tCalculates clustering of a sequence database based on alignment output with set cover algorithm\n"
-            "clusteringworkflow \tCalculates cascaded clustering of a ffindex sequence database. (Prefiltering -> Alignment -> cluster)*n \n"
+            "clusteringworkflow \tCalculates cascaded clustering of a ffindex sequence database. (Prefiltering -> Alignment -> Cluster)*n \n"
             "clusterupdate      \tUpdates the existing clustering of the previous database version with new sequences from the current version\n"
             "\nHelper: \n"
             "createdb           \tConvert fasta to ffindex (all programs need ffindex as input)\n"
             "createindex        \tConvert ffindex to fast index for prefiltering\n"
             "createfasta        \tConvert ffindex to fasta\n"
             "createtsv          \tConvert ffindex to tsv\n"
+            "filterdb           \tFilter a database by column regex\n"
             "formatalignment    \tConvert a ffindex alignment database to BLAST tab or SAM flat file.\n"
             "createprofiledb    \tConvert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database.\n"
             "swapresults        \tSwaps results from the mapping A->A,B,C to A -> A, B -> A, C -> A\n"
