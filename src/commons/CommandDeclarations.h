@@ -18,7 +18,6 @@ extern int extractorf(int argc, const char **argv);
 extern int createprofiledb(int argc, const char **argv);
 extern int translatenucleotide(int argc, const char **argv);
 extern int timetest(int argc, const char **argv);
-extern int legacycs219(int argc, const char **argv);
 extern int result2profile(int argc, const char **argv);
 extern int splitffindex(int argc, const char **argv);
 extern int formatalignment(int argc, const char **argv);
