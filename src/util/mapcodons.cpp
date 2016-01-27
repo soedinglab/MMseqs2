@@ -66,7 +66,7 @@ int filterdb(int argn, const char **argv)
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-    return dofilter(par.db1,
+    return mapcodons(par.db1,
                     par.db2,
                     par.threads,
                     par.filterColumn,
