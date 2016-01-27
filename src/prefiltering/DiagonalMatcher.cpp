@@ -2,6 +2,7 @@
 // Created by mad on 12/15/15.
 
 #include "DiagonalMatcher.h"
+#include "MathUtil.h"
 
 DiagonalMatcher::DiagonalMatcher(const unsigned int maxSeqLen,
                                  BaseMatrix * substitutionMatrix,
@@ -265,7 +266,7 @@ void DiagonalMatcher::extractScores(unsigned int *score_arr, simd_int score) {
 }
 
 unsigned char DiagonalMatcher::normalizeScore(const unsigned char score, const unsigned int len) {
-    float log2Len = Util::flog2(static_cast<float>(len));
+    float log2Len = MathUtil::flog2(static_cast<float>(len));
     float floatScore = static_cast<float>(score);
     return static_cast<unsigned char>((log2Len > floatScore) ? 0.0 : floatScore - log2Len );
 }

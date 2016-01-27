@@ -18,6 +18,7 @@
 #include "Debug.h"
 #include "Util.h"
 #include "SequenceLookup.h"
+#include "MathUtil.h"
 
 // IndexEntryLocal is an entry with position and seqId for a kmer
 // structure needs to be packed or it will need 8 bytes instead of 6
@@ -36,7 +37,7 @@ public:
         this->size = 0;
         this->hasSequenceLookup = hasSequenceLookup;
         this->sizeOfEntry = sizeof(IndexEntryLocal);
-        tableSize = Util::ipow(alphabetSize, kmerSize);
+        tableSize = MathUtil::ipow(alphabetSize, kmerSize);
         table = new char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
         memset(table, 0, sizeof(char * ) * (tableSize + 1)); // set all pointers to 0
         idxer = new Indexer(alphabetSize, kmerSize);

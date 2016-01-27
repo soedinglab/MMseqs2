@@ -3,10 +3,11 @@
 //
 
 #include "AlignmentSymmetry.h"
-#include <Debug.h>
-#include <Log.h>
+#include <climits>
 #include <sys/time.h>
-#include <Parameters.h>
+#include "Parameters.h"
+#include "Debug.h"
+#include "Log.h"
 #include "AffinityClustering.h"
 
 #ifdef OPENMP

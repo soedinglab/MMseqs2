@@ -4,6 +4,7 @@
 
 #include <string>
 #include <fstream>
+#include <climits>
 
 #include "DBReader.h"
 #include "DBWriter.h"

@@ -10,6 +10,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <climits>
 
 #include "DBReader.h"
 #include "DBWriter.h"

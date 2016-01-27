@@ -28,6 +28,7 @@ set(commons_source_files
   CommandCaller.h
   CountInt32Array.cpp
   CountInt32Array.h
+  MathUtil.h
 )
 add_library(commons ${commons_source_files})
 
