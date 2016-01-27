@@ -24,9 +24,10 @@ int dofilter(std::string inputDb, std::string outputDb, int threads, int column,
         Debug(Debug::INFO) << "Error in regex " << regexStr << "\n";
         EXIT(EXIT_FAILURE);
     }
+
+    const size_t LINE_BUFFER_SIZE = 1000000;
 #pragma omp parallel
     {
-        size_t LINE_BUFFER_SIZE = 1000000;
         char *lineBuffer = new char[LINE_BUFFER_SIZE];
         char *columnValue = new char[LINE_BUFFER_SIZE];
         char **columnPointer = new char*[column + 1];
@@ -40,9 +41,13 @@ int dofilter(std::string inputDb, std::string outputDb, int threads, int column,
             thread_idx = omp_get_thread_num();
 #endif
             char *data = dataDb->getData(id);
+            size_t dataLength = dataDb->getSeqLens(id);
 
             while (*data != '\0') {
-                Util::getLine(data, lineBuffer);
+                if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
+                    Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
+                    continue;
+                }
                 size_t foundElements = Util::getWordsOfLine(lineBuffer, columnPointer, column + 1);
                 if(foundElements < column  ){
                     Debug(Debug::ERROR) << "Column=" << column << " does not exist in line " << lineBuffer << "\n";
