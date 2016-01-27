@@ -2,8 +2,8 @@
 // Created by mad on 1/27/16.
 //
 
-
 #include <Parameters.h>
+#include <regex.h>
 #include <DBReader.h>
 #include <DBWriter.h>
 #include <Util.h>
