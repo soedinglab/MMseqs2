@@ -26,11 +26,21 @@ export OMP_PROC_BIND=TRUE
 # processing
 ################ clustering step 1 ################
 # call prefilter module
-notExists "$3/pref_step1" && mmseqs prefilter "$1" "$1" "$3/pref_step1" $PREFILTER1_PAR                                        && checkReturnCode "Prefilter step 1 died"
+notExists "$3/pref_step0" && mmseqs prefilter "$1" "$1" "$3/pref_step0" $PREFILTER0_PAR                                        && checkReturnCode "Prefilter step 0 died"
 # call alignment module
-notExists "$3/aln_step1"  && mmseqs alignment "$1" "$1" "$3/pref_step1" "$3/aln_step1" $ALIGNMENT1_PAR                         && checkReturnCode "Alignment step 1 died"
+notExists "$3/aln_step0"  && mmseqs alignment "$1" "$1" "$3/pref_step0" "$3/aln_step0" $ALIGNMENT0_PAR                         && checkReturnCode "Alignment step 0 died"
 # call cluster module
-notExists "$3/clu_step1"  && mmseqs cluster   "$1" "$3/aln_step1" "$3/clu_step1" $CLUSTER1_PAR                                 && checkReturnCode "Clustering step 1 died"
+notExists "$3/clu_step0"  && mmseqs cluster   "$1" "$3/aln_step0" "$3/clu_step0" $CLUSTER0_PAR                                 && checkReturnCode "Clustering step 0 died"
+# extract representative sequences index
+notExists "$3/order_step0" && awk '{ print $1 }' "$3/clu_step0.index" > "$3/order_step0"
+notExists "$3/input_step1" && ffindex_order "$3/order_step0" "$1" "$1.index" "$3/input_step1" "$3/input_step1.index"
+################ clustering step 1 ################
+# call prefilter module
+notExists "$3/pref_step1" && mmseqs prefilter "$3/input_step1" "$3/input_step1" "$3/pref_step1" $PREFILTER1_PAR                                        && checkReturnCode "Prefilter step 1 died"
+# call alignment module
+notExists "$3/aln_step1"  && mmseqs alignment "$3/input_step1" "$3/input_step1" "$3/pref_step1" "$3/aln_step1" $ALIGNMENT1_PAR                         && checkReturnCode "Alignment step 1 died"
+# call cluster module
+notExists "$3/clu_step1"  && mmseqs cluster   "$3/input_step1" "$3/aln_step1" "$3/clu_step1" $CLUSTER1_PAR                                 && checkReturnCode "Clustering step 1 died"
 # extract representative sequences index
 notExists "$3/order_step1" && awk '{ print $1 }' "$3/clu_step1.index" > "$3/order_step1"
 notExists "$3/input_step2" && ffindex_order "$3/order_step1" "$1" "$1.index" "$3/input_step2" "$3/input_step2.index"
