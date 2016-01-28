@@ -3,13 +3,14 @@
 //
 #include "MultipleAlignment.h"
 
-#include <CommandDeclarations.h>
 #include <string>
 #include <memory>
 
-#include "Debug.h"
-#include "Util.h"
 #include "Parameters.h"
+#include "Debug.h"
+#include "Sequence.h"
+#include "SubstitutionMatrix.h"
+#include "Util.h"
 
 MultipleAlignment::MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat,
                                      Matcher *aligner) {

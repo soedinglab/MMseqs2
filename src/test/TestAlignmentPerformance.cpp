@@ -8,7 +8,7 @@
 #include "Sequence.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrix.h"
-#include "../alignment/smith_waterman_sse2.h"
+#include "smith_waterman_sse2.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "kseq.h"
+#include "Util.h"
 #define MAX_FILENAME_LIST_FILES 4096
 
 KSEQ_INIT(int, read);

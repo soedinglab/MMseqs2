@@ -1,5 +1,6 @@
 #include "Alignment.h"
 #include "BlastScoreUtils.h"
+#include "Util.h"
 
 #ifdef OPENMP
 #include <omp.h>
