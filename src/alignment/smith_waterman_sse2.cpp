@@ -15,6 +15,7 @@ in whole or in part, without written consent of Michael Farrar.
 #include <Util.h>
 #include <BaseMatrix.h>
 #include <SubstitutionMatrix.h>
+#include "Debug.h"
 
 SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCorrection) {
 	maxSequenceLength += 1;

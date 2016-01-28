@@ -2,9 +2,12 @@
 // Created by mad on 3/24/15.
 //
 #include "PSSMCalculator.h"
-#include <stddef.h>
 #include "simd.h"
 #include "MathUtil.h"
+#include "SubstitutionMatrix.h"
+#include "Sequence.h"
+#include "Util.h"
+#include "Debug.h"
 
 PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength) :subMat(subMat) {
     profile            = new float[Sequence::PROFILE_AA_SIZE * maxSeqLength];

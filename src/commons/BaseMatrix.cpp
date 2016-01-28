@@ -1,5 +1,8 @@
-#include <string>
 #include "BaseMatrix.h"
+#include <string>
+
+#include "Debug.h"
+#include "Util.h"
 
 BaseMatrix::BaseMatrix(){
     this->alphabetSize = 21;
@@ -163,3 +166,8 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseud
 std::string BaseMatrix::getMatrixName() {
     return matrixName;
 }
+
+double BaseMatrix::getBackgroundProb(size_t aa_index)  {
+    Debug(Debug::ERROR) << "getBackground is not Impl. for this type of Matrix \n";
+    EXIT(EXIT_FAILURE);
+};

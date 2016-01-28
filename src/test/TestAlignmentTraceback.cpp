@@ -5,7 +5,6 @@
 //  Copyright (c) 2012 -. All rights reserved.
 //
 #include <iostream>
-#include <smith_waterman_sse2.h>
 #include "Sequence.h"
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
@@ -15,7 +14,8 @@
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
 #include "BaseMatrix.h"
-#include "../alignment/smith_waterman_sse2.h"
+#include "smith_waterman_sse2.h"
+#include "Util.h"
 
 
 struct scores{
