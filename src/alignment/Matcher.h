@@ -9,8 +9,9 @@
 
 #include <stdlib.h>
 
-#include <float.h>
+#include <cfloat>
 #include <algorithm>
+#include <vector>
 
 #include "Sequence.h"
 #include "BaseMatrix.h"

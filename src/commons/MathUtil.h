@@ -1,8 +1,9 @@
 #ifndef MATH_H
 #define MATH_H
 
-#include <limits.h>
-#include <float.h>
+#include <cmath>
+#include <climits>
+#include <cfloat>
 
 class MathUtil {
 

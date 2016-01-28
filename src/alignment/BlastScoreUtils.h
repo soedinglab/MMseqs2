@@ -5,6 +5,7 @@
 #ifndef MMSEQS_BLASTSCOREUTILS_H
 #define MMSEQS_BLASTSCOREUTILS_H
 
+#include <cmath>
 
 class BlastScoreUtils {
 public:
