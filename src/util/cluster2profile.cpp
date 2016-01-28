@@ -27,11 +27,10 @@
 enum {
     MSA = 0,
     PSSM
-} output_mode;
+};
 
 int result2outputmode(int argn, const char **argv, int mode) {
-    std::string usage;
-    usage.append("Converts a ffindex profile database to ffindex.\n");
+    std::string usage("Converts a ffindex profile database to ffindex.\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
@@ -44,13 +43,13 @@ int result2outputmode(int argn, const char **argv, int mode) {
     DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str());
     queryReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> templateReader = queryReader;
+    DBReader<unsigned int>* templateReader = &queryReader;
 
     bool sameDatabase = true;
     if (par.db1.compare(par.db2) != 0) {
         sameDatabase = false;
-        templateReader = DBReader<unsigned int>(DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str()));
-        templateReader.open(DBReader<unsigned int>::NOSORT);
+        templateReader = new DBReader<unsigned int>(DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str()));
+        templateReader->open(DBReader<unsigned int>::NOSORT);
     }
 
     DBReader<unsigned int> clusterReader(par.db3.c_str(), par.db3Index.c_str());
@@ -67,8 +66,8 @@ int result2outputmode(int argn, const char **argv, int mode) {
     for (size_t i = 0; i < queryReader.getSize(); i++) {
         maxSequenceLength = std::max((size_t) queryReader.getSeqLens()[i], maxSequenceLength);
     }
-    for (size_t i = 0; i < templateReader.getSize(); i++) {
-        maxSequenceLength = std::max((size_t) templateReader.getSeqLens()[i], maxSequenceLength);
+    for (size_t i = 0; i < templateReader->getSize(); i++) {
+        maxSequenceLength = std::max((size_t) templateReader->getSeqLens()[i], maxSequenceLength);
     }
 
     //Find the max set size
@@ -91,7 +90,7 @@ int result2outputmode(int argn, const char **argv, int mode) {
     Debug(Debug::INFO) << "Start computing profiles.\n";
 #pragma omp parallel
     {
-        Matcher matcher(maxSequenceLength, &matrix, templateReader.getAminoAcidDBSize(), templateReader.getSize(),
+        Matcher matcher(maxSequenceLength, &matrix, templateReader->getAminoAcidDBSize(), templateReader->getSize(),
                         par.compBiasCorrection);
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &matrix, &matcher);
         PSSMCalculator calculator(&matrix, maxSequenceLength);
@@ -124,7 +123,7 @@ int result2outputmode(int argn, const char **argv, int mode) {
                 Util::parseKey(clusters, dbKey);
                 unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                 if (key != queryId || !sameDatabase) {
-                    char *dbSeqData = templateReader.getDataByDBKey(key);
+                    char *dbSeqData = templateReader->getDataByDBKey(key);
                     sequences[position]->mapSequence(0, key, dbSeqData);
                     seqSet.push_back(sequences[position]);
                     position++;
@@ -139,7 +138,7 @@ int result2outputmode(int argn, const char **argv, int mode) {
 
             char *data;
             size_t dataSize;
-            switch (output_mode) {
+            switch (mode) {
                 case MSA:
                     for (size_t i = 0; i < res.setSize; i++) {
                         msa << ">" << sequences[i]->getDbKey() << "\n";
@@ -179,7 +178,8 @@ int result2outputmode(int argn, const char **argv, int mode) {
     clusterReader.close();
     queryReader.close();
     if (!sameDatabase) {
-        templateReader.close();
+        templateReader->close();
+        delete templateReader;
     }
     writer.close();
 
