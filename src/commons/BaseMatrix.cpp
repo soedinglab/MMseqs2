@@ -1,8 +1,8 @@
 #include "BaseMatrix.h"
-#include <string>
 
 #include "Debug.h"
 #include "Util.h"
+#include "MathUtil.h"
 
 BaseMatrix::BaseMatrix(){
     this->alphabetSize = 21;
@@ -133,7 +133,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
     // calculate the substitution matrix
     for (int i = 0; i < size; i++){
         for (int j = 0; j < size; j++){
-            subMatrix[i][j] = _log2(probMatrix[i][j]/(pBack[i]*pBack[j]));
+            subMatrix[i][j] = MathUtil::log2(probMatrix[i][j] / (pBack[i] * pBack[j]));
         }
     }
 

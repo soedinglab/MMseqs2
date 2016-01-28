@@ -1,7 +1,6 @@
 #ifndef BASE_MATRIX_H
 #define BASE_MATRIX_H
 
-#include <cmath>
 #include <string>
 
 class BaseMatrix{
@@ -48,8 +47,6 @@ public:
     virtual double getBackgroundProb(size_t aa_index);
 
     virtual float getBitFactor() {return 1.0; }
-
-    static inline double _log2 (double x) { return log10(x)/0.301029996; }
 
     std::string getMatrixName();
 
