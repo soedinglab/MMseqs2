@@ -136,7 +136,7 @@ int shellcompletion(int argc, const char** argv) {
     if(argc == 0) {
         for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
             struct Command *p = commands + i;
-            if(p->mode != COMMAND_HIDDEN)
+            if(p->mode == COMMAND_HIDDEN)
                 continue;
             Debug(Debug::INFO) << p->cmd << " ";
         }

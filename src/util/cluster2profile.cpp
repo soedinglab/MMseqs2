@@ -87,7 +87,7 @@ int result2outputmode(int argn, const char **argv, int mode) {
     maxSetSize += 1;
 
     SubstitutionMatrix matrix(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
-    Debug(Debug::INFO) << "Start computing profiles.\n";
+    Debug(Debug::INFO) << "Start computing " << (!mode ? "MSAs" : "profiles") << ".\n";
 #pragma omp parallel
     {
         Matcher matcher(maxSequenceLength, &matrix, templateReader->getAminoAcidDBSize(), templateReader->getSize(),

@@ -140,9 +140,6 @@ Parameters::Parameters():
     splitffindex.push_back(PARAM_SPLIT);
     splitffindex.push_back(PARAM_SPLIT_AMINOACID);
 
-    // format alignment
-    createprofiledb.push_back(PARAM_V);
-
     // create index
     createindex.push_back(PARAM_K);
     createindex.push_back(PARAM_ALPH_SIZE);
