@@ -14,14 +14,16 @@
 MultipleAlignment::MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, SubstitutionMatrix *subMat,
                                      Matcher *aligner) {
     this->maxSeqLen = maxSeqLen;
-    this->msaData = new char[maxSeqLen * (maxSetSize+ 1) ];
+    this->maxMsaSeqLen = maxSeqLen * 2;
+
+    this->msaData = new char[maxMsaSeqLen * (maxSetSize+ 1) ];
     this->msaSequence = new char *[maxSetSize + 1];
     for(size_t i = 0; i <= maxSetSize; i++){
-        this->msaSequence[i] = this->msaData + (i *maxSeqLen);
+        this->msaSequence[i] = this->msaData + (i * maxMsaSeqLen);
     }
     this->aligner = aligner;
     this->subMat = subMat;
-    this->queryGaps = new unsigned int[maxSeqLen];
+    this->queryGaps = new unsigned int[maxMsaSeqLen];
 }
 
 MultipleAlignment::~MultipleAlignment() {
@@ -35,8 +37,8 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
     if(edgeSeqs.size() == 0 ){
         size_t queryMSASize = 0;
         for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
-            if (queryMSASize >= maxSeqLen) {
-                Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxSeqLen (" << maxSeqLen << ")" << "\n";
+            if (queryMSASize >= maxMsaSeqLen) {
+                Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";
                 EXIT(EXIT_FAILURE);
             }
             msaSequence[0][queryMSASize] = subMat->int2aa[centerSeq->int_sequence[queryPos]];
@@ -82,8 +84,8 @@ std::vector<Matcher::result_t> MultipleAlignment::computeBacktrace(Sequence *cen
         Sequence *edgeSeq = seqs[i];
         Matcher::result_t alignment = aligner->getSWResult(edgeSeq, dbSetSize, 0.0, Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID);
         btSequences.push_back(alignment);
-        if(alignment.backtrace.size() > maxSeqLen){
-            Debug(Debug::ERROR) << "Alignment length is > maxSeqlen in MSA " << centerSeq->getDbKey() << "\n";
+        if(alignment.backtrace.size() > maxMsaSeqLen){
+            Debug(Debug::ERROR) << "Alignment length is > maxMsaSeqLen in MSA " << centerSeq->getDbKey() << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -128,8 +130,8 @@ void MultipleAlignment::computeQueryGaps(unsigned int *queryGaps, Sequence *cent
 size_t MultipleAlignment::updateGapsInCenterSequence(char **msaSequence, Sequence *centerSeq, bool noDeletionMSA) {
     size_t centerSeqPos = 0;
     for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
-        if(centerSeqPos >= maxSeqLen ){
-            Debug(Debug::ERROR) << "queryMSASize (" << centerSeqPos << ") is >= maxSeqLen (" << maxSeqLen << ")" << "\n";
+        if(centerSeqPos >= maxMsaSeqLen ){
+            Debug(Debug::ERROR) << "queryMSASize (" << centerSeqPos << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";
             EXIT(EXIT_FAILURE);
         }
         for (size_t gapIdx = 0; gapIdx < queryGaps[queryPos]; gapIdx++) {
@@ -161,8 +163,8 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
         size_t queryPos = result.qStartPos;
         size_t targetPos = result.dbStartPos;
         for(size_t alnPos = 0; alnPos < bt.size(); alnPos++){
-            if(bufferPos >= maxSeqLen ){
-                Debug(Debug::ERROR) << "BufferPos (" << bufferPos << ") is >= maxSeqLen (" << maxSeqLen << ")" << "\n";
+            if(bufferPos >= maxMsaSeqLen ){
+                Debug(Debug::ERROR) << "BufferPos (" << bufferPos << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";
                 EXIT(EXIT_FAILURE);
             }
             if(bt.at(alnPos)  == 'I'){

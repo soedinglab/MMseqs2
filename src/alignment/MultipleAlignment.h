@@ -39,6 +39,7 @@ private:
     char *  msaData;
     char ** msaSequence;
     size_t maxSeqLen;
+    size_t maxMsaSeqLen;
     unsigned int * queryGaps;
 
     std::vector<Matcher::result_t> computeBacktrace(Sequence *center, std::vector<Sequence *> sequenes,
@@ -52,6 +53,7 @@ private:
     void updateGapsInSequenceSet(char **centerSeqSize, size_t seqs, std::vector<Sequence *> vector,
                                                     std::vector<Matcher::result_t> queryGaps, unsigned int *noDeletionMSA,
                                                     bool b);
+
 };
 
 
