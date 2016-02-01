@@ -195,20 +195,6 @@ Parameters::Parameters():
     setDefaults();
 }
 
-Parameters::~Parameters(){
-    createdb.clear();
-    createindex.clear();
-    splitffindex.clear();
-    extractorf.clear();
-    onlyverbosity.clear();
-    clustering.clear();
-    alignment.clear();
-    prefilter.clear();
-    createprofiledb.clear();
-    rebuildfasta.clear();
-    gff2ffindex.clear();
-}
-
 void Parameters::printUsageMessage(std::string programUsageHeader,
                                    std::vector<MMseqsParameter> parameters){
     std::stringstream ss;

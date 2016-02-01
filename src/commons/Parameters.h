@@ -175,7 +175,6 @@ public:
     void printParameters(int argc, const char* pargv[],
                          std::vector<MMseqsParameter> par);
     Parameters();
-    ~Parameters();
 
     PARAMETER(PARAM_S);
     PARAMETER(PARAM_K);
@@ -277,8 +276,8 @@ public:
     std::vector<MMseqsParameter> addSequences;
     std::vector<MMseqsParameter> filterDb;
 
-    std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
-                                              std::vector < MMseqsParameter > par2);
+    std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> par1,
+                                              std::vector<MMseqsParameter> par2);
 
     std::string createParameterString(std::vector < MMseqsParameter > vector);
 
