@@ -2,7 +2,6 @@ set(util_source_files
   fasta2ffindex.cpp
   profile2ffindex.cpp
   addsequences.cpp
-  cluster2profile.h
   cluster2profile.cpp
   ffindex2fasta.cpp
   ffindex_database_merge.cpp

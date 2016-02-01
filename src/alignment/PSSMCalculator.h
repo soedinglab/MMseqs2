@@ -1,15 +1,9 @@
-//
-// Created by mad on 3/24/15.
-//
-
 #ifndef MMSEQS_PSSM_H
 #define MMSEQS_PSSM_H
 
+#include <cstddef>
 
-#include <SubstitutionMatrix.h>
-#include <stddef.h>
-#include <sys/cdefs.h>
-#include "MultipleAlignment.h"
+class SubstitutionMatrix;
 
 class PSSMCalculator {
 public:

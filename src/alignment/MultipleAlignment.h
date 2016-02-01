@@ -6,11 +6,13 @@
 #define MMSEQS_MULTIPLEALIGNMENT_H
 
 
-#include <stddef.h>
+#include <cstddef>
 #include <vector>
-#include "Sequence.h"
+
 #include "Matcher.h"
-#include "SubstitutionMatrix.h"
+
+class SubstitutionMatrix;
+class Sequence;
 
 
 class MultipleAlignment {

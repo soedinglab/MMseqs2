@@ -5,7 +5,9 @@
 //  Copyright (c) 2012 -. All rights reserved.
 //
 #include <iostream>
-#include <smith_waterman_sse2.h>
+#include <cmath>
+
+#include "smith_waterman_sse2.h"
 #include "Sequence.h"
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"

@@ -2,8 +2,10 @@
 // Created by mad on 10/26/15.
 //
 
-#include <SubstitutionMatrix.h>
-#include <Sequence.h>
+#include <iostream>
+
+#include "SubstitutionMatrix.h"
+#include "Sequence.h"
 
 void calcLocalAaBiasCorrection(Sequence* seq, SubstitutionMatrix * m){
     const int windowSize = 40;

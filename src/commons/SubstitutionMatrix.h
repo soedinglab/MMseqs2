@@ -8,18 +8,7 @@
 // If a probabilities file is given, it calculates a biased matrix (produces shorter = more precise alignments).
 //
 
-
-#include <iostream>
-#include <cmath>
-
-#include <cstdio>
-#include <cstdlib>
-#include <fstream>
-#include <sstream>
-#include <cstring>
-#include <vector>
-#include <algorithm>
-
+#include <cstddef>
 #include "BaseMatrix.h"
 
 class SubstitutionMatrix: public BaseMatrix {

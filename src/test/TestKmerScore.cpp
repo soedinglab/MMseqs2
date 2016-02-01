@@ -1,9 +1,10 @@
 //
 // Created by mad on 10/26/15.
 //
+#include <iostream>
 
-#include <SubstitutionMatrix.h>
-#include <Sequence.h>
+#include "SubstitutionMatrix.h"
+#include "Sequence.h"
 
 int main (int argc, const char * argv[]) {
 

@@ -38,7 +38,7 @@ int getFrames(std::string frames) {
 int extractorf(int argn, const char** argv)
 {
     std::string usage;
-    usage.append("Extract all open reading frames from a nucleotide fasta file into a ffindex database.\n");
+    usage.append("Extract all open reading frames from a nucleotide ffindex into a second ffindex database.\n");
     usage.append("USAGE: <fastaDB> <ffindexDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
 
