@@ -25,26 +25,34 @@
 #include <stdlib.h>
 #include <iostream>
 #include <simd.h>
-#include <BaseMatrix.h>
 
 #if !defined(__APPLE__)
 #include <malloc.h>
 #endif
 #include "simd.h"
-#include <limits.h> 
+#include <limits.h>
+#include <BaseMatrix.h>
 
 #include "../commons/Sequence.h"
 
 typedef struct {
-	uint16_t score1;
-	uint16_t score2;
-	int32_t dbStartPos1;
-	int32_t dbEndPos1;
-	int32_t	qStartPos1;
-	int32_t qEndPos1;
-	int32_t ref_end2;
-	uint32_t* cigar;
-	int32_t cigarLen;
+    short qStartPos;
+    short dbStartPos;
+    short qEndPos;
+    short dbEndPos;
+} aln_t;
+
+
+typedef struct {
+    uint16_t score1;
+    uint16_t score2;
+    int32_t dbStartPos1;
+    int32_t dbEndPos1;
+    int32_t	qStartPos1;
+    int32_t qEndPos1;
+    int32_t ref_end2;
+    uint32_t* cigar;
+    int32_t cigarLen;
 } s_align;
 
 class SmithWaterman{
@@ -66,19 +74,19 @@ public:
     static inline int midx (int qpos, int dbpos, int iter){
         return dbpos * (8 * iter) + (qpos % iter) * 8 + (qpos / iter);
     }
-    
+
     // @function	ssw alignment.
     /*!	@function	Do Striped Smith-Waterman alignment.
-     
+
      @param	db_sequence	pointer to the target sequence; the target sequence needs to be numbers and corresponding to the mat parameter of
      function ssw_init
-     
+
      @param	db_length	length of the target sequence
-     
+
      @param	gap_open	the absolute value of gap open penalty
-     
+
      @param	gap_extend	the absolute value of gap extension penalty
-     
+
      @param	flag	bitwise FLAG; (from high to low) bit 5: when setted as 1, function ssw_align will return the best alignment
      beginning position; bit 6: when setted as 1, if (ref_end1 - ref_begin1 < filterd && read_end1 - read_begin1
      < filterd), (whatever bit 5 is setted) the function will return the best alignment beginning position and
@@ -86,13 +94,13 @@ public:
      will return the best alignment beginning position and cigar; bit 8: when setted as 1, (whatever bit 5, 6 or 7 is
      setted) the function will always return the best alignment beginning position and cigar. When flag == 0, only
      the optimal and sub-optimal scores and the optimal alignment ending position will be returned.
-     
+
      @param	filters	score filter: when bit 7 of flag is setted as 1 and bit 8 is setted as 0, filters will be used (Please check the
      decription of the flag parameter for detailed usage.)
-     
+
      @param	filterd	distance filter: when bit 6 of flag is setted as 1 and bit 8 is setted as 0, filterd will be used (Please check
      the decription of the flag parameter for detailed usage.)
-     
+
      @param	maskLen	The distance between the optimal and suboptimal alignment ending position >= maskLen. We suggest to use
      readLen/2, if you don't have special concerns. Note: maskLen has to be >= 15, otherwise this function will NOT
      return the suboptimal alignment information. Detailed description of maskLen: After locating the optimal
@@ -101,15 +109,15 @@ public:
      picking the scores that belong to the alignments sharing the partial best alignment, SSW C library masks the
      reference loci nearby (mask length = maskLen) the best alignment ending position and locates the second largest
      score from the unmasked elements.
-     
+
      @return	pointer to the alignment result structure
-     
+
      @note	Whatever the parameter flag is setted, this function will at least return the optimal and sub-optimal alignment score,
      and the optimal alignment ending positions on target and query sequences. If both bit 6 and 7 of the flag are setted
      while bit 8 is not, the function will return cigar only when both criteria are fulfilled. All returned positions are
      0-based coordinate.
      */
-    s_align ssw_align (const int*db_sequence,
+    s_align  ssw_align (const int*db_sequence,
                         int32_t db_length,
                         const uint8_t gap_open,
                         const uint8_t gap_extend,
@@ -138,15 +146,16 @@ public:
      */
     void ssw_init(const Sequence *q, const int8_t *mat, const BaseMatrix *m, const int32_t alphabetSize,
                   const int8_t score_size);
-    
+
+
     static char cigar_int_to_op (uint32_t cigar_int);
-    
+
     static uint32_t cigar_int_to_len (uint32_t cigar_int);
 
 
-    
+
 private:
-    
+
     struct s_profile{
         simd_int* profile_byte;	// 0: none
         simd_int* profile_word;	// 0: none
@@ -181,26 +190,19 @@ private:
     simd_int* vE;
     simd_int* vHmax;
     uint8_t * maxColumn;
-    
+
     typedef struct {
         uint16_t score;
         int32_t ref;	 //0-based position
         int32_t read;    //alignment ending position on read, 0-based
     } alignment_end;
-    
-    
+
+
     typedef struct {
         uint32_t* seq;
         int32_t length;
     } cigar;
 
-    //needed for SW backtrace
-    struct scores{
-        short H;
-        short F;
-        short E;
-    };
-    
     /* Striped Smith-Waterman
      Record the highest score of each reference position.
      Return the alignment score and ending position of the best alignment, 2nd best alignment, etc.
@@ -221,22 +223,20 @@ private:
                                                      is set to 0, it will not be used */
                                  uint8_t bias,  /* Shift 0 point to a positive value. */
                                  int32_t maskLen);
-    
-    alignment_end* sw_sse2_word (const int* db_sequence,
-                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
-                  int32_t db_length,
-                  int32_t query_lenght,
-                  const uint8_t gap_open, /* will be used as - */
-                  const uint8_t gap_extend, /* will be used as - */
-                  const simd_int*query_profile_byte,
-                  uint16_t terminate,
-                  int32_t maskLen);
 
-    SmithWaterman::cigar * banded_sw(const int *db_sequence, const short ** profile_word,
-                                     int32_t query_start, int32_t query_end,
-                                     int32_t target_start, int32_t target_end,
-                                     const short gap_open, const short gap_extend);
-    
+    alignment_end* sw_sse2_word (const int* db_sequence,
+                                 int8_t ref_dir,	// 0: forward ref; 1: reverse ref
+                                 int32_t db_length,
+                                 int32_t query_lenght,
+                                 const uint8_t gap_open, /* will be used as - */
+                                 const uint8_t gap_extend, /* will be used as - */
+                                 const simd_int*query_profile_byte,
+                                 uint16_t terminate,
+                                 int32_t maskLen);
+
+    template <const unsigned int type>
+    SmithWaterman::cigar *banded_sw(const int *db_sequence, const int8_t *query_sequence, const int8_t * compositionBias, int32_t db_length, int32_t query_length, int32_t queryStart, int32_t score, const uint32_t gap_open, const uint32_t gap_extend, int32_t band_width, const int8_t *mat, int32_t n);
+
     /*!	@function		Produce CIGAR 32-bit unsigned integer from CIGAR operation and CIGAR length
      @param	length		length of CIGAR
      @param	op_letter	CIGAR operation character ('M', 'I', etc)
@@ -245,10 +245,6 @@ private:
     inline uint32_t to_cigar_int (uint32_t length, char op_letter);
 
     s_profile* profile;
-
-    // needed for the backtrace
-    scores *workspace;
-    unsigned char *btMatrix;
 
 
     const static unsigned int SUBSTITUTIONMATRIX = 1;
