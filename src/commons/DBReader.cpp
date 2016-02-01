@@ -16,17 +16,15 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
 {
     dataSize = 0;
     this->dataMode = dataMode;
-    this->dataFileName = new char [strlen(dataFileName_) + 1];
-    memcpy(dataFileName, dataFileName_, sizeof(char) * (strlen(dataFileName_) + 1));
-    this->indexFileName = new char [strlen(indexFileName_) + 1];
-    memcpy(indexFileName, indexFileName_, sizeof(char) * (strlen(indexFileName_) + 1));
+    this->dataFileName = strdup(dataFileName_);
+    this->indexFileName = strdup(indexFileName_);
     closed = 1;
     accessType = 0;
 }
 
 template <typename T> DBReader<T>::~DBReader(){
-    delete[] dataFileName;
-    delete[] indexFileName;
+    free(dataFileName);
+    free(indexFileName);
 }
 
 template <typename T> void DBReader<T>::open(int accessType){
