@@ -1,6 +1,9 @@
 #include "Log.h"
+#include "Debug.h"
 
-void Log::printProgress(int id){
+#include <cstdio>
+
+void Log::printProgress(size_t id){
     if (id % 1000000 == 0 && id > 0){
         Debug(Debug::INFO) << "\t" << (id/1000000) << " Mio. sequences processed\n";
         fflush(stdout);
