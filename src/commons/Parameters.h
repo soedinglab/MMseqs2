@@ -134,8 +134,11 @@ public:
     std::string forwardFrames;
     std::string reverseFrames;
 
-    // CREATE PROFILE
+    // createprofiledb
     int profileMode;
+
+    // result2msa
+    bool allowDeletion;
 
     // createdb
     bool useHeader;
@@ -223,6 +226,9 @@ public:
     // create profile (HMM, PSSM)
     PARAMETER(PARAM_PROFILE_TYPE);
 
+    // result2msa
+    PARAMETER(PARAM_ALLOW_DELETION);
+
     // clustering workflow
     PARAMETER(PARAM_NO_AUTOMATED_THRESHOLD);
 
@@ -261,6 +267,8 @@ public:
 
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createprofiledb;
+    std::vector<MMseqsParameter> result2profile;
+    std::vector<MMseqsParameter> result2msa;
     std::vector<MMseqsParameter> extractorf;
     std::vector<MMseqsParameter> splitffindex;
     std::vector<MMseqsParameter> createindex;

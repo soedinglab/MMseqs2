@@ -69,7 +69,8 @@ Parameters::Parameters():
         PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "\t1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "[int]\tMinimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "[int]\tColumn", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
-        PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "[text]\tRegex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$")
+        PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "[text]\tRegex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
+        PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "\tAllow deletions in a MSA", typeid(bool), (void*) &allowDeletion, "")
 {
     // alignment
     alignment.push_back(PARAM_ALIGNMENT_MODE);
@@ -119,12 +120,23 @@ Parameters::Parameters():
     // find orf
     onlyverbosity.push_back(PARAM_V);
 
-    // create profile db
-    createprofiledb.push_back(PARAM_SUB_MAT);
+    // createprofiledb
     createprofiledb.push_back(PARAM_PROFILE_TYPE);
-    createprofiledb.push_back(PARAM_NO_COMP_BIAS_CORR);
-    createprofiledb.push_back(PARAM_THREADS);
+    createprofiledb.push_back(PARAM_SUB_MAT);
     createprofiledb.push_back(PARAM_V);
+
+    // result2profile
+    result2profile.push_back(PARAM_SUB_MAT);
+    result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2profile.push_back(PARAM_THREADS);
+    result2profile.push_back(PARAM_V);
+
+    // result2msa
+    result2msa.push_back(PARAM_SUB_MAT);
+    result2msa.push_back(PARAM_ALLOW_DELETION);
+    result2msa.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2msa.push_back(PARAM_THREADS);
+    result2msa.push_back(PARAM_V);
 
     // extract orf
     extractorf.push_back(PARAM_ORF_MIN_LENGTH);
@@ -439,8 +451,11 @@ void Parameters::setDefaults() {
     noAutomaticThreshold = false;
     keepTempFiles = true;
 
-    // create profile
+    // createprofiledb
     profileMode = PROFILE_MODE_HMM;
+
+    // result2msa
+    allowDeletion = false;
 
     // logging
     verbosity = Debug::INFO;
