@@ -1,5 +1,3 @@
-// Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de
-//
 // Computes either a PSSM or a MSA from clustering or alignment result
 // For PSSMs: MMseqs just stores the position specific score in 1 byte
 //
@@ -32,10 +30,25 @@ enum {
 int result2outputmode(int argn, const char **argv, int mode) {
     std::string usage("Converts a ffindex profile database to ffindex.\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
+    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
+    usage.append("\t & Milot Mirdita <milot@mirdita.de>");
 
     Parameters par;
-    par.parseParameters(argn, argv, usage, par.createprofiledb, 4);
+    std::vector<MMseqsParameter> parameters;
+    switch(mode) {
+        case PSSM:
+            parameters = par.result2profile;
+            break;
+        case MSA:
+            parameters = par.result2msa;
+            break;
+        default:
+            Debug(Debug::ERROR) << "Output mode not implemented!\n";
+            EXIT(EXIT_FAILURE);
+
+    }
+    par.parseParameters(argn, argv, usage, parameters, 4);
+
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
@@ -86,6 +99,13 @@ int result2outputmode(int argn, const char **argv, int mode) {
     }
     maxSetSize += 1;
 
+    bool noDeletion;
+    switch (mode) {
+        case MSA: noDeletion = true; break;
+        case PSSM: noDeletion = !par.allowDeletion; break;
+        default: EXIT(EXIT_FAILURE);
+    }
+
     SubstitutionMatrix matrix(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     Debug(Debug::INFO) << "Start computing " << (!mode ? "MSAs" : "profiles") << ".\n";
 #pragma omp parallel
@@ -131,7 +151,7 @@ int result2outputmode(int argn, const char **argv, int mode) {
                 clusters = Util::skipLine(clusters);
             }
 
-            MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, true);
+            MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, noDeletion);
 
             std::stringstream msa;
             std::string result;
@@ -161,7 +181,6 @@ int result2outputmode(int argn, const char **argv, int mode) {
                     //calculator.printPSSM(res.centerLength);
                     break;
                 default:
-                    Debug(Debug::ERROR) << "Outputmode not implemented!\n";
                     EXIT(EXIT_FAILURE);
             }
 
