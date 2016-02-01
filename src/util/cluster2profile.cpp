@@ -34,20 +34,20 @@ int result2outputmode(int argn, const char **argv, int mode) {
     usage.append("\t & Milot Mirdita <milot@mirdita.de>");
 
     Parameters par;
-    std::vector<MMseqsParameter> parameters;
+    std::vector<MMseqsParameter>* parameters;
     switch(mode) {
         case PSSM:
-            parameters = par.result2profile;
+            parameters = &par.result2profile;
             break;
         case MSA:
-            parameters = par.result2msa;
+            parameters = &par.result2msa;
             break;
         default:
             Debug(Debug::ERROR) << "Output mode not implemented!\n";
             EXIT(EXIT_FAILURE);
 
     }
-    par.parseParameters(argn, argv, usage, parameters, 4);
+    par.parseParameters(argn, argv, usage, *parameters, 4);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
