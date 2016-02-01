@@ -97,7 +97,7 @@ int result2outputmode(Parameters par, int mode) {
     DBWriter::errorIfFileExist(par.db4.c_str());
     DBWriter::errorIfFileExist(par.db4Index.c_str());
 
-    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
     writer.open();
 
     size_t maxSetSize = findMaxSetSize(clusterReader);
