@@ -1,165 +1,36 @@
 // Written by Martin Steinegger martin.steinegger@mpibpc.mpg.de
 //
-// Computes PSSM from clustering or alignment result
-// MMseqs just stores the position specific score in 1 byte
+// Computes either a PSSM or a MSA from clustering or alignment result
+// For PSSMs: MMseqs just stores the position specific score in 1 byte
 //
-#include "cluster2profile.h"
-#include <stdlib.h>
-#include <stdio.h>
+
+#include <string>
 #include <vector>
-#include <iostream>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <BaseMatrix.h>
-#include <SubstitutionMatrix.h>
-#include <Parameters.h>
-#include <Sequence.h>
-#include <MultipleAlignment.h>
-#include <PSSMCalculator.h>
-#include <DBWriter.h>
-#include <Log.h>
+#include <sstream>
 
-extern "C" {
-#include "ffindex.h"
-#include "ffutil.h"
-}
-
+#include "Matcher.h"
+#include "SubstitutionMatrix.h"
+#include "Parameters.h"
+#include "Sequence.h"
+#include "MultipleAlignment.h"
+#include "PSSMCalculator.h"
 #include "DBReader.h"
+#include "DBWriter.h"
+#include "Log.h"
 #include "Util.h"
 #include "Debug.h"
-
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-int runResult2Profile(std::string queryDb, std::string targetDb, std::string resultDb, std::string outDb,
-                      std::string subMatPath, int cpu, bool aaBiasCorrection) {
-    int err = EXIT_SUCCESS;
+enum {
+    MSA = 0,
+    PSSM
+};
 
-
-    bool sameDatabase = true;
-    DBReader<unsigned int>* qdbr  = new DBReader<unsigned int>(queryDb.c_str(), (queryDb + ".index").c_str());
-    qdbr->open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int>* tdbr = NULL;
-    tdbr = qdbr;
-    if(queryDb.compare(targetDb) != 0){
-        sameDatabase = false;
-        tdbr = new DBReader<unsigned int>(targetDb.c_str(), (targetDb + ".index").c_str());
-        tdbr->open(DBReader<unsigned int>::NOSORT);
-    }
-
-    DBReader<unsigned int> resultdbr(resultDb.c_str(), (resultDb + ".index").c_str());
-    resultdbr.open(DBReader<unsigned int>::NOSORT);
-
-    DBWriter::errorIfFileExist(outDb.c_str());
-    DBWriter::errorIfFileExist((std::string(outDb)+".index").c_str());
-    DBWriter dbWriter(outDb.c_str(), (std::string(outDb)+".index").c_str(), cpu, DBWriter::BINARY_MODE);
-    dbWriter.open();
-
-    // find longest sequence
-    size_t maxSeqLen = 0;
-    for(size_t i = 0; i < qdbr->getSize(); i++) {
-        maxSeqLen = std::max((size_t) qdbr->getSeqLens()[i], maxSeqLen);
-    }
-    for(size_t i = 0; i < tdbr->getSize(); i++) {
-        maxSeqLen = std::max((size_t) tdbr->getSeqLens()[i], maxSeqLen);
-    }
-    //Find the max set size
-    size_t maxSetSize = 0;
-    for(size_t i = 0; i < resultdbr.getSize(); i++) {
-        char * data = resultdbr.getData(i);
-        size_t currClusterEntry = 0;
-        size_t pos = 0;
-        while(data[pos] != '\0'){
-            if(data[pos] == '\n'){
-                currClusterEntry++;
-            }
-            pos++;
-        }
-        maxSetSize = std::max(maxSetSize, currClusterEntry);
-    }
-    maxSetSize += 1;
-    SubstitutionMatrix subMat(subMatPath.c_str(), 2.0, -0.2);
-    Debug(Debug::WARNING) << "Start computing profiles.\n";
-#pragma omp parallel
-    {
-        Matcher aligner(maxSeqLen, &subMat, tdbr->getAminoAcidDBSize(), tdbr->getSize(), aaBiasCorrection);
-        MultipleAlignment msaAligner(maxSeqLen, maxSetSize, &subMat, &aligner);
-        PSSMCalculator pssmCalculator(&subMat, maxSeqLen);
-        Sequence centerSeq(maxSeqLen, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0, false);
-        Sequence **dbSeqs = new Sequence *[maxSetSize];
-        for (size_t i = 0; i < maxSetSize; i++) {
-            dbSeqs[i] = new Sequence(maxSeqLen, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0, false);
-        }
-#pragma omp for schedule(dynamic, 1000)
-        for (size_t id = 0; id < resultdbr.getSize(); id++) {
-            Log::printProgress(id);
-
-            int thread_idx = 0;
-#ifdef OPENMP
-            thread_idx = omp_get_thread_num();
-#endif
-
-            char dbKey[255 + 1];
-            char *data = resultdbr.getData(id);
-            unsigned int queryId = resultdbr.getDbKey(id);
-            char *seqData = qdbr->getDataByDBKey(queryId);
-            centerSeq.mapSequence(0, queryId, seqData);
-            std::vector<Sequence *> seqSet;
-            size_t pos = 0;
-
-            while (*data != '\0') {
-                Util::parseKey(data, dbKey);
-                unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-                if (key != queryId || !sameDatabase) {
-                    char *dbSeqData = tdbr->getDataByDBKey(key);
-                    dbSeqs[pos]->mapSequence(0, key, dbSeqData);
-                    seqSet.push_back(dbSeqs[pos]);
-                    pos++;
-                }
-                data = Util::skipLine(data);
-            }
-            //parseHMM(data, profileBuffer, &elementSize, id, subMat);
-            MultipleAlignment::MSAResult res = msaAligner.computeMSA(&centerSeq, seqSet, true);
-            //MultipleAlignment::print(res);
-
-            char *pssmData = (char *) pssmCalculator.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence);
-            size_t pssmDataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
-            for (size_t i = 0; i < pssmDataSize; i++) {
-                pssmData[i] = pssmData[i] ^ 0x80;
-            }
-            //pssm.printProfile(res.centerLength);
-            //pssmCalculator.printPSSM(res.centerLength);
-
-            dbWriter.write(pssmData, pssmDataSize, SSTR(queryId).c_str(), thread_idx);
-            seqSet.clear();
-        }
-        // clean memeory
-        for (size_t i = 0; i < maxSetSize; i++) {
-            delete dbSeqs[i];
-        }
-        delete[] dbSeqs;
-    }
-    // close reader
-    resultdbr.close();
-    qdbr->close();
-    delete qdbr;
-    if(sameDatabase == false) {
-        tdbr->close();
-        delete tdbr;
-    }
-
-    dbWriter.close();
-    Debug(Debug::WARNING) << "\nDone.\n";
-    return err;
-}
-
-
-int result2profile(int argn, const char **argv)
-{
-    std::string usage;
-    usage.append("Converts a ffindex profile database to ffindex.\n");
+int result2outputmode(int argn, const char **argv, int mode) {
+    std::string usage("Converts a ffindex profile database to ffindex.\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
@@ -168,11 +39,159 @@ int result2profile(int argn, const char **argv)
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-    return runResult2Profile(par.db1,
-                             par.db2,
-                             par.db3,
-                             par.db4,
-                             par.scoringMatrixFile,
-                             par.threads,
-                             par.compBiasCorrection);
+
+    DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str());
+    queryReader.open(DBReader<unsigned int>::NOSORT);
+
+    DBReader<unsigned int>* templateReader = &queryReader;
+
+    bool sameDatabase = true;
+    if (par.db1.compare(par.db2) != 0) {
+        sameDatabase = false;
+        templateReader = new DBReader<unsigned int>(DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str()));
+        templateReader->open(DBReader<unsigned int>::NOSORT);
+    }
+
+    DBReader<unsigned int> clusterReader(par.db3.c_str(), par.db3Index.c_str());
+    clusterReader.open(DBReader<unsigned int>::NOSORT);
+
+    DBWriter::errorIfFileExist(par.db4.c_str());
+    DBWriter::errorIfFileExist(par.db4Index.c_str());
+
+    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
+    writer.open();
+
+    // find longest sequence
+    size_t maxSequenceLength = 0;
+    for (size_t i = 0; i < queryReader.getSize(); i++) {
+        maxSequenceLength = std::max((size_t) queryReader.getSeqLens()[i], maxSequenceLength);
+    }
+    for (size_t i = 0; i < templateReader->getSize(); i++) {
+        maxSequenceLength = std::max((size_t) templateReader->getSeqLens()[i], maxSequenceLength);
+    }
+
+    //Find the max set size
+    size_t maxSetSize = 0;
+    for (size_t i = 0; i < clusterReader.getSize(); i++) {
+        char *data = clusterReader.getData(i);
+        size_t entry = 0;
+        size_t position = 0;
+        while (data[position] != '\0') {
+            if (data[position] == '\n') {
+                entry++;
+            }
+            position++;
+        }
+        maxSetSize = std::max(maxSetSize, entry);
+    }
+    maxSetSize += 1;
+
+    SubstitutionMatrix matrix(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    Debug(Debug::INFO) << "Start computing " << (!mode ? "MSAs" : "profiles") << ".\n";
+#pragma omp parallel
+    {
+        Matcher matcher(maxSequenceLength, &matrix, templateReader->getAminoAcidDBSize(), templateReader->getSize(),
+                        par.compBiasCorrection);
+        MultipleAlignment aligner(maxSequenceLength, maxSetSize, &matrix, &matcher);
+        PSSMCalculator calculator(&matrix, maxSequenceLength);
+
+        Sequence centerSequence(maxSequenceLength, matrix.aa2int, matrix.int2aa, Sequence::AMINO_ACIDS, 0, false);
+        Sequence **sequences = new Sequence *[maxSetSize];
+        for (size_t i = 0; i < maxSetSize; i++) {
+            sequences[i] = new Sequence(maxSequenceLength, matrix.aa2int, matrix.int2aa, Sequence::AMINO_ACIDS, 0,
+                                        false);
+        }
+
+#pragma omp for schedule(dynamic, 1000)
+        for (size_t id = 0; id < clusterReader.getSize(); id++) {
+            Log::printProgress(id);
+
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
+
+            char *clusters = clusterReader.getData(id);
+            unsigned int queryId = clusterReader.getDbKey(id);
+            char *seqData = queryReader.getDataByDBKey(queryId);
+            centerSequence.mapSequence(0, queryId, seqData);
+            std::vector<Sequence *> seqSet;
+            size_t position = 0;
+
+            char dbKey[255 + 1];
+            while (*clusters != '\0') {
+                Util::parseKey(clusters, dbKey);
+                unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                if (key != queryId || !sameDatabase) {
+                    char *dbSeqData = templateReader->getDataByDBKey(key);
+                    sequences[position]->mapSequence(0, key, dbSeqData);
+                    seqSet.push_back(sequences[position]);
+                    position++;
+                }
+                clusters = Util::skipLine(clusters);
+            }
+
+            MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, true);
+
+            std::stringstream msa;
+            std::string result;
+
+            char *data;
+            size_t dataSize;
+            switch (mode) {
+                case MSA:
+                    for (size_t i = 0; i < res.setSize; i++) {
+                        msa << ">" << sequences[i]->getDbKey() << "\n";
+                        msa << std::string(res.msaSequence[i], 0, res.msaSequenceLength) << "\n";
+                    }
+                    result = msa.str();
+                    data = (char *) result.c_str();
+                    dataSize = result.length();
+                    break;
+                case PSSM:
+                    data = (char *) calculator.computePSSMFromMSA(res.setSize, res.centerLength,
+                                                                  res.msaSequence);
+                    dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
+
+                    for (size_t i = 0; i < dataSize; i++) {
+                        // Avoid a null byte result
+                        data[i] = data[i] ^ 0x80;
+                    }
+                    //pssm.printProfile(res.centerLength);
+                    //calculator.printPSSM(res.centerLength);
+                    break;
+                default:
+                    Debug(Debug::ERROR) << "Outputmode not implemented!\n";
+                    EXIT(EXIT_FAILURE);
+            }
+
+            writer.write(data, dataSize, SSTR(queryId).c_str(), thread_idx);
+        }
+
+        for (size_t i = 0; i < maxSetSize; i++) {
+            delete sequences[i];
+        }
+        delete[] sequences;
+    }
+
+    // cleanup
+    clusterReader.close();
+    queryReader.close();
+    if (!sameDatabase) {
+        templateReader->close();
+        delete templateReader;
+    }
+    writer.close();
+
+    Debug(Debug::INFO) << "\nDone.\n";
+
+    return EXIT_SUCCESS;
+}
+
+int result2profile(int argc, const char **argv) {
+    return result2outputmode(argc, argv, PSSM);
+}
+
+int result2msa(int argc, const char **argv) {
+    return result2outputmode(argc, argv, MSA);
 }

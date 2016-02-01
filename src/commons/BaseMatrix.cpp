@@ -1,5 +1,8 @@
-#include <string>
 #include "BaseMatrix.h"
+
+#include "Debug.h"
+#include "Util.h"
+#include "MathUtil.h"
 
 BaseMatrix::BaseMatrix(){
     this->alphabetSize = 21;
@@ -130,7 +133,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
     // calculate the substitution matrix
     for (int i = 0; i < size; i++){
         for (int j = 0; j < size; j++){
-            subMatrix[i][j] = _log2(probMatrix[i][j]/(pBack[i]*pBack[j]));
+            subMatrix[i][j] = MathUtil::log2(probMatrix[i][j] / (pBack[i] * pBack[j]));
         }
     }
 
@@ -163,3 +166,8 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseud
 std::string BaseMatrix::getMatrixName() {
     return matrixName;
 }
+
+double BaseMatrix::getBackgroundProb(size_t aa_index)  {
+    Debug(Debug::ERROR) << "getBackground is not Impl. for this type of Matrix \n";
+    EXIT(EXIT_FAILURE);
+};

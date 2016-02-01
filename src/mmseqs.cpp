@@ -3,7 +3,16 @@
 #include "Util.h"
 #include "Parameters.h"
 
+#include <iomanip>
+
 Parameters par;
+
+enum CommandMode {
+    COMMAND_MAIN = 0,
+    COMMAND_WORKFLOW,
+    COMMAND_HELPER,
+    COMMAND_HIDDEN
+};
 
 struct Command {
     const char *cmd;
@@ -11,67 +20,97 @@ struct Command {
     int (*commandFunction)(int, const char **);
 
     std::vector<MMseqsParameter>* params;
+
+    CommandMode mode;
+
+    const char *description;
 };
 
 static struct Command commands[] = {
-    {"alignment",           alignment,              &par.alignment},
-    {"cluster",             cluster,                &par.clustering},
-    {"search",              search,                 &par.searchworkflow},
-    {"clusteringworkflow",  clusteringworkflow,     &par.clusteringWorkflow},
-    {"clusterupdate",       clusterupdate,          &par.clusterUpdate},
-    {"prefilter",           prefilter,              &par.prefilter},
-    {"createdb",            createdb,               &par.createdb},
-    {"createfasta",         createfasta,            &par.onlyverbosity},
-    {"createtsv",           createtsv,              &par.onlyverbosity},
-    {"formatalignment",     formatalignment,        &par.formatalignment},
-    {"createindex",         createindex,            &par.createindex},
-    {"filterdb",            filterdb,               &par.filterDb},
-    {"mergeffindex",        mergeffindex,           &par.empty},
-    {"mergecluster",        mergecluster,           &par.onlyverbosity},
-    {"addsequences",        addsequences,           &par.addSequences},
-    {"swapresults",         swapresults,            &par.empty},
-    {"extractorf",          extractorf,             &par.extractorf},
-    {"createprofiledb",     createprofiledb,        &par.createprofiledb},
-    {"translatenucleotide", translatenucleotide,    &par.translateNucleotide},
-    {"timetest",            timetest,               &par.empty},
-    {"resulttoprofiledb",   result2profile,         &par.createprofiledb},
-    {"rebuildfasta",        rebuildfasta,           &par.rebuildfasta},
-    {"splitffindex",        splitffindex,           &par.splitffindex},
-    {"gff2ffindex",         gff2ffindex ,           &par.gff2ffindex},
-    {"shellcompletion",     shellcompletion,        &par.empty},
-    {"maskbygff",           maskbygff,              &par.gff2ffindex}
+        {"prefilter",           prefilter,              &par.prefilter, COMMAND_MAIN,
+                "Calculates similarity scores between all sequences in the query db and all sequences in the target db"},
+        {"alignment",           alignment,              &par.alignment, COMMAND_MAIN,
+                "Calculates Smith-Waterman alignment scores from prefilter output"},
+        {"cluster",             cluster,                &par.clustering, COMMAND_MAIN,
+                "Calculates clustering of a sequence database based on alignment output with set cover algorithm"},
+        {"search",              search,                 &par.searchworkflow, COMMAND_WORKFLOW,
+                "Searches protein sequences in a protein database"},
+        {"clusteringworkflow",  clusteringworkflow,     &par.clusteringWorkflow, COMMAND_WORKFLOW,
+                "Calculates cascaded clustering of a ffindex sequence database. (Prefiltering -> Alignment -> Cluster)*n"},
+        {"clusterupdate",       clusterupdate,          &par.clusterUpdate, COMMAND_WORKFLOW,
+                "Updates the existing clustering of the previous database version with new sequences from the current version"},
+        {"createdb",            createdb,               &par.createdb, COMMAND_HELPER,
+                "Convert fasta to ffindex (all programs need ffindex as input)"},
+        {"createindex",         createindex,            &par.createindex, COMMAND_HELPER,
+                "Convert ffindex to fast index for prefiltering"},
+        {"createfasta",         createfasta,            &par.onlyverbosity, COMMAND_HELPER,
+                "Convert ffindex to fasta"},
+        {"createtsv",           createtsv,              &par.onlyverbosity, COMMAND_HELPER,
+                "Convert ffindex to tsv"},
+        {"createprofiledb",     createprofiledb,        &par.createprofiledb, COMMAND_HELPER,
+                "Convert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database"},
+        {"filterdb",            filterdb,               &par.filterDb, COMMAND_HELPER,
+                "Filter a database by column regex"},
+        {"formatalignment",     formatalignment,        &par.formatalignment, COMMAND_HELPER,
+                "Convert a ffindex alignment database to BLAST tab or SAM flat file"},
+        {"swapresults",         swapresults,            &par.empty, COMMAND_HELPER,
+                "Swaps results from the mapping A -> (A,B,C) to A -> A, B -> A, C -> A"},
+        {"addsequences",        addsequences,           &par.addSequences, COMMAND_HELPER,
+                "Adds sequences in fasta format to a mmseqs clustering"},
+        {"mergeffindex",        mergeffindex,           &par.empty, COMMAND_HELPER,
+                "Merge multiple ffindex files based on ids into one file"},
+        {"splitffindex",        splitffindex,           &par.splitffindex, COMMAND_HELPER,
+                "Splits a ffindex database into multiple ffindex databases"},
+        {"mergecluster",        mergecluster,           &par.onlyverbosity, COMMAND_HELPER,
+                "Merge multiple cluster result files into one"},
+        {"result2profiledb",    result2profile,         &par.createprofiledb, COMMAND_HELPER,
+                "Calculates profile from clustering"},
+        {"result2msa",          result2msa,             &par.createprofiledb, COMMAND_HELPER,
+                "Calculates MSA from clustering"},
+        {"rebuildfasta",        rebuildfasta,           &par.rebuildfasta, COMMAND_HELPER,
+                "Rebuild a fasta file from a ffindex database"},
+        {"extractorf",          extractorf,             &par.extractorf, COMMAND_HELPER,
+                "Extract all open reading frames from a nucleotide ffindex into a second ffindex database"},
+        {"translatenucleotide", translatenucleotide,    &par.translateNucleotide, COMMAND_HELPER,
+                "Translate nucleotide sequences into aminoacid sequences in a ffindex database"},
+        {"maskbygff",           maskbygff,              &par.gff2ffindex, COMMAND_HELPER,
+                "Masks the sequences in an ffindex database by the selected rows in a gff file"},
+        {"gff2ffindex",         gff2ffindex ,           &par.gff2ffindex, COMMAND_HELPER,
+                "Turn a GFF3 file into a ffindex database"},
+        {"timetest",            timetest,               &par.empty, COMMAND_HIDDEN,
+                ""},
+        {"shellcompletion",     shellcompletion,        &par.empty, COMMAND_HIDDEN,
+                ""},
 };
 
 
 void printUsage() {
     std::string usage("\nAll possible mmseqs commands\n");
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("Main tools: \n"
-            "prefilter          \tCalculates similarity scores between all sequences in the query db and all sequences in the target db\n"
-            "alignment          \tCalculates Smith-Waterman alignment scores from prefilter output\n"
-            "cluster            \tCalculates clustering of a sequence database based on alignment output with set cover algorithm\n"
-            "clusteringworkflow \tCalculates cascaded clustering of a ffindex sequence database. (Prefiltering -> Alignment -> Cluster)*n \n"
-            "clusterupdate      \tUpdates the existing clustering of the previous database version with new sequences from the current version\n"
-            "\nHelper: \n"
-            "createdb           \tConvert fasta to ffindex (all programs need ffindex as input)\n"
-            "createindex        \tConvert ffindex to fast index for prefiltering\n"
-            "createfasta        \tConvert ffindex to fasta\n"
-            "createtsv          \tConvert ffindex to tsv\n"
-            "filterdb           \tFilter a database by column regex\n"
-            "formatalignment    \tConvert a ffindex alignment database to BLAST tab or SAM flat file.\n"
-            "createprofiledb    \tConvert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database.\n"
-            "swapresults        \tSwaps results from the mapping A->A,B,C to A -> A, B -> A, C -> A\n"
-            "addsequences       \tAdds sequences in fasta format to a mmseqs clustering\n"
-            "clustertoprofiledb \tCalculates profile from clustering\n"
-            "mergeffindex       \tMerge multiple ffindex files based on similar id into one file\n"
-            "splitffindex       \tSplits a ffindex database into multiple ffindex databases.\n"
-            "extractorf         \tExtract all open reading frames from a nucleotide fasta file into a ffindex database\n"
-            "translatenucleotide\tTranslate nucleotide sequences into aminoacid sequences in a ffindex database\n"
-            "rebuildfasta       \tRebuild a fasta file from a ffindex database\n"
-            "gff2ffindex        \tTurn a GFF3 file into a ffindex database\n"
-            "maskbygff          \tMasks the sequences in an ffindex database by the selected rows in a gff file"
-    );
-    Debug(Debug::INFO) << usage << "\n";
+
+    std::stringstream stream;
+    stream << std::setw(20) << "Main Tools" << "\n";
+    for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
+        struct Command *p = commands + i;
+        if (p->mode == COMMAND_MAIN)
+            stream << std::setw(20) << p->cmd << "\t" << p->description << "\n";
+    }
+
+    stream << "\n" << std::setw(20) << "Workflows" << "\n";
+    for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
+        struct Command *p = commands + i;
+        if (p->mode == COMMAND_WORKFLOW)
+            stream << std::setw(20) << p->cmd << "\t" << p->description << "\n";
+    }
+
+    stream << "\n" << std::setw(20) << "Helper" << "\n";
+    for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
+        struct Command *p = commands + i;
+        if (p->mode == COMMAND_HELPER)
+            stream << std::setw(20) << p->cmd << "\t" << p->description << "\n";
+    }
+
+    Debug(Debug::INFO) << usage << stream.str() << "\n";
 }
 
 
@@ -97,7 +136,7 @@ int shellcompletion(int argc, const char** argv) {
     if(argc == 0) {
         for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
             struct Command *p = commands + i;
-            if(!strcmp(p->cmd, "shellcompletion"))
+            if(p->mode == COMMAND_HIDDEN)
                 continue;
             Debug(Debug::INFO) << p->cmd << " ";
         }

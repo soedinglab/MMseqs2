@@ -1,8 +1,9 @@
 #ifndef MATH_H
 #define MATH_H
 
-#include <limits.h>
-#include <float.h>
+#include <cmath>
+#include <climits>
+#include <cfloat>
 
 class MathUtil {
 
@@ -45,6 +46,7 @@ public:
         return res;
     }
 
+    // doesnt produce NANs careful
     static inline float flog2(float x) {
         if (x <= 0)
             return -128;
@@ -91,6 +93,8 @@ public:
             pow *= 10;
         return x * pow + y;
     }
+
+    static inline double log2(double x) { return log10(x)/0.301029996; }
 };
 
 #endif
