@@ -1,15 +1,11 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include <iostream>
-#include <stdio.h>
-#include "Debug.h"
+#include <cstddef>
 
 class Log {
-
     public:
-        
-        static void printProgress(int id);
+        static void printProgress(size_t id);
 };
 
 #endif

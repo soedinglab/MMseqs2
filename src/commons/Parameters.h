@@ -134,8 +134,11 @@ public:
     std::string forwardFrames;
     std::string reverseFrames;
 
-    // CREATE PROFILE
+    // createprofiledb
     int profileMode;
+
+    // result2msa
+    bool allowDeletion;
 
     // createdb
     bool useHeader;
@@ -175,7 +178,6 @@ public:
     void printParameters(int argc, const char* pargv[],
                          std::vector<MMseqsParameter> par);
     Parameters();
-    ~Parameters();
 
     PARAMETER(PARAM_S);
     PARAMETER(PARAM_K);
@@ -224,6 +226,9 @@ public:
     // create profile (HMM, PSSM)
     PARAMETER(PARAM_PROFILE_TYPE);
 
+    // result2msa
+    PARAMETER(PARAM_ALLOW_DELETION);
+
     // clustering workflow
     PARAMETER(PARAM_NO_AUTOMATED_THRESHOLD);
 
@@ -262,6 +267,8 @@ public:
 
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createprofiledb;
+    std::vector<MMseqsParameter> result2profile;
+    std::vector<MMseqsParameter> result2msa;
     std::vector<MMseqsParameter> extractorf;
     std::vector<MMseqsParameter> splitffindex;
     std::vector<MMseqsParameter> createindex;
@@ -277,8 +284,8 @@ public:
     std::vector<MMseqsParameter> addSequences;
     std::vector<MMseqsParameter> filterDb;
 
-    std::vector <MMseqsParameter> combineList(std::vector < MMseqsParameter > par1,
-                                              std::vector < MMseqsParameter > par2);
+    std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> par1,
+                                              std::vector<MMseqsParameter> par2);
 
     std::string createParameterString(std::vector < MMseqsParameter > vector);
 
