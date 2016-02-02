@@ -1,13 +1,12 @@
-//
-// Created by mad on 1/27/16.
-//
+#include "Parameters.h"
+#include "DBReader.h"
+#include "DBWriter.h"
+#include "Util.h"
+#include "Log.h"
+#include "Debug.h"
 
-#include <Parameters.h>
 #include <regex.h>
-#include <DBReader.h>
-#include <DBWriter.h>
-#include <Util.h>
-#include <Log.h>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif

@@ -50,6 +50,8 @@ Parameters::Parameters():
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","\tVerbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]{1}$"),
 // create profile (HMM, PSSM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "[int]\tMPI Option: HMM 0 or PSSM",typeid(int),(void *) &profileMode,  "^[0-1]{1}$"),
+// result2msa
+        PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "\tAllow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
 
 // clustering workflow
         PARAM_NO_AUTOMATED_THRESHOLD(PARAM_NO_AUTOMATED_THRESHOLD_ID, "--no-automatic-threshold", "No Automatic Threshold", "\tPrevent mmseqs from changing sensitivity and cascaded clustering settings", typeid(bool), (void *) &noAutomaticThreshold, ""),
@@ -119,12 +121,23 @@ Parameters::Parameters():
     // find orf
     onlyverbosity.push_back(PARAM_V);
 
-    // create profile db
-    createprofiledb.push_back(PARAM_SUB_MAT);
+    // createprofiledb
     createprofiledb.push_back(PARAM_PROFILE_TYPE);
-    createprofiledb.push_back(PARAM_NO_COMP_BIAS_CORR);
-    createprofiledb.push_back(PARAM_THREADS);
+    createprofiledb.push_back(PARAM_SUB_MAT);
     createprofiledb.push_back(PARAM_V);
+
+    // result2profile
+    result2profile.push_back(PARAM_SUB_MAT);
+    result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2profile.push_back(PARAM_THREADS);
+    result2profile.push_back(PARAM_V);
+
+    // result2msa
+    result2msa.push_back(PARAM_SUB_MAT);
+    result2msa.push_back(PARAM_ALLOW_DELETION);
+    result2msa.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2msa.push_back(PARAM_THREADS);
+    result2msa.push_back(PARAM_V);
 
     // extract orf
     extractorf.push_back(PARAM_ORF_MIN_LENGTH);
@@ -193,20 +206,6 @@ Parameters::Parameters():
 
     checkSaneEnvironment();
     setDefaults();
-}
-
-Parameters::~Parameters(){
-    createdb.clear();
-    createindex.clear();
-    splitffindex.clear();
-    extractorf.clear();
-    onlyverbosity.clear();
-    clustering.clear();
-    alignment.clear();
-    prefilter.clear();
-    createprofiledb.clear();
-    rebuildfasta.clear();
-    gff2ffindex.clear();
 }
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
@@ -453,8 +452,11 @@ void Parameters::setDefaults() {
     noAutomaticThreshold = false;
     keepTempFiles = true;
 
-    // create profile
+    // createprofiledb
     profileMode = PROFILE_MODE_HMM;
+
+    // result2msa
+    allowDeletion = false;
 
     // logging
     verbosity = Debug::INFO;
