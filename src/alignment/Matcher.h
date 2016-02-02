@@ -99,6 +99,8 @@ private:
     double lambda;
 
     static size_t computeAlnLength(size_t anEnd, size_t start, size_t dbEnd, size_t dbStart);
+
+    float estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen);
 };
 
 #endif

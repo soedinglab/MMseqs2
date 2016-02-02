@@ -128,13 +128,15 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     if( mode == Parameters::ALIGNMENT_MODE_SCORE_COV){
         // "20%   30%   40%   50%   60%   70%   80%   90%   99%"
         // "0.52  1.12  1.73  2.33  2.93  3.53  4.14  4.74  5.28"
-        unsigned int qAlnLength = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
-        unsigned int dbAlnLength = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
-        seqId = (alignment.score1 / static_cast<float>(std::max(qAlnLength, dbAlnLength)))  * 0.1656 + 0.1141;
+        unsigned int qAlnLen = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
+        unsigned int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
+        //seqId = (alignment.score1 / static_cast<float>(std::max(qAlnLength, dbAlnLength)))  * 0.1656 + 0.1141;
+        seqId = estimateSeqIdByScorePerCol(alignment.score1, qAlnLen, dbAlnLen);
     }else if ( mode == Parameters::ALIGNMENT_MODE_SCORE_ONLY){
         unsigned int qAlnLen = std::max(qEndPos, static_cast<unsigned int>(1));
         unsigned int dbAlnLen = std::max(dbEndPos, static_cast<unsigned int>(1));
-        seqId = (alignment.score1 / static_cast<float>(std::max(dbAlnLen, qAlnLen)))  * 0.1656 + 0.1141;
+        //seqId = (alignment.score1 / static_cast<float>(std::max(dbAlnLen, qAlnLen)))  * 0.1656 + 0.1141;
+        seqId = estimateSeqIdByScorePerCol(alignment.score1, qAlnLen, dbAlnLen);
     }
 
     // statistics
@@ -195,4 +197,10 @@ std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
 
 size_t Matcher::computeAlnLength(size_t qStart, size_t qEnd, size_t dbStart, size_t dbEnd) {
     return std::max(qEnd - qStart, dbEnd - dbStart);
+}
+
+float Matcher::estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen) {
+    float estimatedSeqId = (score / static_cast<float>(std::max(qLen, tLen)))  * 0.1656 + 0.1141;
+    estimatedSeqId = std::min(estimatedSeqId, 1.0f);
+    return std::max(0.0f, estimatedSeqId);
 }
