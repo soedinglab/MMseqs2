@@ -1,11 +1,11 @@
 #include <iostream>
 #include <unistd.h>
 #include <string>
-#include <signal.h>
-#include <execinfo.h>
+#include <sys/time.h>
 
 #ifdef OPENMP
 #include <omp.h>
+
 #endif
 
 #include "Prefiltering.h"

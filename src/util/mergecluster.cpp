@@ -1,17 +1,12 @@
-//
-// Created by mad on 5/9/15.
-//
-
-#include "mergecluster.h"
 #include <cstring>
 #include <list>
 #include <sstream>
-#include <Debug.h>
+
+#include "Debug.h"
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Parameters.h"
 #include "Util.h"
-
 
 void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std::string> cluSteps)
 {

@@ -18,6 +18,7 @@
 #include "Debug.h"
 #include "Parameters.h"
 #include "Util.h"
+#include "FileUtil.h"
 
 #include "kseq.h"
 #include <unistd.h> // read
@@ -33,7 +34,7 @@ int createdb(int argn, const char **argv) {
     par.parseParameters(argn, argv, usage, par.createdb, 2);
     Debug::setDebugLevel(par.verbosity);
 
-    FILE *fasta_file = Util::openFileOrDie(par.db1.c_str(), "r", true);
+    FILE *fasta_file = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
 
     std::string data_filename = par.db2;
     std::string index_filename = par.db2Index;

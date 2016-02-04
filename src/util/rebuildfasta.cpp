@@ -14,6 +14,7 @@
 #include "DBReader.h"
 #include "Debug.h"
 #include "Util.h"
+#include "FileUtil.h"
 
 const char header_start[] = {'>'};
 const char newline[] = {'\n'};
@@ -44,7 +45,7 @@ int rebuildfasta(int argc, const char * argv[])
     DBReader<std::string> db_header(data_filename_hdr.c_str(), index_filename_hdr.c_str());
     db_header.open(DBReader<std::string>::NOSORT);
 
-    FILE *fastaFP =  Util::openFileOrDie(par.db2.c_str(), "w", false);
+    FILE *fastaFP =  FileUtil::openFileOrDie(par.db2.c_str(), "w", false);
 
     DBReader<std::string>& from = db;
     if(par.useHeaderFile) {

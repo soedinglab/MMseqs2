@@ -38,8 +38,6 @@ class DBWriter {
 
         void swapResults(std::string inputDb, size_t splitSize);
 
-        static void errorIfFileExist(const char * file);
-
         void sortDatafileByIdOrder(DBReader<unsigned int> *qdbr);
 
         static void initFFIndexWrite(const char* dataFileName, const char* indexFileName, const char * dataFileMode, FILE** dataFile, FILE** indexFile);

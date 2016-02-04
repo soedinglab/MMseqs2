@@ -7,6 +7,7 @@
 #include <DiagonalMatcher.h>
 #include <QueryScore.h>
 #include <ExtendedSubstitutionMatrix.h>
+#include <FileUtil.h>
 
 #include "kseq.h"
 #include <unistd.h> // read
@@ -41,7 +42,7 @@ int main(int argc, char **argv)
     Sequence s2(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
     s2.mapSequence(0,0,S2char);
 
-    FILE *fasta_file = Util::openFileOrDie("/Users/mad/Documents/databases/mmseqs_benchmark/benchmarks/clustering_benchmark/db/db_full.fas", "r", true);
+    FILE *fasta_file = FileUtil::openFileOrDie("/Users/mad/Documents/databases/mmseqs_benchmark/benchmarks/clustering_benchmark/db/db_full.fas", "r", true);
     kseq_t *seq = kseq_init(fileno(fasta_file));
     size_t dbEntrySize = 0;
     size_t dbCnt = 0;
@@ -56,7 +57,7 @@ int main(int argc, char **argv)
     size_t maxLen = 0;
     for(size_t i = 0; i < 10; i++){
         fclose(fasta_file);
-        fasta_file = Util::openFileOrDie("/Users/mad/Documents/databases/mmseqs_benchmark/benchmarks/clustering_benchmark/db/db_full.fas", "r", true);
+        fasta_file = FileUtil::openFileOrDie("/Users/mad/Documents/databases/mmseqs_benchmark/benchmarks/clustering_benchmark/db/db_full.fas", "r", true);
         kseq_rewind(seq);
         while (kseq_read(seq) >= 0) {
             dbSeq.mapSequence(id,id,seq->seq.s);

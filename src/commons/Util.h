@@ -179,10 +179,6 @@ public:
         key[keySize] = '\0';
     }
 
-    static bool fileExists(const char* fileName);
-
-    static FILE* openFileOrDie(const char * fileName, const char * mode, bool shouldExist);
-
 	static inline void parseByColumnNumber(char *data, char * key, int position) {
         char * startPosOfKey = data;
         for (int i = 0; i < position; ++i) {

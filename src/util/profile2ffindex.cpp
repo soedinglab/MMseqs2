@@ -23,8 +23,9 @@ extern "C" {
 }
 
 #include "DBReader.h"
-#include "Util.h"
 #include "Debug.h"
+#include "Util.h"
+#include "FileUtil.h"
 #include "MathUtil.h"
 
 int sortIndex(char *index_filename, size_t entry_num);
@@ -144,10 +145,10 @@ int createprofiledb(int argn,const char **argv)
 
     FILE *data_file, *index_file, *data_file_hdr, *index_file_hdr;
 
-    data_file = Util::openFileOrDie(par.db2.c_str(), "w+", false);
-    index_file = Util::openFileOrDie(index_filename, "w+", false);
-    data_file_hdr = Util::openFileOrDie(data_filename_hdr, "w+", false);
-    index_file_hdr = Util::openFileOrDie(index_filename_hdr, "w+", false);
+    data_file = FileUtil::openFileOrDie(par.db2.c_str(), "w+", false);
+    index_file = FileUtil::openFileOrDie(index_filename, "w+", false);
+    data_file_hdr = FileUtil::openFileOrDie(data_filename_hdr, "w+", false);
+    index_file_hdr = FileUtil::openFileOrDie(index_filename_hdr, "w+", false);
 
     size_t offset_profile = 0;
     size_t offset_header = 0;
