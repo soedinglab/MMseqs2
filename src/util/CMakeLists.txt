@@ -19,7 +19,7 @@ set(util_source_files
   maskbygff.cpp
   extract_orf.cpp
   filterdb.cpp
-  mapcodons.cpp
+  convertkb.cpp
 )
 add_library(util ${util_source_files} )
 

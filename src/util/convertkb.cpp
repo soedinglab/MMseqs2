@@ -16,7 +16,7 @@ int convertkb(int argn, const char **argv)
     Parameters par;
     par.parseParameters(argn, argv, usage, par.onlyverbosity, 2);
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str());
     writer.open();
 
     FILE* kbFile = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
@@ -52,6 +52,8 @@ int convertkb(int argn, const char **argv)
         if(strncmp("//", line, 2) == 0) {
             isInEntry = false;
             std::string entry = s.str();
+            s.str("");
+            s.clear();
             writer.write(entry.c_str(), entry.length(), identifier.c_str());
         }
     }
