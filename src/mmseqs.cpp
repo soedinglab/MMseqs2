@@ -77,7 +77,7 @@ static struct Command commands[] = {
                 "Masks the sequences in an ffindex database by the selected rows in a gff file"},
         {"gff2ffindex",         gff2ffindex ,           &par.gff2ffindex,           COMMAND_HELPER,
                 "Turn a GFF3 file into a ffindex database"},
-        {"mapcodons",           mapcodons,              &par.onlyverbosity,         COMMAND_HELPER,
+        {"convertkb",           convertkb,              &par.onlyverbosity,         COMMAND_HELPER,
             ""},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
