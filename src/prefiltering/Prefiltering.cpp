@@ -1,14 +1,17 @@
 #include "Prefiltering.h"
 #include "PrefilteringIndexReader.h"
-#include "Util.h"
-#include "IndexTable.h"
 #include "QueryTemplateLocalFast.h"
 #include "QueryTemplateMatcherLocal.h"
-#include "QueryTemplateMatcher.h"
-#include "QueryScore.h"
-#include <regex.h>
+#include "NucleotideMatrix.h"
+#include "ReducedMatrix.h"
+#include "SubstitutionMatrixWithoutX.h"
+#include "Util.h"
+#include "FileUtil.h"
+#include "Debug.h"
+#include "Log.h"
 
-#include <cstddef>
+#include <regex.h>
+#include <sys/time.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -51,8 +54,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
     Debug(Debug::INFO) << "\n";
-    DBWriter::errorIfFileExist(outDB.c_str());
-    DBWriter::errorIfFileExist(outDBIndex.c_str());
+    FileUtil::errorIfFileExist(outDB.c_str());
+    FileUtil::errorIfFileExist(outDBIndex.c_str());
     this->qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open(DBReader<unsigned int>::NOSORT);
 

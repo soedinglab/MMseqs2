@@ -16,6 +16,7 @@
 #include "Log.h"
 #include "Util.h"
 #include "Debug.h"
+#include "FileUtil.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -94,8 +95,8 @@ int result2outputmode(Parameters par, int mode) {
     DBReader<unsigned int>* clusterReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     clusterReader->open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter::errorIfFileExist(par.db4.c_str());
-    DBWriter::errorIfFileExist(par.db4Index.c_str());
+    FileUtil::errorIfFileExist(par.db4.c_str());
+    FileUtil::errorIfFileExist(par.db4Index.c_str());
 
     DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
     writer.open();

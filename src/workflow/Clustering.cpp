@@ -7,6 +7,7 @@
 #include "CommandCaller.h"
 #include "Debug.h"
 #include "WorkflowFunctions.h"
+#include "FileUtil.h"
 
 
 void setWorkflowDefaults(Parameters *p) {
@@ -63,7 +64,8 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.cascaded << "\n";
     }
 
-    DBWriter::errorIfFileExist(par.db2.c_str());
+    FileUtil::errorIfFileExist(par.db2.c_str());
+    FileUtil::errorIfFileExist(par.db2Index.c_str());
 
     CommandCaller cmd;
     if (par.cascaded) {

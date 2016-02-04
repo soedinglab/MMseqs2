@@ -1,12 +1,11 @@
 #include "Util.h"
 #include "Debug.h"
 #include "kseq.h"
+#include "FileUtil.h"
+
 #include <unistd.h>
 
-#include  <stdio.h>
 KSEQ_INIT(int, read)
-
-#include <sys/stat.h>
 
 size_t Util::countLines(const char *data, size_t length) {
     size_t newlines = 0;
@@ -37,7 +36,7 @@ void Util::decomposeDomain(size_t domain_size, size_t world_rank,
 
 std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
     std::map<std::string, size_t> map;
-    FILE * fasta_file = Util::openFileOrDie(fastaFile, "r", true);
+    FILE * fasta_file = FileUtil::openFileOrDie(fastaFile, "r", true);
     kseq_t *seq = kseq_init(fileno(fasta_file));
     size_t i = 0;
     while (kseq_read(seq) >= 0) {
@@ -147,26 +146,3 @@ std::string Util::parseFastaHeader(std::string header){
     return arr[0];
 }
 
-bool Util::fileExists(const char* fileName) {
-    struct stat st;
-    return stat(fileName, &st) == 0;
-}
-
-FILE* Util::openFileOrDie(const char * fileName, const char * mode, bool shouldExist) {
-    bool exists = Util::fileExists(fileName);
-    if(exists && !shouldExist) {
-        errno = EEXIST;
-        perror(fileName);
-        EXIT(EXIT_FAILURE);
-    }
-    if(!exists && shouldExist) {
-        errno = ENOENT;
-        perror(fileName);
-        EXIT(EXIT_FAILURE);
-    }
-
-    FILE* file;
-    file = fopen(fileName, mode);
-    if(file == NULL) { perror(fileName); EXIT(EXIT_FAILURE); }
-    return file;
-}

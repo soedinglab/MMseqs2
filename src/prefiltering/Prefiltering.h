@@ -1,32 +1,19 @@
 #ifndef PREFILTERING_H
 #define PREFILTERING_H
 
-#include <iostream>
-#include <fstream>
-#include <unistd.h>
-#include <string>
-#include <time.h>
-#include <sys/time.h>
-#include <stddef.h>
-#include <stdbool.h>
-
+#include "Parameters.h"
 #include "DBReader.h"
 #include "DBWriter.h"
-#include "SubstitutionMatrix.h"
-#include "Sequence.h"
-#include "NucleotideMatrix.h"
-#include "Debug.h"
-#include "Log.h"
-#include "Util.h"
-#include "Parameters.h"
-
+#include "IndexTable.h"
+#include "BaseMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
-#include "ReducedMatrix.h"
-#include "SubstitutionMatrixWithoutX.h"
-
-#include "KmerGenerator.h"
+#include "QueryScore.h"
 #include "QueryTemplateMatcher.h"
-#include "SequenceLookup.h"
+
+#include <string>
+#include <list>
+#include <utility>
+
 
 class Prefiltering {
 public:

@@ -1,15 +1,15 @@
 #include <cstdlib>
 #include <iostream>
-#include <sys/stat.h>
+
 #include <sstream>
 #include <fstream>
-#include <stdio.h>
 #include <sys/mman.h>
 
 #include "DBWriter.h"
 #include "DBReader.h"
 #include "Debug.h"
 #include "Util.h"
+#include "FileUtil.h"
 
 extern "C" {
 #include "ffindex.h"
@@ -259,17 +259,12 @@ void DBWriter::write(const char* data, int64_t dataSize, const char* key, int th
 }
 
 
-void DBWriter::errorIfFileExist(const char * file){
-    struct stat st;
-    if(stat(file, &st) == 0) { errno = EEXIST; perror(file); EXIT(EXIT_FAILURE); }
-}
-
 void DBWriter::initFFIndexWrite(const char* dataFileName,
                                 const char* indexFileName,
                                 const char* datafileMode,
                                 FILE** dataFile, FILE** indexFile){
-    DBWriter::errorIfFileExist(dataFileName);
-    DBWriter::errorIfFileExist(indexFileName);
+    FileUtil::errorIfFileExist(dataFileName);
+    FileUtil::errorIfFileExist(indexFileName);
 
     *dataFile = fopen(dataFileName, datafileMode);
     *indexFile = fopen(indexFileName, "w");

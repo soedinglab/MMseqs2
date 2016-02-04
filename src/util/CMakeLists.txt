@@ -10,7 +10,6 @@ set(util_source_files
   ffindex_swap_results.cpp
   translate_nucleotide.cpp
   mergecluster.cpp
-  mergecluster.h
   convertfiles.h
   convertfiles.cpp
   format_alignment.cpp

@@ -6,7 +6,7 @@
 // Manages DB read access.
 //
 
-#include <cstdlib>
+#include <cstddef>
 #include <utility>
 #include <string>
 
