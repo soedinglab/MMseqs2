@@ -205,6 +205,7 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
         }
     }
 }
+
 void DiagonalMatcher::computeScores(const char *queryProfile,
                                     const unsigned int queryLen,
                                     CounterResult * results,

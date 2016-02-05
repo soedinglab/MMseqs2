@@ -154,8 +154,8 @@ int createprofiledb(int argn,const char **argv)
 
     size_t entry_num = 0;
 
-    DBReader<unsigned int> dbr_data(par.db1.c_str(), std::string(par.db1  + ".index").c_str());
-    dbr_data.open(DBReader<unsigned int>::NOSORT);
+    DBReader<std::string> dbr_data(par.db1.c_str(), std::string(par.db1  + ".index").c_str());
+    dbr_data.open(DBReader<std::string>::NOSORT);
 
     size_t maxElementSize = 0;
     for(size_t i = 0; i < dbr_data.getSize(); i++) {
