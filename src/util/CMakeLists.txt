@@ -24,4 +24,4 @@ set(util_source_files
 )
 add_library(util ${util_source_files} )
 
-target_link_libraries(util prefiltering commons ext)
+target_link_libraries(util prefiltering commons ffindex)
