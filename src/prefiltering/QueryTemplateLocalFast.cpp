@@ -124,7 +124,6 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
                 std::sort(resList, resList + queryResult.second, QueryScore::compareHitsByDiagonalScore);
             } else {
                 std::sort(resList, resList + queryResult.second, QueryScore::compareHitsByPValue);
-
             }
         }
     }
