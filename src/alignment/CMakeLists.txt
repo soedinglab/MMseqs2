@@ -11,7 +11,7 @@ set(alignment_source_files
   PSSMCalculator.cpp
   PSSMCalculator.h
   BlastScoreUtils.cpp
-  BlastScoreUtils.h)
+  BlastScoreUtils.h MsaFilter.cpp MsaFilter.h)
 add_library(alignment ${alignment_source_files})
 
 target_link_libraries(alignment commons)

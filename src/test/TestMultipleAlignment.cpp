@@ -6,6 +6,7 @@
 //
 #include <iostream>
 #include <smith_waterman_sse2.h>
+#include <MsaFilter.h>
 #include "PSSMCalculator.h"
 #include "Sequence.h"
 #include "SubstitutionMatrix.h"
@@ -60,6 +61,12 @@ int main (int argc, const char * argv[])
     Matcher aligner(10000, &subMat, 100000 ,seqSet.size(), false);
     MultipleAlignment msaAligner(1000, 10, &subMat, &aligner);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s1, seqSet, true);
+    MsaFilter filter(1000, 10000, &subMat);
+    MsaFilter::MsaFilterResult msafilter = filter.filter(res.msaSequence, res.setSize, res.centerLength, 0, 0, -20.0f, 50, 100);
+    std::cout << msafilter.N << std::endl;
+    for(size_t i = 0; i < res.setSize; i++){
+        std::cout << "Included sequence=" << (int) msafilter.keep[i] << std::endl;
+    }
     MultipleAlignment::print(res);
     PSSMCalculator pssm(&subMat, 1000);
     pssm.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence);

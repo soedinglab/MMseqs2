@@ -41,6 +41,5 @@ include_directories(lib/kseq)
 include_directories(lib/simd)
 include_directories(lib/seqan)
 include_directories(${PROJECT_SOURCE_DIR}/lib/ffindex/src)
-include_directories(${PROJECT_SOURCE_DIR}/lib/ffindex/ext)
 add_subdirectory(src)
 
