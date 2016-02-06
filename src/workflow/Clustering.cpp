@@ -68,6 +68,11 @@ int clusteringworkflow(int argc, const char *argv[]) {
     FileUtil::errorIfFileExist(par.db2Index.c_str());
 
     CommandCaller cmd;
+
+    if(par.keepTempFiles) {
+        cmd.addVariable("KEEP_TEMP", "TRUE");
+    }
+
     if (par.cascaded) {
         float targetSensitivity = par.sensitivity;
         size_t maxResListLen = par.maxResListLen;

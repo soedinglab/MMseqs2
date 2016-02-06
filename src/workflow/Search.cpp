@@ -17,6 +17,11 @@ int search(int argc, const char *argv[]) {
     Debug::setDebugLevel(par.verbosity);
 
     CommandCaller cmd;
+
+    if(par.keepTempFiles) {
+        cmd.addVariable("KEEP_TEMP", "TRUE");
+    }
+
     if (par.numIterations > 1) {
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());

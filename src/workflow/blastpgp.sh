@@ -7,7 +7,7 @@ notExists () {
 	[ ! -f "$1" ] 
 }
 #pre processing
-[ -z "$MMDIR" ] && echo "Please set the environment variable $MMDIR to your MMSEQS installation directory." && exit 1;
+[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
 # check amount of input variables
 [ "$#" -ne 4 ] && echo "Please provide <queryDB> <targetDB> <outDB> <tmp>" && exit 1;
 # check if files exists
@@ -36,7 +36,19 @@ while [ $STEP -lt $NUM_IT ]; do
 done
 # post processing
 let STEP=STEP-1
-cp "$4/aln_$STEP" "$3"
-cp "$4/aln_$STEP.index" "$3.index"
-checkReturnCode "Could not copy result to $3"
-rm -f "$4"/*
+mv -f "$4/aln_$STEP" "$3"
+mv -f "$4/aln_$STEP.index" "$3.index"
+checkReturnCode "Could not move result to $3"
+
+if [ -n "$KEEP_TEMP" ]; then
+ echo "Keeping temporary files"
+ exit 0
+fi
+
+STEP=0
+while [ $STEP -lt $NUM_IT ]; do
+    rm -f "$4/pref_$STEP" "$4/pref_$STEP.index"
+    rm -f "$4/aln_$STEP" "$4/aln_$STEP.index"
+    rm -f "$4/profile_$STEP" "$4/profile_$STEP.index"
+	let STEP=STEP+1
+done

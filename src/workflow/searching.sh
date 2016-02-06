@@ -26,4 +26,6 @@ notExists "$4/aln"  && mmseqs alignment "$1" "$2" "$4/pref" "$4/aln" $ALIGNMENT_
 cp "$4/aln" "$3"
 cp "$4/aln.index" "$3.index"
 checkReturnCode "Could not copy result to $3"
+
+[ -z "$KEEP_TEMP" ] && echo "Keeping temporary files" && exit 0
 rm -f "$4"/*
