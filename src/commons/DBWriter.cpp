@@ -305,7 +305,7 @@ void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNa
         char *data_to_add = ffindex_mmap_data(data_file_to_add, &data_size);
         if (data_size > 0){
             // count the number of entries
-            size_t cnt = DBReader<unsigned int>::countLine(indexFileNames[i]);
+            size_t cnt = FileUtil::countLines(indexFileNames[i]);
             // merge data and indexes
             ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, cnt);
             ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);

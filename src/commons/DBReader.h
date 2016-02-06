@@ -76,7 +76,9 @@ public:
 
     void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
 
-    static size_t countLine(const char *name);
+    void readIndexId(T* id, char* line, char** save);
+
+    void sortIndex();
 
     void unmapData();
 

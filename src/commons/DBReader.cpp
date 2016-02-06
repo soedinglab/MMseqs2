@@ -11,6 +11,7 @@
 
 #include "Debug.h"
 #include "Util.h"
+#include "FileUtil.h"
 
 template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode)
 {
@@ -29,8 +30,9 @@ template <typename T> DBReader<T>::~DBReader(){
 
 template <typename T> void DBReader<T>::open(int accessType){
     // count the number of entries
-    this->size = countLine(indexFileName);
+    this->size = FileUtil::countLines(indexFileName);
     this->accessType = accessType;
+
     // open ffindex
     if(dataMode & USE_DATA){
         dataFile = fopen(dataFileName, "r");
@@ -38,62 +40,13 @@ template <typename T> void DBReader<T>::open(int accessType){
         data = mmapData(dataFile, &dataSize);
         dataMapped = true;
     }
+
     index = new Index[this->size];
     seqLens = new unsigned int[size];
+
     readIndex(indexFileName, index, data, seqLens);
-    std::pair<Index, unsigned  int> * sortArray = new std::pair<Index, unsigned  int>[size];
-    for(size_t i = 0; i < size; i++){
-        sortArray[i] = std::make_pair( index[i], seqLens[i] );
-    }
-    std::sort(sortArray, sortArray + size, compareIndexLengthPairById() );
-    for(size_t i = 0; i < size; ++i )
-    {
-        index[i].id = sortArray[i].first.id;
-        index[i].data = sortArray[i].first.data;
-        seqLens[i] = sortArray[i].second;
-    }
-    delete [] sortArray;
-    //TODO fix linear access
-    if(accessType == SORT_BY_LENGTH){
-        // sort the enties by the length of the sequences
-        std::pair<unsigned int, unsigned  int> * sortForMapping = new std::pair<unsigned int, unsigned  int>[size];
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        for (size_t i = 0; i < size; i++){
-            id2local[i] = i;
-            local2id[i] = i;
-            sortForMapping[i] = std::make_pair(i, seqLens[i]);
-        }
-        std::sort(sortForMapping, sortForMapping + size, comparePairBySeqLength() );
-        for (size_t i = 0; i < size; i++){
-            id2local[sortForMapping[i].first] = i;
-            local2id[i] = sortForMapping[i].first;
-            seqLens[i] = sortForMapping[i].second;
-        }
-        delete [] sortForMapping;
-    } else if (accessType == LINEAR_ACCCESS){
-        // sort the enties by the length of the sequences
-        std::pair<unsigned int, size_t> * sortForMapping = new std::pair<unsigned int, size_t >[size];
-        id2local = new unsigned int[size];
-        local2id = new unsigned int[size];
-        for (size_t i = 0; i < size; i++){
-            id2local[i] = i;
-            local2id[i] = i;
-            sortForMapping[i] = std::make_pair(i, (size_t) index[i].data);
-        }
-        std::sort(sortForMapping, sortForMapping + size, comparePairByOffset() );
-        for (size_t i = 0; i < size; i++){
-            id2local[sortForMapping[i].first] = i;
-            local2id[i] = sortForMapping[i].first;
-        }
-        delete [] sortForMapping;
-        unsigned int * tmpSizeArray = new unsigned int[size];
-        memcpy(tmpSizeArray, seqLens, size * sizeof(unsigned int));
-        for(size_t i = 0; i < size; i++) {
-            seqLens[i] = tmpSizeArray[local2id[i]];
-        }
-        delete [] tmpSizeArray;
-    }
+
+    sortIndex();
 
     // init seq lens array and dbKey mapping
     aaDbSize = 0;
@@ -106,6 +59,67 @@ template <typename T> void DBReader<T>::open(int accessType){
         EXIT(EXIT_FAILURE);
     }
     closed = 0;
+}
+
+template<typename T>
+void DBReader<T>::sortIndex() { }
+
+template<>
+void DBReader<unsigned int>::sortIndex() {
+    std::pair<Index, unsigned int> *sortArray = new std::pair<Index, unsigned int>[size];
+    for (size_t i = 0; i < size; i++) {
+        sortArray[i] = std::make_pair(index[i], seqLens[i]);
+    }
+
+    std::sort(sortArray, sortArray + size, compareIndexLengthPairById());
+    for (size_t i = 0; i < size; ++i) {
+        index[i].id = sortArray[i].first.id;
+        index[i].data = sortArray[i].first.data;
+        seqLens[i] = sortArray[i].second;
+    }
+
+    delete[] sortArray;
+    //TODO fix linear access
+    if (accessType == SORT_BY_LENGTH) {
+        // sort the enties by the length of the sequences
+        std::pair<unsigned int, unsigned int> *sortForMapping = new std::pair<unsigned int, unsigned int>[size];
+        id2local = new unsigned int[size];
+        local2id = new unsigned int[size];
+        for (size_t i = 0; i < size; i++) {
+            id2local[i] = i;
+            local2id[i] = i;
+            sortForMapping[i] = std::make_pair(i, seqLens[i]);
+        }
+        std::sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
+        for (size_t i = 0; i < size; i++) {
+            id2local[sortForMapping[i].first] = i;
+            local2id[i] = sortForMapping[i].first;
+            seqLens[i] = sortForMapping[i].second;
+        }
+        delete[] sortForMapping;
+    } else if (accessType == LINEAR_ACCCESS) {
+        // sort the enties by the length of the sequences
+        std::pair<unsigned int, size_t> *sortForMapping = new std::pair<unsigned int, size_t>[size];
+        id2local = new unsigned int[size];
+        local2id = new unsigned int[size];
+        for (size_t i = 0; i < size; i++) {
+            id2local[i] = i;
+            local2id[i] = i;
+            sortForMapping[i] = std::make_pair(i, (size_t) index[i].data);
+        }
+        std::sort(sortForMapping, sortForMapping + size, comparePairByOffset());
+        for (size_t i = 0; i < size; i++) {
+            id2local[sortForMapping[i].first] = i;
+            local2id[i] = sortForMapping[i].first;
+        }
+        delete[] sortForMapping;
+        unsigned int *tmpSizeArray = new unsigned int[size];
+        memcpy(tmpSizeArray, seqLens, size * sizeof(unsigned int));
+        for (size_t i = 0; i < size; i++) {
+            seqLens[i] = tmpSizeArray[local2id[i]];
+        }
+        delete[] tmpSizeArray;
+    }
 }
 
 template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize){
@@ -143,7 +157,6 @@ template <typename T> void DBReader<T>::close(){
 
 template <typename T> size_t DBReader<T>::bsearch(const Index * index, size_t N, T value)
 {
-
     Index val;
     val.id = value;
     return std::upper_bound(index, index + N, val, Index::compareById) - index;
@@ -232,51 +245,28 @@ template <typename T> void DBReader<T>::checkClosed(){
     }
 }
 
-template <typename T> size_t DBReader<T>::countLine(const char *indexFileName) {
-    size_t cnt = 0;
-    std::string line;
-    std::ifstream index_file(indexFileName);
-    if (index_file.is_open()) {
-        while (std::getline(index_file, line)) {
-            cnt++;
-        }
-        index_file.close();
-    }
-    else {
-        Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    return cnt;
-}
-
 template<typename T>
 void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength) {
     std::ifstream indexFile(indexFileName);
 
-    if (indexFile.fail() || !indexFile.is_open()) {
+    if (indexFile.fail()) {
         Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
         EXIT(EXIT_FAILURE);
     }
 
+    char *save;
     size_t i = 0;
     std::string line;
     while (std::getline(indexFile, line)) {
-        std::istringstream ss(line);
-        T id;
-        size_t offset = 0, length = 0;
-        ss >> id >> offset >> length;
-
-        if (ss.fail()) {
-            Debug(Debug::ERROR) << "Corrupted line number " << i << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
+        char *l = (char *) line.c_str();
+        readIndexId(&index[i].id, l, &save);
+        size_t offset = strtoull(strtok_r(NULL, "\t", &save), NULL, 10);
+        size_t length = strtoull(strtok_r(NULL, "\t", &save), NULL, 10);
 
         if (i >= this->size) {
             Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
             EXIT(EXIT_FAILURE);
         }
-
-        index[i].id = id;
 
         if (dataMode & USE_DATA) {
             index[i].data = data + offset;
@@ -285,10 +275,20 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
         }
 
         entryLength[i] = length;
+
         i++;
     }
 
     indexFile.close();
+}
+
+template<>
+void DBReader<std::string>::readIndexId(std::string* id, char* line, char** save) {
+    *id = strtok_r(line, "\t", save);
+}
+template<>
+void DBReader<unsigned int>::readIndexId(unsigned int* id, char* line, char** save) {
+    *id = (unsigned int) strtoul(strtok_r(line, "\t", save), NULL, 10);
 }
 
 template <typename T> void DBReader<T>::unmapData() {
