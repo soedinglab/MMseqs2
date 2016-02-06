@@ -32,7 +32,7 @@ Parameters::Parameters():
         PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Local: 1 Local fast: 2",typeid(int), (void *) &searchMode, "^[0-2]{1}$"),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","[int]\tSwitch off local amino acid composition bias correction[0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$"),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "[int]\tSpaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}" ),
-        PARAM_KEEP_TEMP_FILES(PARAM_KEEP_TEMP_FILES_ID,"--keep-tmp-files", "Keep-tmp-files" ,"\tDo not delete temporary files.",typeid(bool),(void *) &keepTempFiles, ""),
+        PARAM_KEEP_TEMP_FILES(PARAM_KEEP_TEMP_FILES_ID,"--keep-tmp-files", "Keep Temporary Files" ,"\tDo not delete temporary files.",typeid(bool),(void *) &keepTempFiles, ""),
 // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "[int]\tAlignment mode 0=fastest based on parameters, 1=score; 2=score,cov,start/end pos; 3=score,cov,start/end pos,seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$"),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "[real]\tMaximum e-value[0.0,1.0]",typeid(float), (void *) &evalThr, "^[0-9]*(\\.[0-9]+)?$"),
@@ -450,7 +450,7 @@ void Parameters::setDefaults() {
 
     // Clustering workflow
     noAutomaticThreshold = false;
-    keepTempFiles = true;
+    keepTempFiles = false;
 
     // createprofiledb
     profileMode = PROFILE_MODE_HMM;

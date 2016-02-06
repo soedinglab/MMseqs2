@@ -7,7 +7,7 @@ notExists () {
 	[ ! -f "$1" ] 
 }
 #pre processing
-[ -z "$MMDIR" ] && echo "Please set the environment variable $MMDIR to your MMSEQS installation directory." && exit 1;
+[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
 # check amount of input variables
 [ "$#" -ne 3 ] && echo "Please provide <sequenceDB> <outDB> <tmp>" && exit 1;
 # check if files exists
@@ -29,6 +29,12 @@ notExists "$3/clu"  && mmseqs cluster   "$1" "$3/aln" "$3/clu" $CLUSTER_PAR     
 mv -f "$3/clu" "$2"
 mv -f "$3/clu.index" "$2.index"
 checkReturnCode "Could not move result to $2"
-rm -f "$3/pref*"
-rm -f "$3/aln*"
-rm -f "$3/clu*"
+
+if [ -n "$KEEP_TEMP" ]; then
+ echo "Keeping temporary files"
+ exit 0
+fi
+
+rm -f "$3/pref" "$3/pref.index"
+rm -f "$3/aln" "$3/aln.index"
+rm -f "$3/clu" "$3/clu.index"
