@@ -61,12 +61,18 @@ Prefiltering::Prefiltering(std::string queryDB,
 
     this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader<unsigned int>::NOSORT);
+
+    //  check if when qdb and tdb have the same name an index extention exists
     std::string check(targetDB);
-    check.replace(check.find(queryDB), queryDB.length(), "");
-    regex_t regex;
-    regcomp(&regex, "^\\.s?k[5-7]$", REG_EXTENDED | REG_NEWLINE);
-    int nomatch = regexec(&regex, check.c_str(), 0, NULL, 0);
-    regfree(&regex);
+    size_t pos = check.find(queryDB);
+    int nomatch = true;
+    if(pos == 0){
+        check.replace(0, queryDB.length(), "");
+        regex_t regex;
+        regcomp(&regex, "^\\.s?k[5-7]$", REG_EXTENDED | REG_NEWLINE);
+        nomatch = regexec(&regex, check.c_str(), 0, NULL, 0);
+        regfree(&regex);
+    }
     // if no match found or two matches found (we want exactly one match)
     sameQTDB = (queryDB.compare(targetDB) == 0 || (nomatch == false) );
 
