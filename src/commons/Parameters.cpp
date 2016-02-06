@@ -243,7 +243,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                                  std::string programUsageHeader,
                                  std::vector<MMseqsParameter> par,
                                  size_t requiredParameterCount,
-                                 bool printPar)
+                                 bool printPar,
+                                 bool isVariadic)
 {
     //ops.exceptions(std::ios::eofbit); // throw exception when parsing error
     std::vector<std::string> getFilename;
@@ -323,30 +324,46 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         alphabetSize = 5;
     }
 
-    if(getFilename.size() < requiredParameterCount){
+    const size_t MAX_DB_PARAMETER = 5;
+
+    if (requiredParameterCount > MAX_DB_PARAMETER) {
+        Debug(Debug::ERROR) << "Use argv if you need more than " << MAX_DB_PARAMETER << " db parameters" << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    if (getFilename.size() < requiredParameterCount){
         printUsageMessage(programUsageHeader, par);
         Debug(Debug::INFO) << requiredParameterCount << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
 
-    switch (getFilename.size()) {
+    switch (std::min(getFilename.size(), MAX_DB_PARAMETER)) {
         case 5:
             db5 = getFilename[4];
-            db5Index = db5 + ".index";
+            db5Index = db5;
+            db5Index.append(".index");
         case 4:
             db4 = getFilename[3];
-            db4Index = db4 + ".index";
+            db4Index = db4;
+            db4Index.append(".index");
         case 3:
             db3 = getFilename[2];
-            db3Index = db3 + ".index";
+            db3Index = db3;
+            db3Index.append(".index");
         case 2:
             db2 = getFilename[1];
-            db2Index = db2 + ".index";
+            db2Index = db2;
+            db2Index.append(".index");
         case 1:
             db1 = getFilename[0];
-            db1Index = db1 + ".index";
+            db1Index = db1;
+            db1Index.append(".index");
             break;
         default:
+            // Do not abort execution if we exect a variable amount of parameters
+            if(isVariadic)
+                break;
+        case 0:
             printUsageMessage(programUsageHeader, par);
             Debug(Debug::INFO) << "Unrecognized parameters!" << "\n";
             printParameters(argc, pargv, par);

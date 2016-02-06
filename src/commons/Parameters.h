@@ -172,7 +172,8 @@ public:
                          std::string programUsageHeader,
                          std::vector<MMseqsParameter> par,
                          size_t requiredParameterCount,
-                         bool printParameters = true);
+                         bool printParameters = true,
+                         bool isVariadic = false);
     void printUsageMessage(std::string programUsageHeader,
                            std::vector<MMseqsParameter> parameters);
     void printParameters(int argc, const char* pargv[],
