@@ -1,5 +1,6 @@
 #include "FileUtil.h"
 #include "Util.h"
+#include "Debug.h"
 #include <sys/stat.h>
 
 void FileUtil::errorIfFileExist(const char * file){
@@ -34,6 +35,7 @@ FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool sho
 size_t FileUtil::countLines(const char* name) {
     std::ifstream index(name);
     if (index.fail()) {
+        Debug(Debug::ERROR) << "File " << name << " not found!\n";
         EXIT(EXIT_FAILURE);
     }
 
