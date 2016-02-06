@@ -11,6 +11,8 @@ public:
     static bool fileExists(const char* fileName);
 
     static FILE* openFileOrDie(const char * fileName, const char * mode, bool shouldExist);
+
+    static size_t countLines(const char* name);
 };
 
 
