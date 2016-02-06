@@ -129,14 +129,14 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
 int mergecluster(int argc,const char **argv)
 {
-
     std::string usage;
     usage.append("Combines n cluster steps to a final clustering\n");
     usage.append("USAGE: <sequenceDB> <outDB> <cluDB1> ... <cluDBn>\n");
     usage.append("\nDesigned and implemented by Maria Hauser, Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.onlyverbosity, 4);
+    par.parseParameters(argc, argv, usage, par.onlyverbosity, 4, true, true);
+
     std::list<std::string> clusterings;
     for(int i = 2; i < argc; i++){
         clusterings.push_back(std::string(argv[i]));

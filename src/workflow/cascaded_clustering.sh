@@ -1,14 +1,17 @@
-#!/bin/sh
+#!/bin/bash -x
 # Clustering workflow script
 # helper functions
 checkReturnCode () { 
-	[ $? -ne 0 ] && echo "$1" && exit 1;
+	if [ $? -ne 0 ]; then
+	    echo "$1"
+	    exit 1
+    fi
 }
 notExists () { 
 	[ ! -f "$1" ] 
 }
 hasCommand () {
-    command -v $1 >/dev/null 2>&1 || { echo >&2 "Please make sure that $1 is in \$PATH."; exit 1; }
+    command -v $1 >/dev/null 2>&1 || { echo "Please make sure that $1 is in \$PATH."; exit 1; }
 }
 #pre processing
 [ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
@@ -18,49 +21,46 @@ hasCommand () {
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && exit 1;
+
 hasCommand ffindex_order
 hasCommand awk
 
 export OMP_PROC_BIND=TRUE
 
-# processing
-################ clustering step 1 ################
-# call prefilter module
-notExists "$3/pref_step0" && mmseqs prefilter "$1" "$1" "$3/pref_step0" $PREFILTER0_PAR                                        && checkReturnCode "Prefilter step 0 died"
-# call alignment module
-notExists "$3/aln_step0"  && mmseqs alignment "$1" "$1" "$3/pref_step0" "$3/aln_step0" $ALIGNMENT0_PAR                         && checkReturnCode "Alignment step 0 died"
-# call cluster module
-notExists "$3/clu_step0"  && mmseqs cluster   "$1" "$3/aln_step0" "$3/clu_step0" $CLUSTER0_PAR                                 && checkReturnCode "Clustering step 0 died"
-# extract representative sequences index
-notExists "$3/order_step0" && awk '{ print $1 }' "$3/clu_step0.index" > "$3/order_step0"
-notExists "$3/input_step1" && ffindex_order "$3/order_step0" "$1" "$1.index" "$3/input_step1" "$3/input_step1.index"
-################ clustering step 1 ################
-# call prefilter module
-notExists "$3/pref_step1" && mmseqs prefilter "$3/input_step1" "$3/input_step1" "$3/pref_step1" $PREFILTER1_PAR                && checkReturnCode "Prefilter step 1 died"
-# call alignment module
-notExists "$3/aln_step1"  && mmseqs alignment "$3/input_step1" "$3/input_step1" "$3/pref_step1" "$3/aln_step1" $ALIGNMENT1_PAR && checkReturnCode "Alignment step 1 died"
-# call cluster module
-notExists "$3/clu_step1"  && mmseqs cluster   "$3/input_step1" "$3/aln_step1" "$3/clu_step1" $CLUSTER1_PAR                     && checkReturnCode "Clustering step 1 died"
-# extract representative sequences index
-notExists "$3/order_step1" && awk '{ print $1 }' "$3/clu_step1.index" > "$3/order_step1"
-notExists "$3/input_step2" && ffindex_order "$3/order_step1" "$1" "$1.index" "$3/input_step2" "$3/input_step2.index"
-################ clustering step 2 ################
-notExists "$3/pref_step2" && mmseqs prefilter "$3/input_step2" "$3/input_step2" "$3/pref_step2" $PREFILTER2_PAR                && checkReturnCode "Prefilter step 2 died"
-# call alignment module
-notExists "$3/aln_step2"  && mmseqs alignment "$3/input_step2" "$3/input_step2" "$3/pref_step2" "$3/aln_step2" $ALIGNMENT2_PAR && checkReturnCode "Alignment step 2 died"
-# call cluster module
-notExists "$3/clu_step2"  && mmseqs cluster   "$3/input_step2" "$3/aln_step2"   "$3/clu_step2"  $CLUSTER2_PAR                  && checkReturnCode "Clustering step 2 died"
-# extract representative sequences index
-notExists "$3/order_step2" && awk '{ print $1 }' "$3/clu_step2.index" > "$3/order_step2"
-notExists "$3/input_step3" && ffindex_order "$3/order_step2" "$1" "$1.index" "$3/input_step3" "$3/input_step3.index"
-################ clustering step 3 ################
-notExists "$3/pref_step3" && mmseqs prefilter "$3/input_step3" "$3/input_step3" "$3/pref_step3" $PREFILTER3_PAR                && checkReturnCode "Prefilter step 3 died"
-# call alignment module
-notExists "$3/aln_step3"  && mmseqs alignment "$3/input_step3" "$3/input_step3" "$3/pref_step3" "$3/aln_step3" $ALIGNMENT3_PAR && checkReturnCode "Alignment step 3 died"
-# call cluster module
-notExists "$3/clu_step3"  && mmseqs cluster   "$3/input_step3" "$3/aln_step3"   "$3/clu_step3"  $CLUSTER3_PAR                  && checkReturnCode "Clustering step 3 died"
-# merge cluster results
-notExists $3/clu && mmseqs mergecluster "$1" "$3/clu" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3"
+INPUT="$1"
+STEP=0
+while [ $STEP -lt 4 ]; do
+    PARAM=PREFILTER${STEP}_PAR
+    notExists "$3/pref_step$STEP" \
+        && mmseqs prefilter "$INPUT" "$INPUT" "$3/pref_step$STEP" ${!PARAM} \
+        && checkReturnCode "Prefilter step $STEP died"
+    PARAM=ALIGNMENT${STEP}_PAR
+    notExists "$3/aln_step$STEP" \
+        && mmseqs alignment "$INPUT" "$INPUT" "$3/pref_step$STEP" "$3/aln_step$STEP" ${!PARAM} \
+        && checkReturnCode "Alignment step $STEP died"
+    PARAM=CLUSTER${STEP}_PAR
+    notExists "$3/clu_step$STEP" \
+        && mmseqs cluster "$INPUT" "$3/aln_step$STEP" "$3/clu_step$STEP" ${!PARAM} \
+        && checkReturnCode "Clustering step $STEP died"
+
+    NEXTINPUT="$3/input_step$((STEP+1))"
+    if [ $STEP -eq 3 ]; then
+        notExists $3/clu \
+            && mmseqs mergecluster "$1" "$3/clu" "$3/clu_step0" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3" \
+            && checkReturnCode "Merging of clusters has died"
+    else
+        notExists "$3/order_step$STEP" \
+            && awk '{ print $1 }' "$3/clu_step$STEP.index" > "$3/order_step$STEP" \
+            && checkReturnCode "Awk step $STEP died"
+        notExists "$NEXTINPUT" \
+            && ffindex_order "$3/order_step$STEP" "$INPUT" "$INPUT.index" "$NEXTINPUT" "$NEXTINPUT.index" \
+            && checkReturnCode "Order step $STEP died"
+    fi
+
+	INPUT=$NEXTINPUT
+	let STEP=STEP+1
+done
+
 # post processing
 mv -f "$3/clu" "$2"
 mv -f "$3/clu.index" "$2.index"
