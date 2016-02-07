@@ -20,6 +20,7 @@
 
 #include "Debug.h"
 #include "Util.h"
+#include "MathUtil.h"
 #include "simd.h"
 #include "IndexTable.h"
 
@@ -84,7 +85,7 @@ public:
     inline void addScores (unsigned int* __restrict seqList, int seqListSize, unsigned short score){
         for (int i = 0; i < seqListSize; i++){
             const int seqId = seqList[i];
-            scores[seqId] = Util::sadd16(scores[seqId], score);
+            scores[seqId] = MathUtil::sadd16(scores[seqId], score);
         }
         scoresSum += score * seqListSize;
         numMatches += seqListSize;
