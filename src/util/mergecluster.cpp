@@ -106,9 +106,10 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         std::string cluResultsOutString = res.str();
         const char* cluResultsOutData = cluResultsOutString.c_str();
         if (BUFFER_SIZE < strlen(cluResultsOutData)){
-            std::cerr << "Tried to process the clustering list for the query " << dbKey << " , the length of the list = " << mergedClustering[i]->size() << "\n";
-            std::cerr << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
+            Debug(Debug::WARNING) << "Tried to process the clustering list for the query " << dbKey << " , the length of the list = " << mergedClustering[i]->size() << "\n";
+            Debug(Debug::WARNING) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
             BUFFER_SIZE=strlen(cluResultsOutData)+1;
+            delete[] outBuffer;
             outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
