@@ -142,10 +142,13 @@ typedef struct __kstring_t {
 	__KS_GETC(__read, __bufsize)				\
 	__KS_GETUNTIL(__read, __bufsize)
 
-#if (__GNUC__ > 2) || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
-#       define KSEQ_UNUSED		__attribute__((__unused__))
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+#if __has_attribute(__unused__)
+#define KSEQ_UNUSED	__attribute__((__unused__))
 #else
-#       define KSEQ_UNUSED
+#define KSEQ_UNUSED
 #endif
 
 #define __KSEQ_BASIC(type_t)											\

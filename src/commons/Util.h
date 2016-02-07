@@ -24,7 +24,11 @@ dynamic_cast< std::ostringstream& >( \
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
-#if defined(__GNUC__) || defined(__clang__)
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
+
+#if defined(__GNUC__) || __has_builtin(__builtin_expect)
 #define LIKELY(x) __builtin_expect((x),1)
 #define UNLIKELY(x) __builtin_expect((x),0)
 #else
