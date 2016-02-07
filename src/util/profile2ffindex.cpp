@@ -19,7 +19,6 @@
 
 extern "C" {
 #include "ffindex.h"
-#include "ffutil.h"
 }
 
 #include "DBReader.h"

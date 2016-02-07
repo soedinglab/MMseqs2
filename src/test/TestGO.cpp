@@ -2,13 +2,16 @@
 // Created by lars on 12.04.15.
 //
 
-#include <Util.h>
-#include <DistanceCalculator.h>
-#include <convertfiles.h>
-#include <DBWriter.h>
-#include <Parameters.h>
-#include <Log.h>
+#include "Util.h"
+#include "DistanceCalculator.h"
+#include "convertfiles.h"
+#include "DBWriter.h"
+#include "Parameters.h"
+#include "Log.h"
 #include "CompareGOTerms.h"
+
+#include <cmath>
+#include <fstream>
 
 #ifdef OPENMP
 #include <omp.h>

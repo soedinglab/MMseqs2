@@ -10,6 +10,7 @@
 #include <set>
 #include <sstream>
 #include <list>
+#include <fstream>
 
 convertfiles::convertfiles(std::string sequencedb) {
 

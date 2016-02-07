@@ -6,6 +6,7 @@
 
 #include <dirent.h>
 #include <cmath>
+#include <fstream>
 
 CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder, std::string sequencedb) {
 

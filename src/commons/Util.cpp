@@ -146,3 +146,56 @@ std::string Util::parseFastaHeader(std::string header){
     return arr[0];
 }
 
+void Util::parseByColumnNumber(char *data, char *key, int position) {
+    char *startPosOfKey = data;
+    for (int i = 0; i < position; ++i) {
+        startPosOfKey = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
+        startPosOfKey = startPosOfKey + Util::skipWhitespace(startPosOfKey);
+
+    }
+
+    char *endPosOfId = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
+    ptrdiff_t keySize = (endPosOfId - startPosOfKey);
+    strncpy(key, startPosOfKey, keySize);
+    key[keySize] = '\0';
+}
+
+void Util::parseKey(char *data, char *key) {
+    char *startPosOfKey = data;
+    char *endPosOfId = data + Util::skipNoneWhitespace(data);
+    ptrdiff_t keySize = (endPosOfId - startPosOfKey);
+    strncpy(key, data, keySize);
+    key[keySize] = '\0';
+}
+
+std::vector<std::string> Util::split(std::string str, std::string sep) {
+    char buffer[1024];
+    snprintf(buffer, 1024, "%s", str.c_str());
+    char *cstr = (char *) &buffer;
+    char *current;
+    char *rest;
+    std::vector<std::string> arr;
+    current = strtok_r(cstr, sep.c_str(), &rest);
+    while (current != NULL) {
+        arr.push_back(current);
+        current = strtok_r(NULL, sep.c_str(), &rest);
+    }
+    return arr;
+}
+
+size_t Util::getLine(const char *data, size_t dataLength, char *buffer, size_t bufferLength) {
+    if(bufferLength > dataLength) {
+        return 0;
+    }
+
+    size_t keySize = 0;
+    while (((data[keySize] != '\n') && (data[keySize] != '\0')) && keySize < dataLength) {
+        keySize++;
+    }
+
+    size_t maxLength = std::min(keySize + 1, bufferLength);
+    strncpy(buffer, data, maxLength);
+    buffer[maxLength - 1] = '\0';
+
+    return keySize;
+}

@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include <sys/cdefs.h>
 #include <IndexTable.h>
 
 struct  __attribute__((__packed__))  CounterResult {

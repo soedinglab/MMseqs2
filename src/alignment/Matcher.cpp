@@ -1,7 +1,5 @@
 #include "Matcher.h"
-#include <BaseMatrix.h>
 #include "Util.h"
-#include "smith_waterman_sse2.h"
 #include "Parameters.h"
 
 Matcher::Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize, bool aaBiasCorrection){

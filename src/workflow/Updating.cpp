@@ -6,13 +6,11 @@
 #include "Prefiltering.h"
 #include "Alignment.h"
 #include "Clustering.h"
-#include "WorkflowFunctions.h"
+#include "FileUtil.h"
 
 extern "C" {
 #include "ffindex.h"
-#include "ffutil.h"
 }
-#include "Util.h"
 
 struct clu_entry_t {
     unsigned int id;
@@ -37,14 +35,26 @@ int seqsWithMatches;
 int seqsWithoutMatches;
 int newClus;
 
+ffindex_index_t *openIndex(const char *indexFileName) {
+    // open clustering ffindex
+    FILE *indexFile = fopen(indexFileName, "r");
+    if (indexFile == NULL) {
+        Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    size_t lines = FileUtil::countLines(indexFileName);
+    ffindex_index_t *index = ffindex_index_parse(indexFile, lines);
+    return index;
+}
 
 void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string oldDBIndex, std::string newDBIndex){
 
     FILE* A_index_file = fopen(A_indexFile.c_str(), "w");
     FILE* B_index_file = fopen(B_indexFile.c_str(), "w");
 
-    ffindex_index_t* index_old = Util::openIndex(oldDBIndex.c_str());
-    ffindex_index_t* index_new = Util::openIndex(newDBIndex.c_str());
+    ffindex_index_t* index_old = openIndex(oldDBIndex.c_str());
+    ffindex_index_t* index_new = openIndex(newDBIndex.c_str());
 
     // positions in the databases
     unsigned int i = 0;
@@ -218,7 +228,7 @@ void appendToClustering(DBReader<unsigned int>* currSeqDbr, std::string BIndexFi
     DBReader<unsigned int>* BADbr = new DBReader<unsigned int>(BA_base.c_str(), (BA_base + ".index").c_str());
     BADbr->open(DBReader<unsigned int>::NOSORT);
 
-    ffindex_index_t* Bindex = Util::openIndex(BIndexFile.c_str());
+    ffindex_index_t* Bindex = openIndex(BIndexFile.c_str());
 
     FILE* Brest_index_file = fopen(Brest_indexFile.c_str(), "w");
 
@@ -446,7 +456,7 @@ int clusterupdate (int argc, const char * argv[]){
     std::cout << "\nTime for updating: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
 
     if (par.keepTempFiles == false) {
-        deleteTmpFiles(tmpFiles);
+        FileUtil::deleteTempFiles(*tmpFiles);
     }
     delete tmpFiles;
     return 0;

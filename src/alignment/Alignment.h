@@ -2,18 +2,11 @@
 #define ALIGNMENT_H
 
 #include <string>
-#include <list>
-#include <iomanip>
-#include <limits>
-#include <iostream>
-#include <fstream>
 
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "NucleotideMatrix.h"
 #include "SubstitutionMatrix.h"
-#include "Debug.h"
-#include "Log.h"
 #include "Matcher.h"
 #include "Parameters.h"
 #include "BlastScoreUtils.h"

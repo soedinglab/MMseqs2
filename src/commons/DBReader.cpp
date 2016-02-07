@@ -34,9 +34,12 @@ template <typename T> void DBReader<T>::open(int accessType){
     this->accessType = accessType;
 
     // open ffindex
-    if(dataMode & USE_DATA){
+    if (dataMode & USE_DATA) {
         dataFile = fopen(dataFileName, "r");
-        if( dataFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", dataFileName);  EXIT(EXIT_FAILURE); }
+        if (dataFile == NULL) {
+            Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
         data = mmapData(dataFile, &dataSize);
         dataMapped = true;
     }

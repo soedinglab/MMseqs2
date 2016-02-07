@@ -5,11 +5,10 @@
 #ifndef MMSEQS_CLUSTERINGALGORITHMS_H
 #define MMSEQS_CLUSTERINGALGORITHMS_H
 
-
-#include <DBReader.h>
-#include <DBWriter.h>
 #include <set>
 #include <list>
+
+#include "DBReader.h"
 #include "SetElement.h"
 
 class ClusteringAlgorithms {

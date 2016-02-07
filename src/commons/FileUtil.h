@@ -2,6 +2,8 @@
 #define MMSEQS_FILEUTIL_H
 
 #include <cstdio>
+#include <list>
+#include <string>
 
 class FileUtil {
 
@@ -13,6 +15,8 @@ public:
     static FILE* openFileOrDie(const char * fileName, const char * mode, bool shouldExist);
 
     static size_t countLines(const char* name);
+
+    static void deleteTempFiles(std::list<std::string> tmpFiles);
 };
 
 

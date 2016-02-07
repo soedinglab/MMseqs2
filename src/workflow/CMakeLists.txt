@@ -4,8 +4,6 @@ set(workflow_source_files
   TimeTest.cpp
   TimeTestMain.cpp
   Updating.cpp
-  WorkflowFunctions.cpp
-  WorkflowFunctions.h
 )
 add_library(workflow ${workflow_source_files})
 

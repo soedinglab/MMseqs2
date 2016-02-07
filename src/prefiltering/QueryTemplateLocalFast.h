@@ -5,7 +5,6 @@
 #ifndef MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
 #define MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
 
-#include <sys/cdefs.h>
 #include "CountInt32Array.h"
 #include "QueryTemplateMatcher.h"
 #include "DiagonalMatcher.h"

@@ -7,8 +7,6 @@
 // Calls SSE2 parallelized calculation of Smith-Waterman alignment and non-parallelized traceback afterwards.
 //
 
-#include <stdlib.h>
-
 #include <cfloat>
 #include <algorithm>
 #include <vector>
