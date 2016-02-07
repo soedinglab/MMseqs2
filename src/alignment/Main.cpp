@@ -1,9 +1,9 @@
 #include "Alignment.h"
 #include "Parameters.h"
-#include "CommandDeclarations.h"
-#include <iostream>
+#include "Debug.h"
 #include <string>
 #include <sys/time.h>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif

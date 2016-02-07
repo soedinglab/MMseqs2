@@ -1,7 +1,6 @@
 #ifndef GRAPHCLUSTER_LINEARMULTIARRAY
 #define GRAPHCLUSTER_LINEARMULTIARRAY
 #include <algorithm>
-#include <cstdlib>
 #include "Debug.h"
 #include "Util.h"
 

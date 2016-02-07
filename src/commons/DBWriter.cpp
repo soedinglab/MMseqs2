@@ -1,5 +1,4 @@
 #include <cstdlib>
-#include <iostream>
 
 #include <sstream>
 #include <fstream>
@@ -120,7 +119,6 @@ void DBWriter::mergeFiles(DBReader<unsigned int>* qdbr,
 
 
 void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
-
     DBReader<unsigned int> dbr(inputDb.c_str(), std::string(inputDb+".index").c_str());
     dbr.open(DBReader<unsigned int>::NOSORT);
 
@@ -134,7 +132,7 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
         // create splite file name
         std::string out_name       = std::string(this->dataFileName) + "_" + SSTR(split);
         std::string out_name_index = (out_name + ".index");
-        std::cout << "Process split " << split  << " ... ";
+        Debug(Debug::INFO) << "Process split " << split  << " ... ";
         // create and open db write
         DBWriter splitWrite(out_name.c_str(), out_name_index.c_str(), 1);
         splitWrite.open();
@@ -148,7 +146,7 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
             char * data = dbr.getData(i);
             if(*data == '\0'){ // check if file contains entry
                 Debug(Debug::ERROR) << "\nSequence " << outerKey
-                << " does not containe any sequence!\n";
+                << " does not contain any sequence!\n";
                 continue;
             }
 
@@ -183,7 +181,7 @@ void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
             iterator->second = NULL;
         }
         splitWrite.close();
-        std::cout << "Done." << std::endl;
+        Debug(Debug::INFO) << "Done.\n";
     }
     dbr.close();
 

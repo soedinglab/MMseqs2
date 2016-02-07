@@ -1,9 +1,8 @@
 
 #include <iostream>
-#include <time.h>
 #include "Clustering.h"
 #include "Parameters.h"
-#include "CommandDeclarations.h"
+#include "Debug.h"
 
 int cluster(int argc, const char ** argv)
 {

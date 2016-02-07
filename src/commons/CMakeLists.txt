@@ -29,7 +29,9 @@ set(commons_source_files
   CountInt32Array.cpp
   CountInt32Array.h
   MathUtil.h
-        FileUtil.cpp FileUtil.h)
+  FileUtil.cpp
+  FileUtil.h
+)
 add_library(commons ${commons_source_files})
 
 target_link_libraries(commons ffindex)

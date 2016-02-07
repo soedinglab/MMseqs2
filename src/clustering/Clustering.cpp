@@ -1,8 +1,10 @@
 #include "Clustering.h"
 #include "ClusteringAlgorithms.h"
-#include "AlignmentSymmetry.h"
-#include <random>
+#include "LinearMultiArray.h"
+#include "Debug.h"
+#include "Parameters.h"
 
+#include <sys/time.h>
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
         std::string alnDB, std::string alnDBIndex,

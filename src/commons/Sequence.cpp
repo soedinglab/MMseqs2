@@ -4,7 +4,7 @@
 #include "simd.h"
 #include "ScoreMatrix.h"
 
-#include <limits.h> // short_max
+#include <climits> // short_max
 
 
 Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,

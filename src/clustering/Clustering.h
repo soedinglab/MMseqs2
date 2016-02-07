@@ -1,29 +1,12 @@
 #ifndef CLUSTERING_H
 #define CLUSTERING_H
 
-#include <iostream>
 #include <list>
-#include <map>
-#include <sstream>
 #include <string>
-#include <fstream>
-#include <vector>
-#include <istream>
-#include <cstring>
-#include <stdlib.h>
-#include <time.h>
-#include <sys/time.h>
-#include <cstdlib> //the standard C library header
 
-#include "LinearMultiArray.h"
-#include "ClusteringAlgorithms.h"
-#include "AffinityClustering.h"
-#include "../commons/DBReader.h"
-#include "../commons/DBWriter.h"
-#include "../commons/Log.h"
-#include "../commons/Debug.h"
-#include "Parameters.h"
-
+#include "DBReader.h"
+#include "DBWriter.h"
+#include "SetElement.h"
 
 class Clustering {
 

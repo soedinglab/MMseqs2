@@ -6,20 +6,17 @@
 // Calculates the overall prefiltering score for the template database sequences and returns all sequences
 // with the prefiltering score >= prefiltering threshold.
 //
-#include <stdlib.h>
+#include <cstdlib>
+#include <cmath>
 #include <vector>
 #include <list>
 #include <iostream>
 #include <fstream>
 #include <cstring>
 #include <algorithm>
-#include <math.h>
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <sys/cdefs.h>
-#include <zconf.h>
-#include <stdlib.h>     /* abs */
 
 #include "Debug.h"
 #include "Util.h"

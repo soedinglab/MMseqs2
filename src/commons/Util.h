@@ -2,18 +2,10 @@
 #define UTIL_H
 
 #include <cstddef>
-#include <stdlib.h>
-#include <fstream>
+#include <cstring>
 #include <vector>
-#include <cmath>
-#include <iostream>
 #include <sstream>
 #include <map>
-
-extern "C" {
-#include "ffindex.h"
-#include "ffutil.h"
-}
 
 #include "MMseqsMPI.h"
 
@@ -66,37 +58,14 @@ public:
         return (!str.compare(0, prefix.size(), prefix));
     }
 
-    static std::vector<std::string> split(std::string str, std::string sep) {
-		char buffer[1024];
-		snprintf(buffer, 1024, "%s", str.c_str());
-		char *cstr = (char *)&buffer;
-		char *current;
-		char *rest;
-		std::vector<std::string> arr;
-		current = strtok_r(cstr, sep.c_str(), &rest);
-		while (current != NULL) {
-			arr.push_back(current);
-			current = strtok_r(NULL, sep.c_str(), &rest);
-		}
-		return arr;
-    }
+    static std::vector<std::string> split(std::string str, std::string sep);
 
     static inline char * skipLine(char * data){
         while( *data !='\n' ) { data++; }
         return (data+1);
     }
 
-    static inline bool getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength) {
-        size_t keySize = 0;
-        while (((data[keySize] != '\n') && (data[keySize] != '\0')) && keySize < dataLength) {
-            keySize++;
-        }
-        size_t maxLength = std::min(keySize + 1, bufferLength);
-        strncpy(buffer, data, maxLength);
-        buffer[maxLength - 1] = '\0';
-
-        return bufferLength > dataLength;
-    }
+    static size_t getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength);
 
     static inline size_t skipWhitespace(char * data){
         size_t counter = 0;
@@ -114,30 +83,6 @@ public:
             counter++;
         }
         return counter;
-    }
-    
-
-    static ffindex_index_t* openIndex(const char* indexFileName){
-        // count the number of entries in the clustering
-        char line [1000];
-        int cnt = 0;
-        std::ifstream index_file(indexFileName);
-        if (index_file.is_open()) {
-            while ( index_file.getline (line, 1000) ){
-                cnt++;
-            }
-            index_file.close();
-        }   
-        else{
-            std::cerr << "Could not open ffindex index file " << indexFileName << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        // open clustering ffindex
-        FILE* indexFile = fopen(indexFileName, "r");
-        if( indexFile == NULL) { fferror_print(__FILE__, __LINE__, "DBReader", indexFileName);  EXIT(EXIT_FAILURE); }
-
-        ffindex_index_t* index = ffindex_index_parse(indexFile, cnt);
-        return index;
     }
 
     static std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb){
@@ -171,13 +116,7 @@ public:
         return character;
     }
 
-    static inline void parseKey(char *data, char * key) {
-        char * startPosOfKey = data;
-        char * endPosOfId    = data + Util::skipNoneWhitespace(data);
-        ptrdiff_t keySize =  (endPosOfId - startPosOfKey);
-        strncpy(key, data, keySize);
-        key[keySize] = '\0';
-    }
+    static void parseKey(char *data, char * key);
 
     // Compute the sum of bits of one or two integers
     inline static int NumberOfSetBits(int i)
@@ -187,19 +126,7 @@ public:
         return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
     }
 
-	static inline void parseByColumnNumber(char *data, char * key, int position) {
-        char * startPosOfKey = data;
-        for (int i = 0; i < position; ++i) {
-            startPosOfKey = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
-            startPosOfKey = startPosOfKey + Util::skipWhitespace(startPosOfKey);
-
-        }
-
-        char * endPosOfId    = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
-        ptrdiff_t keySize =  (endPosOfId - startPosOfKey);
-        strncpy(key, startPosOfKey, keySize);
-        key[keySize] = '\0';
-    }
+	static void parseByColumnNumber(char *data, char * key, int position);
 
     static std::string base_name(std::string const & path, std::string const & delims)
     {

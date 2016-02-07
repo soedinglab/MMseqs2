@@ -4,7 +4,6 @@
 
 #include "AlignmentSymmetry.h"
 #include <climits>
-#include <sys/time.h>
 #include "Parameters.h"
 #include "Debug.h"
 #include "Log.h"

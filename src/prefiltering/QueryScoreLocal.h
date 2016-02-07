@@ -10,9 +10,6 @@
 #include "QueryScore.h"
 #include <vector>
 #include <map>
-#include <sys/cdefs.h>
-#include <zconf.h>
-
 
 class QueryScoreLocal : public QueryScore {
 

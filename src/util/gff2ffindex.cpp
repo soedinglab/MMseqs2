@@ -20,27 +20,24 @@
 
 int gff2ffindex(int argn, const char **argv) {
     std::string usage("Converts a gff file and the matching ffindex database into a ffindex.\n");
-    usage.append("USAGE: <gff3> <ffindexInDB> <ffindexOutDB>\n");
+    usage.append("USAGE: <gff3> <inDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.gff2ffindex, 3);
     Debug::setDebugLevel(par.verbosity);
 
-    std::string ffindex_filename = par.db2;
-    std::string ffindex_index_filename = par.db2Index;
+    std::string headerFilename(par.db2);
+    headerFilename.append("_h");
 
-    std::string ffindex_filename_hdr(ffindex_filename);
-    ffindex_filename_hdr.append("_h");
+    std::string headerIndexFilename(par.db2);
+    headerIndexFilename.append("_h.index");
 
-    std::string ffindex_index_filename_hdr(ffindex_filename);
-    ffindex_index_filename_hdr.append("_h.index");
+    DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<std::string> headerReader(headerFilename.c_str(), headerIndexFilename.c_str());
 
-    DBReader<std::string> ffindex_reader(ffindex_filename.c_str(), ffindex_index_filename.c_str());
-    DBReader<std::string> ffindex_hdr_reader(ffindex_filename_hdr.c_str(), ffindex_index_filename_hdr.c_str());
-
-    ffindex_reader.open(DBReader<std::string>::NOSORT);
-    ffindex_hdr_reader.open(DBReader<std::string>::NOSORT);
+    reader.open(DBReader<std::string>::NOSORT);
+    headerReader.open(DBReader<std::string>::NOSORT);
 
     std::string data_filename = par.db3;
     std::string index_filename = par.db3Index;
@@ -106,20 +103,20 @@ int gff2ffindex(int argn, const char **argv) {
 
         size_t length = end - start;
 
-        size_t headerId = ffindex_hdr_reader.getId(name);
+        size_t headerId = headerReader.getId(name);
 
         if(headerId == UINT_MAX) {
-            Debug(Debug::ERROR) << "GFF entry not found in fasta ffindex: " << name << "!\n";
+            Debug(Debug::ERROR) << "GFF entry not found in database: " << name << "!\n";
             return EXIT_FAILURE;
         }
 
-        char* header = ffindex_hdr_reader.getData(headerId);
-        size_t headerLength = ffindex_hdr_reader.getSeqLens(headerId);
+        char* header = headerReader.getData(headerId);
+        size_t headerLength = headerReader.getSeqLens(headerId);
 
-        char* body = ffindex_reader.getDataByDBKey(name);
+        char* body = reader.getDataByDBKey(name);
 
         if(!header || !body) {
-            Debug(Debug::ERROR) << "GFF entry not found in fasta ffindex: " << name << "!\n";
+            Debug(Debug::ERROR) << "GFF entry not found in database: " << name << "!\n";
             return EXIT_FAILURE;
         }
 

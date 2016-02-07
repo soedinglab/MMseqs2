@@ -6,7 +6,6 @@
 #include "DBWriter.h"
 #include "CommandCaller.h"
 #include "Debug.h"
-#include "WorkflowFunctions.h"
 #include "FileUtil.h"
 
 

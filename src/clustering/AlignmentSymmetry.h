@@ -4,11 +4,10 @@
 
 #ifndef MMSEQS_ALIGNMENTSYMMETRY_H
 #define MMSEQS_ALIGNMENTSYMMETRY_H
-#include <DBReader.h>
-#include <DBWriter.h>
 #include <set>
 #include <list>
-#include "SetElement.h"
+
+#include "DBReader.h"
 
 class AlignmentSymmetry {
 public:

@@ -1,18 +1,15 @@
 #include <iostream>
-#include <unistd.h>
 #include <string>
 #include <sys/time.h>
 
-#ifdef OPENMP
-#include <omp.h>
-
-#endif
-
 #include "Prefiltering.h"
-#include "CommandDeclarations.h"
 #include "Parameters.h"
 
 #include "MMseqsMPI.h"
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 
 int prefilter(int argc, const char **argv)
