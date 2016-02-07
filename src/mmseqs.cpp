@@ -85,37 +85,33 @@ static struct Command commands[] = {
 
 
 void printUsage() {
-    std::string usage("\nAll possible mmseqs commands\n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
+    std::stringstream usage;
+    usage << "\nAll available MMseqs commands\n";
+    usage << "Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n";
 
-    std::stringstream stream;
-    stream << std::setw(20) << "Main Tools" << "\n";
-    for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
-        struct Command *p = commands + i;
-        if (p->mode == COMMAND_MAIN)
-            stream << std::setw(20) << p->cmd << "\t" << p->description << "\n";
+    struct {
+        const char* title;
+        CommandMode mode;
+    } categories[] = {
+            {"Main Tools",  COMMAND_MAIN},
+            {"Workflows",   COMMAND_WORKFLOW},
+            {"Helpers",     COMMAND_HELPER},
+    };
+
+    for(size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
+        usage << "\n" << std::setw(20) << categories[i].title << "\n";
+        for (size_t j = 0; j < ARRAY_SIZE(commands); j++) {
+            struct Command *p = commands + j;
+            if (p->mode == categories[i].mode)
+                usage << std::setw(20) << p->cmd << "\t" << p->description << "\n";
+        }
     }
 
-    stream << "\n" << std::setw(20) << "Workflows" << "\n";
-    for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
-        struct Command *p = commands + i;
-        if (p->mode == COMMAND_WORKFLOW)
-            stream << std::setw(20) << p->cmd << "\t" << p->description << "\n";
-    }
-
-    stream << "\n" << std::setw(20) << "Helper" << "\n";
-    for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
-        struct Command *p = commands + i;
-        if (p->mode == COMMAND_HELPER)
-            stream << std::setw(20) << p->cmd << "\t" << p->description << "\n";
-    }
-
-    Debug(Debug::INFO) << usage << stream.str() << "\n";
+    Debug(Debug::INFO) << usage.str() << "\n";
 }
 
 
 int isCommand(const char *s) {
-
     for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
         struct Command *p = commands + i;
         if (!strcmp(s, p->cmd))
@@ -180,5 +176,6 @@ int main(int argc, const char **argv) {
         Debug(Debug::ERROR) << "Invalid Command: " << argv[1] << "\n";
         EXIT(EXIT_FAILURE);
     }
+
     return 0;
 }
