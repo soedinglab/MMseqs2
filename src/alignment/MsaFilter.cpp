@@ -6,6 +6,7 @@
 #include <Util.h>
 #include "MsaFilter.h"
 #include "simd.h"
+#include "MathUtil.h"
 
 MsaFilter::MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m){
     this->m = m;
@@ -415,14 +416,14 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
 //                        printf("%02d:%02d ", (int) ((char*)&XK[i])[u], (int) ((char*)&XK[i])[u]);
 //                    }
 //                    std::cout << std::endl;
-                    cov_kj -= Util::NumberOfSetBits(res);  // subtract positions that should not contribute to coverage
+                    cov_kj -= MathUtil::popCount(res);  // subtract positions that should not contribute to coverage
 
                     // Compute 16 bit mask that indicates positions where k and j have identical residues
                     int c = simdi8_movemask(simdi8_eq(XK[i], XJ[i]));
 
                     // Count positions where  k and j have different amino acids, which is equal to 16 minus the
                     //  number of positions for which either j and k are equal or which contain ANY, GAP, or ENDGAP
-                    diff += (VECSIZE_INT * 4) - Util::NumberOfSetBits(c | res);
+                    diff += (VECSIZE_INT * 4) - MathUtil::popCount(c | res);
 
                 }
 //            // DEBUG
