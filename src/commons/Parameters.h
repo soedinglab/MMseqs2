@@ -284,6 +284,7 @@ public:
     std::vector<MMseqsParameter> translateNucleotide;
     std::vector<MMseqsParameter> addSequences;
     std::vector<MMseqsParameter> filterDb;
+    std::vector<MMseqsParameter> substratresult;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> par1,
                                               std::vector<MMseqsParameter> par2);

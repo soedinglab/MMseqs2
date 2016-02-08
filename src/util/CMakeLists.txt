@@ -20,7 +20,8 @@ set(util_source_files
   extract_orf.cpp
   filterdb.cpp
   convertkb.cpp
-)
+  substractresult.cpp)
+
 add_library(util ${util_source_files} )
 
 target_link_libraries(util prefiltering commons ffindex)
