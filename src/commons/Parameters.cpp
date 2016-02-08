@@ -205,9 +205,9 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_V);
 
 
-    // substratresult
-    substratresult.push_back(PARAM_THREADS);
-    substratresult.push_back(PARAM_V);
+    // substractresult
+    substractresult.push_back(PARAM_THREADS);
+    substractresult.push_back(PARAM_V);
 
     checkSaneEnvironment();
     setDefaults();

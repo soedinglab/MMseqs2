@@ -183,19 +183,14 @@ std::vector<std::string> Util::split(std::string str, std::string sep) {
     return arr;
 }
 
-size_t Util::getLine(const char *data, size_t dataLength, char *buffer, size_t bufferLength) {
-    if(bufferLength > dataLength) {
-        return 0;
-    }
-
+size_t Util::getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength) {
     size_t keySize = 0;
     while (((data[keySize] != '\n') && (data[keySize] != '\0')) && keySize < dataLength) {
         keySize++;
     }
-
     size_t maxLength = std::min(keySize + 1, bufferLength);
     strncpy(buffer, data, maxLength);
     buffer[maxLength - 1] = '\0';
 
-    return keySize;
+    return bufferLength > dataLength;
 }

@@ -63,7 +63,7 @@ static struct Command commands[] = {
                 "Splits a ffindex database into multiple ffindex databases"},
         {"mergecluster",        mergecluster,           &par.onlyverbosity,         COMMAND_HELPER,
                 "Merge multiple cluster result files into one"},
-        {"substractresult",     substractresult,        &par.substratresult,        COMMAND_HELPER,
+        {"substractresult",     substractresult,        &par.substractresult,       COMMAND_HELPER,
                 "Removes all entries with same ID (out = left - right)"},
         {"result2profile",      result2profile,         &par.result2profile,        COMMAND_HELPER,
                 "Calculates profiles from a clustering"},
