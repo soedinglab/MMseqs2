@@ -9,10 +9,10 @@
 #define _LARGEFILE64_SOURCE 1
 #define _FILE_OFFSET_BITS 64
 
-#include <cstdio> // fclose
+#include <cstdio>
 
 #include <map>
-#include <string>
+#include <fstream>
 
 #include "DBWriter.h"
 #include "Debug.h"
@@ -21,7 +21,7 @@
 #include "FileUtil.h"
 
 #include "kseq.h"
-#include <unistd.h> // read
+#include <unistd.h>
 
 KSEQ_INIT(int, read)
 
@@ -34,6 +34,7 @@ int createdb(int argn, const char **argv) {
     par.parseParameters(argn, argv, usage, par.createdb, 2);
     Debug::setDebugLevel(par.verbosity);
 
+
     FILE *fasta_file = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
 
     std::string data_filename = par.db2;
@@ -45,9 +46,19 @@ int createdb(int argn, const char **argv) {
     std::string index_filename_hdr(data_filename);
     index_filename_hdr.append("_h.index");
 
+    std::ofstream lookupStream;
+    if(!par.useHeader) {
+        std::string lookupFile = par.db2;
+        lookupFile.append(".lookup");
+        lookupStream.open(lookupFile);
+        if(lookupStream.fail()) {
+            Debug(Debug::ERROR) << "Could not open " << lookupFile << " for writing.";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+
     DBWriter out_writer(data_filename.c_str(), index_filename.c_str());
     DBWriter out_hdr_writer(data_filename_hdr.c_str(), index_filename_hdr.c_str());
-
     out_writer.open();
     out_hdr_writer.open();
 
@@ -79,10 +90,14 @@ int createdb(int argn, const char **argv) {
                 return EXIT_FAILURE;
             }
             id = SSTR(mapping[key]);
+            std::string headerId = Util::parseFastaHeader(seq->name.s);
+            lookupStream << id << "\t" << headerId << "\n";
         } else if(par.useHeader) {
             id = Util::parseFastaHeader(seq->name.s);
         } else {
             id = SSTR(par.identifierOffset + entries_num);
+            std::string headerId = Util::parseFastaHeader(seq->name.s);
+            lookupStream << id << "\t" << headerId << "\n";
         }
 
         // header
@@ -104,6 +119,9 @@ int createdb(int argn, const char **argv) {
     }
     kseq_destroy(seq);
 
+    if(!par.useHeader) {
+        lookupStream.close();
+    }
     fclose(fasta_file);
     out_hdr_writer.close();
     out_writer.close();
