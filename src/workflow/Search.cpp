@@ -26,8 +26,8 @@ int search(int argc, const char *argv[]) {
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
-        cmd.addVariable("PROFILE_PAR", par.createParameterString(par.createprofiledb).c_str());
-
+        cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.createprofiledb).c_str());
+        cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.substractresult).c_str());
         std::string program(par.mmdir);
         program.append("/bin/blastpgp.sh");
         cmd.execProgram(program.c_str(), 4, argv);
