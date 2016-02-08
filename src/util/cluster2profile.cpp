@@ -112,8 +112,12 @@ int result2outputmode(Parameters par, int mode) {
 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &matrix, &matcher);
         PSSMCalculator calculator(&matrix, maxSequenceLength);
-
-        Sequence centerSequence(maxSequenceLength, matrix.aa2int, matrix.int2aa, Sequence::AMINO_ACIDS, 0, false);
+        Sequence  *centerSequence;
+        if(par.profile == true){
+            centerSequence = new Sequence(maxSequenceLength, matrix.aa2int, matrix.int2aa, Sequence::HMM_PROFILE, 0, false);
+        }else{
+            centerSequence = new Sequence(maxSequenceLength, matrix.aa2int, matrix.int2aa, Sequence::AMINO_ACIDS, 0, false);
+        }
         Sequence **sequences = new Sequence *[maxSetSize];
         for (size_t i = 0; i < maxSetSize; i++) {
             sequences[i] = new Sequence(maxSequenceLength, matrix.aa2int, matrix.int2aa, Sequence::AMINO_ACIDS, 0,
@@ -133,7 +137,7 @@ int result2outputmode(Parameters par, int mode) {
             unsigned int queryId = clusterReader->getDbKey(id);
 
             char *seqData = queryReader->getDataByDBKey(queryId);
-            centerSequence.mapSequence(0, queryId, seqData);
+            centerSequence->mapSequence(0, queryId, seqData);
             std::vector<Sequence *> seqSet;
             size_t position = 0;
 
@@ -150,7 +154,7 @@ int result2outputmode(Parameters par, int mode) {
                 clusters = Util::skipLine(clusters);
             }
 
-            MultipleAlignment::MSAResult res = aligner.computeMSA(&centerSequence, seqSet, !par.allowDeletion);
+            MultipleAlignment::MSAResult res = aligner.computeMSA(centerSequence, seqSet, !par.allowDeletion);
 
             std::stringstream msa;
             std::string result;
@@ -163,7 +167,7 @@ int result2outputmode(Parameters par, int mode) {
                         unsigned int key;
                         char* data;
                         if(i == 0) {
-                            key = centerSequence.getDbKey();
+                            key = centerSequence->getDbKey();
                             data = queryHeaderReader->getDataByDBKey(key);
                         } else {
                             key =  sequences[i - 1]->getDbKey();
@@ -200,6 +204,7 @@ int result2outputmode(Parameters par, int mode) {
             delete sequences[i];
         }
         delete[] sequences;
+        delete centerSequence;
     }
 
     // cleanup

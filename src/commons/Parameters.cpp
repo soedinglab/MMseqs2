@@ -128,6 +128,7 @@ Parameters::Parameters():
 
     // result2profile
     result2profile.push_back(PARAM_SUB_MAT);
+    result2profile.push_back(PARAM_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);

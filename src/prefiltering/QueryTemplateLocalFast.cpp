@@ -86,12 +86,10 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
 
     // bias correction
     if(aaBiasCorrection == true){
-        if(seq->getSeqType() == Sequence::HMM_PROFILE){
-            SubstitutionMatrix::calcGlobalAaBiasCorrection(m, seq->profile_score,
-                                                           seq->profile_index,seq->profile_row_size,
-                                                           seq->L, compositionBias);
-        }else {
+        if(seq->getSeqType() == Sequence::AMINO_ACIDS) {
             SubstitutionMatrix::calcLocalAaBiasCorrection(m, seq->int_sequence, seq->L, compositionBias);
+        }else{
+            memset(compositionBias, 0, sizeof(float) * seq->L);
         }
     } else {
         memset(compositionBias, 0, sizeof(float) * seq->L);
