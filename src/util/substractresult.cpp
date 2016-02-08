@@ -10,6 +10,7 @@
 #include <Util.h>
 #include <Parameters.h>
 #include <list>
+#include <limits.h>
 
 void dosubstractresult(std::string leftDb, std::string rightDb, std::string outDb,
                        size_t maxLineLength, int threads)
