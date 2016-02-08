@@ -12,6 +12,10 @@
 #include <list>
 #include <limits.h>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 void dosubstractresult(std::string leftDb, std::string rightDb, std::string outDb,
                        size_t maxLineLength, int threads)
 {
