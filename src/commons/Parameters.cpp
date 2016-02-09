@@ -182,12 +182,14 @@ Parameters::Parameters():
 
     searchworkflow = combineList(alignment, prefilter);
     searchworkflow.push_back(PARAM_NUM_ITERATIONS);
-
+    searchworkflow.push_back(PARAM_RUNNER);
+    
     clusteringWorkflow = combineList(prefilter, alignment);
     clusteringWorkflow = combineList(clusteringWorkflow, clustering);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_NO_AUTOMATED_THRESHOLD);
     clusteringWorkflow.push_back(PARAM_KEEP_TEMP_FILES);
+    clusteringWorkflow.push_back(PARAM_RUNNER);
 
     clusterUpdate = combineList(alignment, prefilter);
     clusterUpdate = combineList(clusterUpdate, clustering);
