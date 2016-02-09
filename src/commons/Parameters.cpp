@@ -218,7 +218,7 @@ Parameters::Parameters():
 }
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
-                                   std::vector<MMseqsParameter> parameters){
+                                   std::vector<MMseqsParameter> &parameters){
     std::stringstream ss;
     ss << programUsageHeader << std::endl;
     for(std::size_t i = 0; i < parameters.size(); i++) {
@@ -250,7 +250,7 @@ int compileRegex(regex_t * regex, const char * regexText){
 
 void Parameters::parseParameters(int argc, const char* pargv[],
                                  std::string programUsageHeader,
-                                 std::vector<MMseqsParameter> par,
+                                 std::vector<MMseqsParameter> &par,
                                  size_t requiredParameterCount,
                                  bool printPar,
                                  bool isVariadic)
@@ -384,7 +384,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 }
 
 void Parameters::printParameters(int argc, const char* pargv[],
-                                 std::vector<MMseqsParameter> par){
+                                 std::vector<MMseqsParameter> &par){
     Debug(Debug::WARNING) << "Program call:\n";
     for (int i = 0; i < argc; i++)
         Debug(Debug::WARNING) << pargv[i] << " ";
@@ -516,8 +516,8 @@ void Parameters::setDefaults() {
     filterColumnRegex = "^.*$";
 }
 
-std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> par1,
-                                                     std::vector<MMseqsParameter> par2) {
+std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,
+                                                     std::vector<MMseqsParameter> &par2) {
     std::vector<MMseqsParameter> retVec;
     std::vector< std::vector<MMseqsParameter>> tmp;
     tmp.push_back(par1);
@@ -538,7 +538,7 @@ std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter
     return retVec;
 }
 
-std::string Parameters::createParameterString(std::vector<MMseqsParameter> par) {
+std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par) {
     std::stringstream ss;
     for (size_t i = 0; i < par.size(); i++) {
         if(typeid(int) == par[i].type ){

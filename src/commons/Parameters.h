@@ -173,14 +173,14 @@ public:
     void deserialize( std::istream &stream );
     void parseParameters(int argc, const char* argv[],
                          std::string programUsageHeader,
-                         std::vector<MMseqsParameter> par,
+                         std::vector<MMseqsParameter> &par,
                          size_t requiredParameterCount,
                          bool printParameters = true,
                          bool isVariadic = false);
     void printUsageMessage(std::string programUsageHeader,
-                           std::vector<MMseqsParameter> parameters);
+                           std::vector<MMseqsParameter> &parameters);
     void printParameters(int argc, const char* pargv[],
-                         std::vector<MMseqsParameter> par);
+                         std::vector<MMseqsParameter> &par);
     Parameters();
 
     PARAMETER(PARAM_S);
@@ -292,10 +292,10 @@ public:
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> substractresult;
 
-    std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> par1,
-                                              std::vector<MMseqsParameter> par2);
+    std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
+                                              std::vector<MMseqsParameter> &par2);
 
-    std::string createParameterString(std::vector < MMseqsParameter > vector);
+    std::string createParameterString(std::vector < MMseqsParameter > &vector);
 
 
 };
