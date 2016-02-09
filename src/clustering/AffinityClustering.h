@@ -4,7 +4,6 @@
 #include <iostream>
 #include <list>
 #include "SetElement.h"
-#include "LinearMultiArray.h"
 
 class AffinityClustering {
     public:

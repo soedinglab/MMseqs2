@@ -52,7 +52,8 @@ Parameters::Parameters():
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "[int]\tMPI Option: HMM 0 or PSSM",typeid(int),(void *) &profileMode,  "^[0-1]{1}$"),
 // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "\tAllow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
-
+// workflow
+        PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","[text]\tSets the MPI runner",typeid(std::string),(void *) &runner, ""),
 // clustering workflow
         PARAM_NO_AUTOMATED_THRESHOLD(PARAM_NO_AUTOMATED_THRESHOLD_ID, "--no-automatic-threshold", "No Automatic Threshold", "\tPrevent mmseqs from changing sensitivity and cascaded clustering settings", typeid(bool), (void *) &noAutomaticThreshold, ""),
 // search workflow
@@ -470,6 +471,9 @@ void Parameters::setDefaults() {
     // affinity clustering
     maxIteration=1000;
     similarityScoreType=APC_SEQID;
+
+    // workflow
+    runner = "";
 
     // Clustering workflow
     noAutomaticThreshold = false;
