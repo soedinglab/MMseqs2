@@ -123,6 +123,7 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
             Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
                                 << ")\n Buffer size is increased\n";
             BUFFER_SIZE=strlen(cluResultsOutData)+1;
+            delete [] outBuffer;
             outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));

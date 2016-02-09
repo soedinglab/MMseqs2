@@ -492,11 +492,6 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
     }
     // write prefiltering results string to ffindex database
     const size_t prefResultsLength = prefResultsOutString.length();
-    if (BUFFER_SIZE < prefResultsLength){
-        Debug(Debug::ERROR) << "Tried to process the prefiltering list for the query " << qdbr->getDbKey(id) << " , the length of the list = " << resultSize << "\n";
-        Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << BUFFER_SIZE << " < " << prefResultsLength << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
-        return -1;
-    }
     char* prefResultsOutData = (char *) prefResultsOutString.c_str();
     dbWriter->write(prefResultsOutData, prefResultsLength, SSTR(qdbr->getDbKey(id)).c_str(), thread_idx);
     return 0;

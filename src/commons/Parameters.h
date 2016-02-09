@@ -85,7 +85,7 @@ public:
     int    querySeqType;                 // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                      // Amounts of threads
-    bool   keepTempFiles;                // Do not delete temp files
+    bool removeTmpFiles;                // Do not delete temp files
     
     // PREFILTER
     float  sensitivity;                  // target sens
@@ -201,7 +201,7 @@ public:
     PARAMETER(PARAM_SEARCH_MODE);
     PARAMETER(PARAM_NO_COMP_BIAS_CORR);
     PARAMETER(PARAM_SPACED_KMER_MODE);
-    PARAMETER(PARAM_KEEP_TEMP_FILES);
+    PARAMETER(PARAM_REMOVE_TMP_FILES);
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
