@@ -68,10 +68,9 @@ int clusteringworkflow(int argc, const char *argv[]) {
 
     CommandCaller cmd;
 
-    if(par.keepTempFiles) {
-        cmd.addVariable("KEEP_TEMP", "TRUE");
+    if(par.removeTmpFiles) {
+        cmd.addVariable("REMOVE_TMP", "TRUE");
     }
-
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     if (par.cascaded) {

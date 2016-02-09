@@ -66,17 +66,17 @@ mv -f "$3/clu" "$2"
 mv -f "$3/clu.index" "$2.index"
 checkReturnCode "Could not move result to $2"
 
-if [ -n "$KEEP_TEMP" ]; then
- echo "Keeping temporary files"
- exit 0
-fi
-
-STEP=0
-while [ $STEP -lt 4 ]; do
+if [ -n "$REMOVE_TMP" ]; then
+ echo "Remove temporary files"
+ STEP=0
+ while [ $STEP -lt 4 ]; do
     rm -f "$3/pref_step$STEP" "$3/pref_step$STEP.index"
     rm -f "$3/aln_step$STEP" "$3/aln_step$STEP.index"
     rm -f "$3/clu_step$STEP" "$3/clu_step$STEP.index"
     rm -f "$3/input_step$STEP" "$3/input_step$STEP.index"
     rm -f "$3/order_step$STEP"
 	let STEP=STEP+1
-done
+ done
+fi
+
+

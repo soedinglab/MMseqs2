@@ -100,11 +100,6 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
 
     dbKeys = new unsigned int[threads];
 
-    outBuffers = new char*[threads];
-# pragma omp parallel for schedule(static)
-    for (int i = 0; i < threads; i++)
-        outBuffers[i] = new char[BUFFER_SIZE];
-
 }
 
 Alignment::~Alignment(){
@@ -112,13 +107,11 @@ Alignment::~Alignment(){
         delete qSeqs[i];
         delete dbSeqs[i];
         delete matchers[i];
-        delete[] outBuffers[i];
     }
     delete[] qSeqs;
     delete[] dbSeqs;
     delete[] matchers;
     delete[] dbKeys;
-    delete[] outBuffers;
     delete m;
     delete qseqdbr;
     delete tseqdbr;
@@ -295,14 +288,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
             }
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
-            if (BUFFER_SIZE <= swResultsString.length()){
-                Debug(Debug::ERROR) << "Output buffer size < result size! ("
-                << BUFFER_SIZE << " <= " << swResultsString.length()
-                << ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
-                EXIT(1);
-            }
-            memcpy(outBuffers[thread_idx], swResultsStringData, swResultsString.length()*sizeof(char));
-            dbw.write(outBuffers[thread_idx], swResultsString.length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
+            dbw.write(swResultsStringData, swResultsString.length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
             swResults.clear();
 //        prefdbr->unmapDataById(id);
         }

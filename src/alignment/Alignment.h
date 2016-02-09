@@ -68,9 +68,6 @@ private:
     // buffers for the database keys (needed during the processing of the prefilterings lists)
     unsigned int* dbKeys;
 
-    // output buffers
-    char** outBuffers;
-
     void closeReader();
 
     std::string outDB;
