@@ -72,6 +72,8 @@ int clusteringworkflow(int argc, const char *argv[]) {
         cmd.addVariable("KEEP_TEMP", "TRUE");
     }
 
+    cmd.addVariable("RUNNER", par.runner.c_str());
+
     if (par.cascaded) {
         float targetSensitivity = par.sensitivity;
         size_t maxResListLen = par.maxResListLen;

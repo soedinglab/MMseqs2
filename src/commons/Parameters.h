@@ -113,6 +113,9 @@ public:
     float  seqIdThr;                     // sequence identity threshold for acceptance
     bool   fragmentMerge;
 
+    // workflow
+    std::string runner;
+
     // CLUSTERING
     std::string ffindexAlnDBBase;
     int    clusteringMode;
@@ -229,6 +232,9 @@ public:
 
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION);
+
+    // workflow
+    PARAMETER(PARAM_RUNNER);
 
     // clustering workflow
     PARAMETER(PARAM_NO_AUTOMATED_THRESHOLD);

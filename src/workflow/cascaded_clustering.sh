@@ -32,11 +32,11 @@ STEP=0
 while [ $STEP -lt 4 ]; do
     PARAM=PREFILTER${STEP}_PAR
     notExists "$3/pref_step$STEP" \
-        && mmseqs prefilter "$INPUT" "$INPUT" "$3/pref_step$STEP" ${!PARAM} \
+        && $RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$3/pref_step$STEP" ${!PARAM} \
         && checkReturnCode "Prefilter step $STEP died"
     PARAM=ALIGNMENT${STEP}_PAR
     notExists "$3/aln_step$STEP" \
-        && mmseqs alignment "$INPUT" "$INPUT" "$3/pref_step$STEP" "$3/aln_step$STEP" ${!PARAM} \
+        && $RUNNER mmseqs alignment "$INPUT" "$INPUT" "$3/pref_step$STEP" "$3/aln_step$STEP" ${!PARAM} \
         && checkReturnCode "Alignment step $STEP died"
     PARAM=CLUSTER${STEP}_PAR
     notExists "$3/clu_step$STEP" \

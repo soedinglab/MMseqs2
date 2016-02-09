@@ -45,13 +45,13 @@ while [ $STEP -lt $NUM_IT ]; do
 
 	# call alignment module
 	$RUNNER mmseqs alignment "$QUERYDB" "$2" "$4/pref_$STEP" "$4/aln_$STEP" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
-
+# merge all accepted hits to aln_0
     if [ $STEP -gt 0 ]; then
         mmseqs mergeffindex "$QUERYDB" "$4/aln_new" "$4/aln_0" "$4/aln_$STEP"
         mv -f "$4/aln_new" "$4/aln_0"
         mv -f "$4/aln_new.index" "$4/aln_0.index"
     fi
-# create profiles
+# create profiles with all found hits
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
         mmseqs result2profile "$QUERYDB" "$2" "$4/aln_0" "$4/profile_$STEP" $PROFILE_PAR && checkReturnCode "Create profile died"
         ln -s $QUERYDB"_h" "$4/profile_$STEP""_h"

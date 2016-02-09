@@ -10,6 +10,8 @@
 #include "AffinityClustering.h"
 #include "AlignmentSymmetry.h"
 #include <queue>
+#include <algorithm>
+
 
 ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr,int threads, int scoretype, int maxiterations){
     this->seqDbr=seqDbr;

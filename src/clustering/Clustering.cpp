@@ -1,9 +1,8 @@
 #include "Clustering.h"
 #include "ClusteringAlgorithms.h"
-#include "LinearMultiArray.h"
 #include "Debug.h"
 #include "Parameters.h"
-
+#include "Util.h"
 #include <sys/time.h>
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
