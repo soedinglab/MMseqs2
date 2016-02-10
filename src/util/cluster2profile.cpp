@@ -173,8 +173,9 @@ int result2outputmode(Parameters par, int mode) {
                             key =  sequences[i - 1]->getDbKey();
                             data = tempateHeaderReader->getDataByDBKey(key);
                         }
-                        if(par.addInternalId)
-                        msa << "#" << key  << "\n";
+                        if(par.addInternalId){
+                            msa << "#" << key  << "\n";
+                        }
                         msa << ">" << data;
                         msa << std::string(res.msaSequence[i], 0, res.msaSequenceLength) << "\n";
                     }
