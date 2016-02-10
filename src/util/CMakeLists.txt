@@ -20,7 +20,9 @@ set(util_source_files
   extract_orf.cpp
   filterdb.cpp
   convertkb.cpp
-  substractresult.cpp)
+  substractresult.cpp
+  clusteredges.cpp
+)
 
 add_library(util ${util_source_files} )
 

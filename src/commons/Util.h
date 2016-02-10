@@ -95,6 +95,12 @@ public:
         std::string indexFile = dbindex + splitSuffix;
         return std::make_pair(dataFile, indexFile);
     }
+
+    static std::pair<std::string, std::string> databaseNames(std::string basename) {
+        std::string index = basename;
+        index.append(".index");
+        return std::make_pair(basename, index);
+    };
     
     static inline size_t getWordsOfLine(char * data, char ** words, size_t maxElement ){
         size_t elementCounter = 0;
