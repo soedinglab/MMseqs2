@@ -3,7 +3,6 @@ set(clustering_source_files
   AffinityClustering.h
   Clustering.cpp
   Clustering.h
-  LinearMultiArray.h
   Main.cpp
   SetElement.h
   CompareGOTerms.h
