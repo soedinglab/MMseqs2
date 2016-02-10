@@ -51,8 +51,8 @@ int result2outputmode(Parameters par, int mode) {
     omp_set_num_threads(par.threads);
 #endif
 
-    DBReader<unsigned int>* queryReader = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
-    queryReader->open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int>*qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    qDbr->open(DBReader<unsigned int>::NOSORT);
 
     std::string headerName(par.db1);
     headerName.append("_h");
@@ -63,14 +63,14 @@ int result2outputmode(Parameters par, int mode) {
     DBReader<unsigned int>* queryHeaderReader = new DBReader<unsigned int>(headerName.c_str(), headerIndexName.c_str());
     queryHeaderReader->open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int>* templateReader = queryReader;
+    DBReader<unsigned int>*tDbr = qDbr;
     DBReader<unsigned int>* tempateHeaderReader = queryHeaderReader;
 
     bool sameDatabase = true;
     if (par.db1.compare(par.db2) != 0) {
         sameDatabase = false;
-        templateReader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
-        templateReader->open(DBReader<unsigned int>::NOSORT);
+        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tDbr->open(DBReader<unsigned int>::NOSORT);
 
         headerName = par.db2;
         headerName.append("_h");
@@ -83,12 +83,12 @@ int result2outputmode(Parameters par, int mode) {
     }
 
     size_t maxSequenceLength = 0;
-    unsigned int* lengths = queryReader->getSeqLens();
-    for (size_t i = 0; i < queryReader->getSize(); i++) {
+    unsigned int* lengths = qDbr->getSeqLens();
+    for (size_t i = 0; i < qDbr->getSize(); i++) {
         maxSequenceLength = std::max((size_t) lengths[i], maxSequenceLength);
     }
-    lengths = templateReader->getSeqLens();
-    for (size_t i = 0; i < templateReader->getSize(); i++) {
+    lengths = tDbr->getSeqLens();
+    for (size_t i = 0; i < tDbr->getSize(); i++) {
         maxSequenceLength = std::max((size_t) lengths[i], maxSequenceLength);
     }
 
@@ -107,7 +107,7 @@ int result2outputmode(Parameters par, int mode) {
     Debug(Debug::INFO) << "Start computing " << (!mode ? "MSAs" : "profiles") << ".\n";
 #pragma omp parallel
     {
-        Matcher matcher(maxSequenceLength, &matrix, templateReader->getAminoAcidDBSize(), templateReader->getSize(),
+        Matcher matcher(maxSequenceLength, &matrix, tDbr->getAminoAcidDBSize(), tDbr->getSize(),
                         par.compBiasCorrection);
 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &matrix, &matcher);
@@ -124,7 +124,7 @@ int result2outputmode(Parameters par, int mode) {
                                         false);
         }
 
-#pragma omp for schedule(dynamic, 1000)
+#pragma omp for schedule(static)
         for (size_t id = 0; id < clusterReader->getSize(); id++) {
             Log::printProgress(id);
 
@@ -136,7 +136,7 @@ int result2outputmode(Parameters par, int mode) {
             char *clusters = clusterReader->getData(id);
             unsigned int queryId = clusterReader->getDbKey(id);
 
-            char *seqData = queryReader->getDataByDBKey(queryId);
+            char *seqData = qDbr->getDataByDBKey(queryId);
             centerSequence->mapSequence(0, queryId, seqData);
             std::vector<Sequence *> seqSet;
             size_t position = 0;
@@ -146,7 +146,7 @@ int result2outputmode(Parameters par, int mode) {
                 Util::parseKey(clusters, dbKey);
                 unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                 if (key != queryId || !sameDatabase) {
-                    char *dbSeqData = templateReader->getDataByDBKey(key);
+                    char *dbSeqData = tDbr->getDataByDBKey(key);
                     sequences[position]->mapSequence(0, key, dbSeqData);
                     seqSet.push_back(sequences[position]);
                     position++;
@@ -173,6 +173,7 @@ int result2outputmode(Parameters par, int mode) {
                             key =  sequences[i - 1]->getDbKey();
                             data = tempateHeaderReader->getDataByDBKey(key);
                         }
+                        if(par.addInternalId)
                         msa << "#" << key  << "\n";
                         msa << ">" << data;
                         msa << std::string(res.msaSequence[i], 0, res.msaSequenceLength) << "\n";
@@ -215,15 +216,15 @@ int result2outputmode(Parameters par, int mode) {
 
     if (!sameDatabase) {
         tempateHeaderReader->close();
-        templateReader->close();
+        tDbr->close();
         delete tempateHeaderReader;
-        delete templateReader;
+        delete tDbr;
     }
 
     queryHeaderReader->close();
     delete queryHeaderReader;
-    queryReader->close();
-    delete queryReader;
+    qDbr->close();
+    delete qDbr;
 
     Debug(Debug::INFO) << "\nDone.\n";
 
