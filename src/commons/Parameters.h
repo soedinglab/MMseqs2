@@ -85,7 +85,7 @@ public:
     int    querySeqType;                 // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                      // Amounts of threads
-    bool   keepTempFiles;                // Do not delete temp files
+    bool removeTmpFiles;                // Do not delete temp files
     
     // PREFILTER
     float  sensitivity;                  // target sens
@@ -112,6 +112,9 @@ public:
     int    maxRejected;                  // after n sequences that are above eval stop
     float  seqIdThr;                     // sequence identity threshold for acceptance
     bool   fragmentMerge;
+
+    // workflow
+    std::string runner;
 
     // CLUSTERING
     std::string ffindexAlnDBBase;
@@ -170,14 +173,14 @@ public:
     void deserialize( std::istream &stream );
     void parseParameters(int argc, const char* argv[],
                          std::string programUsageHeader,
-                         std::vector<MMseqsParameter> par,
+                         std::vector<MMseqsParameter> &par,
                          size_t requiredParameterCount,
                          bool printParameters = true,
                          bool isVariadic = false);
     void printUsageMessage(std::string programUsageHeader,
-                           std::vector<MMseqsParameter> parameters);
+                           std::vector<MMseqsParameter> &parameters);
     void printParameters(int argc, const char* pargv[],
-                         std::vector<MMseqsParameter> par);
+                         std::vector<MMseqsParameter> &par);
     Parameters();
 
     PARAMETER(PARAM_S);
@@ -198,7 +201,7 @@ public:
     PARAMETER(PARAM_SEARCH_MODE);
     PARAMETER(PARAM_NO_COMP_BIAS_CORR);
     PARAMETER(PARAM_SPACED_KMER_MODE);
-    PARAMETER(PARAM_KEEP_TEMP_FILES);
+    PARAMETER(PARAM_REMOVE_TMP_FILES);
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
@@ -229,6 +232,9 @@ public:
 
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION);
+
+    // workflow
+    PARAMETER(PARAM_RUNNER);
 
     // clustering workflow
     PARAMETER(PARAM_NO_AUTOMATED_THRESHOLD);
@@ -286,10 +292,10 @@ public:
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> substractresult;
 
-    std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> par1,
-                                              std::vector<MMseqsParameter> par2);
+    std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
+                                              std::vector<MMseqsParameter> &par2);
 
-    std::string createParameterString(std::vector < MMseqsParameter > vector);
+    std::string createParameterString(std::vector < MMseqsParameter > &vector);
 
 
 };

@@ -19,22 +19,21 @@ export OMP_PROC_BIND=TRUE
 
 # processing
 # call prefilter module
-notExists "$3/pref" && mmseqs prefilter "$1" "$1" "$3/pref" $PREFILTER_PAR           && checkReturnCode "Prefilter died"
+notExists "$3/pref" && $RUNNER mmseqs prefilter "$1" "$1" "$3/pref" $PREFILTER_PAR           && checkReturnCode "Prefilter died"
 # call alignment module
-notExists "$3/aln"  && mmseqs alignment "$1" "$1" "$3/pref" "$3/aln" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
+notExists "$3/aln"  && $RUNNER mmseqs alignment "$1" "$1" "$3/pref" "$3/aln" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
 # call cluster module
-notExists "$3/clu"  && mmseqs cluster   "$1" "$3/aln" "$3/clu" $CLUSTER_PAR          && checkReturnCode "Clustering died"
+notExists "$3/clu"  && $RUNNER mmseqs cluster   "$1" "$3/aln" "$3/clu" $CLUSTER_PAR          && checkReturnCode "Clustering died"
 
 # post processing
 mv -f "$3/clu" "$2"
 mv -f "$3/clu.index" "$2.index"
 checkReturnCode "Could not move result to $2"
 
-if [ -n "$KEEP_TEMP" ]; then
- echo "Keeping temporary files"
- exit 0
+if [ -n "$REMOVE_TMP" ]; then
+ echo "Remove temporary files"
+ rm -f "$3/pref" "$3/pref.index"
+ rm -f "$3/aln" "$3/aln.index"
+ rm -f "$3/clu" "$3/clu.index"
 fi
 
-rm -f "$3/pref" "$3/pref.index"
-rm -f "$3/aln" "$3/aln.index"
-rm -f "$3/clu" "$3/clu.index"

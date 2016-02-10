@@ -32,7 +32,7 @@ Parameters::Parameters():
         PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "[int]\tSearch mode. Local: 1 Local fast: 2",typeid(int), (void *) &searchMode, "^[0-2]{1}$"),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","[int]\tSwitch off local amino acid composition bias correction[0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$"),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "[int]\tSpaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}" ),
-        PARAM_KEEP_TEMP_FILES(PARAM_KEEP_TEMP_FILES_ID,"--keep-tmp-files", "Keep Temporary Files" ,"\tDo not delete temporary files.",typeid(bool),(void *) &keepTempFiles, ""),
+        PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "\tDelete temporary files", typeid(bool), (void *) &removeTmpFiles, ""),
 // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "[int]\tAlignment mode 0=fastest based on parameters, 1=score; 2=score,cov,start/end pos; 3=score,cov,start/end pos,seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$"),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "[real]\tMaximum e-value[0.0,1.0]",typeid(float), (void *) &evalThr, "^[0-9]*(\\.[0-9]+)?$"),
@@ -52,7 +52,8 @@ Parameters::Parameters():
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "[int]\tMPI Option: HMM 0 or PSSM",typeid(int),(void *) &profileMode,  "^[0-1]{1}$"),
 // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "\tAllow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
-
+// workflow
+        PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","[text]\tSets the MPI runner",typeid(std::string),(void *) &runner, ""),
 // clustering workflow
         PARAM_NO_AUTOMATED_THRESHOLD(PARAM_NO_AUTOMATED_THRESHOLD_ID, "--no-automatic-threshold", "No Automatic Threshold", "\tPrevent mmseqs from changing sensitivity and cascaded clustering settings", typeid(bool), (void *) &noAutomaticThreshold, ""),
 // search workflow
@@ -181,12 +182,14 @@ Parameters::Parameters():
 
     searchworkflow = combineList(alignment, prefilter);
     searchworkflow.push_back(PARAM_NUM_ITERATIONS);
+    searchworkflow.push_back(PARAM_RUNNER);
 
     clusteringWorkflow = combineList(prefilter, alignment);
     clusteringWorkflow = combineList(clusteringWorkflow, clustering);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_NO_AUTOMATED_THRESHOLD);
-    clusteringWorkflow.push_back(PARAM_KEEP_TEMP_FILES);
+    clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    clusteringWorkflow.push_back(PARAM_RUNNER);
 
     clusterUpdate = combineList(alignment, prefilter);
     clusterUpdate = combineList(clusterUpdate, clustering);
@@ -215,7 +218,7 @@ Parameters::Parameters():
 }
 
 void Parameters::printUsageMessage(std::string programUsageHeader,
-                                   std::vector<MMseqsParameter> parameters){
+                                   std::vector<MMseqsParameter> &parameters){
     std::stringstream ss;
     ss << programUsageHeader << std::endl;
     for(std::size_t i = 0; i < parameters.size(); i++) {
@@ -247,7 +250,7 @@ int compileRegex(regex_t * regex, const char * regexText){
 
 void Parameters::parseParameters(int argc, const char* pargv[],
                                  std::string programUsageHeader,
-                                 std::vector<MMseqsParameter> par,
+                                 std::vector<MMseqsParameter> &par,
                                  size_t requiredParameterCount,
                                  bool printPar,
                                  bool isVariadic)
@@ -381,7 +384,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 }
 
 void Parameters::printParameters(int argc, const char* pargv[],
-                                 std::vector<MMseqsParameter> par){
+                                 std::vector<MMseqsParameter> &par){
     Debug(Debug::WARNING) << "Program call:\n";
     for (int i = 0; i < argc; i++)
         Debug(Debug::WARNING) << pargv[i] << " ";
@@ -471,9 +474,12 @@ void Parameters::setDefaults() {
     maxIteration=1000;
     similarityScoreType=APC_SEQID;
 
+    // workflow
+    runner = "";
+
     // Clustering workflow
     noAutomaticThreshold = false;
-    keepTempFiles = false;
+    removeTmpFiles = false;
 
     // createprofiledb
     profileMode = PROFILE_MODE_HMM;
@@ -510,8 +516,8 @@ void Parameters::setDefaults() {
     filterColumnRegex = "^.*$";
 }
 
-std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> par1,
-                                                     std::vector<MMseqsParameter> par2) {
+std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,
+                                                     std::vector<MMseqsParameter> &par2) {
     std::vector<MMseqsParameter> retVec;
     std::vector< std::vector<MMseqsParameter>> tmp;
     tmp.push_back(par1);
@@ -532,7 +538,7 @@ std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter
     return retVec;
 }
 
-std::string Parameters::createParameterString(std::vector<MMseqsParameter> par) {
+std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par) {
     std::stringstream ss;
     for (size_t i = 0; i < par.size(); i++) {
         if(typeid(int) == par[i].type ){

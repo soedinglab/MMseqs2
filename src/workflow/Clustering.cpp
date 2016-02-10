@@ -55,7 +55,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         }
     }
 
-    if (!par.noAutomaticThreshold && parameterSet == false) {
+    if (par.noAutomaticThreshold == false && parameterSet == false) {
         std::pair<float, bool> settings = setAutomaticThreshold(par.seqIdThr);
         par.sensitivity = settings.first;
         par.cascaded = settings.second;
@@ -68,9 +68,10 @@ int clusteringworkflow(int argc, const char *argv[]) {
 
     CommandCaller cmd;
 
-    if(par.keepTempFiles) {
-        cmd.addVariable("KEEP_TEMP", "TRUE");
+    if(par.removeTmpFiles) {
+        cmd.addVariable("REMOVE_TMP", "TRUE");
     }
+    cmd.addVariable("RUNNER", par.runner.c_str());
 
     if (par.cascaded) {
         float targetSensitivity = par.sensitivity;
