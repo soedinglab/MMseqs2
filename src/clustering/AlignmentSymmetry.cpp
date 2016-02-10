@@ -22,7 +22,7 @@ AlignmentSymmetry::AlignmentSymmetry() { }
 void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, unsigned int **elementLookupTable) {
 
     size_t dbSize = seqDbr->getSize();
-#pragma omp parallel for schedule(dynamic, 100)
+#pragma omp parallel for schedule(static)
     for(size_t i = 0; i < dbSize; i++) {
         Log::printProgress(i);
         // seqDbr is descending sorted by length
@@ -58,7 +58,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
 void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable, int scoretype) {
 
     size_t dbSize = seqDbr->getSize();
-#pragma omp parallel for schedule(dynamic, 100)
+#pragma omp parallel for schedule(static)
     for(size_t i = 0; i < dbSize; i++) {
         Log::printProgress(i);
         // seqDbr is descending sorted by length
@@ -108,7 +108,7 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
     // init memory for parallel merge
     unsigned short * tmpSize = new unsigned short[threads * dbSize];
     memset(tmpSize, 0, threads * dbSize * sizeof(unsigned short));
-#pragma omp parallel for schedule(dynamic, 1000)
+#pragma omp parallel for schedule(static)
     for(size_t setId = 0; setId < dbSize; setId++) {
         Log::printProgress(setId);
         int thread_idx = 0;
