@@ -30,4 +30,6 @@ extern int maskbygff(int argc, const char** argv);
 extern int filterdb(int argc, const char** argv);
 extern int convertkb(int argc, const char** argv);
 extern int substractresult(int argc, const char** argv);
+extern int clusteredges(int argc, const char** argv);
+
 #endif
