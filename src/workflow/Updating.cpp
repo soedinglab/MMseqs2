@@ -455,7 +455,7 @@ int clusterupdate (int argc, const char * argv[]){
     int sec = end.tv_sec - start.tv_sec;
     std::cout << "\nTime for updating: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
 
-    if (par.keepTempFiles == false) {
+    if (par.removeTmpFiles == false) {
         FileUtil::deleteTempFiles(*tmpFiles);
     }
     delete tmpFiles;

@@ -71,15 +71,14 @@ mv -f "$4/aln_0" "$3"
 mv -f "$4/aln_0.index" "$3.index"
 checkReturnCode "Could not move result to $3"
 
-if [ -n "$KEEP_TEMP" ]; then
- echo "Keeping temporary files"
- exit 0
+if [ -n "$REMOVE_TMP" ]; then
+ echo "Remove temporary files"
+ STEP=0
+ while [ $STEP -lt $NUM_IT ]; do
+    rm -f "$4/pref_$STEP" "$4/pref_$STEP.index"
+    rm -f "$4/aln_$STEP" "$4/aln_$STEP.index"
+    rm -f "$4/profile_$STEP" "$4/profile_$STEP.index" "$4/profile_$STEP""_h" "$4/profile_$STEP""_h.index"
+    let STEP=STEP+1
+ done
 fi
 
-STEP=0
-#while [ $STEP -lt $NUM_IT ]; do
-#    rm -f "$4/pref_$STEP" "$4/pref_$STEP.index"
-#    rm -f "$4/aln_$STEP" "$4/aln_$STEP.index"
-#    rm -f "$4/profile_$STEP" "$4/profile_$STEP.index" "$4/profile_$STEP""_h" "$4/profile_$STEP""_h.index"
-#	let STEP=STEP+1
-#done

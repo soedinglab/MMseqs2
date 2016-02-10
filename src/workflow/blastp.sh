@@ -29,10 +29,10 @@ mv -f "$4/aln" "$3"
 mv -f "$4/aln.index" "$3.index"
 checkReturnCode "Could not move result to $3"
 
-if [ -n "$KEEP_TEMP" ]; then
- echo "Keeping temporary files"
- exit 0
+if [ -n "$REMOVE_TMP" ]; then
+    echo "Remove temporary files"
+    rm -f "$4/pref" "$4/pref.index"
+    rm -f "$4/aln" "$4/aln.index"
 fi
 
-rm -f "$4/pref" "$4/pref.index"
-rm -f "$4/aln" "$4/aln.index"
+

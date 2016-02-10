@@ -1,9 +1,8 @@
 #include "Clustering.h"
 #include "ClusteringAlgorithms.h"
-#include "LinearMultiArray.h"
 #include "Debug.h"
 #include "Parameters.h"
-
+#include "Util.h"
 #include <sys/time.h>
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
@@ -124,6 +123,7 @@ void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
             Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
                                 << ")\n Buffer size is increased\n";
             BUFFER_SIZE=strlen(cluResultsOutData)+1;
+            delete [] outBuffer;
             outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
