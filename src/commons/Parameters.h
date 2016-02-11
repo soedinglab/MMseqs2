@@ -142,6 +142,7 @@ public:
 
     // result2msa
     bool allowDeletion;
+    bool addInternalId;
 
     // createdb
     bool useHeader;
@@ -232,6 +233,7 @@ public:
 
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION);
+    PARAMETER(PARAM_ADD_INTERNAL_ID);
 
     // workflow
     PARAMETER(PARAM_RUNNER);
