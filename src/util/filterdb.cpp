@@ -32,7 +32,7 @@ int dofilter(std::string inputDb, std::string outputDb, int threads, int column,
         char **columnPointer = new char*[column + 1];
         std::string buffer = "";
         buffer.reserve(LINE_BUFFER_SIZE);
-#pragma omp for schedule(dynamic, 100)
+#pragma omp for schedule(static)
         for (size_t id = 0; id < dataDb->getSize(); id++) {
             Log::printProgress(id);
             int thread_idx = 0;
