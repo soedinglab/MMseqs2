@@ -81,6 +81,8 @@ static struct Command commands[] = {
                 "Turn a GFF3 file into a ffindex database"},
         {"convertkb",           convertkb,              &par.onlyverbosity,         COMMAND_HELPER,
             "Converts Uniprot flat file into ffindex database"},
+        {"kbtotsv",             kbtotsv,                &par.onlyverbosity,         COMMAND_HELPER,
+                "Turns an UniprotKB file into separate TSV tables"},
         {"clusteredges",        clusteredges,           &par.onlyverbosity,         COMMAND_HELPER,
             "Extracts all the child to parent edges from clustering N to clustering N+1"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
