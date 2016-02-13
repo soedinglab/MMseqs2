@@ -274,7 +274,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         // if no match found or two matches found (we want exactly one match)
                         if (nomatch){
                             printUsageMessage(programUsageHeader, par);
-                            Debug(Debug::INFO) << "Error in argument " << par[parIdx].name << "\n";
+                            Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
                             *((int *) par[parIdx].value) = atoi(pargv[argIdx+1]);
@@ -288,7 +288,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         regfree(&regex);
                         if (nomatch){
                             printUsageMessage(programUsageHeader, par);
-                            Debug(Debug::INFO) << "Error in argument " << par[parIdx].name << "\n";
+                            Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
                             *((float *) par[parIdx].value) = atof(pargv[argIdx+1]);
@@ -309,7 +309,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         // toggle Value
                         *value = !*value;
                     } else {
-                        Debug(Debug::ERROR) << "Wrong parameter type in parseParameters. Please inform developer\n";
+                        Debug(Debug::ERROR) << "Wrong parameter type in parseParameters. Please inform the developers\n";
                         EXIT(EXIT_FAILURE);
                     }
                 }
@@ -319,9 +319,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             getFilename.push_back(pargv[argIdx]);
         }
     }
-    //TODO make remain parameter logic (
-    //if(parametersFound + getFilename.size() < argc)
-
+    
     if (profile){
         querySeqType  = Sequence::HMM_PROFILE;
         targetSeqType = Sequence::AMINO_ACIDS;
@@ -344,7 +342,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
     if (getFilename.size() < requiredParameterCount){
         printUsageMessage(programUsageHeader, par);
-        Debug(Debug::INFO) << requiredParameterCount << " Database paths are required" << "\n";
+        Debug(Debug::ERROR) << requiredParameterCount << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -376,7 +374,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                 break;
         case 0:
             printUsageMessage(programUsageHeader, par);
-            Debug(Debug::INFO) << "Unrecognized parameters!" << "\n";
+            Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
             printParameters(argc, pargv, par);
             EXIT(EXIT_FAILURE);
     }
