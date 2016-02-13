@@ -266,6 +266,12 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             std::string parameter(pargv[argIdx]);
             for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
                 if(parameter.compare(par[parIdx].name) == 0) {
+                    if (typeid(bool) != par[parIdx].type && argIdx + 1 == argc) {
+                        printUsageMessage(programUsageHeader, par);
+                        Debug(Debug::ERROR) << "Missing argument " << par[parIdx].name << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+
                     if (typeid(int) == par[parIdx].type) {
                         regex_t regex;
                         compileRegex(&regex, par[parIdx].regex);
