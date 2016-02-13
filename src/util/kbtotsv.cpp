@@ -209,7 +209,7 @@ int kbtotsv(int argn, const char **argv) {
 
             for(std::vector<std::string>::const_iterator it = acs.begin(); it != acs.end(); ++it) {
                 std::string ac = *it;
-                accessionOut << ac << "\t" << identifier;
+                accessionOut << ac << "\t" << identifier << "\n";
             }
         }
     }
