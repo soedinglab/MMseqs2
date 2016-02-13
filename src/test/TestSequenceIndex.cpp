@@ -1,23 +1,22 @@
 #include <iostream>
 #include <list>
 #include <algorithm>
-#include <math.h>
-#include <SequenceLookup.h>
-#include <SubstitutionMatrix.h>
+#include <cmath>
 
-
+#include "SequenceLookup.h"
+#include "SubstitutionMatrix.h"
 #include "Clustering.h"
 #include "SetElement.h"
-
 #include "DBReader.h"
 #include "DBWriter.h"
-
+#include "Parameters.h"
 
 int main(int argc, char **argv)
 {
 
     size_t kmer_size = 6;
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out",
+    Parameters par;
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(),
                               2.0, 0.0);
     std::string S1 = "PQITLWQRPLVTIKIGGQLKEALLDTGADDTVLEEMSLPGRWKPKMIGGIGGFIKVRQYDQILIEICGHKAIGTVLVGPTPVNIIGRNLLTQIGCTLNF";
     const char* S1char = S1.c_str();

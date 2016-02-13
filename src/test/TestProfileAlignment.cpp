@@ -5,8 +5,7 @@
 //  Copyright (c) 2012 -. All rights reserved.
 //
 #include <iostream>
-#include <smith_waterman_sse2.h>
-#include <math.h>
+#include <cmath>
 #include "Sequence.h"
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
@@ -14,13 +13,16 @@
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
 #include "BaseMatrix.h"
-#include "../alignment/smith_waterman_sse2.h"
+#include "smith_waterman_sse2.h"
+#include "Parameters.h"
+
 int main (int argc, const char * argv[])
 {
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out", 2.0, 0);
+    Parameters par;
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0);
     std::cout << "Subustitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
