@@ -264,6 +264,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         // it is a parameter if it starts with - or --
         if ((pargv[argIdx][0] == '-' && pargv[argIdx][1] == '-') || (pargv[argIdx][0] == '-')) {
             std::string parameter(pargv[argIdx]);
+            bool hasUnrecognizedParameter = true;
             for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
                 if(parameter.compare(par[parIdx].name) == 0) {
                     if (typeid(bool) != par[parIdx].type && argIdx + 1 == argc) {
@@ -324,8 +325,18 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         Debug(Debug::ERROR) << "Wrong parameter type in parseParameters. Please inform the developers\n";
                         EXIT(EXIT_FAILURE);
                     }
+
+                    hasUnrecognizedParameter = false;
+                    continue;
                 }
             }
+
+            if (hasUnrecognizedParameter) {
+                printUsageMessage(programUsageHeader, par);
+                Debug(Debug::ERROR) << "Unrecognized parameter " << parameter << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+
             parametersFound++;
         } else { // it is a filename if its not a parameter
             getFilename.push_back(pargv[argIdx]);
