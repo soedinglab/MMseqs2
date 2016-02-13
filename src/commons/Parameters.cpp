@@ -272,6 +272,12 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         EXIT(EXIT_FAILURE);
                     }
 
+                    if (par[parIdx].wasSet) {
+                        printUsageMessage(programUsageHeader, par);
+                        Debug(Debug::ERROR) << "Duplicate parameter " << par[parIdx].name << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+
                     if (typeid(int) == par[parIdx].type) {
                         regex_t regex;
                         compileRegex(&regex, par[parIdx].regex);
