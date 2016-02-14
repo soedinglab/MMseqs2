@@ -55,7 +55,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         }
     }
 
-    if (par.noAutomaticThreshold == false && parameterSet == false) {
+    if (parameterSet == false) {
         std::pair<float, bool> settings = setAutomaticThreshold(par.seqIdThr);
         par.sensitivity = settings.first;
         par.cascaded = settings.second;
