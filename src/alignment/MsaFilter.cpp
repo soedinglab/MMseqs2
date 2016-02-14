@@ -7,6 +7,7 @@
 #include "MsaFilter.h"
 #include "simd.h"
 #include "MathUtil.h"
+#include "MultipleAlignment.h"
 
 MsaFilter::MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m){
     this->m = m;
@@ -24,13 +25,11 @@ MsaFilter::MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m){
     this->ksort = new int[maxSetSize];
     this->display = new char[maxSetSize + 2];
     this->keep = new char[maxSetSize];
-    this->X = new char*[maxSetSize];
-    for(int i = 0; i < maxSetSize; i++){
-        this->X[i] = initX(maxSeqLen);
-    }
+    this->filteredMsaSequence = new char*[maxSetSize];
 }
 
 MsaFilter::~MsaFilter() {
+    delete [] filteredMsaSequence;
     delete [] Nmax;
     delete [] idmaxwin;
     delete [] N;
@@ -43,19 +42,8 @@ MsaFilter::~MsaFilter() {
     delete [] ksort;
     delete [] display;
     delete [] keep;
-    for(int i = 0; i < maxSetSize; i++) {
-        free(X[i]);
-    }
-    delete [] X;
 }
 
-char * MsaFilter::initX(int len) {
-    int seqSimdLength = (len) / (VECSIZE_INT * 4) + 2;
-    seqSimdLength *= (VECSIZE_INT * 4);
-    char * ptr = (char *) malloc_simd_int(seqSimdLength);
-    std::fill(ptr, ptr + seqSimdLength, GAP);
-    return ptr;
-}
 
 // Swaps two integer elements in array k
 inline void MsaFilter::swapi(int k[], int i, int j) {
@@ -99,11 +87,30 @@ void MsaFilter::QSortInt(int v[], int k[], int left, int right, int up) {
 }
 
 
-MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in, int L, int coverage, int qid, float qsc,
-                      int max_seqid, int Ndiff) {
+MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in,
+                                             int L, int coverage, int qid, float qsc,
+                                             int max_seqid, int Ndiff){
+
+    MsaFilter::MsaFilterResult res = dofilter(msaSequence, N_in, L, coverage, qid, qsc, max_seqid, Ndiff);
+    size_t writePos = 0;
+    for(size_t k = 0; k < N_in; k++){
+        if(keep[k] != 0){
+            filteredMsaSequence[writePos] = (char *) msaSequence[k];
+            writePos++;
+        }
+    }
+    return res;
+}
 
 
+
+MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
+                                               int L, int coverage, int qid, float qsc,
+                                               int max_seqid, int Ndiff) {
     int seqid1 = 20;
+    // X[k][i] contains column i of sequence k in alignment (first seq=0, first char=1) (0-3: ARND ..., 20:X, 21:GAP)
+//    char** X = (char **) &msaSequence;
+
     // In the beginnning, keep[k] is 1 for all regular amino acid sequences and 0 for all others (ss_conf, ss_pred,...)
     // In the end, keep[k] will be 1 for all regular representative sequences kept in the alignment, 0 for all others
     // Sequences with keep[k] = 2 will cannot be filtered out and will remain in the alignment.
@@ -117,7 +124,7 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
 
     float diff_min_frac;  // minimum fraction of differing positions between sequence j and k needed to accept sequence k
     float qdiff_max_frac = 0.9999 - 0.01 * qid;  // maximum allowable number of residues different from query sequence
-    int diff;  // number of differing positions between sequences j and k (counted so far)
+    int diff = 0;  // number of differing positions between sequences j and k (counted so far)
     int diff_suff;  // number of differing positions between sequences j and k that would be sufficient
     int qdiff_max;  // maximum number of residues required to be different from query
     int cov_kj;  // upper limit of number of positions where both sequence k and j have a residue
@@ -129,13 +136,10 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
     int n;                    // number of sequences accepted so far
     int kfirst = 0;           // index of first real sequence
 
-
     // map data to X
     for (k = 0; k < N_in; ++k) {
-        for (int pos = 0; pos < L; ++pos){
-            X[k][pos] = (msaSequence[k][pos] == '-') ? GAP : m->aa2int[(int) msaSequence[k][pos]];
-        }
-        keep[k] = 1;
+        // sequence 0 is the center (query)
+        keep[k] = (k == 0) ? 2 : 1;
     }
     // Initialize in[k]
     for (n = k = 0; k < N_in; ++k) {
@@ -150,11 +154,11 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
     for (k = 0; k < N_in; ++k)  // do this for ALL sequences, not only those with in[k]==1 (since in[k] may be display[k])
     {
         for (i = 0; i < L; ++i)
-            if (X[k][i] < NAA)
+            if (X[k][i] < MultipleAlignment::NAA)
                 break;
         first[k] = i;
         for (i = (L - 1); i > 0; i--)
-            if (X[k][i] < NAA)
+            if (X[k][i] < MultipleAlignment::NAA)
                 break;
         last[k] = i;
     }
@@ -164,10 +168,10 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
     {
         int nr = 0;
         for (i = first[k]; i <= last[k]; ++i)
-            if (X[k][i] < NAA)
+            if (X[k][i] < MultipleAlignment::NAA)
                 nr++;
         this->nres[k] = nr;
-        //printf("%20.20s nres=%3i  first=%3i  last=%3i\n",sname[k],nr,first[k],last[k]);
+//        printf("%d nres=%3i  first=%3i  last=%3i\n",k,nr,first[k],last[k]);
         if (nr == 0)
             keep[k] = 0;
     }
@@ -222,14 +226,14 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
                     if (X[kfirst][i] < 20) {
                         gapq = 0;
                         qsc_sum += static_cast<float>(m->subMatrix[(int) X[kfirst][i]][(int) X[k][i]]);
-                    } else if (X[kfirst][i] == ANY)
+                    } else if (X[kfirst][i] == MultipleAlignment::ANY)
                         // Treat score of X with other amino acid as 0.0
                         continue;
                     else if (gapq++)
                         qsc_sum -= PLTY_GAPEXTD;
                     else
                         qsc_sum -= PLTY_GAPOPEN;
-                } else if (X[k][i] == ANY)
+                } else if (X[k][i] == MultipleAlignment::ANY)
                     // Treat score of X with other amino acid as 0.0
                     continue;
                 else if (X[kfirst][i] < 20) {
@@ -246,23 +250,25 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
                 continue;
             }  // too different from query? => reject once and for all
         }
-
+//                  printf("  diff=%4i\n",diff);
         //Check if sequence similarity with query at least qid?
         if (qdiff_max_frac < 0.999) {
+
             qdiff_max = int(qdiff_max_frac * nres[k] + 0.9999);
-            //      printf("k=%-4i  nres=%-4i  qdiff_max=%-4i first=%-4i last=%-4i",k,nres[k],qdiff_max,first[k],last[k]);
+                  printf("k=%-4i  nres=%-4i  qdiff_max=%-4i first=%-4i last=%-4i",k,nres[k],qdiff_max,first[k],last[k]);
             diff = 0;
             for (int i = first[k]; i <= last[k]; ++i)
                 // enough different residues to reject based on minimum qid with query? => break
-                if (X[k][i] < 20 && X[k][i] != X[kfirst][i] && ++diff >= qdiff_max)
+                if (X[k][i] < MultipleAlignment::NAA
+                    && X[k][i] != X[kfirst][i] && ++diff >= qdiff_max)
                     break;
-            //      printf("  diff=%4i\n",diff);
+//                  printf("  diff=%4i\n",diff);
             if (diff >= qdiff_max) {
                 keep[k] = 0;
                 continue;
             }  // too different from query? => reject once and for all
         }
-//      printf("  qsc=%6.2f     qid=%6.2f  \n",qsc_sum/nres[k],100.0*(1.0-(float)(diff)/nres[k]));
+     // printf("%d  qsc=%6.2f  %d  %d qid=%6.2f  \n",k,qsc_sum/nres[k],nres[k], diff, 100.0*(1.0-(float)(diff)/nres[k]));
     }
 
     // If no sequence left, issue warning and put back first real sequence into alignment
@@ -295,7 +301,7 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
 
     // If min required seqid larger than max required seqid, return here without doing pairwise seqid filtering
     if (seqid1 > max_seqid)
-        return MsaFilter::MsaFilterResult(keep,nn);
+        return MsaFilter::MsaFilterResult(keep, nn, (const char **)filteredMsaSequence);
 
     // Successively increment idmax[i] at positons where N[i]<Ndiff
     seqid = seqid1;
@@ -320,7 +326,7 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
             }
         }
 
-        //printf("seqid=%3i  diffNmax_prev= %-4i   diffNmax= %-4i   n=%-5i  N_in-N_ss=%-5i\n",seqid,diffNmax_prev,diffNmax,n,N_in-N_ss);
+        printf("seqid=%3i  diffNmax_prev= %-4i   diffNmax= %-4i   n=%-5i  N_in-N_ss=%-5i\n",seqid,diffNmax_prev,diffNmax,n,N_in);
         if (stop)
             break;
 
@@ -396,7 +402,7 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
                 cov_kj += (first_diff_simd_scalar + last_diff_simd_scalar);
 
                 // _mm_set1_epi8 pseudo-instruction is slow!
-                const simd_int NAAx16 = simdi8_set(NAA - 1);
+                const simd_int NAAx16 = simdi8_set(MultipleAlignment::NAA - 1);
                 for (int i = first_kj_simd; i < last_kj_simd && diff < diff_suff; ++i) {
                     // None SIMD function
                     // enough different residues to accept? => break
@@ -443,8 +449,8 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
             }
 //        else
 //          {
-//            printf("%20.20s rejected: too similar with seq %20.20s  diff=%i  diff_min_frac*cov_kj=%f  diff_suff=%i  nres=%i  cov_kj=%i\n",sname[k],sname[j],diff,diff_min_frac*cov_kj,diff_suff,nres[k],cov_kj);
-//            printf("%s\n%s\n\n",seq[k],seq[j]);
+//            printf("%20.20s rejected: too similar with seq %20.20s  diff=%i  diff_min_frac*cov_kj=%f  diff_suff=%i  nres=%i  cov_kj=%i\n","blub","blub",diff,diff_min_frac*cov_kj,diff_suff,nres[k],cov_kj);
+//            printf("%s\n%s\n\n",msaSequence[k],msaSequence[j]);
 //          }
 
         }  // End Loop over all candidate sequences kk
@@ -482,5 +488,5 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
 
     for (k = 0; k < N_in; ++k)
         keep[k] = in[k];
-    return MsaFilter::MsaFilterResult(keep, n);
+    return MsaFilter::MsaFilterResult(keep, n, (const char **) filteredMsaSequence);
 }

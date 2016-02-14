@@ -93,7 +93,7 @@ int result2outputmode(Parameters par, int mode) {
     }
 
     DBReader<unsigned int>* clusterReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
-    clusterReader->open(DBReader<unsigned int>::NOSORT);
+    clusterReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     FileUtil::errorIfFileExist(par.db4.c_str());
     FileUtil::errorIfFileExist(par.db4Index.c_str());
@@ -177,7 +177,11 @@ int result2outputmode(Parameters par, int mode) {
                             msa << "#" << key  << "\n";
                         }
                         msa << ">" << data;
-                        msa << std::string(res.msaSequence[i], 0, res.msaSequenceLength) << "\n";
+                        for(size_t pos = 0; pos < res.msaSequenceLength; pos++){
+                            char aa = res.msaSequence[i][pos];
+                            msa << (aa < MultipleAlignment::NAA) ? matrix.int2aa[aa] : '-';
+                        }
+                        msa << "\n";
                     }
                     result = msa.str();
                     data = (char *) result.c_str();

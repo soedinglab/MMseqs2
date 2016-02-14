@@ -17,14 +17,20 @@ class Sequence;
 
 class MultipleAlignment {
 public:
+    enum alignment_element {
+        ANY=20,   //number representing an X (any amino acid) internally
+        NAA=20,   //number of amino acids (0-19)
+        GAP=21    //number representing a gap internally
+    };
+
     struct MSAResult{
         size_t msaSequenceLength;
         size_t centerLength;
         size_t setSize;
         const char ** msaSequence;
 
-        MSAResult(size_t msaSequenceLength, size_t centerLength, size_t setSize, const char **msa)
-                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence(msa) {}
+        MSAResult(size_t msaSequenceLength, size_t centerLength, size_t setSize, char **msa)
+                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence((const char **)msa) {}
     };
 
 
@@ -34,13 +40,18 @@ public:
     ~MultipleAlignment();
     // Compute center star multiple alignment from sequence input
     MultipleAlignment::MSAResult computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA);
-    static void print(MSAResult msaResult);
+    static void print(MSAResult msaResult, SubstitutionMatrix * subMat);
+
+    // init aligned memory for the MSA
+    static char *initX(int len);
+
 private:
     Matcher * aligner;
     BaseMatrix * subMat;
     char *  msaData;
     char ** msaSequence;
     size_t maxSeqLen;
+    size_t maxSetSize;
     size_t maxMsaSeqLen;
     unsigned int * queryGaps;
 

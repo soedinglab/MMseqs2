@@ -93,9 +93,6 @@ set(testcommand TestCommandCaller.cpp )
 add_executable(testcommand ${testcommand})
 target_link_libraries(testcommand commons)
 
-
-
-
 set(test_dbreader TestDBReader.cpp )
 add_executable(test_dbreader ${test_dbreader})
 target_link_libraries(test_dbreader util)
@@ -109,14 +106,11 @@ target_link_libraries(test_kmerscore util)
 target_link_libraries(test_kmerscore workflow)
 target_link_libraries(test_kmerscore ffindex)
 
-
-
 set(test_compbias TestCompositionBias.cpp )
 add_executable(test_compbias ${test_compbias})
 target_link_libraries(test_compbias util)
 target_link_libraries(test_compbias workflow)
 target_link_libraries(test_compbias ffindex)
-
 
 set(test_sequenceindex TestSequenceIndex.cpp )
 add_executable(test_sequenceindex ${test_sequenceindex})
@@ -135,3 +129,9 @@ add_executable(test_diagonalscoringperf ${test_diagonalscoringperf})
 target_link_libraries(test_diagonalscoringperf util)
 target_link_libraries(test_diagonalscoringperf workflow)
 target_link_libraries(test_diagonalscoringperf ffindex)
+
+set(test_pssmcompute TestPSSM.cpp )
+add_executable(test_pssmcompute ${test_pssmcompute})
+target_link_libraries(test_pssmcompute util)
+target_link_libraries(test_pssmcompute workflow)
+target_link_libraries(test_pssmcompute ffindex)
