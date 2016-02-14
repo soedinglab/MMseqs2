@@ -86,7 +86,6 @@ int kbtotsv(int argn, const char **argv) {
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.onlyverbosity, 1);
-    Debug::setDebugLevel(par.verbosity);
 
     struct {
         uniprot_prefix_type_t type;

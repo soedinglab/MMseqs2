@@ -340,6 +340,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         }
     }
 
+    Debug::setDebugLevel(verbosity);
+
     if (profile){
         querySeqType  = Sequence::HMM_PROFILE;
         targetSeqType = Sequence::AMINO_ACIDS;

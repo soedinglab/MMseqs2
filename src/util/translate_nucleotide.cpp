@@ -27,9 +27,7 @@ int translatenucleotide(int argn, const char **argv)
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.translateNucleotide, 2);
-    
-    Debug::setDebugLevel(par.verbosity);
-    
+
     const char* in_filename = par.db1.c_str();
     const char* in_index_filename = par.db1Index.c_str();
     
