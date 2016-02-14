@@ -15,13 +15,13 @@
 
 Parameters::Parameters():
 PARAM_S(PARAM_S_ID,"-s", "Sensitivity","Sensitivity in the range [1.0:10.0]. From low (1.0) to high (10.0) sensitivity.", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$"),
-PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [4:7]",typeid(int),  (void *) &kmerSize, "^[6-7]{1}$"),
+PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7]",typeid(int),  (void *) &kmerSize, "^[6-7]{1}$"),
 PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "Number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$"),
-PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "Amino acid alphabet size[2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]{1}$"),
-PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length[1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$"),
+PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "Amino acid alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]{1}$"),
+PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$"),
 PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "HMM Profile input",typeid(bool),(void *) &profile, ""),
 PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotid","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
-PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "Use diagonal score for sorting the prefilter results[0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$"),
+PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "Use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$"),
 PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-diag-score", "Minimum Diagonal score", "Accepts only hits with a ungapped diagonal score above the min score threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$"),
 PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "Set the K-mer threshold for the K-mer generation",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$"),
 PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "Maximum result sequences per query",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$"),
@@ -40,7 +40,7 @@ PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "Minimum alignment coverage [0.0,
 PARAM_FRAG_MERGE(PARAM_FRAG_MERGE_ID,"--frag-merge", "Detect fragments", "Add Hits with cov > 0.95 and seq. id > 0.90",typeid(bool), (void *) &fragmentMerge, ""),
 PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "Maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$"),
 // clustering
-PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster[0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
+PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
 PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-3]{1}$"),
 PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "Start the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
 //affinity clustering
@@ -228,7 +228,7 @@ void Parameters::printUsageMessage(std::string programUsageHeader,
 
     // header
     ss << std::left << std::setw(maxWidth+1) << "Parameter Name";
-    ss << std::left << std::setw(16) << "Type & Default" << "\t";
+    ss << std::left << std::setw(16) << "Type & Value" << "\t";
     ss << "Description" << std::endl;
 
     // body
@@ -272,7 +272,6 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                                  bool printPar,
                                  bool isVariadic)
 {
-    //ops.exceptions(std::ios::eofbit); // throw exception when parsing error
     std::vector<std::string> getFilename;
     size_t parametersFound = 0;
     for(int argIdx = 0; argIdx < argc; argIdx++ ){
@@ -504,14 +503,14 @@ void Parameters::setDefaults() {
     profile = false;
     nucl = false;
 
-    alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_ONLY;
+    alignmentMode = ALIGNMENT_MODE_SCORE_ONLY;
     evalThr = 0.001;
     covThr = 0.0;
     fragmentMerge = false;
     maxRejected = INT_MAX;
     seqIdThr = 0.0;
 
-    clusteringMode = Parameters::SET_COVER;
+    clusteringMode = SET_COVER;
     validateClustering = 0;
     cascaded = false;
 
@@ -599,8 +598,10 @@ std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par)
             if(val == true){
                 ss << par[i].name << " ";
             }
-        }else
-            Debug(Debug::ERROR) << "Wrong parameter type. Please inform developer\n";
+        } else {
+            Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
     return ss.str();
 }
