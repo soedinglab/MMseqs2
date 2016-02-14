@@ -14,8 +14,10 @@ public:
 
     struct MsaFilterResult{
         const char * keep;
-        const int N;
-        MsaFilterResult(char * keep, int N):keep(keep), N(N) {}
+        const int setSize;
+        const char ** filteredMsaSequence;
+        MsaFilterResult(char * keep, int N, const char ** filteredMsaSequence) :
+                keep(keep), setSize(N), filteredMsaSequence(filteredMsaSequence) {}
     };
 
     MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m);
@@ -40,7 +42,7 @@ public:
     // length on the left and the other by 20% on the right. Then x has 10% seq.id with y and y has 20% seq.id. with x.
     /////////////////////////////////////////////////////////////////////////////////////
     MsaFilterResult filter(const char ** msaSequence, int N_in, int L, int coverage, int qid, float qsc,
-               int max_seqid, int Ndiff);
+                           int max_seqid, int Ndiff);
 
     const int ANY=20;       //number representing an X (any amino acid) internally
     const int NAA=20;       //number of amino acids (0-19)
@@ -49,6 +51,11 @@ public:
     const float PLTY_GAPEXTD=1.0f; // for -qsc option (filter for min similarity to query): 1 bit to extend gap
 
 private:
+
+    MsaFilterResult dofilter(const char ** msaSequence, int N_in, int L, int coverage, int qid, float qsc,
+                             int max_seqid, int Ndiff);
+
+
     void QSortInt(int *v, int *k, int left, int right, int up);
 
     void swapi(int *k, int i, int j);
@@ -84,6 +91,8 @@ private:
     char* display;
     // keep[k]=1 if sequence is included in amino acid frequencies; 0 otherwise (first=0)
     char *keep;
+    // stores filtered msa
+    char ** filteredMsaSequence;
 };
 
 

@@ -64,6 +64,8 @@ private:
     void computePseudoCounts(float *profile, float *frequency, float *frequency_with_pseudocounts, size_t length);
 
     void computeMatchWeights(size_t setSize, size_t queryLength, const char **msaSeqs);
+
+    void computeContextSpecificWeights(float *seqWeight, size_t queryLength, size_t setSize, const char **msaSeqs);
 };
 
 
