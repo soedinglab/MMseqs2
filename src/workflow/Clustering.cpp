@@ -43,8 +43,6 @@ int clusteringworkflow(int argc, const char *argv[]) {
     setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, usage, par.clusteringWorkflow, 3);
 
-    Debug::setDebugLevel(par.verbosity);
-
     bool parameterSet = false;
     for (size_t i = 0; i < par.clusteringWorkflow.size(); i++) {
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_S.uniqid && par.clusteringWorkflow[i].wasSet) {

@@ -25,7 +25,6 @@ int gff2ffindex(int argn, const char **argv) {
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.gff2ffindex, 3);
-    Debug::setDebugLevel(par.verbosity);
 
     std::string headerFilename(par.db2);
     headerFilename.append("_h");

@@ -14,8 +14,6 @@ int search(int argc, const char *argv[]) {
     Parameters par;
     par.parseParameters(argc, argv, usage, par.searchworkflow, 4);
 
-    Debug::setDebugLevel(par.verbosity);
-
     CommandCaller cmd;
 
     if(par.removeTmpFiles) {

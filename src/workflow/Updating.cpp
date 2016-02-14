@@ -332,8 +332,6 @@ int clusterupdate (int argc, const char * argv[]){
     Parameters par;
     par.parseParameters(argc, argv, usage, par.clusterUpdate, 5);
     
-    Debug::setDebugLevel(par.verbosity);
-    
     std::string lastSeqDB = par.db1;
     std::string currentSeqDB = par.db2;
     std::string cluDB = par.db3;

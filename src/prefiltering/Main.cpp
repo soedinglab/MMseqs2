@@ -30,14 +30,6 @@ int prefilter(int argc, const char **argv)
     omp_set_num_threads(par.threads);
 #endif
 
-#ifdef HAVE_MPI
-    if(MMseqsMPI::isMaster())
-    {
-        Debug::setDebugLevel(par.verbosity);
-    }
-#else
-    Debug::setDebugLevel(par.verbosity);
-#endif
     Debug(Debug::WARNING) << "Initialising data structures...\n";
     Prefiltering* pref = new Prefiltering(par.db1,par.db1Index,
             par.db2,par.db2Index,

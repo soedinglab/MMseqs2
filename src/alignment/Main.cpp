@@ -27,16 +27,6 @@ int alignment(int argc, const char *argv[])
     omp_set_num_threads(par.threads);
 #endif
 
-#ifdef HAVE_MPI
-    if(MMseqsMPI::isMaster())
-    {
-        Debug::setDebugLevel(par.verbosity);
-    }
-#else
-    Debug::setDebugLevel(par.verbosity);
-#endif
-
-
     Debug(Debug::WARNING) << "Init data structures...\n";
     Alignment* aln = new Alignment(par.db1,           par.db1Index,
                                    par.db2,           par.db2Index,

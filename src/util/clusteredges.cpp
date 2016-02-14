@@ -44,7 +44,6 @@ int clusteredges(int argc, const char *argv[]) {
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.onlyverbosity, 1, true, true);
-    Debug::setDebugLevel(par.verbosity);
 
     size_t clusterings = static_cast<size_t >(argc - 1);
 
