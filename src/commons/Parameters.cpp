@@ -55,8 +55,6 @@ Parameters::Parameters():
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "\tAdd internal id as comment to MSA", typeid(bool), (void*) &addInternalId, ""),
 // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","[text]\tSets the MPI runner",typeid(std::string),(void *) &runner, ""),
-// clustering workflow
-        PARAM_NO_AUTOMATED_THRESHOLD(PARAM_NO_AUTOMATED_THRESHOLD_ID, "--no-automatic-threshold", "No Automatic Threshold", "\tPrevent mmseqs from changing sensitivity and cascaded clustering settings", typeid(bool), (void *) &noAutomaticThreshold, ""),
 // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","[int]\tSearch iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$"),
 // Orfs
@@ -189,7 +187,6 @@ Parameters::Parameters():
     clusteringWorkflow = combineList(prefilter, alignment);
     clusteringWorkflow = combineList(clusteringWorkflow, clustering);
     clusteringWorkflow.push_back(PARAM_CASCADED);
-    clusteringWorkflow.push_back(PARAM_NO_AUTOMATED_THRESHOLD);
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
 
@@ -342,7 +339,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             getFilename.push_back(pargv[argIdx]);
         }
     }
-    
+
     if (profile){
         querySeqType  = Sequence::HMM_PROFILE;
         targetSeqType = Sequence::AMINO_ACIDS;
@@ -501,7 +498,6 @@ void Parameters::setDefaults() {
     runner = "";
 
     // Clustering workflow
-    noAutomaticThreshold = false;
     removeTmpFiles = false;
 
     // createprofiledb

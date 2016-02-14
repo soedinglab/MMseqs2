@@ -151,9 +151,6 @@ public:
     // rebuildfasta
     bool useHeaderFile;
 
-    // CLUSTERING WORKFLOW
-    bool noAutomaticThreshold;
-
     // gff2ffindex
     std::string gffType;
 
@@ -237,9 +234,6 @@ public:
 
     // workflow
     PARAMETER(PARAM_RUNNER);
-
-    // clustering workflow
-    PARAMETER(PARAM_NO_AUTOMATED_THRESHOLD);
 
     // search workflow
     PARAMETER(PARAM_NUM_ITERATIONS);
