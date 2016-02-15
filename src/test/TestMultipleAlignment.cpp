@@ -69,7 +69,7 @@ int main (int argc, const char * argv[])
     }
     MultipleAlignment::print(res, &subMat);
     PSSMCalculator pssm(&subMat, 1000);
-    pssm.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence);
+    pssm.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence, false);
     pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
 

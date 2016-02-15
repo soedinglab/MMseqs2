@@ -10,7 +10,9 @@
 #include "Debug.h"
 #include "MultipleAlignment.h"
 
-PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength) :subMat(subMat) {
+PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength) :
+        subMat(subMat)
+{
     profile            = new float[Sequence::PROFILE_AA_SIZE * maxSeqLength];
     Neff_M             = new float[maxSeqLength];
     seqWeight          = new float[maxSeqLength];
@@ -18,6 +20,7 @@ PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength) 
     matchWeight        = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * maxSeqLength * sizeof(float));
     pseudocountsWeight = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * maxSeqLength * sizeof(float));
     R                  = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * Sequence::PROFILE_AA_SIZE * sizeof(float));
+    nseqs = new int[maxSeqLength];
     for (size_t aa_i = 0; aa_i < Sequence::PROFILE_AA_SIZE; ++aa_i){
         for (size_t aa_j = 0; aa_j < Sequence::PROFILE_AA_SIZE; ++aa_j){
             R[aa_i * Sequence::PROFILE_AA_SIZE + aa_j] = subMat->subMatrixPseudoCounts[aa_i][aa_j];
@@ -30,15 +33,19 @@ PSSMCalculator::~PSSMCalculator() {
     delete [] Neff_M;
     delete [] seqWeight;
     delete [] pssm;
+    delete [] nseqs;
     free(matchWeight);
     free(pseudocountsWeight);
     free(R);
 }
 
-char const * PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs) {
+char const * PSSMCalculator::computePSSMFromMSA(size_t setSize,
+                                                size_t queryLength,
+                                                const char **msaSeqs,
+                                                bool contextSpecificWeights) {
 
     for(size_t pos = 0; pos < queryLength; pos++){
-        if(msaSeqs[0][pos] == '-'){
+        if(msaSeqs[0][pos] == MultipleAlignment::GAP){
             Debug(Debug::ERROR) << "Error in computePSSMFromMSA. First sequence of MSA is not allowed ot contain gaps.\n";
             EXIT(EXIT_FAILURE);
         }
@@ -46,8 +53,10 @@ char const * PSSMCalculator::computePSSMFromMSA(size_t setSize, size_t queryLeng
 
     // Quick and dirty calculation of the weight per sequence wg[k]
     computeSequenceWeights(seqWeight, queryLength, setSize, msaSeqs);
-    // compute context specific counts
-    //computeContextSpecificWeights(seqWeight, queryLength, setSize, msaSeqs);
+    if(contextSpecificWeights == true){
+        // compute context specific counts
+        computeContextSpecificWeights(seqWeight, queryLength, setSize, msaSeqs);
+    }
     // compute matchWeight based on sequence weight
     computeMatchWeights(setSize, queryLength, msaSeqs);
     // compute NEFF_M
@@ -162,7 +171,8 @@ void PSSMCalculator::computeNeff_M(float *frequency, float *seqWeight, float *Ne
     }
 }
 
-void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength, size_t setSize, const char **msaSeqs) {
+void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength,
+                                            size_t setSize, const char **msaSeqs) {
     unsigned int *number_res = new unsigned int[setSize];
     // initialized wg[k] with tiny pseudo counts
     std::fill(seqWeight, seqWeight + setSize,  1e-6);
@@ -262,18 +272,23 @@ void PSSMCalculator::computeMatchWeights(size_t setSize, size_t queryLength, con
 void PSSMCalculator::computeContextSpecificWeights(float *wg, size_t queryLength, size_t setSize,
                                                    const char **msaSeqs) {
 //    const char ** X = msaSeqs;
-//    const int NAA = 20;
-//    const int ANY = 20;
-//    unsigned int NAA_VECSIZE = ((NAA+ 3 + VECSIZE_INT - 1) / VECSIZE_INT) * VECSIZE_INT; // round NAA+3 up to next multiple of VECSIZE_INT
+//    //For weighting: include only columns into subalignment i that have a max fraction of seqs with endgap
+//    const float MAXENDGAPFRAC=0.1;
+//    const int NCOLMIN=10;   //min number of cols in subalignment for calculating pos-specific weights w[k][i]
+//    const int ENDGAP=22;    //Important to distinguish because end gaps do not contribute to tansition counts
+//
+//    int nseqi = 0;
+//    unsigned int NAA_VECSIZE = ((MultipleAlignment::NAA+ 3 + VECSIZE_INT - 1) / VECSIZE_INT) * VECSIZE_INT; // round NAA+3 up to next multiple of VECSIZE_INT
 //    int ** n = new int*[queryLength + 2];
 //    for (int j = 0; j < queryLength; j++)
 //        n[j] = (int *) malloc_simd_int(NAA_VECSIZE * sizeof(int));
 //    for (int j = 0; j <= queryLength; j++)
-//        for (int a = 0; a < NAA + 3; ++a)
+//        for (int a = 0; a < MultipleAlignment::NAA + 3; ++a)
 //            n[j][a] = 0;
 //    float ** w_contrib = new float*[queryLength + 2];
 //    float * wi = new float[queryLength];
 //    int * naa = new int[queryLength];
+//
 //    for (int j = 0; j < queryLength; j++){
 //        w_contrib[j] = (float *) malloc_simd_int(NAA_VECSIZE * sizeof(float));
 //        memset(w_contrib[j], 0,NAA_VECSIZE * sizeof(int));
@@ -281,6 +296,7 @@ void PSSMCalculator::computeContextSpecificWeights(float *wg, size_t queryLength
 //
 //    float Neff_HMM = 0.0f;
 //    float * Neff = new float[queryLength];
+//
 //    //////////////////////////////////////////////////////////////////////////////////////////////
 //    // Main loop through alignment columns
 //    for (int i = 0; i < queryLength; i++)  // Calculate wi[k] at position i as well as Neff[i]
@@ -289,12 +305,12 @@ void PSSMCalculator::computeContextSpecificWeights(float *wg, size_t queryLength
 //        // Check all sequences k and update n[j][a] and ri[j] if necessary
 //        for (int k = 0; k < setSize; ++k) {
 //            // Update amino acid and GAP / ENDGAP counts for sequences with AA in i-1 and GAP/ENDGAP in i or vice versa
-//            if (X[k][i - 1] >= ANY && X[k][i] < ANY) {  // ... if sequence k was NOT included in i-1 and has to be included for column i
+//            if (X[k][i - 1] >= MultipleAlignment::ANY && X[k][i] < MultipleAlignment::ANY) {  // ... if sequence k was NOT included in i-1 and has to be included for column i
 //                change = 1;
 //                nseqi++;
 //                for (int j = 1; j <= queryLength; ++j)
 //                    n[j][(int) X[k][j]]++;
-//            } else if (X[k][i - 1] < ANY && X[k][i] >= ANY) {  // ... if sequence k WAS included in i-1 and has to be thrown out for column i
+//            } else if (X[k][i - 1] < MultipleAlignment::ANY && X[k][i] >= MultipleAlignment::ANY) {  // ... if sequence k WAS included in i-1 and has to be thrown out for column i
 //                change = 1;
 //                nseqi--;
 //                for (int j = 1; j <= queryLength; ++j)
@@ -330,12 +346,12 @@ void PSSMCalculator::computeContextSpecificWeights(float *wg, size_t queryLength
 //            if (ncol < NCOLMIN) {
 //                // Take global weights
 //                for (int k = 0; k < setSize; ++k)
-//                    wi[k] = (X[k][i] < ANY)? wg[k] : 0.0f;
+//                    wi[k] = (X[k][i] < MultipleAlignment::ANY)? wg[k] : 0.0f;
 //            } else {
 //                // Count number of different amino acids in column j
 //                for (int j = jmin; j <= jmax; ++j){
 //                    naa[j] = 0;
-//                    for (int a = 0; a < ANY; ++a){
+//                    for (int a = 0; a < MultipleAlignment::ANY; ++a){
 //                        naa[j] += (n[j][a] ? 1 : 0);
 //                    }
 //                }
@@ -345,19 +361,19 @@ void PSSMCalculator::computeContextSpecificWeights(float *wg, size_t queryLength
 //                for (int j = jmin; j <= jmax; ++j) {
 //                    simd_float naa_j = simdi32_i2f(simdi32_set(naa[j]));
 //                    const simd_int *nj = (const simd_int *) n[j];
-//                    const int aa_size = (ANY + VECSIZE_INT - 1) / VECSIZE_INT;
+//                    const int aa_size = (MultipleAlignment::ANY + VECSIZE_INT - 1) / VECSIZE_INT;
 //                    for (int a = 0; a < aa_size; ++a) {
 //                        simd_float nja = simdi32_i2f(simdi_load(nj + a));
 //                        simd_float res = simdf32_mul(nja, naa_j);
 //                        simdf32_store(w_contrib[j] + (a * VECSIZE_INT), simdf32_rcp(res));
 //                    }
-//                    for (int a = ANY; a < NAA + 3; ++a)
+//                    for (int a = MultipleAlignment::ANY; a < MultipleAlignment::NAA + 3; ++a)
 //                        w_contrib[j][a] = 0.0f;  // set non-amino acid values to 0 to avoid checking in next loop for X[k][j]<ANY
 //                }
 //
 //                // Compute pos-specific weights wi[k]
 //                for (int k = 0; k < setSize; ++k) {
-//                    if (X[k][i] >= ANY)
+//                    if (X[k][i] >= MultipleAlignment::ANY)
 //                        continue;
 //                    for (int j = jmin; j <= jmax; ++j)  // innermost, time-critical loop; O(L*setSize*L)
 //                        wi[k] += w_contrib[j][(int) X[k][j]];
@@ -369,42 +385,39 @@ void PSSMCalculator::computeContextSpecificWeights(float *wg, size_t queryLength
 //
 //            // Allocate and reset amino acid frequencies
 //            for (int j = jmin; j <= jmax; ++j)
-//                memset(f[j], 0, ANY * sizeof(float));
+//                memset(seqWeigth[j], 0, MultipleAlignment::ANY * sizeof(float));
 //
 //            // Update f[j][a]
 //            for (int k = 0; k < setSize; ++k) {
-//                if (X[k][i] >= ANY)
+//                if (X[k][i] >= MultipleAlignment::ANY)
 //                    continue;
 //                for (int j = jmin; j <= jmax; ++j)  // innermost loop; O(L*setSize*L)
-//                    f[j][(int) X[k][j]] += wi[k];
+//                    seqWeigth[j][(int) X[k][j]] += wi[k];
 //            }
 //
 //            // Add contributions to Neff[i]
 //            for (int j = jmin; j <= jmax; ++j) {
-//                NormalizeTo1(f[j], NAA);
-//                for (a = 0; a < 20; ++a)
-//                    if (f[j][a] > 1E-10)
-//                        Neff[i] -= f[j][a] * fast_log2(f[j][a]);
+//                NormalizeTo1(seqWeigth[j], MultipleAlignment::NAA);
+//                for (int a = 0; a < 20; ++a)
+//                    if (seqWeigth[j][a] > 1E-10)
+//                        Neff[i] -= seqWeigth[j][a] * fast_log2(seqWeigth[j][a]);
 //            }
 //
 //            if (ncol > 0)
 //                Neff[i] = fpow2(Neff[i] / ncol);
 //            else
 //                Neff[i] = 1.0;
-//
 //        }
-//
 //        else  //no update was necessary; copy values for i-1
 //        {
 //            Neff[i] = Neff[i - 1];
 //        }
 //    }
-//
-//    // Calculate amino acid frequencies q->f[i][a] from weights wi[k]
+
+    // Calculate amino acid frequencies q->f[i][a] from weights wi[k]
 //    for (int a = 0; a < 20; ++a)
 //        q->f[i][a] = 0;
 //    for (int k = 0; k < setSize; ++k)
-//            q->f[i][(int) X[k][i]] += wi[k];
-//    NormalizeTo1(q->f[i], NAA, pb);
-
+//        q->f[i][(int) X[k][i]] += wi[k];
+//    NormalizeTo1(q->f[i], MultipleAlignment::NAA, subMat->pBack);
 }

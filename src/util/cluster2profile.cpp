@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <MsaFilter.h>
 
 #include "Matcher.h"
 #include "SubstitutionMatrix.h"
@@ -103,24 +104,25 @@ int result2outputmode(Parameters par, int mode) {
 
     size_t maxSetSize = findMaxSetSize(clusterReader);
 
-    SubstitutionMatrix matrix(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     Debug(Debug::INFO) << "Start computing " << (!mode ? "MSAs" : "profiles") << ".\n";
 #pragma omp parallel
     {
-        Matcher matcher(maxSequenceLength, &matrix, tDbr->getAminoAcidDBSize(), tDbr->getSize(),
+        Matcher matcher(maxSequenceLength, &subMat, tDbr->getAminoAcidDBSize(), tDbr->getSize(),
                         par.compBiasCorrection);
 
-        MultipleAlignment aligner(maxSequenceLength, maxSetSize, &matrix, &matcher);
-        PSSMCalculator calculator(&matrix, maxSequenceLength);
+        MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
+        PSSMCalculator calculator(&subMat, maxSequenceLength);
+        MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
         Sequence  *centerSequence;
         if(par.profile == true){
-            centerSequence = new Sequence(maxSequenceLength, matrix.aa2int, matrix.int2aa, Sequence::HMM_PROFILE, 0, false);
+            centerSequence = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, 0, false);
         }else{
-            centerSequence = new Sequence(maxSequenceLength, matrix.aa2int, matrix.int2aa, Sequence::AMINO_ACIDS, 0, false);
+            centerSequence = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0, false);
         }
         Sequence **sequences = new Sequence *[maxSetSize];
         for (size_t i = 0; i < maxSetSize; i++) {
-            sequences[i] = new Sequence(maxSequenceLength, matrix.aa2int, matrix.int2aa, Sequence::AMINO_ACIDS, 0,
+            sequences[i] = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0,
                                         false);
         }
 
@@ -163,6 +165,7 @@ int result2outputmode(Parameters par, int mode) {
             size_t dataSize;
             switch (mode) {
                 case MSA:
+                {
                     for (size_t i = 0; i < res.setSize; i++) {
                         unsigned int key;
                         char* data;
@@ -179,17 +182,20 @@ int result2outputmode(Parameters par, int mode) {
                         msa << ">" << data;
                         for(size_t pos = 0; pos < res.msaSequenceLength; pos++){
                             char aa = res.msaSequence[i][pos];
-                            msa << (aa < MultipleAlignment::NAA) ? matrix.int2aa[aa] : '-';
+                            msa << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-');
                         }
                         msa << "\n";
                     }
                     result = msa.str();
                     data = (char *) result.c_str();
                     dataSize = result.length();
+                }
                     break;
                 case PSSM:
-                    data = (char *) calculator.computePSSMFromMSA(res.setSize, res.centerLength,
-                                                                  res.msaSequence);
+                {
+                    MsaFilter::MsaFilterResult filterRes = filter.filter(res.msaSequence, res.setSize, res.centerLength, 0, 0, -20.0, 90, 100);
+                    data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
+                                                                  filterRes.filteredMsaSequence, false);
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
 
                     for (size_t i = 0; i < dataSize; i++) {
@@ -198,6 +204,7 @@ int result2outputmode(Parameters par, int mode) {
                     }
                     //pssm.printProfile(res.centerLength);
                     //calculator.printPSSM(res.centerLength);
+                }
                     break;
                 default:
                     EXIT(EXIT_FAILURE);
