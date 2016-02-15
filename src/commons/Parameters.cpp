@@ -74,6 +74,7 @@ PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "Column
 PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$")
 {
     // alignment
+    alignment.push_back(PARAM_SUB_MAT);
     alignment.push_back(PARAM_ALIGNMENT_MODE);
     alignment.push_back(PARAM_E);
     alignment.push_back(PARAM_C);
@@ -85,11 +86,11 @@ PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Rege
     alignment.push_back(PARAM_MAX_REJECTED);
     alignment.push_back(PARAM_NUCL);
     alignment.push_back(PARAM_PROFILE);
-    alignment.push_back(PARAM_SUB_MAT);
     alignment.push_back(PARAM_THREADS);
     alignment.push_back(PARAM_V);
 
     // prefilter
+    prefilter.push_back(PARAM_SUB_MAT);
     prefilter.push_back(PARAM_S);
     prefilter.push_back(PARAM_K);
     prefilter.push_back(PARAM_K_SCORE);
@@ -105,7 +106,6 @@ PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Rege
     prefilter.push_back(PARAM_DIAGONAL_SCORING);
     prefilter.push_back(PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
-    prefilter.push_back(PARAM_SUB_MAT);
     prefilter.push_back(PARAM_THREADS);
     prefilter.push_back(PARAM_V);
 
@@ -122,8 +122,8 @@ PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Rege
     onlyverbosity.push_back(PARAM_V);
 
     // createprofiledb
-    createprofiledb.push_back(PARAM_PROFILE_TYPE);
     createprofiledb.push_back(PARAM_SUB_MAT);
+    createprofiledb.push_back(PARAM_PROFILE_TYPE);
     createprofiledb.push_back(PARAM_V);
 
     // result2profile
@@ -156,11 +156,11 @@ PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Rege
     splitffindex.push_back(PARAM_SPLIT_AMINOACID);
 
     // create index
+    createindex.push_back(PARAM_SUB_MAT);
     createindex.push_back(PARAM_K);
     createindex.push_back(PARAM_ALPH_SIZE);
     createindex.push_back(PARAM_MAX_SEQ_LEN);
     createindex.push_back(PARAM_SPLIT);
-    createindex.push_back(PARAM_SUB_MAT);
     createindex.push_back(PARAM_SEARCH_MODE);
     createindex.push_back(PARAM_SPACED_KMER_MODE);
     createindex.push_back(PARAM_V);
@@ -227,14 +227,14 @@ void Parameters::printUsageMessage(std::string programUsageHeader,
     }
 
     // header
-    ss << std::left << std::setw(maxWidth+1) << "Parameter Name";
+    ss << std::left << std::setw(maxWidth) << "Parameter Name" << "\t";
     ss << std::left << std::setw(16) << "Type & Value" << "\t";
     ss << "Description" << std::endl;
 
     // body
     for(size_t i = 0; i < parameters.size(); i++) {
         const MMseqsParameter& par = parameters[i];
-        ss << std::left << std::setw(maxWidth) << par.name << " ";
+        ss << std::left << std::setw(maxWidth) << par.name << "\t";
         ss << std::boolalpha << std::left << std::setw(6);
         if (par.type == typeid(int)) {
             ss << "[int:" << std::right << std::setw(10) << *((int *) par.value) << "]";
