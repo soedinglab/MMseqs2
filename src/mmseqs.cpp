@@ -92,7 +92,7 @@ static struct Command commands[] = {
 
 void printUsage() {
     std::stringstream usage;
-    usage << "\nAll available MMseqs commands\n";
+    usage << "All available MMseqs commands\n";
     usage << "Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n";
 
     struct {
@@ -112,6 +112,11 @@ void printUsage() {
                 usage << std::setw(20) << p->cmd << "\t" << p->description << "\n";
         }
     }
+
+    usage << "\nBash completion for subcommands and parameters can be installed by adding the following lines to your ~/.bash_profile:\n";
+    usage << "if [ -f $MMDIR/util/bash-completion.sh ]; then\n";
+    usage << "\t. $MMDIR/util/bash-completion.sh\n";
+    usage << "fi\n";
 
     Debug(Debug::INFO) << usage.str() << "\n";
 }
