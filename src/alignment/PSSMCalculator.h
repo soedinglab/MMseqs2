@@ -12,7 +12,8 @@ public:
 
     ~PSSMCalculator();
 
-    char const * computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs);
+    char const * computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
+                                    bool contextSpecificWeights);
     void printProfile(size_t queryLength);
     void printPSSM(size_t queryLength);
 
@@ -40,6 +41,9 @@ private:
     // pseudocount matrix (mem aligned)
     float * R;
 
+    // number of sequences in subalignment i (only for DEBUGGING)
+    int *nseqs;
+
     // compute position-specific scoring matrix PSSM score
     // 1.) convert PFM to PPM (position probability matrix)
     //     Both PPMs assume statistical independence between positions in the pattern
@@ -66,6 +70,7 @@ private:
     void computeMatchWeights(size_t setSize, size_t queryLength, const char **msaSeqs);
 
     void computeContextSpecificWeights(float *seqWeight, size_t queryLength, size_t setSize, const char **msaSeqs);
+
 };
 
 
