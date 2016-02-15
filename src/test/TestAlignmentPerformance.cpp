@@ -5,20 +5,24 @@
 //  Copyright (c) 2012 -. All rights reserved.
 //
 #include <iostream>
+#include <unistd.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <vector>
+#include <iostream>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include "kseq.h"
+#include "Util.h"
+#include "Parameters.h"
 #include "Sequence.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "smith_waterman_sse2.h"
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <vector>
-#include <iostream>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include "kseq.h"
-#include "Util.h"
+
 #define MAX_FILENAME_LIST_FILES 4096
 
 KSEQ_INIT(int, read);
@@ -49,7 +53,8 @@ int main (int argc, const char * argv[])
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out", 2.0, 0);
+    Parameters par;
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     std::cout << "\n";

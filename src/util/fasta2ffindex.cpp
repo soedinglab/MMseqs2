@@ -32,8 +32,6 @@ int createdb(int argn, const char **argv) {
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.createdb, 2);
-    Debug::setDebugLevel(par.verbosity);
-
 
     FILE *fasta_file = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
 

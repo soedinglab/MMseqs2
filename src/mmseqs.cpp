@@ -81,6 +81,10 @@ static struct Command commands[] = {
                 "Turn a GFF3 file into a ffindex database"},
         {"convertkb",           convertkb,              &par.onlyverbosity,         COMMAND_HELPER,
             "Converts Uniprot flat file into ffindex database"},
+        {"kbtotsv",             kbtotsv,                &par.onlyverbosity,         COMMAND_HELPER,
+                "Turns an UniprotKB file into separate TSV tables"},
+        {"clusteredges",        clusteredges,           &par.onlyverbosity,         COMMAND_HELPER,
+            "Extracts all the child to parent edges from clustering N to clustering N+1"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
 };
@@ -88,7 +92,7 @@ static struct Command commands[] = {
 
 void printUsage() {
     std::stringstream usage;
-    usage << "\nAll available MMseqs commands\n";
+    usage << "All available MMseqs commands\n";
     usage << "Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n";
 
     struct {
@@ -108,6 +112,11 @@ void printUsage() {
                 usage << std::setw(20) << p->cmd << "\t" << p->description << "\n";
         }
     }
+
+    usage << "\nBash completion for subcommands and parameters can be installed by adding the following lines to your ~/.bash_profile:\n";
+    usage << "if [ -f $MMDIR/util/bash-completion.sh ]; then\n";
+    usage << "\t. $MMDIR/util/bash-completion.sh\n";
+    usage << "fi\n";
 
     Debug(Debug::INFO) << usage.str() << "\n";
 }
