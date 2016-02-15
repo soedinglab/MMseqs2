@@ -94,7 +94,7 @@ int kbtotsv(int argn, const char **argv) {
         occurence_t occurence;
         lines_t lines;
         bool includeInDB;
-        char dbColumn;
+        int dbColumn;
         std::string (*transform)(std::string);
     } uniprotkb_prefix[] = {
             {UNIPROT_ID,  "ID", "Identification",               OCCURENCE_REQUIRED, LINES_SINGLE,          true,  0,  removeAfterFirstSpace},
