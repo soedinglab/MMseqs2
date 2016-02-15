@@ -5,12 +5,14 @@
 
 #include "SubstitutionMatrix.h"
 #include "Sequence.h"
+#include "Parameters.h"
 
 int main (int argc, const char * argv[]) {
 
     const size_t kmer_size = 6;
 
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out", 8.0, 0);
+    Parameters par;
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 8.0, 0);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix, subMat.int2aa, subMat.alphabetSize);
 

@@ -43,8 +43,6 @@ int clusteringworkflow(int argc, const char *argv[]) {
     setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, usage, par.clusteringWorkflow, 3);
 
-    Debug::setDebugLevel(par.verbosity);
-
     bool parameterSet = false;
     for (size_t i = 0; i < par.clusteringWorkflow.size(); i++) {
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_S.uniqid && par.clusteringWorkflow[i].wasSet) {
@@ -55,7 +53,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         }
     }
 
-    if (par.noAutomaticThreshold == false && parameterSet == false) {
+    if (parameterSet == false) {
         std::pair<float, bool> settings = setAutomaticThreshold(par.seqIdThr);
         par.sensitivity = settings.first;
         par.cascaded = settings.second;

@@ -14,8 +14,6 @@ int cluster(int argc, const char ** argv)
     Parameters par;
     par.parseParameters(argc, argv, usage, par.clustering, 3);
 
-    Debug::setDebugLevel(par.verbosity);
-
     Clustering* clu = new Clustering(par.db1, par.db1Index, par.db2, par.db2Index,
                                      par.db3, par.db3Index, par.validateClustering, par.maxIteration, par.similarityScoreType, par.threads);
 

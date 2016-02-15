@@ -28,8 +28,6 @@ int rebuildfasta(int argc, const char * argv[])
     Parameters par;
     par.parseParameters(argc, argv, usage, par.rebuildfasta, 2);
 
-    Debug::setDebugLevel(par.verbosity);
-
     std::string data_filename = par.db1;
     std::string index_filename = par.db1Index;
 

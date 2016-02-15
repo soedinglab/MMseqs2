@@ -19,7 +19,6 @@ int maskbygff(int argn, const char** argv) {
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.gff2ffindex, 3);
-    Debug::setDebugLevel(par.verbosity);
 
     DBReader<std::string> ffindexReader(par.db2.c_str(), par.db2Index.c_str(),
                                         DBReader<std::string>::USE_DATA | DBReader<std::string>::USE_WRITABLE);
