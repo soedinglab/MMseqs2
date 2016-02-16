@@ -39,33 +39,37 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
 	profile->mat_rev            = new int8_t[maxSequenceLength * aaSize * 2];
 	profile->mat                = new int8_t[maxSequenceLength * aaSize * 2];
 	tmp_composition_bias   = new float[maxSequenceLength];
+	/* array to record the largest score of each reference position */
+	maxColumn = new uint8_t[maxSequenceLength*sizeof(uint16_t)];
+	memset(maxColumn, 0, maxSequenceLength*sizeof(uint16_t));
 
 	memset(profile->query_sequence, 0, maxSequenceLength * sizeof(int8_t));
 	memset(profile->query_rev_sequence, 0, maxSequenceLength * sizeof(int8_t));
 	memset(profile->mat_rev, 0, maxSequenceLength * Sequence::PROFILE_AA_SIZE);
 	memset(profile->composition_bias, 0, maxSequenceLength * sizeof(int8_t));
 	memset(profile->composition_bias_rev, 0, maxSequenceLength * sizeof(int8_t));
-	/* array to record the largest score of each reference position */
-	maxColumn = new uint8_t[maxSequenceLength*sizeof(uint16_t)];
-	memset(maxColumn, 0, maxSequenceLength*sizeof(uint16_t));
 }
 
 SmithWaterman::~SmithWaterman(){
 	free(vHStore);
-	free(vHmax);
-	free(vE);
 	free(vHLoad);
+	free(vE);
+	free(vHmax);
 	free(profile->profile_byte);
 	free(profile->profile_word);
 	free(profile->profile_rev_byte);
 	free(profile->profile_rev_word);
-
 	delete [] profile->query_rev_sequence;
 	delete [] profile->query_sequence;
+	delete [] profile->composition_bias;
+	delete [] profile->composition_bias_rev;
+	delete [] profile->profile_word_linear;
+	delete [] profile_word_linear_data;
 	delete [] profile->mat_rev;
 	delete [] profile->mat;
-	delete profile;
+	delete [] tmp_composition_bias;
 	delete [] maxColumn;
+	delete profile;
 }
 
 

@@ -144,6 +144,13 @@ public:
     bool allowDeletion;
     bool addInternalId;
 
+    // result2profile
+    int Ndiff;
+    float cov;
+    float qid;
+    float qsc;
+    bool wg;
+
     // createdb
     bool useHeader;
     int identifierOffset;
@@ -231,6 +238,13 @@ public:
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION);
     PARAMETER(PARAM_ADD_INTERNAL_ID);
+
+    // result2profile
+    PARAMETER(PARAM_QSC);
+    PARAMETER(PARAM_QID);
+    PARAMETER(PARAM_COV);
+    PARAMETER(PARAM_NDIFF);
+    PARAMETER(PARAM_WG);
 
     // workflow
     PARAMETER(PARAM_RUNNER);

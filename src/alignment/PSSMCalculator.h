@@ -13,7 +13,8 @@ public:
     ~PSSMCalculator();
 
     char const * computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
-                                    bool contextSpecificWeights);
+                                    bool wg);
+
     void printProfile(size_t queryLength);
     void printPSSM(size_t queryLength);
 
@@ -44,6 +45,17 @@ private:
     // number of sequences in subalignment i (only for DEBUGGING)
     int *nseqs;
 
+    // weight contribution value for each sequence
+    float **w_contrib;
+
+    // weight of sequence k in column i, calculated from subalignment i
+    float *wi;
+
+    // number of different amino acids
+    int *naa;
+
+    size_t maxSeqLength;
+
     // compute position-specific scoring matrix PSSM score
     // 1.) convert PFM to PPM (position probability matrix)
     //     Both PPMs assume statistical independence between positions in the pattern
@@ -67,9 +79,9 @@ private:
     // compute pseudocounts from Neff_M -p log(p) per column
     void computePseudoCounts(float *profile, float *frequency, float *frequency_with_pseudocounts, size_t length);
 
-    void computeMatchWeights(size_t setSize, size_t queryLength, const char **msaSeqs);
+    void computeMatchWeights(float * matchWeight, float * seqWeight, size_t setSize, size_t queryLength, const char **msaSeqs);
 
-    void computeContextSpecificWeights(float *seqWeight, size_t queryLength, size_t setSize, const char **msaSeqs);
+    void computeContextSpecificWeights(float * matchWeight, float *seqWeight, float * Neff_M, size_t queryLength, size_t setSize, const char **msaSeqs);
 
 };
 
