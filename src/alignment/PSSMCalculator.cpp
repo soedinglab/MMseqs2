@@ -244,7 +244,7 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
             }
         }
     }
-    std::cout << setSize << std::endl;
+//    std::cout << setSize << std::endl;
     NormalizeTo1(seqWeight, setSize);
 //    std::cout << " Seq. Weight: " << std::endl;
 //    for (size_t k = 0; k < setSize; ++k) {

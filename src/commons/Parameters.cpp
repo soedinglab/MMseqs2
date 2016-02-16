@@ -136,6 +136,10 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_SUB_MAT);
     result2profile.push_back(PARAM_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2profile.push_back(PARAM_QID);
+    result2profile.push_back(PARAM_QSC);
+    result2profile.push_back(PARAM_COV);
+    result2profile.push_back(PARAM_NDIFF);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
 
