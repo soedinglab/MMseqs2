@@ -60,8 +60,8 @@ int main (int argc, const char * argv[])
     seqSet.push_back(&s3);
     seqSet.push_back(&s4);
     //seqSet.push_back(s5);
-    Matcher aligner(10000, &subMat, 100000 ,seqSet.size(), false);
-    MultipleAlignment msaAligner(1000, 10, &subMat, &aligner);
+    Matcher * aligner = new Matcher(10000, &subMat, 100000 ,seqSet.size(), false);
+    MultipleAlignment msaAligner(1000, 10, &subMat, aligner);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s1, seqSet, true);
     MsaFilter filter(1000, 10000, &subMat);
     MsaFilter::MsaFilterResult msafilter = filter.filter(res.msaSequence, res.setSize, res.centerLength, 0, 0, -20.0f, 50, 100);
@@ -74,7 +74,7 @@ int main (int argc, const char * argv[])
     pssm.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence, false);
     pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
-
+    delete aligner;
     return 0;
 }
 

@@ -255,7 +255,7 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
         if (qdiff_max_frac < 0.999) {
 
             qdiff_max = int(qdiff_max_frac * nres[k] + 0.9999);
-                  printf("k=%-4i  nres=%-4i  qdiff_max=%-4i first=%-4i last=%-4i",k,nres[k],qdiff_max,first[k],last[k]);
+//                  printf("k=%-4i  nres=%-4i  qdiff_max=%-4i first=%-4i last=%-4i",k,nres[k],qdiff_max,first[k],last[k]);
             diff = 0;
             for (int i = first[k]; i <= last[k]; ++i)
                 // enough different residues to reject based on minimum qid with query? => break
@@ -310,10 +310,10 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
         // Update Nmax[i]
         diffNmax_prev = diffNmax;
         diffNmax = 0;
-        for (i = 1; i <= L; ++i) {
+        for (i = 0; i < L; ++i) {
             int max = 0;
-            for (j = std::max(1, std::min(L - 2 * WFIL + 1, i - WFIL));
-                 j <= std::min(L, std::max(2 * WFIL, i + WFIL)); ++j)
+            for (j = std::max(0, std::min(L - 2 * WFIL + 1, i - WFIL));
+                 j < std::min(L, std::max(2 * WFIL, i + WFIL)); ++j)
                 if (N[j] > max)
                     max = N[j];
             if (Nmax[i] < max)
@@ -326,7 +326,7 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
             }
         }
 
-        printf("seqid=%3i  diffNmax_prev= %-4i   diffNmax= %-4i   n=%-5i  N_in-N_ss=%-5i\n",seqid,diffNmax_prev,diffNmax,n,N_in);
+//        printf("seqid=%3i  diffNmax_prev= %-4i   diffNmax= %-4i   n=%-5i  N_in-N_ss=%-5i\n",seqid,diffNmax_prev,diffNmax,n,N_in);
         if (stop)
             break;
 
@@ -468,23 +468,23 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
 
     }  // End Loop over seqid
 
-    Debug(Debug::WARNING) << n << " out of " << N_in << " sequences passed filter (";
-    if (coverage) {
-        Debug(Debug::WARNING) << coverage << "% min coverage, ";
-    }
-    if (qid) {
-        Debug(Debug::WARNING) << qid << "% min sequence identity to query, ";
-    }
-    if (qsc > -10) {
-        Debug(Debug::WARNING) << qsc << " bits min score per column to query, ";
-    }
-    if (Ndiff < N_in && Ndiff > 0) {
-        Debug(Debug::WARNING)
-        << "up to " << seqid
-        << "% position-dependent max pairwise sequence identity)\n";
-    } else {
-        Debug(Debug::WARNING) << seqid1 << "% max pairwise sequence identity)\n";
-    }
+//    Debug(Debug::WARNING) << n << " out of " << N_in << " sequences passed filter (";
+//    if (coverage) {
+//        Debug(Debug::WARNING) << coverage << "% min coverage, ";
+//    }
+//    if (qid) {
+//        Debug(Debug::WARNING) << qid << "% min sequence identity to query, ";
+//    }
+//    if (qsc > -10) {
+//        Debug(Debug::WARNING) << qsc << " bits min score per column to query, ";
+//    }
+//    if (Ndiff < N_in && Ndiff > 0) {
+//        Debug(Debug::WARNING)
+//        << "up to " << seqid
+//        << "% position-dependent max pairwise sequence identity)\n";
+//    } else {
+//        Debug(Debug::WARNING) << seqid1 << "% max pairwise sequence identity)\n";
+//    }
 
     for (k = 0; k < N_in; ++k)
         keep[k] = in[k];
