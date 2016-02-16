@@ -59,6 +59,7 @@ typedef __m512  simd_float;
 #define simdf32_sub(x,y)    _mm512_sub_ps(x,y)
 #define simdf32_mul(x,y)    _mm512_mul_ps(x,y)
 #define simdf32_div(x,y)    _mm512_div_ps(x,y)
+#define simdf32_rcp(x)      _mm512_rcp_ps(x)
 #define simdf32_max(x,y)    _mm512_max_ps(x,y)
 #define simdf32_min(x,y)    _mm512_min_ps(x,y)
 #define simdf32_load(x)     _mm512_load_ps(x)
@@ -224,6 +225,7 @@ typedef __m256 simd_float;
 #define simdf32_sub(x,y)    _mm256_sub_ps(x,y)
 #define simdf32_mul(x,y)    _mm256_mul_ps(x,y)
 #define simdf32_div(x,y)    _mm256_div_ps(x,y)
+#define simdf32_rcp(x)      _mm256_rcp_ps(x)
 #define simdf32_max(x,y)    _mm256_max_ps(x,y)
 #define simdf32_min(x,y)    _mm256_min_ps(x,y)
 #define simdf32_load(x)     _mm256_load_ps(x)
@@ -280,6 +282,7 @@ typedef __m128  simd_float;
 #define simdf32_sub(x,y)    _mm_sub_ps(x,y)
 #define simdf32_mul(x,y)    _mm_mul_ps(x,y)
 #define simdf32_div(x,y)    _mm_div_ps(x,y)
+#define simdf32_rcp(x)      _mm_rcp_ps(x)
 #define simdf32_max(x,y)    _mm_max_ps(x,y)
 #define simdf32_min(x,y)    _mm_min_ps(x,y)
 #define simdf32_load(x)     _mm_load_ps(x)
@@ -482,6 +485,28 @@ inline simd_int * malloc_simd_int(const size_t size)
     return (simd_int *) mem_align(ALIGN_INT,size);
 }
 #endif
+
+template <typename T>
+T** malloc_matrix(int dim1, int dim2) {
+#define ICEIL(x_int, fac_int) ((x_int + fac_int - 1) / fac_int) * fac_int
+
+    // Compute mem sizes rounded up to nearest multiple of ALIGN_FLOAT
+    size_t size_pointer_array = ICEIL(dim1*sizeof(T*), ALIGN_FLOAT);
+    size_t dim2_padded = ICEIL(dim2*sizeof(T), ALIGN_FLOAT)/sizeof(T);
+
+    T** matrix = (T**) mem_align( ALIGN_FLOAT, size_pointer_array + dim1*dim2_padded*sizeof(T) );
+    if (matrix == NULL)
+        return matrix;
+
+    T* ptr = (T*) (matrix + (size_pointer_array/sizeof(T*)) );
+    for (int i=0; i<dim1; ++i) {
+        matrix[i] = ptr;
+        ptr += dim2_padded;
+    }
+#undef ICEIL
+    return matrix;
+}
+
 
 inline float ScalarProd20(const float* qi, const float* tj) {
 
