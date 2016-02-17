@@ -145,15 +145,17 @@ public:
     bool addInternalId;
 
     // result2profile
-    int Ndiff;
-    float cov;
-    float qid;
+    float filterMaxSeqId;
     float qsc;
+    float qid;
+    float cov;
+    int Ndiff;
     bool wg;
 
     // createdb
     bool useHeader;
     int identifierOffset;
+    bool splitSeqByLen;
 
     // rebuildfasta
     bool useHeaderFile;
@@ -240,10 +242,11 @@ public:
     PARAMETER(PARAM_ADD_INTERNAL_ID);
 
     // result2profile
-    PARAMETER(PARAM_QSC);
-    PARAMETER(PARAM_QID);
-    PARAMETER(PARAM_COV);
-    PARAMETER(PARAM_NDIFF);
+    PARAMETER(PARAM_FILTER_MAX_SEQ_ID);
+    PARAMETER(PARAM_FILTER_QSC);
+    PARAMETER(PARAM_FILTER_QID);
+    PARAMETER(PARAM_FILTER_COV);
+    PARAMETER(PARAM_FILTER_NDIFF);
     PARAMETER(PARAM_WG);
 
     // workflow
