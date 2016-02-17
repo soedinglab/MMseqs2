@@ -194,7 +194,7 @@ int result2outputmode(Parameters par, int mode) {
                 case PSSM:
                 {
                     MsaFilter::MsaFilterResult filterRes = filter.filter(res.msaSequence, res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
-                                                                         static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.cov * 100), par.Ndiff);
+                                                                         static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
                     data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
                                                                   filterRes.filteredMsaSequence, par.wg);
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);

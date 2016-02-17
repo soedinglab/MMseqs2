@@ -54,10 +54,11 @@ Parameters::Parameters():
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "Allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "Add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, ""),
 // result2profile
-        PARAM_QSC(PARAM_QSC_ID,"--qsc", "Minimum score per column", "Minimum score per column with master sequence [-50.0,100.0]", typeid(float), (void*) &qsc, "^[0-9]*(\\.[0-9]+)?$"),
-        PARAM_QID(PARAM_QID_ID,"--qid", "Minimum seq. id.", "Minimum sequence identity with master sequence [0.0,1.0]", typeid(float), (void*) &qid, "^[0-9]*(\\.[0-9]+)?$"),
-        PARAM_COV(PARAM_COV_ID,"--cov", "Minimum coverage", "Minimum coverage with master sequence [0.0,1.0]", typeid(float), (void*) &cov, "^[0-9]*(\\.[0-9]+)?$"),
-        PARAM_NDIFF(PARAM_NDIFF_ID,"--diff", "Select n most diverse seqs", "Filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50", typeid(int), (void*) &Ndiff, "^[1-9]{1}[0-9]*$"),
+        PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum sequence identity threshold", "Maximum sequence identity with all other sequences in alignment [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_FILTER_QSC(PARAM_FILTER_QSC_ID, "--qsc", "Minimum score per column", "Minimum score per column with master sequence [-50.0,100.0]", typeid(float), (void*) &qsc, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_FILTER_QID(PARAM_FILTER_QID_ID, "--qid", "Minimum seq. id.", "Minimum sequence identity with master sequence [0.0,1.0]", typeid(float), (void*) &qid, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_FILTER_COV(PARAM_FILTER_COV_ID, "--cov", "Minimum coverage", "Minimum coverage with master sequence [0.0,1.0]", typeid(float), (void*) &cov, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_FILTER_NDIFF(PARAM_FILTER_NDIFF_ID, "--diff", "Select n most diverse seqs", "Filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50", typeid(int), (void*) &Ndiff, "^[1-9]{1}[0-9]*$"),
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "Use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, ""),
 // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","Sets the MPI runner",typeid(std::string),(void *) &runner, ""),
@@ -136,10 +137,11 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_SUB_MAT);
     result2profile.push_back(PARAM_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
-    result2profile.push_back(PARAM_QID);
-    result2profile.push_back(PARAM_QSC);
-    result2profile.push_back(PARAM_COV);
-    result2profile.push_back(PARAM_NDIFF);
+    result2profile.push_back(PARAM_FILTER_MAX_SEQ_ID);
+    result2profile.push_back(PARAM_FILTER_QID);
+    result2profile.push_back(PARAM_FILTER_QSC);
+    result2profile.push_back(PARAM_FILTER_COV);
+    result2profile.push_back(PARAM_FILTER_NDIFF);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
 
@@ -542,11 +544,12 @@ void Parameters::setDefaults() {
     addInternalId = false;
 
     // result2profile
+    filterMaxSeqId = 0.9;
     qid = 0.0;           // default for minimum sequence identity with query
     qsc = -20.0f;        // default for minimum score per column with query
     cov = 0.0;           // default for minimum coverage threshold
     Ndiff = 100;         // pick Ndiff most different sequences from alignment
-    wg = true;
+    wg = false;
     // logging
     verbosity = Debug::INFO;
 
