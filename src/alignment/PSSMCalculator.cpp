@@ -78,9 +78,10 @@ char const * PSSMCalculator::computePSSMFromMSA(size_t setSize,
     }
     // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
     preparePseudoCounts(matchWeight, pseudocountsWeight, queryLength, (const float *) R);
+//    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->int2aa, 20 );
     computePseudoCounts(profile, matchWeight, pseudocountsWeight, queryLength);
     // create final Matrix
-    computeLogPSSM(pssm, profile, queryLength, -0.2);
+    computeLogPSSM(pssm, profile, queryLength, 0.0);
     return pssm;
 }
 
@@ -258,13 +259,13 @@ void PSSMCalculator::computePseudoCounts(float *profile, float *frequency, float
     float pcb = 1.5f; //TODO
     for (size_t pos = 0; pos < queryLength; pos++) {
         float tau = fmin(1.0, pca / (1.0 + Neff_M[pos] / pcb));
-//        printf("%f\n", tau);
 
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
             // compute proportion of pseudo counts and signal
             float pseudoCounts    = tau * frequency_with_pseudocounts[pos * Sequence::PROFILE_AA_SIZE + aa];
             float frequencySignal = (1.0 - tau) * frequency[pos * Sequence::PROFILE_AA_SIZE + aa];
             profile[pos * Sequence::PROFILE_AA_SIZE + aa] = frequencySignal + pseudoCounts;
+//            printf("%f %f %f %f\n", tau, frequencySignal, pseudoCounts,  profile[pos * Sequence::PROFILE_AA_SIZE + aa]);
         }
     }
 }

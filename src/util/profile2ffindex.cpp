@@ -96,7 +96,7 @@ void parseHMM(char *data, std::string *header, char *profileBuffer, size_t *size
 
                 double score = MathUtil::flog2(p / backProb) * bitFactor;
                 // rounding
-                profileBuffer[curr_pos] = (char) floor(score + 0.5);
+                profileBuffer[curr_pos]  = static_cast<char>((score < 0.0) ? score - 0.5 : score + 0.5);
 //                Debug(Debug::INFO) << aa_num << " " << subMat->int2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
             }
             // shifted score by -128 to avoid \0
