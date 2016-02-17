@@ -137,6 +137,7 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_SUB_MAT);
     result2profile.push_back(PARAM_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2profile.push_back(PARAM_WG);
     result2profile.push_back(PARAM_FILTER_MAX_SEQ_ID);
     result2profile.push_back(PARAM_FILTER_QID);
     result2profile.push_back(PARAM_FILTER_QSC);
