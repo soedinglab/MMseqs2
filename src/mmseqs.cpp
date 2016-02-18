@@ -83,8 +83,8 @@ static struct Command commands[] = {
             "Converts Uniprot flat file into ffindex database"},
         {"kbtotsv",             kbtotsv,                &par.onlyverbosity,         COMMAND_HELPER,
                 "Turns an UniprotKB file into separate TSV tables"},
-        {"clusteredges",        clusteredges,           &par.onlyverbosity,         COMMAND_HELPER,
-            "Extracts all the child to parent edges from clustering N to clustering N+1"},
+        {"result2newick",       result2newick,          &par.onlyverbosity,         COMMAND_HELPER,
+            "Extracts clustering relationship from clustering steps into Newick trees"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
 };
