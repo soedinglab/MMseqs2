@@ -249,7 +249,7 @@ void DBWriter::write(const char* data, int64_t dataSize, const char* key, int th
     checkClosed();
     if (thrIdx >= maxThreadNum){
         Debug(Debug::ERROR) <<  "ERROR: Thread index " << thrIdx << " > maximum thread number " << maxThreadNum << "\n";
-        EXIT(1);
+        EXIT(EXIT_FAILURE);
     }
 
     // legacy ffindex uses char* instead of const char*, the data is not changed however so the const cast is safe
