@@ -22,7 +22,7 @@ set(util_source_files
   convertkb.cpp
   kbtotsv.cpp
   substractresult.cpp
-  clusteredges.cpp
+  result2newick.cpp
 )
 
 add_library(util ${util_source_files} )
