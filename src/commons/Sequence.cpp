@@ -3,7 +3,7 @@
 #include "Util.h"
 #include "simd.h"
 #include "ScoreMatrix.h"
-
+#include "SubstitutionMatrix.h"
 #include <climits> // short_max
 
 
@@ -180,12 +180,6 @@ void Sequence::mapProfile(const char * sequenze){
             short value = static_cast<short>(data[currPos + aa_idx] ^ mask);
             profile_score[l * profile_row_size + aa_idx] = value*4;
         }
-        // sort profile scores and index for KmerGenerator (prefilter step)
-        unsigned int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
-        Util::rankedDescSort20(&profile_score[l * profile_row_size],(unsigned int *) &indexArray);
-        memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
-        // create consensus sequence
-        int_sequence[l] = indexArray[0]; // index 0 is the highst scoring one
         l++;
         if(l >= this->maxLen ){
             Debug(Debug::ERROR) << "ERROR: Sequenze with id: " << this->dbKey << " is longer than maxRes.\n";
@@ -194,8 +188,18 @@ void Sequence::mapProfile(const char * sequenze){
         // go to begin of next entry 0, 20, 40, 60, ...
         currPos += PROFILE_AA_SIZE;
     }
-
     this->L = l;
+
+    //
+    SubstitutionMatrix::calcGlobalAaBiasCorrection(profile_score, profile_row_size, this->L);
+    // sort profile scores and index for KmerGenerator (prefilter step)
+    for(int l = 0; l < this->L; l++){
+        unsigned int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+        Util::rankedDescSort20(&profile_score[l * profile_row_size], (unsigned int *) &indexArray);
+        memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
+        // create consensus sequence
+        int_sequence[l] = indexArray[0]; // index 0 is the highst scoring one
+    }
 
     // write alignemnt profile
     for(int l = 0; l < this->L; l++){
@@ -206,6 +210,7 @@ void Sequence::mapProfile(const char * sequenze){
     }
 //    printProfile();
 }
+
 
 
 

@@ -5,6 +5,7 @@
 #include <cstring>
 #include <algorithm>
 #include <fstream>
+#include <math.h>
 
 
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
@@ -66,21 +67,25 @@ void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
    => p(a) = f(a) * 2^[ (1/L) * \sum_{i=1}^L  S(pi, a) ]
  */
 
-void SubstitutionMatrix::calcGlobalAaBiasCorrection(const BaseMatrix *m,
-                                                    const short *profileScores,
-                                                    const unsigned int *profileIndex,
+void SubstitutionMatrix::calcGlobalAaBiasCorrection(short *profileScores,
                                                     const size_t profileAASize,
-                                                    const int N,
-                                                    float *compositionBias) {
+                                                    const int N) {
 
     const int windowSize = 40;
-    int scorePerPos[N]; //TODO
+
+    float pnul[20];
+    memset(pnul, 0, sizeof(float) * 20);
+
+
     for (int pos = 0; pos < N; pos++) {
         const short * subMat = profileScores + (pos * profileAASize);
         for(size_t aa = 0; aa < 20; aa++) {
-            scorePerPos[pos] += subMat[aa];
+            pnul[aa] += subMat[aa]  ;
         }
     }
+    for(size_t aa = 0; aa < 20; aa++)
+        pnul[aa] /= N;
+    float avg = 0.0;
     for (int i = 0; i < N; i++){
         const int minPos = std::max(0, (i - windowSize/2));
         const int maxPos = std::min(N, (i + windowSize/2));
@@ -91,15 +96,22 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(const BaseMatrix *m,
 
         for (int j = minPos; j < maxPos; j++){
             const short * subMat = profileScores + (j * profileAASize);
-            if(i == j )
+            if( i == j )
                 continue;
             for(size_t aa = 0; aa < 20; aa++){
-                aaSum[aa] += subMat[aa] - scorePerPos[j];
+                aaSum[aa] += subMat[aa] - pnul[aa];
             }
         }
-//        std::cout << i << " " << compositionBias[i] << std::endl;
+        for(size_t aa = 0; aa < 20; aa++) {
+//            printf("%d\t%d\t%2.3f\t%d\n", i, (profileScores + (i * profileAASize))[aa],
+//                   aaSum[aa]/windowLength,
+//                   static_cast<int>((profileScores + (i * profileAASize))[aa] -  aaSum[aa]/windowLength) );
+            //std::cout << i << "\t" << (profileScores + (i * profileAASize))[aa] << "\t" <<  aaSum[aa]/windowLength << "\t" <<  (profileScores + (i * profileAASize))[aa] -  aaSum[aa]/windowLength << std::endl;
+            profileScores[i*profileAASize + aa] = static_cast<int>((profileScores + (i * profileAASize))[aa] - aaSum[aa]/windowLength);
+//            avg += static_cast<int>((profileScores + (i * profileAASize))[aa] -  aaSum[aa]/windowLength);
+        }
     }
-
+//    std::cout << "avg=" << avg/(N*20) << std::endl;
 }
 
 
