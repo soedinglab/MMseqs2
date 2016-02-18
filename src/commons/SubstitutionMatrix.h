@@ -24,12 +24,9 @@ class SubstitutionMatrix: public BaseMatrix {
 
         static void calcLocalAaBiasCorrection(const BaseMatrix *m ,const int *int_sequence, const int N, float *compositionBias);
 
-        static void calcGlobalAaBiasCorrection(const BaseMatrix *m,
-                                               const short *profileScores,
-                                               const unsigned int *profileIndex,
+        static void calcGlobalAaBiasCorrection( short *profileScores,
                                                const size_t profileAASize,
-                                               const int N,
-                                               float * compositionBias);
+                                               const int N);
 
 private:
 
