@@ -192,10 +192,28 @@ int result2outputmode(Parameters par, int mode) {
                 }
                     break;
                 case PSSM:
-                {
-                    MsaFilter::MsaFilterResult filterRes = filter.filter(res.msaSequence, res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
+                {   
+/*                  std::cout << centerSequence->getDbKey() << " " << res.setSize <<  std::endl;;
+                    for (size_t i = 0; i < res.setSize; i++) {
+                       for(size_t pos = 0; pos < res.msaSequenceLength; pos++){
+                              char aa = res.msaSequence[i][pos];
+                              std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-');
+                       }
+                       std::cout << std::endl;
+                    }
+*/
+		    MsaFilter::MsaFilterResult filterRes = filter.filter(res.msaSequence, res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
                                                                          static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
-                    data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
+/*                  std::cout << centerSequence->getDbKey() << " " << res.setSize << " " << filterRes.setSize << std::endl;
+		    for (size_t i = 0; i < filterRes.setSize; i++) {
+                       for(size_t pos = 0; pos < res.msaSequenceLength; pos++){
+                              char aa = filterRes.filteredMsaSequence[i][pos];
+                              std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-');
+                       }
+                       std::cout << std::endl;
+                    }
+*/		    
+		    data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
                                                                   filterRes.filteredMsaSequence, par.wg);
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
 

@@ -207,11 +207,11 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
     for (size_t i = 0; i < FRAMES; ++i) {
         if(isInsideOrf[i]) {
             isInsideOrf[i] = false;
-            size_t to = sequenceLength - 1;
-            while ((to - i) % 3 != 0)
-                to--;
+            size_t to = sequenceLength;
+            while (to - i % 3 != 0)
+		to--;
 
-            if(to == from[i])
+            if(to <= from[i])
                 continue;
 
             assert(to > from[i]);
