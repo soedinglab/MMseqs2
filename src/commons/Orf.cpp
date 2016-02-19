@@ -23,6 +23,9 @@ bool Orf::setSequence(const char* seq) {
 
     sequenceLength = strlen(seq);
 
+    if(sequenceLength < 3)
+        return false;
+
     sequence = strdup(seq);
     for(size_t i = 0; i < sequenceLength; ++i) {
         sequence[i] = toupper(seq[i]);
@@ -204,8 +207,8 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
     for (size_t i = 0; i < FRAMES; ++i) {
         if(isInsideOrf[i]) {
             isInsideOrf[i] = false;
-            size_t to = sequenceLength;
-            while (to % 3 != 0)
+            size_t to = sequenceLength - 1;
+            while ((to - i) % 3 != 0)
                 to--;
 
             if(to == from[i])
