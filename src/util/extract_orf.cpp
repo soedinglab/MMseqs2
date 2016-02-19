@@ -71,21 +71,24 @@ int extractorf(int argn, const char** argv)
 
     int forwardFrames = getFrames(par.forwardFrames);
     int reverseFrames = getFrames(par.reverseFrames);
-
+    Orf orf;
     size_t total = 0;
     for (unsigned int i = 0; i < reader.getSize(); ++i){
-        const char* data = reader.getData(i);
-        Orf orf(data);
+        std::string data(reader.getData(i));
+        // remove newline in sequence
+        data.erase(std::remove(data.begin(), data.end(), '\n'), data.end());
+
+        if(!orf.setSequence(data.c_str())) {
+            Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
+            continue;
+        }
+
+        std::string header(headerReader.getData(i));
+        // remove newline in header
+        header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
+
         std::vector<Orf::SequenceLocation> res;
         orf.FindOrfs(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames);
-
-        char* header = headerReader.getData(i);
-        size_t headerLength = headerReader.getSeqLens(i) - 1;
-
-        // remove newline in header
-        char headerBuffer[headerLength];
-        strncpy(headerBuffer, header, headerLength);
-        headerBuffer[headerLength - 1] = '\0';
 
         size_t orfNum = 0;
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
@@ -109,7 +112,7 @@ int extractorf(int argn, const char** argv)
                 continue;
 
             char buffer[LINE_MAX];
-            snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", headerBuffer, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+            snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", header.c_str(), loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
             headerWriter.write(buffer, strlen(buffer), id.c_str());
 

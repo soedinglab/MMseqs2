@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <cstdlib>
 
 class Orf
 {
@@ -24,10 +25,12 @@ public:
         Strand strand;
     };
 
-    explicit Orf(const char* sequence);
+    Orf();
+
+    bool setSequence(const char* sequence);
     
     ~Orf() {
-        delete[] reverseComplement;
+        cleanup();
     }
 
     /// Find all ORFs in both orientations that are at least orfMinLength and at most orfMaxLength long.
@@ -47,6 +50,17 @@ private:
     size_t sequenceLength;
     char* sequence;
     char* reverseComplement;
+
+    void cleanup() {
+        if (sequence) {
+            free(sequence);
+            sequence = NULL;
+        }
+        if (reverseComplement) {
+            free(reverseComplement);
+            reverseComplement = NULL;
+        }
+    }
 };
 
 void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Orf::SequenceLocation>& ranges,
