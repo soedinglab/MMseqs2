@@ -71,6 +71,14 @@ int extractorf(int argn, const char** argv)
 
     int forwardFrames = getFrames(par.forwardFrames);
     int reverseFrames = getFrames(par.reverseFrames);
+
+    int extendMode = 0;
+    if(par.orfLongest)
+        extendMode |= Orf::EXTEND_START;
+
+    if(par.orfExtendMin)
+        extendMode |= Orf::EXTEND_END;
+
     Orf orf;
     size_t total = 0;
     for (unsigned int i = 0; i < reader.getSize(); ++i){
@@ -88,7 +96,7 @@ int extractorf(int argn, const char** argv)
         header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
 
         std::vector<Orf::SequenceLocation> res;
-        orf.FindOrfs(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames);
+        orf.FindOrfs(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
 
         size_t orfNum = 0;
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {

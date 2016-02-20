@@ -58,15 +58,16 @@ void Orf::FindOrfs(std::vector<Orf::SequenceLocation>& results,
                     size_t maxLength,
                     size_t maxGaps,
                     int forwardFrames,
-                    int reverseFrames)
+                    int reverseFrames,
+                    int extendMode)
 {
     // find ORFs on the forward sequence and report them as-is
     FindForwardOrfs(sequence, sequenceLength, results,
-                        minLength, maxLength, maxGaps, forwardFrames, STRAND_PLUS);
+                        minLength, maxLength, maxGaps, forwardFrames, extendMode, STRAND_PLUS);
 
     // find ORFs on the reverse complement
     FindForwardOrfs(reverseComplement, sequenceLength, results,
-                        minLength, maxLength, maxGaps, reverseFrames, STRAND_MINUS);
+                        minLength, maxLength, maxGaps, reverseFrames, extendMode, STRAND_MINUS);
 }
 
 inline bool isIncomplete(const char* codon) {
@@ -94,7 +95,7 @@ inline bool isStop(const char* codon) {
 }
 
 void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Orf::SequenceLocation>& ranges,
-    size_t minLength, size_t maxLength, size_t maxGaps, int frames, Orf::Strand strand) {
+    size_t minLength, size_t maxLength, size_t maxGaps, int frames, int extendMode, Orf::Strand strand) {
     if (frames == 0)
         return;
 
@@ -132,8 +133,16 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
             }
 
             bool nextIncomplete = isIncomplete(codon + FRAMES);
+
+            // if we have the start extend mode the returned orf should return the longest
+            // possible orf with possibly multiple start codons
             bool shouldStart = false;
+            if((extendMode & Orf::EXTEND_START)) {
+                shouldStart = isInsideOrf[frame] == false && isStart(codon);
+            } else {
                 shouldStart = isStart(codon);
+            }
+
             // do not start a new orf on the last codon
             if(shouldStart && nextIncomplete == false) {
                 isInsideOrf[frame] = true;
@@ -154,11 +163,11 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
             bool thisIncomplete = isIncomplete(codon);
             bool isOrfEnd = isInsideOrf[frame] && isStop(codon);
             if(isOrfEnd || thisIncomplete || nextIncomplete) {
+                // possibly bail early if we have an orf shorter than minLength
                 // so we can find another longer one
-                // TODO: Add parameter for orf extension
-                // if (countLength[frame] <= minLength) {
-                //    continue;
-                // }
+                 if ((extendMode & Orf::EXTEND_END) && countLength[frame] <= minLength) {
+                    continue;
+                 }
 
                 isInsideOrf[frame] = false;
 
