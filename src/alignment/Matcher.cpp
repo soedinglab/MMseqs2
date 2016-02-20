@@ -105,12 +105,6 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
                     }
                 }
             }
-            // compute sequence id
-            uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[0]);
-
-            int32_t len = (length > 1) ? length : 1;
-            seqId =  static_cast<float>(aaIds) / static_cast<float>(len);
-
         }
     }
 
@@ -125,7 +119,12 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         dbcov = computeCov(dbStartPos, dbEndPos, dbSeq->L);
     }
     // try to estimate sequence id
-    if( mode == Parameters::ALIGNMENT_MODE_SCORE_COV){
+    if(mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID){
+        // compute sequence id
+        unsigned int qAlnLen = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
+        unsigned int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
+        seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(qAlnLen, dbAlnLen));
+    }else if( mode == Parameters::ALIGNMENT_MODE_SCORE_COV){
         // "20%   30%   40%   50%   60%   70%   80%   90%   99%"
         // "0.52  1.12  1.73  2.33  2.93  3.53  4.14  4.74  5.28"
         unsigned int qAlnLen = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
