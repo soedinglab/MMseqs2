@@ -69,6 +69,8 @@ Parameters::Parameters():
         PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max codons in length", "Maximum codon number in open reading frames",typeid(int),(void *) &orfMaxLength, "^[1-9]{1}[0-9]*$"),
         PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "Maximum number of codons with gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "Skip orfs that have only an end or only a start codon or neither of those",typeid(bool),(void *) &orfSkipIncomplete, ""),
+        PARAM_ORF_LONGEST(PARAM_ORF_LONGEST_ID,"--longest-orf", "Find longest orf", "Does the first found start codon start an orf (results in the longst possible orf)",typeid(bool),(void *) &orfLongest, ""),
+        PARAM_ORF_EXTENDMIN(PARAM_ORF_EXTENDMIN_ID,"--extend-min", "Extend short orfs", "If an orf would be rejected because of the min length threshold, allow it to be extended to the next stop codon",typeid(bool),(void *) &orfExtendMin, ""),
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "Comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "Comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "Use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
@@ -159,6 +161,8 @@ Parameters::Parameters():
     extractorf.push_back(PARAM_ORF_MAX_LENGTH);
     extractorf.push_back(PARAM_ORF_MAX_GAP);
     extractorf.push_back(PARAM_ORF_SKIP_INCOMPLETE);
+    extractorf.push_back(PARAM_ORF_LONGEST);
+    extractorf.push_back(PARAM_ORF_EXTENDMIN);
     extractorf.push_back(PARAM_ORF_FORWARD_FRAMES);
     extractorf.push_back(PARAM_ORF_REVERSE_FRAMES);
     extractorf.push_back(PARAM_USE_HEADER);
@@ -559,6 +563,8 @@ void Parameters::setDefaults() {
     orfMaxLength = INT_MAX;
     orfMaxGaps = INT_MAX;
     orfSkipIncomplete = false;
+    orfLongest = false;
+    orfExtendMin = false;
     forwardFrames = "1,2,3";
     reverseFrames = "1,2,3";
 

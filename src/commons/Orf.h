@@ -19,6 +19,11 @@ public:
         FRAME_3 = (1u << 2)
     };
 
+    enum ExtendMode {
+        EXTEND_START = (1u << 0),
+        EXTEND_END = (1u << 1),
+    };
+
     struct SequenceLocation {
         size_t from, to;
         bool hasIncompleteStart, hasIncompleteEnd;
@@ -42,7 +47,8 @@ public:
                   size_t maxLength = SIZE_MAX,
                   size_t maxGaps = 30,
                   int forwardFrames = FRAME_1 | FRAME_2 | FRAME_3,
-                  int reverseFrames = FRAME_1 | FRAME_2 | FRAME_3);
+                  int reverseFrames = FRAME_1 | FRAME_2 | FRAME_3,
+                  int extendMode = 0);
 
     std::string View(SequenceLocation& location);
     
@@ -64,6 +70,6 @@ private:
 };
 
 void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Orf::SequenceLocation>& ranges,
-                     size_t minLength, size_t maxLength, size_t maxGaps, int frames, Orf::Strand strand);
+                     size_t minLength, size_t maxLength, size_t maxGaps, int frames, int extendMode, Orf::Strand strand);
 
 #endif
