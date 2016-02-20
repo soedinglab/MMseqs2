@@ -50,7 +50,7 @@ void Clustering::run(int mode) {
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
     }else if (mode == Parameters::SET_COVER){
-        Debug(Debug::INFO) << "Clustering mode: connected component\n";
+        Debug(Debug::INFO) << "Clustering mode: Set cover\n";
         ClusteringAlgorithms* setCover= new ClusteringAlgorithms(seqDbr,alnDbr,threads,similarityScoreType,maxIteration);
         ret =setCover->execute(1);
         writeData(dbw, ret);
