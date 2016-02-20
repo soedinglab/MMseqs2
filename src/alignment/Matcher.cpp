@@ -80,11 +80,12 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     std::string backtrace;
     if(mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID){
         if(alignment.cigar){
-            backtrace.reserve(alignment.cigarLen);
             int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
             for (int32_t c = 0; c < alignment.cigarLen; ++c) {
                 char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
                 uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
+                backtrace.reserve(length);
+
                 for (uint32_t i = 0; i < length; ++i){
                     if (letter == 'M') {
                         if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
@@ -123,7 +124,11 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         // compute sequence id
         unsigned int qAlnLen = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
         unsigned int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
-        seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(qAlnLen, dbAlnLen));
+        unsigned int alnLength = 1;
+        if(alignment.cigar){
+           alnLength = SmithWaterman::cigar_int_to_len(alignment.cigar[0]);
+        }
+        seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(std::max(qAlnLen, dbAlnLen), alnLength));
     }else if( mode == Parameters::ALIGNMENT_MODE_SCORE_COV){
         // "20%   30%   40%   50%   60%   70%   80%   90%   99%"
         // "0.52  1.12  1.73  2.33  2.93  3.53  4.14  4.74  5.28"
