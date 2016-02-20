@@ -247,14 +247,11 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 }
 
                 // check first if it is identity
-                if (isIdentity ||
-                    ( (res.eval <= evalThr ) &&
-                      (( mode == Parameters::ALIGNMENT_MODE_SCORE_ONLY) ||
-                       ( mode == Parameters::ALIGNMENT_MODE_SCORE_COV && res.qcov >= covThr && res.dbcov >= covThr) ||
-                       ( mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID && res.seqId > seqIdThr && res.qcov >= covThr && res.dbcov >= covThr) ||
-                       ( mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 )
-                      )
-                    ) )
+                if (isIdentity
+                    ||
+                    (res.eval <= evalThr && res.seqId >= seqIdThr && res.qcov >= covThr && res.dbcov >= covThr)
+                    ||
+                    (( mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID || mode == Parameters::ALIGNMENT_MODE_SCORE_COV) && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 ))
                 {
                     swResults.push_back(res);
                     passedNum++;
