@@ -106,7 +106,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
                 }
             }
             // compute sequence id
-            unsigned int len = std::max(SmithWaterman::cigar_int_to_len(alignment.cigar[0]), static_cast<int32_t>(1));
+            uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[0]);
+
+            int32_t len = (length > 1) ? length : 1;
             seqId =  static_cast<float>(aaIds) / static_cast<float>(len);
 
         }
