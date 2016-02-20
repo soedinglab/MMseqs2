@@ -352,6 +352,11 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
     //time
 
     for(size_t i = 0; i < n; i++) {
+        if(assignedcluster[i] == -1){
+            Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(i) <<
+            " is not assigned to a cluster\n";
+            continue;
+        }
         AffinityClustering::add_to_set(i,&sets[assignedcluster[i]],assignedcluster[i]);
     }
 
