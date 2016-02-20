@@ -26,7 +26,7 @@ bool Orf::setSequence(const char* seq) {
 
     sequence = strdup(seq);
     for(size_t i = 0; i < sequenceLength; ++i) {
-        sequence[i] = toupper(seq[i]);
+        sequence[i] = static_cast<char>(toupper(static_cast<int>(seq[i])));
     }
 
     reverseComplement = strdup(sequence);
