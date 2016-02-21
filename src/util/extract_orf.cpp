@@ -15,8 +15,8 @@
 
 #include "Orf.h"
 
-int getFrames(std::string frames) {
-    int result = 0;
+unsigned int getFrames(std::string frames) {
+    unsigned int result = 0;
 
     std::vector<std::string> frame = Util::split(frames, ",");
 
@@ -69,10 +69,10 @@ int extractorf(int argn, const char** argv)
     DBWriter headerWriter(headerOut.c_str(), headerIndexOut.c_str());
     headerWriter.open();
 
-    int forwardFrames = getFrames(par.forwardFrames);
-    int reverseFrames = getFrames(par.reverseFrames);
+    unsigned int forwardFrames = getFrames(par.forwardFrames);
+    unsigned int reverseFrames = getFrames(par.reverseFrames);
 
-    int extendMode = 0;
+    unsigned int extendMode = 0;
     if(par.orfLongest)
         extendMode |= Orf::EXTEND_START;
 
@@ -86,7 +86,7 @@ int extractorf(int argn, const char** argv)
         // remove newline in sequence
         data.erase(std::remove(data.begin(), data.end(), '\n'), data.end());
 
-        if(!orf.setSequence(data.c_str())) {
+        if(!orf.setSequence(data.c_str(), data.length())) {
             Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
             continue;
         }
@@ -96,7 +96,7 @@ int extractorf(int argn, const char** argv)
         header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
 
         std::vector<Orf::SequenceLocation> res;
-        orf.FindOrfs(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
+        orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
 
         size_t orfNum = 0;
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
@@ -124,7 +124,7 @@ int extractorf(int argn, const char** argv)
 
             headerWriter.write(buffer, strlen(buffer), id.c_str());
 
-            std::string sequence = orf.View(loc);
+            std::string sequence = orf.view(loc);
             sequence.append("\n");
             sequenceWriter.write(sequence.c_str(), sequence.length(), id.c_str());
 
