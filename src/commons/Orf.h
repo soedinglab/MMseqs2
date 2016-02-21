@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <string>
-#include <cstdlib>
 
 class Orf
 {
@@ -32,7 +31,7 @@ public:
 
     Orf();
 
-    bool setSequence(const char* sequence);
+    bool setSequence(const char* sequence, size_t sequenceLength);
     
     ~Orf() {
         cleanup();
@@ -42,34 +41,27 @@ public:
     /// Report results as SequenceLocations.
     /// seq must be in iupac.
     /// Do not allow more than max_seq_gap consecutive N-or-gap bases in an ORF
-    void FindOrfs(std::vector<SequenceLocation>& results,
-                  size_t minLength = 1,
-                  size_t maxLength = SIZE_MAX,
-                  size_t maxGaps = 30,
-                  int forwardFrames = FRAME_1 | FRAME_2 | FRAME_3,
-                  int reverseFrames = FRAME_1 | FRAME_2 | FRAME_3,
-                  int extendMode = 0);
+    void findAll(std::vector<SequenceLocation> &result,
+                 const size_t minLength = 1,
+                 const size_t maxLength = SIZE_MAX,
+                 const size_t maxGaps = 30,
+                 const unsigned int forwardFrames = FRAME_1 | FRAME_2 | FRAME_3,
+                 const unsigned int reverseFrames = FRAME_1 | FRAME_2 | FRAME_3,
+                 const unsigned int extendMode = 0);
 
-    std::string View(SequenceLocation& location);
+    static void findForward(const char *sequence, const size_t sequenceLength,
+                            std::vector<Orf::SequenceLocation> &result,
+                            const size_t minLength, const size_t maxLength, const size_t maxGaps,
+                            const unsigned int frames, const unsigned int extendMode, const Strand strand);
+
+    std::string view(const SequenceLocation &location);
     
 private:
     size_t sequenceLength;
     char* sequence;
     char* reverseComplement;
 
-    void cleanup() {
-        if (sequence) {
-            free(sequence);
-            sequence = NULL;
-        }
-        if (reverseComplement) {
-            free(reverseComplement);
-            reverseComplement = NULL;
-        }
-    }
+    void cleanup();
 };
-
-void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Orf::SequenceLocation>& ranges,
-                     size_t minLength, size_t maxLength, size_t maxGaps, int frames, int extendMode, Orf::Strand strand);
 
 #endif
