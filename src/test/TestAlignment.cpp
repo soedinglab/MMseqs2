@@ -6,14 +6,12 @@
 //
 #include <iostream>
 #include <cmath>
-#include <smith_waterman_sse2.h>
 
 #include "smith_waterman_sse2.h"
 #include "Sequence.h"
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrixWithoutX.h"
-
 #include "SubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
@@ -22,21 +20,13 @@
 #include "Parameters.h"
 #include "Matcher.h"
 
-
-
-
-
-
-
-
 int main (int argc, const char * argv[])
 {
     Parameters par;
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat(std::string(par.mmdir + "/data/blosum62.out").c_str(),
-                              2.0, 0.2);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.2);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
 
