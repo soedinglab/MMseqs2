@@ -1,5 +1,5 @@
 FROM tatsushid/tinycore:6.4-x86_64
-
+MAINTAINER Martin Steinegger
 ADD mmseqs/mmseqs/bin /usr/local/mmseqs/bin
 ADD mmseqs/mmseqs/lib64 /usr/local/mmseqs/lib64
 ADD mmseqs/data /usr/local/mmseqs/data
