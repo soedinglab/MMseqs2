@@ -12,8 +12,14 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Util.h"
+#include "Log.h"
 
 #include "Orf.h"
+
+#ifdef OPENMP
+#include <omp.h>
+
+#endif
 
 unsigned int getFrames(std::string frames) {
     unsigned int result = 0;
@@ -45,6 +51,10 @@ int extractorf(int argn, const char** argv)
     Parameters par;
     par.parseParameters(argn, argv, usage, par.extractorf, 2);
 
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
+
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader<unsigned int>::NOSORT);
 
@@ -57,7 +67,7 @@ int extractorf(int argn, const char** argv)
     DBReader<unsigned int> headerReader(headerIn.c_str(), headerInIndex.c_str());
     headerReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str());
+    DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads);
     sequenceWriter.open();
 
     std::string headerOut(par.db2);
@@ -66,7 +76,7 @@ int extractorf(int argn, const char** argv)
     std::string headerIndexOut(par.db2);
     headerIndexOut.append("_h.index");
 
-    DBWriter headerWriter(headerOut.c_str(), headerIndexOut.c_str());
+    DBWriter headerWriter(headerOut.c_str(), headerIndexOut.c_str(), par.threads);
     headerWriter.open();
 
     unsigned int forwardFrames = getFrames(par.forwardFrames);
@@ -79,57 +89,74 @@ int extractorf(int argn, const char** argv)
     if(par.orfExtendMin)
         extendMode |= Orf::EXTEND_END;
 
-    Orf orf;
     size_t total = 0;
-    for (unsigned int i = 0; i < reader.getSize(); ++i){
-        std::string data(reader.getData(i));
-        // remove newline in sequence
-        data.erase(std::remove(data.begin(), data.end(), '\n'), data.end());
+    #pragma omp parallel
+    {
+        Orf orf;
 
-        if(!orf.setSequence(data.c_str(), data.length())) {
-            Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
-            continue;
-        }
+        #pragma omp for schedule(static)
+        for (unsigned int i = 0; i < reader.getSize(); ++i){
+            Log::printProgress(i);
+            int thread_idx = 0;
+            #ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+            #endif
 
-        std::string header(headerReader.getData(i));
-        // remove newline in header
-        header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
+            std::string data(reader.getData(i));
+            // remove newline in sequence
+            data.erase(std::remove(data.begin(), data.end(), '\n'), data.end());
 
-        std::vector<Orf::SequenceLocation> res;
-        orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
-
-        size_t orfNum = 0;
-        for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
-            Orf::SequenceLocation loc = *it;
-
-            std::string id;
-            if (par.useHeader) {
-                id.assign(Util::parseFastaHeader(header));
-                id.append("_");
-                id.append(SSTR(orfNum));
-            } else {
-                id = SSTR(total + par.identifierOffset);
-            }
-
-            if (id.length() >= 31) {
-                Debug(Debug::ERROR) << "Id: " << id << " is too long. Maximum of 32 characters are allowed.\n";
-                EXIT(EXIT_FAILURE);
-            }
-
-            if (par.orfSkipIncomplete && (loc.hasIncompleteStart || loc.hasIncompleteEnd))
+            if(!orf.setSequence(data.c_str(), data.length())) {
+                Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
                 continue;
+            }
 
-            char buffer[LINE_MAX];
-            snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", header.c_str(), loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+            std::string header(headerReader.getData(i));
+            // remove newline in header
+            header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
 
-            headerWriter.write(buffer, strlen(buffer), id.c_str());
+            std::string headerTemplate;
+            if (par.useHeader) {
+                headerTemplate.assign(Util::parseFastaHeader(header));
+                headerTemplate.append("_");
+            }
 
-            std::string sequence = orf.view(loc);
-            sequence.append("\n");
-            sequenceWriter.write(sequence.c_str(), sequence.length(), id.c_str());
+            std::vector<Orf::SequenceLocation> res;
+            orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
+            size_t orfNum = 0;
+            for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
+                Orf::SequenceLocation loc = *it;
 
-            orfNum++;
-            total++;
+                std::string id;
+                if (par.useHeader) {
+                    id = headerTemplate;
+                    id.append(SSTR(orfNum));
+                    orfNum++;
+                } else {
+                    #pragma omp critical
+                    {
+                        orfNum = total++;
+                    }
+                    id = SSTR(orfNum + par.identifierOffset);
+                }
+
+                if (id.length() >= 31) {
+                    Debug(Debug::ERROR) << "Id: " << id << " is too long. Maximum of 32 characters are allowed.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+
+                if (par.orfSkipIncomplete && (loc.hasIncompleteStart || loc.hasIncompleteEnd))
+                    continue;
+
+                char buffer[LINE_MAX];
+                snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", header.c_str(), loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+
+                headerWriter.write(buffer, strlen(buffer), id.c_str(), thread_idx);
+
+                std::string sequence = orf.view(loc);
+                sequence.append("\n");
+                sequenceWriter.write(sequence.c_str(), sequence.length(), id.c_str(), thread_idx);
+            }
         }
     }
 
