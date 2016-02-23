@@ -93,6 +93,14 @@ static struct Command commands[] = {
 void printUsage() {
     std::stringstream usage;
     usage << "All available MMseqs commands\n";
+#ifdef GIT_SHA1
+#define str2(s) #s
+#define str(s) str2(s)
+	std::string gitHash(str(GIT_SHA1));
+	usage << "Git Version: " << gitHash << "\n";
+#undef str
+#undef str2
+#endif
     usage << "Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n";
 
     struct {
