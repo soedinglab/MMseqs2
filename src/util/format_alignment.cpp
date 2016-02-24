@@ -36,11 +36,11 @@ int formatalignment (int argc, const char * argv[])
     Debug(Debug::WARNING) << "Target Header file: " << dbffindexHeaderDB << "\n";
     DBReader<unsigned int> db_header( dbffindexHeaderDB.c_str(), (dbffindexHeaderDB+".index").c_str());
     db_header.open(DBReader<unsigned int>::NOSORT);
-
+    db_header.readMmapedDataInMemory();
 
     Debug(Debug::WARNING) << "Alignment database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_aln(par.db3.c_str(), std::string(par.db3+".index").c_str());
-    dbr_aln.open(DBReader<unsigned int>::NOSORT);
+    dbr_aln.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     FILE *fastaFP =  fopen(par.db4.c_str(), "w");
 

@@ -23,6 +23,14 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
     accessType = 0;
 }
 
+template <typename T> void DBReader<T>::readMmapedDataInMemory(){
+    size_t bytes = 0;
+    for(size_t i = 0; i < dataSize; i++){
+        bytes += data[i];
+    }
+    Debug(Debug::WARNING) << "Magic number " << bytes << "\n";
+}
+
 template <typename T> DBReader<T>::~DBReader(){
     free(dataFileName);
     free(indexFileName);

@@ -78,6 +78,8 @@ public:
 
     void readIndexId(T* id, char* line, char** save);
 
+    void readMmapedDataInMemory();
+
     void sortIndex();
 
     void unmapData();
@@ -148,6 +150,7 @@ private:
 
     bool dataMapped;
     int accessType;
+
 };
 
 #endif

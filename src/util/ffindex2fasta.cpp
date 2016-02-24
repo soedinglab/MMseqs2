@@ -18,15 +18,17 @@ int createfasta (int argc, const char * argv[])
     std::string queryHeaderDB =  par.db1 + "_h";
     DBReader<std::string> querydb_header(queryHeaderDB.c_str(), std::string(queryHeaderDB+".index").c_str());
     querydb_header.open(DBReader<std::string>::NOSORT);
+    querydb_header.readMmapedDataInMemory();
 
     Debug(Debug::WARNING) << "Target file is " << par.db2 << "\n";
     std::string targetHeaderDB =  par.db2 + "_h";
     DBReader<std::string> targetdb_header(targetHeaderDB.c_str(), std::string(targetHeaderDB+".index").c_str());
     targetdb_header.open(DBReader<std::string>::NOSORT);
+    targetdb_header.readMmapedDataInMemory();
 
     Debug(Debug::WARNING) << "Data file is " << par.db3 << "\n";
     DBReader<std::string> dbr_data( par.db3.c_str(), std::string( par.db3+".index").c_str());
-    dbr_data.open(DBReader<std::string>::NOSORT);
+    dbr_data.open(DBReader<std::string>::LINEAR_ACCCESS);
 
     FILE *fastaFP =  fopen(par.db4.c_str(), "w");
     char header_start[] = {'>'};
