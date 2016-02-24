@@ -29,6 +29,10 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
   set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
+include(GetGitRevisionDescription)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+add_definitions("-DGIT_SHA1=${GIT_SHA1}")
+
 #set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COMPILE_FLAGS}” )
 add_subdirectory(lib/ffindex)
 include_directories(src/commons)
