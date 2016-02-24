@@ -30,6 +30,7 @@ int addsequences(int argc, const char **argv)
 
     DBReader<unsigned int> headers(headerFilename.c_str(), headerIndexFilename.c_str());
     headers.open(DBReader<unsigned int>::NOSORT);
+    headers.readMmapedDataInMemory();
 
     DBWriter msaOut(par.db3.c_str(), par.db3Index.c_str());
     msaOut.open();
