@@ -59,6 +59,7 @@ public:
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
     static const int LINEAR_ACCCESS = 2;
+    static const int SORT_BY_ID = 3;
 
     static const int USE_INDEX    = 0;
     static const int USE_DATA     = 1;
@@ -96,7 +97,6 @@ public:
     }
 
 private:
-
 
     struct compareIndexLengthPairById {
         bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
