@@ -64,10 +64,7 @@ template <typename T> void DBReader<T>::open(int accessType){
         unsigned int size = seqLens[i];
         aaDbSize += size;
     }
-    if (aaDbSize == 0){
-        Debug(Debug::ERROR) << "Invalid database in data file=" << dataFileName << ", database index=" << indexFileName << "\n";
-        EXIT(EXIT_FAILURE);
-    }
+
     closed = 0;
 }
 

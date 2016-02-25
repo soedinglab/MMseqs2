@@ -300,7 +300,7 @@ public:
     std::vector<MMseqsParameter> createdb;
     std::vector<MMseqsParameter> rebuildfasta;
     std::vector<MMseqsParameter> gff2ffindex;
-
+    std::vector<MMseqsParameter> detectredundancy;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdate;

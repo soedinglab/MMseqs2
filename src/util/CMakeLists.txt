@@ -23,7 +23,7 @@ set(util_source_files
   kbtotsv.cpp
   substractresult.cpp
   result2newick.cpp
-)
+  detectredundancy.cpp)
 
 add_library(util ${util_source_files} )
 
