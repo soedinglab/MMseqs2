@@ -100,11 +100,12 @@ int detectredundancy (int argc, const char * argv[])
     hashLookup[0] = hashSeqPair;
     size_t currKey = 1;
     prevHash = hashSeqPair[0].first;
-    for(size_t id = 0; id < uniqHashes; id++) {
+    for(size_t id = 0; id < seqDbr.getSize(); id++) {
         if (prevHash != hashSeqPair[id].first) {
             hashLookup[currKey] = (hashSeqPair + id);
             currKey++;
         }
+        prevHash = hashSeqPair[id].first;
     }
     Debug(Debug::WARNING) << "Compute "<< uniqHashes <<" uniq hashes.\n";
 
@@ -113,7 +114,7 @@ int detectredundancy (int argc, const char * argv[])
         std::vector<unsigned int> setIds;
         std::vector<bool> found;
 
-#pragma omp for schedule(dynamic, 100)
+#pragma omp for schedule(dynamic, 2)
         for(size_t hashId = 0; hashId < uniqHashes; hashId++) {
             size_t initHash = hashLookup[hashId]->first;
             size_t pos = 0;
