@@ -5,7 +5,7 @@
 //
 // Created by mad on 10/21/15.
 //
-
+#include <limits>
 #include <string>
 #include <vector>
 #include <DBWriter.h>
@@ -16,7 +16,6 @@
 #include "Util.h"
 #include "Parameters.h"
 #include "Matcher.h"
-
 #include "Debug.h"
 #include "DBReader.h"
 
@@ -70,7 +69,7 @@ int detectredundancy (int argc, const char * argv[])
     dbw.open();
     Debug(Debug::WARNING) << "Hashing sequences ... \n";
     std::pair<size_t, unsigned int> * hashSeqPair = new  std::pair<size_t, unsigned int>[seqDbr.getSize()+1];
-    hashSeqPair[seqDbr.getSize()] = std::make_pair(SIZE_T_MAX, 0); // needed later to check if one of array
+    hashSeqPair[seqDbr.getSize()] = std::make_pair(UINT_MAX, 0); // needed later to check if one of array
 #pragma omp parallel
     {
         Sequence seq(par.maxSeqLen, redSubMat.aa2int, redSubMat.int2aa, Sequence::AMINO_ACIDS, 0, false);
