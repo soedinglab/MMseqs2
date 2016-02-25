@@ -107,10 +107,11 @@ int detectredundancy (int argc, const char * argv[])
         }
     }
     Debug(Debug::WARNING) << "Compute "<< uniqHashes <<" uniq hashes.\n";
-    
+
 #pragma omp parallel
     {
         std::vector<unsigned int> setIds;
+        std::vector<bool> found;
 
 #pragma omp for schedule(dynamic, 100)
         for(size_t hashId = 0; hashId < uniqHashes; hashId++) {
@@ -124,17 +125,34 @@ int detectredundancy (int argc, const char * argv[])
 #endif
             while(hashLookup[hashId][pos].first == initHash ){
                 setIds.push_back(hashLookup[hashId][pos].second);
+                found.push_back(false);
                 pos++;
             }
             //TODO make this smarter
             for(size_t i = 0; i < setIds.size(); i++) {
-                std::stringstream swResultsSs;
                 unsigned int queryLength = seqDbr.getSeqLens(setIds[i]);
                 const char * querySeq =  seqDbr.getData(setIds[i]);
+                std::stringstream swResultsSs;
+                swResultsSs << SSTR(seqDbr.getDbKey(setIds[i])).c_str() << "\t";
+                swResultsSs << 255 << "\t"; //TODO fix for formats
+                swResultsSs << std::fixed << std::setprecision(3) << 1.0f << "\t";
+                swResultsSs << std::scientific << 0 << "\t";
+                swResultsSs << 0 << "\t";
+                swResultsSs << queryLength - 1 << "\t";
+                swResultsSs << queryLength << "\t";
+                swResultsSs << 0 << "\t";
+                swResultsSs << queryLength - 1 << "\t";
+                swResultsSs << queryLength << "\n";
+                if(found[i] == true){
+                    goto outer;
+                }
+
                 for (size_t j = 0; j < setIds.size(); j++) {
+                    if(found[j] == true)
+                        continue;
                     unsigned int targetLength = seqDbr.getSeqLens(setIds[j]);
-                    const char * targetSeq = seqDbr.getData(setIds[j]);
-                    if(queryLength == targetLength){
+                    if(i != j && queryLength == targetLength){
+                        const char * targetSeq = seqDbr.getData(setIds[j]);
                         unsigned int distance = computeHammingDistance(querySeq, targetSeq, queryLength);
                         float seqId = (static_cast<float>(queryLength) - static_cast<float>(distance))/static_cast<float>(queryLength);
                         if(seqId > par.seqIdThr) {
@@ -149,14 +167,16 @@ int detectredundancy (int argc, const char * argv[])
                             swResultsSs << queryLength - 1 << "\t";
                             swResultsSs << queryLength << "\n";
                         }
+                        found[j] = true;
                     }
                 }
+                outer:
                 std::string swResultsString = swResultsSs.str();
                 const char* swResultsStringData = swResultsString.c_str();
                 dbw.write(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(setIds[i])).c_str(), thread_idx);
             }
             setIds.clear();
-
+            found.clear();
         }
     }
     delete [] hashLookup;
