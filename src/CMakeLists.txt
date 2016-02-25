@@ -81,7 +81,6 @@ add_executable(mmseqs ${mmseqs_source_files})
 
 target_link_libraries(mmseqs util)
 target_link_libraries(mmseqs workflow)
-target_link_libraries(mmseqs ffindex)
 if(MPI_FOUND)
 target_link_libraries(mmseqs ${MPI_LIBRARIES})
 endif()

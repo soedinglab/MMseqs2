@@ -310,5 +310,5 @@ void Alignment::mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, st
         datafilesNames[i] = files[i].first.c_str();
         indexFilesNames[i] = files[i].second.c_str();
     }
-    DBWriter::mergeFFindexFile(outDB.c_str(), outDBIndex.c_str(), "w", datafilesNames, indexFilesNames,files.size() );
+    DBWriter::mergeResults(outDB.c_str(), outDBIndex.c_str(), datafilesNames, indexFilesNames, files.size());
 }

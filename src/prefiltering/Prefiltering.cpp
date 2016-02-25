@@ -439,7 +439,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
             tmpDbr.open(DBReader<unsigned int>::NOSORT);
             DBWriter tmpDbw2((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
             tmpDbw2.open();
-            tmpDbw2.sortDatafileByIdOrder(&tmpDbr);
+            tmpDbw2.sortDatafileByIdOrder(tmpDbr);
             tmpDbr.close();
             tmpDbw2.close();
             remove(resultDB.c_str());
@@ -715,7 +715,7 @@ void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> s
             datafilesNames[i] = splitFiles[i].first.c_str();
             indexFilesNames[i] = splitFiles[i].second.c_str();
         }
-        DBWriter::mergeFFindexFile(outDB.c_str(), outDBIndex.c_str(), "w", datafilesNames, indexFilesNames, splitFiles.size() );
+        DBWriter::mergeResults(outDB.c_str(), outDBIndex.c_str(), datafilesNames, indexFilesNames, splitFiles.size());
     }
 }
 

@@ -34,7 +34,6 @@ set(commons_source_files
 )
 add_library(commons ${commons_source_files})
 
-target_link_libraries(commons ffindex)
 if(MPI_FOUND)
 target_link_libraries(commons ${MPI_LIBRARIES}) 
 endif()
