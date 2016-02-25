@@ -69,7 +69,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int>*dbr) {
     for (size_t id = 0; id < dbr->getSize(); id++) {
         int thread_idx = 0;
 #ifdef OPENMP
-            thread_idx = omp_get_thread_num();
+        thread_idx = omp_get_thread_num();
 #endif
         char * data = dbr->getData(id);
         this->write(data, strlen(data), SSTR(dbr->getDbKey(id)).c_str(), thread_idx);
@@ -88,7 +88,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int>* qdbr,
     DBReader<unsigned int>* filesToMerge [file_count];
     for(size_t file = 0; file < file_count; file++){
         filesToMerge[file] = new DBReader<unsigned int>(files[file].first.c_str(),
-                                          files[file].second.c_str());
+                                                        files[file].second.c_str());
         filesToMerge[file]->open(DBReader<unsigned int>::NOSORT);
     }
     for (size_t id = 0; id < qdbr->getSize(); id++){
@@ -282,18 +282,17 @@ void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNa
                                 const char **dataFileNames, const char **indexFileNames, int fileCount ) {
     // merge ffindexes from each thread into one ffindex
     // merge each data file
-    std::ofstream data_file_stream(dataFileNames[0], std::ios_base::binary | std::ios_base::app);
     for(int i = 1; i < fileCount; i++)
     {
+        std::ofstream data_file_stream(dataFileNames[0], std::ios_base::binary | std::ios_base::app);
         std::ifstream data_to_add_stream(dataFileNames[i], std::ios_base::binary);
         data_file_stream.seekp(0, std::ios_base::end);
         data_file_stream << data_to_add_stream.rdbuf();
         data_to_add_stream.close();
-        //        fclose(index_file_to_add);
         if (remove(dataFileNames[i]) != 0)
             Debug(Debug::ERROR) << "Error while removing file " << dataFileNames[i] << "\n";
+        data_file_stream.close();
     }
-    data_file_stream.close();
     // rename file to datafile
     std::rename(dataFileNames[0],  outFileName);
 
@@ -304,16 +303,20 @@ void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNa
     for(int fileIdx = 0; fileIdx < fileCount; fileIdx++){
         DBReader<std::string> reader(indexFileNames[fileIdx], indexFileNames[fileIdx], DBReader<std::string>::USE_INDEX);
         reader.open(DBReader<std::string>::NOSORT);
-        size_t tmpOffset = 0;
-        for(size_t i = 0; i < reader.getSize(); i++){
-            size_t currOffset = reinterpret_cast<size_t>(reader.getIndex()[i].data);
-            fprintf(index_file, "%s\t%zd\t%zd\n", reader.getIndex()[i].id.c_str(), globalOffset + currOffset, reader.getSeqLens(i));
-            tmpOffset += reader.getSeqLens(i);
+        if(reader.getSize() > 0){
+            size_t tmpOffset = 0;
+            for(size_t i = 0; i < reader.getSize(); i++){
+                size_t currOffset = reinterpret_cast<size_t>(reader.getIndex()[i].data);
+                fprintf(index_file, "%s\t%zd\t%zd\n", reader.getIndex()[i].id.c_str(), globalOffset + currOffset, reader.getSeqLens(i));
+                tmpOffset += reader.getSeqLens(i);
+            }
+            globalOffset += tmpOffset;
         }
-        globalOffset += tmpOffset;
         reader.close();
+
         if (remove(indexFileNames[fileIdx]) != 0)
             Debug(Debug::ERROR) << "Error while removing file " << indexFileNames[fileIdx] << "\n";
+
     }
     fclose(index_file);
 
@@ -325,7 +328,6 @@ void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNa
         size_t currOffset = reinterpret_cast<size_t>(indexReader.getIndex()[i].data);
         fprintf(index_file, "%s\t%zd\t%zd\n", indexReader.getIndex()[i].id.c_str(), currOffset, indexReader.getSeqLens(i));
     }
-
     fclose(index_file);
     indexReader.close();
 }
@@ -349,7 +351,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
     for(size_t i = 0; i < dbSize; i++){
         int thread_idx = 0;
 #ifdef OPENMP
-            thread_idx = omp_get_thread_num();
+        thread_idx = omp_get_thread_num();
 #endif
 
         unsigned int dbKey = in1.getDbKey(i);
@@ -360,7 +362,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
         int64_t dataSize = entry1Size + entry2Size;
         if(dataSize > 6400000){
             Debug(Debug::ERROR) <<  "Entrie " << dbKey << " of " << inIndex2 << " and " << inIndex2 <<" is " << dataSize << " bytes long. "
-                                    "The allowed max size is 102400000 byte. \n";
+                    "The allowed max size is 102400000 byte. \n";
             EXIT(EXIT_FAILURE);
         }
         memcpy(buffer[thread_idx], data1, entry1Size - 1); // -1 for the nullbyte
