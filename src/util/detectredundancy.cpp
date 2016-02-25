@@ -46,7 +46,7 @@ size_t hash(int * x, size_t length){
 int detectredundancy (int argc, const char * argv[])
 {
     std::string usage;
-    usage.append("Detectes redundancy based on reduced alphabet hashing and hamming distance. \n");
+    usage.append("Detects redundant sequences based on reduced alphabet hashing and hamming distance. \n");
     usage.append("USAGE: <sequenceDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
