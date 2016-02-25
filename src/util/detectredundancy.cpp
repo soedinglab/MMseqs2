@@ -106,6 +106,8 @@ int detectredundancy (int argc, const char * argv[])
             currKey++;
         }
     }
+    Debug(Debug::WARNING) << "Compute "<< uniqHashes <<" uniq hashes.\n";
+    
 #pragma omp parallel
     {
         std::vector<unsigned int> setIds;
@@ -114,6 +116,8 @@ int detectredundancy (int argc, const char * argv[])
         for(size_t hashId = 0; hashId < uniqHashes; hashId++) {
             size_t initHash = hashLookup[hashId]->first;
             size_t pos = 0;
+            Log::printProgress(hashId);
+
             int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
