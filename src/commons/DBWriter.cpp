@@ -281,86 +281,53 @@ void DBWriter::checkClosed(){
 void DBWriter::mergeFFindexFile(const char * outFileName, const char * outFileNameIndex, const char * datafileMode,
                                 const char **dataFileNames, const char **indexFileNames, int fileCount ) {
     // merge ffindexes from each thread into one ffindex
-    FILE* data_file;
-    FILE* index_file;
-
-    initFFIndexWrite(outFileName, outFileNameIndex, datafileMode, &data_file, &index_file);
-
-    size_t offset = 0;
-    for(int i = 0; i < fileCount; i++)
+    // merge each data file
+    std::ofstream data_file_stream(dataFileNames[0], std::ios_base::binary | std::ios_base::app);
+    for(int i = 1; i < fileCount; i++)
     {
-        FILE* data_file_to_add  = fopen(dataFileNames[i], "r");
-        if( data_file_to_add == NULL) {
-            Debug(Debug::ERROR) << "Error while opening file " << dataFileNames[i] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        FILE* index_file_to_add = fopen(indexFileNames[i], "r");
-        if( index_file_to_add == NULL) {
-            Debug(Debug::ERROR) << "Error while opening file " << indexFileNames[i] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        size_t data_size;
-        char *data_to_add = ffindex_mmap_data(data_file_to_add, &data_size);
-        if (data_size > 0){
-            // count the number of entries
-            size_t cnt = FileUtil::countLines(indexFileNames[i]);
-            // merge data and indexes
-            ffindex_index_t* index_to_add = ffindex_index_parse(index_file_to_add, cnt);
-            ffindex_insert_ffindex(data_file, index_file, &offset, data_to_add, index_to_add);
-            munmap(index_to_add->index_data, index_to_add->index_data_size);
-            free(index_to_add);
-            munmap(data_to_add,data_size);
-        }
-
-        fclose(data_file_to_add);
-        fclose(index_file_to_add);
+        std::ifstream data_to_add_stream(dataFileNames[i], std::ios_base::binary);
+        data_file_stream.seekp(0, std::ios_base::end);
+        data_file_stream << data_to_add_stream.rdbuf();
+        data_to_add_stream.close();
+        //        fclose(index_file_to_add);
         if (remove(dataFileNames[i]) != 0)
             Debug(Debug::ERROR) << "Error while removing file " << dataFileNames[i] << "\n";
-        if (remove(indexFileNames[i]) != 0)
-            Debug(Debug::ERROR) << "Error while removing file " << indexFileNames[i] << "\n";
-
     }
-    fclose(data_file);
-    fclose(index_file);
+    data_file_stream.close();
+    // rename file to datafile
+    std::rename(dataFileNames[0],  outFileName);
 
-    // sort the index file
-    char line[1000];
-    int cnt = 0;
-    std::ifstream index_file_cnt(outFileNameIndex);
-    if (index_file_cnt.is_open()) {
-        while ( index_file_cnt.getline (line, 1000) ){
-            cnt++;
+    // merge index
+    FILE* index_file = fopen(outFileNameIndex, "w");
+    if( index_file == NULL)  { perror(outFileNameIndex); EXIT(EXIT_FAILURE); }
+    size_t globalOffset = 0;
+    for(int fileIdx = 0; fileIdx < fileCount; fileIdx++){
+        DBReader<std::string> reader(indexFileNames[fileIdx], indexFileNames[fileIdx], DBReader<std::string>::USE_INDEX);
+        reader.open(DBReader<std::string>::NOSORT);
+        size_t tmpOffset = 0;
+        for(size_t i = 0; i < reader.getSize(); i++){
+            size_t currOffset = reinterpret_cast<size_t>(reader.getIndex()[i].data);
+            fprintf(index_file, "%s\t%zd\t%zd\n", reader.getIndex()[i].id.c_str(), globalOffset + currOffset, reader.getSeqLens(i));
+            tmpOffset += reader.getSeqLens(i);
         }
-        index_file_cnt.close();
+        globalOffset += tmpOffset;
+        reader.close();
+        if (remove(indexFileNames[fileIdx]) != 0)
+            Debug(Debug::ERROR) << "Error while removing file " << indexFileNames[fileIdx] << "\n";
     }
-    else{
-        Debug(Debug::ERROR) <<  "Could not open ffindex index file " << outFileNameIndex << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-
-    index_file = fopen(outFileNameIndex, "r+");
-    if(index_file == NULL) {
-        Debug(Debug::ERROR) << "Error while opening file " << outFileNameIndex << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-
-    ffindex_index_t* index = ffindex_index_parse(index_file, cnt);
-    if(index == NULL) {
-        Debug(Debug::ERROR) << "Error while parsing file " << outFileNameIndex << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    munmap(index->index_data, index->index_data_size);
     fclose(index_file);
 
-    ffindex_sort_index_file(index);
+    // sort the index
+    DBReader<std::string> indexReader(outFileNameIndex, outFileNameIndex, DBReader<std::string>::USE_INDEX);
+    indexReader.open(DBReader<std::string>::SORT_BY_ID);
     index_file = fopen(outFileNameIndex, "w");
-    if(index_file == NULL) {
-        Debug(Debug::ERROR) << "Error while opening file " << outFileNameIndex << "\n";
-        EXIT(EXIT_FAILURE);
+    for(size_t i = 0; i < indexReader.getSize(); i++){
+        size_t currOffset = reinterpret_cast<size_t>(indexReader.getIndex()[i].data);
+        fprintf(index_file, "%s\t%zd\t%zd\n", indexReader.getIndex()[i].id.c_str(), currOffset, indexReader.getSeqLens(i));
     }
-    ffindex_write(index, index_file);
+
     fclose(index_file);
-    free(index);
+    indexReader.close();
 }
 
 void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,

@@ -76,6 +76,23 @@ template<typename T>
 void DBReader<T>::sortIndex() { }
 
 template<>
+void DBReader<std::string>::sortIndex() {
+    if (accessType == SORT_BY_ID){
+        std::pair<Index, unsigned int> *sortArray = new std::pair<Index, unsigned int>[size];
+        for (size_t i = 0; i < size; i++) {
+            sortArray[i] = std::make_pair(index[i], seqLens[i]);
+        }
+        std::sort(sortArray, sortArray + size, compareIndexLengthPairById());
+        for (size_t i = 0; i < size; ++i) {
+            index[i].id = sortArray[i].first.id;
+            index[i].data = sortArray[i].first.data;
+            seqLens[i] = sortArray[i].second;
+        }
+        delete[] sortArray;
+    }
+}
+
+template<>
 void DBReader<unsigned int>::sortIndex() {
     std::pair<Index, unsigned int> *sortArray = new std::pair<Index, unsigned int>[size];
     for (size_t i = 0; i < size; i++) {
@@ -282,7 +299,7 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
         if (dataMode & USE_DATA) {
             index[i].data = data + offset;
         } else {
-            index[i].data = NULL;
+            index[i].data = (char *) offset;
         }
 
         entryLength[i] = length;
