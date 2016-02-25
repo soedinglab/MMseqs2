@@ -171,6 +171,8 @@ int createprofiledb(int argn, const char **argv) {
             parseHMM(data, &header, profileBuffer, &elementSize, idStr.c_str(), &subMat);
         } else if (par.profileMode == Parameters::PROFILE_MODE_PSSM) {
             parsePSSM(data, profileBuffer, &elementSize, &subMat);
+            header.append(dataIn.getDbKey(i));
+            header.append(" \n");
         }
 
         dataOut.write(profileBuffer, elementSize, (char *) idStr.c_str());
