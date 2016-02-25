@@ -41,7 +41,6 @@ template <typename T> void DBReader<T>::open(int accessType){
     this->size = FileUtil::countLines(indexFileName);
     this->accessType = accessType;
 
-    // open ffindex
     if (dataMode & USE_DATA) {
         dataFile = fopen(dataFileName, "r");
         if (dataFile == NULL) {

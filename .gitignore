@@ -24,9 +24,6 @@
 .DS_Store
 *.swp
 # programs
-lib/ffindex/src/ffindex_*
-util/ffindex_from_fasta
-util/ffindex_to_fasta
 
 *.depend
 *.swp
