@@ -294,8 +294,9 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
                             const char **dataFileNames, const char **indexFileNames, int fileCount) {
     // merge results from each thread into one result file
     // merge each data file
-    std::ofstream data_file_stream(dataFileNames[0], std::ios_base::binary | std::ios_base::app);
-    for (int i = 1; i < fileCount; i++) {
+    for(int i = 1; i < fileCount; i++)
+    {
+        std::ofstream data_file_stream(dataFileNames[0], std::ios_base::binary | std::ios_base::app);
         std::ifstream data_to_add_stream(dataFileNames[i], std::ios_base::binary);
         data_file_stream.seekp(0, std::ios_base::end);
         data_file_stream << data_to_add_stream.rdbuf();
@@ -303,8 +304,8 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         if (std::remove(dataFileNames[i]) != 0) {
             Debug(Debug::WARNING) << "Could not remove file " << dataFileNames[i] << "\n";
         }
+        data_file_stream.close();
     }
-    data_file_stream.close();
 
     // rename file to datafile
     std::rename(dataFileNames[0], outFileName);
@@ -321,15 +322,17 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         DBReader<std::string> reader(indexFileNames[fileIdx], indexFileNames[fileIdx],
                                      DBReader<std::string>::USE_INDEX);
         reader.open(DBReader<std::string>::NOSORT);
-        size_t tmpOffset = 0;
-        for (size_t i = 0; i < reader.getSize(); i++) {
-            const char *id = reader.getIndex()[i].id.c_str();
-            size_t currOffset = reinterpret_cast<size_t>(reader.getIndex()[i].data);
-            size_t seqLens = reader.getSeqLens(i);
-            fprintf(index_file, "%s\t%zd\t%zd\n", id, globalOffset + currOffset, seqLens);
-            tmpOffset += seqLens;
+        if(reader.getSize() > 0){
+            size_t tmpOffset = 0;
+            for(size_t i = 0; i < reader.getSize(); i++){
+                const char *id = reader.getIndex()[i].id.c_str();
+                size_t currOffset = reinterpret_cast<size_t>(reader.getIndex()[i].data);
+                size_t seqLens = reader.getSeqLens(i);
+                fprintf(index_file, "%s\t%zd\t%zd\n", id, globalOffset + currOffset, seqLens);
+                tmpOffset += reader.getSeqLens(i);
+            }
+            globalOffset += tmpOffset;
         }
-        globalOffset += tmpOffset;
         reader.close();
 
         if (std::remove(indexFileNames[fileIdx]) != 0) {
@@ -380,10 +383,10 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
         size_t entry1Size = in1.getSeqLens(i);
         size_t entry2Size = in2.getSeqLens(i);
         size_t dataSize = entry1Size + entry2Size;
-        if (dataSize > 6400000) {
-            Debug(Debug::ERROR) << "Entrie " << dbKey << " of " << inIndex2 << " and " << inIndex2 << " is " <<
-            dataSize << " bytes long. "
-                    "The allowed max size is 102400000 byte. \n";
+        if(dataSize > 6400000){
+            Debug(Debug::ERROR) <<  "Entry " << dbKey << " of " << inIndex2
+                                << " and " << inIndex2 << " is " << dataSize
+                                << " bytes long. The allowed max size is 102400000 byte. \n";
             EXIT(EXIT_FAILURE);
         }
         memcpy(buffer[thread_idx], data1, entry1Size - 1); // -1 for the nullbyte

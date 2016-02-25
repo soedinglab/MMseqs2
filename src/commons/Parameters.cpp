@@ -229,6 +229,14 @@ Parameters::Parameters():
     substractresult.push_back(PARAM_THREADS);
     substractresult.push_back(PARAM_V);
 
+    // detectredundancy
+    detectredundancy.push_back(PARAM_SUB_MAT);
+    detectredundancy.push_back(PARAM_ALPH_SIZE);
+    detectredundancy.push_back(PARAM_MIN_SEQ_ID);
+    detectredundancy.push_back(PARAM_MAX_SEQ_LEN);
+    detectredundancy.push_back(PARAM_THREADS);
+    detectredundancy.push_back(PARAM_V);
+
     checkSaneEnvironment();
     setDefaults();
 }
