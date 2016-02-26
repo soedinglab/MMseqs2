@@ -50,6 +50,8 @@ Parameters::Parameters():
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]{1}$"),
 // create profile (HMM, PSSM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "MPI Option: HMM 0 or PSSM",typeid(int),(void *) &profileMode,  "^[0-1]{1}$"),
+// createdb
+        PARAM_SPLIT_SEQ_BY_LEN(PARAM_SPLIT_SEQ_BY_LEN_ID,"--split-seq-by-len", "Split Seq. by len", "Split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
 // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "Allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "Add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, ""),
@@ -183,6 +185,8 @@ Parameters::Parameters():
     createindex.push_back(PARAM_V);
 
     // create db
+    createdb.push_back(PARAM_MAX_SEQ_LEN);
+    createdb.push_back(PARAM_SPLIT_SEQ_BY_LEN);
     createdb.push_back(PARAM_USE_HEADER);
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
@@ -551,7 +555,8 @@ void Parameters::setDefaults() {
 
     // createprofiledb
     profileMode = PROFILE_MODE_HMM;
-
+    // createdb
+    splitSeqByLen = false;
     // result2msa
     allowDeletion = false;
     addInternalId = false;

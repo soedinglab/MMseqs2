@@ -269,6 +269,7 @@ public:
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorf
     PARAMETER(PARAM_ID_OFFSET)  // same
+    PARAMETER(PARAM_SPLIT_SEQ_BY_LEN)
 
     // rebuildfasta
     PARAMETER(PARAM_USE_HEADER_FILE)
