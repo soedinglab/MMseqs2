@@ -2,22 +2,22 @@
 #define TIME_TEST_H
 
 #include <iostream>
-#include <stdio.h>
+#include <cstdio>
 #include <unistd.h>
 #include <string>
 #include <time.h>
 #include <sys/time.h>
 
-#include "../commons/DBReader.h"
-#include "../commons/DBWriter.h"
-#include "../commons/SubstitutionMatrix.h"
-#include "../commons/Sequence.h"
-#include "../commons/NucleotideMatrix.h"
-#include "../prefiltering/ExtendedSubstitutionMatrix.h"
-#include "../prefiltering/ReducedMatrix.h"
-#include "../prefiltering/KmerGenerator.h"
-#include "../prefiltering/QueryTemplateMatcher.h"
-#include "../prefiltering/Prefiltering.h"
+#include "DBReader.h"
+#include "DBWriter.h"
+#include "SubstitutionMatrix.h"
+#include "Sequence.h"
+#include "NucleotideMatrix.h"
+#include "ExtendedSubstitutionMatrix.h"
+#include "ReducedMatrix.h"
+#include "KmerGenerator.h"
+#include "QueryTemplateMatcher.h"
+#include "Prefiltering.h"
 
 class TimeTest {
 

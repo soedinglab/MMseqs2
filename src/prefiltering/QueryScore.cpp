@@ -1,6 +1,6 @@
 #include "QueryScore.h"
 #include "simd.h"
-#include <stddef.h>
+#include <cstddef>
 
 QueryScore::QueryScore(size_t dbSize, unsigned int *dbSeqLens, unsigned int seedLength, short kmerThr, float kmerMatchProb) {
     this->dbSize = dbSize;

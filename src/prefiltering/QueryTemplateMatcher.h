@@ -4,7 +4,7 @@
 #include <list>
 #include <iostream>
 #include <cstring>
-#include <stddef.h>
+#include <cstddef>
 
 
 #include "BaseMatrix.h"

@@ -6,7 +6,7 @@
 #define MMSEQS_DISTANCECALCULATOR_H
 
 
-#include <Debug.h>
+#include "Debug.h"
 #include <sstream>
 
 class DistanceCalculator {

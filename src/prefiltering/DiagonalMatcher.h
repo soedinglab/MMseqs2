@@ -5,9 +5,9 @@
 #ifndef MMSEQS_DIAGONALMATCHER_H
 #define MMSEQS_DIAGONALMATCHER_H
 
-#include <SubstitutionMatrix.h>
-#include <simd.h>
-#include <CountInt32Array.h>
+#include "SubstitutionMatrix.h"
+#include "simd.h"
+#include "CountInt32Array.h"
 #include "QueryScore.h"
 #include "SequenceLookup.h"
 class DiagonalMatcher {
