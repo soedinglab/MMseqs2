@@ -7,7 +7,7 @@ RUN chmod 600 /root/.ssh/id_rsa
 RUN echo 'Host *' >>  /root/.ssh/config
 RUN echo '  StrictHostKeyChecking no' >>  /root/.ssh/config
 RUN echo '  UserKnownHostsFile /dev/null' >>  /root/.ssh/config
-RUN git clone git@bitbucket.org:soedinglab/mmseqs-dev.git /root/mmseqs && cd /root/mmseqs && git submodule init && git submodule update
+RUN git clone git@bitbucket.org:soedinglab/mmseqs-dev.git /root/mmseqs  
 RUN mkdir /root/mmseqs/build
 RUN mkdir /root/mmseqs/mmseqs
 
