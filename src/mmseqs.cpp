@@ -87,6 +87,8 @@ static struct Command commands[] = {
                 "Turns an UniprotKB file into separate TSV tables"},
         {"result2newick",       result2newick,          &par.onlyverbosity,         COMMAND_HELPER,
             "Extracts clustering relationship from clustering steps into Newick trees"},
+        {"order",               order,                  &par.onlyverbosity,         COMMAND_HELPER,
+                "Orders an mmseqs ffindex database according to a given list"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
 };
