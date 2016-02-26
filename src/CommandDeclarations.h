@@ -33,5 +33,6 @@ extern int substractresult(int argc, const char** argv);
 extern int result2newick(int argc, const char** argv);
 extern int kbtotsv(int argc, const char** argv);
 extern int detectredundancy(int argc, const char** argv);
+extern int order(int argc, const char** argv);
 
 #endif
