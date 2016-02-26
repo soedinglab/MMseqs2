@@ -31,6 +31,7 @@ int formatalignment (int argc, const char * argv[])
     Debug(Debug::WARNING) << "Query Header file: " << qffindexHeaderDB << "\n";
     DBReader<unsigned int> q_header( qffindexHeaderDB.c_str(), (qffindexHeaderDB+".index").c_str());
     q_header.open(DBReader<unsigned int>::NOSORT);
+    q_header.readMmapedDataInMemory();
 
     std::string  dbffindexHeaderDB = (par.db2 + "_h");
     Debug(Debug::WARNING) << "Target Header file: " << dbffindexHeaderDB << "\n";

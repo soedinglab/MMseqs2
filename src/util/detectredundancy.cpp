@@ -19,7 +19,6 @@
 #include "Debug.h"
 #include "DBReader.h"
 
-
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -56,7 +55,7 @@ int detectredundancy (int argc, const char * argv[])
 #endif
 
     if(par.alphabetSize == 21){
-        par.alphabetSize = 6;
+        par.alphabetSize = 3;
     }
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, -0.2);
     ReducedMatrix redSubMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, par.alphabetSize, 2.0);
@@ -167,8 +166,8 @@ int detectredundancy (int argc, const char * argv[])
                             swResultsSs << 0 << "\t";
                             swResultsSs << queryLength - 1 << "\t";
                             swResultsSs << queryLength << "\n";
+                            found[j] = true;
                         }
-                        found[j] = true;
                     }
                 }
                 outer:
