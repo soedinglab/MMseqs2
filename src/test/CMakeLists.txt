@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
-
+if(HAVE_TESTS)
 find_package(GTest)
 find_package(GMock)
 if(GTEST_FOUND)
@@ -60,7 +59,6 @@ target_link_libraries(testkmergenerator_perf util)
 target_link_libraries(testkmergenerator_perf workflow)
 
 
-
 set(test_counting TestCounting.cpp )
 add_executable(test_counting ${test_counting})
 
@@ -119,3 +117,4 @@ set(test_pssmcompute TestPSSM.cpp )
 add_executable(test_pssmcompute ${test_pssmcompute})
 target_link_libraries(test_pssmcompute util)
 target_link_libraries(test_pssmcompute workflow)
+endif()

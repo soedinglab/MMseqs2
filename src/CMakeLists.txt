@@ -1,62 +1,44 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
-project(mmseqs)
-
-
 # openmp integration
 find_package(OpenMP)
-if (OPENMP_FOUND)
-  set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DOPENMP=1 ${OpenMP_C_FLAGS}")
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOPENMP=1 ${OpenMP_CXX_FLAGS}")
+if(OPENMP_FOUND)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOPENMP=1 ${OpenMP_CXX_FLAGS}")
 endif()
 
 #SSE
 if(${HAVE_AVX2})
-    ADD_DEFINITIONS("-DAVX2")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -Wa,-q")
+    add_definitions("-DAVX2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -Wa,-q")
 elseif(${HAVE_SSE4_2})
-    ADD_DEFINITIONS("-DSSE")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+    add_definitions("-DSSE")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
 else()
-    INCLUDE(CheckSSEFeatures)
-    ADD_DEFINITIONS(${CXX_DFLAGS})
+    include(CheckSSEFeatures)
+    add_definitions(${CXX_DFLAGS})
     if(${HAVE_AVX2_EXTENSIONS})
-        ADD_DEFINITIONS("-DAVX2")
-    #    ADD_DEFINITIONS("-DSSE") #debugging
+        add_definitions("-DAVX2")
+    # debugging
+    #   add_definitions("-DSSE")
     else()
     if(${HAVE_SSE4_2_EXTENSIONS})
-        ADD_DEFINITIONS("-DSSE")
+        add_definitions("-DSSE")
     else()
-        message( FATAL_ERROR "SSE4.2 is needed to run compile! CMake will exit." )
+        message( FATAL_ERROR "At least SSE4.2 is needed to compile!" )
     endif(${HAVE_SSE4_2_EXTENSIONS})
     endif(${HAVE_AVX2_EXTENSIONS})
 endif()
 
-
-
 # set flags
-
 set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -Wall -Wno-write-strings -std=c++0x -m64")
-set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g ")
+set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} -Os -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ffast-math -fno-exceptions -ftree-vectorize -fno-strict-aliasing -Wno-write-strings")
+set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ffast-math -fno-exceptions -ftree-vectorize -fno-strict-aliasing")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDBINFO} -O2 -g")
-set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++11")
-set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
 
-
-
-# Compiler-specific C++11 activation.
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
-	execute_process(
-		COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION
-	)
-	if (NOT (GCC_VERSION VERSION_GREATER 4.4 OR GCC_VERSION VERSION_EQUAL 4.4))
-		message(FATAL_ERROR "${PROJECT_NAME} requires g++ 4.4 or greater.")
-	endif ()
-elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+# Compiler-specific features
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+    set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++11")
+    set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-else ()
-		message(FATAL_ERROR "Your C++ compiler does not support C++0x.")
 endif ()
 
 # MPI
@@ -76,16 +58,24 @@ add_subdirectory(prefiltering)
 add_subdirectory(util)
 add_subdirectory(workflow)
 add_subdirectory(test)
-set(mmseqs_source_files mmseqs.cpp )
+
+set(mmseqs_source_files mmseqs.cpp)
 add_executable(mmseqs ${mmseqs_source_files})
 
-target_link_libraries(mmseqs util)
-target_link_libraries(mmseqs workflow)
+target_link_libraries(mmseqs util workflow)
 if(MPI_FOUND)
-target_link_libraries(mmseqs ${MPI_LIBRARIES})
+    target_link_libraries(mmseqs ${MPI_LIBRARIES})
+    if(MPI_COMPILE_FLAGS)
+        set_target_properties(mmseqs PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+    endif()
+
+    if(MPI_LINK_FLAGS)
+        set_target_properties(mmseqs PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+    endif()
 endif()
-install (TARGETS mmseqs
-		 DESTINATION bin)
+
+install(TARGETS mmseqs
+		DESTINATION bin)
 
 # copy shell scripts to bin
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/workflow/clustering.sh
