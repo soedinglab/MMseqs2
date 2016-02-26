@@ -55,7 +55,7 @@ int detectredundancy (int argc, const char * argv[])
 #endif
 
     if(par.alphabetSize == 21){
-        par.alphabetSize = 6;
+        par.alphabetSize = 3;
     }
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, -0.2);
     ReducedMatrix redSubMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, par.alphabetSize, 2.0);
