@@ -59,7 +59,10 @@ add_subdirectory(util)
 add_subdirectory(workflow)
 add_subdirectory(test)
 
-set(mmseqs_source_files mmseqs.cpp)
+set(mmseqs_source_files
+    CommandDeclarations.h
+    mmseqs.cpp
+)
 add_executable(mmseqs ${mmseqs_source_files})
 
 target_link_libraries(mmseqs util workflow)
