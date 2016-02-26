@@ -2,15 +2,14 @@
 // Created by mad on 2/6/16.
 //
 
-
-#include <DBReader.h>
-#include <vector>
-#include <Debug.h>
-#include <DBWriter.h>
-#include <Util.h>
-#include <Parameters.h>
+#include <climits>
 #include <list>
-#include <limits.h>
+#include <vector>
+#include "DBReader.h"
+#include "Debug.h"
+#include "DBWriter.h"
+#include "Util.h"
+#include "Parameters.h"
 
 #ifdef OPENMP
 #include <omp.h>

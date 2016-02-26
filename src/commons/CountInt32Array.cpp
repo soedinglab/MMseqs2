@@ -1,6 +1,6 @@
 #include "CountInt32Array.h"
 #include <iostream>
-#include <IndexTable.h>
+#include "IndexTable.h"
 #include "Util.h"
 
 CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {

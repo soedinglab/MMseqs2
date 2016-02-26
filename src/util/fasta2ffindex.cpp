@@ -9,6 +9,7 @@
 
 #include <map>
 #include <fstream>
+#include <unistd.h>
 
 #include "DBWriter.h"
 #include "Debug.h"
@@ -17,7 +18,6 @@
 #include "FileUtil.h"
 
 #include "kseq.h"
-#include <unistd.h>
 
 KSEQ_INIT(int, read)
 

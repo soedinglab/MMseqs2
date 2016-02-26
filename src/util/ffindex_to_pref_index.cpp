@@ -6,8 +6,6 @@
 #include "Prefiltering.h"
 #include "Parameters.h"
 
-
-
 #include <iostream>     // std::ios, std::istream, std::cout
 #include <fstream>      // std::ifstream
 #include <vector>

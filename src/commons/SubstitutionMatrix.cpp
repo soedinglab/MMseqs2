@@ -5,7 +5,7 @@
 #include <cstring>
 #include <algorithm>
 #include <fstream>
-#include <math.h>
+#include <cmath>
 
 
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
