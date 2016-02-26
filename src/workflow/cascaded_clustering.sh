@@ -22,7 +22,6 @@ hasCommand () {
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && exit 1;
 
-hasCommand ffindex_order
 hasCommand awk
 
 export OMP_PROC_BIND=TRUE
@@ -53,7 +52,7 @@ while [ $STEP -lt 4 ]; do
             && awk '{ print $1 }' "$3/clu_step$STEP.index" > "$3/order_step$STEP" \
             && checkReturnCode "Awk step $STEP died"
         notExists "$NEXTINPUT" \
-            && ffindex_order "$3/order_step$STEP" "$INPUT" "$INPUT.index" "$NEXTINPUT" "$NEXTINPUT.index" \
+            && mmseqs order "$3/order_step$STEP" "$INPUT" "$NEXTINPUT" \
             && checkReturnCode "Order step $STEP died"
     fi
 

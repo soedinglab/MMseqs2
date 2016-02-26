@@ -9,7 +9,6 @@ hasCommand () {
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && exit 1;
-hasCommand ffindex_order
 hasCommand awk
 
 jobname="$4_$RANDOM"
@@ -104,7 +103,7 @@ smalljob clu_step1 aln_step1 $ncore \
 smalljob order_step1 clu_step1 1 \
 	"cut -f1 $3/clu_step1.index > $3/order_step1"  
 smalljob input_step2 order_step1 2 \
-	"ffindex_order $3/order_step1 $1 $1.index $3/input_step2 $3/input_step2.index"
+	"mmseqs order $3/order_step1 $1 $3/input_step2"
 
 ################ clustering step 2 ################
 bigjob pref_step2 input_step2 \
@@ -116,7 +115,7 @@ smalljob clu_step2 aln_step2 $ncore \
 smalljob order_step2 clu_step2 1 \
     "cut -f1 $3/clu_step2.index > $3/order_step2"
 smalljob input_step3 order_step2 2 \
-    "ffindex_order $3/order_step2 $1 $1.index $3/input_step3 $3/input_step3.index"
+    "mmseqs order $3/order_step2 $1 $3/input_step3"
 
 ################ clustering step 3 ################
 bigjob pref_step3 input_step3 \
