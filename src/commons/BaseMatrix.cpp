@@ -170,4 +170,4 @@ std::string BaseMatrix::getMatrixName() {
 double BaseMatrix::getBackgroundProb(size_t aa_index)  {
     Debug(Debug::ERROR) << "getBackground is not Impl. for this type of Matrix \n";
     EXIT(EXIT_FAILURE);
-};
+}
