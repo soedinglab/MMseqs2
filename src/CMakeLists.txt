@@ -31,15 +31,20 @@ endif()
 set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -Wall -Wno-write-strings -std=c++0x -m64")
 set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} -Os -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ffast-math -fno-exceptions -ftree-vectorize -fno-strict-aliasing")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDBINFO} -O2 -g")
 
+if(CMAKE_COMPILER_IS_ICC)
+    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ipo -no-prec-div -xHost -fno-exceptions")
+else()
+    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ffast-math -fno-exceptions -ftree-vectorize -fno-strict-aliasing")
+endif()
+
 # Compiler-specific features
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++11")
     set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-endif ()
+endif()
 
 # MPI
 if(${HAVE_MPI})
