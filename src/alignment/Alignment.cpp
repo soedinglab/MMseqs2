@@ -16,7 +16,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
                      std::string targetSeqDB, std::string targetSeqDBIndex,
                      std::string prefDB, std::string prefDBIndex,
                      std::string outDB, std::string outDBIndex,
-                     Parameters par){
+                     Parameters& par){
 
     BUFFER_SIZE = 10000000;
 

@@ -20,7 +20,7 @@ public:
                std::string targetSeqDB, std::string targetSeqDBIndex,
                std::string prefDB, std::string prefDBIndex,
                std::string outDB, std::string outDBIndex,
-               Parameters par);
+               Parameters& par);
 
     ~Alignment();
     //None MPI
