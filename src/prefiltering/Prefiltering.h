@@ -23,7 +23,7 @@ public:
                  std::string targetDBIndex,
                  std::string outDB,
                  std::string outDBIndex,
-                 Parameters par);
+                 Parameters& par);
 
     ~Prefiltering();
     void run(size_t dbFrom, size_t dbSize, int splitMode, std::string resultDB, std::string resultDBIndex);

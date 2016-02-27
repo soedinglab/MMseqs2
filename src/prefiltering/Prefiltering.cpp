@@ -27,7 +27,7 @@ Prefiltering::Prefiltering(std::string queryDB,
                            std::string targetDBIndex,
                            std::string outDB,
                            std::string outDBIndex,
-                           Parameters par):
+                           Parameters& par):
         outDB(outDB),
         outDBIndex(outDBIndex),
         kmerSize(par.kmerSize),

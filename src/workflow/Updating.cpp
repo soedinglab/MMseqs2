@@ -108,7 +108,7 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
 
 std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
         std::string targetDB, std::string targetDBIndex,
-        std::string tmpDir, Parameters par, std::string dbName, std::list<std::string>* tmpFiles){
+        std::string tmpDir, Parameters& par, std::string dbName, std::list<std::string>* tmpFiles){
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
