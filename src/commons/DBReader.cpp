@@ -69,7 +69,8 @@ template <typename T> void DBReader<T>::open(int accessType){
 }
 
 template<typename T>
-void DBReader<T>::sortIndex() { }
+void DBReader<T>::sortIndex() {
+}
 
 template<>
 void DBReader<std::string>::sortIndex() {
@@ -85,6 +86,11 @@ void DBReader<std::string>::sortIndex() {
             seqLens[i] = sortArray[i].second;
         }
         delete[] sortArray;
+    }else{
+        if(accessType != NOSORT){
+            Debug(Debug::ERROR) << "DBReader<std::string> can not be opend in sort mode\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 }
 
