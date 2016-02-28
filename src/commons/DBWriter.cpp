@@ -283,6 +283,8 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
             fwrite(&file1Char, sizeof(char), 1, dataFiles[0]);
         }
     }
+    fclose(file1);
+    fclose(file2);
     Debug(Debug::WARNING) << "Merge file " << inData1 << " and " << inData2 << "\n";
     DBReader<unsigned int> reader1(inIndex1, inIndex1,
                                  DBReader<std::string>::USE_INDEX);
@@ -298,6 +300,5 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
         fprintf(indexFiles[0], "%s\t%zd\t%zd\n", SSTR(key).c_str(), currOffset, seqLen);
         currOffset += seqLen;
     }
-    fclose(file1);
-    fclose(file2);
+
 }
