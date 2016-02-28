@@ -34,8 +34,6 @@ class DBWriter {
     
         void mergeFiles(DBReader<unsigned int>& qdbr, std::vector<std::pair<std::string, std::string> > files);
 
-        void swapResults(std::string inputDb, size_t splitSize);
-
         void sortDatafileByIdOrder(DBReader<unsigned int>& qdbr);
 
         static void mergeResults(const char *outFileName, const char *outFileNameIndex, const char **dataFileNames,

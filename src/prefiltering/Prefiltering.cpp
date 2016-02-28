@@ -179,7 +179,8 @@ void Prefiltering::run(){
     this->closeReader();
 }
 
-void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> > filenames){
+void Prefiltering::mergeOutput(std::string outDB, std::string outDBIndex,
+                               std::vector<std::pair<std::string, std::string> > filenames){
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
@@ -699,7 +700,7 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
 
 void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode) {
     if(mode == Parameters::TARGET_DB_SPLIT){
-        this->mergeOutput(splitFiles);
+        this->mergeOutput(outDB, outDBIndex, splitFiles);
     }else if (mode == Parameters::QUERY_DB_SPLIT){
         const char ** datafilesNames = new const char *[splitFiles.size()];
         const char ** indexFilesNames = new const char *[splitFiles.size()];

@@ -319,6 +319,7 @@ public:
     std::vector<MMseqsParameter> translateNucleotide;
     std::vector<MMseqsParameter> addSequences;
     std::vector<MMseqsParameter> filterDb;
+    std::vector<MMseqsParameter> swapresults;
     std::vector<MMseqsParameter> substractresult;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,

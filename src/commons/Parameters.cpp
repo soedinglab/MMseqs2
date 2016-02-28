@@ -236,6 +236,9 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_THREADS);
     filterDb.push_back(PARAM_V);
 
+    // swapreults
+    swapresults.push_back(PARAM_SPLIT);
+    swapresults.push_back(PARAM_V);
 
     // substractresult
     substractresult.push_back(PARAM_THREADS);
