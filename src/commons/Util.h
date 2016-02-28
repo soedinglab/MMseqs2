@@ -112,6 +112,9 @@ public:
                 return elementCounter;
             data += skipNoneWhitespace(data);
         }
+        if(elementCounter < maxElement)
+            words[elementCounter] = data;
+
         return elementCounter;
     }
 

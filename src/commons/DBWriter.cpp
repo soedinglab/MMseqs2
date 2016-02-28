@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <fstream>
+#include <sys/time.h>
 
 #include "DBWriter.h"
 #include "DBReader.h"
@@ -75,7 +76,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
         char *data = dbr.getData(id);
         write(data, strlen(data), SSTR(dbr.getDbKey(id)).c_str(), thread_idx);
     }
-    
+
     Debug(Debug::INFO) << "Done\n";
 }
 
@@ -84,7 +85,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr, std::vector<std::pair<st
 
     // open DBReader
     const size_t fileCount = files.size();
-    DBReader<unsigned int> *filesToMerge[fileCount];
+    DBReader<unsigned int> **filesToMerge = new DBReader<unsigned int>*[fileCount];
     for (size_t i = 0; i < fileCount; i++) {
         filesToMerge[i] = new DBReader<unsigned int>(files[i].first.c_str(),
                                                      files[i].second.c_str());
@@ -97,7 +98,6 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr, std::vector<std::pair<st
         for (size_t i = 0; i < fileCount; i++) {
             ss << filesToMerge[i]->getData(id);
         }
-
         // write result
         std::string result = ss.str();
         write(result.c_str(), result.length(), SSTR(qdbr.getDbKey(id)).c_str(), 0);
@@ -108,6 +108,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr, std::vector<std::pair<st
         filesToMerge[i]->close();
         delete filesToMerge[i];
     }
+    delete [] filesToMerge;
 
     Debug(Debug::INFO) << "Done";
 }
@@ -292,6 +293,9 @@ void DBWriter::checkClosed() {
 
 void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
                             const char **dataFileNames, const char **indexFileNames, int fileCount) {
+
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
     // merge results from each thread into one result file
     // merge each data file
     for(int i = 1; i < fileCount; i++)
@@ -354,49 +358,44 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     }
     fclose(index_file);
     indexReader.close();
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "Time for merging files: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) <<" s\n";
 }
 
 void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
                              const char *inData2, const char *inIndex2) {
-    DBReader<unsigned int> in1(inData1, inIndex1);
-    in1.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> in2(inData2, inIndex2);
-    in2.open(DBReader<unsigned int>::NOSORT);
-    Debug(Debug::WARNING) << "Merge file " << inData1 << " and " << inData2 << "\n";
-    size_t dbSize = in1.getSize();
-    char **buffer = new char *[threads]; //6MB
-
-#pragma omp parallel for schedule(static)
-    for (int i = 0; i < threads; i++) {
-        buffer[i] = new char[6400000]; //6MB
-    }
-#pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < dbSize; i++) {
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-
-        unsigned int dbKey = in1.getDbKey(i);
-        const char *data1 = in1.getData(i);
-        const char *data2 = in2.getData(i);
-        size_t entry1Size = in1.getSeqLens(i);
-        size_t entry2Size = in2.getSeqLens(i);
-        size_t dataSize = entry1Size + entry2Size;
-        if(dataSize > 6400000){
-            Debug(Debug::ERROR) <<  "Entry " << dbKey << " of " << inIndex2
-                                << " and " << inIndex2 << " is " << dataSize
-                                << " bytes long. The allowed max size is 102400000 byte. \n";
-            EXIT(EXIT_FAILURE);
+    FILE *file1 = fopen(inData1, "r");
+    FILE *file2 = fopen(inData2, "r");
+    int c1, c2;
+    while((c1=fgetc(file1)) != EOF) {
+        char file1Char = (char) c1;
+        if(file1Char == '\0'){
+            while((c2=fgetc(file2)) != EOF && c2 != (int) '\0') {
+                char file2Char = (char) c2;
+                fwrite(&file2Char, sizeof(char), 1, dataFiles[0]);
+            }
+            char nullByte = '\0';
+            fwrite(&nullByte, sizeof(char), 1, dataFiles[0]);
+        }else{
+            fwrite(&file1Char, sizeof(char), 1, dataFiles[0]);
         }
-        memcpy(buffer[thread_idx], data1, entry1Size - 1); // -1 for the nullbyte
-        memcpy(buffer[thread_idx] + entry1Size - 1, data2, entry2Size - 1);
-        write(buffer[thread_idx], dataSize - 2, SSTR(dbKey).c_str(), thread_idx);
     }
-    for (int i = 0; i < threads; i++) {
-        delete[] buffer[i];
+    Debug(Debug::WARNING) << "Merge file " << inData1 << " and " << inData2 << "\n";
+    DBReader<unsigned int> reader1(inIndex1, inIndex1,
+                                 DBReader<std::string>::USE_INDEX);
+    reader1.open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> reader2(inIndex2, inIndex2,
+                                  DBReader<std::string>::USE_INDEX);
+    reader2.open(DBReader<unsigned int>::NOSORT);
+    size_t currOffset = 0;
+    for(size_t id = 0; id < reader1.getSize(); id++){
+        // add lenght for file1 and file2 and substrace -1 for one null byte
+        size_t seqLen = reader1.getSeqLens(id) + reader2.getSeqLens(id) - 1;
+        unsigned int key = reader1.getIndex()[id].id;
+        fprintf(indexFiles[0], "%s\t%zd\t%zd\n", SSTR(key).c_str(), currOffset, seqLen);
+        currOffset += seqLen;
     }
-    delete[] buffer;
-    in1.close();
-    in2.close();
+    fclose(file1);
+    fclose(file2);
 }

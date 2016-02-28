@@ -41,7 +41,6 @@ public:
         table = new char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
         memset(table, 0, sizeof(char * ) * (tableSize + 1)); // set all pointers to 0
         idxer = new Indexer(alphabetSize, kmerSize);
-        //TODO fix this later
         this->tableEntriesNum = 0;
         entries = NULL;
         sequenceLookup = NULL;
@@ -157,7 +156,6 @@ public:
     }
 
     void revertPointer(){
-        //TODO maybe not - 1
         for(size_t i = tableSize - 1; i > 0; i--){
             table[i] = table[i-1];
         }

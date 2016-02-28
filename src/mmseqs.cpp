@@ -54,7 +54,7 @@ static struct Command commands[] = {
         {"filterdb",            filterdb,               &par.filterDb,              COMMAND_HELPER,
                 "Filter a database by column regex"},
         {"formatalignment",     formatalignment,        &par.formatalignment,       COMMAND_HELPER,
-                "Convert a ffindex alignment database to BLAST tab or SAM flat file"},
+                "Convert a ffindex alignment database to BLAST tab, pairwise alignments or SAM flat file"},
         {"swapresults",         swapresults,            &par.empty,                 COMMAND_HELPER,
                 "Swaps results from the mapping A -> (A,B,C) to A -> A, B -> A, C -> A"},
         {"addsequences",        addsequences,           &par.addSequences,          COMMAND_HELPER,

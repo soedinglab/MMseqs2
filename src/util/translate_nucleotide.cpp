@@ -1,5 +1,4 @@
 #include <unistd.h>
-
 #include <string>
 
 #include "Parameters.h"
@@ -26,10 +25,12 @@ int translatenucleotide(int argn, const char **argv)
 
     const char* in_filename = par.db1.c_str();
     const char* in_index_filename = par.db1Index.c_str();
-    
+    const char* in_header_filename = std::string(par.db1 + "_h").c_str();
+    const char* in_header_index_filename = std::string(par.db1 + "_h.index").c_str();
     const char *out_filename  = par.db2.c_str();
     const char *out_index_filename = par.db2Index.c_str();
-    
+    const char *out_header_filename  = std::string(par.db2 + "_h").c_str();
+    const char *out_header_index_filename = std::string(par.db2 + "_h.index").c_str();
     DBReader<std::string> reader(in_filename, in_index_filename);
     reader.open(DBReader<std::string>::NOSORT);
     
@@ -143,7 +144,9 @@ int translatenucleotide(int argn, const char **argv)
         
         writer.write(aa, (length / 3) + 1, (char*)key.c_str());
     }
-    
+    // set links to header
+    symlink(in_header_filename, out_header_filename);
+    symlink(in_header_index_filename, out_header_index_filename);
     writer.close();
     reader.close();
     

@@ -17,14 +17,14 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
                      std::string prefDB, std::string prefDBIndex,
                      std::string outDB, std::string outDBIndex,
                      Parameters par){
-
-    BUFFER_SIZE = 10000000;
-
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
     this->fragmentMerge = par.fragmentMerge;
-
+    this->addBacktrace = par.addBacktrace;
+    if(addBacktrace == true){
+        par.alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    }
     switch (par.alignmentMode){
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
             if(this->covThr == 0.0 && this->seqIdThr == 0.0){
@@ -242,16 +242,18 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 alignmentsNum++;
                 //set coverage and seqid if identity
                 if (isIdentity){
-                    res.qcov=1;
-                    res.dbcov=1;
-                    res.seqId=1;
+                    res.qcov=1.0f;
+                    res.dbcov=1.0f;
+                    res.seqId=1.0f;
                 }
 
                 // check first if it is identity
                 if (isIdentity
                     ||
+                    // general accaptance criteria
                     (res.eval <= evalThr && res.seqId >= seqIdThr && res.qcov >= covThr && res.dbcov >= covThr)
                     ||
+                    // check for fragment
                     (( mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID || mode == Parameters::ALIGNMENT_MODE_SCORE_COV) && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 ))
                 {
                     swResults.push_back(res);
@@ -263,8 +265,6 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 else{
                     rejected++;
                 }
-                // check for fragment
-
             }
             // write the results
             swResults.sort(Matcher::compareHits);
@@ -282,7 +282,12 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 swResultsSs << it->qLen << "\t";
                 swResultsSs << it->dbStartPos << "\t";
                 swResultsSs << it->dbEndPos << "\t";
-                swResultsSs << it->dbLen << "\n";
+                if(addBacktrace == true){
+                    swResultsSs << it->dbLen << "\t";
+                    swResultsSs << it->backtrace << "\n";
+                }else{
+                    swResultsSs << it->dbLen << "\n";
+                }
             }
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();

@@ -39,8 +39,9 @@ Parameters::Parameters():
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "Minimum alignment coverage [0.0,1.0]",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$"),
         PARAM_FRAG_MERGE(PARAM_FRAG_MERGE_ID,"--frag-merge", "Detect fragments", "Add Hits with cov > 0.95 and seq. id > 0.90",typeid(bool), (void *) &fragmentMerge, ""),
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "Maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$"),
-// clustering
+        PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "--add-backtrace", "Add backtrace", "Add backtrace string to results (M=Match, D=deletion, I=insertion)", typeid(bool), (void *) &addBacktrace, ""),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
+// clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-3]{1}$"),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "Start the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
 //affinity clustering
@@ -50,8 +51,8 @@ Parameters::Parameters():
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]{1}$"),
 // create profile (HMM, PSSM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "MPI Option: HMM 0 or PSSM",typeid(int),(void *) &profileMode,  "^[0-1]{1}$"),
-// createdb
-        PARAM_SPLIT_SEQ_BY_LEN(PARAM_SPLIT_SEQ_BY_LEN_ID,"--split-seq-by-len", "Split Seq. by len", "Split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
+// formatalignment
+        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "Output format BLAST TAB=0, PAIRWISE=1, or SAM=2 ", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
 // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "Allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "Add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, ""),
@@ -75,8 +76,10 @@ Parameters::Parameters():
         PARAM_ORF_EXTENDMIN(PARAM_ORF_EXTENDMIN_ID,"--extend-min", "Extend short orfs", "If an orf would be rejected because of the min length threshold, allow it to be extended to the next stop codon",typeid(bool),(void *) &orfExtendMin, ""),
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "Comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "Comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
+// createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "Use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "Numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
+        PARAM_SPLIT_SEQ_BY_LEN(PARAM_SPLIT_SEQ_BY_LEN_ID,"--split-seq-by-len", "Split Seq. by len", "Split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "Use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "Type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
@@ -97,6 +100,7 @@ Parameters::Parameters():
     alignment.push_back(PARAM_MAX_REJECTED);
     alignment.push_back(PARAM_NUCL);
     alignment.push_back(PARAM_PROFILE);
+    alignment.push_back(PARAM_ADD_BACKTRACE);
     alignment.push_back(PARAM_THREADS);
     alignment.push_back(PARAM_V);
 
@@ -150,6 +154,10 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
 
+    // format alignment
+    formatalignment.push_back(PARAM_FORMAT_MODE);
+    //formatalignment.push_back(PARAM_THREADS);
+    formatalignment.push_back(PARAM_V);
     // result2msa
     result2msa.push_back(PARAM_SUB_MAT);
     result2msa.push_back(PARAM_ALLOW_DELETION);
@@ -538,7 +546,7 @@ void Parameters::setDefaults() {
     fragmentMerge = false;
     maxRejected = INT_MAX;
     seqIdThr = 0.0;
-
+    addBacktrace = false;
     clusteringMode = SET_COVER;
     validateClustering = 0;
     cascaded = false;
@@ -555,12 +563,16 @@ void Parameters::setDefaults() {
 
     // createprofiledb
     profileMode = PROFILE_MODE_HMM;
+
     // createdb
     splitSeqByLen = false;
+
+    // format alignment
+    formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
+
     // result2msa
     allowDeletion = false;
     addInternalId = false;
-
     // result2profile
     filterMaxSeqId = 0.9;
     qid = 0.0;           // default for minimum sequence identity with query

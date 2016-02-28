@@ -39,6 +39,10 @@ public:
     static const int SEARCH_LOCAL = 1;
     static const int SEARCH_LOCAL_FAST = 2;
 
+    static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
+    static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
+    static const int FORMAT_ALIGNMENT_SAM       = 2;
+
     static const int PROFILE_MODE_HMM = 0;
     static const int PROFILE_MODE_PSSM = 1;
 
@@ -111,7 +115,8 @@ public:
     float  covThr;                       // coverage threshold for acceptance
     int    maxRejected;                  // after n sequences that are above eval stop
     float  seqIdThr;                     // sequence identity threshold for acceptance
-    bool   fragmentMerge;
+    bool   fragmentMerge;                // allow fragments to in the result
+    bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
 
     // workflow
     std::string runner;
@@ -141,6 +146,9 @@ public:
 
     // createprofiledb
     int profileMode;
+
+    // format alignment
+    int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
 
     // result2msa
     bool allowDeletion;
@@ -219,6 +227,7 @@ public:
     PARAMETER(PARAM_C)
     PARAMETER(PARAM_FRAG_MERGE)
     PARAMETER(PARAM_MAX_REJECTED)
+    PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_MIN_SEQ_ID)
 
     std::vector<MMseqsParameter> alignment;
@@ -237,6 +246,9 @@ public:
 
     // create profile (HMM, PSSM)
     PARAMETER(PARAM_PROFILE_TYPE)
+
+    // format alignment
+    PARAMETER(PARAM_FORMAT_MODE)
 
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION)
@@ -313,7 +325,6 @@ public:
                                               std::vector<MMseqsParameter> &par2);
 
     std::string createParameterString(std::vector < MMseqsParameter > &vector);
-
 
 };
 

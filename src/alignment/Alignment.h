@@ -39,8 +39,6 @@ private:
     unsigned mode;
     int threads;
 
-    size_t BUFFER_SIZE;
-
     // sequence identity threshold
     double seqIdThr;
 
@@ -78,6 +76,9 @@ private:
     bool sameQTDB;
     // merge fragments
     bool fragmentMerge;
+
+    // includes backtrace to alignment
+    bool addBacktrace;
 };
 
 #endif

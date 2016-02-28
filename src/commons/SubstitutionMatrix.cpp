@@ -85,7 +85,6 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(short *profileScores,
     }
     for(size_t aa = 0; aa < 20; aa++)
         pnul[aa] /= N;
-    float avg = 0.0;
     for (int i = 0; i < N; i++){
         const int minPos = std::max(0, (i - windowSize/2));
         const int maxPos = std::min(N, (i + windowSize/2));

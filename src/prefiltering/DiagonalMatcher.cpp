@@ -89,8 +89,6 @@ const simd_int  DiagonalMatcher::vectorDiagonalScoring(const char *profile,
         simd_int template01 = simdi_load((simd_int *)&dbSeq[pos*VECSIZE_INT*4]);
 #ifdef AVX2
         __m256i score_matrix_vec01 = _mm256_load_si256((simd_int *)&profile[pos * PROFILESIZE]);
-        //TODO check
-
         __m256i score_vec_8bit = Shuffle(score_matrix_vec01, template01);
         //        __m256i score_vec_8bit = _mm256_shuffle_epi8(score_matrix_vec01, template01);
         //        __m256i lookup_mask01  = _mm256_cmpgt_epi8(sixten, template01); // 16 > t
