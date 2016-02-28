@@ -6,6 +6,7 @@
 
 #include <list>
 #include <iomanip>
+#include <memory>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -277,14 +278,14 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 swResultsSs << it->score << "\t"; //TODO fix for formats
                 swResultsSs << std::fixed << std::setprecision(3) << it->seqId << "\t";
                 swResultsSs << std::scientific << it->eval << "\t";
-                swResultsSs << it->qStartPos << "\t";
-                swResultsSs << it->qEndPos << "\t";
+                swResultsSs << it->qStartPos + 1 << "\t";
+                swResultsSs << it->qEndPos  + 1 << "\t";
                 swResultsSs << it->qLen << "\t";
-                swResultsSs << it->dbStartPos << "\t";
-                swResultsSs << it->dbEndPos << "\t";
+                swResultsSs << it->dbStartPos + 1 << "\t";
+                swResultsSs << it->dbEndPos + 1 << "\t";
                 if(addBacktrace == true){
                     swResultsSs << it->dbLen << "\t";
-                    swResultsSs << it->backtrace << "\n";
+                    swResultsSs << compressAlignment(it->backtrace) << "\n";
                 }else{
                     swResultsSs << it->dbLen << "\n";
                 }
@@ -309,11 +310,48 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
 }
 
 void Alignment::mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> files) {
-    const char * datafilesNames[files.size()];
-    const char * indexFilesNames[files.size()];
+    const char ** datafilesNames = new const char*[files.size()];
+    const char ** indexFilesNames= new const char*[files.size()];
     for(size_t i = 0; i < files.size(); i++){
         datafilesNames[i] = files[i].first.c_str();
         indexFilesNames[i] = files[i].second.c_str();
     }
     DBWriter::mergeResults(outDB.c_str(), outDBIndex.c_str(), datafilesNames, indexFilesNames, files.size());
+    delete [] datafilesNames;
+    delete [] indexFilesNames;
+}
+
+std::string Alignment::compressAlignment(std::string bt) {
+    std::string ret;
+    char state = 'M';
+    size_t counter = 0;
+    for(size_t i = 0; i < bt.size(); i++){
+        counter++;
+        if(bt[i] != state){
+            ret.append(std::to_string(counter));
+            ret.push_back(state);
+            state = bt[i];
+            counter = 0;
+        }
+    }
+    ret.append(std::to_string(counter));
+    ret.push_back(state);
+    return ret;
+}
+
+std::string Alignment::uncompressAlignment(std::string cbt) {
+    std::string bt;
+    unsigned int count = 0;
+    for(size_t i = 0; i < cbt.size(); i++) {
+        sscanf(cbt.c_str() + i, "%u", &count);
+        for(size_t j = i; j < cbt.size(); j++ ){
+            if(isdigit(cbt[j]) == false){
+                char state = cbt[j];
+                bt.append(count, state);
+                i = j;
+                break;
+            }
+        }
+    }
+    return bt;
 }

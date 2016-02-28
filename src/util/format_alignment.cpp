@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <Alignment.h>
 #include "Util.h"
 #include "Parameters.h"
 #include "Matcher.h"
@@ -56,8 +57,8 @@ int formatalignment (int argc, const char * argv[])
 
 
 
-    DBReader<unsigned int> * query;
-    DBReader<unsigned int> * target;
+    DBReader<unsigned int> * query = NULL;
+    DBReader<unsigned int> * target = NULL;
     bool sameDB = false;
     if(par.formatAlignmentMode != Parameters::FORMAT_ALIGNMENT_BLAST_TAB){
         Debug(Debug::WARNING) << "Query  file: " << par.db1 << "\n";
@@ -66,7 +67,7 @@ int formatalignment (int argc, const char * argv[])
         query->readMmapedDataInMemory();
         Debug(Debug::WARNING) << "Target  file: " << par.db2  << "\n";
         if(par.db1.compare(par.db2) == 0){
-            sameDB == true;
+            sameDB = true;
             target = query;
         }else{
             target = new DBReader<unsigned int>( par.db2.c_str(), (par.db2+".index").c_str());
@@ -118,11 +119,12 @@ int formatalignment (int argc, const char * argv[])
                         res.qStartPos,res.qEndPos, res.dbStartPos,res.dbEndPos, res.eval, res.score);
                 //fprintf(fastaFP, "%s\n", res.backtrace.c_str());
                 // fprintf(fastaFP, "%s", querySeq);
-                printSeqBasedOnAln(fastaFP, querySeq, res.qStartPos, res.backtrace, false);
+                std::string backtrace = Alignment::uncompressAlignment(res.backtrace);
+                printSeqBasedOnAln(fastaFP, querySeq, res.qStartPos - 1, backtrace, false);
                 fprintf(fastaFP, "\n");
                 char * targetSeq = target->getDataByDBKey(res.dbKey);
                 //fprintf(fastaFP, "%s", targetSeq);
-                printSeqBasedOnAln(fastaFP, targetSeq, res.dbStartPos, res.backtrace, true);
+                printSeqBasedOnAln(fastaFP, targetSeq, res.dbStartPos - 1, backtrace, true);
                 fprintf(fastaFP, "\n");
             } else if(par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM){
                 ;

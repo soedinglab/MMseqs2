@@ -136,11 +136,11 @@ int detectredundancy (int argc, const char * argv[])
                 swResultsSs << 255 << "\t";
                 swResultsSs << std::fixed << std::setprecision(3) << 1.0f << "\t";
                 swResultsSs << std::scientific << 0 << "\t";
-                swResultsSs << 0 << "\t";
-                swResultsSs << queryLength - 1 << "\t";
+                swResultsSs << 1 << "\t";
                 swResultsSs << queryLength << "\t";
-                swResultsSs << 0 << "\t";
-                swResultsSs << queryLength - 1 << "\t";
+                swResultsSs << queryLength << "\t";
+                swResultsSs << 1 << "\t";
+                swResultsSs << queryLength << "\t";
                 swResultsSs << queryLength << "\n";
                 if(found[i] == true){
                     goto outer;
@@ -159,11 +159,11 @@ int detectredundancy (int argc, const char * argv[])
                             swResultsSs << 255 << "\t";
                             swResultsSs << std::fixed << std::setprecision(3) << seqId << "\t";
                             swResultsSs << std::scientific << 0 << "\t";
-                            swResultsSs << 0 << "\t";
-                            swResultsSs << queryLength - 1 << "\t";
+                            swResultsSs << 1 << "\t";
                             swResultsSs << queryLength << "\t";
-                            swResultsSs << 0 << "\t";
-                            swResultsSs << queryLength - 1 << "\t";
+                            swResultsSs << queryLength << "\t";
+                            swResultsSs << 1 << "\t";
+                            swResultsSs << queryLength << "\t";
                             swResultsSs << queryLength << "\n";
                             found[j] = true;
                         }
@@ -182,6 +182,5 @@ int detectredundancy (int argc, const char * argv[])
     delete [] hashSeqPair;
     seqDbr.close();
     dbw.close();
-
     return 0;
 }
