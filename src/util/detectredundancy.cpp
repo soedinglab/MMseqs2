@@ -128,13 +128,12 @@ int detectredundancy (int argc, const char * argv[])
                 found.push_back(false);
                 pos++;
             }
-            //TODO make this smarter
             for(size_t i = 0; i < setIds.size(); i++) {
                 unsigned int queryLength = seqDbr.getSeqLens(setIds[i]);
                 const char * querySeq =  seqDbr.getData(setIds[i]);
                 std::stringstream swResultsSs;
                 swResultsSs << SSTR(seqDbr.getDbKey(setIds[i])).c_str() << "\t";
-                swResultsSs << 255 << "\t"; //TODO fix for formats
+                swResultsSs << 255 << "\t";
                 swResultsSs << std::fixed << std::setprecision(3) << 1.0f << "\t";
                 swResultsSs << std::scientific << 0 << "\t";
                 swResultsSs << 0 << "\t";
@@ -157,7 +156,7 @@ int detectredundancy (int argc, const char * argv[])
                         float seqId = (static_cast<float>(queryLength) - static_cast<float>(distance))/static_cast<float>(queryLength);
                         if(seqId > par.seqIdThr) {
                             swResultsSs << SSTR(seqDbr.getDbKey(setIds[j])).c_str() << "\t";
-                            swResultsSs << 255 << "\t"; //TODO fix for formats
+                            swResultsSs << 255 << "\t";
                             swResultsSs << std::fixed << std::setprecision(3) << seqId << "\t";
                             swResultsSs << std::scientific << 0 << "\t";
                             swResultsSs << 0 << "\t";

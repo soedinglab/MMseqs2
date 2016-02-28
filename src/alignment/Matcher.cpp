@@ -147,6 +147,8 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     //  E =  qL dL * 2^(-S)
     double evalue = BlastScoreUtils::computeEvalue(alignment.score1, kmnByLen[currentQuery->L], this->lambda);
     int bitScore =(short) (BlastScoreUtils::computeBitScore(alignment.score1, lambdaLog2, logKLog2)+0.5);
+//    std::cout << alignment.score1 << "\t" << evalue << "\t" << bitScore << std::endl;
+
     size_t alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
 
     //blast stat
@@ -169,7 +171,7 @@ std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
     while(*data != '\0'){
         char * entry[255];
         char key[255];
-        Util::getWordsOfLine(data, entry, 255 );
+        size_t columns = Util::getWordsOfLine(data, entry, 255 );
         ptrdiff_t keySize =  (entry[1] - data);
         strncpy(key, data, keySize);
         key[keySize] = '\0';
@@ -189,10 +191,19 @@ std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
         double qCov = Matcher::computeCov(qStart, qEnd, qLen);
         double dbCov = Matcher::computeCov(dbStart, dbEnd, dbLen);
         size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
-
-        Matcher::result_t result(targetId, score, qCov, dbCov, seqId, eval, alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
-                                 dbLen, "");
-        ret.push_back(result);
+        if(columns < 11){
+            entry[10] = "";
+            Matcher::result_t result(targetId, score, qCov, dbCov, seqId, eval,
+                                     alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
+                                     dbLen, "");
+            ret.push_back(result);
+        }else{
+            size_t len = entry[11] - entry[10];
+            Matcher::result_t result(targetId, score, qCov, dbCov, seqId, eval,
+                                     alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
+                                     dbLen, std::string(entry[10], len));
+            ret.push_back(result);
+        }
 
         data = Util::skipLine(data);
     }
@@ -204,7 +215,7 @@ size_t Matcher::computeAlnLength(size_t qStart, size_t qEnd, size_t dbStart, siz
 }
 
 float Matcher::estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen) {
-    float estimatedSeqId = (score / static_cast<float>(std::max(qLen, tLen)))  * 0.1656 + 0.1141;
+    float estimatedSeqId = (score / static_cast<float>(std::max(qLen, tLen))) * 0.1656 + 0.1141;
     estimatedSeqId = std::min(estimatedSeqId, 1.0f);
     return std::max(0.0f, estimatedSeqId);
 }

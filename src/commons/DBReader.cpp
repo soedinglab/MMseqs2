@@ -88,7 +88,7 @@ void DBReader<std::string>::sortIndex() {
         delete[] sortArray;
     }else{
         if(accessType != NOSORT){
-            Debug(Debug::ERROR) << "DBReader<std::string> can not be opend in sort mode" << std::endl;
+            Debug(Debug::ERROR) << "DBReader<std::string> can not be opend in sort mode\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -107,9 +107,7 @@ void DBReader<unsigned int>::sortIndex() {
         index[i].data = sortArray[i].first.data;
         seqLens[i] = sortArray[i].second;
     }
-
     delete[] sortArray;
-    //TODO fix linear access
     if (accessType == SORT_BY_LENGTH) {
         // sort the enties by the length of the sequences
         std::pair<unsigned int, unsigned int> *sortForMapping = new std::pair<unsigned int, unsigned int>[size];

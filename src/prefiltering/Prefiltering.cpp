@@ -168,7 +168,6 @@ void Prefiltering::run(){
                   filenamePair.second.c_str());
 
     } // prefiltering scores calculation end
-
     // merge output ffindex databases
     if(splitCounter > 1){
         mergeFiles(splitFiles, splitMode);
@@ -176,16 +175,12 @@ void Prefiltering::run(){
         std::rename(splitFiles[0].first.c_str(),  outDB.c_str());
         std::rename(splitFiles[0].second.c_str(), outDBIndex.c_str());
     }
-//    // remove temp databases
-//    this->removeDatabaes(splitFiles);
     // close reader to reduce memory
     this->closeReader();
 }
 
 void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> > filenames){
-
     struct timeval start, end;
-
     gettimeofday(&start, NULL);
 
     if(filenames.size() < 2){
@@ -203,7 +198,7 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
         std::pair<std::string, std::string> file2 = files.front();
         files.pop_front();
         std::pair<std::string, std::string> out   = std::make_pair((outDB + "_merge_"+ SSTR(mergeStep)).c_str(), (outDBIndex + "_merge_"+ SSTR(mergeStep)).c_str());
-        DBWriter writer(out.first.c_str(), out.second.c_str(), threads);
+        DBWriter writer(out.first.c_str(), out.second.c_str(), 1);
         writer.open();
         writer.mergeFilePair(file1.first.c_str(), file1.second.c_str(), file2.first.c_str(), file2.second.c_str());
         // remove split
@@ -224,7 +219,6 @@ void Prefiltering::mergeOutput(std::vector<std::pair<std::string, std::string> >
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "\nTime for mergeing results: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-
 }
 
 void Prefiltering::run(int mpi_rank, int mpi_num_procs) {
@@ -245,8 +239,6 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs) {
         }
         // merge output ffindex databases
         mergeFiles(splitFiles, splitMode);
-        // remove temp databases
-        // this->removeDatabaes(splitFiles);
         // close reader to reduce memory
         this->closeReader();
     } else {
@@ -430,18 +422,18 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     Debug(Debug::WARNING) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     tmpDbw.close(); // sorts the index
 
-
+    // sort by ids
     // needed to speed up merge later one
     // sorts this datafile according to the index file
     if(splitMode == Parameters::TARGET_DB_SPLIT) {
         if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
-            DBReader<unsigned int> tmpDbr(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
-            tmpDbr.open(DBReader<unsigned int>::NOSORT);
-            DBWriter tmpDbw2((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
-            tmpDbw2.open();
-            tmpDbw2.sortDatafileByIdOrder(tmpDbr);
-            tmpDbr.close();
-            tmpDbw2.close();
+            DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
+            resultReader.open(DBReader<unsigned int>::NOSORT);
+            DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
+            resultWriter.open();
+            resultWriter.sortDatafileByIdOrder(resultReader);
+            resultReader.close();
+            resultWriter.close();
             remove(resultDB.c_str());
             remove(resultDBIndex.c_str());
             std::rename((resultDB + "_tmp").c_str(), resultDB.c_str());
@@ -709,13 +701,15 @@ void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> s
     if(mode == Parameters::TARGET_DB_SPLIT){
         this->mergeOutput(splitFiles);
     }else if (mode == Parameters::QUERY_DB_SPLIT){
-        const char * datafilesNames[splitFiles.size()];
-        const char * indexFilesNames[splitFiles.size()];
+        const char ** datafilesNames = new const char *[splitFiles.size()];
+        const char ** indexFilesNames = new const char *[splitFiles.size()];
         for(size_t i = 0; i < splitFiles.size(); i++){
-            datafilesNames[i] = splitFiles[i].first.c_str();
+            datafilesNames[i]  = splitFiles[i].first.c_str();
             indexFilesNames[i] = splitFiles[i].second.c_str();
         }
         DBWriter::mergeResults(outDB.c_str(), outDBIndex.c_str(), datafilesNames, indexFilesNames, splitFiles.size());
+        delete [] datafilesNames;
+        delete [] indexFilesNames;
     }
 }
 
