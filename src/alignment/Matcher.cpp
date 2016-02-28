@@ -192,7 +192,6 @@ std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
         double dbCov = Matcher::computeCov(dbStart, dbEnd, dbLen);
         size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
         if(columns < 11){
-            entry[10] = "";
             Matcher::result_t result(targetId, score, qCov, dbCov, seqId, eval,
                                      alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
                                      dbLen, "");
