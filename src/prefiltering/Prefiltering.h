@@ -30,7 +30,7 @@ public:
     void run(int mpi_rank, int mpi_num_procs);
     void run ();
     void closeReader();
-    void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
+    static void mergeOutput(std::string outDb, std::string outDBIndex, std::vector<std::pair<std::string, std::string> > filenames);
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
 
     static IndexTable *generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, int alphabetSize, int kmerSize,

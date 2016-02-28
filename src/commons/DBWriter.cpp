@@ -96,7 +96,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr, std::vector<std::pair<st
         std::ostringstream ss;
         // get all data for the id from all files
         for (size_t i = 0; i < fileCount; i++) {
-            ss << filesToMerge[i]->getData(id);
+            ss << filesToMerge[i]->getDataByDBKey(qdbr.getDbKey(id));
         }
         // write result
         std::string result = ss.str();
@@ -111,104 +111,6 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr, std::vector<std::pair<st
     delete [] filesToMerge;
 
     Debug(Debug::INFO) << "Done";
-}
-
-
-void DBWriter::swapResults(std::string inputDb, size_t splitSize) {
-    std::pair<std::string, std::string> name = Util::databaseNames(inputDb);
-    DBReader<unsigned int> dbr(name.first.c_str(), name.second.c_str());
-    dbr.open(DBReader<unsigned int>::NOSORT);
-
-    char dbKey[255 + 1];
-    Debug(Debug::WARNING) << "Start to swap results. Write to " << dataFileName << ".\n";
-    size_t entries_num = 0;
-    std::vector<std::pair<std::string, std::string> > filenames_to_delete;
-    std::map<std::string, std::string *> swapMap;
-    typedef std::map<std::string, std::string *>::iterator SwapIt;
-    for (size_t split = 0; split < splitSize; split++) {
-        Debug(Debug::INFO) << "Process split " << split << " ... ";
-        // create and open db write
-        // create splite file name
-        std::string splitName(dataFileName);
-        splitName.append("_");
-        splitName.append(SSTR(split));
-        std::pair<std::string, std::string> splitNames = Util::databaseNames(splitName);
-        DBWriter splitWrite(splitNames.first.c_str(), splitNames.second.c_str(), 1);
-        splitWrite.open();
-        filenames_to_delete.push_back(std::pair<std::string, std::string>(splitNames.first, splitNames.second));
-
-        size_t startIndex = 0;
-        size_t domainSize = 0;
-        Util::decomposeDomain(dbr.getSize(), split, splitSize, &startIndex, &domainSize);
-        for (size_t i = startIndex; i < (startIndex + domainSize); i++) {
-            std::string outerKey = SSTR(dbr.getDbKey(i));
-            char *data = dbr.getData(i);
-            if (*data == '\0') { // check if file contains entry
-                Debug(Debug::ERROR) << "\nSequence " << outerKey
-                << " does not contain any sequence!\n";
-                continue;
-            }
-
-            while (*data != '\0') {
-                // extract key from results (ids must be always at the first position)
-                Util::parseKey(data, dbKey);
-                std::string *entry = NULL;
-                SwapIt it = swapMap.find(dbKey);
-                if (it == swapMap.end() || it->second == NULL) {
-                    entry = new std::string();
-                    entry->reserve(1620);
-                    swapMap[dbKey] = entry;
-                } else {
-                    entry = swapMap[dbKey];
-                }
-                // write data to map
-                entry->append(outerKey);
-                // next db key
-                char *endPosOfId = data + Util::skipNoneWhitespace(data);
-                data = Util::skipLine(data);
-                entry->append(endPosOfId, data);
-            }
-        }
-        // write results and delete memory
-        for (SwapIt iterator = swapMap.begin(); iterator != swapMap.end(); iterator++) {
-            splitWrite.write((char *) iterator->second->c_str(), iterator->second->size(),
-                             (char *) iterator->first.c_str(), 0);
-            entries_num++;
-            // remove just the value (string *) not the keys
-            // the keys are needed for the merging step later
-            delete iterator->second;
-            iterator->second = NULL;
-        }
-        splitWrite.close();
-        Debug(Debug::INFO) << "Done.\n";
-    }
-    dbr.close();
-
-    this->open();
-    //write new index with all ids (A -> B) of site B
-    std::string tmp_name(dataFileName);
-    tmp_name.append("_all_ids_index");
-    std::string tmp_name_index(tmp_name);
-    tmp_name_index.append(".index");
-    FILE *all_index = fopen(tmp_name_index.c_str(), "w");
-    for (SwapIt it = swapMap.begin(); it != swapMap.end(); it++) {
-        fprintf(all_index, "%s\t%d\t%d\n", it->first.c_str(), 0, 0);
-    }
-    fclose(all_index);
-    swapMap.clear();
-
-    // make temp. DBReader with all ids
-    DBReader<unsigned int> all_ids(inputDb.c_str() /*can be everything that exists */, tmp_name_index.c_str());
-    all_ids.open(DBReader<unsigned int>::NOSORT);
-    mergeFiles(all_ids, filenames_to_delete);
-    all_ids.close();
-
-    remove(tmp_name_index.c_str());
-    for (size_t i = 0; i < filenames_to_delete.size(); i++) {
-        remove(filenames_to_delete[i].first.c_str());
-        remove(filenames_to_delete[i].second.c_str());
-    }
-
 }
 
 // allocates heap memory, careful
