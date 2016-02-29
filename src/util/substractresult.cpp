@@ -128,8 +128,16 @@ int substractresult(int argc,const char **argv)
     usage.append("USAGE: <resultDbLeft> <resultDbRight> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
+
+
     Parameters par;
     par.parseParameters(argc, argv, usage, par.substractresult, 3);
+
+
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
+
     dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.threads);
 
     return 0;

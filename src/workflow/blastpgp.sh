@@ -1,6 +1,7 @@
 #!/bin/bash -ex
 # Clustering workflow script
 checkReturnCode () {
+echo "Status code="$?
 	[ $? -ne 0 ] && echo "$1" && exit 1;
 }
 notExists () {
@@ -13,6 +14,7 @@ notExists () {
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
+[ ! -f "$TARGET_DB_PREF" ] &&  echo "$TARGET_DB_PREF not found!" && exit 1;
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $TMP_PATH not found!" && exit 1;
 
@@ -24,8 +26,8 @@ QUERY_FILE=$(basename $1)
 ABS_QUERY="$(pwd)/${QUERY_FILE}"
 cd -
 
-cd $(dirname $4)
-TMP_PATH=$(pwd)"/"
+cd $4
+TMP_PATH=$(pwd)
 cd -
 
 STEP=0
@@ -34,8 +36,9 @@ echo /cbscratch/martin/mmseqs2.0_bench/tools/mmseqs-dev/
 # processing
 [ -z "$NUM_IT" ] && NUM_IT=3;
 while [ $STEP -lt $NUM_IT ]; do
-	# call prefilter module
-	$RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP"  $PREFILTER_PAR            && checkReturnCode "Prefilter died"
+
+    # call prefilter module
+    $RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP"  $PREFILTER_PAR && checkReturnCode "Prefilter died"
 
     if [ $STEP -ge 1 ]; then
         # pref -aln
@@ -43,7 +46,7 @@ while [ $STEP -lt $NUM_IT ]; do
         mv -f "$TMP_PATH/pref_next_$STEP" "$TMP_PATH/pref_$STEP"
         mv -f "$TMP_PATH/pref_next_$STEP.index" "$TMP_PATH/pref_$STEP.index"
     fi
-
+    echo "RUN alignmment"
 	# call alignment module
 	$RUNNER mmseqs alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR --add-backtrace  && checkReturnCode "Alignment died"
 

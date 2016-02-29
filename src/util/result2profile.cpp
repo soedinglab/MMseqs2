@@ -51,11 +51,13 @@ size_t findMaxSetSize(DBReader<unsigned int>* reader) {
 MultipleAlignment::MSAResult computeAlignment(MultipleAlignment &aligner, Sequence *centerSequence,
                                               std::vector<Sequence *> seqSet,
                                               std::vector<Matcher::result_t> alnResults,
-                                              bool allowDeletion) {
+                                              bool allowDeletion, bool sameDatabase) {
     if(alnResults.size()>0){
         std::vector<Matcher::result_t> alnWithoutIdentity;
         for(size_t i = 0; i < alnResults.size(); i++){
-            if(alnResults[i].dbKey != centerSequence->getDbKey()){
+            if(alnResults[i].dbKey == centerSequence->getDbKey() && sameDatabase == true){
+                ;
+            }else{
                 alnWithoutIdentity.push_back(alnResults[i]);
             }
         }
@@ -178,7 +180,7 @@ int result2outputmode(Parameters &par, int mode) {
                 results = Util::skipLine(results);
             }
             MultipleAlignment::MSAResult res = computeAlignment(aligner, centerSequence, seqSet,
-                                                                alnResults, par.allowDeletion);
+                                                                alnResults, par.allowDeletion, sameDatabase);
             std::stringstream msa;
             std::string result;
             char *data;
