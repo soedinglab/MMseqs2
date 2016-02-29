@@ -16,11 +16,11 @@ int main (int argc, const char * argv[]) {
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix, subMat.int2aa, subMat.alphabetSize);
 
-    char * ref   = "GKILII";
+    const char *ref = "GKILII";
     Sequence refSeq(1000, subMat.aa2int, subMat.int2aa, 0,kmer_size, false);
     refSeq.mapSequence(0, 0, ref);
 
-    char * similar   = "GKVLYL";
+    const char *similar = "GKVLYL";
     Sequence similarSeq(1000, subMat.aa2int, subMat.int2aa, 0, kmer_size, false);
     similarSeq.mapSequence(0, 1, similar);
 
