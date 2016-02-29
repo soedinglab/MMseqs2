@@ -67,6 +67,7 @@ Parameters::Parameters():
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","Sets the MPI runner",typeid(std::string),(void *) &runner, ""),
 // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","Search iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$"),
+        PARAM_USE_INDEX(PARAM_USE_INDEX_ID, "--use-index", "Use index","Use precomputed index for prefilter",typeid(bool),(void *) &useIndex, ""),
 // Orfs
         PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min codons in orf", "Minimum codon number in open reading frames",typeid(int),(void *) &orfMinLength, "^[1-9]{1}[0-9]*$"),
         PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max codons in length", "Maximum codon number in open reading frames",typeid(int),(void *) &orfMaxLength, "^[1-9]{1}[0-9]*$"),
@@ -211,6 +212,7 @@ Parameters::Parameters():
 
     searchworkflow = combineList(alignment, prefilter);
     searchworkflow.push_back(PARAM_NUM_ITERATIONS);
+    searchworkflow.push_back(PARAM_USE_INDEX);
     searchworkflow.push_back(PARAM_RUNNER);
 
     clusteringWorkflow = combineList(prefilter, alignment);
@@ -530,7 +532,11 @@ void Parameters::setDefaults() {
     splitAA = false;
     querySeqType  = Sequence::AMINO_ACIDS;
     targetSeqType = Sequence::AMINO_ACIDS;
+
+    // search workflow
     numIterations = 1;
+    useIndex = false;
+
     threads = 1;
 #ifdef OPENMP
     threads = omp_get_max_threads();

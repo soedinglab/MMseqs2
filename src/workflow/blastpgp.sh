@@ -34,7 +34,7 @@ QUERYDB="$1"
 [ -z "$NUM_IT" ] && NUM_IT=3;
 while [ $STEP -lt $NUM_IT ]; do
 	# call prefilter module
-	$RUNNER mmseqs prefilter "$QUERYDB" "$2" "$4/pref_$STEP"  $PREFILTER_PAR            && checkReturnCode "Prefilter died"
+	$RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$4/pref_$STEP"  $PREFILTER_PAR            && checkReturnCode "Prefilter died"
 
     if [ $STEP -ge 1 ]; then
         # pref -aln
