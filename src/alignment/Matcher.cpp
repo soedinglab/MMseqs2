@@ -200,7 +200,7 @@ std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
             size_t len = entry[11] - entry[10];
             Matcher::result_t result(targetId, score, qCov, dbCov, seqId, eval,
                                      alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
-                                     dbLen, std::string(entry[10], len));
+                                     dbLen, uncompressAlignment(std::string(entry[10], len)));
             ret.push_back(result);
         }
 
@@ -217,4 +217,41 @@ float Matcher::estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, uns
     float estimatedSeqId = (score / static_cast<float>(std::max(qLen, tLen))) * 0.1656 + 0.1141;
     estimatedSeqId = std::min(estimatedSeqId, 1.0f);
     return std::max(0.0f, estimatedSeqId);
+}
+
+
+std::string Matcher::compressAlignment(std::string bt) {
+    std::string ret;
+    char state = 'M';
+    size_t counter = 0;
+    for(size_t i = 0; i < bt.size(); i++){
+        if(bt[i] != state){
+            ret.append(std::to_string(counter));
+            ret.push_back(state);
+            state = bt[i];
+            counter = 1;
+        }else{
+            counter++;
+        }
+    }
+    ret.append(std::to_string(counter));
+    ret.push_back(state);
+    return ret;
+}
+
+std::string Matcher::uncompressAlignment(std::string cbt) {
+    std::string bt;
+    size_t count = 0;
+    for(size_t i = 0; i < cbt.size(); i++) {
+        sscanf(cbt.c_str() + i, "%zu", &count);
+        for(size_t j = i; j < cbt.size(); j++ ){
+            if(isdigit(cbt[j]) == false){
+                char state = cbt[j];
+                bt.append(count, state);
+                i = j;
+                break;
+            }
+        }
+    }
+    return bt;
 }

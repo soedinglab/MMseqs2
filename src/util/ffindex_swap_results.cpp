@@ -67,16 +67,12 @@ int swapresults (int argc, const char * argv[]){
     std::string usage("Swaps results of ffindex database. A -> A, B, C to A->A, B->A, C->A \n");
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n\n");
     usage.append("USAGE: <ffindexDB> <fastaDB> [ffindexHeaderDB]\n");
-
     Parameters par;
     par.parseParameters(argc, argv, usage, par.swapresults, 2);
-
-    std::string ffindexResDB = par.db1;
-    std::string outDB = par.db2;
     size_t splitSize = par.split;
-    Debug(Debug::INFO) << "FFindex input file is " << ffindexResDB << "\n";
-    std::pair<std::string, std::string> name = Util::databaseNames(ffindexResDB);
-    Debug(Debug::INFO) << "Start to swap results. Write to " << outDB << ".\n";
+    Debug(Debug::INFO) << "FFindex input file is " << par.db1 << "\n";
+    std::pair<std::string, std::string> name = Util::databaseNames(par.db1);
+    Debug(Debug::INFO) << "Start to swap results. Write to " << par.db2 << ".\n";
     size_t entries_num = 0;
     std::vector<std::pair<std::string, std::string> > filesToDelete;
     std::map<unsigned int, std::string *> swapMap;
@@ -89,7 +85,7 @@ int swapresults (int argc, const char * argv[]){
     for (size_t split = 0; split < splitSize; split++) {
         // create and open db write
         // create splite file name
-        std::string splitName(outDB);
+        std::string splitName(par.db2);
         splitName.append("_").append(SSTR(split));
         std::pair<std::string, std::string> splitNames = Util::databaseNames(splitName);
         filesToDelete.push_back(std::pair<std::string, std::string>(splitNames.first, splitNames.second));
@@ -122,12 +118,10 @@ int swapresults (int argc, const char * argv[]){
         delete iterator->second;
     }
     // merge output of all swap splits
-    Prefiltering::mergeOutput(outDB, std::string(outDB + ".index"), filesToDelete);
-
+    Prefiltering::mergeOutput(par.db2, std::string(par.db2 + ".index"), filesToDelete);
     for (size_t i = 0; i < filesToDelete.size(); i++) {
         remove(filesToDelete[i].first.c_str());
         remove(filesToDelete[i].second.c_str());
     }
-    
     return 0;
 }

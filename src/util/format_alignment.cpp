@@ -44,9 +44,6 @@ void printSeqBasedOnAln(FILE * out, char *seq, unsigned int offset, std::string 
 int formatalignment (int argc, const char * argv[])
 {
 
-    std::string alignmentDB = "";
-    std::string outFile = "";
-
     std::string usage;
     usage.append("Convert a ffindex alignment database to BLAST tab or SAM flat file.\n");
     usage.append("USAGE: <queryDb> <targetDb> <alignmentDB> <outFile>\n");
@@ -54,8 +51,6 @@ int formatalignment (int argc, const char * argv[])
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.formatalignment, 4);
-
-
 
     DBReader<unsigned int> * query = NULL;
     DBReader<unsigned int> * target = NULL;
@@ -112,30 +107,24 @@ int formatalignment (int argc, const char * argv[])
             if(par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_BLAST_TAB){
                 fprintf(fastaFP, "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
                         queryId.c_str(), targetId.c_str(),  res.seqId, res.alnLength, missMatchCount, gapOpenCount,
-                        res.qStartPos,res.qEndPos, res.dbStartPos,res.dbEndPos, res.eval, res.score);
+                        res.qStartPos + 1,res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1, res.eval, res.score);
             } else if(par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_PAIRWISE) {
                 fprintf(fastaFP, ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
                         queryId.c_str(), targetId.c_str(),  res.seqId, res.alnLength, missMatchCount, gapOpenCount,
-                        res.qStartPos,res.qEndPos, res.dbStartPos,res.dbEndPos, res.eval, res.score);
-                //fprintf(fastaFP, "%s\n", res.backtrace.c_str());
-                // fprintf(fastaFP, "%s", querySeq);
-                std::string backtrace = Alignment::uncompressAlignment(res.backtrace);
-                printSeqBasedOnAln(fastaFP, querySeq, res.qStartPos - 1, backtrace, false);
+                        res.qStartPos + 1,res.qEndPos + 1, res.dbStartPos + 1,res.dbEndPos + 1, res.eval, res.score);
+                std::string backtrace = res.backtrace;
+                printSeqBasedOnAln(fastaFP, querySeq, res.qStartPos, backtrace, false);
                 fprintf(fastaFP, "\n");
                 char * targetSeq = target->getDataByDBKey(res.dbKey);
-                //fprintf(fastaFP, "%s", targetSeq);
-                printSeqBasedOnAln(fastaFP, targetSeq, res.dbStartPos - 1, backtrace, true);
+                printSeqBasedOnAln(fastaFP, targetSeq, res.dbStartPos, backtrace, true);
                 fprintf(fastaFP, "\n");
             } else if(par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM){
                 ;
                 //TODO
             }
-
         }
-
     }
     Debug(Debug::WARNING) << "Done." << "\n";
-
     fclose(fastaFP);
 
     dbr_aln.close();
