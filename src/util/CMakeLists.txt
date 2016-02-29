@@ -25,6 +25,7 @@ set(util_source_files
   result2newick.cpp
   detectredundancy.cpp
   order.cpp
+  TimeTest.cpp
 )
 
 add_library(util ${util_source_files} )
