@@ -44,7 +44,7 @@ while [ $STEP -lt $NUM_IT ]; do
     fi
 
 	# call alignment module
-	$RUNNER mmseqs alignment "$QUERYDB" "$2" "$4/pref_$STEP" "$4/aln_$STEP" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
+	$RUNNER mmseqs alignment "$QUERYDB" "$2" "$4/pref_$STEP" "$4/aln_$STEP" $ALIGNMENT_PAR --add-backtrace  && checkReturnCode "Alignment died"
 
     if [ $STEP -gt 0 ]; then
         mmseqs mergeffindex "$QUERYDB" "$4/aln_new" "$4/aln_0" "$4/aln_$STEP"

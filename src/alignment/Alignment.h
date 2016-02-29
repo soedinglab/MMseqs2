@@ -33,9 +33,6 @@ public:
               const size_t dbFrom, const size_t dbSize,
               const unsigned int maxAlnNum, const unsigned int maxRejected);
 
-    static std::string compressAlignment(std::string bt);
-    static std::string uncompressAlignment(std::string bt);
-
 private:
 
     // keeps state of alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
