@@ -216,18 +216,12 @@ template <typename T> char* DBReader<T>::getData(size_t id){
     }
 }
 
-
-template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey){
-    checkClosed();
-    if(!(dataMode & USE_DATA)) {
-        Debug(Debug::ERROR) << "DBReader is just open in INDEX_ONLY mode. Call of getData is not allowed" << "\n";
-        EXIT(EXIT_FAILURE);
+template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey) {
+    size_t id = getId(dbKey);
+    if(id == UINT_MAX) {
+        return NULL;
     }
-    size_t id = bsearch(index, size, dbKey);
-//    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS){
-//        return  (id < size && index[id].id == dbKey) ? id2local[id] : NULL;
-//    }
-    return (id < size && index[id].id == dbKey) ? index[id].data : NULL;
+    return getData(id);
 }
 
 template <typename T> size_t DBReader<T>::getSize (){
