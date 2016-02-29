@@ -56,7 +56,7 @@ int translatenucleotide(int argn, const char **argv)
             continue;
         }
         
-        char aa[length/3 + 1];
+        char* aa = new char[length/3 + 1];
 
         switch(par.translationTable) {
             case seqan::GeneticCodeSpec::CANONICAL:
@@ -143,6 +143,7 @@ int translatenucleotide(int argn, const char **argv)
         aa[length/3] = '\n';
         
         writer.write(aa, (length / 3) + 1, (char*)key.c_str());
+        delete[] aa;
     }
     // set links to header
     symlink(in_header_filename, out_header_filename);
