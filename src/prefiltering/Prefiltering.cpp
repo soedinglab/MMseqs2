@@ -52,7 +52,10 @@ Prefiltering::Prefiltering(std::string queryDB,
     this->threads = par.threads;
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
+#else 
+    this->threads = 1;
 #endif
+    
     Debug(Debug::INFO) << "\n";
     FileUtil::errorIfFileExist(outDB.c_str());
     FileUtil::errorIfFileExist(outDBIndex.c_str());
