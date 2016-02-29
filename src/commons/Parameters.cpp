@@ -258,8 +258,8 @@ Parameters::Parameters():
     setDefaults();
 }
 
-void Parameters::printUsageMessage(std::string programUsageHeader,
-                                   std::vector<MMseqsParameter> &parameters){
+void Parameters::printUsageMessage(const std::string &programUsageHeader,
+                                   const std::vector<MMseqsParameter> &parameters){
     std::ostringstream ss;
     ss << programUsageHeader << std::endl;
 
@@ -308,7 +308,7 @@ int compileRegex(regex_t * regex, const char * regexText){
 }
 
 void Parameters::parseParameters(int argc, const char* pargv[],
-                                 std::string programUsageHeader,
+                                 const std::string &programUsageHeader,
                                  std::vector<MMseqsParameter> &par,
                                  size_t requiredParameterCount,
                                  bool printPar,
@@ -465,7 +465,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 }
 
 void Parameters::printParameters(int argc, const char* pargv[],
-                                 std::vector<MMseqsParameter> &par){
+                                 const std::vector<MMseqsParameter> &par){
     Debug(Debug::INFO) << "Program call:\n";
     for (int i = 0; i < argc; i++)
         Debug(Debug::INFO) << pargv[i] << " ";

@@ -186,15 +186,15 @@ public:
     void checkSaneEnvironment();
     void setDefaults();
     void parseParameters(int argc, const char* argv[],
-                         std::string programUsageHeader,
+                         const std::string &programUsageHeader,
                          std::vector<MMseqsParameter> &par,
                          size_t requiredParameterCount,
                          bool printParameters = true,
                          bool isVariadic = false);
-    void printUsageMessage(std::string programUsageHeader,
-                           std::vector<MMseqsParameter> &parameters);
+    void printUsageMessage(const std::string &programUsageHeader,
+                           const std::vector<MMseqsParameter> &parameters);
     void printParameters(int argc, const char* pargv[],
-                         std::vector<MMseqsParameter> &par);
+                         const std::vector<MMseqsParameter> &par);
     Parameters();
     ~Parameters(){};
 
