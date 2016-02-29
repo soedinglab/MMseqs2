@@ -70,6 +70,7 @@ private:
                                                     std::vector<Matcher::result_t> queryGaps, unsigned int *noDeletionMSA,
                                                     bool b);
 
+    MSAResult singleSequenceMSA();
 };
 
 

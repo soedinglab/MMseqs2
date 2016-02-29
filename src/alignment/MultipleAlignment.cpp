@@ -47,16 +47,7 @@ MultipleAlignment::~MultipleAlignment() {
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA) {
     // just center sequence is included
     if(edgeSeqs.size() == 0 ){
-        size_t queryMSASize = 0;
-        for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
-            if (queryMSASize >= maxMsaSeqLen) {
-                Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            msaSequence[0][queryMSASize] = (char) centerSeq->int_sequence[queryPos];
-            queryMSASize++;
-        }
-        return MSAResult(queryMSASize, centerSeq->L, edgeSeqs.size() + 1, msaSequence);
+        return singleSequenceMSA(centerSeq, edgeSeqs);
     }
     size_t dbSetSize = 0;
     for(size_t i = 0; i < edgeSeqs.size(); i++) {
@@ -225,9 +216,9 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs,
                                                            std::vector<Matcher::result_t> alignmentResults, bool noDeletionMSA) {
 
-//    for(size_t i = 0; i < alignmentResults.size(); i++){
-//        std::cout << alignmentResults[i].backtrace << std::endl;
-//    }
+    if(edgeSeqs.size() == 0 ){
+        return singleSequenceMSA(centerSeq, edgeSeqs);
+    }
     if(edgeSeqs.size() != alignmentResults.size()){
         Debug(Debug::ERROR) << "edgeSeqs.size (" << edgeSeqs.size() << ") is != alignmentResults.size (" << alignmentResults.size() << ")" << "\n";
         EXIT(EXIT_FAILURE);
@@ -255,4 +246,17 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
     }
     // +1 for the query
     return MSAResult(centerSeqSize, centerSeq->L, edgeSeqs.size() + 1, msaSequence);
+}
+
+MultipleAlignment::MSAResult MultipleAlignment::singleSequenceMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs) {
+    size_t queryMSASize = 0;
+    for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
+        if (queryMSASize >= maxMsaSeqLen) {
+            Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        msaSequence[0][queryMSASize] = (char) centerSeq->int_sequence[queryPos];
+        queryMSASize++;
+    }
+    return MSAResult(queryMSASize, centerSeq->L, edgeSeqs.size() + 1, msaSequence);
 }
