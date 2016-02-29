@@ -46,7 +46,7 @@ private:
                        const short bias,
                        unsigned int thr);
     // scores a single diagonal
-    const int scalarDiagonalScoring(const char *profile,
+    int scalarDiagonalScoring(const char *profile,
                                     const int bias,
                                     const unsigned int seqLen,
                                     const unsigned char *dbSeq);
