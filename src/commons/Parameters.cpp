@@ -495,13 +495,6 @@ void Parameters::printParameters(int argc, const char* pargv[],
     Debug(Debug::INFO) << ss.str() << "\n";
 }
 
-void Parameters::serialize( std::ostream &stream )  {
-}
-
-void Parameters::deserialize( std::istream &stream ) {
-
-}
-
 void Parameters::checkSaneEnvironment() {
     bool isInsane = false;
 

@@ -183,11 +183,8 @@ public:
     int filterColumn;
     std::string filterColumnRegex;
     
-    void setDefaultPaths();
     void checkSaneEnvironment();
     void setDefaults();
-    void serialize( std::ostream &stream );
-    void deserialize( std::istream &stream );
     void parseParameters(int argc, const char* argv[],
                          std::string programUsageHeader,
                          std::vector<MMseqsParameter> &par,

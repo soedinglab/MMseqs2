@@ -717,7 +717,7 @@ void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> s
     }
 }
 
-const int Prefiltering::getKmerThreshold(const float sensitivity, const int score) {
+int Prefiltering::getKmerThreshold(const float sensitivity, const int score) {
     const unsigned int sens =  sensitivity;
 
     int kmerThrBest = kmerScore;

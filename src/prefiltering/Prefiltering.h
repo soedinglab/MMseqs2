@@ -110,7 +110,7 @@ private:
 
     void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
 
-    const int getKmerThreshold(const float sensitivity, const int score);
+    int getKmerThreshold(const float sensitivity, const int score);
 };
 
 #endif
