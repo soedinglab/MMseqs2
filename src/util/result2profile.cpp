@@ -65,7 +65,7 @@ MultipleAlignment::MSAResult computeAlignment(MultipleAlignment &aligner, Sequen
     }
 }
 
-int result2outputmode(Parameters par, int mode) {
+int result2outputmode(Parameters &par, int mode) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif

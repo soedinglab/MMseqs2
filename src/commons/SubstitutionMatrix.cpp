@@ -9,7 +9,7 @@
 
 
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
-                                       float bitFactor, float scoreBias = 0.2) :
+                                       float bitFactor, float scoreBias = -0.2) :
         scoringMatrixFileName(scoringMatrixFileName_) {
     // read amino acid substitution matrix from file
     std::string fileName(scoringMatrixFileName);
