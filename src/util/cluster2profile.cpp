@@ -156,7 +156,7 @@ int result2outputmode(Parameters par, int mode) {
             char *results = resultReader->getData(id);
             // check if already aligned results exists
             size_t columns = Util::getWordsOfLine(results, entry, 255 );
-            if(columns == 11){
+            if(columns == Matcher::ALN_RES_WITH_BT_COL_CNT){
                 alnResults = Matcher::readAlignmentResults(results);
             }
             unsigned int queryId = resultReader->getDbKey(id);
