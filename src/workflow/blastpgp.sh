@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -ex
 # Clustering workflow script
 checkReturnCode () {
 	[ $? -ne 0 ] && echo "$1" && exit 1;
@@ -14,50 +14,51 @@ notExists () {
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
-[ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && exit 1;
+[ ! -d "$4" ] &&  echo "tmp directory $TMP_PATH not found!" && exit 1;
 
 export OMP_PROC_BIND=TRUE
 
 
 cd $(dirname $1)
 QUERY_FILE=$(basename $1)
-$1=$(pwd)"/"$QUERY_FILE
+ABS_QUERY="$(pwd)/${QUERY_FILE}"
 cd -
 
 cd $(dirname $4)
-$4=$(pwd)"/"
+TMP_PATH=$(pwd)"/"
 cd -
 
 STEP=0
-QUERYDB="$1"
+QUERYDB=$ABS_QUERY
+echo /cbscratch/martin/mmseqs2.0_bench/tools/mmseqs-dev/
 # processing
 [ -z "$NUM_IT" ] && NUM_IT=3;
 while [ $STEP -lt $NUM_IT ]; do
 	# call prefilter module
-	$RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$4/pref_$STEP"  $PREFILTER_PAR            && checkReturnCode "Prefilter died"
+	$RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP"  $PREFILTER_PAR            && checkReturnCode "Prefilter died"
 
     if [ $STEP -ge 1 ]; then
         # pref -aln
-        mmseqs substractresult "$4/pref_$STEP" "$4/aln_0" "$4/pref_next_$STEP" $SUBSTRACT_PAR  && checkReturnCode "Substract died"
-        mv -f "$4/pref_next_$STEP" "$4/pref_$STEP"
-        mv -f "$4/pref_next_$STEP.index" "$4/pref_$STEP.index"
+        mmseqs substractresult "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR  && checkReturnCode "Substract died"
+        mv -f "$TMP_PATH/pref_next_$STEP" "$TMP_PATH/pref_$STEP"
+        mv -f "$TMP_PATH/pref_next_$STEP.index" "$TMP_PATH/pref_$STEP.index"
     fi
 
 	# call alignment module
-	$RUNNER mmseqs alignment "$QUERYDB" "$2" "$4/pref_$STEP" "$4/aln_$STEP" $ALIGNMENT_PAR --add-backtrace  && checkReturnCode "Alignment died"
+	$RUNNER mmseqs alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR --add-backtrace  && checkReturnCode "Alignment died"
 
     if [ $STEP -gt 0 ]; then
-        mmseqs mergeffindex "$QUERYDB" "$4/aln_new" "$4/aln_0" "$4/aln_$STEP"
-        mv -f "$4/aln_new" "$4/aln_0"
-        mv -f "$4/aln_new.index" "$4/aln_0.index"
+        mmseqs mergeffindex "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP"
+        mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_0"
+        mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_0.index"
     fi
 # create profiles
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
-        mmseqs result2profile "$QUERYDB" "$2" "$4/aln_0" "$4/profile_$STEP" $PROFILE_PAR && checkReturnCode "Create profile died"
-        ln -s $QUERYDB"_h" "$4/profile_$STEP""_h"
-        ln -s $QUERYDB"_h.index" "$4/profile_$STEP""_h.index"
+        mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR && checkReturnCode "Create profile died"
+        ln -s $QUERYDB"_h" "$TMP_PATH/profile_$STEP""_h"
+        ln -s $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
     fi
-	QUERYDB="$4/profile_$STEP"
+	QUERYDB="$TMP_PATH/profile_$STEP"
     if [ $STEP -eq 0 ]; then
         PREFILTER_PAR=$PREFILTER_PAR" --profile"
         ALIGNMENT_PAR=$ALIGNMENT_PAR" --profile"
@@ -67,17 +68,17 @@ while [ $STEP -lt $NUM_IT ]; do
 done
 # post processing
 let STEP=STEP-1
-mv -f "$4/aln_0" "$3"
-mv -f "$4/aln_0.index" "$3.index"
+mv -f "$TMP_PATH/aln_0" "$3"
+mv -f "$TMP_PATH/aln_0.index" "$3.index"
 checkReturnCode "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
  echo "Remove temporary files"
  STEP=0
  while [ $STEP -lt $NUM_IT ]; do
-    rm -f "$4/pref_$STEP" "$4/pref_$STEP.index"
-    rm -f "$4/aln_$STEP" "$4/aln_$STEP.index"
-    rm -f "$4/profile_$STEP" "$4/profile_$STEP.index" "$4/profile_$STEP""_h" "$4/profile_$STEP""_h.index"
+    rm -f "$TMP_PATH/pref_$STEP" "$TMP_PATH/pref_$STEP.index"
+    rm -f "$TMP_PATH/aln_$STEP" "$TMP_PATH/aln_$STEP.index"
+    rm -f "$TMP_PATH/profile_$STEP" "$TMP_PATH/profile_$STEP.index" "$TMP_PATH/profile_$STEP""_h" "$TMP_PATH/profile_$STEP""_h.index"
     let STEP=STEP+1
  done
 fi
