@@ -19,7 +19,7 @@
 class Matcher{
 
 public:
-
+    const static int ALN_RES_WITH_BT_COL_CNT = 11;
 
     struct result_t {
         unsigned int dbKey;

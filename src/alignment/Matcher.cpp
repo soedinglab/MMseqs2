@@ -191,7 +191,7 @@ std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
         double qCov = Matcher::computeCov(qStart, qEnd, qLen);
         double dbCov = Matcher::computeCov(dbStart, dbEnd, dbLen);
         size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
-        if(columns < 11){
+        if(columns < ALN_RES_WITH_BT_COL_CNT){
             Matcher::result_t result(targetId, score, qCov, dbCov, seqId, eval,
                                      alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
                                      dbLen, "");
