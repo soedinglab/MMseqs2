@@ -146,7 +146,7 @@ public:
 
     // createprofiledb
     int profileMode;
-
+    bool useIndex;
     // format alignment
     int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
 
@@ -199,6 +199,7 @@ public:
     void printParameters(int argc, const char* pargv[],
                          std::vector<MMseqsParameter> &par);
     Parameters();
+    ~Parameters(){};
 
     PARAMETER(PARAM_S)
     PARAMETER(PARAM_K)
@@ -267,7 +268,7 @@ public:
 
     // search workflow
     PARAMETER(PARAM_NUM_ITERATIONS)
-
+    PARAMETER(PARAM_USE_INDEX)
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
