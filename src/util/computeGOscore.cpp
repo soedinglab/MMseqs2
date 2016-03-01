@@ -77,5 +77,6 @@ int computeGOscore(int argc, const char** argv)
             go->~CompareGOTerms();
         }
     }
-
+    Debug(Debug::INFO) <<"GO-Evaluation finished" <<"\n";
+    return 0;
 }
