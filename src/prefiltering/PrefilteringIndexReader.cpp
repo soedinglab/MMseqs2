@@ -35,8 +35,8 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     for (int step = 0; step < stepCnt; step++) {
         size_t splitStart = 0;
         size_t splitSize  = 0;
-        Util::decomposeDomainByAminoaAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
-                step, stepCnt, &splitStart, &splitSize);
+        Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
+                                         step, stepCnt, &splitStart, &splitSize);
         IndexTable *indexTable;
         if (searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST) {
             indexTable = new IndexTable(alphabetSize, kmerSize, true);
