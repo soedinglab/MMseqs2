@@ -17,11 +17,11 @@ int addsequences(int argc, const char **argv)
     par.parseParameters(argc, argv, usage, par.addSequences, 3);
 
     DBReader<unsigned int> clusters(par.db1.c_str(), par.db1Index.c_str());
-    clusters.open(DBReader<unsigned int>::NOSORT);
+    clusters.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     DBReader<unsigned int> bodies(par.db2.c_str(), par.db2Index.c_str());
     bodies.open(DBReader<unsigned int>::NOSORT);
-
+    bodies.readMmapedDataInMemory();
     std::string headerFilename(par.db2);
     headerFilename.append("_h");
 
@@ -30,6 +30,7 @@ int addsequences(int argc, const char **argv)
 
     DBReader<unsigned int> headers(headerFilename.c_str(), headerIndexFilename.c_str());
     headers.open(DBReader<unsigned int>::NOSORT);
+    headers.readMmapedDataInMemory();
 
     DBWriter msaOut(par.db3.c_str(), par.db3Index.c_str());
     msaOut.open();

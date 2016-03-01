@@ -18,16 +18,17 @@ int createtsv (int argc, const char * argv[])
     std::string queryHeaderDB =  par.db1 + "_h";
     DBReader<unsigned int> querydb_header(queryHeaderDB.c_str(), std::string(queryHeaderDB+".index").c_str());
     querydb_header.open(DBReader<unsigned int>::NOSORT);
+    querydb_header.readMmapedDataInMemory();
 
     Debug(Debug::WARNING) << "Target file is " << par.db2 << "\n";
     std::string targetHeaderDB =  par.db2 + "_h";
     DBReader<unsigned int> targetdb_header(targetHeaderDB.c_str(), std::string(targetHeaderDB+".index").c_str());
     targetdb_header.open(DBReader<unsigned int>::NOSORT);
+    targetdb_header.readMmapedDataInMemory();
 
     Debug(Debug::WARNING) << "Data file is " << par.db3 << "\n";
     DBReader<unsigned int> dbr_data( par.db3.c_str(), std::string( par.db3+".index").c_str());
-    dbr_data.open(DBReader<unsigned int>::NOSORT);
-
+    dbr_data.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     FILE *tsvFP =  fopen(par.db4.c_str(), "w");
     Debug(Debug::WARNING) << "Start writing file to " << par.db4 << "\n";
     char * dbKey = new char[par.maxSeqLen + 1];

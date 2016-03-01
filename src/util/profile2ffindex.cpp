@@ -3,7 +3,7 @@
 // Converts PSSM or HHM to MMseqs profile format.
 // MMseqs just stores the position specific score in 1 byte
 //
-
+#include <unistd.h>
 #include "SubstitutionMatrix.h"
 #include "Parameters.h"
 #include "Sequence.h"
@@ -13,7 +13,7 @@
 #include "Util.h"
 #include "MathUtil.h"
 
-void parsePSSM(char *data, char *profileBuffer, size_t *size, BaseMatrix *subMat) {
+void parsePSSM(char *data, std::string * sequence, char *profileBuffer, size_t *size, BaseMatrix *subMat) {
     // go to read in position
     for (size_t i = 0; i < 2; i++) {
         data = Util::skipLine(data);
@@ -34,6 +34,7 @@ void parsePSSM(char *data, char *profileBuffer, size_t *size, BaseMatrix *subMat
     size_t curr_pos = 0;
     while (data[0] != '\n') {
         Util::getWordsOfLine(data, words, 22);
+        sequence->push_back(words[1][0]);
         for (size_t i = 0; i < 20; i++) {
             size_t writePos = curr_pos + aa_index[i];
             profileBuffer[writePos] = atoi(words[2 + i]);
@@ -44,11 +45,12 @@ void parsePSSM(char *data, char *profileBuffer, size_t *size, BaseMatrix *subMat
         data = Util::skipLine(data);
         curr_pos += 20;
     }
+    sequence->push_back('\n');
 
     *size = curr_pos;
 }
 
-void parseHMM(char *data, std::string *header, char *profileBuffer, size_t *size, const char *id, BaseMatrix *subMat) {
+void parseHMM(char *data, std::string *sequence, std::string *header, char *profileBuffer, size_t *size, const char *id, BaseMatrix *subMat) {
     size_t l = 0;
     // find name tag
     while (data[0] != 'N' && data[1] != 'A' && data[2] != 'M' && data[3] != 'E') {
@@ -60,6 +62,30 @@ void parseHMM(char *data, std::string *header, char *profileBuffer, size_t *size
     data = Util::skipLine(data);
     const char *endData = data;
     header->append(startData + 6, endData - (startData + 6));
+
+    // >Consensus
+    while (data[0] != '>') {
+        data = Util::skipLine(data);
+    }
+    // skip over Cons. header
+    data = Util::skipLine(data);
+    // find first line after >Consensus that starts with a >
+    while (data[0] != '>' ) {
+        data = Util::skipLine(data);
+    }
+    data = Util::skipLine(data);
+    char * seqStartPos = data;
+    // copy sequence
+    while (data[0] != '>' && data[0] != '#'  ) {
+        data = Util::skipLine(data);
+    }
+    char * seqEndPos = data;
+    size_t len = (seqEndPos - seqStartPos);
+    for(size_t i = 0; i < len; i++){
+        if(seqStartPos[i] != '\n')
+            sequence->push_back(seqStartPos[i]);
+    }
+    sequence->push_back('\n');
 
     // find beginning of profile information
     while (data[0] != '#') {
@@ -143,6 +169,9 @@ int createprofiledb(int argn, const char **argv) {
     DBWriter dataOut(par.db2.c_str(), par.db2Index.c_str());
     dataOut.open();
 
+    DBWriter seqOut(std::string(par.db2 +"_seq").c_str(),std::string(par.db2 +"_seq.index").c_str());
+    seqOut.open();
+
     std::string headerFileName(par.db2);
     headerFileName.append("_h");
 
@@ -159,6 +188,8 @@ int createprofiledb(int argn, const char **argv) {
     for (size_t i = 0; i < dataIn.getSize(); i++) {
         maxElementSize = std::max(lengths[i], maxElementSize);
     }
+    std::string sequence;
+    std::string header;
 
     Debug(Debug::INFO) << "Start converting profile to MMseqs profile.\n";
     char *profileBuffer = new char[maxElementSize * Sequence::PROFILE_AA_SIZE];
@@ -166,20 +197,26 @@ int createprofiledb(int argn, const char **argv) {
         char *data = dataIn.getData(i);
         std::string idStr = SSTR(i);
         size_t elementSize = 0;
-        std::string header;
         if (par.profileMode == Parameters::PROFILE_MODE_HMM) {
-            parseHMM(data, &header, profileBuffer, &elementSize, idStr.c_str(), &subMat);
+            parseHMM(data, &sequence, &header, profileBuffer, &elementSize, idStr.c_str(), &subMat);
         } else if (par.profileMode == Parameters::PROFILE_MODE_PSSM) {
-            parsePSSM(data, profileBuffer, &elementSize, &subMat);
+            parsePSSM(data, &sequence, profileBuffer, &elementSize, &subMat);
+            header.append(dataIn.getDbKey(i));
+            header.append(" \n");
         }
-
+        seqOut.write(sequence.c_str(), sequence.size(), (char *) idStr.c_str());
         dataOut.write(profileBuffer, elementSize, (char *) idStr.c_str());
         headerOut.write((char *) header.c_str(), header.length(), (char *) idStr.c_str());
+        sequence.clear();
+        header.clear();
     }
     delete[] profileBuffer;
+    symlink(headerFileName.c_str(), std::string(par.db2 +"_seq_h").c_str());
+    symlink(headerIndexFileName.c_str(), std::string(par.db2 +"_seq_h.index").c_str());
 
     headerOut.close();
     dataOut.close();
+    seqOut.close();
     dataIn.close();
 
     Debug(Debug::INFO) << "Done.\n";

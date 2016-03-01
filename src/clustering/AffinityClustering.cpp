@@ -1,8 +1,9 @@
 #include "AffinityClustering.h"
 #include <cfloat>
-#include <Debug.h>
-#include <string.h>
+#include <cstring>
 #include <cmath>
+
+#include "Debug.h"
 
 AffinityClustering::AffinityClustering(size_t set_count, size_t unique_element_count, size_t all_element_count,
         unsigned int *element_size_lookup, float **similarities, unsigned int **setids,  size_t iterationnumber,

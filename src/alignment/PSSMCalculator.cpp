@@ -255,8 +255,8 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
 }
 
 void PSSMCalculator::computePseudoCounts(float *profile, float *frequency, float *frequency_with_pseudocounts, size_t queryLength) {
-    float pca = 1.0f; //TODO
-    float pcb = 1.5f; //TODO
+    const float pca = 1.0f;
+    const float pcb = 1.5f;
     for (size_t pos = 0; pos < queryLength; pos++) {
         float tau = fmin(1.0, pca / (1.0 + Neff_M[pos] / pcb));
 
@@ -353,11 +353,12 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
                 wi[k] = 1E-8;  // for pathological alignments all wi[k] can get 0;
 
             // Find min and max borders between which > fraction MAXENDGAPFRAC of sequences in subalignment contain an aa
-            size_t jmin;
-            size_t jmax;
+            int jmin;
+            int jmax;
             for (jmin = 0; jmin < queryLength && n[jmin][ENDGAP] > MAXENDGAPFRAC * nseqi;
                  ++jmin) {
             };
+            //TODO maybe wrong jmax >= 0
             for (jmax = queryLength - 1; jmax >= 0 && n[jmax][ENDGAP] > MAXENDGAPFRAC * nseqi;
                  --jmax) {
             };
@@ -457,7 +458,7 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
     for (size_t k = 0; k < setSize; ++k) {
         for (size_t i = 0; i < queryLength && X[k][i] == ENDGAP; ++i)
             ((char**)X)[k][i] = MultipleAlignment::GAP;
-        for (size_t i = queryLength - 1; i >= 0 && X[k][i] == ENDGAP; i--)
+        for (int i = queryLength - 1; i >= 0 && X[k][i] == ENDGAP; i--)
             ((char**)X)[k][i] = MultipleAlignment::GAP;
     }
 

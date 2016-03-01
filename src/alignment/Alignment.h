@@ -20,7 +20,7 @@ public:
                std::string targetSeqDB, std::string targetSeqDBIndex,
                std::string prefDB, std::string prefDBIndex,
                std::string outDB, std::string outDBIndex,
-               Parameters par);
+               Parameters &par);
 
     ~Alignment();
     //None MPI
@@ -38,8 +38,6 @@ private:
     // keeps state of alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
     unsigned mode;
     int threads;
-
-    size_t BUFFER_SIZE;
 
     // sequence identity threshold
     double seqIdThr;
@@ -78,6 +76,10 @@ private:
     bool sameQTDB;
     // merge fragments
     bool fragmentMerge;
+
+    // includes backtrace to alignment
+    bool addBacktrace;
+
 };
 
 #endif

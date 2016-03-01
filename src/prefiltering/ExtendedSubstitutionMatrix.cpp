@@ -5,9 +5,9 @@
 
 #include <iostream>
 #include <iterator>
-#include <math.h>
+#include <cmath>
 
-#include <stdlib.h>
+#include <cstdlib>
 
 struct sort_by_score {
     bool operator()(const std::pair<short,unsigned int> left, const std::pair<short,unsigned int> right) {

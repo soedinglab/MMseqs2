@@ -29,6 +29,7 @@ enum {
 };
 
 
+
 size_t findMaxSetSize(DBReader<unsigned int>* reader) {
     //Find the max set size
     size_t maxSetSize = 0;
@@ -47,7 +48,26 @@ size_t findMaxSetSize(DBReader<unsigned int>* reader) {
     return maxSetSize + 1;
 }
 
-int result2outputmode(Parameters par, int mode) {
+MultipleAlignment::MSAResult computeAlignment(MultipleAlignment &aligner, Sequence *centerSequence,
+                                              std::vector<Sequence *> seqSet,
+                                              std::vector<Matcher::result_t> alnResults,
+                                              bool allowDeletion, bool sameDatabase) {
+    if(alnResults.size()>0){
+        std::vector<Matcher::result_t> alnWithoutIdentity;
+        for(size_t i = 0; i < alnResults.size(); i++){
+            if(alnResults[i].dbKey == centerSequence->getDbKey() && sameDatabase == true){
+                ;
+            }else{
+                alnWithoutIdentity.push_back(alnResults[i]);
+            }
+        }
+        return aligner.computeMSA(centerSequence, seqSet, alnWithoutIdentity, !allowDeletion);
+    }else{
+        return aligner.computeMSA(centerSequence, seqSet, !allowDeletion);
+    }
+}
+
+int result2outputmode(Parameters &par, int mode) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
@@ -93,8 +113,8 @@ int result2outputmode(Parameters par, int mode) {
         maxSequenceLength = std::max((size_t) lengths[i], maxSequenceLength);
     }
 
-    DBReader<unsigned int>* clusterReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
-    clusterReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<unsigned int>*resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     FileUtil::errorIfFileExist(par.db4.c_str());
     FileUtil::errorIfFileExist(par.db4Index.c_str());
@@ -102,7 +122,7 @@ int result2outputmode(Parameters par, int mode) {
     DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
     writer.open();
 
-    size_t maxSetSize = findMaxSetSize(clusterReader);
+    size_t maxSetSize = findMaxSetSize(resultReader);
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     Debug(Debug::INFO) << "Start computing " << (!mode ? "MSAs" : "profiles") << ".\n";
@@ -127,25 +147,29 @@ int result2outputmode(Parameters par, int mode) {
         }
 
 #pragma omp for schedule(static)
-        for (size_t id = 0; id < clusterReader->getSize(); id++) {
+        for (size_t id = 0; id < resultReader->getSize(); id++) {
             Log::printProgress(id);
-
+            char * entry[255];
+            std::vector<Matcher::result_t> alnResults;
             int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
 #endif
-
-            char *clusters = clusterReader->getData(id);
-            unsigned int queryId = clusterReader->getDbKey(id);
-
+            char *results = resultReader->getData(id);
+            // check if already aligned results exists
+            size_t columns = Util::getWordsOfLine(results, entry, 255 );
+            if(columns == Matcher::ALN_RES_WITH_BT_COL_CNT){
+                alnResults = Matcher::readAlignmentResults(results);
+            }
+            unsigned int queryId = resultReader->getDbKey(id);
             char *seqData = qDbr->getDataByDBKey(queryId);
             centerSequence->mapSequence(0, queryId, seqData);
             std::vector<Sequence *> seqSet;
             size_t position = 0;
 
             char dbKey[255 + 1];
-            while (*clusters != '\0') {
-                Util::parseKey(clusters, dbKey);
+            while (*results != '\0') {
+                Util::parseKey(results, dbKey);
                 unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                 if (key != queryId || !sameDatabase) {
                     char *dbSeqData = tDbr->getDataByDBKey(key);
@@ -153,14 +177,12 @@ int result2outputmode(Parameters par, int mode) {
                     seqSet.push_back(sequences[position]);
                     position++;
                 }
-                clusters = Util::skipLine(clusters);
+                results = Util::skipLine(results);
             }
-
-            MultipleAlignment::MSAResult res = aligner.computeMSA(centerSequence, seqSet, !par.allowDeletion);
-
+            MultipleAlignment::MSAResult res = computeAlignment(aligner, centerSequence, seqSet,
+                                                                alnResults, par.allowDeletion, sameDatabase);
             std::stringstream msa;
             std::string result;
-
             char *data;
             size_t dataSize;
             switch (mode) {
@@ -242,8 +264,8 @@ int result2outputmode(Parameters par, int mode) {
     // cleanup
     writer.close();
 
-    clusterReader->close();
-    delete clusterReader;
+    resultReader->close();
+    delete resultReader;
 
     if (!sameDatabase) {
         tempateHeaderReader->close();
@@ -261,6 +283,7 @@ int result2outputmode(Parameters par, int mode) {
 
     return EXIT_SUCCESS;
 }
+
 
 int result2profile(int argc, const char **argv) {
     std::string usage("Calculates profiles from a clustering.\n");

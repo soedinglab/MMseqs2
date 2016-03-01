@@ -15,7 +15,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
     }
     // initialize new matrices and alphabet mappings
     this->alphabetSize = reducedAlphabetSize;
-    this->aa2int = new int['Z'+1];
+    this->aa2int = new int['Z' + 1];
     this->int2aa = new char[origAlphabetSize];
     this->reducedAlphabet = new std::vector<char>();
     for (size_t i = 0; i <= 'Z'; ++i) aa2int[i] = orig_aa2int[i];
@@ -110,7 +110,9 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
     for (size_t i = 0; i < origAlphabetSize-1; i++)
     {
         delete[]probMatrix_new[i];
+        delete[]subMatrix_tmp[i];
     }
+    delete[]subMatrix_tmp;
     delete[]probMatrix_new;
 }
 
@@ -121,7 +123,7 @@ ReducedMatrix::~ReducedMatrix(){
         delete[] origSubMatrix[i];
     }
     delete[] origSubMatrix;
-
+    delete reducedAlphabet;
 }
 
 void ReducedMatrix::copyMatrix(double ** input,double ** output, size_t size){

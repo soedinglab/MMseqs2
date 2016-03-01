@@ -19,7 +19,7 @@
 class Matcher{
 
 public:
-
+    const static int ALN_RES_WITH_BT_COL_CNT = 11;
 
     struct result_t {
         unsigned int dbKey;
@@ -70,6 +70,11 @@ public:
 
     static std::vector<result_t> readAlignmentResults(char *data);
 
+    static float estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen);
+
+    static std::string compressAlignment(std::string bt);
+
+    static std::string uncompressAlignment(std::string cbt);
 private:
 
     // calculate the query profile for SIMD registers processing 8 elements
@@ -98,7 +103,6 @@ private:
 
     static size_t computeAlnLength(size_t anEnd, size_t start, size_t dbEnd, size_t dbStart);
 
-    float estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen);
 };
 
 #endif

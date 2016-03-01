@@ -12,19 +12,13 @@
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrixWithoutX.h"
-
 #include "SubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
 #include "BaseMatrix.h"
 #include "smith_waterman_sse2.h"
 #include "Parameters.h"
-
-
-
-
-
-
+#include "Matcher.h"
 
 int main (int argc, const char * argv[])
 {
@@ -32,8 +26,7 @@ int main (int argc, const char * argv[])
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat(std::string(par.mmdir + "/data/blosum62.out").c_str(),
-                              2.0, 0.0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.2);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
 
@@ -51,8 +44,8 @@ int main (int argc, const char * argv[])
 //	std::string tim = "APRKFFVGGNWKMNGKRKSLGELIHTLDGAKLSADTEVVCGAPSIYLDFARQKLDAKIGVAAQNCYKVPKGAFTGEISPAMIKDIGAAWVILGH"
 //                      "SERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFQETKAIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLR"
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
-    std::string tim1 = "MEPTKIVENLYLGNIQNGIRHSNYGFDKIINLTRFNNQYGIPTVWINIDDSESSDLYSHLQKVTTLIHDSIENGNKVLVHCQAGISRSATVVIAYIMRSKRYSLQDAFNFVKKKRSIIFPNAGFIKQLAQFERWLNSTNSYF";
-    std::string tim2 = "TKITDYVYLGNYRNVIELPNKTFFKIVNVSMLKKRTDITVLHFPLEDNDTVSISKHIDAVTYVLKKCESLKIPVLVHCMAGINRSSAMIMGYLM";
+    std::string tim1 = "MNQDFNKAVLRYIFTLFLITQISADYGRKSPSSGPGPGGGRAVPLTGPVSPLLPVRTPLP";
+    std::string tim2 = "MNQDFNKAVLRYIFTLFLITQISADYGRKSPSSGPGPGGGRAVPLTGPVSPLLPVRTPLP";
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
     const char* sequence = tim1.c_str();
@@ -79,7 +72,7 @@ int main (int argc, const char * argv[])
     float seqId = 1.0;
     int aaIds = 0;
 
-    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 0, 0, maskLen);
+    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 0, 0, 0, maskLen);
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 
@@ -120,9 +113,13 @@ int main (int argc, const char * argv[])
     std::cout <<  alignment.score1 << " " << alignment.qStartPos1  << "-"<< alignment.qEndPos1 << " "
     << alignment.dbStartPos1 << "-"<< alignment.dbEndPos1 << std::endl;
     seqId = (float)aaIds/(float)(std::min(s->L, dbSeq->L)); //TODO
-    int len = SmithWaterman::cigar_int_to_len(alignment.cigar[0]);
-    seqId =  static_cast<float>(aaIds) / static_cast<float>(len);
-
+    int32_t qAlnLen = std::max(alignment.qEndPos1 - alignment.qStartPos1, static_cast<int32_t>(1));
+    int32_t dbAlnLen = std::max(alignment.dbEndPos1 - alignment.dbStartPos1, static_cast<int32_t>(1));
+    if(alignment.cigar){
+        seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(qAlnLen, dbAlnLen));
+    }else{
+        seqId = Matcher::estimateSeqIdByScorePerCol(alignment.score1, qAlnLen, dbAlnLen);
+    }
 
     std::cout << "Seqid: "<< seqId << " aaIds " << aaIds <<std::endl;
     double evalue =  pow (2,-(double)alignment.score1/2);

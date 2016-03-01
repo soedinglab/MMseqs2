@@ -4,19 +4,20 @@
 //  Created by Martin Steinegger on 26.11.12.
 //  Copyright (c) 2012 -. All rights reserved.
 //
+
 #include <iostream>
-#include <smith_waterman_sse2.h>
-#include <MsaFilter.h>
-#include "PSSMCalculator.h";
-#include "Sequence.h";
-#include "SubstitutionMatrix.h";
-#include "MultipleAlignment.h";
+#include "Parameters.h"
+#include "smith_waterman_sse2.h"
+#include "MsaFilter.h"
+#include "PSSMCalculator.h"
+#include "Sequence.h"
+#include "SubstitutionMatrix.h"
+#include "MultipleAlignment.h"
+
 int main (int argc, const char * argv[])
 {
-
-    const size_t kmer_size=6;
-
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs/data/blosum62.out", 2.0, 0.0);
+    Parameters par;
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     std::cout << "Subustitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
@@ -1572,7 +1573,7 @@ int main (int argc, const char * argv[])
     seqs[counter++] = "---------------------------------QTLLGFFQALADANRLRIVGVLAQGPQTVEQISALLGLGMSTTSHHLRKLAKAGLVEARADGHYSVYSLRTQTLEELAKNLL-------";
     seqs[counter++] = "-------------------------------------DLFKCIGNPTRYKILKVLCERPLCVNKLNEAVGYSQPNISQHLKLMRMSGIVTCSKNGMNICYQIADDDIIKLLELAEDILKNRR";
     char ** seqsCpy = new char*[counter];
-    for (size_t k = 0; k < counter; ++k) {
+    for (int k = 0; k < counter; ++k) {
         seqsCpy[k] = MultipleAlignment::initX(122);
         for (int pos = 0; pos < 122; ++pos) {
 //            seqs[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : subMat.aa2int[(int) seqs[k][pos]];
@@ -1591,11 +1592,11 @@ int main (int argc, const char * argv[])
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;
 //    }
     std::cout <<"Filterted MSA" << std::endl;
-    for(size_t k = 0; k < filterResult.setSize; k++){
-        printf("k=%.3d ", k, filterResult.filteredMsaSequence[k]);
+    for(int k = 0; k < filterResult.setSize; k++){
+        printf("k=%.3d ", k);
         for(size_t pos = 0; pos < res.centerLength; pos++){
             char aa = filterResult.filteredMsaSequence[k][pos];
-            printf("%c", (aa < MultipleAlignment::NAA) ? subMat.int2aa[aa] : '-' );
+            printf("%c", (aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-' );
         }
         printf("\n");
     }

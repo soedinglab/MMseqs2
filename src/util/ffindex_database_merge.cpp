@@ -2,7 +2,7 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include <vector>
-#include <Parameters.h>
+#include "Parameters.h"
 #include <utility>      // std::pair
 
 
@@ -23,7 +23,7 @@ int mergeffindex (int argc, const char * argv[])
     qdbr.open(DBReader<unsigned int>::NOSORT);
     DBWriter writer(par.db2.c_str(), std::string( par.db2 +".index").c_str());
     writer.open();
-    writer.mergeFiles(&qdbr, filenames, 1000000);
+    writer.mergeFiles(qdbr, filenames);
     writer.close();
     qdbr.close();
     return 0;

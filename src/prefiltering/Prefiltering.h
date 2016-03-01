@@ -23,14 +23,14 @@ public:
                  std::string targetDBIndex,
                  std::string outDB,
                  std::string outDBIndex,
-                 Parameters par);
+                 Parameters &par);
 
     ~Prefiltering();
     void run(size_t dbFrom, size_t dbSize, int splitMode, std::string resultDB, std::string resultDBIndex);
     void run(int mpi_rank, int mpi_num_procs);
     void run ();
     void closeReader();
-    void mergeOutput(std::vector<std::pair<std::string, std::string> > filenames);
+    static void mergeOutput(std::string outDb, std::string outDBIndex, std::vector<std::pair<std::string, std::string> > filenames);
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
 
     static IndexTable *generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, int alphabetSize, int kmerSize,
@@ -110,7 +110,7 @@ private:
 
     void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
 
-    const int getKmerThreshold(const float sensitivity, const int score);
+    int getKmerThreshold(const float sensitivity, const int score);
 };
 
 #endif

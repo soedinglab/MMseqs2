@@ -5,9 +5,9 @@
 #ifndef MMSEQS_DIAGONALMATCHER_H
 #define MMSEQS_DIAGONALMATCHER_H
 
-#include <SubstitutionMatrix.h>
-#include <simd.h>
-#include <CountInt32Array.h>
+#include "SubstitutionMatrix.h"
+#include "simd.h"
+#include "CountInt32Array.h"
 #include "QueryScore.h"
 #include "SequenceLookup.h"
 class DiagonalMatcher {
@@ -46,7 +46,7 @@ private:
                        const short bias,
                        unsigned int thr);
     // scores a single diagonal
-    const int scalarDiagonalScoring(const char *profile,
+    int scalarDiagonalScoring(const char *profile,
                                     const int bias,
                                     const unsigned int seqLen,
                                     const unsigned char *dbSeq);

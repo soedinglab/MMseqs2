@@ -20,7 +20,7 @@ export OMP_PROC_BIND=TRUE
 
 # processing
 # call prefilter module
-notExists "$4/pref" && mmseqs prefilter "$1" "$2" "$4/pref" $PREFILTER_PAR           && checkReturnCode "Prefilter died"
+notExists "$4/pref" && mmseqs prefilter "$1" "$TARGET_DB_PREF" "$4/pref" $PREFILTER_PAR           && checkReturnCode "Prefilter died"
 # call alignment module
 notExists "$4/aln"  && mmseqs alignment "$1" "$2" "$4/pref" "$4/aln" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
 

@@ -1,6 +1,7 @@
 #include "Orf.h"
 #include <cstring>
 #include <cassert>
+#include <cstdlib>
 
 //note: N->N, S->S, W->W, U->A, T->A
 static const char* iupacReverseComplementTable =
@@ -9,29 +10,29 @@ static const char* iupacReverseComplementTable =
 "................................................................"
 "................................................................";
 
-inline char Complement(const char c)
+inline char complement(const char c)
 {
     return iupacReverseComplementTable[static_cast<unsigned char>(c)];
 }
 
 Orf::Orf() : sequence(NULL), reverseComplement(NULL) {}
 
-bool Orf::setSequence(const char* seq) {
+bool Orf::setSequence(const char* seq, size_t length) {
     cleanup();
 
-    sequenceLength = strlen(seq);
+    sequenceLength = length;
 
     if(sequenceLength < 3)
         return false;
 
     sequence = strdup(seq);
     for(size_t i = 0; i < sequenceLength; ++i) {
-        sequence[i] = toupper(seq[i]);
+        sequence[i] = static_cast<char>(toupper(static_cast<int>(seq[i])));
     }
 
     reverseComplement = strdup(sequence);
     for(size_t i = 0; i < sequenceLength; ++i) {
-        reverseComplement[i] = Complement(sequence[sequenceLength - i - 1]);
+        reverseComplement[i] = complement(sequence[sequenceLength - i - 1]);
         if (reverseComplement[i] == '.') {
             return false;
         }
@@ -40,62 +41,65 @@ bool Orf::setSequence(const char* seq) {
     return true;
 }
 
-std::string Orf::View(SequenceLocation& location) {
+void Orf::cleanup()  {
+    if (sequence) {
+        free(sequence);
+        sequence = NULL;
+    }
+    if (reverseComplement) {
+        free(reverseComplement);
+        reverseComplement = NULL;
+    }
+}
+
+std::string Orf::view(const SequenceLocation &location) {
     assert(location.to > location.from);
     
     size_t length = location.to - location.from;
     if(location.strand == Orf::STRAND_PLUS) {
-        return std::string(&sequence[location.from], length);
+        return sequence ? std::string(&sequence[location.from], length) : std::string();
     } else {
-        return std::string(&reverseComplement[location.from], length);
+        return reverseComplement ? std::string(&reverseComplement[location.from], length) : std::string();
     }
 }
 
-//
-// find ORFs in a string
-void Orf::FindOrfs(std::vector<Orf::SequenceLocation>& results,
-                    size_t minLength,
-                    size_t maxLength,
-                    size_t maxGaps,
-                    int forwardFrames,
-                    int reverseFrames)
+void Orf::findAll(std::vector<Orf::SequenceLocation> &result,
+                  const size_t minLength,
+                  const size_t maxLength,
+                  const size_t maxGaps,
+                  const unsigned int forwardFrames,
+                  const unsigned int reverseFrames,
+                  const unsigned int extendMode)
 {
-    // find ORFs on the forward sequence and report them as-is
-    FindForwardOrfs(sequence, sequenceLength, results,
-                        minLength, maxLength, maxGaps, forwardFrames, STRAND_PLUS);
+    if (forwardFrames != 0) {
+        // find ORFs on the forward sequence
+        findForward(sequence, sequenceLength, result,
+                    minLength, maxLength, maxGaps, forwardFrames, extendMode, STRAND_PLUS);
+    }
 
-    // find ORFs on the reverse complement
-    FindForwardOrfs(reverseComplement, sequenceLength, results,
-                        minLength, maxLength, maxGaps, reverseFrames, STRAND_MINUS);
+    if (reverseFrames != 0) {
+        // find ORFs on the reverse complement
+        findForward(reverseComplement, sequenceLength, result,
+                    minLength, maxLength, maxGaps, reverseFrames, extendMode, STRAND_MINUS);
+    }
 }
 
-inline bool isIncomplete(const char* codon)
-{
+inline bool isIncomplete(const char* codon) {
     return codon[0] == 0 || codon[1] == 0 || codon[2] == 0;
 }
 
-inline bool IsGapOrN(const char* codon)
-{
-    if(isIncomplete(codon))
-        return false;
-
-    return codon[0] == 'N' || Complement(codon[0]) == '.'
-        || codon[1] == 'N' || Complement(codon[1]) == '.'
-        || codon[2] == 'N' || Complement(codon[2]) == '.';
+inline bool isGapOrN(const char *codon) {
+    return codon[0] == 'N' || complement(codon[0]) == '.'
+        || codon[1] == 'N' || complement(codon[1]) == '.'
+        || codon[2] == 'N' || complement(codon[2]) == '.';
 }
 
 inline bool isStart(const char* codon) {
-    if(isIncomplete(codon))
-        return false;
-
     return (codon[0] == 'A' && codon[1] == 'U' && codon[2] == 'G')
         || (codon[0] == 'A' && codon[1] == 'T' && codon[2] == 'G');
 }
 
 inline bool isStop(const char* codon) {
-    if(isIncomplete(codon))
-        return false;
-
     return (codon[0] == 'U' && codon[1] == 'A' && codon[2] == 'G')
         || (codon[0] == 'U' && codon[1] == 'A' && codon[2] == 'A')
         || (codon[0] == 'U' && codon[1] == 'G' && codon[2] == 'A')
@@ -104,17 +108,15 @@ inline bool isStop(const char* codon) {
         || (codon[0] == 'T' && codon[1] == 'G' && codon[2] == 'A');
 }
 
-void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Orf::SequenceLocation>& ranges,
-    size_t minLength, size_t maxLength, size_t maxGaps, int frames, Orf::Strand strand) {
-    if (frames == 0)
-        return;
-
+void Orf::findForward(const char *sequence, const size_t sequenceLength, std::vector<SequenceLocation> &result,
+                      const size_t minLength, const size_t maxLength, const size_t maxGaps, const unsigned int frames,
+                      const unsigned int extendMode, const Strand strand) {
     // An open reading frame can beginning in any of the three codon start position
     // Frame 0:  AGA ATT GCC TGA ATA AAA GGA TTA CCT TGA TAG GGT AAA
     // Frame 1: A GAA TTG CCT GAA TAA AAG GAT TAC CTT GAT AGG GTA AA
     // Frame 2: AG AAT TGC CTG AAT AAA AGG ATT ACC TTG ATA GGG TAA A
     const int FRAMES = 3;
-    const int frameLookup[FRAMES] = {Orf::FRAME_1, Orf::FRAME_2, Orf::FRAME_3};
+    const int frameLookup[FRAMES] = {FRAME_1, FRAME_2, FRAME_3};
     const size_t frameOffset[FRAMES] = {0, 1 , 2};
 
     // We want to walk over the memory only once so we calculate which codon we are in
@@ -124,7 +126,7 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
     // this is to handle edge case 1 where we find an end codon but no start codon
     // in this case we just add an orf from the start to the found end codon
     bool isInsideOrf[FRAMES]     = {true,  true,  true };
-    bool isFirstOrfFound[FRAMES] = {false, false, false};
+    bool hasStartCodon[FRAMES]   = {false, false, false};
 
     size_t countGaps[FRAMES]   = {0, 0, 0};
     size_t countLength[FRAMES] = {0, 0, 0};
@@ -141,9 +143,23 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
             if(!(frames & frameLookup[frame])) {
                 continue;
             }
-            
-            if(!isInsideOrf[frame] && isStart(codon)) {
+
+            bool thisIncomplete = isIncomplete(codon);
+            bool isLast = !thisIncomplete && isIncomplete(codon + FRAMES);
+
+            // if we have the start extend mode the returned orf should return the longest
+            // possible orf with possibly multiple start codons
+            bool shouldStart;
+            if((extendMode & EXTEND_START)) {
+                shouldStart = isInsideOrf[frame] == false && isStart(codon);
+            } else {
+                shouldStart = isStart(codon);
+            }
+
+            // do not start a new orf on the last codon
+            if(shouldStart && isLast == false) {
                 isInsideOrf[frame] = true;
+                hasStartCodon[frame] = true;
                 from[frame] = position;
 
                 countGaps[frame] = 0;
@@ -153,23 +169,23 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
             if(isInsideOrf[frame]) {
                 countLength[frame]++;
 
-                if(IsGapOrN(codon)) {
+                if(isGapOrN(codon)) {
                     countGaps[frame]++;
                 }
             }
 
-            if(isInsideOrf[frame] && isStop(codon)) {
-                // bail early if we have an orf shorter than minLength
+            bool stop = isStop(codon);
+            if(isInsideOrf[frame] && (stop || isLast)) {
+                // possibly bail early if we have an orf shorter than minLength
                 // so we can find another longer one
-                // TODO: Add parameter for orf extension
-                // if (countLength[frame] <= minLength) {
-                //    continue;
-                // }
+                 if ((extendMode & EXTEND_END) && stop && countLength[frame] <= minLength) {
+                    continue;
+                 }
 
                 isInsideOrf[frame] = false;
 
                 // we do not include the stop codon here
-                size_t to = position;
+                size_t to = position + (!stop && isLast ? 3 : 0);
 
                 // this could happen if the first codon is a stop codon
                 if(to == from[frame])
@@ -185,40 +201,9 @@ void FindForwardOrfs(const char* sequence, size_t sequenceLength, std::vector<Or
                     continue;
                 }
 
-                // edge case 1: see above
-                bool hasIncompleteStart = false;
-                if(from[frame] == frameOffset[frame] && isFirstOrfFound[frame] == false) {
-                    isFirstOrfFound[frame] = true;
-                    hasIncompleteStart = true;
-                }
-
-                ranges.emplace_back(Orf::SequenceLocation{from[frame], to, hasIncompleteStart, false, strand});
+                result.emplace_back(SequenceLocation{from[frame], to,
+                                                     !hasStartCodon[frame], !stop, strand});
             }
-        }
-    }
-
-    // we dont need to set isInsideOrf and isFirstOrfFound here since function is over anyway afterwards
-    for (size_t i = 0; i < FRAMES; ++i) {
-        if(isInsideOrf[i]) {
-            size_t to = sequenceLength;
-            // step back to find the last full codon
-            while ((to - i) % FRAMES != 0) {
-                to--;
-            }
-
-            if(to <= from[i])
-                continue;
-
-            // ignore orfs with too many gaps or unknown codons
-            // also ignore orfs shorter than the min size and longer than max
-            if ((countGaps[i] > maxGaps)
-                || (countLength[i] > maxLength)
-                || (countLength[i] <= minLength)) {
-                continue;
-            }
-
-            bool hasIncompleteStart = (from[i] == frameOffset[i] && isFirstOrfFound[i] == false);
-            ranges.emplace_back(Orf::SequenceLocation{from[i], to, hasIncompleteStart, true, strand});
         }
     }
 }

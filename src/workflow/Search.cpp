@@ -20,12 +20,24 @@ int search(int argc, const char *argv[]) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
     cmd.addVariable("RUNNER", par.runner.c_str());
+    std::string templateDB(par.db2);
+    // create index suffix
+    if(par.useIndex){
+        std::string indexSuffix = ".";
+        if(par.spacedKmer) {
+            indexSuffix.push_back('s');
+        }
+        indexSuffix += 'k';
+        indexSuffix.append(SSTR(par.kmerSize));
+        templateDB.append(indexSuffix);
+    }
+    cmd.addVariable("TARGET_DB_PREF", templateDB.c_str());
 
     if (par.numIterations > 1) {
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
-        cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.createprofiledb).c_str());
+        cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.result2profile).c_str());
         cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.substractresult).c_str());
         std::string program(par.mmdir);
         program.append("/bin/blastpgp.sh");

@@ -11,8 +11,8 @@
 #include <omp.h>
 #endif
 
-int dofilter(std::string inputDb, std::string outputDb, int threads, int column, std::string regexStr) {
-    DBReader<std::string>* dataDb=new DBReader<std::string>(inputDb.c_str(),(std::string(inputDb).append(".index")).c_str());
+int dofilter(std::string inputDb, std::string outputDb, int threads, size_t column, std::string regexStr) {
+    DBReader<unsigned int>* dataDb=new DBReader<unsigned int>(inputDb.c_str(),(std::string(inputDb).append(".index")).c_str());
     dataDb->open(DBReader<std::string>::LINEAR_ACCCESS);
     DBWriter* dbw = new DBWriter(outputDb.c_str(), (std::string(outputDb).append(".index")).c_str(), threads);
     dbw->open();
@@ -71,7 +71,7 @@ int dofilter(std::string inputDb, std::string outputDb, int threads, int column,
                 data = Util::skipLine(data);
             }
 
-            dbw->write(buffer.c_str(), buffer.length(), (char*) dataDb->getDbKey(id).c_str(), thread_idx);
+            dbw->write(buffer.c_str(), buffer.length(), (char*) SSTR(dataDb->getDbKey(id)).c_str(), thread_idx);
             buffer.clear();
         }
         delete [] lineBuffer;
@@ -101,6 +101,6 @@ int filterdb(int argn, const char **argv)
     return dofilter(par.db1,
                     par.db2,
                     par.threads,
-                    par.filterColumn,
+                    static_cast<size_t>(par.filterColumn),
                     par.filterColumnRegex);
 }

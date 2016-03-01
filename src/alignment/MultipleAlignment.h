@@ -45,6 +45,9 @@ public:
     // init aligned memory for the MSA
     static char *initX(int len);
 
+    MSAResult computeMSA(Sequence *pSequence, std::vector<Sequence *> vector, std::vector<Matcher::result_t> vector1,
+                         bool i);
+
 private:
     Matcher * aligner;
     BaseMatrix * subMat;
@@ -67,6 +70,7 @@ private:
                                                     std::vector<Matcher::result_t> queryGaps, unsigned int *noDeletionMSA,
                                                     bool b);
 
+    MSAResult singleSequenceMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs);
 };
 
 

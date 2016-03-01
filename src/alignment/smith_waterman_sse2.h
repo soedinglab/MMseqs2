@@ -18,22 +18,22 @@
 #ifndef SMITH_WATERMAN_SSE2_H
 #define SMITH_WATERMAN_SSE2_H
 
+#include <climits>
 
 #include <emmintrin.h>
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
-#include <simd.h>
 
 #if !defined(__APPLE__)
 #include <malloc.h>
 #endif
-#include "simd.h"
-#include <limits.h>
-#include <BaseMatrix.h>
 
-#include "../commons/Sequence.h"
+#include "simd.h"
+#include "BaseMatrix.h"
+
+#include "Sequence.h"
 
 typedef struct {
     short qStartPos;

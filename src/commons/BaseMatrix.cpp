@@ -116,7 +116,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
                                    int size){
 
     // calculate background distribution for the amino acids
-    double pBack[size];
+    double * pBack = new double[size];
     for (int i = 0; i < size; i++){
         pBack[i] = 0;
         for (int j = 0; j < size; j++){
@@ -136,7 +136,7 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
             subMatrix[i][j] = MathUtil::log2(probMatrix[i][j] / (pBack[i] * pBack[j]));
         }
     }
-
+    delete [] pBack;
     //subMatrix[size-1][size-1] = 0.0;
 }
 
@@ -170,4 +170,4 @@ std::string BaseMatrix::getMatrixName() {
 double BaseMatrix::getBackgroundProb(size_t aa_index)  {
     Debug(Debug::ERROR) << "getBackground is not Impl. for this type of Matrix \n";
     EXIT(EXIT_FAILURE);
-};
+}

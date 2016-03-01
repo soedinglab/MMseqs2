@@ -1,6 +1,6 @@
 #ifndef SCOREMATRIX_H
 #define SCOREMATRIX_H
-#include <stddef.h>
+#include <cstddef>
 
 // <match score, k-mer index>
 struct ScoreMatrix {

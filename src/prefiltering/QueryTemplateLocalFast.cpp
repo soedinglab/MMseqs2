@@ -246,7 +246,7 @@ std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * re
     size_t elementCounter = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
-        const unsigned short rawScore  = std::min(QueryScoreLocal::SCORE_RANGE-1, (size_t) l);
+        const unsigned short rawScore  = QueryScoreLocal::SCORE_RANGE-1;
         result->seqId = id;
         result->prefScore = rawScore;
         result->diagonal = 0;
