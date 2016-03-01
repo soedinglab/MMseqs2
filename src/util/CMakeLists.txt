@@ -23,8 +23,9 @@ set(util_source_files
   kbtotsv.cpp
   substractresult.cpp
   result2newick.cpp
+  computeGOscore.cpp
 )
 
 add_library(util ${util_source_files} )
 
-target_link_libraries(util prefiltering commons ffindex)
+target_link_libraries(util prefiltering commons)

@@ -87,6 +87,8 @@ static struct Command commands[] = {
             "Extracts clustering relationship from clustering steps into Newick trees"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
+        {"computeGOscore",     computeGOscore,        &par.evaluationscores,                 COMMAND_HIDDEN,
+                "Compute GO scores for a result of clustering"},
 };
 
 

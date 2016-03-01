@@ -18,8 +18,8 @@ public:
     void convertFfindexToTsv(std::string clusteringfile, std::string prefix, std::string outputfolder);
 
 private:
-    DBReader<std::string> *targetdb_header;
-    std::string getProteinNameForID(const char *dbKey);
+    DBReader<unsigned int> *targetdb_header;
+    std::string getProteinNameForID(unsigned int dbKey);
 };
 
 
