@@ -18,7 +18,7 @@
 #endif
 
 void printHelp();
-std::string getProteinNameForID(DBReader<std::string>* targetdb_header,const char * dbKey);
+std::string getProteinNameForID(DBReader<unsigned int>* targetdb_header,unsigned int dbKey);
 
 int main(int argc, char **argv)
 {
@@ -130,13 +130,13 @@ int main(int argc, char **argv)
             Debug(Debug::INFO) << "running protein name evaluation";
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
-        DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
+        DBReader<unsigned int>* cluster_ffindex_reader = new DBReader<unsigned int>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
         cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader<std::string>* protname_db_reader = new DBReader<std::string>(protname_db.c_str(), protname_db_indexfile.c_str());
         protname_db_reader->open(DBReader<std::string>::NOSORT);
 
-        DBReader<std::string>* targetdb_header=new DBReader<std::string>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+        DBReader<unsigned int>* targetdb_header=new DBReader<unsigned int>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
         targetdb_header->open(DBReader<std::string>::NOSORT);
 
         //files
@@ -149,9 +149,9 @@ int main(int argc, char **argv)
         for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            std::string representative=cluster_ffindex_reader->getDbKey(i);
+            std::string representative=getProteinNameForID(targetdb_header,cluster_ffindex_reader->getDbKey(i));
             char *data = cluster_ffindex_reader->getData(i);
-            char *idbuffer = new char[255 + 1];
+            char *idbuffer1 = new char[255 + 1];
             double sumofscore =0;
             double minscore=1;
             double maxscore=0;
@@ -162,7 +162,8 @@ int main(int argc, char **argv)
             //Debug(Debug::INFO) << representative << "\t" << "not available" << "\n";
 
             while (*data != '\0') {
-                Util::parseKey(data, idbuffer);
+                Util::parseKey(data, idbuffer1);
+                std::string idbuffer=getProteinNameForID(targetdb_header,atoi(idbuffer1));
 
                 if (protname_db_reader->getDataByDBKey(idbuffer) != NULL) {
                     idswithproteinname.push_back(std::string(idbuffer));
@@ -192,7 +193,7 @@ int main(int argc, char **argv)
                         sumofscore += levenshteinScore;
                         minscore=std::min(levenshteinScore,minscore);
                         maxscore=std::max(levenshteinScore,maxscore);
-                        clusters_full_file << fileprefix << "\t"<<  getProteinNameForID(targetdb_header,representative.c_str()) << "\t" << getProteinNameForID(targetdb_header,id1.c_str()) << "\t" << getProteinNameForID(targetdb_header,id2.c_str()) << "\t" <<
+                        clusters_full_file << fileprefix << "\t"<<  representative.c_str() << "\t" << id1.c_str() << "\t" << id2.c_str() << "\t" <<
                                                                                                                     levenshteinScore << "\n";
                     }
                 }
@@ -247,13 +248,13 @@ int main(int argc, char **argv)
         Debug(Debug::INFO) << "running keyword evaluation";
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
-        DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
-        cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
+        DBReader<unsigned int>* cluster_ffindex_reader = new DBReader<unsigned int>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
+        cluster_ffindex_reader->open(DBReader<std::string>::NOSORT);
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader<std::string>* protname_db_reader = new DBReader<std::string>(keyword_db.c_str(), keyword_indexfile.c_str());
         protname_db_reader->open(DBReader<std::string>::NOSORT);
 
-        DBReader<std::string>* targetdb_header=new DBReader<std::string>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+        DBReader<unsigned int>* targetdb_header=new DBReader<unsigned int>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
         targetdb_header->open(DBReader<std::string>::NOSORT);
 
 
@@ -264,12 +265,12 @@ int main(int argc, char **argv)
 
 
 
-        for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
+        for (unsigned int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            std::string representative=cluster_ffindex_reader->getDbKey(i);
+            std::string representative=getProteinNameForID(targetdb_header,cluster_ffindex_reader->getDbKey(i));
             char *data = cluster_ffindex_reader->getData(i);
-            char *idbuffer = new char[255 + 1];
+            char *idbuffer1 = new char[255 + 1];
             double sumofscore =0;
             double minscore=1;
             double maxscore=0;
@@ -280,7 +281,8 @@ int main(int argc, char **argv)
             //Debug(Debug::INFO) << representative << "\t" << "not available" << "\n";
 
             while (*data != '\0') {
-                Util::parseKey(data, idbuffer);
+                Util::parseKey(data, idbuffer1);
+                std::string idbuffer=getProteinNameForID(targetdb_header,atoi(idbuffer1));
 
                 if (protname_db_reader->getDataByDBKey(idbuffer) != NULL) {
                     idswithkeyword.push_back(std::string(idbuffer));
@@ -306,7 +308,7 @@ int main(int argc, char **argv)
                         sumofscore += score;
                         minscore=std::min(score,minscore);
                         maxscore=std::max(score,maxscore);
-                        clusters_full_file << fileprefix << "\t"<<  getProteinNameForID(targetdb_header,representative.c_str()) << "\t" << getProteinNameForID(targetdb_header,id1.c_str()) << "\t" << getProteinNameForID(targetdb_header,id2.c_str()) << "\t" << score << "\n";
+                        clusters_full_file << fileprefix << "\t"<<  representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
                     }
                 }
                 if(!allagainstall){
@@ -422,10 +424,10 @@ int numberofthreads=1;
 #ifdef OPENMP
         omp_set_num_threads(numberofthreads);
 #endif
-        DBReader<std::string>* seqDbr=new DBReader<std::string>(seqDbfile.c_str(),(seqDbfile+".index").c_str());
-        seqDbr->open(DBReader<std::string>::SORT_BY_LENGTH);
-        DBReader<std::string>* alnDbr=new DBReader<std::string>(alignmentfile.c_str(),(alignmentfile+".index").c_str());
-        alnDbr->open(DBReader<std::string>::SORT_BY_LENGTH);
+        DBReader<unsigned int>* seqDbr=new DBReader<unsigned int>(seqDbfile.c_str(),(seqDbfile+".index").c_str());
+        seqDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
+        DBReader<unsigned int>* alnDbr=new DBReader<unsigned int>(alignmentfile.c_str(),(alignmentfile+".index").c_str());
+        alnDbr->open(DBReader<unsigned int>::SORT_BY_LENGTH);
         DBWriter* dbw = new DBWriter(outputfile.c_str(), (outputfile+".index").c_str(),numberofthreads);
         dbw->open();
 
@@ -440,7 +442,7 @@ int numberofthreads=1;
             char *similarity = new char[LINE_BUFFER_SIZE];
 
 #pragma omp for schedule(dynamic, 100)
-            for (size_t i = 0; i < seqDbr->getSize(); i++) {
+            for (unsigned int i = 0; i < seqDbr->getSize(); i++) {
                 Log::printProgress(i);
                 int thread_idx = 0;
 #ifdef OPENMP
@@ -490,8 +492,8 @@ int numberofthreads=1;
                         EXIT(EXIT_FAILURE);
                         Util::parseByColumnNumber(data, similarity, 3); //column 1 = alignmentscore
                         similarityscore = atof(std::string(similarity).c_str());
-                        int queryLength = strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i).c_str()));
-                        int dbSeqLength = strlen(seqDbr->getDataByDBKey(idbuffer1));
+                        int queryLength = strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
+                        int dbSeqLength = strlen(seqDbr->getDataByDBKey(atoi(idbuffer1)));
                         float maxSeqLength = std::max(queryLength, dbSeqLength);
 
                         //
@@ -521,7 +523,7 @@ int numberofthreads=1;
                     continue;
                 }
                 memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length() * sizeof(char));
-                dbw->write(outBuffer, cluResultsOutString.length(), (char*) alnDbr->getDbKey(i).c_str(),thread_idx);
+                dbw->write(outBuffer, cluResultsOutString.length(),  std::to_string(alnDbr->getDbKey(i)).c_str(),thread_idx);
 
                 //  data = Util::skipLine(data);
                 //  }
@@ -545,12 +547,12 @@ int numberofthreads=1;
 
 void printHelp() {
     std::string usage("\nEvaluation commands\n");
-    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > <sequencedb>\n");
-    usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > <sequencedb>\n");
-    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > <sequencedb>\n");
-    usage.append("-cs <clustering_file> <alignment_file> <outputfile> <sequencedb>\n");
-    usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile> <sequencedb>\n");
-    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > <sequencedb>\n");
+    usage.append("-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > \n");
+    usage.append("-pn <prot_name_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > \n");
+    usage.append("-kw <keyword_db> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > \n");
+    usage.append("-cs <clustering_file> <alignment_file> <outputfile> \n");
+    usage.append("-df <domainscorefile> <domainIdentifierFile> <outputfile> \n");
+    usage.append("-ds <clustering_file> <domainscorefile> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > \n");
     usage.append("-clusterToTsv <clustering_file> <prefix> <outputfolder> <sequencedb>\n");
     usage.append("-af  <seqDbfile> <alignmentfile> <outputfile> <cutoff> <scoretype: 1-5>\n");
 
@@ -559,7 +561,7 @@ void printHelp() {
 }
 
 
-std::string getProteinNameForID(DBReader<std::string>* targetdb_header, const char * dbKey){
+std::string getProteinNameForID(DBReader<unsigned int>* targetdb_header, unsigned int dbKey){
     char * header_data = targetdb_header->getDataByDBKey(dbKey);
     std::string parsedDbkey = Util::parseFastaHeader(header_data);
     return parsedDbkey;

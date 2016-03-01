@@ -172,6 +172,13 @@ public:
     // filterDb
     int filterColumn;
     std::string filterColumnRegex;
+
+    // evaluationscores
+    bool allVsAll;
+    bool randomizedRepresentative;
+
+
+
     
     void setDefaultPaths();
     void checkSaneEnvironment();
@@ -283,6 +290,10 @@ public:
     PARAMETER(PARAM_FILTER_COL)
     PARAMETER(PARAM_FILTER_REGEX)
 
+    // evaluationScore
+    PARAMETER(PARAM_EVALUATION_ALLVSALL)
+    PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
+
     std::vector<MMseqsParameter> empty;
 
     std::vector<MMseqsParameter> onlyverbosity;
@@ -304,6 +315,8 @@ public:
     std::vector<MMseqsParameter> addSequences;
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> substractresult;
+
+    std::vector<MMseqsParameter> evaluationscores;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);

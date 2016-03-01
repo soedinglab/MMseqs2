@@ -32,5 +32,6 @@ extern int convertkb(int argc, const char** argv);
 extern int substractresult(int argc, const char** argv);
 extern int result2newick(int argc, const char** argv);
 extern int kbtotsv(int argc, const char** argv);
+extern int computeGOscore(int argc, const char** argv);
 
 #endif
