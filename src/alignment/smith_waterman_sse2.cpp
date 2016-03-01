@@ -10,8 +10,6 @@ in whole or in part, without written consent of Michael Farrar.
 */
 #include "smith_waterman_sse2.h"
 
-#include "Sequence.h"
-#include "simd.h"
 #include "Util.h"
 #include "SubstitutionMatrix.h"
 #include "Debug.h"

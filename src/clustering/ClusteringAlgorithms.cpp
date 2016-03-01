@@ -48,7 +48,7 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
 
     std::list<set *> result;
     size_t n = seqDbr->getSize();
-    int *assignedcluster = new int[n]; //TODO ask lars
+    int *assignedcluster = new int[n];
     std::fill_n(assignedcluster, n, -1);
     short *bestscore = new short[n];
     std::fill_n(bestscore, n, -10);
@@ -123,18 +123,8 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
                 if(assignedcluster[i]==-1) {
                     assignedcluster[i]=i;
                 }
-
             }
-
-
-
-
         }
-
-
-
-
-
     }else {
         //time
         Debug(Debug::WARNING) << "\nSort entries.\n";
@@ -222,9 +212,6 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
         Debug(Debug::INFO) << "\nTime for Maximum determination: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
         gettimeofday(&start, NULL);
 
-
-
-
         //time
         gettimeofday(&end, NULL);
         sec = end.tv_sec - start.tv_sec;
@@ -250,6 +237,7 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
                     // float seqId = elementScoreTable[representative][elementId];
                     short seqId = elementScoreLookupTable[representative][elementId];
                     //  Debug(Debug::INFO)<<seqId<<"\t"<<bestscore[elementtodelete]<<"\n";
+                    // becareful of this criteria
                     if (seqId > bestscore[elementtodelete]) {
                         assignedcluster[elementtodelete] = representative;
                         bestscore[elementtodelete] = seqId;
@@ -352,6 +340,11 @@ std::list<set *>  ClusteringAlgorithms::execute(int mode) {
     //time
 
     for(size_t i = 0; i < n; i++) {
+        if(assignedcluster[i] == -1){
+            Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(i) <<
+            " is not assigned to a cluster\n";
+            continue;
+        }
         AffinityClustering::add_to_set(i,&sets[assignedcluster[i]],assignedcluster[i]);
     }
 

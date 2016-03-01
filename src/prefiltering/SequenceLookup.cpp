@@ -2,9 +2,9 @@
 // Created by mad on 12/14/15.
 //
 
-#include <string.h>
-#include <Debug.h>
-#include <Util.h>
+#include <cstring>
+#include "Debug.h"
+#include "Util.h"
 #include "SequenceLookup.h"
 
 SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize) {

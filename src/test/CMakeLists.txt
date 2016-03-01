@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
-
+if(HAVE_TESTS)
 find_package(GTest)
 find_package(GMock)
 if(GTEST_FOUND)
@@ -13,7 +12,6 @@ if(GMOCK_FOUND)
 
 	target_link_libraries(unit_tests util)
 	target_link_libraries(unit_tests workflow)
-	target_link_libraries(unit_tests ffindex)
 
 	target_link_libraries(unit_tests ${GMOCK_BOTH_LIBRARIES})
 endif()
@@ -24,7 +22,6 @@ add_executable(test_alignment ${testalignment} )
 
 target_link_libraries(test_alignment util)
 target_link_libraries(test_alignment workflow)
-target_link_libraries(test_alignment ffindex)
 
 
 set(testalignmenttraceback TestAlignmentTraceback.cpp )
@@ -32,7 +29,6 @@ add_executable(test_alignmenttraceback ${testalignmenttraceback} )
 
 target_link_libraries(test_alignmenttraceback util)
 target_link_libraries(test_alignmenttraceback workflow)
-target_link_libraries(test_alignmenttraceback ffindex)
 
 
 set(testmsaalignment TestMultipleAlignment.cpp )
@@ -40,7 +36,6 @@ add_executable(test_msaalignment ${testmsaalignment})
 
 target_link_libraries(test_msaalignment util)
 target_link_libraries(test_msaalignment workflow)
-target_link_libraries(test_msaalignment ffindex)
 
 
 set(testprofilealignment TestProfileAlignment.cpp )
@@ -48,7 +43,6 @@ add_executable(test_profilealignment ${testprofilealignment})
 
 target_link_libraries(test_profilealignment util)
 target_link_libraries(test_profilealignment workflow)
-target_link_libraries(test_profilealignment ffindex)
 
 
 set(testalignment_perf TestAlignmentPerformance.cpp )
@@ -56,7 +50,6 @@ add_executable(testalignment_perf ${testalignment_perf})
 
 target_link_libraries(testalignment_perf util)
 target_link_libraries(testalignment_perf workflow)
-target_link_libraries(testalignment_perf ffindex)
 
 
 set(testkmergenerator_perf TestKmerGenerator.cpp )
@@ -64,8 +57,6 @@ add_executable(testkmergenerator_perf ${testkmergenerator_perf})
 
 target_link_libraries(testkmergenerator_perf util)
 target_link_libraries(testkmergenerator_perf workflow)
-target_link_libraries(testkmergenerator_perf ffindex)
-
 
 
 set(test_counting TestCounting.cpp )
@@ -73,7 +64,6 @@ add_executable(test_counting ${test_counting})
 
 target_link_libraries(test_counting util)
 target_link_libraries(test_counting workflow)
-target_link_libraries(test_counting ffindex)
 
 
 set(test_reduced TestReduceMatrix.cpp )
@@ -87,7 +77,6 @@ add_executable(testgo ${testgo})
 
 target_link_libraries(testgo util)
 target_link_libraries(testgo workflow)
-target_link_libraries(testgo ffindex)
 
 set(testcommand TestCommandCaller.cpp )
 add_executable(testcommand ${testcommand})
@@ -97,41 +86,35 @@ set(test_dbreader TestDBReader.cpp )
 add_executable(test_dbreader ${test_dbreader})
 target_link_libraries(test_dbreader util)
 target_link_libraries(test_dbreader workflow)
-target_link_libraries(test_dbreader ffindex)
 
 
 set(test_kmerscore TestKmerScore.cpp )
 add_executable(test_kmerscore ${test_kmerscore})
 target_link_libraries(test_kmerscore util)
 target_link_libraries(test_kmerscore workflow)
-target_link_libraries(test_kmerscore ffindex)
 
 set(test_compbias TestCompositionBias.cpp )
 add_executable(test_compbias ${test_compbias})
 target_link_libraries(test_compbias util)
 target_link_libraries(test_compbias workflow)
-target_link_libraries(test_compbias ffindex)
 
 set(test_sequenceindex TestSequenceIndex.cpp )
 add_executable(test_sequenceindex ${test_sequenceindex})
 target_link_libraries(test_sequenceindex util)
 target_link_libraries(test_sequenceindex workflow)
-target_link_libraries(test_sequenceindex ffindex)
 
 set(test_diagonalscoring TestDiagonalScoring.cpp )
 add_executable(test_diagonalscoring ${test_diagonalscoring})
 target_link_libraries(test_diagonalscoring util)
 target_link_libraries(test_diagonalscoring workflow)
-target_link_libraries(test_diagonalscoring ffindex)
 
 set(test_diagonalscoringperf TestDiagonalScoringPerformance.cpp)
 add_executable(test_diagonalscoringperf ${test_diagonalscoringperf})
 target_link_libraries(test_diagonalscoringperf util)
 target_link_libraries(test_diagonalscoringperf workflow)
-target_link_libraries(test_diagonalscoringperf ffindex)
 
 set(test_pssmcompute TestPSSM.cpp )
 add_executable(test_pssmcompute ${test_pssmcompute})
 target_link_libraries(test_pssmcompute util)
 target_link_libraries(test_pssmcompute workflow)
-target_link_libraries(test_pssmcompute ffindex)
+endif()

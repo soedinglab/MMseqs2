@@ -67,7 +67,7 @@ std::string removeWhiteSpace(std::string in) {
 std::string escape(const std::string &s) {
     size_t n = s.size(), wp = 0;
     std::vector<char> result(n * 2);
-    for (int i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) {
         if (s[i] == '\n' || s[i] == '\t') {
             result[wp++] = '\\';
             result[wp++] = 'n';

@@ -3,14 +3,10 @@
  * written by Milot Mirdita <milot@mirdita.de>
  */
 
-#define _GNU_SOURCE 1
-#define _LARGEFILE64_SOURCE 1
-#define _FILE_OFFSET_BITS 64
-
 #include <cstring>
 #include <cstdio>
-#include <Parameters.h>
 
+#include "Parameters.h"
 #include "DBReader.h"
 #include "Debug.h"
 #include "Util.h"

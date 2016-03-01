@@ -5,14 +5,12 @@
  * modified by Milot Mirdita <milot@mirdita.de>
  */
 
-#define _GNU_SOURCE 1
-#define _LARGEFILE64_SOURCE 1
-#define _FILE_OFFSET_BITS 64
-
 #include <cstdio>
 
 #include <map>
 #include <fstream>
+#include <unistd.h>
+#include <math.h>
 
 #include "DBWriter.h"
 #include "Debug.h"
@@ -21,10 +19,8 @@
 #include "FileUtil.h"
 
 #include "kseq.h"
-#include <unistd.h>
 
 KSEQ_INIT(int, read)
-
 int createdb(int argn, const char **argv) {
     std::string usage("Converts a fasta database to ffindex.\n");
     usage.append("USAGE: <fastaDB>  <ffindexDB> [mappingFasta]\n");
@@ -66,54 +62,68 @@ int createdb(int argn, const char **argv) {
         mapping = Util::readMapping(mapping_filename);
     }
 
-    size_t entries_num = 0;
+    size_t entries_num = 1;
 
     std::string header_line;
     header_line.reserve(10000);
 
     kseq_t *seq = kseq_init(fileno(fasta_file));
     while (kseq_read(seq) >= 0) {
-        entries_num++;
 
         if (seq->name.l == 0) {
             Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
             return EXIT_FAILURE;
         }
-
-        std::string id;
-        if (par.db3.length() > 0) {
-            std::string key = Util::parseFastaHeader(seq->name.s);
-            if (mapping.find(key) == mapping.end()) {
-                Debug(Debug::ERROR) << "Could not find entry: " << key << " in mapping file.\n";
-                return EXIT_FAILURE;
+        size_t splitCnt = 1;
+        if(par.splitSeqByLen == true){
+            splitCnt = (size_t) ceilf(static_cast<float>(seq->seq.l) / static_cast<float>(par.maxSeqLen));
+        }
+        for(size_t split = 0; split < splitCnt; split++){
+            std::string id;
+            if (par.db3.length() > 0) {
+                std::string key = Util::parseFastaHeader(seq->name.s);
+                if (mapping.find(key) == mapping.end()) {
+                    Debug(Debug::ERROR) << "Could not find entry: " << key << " in mapping file.\n";
+                    return EXIT_FAILURE;
+                }
+                id = SSTR(mapping[key]);
+                std::string headerId = Util::parseFastaHeader(seq->name.s);
+                lookupStream << id << "\t" << headerId << "\n";
+            } else if(par.useHeader) {
+                id = Util::parseFastaHeader(seq->name.s);
+                if (par.splitSeqByLen){
+                    id.append("_");
+                    id.append(SSTR(split));
+                };
+            } else {
+                id = SSTR(par.identifierOffset + entries_num);
+                std::string headerId = Util::parseFastaHeader(seq->name.s);
+                lookupStream << id << "\t" << headerId << "\n";
             }
-            id = SSTR(mapping[key]);
-            std::string headerId = Util::parseFastaHeader(seq->name.s);
-            lookupStream << id << "\t" << headerId << "\n";
-        } else if(par.useHeader) {
-            id = Util::parseFastaHeader(seq->name.s);
-        } else {
-            id = SSTR(par.identifierOffset + entries_num);
-            std::string headerId = Util::parseFastaHeader(seq->name.s);
-            lookupStream << id << "\t" << headerId << "\n";
+
+            // header
+            header_line.append(seq->name.s, seq->name.l);
+            if (seq->comment.l) {
+                header_line.append(" ", 1);
+                header_line.append(seq->comment.s, seq->comment.l);
+            }
+            if(par.splitSeqByLen == true) {
+                header_line.append(" Split=");
+                header_line.append(SSTR(split));
+            }
+
+            header_line.append("\n");
+
+            out_hdr_writer.write(header_line.c_str(), header_line.length(), id.c_str());
+            header_line.clear();
+
+            // sequence
+            std::string sequence = seq->seq.s;
+            sequence.append("\n");
+            size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
+            out_writer.write(sequence.c_str() + (split*par.maxSeqLen), len, id.c_str());
+            entries_num++;
         }
-
-        // header
-        header_line.append(seq->name.s, seq->name.l);
-        if (seq->comment.l) {
-            header_line.append(" ", 1);
-            header_line.append(seq->comment.s, seq->comment.l);
-        }
-        header_line.append("\n");
-
-        out_hdr_writer.write(header_line.c_str(), header_line.length(), id.c_str());
-        header_line.clear();
-
-        // sequence
-        std::string sequence = seq->seq.s;
-        sequence.append("\n");
-
-        out_writer.write(sequence.c_str(), sequence.length(), id.c_str());
     }
     kseq_destroy(seq);
 
@@ -126,6 +136,7 @@ int createdb(int argn, const char **argv) {
 
     return EXIT_SUCCESS;
 }
+
 
 
 

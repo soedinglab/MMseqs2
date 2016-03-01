@@ -23,6 +23,14 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
     accessType = 0;
 }
 
+template <typename T> void DBReader<T>::readMmapedDataInMemory(){
+    size_t bytes = 0;
+    for(size_t i = 0; i < dataSize; i++){
+        bytes += data[i];
+    }
+    Debug(Debug::WARNING) << "Magic number " << bytes << "\n";
+}
+
 template <typename T> DBReader<T>::~DBReader(){
     free(dataFileName);
     free(indexFileName);
@@ -33,7 +41,6 @@ template <typename T> void DBReader<T>::open(int accessType){
     this->size = FileUtil::countLines(indexFileName);
     this->accessType = accessType;
 
-    // open ffindex
     if (dataMode & USE_DATA) {
         dataFile = fopen(dataFileName, "r");
         if (dataFile == NULL) {
@@ -57,15 +64,35 @@ template <typename T> void DBReader<T>::open(int accessType){
         unsigned int size = seqLens[i];
         aaDbSize += size;
     }
-    if (aaDbSize == 0){
-        Debug(Debug::ERROR) << "Invalid database in data file=" << dataFileName << ", database index=" << indexFileName << "\n";
-        EXIT(EXIT_FAILURE);
-    }
+
     closed = 0;
 }
 
 template<typename T>
-void DBReader<T>::sortIndex() { }
+void DBReader<T>::sortIndex() {
+}
+
+template<>
+void DBReader<std::string>::sortIndex() {
+    if (accessType == SORT_BY_ID){
+        std::pair<Index, unsigned int> *sortArray = new std::pair<Index, unsigned int>[size];
+        for (size_t i = 0; i < size; i++) {
+            sortArray[i] = std::make_pair(index[i], seqLens[i]);
+        }
+        std::sort(sortArray, sortArray + size, compareIndexLengthPairById());
+        for (size_t i = 0; i < size; ++i) {
+            index[i].id = sortArray[i].first.id;
+            index[i].data = sortArray[i].first.data;
+            seqLens[i] = sortArray[i].second;
+        }
+        delete[] sortArray;
+    }else{
+        if(accessType != NOSORT){
+            Debug(Debug::ERROR) << "DBReader<std::string> can not be opend in sort mode\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+}
 
 template<>
 void DBReader<unsigned int>::sortIndex() {
@@ -80,9 +107,7 @@ void DBReader<unsigned int>::sortIndex() {
         index[i].data = sortArray[i].first.data;
         seqLens[i] = sortArray[i].second;
     }
-
     delete[] sortArray;
-    //TODO fix linear access
     if (accessType == SORT_BY_LENGTH) {
         // sort the enties by the length of the sequences
         std::pair<unsigned int, unsigned int> *sortForMapping = new std::pair<unsigned int, unsigned int>[size];
@@ -191,15 +216,12 @@ template <typename T> char* DBReader<T>::getData(size_t id){
     }
 }
 
-
-template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey){
-    checkClosed();
-    if(!(dataMode & USE_DATA)) {
-        Debug(Debug::ERROR) << "DBReader is just open in INDEX_ONLY mode. Call of getData is not allowed" << "\n";
-        EXIT(EXIT_FAILURE);
+template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey) {
+    size_t id = getId(dbKey);
+    if(id == UINT_MAX) {
+        return NULL;
     }
-    size_t id = bsearch(index, size, dbKey);
-    return (index[id].id == dbKey) ? index[id].data : NULL;
+    return getData(id);
 }
 
 template <typename T> size_t DBReader<T>::getSize (){
@@ -223,9 +245,9 @@ template <typename T> T DBReader<T>::getDbKey (size_t id){
 template <typename T> size_t DBReader<T>::getId (T dbKey){
     size_t id = bsearch(index, size, dbKey);
     if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS){
-        return  (index[id].id == dbKey) ? id2local[id] : UINT_MAX;
+        return  (id < size && index[id].id == dbKey) ? id2local[id] : UINT_MAX;
     }
-    return (index[id].id == dbKey) ? id : UINT_MAX;
+    return (id < size && index[id].id == dbKey ) ? id : UINT_MAX;
 }
 
 template <typename T> unsigned int* DBReader<T>::getSeqLens(){
@@ -274,7 +296,7 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
         if (dataMode & USE_DATA) {
             index[i].data = data + offset;
         } else {
-            index[i].data = NULL;
+            index[i].data = (char *) offset;
         }
 
         entryLength[i] = length;

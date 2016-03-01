@@ -38,8 +38,6 @@ unsigned int Indexer::int2index( const int *int_seq){
     return this->lastKmerIndex;
 }
 
-
-
 unsigned int Indexer::getNextKmerIndex (const int* kmer, int kmerSize){
     if (this->lastKmerIndex == this->maxKmerIndex)
         return int2index(kmer, 0, kmerSize);
@@ -64,4 +62,3 @@ void Indexer::printKmer(const int* kmer, int kmerSize, char* int2aa){
     for (int j = 0; j < kmerSize; j++)
         Debug(Debug::INFO) << int2aa[kmer[j]];
 }
-

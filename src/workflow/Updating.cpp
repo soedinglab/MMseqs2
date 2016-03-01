@@ -1,16 +1,12 @@
 #include <iostream>
-#include <string>
-#include <time.h>
+
 #include <sys/time.h>
 
+#include "DBReader.h"
 #include "Prefiltering.h"
 #include "Alignment.h"
 #include "Clustering.h"
 #include "FileUtil.h"
-
-extern "C" {
-#include "ffindex.h"
-}
 
 struct clu_entry_t {
     unsigned int id;
@@ -24,8 +20,8 @@ struct cluster_t {
 };
 
 
-int oldDBSize;
-int newDBSize;
+size_t oldDBSize;
+size_t newDBSize;
 
 int deletedSeqs;
 int sharedSeqs;
@@ -35,26 +31,18 @@ int seqsWithMatches;
 int seqsWithoutMatches;
 int newClus;
 
-ffindex_index_t *openIndex(const char *indexFileName) {
-    // open clustering ffindex
-    FILE *indexFile = fopen(indexFileName, "r");
-    if (indexFile == NULL) {
-        Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
-
-    size_t lines = FileUtil::countLines(indexFileName);
-    ffindex_index_t *index = ffindex_index_parse(indexFile, lines);
-    return index;
-}
-
-void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string oldDBIndex, std::string newDBIndex){
+void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string oldDB, std::string newDB){
 
     FILE* A_index_file = fopen(A_indexFile.c_str(), "w");
     FILE* B_index_file = fopen(B_indexFile.c_str(), "w");
 
-    ffindex_index_t* index_old = openIndex(oldDBIndex.c_str());
-    ffindex_index_t* index_new = openIndex(newDBIndex.c_str());
+    std::pair<std::string, std::string> oldNames = Util::databaseNames(oldDB);
+    DBReader<unsigned int> readerOld(oldNames.first.c_str(), oldNames.second.c_str(), DBReader<unsigned int>::USE_INDEX);
+    readerOld.open(DBReader<unsigned int>::NOSORT);
+
+    std::pair<std::string, std::string> newNames = Util::databaseNames(newDB);
+    DBReader<unsigned int> readerNew(newNames.first.c_str(), newNames.second.c_str(), DBReader<unsigned int>::USE_INDEX);
+    readerNew.open(DBReader<unsigned int>::NOSORT);
 
     // positions in the databases
     unsigned int i = 0;
@@ -63,13 +51,17 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
     int deleted_cnt = 0;
     int new_cnt = 0;
     int shared_cnt = 0;
-    while (i < index_old->n_entries && j < index_new->n_entries){
-        ffindex_entry_t* e_i = ffindex_get_entry_by_index(index_old, i);
-        ffindex_entry_t* e_j = ffindex_get_entry_by_index(index_new, j);
-        int cmp = strcmp(&(e_i->name[0]), &(e_j->name[0]));
+    DBReader<unsigned int>::Index* indexOld = readerOld.getIndex();
+    DBReader<unsigned int>::Index* indexNew = readerNew.getIndex();
+    unsigned int* newLengths = readerNew.getSeqLens();
+    while (i < readerOld.getSize() && j < readerNew.getSize()){
+        DBReader<unsigned int>::Index& e_i = indexOld[i];
+        DBReader<unsigned int>::Index& e_j = indexNew[j];
+        size_t offset = reinterpret_cast<size_t>(e_j.data);
+        int cmp = strcmp(SSTR(e_i.id).c_str(), SSTR(e_j.id).c_str());
         if (cmp == 0){
             // this sequence is in both databases
-            fprintf(A_index_file, "%s\t%zd\t%zd\n", e_j->name, e_j->offset, e_j->length);
+            fprintf(A_index_file, "%s\t%zd\t%u\n", SSTR(e_j.id).c_str(), offset, newLengths[j]);
             shared_cnt++;
             i++;
             j++;
@@ -81,26 +73,30 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
         }
         else{
             // this sequence is new
-            fprintf(B_index_file, "%s\t%zd\t%zd\n", e_j->name, e_j->offset, e_j->length);
+            fprintf(B_index_file, "%s\t%zd\t%u\n", SSTR(e_j.id).c_str(), offset, newLengths[j]);
             new_cnt++;
             j++;
         }
     }
-    while (i < index_old->n_entries){
+    while (i < readerOld.getSize()){
         deleted_cnt++;
         i++;
     }
     // add the rest of the new database to the new sequences
-    while (j < index_new->n_entries){
-        ffindex_entry_t* e_j = ffindex_get_entry_by_index(index_new, j);
-        fprintf(B_index_file, "%s\t%zd\t%zd\n", e_j->name, e_j->offset, e_j->length);
+    while (j < readerNew.getSize()){
+        DBReader<unsigned int>::Index& e_j = indexNew[j];
+        size_t offset = reinterpret_cast<size_t>(e_j.data);
+        fprintf(B_index_file, "%s\t%zd\t%u\n", SSTR(e_j.id).c_str(), offset, newLengths[j]);
         new_cnt++;
         j++;
     }
 
+    readerNew.close();
+    readerOld.close();
+
     // set the global count variables
-    oldDBSize = index_old->n_entries;
-    newDBSize = index_new->n_entries;
+    oldDBSize = readerOld.getSize();
+    newDBSize = readerNew.getSize();
     deletedSeqs = deleted_cnt;
     sharedSeqs = shared_cnt;
     newSeqs = new_cnt;
@@ -112,7 +108,8 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
 
 std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
         std::string targetDB, std::string targetDBIndex,
-        std::string tmpDir, Parameters par, std::string dbName, std::list<std::string>* tmpFiles){
+        std::string tmpDir, Parameters &par, std::string dbName, std::list<std::string>* tmpFiles){
+
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -223,24 +220,29 @@ size_t readClustering(DBReader<unsigned int>* currSeqDbr, std::string cluDB, uns
     return ret;
 }
 
-void appendToClustering(DBReader<unsigned int>* currSeqDbr, std::string BIndexFile, std::string BA_base, unsigned int* id2rep, cluster_t* clusters, std::string Brest_indexFile){
+void appendToClustering(DBReader<unsigned int>* currSeqDbr, std::string B, std::string BA_base, unsigned int* id2rep, cluster_t* clusters, std::string Brest_indexFile){
 
-    DBReader<unsigned int>* BADbr = new DBReader<unsigned int>(BA_base.c_str(), (BA_base + ".index").c_str());
-    BADbr->open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> BADbr(BA_base.c_str(), (BA_base + ".index").c_str());
+    BADbr.open(DBReader<unsigned int>::NOSORT);
 
-    ffindex_index_t* Bindex = openIndex(BIndexFile.c_str());
+    std::pair<std::string, std::string> bNames = Util::databaseNames(B);
+    DBReader<unsigned int> bReader(bNames.first.c_str(), bNames.second.c_str(), DBReader<unsigned int>::USE_INDEX);
+    bReader.open(DBReader<unsigned int>::NOSORT);
+
+    DBReader<unsigned int>::Index* index = bReader.getIndex();
+    unsigned int* lengths = bReader.getSeqLens();
 
     FILE* Brest_index_file = fopen(Brest_indexFile.c_str(), "w");
 
     seqsWithMatches = 0;
     seqsWithoutMatches = 0;
     char* buf = new char[1000000];
-    for (unsigned int i = 0; i < BADbr->getSize(); i++){
-        unsigned int qKey = BADbr->getDbKey(i);
+    for (unsigned int i = 0; i < BADbr.getSize(); i++){
+        unsigned int qKey = BADbr.getDbKey(i);
         unsigned int qId = currSeqDbr->getId(qKey);
 
         // find out which cluster the sequence belongs to
-        char* alnData = BADbr->getData(i);
+        char* alnData = BADbr.getData(i);
         strcpy(buf, alnData);
 
 		char* rest;
@@ -273,14 +275,16 @@ void appendToClustering(DBReader<unsigned int>* currSeqDbr, std::string BIndexFi
             seqsWithMatches++;
         }
         else{
-            ffindex_entry_t* e = ffindex_get_entry_by_name(Bindex, (char*) SSTR(qKey).c_str());
-            fprintf(Brest_index_file, "%s\t%zd\t%zd\n", e->name, e->offset, e->length);
+            size_t eIndex = bReader.getId(qKey);
+            DBReader<unsigned int>::Index& e = index[eIndex];
+            fprintf(Brest_index_file, "%s\t%zd\t%u\n", SSTR(e.id).c_str(), reinterpret_cast<size_t>(e.data), lengths[eIndex]);
 
             seqsWithoutMatches++;
         }
     }
     delete [] buf;
-    BADbr->close();
+    bReader.close();
+    BADbr.close();
     fclose(Brest_index_file);
 }
 
@@ -338,14 +342,18 @@ int clusterupdate (int argc, const char * argv[]){
     std::string outDB = par.db4;
     std::string tmpDir = par.db5;
     
-    std::string lastSeqDBIndex = lastSeqDB + ".index";
-    std::string currentSeqDBIndex = currentSeqDB + ".index";
+    std::string currentSeqDBIndex(currentSeqDB);
+    currentSeqDBIndex.append(".index");
+
     std::string cluDBIndex = cluDB + ".index";
     std::string outDBIndex = outDB + ".index";
 
     std::list<std::string>* tmpFiles = new std::list<std::string>();
     std::string AIndex = tmpDir + "/A.index";
-    std::string BIndex = tmpDir + "/B.index";
+    std::string B(tmpDir);
+    B.append("/B");
+    std::string BIndex(B);
+    BIndex.append(".index");
     tmpFiles->push_back(AIndex);
     tmpFiles->push_back(BIndex);
 
@@ -363,7 +371,7 @@ int clusterupdate (int argc, const char * argv[]){
     // extract three indexes:
     // - A: last database version without deleted sequences
     // - B: sequences which are new in the database
-    writeIndexes(AIndex, BIndex, lastSeqDBIndex, currentSeqDBIndex);
+    writeIndexes(AIndex, BIndex, lastSeqDB, currentSeqDB);
 
 
     std::cout << "////////////////////////////////////////////////////////////////////////\n";
@@ -401,7 +409,7 @@ int clusterupdate (int argc, const char * argv[]){
     std::cout << "Append new sequences to the existing clustering...\n";
     // append sequences from the new database to the existing clustering based on the B->A alignment scores
     // write sequences without a match to a separate index (they will be clustered separately)
-    appendToClustering(currSeqDbr, BIndex, BA_base, id2rep, clusters, Brest_indexFile);
+    appendToClustering(currSeqDbr, B, BA_base, id2rep, clusters, Brest_indexFile);
 
     if (seqsWithoutMatches > 0){
         std::cout << "////////////////////////////////////////////////////////////////////////\n";
@@ -453,7 +461,7 @@ int clusterupdate (int argc, const char * argv[]){
     int sec = end.tv_sec - start.tv_sec;
     std::cout << "\nTime for updating: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
 
-    if (par.removeTmpFiles == false) {
+    if (par.removeTmpFiles) {
         FileUtil::deleteTempFiles(*tmpFiles);
     }
     delete tmpFiles;

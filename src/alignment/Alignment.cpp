@@ -6,6 +6,7 @@
 
 #include <list>
 #include <iomanip>
+#include <memory>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -16,15 +17,15 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
                      std::string targetSeqDB, std::string targetSeqDBIndex,
                      std::string prefDB, std::string prefDBIndex,
                      std::string outDB, std::string outDBIndex,
-                     Parameters par){
-
-    BUFFER_SIZE = 10000000;
-
+                     Parameters &par){
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
     this->fragmentMerge = par.fragmentMerge;
-
+    this->addBacktrace = par.addBacktrace;
+    if(addBacktrace == true){
+        par.alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    }
     switch (par.alignmentMode){
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
             if(this->covThr == 0.0 && this->seqIdThr == 0.0){
@@ -61,7 +62,8 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     }
 
     if (par.querySeqType == Sequence::AMINO_ACIDS || par.querySeqType == Sequence::HMM_PROFILE){
-        this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        //TODO test this (benchmark)
+        this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, -0.2);
     }else{
         this->m = new NucleotideMatrix();
     }
@@ -85,6 +87,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
 
     tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
     tseqdbr->open(DBReader<unsigned int>::NOSORT);
+    tseqdbr->readMmapedDataInMemory();
     sameQTDB = (querySeqDB.compare(targetSeqDB) == 0);
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -123,8 +126,8 @@ void Alignment::run (const unsigned int mpiRank, const unsigned int mpiNumProc,
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoaAcid(qseqdbr->getAminoAcidDBSize(), qseqdbr->getSeqLens(), qseqdbr->getSize(),
-                                      mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    Util::decomposeDomainByAminoAcid(qseqdbr->getAminoAcidDBSize(), qseqdbr->getSeqLens(), qseqdbr->getSize(),
+                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
     Debug(Debug::WARNING) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDB, outDBIndex, mpiRank);
     run(tmpOutput.first.c_str(), tmpOutput.second.c_str(), dbFrom, dbSize, maxAlnNum, maxRejected);
@@ -241,20 +244,19 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 alignmentsNum++;
                 //set coverage and seqid if identity
                 if (isIdentity){
-                    res.qcov=1;
-                    res.dbcov=1;
-                    res.seqId=1;
+                    res.qcov=1.0f;
+                    res.dbcov=1.0f;
+                    res.seqId=1.0f;
                 }
 
                 // check first if it is identity
-                if (isIdentity ||
-                    ( (res.eval <= evalThr ) &&
-                      (( mode == Parameters::ALIGNMENT_MODE_SCORE_ONLY) ||
-                       ( mode == Parameters::ALIGNMENT_MODE_SCORE_COV && res.qcov >= covThr && res.dbcov >= covThr) ||
-                       ( mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID && res.seqId > seqIdThr && res.qcov >= covThr && res.dbcov >= covThr) ||
-                       ( mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 )
-                      )
-                    ) )
+                if (isIdentity
+                    ||
+                    // general accaptance criteria
+                    (res.eval <= evalThr && res.seqId >= seqIdThr && res.qcov >= covThr && res.dbcov >= covThr)
+                    ||
+                    // check for fragment
+                    (( mode == Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID || mode == Parameters::ALIGNMENT_MODE_SCORE_COV) && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 ))
                 {
                     swResults.push_back(res);
                     passedNum++;
@@ -265,8 +267,6 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 else{
                     rejected++;
                 }
-                // check for fragment
-
             }
             // write the results
             swResults.sort(Matcher::compareHits);
@@ -279,12 +279,17 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 swResultsSs << it->score << "\t"; //TODO fix for formats
                 swResultsSs << std::fixed << std::setprecision(3) << it->seqId << "\t";
                 swResultsSs << std::scientific << it->eval << "\t";
-                swResultsSs << it->qStartPos << "\t";
-                swResultsSs << it->qEndPos << "\t";
+                swResultsSs << it->qStartPos  << "\t";
+                swResultsSs << it->qEndPos  << "\t";
                 swResultsSs << it->qLen << "\t";
-                swResultsSs << it->dbStartPos << "\t";
-                swResultsSs << it->dbEndPos << "\t";
-                swResultsSs << it->dbLen << "\n";
+                swResultsSs << it->dbStartPos  << "\t";
+                swResultsSs << it->dbEndPos  << "\t";
+                if(addBacktrace == true){
+                    swResultsSs << it->dbLen << "\t";
+                    swResultsSs << Matcher::compressAlignment(it->backtrace) << "\n";
+                }else{
+                    swResultsSs << it->dbLen << "\n";
+                }
             }
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
@@ -306,11 +311,13 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
 }
 
 void Alignment::mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> files) {
-    const char * datafilesNames[files.size()];
-    const char * indexFilesNames[files.size()];
+    const char ** datafilesNames = new const char*[files.size()];
+    const char ** indexFilesNames= new const char*[files.size()];
     for(size_t i = 0; i < files.size(); i++){
         datafilesNames[i] = files[i].first.c_str();
         indexFilesNames[i] = files[i].second.c_str();
     }
-    DBWriter::mergeFFindexFile(outDB.c_str(), outDBIndex.c_str(), "w", datafilesNames, indexFilesNames,files.size() );
+    DBWriter::mergeResults(outDB.c_str(), outDBIndex.c_str(), datafilesNames, indexFilesNames, files.size());
+    delete [] datafilesNames;
+    delete [] indexFilesNames;
 }

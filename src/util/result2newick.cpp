@@ -94,7 +94,7 @@ int result2newick(int argc, const char *argv[]) {
         EXIT(EXIT_FAILURE);
     }
 
-    DBReader<unsigned int> *readers[clusterings];
+    DBReader<unsigned int> **readers = new DBReader<unsigned int> *[clusterings];
     for (size_t i = 0; i < clusterings; ++i) {
         std::pair<std::string, std::string> name = Util::databaseNames(argv[i + 1]);
         readers[i] = new DBReader<unsigned int>(name.first.c_str(), name.second.c_str());
@@ -205,6 +205,6 @@ int result2newick(int argc, const char *argv[]) {
     }
 
     writer.close();
-
+    delete [] readers;
     return EXIT_SUCCESS;
 }

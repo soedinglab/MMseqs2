@@ -1,10 +1,10 @@
 #ifndef COUNTIN32ARRAY_H
 #define COUNTIN32ARRAY_H
 
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
-#include <IndexTable.h>
+#include <cstdlib>
+#include <cmath>
+#include <cstring>
+#include "IndexTable.h"
 
 struct  __attribute__((__packed__))  CounterResult {
     unsigned int  id;

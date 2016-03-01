@@ -47,12 +47,14 @@ static struct Command commands[] = {
                 "Convert ffindex to fasta"},
         {"createtsv",           createtsv,              &par.onlyverbosity,         COMMAND_HELPER,
                 "Convert ffindex to tsv"},
+        {"detectredundancy",    detectredundancy,       &par.prefilter,             COMMAND_HELPER,
+                "Detectes redundancy based on reduced alphabet hashing and hamming distance"},
         {"createprofiledb",     createprofiledb,        &par.createprofiledb,       COMMAND_HELPER,
                 "Convert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database"},
         {"filterdb",            filterdb,               &par.filterDb,              COMMAND_HELPER,
                 "Filter a database by column regex"},
         {"formatalignment",     formatalignment,        &par.formatalignment,       COMMAND_HELPER,
-                "Convert a ffindex alignment database to BLAST tab or SAM flat file"},
+                "Convert a ffindex alignment database to BLAST tab, pairwise alignments or SAM flat file"},
         {"swapresults",         swapresults,            &par.empty,                 COMMAND_HELPER,
                 "Swaps results from the mapping A -> (A,B,C) to A -> A, B -> A, C -> A"},
         {"addsequences",        addsequences,           &par.addSequences,          COMMAND_HELPER,
@@ -85,6 +87,8 @@ static struct Command commands[] = {
                 "Turns an UniprotKB file into separate TSV tables"},
         {"result2newick",       result2newick,          &par.onlyverbosity,         COMMAND_HELPER,
             "Extracts clustering relationship from clustering steps into Newick trees"},
+        {"order",               order,                  &par.onlyverbosity,         COMMAND_HELPER,
+                "Orders an mmseqs ffindex database according to a given list"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
         {"computeGOscore",     computeGOscore,        &par.evaluationscores,                 COMMAND_HIDDEN,
@@ -95,6 +99,14 @@ static struct Command commands[] = {
 void printUsage() {
     std::stringstream usage;
     usage << "All available MMseqs commands\n";
+#ifdef GIT_SHA1
+#define str2(s) #s
+#define str(s) str2(s)
+	std::string gitHash(str(GIT_SHA1));
+	usage << "Git Version: " << gitHash << "\n";
+#undef str
+#undef str2
+#endif
     usage << "Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n";
 
     struct {

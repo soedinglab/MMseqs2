@@ -44,8 +44,8 @@ public:
                                 size_t world_size, size_t *subdomain_start,
                                 size_t *subdomain_size);
     static void rankedDescSort20(short *val, unsigned int *index);
-    static void decomposeDomainByAminoaAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
-            size_t worldRank, size_t worldSize, size_t *start, size_t *end);
+    static void decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
+                                           size_t worldRank, size_t worldSize, size_t *start, size_t *end);
 
     static size_t countLines(const char *data, size_t length);
 
@@ -112,6 +112,9 @@ public:
                 return elementCounter;
             data += skipNoneWhitespace(data);
         }
+        if(elementCounter < maxElement)
+            words[elementCounter] = data;
+
         return elementCounter;
     }
 

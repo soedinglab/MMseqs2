@@ -5,11 +5,11 @@
 #include <cstring>
 #include <algorithm>
 #include <fstream>
-#include <math.h>
+#include <cmath>
 
 
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
-                                       float bitFactor, float scoreBias = 0.2) :
+                                       float bitFactor, float scoreBias = -0.2) :
         scoringMatrixFileName(scoringMatrixFileName_) {
     // read amino acid substitution matrix from file
     std::string fileName(scoringMatrixFileName);
@@ -85,7 +85,6 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(short *profileScores,
     }
     for(size_t aa = 0; aa < 20; aa++)
         pnul[aa] /= N;
-    float avg = 0.0;
     for (int i = 0; i < N; i++){
         const int minPos = std::max(0, (i - windowSize/2));
         const int maxPos = std::min(N, (i + windowSize/2));
