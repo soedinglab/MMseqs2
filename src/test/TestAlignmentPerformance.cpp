@@ -25,7 +25,7 @@
 
 #define MAX_FILENAME_LIST_FILES 4096
 
-KSEQ_INIT(int, read);
+KSEQ_INIT(int, read)
 
 
 std::vector<std::string> readData(std::string fasta_filename){
