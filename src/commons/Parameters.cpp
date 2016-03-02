@@ -549,7 +549,7 @@ void Parameters::setDefaults() {
     profile = false;
     nucl = false;
 
-    alignmentMode = ALIGNMENT_MODE_SCORE_ONLY;
+    alignmentMode = ALIGNMENT_MODE_FAST_AUTO;
     evalThr = 0.001;
     covThr = 0.0;
     fragmentMerge = false;
