@@ -3,6 +3,7 @@
 
 #include <list>
 #include <string>
+#include <map>
 
 #include "DBReader.h"
 #include "DBWriter.h"
@@ -21,14 +22,14 @@ class Clustering {
                void run(int mode);
 
 
-
+        ~Clustering();
     private:
         // check if every element is member in only one cluster
         bool validate_result(std::list<set *> * ret,unsigned int uniqu_element_count);
 
 
 
-        void writeData(DBWriter *dbw, std::list<set *> ret);
+        void writeData(DBWriter *dbw, std::map<unsigned int, std::vector<unsigned int> > ret);
 
         DBReader<unsigned int>* seqDbr;
         DBReader<unsigned int>* alnDbr;

@@ -6,11 +6,11 @@
 #include <sys/time.h>
 
 Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
-        std::string alnDB, std::string alnDBIndex,
-        std::string outDB, std::string outDBIndex,
-        int validateClustering,
-         unsigned int maxIteration,
-        int similarityScoreType,  int threads){
+                       std::string alnDB, std::string alnDBIndex,
+                       std::string outDB, std::string outDBIndex,
+                       int validateClustering,
+                       unsigned int maxIteration,
+                       int similarityScoreType,  int threads){
 
     Debug(Debug::WARNING) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
@@ -29,19 +29,21 @@ Clustering::Clustering(std::string seqDB, std::string seqDBIndex,
     this->outDBIndex = outDBIndex;
 }
 
-void Clustering::run(int mode) {
+Clustering::~Clustering() {
+    delete seqDbr;
+    delete alnDbr;
+}
 
+
+void Clustering::run(int mode) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    DBWriter * dbw;
-        dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1);
-
+    DBWriter * dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1);
     dbw->open();
 
-    std::list<set *> ret;
+    std::map<unsigned int, std::vector<unsigned int> > ret;
     if  (mode == Parameters::GREEDY){
         ClusteringAlgorithms* greedyincremental= new ClusteringAlgorithms(seqDbr,alnDbr,threads,similarityScoreType,maxIteration);
-
         ret =greedyincremental->execute(2);
         Debug(Debug::INFO) << "Writing results...\n";
         writeData(dbw, ret);
@@ -49,14 +51,16 @@ void Clustering::run(int mode) {
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+        delete greedyincremental;
     }else if (mode == Parameters::SET_COVER){
         Debug(Debug::INFO) << "Clustering mode: Set cover\n";
         ClusteringAlgorithms* setCover= new ClusteringAlgorithms(seqDbr,alnDbr,threads,similarityScoreType,maxIteration);
-        ret =setCover->execute(1);
+        ret = setCover->execute(1);
         writeData(dbw, ret);
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+        delete setCover;
     } else if (mode == Parameters::CONNECTED_COMPONENT){
         Debug(Debug::INFO) << "Clustering mode: connected component\n";
         Debug(Debug::INFO) << "Maxiteration " <<maxIteration<<"\n";
@@ -66,18 +70,19 @@ void Clustering::run(int mode) {
         gettimeofday(&end, NULL);
         int sec = end.tv_sec - start.tv_sec;
         Debug(Debug::INFO) << "\nTime for clustering: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
+        delete connctedComponent;
     }else{
         Debug(Debug::ERROR)  << "ERROR: Wrong clustering mode!\n";
         EXIT(EXIT_FAILURE);
     }
 
-    if (validate == 1){
-        Debug(Debug::INFO) << "Validating results...\n";
-        if(validate_result(&ret,ret.size()))
-            Debug(Debug::INFO) << " VALID\n";
-        else
-            Debug(Debug::INFO) << " NOT VALID\n";
-    }
+//    if (validate == 1){
+//        Debug(Debug::INFO) << "Validating results...\n";
+//        if(validate_result(&ret,ret.size()))
+//            Debug(Debug::INFO) << " VALID\n";
+//        else
+//            Debug(Debug::INFO) << " NOT VALID\n";
+//    }
 
     unsigned int dbSize = alnDbr->getSize();
     unsigned int seqDbSize = seqDbr->getSize();
@@ -86,8 +91,6 @@ void Clustering::run(int mode) {
     seqDbr->close();
     alnDbr->close();
     dbw->close();
-    delete seqDbr;
-    delete alnDbr;
     delete dbw;
 
     gettimeofday(&end, NULL);
@@ -99,37 +102,22 @@ void Clustering::run(int mode) {
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
 }
 
-void Clustering::writeData(DBWriter *dbw, std::list<set *> ret){
-
-    size_t BUFFER_SIZE = 1000000;
-    char* outBuffer = new char[BUFFER_SIZE];
-    std::list<set *>::const_iterator iterator;
+void Clustering::writeData(DBWriter *dbw, std::map<unsigned int, std::vector<unsigned int> > ret){
+    std::map<unsigned int, std::vector<unsigned int> >::const_iterator iterator;
     for (iterator = ret.begin(); iterator != ret.end(); ++iterator) {
         std::stringstream res;
-        set::element * element =(*iterator)->elements;
+        std::vector<unsigned int> elements  = (*iterator).second;
         // first entry is the representative sequence
-        unsigned int dbKey = seqDbr->getDbKey(element->element_id);
-
-        do{
-            unsigned int nextDbKey = seqDbr->getDbKey(element->element_id);
+        for(size_t i = 0; i < elements.size(); i++){
+            unsigned int nextDbKey = seqDbr->getDbKey(elements[i] );
             res << nextDbKey << "\n";
-        } while((element=element->next)!=NULL);
-
-        std::string cluResultsOutString = res.str();
-        const char* cluResultsOutData = cluResultsOutString.c_str();
-        if (BUFFER_SIZE < strlen(cluResultsOutData)){
-            Debug(Debug::ERROR) << "Tried to process the clustering list for the query " << dbKey
-                                << " , length of the list = " << ret.size() << "\n";
-            Debug(Debug::ERROR) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length()
-                                << ")\n Buffer size is increased\n";
-            BUFFER_SIZE=strlen(cluResultsOutData)+1;
-            delete [] outBuffer;
-            outBuffer = new char[BUFFER_SIZE];
         }
-        memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->write(outBuffer, cluResultsOutString.length(), SSTR(dbKey).c_str());
+        unsigned int dbKey = seqDbr->getDbKey((*iterator).first);
+        std::string cluResultsOutString = res.str();
+        dbw->write(cluResultsOutString.c_str(), cluResultsOutString.length(), SSTR(dbKey).c_str());
     }
-    delete[] outBuffer;
+
+
 }
 
 
@@ -140,7 +128,7 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
     memset(control, 0, sizeof(int)*(uniqu_element_count+1));
     for (iterator = ret->begin(); iterator != ret->end(); ++iterator) {
         set::element * element =(*iterator)->elements;
-        do{ 
+        do{
             control[element->element_id]++;
             result_element_count++;
         }while((element=element->next)!=NULL);
@@ -168,7 +156,7 @@ bool Clustering::validate_result(std::list<set *> * ret,unsigned int uniqu_eleme
         return true;
     else{
         Debug(Debug::ERROR) << "unique_element_count: " << uniqu_element_count
-                            << ", result_element_count: " << result_element_count << "\n";
+        << ", result_element_count: " << result_element_count << "\n";
         return false;
     }
 }
