@@ -12,6 +12,7 @@
 void setWorkflowDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->covThr = 0.8;
+    p->minDiagScoreThr = 0;
     p->evalThr = 0.001;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
 }
@@ -22,10 +23,10 @@ std::pair<float, bool> setAutomaticThreshold(float seqId) {
     if (seqId <= 0.3) {
         sens = 7.0;
         cascaded = true;
-    } else if (seqId > 0.7) {
+    } else if (seqId > 0.8) {
         sens = 1.0;
     } else {
-        sens = 1.0 + (1.5 * (0.7 - seqId) * 10);
+        sens = 1.0 + (1.2 * (0.8 - seqId) * 10);
     }
     if (sens <= 2.0) {
         cascaded = false;
@@ -80,7 +81,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.sensitivity = 1;
         par.maxResListLen = 20;
         par.fragmentMerge = true;
-        par.diagonalScoring = 0;
+        //par.diagonalScoring = 0;
         par.compBiasCorrection = 0;
         cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.alignment).c_str());
