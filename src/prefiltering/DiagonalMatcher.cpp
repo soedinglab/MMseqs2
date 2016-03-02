@@ -42,7 +42,7 @@ void DiagonalMatcher::processQuery(Sequence *seq,
     computeScores(queryProfile, seq->L, results, resultSize, bias, thr);
 }
 
-const int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
+int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
                                                  const int bias,
                                                  const unsigned int seqLen,
                                                  const unsigned char * dbSeq) {

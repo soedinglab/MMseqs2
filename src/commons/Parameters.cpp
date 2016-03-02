@@ -86,7 +86,15 @@ Parameters::Parameters():
         PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "Minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "Column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
-        PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$")
+        PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
+// evaluationscores
+                PARAM_EVALUATION_ALLVSALL(PARAM_EVALUATION_ALLVSALL_ID, "-a", "All vs all","All cluster members vs all cluster members, otherwise: all against representative",typeid(bool),(void *) &allVsAll, ""),
+        PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE_ID, "-r", "Random representative choice","Instead of first cluster member as representative choose a random one.",typeid(bool),(void *) &randomizedRepresentative, "")
+
+
+
+
+
 {
     // alignment
     alignment.push_back(PARAM_SUB_MAT);
@@ -246,6 +254,9 @@ Parameters::Parameters():
     substractresult.push_back(PARAM_THREADS);
     substractresult.push_back(PARAM_V);
 
+    //evaluationscores
+    evaluationscores.push_back(PARAM_EVALUATION_ALLVSALL);
+    evaluationscores.push_back(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE);
     // detectredundancy
     detectredundancy.push_back(PARAM_SUB_MAT);
     detectredundancy.push_back(PARAM_ALPH_SIZE);
@@ -258,8 +269,8 @@ Parameters::Parameters():
     setDefaults();
 }
 
-void Parameters::printUsageMessage(std::string programUsageHeader,
-                                   std::vector<MMseqsParameter> &parameters){
+void Parameters::printUsageMessage(const std::string &programUsageHeader,
+                                   const std::vector<MMseqsParameter> &parameters){
     std::ostringstream ss;
     ss << programUsageHeader << std::endl;
 
@@ -308,7 +319,7 @@ int compileRegex(regex_t * regex, const char * regexText){
 }
 
 void Parameters::parseParameters(int argc, const char* pargv[],
-                                 std::string programUsageHeader,
+                                 const std::string &programUsageHeader,
                                  std::vector<MMseqsParameter> &par,
                                  size_t requiredParameterCount,
                                  bool printPar,
@@ -465,7 +476,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 }
 
 void Parameters::printParameters(int argc, const char* pargv[],
-                                 std::vector<MMseqsParameter> &par){
+                                 const std::vector<MMseqsParameter> &par){
     Debug(Debug::INFO) << "Program call:\n";
     for (int i = 0; i < argc; i++)
         Debug(Debug::INFO) << pargv[i] << " ";
@@ -493,13 +504,6 @@ void Parameters::printParameters(int argc, const char* pargv[],
     }
 
     Debug(Debug::INFO) << ss.str() << "\n";
-}
-
-void Parameters::serialize( std::ostream &stream )  {
-}
-
-void Parameters::deserialize( std::istream &stream ) {
-
 }
 
 void Parameters::checkSaneEnvironment() {
@@ -618,6 +622,11 @@ void Parameters::setDefaults() {
     // filterDb
     filterColumn = 1;
     filterColumnRegex = "^.*$";
+
+    // evaluationscores
+    allVsAll = false;
+    randomizedRepresentative = false;
+
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,

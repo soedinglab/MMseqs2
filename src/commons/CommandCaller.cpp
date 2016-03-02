@@ -44,7 +44,7 @@ int CommandCaller::callProgram(const char* program, size_t argc, const char **ar
 
 void CommandCaller::execProgram(const char* program, size_t argc, const char **argv) {
     // hack: our argv string does not contain a program name anymore, readd it
-    const char *pArgv[argc + 2];
+    const char **pArgv = new const char*[argc + 2];
     pArgv[0] = program;
     for (size_t i = 0; i < argc; ++i) {
         pArgv[i + 1] = argv[i];
@@ -54,5 +54,6 @@ void CommandCaller::execProgram(const char* program, size_t argc, const char **a
     int res = execvp(program, (char * const *) pArgv);
 
     // should not be reached in the normal case
+    delete[] pArgv;
     EXIT(res);
 }
