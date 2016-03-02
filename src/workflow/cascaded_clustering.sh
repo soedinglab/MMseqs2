@@ -27,6 +27,12 @@ hasCommand awk
 export OMP_PROC_BIND=TRUE
 
 INPUT="$1"
+notExists "$3/aln_redundancy" && mmseqs detectredundancy "$INPUT" "$3/aln_redundancy" --min-seq-id 0.9 && checkReturnCode "Fast filter step $STEP died"
+notExists "$3/clu_redundancy" && mmseqs cluster $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER1_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
+awk '{ print $1 }' "$3/clu_redundancy.index" > "$3/order_redundancy"
+notExists "$3/input_step_redundancy" && mmseqs order "$3/order_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
+
+INPUT="$3/input_step_redundancy"
 STEP=0
 while [ $STEP -lt 4 ]; do
     PARAM=PREFILTER${STEP}_PAR
@@ -44,8 +50,8 @@ while [ $STEP -lt 4 ]; do
 
     NEXTINPUT="$3/input_step$((STEP+1))"
     if [ $STEP -eq 3 ]; then
-        notExists $3/clu \
-            && mmseqs mergecluster "$1" "$3/clu" "$3/clu_step0" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3" \
+        notExists "$3/clu" \
+            && mmseqs mergecluster "$1" "$3/clu" "$3/clu_redundancy" "$3/clu_step0" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3" \
             && checkReturnCode "Merging of clusters has died"
     else
         notExists "$3/order_step$STEP" \
@@ -67,6 +73,9 @@ checkReturnCode "Could not move result to $2"
 
 if [ -n "$REMOVE_TMP" ]; then
  echo "Remove temporary files"
+ rm -f "$3/clu_redundancy" "$3/clu_redundancy.index"
+ rm -f "$3/aln_redundancy" "$3/aln_redundancy.index"
+ rm -f "$3/input_step_redundancy" "$3/input_step_redundancy.index"
  STEP=0
  while [ $STEP -lt 4 ]; do
     rm -f "$3/pref_step$STEP" "$3/pref_step$STEP.index"
