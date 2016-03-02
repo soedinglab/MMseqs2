@@ -181,22 +181,26 @@ public:
     // filterDb
     int filterColumn;
     std::string filterColumnRegex;
+
+    // evaluationscores
+    bool allVsAll;
+    bool randomizedRepresentative;
+
+
+
     
-    void setDefaultPaths();
     void checkSaneEnvironment();
     void setDefaults();
-    void serialize( std::ostream &stream );
-    void deserialize( std::istream &stream );
     void parseParameters(int argc, const char* argv[],
-                         std::string programUsageHeader,
+                         const std::string &programUsageHeader,
                          std::vector<MMseqsParameter> &par,
                          size_t requiredParameterCount,
                          bool printParameters = true,
                          bool isVariadic = false);
-    void printUsageMessage(std::string programUsageHeader,
-                           std::vector<MMseqsParameter> &parameters);
+    void printUsageMessage(const std::string &programUsageHeader,
+                           const std::vector<MMseqsParameter> &parameters);
     void printParameters(int argc, const char* pargv[],
-                         std::vector<MMseqsParameter> &par);
+                         const std::vector<MMseqsParameter> &par);
     Parameters();
     ~Parameters(){};
 
@@ -299,6 +303,10 @@ public:
     PARAMETER(PARAM_FILTER_COL)
     PARAMETER(PARAM_FILTER_REGEX)
 
+    // evaluationScore
+    PARAMETER(PARAM_EVALUATION_ALLVSALL)
+    PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
+
     std::vector<MMseqsParameter> empty;
 
     std::vector<MMseqsParameter> onlyverbosity;
@@ -321,6 +329,8 @@ public:
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> swapresults;
     std::vector<MMseqsParameter> substractresult;
+
+    std::vector<MMseqsParameter> evaluationscores;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);

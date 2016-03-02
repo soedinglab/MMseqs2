@@ -289,9 +289,9 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                                                      std::string cluster_ffindex_indexfile,
                                                      std::string fileprefix,
                                                      std::string filesuffix, bool allagainstall, bool randomized) {
-    Debug(Debug::INFO) << "Opening clustering database...\n";
-    DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
-    cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
+    Debug(Debug::INFO) << "Opening clustering database..." << protid_go_ffindex_reader->getDataFileName()<<"\n";
+    DBReader<unsigned int>* cluster_ffindex_reader = new DBReader<unsigned int>(cluster_ffindex.c_str(), cluster_ffindex_indexfile.c_str());
+    cluster_ffindex_reader->open(DBReader<unsigned int>::SORT_BY_LENGTH);
     //files
     std::ofstream clusters_summary_file;
     clusters_summary_file.open(evaluationfolder+fileprefix+"clusters_summary.go"+filesuffix);
@@ -322,9 +322,10 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
     for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-        std::string representative=cluster_ffindex_reader->getDbKey(i);
+        std::string representative=getProteinNameForID(std::to_string(cluster_ffindex_reader->getDbKey(i)).c_str());
         char *data = cluster_ffindex_reader->getData(i);
-        char *idbuffer = new char[255 + 1];
+        char *idbuffer1 = new char[255 + 1];
+        std::string idbuffer="";
         int withgo=0;
         int withoutgo=0;
         double sumofscore =0;
@@ -338,8 +339,8 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
 
             while (*data != '\0') {
 
-                Util::parseKey(data, idbuffer);
-
+                Util::parseKey(data, idbuffer1);
+                idbuffer=getProteinNameForID(idbuffer1);
                     if (protid_go_ffindex_reader->getDataByDBKey(idbuffer) != NULL) {
                         idswithgo.push_back(std::string(idbuffer));
 
@@ -366,7 +367,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                         sumofscore += score;
                         minscore=std::min(score,minscore);
                         maxscore=std::max(score,maxscore);
-                        clusters_full_file << fileprefix << "\t"<< filesuffix<< "\t"<< getProteinNameForID(representative.c_str()) << "\t" << getProteinNameForID(id1.c_str()) << "\t" << getProteinNameForID(id2.c_str()) << "\t" << score << "\n";
+                        clusters_full_file << fileprefix << "\t"<< filesuffix<< "\t"<< representative << "\t" << id1 << "\t" << id2 << "\t" << score << "\n";
                     }
                 }
                 if(!allagainstall){
@@ -389,7 +390,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
                 clusterwithoutgo++;
             }
        // if(idswithgo.size()>0) {
-            clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << getProteinNameForID(representative.c_str()) << "\t" <<
+            clusters_summary_file << fileprefix << "\t" << filesuffix << "\t" << representative << "\t" <<
                                                    withgo + withoutgo << "\t" << withgo << "\t" << withoutgo << "\t" <<
                     averagescore << "\t" << minscore << "\t" << maxscore << "\n";
         //}
@@ -406,6 +407,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
     binned_scores_file.close();
     cluster_ffindex_reader->close();
     cluster_ffindex_reader->~DBReader();
+
 
 }
 

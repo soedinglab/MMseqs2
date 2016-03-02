@@ -16,7 +16,7 @@
 
 DBWriter::DBWriter(const char *dataFileName_,
                    const char *indexFileName_,
-                   int threads,
+                   unsigned int threads,
                    size_t mode) {
     dataFileName = strdup(dataFileName_);
     indexFileName = strdup(indexFileName_);
@@ -31,7 +31,7 @@ DBWriter::DBWriter(const char *dataFileName_,
 
     offsets = new size_t[threads];
 
-    for (int i = 0; i < threads; i++) {
+    for (unsigned int i = 0; i < threads; i++) {
         offsets[i] = 0;
     }
 
@@ -44,7 +44,7 @@ DBWriter::DBWriter(const char *dataFileName_,
         EXIT(EXIT_FAILURE);
     }
 
-    closed = 1;
+    closed = true;
 }
 
 DBWriter::~DBWriter() {
@@ -54,7 +54,7 @@ DBWriter::~DBWriter() {
     delete[] dataFiles;
     delete[] indexFiles;
 
-    for (int i = 0; i < threads; i++) {
+    for (unsigned int i = 0; i < threads; i++) {
         free(dataFileNames[i]);
         free(indexFileNames[i]);
     }
@@ -122,7 +122,7 @@ char* makeResultFilename(const char* name, size_t split) {
 }
 
 void DBWriter::open() {
-    for (size_t i = 0; i < threads; i++) {
+    for (unsigned int i = 0; i < threads; i++) {
         dataFileNames[i] = makeResultFilename(dataFileName, i);
         indexFileNames[i] = makeResultFilename(indexFileName, i);
 
@@ -143,22 +143,22 @@ void DBWriter::open() {
         }
     }
 
-    closed = 0;
+    closed = false;
 }
 
 void DBWriter::close() {
     // close all datafiles
-    for (int i = 0; i < threads; i++) {
+    for (unsigned int i = 0; i < threads; i++) {
         fclose(dataFiles[i]);
         fclose(indexFiles[i]);
     }
 
     mergeResults(dataFileName, indexFileName,
                  (const char **) dataFileNames, (const char **) indexFileNames, threads);
-    closed = 1;
+    closed = true;
 }
 
-void DBWriter::write(const char *data, size_t dataSize, const char *key, int thrIdx) {
+void DBWriter::write(const char *data, size_t dataSize, const char *key, unsigned int thrIdx) {
     checkClosed();
     if (thrIdx >= threads) {
         Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
@@ -187,20 +187,20 @@ void DBWriter::write(const char *data, size_t dataSize, const char *key, int thr
 }
 
 void DBWriter::checkClosed() {
-    if (closed == 1) {
+    if (closed == true) {
         Debug(Debug::ERROR) << "Trying to write to a closed database.\n";
         EXIT(EXIT_FAILURE);
     }
 }
 
 void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
-                            const char **dataFileNames, const char **indexFileNames, int fileCount) {
+                            const char **dataFileNames, const char **indexFileNames, unsigned int fileCount) {
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
     // merge results from each thread into one result file
     // merge each data file
-    for(int i = 1; i < fileCount; i++)
+    for(unsigned int i = 1; i < fileCount; i++)
     {
         std::ofstream data_file_stream(dataFileNames[0], std::ios_base::binary | std::ios_base::app);
         std::ifstream data_to_add_stream(dataFileNames[i], std::ios_base::binary);
@@ -224,7 +224,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
 
     // merge index
     size_t globalOffset = 0;
-    for (int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
+    for (unsigned int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
         DBReader<std::string> reader(indexFileNames[fileIdx], indexFileNames[fileIdx],
                                      DBReader<std::string>::USE_INDEX);
         reader.open(DBReader<std::string>::NOSORT);

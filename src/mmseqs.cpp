@@ -91,6 +91,8 @@ static struct Command commands[] = {
                 "Orders an mmseqs ffindex database according to a given list"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
+        {"computeGOscore",     computeGOscore,        &par.evaluationscores,                 COMMAND_HIDDEN,
+                "Compute GO scores for a result of clustering"},
 };
 
 

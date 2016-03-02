@@ -23,8 +23,10 @@ set(util_source_files
   kbtotsv.cpp
   substractresult.cpp
   result2newick.cpp
+  computeGOscore.cpp
   detectredundancy.cpp
   order.cpp
+  TimeTest.cpp
 )
 
 add_library(util ${util_source_files} )

@@ -15,8 +15,8 @@
 convertfiles::convertfiles(std::string sequencedb) {
 
 
-    targetdb_header=new DBReader<std::string>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
-    targetdb_header->open(DBReader<std::string>::NOSORT);
+    targetdb_header=new DBReader<unsigned int>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
+    targetdb_header->open(DBReader<unsigned int>::NOSORT);
 
 }
 
@@ -26,7 +26,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
 
     std::string cluster_ffindex_indexfile=clusteringfile+".index";
 
-    DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
+    DBReader<unsigned int>* cluster_ffindex_reader = new DBReader<unsigned int>(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
     cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
 
        std::ofstream outfile_stream;
@@ -43,12 +43,12 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
     for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
         int clustersize=0;
-        std::string representative=cluster_ffindex_reader->getDbKey(i);
+        unsigned  int representative=cluster_ffindex_reader->getDbKey(i);
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[255 + 1];
         while (*data != '\0') {
             Util::parseKey(data, idbuffer);
-            outfile_stream<<suffix<<"\t"<<getProteinNameForID(representative.c_str())<<"\t"<<getProteinNameForID(idbuffer)<<"\n";
+            outfile_stream<<suffix<<"\t"<<getProteinNameForID(representative)<<"\t"<<getProteinNameForID(atoi(idbuffer))<<"\n";
             data = Util::skipLine(data);
             clustersize++;
         }
@@ -56,7 +56,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
             singletons++;
         }
         outfile_stream.flush();
-        outfile_stream_clustersize<<suffix<<"\t"<<getProteinNameForID(representative.c_str())<<"\t"<<clustersize<<"\n";
+        outfile_stream_clustersize<<suffix<<"\t"<<getProteinNameForID(representative)<<"\t"<<clustersize<<"\n";
     }
     outfile_stream_cluster_summary<<suffix<<"\t"<<cluster_ffindex_reader->getSize()<<"\t"<<singletons<<"\n";
 
@@ -74,10 +74,10 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
 
     std::string cluster_ffindex_indexfile=clusteringfile+".index";
     std::string alignment_ffindex_indexfile=alignmentfile+".index";
-    DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
-    cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
-    DBReader<std::string>* alignment_ffindex_reader = new DBReader<std::string>(alignmentfile.c_str(), alignment_ffindex_indexfile.c_str());
-    alignment_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
+    DBReader<unsigned int>* cluster_ffindex_reader = new DBReader<unsigned int>(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
+    cluster_ffindex_reader->open(DBReader<unsigned int>::SORT_BY_LENGTH);
+    DBReader<unsigned int>* alignment_ffindex_reader = new DBReader<unsigned int>(alignmentfile.c_str(), alignment_ffindex_indexfile.c_str());
+    alignment_ffindex_reader->open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
     std::ofstream outfile_stream;
     outfile_stream.open(outputfile);
@@ -89,7 +89,7 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
     for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-        std::string representative=cluster_ffindex_reader->getDbKey(i);
+        unsigned int representative=cluster_ffindex_reader->getDbKey(i);
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer = new char[LINE_BUFFER_SIZE];
         char *linebuffer=new char[LINE_BUFFER_SIZE];
@@ -106,7 +106,7 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
             data = Util::skipLine(data);
         }
 
-        size_t dbKey = alignment_ffindex_reader->getId(representative.c_str());
+        size_t dbKey = alignment_ffindex_reader->getId(representative);
         char *data_alignment = alignment_ffindex_reader->getData(dbKey);
         size_t data_alignment_length = alignment_ffindex_reader->getSeqLens(dbKey);
         if (data_alignment== NULL) {
@@ -120,7 +120,7 @@ void convertfiles::getAlignmentscoresForCluster(std::string clusteringfile, std:
                 if(!Util::getLine(data_alignment, data_alignment_length, linebuffer, LINE_BUFFER_SIZE)) {
                     Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
                 }
-                outfile_stream<<getProteinNameForID(representative.c_str())<<"\t"<<getProteinNameForID(linebuffer)<<"\n";
+                outfile_stream<<getProteinNameForID(representative)<<"\t"<<linebuffer<<"\n";
             }
             data_alignment = Util::skipLine(data_alignment);
         }
@@ -241,7 +241,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
 
     std::string cluster_ffindex_indexfile=clusteringfile+".index";
     std::string alignment_ffindex_indexfile=alignmentfile+".index";
-    DBReader<std::string>* cluster_ffindex_reader = new DBReader<std::string>(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
+    DBReader<unsigned int>* cluster_ffindex_reader = new DBReader<unsigned int>(clusteringfile.c_str(), cluster_ffindex_indexfile.c_str());
     cluster_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
     DBReader<std::string>* alignment_ffindex_reader = new DBReader<std::string>(alignmentfile.c_str(), alignment_ffindex_indexfile.c_str());
     alignment_ffindex_reader->open(DBReader<std::string>::SORT_BY_LENGTH);
@@ -254,11 +254,11 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
 
     for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
-        std::string representative=cluster_ffindex_reader->getDbKey(i);
+        std::string representative=getProteinNameForID(cluster_ffindex_reader->getDbKey(i));
         char *data = cluster_ffindex_reader->getData(i);
-        char *idbuffer = new char[LINE_BUFFER_SIZE];
+        char *idbuffer1 = new char[LINE_BUFFER_SIZE];
         char *linebuffer=new char[LINE_BUFFER_SIZE];
-
+        char *idbuffer2 = new char[LINE_BUFFER_SIZE];
 
         std::set<std::string> clusterset;
         std::set<std::string> clusterset2;
@@ -266,12 +266,13 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
 
 
         while (*data != '\0') {
-            Util::parseKey(data, idbuffer);
+            Util::parseKey(data, idbuffer1);
+            std::string idbuffer=getProteinNameForID(atoi(idbuffer1));
             clusterset.insert(std::string(idbuffer));
             data = Util::skipLine(data);
         }
 
-        size_t dbKey = alignment_ffindex_reader->getId(representative.c_str());
+        size_t dbKey = alignment_ffindex_reader->getId(representative);
         char *data_alignment = alignment_ffindex_reader->getData(dbKey);
         size_t data_alignment_length = alignment_ffindex_reader->getSeqLens(dbKey);
         if (data_alignment== NULL) {
@@ -280,14 +281,14 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
         }
        // Debug(Debug::INFO) <<representative<<"\n";
         while (*data_alignment != '\0') {
-            Util::parseKey(data_alignment, idbuffer);
+            Util::parseKey(data_alignment, idbuffer2);
            // Debug(Debug::INFO) <<idbuffer;
-            if(clusterset.find(idbuffer)!= clusterset.end()){
-                clusterset2.insert(std::string(idbuffer));
+            if(clusterset.find(idbuffer2)!= clusterset.end()){
+                clusterset2.insert(std::string(idbuffer2));
                 if(!Util::getLine(data_alignment, data_alignment_length, linebuffer, LINE_BUFFER_SIZE)) {
                     Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
                 }
-                outfile_stream<< prefix <<"\t"<<getProteinNameForID(representative.c_str())<<"\t"<<getProteinNameForID(linebuffer)<<"\n";
+                outfile_stream<< prefix <<"\t"<<representative<<"\t"<<linebuffer<<"\n";
             }
             data_alignment = Util::skipLine(data_alignment);
         }
@@ -296,13 +297,13 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
 
 
         for(std::string id :clusterset){
-            strncpy(idbuffer, id.c_str(), id.length());
-            idbuffer[id.length()] = '\0';
+            strncpy(idbuffer2, id.c_str(), id.length());
+            idbuffer2[id.length()] = '\0';
             if(strcmp(representative.c_str(),id.c_str())==0||clusterset2.find(id)!= clusterset2.end()){
 
             }else{
-                if(alignment_ffindex_reader->getDataByDBKey(idbuffer)!=NULL){
-                    outfile_stream<< prefix <<"\t"<<getProteinNameForID(representative.c_str())<<"\t"<<getProteinNameForID(id.c_str())<<"\t"<<"0"<<"\n";
+                if(alignment_ffindex_reader->getDataByDBKey(idbuffer2)!=NULL){
+                    outfile_stream<< prefix <<"\t"<<representative<<"\t"<<id<<"\t"<<"0"<<"\n";
                 }
             }
 
@@ -325,7 +326,7 @@ void convertfiles::getDomainScoresForCluster(std::string clusteringfile, std::st
 }
 
 
-std::string convertfiles::getProteinNameForID(const char * dbKey){
+std::string convertfiles::getProteinNameForID(unsigned int dbKey){
 
     char * header_data = targetdb_header->getDataByDBKey(dbKey);
     std::string parsedDbkey = Util::parseFastaHeader(header_data);

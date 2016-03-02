@@ -126,8 +126,8 @@ void Alignment::run (const unsigned int mpiRank, const unsigned int mpiNumProc,
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoaAcid(qseqdbr->getAminoAcidDBSize(), qseqdbr->getSeqLens(), qseqdbr->getSize(),
-                                      mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    Util::decomposeDomainByAminoAcid(qseqdbr->getAminoAcidDBSize(), qseqdbr->getSeqLens(), qseqdbr->getSize(),
+                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
     Debug(Debug::WARNING) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDB, outDBIndex, mpiRank);
     run(tmpOutput.first.c_str(), tmpOutput.second.c_str(), dbFrom, dbSize, maxAlnNum, maxRejected);

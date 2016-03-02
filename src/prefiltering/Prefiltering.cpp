@@ -309,12 +309,12 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
     size_t querySize = qdbr->getSize();
     IndexTable * indexTable = NULL;
     if(splitMode == Parameters::TARGET_DB_SPLIT){
-        Util::decomposeDomainByAminoaAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
-                                          split, splitCount, &dbFrom, &dbSize);
+        Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
+                                         split, splitCount, &dbFrom, &dbSize);
         indexTable = getIndexTable(split, dbFrom, dbSize);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        Util::decomposeDomainByAminoaAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
-                                          split, splitCount, &queryFrom, &querySize);
+        Util::decomposeDomainByAminoAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
+                                         split, splitCount, &queryFrom, &querySize);
         indexTable = getIndexTable(0, dbFrom, dbSize); // create the whole index table
     } else{
         Debug(Debug::ERROR) << "Wrong split mode. This should not happen. Please contact developer.\n";
@@ -717,7 +717,7 @@ void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> s
     }
 }
 
-const int Prefiltering::getKmerThreshold(const float sensitivity, const int score) {
+int Prefiltering::getKmerThreshold(const float sensitivity, const int score) {
     const unsigned int sens =  sensitivity;
 
     int kmerThrBest = kmerScore;

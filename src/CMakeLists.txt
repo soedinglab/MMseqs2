@@ -28,7 +28,8 @@ else()
 endif()
 
 # set flags
-set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -pedantic -Wall -Winline -Wdisabled-optimization -Wno-vla -Wno-sign-compare -Wno-write-strings -std=c++0x -m64")
+set(MMSEQS_WARNINGS "-pedantic -Wall -Wextra -Winline -Wdisabled-optimization -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -std=c++0x -m64 ${MMSEQS_WARNINGS}")
 set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} -Os -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDBINFO} -O2 -g")

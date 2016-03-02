@@ -1573,7 +1573,7 @@ int main (int argc, const char * argv[])
     seqs[counter++] = "---------------------------------QTLLGFFQALADANRLRIVGVLAQGPQTVEQISALLGLGMSTTSHHLRKLAKAGLVEARADGHYSVYSLRTQTLEELAKNLL-------";
     seqs[counter++] = "-------------------------------------DLFKCIGNPTRYKILKVLCERPLCVNKLNEAVGYSQPNISQHLKLMRMSGIVTCSKNGMNICYQIADDDIIKLLELAEDILKNRR";
     char ** seqsCpy = new char*[counter];
-    for (size_t k = 0; k < counter; ++k) {
+    for (int k = 0; k < counter; ++k) {
         seqsCpy[k] = MultipleAlignment::initX(122);
         for (int pos = 0; pos < 122; ++pos) {
 //            seqs[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : subMat.aa2int[(int) seqs[k][pos]];
@@ -1592,8 +1592,8 @@ int main (int argc, const char * argv[])
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;
 //    }
     std::cout <<"Filterted MSA" << std::endl;
-    for(size_t k = 0; k < filterResult.setSize; k++){
-        printf("k=%.3d ", (int) k);
+    for(int k = 0; k < filterResult.setSize; k++){
+        printf("k=%.3d ", k);
         for(size_t pos = 0; pos < res.centerLength; pos++){
             char aa = filterResult.filteredMsaSequence[k][pos];
             printf("%c", (aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-' );
