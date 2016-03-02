@@ -7,15 +7,17 @@
 
 #include <set>
 #include <list>
+#include <vector>
+#include <map>
 
 #include "DBReader.h"
 #include "SetElement.h"
 
 class ClusteringAlgorithms {
 public:
-ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr, int threads,int scoretype, int maxiterations);
-
-    std::list<set *>  execute(int mode);
+    ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr, int threads,int scoretype, int maxiterations);
+    ~ClusteringAlgorithms();
+    std::map<unsigned int, std::vector<unsigned int>> execute(int mode);
 private:
     DBReader<unsigned int>* seqDbr;
 
@@ -43,6 +45,19 @@ private:
     void decreaseClustersize(int clusterid);
 //for connected component
     int maxiterations;
+    // all results sets
+    set *sets;
+
+    void setCover(unsigned int **elementLookup, unsigned short ** elementScoreLookupTable,  int *assignedcluster, short *bestscore, size_t *offsets);
+
+    void greedyIncremental(unsigned int **elementLookupTable, size_t *elementOffsets,
+                           unsigned short **elementScoreLookupTable, size_t elementCount,
+                           size_t n, int *assignedcluster, unsigned short *scoreelements) ;
+
+    void readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
+                           unsigned short ** elementScoreLookupTable, unsigned short *&scoreelements,
+                           size_t *elementOffsets, size_t elementCount)  ;
+
 };
 
 
