@@ -62,8 +62,8 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     }
 
     if (par.querySeqType == Sequence::AMINO_ACIDS || par.querySeqType == Sequence::HMM_PROFILE){
-        //TODO test this (benchmark)
-        this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, -0.2);
+        // keep score bais to 0.0 (improved ROC over -0.2
+        this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }else{
         this->m = new NucleotideMatrix();
     }
