@@ -74,7 +74,7 @@ void doTimeTest(const std::string &targetDB,
 #endif
                         // TODO: isSpaced is probably wrong
                         seqs[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa,
-                                                        Sequence::AMINO_ACIDS, kmerSize, isSpaced);
+                                                        Sequence::AMINO_ACIDS, kmerSize, isSpaced, false);
                     }
 
                     short kmerThrMin = (short) ((float) (kmerThrPerPosMin * kmerSize) *

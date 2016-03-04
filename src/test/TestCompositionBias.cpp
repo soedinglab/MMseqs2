@@ -55,7 +55,7 @@ int main (int argc, const char * argv[]) {
     SubstitutionMatrix::print(subMat.subMatrix, subMat.int2aa, subMat.alphabetSize);
 
     const char *ref = "MDDVKIERLKRLNEDVLEDLIEVYMRGYEGLEEYGGEGRDYARDYIKWCWKKAPDGFFVAKVGDRIVGFIVCDRDWYSRYEGKIVGAIHEFVVDKGWQGKGIGKKLLTKCLEFLGKYNDTIELWVGEKNFGAMRLYEKFGFKKVGKSGIWIRMVRRQLS";
-    Sequence refSeq(10000, subMat.aa2int, subMat.int2aa, 0,kmer_size, false);
+    Sequence refSeq(10000, subMat.aa2int, subMat.int2aa, 0,kmer_size, false, true);
     refSeq.mapSequence(0, 0, ref);
 
 

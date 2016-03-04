@@ -50,9 +50,9 @@ int main (int argc, const char * argv[])
     //const char* sequence = read_seq;
     const char* sequence = tim1.c_str();
     std::cout << sequence << "\n\n";
-    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
+    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
     s->mapSequence(0,0,sequence);
-    Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true);
+    Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     dbSeq->mapSequence(1,1,tim2.c_str());
     SmithWaterman aligner(15000, subMat.alphabetSize, true);
@@ -65,6 +65,11 @@ int main (int argc, const char * argv[])
         }
         std::cout << std::endl;
     }
+    float sum=0.0;
+    for(size_t i = 0; i < subMat.alphabetSize; i++){
+        sum += subMat.subMatrix[i][i];
+    }
+    std::cout << "Test: " << sum/ subMat.alphabetSize << std::endl;
     aligner.ssw_init(s, tinySubMat, &subMat, subMat.alphabetSize, 2);
     int32_t maskLen = s->L / 2;
     int gap_open = 10;
@@ -118,7 +123,7 @@ int main (int argc, const char * argv[])
     if(alignment.cigar){
         seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(qAlnLen, dbAlnLen));
     }else{
-        seqId = Matcher::estimateSeqIdByScorePerCol(alignment.score1, qAlnLen, dbAlnLen);
+        seqId = Matcher::estimateSeqIdByScorePerCol(alignment.score1, qAlnLen, dbAlnLen, 0);
     }
 
     std::cout << "Seqid: "<< seqId << " aaIds " << aaIds <<std::endl;

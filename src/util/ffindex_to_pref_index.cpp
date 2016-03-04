@@ -27,7 +27,7 @@ int createindex (int argc, const char * argv[])
 
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
 
-    Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, par.kmerSize, par.spacedKmer);
+    Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, par.kmerSize, par.spacedKmer, par.compBiasCorrection);
 
     PrefilteringIndexReader::createIndexFile(par.db1, &dbr, &seq, par.split,
                                              subMat->alphabetSize, par.kmerSize, par.spacedKmer, par.searchMode);

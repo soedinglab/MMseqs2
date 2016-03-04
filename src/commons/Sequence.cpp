@@ -8,9 +8,10 @@
 
 
 Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
-                   int seqType, const unsigned int kmerSize, const bool spaced)
+                   int seqType, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection)
 {
     this->int_sequence = new int[maxLen];
+    this->aaBiasCorrection = aaBiasCorrection;
     this->maxLen = maxLen;
     this->aa2int = aa2int;
     this->int2aa = int2aa;
@@ -190,8 +191,9 @@ void Sequence::mapProfile(const char * sequenze){
     }
     this->L = l;
 
-    //
-    SubstitutionMatrix::calcGlobalAaBiasCorrection(profile_score, profile_row_size, this->L);
+    if(aaBiasCorrection==true){
+        SubstitutionMatrix::calcGlobalAaBiasCorrection(profile_score, profile_row_size, this->L);
+    }
     // sort profile scores and index for KmerGenerator (prefilter step)
     for(int l = 0; l < this->L; l++){
         unsigned int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };

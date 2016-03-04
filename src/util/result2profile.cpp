@@ -136,14 +136,14 @@ int result2outputmode(Parameters &par, int mode) {
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
         Sequence  *centerSequence;
         if(par.profile == true){
-            centerSequence = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, 0, false);
+            centerSequence = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, 0, false, par.compBiasCorrection);
         }else{
-            centerSequence = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0, false);
+            centerSequence = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0, false, par.compBiasCorrection);
         }
         Sequence **sequences = new Sequence *[maxSetSize];
         for (size_t i = 0; i < maxSetSize; i++) {
             sequences[i] = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0,
-                                        false);
+                                        false, false);
         }
 
 #pragma omp for schedule(static)

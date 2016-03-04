@@ -333,7 +333,6 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 		step = -1;
 	}
 	for (i = begin; LIKELY(i != end); i += step) {
-		int32_t cmp;
 		simd_int e, vF = vZero, vMaxColumn = vZero; /* Initialize F value to 0.
                                                     Any errors to vH values will be corrected in the Lazy_F loop.
                                                     */
@@ -403,7 +402,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 		vTemp = simdui8_subs (vH, vGapO);
 		vTemp = simdui8_subs (vF, vTemp);
 		vTemp = simdi8_eq (vTemp, vZero);
-		cmp  = simdi8_movemask (vTemp);
+		uint32_t cmp = simdi8_movemask (vTemp);
 #ifdef AVX2
 		while (cmp != 0xffffffff)
 #else
@@ -552,7 +551,6 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 		step = -1;
 	}
 	for (i = begin; LIKELY(i != end); i += step) {
-		int32_t cmp;
 		simd_int e, vF = vZero; /* Initialize F value to 0.
                                 Any errors to vH values will be corrected in the Lazy_F loop.
                                 */
@@ -611,8 +609,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 		end:
 		vMaxScore = simdi16_max(vMaxScore, vMaxColumn);
 		vTemp = simdi16_eq(vMaxMark, vMaxScore);
-		cmp = simdi8_movemask(vTemp);
-
+		int32_t cmp = simdi8_movemask(vTemp);
 #ifdef AVX2
 		if (cmp != 0xffffffff)
 #else
