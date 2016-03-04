@@ -24,6 +24,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     endif()
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
     # using Intel C++
+    message("-- Compiler is icc(++)")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
