@@ -51,17 +51,19 @@ macro(PCL_CHECK_FOR_SSE)
 
     if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
         set(CMAKE_REQUIRED_FLAGS "-mavx2 -Wa,-q")
-    endif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+    endif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX) 
     if(CMAKE_COMPILER_IS_CLANG)
         set(CMAKE_REQUIRED_FLAGS "-mavx2 -march=native")
     endif(CMAKE_COMPILER_IS_CLANG)
+    if(CMAKE_COMPILER_IS_ICC)
+        set(CMAKE_REQUIRED_FLAGS "-march=core-avx2")
+    endif(CMAKE_COMPILER_IS_ICC)
     check_cxx_source_runs("
       #include <immintrin.h>
       int main()
       {
         volatile __m256i a, b;
         a = _mm256_set1_epi8 (1);
-        b = a;
         b = _mm256_add_epi8 (a,a);
         return 0;
       }"
@@ -190,9 +192,13 @@ macro(PCL_CHECK_FOR_SSE)
 
     if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
 	if(HAVE_AVX2_EXTENSIONS)
+            if(CMAKE_COMPILER_IS_ICC)
+        	SET(SSE_FLAGS "${SSE_FLAGS} -march=core-avx2")
+               	message(STATUS "Found AVX2 extensions, using flags: ${SSE_FLAGS}")	
+            endif(CMAKE_COMPILER_IS_ICC)
 	    if(CMAKE_COMPILER_IS_CLANG)
 		SET(SSE_FLAGS "${SSE_FLAGS} -mavx2 -mfpmath=sse")
-		message(STATUS "Found AVX extensions, using flags: ${SSE_FLAGS}")
+		message(STATUS "Found AVX2 extensions, using flags: ${SSE_FLAGS}")
 	    else()
 	    	SET(SSE_FLAGS "${SSE_FLAGS} -mavx2 -mfpmath=sse -Wa,-q")
 		message(STATUS "Found AVX2 extensions, using flags: ${SSE_FLAGS}")
