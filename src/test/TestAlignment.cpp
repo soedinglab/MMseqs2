@@ -123,7 +123,7 @@ int main (int argc, const char * argv[])
     if(alignment.cigar){
         seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(qAlnLen, dbAlnLen));
     }else{
-        seqId = Matcher::estimateSeqIdByScorePerCol(alignment.score1, qAlnLen, dbAlnLen, 0);
+        seqId = Matcher::estimateSeqIdByScorePerCol(alignment.score1, qAlnLen, dbAlnLen);
     }
 
     std::cout << "Seqid: "<< seqId << " aaIds " << aaIds <<std::endl;
