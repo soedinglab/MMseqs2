@@ -29,7 +29,8 @@ const int8_t seed_7_spaced[] = {1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1};
 class Sequence
 {
     public:
-        Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType, const unsigned int kmerSize, const bool spaced);
+        Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType,
+                 const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection);
         ~Sequence();
 
         // Map char -> int
@@ -136,5 +137,7 @@ private:
         // contains sequence positions for current kmer
         int *kmerPos;
 
+        // bias correction in profiles
+        bool aaBiasCorrection;
 };
 #endif

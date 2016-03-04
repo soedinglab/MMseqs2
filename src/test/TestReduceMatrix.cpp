@@ -13,7 +13,7 @@
 
 int main (int argc, const char * argv[])
 {
-    const int reductionAlphabetSize = 12;
+    const int reductionAlphabetSize = 5;
     Parameters par;
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0);
     subMat.print(subMat.subMatrix, subMat.int2aa,21);

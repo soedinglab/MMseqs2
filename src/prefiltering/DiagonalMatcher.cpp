@@ -310,7 +310,7 @@ short DiagonalMatcher::createProfile(Sequence *seq,
         for (int pos = 0; pos < seq->L; pos++) {
             for (size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
                 unsigned int aa_idx = profile_index[pos * profile_row_size + aa_num];
-                queryProfile[pos * PROFILESIZE + aa_idx] = (profile_score[pos * profile_row_size + aa_num] / 4) + aaCorrectionScore[pos] + bias;
+                queryProfile[pos * PROFILESIZE + aa_idx] = (profile_score[pos * profile_row_size + aa_num] / 4) + bias;
             }
         }
     }else{

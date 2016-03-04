@@ -45,12 +45,31 @@ int clusteringworkflow(int argc, const char *argv[]) {
     par.parseParameters(argc, argv, usage, par.clusteringWorkflow, 3);
 
     bool parameterSet = false;
+    bool compositionBiasSet = false;
+    bool minDiagonalScore = false;
+
     for (size_t i = 0; i < par.clusteringWorkflow.size(); i++) {
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_S.uniqid && par.clusteringWorkflow[i].wasSet) {
             parameterSet = true;
         }
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_CASCADED.uniqid && par.clusteringWorkflow[i].wasSet) {
             parameterSet = true;
+        }
+        if (par.clusteringWorkflow[i].uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid && par.clusteringWorkflow[i].wasSet) {
+            compositionBiasSet = true;
+        }
+        if (par.clusteringWorkflow[i].uniqid == par.PARAM_MIN_DIAG_SCORE.uniqid && par.clusteringWorkflow[i].wasSet) {
+            minDiagonalScore = true;
+        }
+    }
+    if (compositionBiasSet == false){
+        if(par.seqIdThr > 0.7){
+            par.compBiasCorrection = 0;
+        }
+    }
+    if (minDiagonalScore == false){
+        if(par.seqIdThr > 0.7){
+            par.minDiagScoreThr = 60;
         }
     }
 

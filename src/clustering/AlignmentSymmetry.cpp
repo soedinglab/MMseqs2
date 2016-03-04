@@ -20,7 +20,7 @@ AlignmentSymmetry::AlignmentSymmetry() { }
 void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, unsigned int **elementLookupTable) {
 
     size_t dbSize = seqDbr->getSize();
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         Log::printProgress(i);
         // seqDbr is descending sorted by length
