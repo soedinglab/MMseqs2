@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -x
 # Clustering workflow script
 checkReturnCode () {
 echo "Status code="$?
