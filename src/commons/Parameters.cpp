@@ -63,6 +63,8 @@ Parameters::Parameters():
         PARAM_FILTER_COV(PARAM_FILTER_COV_ID, "--cov", "Minimum coverage", "Minimum coverage with master sequence [0.0,1.0]", typeid(float), (void*) &cov, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_FILTER_NDIFF(PARAM_FILTER_NDIFF_ID, "--diff", "Select n most diverse seqs", "Filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50", typeid(int), (void*) &Ndiff, "^[1-9]{1}[0-9]*$"),
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "Use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, ""),
+        PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Overall pseudocount admixture", typeid(float), (void*) &pca, ""),
+        PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Admixture paramter b", typeid(float), (void*) &pcb, ""),
 // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","Sets the MPI runner",typeid(std::string),(void *) &runner, ""),
 // search workflow
@@ -141,7 +143,6 @@ Parameters::Parameters():
     clustering.push_back(PARAM_SIMILARITYSCORE);
     clustering.push_back(PARAM_THREADS);
 
-
     // find orf
     onlyverbosity.push_back(PARAM_V);
 
@@ -160,6 +161,8 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_FILTER_QSC);
     result2profile.push_back(PARAM_FILTER_COV);
     result2profile.push_back(PARAM_FILTER_NDIFF);
+    result2profile.push_back(PARAM_PCA);
+    result2profile.push_back(PARAM_PCB);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
 
@@ -593,6 +596,8 @@ void Parameters::setDefaults() {
     cov = 0.0;           // default for minimum coverage threshold
     Ndiff = 100;         // pick Ndiff most different sequences from alignment
     wg = false;
+    pca = 1.4;
+    pcb = 2.5;
     // logging
     verbosity = Debug::INFO;
 

@@ -8,7 +8,7 @@ class SubstitutionMatrix;
 class PSSMCalculator {
 public:
 
-    PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength);
+    PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, float pca, float pcb);
 
     ~PSSMCalculator();
 
@@ -77,12 +77,14 @@ private:
     void computeSequenceWeights(float *seqWeight, size_t queryLength, size_t setSize, const char **msaSeqs);
 
     // compute pseudocounts from Neff_M -p log(p) per column
-    void computePseudoCounts(float *profile, float *frequency, float *frequency_with_pseudocounts, size_t length);
+    void computePseudoCounts(float *profile, float *frequency, float *frequency_with_pseudocounts, size_t length,float pca, float pcb);
 
     void computeMatchWeights(float * matchWeight, float * seqWeight, size_t setSize, size_t queryLength, const char **msaSeqs);
 
     void computeContextSpecificWeights(float * matchWeight, float *seqWeight, float * Neff_M, size_t queryLength, size_t setSize, const char **msaSeqs);
 
+    float pca;
+    float pcb;
 };
 
 

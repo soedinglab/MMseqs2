@@ -62,7 +62,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     }
 
     if (par.querySeqType == Sequence::AMINO_ACIDS || par.querySeqType == Sequence::HMM_PROFILE){
-        // keep score bais to 0.0 (improved ROC over -0.2
+        // keep score bais to 0.0 (improved ROC over -0.2)
         this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }else{
         this->m = new NucleotideMatrix();
@@ -77,7 +77,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     dbSeqs = new Sequence*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
-        qSeqs[i]  = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.querySeqType, 0, false, par.compBiasCorrection);
+        qSeqs[i]  = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.querySeqType,  0, false, par.compBiasCorrection);
         dbSeqs[i] = new Sequence(par.maxSeqLen, m->aa2int, m->int2aa, par.targetSeqType, 0, false, par.compBiasCorrection);
     }
 
@@ -225,7 +225,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                         Debug(Debug::ERROR) << "ERROR: Sequence " << dbKeys[thread_idx]
                         << " is required in the prefiltering, but is not contained in the target sequence database!\n" <<
                         "Please check your database.\n";
-                        EXIT(1);
+                        EXIT(EXIT_FAILURE);
                     }
                 }
                 //char *maskedDbSeq = seg[thread_idx]->maskseq(dbSeqData);

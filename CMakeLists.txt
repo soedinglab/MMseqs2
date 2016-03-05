@@ -28,6 +28,11 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
+
+#include(UseLATEX)
+#set(PDFLATEX_COMPILER xelatex)
+#add_latex_document(userguide.tex)
+
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 add_definitions("-DGIT_SHA1=${GIT_SHA1}")

@@ -1602,11 +1602,11 @@ int main (int argc, const char * argv[])
     }
 
     //seqSet.push_back(s5);
-    PSSMCalculator pssm(&subMat, counter);
+    PSSMCalculator pssm(&subMat, counter, 1.0, 1.5);
     pssm.computePSSMFromMSA(filterResult.setSize, res.centerLength, filterResult.filteredMsaSequence, false);
     //pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
-    for (size_t k = 0; k < 1001; ++k) {
+    for (int k = 0; k < counter; ++k) {
         free(seqsCpy[k]);
     }
     delete [] seqsCpy;

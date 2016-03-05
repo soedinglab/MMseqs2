@@ -160,6 +160,8 @@ public:
     float cov;
     int Ndiff;
     bool wg;
+    float pca;
+    float pcb;
 
     // createdb
     bool useHeader;
@@ -265,6 +267,8 @@ public:
     PARAMETER(PARAM_FILTER_COV)
     PARAMETER(PARAM_FILTER_NDIFF)
     PARAMETER(PARAM_WG)
+    PARAMETER(PARAM_PCA)
+    PARAMETER(PARAM_PCB)
 
     // workflow
     PARAMETER(PARAM_RUNNER)
