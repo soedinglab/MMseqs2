@@ -70,7 +70,7 @@ int main (int argc, const char * argv[])
         std::cout << "Included sequence=" << (int) msafilter.keep[i] << std::endl;
     }
     MultipleAlignment::print(res, &subMat);
-    PSSMCalculator pssm(&subMat, 1000);
+    PSSMCalculator pssm(&subMat, 1000, 1.0, 1.5);
     pssm.computePSSMFromMSA(res.setSize, res.centerLength, res.msaSequence, false);
     pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);

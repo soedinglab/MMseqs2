@@ -10,7 +10,7 @@
 #include "Debug.h"
 #include "MultipleAlignment.h"
 
-PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength) :
+PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, float pca, float pcb) :
         subMat(subMat)
 {
     this->profile            = new float[Sequence::PROFILE_AA_SIZE * maxSeqLength];
@@ -34,6 +34,9 @@ PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength) 
     }
     wi = new float[maxSeqLength];
     naa = new int[maxSeqLength];
+    this->pca = pca;
+    this->pcb = pcb;
+
 }
 
 PSSMCalculator::~PSSMCalculator() {
@@ -79,7 +82,7 @@ char const * PSSMCalculator::computePSSMFromMSA(size_t setSize,
     // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
     preparePseudoCounts(matchWeight, pseudocountsWeight, queryLength, (const float *) R);
 //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->int2aa, 20 );
-    computePseudoCounts(profile, matchWeight, pseudocountsWeight, queryLength);
+    computePseudoCounts(profile, matchWeight, pseudocountsWeight, queryLength, pca, pcb);
     // create final Matrix
     computeLogPSSM(pssm, profile, queryLength, 0.0);
     return pssm;
@@ -254,9 +257,7 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
     delete [] number_res;
 }
 
-void PSSMCalculator::computePseudoCounts(float *profile, float *frequency, float *frequency_with_pseudocounts, size_t queryLength) {
-    const float pca = 1.0f;
-    const float pcb = 1.5f;
+void PSSMCalculator::computePseudoCounts(float *profile, float *frequency, float *frequency_with_pseudocounts, size_t queryLength, float pca, float pcb) {
     for (size_t pos = 0; pos < queryLength; pos++) {
         float tau = fmin(1.0, pca / (1.0 + Neff_M[pos] / pcb));
 

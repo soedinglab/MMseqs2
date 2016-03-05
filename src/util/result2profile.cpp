@@ -132,7 +132,7 @@ int result2outputmode(Parameters &par, int mode) {
                         par.compBiasCorrection);
 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
-        PSSMCalculator calculator(&subMat, maxSequenceLength);
+        PSSMCalculator calculator(&subMat, maxSequenceLength, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
         Sequence  *centerSequence;
         if(par.profile == true){
