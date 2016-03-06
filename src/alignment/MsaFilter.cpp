@@ -268,7 +268,7 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
                 continue;
             }  // too different from query? => reject once and for all
         }
-     // printf("%d  qsc=%6.2f  %d  %d qid=%6.2f  \n",k,qsc_sum/nres[k],nres[k], diff, 100.0*(1.0-(float)(diff)/nres[k]));
+        // printf("%d  qsc=%6.2f  %d  %d qid=%6.2f  \n",k,qsc_sum/nres[k],nres[k], diff, 100.0*(1.0-(float)(diff)/nres[k]));
     }
 
     // If no sequence left, issue warning and put back first real sequence into alignment
@@ -489,4 +489,93 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
     for (k = 0; k < N_in; ++k)
         keep[k] = in[k];
     return MsaFilter::MsaFilterResult(keep, n, (const char **) filteredMsaSequence);
+}
+
+void MsaFilter::pruneAlignment(char ** msaSequence, int N_in, int L) {
+    float bg = 0.0;  // below this number of end gaps the loose HSP pruning score is used
+    float bl = 0.7;   // minimum per-residue bit score with query at ends of HSP for loose end pruning
+    float bs = 0.7;   // minimum per-residue bit score with query at ends of HSP for strict end pruning
+    for(size_t seqIdx = 1; seqIdx < N_in; seqIdx++ ){
+        int qfirst = 0;             // index of first query residue in pairwise alignment
+        for(int i = 0; i < L; i++){
+            if(msaSequence[seqIdx][i]==MultipleAlignment::GAP){
+                qfirst++;
+            }else{
+                break;
+            }
+        }
+        int qlast  = L - 1;         // index of last  query residue in pairwise alignment
+        for(int i = qlast; i > 0; i--){
+            if(msaSequence[seqIdx][i]==MultipleAlignment::GAP){
+                qlast--;
+            }else{
+                break;
+            }
+        }
+        // Count gaps in template that are aligned with match residues to the left of HSP
+        int gapsleft= qfirst;
+        int gapsright= L - qlast;
+        float bleft   = (gapsleft  >= bg) ? bs : bl;
+        float bright =  (gapsright >= bg) ? bs : bl;
+        int i1 = 0;
+        int i2 = L;
+
+        if( bleft > -9){
+            i1 = prune(0,     L, bleft, msaSequence[0], msaSequence[seqIdx], L);
+        }
+        if (bright > -9)
+        {
+            i2 = prune(L - 1, 0, bright, msaSequence[0], msaSequence[seqIdx], L);
+        }
+        if(i1 > 0){
+            for (int i = 0; i <= i1; i++) {
+                msaSequence[seqIdx][i]=MultipleAlignment::GAP;
+            }
+        }
+        if(i2 < L - 1){
+            for (int i = i2;  i< L; i++) {
+                msaSequence[seqIdx][i]=MultipleAlignment::GAP;
+            }
+        }
+    }
+
+}
+
+
+int MsaFilter::prune(int start, int end, float b, char * query, char *target, int L) {
+    float smin  = 0.0;
+    float score = 0.0;
+    bool gap = false;
+    int i_ret = start;
+    bool rev = false;
+    int pos = start;
+    if(end < start){
+        int tmp = start;
+        start = end;
+        end = tmp;
+        rev = true;
+    }
+    for(int i = start; i < end; i++) {
+        if(rev == true){
+            if( pos < i_ret - 20.0)
+                break;
+        }else{
+            if( pos > i_ret + 20.0)
+                break;
+        }
+        smin += b;
+        if(query[pos] < MultipleAlignment::NAA && target[pos] < MultipleAlignment::NAA) {
+            score += static_cast<float>(m->subMatrix[(int)query[pos]][(int)target[pos]]);
+            gap = false;
+        } else if(query[pos] == MultipleAlignment::GAP || target[pos] == MultipleAlignment::GAP) {
+            score -= (gap == false) ? static_cast<float>(Matcher::GAP_OPEN) : static_cast<float>(Matcher::GAP_EXTEND);
+            gap = true;
+        }
+        if (score < smin) {
+            i_ret = pos;
+            smin=0; score=0;
+        }
+        pos += (rev==true)? -1 : +1;
+    }
+    return i_ret;
 }

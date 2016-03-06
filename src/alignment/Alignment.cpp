@@ -84,7 +84,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     // open the sequence, prefiltering and output databases
     qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
     qseqdbr->open(DBReader<unsigned int>::NOSORT);
-
+    qseqdbr->readMmapedDataInMemory();
     tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
     tseqdbr->open(DBReader<unsigned int>::NOSORT);
     tseqdbr->readMmapedDataInMemory();
