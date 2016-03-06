@@ -13,7 +13,7 @@
 #include "Sequence.h"
 #include "SubstitutionMatrix.h"
 #include "MultipleAlignment.h"
-
+#include <string.h>
 int main (int argc, const char * argv[])
 {
     Parameters par;
