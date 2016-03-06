@@ -52,10 +52,10 @@ Prefiltering::Prefiltering(std::string queryDB,
     this->threads = par.threads;
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
-#else 
+#else
     this->threads = 1;
 #endif
-    
+
     Debug(Debug::INFO) << "\n";
     FileUtil::errorIfFileExist(outDB.c_str());
     FileUtil::errorIfFileExist(outDBIndex.c_str());
@@ -77,7 +77,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     // if no match found or two matches found (we want exactly one match)
     sameQTDB = (queryDB.compare(targetDB) == 0 || (nomatch == false) );
     this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
-    tdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    tdbr->open(DBReader<unsigned int>::NOSORT);
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
     if(templateDBIsIndex == true){ // exchange reader with old ffindex reader
         this->tidxdbr = this->tdbr;
@@ -94,6 +94,11 @@ Prefiltering::Prefiltering(std::string queryDB,
         this->tdbr->close();
         delete tdbr;
         this->tdbr = qdbr;
+    }else if(templateDBIsIndex == false){
+        this->tdbr->close();
+        delete tdbr;
+        this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
+        tdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     }
     Debug(Debug::INFO) << "Query database: " << par.db1 << "(size=" << qdbr->getSize() << ")\n";
     Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
@@ -454,12 +459,8 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
 
 void Prefiltering::closeReader(){
     qdbr->close();
-    if(sameQTDB == false){
+    if(sameQTDB == false || templateDBIsIndex == true){
         tdbr->close();
-    }else{
-        if(templateDBIsIndex){
-            tdbr->close();
-        }
     }
     if(templateDBIsIndex){
         tidxdbr->close();
@@ -609,12 +610,8 @@ IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequen
         Debug(Debug::ERROR) << "Seach mode is not valid.\n";
         EXIT(EXIT_FAILURE);
     }
-
-
     fillDatabase(dbr, seq, indexTable, dbFrom, dbTo);
-
     gettimeofday(&end, NULL);
-
     indexTable->printStatisitic(seq->int2aa);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for index table init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
@@ -731,7 +728,6 @@ void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> s
 
 int Prefiltering::getKmerThreshold(const float sensitivity, const int score) {
     const unsigned int sens =  sensitivity;
-
     int kmerThrBest = kmerScore;
     if(kmerThrBest == INT_MAX){
         if (kmerSize == 5){
