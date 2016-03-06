@@ -493,8 +493,8 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
 
 void MsaFilter::pruneAlignment(char ** msaSequence, int N_in, int L) {
     float bg = 0.0;  // below this number of end gaps the loose HSP pruning score is used
-    float bl = 0.7;   // minimum per-residue bit score with query at ends of HSP for loose end pruning
-    float bs = 0.7;   // minimum per-residue bit score with query at ends of HSP for strict end pruning
+    float bl = 0.0;   // minimum per-residue bit score with query at ends of HSP for loose end pruning
+    float bs = 0.5;   // minimum per-residue bit score with query at ends of HSP for strict end pruning
     for(size_t seqIdx = 1; seqIdx < N_in; seqIdx++ ){
         int qfirst = 0;             // index of first query residue in pairwise alignment
         for(int i = 0; i < L; i++){
@@ -505,7 +505,7 @@ void MsaFilter::pruneAlignment(char ** msaSequence, int N_in, int L) {
             }
         }
         int qlast  = L - 1;         // index of last  query residue in pairwise alignment
-        for(int i = qlast; i > 0; i--){
+        for(int i = qlast; i >= 0; i--){
             if(msaSequence[seqIdx][i]==MultipleAlignment::GAP){
                 qlast--;
             }else{
@@ -565,10 +565,10 @@ int MsaFilter::prune(int start, int end, float b, char * query, char *target, in
         }
         smin += b;
         if(query[pos] < MultipleAlignment::NAA && target[pos] < MultipleAlignment::NAA) {
-            score += static_cast<float>(m->subMatrix[(int)query[pos]][(int)target[pos]]);
+            score += (static_cast<float>(m->subMatrix[(int)query[pos]][(int)target[pos]]) ) * 0.3322;
             gap = false;
-        } else if(query[pos] == MultipleAlignment::GAP || target[pos] == MultipleAlignment::GAP) {
-            score -= (gap == false) ? static_cast<float>(Matcher::GAP_OPEN) : static_cast<float>(Matcher::GAP_EXTEND);
+        } else if(query[pos] == MultipleAlignment::GAP  || target[pos] == MultipleAlignment::GAP) {
+            score -= (gap == false) ? static_cast<float>(Matcher::GAP_OPEN)* 0.3322 : static_cast<float>(Matcher::GAP_EXTEND) * 0.3322;
             gap = true;
         }
         if (score < smin) {
