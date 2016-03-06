@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <climits>
 #include <cstring>
+#include <cstddef>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
