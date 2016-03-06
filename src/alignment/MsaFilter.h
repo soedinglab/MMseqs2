@@ -7,6 +7,7 @@
 
 
 #include <SubstitutionMatrix.h>
+#include "MultipleAlignment.h"
 
 class MsaFilter {
 
@@ -50,6 +51,8 @@ public:
     const float PLTY_GAPOPEN=6.0f; // for -qsc option (filter for min similarity to query): 6 bits to open gap
     const float PLTY_GAPEXTD=1.0f; // for -qsc option (filter for min similarity to query): 1 bit to extend gap
 
+    void pruneAlignment(char ** msaSequence, int N_in, int L);
+
 private:
 
     MsaFilterResult dofilter(const char ** msaSequence, int N_in, int L, int coverage, int qid, float qsc,
@@ -61,6 +64,9 @@ private:
     void swapi(int *k, int i, int j);
 
     char *initX(int len);
+
+    // prune sequence based on score
+    int prune(int start, int end, float b, char * query, char *target, int L);
 
     BaseMatrix *m;
 
@@ -93,6 +99,7 @@ private:
     char *keep;
     // stores filtered msa
     char ** filteredMsaSequence;
+
 };
 
 

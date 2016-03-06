@@ -75,6 +75,11 @@ public:
     static std::string compressAlignment(std::string bt);
 
     static std::string uncompressAlignment(std::string cbt);
+
+    // parameter for alignment
+    static const unsigned short GAP_OPEN = 11;
+    static const unsigned short GAP_EXTEND = 1;
+
 private:
 
     // calculate the query profile for SIMD registers processing 8 elements
@@ -85,9 +90,6 @@ private:
 
     // aligner Class
     SmithWaterman * aligner;
-    // parameter for alignment
-    const unsigned short GAP_OPEN = 11;
-    const unsigned short GAP_EXTEND = 1;
     // substitution matrix
     BaseMatrix* m;
     // byte version of substitution matrix
