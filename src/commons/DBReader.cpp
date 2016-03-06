@@ -28,7 +28,12 @@ template <typename T> void DBReader<T>::readMmapedDataInMemory(){
     for(size_t i = 0; i < dataSize; i++){
         bytes += data[i];
     }
-    Debug(Debug::WARNING) << "Magic number " << bytes << "\n";
+    this->magicBytes = bytes;
+}
+
+template <typename T>
+void DBReader<T>::printMagicNumber(){
+    Debug(Debug::INFO) << magicBytes << "\n";
 }
 
 template <typename T> DBReader<T>::~DBReader(){
