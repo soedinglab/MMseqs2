@@ -13,15 +13,12 @@
 
 int main(int argc, char **argv)
 {
-    DBReader<std::string> larsReader("/tmp/uniprot_sprot.dat_go_db_EXP_C", "/tmp/uniprot_sprot.dat_go_db_EXP_C.index");
-    larsReader.open(DBReader<std::string>::NOSORT);
-    std::cout << "W5XDM0: " <<  larsReader.getId("W5XDM0") << std::endl;
-    std::cout << "W5XDM0: " <<  (larsReader.getDataByDBKey("W5XDM0")==NULL) << std::endl;
-
 
     // DBReader test
     DBReader<unsigned int> reader("dataLinear", "dataLinear.index");
     reader.open(0);
+    reader.readMmapedDataInMemory();
+    reader.printMagicNumber();
     std::cout << reader.getSize() << std::endl;
     for(size_t i = 0; i < reader.getSize(); i++){
         std::cout << reader.getSeqLens(i) << std::endl;

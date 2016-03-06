@@ -60,10 +60,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     FileUtil::errorIfFileExist(outDB.c_str());
     FileUtil::errorIfFileExist(outDBIndex.c_str());
     this->qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
-    qdbr->open(DBReader<unsigned int>::NOSORT);
+    qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
-    tdbr->open(DBReader<unsigned int>::NOSORT);
 
     //  check if when qdb and tdb have the same name an index extention exists
     std::string check(targetDB);
@@ -78,7 +76,8 @@ Prefiltering::Prefiltering(std::string queryDB,
     }
     // if no match found or two matches found (we want exactly one match)
     sameQTDB = (queryDB.compare(targetDB) == 0 || (nomatch == false) );
-
+    this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
+    tdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
     if(templateDBIsIndex == true){ // exchange reader with old ffindex reader
         this->tidxdbr = this->tdbr;
@@ -91,7 +90,11 @@ Prefiltering::Prefiltering(std::string queryDB,
         this->searchMode   = (data.local == 1) ? ((par.searchMode >= 1) ? par.searchMode : Parameters::SEARCH_LOCAL)
                                                : Parameters::SEARCH_GLOBAL;
     }
-
+    if(templateDBIsIndex == false && sameQTDB == true){
+        this->tdbr->close();
+        delete tdbr;
+        this->tdbr = qdbr;
+    }
     Debug(Debug::INFO) << "Query database: " << par.db1 << "(size=" << qdbr->getSize() << ")\n";
     Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
 
@@ -144,10 +147,13 @@ Prefiltering::~Prefiltering(){
     delete[] reslens;
     delete[] notEmpty;
     delete qdbr;
-    delete tdbr;
-    if(templateDBIsIndex == true)
-        delete tidxdbr;
 
+    if(sameQTDB == false){
+        delete tdbr;
+    }
+    if(templateDBIsIndex == true){
+        delete tidxdbr;
+    }
     delete subMat;
     if(_2merSubMatrix != NULL)
         delete _2merSubMatrix;
@@ -448,10 +454,16 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
 
 void Prefiltering::closeReader(){
     qdbr->close();
-    //if (strcmp(qdbr->getIndexFileName(), tdbr->getIndexFileName()) != 0)
-    tdbr->close();
-    if(templateDBIsIndex)
+    if(sameQTDB == false){
+        tdbr->close();
+    }else{
+        if(templateDBIsIndex){
+            tdbr->close();
+        }
+    }
+    if(templateDBIsIndex){
         tidxdbr->close();
+    }
 }
 
 // write prefiltering to ffindex database

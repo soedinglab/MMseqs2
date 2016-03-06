@@ -96,6 +96,8 @@ public:
         return index;
     }
 
+    void printMagicNumber();
+
 private:
 
     struct compareIndexLengthPairById {
@@ -151,6 +153,8 @@ private:
     bool dataMapped;
     int accessType;
 
+    // needed to avoid compiler to optimize away the loop
+    size_t magicBytes;
 };
 
 #endif
