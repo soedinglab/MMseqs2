@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <climits>
 #include <cstring>
+#include <cstddef>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -160,9 +161,11 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
     fstat(fileno(file), &sb);
     *dataSize = sb.st_size;
     int fd =  fileno(file);
-    int mode = PROT_READ;
+    int mode;
     if(dataMode & USE_WRITABLE) {
-        mode |= PROT_WRITE;
+        mode = PROT_READ | PROT_WRITE;
+    } else {
+        mode = PROT_READ;
     }
     return (char*)mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0);
 }
