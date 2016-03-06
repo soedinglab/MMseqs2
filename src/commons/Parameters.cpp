@@ -551,7 +551,7 @@ void Parameters::setDefaults() {
 #endif
     compBiasCorrection = 1;
     diagonalScoring = 1;
-    minDiagScoreThr = 40;
+    minDiagScoreThr = 30;
     spacedKmer = true;
     searchMode = SEARCH_LOCAL_FAST;
     profile = false;
