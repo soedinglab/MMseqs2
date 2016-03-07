@@ -124,7 +124,7 @@ int result2outputmode(Parameters &par, int mode) {
 
     size_t maxSetSize = findMaxSetSize(resultReader);
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.0f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     Debug(Debug::INFO) << "Start computing " << (!mode ? "MSAs" : "profiles") << ".\n";
 #pragma omp parallel
     {
@@ -225,7 +225,9 @@ int result2outputmode(Parameters &par, int mode) {
                        std::cout << std::endl;
                     }
 */
-                    filter.pruneAlignment((char**)res.msaSequence, res.setSize, res.centerLength);
+//                    if(par.pruneSequences){
+//                        filter.pruneAlignment((char**)res.msaSequence, res.setSize, res.centerLength);
+//                    }
                     MsaFilter::MsaFilterResult filterRes = filter.filter(res.msaSequence, res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
                                                                          static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
 

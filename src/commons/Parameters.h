@@ -116,7 +116,7 @@ public:
     float  seqIdThr;                     // sequence identity threshold for acceptance
     bool   fragmentMerge;                // allow fragments to in the result
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
-
+    bool   realign;                      // realign hit with more conservative score
     // workflow
     std::string runner;
 
@@ -162,6 +162,7 @@ public:
     bool wg;
     float pca;
     float pcb;
+    bool noPruning;
 
     // createdb
     bool useHeader;
@@ -234,6 +235,8 @@ public:
     PARAMETER(PARAM_FRAG_MERGE)
     PARAMETER(PARAM_MAX_REJECTED)
     PARAMETER(PARAM_ADD_BACKTRACE)
+    PARAMETER(PARAM_REALIGN)
+
     PARAMETER(PARAM_MIN_SEQ_ID)
 
     std::vector<MMseqsParameter> alignment;
@@ -269,6 +272,8 @@ public:
     PARAMETER(PARAM_WG)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
+//    PARAMETER(PARAM_NO_PRUNING)
+
 
     // workflow
     PARAMETER(PARAM_RUNNER)

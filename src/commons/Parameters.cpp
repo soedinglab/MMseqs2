@@ -40,6 +40,7 @@ Parameters::Parameters():
         PARAM_FRAG_MERGE(PARAM_FRAG_MERGE_ID,"--frag-merge", "Detect fragments", "Add Hits with cov > 0.95 and seq. id > 0.90",typeid(bool), (void *) &fragmentMerge, ""),
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "Maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$"),
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "--add-backtrace", "Add backtrace", "Add backtrace string to results (M=Match, D=deletion, I=insertion)", typeid(bool), (void *) &addBacktrace, ""),
+        PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "Realign hit with conservative scoring scheme (keeps old evalue and score but overwrites alignment)", typeid(bool), (void *) &realign, ""),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
 // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-3]{1}$"),
@@ -112,6 +113,7 @@ Parameters::Parameters():
     alignment.push_back(PARAM_NUCL);
     alignment.push_back(PARAM_PROFILE);
     alignment.push_back(PARAM_ADD_BACKTRACE);
+    alignment.push_back(PARAM_REALIGN);
     alignment.push_back(PARAM_THREADS);
     alignment.push_back(PARAM_V);
 
@@ -564,6 +566,7 @@ void Parameters::setDefaults() {
     maxRejected = INT_MAX;
     seqIdThr = 0.0;
     addBacktrace = false;
+    realign = false;
     clusteringMode = SET_COVER;
     validateClustering = 0;
     cascaded = false;

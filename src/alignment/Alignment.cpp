@@ -23,8 +23,16 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     this->seqIdThr = par.seqIdThr;
     this->fragmentMerge = par.fragmentMerge;
     this->addBacktrace = par.addBacktrace;
+    this->realign = par.realign;
     if(addBacktrace == true){
         par.alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
+    }
+    if(realign == true){
+        par.alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_ONLY;
+        if(addBacktrace == false){
+            Debug(Debug::ERROR) << "Realign is just useful in combination with --add-backtrace.\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
     switch (par.alignmentMode){
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
@@ -62,7 +70,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     }
 
     if (par.querySeqType == Sequence::AMINO_ACIDS || par.querySeqType == Sequence::HMM_PROFILE){
-        // keep score bais to 0.0 (improved ROC over -0.2)
+        // keep score bias to 0.0 (improved ROC)
         this->m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }else{
         this->m = new NucleotideMatrix();
@@ -98,14 +106,29 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     matchers = new Matcher*[threads];
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++) {
-        matchers[i] = new Matcher(par.maxSeqLen, this->m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize(), par.compBiasCorrection);
+        matchers[i] = new Matcher(par.maxSeqLen, this->m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize(),
+                                  par.compBiasCorrection);
     }
-
+    if(this->realign == true){
+        this->realign_m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, -0.2);
+        this->realigner = new Matcher*[threads];
+# pragma omp parallel for schedule(static)
+        for (int i = 0; i < threads; i++) {
+            realigner[i] = new Matcher(par.maxSeqLen, this->realign_m, tseqdbr->getAminoAcidDBSize(),
+                                       tseqdbr->getSize(), par.compBiasCorrection);
+        }
+    }
     dbKeys = new unsigned int[threads];
-
 }
 
 Alignment::~Alignment(){
+    if(this->realign == true) {
+        for (int i = 0; i < threads; i++) {
+            delete realigner[i];
+        }
+        delete [] realigner;
+        delete realign_m;
+    }
     for (int i = 0; i < threads; i++){
         delete qSeqs[i];
         delete dbSeqs[i];
@@ -199,7 +222,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
             qSeqs[thread_idx]->mapSequence(id, queryDbKey, querySeqData);
             matchers[thread_idx]->initQuery(qSeqs[thread_idx]);
             // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
-            std::list<Matcher::result_t> swResults;
+            std::vector<Matcher::result_t> swResults;
             std::stringstream lineSs (prefList);
             std::string val;
             size_t passedNum = 0;
@@ -261,7 +284,6 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                     swResults.push_back(res);
                     passedNum++;
                     totalPassedNum++;
-
                     rejected = 0;
                 }
                 else{
@@ -269,26 +291,39 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 }
             }
             // write the results
-            swResults.sort(Matcher::compareHits);
-            std::list<Matcher::result_t>::iterator it;
+            std::sort(swResults.begin(), swResults.end(), Matcher::compareHits);
+            if(realign == true){
+                realigner[thread_idx]->initQuery(qSeqs[thread_idx]);
+                for (size_t i = 0; i < swResults.size(); i++) {
+                    char* dbSeqData = tseqdbr->getDataByDBKey(swResults[i].dbKey);
+                    dbSeqs[thread_idx]->mapSequence(-1, swResults[i].dbKey, dbSeqData);
+                    Matcher::result_t res = realigner[thread_idx]->getSWResult(dbSeqs[thread_idx],
+                                                                              tseqdbr->getSize(), 0.0,
+                                                                              Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID);
+                    swResults[i].backtrace = res.backtrace;
+                    swResults[i].qStartPos = res.qStartPos;
+                    swResults[i].qEndPos = res.qEndPos;
+                    swResults[i].dbStartPos = res.dbStartPos;
+                    swResults[i].dbEndPos = res.dbEndPos;
+                }
+            }
             std::stringstream swResultsSs;
-
             // put the contents of the swResults list into ffindex DB
-            for (it = swResults.begin(); it != swResults.end(); ++it){
-                swResultsSs << it->dbKey << "\t";
-                swResultsSs << it->score << "\t"; //TODO fix for formats
-                swResultsSs << std::fixed << std::setprecision(3) << it->seqId << "\t";
-                swResultsSs << std::scientific << it->eval << "\t";
-                swResultsSs << it->qStartPos  << "\t";
-                swResultsSs << it->qEndPos  << "\t";
-                swResultsSs << it->qLen << "\t";
-                swResultsSs << it->dbStartPos  << "\t";
-                swResultsSs << it->dbEndPos  << "\t";
+            for (size_t i = 0; i < swResults.size(); i++){
+                swResultsSs << swResults[i].dbKey << "\t";
+                swResultsSs << swResults[i].score << "\t"; //TODO fix for formats
+                swResultsSs << std::fixed << std::setprecision(3) << swResults[i].seqId << "\t";
+                swResultsSs << std::scientific << swResults[i].eval << "\t";
+                swResultsSs << swResults[i].qStartPos  << "\t";
+                swResultsSs << swResults[i].qEndPos  << "\t";
+                swResultsSs << swResults[i].qLen << "\t";
+                swResultsSs << swResults[i].dbStartPos  << "\t";
+                swResultsSs << swResults[i].dbEndPos  << "\t";
                 if(addBacktrace == true){
-                    swResultsSs << it->dbLen << "\t";
-                    swResultsSs << Matcher::compressAlignment(it->backtrace) << "\n";
+                    swResultsSs << swResults[i].dbLen << "\t";
+                    swResultsSs << Matcher::compressAlignment(swResults[i].backtrace) << "\n";
                 }else{
-                    swResultsSs << it->dbLen << "\n";
+                    swResultsSs << swResults[i].dbLen << "\n";
                 }
             }
             std::string swResultsString = swResultsSs.str();
