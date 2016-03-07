@@ -57,6 +57,10 @@ private:
 
     Matcher** matchers;
 
+    // needed for realignment
+    BaseMatrix* realign_m;
+    Matcher** realigner;
+
     DBReader<unsigned int>* qseqdbr;
 
     DBReader<unsigned int>* tseqdbr;
@@ -80,6 +84,8 @@ private:
     // includes backtrace to alignment
     bool addBacktrace;
 
+    // realign with different score matrix
+    bool realign;
 };
 
 #endif
