@@ -356,7 +356,7 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
             // Find min and max borders between which > fraction MAXENDGAPFRAC of sequences in subalignment contain an aa
             int jmin;
             int jmax;
-            for (jmin = 0; jmin < queryLength && n[jmin][ENDGAP] > MAXENDGAPFRAC * nseqi;
+            for (jmin = 0; jmin < static_cast<int>(queryLength) && n[jmin][ENDGAP] > MAXENDGAPFRAC * nseqi;
                  ++jmin) {
             };
             //TODO maybe wrong jmax >= 0
@@ -374,7 +374,7 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
                 }
             } else {
                 // Count number of different amino acids in column j
-                for (size_t j = jmin; j <= jmax; ++j){
+                for (int j = jmin; j <= jmax; ++j){
                     naa[j] = 0;
                     for (int a = 0; a < MultipleAlignment::ANY; ++a){
                         naa[j] += (n[j][a] ? 1 : 0);
@@ -383,7 +383,7 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
                 // Compute the contribution of amino acid a to the weight
                 //for (a = 0; a < ANY; ++a)
                 //      w_contrib[j][a] = (n[j][a] > 0) ? 1.0/ float(naa[j]*n[j][a]): 0.0f;
-                for (size_t j = jmin; j <= jmax; ++j) {
+                for (int j = jmin; j <= jmax; ++j) {
                     simd_float naa_j = simdi32_i2f(simdi32_set(naa[j]));
                     const simd_int *nj = (const simd_int *) n[j];
                     const int aa_size = (MultipleAlignment::ANY + VECSIZE_INT - 1) / VECSIZE_INT;
@@ -400,7 +400,7 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
                 for (size_t k = 0; k < setSize; ++k) {
                     if (X[k][i] >= MultipleAlignment::ANY)
                         continue;
-                    for (size_t j = jmin; j <= jmax; ++j)  // innermost, time-critical loop; O(L*setSize*L)
+                    for (int j = jmin; j <= jmax; ++j)  // innermost, time-critical loop; O(L*setSize*L)
                         wi[k] += w_contrib[j][(int) X[k][j]];
                 }
             }
@@ -410,19 +410,19 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
             Neff_M[i] = 0.0;
 
             // Allocate and reset amino acid frequencies
-            for (size_t j = jmin; j <= jmax; ++j)
+            for (int j = jmin; j <= jmax; ++j)
                 memset(f[j], 0, MultipleAlignment::ANY * sizeof(float));
 
             // Update f[j][a]
             for (size_t k = 0; k < setSize; ++k) {
                 if (X[k][i] >= MultipleAlignment::ANY)
                     continue;
-                for (size_t j = jmin; j <= jmax; ++j)  // innermost loop; O(L*setSize*L)
+                for (int j = jmin; j <= jmax; ++j)  // innermost loop; O(L*setSize*L)
                     f[j][(int) X[k][j]] += wi[k];
             }
 
             // Add contributions to Neff[i]
-            for (size_t j = jmin; j <= jmax; ++j) {
+            for (int j = jmin; j <= jmax; ++j) {
                 NormalizeTo1(f[j], MultipleAlignment::NAA);
                 for (int a = 0; a < 20; ++a)
                     if (f[j][a] > 1E-10)

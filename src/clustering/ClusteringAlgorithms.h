@@ -27,14 +27,12 @@ private:
     int threads;
     int scoretype;
 //datastructures
-    int * clustersizes;
     unsigned int maxClustersize;
     unsigned int dbSize;
-
-    //
-    int* sorted_clustersizes;
-    int* clusterid_to_arrayposition;
-    int* borders_of_set;
+    int * clustersizes;
+    unsigned int* sorted_clustersizes;
+    unsigned int* clusterid_to_arrayposition;
+    unsigned int* borders_of_set;
 
 //methods
 
@@ -48,14 +46,14 @@ private:
     // all results sets
     set *sets;
 
-    void setCover(unsigned int **elementLookup, unsigned short ** elementScoreLookupTable,  int *assignedcluster, short *bestscore, size_t *offsets);
+    void setCover(unsigned int **elementLookup, unsigned short ** elementScoreLookupTable,
+                  unsigned int *assignedcluster, short *bestscore, size_t *offsets);
 
     void greedyIncremental(unsigned int **elementLookupTable, size_t *elementOffsets,
-                           unsigned short **elementScoreLookupTable, size_t elementCount,
-                           size_t n, int *assignedcluster, unsigned short *scoreelements) ;
+                           size_t n, unsigned int *assignedcluster) ;
 
     void readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
-                           unsigned short ** elementScoreLookupTable, unsigned short *&scoreelements,
+                           unsigned short **scoreLookupTable, unsigned short *&scoreElements,
                            size_t *elementOffsets, size_t elementCount)  ;
 
 };

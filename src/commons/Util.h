@@ -144,5 +144,6 @@ public:
     static std::map<std::string, size_t> readMapping(const char *fastaFile);
 
 
+    static void checkAllocation(void *pointer, std::string message);
 };
 #endif

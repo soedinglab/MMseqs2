@@ -151,9 +151,7 @@ void Util::parseByColumnNumber(char *data, char *key, int position) {
     for (int i = 0; i < position; ++i) {
         startPosOfKey = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
         startPosOfKey = startPosOfKey + Util::skipWhitespace(startPosOfKey);
-
     }
-
     char *endPosOfId = startPosOfKey + Util::skipNoneWhitespace(startPosOfKey);
     ptrdiff_t keySize = (endPosOfId - startPosOfKey);
     strncpy(key, startPosOfKey, keySize);
@@ -193,4 +191,11 @@ size_t Util::getLine(const char* data, size_t dataLength, char* buffer, size_t b
     buffer[maxLength - 1] = '\0';
 
     return bufferLength > dataLength;
+}
+
+void Util::checkAllocation(void *pointer, std::string message) {
+    if(pointer == NULL){
+        Debug(Debug::ERROR) << message << "\n";
+        EXIT(EXIT_FAILURE);
+    }
 }

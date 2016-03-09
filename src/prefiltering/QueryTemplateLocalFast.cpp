@@ -1,6 +1,7 @@
 //
 // Created by mad on 5/26/15.
 //
+#include <new>
 #include <SubstitutionMatrix.h>
 #include "QueryTemplateLocalFast.h"
 #include "QueryScoreLocal.h"
@@ -17,13 +18,17 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
                                dbSize, aaBiasCorrection, maxSeqLen) {
     // assure that the whole database can be matched (extreme case)
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
-    this->maxDbMatches = dbSize * 2;
     this->dbSize = dbSize;
+    this->counterResultSize = std::max((size_t)1000000, dbSize);
+    this->maxDbMatches = dbSize * 2;
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
-    this->databaseHits = new IndexEntryLocal[maxDbMatches];
-    this->foundDiagonals = new CounterResult[dbSize];
+    this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
+    Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryTemplateLocalFast");
+    this->foundDiagonals = new(std::nothrow) CounterResult[counterResultSize];
+    Util::checkAllocation(foundDiagonals, "Could not allocate foundDiagonals memory in QueryTemplateLocalFast");
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
-    this->indexPointer = new IndexEntryLocal*[maxSeqLen + 1];
+    this->indexPointer = new(std::nothrow) IndexEntryLocal*[maxSeqLen + 1];
+    Util::checkAllocation(indexPointer, "Could not allocate indexPointer memory in QueryTemplateLocalFast");
     this->diagonalScoring = diagonalScoring;
     this->minDiagScoreThr = minDiagScoreThr;
     // data for histogram of score distribution
@@ -169,7 +174,7 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
 //                std::cout << "Overflow in i=" << indexStart << " IndexTo=" << i << std::endl;
                 const size_t hitCount = evaluateBins(indexPointer,
                                                      foundDiagonals + overflowHitCount,
-                                                     dbSize - overflowHitCount,
+                                                     counterResultSize - overflowHitCount,
                                                      indexStart, current_i);
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
@@ -202,7 +207,7 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
     outer:
     indexPointer[indexTo + 1] = databaseHits + numMatches;
     size_t hitCount = evaluateBins(indexPointer, foundDiagonals + overflowHitCount,
-                                   dbSize - overflowHitCount, indexStart, indexTo);
+                                   counterResultSize - overflowHitCount, indexStart, indexTo);
     //fill the output
     if(overflowHitCount != 0){ // overflow occurred
         if(diagonalScoring == true){

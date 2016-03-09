@@ -1,7 +1,7 @@
 //
 // Created by mad on 12/14/15.
 //
-
+#include <new>
 #include <cstring>
 #include "Debug.h"
 #include "Util.h"
@@ -9,9 +9,12 @@
 
 SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize) {
     sequenceCount = dbSize;
-    sequence = new char*[sequenceCount + 1];
+    sequence = new(std::nothrow) char*[sequenceCount + 1];
+    Util::checkAllocation(sequence, "Could not allocate sequence memory in SequenceLookup");
     dataSize = entrySize;
-    data = new char[dataSize + 1];
+    data = new(std::nothrow)     char[dataSize + 1];
+    Util::checkAllocation(data, "Could not allocate data memory in SequenceLookup");
+
     currWritePos = data;
     sequence[0] = data;
     sequence[dbSize] = &data[entrySize];

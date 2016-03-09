@@ -90,6 +90,8 @@ protected:
     // diagonal scoring active
     bool diagonalScoring;
     unsigned int minDiagScoreThr;
+    // size of max counter result objects
+    size_t counterResultSize;
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

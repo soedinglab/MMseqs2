@@ -11,17 +11,18 @@
 
 class AlignmentSymmetry {
 public:
-    AlignmentSymmetry();
     static void readInData(DBReader<unsigned int>*pReader, DBReader<unsigned int>*pDBReader, unsigned int **pInt);
     static void readInData(DBReader<unsigned int>*pReader, DBReader<unsigned int>*pDBReader, unsigned int **pInt,unsigned short**elementScoreTable, int scoretype);
     static void computeOffsetTable(size_t *elementSizes, size_t dbSize);
-    static void setupElementLookupPointer(unsigned int *elements, unsigned int **elementLookupTable, size_t *elementOffset,
-                                          size_t dbSize);
-    static void setupElementLookupPointerShort(unsigned short * elements, unsigned short ** elementLookupTable, size_t * elementOffset, size_t dbSize);
     static size_t findMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize, int threads);
     static void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize,unsigned short**elementScoreTable);
+    static void sortElements(unsigned int **elementLookupTable, size_t *offsets, size_t dbSize);
 
-private:
-
+    template <typename T>
+    static void setupLookupPointer(T *elements, T **elementLookupTable, size_t *elementOffset, size_t dbSize) {
+        for(size_t i = 0; i < dbSize; i++) {
+            elementLookupTable[i] = elements + elementOffset[i];
+        }
+    }
 };
 #endif //MMSEQS_ALIGNMENTSYMMETRY_H

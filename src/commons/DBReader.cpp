@@ -106,7 +106,6 @@ void DBReader<unsigned int>::sortIndex() {
     for (size_t i = 0; i < size; i++) {
         sortArray[i] = std::make_pair(index[i], seqLens[i]);
     }
-
     std::sort(sortArray, sortArray + size, compareIndexLengthPairById());
     for (size_t i = 0; i < size; ++i) {
         index[i].id = sortArray[i].first.id;
@@ -167,12 +166,20 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
     } else {
         mode = PROT_READ;
     }
-    return (char*)mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0);
+    void * ret = mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0);
+    if(ret == MAP_FAILED){
+        Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return static_cast<char*>(ret);
 }
 
 template <typename T> void DBReader<T>::remapData(){
     if(dataMode & USE_DATA){
-        munmap(data, dataSize);
+        if(munmap(data, dataSize) < 0){
+            Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         data = mmapData(dataFile, &dataSize);
     }
 }
@@ -323,7 +330,10 @@ void DBReader<unsigned int>::readIndexId(unsigned int* id, char* line, char** sa
 
 template <typename T> void DBReader<T>::unmapData() {
     if(dataMapped == true){
-        munmap(data, dataSize);
+        if(munmap(data, dataSize) < 0){
+            Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         dataMapped = false;
     }
 }

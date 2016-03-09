@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <list>
 #include <sys/mman.h>
+#include <new>
 
 #include "Sequence.h"
 #include "Indexer.h"
@@ -38,7 +39,8 @@ public:
         this->hasSequenceLookup = hasSequenceLookup;
         this->sizeOfEntry = sizeof(IndexEntryLocal);
         tableSize = MathUtil::ipow(alphabetSize, kmerSize);
-        table = new char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
+        table = new(std::nothrow) char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
+        Util::checkAllocation(table, "Could not allocate table memory in IndexTable");
         memset(table, 0, sizeof(char * ) * (tableSize + 1)); // set all pointers to 0
         idxer = new Indexer(alphabetSize, kmerSize);
         this->tableEntriesNum = 0;
@@ -99,7 +101,8 @@ public:
         }
         // allocate memory for the sequence id lists
         // tablesSizes is added to put the Size of the entry infront fo the memory
-        entries = new char [(tableEntriesNum + 1) * this->sizeOfEntry]; // +1 for table[tableSize] pointer address
+        entries = new(std::nothrow) char [(tableEntriesNum + 1) * this->sizeOfEntry]; // +1 for table[tableSize] pointer address
+        Util::checkAllocation(entries, "Could not allocate entries memory in IndexTable::initMemory");
     }
 
     // allocates memory for index tables
