@@ -93,7 +93,7 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
 
     MsaFilter::MsaFilterResult res = dofilter(msaSequence, N_in, L, coverage, qid, qsc, max_seqid, Ndiff);
     size_t writePos = 0;
-    for(size_t k = 0; k < N_in; k++){
+    for(int k = 0; k < N_in; k++){
         if(keep[k] != 0){
             filteredMsaSequence[writePos] = (char *) msaSequence[k];
             writePos++;
@@ -492,10 +492,10 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
 }
 
 void MsaFilter::pruneAlignment(char ** msaSequence, int N_in, int L) {
-    float bg = 0.0;  // below this number of end gaps the loose HSP pruning score is used
+    int   bg = 5;  // below this number of end gaps the loose HSP pruning score is used
     float bl = 0.0;   // minimum per-residue bit score with query at ends of HSP for loose end pruning
-    float bs = 0.5;   // minimum per-residue bit score with query at ends of HSP for strict end pruning
-    for(size_t seqIdx = 1; seqIdx < N_in; seqIdx++ ){
+    float bs = 0.8;   // minimum per-residue bit score with query at ends of HSP for strict end pruning
+    for(int seqIdx = 1; seqIdx < N_in; seqIdx++ ){
         int qfirst = 0;             // index of first query residue in pairwise alignment
         for(int i = 0; i < L; i++){
             if(msaSequence[seqIdx][i]==MultipleAlignment::GAP){

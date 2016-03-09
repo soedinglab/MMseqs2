@@ -43,7 +43,7 @@ Parameters::Parameters():
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "Realign hit with conservative scoring scheme (keeps old evalue and score but overwrites alignment)", typeid(bool), (void *) &realign, ""),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
 // clustering
-        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-3]{1}$"),
+        PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-2]{1}$"),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "Start the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
 //affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "Maximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]{1}[0-9]*$"),

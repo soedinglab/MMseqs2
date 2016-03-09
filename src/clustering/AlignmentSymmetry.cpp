@@ -4,6 +4,7 @@
 
 #include "AlignmentSymmetry.h"
 #include <climits>
+#include <new>
 #include <algorithm>
 #include "Parameters.h"
 #include "Util.h"
@@ -14,27 +15,25 @@
 #include <omp.h>
 #endif
 
-AlignmentSymmetry::AlignmentSymmetry() { }
-
+#define LEN(x, y) (x[y+1] - x[y])
 
 void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, unsigned int **elementLookupTable) {
 
-    size_t dbSize = seqDbr->getSize();
+    const size_t dbSize = seqDbr->getSize();
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         Log::printProgress(i);
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
-        unsigned int clusterId = seqDbr->getDbKey(i);
+        const unsigned int clusterId = seqDbr->getDbKey(i);
         char *data = alnDbr->getDataByDBKey(clusterId);
-
         if (*data == '\0') { // check if file contains entry
             Debug(Debug::ERROR) << "ERROR: Sequence " << i
             << " does not contain any sequence for key " << clusterId
             << "!\n";
-
             continue;
         }
+        size_t writePos = 0;
         while (*data != '\0' ) {
             char dbKey[255 + 1];
             Util::parseKey(data, dbKey);
@@ -45,57 +44,54 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                 << " contained in some alignment list, but not contained in the sequence database!\n";
                 EXIT(EXIT_FAILURE);
             }
-            *elementLookupTable[i] = curr_element;
-            elementLookupTable[i]++;
+            elementLookupTable[i][writePos] = curr_element;
+            writePos++;
             data = Util::skipLine(data);
-
         }
     }
 }
 
-void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr, unsigned int **elementLookupTable, unsigned short **elementScoreTable, int scoretype) {
+void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr,
+                                   unsigned int **elementLookupTable, unsigned short **elementScoreTable, int scoretype) {
 
-    size_t dbSize = seqDbr->getSize();
-#pragma omp parallel for schedule(static)
+    const size_t dbSize = seqDbr->getSize();
+#pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         Log::printProgress(i);
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
-        unsigned int clusterId = seqDbr->getDbKey(i);
+        const unsigned int clusterId = seqDbr->getDbKey(i);
         char *data = alnDbr->getDataByDBKey(clusterId);
 
         if (*data == '\0') { // check if file contains entry
             Debug(Debug::ERROR) << "ERROR: Sequence " << i
             << " does not contain any sequence for key " << clusterId
             << "!\n";
-
             continue;
         }
+        size_t writePos = 0;
         while (*data != '\0' ) {
             char similarity[255+1];
             char dbKey[255 + 1];
             Util::parseKey(data, dbKey);
             unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-
-            size_t curr_element = seqDbr->getId(key);
+            const size_t curr_element = seqDbr->getId(key);
             if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
                 //column 1 = alignment score
                 Util::parseByColumnNumber(data, similarity, 1);
-                *elementScoreTable[i] = (unsigned short)(atof(similarity));
+                elementScoreTable[i][writePos]  = (unsigned short)(atof(similarity));
             }else {
                 //column 2 = sequence identity
                 Util::parseByColumnNumber(data, similarity, 2);
-                *elementScoreTable[i] = (unsigned short)(atof(similarity)*1000);
+                elementScoreTable[i][writePos]  = (unsigned short)(atof(similarity)*1000.0f);
             }
-
-            elementScoreTable[i]++;
             if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()) {
                 Debug(Debug::ERROR) << "ERROR: Element " << dbKey
                 << " contained in some alignment list, but not contained in the sequence database!\n";
                 EXIT(EXIT_FAILURE);
             }
-            *elementLookupTable[i] = curr_element;
-            elementLookupTable[i]++;
+            elementLookupTable[i][writePos] = curr_element;
+            writePos++;
             data = Util::skipLine(data);
 
         }
@@ -104,21 +100,22 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
 
 size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, size_t * offsetTable, size_t dbSize, int threads) {
     // init memory for parallel merge
-    unsigned short * tmpSize = new unsigned short[threads * dbSize];
-    memset(tmpSize, 0, threads * dbSize * sizeof(unsigned short));
-#pragma omp parallel for schedule(static)
+    unsigned int * tmpSize = new(std::nothrow) unsigned int[threads * dbSize];
+    Util::checkAllocation(tmpSize, "Could not allocate memory in findMissingLinks");
+    memset(tmpSize, 0, threads * dbSize * sizeof(unsigned int));
+#pragma omp parallel for schedule(dynamic, 1000)
     for(size_t setId = 0; setId < dbSize; setId++) {
         Log::printProgress(setId);
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-
-        size_t elementSize = (offsetTable[setId +1] - offsetTable[setId]);
+        const size_t elementSize = LEN(offsetTable,setId);
         for(size_t elementId = 0; elementId < elementSize; elementId++) {
             const unsigned int currElm = elementLookupTable[setId][elementId];
-            const unsigned int currElementSize = (offsetTable[currElm +1] - offsetTable[currElm]);
-            const bool found = std::binary_search(elementLookupTable[currElm], elementLookupTable[currElm] + currElementSize,
+            const unsigned int currElementSize = LEN(offsetTable, currElm);
+            const bool found = std::binary_search(elementLookupTable[currElm],
+                                                  elementLookupTable[currElm] + currElementSize,
                                                   setId);
             // this is a new connection
             if(found == false){
@@ -129,7 +126,7 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
     // merge size arrays
     size_t symmetricElementCount = 0;
     for(size_t setId = 0; setId < dbSize; setId++) {
-        size_t elementSize = (offsetTable[setId + 1] - offsetTable[setId]);
+        const size_t elementSize = LEN(offsetTable, setId);
         offsetTable[setId] = elementSize;
         for (int thread_idx = 0; thread_idx < threads; thread_idx++) {
             offsetTable[setId] += tmpSize[setId * threads + thread_idx];
@@ -154,18 +151,6 @@ void AlignmentSymmetry::computeOffsetTable(size_t *elementSizes, size_t dbSize) 
     }
 }
 
-void AlignmentSymmetry::setupElementLookupPointer(unsigned int * elements, unsigned int ** elementLookupTable, size_t * elementOffset, size_t dbSize) {
-    for(size_t i = 0; i < dbSize; i++) {
-        elementLookupTable[i] = elements + elementOffset[i];
-    }
-}
-
-void AlignmentSymmetry::setupElementLookupPointerShort(unsigned short * elements, unsigned short ** elementLookupTable, size_t * elementOffset, size_t dbSize) {
-    for(size_t i = 0; i < dbSize; i++) {
-        elementLookupTable[i] = elements + elementOffset[i];
-    }
-}
-
 void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
                                         size_t * offsetTable, size_t dbSize, unsigned short **elementScoreTable) {
 
@@ -173,11 +158,16 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
     // if not add it
     for(size_t setId = 0; setId < dbSize; setId++) {
         Log::printProgress(setId);
-        size_t elementSize = (offsetTable[setId +1] - offsetTable[setId]);
+        const size_t elementSize = LEN(offsetTable, setId);
         for(size_t elementId = 0; elementId < elementSize; elementId++) {
             const unsigned int currElm = elementLookupTable[setId][elementId];
-            const unsigned int currElementSize = (offsetTable[currElm +1] - offsetTable[currElm]);
+            if(currElm == UINT_MAX || currElm > dbSize){
+                Debug(Debug::ERROR) << "currElm > dbSize in element list (addMissingLinks). This should not happen.\n";
+                EXIT(EXIT_FAILURE);
+            }
+            const unsigned int currElementSize = LEN(offsetTable, currElm);
             bool found = false;
+            // check if setId is already in set of currElm
             for(size_t pos = 0; pos < currElementSize && found == false; pos++){
                 found = (elementLookupTable[currElm][pos] == setId);
             }
@@ -185,10 +175,20 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
             if(found == false){ // add connection if it could not be found
                 // find pos to write
                 size_t pos;
-                for(pos = currElementSize; elementLookupTable[currElm][pos] != 0; pos++ );
+                for(pos = currElementSize; elementLookupTable[currElm][pos] != UINT_MAX; pos++ );
                 elementLookupTable[currElm][pos] = setId;
                 elementScoreTable[currElm][pos]=elementScoreTable[setId][elementId];
             }
         }
     }
 }
+
+// sort each element vector for bsearch
+void AlignmentSymmetry::sortElements(unsigned int **elementLookupTable, size_t *elementOffsets, size_t dbSize) {
+#pragma omp parallel for schedule(dynamic, 1000)
+    for (size_t i = 0; i < dbSize; i++) {
+        Log::printProgress(i);
+        std::sort(elementLookupTable[i], elementLookupTable[i] + LEN(elementOffsets, i));
+    }
+}
+#undef LEN

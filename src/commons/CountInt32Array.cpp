@@ -1,4 +1,5 @@
 #include "CountInt32Array.h"
+#include <new>
 #include <iostream>
 #include "IndexTable.h"
 #include "Util.h"
@@ -8,7 +9,8 @@ CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
     size_t size = pow(2, ceil(log(maxElement)/log(2)));
     size = std::max(size  >> MASK_0_5_BIT, (size_t) 1); // space needed in bit array
     duplicateBitArraySize = size;
-    duplicateBitArray = new unsigned char[size];
+    duplicateBitArray = new(std::nothrow) unsigned char[size];
+    Util::checkAllocation(duplicateBitArray, "Could not allocate duplicateBitArray memory in CountInt32Array");
     memset(duplicateBitArray, 255, duplicateBitArraySize * sizeof(unsigned char));
     // find nearest upper power of 2^(x)
     initBinSize = pow(2, ceil(log(initBinSize)/log(2)));
@@ -16,7 +18,9 @@ CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
     tmpElementBuffer = new TmpResult[binSize];
 
     bins = new CounterResult*[BINCOUNT];
-    binDataFrame = new CounterResult[BINCOUNT * binSize];
+    binDataFrame = new(std::nothrow) CounterResult[BINCOUNT * binSize];
+    Util::checkAllocation(binDataFrame, "Could not allocate binDataFrame memory in CountInt32Array");
+
 }
 
 CountInt32Array::~CountInt32Array(){
@@ -248,8 +252,10 @@ bool CountInt32Array::checkForOverflowAndResizeArray(CounterResult **bins,
 void CountInt32Array::reallocBinMemory(const unsigned int binCount, const size_t binSize) {
     delete [] binDataFrame;
     delete [] tmpElementBuffer;
-    binDataFrame     = new CounterResult[binCount * binSize];
-    tmpElementBuffer = new TmpResult[binSize];
+    binDataFrame     = new(std::nothrow) CounterResult[binCount * binSize];
+    Util::checkAllocation(binDataFrame, "Could not allocate reallocBinMemory memory in CountInt32Array::reallocBinMemory");
+    tmpElementBuffer = new(std::nothrow) TmpResult[binSize];
+    Util::checkAllocation(tmpElementBuffer, "Could not allocate tmpElementBuffer memory in CountInt32Array::reallocBinMemory");
 }
 
 void CountInt32Array::setupBinPointer(CounterResult **bins, const unsigned int binCount,
