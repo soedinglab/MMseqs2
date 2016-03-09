@@ -1,8 +1,10 @@
-#!/bin/bash -x
+#!/bin/bash -xe
 # Clustering workflow script
 checkReturnCode () {
-echo "Status code="$?
-	[ $? -ne 0 ] && echo "$1" && exit 1;
+	if [ $? -ne 0 ]; then
+	    echo "$1"
+	    exit 1
+	fi
 }
 notExists () {
 	[ ! -f "$1" ]
@@ -38,7 +40,7 @@ echo /cbscratch/martin/mmseqs2.0_bench/tools/mmseqs-dev/
 while [ $STEP -lt $NUM_IT ]; do
 
     # call prefilter module
-    $RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP"  $PREFILTER_PAR && checkReturnCode "Prefilter died"
+    notExists "$TMP_PATH/pref_$STEP" && $RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP"  $PREFILTER_PAR && checkReturnCode "Prefilter died"
 
     if [ $STEP -ge 1 ]; then
         # pref -aln
@@ -48,7 +50,7 @@ while [ $STEP -lt $NUM_IT ]; do
     fi
     echo "RUN alignmment"
 	# call alignment module
-	$RUNNER mmseqs alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR --add-backtrace  && checkReturnCode "Alignment died"
+	notExists "$TMP_PATH/aln_$STEP" && $RUNNER mmseqs alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR --add-backtrace  && checkReturnCode "Alignment died"
 
     if [ $STEP -gt 0 ]; then
         mmseqs mergeffindex "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP"
@@ -57,7 +59,7 @@ while [ $STEP -lt $NUM_IT ]; do
     fi
 # create profiles
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
-        mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR && checkReturnCode "Create profile died"
+        notExists "$TMP_PATH/profile_$STEP" && mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR && checkReturnCode "Create profile died"
         ln -s $QUERYDB"_h" "$TMP_PATH/profile_$STEP""_h"
         ln -s $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
     fi
