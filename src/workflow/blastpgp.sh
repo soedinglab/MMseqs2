@@ -40,26 +40,37 @@ echo /cbscratch/martin/mmseqs2.0_bench/tools/mmseqs-dev/
 while [ $STEP -lt $NUM_IT ]; do
 
     # call prefilter module
-    notExists "$TMP_PATH/pref_$STEP" && $RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP"  $PREFILTER_PAR && checkReturnCode "Prefilter died"
+    notExists "$TMP_PATH/pref_$STEP" && $RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP"  $PREFILTER_PAR \
+            && checkReturnCode "Prefilter died"
 
     if [ $STEP -ge 1 ]; then
         # pref -aln
-        mmseqs substractresult "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR  && checkReturnCode "Substract died"
+        mmseqs substractresult "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR \
+            && checkReturnCode "Substract died"
         mv -f "$TMP_PATH/pref_next_$STEP" "$TMP_PATH/pref_$STEP"
         mv -f "$TMP_PATH/pref_next_$STEP.index" "$TMP_PATH/pref_$STEP.index"
     fi
     echo "RUN alignmment"
 	# call alignment module
-	notExists "$TMP_PATH/aln_$STEP" && $RUNNER mmseqs alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR --add-backtrace  && checkReturnCode "Alignment died"
+	REALIGN=""
+	if [ $STEP -eq 0 ]; then
+	    REALIGN="--realign"
+	fi
+
+	notExists "$TMP_PATH/aln_$STEP" && $RUNNER mmseqs alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN --add-backtrace \
+	        && checkReturnCode "Alignment died"
 
     if [ $STEP -gt 0 ]; then
-        mmseqs mergeffindex "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP"
+        mmseqs mergeffindex "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP" \
+            && checkReturnCode "Alignment died"
         mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_0"
         mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_0.index"
     fi
+
 # create profiles
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
-        notExists "$TMP_PATH/profile_$STEP" && mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR && checkReturnCode "Create profile died"
+        notExists "$TMP_PATH/profile_$STEP" && mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR \
+                && checkReturnCode "Create profile died"
         ln -s $QUERYDB"_h" "$TMP_PATH/profile_$STEP""_h"
         ln -s $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
     fi
