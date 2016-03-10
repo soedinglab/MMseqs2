@@ -464,7 +464,7 @@ int numberofthreads=1;
                         Util::parseByColumnNumber(data, similarity, 2); //column 4 = sequence identity
                         similarityscore = atof(std::string(similarity).c_str()) * factor;
                     }
-                    
+
                     if (similarityscore < threshold) {
                         data = Util::skipLine(data);
                         continue;

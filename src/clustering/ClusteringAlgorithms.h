@@ -53,7 +53,7 @@ private:
                            size_t n, unsigned int *assignedcluster) ;
 
     void readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
-                           unsigned short **scoreLookupTable, unsigned short *&scoreElements,
+                           unsigned short **scoreLookupTable, unsigned short *&scores,
                            size_t *elementOffsets, size_t totalElementCount)  ;
 
 };
