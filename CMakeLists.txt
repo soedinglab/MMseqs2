@@ -9,6 +9,11 @@ set(MMSEQS_DIR ${PROJECT_SOURCE_DIR})
 set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${PROJECT_SOURCE_DIR}/lib)
 message("-- Sourcedir ${CMAKE_CURRENT_SOURCE_DIR}")
 message("-- Projectdir ${PROJECT_SOURCE_DIR}")
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif(NOT CMAKE_BUILD_TYPE)
+
 # find compiler
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     # using Clang

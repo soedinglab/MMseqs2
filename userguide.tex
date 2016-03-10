@@ -1,4 +1,6 @@
 \documentclass[11pt,a4paper]{report}
+\usepackage{hyperref}
+\usepackage{listings}
 \begin{document}
 
 \chapter*{MMseqs user guide}
@@ -7,7 +9,7 @@
 \textbf{MMseqs suite for fast and sensitive batch searching and clustering
 of huge protein sequence sets}
 
-(c) 2015 Maria Hauser, Martin Steinegger, and Johannes Soeding
+(c) 2016 Martin Steinegger, Maria Hauser, and Johannes Soeding
 
 
 \section{Summary}
@@ -45,26 +47,57 @@ UniProtKB database clustered down to 20-30\% sequence similarity threshold.
 
 \section{Installation}
 
-First, set environment variables:
+There are two ways of installing mmseqs to compile or to use a static pre compiled binary. 
 
-\texttt{\$ export MMDIR=\$HOME/path/to/mmseqs/}
+\subsection{Static version}
 
-\texttt{\$ export PATH=\$PATH:\$MMDIR/bin}
+The following command will download the last MMseqs version, extract it and set the environment variables.
 
-MMseqs uses ffindex, a fast and simple database for wrapping and accessing
-huge amounts of small files. Setting the environment variable \texttt{LD\_LIBRARY\_PATH
-}ensures that ffindex binaries are in the path:
+\texttt{\$ wget http://mmseqs.com/latest/mmseqs.tar.gz}
 
-\texttt{\$ export LD\_LIBRARY\_PATH = \$LD\_LIBRARY\_PATH:\$MMDIR/lib/ffindex/src}
+\texttt{\$ tar xvfz mmseqs-static.tar.gz}
 
-Then create MMseqs binaries:
+\texttt{\$ export MMDIR=/path/to/mmseqs/}
 
-\texttt{\$ cd \$MMDIR/src}
+\texttt{\$ export PATH=\$MMDIR/bin:\$PATH}
 
-\texttt{\$ make}
+\subsection{Compile}
 
-MMseqs binaries are now located in \texttt{\$MMDIR/bin.}
+Compile MMseqs from source has the advantage that it will optimized to the specific system which might improve its performance.
+To compile mmseqs you need  \texttt{git}, \texttt{g++} ( 4.6 or higher) and \texttt{cmake} (3.0 or higher). 
 
+\texttt{\$ git clone https://github.com/soedinglab/MMseqs.git}
+
+\texttt{\$ cd mmseqs}
+
+\texttt{\$ export MMDIR=\$(pwd)}
+
+\texttt{\$ mkdir \$MMDIR/build}
+
+\texttt{\$ cd \$MMDIR/build}
+
+\texttt{\$ cmake -DCMAKE\_INSTALL\_PREFIX=\$MMDIR ..}
+
+\texttt{\$ make }
+
+\texttt{\$ make install }
+
+\texttt{\$ export PATH=\$MMDIR/bin:\$PATH}
+
+The mmseqs binaries is now located in \texttt{\$MMDIR/bin/.}
+
+MMseqs comes with a bash command and parameter auto completion by pressing tab. 
+The bash completion for subcommands and parameters can be installed by adding the following lines to your \texttt{\$HOME/.bash\_profile}:
+
+\texttt{export MMDIR=/path/to/mmseqs}
+
+\texttt{export PATH=\$MMDIR/bin:\$PATH}
+
+\texttt{if [ -f \$MMDIR/util/bash-completion.sh ]; then}
+
+\texttt{	. \$MMDIR/util/bash-completion.sh}
+
+\texttt{fi}
 
 \section{Getting started}
 
@@ -76,54 +109,54 @@ a database for the clustering) are stored in \texttt{\$MMDIR/data.}
 
 \subsection*{Search}
 
-You can use the query database \texttt{queryDB.fasta} and target database
-\texttt{targetDB.fasta} to test the search workflow.
+You can use the query database \texttt{\$MMDIR/data/queryDB.fasta} and target database
+\texttt{\$MMDIR/data/targetDB.fasta} to test the search workflow.
 
-Before clustering, you need to convert your database containing query
+Before searching, you need to convert your database containing query
 sequences (\texttt{queryDB.fasta}) and your target database (\texttt{targetDB.fasta})
-into ffindex format:
+into the ffindex format:
 
-\texttt{\$ mmseqs createdb queryDB.fasta queryDB}
+\texttt{\$ mmseqs createdb \$MMDIR/data/queryDB.fasta queryDB}
 
-\texttt{\$ mmseqs createdb targetDB.fasta targetDB}
+\texttt{\$ mmseqs createdb \$MMDIR/data/targetDB.fasta targetDB}
  
-It generates ffindex database files, e. g. \texttt{queryDB} and ffindex
-index file \texttt{queryDB.index} from \texttt{queryDB.fasta}.
+This call should generates five database files, e. g. \texttt{queryDB}, \texttt{queryDB\_h}
+and its corresponding index file \texttt{queryDB.index}, \texttt{queryDB\_h.index} and \texttt{queryDB.lookup}  from the fasta \texttt{queryDB.fasta}.
 
-For the next step (the prefiltering) the \texttt{targetDB} has to be prepared for fast read in:
+For the next step computes an index file of the the \texttt{targetDB} for fast read in. It is recommend to compute the index if the targetDB is reused for search several times.
 
-\texttt{\$ mmseqs createindex targetDB targetDB.fastindex}
+\texttt{\$ mmseqs createindex targetDB}
 
- Then,generate a directory for tmp files:
+This call will create \texttt{targetDB.sk7} file. 
+Then generate a directory for temporary files. MMseqs can produce a high IO on the file system. It is recommend to create this tmp on a local drive. 
 
 \texttt{\$ mkdir tmp}
 
 Please ensure that in case of large input databases \texttt{tmp} provides
-enough free space. For the disc space requirements, see the section
+enough free space. For the disc space requirements, see the section (TODO).
 
 The alignment consists of two steps the \texttt{prefilter} and \texttt{alignment}.
 To run the search, type:
 
-\texttt{\$ mmseqs prefilter queryDB targetDB.fastindex outDB.prefilter }
+\texttt{\$ mmseqs search queryDB targetDB resultDB --use-index}
 
-\texttt{\$ mmseqs alignment queryDB targetDB outDB.prefilter outDB }
+Then, convert the result ffindex database into a BLAST tab formatted file:
 
-Then, convert the result ffindex database into a FASTA formatted database:
-
-\texttt{\$ mmseqs createfasta outDB outDB.fasta}
+\texttt{\$ mmseqs formatalignment queryDB targetDB resultDB resultDB.m8}
 
 
 \subsection*{Clustering}
 
-Before clustering, convert your FASTA database into ffindex format:
+Before clustering, convert your FASTA database into the ffindex format:
 
-\texttt{\$ mmseqs createdb DB.fasta DB}
+\texttt{\$ mmseqs createdb \$MMDIR/DB.fasta DB}
 
 Then, generate a directory for tmp files:
 
 \texttt{\$ mkdir tmp}
-
-Run the cascaded clustering of your database and output the result
+Please ensure that in case of large input databases \texttt{tmp} provides
+enough free space. For the disc space requirements, see the section (TODO).
+Run the clustering of your database and output the result
 into the database files \texttt{DB\_clu}, \texttt{DB\_clu.index}:
 
 \texttt{\$ mmseqs clusteringworkflow DB DB\_clu tmp}
@@ -140,14 +173,15 @@ into FASTA format, type:
 
 \texttt{\$ mmseqs createfasta DB\_clu\_s7 DB\_clu\_s7.fasta}
 
+You can adjust the sequence identity threshold with \texttt{--min-seq-id} and the alignment coverage with \texttt{-c}.
+MMseqs will set the sensitivity parameters automatic based on target sequence identity (  \texttt{--min-seq-id} ) if not specified with \texttt{-s} or \texttt{--k-score}.
+
 
 \section{System requirements}
 
-MMseqs runs under Linux only. Alignment and prefiltering modules are
-fully parallelized with SSE2 and OpenMP, i. e. MMseqs runs fastest
-on a computer with many (e.g. 16-32) cores. Besides, MMseqs needs
-much memory (you need 128G of memory in order to cluster the current
-UniProtKB version containing 54\,M sequences). We offer an option
+MMseqs runs under Linux and OSX. Alignment and prefiltering modules are
+fully parallelized with SSE4.2 and OpenMP, i. e. MMseqs can take advantage of multi core computers. 
+Besides, MMseqs needs much memory (see section memory requirments). We offer an option
 for limiting the memory use at the cost of longer runtimes. The database
 is split into chunks and the program only holds one chunk in memory
 at any time. For clustering large databases containing tens of millions
@@ -156,8 +190,7 @@ GB). In section \ref{sec:Sensitivity-and-consumption}, we will discuss
 the runtime, memory and disc space consumption of MMseqs and how to
 reduce resource requirements for large databases.
 
-
-\section{ffindex database format}
+\section{Database format}
 
 All modules take ffindex databases as input and produce ffindex databases
 as output. ffindex was developed to avoid drastically slowing down
@@ -172,27 +205,23 @@ accession code is the ID of the sequence parsed from the header. If
 no ID can be identified, the accession code is the whole header without
 the > character before the first blank space.
 
-The binaries \texttt{fasta2ffindex} and \texttt{ffindex2fasta} located
-in \texttt{mmseqs/bin} do the format conversion from and to the ffindex
-database format. \texttt{fasta2ffindex} generates a ffindex database
-from a FASTA sequence database. \texttt{ffindex2fasta} converts an
-ffindex database to a FASTA formatted text file: the headers are ffindex
+The mmseqs functions \texttt{createdb} and \texttt{createfasta} 
+do the format conversion from and to the ffindexdatabase format. 
+\texttt{createdb} generates a ffindex database from a FASTA sequence database. 
+\texttt{createfasta} converts an ffindex database to a FASTA formatted text file: the headers are ffindex
 accession codes preceded by >, with the corresponding dataset from
 the ffindex data file following.
 
 However, for a fast access to the particular datasets in very large
 databases it is advisable to use the ffindex database directly without
-converting. We offer the binary \texttt{ffindex\_get} for direct access
-to the datasets stored in an ffindex database.
-
+converting. 
+We provided several tools (query, build and apply function on each entry) to work with ffindex databases at \url{http://github.com/soedinglab/ffindex/}.
+The binary \texttt{ffindex\_get} can be used for direct access to the datasets stored in an ffindex database.
 
 \section{Overview of folders in MMseqs}
 \begin{itemize}
-\item \texttt{bin}: MMseqs binaries, \texttt{fasta2ffindex} and \texttt{ffindex2fasta
-}binaries
+\item \texttt{bin}:  \texttt{mmseqs}, \texttt{blastp.sh}, \texttt{blastpgp.sh}, \texttt{cascaded\_clustering.sh}, \texttt{clustering.sh}
 \item \texttt{data}: BLOSUM matrices and test data
-\item \texttt{lib}: ffindex sources and binaries
-\item \texttt{src}: MMseqs sources and the Makefile
 \end{itemize}
 
 \section{Overview of MMseqs commands}
@@ -205,15 +234,15 @@ by more advanced users.
 Workflows:
 \begin{itemize}
 \item \texttt{mmseqs search:} Compares all sequences in the query database
-with all sequences in the target database running prefiltering and alignment module.
+with all sequences in the target database running prefiltering and alignment module. 
+MMseqs search supports sequence/sequence, profile/sequence or sequence/profile search.
 \item \texttt{mmseqs clusteringworkflow:} Clusters the sequences in the input database
-by sequence similarity.
+by sequence similarity and coverage. Three different clustering algorithms can be selected set cover, connected component, or greedy incremental.
 \item \texttt{mmseqs clusterupdate:} Given an the existing clustering of a sequence
-database and a new version of the sequence database with some new
-sequences being added and others having been deleted, MMseqs incrementally
+database and a new version of the sequence database with some new sequences being added and others having been deleted, MMseqs incrementally
 updates the clustering.
 \end{itemize}
-Single modules:
+Most important Single modules:
 \begin{itemize}
 \item \texttt{mmseqs prefilter:} Computes k-mer similarity scores between all
 sequences in the query database and all sequences in the target database.
@@ -225,15 +254,67 @@ pass a minimum threshold.
 database based on Smith Waterman alignment scores of the sequence
 pairs computed by \texttt{mmseqs alignment}.
 \end{itemize}
+Complete list of all tools
+\begin{lstlisting}[language=bash]
+         Main Tools
+          prefilter Calculates similarity scores between all 
+                    sequences in the query db and all sequences 
+                    in the target db
+          alignment Calculates Smith-Waterman alignment scores 
+                    from prefilter output
+            cluster Calculates clustering of a sequence database 
+                    based on alignment output
+          Workflows
+             search Searches query sequences in a protein database
+ clusteringworkflow Calculates cascaded clustering of a 
+                    sequence database.
+      clusterupdate Updates the existing clustering of the previous 
+                    database version with new sequences from 
+                    the current version
+            Helpers
+           createdb Convert fasta to database 
+        createindex Convert database to fast index for prefiltering
+        createfasta Convert database to fasta
+          createtsv Convert database to tsv
+   detectredundancy Detects redundancy based on reduced alphabet 
+                    hashing and hamming distance
+    createprofiledb Convert ffindex profile databse (HMM/PSSM) 
+                    to MMseqs ffindex profile database
+           filterdb Filter a database by column regex
+    formatalignment Convert a ffindex alignment database to
+                    BLAST tab, pairwise alignments or SAM flat file
+        swapresults Swaps results from the mapping A -> (A,B,C) 
+                    to A -> A, B -> A, C -> A
+       addsequences Adds sequences in fasta format to a clustering
+       mergeffindex Merge multiple databases based on ids into one file
+       splitffindex Splits a database into multiple databases
+       mergecluster Merge multiple cluster result files into one
+    substractresult Removes all entries with same ID (res = a - b)
+     result2profile Calculates profiles from a clustering
+         result2msa Calculates MSAs from a clustering
+       rebuildfasta Rebuild a fasta file from a ffindex database
+         extractorf Extract all open reading frames from a 
+                    nucleotide database into a database
+translatenucleotide Translate nucleotide sequences into aminoacid 
+                    sequences in a database
+          maskbygff Masks the sequences in an ffindex database 
+                    by the selected rows in a gff file
+        gff2ffindex Turn a GFF3 file into a ffindex database
+          convertkb Converts Uniprot flat file into ffindex database
+            kbtotsv Turns an UniprotKB file into separate TSV tables
+      result2newick Extracts clustering relationship from clustering steps 
+                    into Newick trees
+              order Orders an mmseqs ffindex database according 
+                    to a given list
+\end{lstlisting}
 
 \section{Description of workflows}
 
 
 \subsection{Batch sequence searching using \texttt{mmseqs search}}
 
-For searching a database, you need your query and target database
-in ffindex format and an empty directory for MMseqs temporary files.
-Then, you can run the search by typing
+For searching a database, query and target database have to be converted by createdb in order to use them in mmseqs.
+The search can be executed by typing
 
 \texttt{\$ mmseqs search queryDB targetDB outDB tmp}
 
@@ -242,8 +323,14 @@ option):
 
 \texttt{\$ mmseqs search queryDB targetDB outDB tmp -s 7}
 
+MMseqs supports iterative searches which are similiar to PSI-BLAST.  
+The following program call will run two iterations through the database. First sequence against sequence and than profile against sequence.
+MMseqs will use the output for the sequence sequence search and computes a profile (result2profile). The profile will be used as input in the next search. 
+
+\texttt{\$ mmseqs search queryDB targetDB outDB tmp --num-iterations 2}
+
 The default sensitivity is 4, sensitivity can be set in the range
-$[1:9]$.
+$[1.0:9.0]$.
 
 This workflow combines the prefiltering and alignment modules into
 a fast and sensitive batch protein sequence search that compares all
@@ -252,15 +339,17 @@ sequences in the query database with all sequences in the target database\emph{.
 for each query sequence all database sequences satisfying the search
 criteria such as sensitivity of the search.
 
+MMseqs can pre compute the prefilter index \texttt{createindex} to speed up the prefilter index read in.
+If the parameter \texttt{--use-index} is provied MMseqs \texttt{search} will try to access the index for the prefilter.
+It is highly recommend to use an index for iterative search of if the same database is used several times.
+
 The underlying algorithm is explained in more detail in section \ref{sub:Prefiltering},
 and the full parameter list can be found in section \ref{sub:Search-workflow}.
 
-
 \subsection{Clustering databases using \texttt{mmseqs clusteringworkflow}\label{sub:Clustering}}
 
-For clustering a database, your need your sequence database in ffindex
-format and an empty directory for MMseqs temporary files. Then, you
-can run the clustering with
+To cluster a database, MMseqs needs a sequence database converted with \texttt{createdb}
+and an empty directory for MMseqs temporary files. Then, you can run the clustering with
 
 \texttt{\$ mmseqs clusteringworkflow inDB outDB tmp}
 
@@ -268,8 +357,8 @@ and cascaded clustering with
 
 \texttt{\$ mmseqs clusteringworkflow inDB outDB tmp -{}-cascaded}
 
-For more sensitive clustering, adjust the sensitivity (\texttt{-s}
-option):
+The sensitivity of the clustering can be adjust with the \texttt{-s}
+option. MMseqs will adjust the sensitivity based on \texttt{--min-seq-id} if  \texttt{-{}-cascaded} or \texttt{-s}  are not provided. 
 
 \texttt{\$ mmseqs clusteringworkflow inDB outDB tmp -{}-cascaded -s 7}
 
@@ -592,16 +681,16 @@ For maximum efficiency of the prefiltering, the entire database should
 be held in RAM memory. The major part of memory is required for the
 $k$-mer index table of the database. For a database containing $N$
 sequences with an average length $L$, the memory consumption of the
-index lists is $N\times L\times4$B. Note that the memory consumption
+index lists is $N\times L\times7$B. Note that the memory consumption
 grows linearly with the size of the sequence database. In addition,
 the index table stores the pointer array and two auxiliary arrays
-with the memory consumption of $a^{k}\times16$B, where $a$ is the
+with the memory consumption of $a^{k}\times8$B, where $a$ is the
 size of the amino acid alphabet (usually 21 including the unknown
 amino acid X) and $k$ is the $k$-mer size. The overall memory consumption
 of the index table is
 
 \begin{eqnarray*}
-M & = & (4\, N\, L+16\, a^{k})\mathrm{B}\end{eqnarray*}
+M & = & (7\, N\, L+8\, a^{k})\mathrm{B}\end{eqnarray*}
  
 
 Therefore, the UniProtKB database version of April 2014 containing
