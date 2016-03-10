@@ -50,12 +50,8 @@ public:
     static const int CONNECTED_COMPONENT = 1;
     static const int GREEDY = 2;
 
-
     static const int APC_ALIGNMENTSCORE=1;
-    static const int APC_COVERAGE=2;
-    static const int APC_SEQID=3;
-    static const int APC_EVAL=4;
-    static const int APC_BITSCORE=5;
+    static const int APC_SEQID=2;
 
     static const int TARGET_DB_SPLIT = 0;
     static const int QUERY_DB_SPLIT = 1;
