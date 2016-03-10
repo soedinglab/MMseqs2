@@ -270,7 +270,7 @@ void ClusteringAlgorithms::greedyIncremental(unsigned int **elementLookupTable, 
 
 void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
                                              unsigned short **scoreLookupTable, unsigned short *&scoreElements,
-                                             size_t *elementOffsets, size_t elementCount) {
+                                             size_t *elementOffsets, size_t totalElementCount) {
     //time
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -287,7 +287,8 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     // make offset table
     AlignmentSymmetry::computeOffsetFromCounts(elementOffsets, dbSize);
     // set element edge pointers by using the offset table
-    AlignmentSymmetry::setupPointers<unsigned int>(elements, elementLookupTable, elementOffsets, dbSize, elementCount);
+    AlignmentSymmetry::setupPointers<unsigned int>(elements, elementLookupTable, elementOffsets, dbSize,
+                                                   totalElementCount);
     // fill elements
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, NULL, 0, elementOffsets);
     Debug(Debug::WARNING) << "\nSort entries.\n";
@@ -310,13 +311,12 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     scoreElements = new(std::nothrow) unsigned short[symmetricElementCount];
     Util::checkAllocation(scoreElements, "Could not allocate scoreElements memory in readInClusterData");
     std::fill_n(scoreElements, symmetricElementCount, 0);
-    Debug(Debug::WARNING) << "\nFound " << symmetricElementCount - elementCount << " new connections.\n";
-    AlignmentSymmetry::setupPointers<unsigned int>(elements, elementLookupTable, newElementOffsets, dbSize, symmetricElementCount);
-    AlignmentSymmetry::setupPointers<unsigned short>(scoreElements, scoreLookupTable, newElementOffsets, dbSize, symmetricElementCount);
+    Debug(Debug::WARNING) << "\nFound " << symmetricElementCount - totalElementCount << " new connections.\n";
+    AlignmentSymmetry::setupPointers<unsigned int>  (elements,      elementLookupTable, newElementOffsets, dbSize, symmetricElementCount);
+    AlignmentSymmetry::setupPointers<unsigned short>(scoreElements, scoreLookupTable,   newElementOffsets, dbSize, symmetricElementCount);
     //time
     Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
-    alnDbr->remapData();
-    seqDbr->remapData();
+    alnDbr->remapData(); // need to free memory
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, newElementOffsets);
 
     Debug(Debug::WARNING) << "\nAdd missing connections.\n";
@@ -324,7 +324,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
 
     maxClustersize = 0;
     for (size_t i = 0; i < dbSize; i++) {
-        elementCount = newElementOffsets[i + 1] - newElementOffsets[i];
+        size_t elementCount = newElementOffsets[i + 1] - newElementOffsets[i];
         maxClustersize = std::max((unsigned int) elementCount, maxClustersize);
         clustersizes[i] = elementCount;
     }

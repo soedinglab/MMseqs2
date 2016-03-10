@@ -85,11 +85,11 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
         for(size_t elementId = 0; elementId < elementSize; elementId++) {
             const unsigned int currElm = elementLookupTable[setId][elementId];
             const unsigned int currElementSize = LEN(offsetTable, currElm);
-            const bool found = std::binary_search(elementLookupTable[currElm],
+            const bool elementFound = std::binary_search(elementLookupTable[currElm],
                                                   elementLookupTable[currElm] + currElementSize,
-                                                  setId);
-            // this is a new connection
-            if(found == false){
+                                                         setId);
+            // this is a new connection since setId is not contained in currentElementSet
+            if(elementFound == false){
                 tmpSize[currElm * threads + thread_idx] += 1;
             }
         }
@@ -112,12 +112,12 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
 }
 
 void AlignmentSymmetry::computeOffsetFromCounts(size_t *elementSizes, size_t dbSize) {
-    size_t elementLenght = elementSizes[0];
+    size_t prevElementLenght = elementSizes[0];
     elementSizes[0] = 0;
     for(size_t i = 0; i < dbSize; i++) {
-        const size_t currElementSize = elementSizes[i + 1];
-        elementSizes[i + 1] = elementSizes[i] + elementLenght;
-        elementLenght = currElementSize;
+        const size_t currElementLength = elementSizes[i + 1];
+        elementSizes[i + 1] = elementSizes[i] + prevElementLenght;
+        prevElementLenght = currElementLength;
     }
 }
 

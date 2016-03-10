@@ -418,7 +418,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
     Debug::setDebugLevel(verbosity);
 #ifdef OPENMP
-    omp_set_num_threads(par.threads);
+    omp_set_num_threads(threads);
 #endif
     if (profile){
         querySeqType  = Sequence::HMM_PROFILE;
