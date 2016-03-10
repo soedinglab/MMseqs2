@@ -495,6 +495,16 @@ void Parameters::printParameters(int argc, const char* pargv[],
 
     std::stringstream ss;
     ss << std::boolalpha;
+
+#ifdef GIT_SHA1
+#define str2(s) #s
+#define str(s) str2(s)
+    std::string gitHash(str(GIT_SHA1));
+    ss << std::setw(maxWidth) << std::left  << "MMseqs Version: " << gitHash << "\n";
+#undef str
+#undef str2
+#endif
+
     for (size_t i = 0; i < par.size(); i++) {
         ss << std::setw(maxWidth) << std::left << par[i].display << "\t";
         if(typeid(int) == par[i].type ){
