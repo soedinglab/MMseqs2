@@ -460,49 +460,11 @@ int numberofthreads=1;
                     //get similarityscore
                     float factor = 1;
                     float similarityscore=0.0;
-                    if (similarityScoreType == Parameters::APC_ALIGNMENTSCORE) {
-                        Util::parseByColumnNumber(data, similarity, 1); //column 1 = alignmentscore
-                        similarityscore = atof(std::string(similarity).c_str());
-                        Debug(Debug::INFO) << "type of score not supported yet with new alignment format" << "\n";
-                        EXIT(EXIT_FAILURE);
-                    } else if (similarityScoreType == Parameters::APC_COVERAGE) {
-                        Debug(Debug::INFO) << "type of score not supported yet with new alignment format" << "\n";
-                        EXIT(EXIT_FAILURE);
-                        Util::parseByColumnNumber(data, similarity, 2); //column 2 = querycoverage
-                        float querycoverage = atof(std::string(similarity).c_str()) * factor;
-                        Util::parseByColumnNumber(data, similarity, 3); //column 3 = dbcoverage
-                        float dbcoverage = atof(std::string(similarity).c_str()) * factor;
-                        if (querycoverage < dbcoverage) {
-                            similarityscore = querycoverage;
-                        } else {
-                            similarityscore = dbcoverage;
-                        }
-
-                    } else if (similarityScoreType == Parameters::APC_SEQID) {
+                    if (similarityScoreType == Parameters::APC_SEQID) {
                         Util::parseByColumnNumber(data, similarity, 2); //column 4 = sequence identity
                         similarityscore = atof(std::string(similarity).c_str()) * factor;
                     }
-                    else if (similarityScoreType == Parameters::APC_EVAL) {
-                        Debug(Debug::INFO) << "type of score not supported yet with new alignment format" << "\n";
-                        EXIT(EXIT_FAILURE);
-                        Util::parseByColumnNumber(data, similarity, 3); //column 4 = e value
-                        similarityscore = -log(atof(std::string(similarity).c_str())) * factor;
-                    } else if (similarityScoreType == Parameters::APC_BITSCORE) {
-                        Debug(Debug::INFO) << "type of score not supported yet with new alignment format" << "\n";
-                        EXIT(EXIT_FAILURE);
-                        Util::parseByColumnNumber(data, similarity, 3); //column 1 = alignmentscore
-                        similarityscore = atof(std::string(similarity).c_str());
-                        int queryLength = strlen(seqDbr->getDataByDBKey(alnDbr->getDbKey(i)));
-                        int dbSeqLength = strlen(seqDbr->getDataByDBKey(atoi(idbuffer1)));
-                        float maxSeqLength = std::max(queryLength, dbSeqLength);
-
-                        //
-                        similarityscore = similarityscore / maxSeqLength;
-
-                        //    Debug(Debug::INFO)  << similarityscore <<"\t"<<i<<"\t"<<curr_element<<"\n";
-                        //Debug(Debug::INFO)  << similarityscore <<"\n";
-                    }
-
+                    
                     if (similarityscore < threshold) {
                         data = Util::skipLine(data);
                         continue;

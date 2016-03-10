@@ -54,7 +54,7 @@ private:
 
     void readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
                            unsigned short **scoreLookupTable, unsigned short *&scoreElements,
-                           size_t *elementOffsets, size_t elementCount)  ;
+                           size_t *elementOffsets, size_t totalElementCount)  ;
 
 };
 
