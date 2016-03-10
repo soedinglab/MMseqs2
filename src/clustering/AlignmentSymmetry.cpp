@@ -39,7 +39,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
         size_t setSize = LEN(offsets, i);
         size_t writePos = 0;
         while (*data != '\0' ) {
-            if(writePos > setSize){
+            if(writePos >= setSize){
                 Debug(Debug::ERROR) << "ERROR: Set " << i
                 << " has more elements than allocated (" << setSize
                 << ")!\n";
