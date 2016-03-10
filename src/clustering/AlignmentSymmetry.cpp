@@ -1,7 +1,6 @@
 //
-// Created by lars on 10.06.15.
+// Implemented by Martin Steinegger, Lars vdd
 //
-
 #include "AlignmentSymmetry.h"
 #include <climits>
 #include <new>
@@ -10,7 +9,6 @@
 #include "Util.h"
 #include "Debug.h"
 #include "Log.h"
-
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -20,7 +18,6 @@
 void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsigned int>*seqDbr,
                                    unsigned int **elementLookupTable, unsigned short **elementScoreTable,
                                    int scoretype, size_t *offsets) {
-
     const size_t dbSize = seqDbr->getSize();
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
@@ -48,8 +45,8 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
             char similarity[255+1];
             char dbKey[255 + 1];
             Util::parseKey(data, dbKey);
-            unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-            const size_t curr_element = seqDbr->getId(key);
+            const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+            const size_t currElement = seqDbr->getId(key);
             if(elementScoreTable != NULL){
                 if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
                     //column 1 = alignment score
@@ -61,12 +58,12 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                     elementScoreTable[i][writePos]  = (unsigned short)(atof(similarity)*1000.0f);
                 }
             }
-            if (curr_element == UINT_MAX || curr_element > seqDbr->getSize()) {
+            if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
                 Debug(Debug::ERROR) << "ERROR: Element " << dbKey
                 << " contained in some alignment list, but not contained in the sequence database!\n";
                 EXIT(EXIT_FAILURE);
             }
-            elementLookupTable[i][writePos] = curr_element;
+            elementLookupTable[i][writePos] = currElement;
             writePos++;
             data = Util::skipLine(data);
         }
