@@ -317,7 +317,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     //time
     Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
     alnDbr->remapData(); // need to free memory
-    AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, newElementOffsets);
+    AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, elementOffsets);
 
     Debug(Debug::WARNING) << "\nAdd missing connections.\n";
     AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, dbSize, scoreLookupTable);
