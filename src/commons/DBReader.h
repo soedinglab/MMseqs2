@@ -16,7 +16,7 @@ class DBReader {
 public:
     struct Index {
         T id;
-        char * data;
+        size_t offset;
         static bool compareById(Index x, Index y){
             return (x.id <= y.id);
         }
@@ -103,12 +103,6 @@ private:
     struct compareIndexLengthPairById {
         bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
             return (lhs.first.id < rhs.first.id);
-        }
-    };
-
-    struct compareIndexLengthPairByOffset {
-        bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
-            return (lhs.first.data < rhs.first.data);
         }
     };
 

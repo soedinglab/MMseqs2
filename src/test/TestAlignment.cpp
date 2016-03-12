@@ -66,7 +66,7 @@ int main (int argc, const char * argv[])
         std::cout << std::endl;
     }
     float sum=0.0;
-    for(size_t i = 0; i < subMat.alphabetSize; i++){
+    for(int i = 0; i < subMat.alphabetSize; i++){
         sum += subMat.subMatrix[i][i];
     }
     std::cout << "Test: " << sum/ subMat.alphabetSize << std::endl;

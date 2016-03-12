@@ -48,7 +48,7 @@ static struct Command commands[] = {
         {"createtsv",           createtsv,              &par.onlyverbosity,         COMMAND_HELPER,
                 "Convert ffindex to tsv"},
         {"detectredundancy",    detectredundancy,       &par.prefilter,             COMMAND_HELPER,
-                "Detectes redundancy based on reduced alphabet hashing and hamming distance"},
+                "Detects redundancy based on reduced alphabet hashing and hamming distance"},
         {"createprofiledb",     createprofiledb,        &par.createprofiledb,       COMMAND_HELPER,
                 "Convert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database"},
         {"filterdb",            filterdb,               &par.filterDb,              COMMAND_HELPER,
@@ -103,7 +103,7 @@ void printUsage() {
 #define str2(s) #s
 #define str(s) str2(s)
 	std::string gitHash(str(GIT_SHA1));
-	usage << "Git Version: " << gitHash << "\n";
+	usage << "MMseqs Version: " << gitHash << "\n";
 #undef str
 #undef str2
 #endif
