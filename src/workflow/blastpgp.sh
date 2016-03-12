@@ -51,12 +51,12 @@ while [ $STEP -lt $NUM_IT ]; do
         mv -f "$TMP_PATH/pref_next_$STEP.index" "$TMP_PATH/pref_$STEP.index"
     fi
     echo "RUN alignmment"
-	# call alignment module
+
 	REALIGN=""
-	if [ $STEP -eq 0 ]; then
+	if [ $STEP -eq 0 ] && [ $PROFILE -eq 0 ]; then
 	    REALIGN="--realign"
 	fi
-
+	# call alignment module
 	notExists "$TMP_PATH/aln_$STEP" && $RUNNER mmseqs alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN --add-backtrace \
 	        && checkReturnCode "Alignment died"
 
@@ -75,7 +75,7 @@ while [ $STEP -lt $NUM_IT ]; do
         ln -s $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
     fi
 	QUERYDB="$TMP_PATH/profile_$STEP"
-    if [ $STEP -eq 0 ]; then
+    if [ $STEP -eq 0 ] && [ $PROFILE -eq 0 ]; then
         PREFILTER_PAR=$PREFILTER_PAR" --profile"
         ALIGNMENT_PAR=$ALIGNMENT_PAR" --profile"
         PROFILE_PAR=$PROFILE_PAR" --profile"

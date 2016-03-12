@@ -85,10 +85,10 @@ void DBReader<std::string>::sortIndex() {
         for (size_t i = 0; i < size; i++) {
             sortArray[i] = std::make_pair(index[i], seqLens[i]);
         }
-        std::sort(sortArray, sortArray + size, compareIndexLengthPairById());
+        std::stable_sort(sortArray, sortArray + size, compareIndexLengthPairById());
         for (size_t i = 0; i < size; ++i) {
             index[i].id = sortArray[i].first.id;
-            index[i].data = sortArray[i].first.data;
+            index[i].offset = sortArray[i].first.offset;
             seqLens[i] = sortArray[i].second;
         }
         delete[] sortArray;
@@ -106,10 +106,10 @@ void DBReader<unsigned int>::sortIndex() {
     for (size_t i = 0; i < size; i++) {
         sortArray[i] = std::make_pair(index[i], seqLens[i]);
     }
-    std::sort(sortArray, sortArray + size, compareIndexLengthPairById());
+    std::stable_sort(sortArray, sortArray + size, compareIndexLengthPairById());
     for (size_t i = 0; i < size; ++i) {
         index[i].id = sortArray[i].first.id;
-        index[i].data = sortArray[i].first.data;
+        index[i].offset = sortArray[i].first.offset;
         seqLens[i] = sortArray[i].second;
     }
     delete[] sortArray;
@@ -123,7 +123,7 @@ void DBReader<unsigned int>::sortIndex() {
             local2id[i] = i;
             sortForMapping[i] = std::make_pair(i, seqLens[i]);
         }
-        std::sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
+        std::stable_sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
@@ -138,9 +138,9 @@ void DBReader<unsigned int>::sortIndex() {
         for (size_t i = 0; i < size; i++) {
             id2local[i] = i;
             local2id[i] = i;
-            sortForMapping[i] = std::make_pair(i, (size_t) index[i].data);
+            sortForMapping[i] = std::make_pair(i, index[i].offset);
         }
-        std::sort(sortForMapping, sortForMapping + size, comparePairByOffset());
+        std::stable_sort(sortForMapping, sortForMapping + size, comparePairByOffset());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
@@ -217,23 +217,23 @@ template <typename T> char* DBReader<T>::getData(size_t id){
         EXIT(EXIT_FAILURE);
     }
 
-    if ((size_t) (index[id].data - data) >= dataSize){
+    if ((size_t) (index[id].offset) >= dataSize){
         Debug(Debug::ERROR) << "Invalid database read for database data file=" << dataFileName << ", database index=" << indexFileName << "\n";
         Debug(Debug::ERROR) << "getData: global id (" << id << ")\n";
         Debug(Debug::ERROR) << "Size of data: " << dataSize << "\n";
-        Debug(Debug::ERROR) << "Requested offset: " << (size_t)  (index[id].data - data) << "\n";
+        Debug(Debug::ERROR) << "Requested offset: " << index[id].offset << "\n";
         EXIT(EXIT_FAILURE);
     }
     if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS){
-        return index[local2id[id]].data;
+        return data + index[local2id[id]].offset;
     }else{
-        return index[id].data;
+        return data + index[id].offset;
     }
 }
 
 template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey) {
     size_t id = getId(dbKey);
-    return (id != UINT_MAX) ? index[id].data : NULL;
+    return (id != UINT_MAX) ? data + index[id].offset : NULL;
 }
 
 template <typename T> size_t DBReader<T>::getSize (){
@@ -305,11 +305,7 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
             EXIT(EXIT_FAILURE);
         }
 
-        if (dataMode & USE_DATA) {
-            index[i].data = data + offset;
-        } else {
-            index[i].data = (char *) offset;
-        }
+        index[i].offset = offset;
 
         entryLength[i] = length;
 
@@ -340,7 +336,7 @@ template <typename T> void DBReader<T>::unmapData() {
 
 template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
     size_t id = bsearch(index, size, i);
-    return index[id].data - data;
+    return index[id].offset;
 }
 
 template class DBReader<unsigned int>;

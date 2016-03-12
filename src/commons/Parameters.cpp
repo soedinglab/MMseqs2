@@ -47,7 +47,7 @@ Parameters::Parameters():
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "Start the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
 //affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "Maximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]{1}[0-9]*$"),
-        PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "Type of score used for clustering [1:5]. 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column ",typeid(int),(void *) &similarityScoreType,  "^[1-9]{1}[0-9]*$"),
+        PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "Type of score used for clustering [1:2]. 1=alignment score. 2=sequence identity ",typeid(int),(void *) &similarityScoreType,  "^[1-2]{1}$"),
 // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]{1}$"),
 // create profile (HMM, PSSM)
@@ -177,6 +177,11 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_ALLOW_DELETION);
     result2msa.push_back(PARAM_ADD_INTERNAL_ID);
     result2msa.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2msa.push_back(PARAM_FILTER_MAX_SEQ_ID);
+    result2msa.push_back(PARAM_FILTER_QID);
+    result2msa.push_back(PARAM_FILTER_QSC);
+    result2msa.push_back(PARAM_FILTER_COV);
+    result2msa.push_back(PARAM_FILTER_NDIFF);
     result2msa.push_back(PARAM_THREADS);
     result2msa.push_back(PARAM_V);
 
@@ -417,7 +422,9 @@ void Parameters::parseParameters(int argc, const char* pargv[],
     }
 
     Debug::setDebugLevel(verbosity);
-
+#ifdef OPENMP
+    omp_set_num_threads(threads);
+#endif
     if (profile){
         querySeqType  = Sequence::HMM_PROFILE;
         targetSeqType = Sequence::AMINO_ACIDS;
@@ -495,6 +502,16 @@ void Parameters::printParameters(int argc, const char* pargv[],
 
     std::stringstream ss;
     ss << std::boolalpha;
+
+#ifdef GIT_SHA1
+#define str2(s) #s
+#define str(s) str2(s)
+    std::string gitHash(str(GIT_SHA1));
+    ss << std::setw(maxWidth) << std::left  << "MMseqs Version: " << gitHash << "\n";
+#undef str
+#undef str2
+#endif
+
     for (size_t i = 0; i < par.size(); i++) {
         ss << std::setw(maxWidth) << std::left << par[i].display << "\t";
         if(typeid(int) == par[i].type ){

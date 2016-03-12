@@ -57,7 +57,7 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
     while (i < readerOld.getSize() && j < readerNew.getSize()){
         DBReader<unsigned int>::Index& e_i = indexOld[i];
         DBReader<unsigned int>::Index& e_j = indexNew[j];
-        size_t offset = reinterpret_cast<size_t>(e_j.data);
+        size_t offset = e_j.offset;
         int cmp = strcmp(SSTR(e_i.id).c_str(), SSTR(e_j.id).c_str());
         if (cmp == 0){
             // this sequence is in both databases
@@ -85,7 +85,7 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
     // add the rest of the new database to the new sequences
     while (j < readerNew.getSize()){
         DBReader<unsigned int>::Index& e_j = indexNew[j];
-        size_t offset = reinterpret_cast<size_t>(e_j.data);
+        size_t offset = e_j.offset;
         fprintf(B_index_file, "%s\t%zd\t%u\n", SSTR(e_j.id).c_str(), offset, newLengths[j]);
         new_cnt++;
         j++;
@@ -277,7 +277,7 @@ void appendToClustering(DBReader<unsigned int>* currSeqDbr, std::string B, std::
         else{
             size_t eIndex = bReader.getId(qKey);
             DBReader<unsigned int>::Index& e = index[eIndex];
-            fprintf(Brest_index_file, "%s\t%zd\t%u\n", SSTR(e.id).c_str(), reinterpret_cast<size_t>(e.data), lengths[eIndex]);
+            fprintf(Brest_index_file, "%s\t%zd\t%u\n", SSTR(e.id).c_str(), e.offset, lengths[eIndex]);
 
             seqsWithoutMatches++;
         }
