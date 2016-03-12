@@ -177,6 +177,11 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_ALLOW_DELETION);
     result2msa.push_back(PARAM_ADD_INTERNAL_ID);
     result2msa.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2msa.push_back(PARAM_FILTER_MAX_SEQ_ID);
+    result2msa.push_back(PARAM_FILTER_QID);
+    result2msa.push_back(PARAM_FILTER_QSC);
+    result2msa.push_back(PARAM_FILTER_COV);
+    result2msa.push_back(PARAM_FILTER_NDIFF);
     result2msa.push_back(PARAM_THREADS);
     result2msa.push_back(PARAM_V);
 

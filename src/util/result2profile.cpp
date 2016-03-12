@@ -181,6 +181,8 @@ int result2outputmode(Parameters &par, int mode) {
             }
             MultipleAlignment::MSAResult res = computeAlignment(aligner, centerSequence, seqSet,
                                                                 alnResults, par.allowDeletion, sameDatabase);
+            MsaFilter::MsaFilterResult filterRes = filter.filter(res.msaSequence, res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
+                                                                 static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
 
             std::stringstream msa;
             std::string result;
@@ -189,7 +191,7 @@ int result2outputmode(Parameters &par, int mode) {
             switch (mode) {
                 case MSA:
                 {
-                    for (size_t i = 0; i < res.setSize; i++) {
+                    for (size_t i = 0; i < filterRes.setSize; i++) {
                         unsigned int key;
                         char* data;
                         if(i == 0) {
@@ -203,8 +205,8 @@ int result2outputmode(Parameters &par, int mode) {
                             msa << "#" << key  << "\n";
                         }
                         msa << ">" << data;
-                        for(size_t pos = 0; pos < res.msaSequenceLength; pos++){
-                            char aa = res.msaSequence[i][pos];
+                        for(size_t pos = 0; pos < res.centerLength; pos++){
+                            char aa = filterRes.filteredMsaSequence[i][pos];
                             msa << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-');
                         }
                         msa << "\n";
@@ -228,8 +230,6 @@ int result2outputmode(Parameters &par, int mode) {
 //                    if(par.pruneSequences){
 //                        filter.pruneAlignment((char**)res.msaSequence, res.setSize, res.centerLength);
 //                    }
-                    MsaFilter::MsaFilterResult filterRes = filter.filter(res.msaSequence, res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
-                                                                         static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
 
 /*                  std::cout << centerSequence->getDbKey() << " " << res.setSize << " " << filterRes.setSize << std::endl;
 		    for (size_t i = 0; i < filterRes.setSize; i++) {
