@@ -53,7 +53,7 @@ while [ $STEP -lt $NUM_IT ]; do
     echo "RUN alignmment"
 
 	REALIGN=""
-	if [ $STEP -eq 0 ]; then
+	if [ $STEP -eq 0 ] && [ $PROFILE -eq 0 ]; then
 	    REALIGN="--realign"
 	fi
 	# call alignment module
@@ -75,7 +75,7 @@ while [ $STEP -lt $NUM_IT ]; do
         ln -s $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
     fi
 	QUERYDB="$TMP_PATH/profile_$STEP"
-    if [ $STEP -eq 0 ]; then
+    if [ $STEP -eq 0 ] && [ $PROFILE -eq 0 ]; then
         PREFILTER_PAR=$PREFILTER_PAR" --profile"
         ALIGNMENT_PAR=$ALIGNMENT_PAR" --profile"
         PROFILE_PAR=$PROFILE_PAR" --profile"
