@@ -232,7 +232,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
             size_t tmpOffset = 0;
             for(size_t i = 0; i < reader.getSize(); i++){
                 const char *id = reader.getIndex()[i].id.c_str();
-                size_t currOffset = reinterpret_cast<size_t>(reader.getIndex()[i].data);
+                size_t currOffset = reader.getIndex()[i].offset;
                 size_t seqLens = reader.getSeqLens(i);
                 fprintf(index_file, "%s\t%zd\t%zd\n", id, globalOffset + currOffset, seqLens);
                 tmpOffset += reader.getSeqLens(i);
@@ -254,7 +254,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     index_file = fopen(outFileNameIndex, "w");
     for (size_t i = 0; i < indexReader.getSize(); i++) {
         const char *id = index[i].id.c_str();
-        size_t currOffset = reinterpret_cast<size_t>(index[i].data);
+        size_t currOffset = index[i].offset;
         size_t seqLens = indexReader.getSeqLens(i);
         fprintf(index_file, "%s\t%zd\t%zd\n", id, currOffset, seqLens);
     }
