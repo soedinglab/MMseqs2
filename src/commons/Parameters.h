@@ -124,7 +124,8 @@ public:
 
     // SEARCH WORKFLOW
     int numIterations;
-
+    int startSens;
+    int sensStepSize;
     //CLUSTERING
     int maxIteration;                   // Maximum depth of breadth first search in connected component
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
@@ -276,6 +277,8 @@ public:
 
     // search workflow
     PARAMETER(PARAM_NUM_ITERATIONS)
+    PARAMETER(PARAM_START_SENS)
+    PARAMETER(PARAM_SENS_STEP_SIZE)
     PARAMETER(PARAM_USE_INDEX)
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
