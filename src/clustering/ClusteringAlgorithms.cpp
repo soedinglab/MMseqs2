@@ -108,7 +108,9 @@ std::map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute
     delete [] elementLookupTable;
     delete [] elements;
     delete [] elementOffsets;
+    delete [] scoreLookupTable;
     delete [] bestscore;
+    delete [] score;
 
     std::map<unsigned int, std::vector<unsigned int>> retMap;
     for(size_t i = 0; i < dbSize; i++) {
@@ -119,6 +121,7 @@ std::map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute
         }
         retMap[assignedcluster[i]].push_back(i);
     }
+    delete [] assignedcluster;
     return retMap;
 }
 
@@ -320,8 +323,7 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, elementOffsets);
 
     Debug(Debug::WARNING) << "\nAdd missing connections.\n";
-    AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, dbSize, scoreLookupTable);
-
+    AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, newElementOffsets, dbSize, scoreLookupTable);
     maxClustersize = 0;
     for (size_t i = 0; i < dbSize; i++) {
         size_t elementCount = newElementOffsets[i + 1] - newElementOffsets[i];
