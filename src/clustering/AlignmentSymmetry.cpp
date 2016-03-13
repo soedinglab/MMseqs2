@@ -74,7 +74,7 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
     // init memory for parallel merge
     unsigned int * tmpSize = new(std::nothrow) unsigned int[threads * dbSize];
     Util::checkAllocation(tmpSize, "Could not allocate memory in findMissingLinks");
-    memset(tmpSize, 0, threads * dbSize * sizeof(unsigned int));
+    memset(tmpSize, 0, static_cast<size_t>(threads) * dbSize * sizeof(unsigned int));
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t setId = 0; setId < dbSize; setId++) {
         int thread_idx = 0;
@@ -90,7 +90,7 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
                                                          setId);
             // this is a new connection since setId is not contained in currentElementSet
             if(elementFound == false){
-                tmpSize[currElm * threads + thread_idx] += 1;
+                tmpSize[static_cast<size_t>(currElm) * static_cast<size_t>(threads) + static_cast<size_t>(thread_idx)] += 1;
             }
         }
     }
@@ -99,7 +99,7 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
     for(size_t setId = 0; setId < dbSize; setId++) {
         offsetTable[setId] = LEN(offsetTable, setId);
         for (int thread_idx = 0; thread_idx < threads; thread_idx++) {
-            offsetTable[setId] += tmpSize[setId * threads + thread_idx];
+            offsetTable[setId] += tmpSize[static_cast<size_t>(setId) * static_cast<size_t>(threads) + static_cast<size_t>(thread_idx)];
         }
         symmetricElementCount += offsetTable[setId];
     }
