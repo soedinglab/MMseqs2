@@ -19,11 +19,9 @@ export OMP_PROC_BIND=TRUE
 
 # processing
 
-
-
 INPUT="$1"
-notExists "$3/aln_redundancy" && mmseqs detectredundancy "$INPUT" "$3/aln_redundancy" --min-seq-id 0.9 && checkReturnCode "Fast filter step $STEP died"
-notExists "$3/clu_redundancy" && mmseqs cluster $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER1_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
+notExists "$3/aln_redundancy" && mmseqs detectredundancy "$INPUT" "$3/aln_redundancy" ${DETECTREDUNDANCY_PAR}  && checkReturnCode "Fast filter step $STEP died"
+notExists "$3/clu_redundancy" && mmseqs cluster $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
 awk '{ print $1 }' "$3/clu_redundancy.index" > "$3/order_redundancy"
 notExists "$3/input_step_redundancy" && mmseqs order "$3/order_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
 INPUT="$3/input_step_redundancy"

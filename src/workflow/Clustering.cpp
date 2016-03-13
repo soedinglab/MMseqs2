@@ -93,6 +93,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
     if (par.cascaded) {
         float targetSensitivity = par.sensitivity;
         size_t maxResListLen = par.maxResListLen;
+        cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.detectredundancy).c_str());
 
         // 1 is lowest sens
         par.clusteringMode = Parameters::GREEDY;
@@ -103,6 +104,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.minDiagScoreThr = 0;
         //par.diagonalScoring = 0;
         par.compBiasCorrection = 0;
+
         cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.alignment).c_str());
         cmd.addVariable("CLUSTER0_PAR", par.createParameterString(par.clustering).c_str());
@@ -139,6 +141,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         cmd.execProgram(program.c_str(), 3, argv);
 
     } else {
+        cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.detectredundancy).c_str());
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clustering).c_str());
