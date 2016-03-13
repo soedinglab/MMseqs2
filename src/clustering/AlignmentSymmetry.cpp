@@ -112,12 +112,12 @@ size_t AlignmentSymmetry::findMissingLinks(unsigned int ** elementLookupTable, s
 }
 
 void AlignmentSymmetry::computeOffsetFromCounts(size_t *elementSizes, size_t dbSize) {
-    size_t prevElementLenght = elementSizes[0];
+    size_t prevElementLength = elementSizes[0];
     elementSizes[0] = 0;
     for(size_t i = 0; i < dbSize; i++) {
         const size_t currElementLength = elementSizes[i + 1];
-        elementSizes[i + 1] = elementSizes[i] + prevElementLenght;
-        prevElementLenght = currElementLength;
+        elementSizes[i + 1] = elementSizes[i] + prevElementLength;
+        prevElementLength = currElementLength;
     }
 }
 

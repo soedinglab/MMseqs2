@@ -507,7 +507,7 @@ void Parameters::printParameters(int argc, const char* pargv[],
 #define str2(s) #s
 #define str(s) str2(s)
     std::string gitHash(str(GIT_SHA1));
-    ss << std::setw(maxWidth) << std::left  << "MMseqs Version: " << gitHash << "\n";
+    ss << std::setw(maxWidth) << std::left  << "MMseqs Version:" << "\t" << gitHash << "\n";
 #undef str
 #undef str2
 #endif
