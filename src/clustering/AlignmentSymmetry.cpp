@@ -122,30 +122,46 @@ void AlignmentSymmetry::computeOffsetFromCounts(size_t *elementSizes, size_t dbS
 }
 
 void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
-                                        size_t * offsetTable, size_t dbSize, unsigned short **elementScoreTable) {
+                                        size_t * offsetTableWithOutNewLinks, size_t * offsetTableWithNewLinks, size_t dbSize, unsigned short **elementScoreTable) {
 
     // iterate over all connections and check if it exists in the corresponding set
     // if not add it
     for(size_t setId = 0; setId < dbSize; setId++) {
         Log::printProgress(setId);
-        const size_t elementSize = LEN(offsetTable, setId);
-        for(size_t elementId = 0; elementId < elementSize; elementId++) {
+        const size_t oldElementSize = LEN(offsetTableWithOutNewLinks, setId);
+        const size_t newElementSize = LEN(offsetTableWithNewLinks, setId);
+        if(oldElementSize > newElementSize){
+            Debug(Debug::ERROR) << "SetId="<< setId <<
+                                   " NewElementSize("<< newElementSize <<") <"
+                                   " OldElementSize(" << oldElementSize <<") in addMissingLinks";
+            EXIT(EXIT_FAILURE);
+        }
+        for(size_t elementId = 0; elementId < oldElementSize; elementId++) {
             const unsigned int currElm = elementLookupTable[setId][elementId];
             if(currElm == UINT_MAX || currElm > dbSize){
                 Debug(Debug::ERROR) << "currElm > dbSize in element list (addMissingLinks). This should not happen.\n";
                 EXIT(EXIT_FAILURE);
             }
-            const unsigned int currElementSize = LEN(offsetTable, currElm);
+            const unsigned int oldCurrElementSize = LEN(offsetTableWithOutNewLinks, currElm);
+            const unsigned int newCurrElementSize = LEN(offsetTableWithNewLinks, currElm);
+
             bool found = false;
             // check if setId is already in set of currElm
-            for(size_t pos = 0; pos < currElementSize && found == false; pos++){
+            for(size_t pos = 0; pos < oldCurrElementSize && found == false; pos++){
                 found = (elementLookupTable[currElm][pos] == setId);
             }
             // this is a new connection
             if(found == false){ // add connection if it could not be found
                 // find pos to write
-                size_t pos;
-                for(pos = currElementSize; elementLookupTable[currElm][pos] != UINT_MAX; pos++ );
+                size_t pos = oldCurrElementSize;
+                while( pos < newCurrElementSize && elementLookupTable[currElm][pos] != UINT_MAX ){
+                    pos++;
+                }
+
+                if(pos >= newCurrElementSize){
+                    Debug(Debug::ERROR) << "pos(" << pos << ") > newCurrElementSize(" << newCurrElementSize << "). This should not happen.\n";
+                    EXIT(EXIT_FAILURE);
+                }
                 elementLookupTable[currElm][pos] = setId;
                 elementScoreTable[currElm][pos]=elementScoreTable[setId][elementId];
             }
