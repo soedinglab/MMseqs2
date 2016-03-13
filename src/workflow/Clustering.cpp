@@ -80,8 +80,8 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.cascaded << "\n";
     }
 
-    FileUtil::errorIfFileExist(par.db2.c_str());
-    FileUtil::errorIfFileExist(par.db2Index.c_str());
+//    FileUtil::errorIfFileExist(par.db2.c_str());
+//    FileUtil::errorIfFileExist(par.db2Index.c_str());
 
     CommandCaller cmd;
 

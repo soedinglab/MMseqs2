@@ -57,8 +57,8 @@ Prefiltering::Prefiltering(std::string queryDB,
 #endif
 
     Debug(Debug::INFO) << "\n";
-    FileUtil::errorIfFileExist(outDB.c_str());
-    FileUtil::errorIfFileExist(outDBIndex.c_str());
+//    FileUtil::errorIfFileExist(outDB.c_str());
+//    FileUtil::errorIfFileExist(outDBIndex.c_str());
     this->qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
