@@ -1,10 +1,13 @@
-#!/bin/sh
+#!/bin/sh -ex
 # Clustering workflow script
-checkReturnCode () { 
-	[ $? -ne 0 ] && echo "$1" && exit 1;
+checkReturnCode () {
+	if [ $? -ne 0 ]; then
+	    echo "$1"
+	    exit 1
+	fi
 }
-notExists () { 
-	[ ! -f "$1" ] 
+notExists () {
+	[ ! -f "$1" ]
 }
 #pre processing
 [ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
@@ -18,21 +21,58 @@ notExists () {
 
 export OMP_PROC_BIND=TRUE
 
-# processing
-# call prefilter module
-notExists "$4/pref" && mmseqs prefilter "$1" "$TARGET_DB_PREF" "$4/pref" $PREFILTER_PAR           && checkReturnCode "Prefilter died"
-# call alignment module
-notExists "$4/aln"  && mmseqs alignment "$1" "$2" "$4/pref" "$4/aln" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
+cd $(dirname $1)
+QUERY_FILE=$(basename $1)
+ABS_QUERY="$(pwd)/${QUERY_FILE}"
+cd -
 
+cd $4
+TMP_PATH=$(pwd)
+cd -
+INPUT=$1
+TARGET=$2
+SENS=$START_SENS
+while [ $SENS -le $TARGET_SENS ]; do
+    # call prefilter module
+    notExists "$TMP_PATH/pref_$SENS" && mmseqs prefilter "$INPUT" "$TARGET_DB_PREF" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS && checkReturnCode "Prefilter died"
+    # call alignment module
+    notExists "$TMP_PATH/aln_$SENS"  && mmseqs alignment "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
+
+    if [ $SENS -gt $START_SENS ]; then
+        mmseqs mergeffindex "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${START_SENS}" "$TMP_PATH/aln_$SENS" \
+            && checkReturnCode "Alignment died"
+        mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_${START_SENS}"
+        mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_${START_SENS}.index"
+    fi
+
+    NEXTINPUT="$TMP_PATH/input_step$SENS"
+    if [  $SENS -lt $TARGET_SENS ]; then
+        notExists "$TMP_PATH/order_step$SENS" \
+            && awk '$3 < 2 { print $1 }' "$TMP_PATH/aln_$SENS.index" > "$TMP_PATH/order_step$SENS" \
+            && checkReturnCode "Awk step $SENS died"
+        notExists "$NEXTINPUT" \
+            && mmseqs order "$TMP_PATH/order_step$SENS" "$INPUT" "$NEXTINPUT" \
+            && checkReturnCode "Order step $SENS died"
+    fi
+    let SENS=SENS+SENS_STEP_SIZE
+
+    INPUT=$NEXTINPUT
+done
 # post processing
-mv -f "$4/aln" "$3"
-mv -f "$4/aln.index" "$3.index"
+mv -f "$TMP_PATH/aln_${START_SENS}" "$3"
+mv -f "$TMP_PATH/aln_${START_SENS}.index" "$3.index"
 checkReturnCode "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-    rm -f "$4/pref" "$4/pref.index"
-    rm -f "$4/aln" "$4/aln.index"
+    SENS=$START_SENS
+    while [ $SENS -lt $TARGET_SENS ]; do
+        rm -f "$TMP_PATH/pref_$SENS" "$TMP_PATH/pref_$SENS.index"
+        rm -f "$TMP_PATH/aln_$SENS" "$TMP_PATH/aln_$SENS.index"
+        let SENS=SENS+SENS_STEP_SIZE
+        NEXTINPUT="$TMP_PATH/input_step$SENS"
+        rm -f "$TMP_PATH/input_step$SENS" "$TMP_PATH/input_step$SENS.index"
+    done
 fi
 
 

@@ -70,6 +70,8 @@ Parameters::Parameters():
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","Sets the MPI runner",typeid(std::string),(void *) &runner, ""),
 // search workflow
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","Search iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$"),
+        PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity","Start sensitivity",typeid(int),(void *) &startSens, "^[1-9]{1}$"),
+        PARAM_SENS_STEP_SIZE(PARAM_SENS_STEP_SIZE_ID, "--sens-step-size", "Sensitivity step size","Sensitivity step sizes",typeid(int),(void *) &sensStepSize, "^[1-9]{1}$"),
         PARAM_USE_INDEX(PARAM_USE_INDEX_ID, "--use-index", "Use index","Use precomputed index for prefilter",typeid(bool),(void *) &useIndex, ""),
 // Orfs
         PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min codons in orf", "Minimum codon number in open reading frames",typeid(int),(void *) &orfMinLength, "^[1-9]{1}[0-9]*$"),
@@ -231,6 +233,8 @@ Parameters::Parameters():
     searchworkflow = combineList(alignment, prefilter);
     searchworkflow = combineList(searchworkflow, result2profile);
     searchworkflow.push_back(PARAM_NUM_ITERATIONS);
+    searchworkflow.push_back(PARAM_START_SENS);
+    searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
     searchworkflow.push_back(PARAM_USE_INDEX);
     searchworkflow.push_back(PARAM_RUNNER);
 
@@ -562,7 +566,10 @@ void Parameters::setDefaults() {
 
     // search workflow
     numIterations = 1;
+    startSens = 4;
+    sensStepSize = 1;
     useIndex = false;
+
 
     threads = 1;
 #ifdef OPENMP
