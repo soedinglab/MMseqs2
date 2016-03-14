@@ -44,7 +44,15 @@ int search(int argc, const char *argv[]) {
         program.append("/bin/blastpgp.sh");
         cmd.execProgram(program.c_str(), 4, argv);
     } else {
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+        cmd.addVariable("START_SENS", SSTR(par.startSens).c_str());
+        cmd.addVariable("TARGET_SENS", SSTR((int)par.sensitivity).c_str());
+        cmd.addVariable("SENS_STEP_SIZE", SSTR(par.sensStepSize).c_str());
+        std::vector<MMseqsParameter> prefilterWithoutS;
+        for(size_t i = 0; i < par.prefilter.size(); i++){
+            if(par.prefilter[i].uniqid != par.PARAM_S.uniqid )
+                prefilterWithoutS.push_back(par.prefilter[i]);
+        }
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
 
         std::string program(par.mmdir);

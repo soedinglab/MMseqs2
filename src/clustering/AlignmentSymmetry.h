@@ -16,7 +16,7 @@ public:
     static void readInData(DBReader<unsigned int>*pReader, DBReader<unsigned int>*pDBReader, unsigned int **pInt,unsigned short**elementScoreTable, int scoretype, size_t *offsets);
     static void computeOffsetFromCounts(size_t *elementSizes, size_t dbSize);
     static size_t findMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize, int threads);
-    static void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize,unsigned short**elementScoreTable);
+    static void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t * newOffset, size_t dbSize,unsigned short**elementScoreTable);
     static void sortElements(unsigned int **elementLookupTable, size_t *offsets, size_t dbSize);
 
     template <typename T>

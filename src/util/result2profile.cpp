@@ -116,8 +116,8 @@ int result2outputmode(Parameters &par, int mode) {
     DBReader<unsigned int>*resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    FileUtil::errorIfFileExist(par.db4.c_str());
-    FileUtil::errorIfFileExist(par.db4Index.c_str());
+//    FileUtil::errorIfFileExist(par.db4.c_str());
+//    FileUtil::errorIfFileExist(par.db4Index.c_str());
 
     DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
     writer.open();
