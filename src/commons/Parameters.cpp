@@ -184,6 +184,7 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_FILTER_QSC);
     result2msa.push_back(PARAM_FILTER_COV);
     result2msa.push_back(PARAM_FILTER_NDIFF);
+    result2msa.push_back(PARAM_PROFILE);
     result2msa.push_back(PARAM_THREADS);
     result2msa.push_back(PARAM_V);
 
