@@ -20,7 +20,7 @@ Parameters::Parameters():
         PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "Amino acid alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$"),
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$"),
         PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "HMM Profile input",typeid(bool),(void *) &profile, ""),
-        PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotid","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
+        PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "Use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$"),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-diag-score", "Minimum Diagonal score", "Accepts only hits with a ungapped diagonal score above the min score threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$"),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "Set the K-mer threshold for the K-mer generation",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$"),
@@ -184,6 +184,7 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_FILTER_QSC);
     result2msa.push_back(PARAM_FILTER_COV);
     result2msa.push_back(PARAM_FILTER_NDIFF);
+    result2msa.push_back(PARAM_PROFILE);
     result2msa.push_back(PARAM_THREADS);
     result2msa.push_back(PARAM_V);
 
