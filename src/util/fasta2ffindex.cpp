@@ -111,7 +111,8 @@ int createdb(int argn, const char **argv) {
                 header_line.append(" Split=");
                 header_line.append(SSTR(split));
             }
-
+            // space is needed for later parsing
+            header_line.append(" ", 1);
             header_line.append("\n");
 
             out_hdr_writer.write(header_line.c_str(), header_line.length(), id.c_str());
