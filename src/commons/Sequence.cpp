@@ -232,19 +232,51 @@ void Sequence::nextProfileKmer() {
 
 void Sequence::mapProteinSequence(const char * sequence){
     size_t l = 0;
+    size_t atgcCnt = 0;
     char curr = sequence[l];
     size_t pos = 0;
     while (curr != '\0'){
         if (curr != '\n'){
             // replace non-common amino acids
             curr = Util::toUpper(curr);
-            this->int_sequence[l] = this->aa2int[(int)curr];
             switch(curr){
+                case 'A':
+                case 'T':
+                case 'G':
+                case 'C':
+                    atgcCnt++;
+                case 'D':
+                case 'E':
+                case 'F':
+                case 'H':
+                case 'I':
+                case 'K':
+                case 'L':
+                case 'M':
+                case 'N':
+                case 'P':
+                case 'Q':
+                case 'R':
+                case 'S':
+                case 'V':
+                case 'W':
+                case 'Y':
+                case 'X':
+                    this->int_sequence[l] = this->aa2int[(int)curr];
+                    break;
                 case 'J': this->int_sequence[l] = this->aa2int[(int)'L']; break;
                 case 'U':
                 case 'O': this->int_sequence[l] = this->aa2int[(int)'X']; break;
                 case 'Z': this->int_sequence[l] = this->aa2int[(int)'E']; break;
                 case 'B': this->int_sequence[l] = this->aa2int[(int)'D']; break;
+                case '-':
+                case '.': this->int_sequence[l] = this->aa2int[(int)'X']; break;
+                default:
+                    if(static_cast<int>(curr) < 33  || static_cast<int>(curr) > 126 ){
+                        Debug(Debug::ERROR) << "ERROR: Sequence (dbKey=" << dbKey <<") conatains none printable characters. The database might contain profiles. Use the parameter --profile for a profile databases.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                    break;
             }
             l++;
             if (l >= maxLen){
@@ -254,7 +286,10 @@ void Sequence::mapProteinSequence(const char * sequence){
         }
         pos++;
         curr  = sequence[pos];
-
+    }
+    if (atgcCnt >= l){
+        Debug(Debug::WARNING) << "WARNING: Sequence (dbKey=" << dbKey
+        <<") just contains ATGC. It might be a nucleotide sequene.\n";
     }
     this->L = l;
 }
