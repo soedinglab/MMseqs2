@@ -85,7 +85,7 @@ Parameters::Parameters():
 // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "Use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "Numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
-        PARAM_SPLIT_SEQ_BY_LEN(PARAM_SPLIT_SEQ_BY_LEN_ID,"--split-seq-by-len", "Split Seq. by len", "Split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
+        PARAM_DONT_SPLIT_SEQ_BY_LEN(PARAM_DONT_SPLIT_SEQ_BY_LEN_ID,"--dont-split-seq-by-len", "Split Seq. by len", "Dont split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "Use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "Type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
@@ -215,7 +215,7 @@ Parameters::Parameters():
 
     // create db
     createdb.push_back(PARAM_MAX_SEQ_LEN);
-    createdb.push_back(PARAM_SPLIT_SEQ_BY_LEN);
+    createdb.push_back(PARAM_DONT_SPLIT_SEQ_BY_LEN);
     createdb.push_back(PARAM_USE_HEADER);
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
@@ -555,7 +555,7 @@ void Parameters::setDefaults() {
     kmerSize =  7;
     kmerScore = INT_MAX;
     alphabetSize = 21;
-    maxSeqLen = 32768; // 2^15
+    maxSeqLen = 32000; // 2^15
     maxResListLen = 300;
     sensitivity = 4;
     split = 1;
@@ -609,7 +609,7 @@ void Parameters::setDefaults() {
     profileMode = PROFILE_MODE_HMM;
 
     // createdb
-    splitSeqByLen = false;
+    splitSeqByLen = true;
 
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
