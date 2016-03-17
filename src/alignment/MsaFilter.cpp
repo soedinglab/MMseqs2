@@ -53,40 +53,6 @@ inline void MsaFilter::swapi(int k[], int i, int j) {
     k[j] = temp;
 }
 
-
-// QSort sorting routine. time complexity of O(N ln(N)) on average
-// Sorts the index array k between elements i='left' and i='right' in such a way that afterwards
-// v[k[i]] is sorted downwards (up=-1) or upwards (up=+1)
-void MsaFilter::QSortInt(int v[], int k[], int left, int right, int up) {
-    int i;
-    int last;   // last element to have been swapped
-
-    if (left >= right)
-        return;        // do nothing if less then 2 elements to sort
-    // Put pivot element in the middle of the sort range to the side (to position 'left') ...
-    swapi(k, left, (left + right) / 2);
-    last = left;
-    // ... and swap all elements i SMALLER than the pivot
-    // with an element that is LARGER than the pivot (element last+1):
-    if (up == 1) {
-        for (i = left + 1; i <= right; i++)
-            if (v[k[i]] < v[k[left]])
-                swapi(k, ++last, i);
-    }
-    else
-        for (i = left + 1; i <= right; i++)
-            if (v[k[i]] > v[k[left]])
-                swapi(k, ++last, i);
-
-    // Put the pivot to the right of the elements which are SMALLER, left to elements which are LARGER
-    swapi(k, left, last);
-
-    // Sort the elements left from the pivot and right from the pivot
-    QSortInt(v, k, left, last - 1, up);
-    QSortInt(v, k, last + 1, right, up);
-}
-
-
 MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in,
                                              int L, int coverage, int qid, float qsc,
                                              int max_seqid, int Ndiff){
@@ -101,8 +67,6 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
     }
     return res;
 }
-
-
 
 MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
                                                int L, int coverage, int qid, float qsc,
@@ -176,10 +140,25 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
             keep[k] = 0;
     }
 
+    std::pair<int, int> * tmpSort = new std::pair<int, int>[N_in];
     // Sort sequences according to length; afterwards, nres[ksort[kk]] is sorted by size
-    for (k = 0; k < N_in; ++k)
-        ksort[k] = k;
-    QSortInt(nres, ksort, kfirst + 1, N_in - 1, -1);  //Sort sequences after kfirst (query) in descending order
+    for (k = 0; k < N_in; ++k){
+        tmpSort[k].first = nres[k];
+        tmpSort[k].second = k;
+        //[k] = k;
+    }
+    //Sort sequences after query (first sequence) in descending order
+    struct sortPairDesc {
+        bool operator()(const std::pair<int,int> &left, const std::pair<int,int> &right) {
+            return left.second > right.second;
+        }
+    };
+    std::sort(tmpSort + 1, tmpSort + N_in, sortPairDesc());
+    for (k = 0; k < N_in; ++k) {
+        nres[k]= tmpSort[k].first ;
+        ksort[k] =  tmpSort[k].second;
+    }
+    delete [] tmpSort;
 
     for (kk = 0; kk < N_in; ++kk) {
         inkk[kk] = in[ksort[kk]];
