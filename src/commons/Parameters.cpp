@@ -601,7 +601,7 @@ void Parameters::setDefaults() {
     similarityScoreType=APC_SEQID;
 
     // workflow
-    runner = "";
+    runner = getenv("RUNNER");
 
     // Clustering workflow
     removeTmpFiles = false;
