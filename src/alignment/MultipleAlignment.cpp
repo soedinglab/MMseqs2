@@ -16,7 +16,6 @@ MultipleAlignment::MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, Substi
     this->maxSeqLen = maxSeqLen;
     this->maxMsaSeqLen = maxSeqLen * 2;
     this->maxSetSize = maxSetSize;
-    this->msaData = new char[maxMsaSeqLen * (maxSetSize+ 1) ];
     this->msaSequence = new char *[maxSetSize + 1];
     for(size_t i = 0; i <= maxSetSize; i++){
         this->msaSequence[i] = initX(maxSeqLen);
@@ -39,7 +38,6 @@ MultipleAlignment::~MultipleAlignment() {
     for(size_t i = 0; i <= maxSetSize; i++) {
         free(msaSequence[i]);
     }
-    delete [] msaData;
     delete [] msaSequence;
     delete [] queryGaps;
 }
