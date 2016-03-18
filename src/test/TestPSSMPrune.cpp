@@ -69,7 +69,7 @@ int main (int argc, const char * argv[])
         printf("\n");
     }
 
-    MsaFilter::MsaFilterResult filterResult = msaFilter.filter(res.msaSequence, res.setSize,
+    MsaFilter::MsaFilterResult filterResult = msaFilter.filter((const char**)res.msaSequence, res.setSize,
                                                                res.centerLength, 0, 0,- 20.0, 90, 100);
     std::cout << "Filtered:" << filterResult.setSize << std::endl;
 //    for(size_t k = 0; k < res.setSize; k++){
