@@ -27,10 +27,10 @@ public:
         size_t msaSequenceLength;
         size_t centerLength;
         size_t setSize;
-        const char ** msaSequence;
+        char ** msaSequence;
 
         MSAResult(size_t msaSequenceLength, size_t centerLength, size_t setSize, char **msa)
-                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence((const char **)msa) {}
+                : msaSequenceLength(msaSequenceLength), centerLength(centerLength), setSize(setSize), msaSequence(msa) {}
     };
 
 
@@ -47,12 +47,12 @@ public:
 
     MSAResult computeMSA(Sequence *pSequence, std::vector<Sequence *> vector, std::vector<Matcher::result_t> vector1,
                          bool i);
-
+    // clean memory for MSA
+    static void deleteMSA(MultipleAlignment::MSAResult * res);
 private:
     Matcher * aligner;
     BaseMatrix * subMat;
-    char *  msaData;
-    char ** msaSequence;
+
     size_t maxSeqLen;
     size_t maxSetSize;
     size_t maxMsaSeqLen;

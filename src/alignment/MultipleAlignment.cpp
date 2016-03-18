@@ -16,14 +16,10 @@ MultipleAlignment::MultipleAlignment(size_t maxSeqLen, size_t maxSetSize, Substi
     this->maxSeqLen = maxSeqLen;
     this->maxMsaSeqLen = maxSeqLen * 2;
     this->maxSetSize = maxSetSize;
-    this->msaSequence = new char *[maxSetSize + 1];
-    for(size_t i = 0; i <= maxSetSize; i++){
-        this->msaSequence[i] = initX(maxSeqLen);
-    }
+
     this->aligner = aligner;
     this->subMat = subMat;
     this->queryGaps = new unsigned int[maxMsaSeqLen];
-
 }
 
 char * MultipleAlignment::initX(int len) {
@@ -34,11 +30,15 @@ char * MultipleAlignment::initX(int len) {
     return ptr;
 }
 
-MultipleAlignment::~MultipleAlignment() {
-    for(size_t i = 0; i <= maxSetSize; i++) {
-        free(msaSequence[i]);
+void MultipleAlignment::deleteMSA(MultipleAlignment::MSAResult * res){
+    for(size_t i = 0; i < res->setSize; i++) {
+        free(res->msaSequence[i]);
     }
-    delete [] msaSequence;
+    delete [] res->msaSequence;
+}
+
+MultipleAlignment::~MultipleAlignment() {
+
     delete [] queryGaps;
 }
 
@@ -213,10 +213,15 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
 
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs,
                                                            std::vector<Matcher::result_t> alignmentResults, bool noDeletionMSA) {
-
     if(edgeSeqs.size() == 0 ){
         return singleSequenceMSA(centerSeq, edgeSeqs);
     }
+
+    char ** msaSequence = new char *[edgeSeqs.size() + 1];
+    for(size_t i = 0; i <= edgeSeqs.size(); i++){
+        msaSequence[i] = initX(centerSeq->L);
+    }
+
     if(edgeSeqs.size() != alignmentResults.size()){
         Debug(Debug::ERROR) << "edgeSeqs.size (" << edgeSeqs.size() << ") is != alignmentResults.size (" << alignmentResults.size() << ")" << "\n";
         EXIT(EXIT_FAILURE);
@@ -246,8 +251,10 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
     return MSAResult(centerSeqSize, centerSeq->L, edgeSeqs.size() + 1, msaSequence);
 }
 
-MultipleAlignment::MSAResult MultipleAlignment::singleSequenceMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs) {
+MultipleAlignment::MSAResult MultipleAlignment:: singleSequenceMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs) {
     size_t queryMSASize = 0;
+    char ** msaSequence = new char *[1];
+    msaSequence[0]=new char[centerSeq->L];
     for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
         if (queryMSASize >= maxMsaSeqLen) {
             Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";

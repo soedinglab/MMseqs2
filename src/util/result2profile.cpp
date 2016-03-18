@@ -171,7 +171,7 @@ int result2outputmode(Parameters &par, int mode) {
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-                if (key != queryId || !sameDatabase) {
+                if (key != queryId || sameDatabase == false) {
                     char *dbSeqData = tDbr->getDataByDBKey(key);
                     sequences[position]->mapSequence(0, key, dbSeqData);
                     seqSet.push_back(sequences[position]);
@@ -181,7 +181,7 @@ int result2outputmode(Parameters &par, int mode) {
             }
             MultipleAlignment::MSAResult res = computeAlignment(aligner, centerSequence, seqSet,
                                                                 alnResults, par.allowDeletion, sameDatabase);
-            MsaFilter::MsaFilterResult filterRes = filter.filter(res.msaSequence, res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
+            MsaFilter::MsaFilterResult filterRes = filter.filter((const char **)res.msaSequence, res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
                                                                  static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
 
             std::stringstream msa;
@@ -257,6 +257,7 @@ int result2outputmode(Parameters &par, int mode) {
             }
 
             writer.write(data, dataSize, SSTR(queryId).c_str(), thread_idx);
+            MultipleAlignment::deleteMSA(&res);
         }
 
         for (size_t i = 0; i < maxSetSize; i++) {
