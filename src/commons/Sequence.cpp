@@ -289,7 +289,7 @@ void Sequence::mapProteinSequence(const char * sequence){
     }
     if (atgcCnt >= l){
         Debug(Debug::WARNING) << "WARNING: Sequence (dbKey=" << dbKey
-        <<") just contains ATGC. It might be a nucleotide sequene.\n";
+        <<") contains only ATGC. It might be a nucleotide sequence.\n";
     }
     this->L = l;
 }
