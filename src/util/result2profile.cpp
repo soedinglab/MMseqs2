@@ -4,13 +4,9 @@
 #include <string>
 #include <vector>
 #include <sstream>
-#include <MsaFilter.h>
 
-#include "Matcher.h"
-#include "SubstitutionMatrix.h"
+#include "MsaFilter.h"
 #include "Parameters.h"
-#include "Sequence.h"
-#include "MultipleAlignment.h"
 #include "PSSMCalculator.h"
 #include "DBReader.h"
 #include "DBWriter.h"
@@ -28,9 +24,7 @@ enum {
     PSSM
 };
 
-
-
-size_t findMaxSetSize(DBReader<unsigned int>* reader) {
+size_t findMaxSetSize(DBReader<unsigned int> *reader) {
     //Find the max set size
     size_t maxSetSize = 0;
     for (size_t i = 0; i < reader->getSize(); i++) {
@@ -52,17 +46,16 @@ MultipleAlignment::MSAResult computeAlignment(MultipleAlignment &aligner, Sequen
                                               std::vector<Sequence *> seqSet,
                                               std::vector<Matcher::result_t> alnResults,
                                               bool allowDeletion, bool sameDatabase) {
-    if(alnResults.size()>0){
+    if (alnResults.size() > 0) {
         std::vector<Matcher::result_t> alnWithoutIdentity;
-        for(size_t i = 0; i < alnResults.size(); i++){
-            if(alnResults[i].dbKey == centerSequence->getDbKey() && sameDatabase == true){
-                ;
-            }else{
+        for (size_t i = 0; i < alnResults.size(); i++) {
+            if (alnResults[i].dbKey == centerSequence->getDbKey() && sameDatabase == true) { ;
+            } else {
                 alnWithoutIdentity.push_back(alnResults[i]);
             }
         }
         return aligner.computeMSA(centerSequence, seqSet, alnWithoutIdentity, !allowDeletion);
-    }else{
+    } else {
         return aligner.computeMSA(centerSequence, seqSet, !allowDeletion);
     }
 }
@@ -72,7 +65,7 @@ int result2outputmode(Parameters &par, int mode) {
     omp_set_num_threads(par.threads);
 #endif
 
-    DBReader<unsigned int>*qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qDbr->open(DBReader<unsigned int>::NOSORT);
 
     std::string headerName(par.db1);
@@ -81,17 +74,28 @@ int result2outputmode(Parameters &par, int mode) {
     std::string headerIndexName(par.db1);
     headerIndexName.append("_h.index");
 
-    DBReader<unsigned int>* queryHeaderReader = new DBReader<unsigned int>(headerName.c_str(), headerIndexName.c_str());
+    DBReader<unsigned int> *queryHeaderReader = new DBReader<unsigned int>(headerName.c_str(), headerIndexName.c_str());
     queryHeaderReader->open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int>*tDbr = qDbr;
-    DBReader<unsigned int>* tempateHeaderReader = queryHeaderReader;
+    DBReader<unsigned int> *tDbr = qDbr;
+    DBReader<unsigned int> *tempateHeaderReader = queryHeaderReader;
+
+    size_t maxSequenceLength = 0;
+    unsigned int *lengths = qDbr->getSeqLens();
+    for (size_t i = 0; i < qDbr->getSize(); i++) {
+        maxSequenceLength = std::max((size_t) lengths[i], maxSequenceLength);
+    }
 
     bool sameDatabase = true;
     if (par.db1.compare(par.db2) != 0) {
         sameDatabase = false;
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tDbr->open(DBReader<unsigned int>::NOSORT);
+
+        lengths = tDbr->getSeqLens();
+        for (size_t i = 0; i < tDbr->getSize(); i++) {
+            maxSequenceLength = std::max((size_t) lengths[i], maxSequenceLength);
+        }
 
         headerName = par.db2;
         headerName.append("_h");
@@ -103,17 +107,7 @@ int result2outputmode(Parameters &par, int mode) {
         tempateHeaderReader->open(DBReader<unsigned int>::NOSORT);
     }
 
-    size_t maxSequenceLength = 0;
-    unsigned int* lengths = qDbr->getSeqLens();
-    for (size_t i = 0; i < qDbr->getSize(); i++) {
-        maxSequenceLength = std::max((size_t) lengths[i], maxSequenceLength);
-    }
-    lengths = tDbr->getSeqLens();
-    for (size_t i = 0; i < tDbr->getSize(); i++) {
-        maxSequenceLength = std::max((size_t) lengths[i], maxSequenceLength);
-    }
-
-    DBReader<unsigned int>*resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
 //    FileUtil::errorIfFileExist(par.db4.c_str());
@@ -134,80 +128,90 @@ int result2outputmode(Parameters &par, int mode) {
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
         PSSMCalculator calculator(&subMat, maxSequenceLength, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
-        Sequence  *centerSequence;
-        if(par.profile == true){
-            centerSequence = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, 0, false, par.compBiasCorrection);
-        }else{
-            centerSequence = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0, false, par.compBiasCorrection);
+        int sequenceType = Sequence::AMINO_ACIDS;
+        if (par.profile == true) {
+            sequenceType = Sequence::HMM_PROFILE;
         }
-        Sequence **sequences = new Sequence *[maxSetSize];
-        for (size_t i = 0; i < maxSetSize; i++) {
-            sequences[i] = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 0,
-                                        false, false);
-        }
+        Sequence *centerSequence = new Sequence(maxSequenceLength, subMat.aa2int, subMat.int2aa,
+                                                sequenceType, 0, false, par.compBiasCorrection);
 
 #pragma omp for schedule(static)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
             Log::printProgress(id);
-            char * entry[255];
-            std::vector<Matcher::result_t> alnResults;
+
             int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
 #endif
-            char *results = resultReader->getData(id);
-            // check if already aligned results exists
-            size_t columns = Util::getWordsOfLine(results, entry, 255 );
-            if(columns == Matcher::ALN_RES_WITH_BT_COL_CNT){
-                alnResults = Matcher::readAlignmentResults(results);
-            }
-            unsigned int queryId = resultReader->getDbKey(id);
-            char *seqData = qDbr->getDataByDBKey(queryId);
-            centerSequence->mapSequence(0, queryId, seqData);
-            std::vector<Sequence *> seqSet;
-            size_t position = 0;
 
+            char *results = resultReader->getData(id);
             char dbKey[255 + 1];
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-                if (key != queryId || sameDatabase == false) {
-                    char *dbSeqData = tDbr->getDataByDBKey(key);
-                    sequences[position]->mapSequence(0, key, dbSeqData);
-                    seqSet.push_back(sequences[position]);
-                    position++;
+                tDbr->getDataByDBKey(key);
+                results = Util::skipLine(results);
+            }
+
+            // check if already aligned results exists
+            std::vector<Matcher::result_t> alnResults;
+            char *entry[255];
+            size_t columns = Util::getWordsOfLine(results, entry, 255);
+            if (columns == Matcher::ALN_RES_WITH_BT_COL_CNT) {
+                alnResults = Matcher::readAlignmentResults(results);
+            }
+
+            unsigned int queryKey = resultReader->getDbKey(id);
+            size_t queryId = qDbr->getId(queryKey);
+            char *seqData = qDbr->getData(queryId);
+            centerSequence->mapSequence(0, queryKey, seqData);
+
+            std::vector<Sequence *> seqSet;
+            while (*results != '\0') {
+                Util::parseKey(results, dbKey);
+                unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                if (key != queryKey || sameDatabase == false) {
+                    size_t edgeId = tDbr->getId(key);
+                    char *dbSeqData = tDbr->getData(edgeId);
+                    Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), subMat.aa2int, subMat.int2aa,
+                                                          Sequence::AMINO_ACIDS, 0, false, false);
+                    edgeSequence->mapSequence(0, key, dbSeqData);
+                    seqSet.push_back(edgeSequence);
                 }
                 results = Util::skipLine(results);
             }
+
             MultipleAlignment::MSAResult res = computeAlignment(aligner, centerSequence, seqSet,
                                                                 alnResults, par.allowDeletion, sameDatabase);
-            MsaFilter::MsaFilterResult filterRes = filter.filter((const char **)res.msaSequence, res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
-                                                                 static_cast<int>(par.qid * 100), par.qsc, static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
 
-            std::stringstream msa;
-            std::string result;
+            MsaFilter::MsaFilterResult filterRes = filter.filter((const char **) res.msaSequence, res.setSize,
+                                                                 res.centerLength, static_cast<int>(par.cov * 100),
+                                                                 static_cast<int>(par.qid * 100), par.qsc,
+                                                                 static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
+
             char *data;
             size_t dataSize;
             switch (mode) {
-                case MSA:
-                {
+                case MSA: {
+                    std::stringstream msa;
+                    std::string result;
                     for (size_t i = 0; i < filterRes.setSize; i++) {
                         unsigned int key;
-                        char* data;
-                        if(i == 0) {
-                            key = centerSequence->getDbKey();
+                        char *data;
+                        if (i == 0) {
+                            key = queryKey;
                             data = queryHeaderReader->getDataByDBKey(key);
                         } else {
-                            key =  sequences[i - 1]->getDbKey();
+                            key = seqSet[i - 1]->getDbKey();
                             data = tempateHeaderReader->getDataByDBKey(key);
                         }
-                        if(par.addInternalId){
-                            msa << "#" << key  << "\n";
+                        if (par.addInternalId) {
+                            msa << "#" << key << "\n";
                         }
                         msa << ">" << data;
-                        for(size_t pos = 0; pos < res.centerLength; pos++){
+                        for (size_t pos = 0; pos < res.centerLength; pos++) {
                             char aa = filterRes.filteredMsaSequence[i][pos];
-                            msa << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-');
+                            msa << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
                         }
                         msa << "\n";
                     }
@@ -216,34 +220,33 @@ int result2outputmode(Parameters &par, int mode) {
                     dataSize = result.length();
                 }
                     break;
-                case PSSM:
-                {   
-/*                  std::cout << centerSequence->getDbKey() << " " << res.setSize <<  std::endl;;
-                    for (size_t i = 0; i < res.setSize; i++) {
-                       for(size_t pos = 0; pos < res.msaSequenceLength; pos++){
-                              char aa = res.msaSequence[i][pos];
-                              std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-');
-                       }
-                       std::cout << std::endl;
-                    }
-*/
-//                    if(par.pruneSequences){
-//                        filter.pruneAlignment((char**)res.msaSequence, res.setSize, res.centerLength);
+                case PSSM: {
+//                    std::cout << centerSequence->getDbKey() << " " << res.setSize << std::endl;;
+//                    for (size_t i = 0; i < res.setSize; i++) {
+//                        for (size_t pos = 0; pos < res.msaSequenceLength; pos++) {
+//                            char aa = res.msaSequence[i][pos];
+//                            std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
+//                        }
+//                        std::cout << std::endl;
+//                    }
+//
+//                    if (par.pruneSequences) {
+//                        filter.pruneAlignment((char **) res.msaSequence, res.setSize, res.centerLength);
+//                    }
+//
+//                    std::cout << centerSequence->getDbKey() << " " << res.setSize << " " << filterRes.setSize <<
+//                    std::endl;
+//                    for (size_t i = 0; i < filterRes.setSize; i++) {
+//                        for (size_t pos = 0; pos < res.msaSequenceLength; pos++) {
+//                            char aa = filterRes.filteredMsaSequence[i][pos];
+//                            std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
+//                        }
+//                        std::cout << std::endl;
 //                    }
 
-/*                  std::cout << centerSequence->getDbKey() << " " << res.setSize << " " << filterRes.setSize << std::endl;
-		    for (size_t i = 0; i < filterRes.setSize; i++) {
-                       for(size_t pos = 0; pos < res.msaSequenceLength; pos++){
-                              char aa = filterRes.filteredMsaSequence[i][pos];
-                              std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-');
-                       }
-                       std::cout << std::endl;
-                    }
-*/		    
-		    data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
+                    data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
                                                                   filterRes.filteredMsaSequence, par.wg);
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
-
                     for (size_t i = 0; i < dataSize; i++) {
                         // Avoid a null byte result
                         data[i] = data[i] ^ 0x80;
@@ -256,14 +259,13 @@ int result2outputmode(Parameters &par, int mode) {
                     EXIT(EXIT_FAILURE);
             }
 
-            writer.write(data, dataSize, SSTR(queryId).c_str(), thread_idx);
+            writer.write(data, dataSize, SSTR(queryKey).c_str(), thread_idx);
             MultipleAlignment::deleteMSA(&res);
+            for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
+                Sequence *seq = *it;
+                delete seq;
+            }
         }
-
-        for (size_t i = 0; i < maxSetSize; i++) {
-            delete sequences[i];
-        }
-        delete[] sequences;
         delete centerSequence;
     }
 
@@ -281,8 +283,8 @@ int result2outputmode(Parameters &par, int mode) {
     }
 
     queryHeaderReader->close();
-    delete queryHeaderReader;
     qDbr->close();
+    delete queryHeaderReader;
     delete qDbr;
 
     Debug(Debug::INFO) << "\nDone.\n";
