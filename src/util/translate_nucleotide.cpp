@@ -45,16 +45,18 @@ int translatenucleotide(int argn, const char **argv)
         
         // ignore null char at the end
         unsigned int length = reader.getSeqLens(i) - 1;
-        
+
+        if((data[length] != '\n' && length % 3 != 0) && (data[length - 1] == '\n' && (length - 1) % 3 != 0)) {
+            Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is not divisible by three. Adjust length to (lenght=" <<  length - (length % 3) << ").\n";
+            length = length - (length % 3);
+        }
+
         if(length < 3)  {
             Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is too short. Skipping entry.\n";
             continue;
         }
 
-        if((data[length] != '\n' && length % 3 != 0) && (data[length - 1] == '\n' && (length - 1) % 3 != 0)) {
-            Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is not divisible by three. Skipping entry.\n";
-            continue;
-        }
+
         
         char* aa = new char[length/3 + 1];
 
