@@ -27,6 +27,13 @@ int translatenucleotide(int argn, const char **argv)
     std::string in_header_index_filename = std::string(par.db1 + "_h.index");
     std::string out_header_filename  = std::string(par.db2 + "_h");
     std::string out_header_index_filename = std::string(par.db2 + "_h.index");
+
+    // set links to header
+    Debug(Debug::INFO) << "Set sym link from " << in_header_filename << " to " << out_header_filename << "\n";
+    symlink(in_header_filename.c_str(), out_header_filename.c_str());
+    Debug(Debug::INFO) << "Set sym link from " << in_header_index_filename << " to " << out_header_index_filename << "\n";
+    symlink(in_header_index_filename.c_str(), out_header_index_filename.c_str());
+
     DBReader<std::string> reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader<std::string>::NOSORT);
     
@@ -147,11 +154,7 @@ int translatenucleotide(int argn, const char **argv)
 
     writer.close();
     reader.close();
-    // set links to header
-    Debug(Debug::INFO) << "Set sym link from " << in_header_filename << " to " << out_header_filename << "\n";
-    symlink(in_header_filename.c_str(), out_header_filename.c_str());
-    Debug(Debug::INFO) << "Set sym link from " << in_header_index_filename << " to " << out_header_index_filename << "\n";
-    symlink(in_header_index_filename.c_str(), out_header_index_filename.c_str());
+
     return EXIT_SUCCESS;
 }
 
