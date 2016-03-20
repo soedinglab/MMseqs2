@@ -1,5 +1,7 @@
 #include <unistd.h>
 #include <string>
+#include <limits.h>
+#include <stdlib.h>
 
 #include "Parameters.h"
 #include "DBReader.h"
@@ -30,9 +32,13 @@ int translatenucleotide(int argn, const char **argv)
 
     // set links to header
     Debug(Debug::INFO) << "Set sym link from " << in_header_filename << " to " << out_header_filename << "\n";
-    symlink(in_header_filename.c_str(), out_header_filename.c_str());
+    char *abs_in_header_filename = realpath(in_header_filename.c_str(), NULL);
+    symlink(abs_in_header_filename, out_header_filename.c_str());
+    free(abs_in_header_filename);
+    char *abs_in_header_index_filename = realpath(in_header_index_filename.c_str(), NULL);
     Debug(Debug::INFO) << "Set sym link from " << in_header_index_filename << " to " << out_header_index_filename << "\n";
-    symlink(in_header_index_filename.c_str(), out_header_index_filename.c_str());
+    symlink(abs_in_header_index_filename, out_header_index_filename.c_str());
+    free(abs_in_header_index_filename);
 
     DBReader<std::string> reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader<std::string>::NOSORT);
