@@ -147,12 +147,12 @@ int translatenucleotide(int argn, const char **argv)
         writer.write(aa, (length / 3) + 1, (char*)key.c_str());
         delete[] aa;
     }
+
+    writer.close();
+    reader.close();
     // set links to header
     symlink(in_header_filename, out_header_filename);
     symlink(in_header_index_filename, out_header_index_filename);
-    writer.close();
-    reader.close();
-    
     return EXIT_SUCCESS;
 }
 
