@@ -44,7 +44,8 @@ int translatenucleotide(int argn, const char **argv)
         char* data = reader.getData(i);
         
         // ignore null char at the end
-        unsigned int length = reader.getSeqLens(i) - 1;
+        // needs to be int in order to be able to check
+        int length = reader.getSeqLens(i) - 1;
 
         if((data[length] != '\n' && length % 3 != 0) && (data[length - 1] == '\n' && (length - 1) % 3 != 0)) {
             Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is not divisible by three. Adjust length to (lenght=" <<  length - (length % 3) << ").\n";
@@ -151,7 +152,9 @@ int translatenucleotide(int argn, const char **argv)
     writer.close();
     reader.close();
     // set links to header
+    Debug(Debug::INFO) << "Set sym link from " << in_header_filename << " to " << out_header_filename << "\n";
     symlink(in_header_filename, out_header_filename);
+    Debug(Debug::INFO) << "Set sym link from " << in_header_index_filename << " to " << out_header_index_filename << "\n";
     symlink(in_header_index_filename, out_header_index_filename);
     return EXIT_SUCCESS;
 }
