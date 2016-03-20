@@ -254,7 +254,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 MultipleAlignment::MSAResult MultipleAlignment:: singleSequenceMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs) {
     size_t queryMSASize = 0;
     char ** msaSequence = new char *[1];
-    msaSequence[0]=new char[centerSeq->L];
+    msaSequence[0] = initX(centerSeq->L);
     for(int queryPos = 0; queryPos < centerSeq->L; queryPos++) {
         if (queryMSASize >= maxMsaSeqLen) {
             Debug(Debug::ERROR) << "queryMSASize (" << queryMSASize << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";
