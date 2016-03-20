@@ -113,9 +113,15 @@ int result2outputmode(Parameters &par, int mode) {
 //    FileUtil::errorIfFileExist(par.db4.c_str());
 //    FileUtil::errorIfFileExist(par.db4Index.c_str());
 
-    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
-    writer.open();
-
+    DBWriter profileWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
+    profileWriter.open();
+    DBWriter * concensusWriter;
+    if(mode == PSSM) {
+        concensusWriter = new DBWriter(std::string(par.db4 + "_consensus").c_str(),
+                                       std::string(par.db4 + "_consensus.index").c_str(),
+                                       par.threads, DBWriter::ASCII_MODE);
+        concensusWriter->open();
+    }
     size_t maxSetSize = findMaxSetSize(resultReader);
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
@@ -244,13 +250,39 @@ int result2outputmode(Parameters &par, int mode) {
 //                        std::cout << std::endl;
 //                    }
 
-                    data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
+/*                  std::cout << centerSequence->getDbKey() << " " << res.setSize << " " << filterRes.setSize << std::endl;
+		    for (size_t i = 0; i < filterRes.setSize; i++) {
+                       for(size_t pos = 0; pos < res.msaSequenceLength; pos++){
+                              char aa = filterRes.filteredMsaSequence[i][pos];
+                              std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-');
+                       }
+                       std::cout << std::endl;
+                    }
+*/		    
+		            data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
                                                                   filterRes.filteredMsaSequence, par.wg);
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
+
+                    std::string consensusStr;
+                    for(size_t i = 0; i < res.centerLength; i++){
+                        int maxScore = INT_MIN;
+                        int maxAA = 0;
+                        for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
+                            if(static_cast<int>(data[i * Sequence::PROFILE_AA_SIZE + aa ]) > maxScore){
+                                maxScore = data[i * Sequence::PROFILE_AA_SIZE + aa ];
+                                maxAA = aa;
+                            }
+                        }
+                        consensusStr.push_back(subMat.int2aa[maxAA]);
+                    }
+                    consensusStr.push_back('\n');
+                    concensusWriter->write(consensusStr.c_str(), consensusStr.length(), SSTR(queryId).c_str(), thread_idx);
+
                     for (size_t i = 0; i < dataSize; i++) {
                         // Avoid a null byte result
                         data[i] = data[i] ^ 0x80;
                     }
+
                     //pssm.printProfile(res.centerLength);
                     //calculator.printPSSM(res.centerLength);
                 }
@@ -259,7 +291,8 @@ int result2outputmode(Parameters &par, int mode) {
                     EXIT(EXIT_FAILURE);
             }
 
-            writer.write(data, dataSize, SSTR(queryKey).c_str(), thread_idx);
+            profileWriter.write(data, dataSize, SSTR(queryId).c_str(), thread_idx);
+
             MultipleAlignment::deleteMSA(&res);
             for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
                 Sequence *seq = *it;
@@ -270,8 +303,11 @@ int result2outputmode(Parameters &par, int mode) {
     }
 
     // cleanup
-    writer.close();
-
+    profileWriter.close();
+    if(mode == PSSM){
+        concensusWriter->close();
+        delete concensusWriter;
+    }
     resultReader->close();
     delete resultReader;
 

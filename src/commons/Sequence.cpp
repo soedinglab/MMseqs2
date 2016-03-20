@@ -269,6 +269,7 @@ void Sequence::mapProteinSequence(const char * sequence){
                 case 'O': this->int_sequence[l] = this->aa2int[(int)'X']; break;
                 case 'Z': this->int_sequence[l] = this->aa2int[(int)'E']; break;
                 case 'B': this->int_sequence[l] = this->aa2int[(int)'D']; break;
+                case '*':
                 case '-':
                 case '.': this->int_sequence[l] = this->aa2int[(int)'X']; break;
                 default:

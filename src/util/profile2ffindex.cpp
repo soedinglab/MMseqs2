@@ -4,6 +4,8 @@
 // MMseqs just stores the position specific score in 1 byte
 //
 #include <unistd.h>
+#include <limits.h>
+#include <stdlib.h>
 #include "SubstitutionMatrix.h"
 #include "Parameters.h"
 #include "Sequence.h"
@@ -211,9 +213,12 @@ int createprofiledb(int argn, const char **argv) {
         header.clear();
     }
     delete[] profileBuffer;
-    symlink(headerFileName.c_str(), std::string(par.db2 +"_seq_h").c_str());
-    symlink(headerIndexFileName.c_str(), std::string(par.db2 +"_seq_h.index").c_str());
-
+    char *absHeaderFileName = realpath(headerFileName.c_str(), NULL);
+    symlink(absHeaderFileName, std::string(par.db2 +"_seq_h").c_str());
+    free(absHeaderFileName);
+    char *absHeaderIndexFileName = realpath(headerIndexFileName.c_str(), NULL);
+    symlink(absHeaderIndexFileName, std::string(par.db2 +"_seq_h.index").c_str());
+    free(absHeaderIndexFileName);
     headerOut.close();
     dataOut.close();
     seqOut.close();

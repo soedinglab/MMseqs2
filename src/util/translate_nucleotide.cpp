@@ -1,5 +1,7 @@
 #include <unistd.h>
 #include <string>
+#include <limits.h>
+#include <stdlib.h>
 
 #include "Parameters.h"
 #include "DBReader.h"
@@ -23,18 +25,25 @@ int translatenucleotide(int argn, const char **argv)
     Parameters par;
     par.parseParameters(argn, argv, usage, par.translateNucleotide, 2);
 
-    const char* in_filename = par.db1.c_str();
-    const char* in_index_filename = par.db1Index.c_str();
-    const char* in_header_filename = std::string(par.db1 + "_h").c_str();
-    const char* in_header_index_filename = std::string(par.db1 + "_h.index").c_str();
-    const char *out_filename  = par.db2.c_str();
-    const char *out_index_filename = par.db2Index.c_str();
-    const char *out_header_filename  = std::string(par.db2 + "_h").c_str();
-    const char *out_header_index_filename = std::string(par.db2 + "_h.index").c_str();
-    DBReader<std::string> reader(in_filename, in_index_filename);
+    std::string in_header_filename = std::string(par.db1 + "_h");
+    std::string in_header_index_filename = std::string(par.db1 + "_h.index");
+    std::string out_header_filename  = std::string(par.db2 + "_h");
+    std::string out_header_index_filename = std::string(par.db2 + "_h.index");
+
+    // set links to header
+    Debug(Debug::INFO) << "Set sym link from " << in_header_filename << " to " << out_header_filename << "\n";
+    char *abs_in_header_filename = realpath(in_header_filename.c_str(), NULL);
+    symlink(abs_in_header_filename, out_header_filename.c_str());
+    free(abs_in_header_filename);
+    char *abs_in_header_index_filename = realpath(in_header_index_filename.c_str(), NULL);
+    Debug(Debug::INFO) << "Set sym link from " << in_header_index_filename << " to " << out_header_index_filename << "\n";
+    symlink(abs_in_header_index_filename, out_header_index_filename.c_str());
+    free(abs_in_header_index_filename);
+
+    DBReader<std::string> reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader<std::string>::NOSORT);
     
-    DBWriter writer(out_filename, out_index_filename);
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str());
     writer.open();
     
     size_t entries = reader.getSize();
@@ -44,17 +53,20 @@ int translatenucleotide(int argn, const char **argv)
         char* data = reader.getData(i);
         
         // ignore null char at the end
-        unsigned int length = reader.getSeqLens(i) - 1;
-        
+        // needs to be int in order to be able to check
+        int length = reader.getSeqLens(i) - 1;
+
+        if((data[length] != '\n' && length % 3 != 0) && (data[length - 1] == '\n' && (length - 1) % 3 != 0)) {
+            Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is not divisible by three. Adjust length to (lenght=" <<  length - (length % 3) << ").\n";
+            length = length - (length % 3);
+        }
+
         if(length < 3)  {
             Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is too short. Skipping entry.\n";
             continue;
         }
 
-        if((data[length] != '\n' && length % 3 != 0) && (data[length - 1] == '\n' && (length - 1) % 3 != 0)) {
-            Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is not divisible by three. Skipping entry.\n";
-            continue;
-        }
+
         
         char* aa = new char[length/3 + 1];
 
@@ -145,12 +157,10 @@ int translatenucleotide(int argn, const char **argv)
         writer.write(aa, (length / 3) + 1, (char*)key.c_str());
         delete[] aa;
     }
-    // set links to header
-    symlink(in_header_filename, out_header_filename);
-    symlink(in_header_index_filename, out_header_index_filename);
+
     writer.close();
     reader.close();
-    
+
     return EXIT_SUCCESS;
 }
 
