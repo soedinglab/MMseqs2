@@ -205,7 +205,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
             thread_idx = omp_get_thread_num();
 #endif
             // get the prefiltering list
-            char* prefList = prefdbr->getData(id);
+            char* data = prefdbr->getData(id);
             unsigned int queryDbKey = prefdbr->getDbKey(id);
             // map the query sequence
             char* querySeqData = qseqdbr->getDataByDBKey(queryDbKey);
@@ -223,22 +223,16 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
             matchers[thread_idx]->initQuery(qSeqs[thread_idx]);
             // parse the prefiltering list and calculate a Smith-Waterman alignment for each sequence in the list
             std::vector<Matcher::result_t> swResults;
-            std::stringstream lineSs (prefList);
-            std::string val;
             size_t passedNum = 0;
             unsigned int rejected = 0;
-            while (std::getline(lineSs, val, '\t') && passedNum < maxAlnNum && rejected < maxRejected){
+            while (*data != '\0' && passedNum < maxAlnNum && rejected < maxRejected){
                 // DB key of the db sequence
-                unsigned int dbKey = (unsigned int) std::strtoul(val.c_str(), NULL, 10);
+                char dbKeyBuffer[255 + 1];
+                Util::parseKey(data, dbKeyBuffer);
+                const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
                 dbKeys[thread_idx] = dbKey;
                 // sequence are identical if qID == dbID  (needed to cluster really short sequences)
                 const bool isIdentity = (queryDbKey == dbKey && sameQTDB) ? true : false;
-                // prefiltering score
-                std::getline(lineSs, val, '\t');
-                //float prefScore = atof(val.c_str());
-                // prefiltering e-value
-                std::getline(lineSs, val, '\n');
-                //float prefEval = atof(val.c_str());
 
                 // map the database sequence
                 char* dbSeqData = tseqdbr->getDataByDBKey(dbKeys[thread_idx]);
@@ -289,6 +283,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 else{
                     rejected++;
                 }
+                data = Util::skipLine(data);
             }
             // write the results
             std::sort(swResults.begin(), swResults.end(), Matcher::compareHits);
