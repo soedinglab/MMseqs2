@@ -153,7 +153,7 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
             return left.second > right.second;
         }
     };
-    std::sort(tmpSort + 1, tmpSort + N_in, sortPairDesc());
+    std::stable_sort(tmpSort + 1, tmpSort + N_in, sortPairDesc());
     for (k = 0; k < N_in; ++k) {
         nres[k]= tmpSort[k].first ;
         ksort[k] =  tmpSort[k].second;
