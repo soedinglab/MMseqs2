@@ -28,7 +28,7 @@ int createfasta (int argc, const char * argv[])
 
     Debug(Debug::WARNING) << "Data file is " << par.db3 << "\n";
     DBReader<std::string> dbr_data( par.db3.c_str(), std::string( par.db3+".index").c_str());
-    dbr_data.open(DBReader<std::string>::LINEAR_ACCCESS);
+    dbr_data.open(DBReader<std::string>::NOSORT);
 
     FILE *fastaFP =  fopen(par.db4.c_str(), "w");
     char header_start[] = {'>'};
