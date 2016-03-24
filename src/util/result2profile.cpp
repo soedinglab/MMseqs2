@@ -144,20 +144,12 @@ int result2outputmode(Parameters &par, int mode) {
 #pragma omp for schedule(static)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
             Log::printProgress(id);
-
             int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
 #endif
-
             char *results = resultReader->getData(id);
             char dbKey[255 + 1];
-            while (*results != '\0') {
-                Util::parseKey(results, dbKey);
-                unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-                tDbr->getDataByDBKey(key);
-                results = Util::skipLine(results);
-            }
 
             // check if already aligned results exists
             std::vector<Matcher::result_t> alnResults;
@@ -168,14 +160,14 @@ int result2outputmode(Parameters &par, int mode) {
             }
 
             unsigned int queryKey = resultReader->getDbKey(id);
-            size_t queryId = qDbr->getId(queryKey);
-            char *seqData = qDbr->getData(queryId);
+            char *seqData = qDbr->getDataByDBKey(queryKey);
             centerSequence->mapSequence(0, queryKey, seqData);
 
             std::vector<Sequence *> seqSet;
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                // just add sequences if its not the same as the query in case of sameDatabase
                 if (key != queryKey || sameDatabase == false) {
                     size_t edgeId = tDbr->getId(key);
                     char *dbSeqData = tDbr->getData(edgeId);
@@ -189,7 +181,7 @@ int result2outputmode(Parameters &par, int mode) {
 
             MultipleAlignment::MSAResult res = computeAlignment(aligner, centerSequence, seqSet,
                                                                 alnResults, par.allowDeletion, sameDatabase);
-
+            //MultipleAlignment::print(res, &subMat);
             MsaFilter::MsaFilterResult filterRes = filter.filter((const char **) res.msaSequence, res.setSize,
                                                                  res.centerLength, static_cast<int>(par.cov * 100),
                                                                  static_cast<int>(par.qid * 100), par.qsc,
@@ -197,10 +189,11 @@ int result2outputmode(Parameters &par, int mode) {
 
             char *data;
             size_t dataSize;
+            std::stringstream msa;
+            std::string result;
             switch (mode) {
                 case MSA: {
-                    std::stringstream msa;
-                    std::string result;
+
                     for (size_t i = 0; i < filterRes.setSize; i++) {
                         unsigned int key;
                         char *data;
@@ -276,7 +269,7 @@ int result2outputmode(Parameters &par, int mode) {
                         consensusStr.push_back(subMat.int2aa[maxAA]);
                     }
                     consensusStr.push_back('\n');
-                    concensusWriter->write(consensusStr.c_str(), consensusStr.length(), SSTR(queryId).c_str(), thread_idx);
+                    concensusWriter->write(consensusStr.c_str(), consensusStr.length(), SSTR(queryKey).c_str(), thread_idx);
 
                     for (size_t i = 0; i < dataSize; i++) {
                         // Avoid a null byte result
@@ -291,7 +284,7 @@ int result2outputmode(Parameters &par, int mode) {
                     EXIT(EXIT_FAILURE);
             }
 
-            profileWriter.write(data, dataSize, SSTR(queryId).c_str(), thread_idx);
+            profileWriter.write(data, dataSize, SSTR(queryKey).c_str(), thread_idx);
 
             MultipleAlignment::deleteMSA(&res);
             for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
