@@ -123,7 +123,7 @@ int result2outputmode(Parameters &par, int mode) {
         concensusWriter->open();
     }
     size_t maxSetSize = findMaxSetSize(resultReader);
-
+    // adjust score of each match state by -0.2 to trim alignment
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
     Debug(Debug::INFO) << "Start computing " << (!mode ? "MSAs" : "profiles") << ".\n";
 #pragma omp parallel
@@ -167,8 +167,14 @@ int result2outputmode(Parameters &par, int mode) {
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-                // just add sequences if its not the same as the query in case of sameDatabase
-                if (key != queryKey || sameDatabase == false) {
+                double evalue = 0.0;
+                size_t columns = Util::getWordsOfLine(results, entry, 255);
+                // its an aln result
+                if(columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT){
+                    evalue = strtod (entry[3], NULL);
+                }
+                // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
+                if ( evalue <= par.evalProfile && (key != queryKey || sameDatabase == false) ) {
                     size_t edgeId = tDbr->getId(key);
                     char *dbSeqData = tDbr->getData(edgeId);
                     Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), subMat.aa2int, subMat.int2aa,
