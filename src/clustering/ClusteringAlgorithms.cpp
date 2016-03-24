@@ -58,7 +58,7 @@ std::map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute
     std::fill_n(assignedcluster, dbSize, UINT_MAX);
     short *bestscore = new(std::nothrow) short[dbSize];
     Util::checkAllocation(bestscore, "Could not allocate bestscore memory in ClusteringAlgorithms::execute");
-    std::fill_n(bestscore, dbSize, -10);
+    std::fill_n(bestscore, dbSize, SHRT_MIN);
     readInClusterData(elementLookupTable, elements, scoreLookupTable, score, elementOffsets, elementCount);
     //time
     if (mode==2){
@@ -277,7 +277,6 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     //time
     struct timeval start, end;
     gettimeofday(&start, NULL);
-
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         const unsigned int clusterId = seqDbr->getDbKey(i);
