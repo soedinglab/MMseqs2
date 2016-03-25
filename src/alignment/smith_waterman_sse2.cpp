@@ -276,7 +276,7 @@ uint32_t SmithWaterman::cigar_int_to_len (uint32_t cigar_int)
 SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequence,
 														   int8_t ref_dir,	// 0: forward ref; 1: reverse ref
 														   int32_t db_length,
-														   int32_t query_lenght,
+														   int32_t query_length,
 														   const uint8_t gap_open, /* will be used as - */
 														   const uint8_t gap_extend, /* will be used as - */
 														   const simd_int* query_profile_byte,
@@ -289,10 +289,10 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 #define max16(m, vm) ((m) = simdi8_hmax((vm)));
 
 	uint8_t max = 0;		                     /* the max alignment score */
-	int32_t end_query = query_lenght - 1;
+	int32_t end_query = query_length - 1;
 	int32_t end_db = -1; /* 0_based best alignment ending point; Initialized as isn't aligned -1. */
 	const int SIMD_SIZE = VECSIZE_INT * 4;
-	int32_t segLen = (query_lenght + SIMD_SIZE-1) / SIMD_SIZE; /* number of segment */
+	int32_t segLen = (query_length + SIMD_SIZE-1) / SIMD_SIZE; /* number of segment */
 	/* array to record the largest score of each reference position */
 	memset(this->maxColumn, 0, db_length * sizeof(uint8_t));
 	uint8_t * maxColumn = (uint8_t *) this->maxColumn;
@@ -322,9 +322,9 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_byte (const int* db_sequenc
 	simd_int vMaxMark = vZero; /* Trace the highest score till the previous column. */
 	simd_int vTemp;
 	int32_t edge, begin = 0, end = db_length, step = 1;
-	//	int32_t distance = query_lenght * 2 / 3;
-	//	int32_t distance = query_lenght / 2;
-	//	int32_t distance = query_lenght;
+	//	int32_t distance = query_length * 2 / 3;
+	//	int32_t distance = query_length / 2;
+	//	int32_t distance = query_length;
 
 	/* outer loop to process the reference sequence */
 	if (ref_dir == 1) {
