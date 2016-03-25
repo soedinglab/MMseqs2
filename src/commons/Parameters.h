@@ -337,6 +337,7 @@ public:
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> swapresults;
     std::vector<MMseqsParameter> substractresult;
+    std::vector<MMseqsParameter> result2newick;
 
     std::vector<MMseqsParameter> evaluationscores;
 
