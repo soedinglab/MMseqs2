@@ -35,7 +35,7 @@ Parameters::Parameters():
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, ""),
 // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "Alignment mode 0=fastest based on parameters, 1=score; 2=score,cov,start/end pos; 3=score,cov,start/end pos,seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$"),
-        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "Maximum e-value[0.0,1.0]",typeid(float), (void *) &evalThr, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "Maximum e-value[0.0,1.0]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$"),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "Minimum alignment coverage [0.0,1.0]",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$"),
         PARAM_FRAG_MERGE(PARAM_FRAG_MERGE_ID,"--frag-merge", "Detect fragments", "Add Hits with cov > 0.95 and seq. id > 0.90",typeid(bool), (void *) &fragmentMerge, ""),
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "Maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$"),
@@ -58,6 +58,7 @@ Parameters::Parameters():
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "Allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "Add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, ""),
 // result2profile
+        PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "Includes sequences with < e-value thr. into the profile [0.0,1.0]", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum sequence identity threshold", "Maximum sequence identity with all other sequences in alignment [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_FILTER_QSC(PARAM_FILTER_QSC_ID, "--qsc", "Minimum score per column", "Minimum score per column with master sequence [-50.0,100.0]", typeid(float), (void*) &qsc, "^\\-*[0-9]*(\\.[0-9]+)?$"),
         PARAM_FILTER_QID(PARAM_FILTER_QID_ID, "--qid", "Minimum seq. id.", "Minimum sequence identity with master sequence [0.0,1.0]", typeid(float), (void*) &qid, "^[0-9]*(\\.[0-9]+)?$"),
@@ -158,6 +159,7 @@ Parameters::Parameters():
     // result2profile
     result2profile.push_back(PARAM_SUB_MAT);
     result2profile.push_back(PARAM_PROFILE);
+    result2profile.push_back(PARAM_E_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
     result2profile.push_back(PARAM_WG);
     result2profile.push_back(PARAM_FILTER_MAX_SEQ_ID);
@@ -176,6 +178,8 @@ Parameters::Parameters():
     formatalignment.push_back(PARAM_V);
     // result2msa
     result2msa.push_back(PARAM_SUB_MAT);
+    result2msa.push_back(PARAM_PROFILE);
+    result2msa.push_back(PARAM_E_PROFILE);
     result2msa.push_back(PARAM_ALLOW_DELETION);
     result2msa.push_back(PARAM_ADD_INTERNAL_ID);
     result2msa.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -184,7 +188,6 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_FILTER_QSC);
     result2msa.push_back(PARAM_FILTER_COV);
     result2msa.push_back(PARAM_FILTER_NDIFF);
-    result2msa.push_back(PARAM_PROFILE);
     result2msa.push_back(PARAM_THREADS);
     result2msa.push_back(PARAM_V);
 
@@ -391,7 +394,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
-                            *((float *) par[parIdx].value) = atof(pargv[argIdx+1]);
+                            double input = strtod(pargv[argIdx+1], NULL);
+                            *((float *) par[parIdx].value) = static_cast<float>(input);
                             par[parIdx].wasSet = true;
                         }
                         argIdx++;
@@ -628,6 +632,7 @@ void Parameters::setDefaults() {
     allowDeletion = false;
     addInternalId = false;
     // result2profile
+    evalProfile = evalThr;
     filterMaxSeqId = 0.9;
     qid = 0.0;           // default for minimum sequence identity with query
     qsc = -20.0f;        // default for minimum score per column with query

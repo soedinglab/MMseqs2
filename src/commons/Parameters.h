@@ -152,6 +152,7 @@ public:
 
     // result2profile
     float filterMaxSeqId;
+    float evalProfile;
     float qsc;
     float qid;
     float cov;
@@ -261,6 +262,7 @@ public:
     PARAMETER(PARAM_ADD_INTERNAL_ID)
 
     // result2profile
+    PARAMETER(PARAM_E_PROFILE)
     PARAMETER(PARAM_FILTER_MAX_SEQ_ID)
     PARAMETER(PARAM_FILTER_QSC)
     PARAMETER(PARAM_FILTER_QID)
