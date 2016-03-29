@@ -34,9 +34,9 @@ int createfasta (int argc, const char * argv[])
     char header_start[] = {'>'};
     char newline[] = {'\n'};
     Debug(Debug::WARNING) << "Start writing file to " << par.db4 << "\n";
-    char * dbKey = new char[par.maxSeqLen];
+    char * dbKey = new char[par.maxSeqLen * 20];
     for(size_t i = 0; i < dbr_data.getSize(); i++){
-        
+
         fwrite(header_start, sizeof(char), 1, fastaFP);
         std::string key = dbr_data.getDbKey(i);
 
@@ -55,9 +55,15 @@ int createfasta (int argc, const char * argv[])
                 dataStr = Util::parseFastaHeader(header_data);
             }else{
                 dataStr = Util::parseFastaHeader(data);
+                if(dataStr.length() > 0){
+                    if(dataStr[dataStr.length()-1] != '\n'){
+                        dataStr.push_back('\n');
+                    }
+                }
             }
-
+            std::cout << dataStr << std::endl;
             fwrite(dataStr.c_str(), sizeof(char), dataStr.length(), fastaFP);
+            dataStr.clear();
             data = Util::skipLine(data);
         }
     }
