@@ -143,6 +143,7 @@ std::string Util::parseFastaHeader(std::string header){
 
     }
     arr = Util::split(header," ");
+    arr = Util::split(arr[0],"\n");
     return arr[0];
 }
 
