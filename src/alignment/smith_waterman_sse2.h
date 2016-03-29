@@ -213,7 +213,7 @@ private:
     alignment_end* sw_sse2_byte (const int*db_sequence,
                                  int8_t ref_dir,	// 0: forward ref; 1: reverse ref
                                  int32_t db_length,
-                                 int32_t query_lenght,
+                                 int32_t query_length,
                                  const uint8_t gap_open, /* will be used as - */
                                  const uint8_t gap_extend, /* will be used as - */
                                  const simd_int* query_profile_byte,

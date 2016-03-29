@@ -284,6 +284,10 @@ Parameters::Parameters():
     detectredundancy.push_back(PARAM_THREADS);
     detectredundancy.push_back(PARAM_V);
 
+    // result2newick
+    result2newick.push_back(PARAM_THREADS);
+    result2newick.push_back(PARAM_V);
+
     checkSaneEnvironment();
     setDefaults();
 }
