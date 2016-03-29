@@ -153,11 +153,7 @@ int result2outputmode(Parameters &par, int mode) {
 
             // check if already aligned results exists
             std::vector<Matcher::result_t> alnResults;
-            char *entry[255];
-            size_t columns = Util::getWordsOfLine(results, entry, 255);
-            if (columns == Matcher::ALN_RES_WITH_BT_COL_CNT) {
-                alnResults = Matcher::readAlignmentResults(results);
-            }
+
 
             unsigned int queryKey = resultReader->getDbKey(id);
             char *seqData = qDbr->getDataByDBKey(queryKey);
@@ -166,16 +162,21 @@ int result2outputmode(Parameters &par, int mode) {
             std::vector<Sequence *> seqSet;
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
-                unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
                 double evalue = 0.0;
-                size_t columns = Util::getWordsOfLine(results, entry, 255);
+                char *entry[255];
+                const size_t columns = Util::getWordsOfLine(results, entry, 255);
                 // its an aln result
                 if(columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT){
                     evalue = strtod (entry[3], NULL);
                 }
                 // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
                 if ( evalue <= par.evalProfile && (key != queryKey || sameDatabase == false) ) {
-                    size_t edgeId = tDbr->getId(key);
+                    if(columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                        Matcher::result_t res = Matcher::parseAlignmentRecord(results);
+                        alnResults.push_back(res);
+                    }
+                    const size_t edgeId = tDbr->getId(key);
                     char *dbSeqData = tDbr->getData(edgeId);
                     Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), subMat.aa2int, subMat.int2aa,
                                                           Sequence::AMINO_ACIDS, 0, false, false);
