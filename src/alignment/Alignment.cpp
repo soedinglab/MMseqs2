@@ -199,7 +199,6 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
 # pragma omp parallel for schedule(dynamic, 100) reduction (+: alignmentsNum, totalPassedNum)
         for (size_t id = start; id < (start + bucketSize); id++){
             Log::printProgress(id);
-
             int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();
@@ -247,12 +246,12 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 }
                 //char *maskedDbSeq = seg[thread_idx]->maskseq(dbSeqData);
                 dbSeqs[thread_idx]->mapSequence(-1, dbKeys[thread_idx], dbSeqData);
-
                 // check if the sequences could pass the coverage threshold
                 if(fragmentMerge == false){
                     if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
                          (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ) {
                         rejected++;
+                        data = Util::skipLine(data);
                         continue;
                     }
                 }
