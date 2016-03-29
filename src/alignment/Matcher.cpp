@@ -169,41 +169,8 @@ float Matcher::computeCov(unsigned int startPos, unsigned int endPos, unsigned i
 std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
     std::vector<Matcher::result_t> ret;
     while(*data != '\0'){
-        char * entry[255];
-        char key[255];
-        size_t columns = Util::getWordsOfLine(data, entry, 255 );
-        ptrdiff_t keySize =  (entry[1] - data);
-        strncpy(key, data, keySize);
-        key[keySize] = '\0';
-
-        unsigned int targetId = (unsigned int) strtoul(key, NULL, 10);
-        double score = strtod(entry[1],NULL);
-        double seqId = strtod(entry[2],NULL);
-        double eval = strtod(entry[3],NULL);
-
-
-        size_t qStart = strtoull(entry[4],NULL,0);
-        size_t qEnd = strtoull(entry[5],NULL,0);
-        size_t qLen = strtoull(entry[6],NULL,0);
-        size_t dbStart = strtoull(entry[7],NULL,0);
-        size_t dbEnd = strtoull(entry[8],NULL,0);
-        size_t dbLen = strtoull(entry[9],NULL,0);
-        double qCov = Matcher::computeCov(qStart, qEnd, qLen);
-        double dbCov = Matcher::computeCov(dbStart, dbEnd, dbLen);
-        size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
-        if(columns < ALN_RES_WITH_BT_COL_CNT){
-            Matcher::result_t result(targetId, score, qCov, dbCov, seqId, eval,
-                                     alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
-                                     dbLen, "");
-            ret.push_back(result);
-        }else{
-            size_t len = entry[11] - entry[10];
-            Matcher::result_t result(targetId, score, qCov, dbCov, seqId, eval,
-                                     alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
-                                     dbLen, uncompressAlignment(std::string(entry[10], len)));
-            ret.push_back(result);
-        }
-
+        Matcher::result_t result = parseAlignmentRecord(data);
+        ret.push_back(result);
         data = Util::skipLine(data);
     }
     return ret;
@@ -255,3 +222,40 @@ std::string Matcher::uncompressAlignment(std::string cbt) {
     }
     return bt;
 }
+
+Matcher::result_t Matcher::parseAlignmentRecord(char *data) {
+    char * entry[255];
+    size_t columns = Util::getWordsOfLine(data, entry, 255 );
+    char key[255];
+    ptrdiff_t keySize =  (entry[1] - data);
+    strncpy(key, data, keySize);
+    key[keySize] = '\0';
+
+    unsigned int targetId = (unsigned int) strtoul(key, NULL, 10);
+    double score = strtod(entry[1],NULL);
+    double seqId = strtod(entry[2],NULL);
+    double eval = strtod(entry[3],NULL);
+
+    size_t qStart = strtoull(entry[4],NULL,0);
+    size_t qEnd = strtoull(entry[5],NULL,0);
+    size_t qLen = strtoull(entry[6],NULL,0);
+    size_t dbStart = strtoull(entry[7],NULL,0);
+    size_t dbEnd = strtoull(entry[8],NULL,0);
+    size_t dbLen = strtoull(entry[9],NULL,0);
+    double qCov = Matcher::computeCov(qStart, qEnd, qLen);
+    double dbCov = Matcher::computeCov(dbStart, dbEnd, dbLen);
+    size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
+
+    if(columns < ALN_RES_WITH_BT_COL_CNT){
+        return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
+                                 alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
+                                 dbLen, "");
+    }else{
+        size_t len = entry[11] - entry[10];
+        return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
+                                 alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
+                                 dbLen, uncompressAlignment(std::string(entry[10], len)));
+    }
+}
+
+

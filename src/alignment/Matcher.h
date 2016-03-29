@@ -70,6 +70,8 @@ public:
 
     static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
 
+    static result_t parseAlignmentRecord(char *data);
+
     static std::vector<result_t> readAlignmentResults(char *data);
 
     static float estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen);
