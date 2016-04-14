@@ -5,6 +5,7 @@
 #include <climits>
 #include <list>
 #include <vector>
+#include <sys/time.h>
 #include "DBReader.h"
 #include "Debug.h"
 #include "DBWriter.h"
@@ -115,16 +116,19 @@ int substractresult(int argc,const char **argv)
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
 
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.substractresult, 3);
-
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
     dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.threads);
-
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::WARNING) << "Time for profile substracting: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     return 0;
 }
