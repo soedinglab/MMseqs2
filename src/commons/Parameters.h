@@ -149,6 +149,7 @@ public:
     // result2msa
     bool allowDeletion;
     bool addInternalId;
+    bool compressMSA;
 
     // result2profile
     float filterMaxSeqId;
@@ -260,6 +261,7 @@ public:
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION)
     PARAMETER(PARAM_ADD_INTERNAL_ID)
+    PARAMETER(PARAM_COMPRESS_MSA)
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)

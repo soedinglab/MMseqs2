@@ -37,13 +37,13 @@ int createfasta (int argc, const char * argv[])
     char * dbKey = new char[par.maxSeqLen * 20];
     for(size_t i = 0; i < dbr_data.getSize(); i++){
 
+        // Write the header, taken from the originial queryDB
         fwrite(header_start, sizeof(char), 1, fastaFP);
         std::string key = dbr_data.getDbKey(i);
-
         char * header_data = querydb_header.getDataByDBKey(key);
         fwrite(header_data, sizeof(char), strlen(header_data) - 1, fastaFP);
-
         fwrite(newline, sizeof(char), 1, fastaFP);
+
         // write data
         char * data = dbr_data.getData(i);
         while(*data != '\0') {
@@ -55,12 +55,15 @@ int createfasta (int argc, const char * argv[])
                 dataStr = Util::parseFastaHeader(header_data);
             }else{
                 dataStr = Util::parseFastaHeader(data);
-                if(dataStr.length() > 0){
-                    if(dataStr[dataStr.length()-1] != '\n'){
-                        dataStr.push_back('\n');
-                    }
-                }
             }
+			
+			 // newline at the end
+			 if(dataStr.length() > 0){
+					if(dataStr[dataStr.length()-1] != '\n'){
+						dataStr.push_back('\n');
+					}
+			 }
+			
             std::cout << dataStr << std::endl;
             fwrite(dataStr.c_str(), sizeof(char), dataStr.length(), fastaFP);
             dataStr.clear();

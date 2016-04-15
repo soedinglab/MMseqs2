@@ -23,7 +23,9 @@ DBConcat::DBConcat(const char* dataFileNameA, const char* indexFileNameA,const c
 
 }
 
- // Concat dbA and dbB in concatWriter
+ // If dbA != dbB, then Concatenate dbA and dbB in concatWriter ("dataFileNameC")
+ // and "this" will be a reader on "dataFileNameC" after calling open()
+ // otherwise, do nothing and "this"  will be a reader on "dataFileNameA"
 void DBConcat::concat(){
 	
 	

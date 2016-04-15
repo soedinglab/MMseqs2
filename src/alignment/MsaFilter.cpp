@@ -68,6 +68,7 @@ MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in
     return res;
 }
 
+
 MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
                                                int L, int coverage, int qid, float qsc,
                                                int max_seqid, int Ndiff) {
