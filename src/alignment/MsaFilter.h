@@ -15,7 +15,7 @@ public:
 
     struct MsaFilterResult{
         const char * keep;
-        const int setSize;
+        const unsigned int setSize;
         const char ** filteredMsaSequence;
         MsaFilterResult(char * keep, int N, const char ** filteredMsaSequence) :
                 keep(keep), setSize(N), filteredMsaSequence(filteredMsaSequence) {}
@@ -52,9 +52,10 @@ public:
     const float PLTY_GAPEXTD=1.0f; // for -qsc option (filter for min similarity to query): 1 bit to extend gap
 
     void pruneAlignment(char ** msaSequence, int N_in, int L);
-
+	
+	
 private:
-
+	
     MsaFilterResult dofilter(const char ** msaSequence, int N_in, int L, int coverage, int qid, float qsc,
                              int max_seqid, int Ndiff);
 

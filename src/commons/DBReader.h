@@ -60,6 +60,7 @@ public:
     static const int SORT_BY_LENGTH = 1;
     static const int LINEAR_ACCCESS = 2;
     static const int SORT_BY_ID = 3;
+    static const int SORT_BY_LINE = 4; // the local IDs correspond to the line number in the original index file
 
     static const int USE_INDEX    = 0;
     static const int USE_DATA     = 1;
@@ -105,6 +106,12 @@ private:
             return (lhs.first.id < rhs.first.id);
         }
     };
+	
+    struct compareIndexLengthPairByIdKeepTrack {
+        bool operator() (const std::pair<Index, std::pair<size_t, unsigned int> >& lhs, const std::pair<Index, std::pair<size_t, unsigned int> >& rhs) const{
+            return (lhs.first.id < rhs.first.id);
+        }
+    };
 
     struct comparePairBySeqLength {
         bool operator() (const std::pair<unsigned int, unsigned  int>& lhs, const std::pair<unsigned int, unsigned  int>& rhs) const{
@@ -140,6 +147,7 @@ private:
     int closed;
 
     Index * index;
+
     unsigned int * seqLens;
     unsigned int * id2local;
     unsigned int * local2id;

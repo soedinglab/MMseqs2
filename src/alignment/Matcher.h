@@ -53,6 +53,7 @@ public:
                                           qStartPos(qStartPos), qEndPos(qEndPos), qLen(qLen),
                                           dbStartPos(dbStartPos), dbEndPos(dbEndPos), dbLen(dbLen),
                                           backtrace(backtrace) {};
+		result_t(){};
     };
 
     Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize, bool aaBiasCorrection);

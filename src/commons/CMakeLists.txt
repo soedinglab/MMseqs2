@@ -4,6 +4,8 @@ set(commons_source_files
     BaseMatrix.cpp
     DBReader.cpp
     DBReader.h
+    DBConcat.cpp
+    DBConcat.h
     DBWriter.cpp
     DBWriter.h
     Debug.cpp
