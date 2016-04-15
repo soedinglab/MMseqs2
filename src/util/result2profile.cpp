@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <sys/time.h>
 
 #include "MsaFilter.h"
 #include "Parameters.h"
@@ -339,8 +340,14 @@ int result2profile(int argc, const char **argv) {
 
     // never allow deletions
     par.allowDeletion = false;
-
-    return result2outputmode(par, PSSM);
+    Debug(Debug::WARNING) << "Compute profile.\n";
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+    int retCode =  result2outputmode(par, PSSM);
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::WARNING) << "Time for profile calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    return retCode;
 }
 
 int result2msa(int argc, const char **argv) {
@@ -352,5 +359,12 @@ int result2msa(int argc, const char **argv) {
     Parameters par;
     par.parseParameters(argc, argv, usage, par.result2msa, 4);
 
-    return result2outputmode(par, MSA);
+    Debug(Debug::WARNING) << "Compute Msa.\n";
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+    int retCode = result2outputmode(par, MSA);
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::WARNING) << "Time for msa calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    return retCode;
 }
