@@ -132,14 +132,23 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
         std::string bt = result.backtrace;
         char *edgeSeqMSA = msaSequence[i+1];
         Sequence *edgeSeq = seqs[i];
+        unsigned int queryPos = result.qStartPos;
+        unsigned int targetPos = result.dbStartPos;
+        // HACK: score was 0 and sequence was rejected, so we fill in an empty gap sequence
+        if(targetPos == UINT_MAX) {
+            Debug(Debug::WARNING) << "Edge sequence " << i << " was not aligned." << "\n";
+            // fill up with gaps
+            for(size_t pos = 0; pos < centerSeqSize; pos++){
+                edgeSeqMSA[pos] = '-';
+            }
+            continue;
+        }
         size_t bufferPos = 0;
         // fill initial positions with gaps (local alignment)
         for(size_t pos = 0; pos < result.qStartPos; pos++){
             edgeSeqMSA[bufferPos] = '-';
             bufferPos++;
         }
-        size_t queryPos = result.qStartPos;
-        size_t targetPos = result.dbStartPos;
         for(size_t alnPos = 0; alnPos < bt.size(); alnPos++){
             if(bufferPos >= maxMsaSeqLen ){
                 Debug(Debug::ERROR) << "BufferPos (" << bufferPos << ") is >= maxMsaSeqLen (" << maxMsaSeqLen << ")" << "\n";
