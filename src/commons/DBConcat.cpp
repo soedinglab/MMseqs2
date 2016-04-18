@@ -33,16 +33,15 @@ void DBConcat::concat(){
 	
 	if (!sameDatabase)
 	{
-
+	
 		dbA->open(DBReader<unsigned int>::NOSORT);
 		dbB->open(DBReader<unsigned int>::NOSORT);
 		
 		indexSizeA = dbA->getSize();
 		indexSizeB = dbB->getSize();
 		
-		keysA = new unsigned int[indexSizeA];
-		keysB = new unsigned int[indexSizeB];
-		
+		keysA = new std::pair<unsigned int, unsigned int> [indexSizeA];
+		keysB = new std::pair<unsigned int, unsigned int> [indexSizeB];
 		
 		concatWriter->open();
 		
@@ -65,7 +64,7 @@ void DBConcat::concat(){
 	#endif
 			data = dbA->getData(id);
 			concatWriter->write(data, dbA->getSeqLens(id) -1 , SSTR(id).c_str(), thread_idx);
-			keysA[id] = dbA->getDbKey(id);
+			keysA[id] = std::make_pair(dbA->getDbKey(id),id);// need to store the index, because it'll be sorted out by keys later
 			
 	
 			currentKey++;
@@ -84,11 +83,15 @@ void DBConcat::concat(){
 	#endif
 			data = dbB->getData(id);
 			concatWriter->write(data, dbB->getSeqLens(id) -1, SSTR(id+indexSizeA).c_str(), thread_idx);
-			keysB[id] = dbB->getDbKey(id);
+			keysB[id] = std::make_pair(dbB->getDbKey(id),id+indexSizeA);// need to store the index, because it'll be sorted out by keys later
 			
 			currentKey++;
 		}
 	}
+	
+		std::stable_sort(keysA, keysA  + indexSizeA, compareFirstEntry());
+		std::stable_sort(keysB, keysB  + indexSizeB, compareFirstEntry());
+		
 		concatWriter->close();
 		dbA->close();
 		dbB->close();
@@ -101,24 +104,16 @@ unsigned int DBConcat::dbAKeyMap(unsigned int key) {
 	if (sameDatabase)
 		return key;
 	
-	for (unsigned int i = 0;i < indexSizeA; i++) {
-		if (keysA[i] == key)
-			return i;
-	}
-	Debug(Debug::ERROR) << "Cannot find in dbA the key " << key << " !\n";
-	EXIT(EXIT_FAILURE);
+	std::pair<unsigned  int, unsigned  int>* originalMap = std::upper_bound(keysA, keysA + indexSizeA, key, compareKeyToFirstEntry());
+	return (*originalMap).second;
 }
 
 unsigned int DBConcat::dbBKeyMap(unsigned int key) {
 	if (sameDatabase)
 		return key;
 		
-	for (unsigned int i = 0;i < indexSizeB; i++) {
-		if (keysB[i] == key)
-			return i + indexSizeA;
-	}
-	Debug(Debug::ERROR) << "Cannot find in dbB the key " << key << " !\n";
-	EXIT(EXIT_FAILURE);
+	std::pair<unsigned  int, unsigned  int>*originalMap = std::upper_bound(keysB, keysB + indexSizeB, key, compareKeyToFirstEntry());
+	return (*originalMap).second;
 }
 
 
