@@ -93,9 +93,11 @@ void DBConcat::concat(){
 		std::stable_sort(keysB, keysB  + indexSizeB, compareFirstEntry());
 		
 		concatWriter->close();
+		delete concatWriter;
 		dbA->close();
+		delete dbA;
 		dbB->close();
-		
+		delete dbB;
 	}
 }
 
@@ -117,3 +119,8 @@ unsigned int DBConcat::dbBKeyMap(unsigned int key) {
 }
 
 
+
+DBConcat::~DBConcat() {
+	delete keysA;
+	delete keysB;
+}

@@ -21,6 +21,8 @@ public:
 	DBConcat(const char* dataFileNameA, const char* indexFileNameA,
 				const char* dataFileNameB, const char* indexFileNameB,
 				const char* dataFileNameC, const char* indexFileNameC, int threads, int dataMode = USE_DATA|USE_INDEX);
+	~DBConcat();
+	
 	void concat();
 	
 	unsigned int dbAKeyMap(unsigned int);
