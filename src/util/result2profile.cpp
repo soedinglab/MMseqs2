@@ -553,7 +553,13 @@ int result2outputmode(Parameters &par, int mode) {
     if(mode == PSSM){
         concensusWriter->close();
         delete concensusWriter;
-    }
+    }else if (mode==ca3m)
+	{
+		referenceDBr->close();
+		delete referenceDBr;
+		
+		delete referenceHeadersDBr; // do not need to close, hasn't been opened for reading
+	}
     resultReader->close();
     delete resultReader;
 
