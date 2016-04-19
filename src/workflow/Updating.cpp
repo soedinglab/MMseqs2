@@ -90,16 +90,16 @@ void writeIndexes(std::string A_indexFile, std::string B_indexFile, std::string 
         new_cnt++;
         j++;
     }
-
-    readerNew.close();
-    readerOld.close();
-
     // set the global count variables
     oldDBSize = readerOld.getSize();
     newDBSize = readerNew.getSize();
     deletedSeqs = deleted_cnt;
     sharedSeqs = shared_cnt;
     newSeqs = new_cnt;
+
+    readerNew.close();
+    readerOld.close();
+
 
     fclose(A_index_file);
     fclose(B_index_file);
@@ -141,6 +141,10 @@ std::string runScoresCalculation(std::string queryDB, std::string queryDBIndex,
     std::string alnDBIndex = alnDB + ".index";
     tmpFiles->push_back(alnDB);
     tmpFiles->push_back(alnDBIndex);
+	
+	std::cout << queryDB << "  " << queryDBIndex << std::endl;
+	std::cout << targetDB << "  " << targetDBIndex << std::endl;
+	
     Alignment* aln = new Alignment(queryDB, queryDBIndex,
             targetDB, targetDBIndex,
             prefDB, prefDBIndex,
