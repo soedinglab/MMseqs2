@@ -121,7 +121,7 @@ int createdb(int argn, const char **argv) {
             // sequence
             std::string sequence = seq->seq.s;
             size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
-            std::string splitString(sequence.c_str() + (split*par.maxSeqLen, len));
+            std::string splitString(sequence.c_str() + split*par.maxSeqLen, len);
             splitString.append("\n");
             out_writer.write(splitString.c_str(), splitString.length(), id.c_str());
             entries_num++;
