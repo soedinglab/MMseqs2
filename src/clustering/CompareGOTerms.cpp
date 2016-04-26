@@ -271,6 +271,10 @@ int CompareGOTerms::convert_index_toGOterm(int index){
 }
 
 void  CompareGOTerms::compute_parentnodes(std::set<int>& result,int id){
+      if(result.find(id)!=result.end()){
+          Debug(Debug::INFO) << "circularity in GO term graph: please recheck your GO input! \n";
+          return;
+      }
             result.insert(id);
     if(is_a_relation_size[id]==0){
         return;
