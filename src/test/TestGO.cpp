@@ -57,6 +57,7 @@ int main(int argc, char **argv)
 
         bool allagainstall=false;
         bool randomized=false;
+
         if(strcmp(comparisonmode,"yes")==0){
             allagainstall=true;
             Debug(Debug::INFO)<<"all against all comparison";
@@ -64,6 +65,11 @@ int main(int argc, char **argv)
         if(strcmp(randommode,"yes")==0){
             randomized=true;
             Debug(Debug::INFO)<<"randomized representative comparison";
+        }
+        bool use_header=true;
+        if(sequencedb=="no"){
+            use_header=false;
+            Debug(Debug::INFO)<<"do not use sequencedb for mapping, uniref mode";
         }
         //"-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder>"
         //std::string gofolder="/home/lars/masterarbeit/data/GO/db/";
@@ -88,7 +94,7 @@ int main(int argc, char **argv)
                                                         evidenceCategories[j] + goCategories[i],
                                                         uniprot_go_folder + "uniprot_sprot.dat_go_db" +
                                                         evidenceCategories[j] + goCategories[i] + ".index",
-                                                        outputfolder,sequencedb);
+                                                        outputfolder,sequencedb,use_header);
                 go->init();
                 //go->all_against_all_comparison();
                 //  go->all_against_all_comparison_proteinset();
@@ -127,6 +133,11 @@ int main(int argc, char **argv)
             randomized=true;
             Debug(Debug::INFO)<<"randomized representative comparison";
         }
+        bool use_header=true;
+        if(sequencedb=="no"){
+            use_header=false;
+            Debug(Debug::INFO)<<"do not use sequencedb for mapping, uniref mode";
+        }
             Debug(Debug::INFO) << "running protein name evaluation";
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
@@ -135,10 +146,13 @@ int main(int argc, char **argv)
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader<std::string>* protname_db_reader = new DBReader<std::string>(protname_db.c_str(), protname_db_indexfile.c_str());
         protname_db_reader->open(DBReader<std::string>::NOSORT);
-
-        DBReader<unsigned int>* targetdb_header=new DBReader<unsigned int>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
-        targetdb_header->open(DBReader<std::string>::NOSORT);
-
+        DBReader<unsigned int> *targetdb_header=NULL;
+        if(use_header) {
+            targetdb_header = new DBReader<unsigned int>(std::string(sequencedb + "_h").c_str(),
+                                                                                 std::string(sequencedb +
+                                                                                             "_h.index").c_str());
+            targetdb_header->open(DBReader<std::string>::NOSORT);
+        }
         //files
         std::ofstream clusters_full_file;
         clusters_full_file.open(evaluationfolder+fileprefix+"clusters_allproteinnamescores.go");
@@ -149,7 +163,8 @@ int main(int argc, char **argv)
         for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            std::string representative=getProteinNameForID(targetdb_header,cluster_ffindex_reader->getDbKey(i));
+                std::string representative="";
+
             char *data = cluster_ffindex_reader->getData(i);
             char *idbuffer1 = new char[255 + 1];
             double sumofscore =0;
@@ -163,8 +178,16 @@ int main(int argc, char **argv)
 
             while (*data != '\0') {
                 Util::parseKey(data, idbuffer1);
-                std::string idbuffer=getProteinNameForID(targetdb_header,atoi(idbuffer1));
+                std::string idbuffer ="";
+                if(use_header) {
+                   idbuffer = getProteinNameForID(targetdb_header, atoi(idbuffer1));
+                }else{
+                    std::string idbuffer =idbuffer1;
+                }
 
+                if(representative==""){
+                    representative=idbuffer;
+                }
                 if (protname_db_reader->getDataByDBKey(idbuffer) != NULL) {
                     idswithproteinname.push_back(std::string(idbuffer));
 
@@ -245,6 +268,11 @@ int main(int argc, char **argv)
             randomized=true;
             Debug(Debug::INFO)<<"randomized representative comparison";
         }
+        bool use_header=true;
+        if(sequencedb=="no"){
+            use_header=false;
+            Debug(Debug::INFO)<<"do not use sequencedb for mapping, uniref mode";
+        }
         Debug(Debug::INFO) << "running keyword evaluation";
 
         Debug(Debug::INFO) << "Opening clustering database...\n";
@@ -253,10 +281,13 @@ int main(int argc, char **argv)
         Debug(Debug::INFO) << "Opening clustering database...\n";
         DBReader<std::string>* protname_db_reader = new DBReader<std::string>(keyword_db.c_str(), keyword_indexfile.c_str());
         protname_db_reader->open(DBReader<std::string>::NOSORT);
-
-        DBReader<unsigned int>* targetdb_header=new DBReader<unsigned int>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
-        targetdb_header->open(DBReader<std::string>::NOSORT);
-
+        DBReader<unsigned int> *targetdb_header=NULL;
+        if(use_header) {
+            targetdb_header = new DBReader<unsigned int>(std::string(sequencedb + "_h").c_str(),
+                                                                                 std::string(sequencedb +
+                                                                                             "_h.index").c_str());
+            targetdb_header->open(DBReader<std::string>::NOSORT);
+        }
 
         //files
         std::ofstream clusters_full_file;
@@ -268,7 +299,7 @@ int main(int argc, char **argv)
         for (unsigned int i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-            std::string representative=getProteinNameForID(targetdb_header,cluster_ffindex_reader->getDbKey(i));
+            std::string representative="";
             char *data = cluster_ffindex_reader->getData(i);
             char *idbuffer1 = new char[255 + 1];
             double sumofscore =0;
@@ -282,7 +313,16 @@ int main(int argc, char **argv)
 
             while (*data != '\0') {
                 Util::parseKey(data, idbuffer1);
-                std::string idbuffer=getProteinNameForID(targetdb_header,atoi(idbuffer1));
+                std::string idbuffer ="";
+                if(use_header) {
+                    idbuffer = getProteinNameForID(targetdb_header, atoi(idbuffer1));
+                }else{
+                    std::string idbuffer =idbuffer1;
+                }
+
+                if(representative==""){
+                    representative=idbuffer;
+                }
 
                 if (protname_db_reader->getDataByDBKey(idbuffer) != NULL) {
                     idswithkeyword.push_back(std::string(idbuffer));

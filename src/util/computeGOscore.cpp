@@ -32,7 +32,7 @@ int computeGOscore(int argc, const char** argv)
 
     bool allagainstall=par.allVsAll;
     bool randomized=par.randomizedRepresentative;
-
+    bool use_sequenceheader=par.use_sequenceheader;
 
 
 
@@ -67,7 +67,7 @@ int computeGOscore(int argc, const char** argv)
                                                     evidenceCategories[j] + goCategories[i],
                                                     gofolder + "uniprot_sprot.dat_go_db" +
                                                     evidenceCategories[j] + goCategories[i] + ".index",
-                                                    outputfolder,sequencedb);
+                                                    outputfolder,sequencedb,use_sequenceheader);
             go->init();
             //go->all_against_all_comparison();
             //  go->all_against_all_comparison_proteinset();

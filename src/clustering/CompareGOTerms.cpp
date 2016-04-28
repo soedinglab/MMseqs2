@@ -8,7 +8,8 @@
 #include <cmath>
 #include <fstream>
 
-CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder, std::string sequencedb) {
+CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,
+                               std::string protid_go_ffindex_indexfile, std::string evaluationfolder, std::string sequencedb,bool usesequencedb) {
 
     Debug(Debug::INFO) << "Opening GO database...\n";
     go_ffindex_reader = new DBReader<std::string>(go_ffindex.c_str(), go_ffindex_indexfile.c_str());
@@ -16,9 +17,12 @@ CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_ind
     Debug(Debug::INFO) << "Opening Protein to GO database...\n";
     protid_go_ffindex_reader = new DBReader<std::string>(protid_go_ffindex.c_str(), protid_go_ffindex_indexfile.c_str());
     protid_go_ffindex_reader->open(DBReader<std::string>::NOSORT);
-    targetdb_header=new DBReader<std::string>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
-    targetdb_header->open(DBReader<std::string>::NOSORT);
-
+    this->usesequencedb=usesequencedb;
+    if(usesequencedb) {
+        targetdb_header = new DBReader<std::string>(std::string(sequencedb + "_h").c_str(),
+                                                    std::string(sequencedb + "_h.index").c_str());
+        targetdb_header->open(DBReader<std::string>::NOSORT);
+    }
     if (evaluationfolder.back() != '/') {
         evaluationfolder = evaluationfolder + '/';
     }
@@ -36,6 +40,9 @@ CompareGOTerms::CompareGOTerms(std::string go_ffindex,std::string go_ffindex_ind
 CompareGOTerms::~CompareGOTerms() {
     go_ffindex_reader->~DBReader();
     protid_go_ffindex_reader->~DBReader();
+    if(usesequencedb) {
+        targetdb_header->~DBReader();
+    }
     delete[] is_a_relation;
     delete[] is_a_relation_data;
     delete[] is_a_relation_size;
@@ -326,7 +333,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
     for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
 
-        std::string representative=getProteinNameForID(std::to_string(cluster_ffindex_reader->getDbKey(i)).c_str());
+        std::string representative= "";
         char *data = cluster_ffindex_reader->getData(i);
         char *idbuffer1 = new char[255 + 1];
         std::string idbuffer="";
@@ -345,6 +352,9 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
 
                 Util::parseKey(data, idbuffer1);
                 idbuffer=getProteinNameForID(idbuffer1);
+                if(representative==""){
+                    representative=idbuffer;
+                }
                     if (protid_go_ffindex_reader->getDataByDBKey(idbuffer) != NULL) {
                         idswithgo.push_back(std::string(idbuffer));
 
@@ -417,10 +427,12 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(std::string cluster_ffindex
 
 
 std::string CompareGOTerms::getProteinNameForID(const char * dbKey){
-
-    char * header_data = targetdb_header->getDataByDBKey(dbKey);
-    std::string parsedDbkey = Util::parseFastaHeader(header_data);
-    return parsedDbkey;
-
+    if(usesequencedb) {
+        char *header_data = targetdb_header->getDataByDBKey(dbKey);
+        std::string parsedDbkey = Util::parseFastaHeader(header_data);
+        return parsedDbkey;
+    }else{
+        return dbKey;
+    }
 
 }

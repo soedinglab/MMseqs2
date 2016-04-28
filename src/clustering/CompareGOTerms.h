@@ -19,7 +19,8 @@ class CompareGOTerms{
 public:
 
     void init();
-    CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,std::string protid_go_ffindex_indexfile, std::string evaluationfolder, std::string sequencedb);
+    CompareGOTerms(std::string go_ffindex,std::string go_ffindex_indexfile,std::string protid_go_ffindex,
+                   std::string protid_go_ffindex_indexfile, std::string evaluationfolder, std::string sequencedb,bool usesequencedb);
 //runmodes
     void all_against_all_comparison();
     void all_against_all_comparison_proteinset();
@@ -40,6 +41,8 @@ private:
     DBReader<std::string>* protid_go_ffindex_reader;
 
     DBReader<std::string>* targetdb_header;
+
+    bool usesequencedb;
 
     std::string evaluationfolder;
 
