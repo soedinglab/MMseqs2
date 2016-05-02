@@ -97,7 +97,8 @@ Parameters::Parameters():
         PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
 // evaluationscores
                 PARAM_EVALUATION_ALLVSALL(PARAM_EVALUATION_ALLVSALL_ID, "-a", "All vs all","All cluster members vs all cluster members, otherwise: all against representative",typeid(bool),(void *) &allVsAll, ""),
-        PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE_ID, "-r", "Random representative choice","Instead of first cluster member as representative choose a random one.",typeid(bool),(void *) &randomizedRepresentative, "")
+        PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE_ID, "-r", "Random representative choice","Instead of first cluster member as representative choose a random one.",typeid(bool),(void *) &randomizedRepresentative, ""),
+        PARAM_EVALUATION_USE_SEQUENCEHEADER(PARAM_EVALUATION_USE_SEQUENCEHEADER_ID, "-h", "Use sequence db to map numerical ids back to UniProt Id","Use sequence db to map numerical ids back to UniProt Id, should always be set except for UniRef",typeid(bool),(void *) &use_sequenceheader, "")
 
 
 
@@ -279,6 +280,7 @@ Parameters::Parameters():
     //evaluationscores
     evaluationscores.push_back(PARAM_EVALUATION_ALLVSALL);
     evaluationscores.push_back(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE);
+    evaluationscores.push_back(PARAM_EVALUATION_USE_SEQUENCEHEADER);
     // detectredundancy
     detectredundancy.push_back(PARAM_SUB_MAT);
     detectredundancy.push_back(PARAM_ALPH_SIZE);

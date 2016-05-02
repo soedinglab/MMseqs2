@@ -187,6 +187,7 @@ public:
     // evaluationscores
     bool allVsAll;
     bool randomizedRepresentative;
+    bool use_sequenceheader;
 
 
 
@@ -318,6 +319,7 @@ public:
     // evaluationScore
     PARAMETER(PARAM_EVALUATION_ALLVSALL)
     PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
+    PARAMETER(PARAM_EVALUATION_USE_SEQUENCEHEADER)
 
     std::vector<MMseqsParameter> empty;
 
