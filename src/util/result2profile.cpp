@@ -428,7 +428,7 @@ int result2outputmode(Parameters &par, int mode) {
 									inOrDel = aln.backtrace.at(btIndex); // store whether it is I or D
 
 								// seek the next match
-								while(btIndex < (aln.backtrace).size() && aln.backtrace.at(btIndex) == inOrDel && indelLen < 255)
+								while(btIndex < (aln.backtrace).size() && aln.backtrace.at(btIndex) == inOrDel && indelLen < 127)
 								{
 									btIndex++;
 									indelLen++;
