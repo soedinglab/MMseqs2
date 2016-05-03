@@ -167,7 +167,20 @@ int result2outputmode(Parameters &par, int mode) {
     size_t maxSetSize = findMaxSetSize(resultReader);
     // adjust score of each match state by -0.2 to trim alignment
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
-    Debug(Debug::INFO) << "Start computing " << (!mode ? "MSAs" : "profiles") << ".\n";
+    Debug(Debug::INFO) << "Start computing ";
+    switch(mode) {
+        case MSA:
+            Debug(Debug::INFO) << "multiple sequence alignments";
+            break;
+        case ca3m:
+            Debug(Debug::INFO) << "compressed multiple sequence alignments";
+            break;
+        case PSSM:
+        default:
+            Debug(Debug::INFO) << "profiles";
+            break;
+    }
+    Debug(Debug::INFO) << ".\n";
 
     #pragma omp parallel
     {
