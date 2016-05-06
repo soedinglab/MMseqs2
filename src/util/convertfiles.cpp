@@ -12,11 +12,14 @@
 #include <list>
 #include <fstream>
 
-convertfiles::convertfiles(std::string sequencedb) {
+convertfiles::convertfiles(std::string sequencedb,bool use_header) {
 
-
-    targetdb_header=new DBReader<unsigned int>(std::string(sequencedb+"_h").c_str(),std::string(sequencedb+"_h.index").c_str());
-    targetdb_header->open(DBReader<unsigned int>::NOSORT);
+    if(use_header) {
+        targetdb_header = new DBReader<unsigned int>(std::string(sequencedb + "_h").c_str(),
+                                                     std::string(sequencedb + "_h.index").c_str());
+        targetdb_header->open(DBReader<unsigned int>::NOSORT);
+    }
+    this->use_header=use_header;
 
 }
 
@@ -43,12 +46,22 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
     for (size_t i = 0; i < cluster_ffindex_reader->getSize(); ++i) {
 
         int clustersize=0;
-        unsigned  int representative=cluster_ffindex_reader->getDbKey(i);
-        char *data = cluster_ffindex_reader->getData(i);
-        char *idbuffer = new char[255 + 1];
+         char *data = cluster_ffindex_reader->getData(i);
+        std::string idbuffer = "";
+        char *idbuffer1 = new char[255 + 1];
+        std::string representative="";
         while (*data != '\0') {
-            Util::parseKey(data, idbuffer);
-            outfile_stream<<suffix<<"\t"<<getProteinNameForID(representative)<<"\t"<<getProteinNameForID(atoi(idbuffer))<<"\n";
+            Util::parseKey(data, idbuffer1);
+            if(use_header) {
+                idbuffer = getProteinNameForID(atoi(idbuffer1));
+            }else{
+                idbuffer =idbuffer1;
+            }
+
+            if(representative==""){
+                representative=idbuffer;
+            }
+            outfile_stream<<suffix<<"\t"<<representative<<"\t"<<idbuffer<<"\n";
             data = Util::skipLine(data);
             clustersize++;
         }
@@ -56,7 +69,7 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile,std::string su
             singletons++;
         }
         outfile_stream.flush();
-        outfile_stream_clustersize<<suffix<<"\t"<<getProteinNameForID(representative)<<"\t"<<clustersize<<"\n";
+        outfile_stream_clustersize<<suffix<<"\t"<<representative<<"\t"<<clustersize<<"\n";
     }
     outfile_stream_cluster_summary<<suffix<<"\t"<<cluster_ffindex_reader->getSize()<<"\t"<<singletons<<"\n";
 

@@ -317,7 +317,7 @@ int main(int argc, char **argv)
                 if(use_header) {
                     idbuffer = getProteinNameForID(targetdb_header, atoi(idbuffer1));
                 }else{
-                    std::string idbuffer =idbuffer1;
+                    idbuffer =idbuffer1;
                 }
 
                 if(representative==""){
@@ -388,7 +388,7 @@ int main(int argc, char **argv)
         std::string outputfile = argv[4];
         std::string sequencedb=argv[5];
 
-        convertfiles *cf = new convertfiles(sequencedb);
+        convertfiles *cf = new convertfiles(sequencedb,true);
         cf->getAlignmentscoresForCluster(clusteringfile,alignmentfile,outputfile);
 
     }else if (strcmp(argv[1],"-df")==0) {
@@ -402,7 +402,7 @@ int main(int argc, char **argv)
         std::string outputfile = argv[4];
         std::string sequencedb=argv[5];
 
-        convertfiles *cf = new convertfiles(sequencedb);
+        convertfiles *cf = new convertfiles(sequencedb,true);
         cf->convertDomainFileToFFindex(domainscorefile,domainIdentifierFile,outputfile);
 
     }else if (strcmp(argv[1],"-ds")==0) {
@@ -428,7 +428,7 @@ int main(int argc, char **argv)
             randomized=true;
             Debug(Debug::INFO)<<"randomized representative comparison";
         }
-        convertfiles *cf = new convertfiles(sequencedb);
+        convertfiles *cf = new convertfiles(sequencedb,true);
         cf->getDomainScoresForCluster(clusteringfile,alignmentfile,outputfile,suffix,allagainstall,randomized);
 
     }else if (strcmp(argv[1],"-clusterToTsv")==0) {
@@ -442,7 +442,12 @@ int main(int argc, char **argv)
         std::string outputfolder = argv[4];
         std::string sequencedb=argv[5];
 
-        convertfiles *cf = new convertfiles(sequencedb);
+        bool use_header=true;
+        if(sequencedb=="no"){
+            use_header=false;
+            Debug(Debug::INFO)<<"do not use sequencedb for mapping, uniref mode";
+        }
+        convertfiles *cf = new convertfiles(sequencedb,use_header);
         cf->convertFfindexToTsv(clusteringfile, suffix, outputfolder);
 
     }else if(strcmp(argv[1],"-af")==0){
