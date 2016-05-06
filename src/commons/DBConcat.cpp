@@ -60,7 +60,6 @@ void DBConcat::concat(){
 			int thread_idx = 0;
 	#ifdef OPENMP
 			thread_idx = omp_get_thread_num();
-	
 	#endif
 			data = dbA->getData(id);
 			concatWriter->write(data, dbA->getSeqLens(id) -1 , SSTR(id).c_str(), thread_idx);
@@ -121,6 +120,9 @@ unsigned int DBConcat::dbBKeyMap(unsigned int key) {
 
 
 DBConcat::~DBConcat() {
-	delete keysA;
-	delete keysB;
+	if (!sameDatabase)
+	{
+		delete keysA;
+		delete keysB;
+	}
 }

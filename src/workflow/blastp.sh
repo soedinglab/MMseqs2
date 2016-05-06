@@ -34,9 +34,9 @@ TARGET=$2
 SENS=$START_SENS
 while [ $SENS -le $TARGET_SENS ]; do
     # call prefilter module
-    notExists "$TMP_PATH/pref_$SENS" && mmseqs prefilter "$INPUT" "$TARGET_DB_PREF" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS && checkReturnCode "Prefilter died"
+    notExists "$TMP_PATH/pref_$SENS" && $RUNNER mmseqs prefilter "$INPUT" "$TARGET_DB_PREF" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS && checkReturnCode "Prefilter died"
     # call alignment module
-    notExists "$TMP_PATH/aln_$SENS"  && mmseqs alignment "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
+    notExists "$TMP_PATH/aln_$SENS"  && $RUNNER mmseqs alignment "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
 
     if [ $SENS -gt $START_SENS ]; then
         mmseqs mergeffindex "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${START_SENS}" "$TMP_PATH/aln_$SENS" \
