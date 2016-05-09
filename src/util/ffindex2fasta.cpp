@@ -12,7 +12,7 @@ int createfasta (int argc, const char * argv[])
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <fastaDB>\n");
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.onlyverbosity, 4);
+    par.parseParameters(argc, argv, usage, par.createFasta, 4);
 
     Debug(Debug::WARNING) << "Query file is " <<  par.db1 << "\n";
     std::string queryHeaderDB =  par.db1 + "_h";
@@ -41,7 +41,9 @@ int createfasta (int argc, const char * argv[])
         fwrite(header_start, sizeof(char), 1, fastaFP);
         std::string key = dbr_data.getDbKey(i);
         char * header_data = querydb_header.getDataByDBKey(key);
-        fwrite(header_data, sizeof(char), strlen(header_data) - 1, fastaFP);
+        std::string headerStr = Util::parseFastaHeader(header_data);
+        fwrite(headerStr.c_str(), sizeof(char), headerStr.length(), fastaFP);
+        //fwrite(header_data, sizeof(char), strlen(header_data) - 1, fastaFP);
         fwrite(newline, sizeof(char), 1, fastaFP);
 
         // write data
@@ -50,11 +52,15 @@ int createfasta (int argc, const char * argv[])
             Util::parseKey(data, dbKey);
             char * header_data = targetdb_header.getDataByDBKey(dbKey);
             std::string dataStr;
-
             if(header_data != NULL){
                 dataStr = Util::parseFastaHeader(header_data);
-            }else{
+            }if( par.useHeader == true ) {
                 dataStr = Util::parseFastaHeader(data);
+            }else{
+                char * startLine = data;
+                char * endLine = Util::skipLine(data);
+                size_t n = endLine - startLine;
+                dataStr = std::string(startLine, n);
             }
 			
 			 // newline at the end
@@ -64,7 +70,7 @@ int createfasta (int argc, const char * argv[])
 					}
 			 }
 			
-            std::cout << dataStr << std::endl;
+//            std::cout << dataStr << std::endl;
             fwrite(dataStr.c_str(), sizeof(char), dataStr.length(), fastaFP);
             dataStr.clear();
             data = Util::skipLine(data);

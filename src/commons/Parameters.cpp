@@ -67,7 +67,7 @@ Parameters::Parameters():
         PARAM_FILTER_COV(PARAM_FILTER_COV_ID, "--cov", "Minimum coverage", "Minimum coverage with master sequence [0.0,1.0]", typeid(float), (void*) &cov, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_FILTER_NDIFF(PARAM_FILTER_NDIFF_ID, "--diff", "Select n most diverse seqs", "Filter MSAs by selecting most diverse set of sequences, keeping at least this many seqs in each MSA block of length 50", typeid(int), (void*) &Ndiff, "^[1-9]{1}[0-9]*$"),
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "Use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, ""),
-        PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Overall pseudocount admixture", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Overall pseudo count admixture", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Admixture paramter b", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$"),
 // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","Sets the MPI runner",typeid(std::string),(void *) &runner, ""),
@@ -158,6 +158,10 @@ Parameters::Parameters():
     createprofiledb.push_back(PARAM_SUB_MAT);
     createprofiledb.push_back(PARAM_PROFILE_TYPE);
     createprofiledb.push_back(PARAM_V);
+
+    // create fasta
+    createFasta.push_back(PARAM_USE_HEADER);
+    createFasta.push_back(PARAM_V);
 
     // result2profile
     result2profile.push_back(PARAM_SUB_MAT);
