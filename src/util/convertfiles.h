@@ -5,7 +5,7 @@
 
 class convertfiles {
 public:
-    explicit convertfiles(std::string sequencedb);
+    explicit convertfiles(std::string sequencedb, bool use_header);
 
     void getAlignmentscoresForCluster(std::string clusteringfile, std::string alignmentfile, std::string outputfile);
 
@@ -18,6 +18,7 @@ public:
     void convertFfindexToTsv(std::string clusteringfile, std::string prefix, std::string outputfolder);
 
 private:
+    bool use_header;
     DBReader<unsigned int> *targetdb_header;
     std::string getProteinNameForID(unsigned int dbKey);
 };

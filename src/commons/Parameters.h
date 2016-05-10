@@ -324,6 +324,7 @@ public:
     std::vector<MMseqsParameter> empty;
 
     std::vector<MMseqsParameter> onlyverbosity;
+    std::vector<MMseqsParameter> createFasta;
     std::vector<MMseqsParameter> createprofiledb;
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2msa;
