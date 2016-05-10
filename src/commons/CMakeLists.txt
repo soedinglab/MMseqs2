@@ -32,6 +32,8 @@ set(commons_source_files
     MathUtil.h
     FileUtil.cpp
     FileUtil.h
+    HeaderSummarizer.cpp
+	HeaderSummarizer.h
 )
 add_library(commons ${commons_source_files})
 
