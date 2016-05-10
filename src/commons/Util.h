@@ -145,5 +145,11 @@ public:
 
 
     static void checkAllocation(void *pointer, std::string message);
+
+    template <typename Iterator, typename Container>
+    static bool isLastIterator(Iterator iterator, const Container& container)
+    {
+        return (iterator != container.end()) && (++iterator == container.end());
+    }
 };
 #endif

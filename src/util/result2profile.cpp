@@ -11,6 +11,7 @@
 #include "PSSMCalculator.h"
 #include "DBReader.h"
 #include "DBConcat.h"
+#include "HeaderSummarizer.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -190,6 +191,8 @@ int result2outputmode(Parameters &par, int mode) {
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
         PSSMCalculator calculator(&subMat, maxSequenceLength, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
+        UniprotHeaderSummarizer summarizer;
+
         int sequenceType = Sequence::AMINO_ACIDS;
         if (par.profile == true) {
             sequenceType = Sequence::HMM_PROFILE;
@@ -268,27 +271,45 @@ int result2outputmode(Parameters &par, int mode) {
             std::stringstream msa;
             std::string result;
             switch (mode) {
-                case MSA: { // TODO : the first sequence in the MSA seems to be overwritten by the query seq
-                    // need to allow insertion in the centerSequence
-
+                case MSA: {
+                    // TODO : the first sequence in the MSA seems to be overwritten by the query seq
+                    // gather headers
+                    std::vector<std::string> headers;
+                    for (size_t i = 0; i < filterRes.setSize; i++) {
+                        if (i == 0) {
+                            headers.push_back(queryHeaderReader->getDataByDBKey(queryKey));
+                        } else {
+                            headers.push_back(tempateHeaderReader->getDataByDBKey(seqSet[i - 1]->getDbKey()));
+                        }
+                    }
                     for (size_t i = 0; i < filterRes.setSize; i++) {
                         unsigned int key;
-                        char *data;
+                        std::string summarizedHeader;
+                        char* header;
                         if (i == 0) {
                             key = queryKey;
-                            data = queryHeaderReader->getDataByDBKey(key);
+                            if (false) {
+                                header = queryHeaderReader->getDataByDBKey(key);
+                            } else {
+                                summarizedHeader = summarizer.summarize(headers);
+                                header = const_cast<char*>(summarizedHeader.c_str());
+                            }
                         } else {
                             key = seqSet[i - 1]->getDbKey();
-                            data = tempateHeaderReader->getDataByDBKey(key);
+                            header = tempateHeaderReader->getDataByDBKey(key);
                         }
                         if (par.addInternalId) {
                             msa << "#" << key << "\n";
                         }
-                        msa << ">" << data;// Header
+
+                        msa << ">" << header;
+
+                        // need to allow insertion in the centerSequence
                         for (size_t pos = 0; pos < res.centerLength; pos++) {
                             char aa = filterRes.filteredMsaSequence[i][pos];
                             msa << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
                         }
+
                         msa << "\n";
                     }
                     result = msa.str();
