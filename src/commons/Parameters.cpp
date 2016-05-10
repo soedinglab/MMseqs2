@@ -680,6 +680,7 @@ void Parameters::setDefaults() {
     allVsAll = false;
     randomizedRepresentative = false;
 
+    compressMSA = false;
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,
