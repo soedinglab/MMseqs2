@@ -90,10 +90,10 @@ int result2outputmode(Parameters &par, int mode) {
     DBReader<unsigned int> *tDbr = qDbr;
     DBReader<unsigned int> *tempateHeaderReader = queryHeaderReader;
 
-    size_t maxSequenceLength = 0;
+    unsigned int maxSequenceLength = 0;
     unsigned int *lengths = qDbr->getSeqLens();
     for (size_t i = 0; i < qDbr->getSize(); i++) {
-        maxSequenceLength = std::max((size_t) lengths[i], maxSequenceLength);
+        maxSequenceLength = std::max(lengths[i], maxSequenceLength);
     }
 
     bool sameDatabase = true;
@@ -104,7 +104,7 @@ int result2outputmode(Parameters &par, int mode) {
 
         lengths = tDbr->getSeqLens();
         for (size_t i = 0; i < tDbr->getSize(); i++) {
-            maxSequenceLength = std::max((size_t) lengths[i], maxSequenceLength);
+            maxSequenceLength = std::max(lengths[i], maxSequenceLength);
         }
 
         tempateHeaderReader = new DBReader<unsigned int>(headerNameTarget.c_str(), headerIndexNameTarget.c_str());
@@ -156,8 +156,8 @@ int result2outputmode(Parameters &par, int mode) {
 //    FileUtil::errorIfFileExist(par.db4.c_str());
 //    FileUtil::errorIfFileExist(par.db4Index.c_str());
 
-    DBWriter profileWriter(referenceName.c_str(), referenceIndexName.c_str(), par.threads, DBWriter::BINARY_MODE);
-    profileWriter.open();
+    DBWriter resultWriter(referenceName.c_str(), referenceIndexName.c_str(), par.threads, DBWriter::BINARY_MODE);
+    resultWriter.open();
     DBWriter *concensusWriter;
     if (mode == PSSM) {
         concensusWriter = new DBWriter(std::string(par.db4 + "_consensus").c_str(),
@@ -205,9 +205,9 @@ int result2outputmode(Parameters &par, int mode) {
         for (size_t id = 0; id < resultReader->getSize(); id++) {
 
             Log::printProgress(id);
-            int thread_idx = 0;
+            unsigned int thread_idx = 0;
 #ifdef OPENMP
-            thread_idx = omp_get_thread_num();
+            thread_idx = (unsigned int) omp_get_thread_num();
 #endif
             char *results = resultReader->getData(id);
             char dbKey[255 + 1];
@@ -314,8 +314,6 @@ int result2outputmode(Parameters &par, int mode) {
                     }
                     result = msa.str();
 
-                    //std::cout << result << std::endl;
-
                     data = (char *) result.c_str();
                     dataSize = result.length();
                 }
@@ -391,7 +389,6 @@ int result2outputmode(Parameters &par, int mode) {
 */
 
                 case ca3m: { // Here the backtrace information should be present in the alnResults[i].backtrace for all i
-                    std::stringstream ca3mStream;
                     std::stringstream centerSeqStr;
                     std::vector<Matcher::result_t> filteredAln; // alignment information for the sequences that passed the filtering step
 
@@ -411,7 +408,7 @@ int result2outputmode(Parameters &par, int mode) {
                     // Filtering out alnResults using the same filter as previously
                     // defined in object filterRes (with sequence coverage, etc.).
                     for (size_t i = 0; i < alnResults.size(); i++) {
-                        // +1 : index 0 correspondes to the query sequence
+                        // +1 : index 0 corresponds to the query sequence
                         if (filterRes.keep[i + 1])
                             filteredAln.push_back(alnResults.at(i));
                     }
@@ -419,7 +416,7 @@ int result2outputmode(Parameters &par, int mode) {
                     // Write the query sequence (== center sequence == consensus sequence)
                     msa << ">" << queryHeaderReader->getDataByDBKey(queryKey) << centerSeqStr.str() << "\n;";
 
-                    int totalNumberofBlocks = 0;
+                    int totalNumberOfBlocks = 0;
                     char zero = 0;
                     // then write the alignment
                     for (size_t i = 0; i < filteredAln.size(); i++) {
@@ -432,7 +429,7 @@ int result2outputmode(Parameters &par, int mode) {
                         for (size_t btIndex = 0; btIndex < (aln.backtrace).size();) {
                             int indelLen = 0;
                             int matchLen = 0;
-                            char inOrDel;
+                            char inOrDel = 0;
                             // seek the next insertion or deletion
                             while (btIndex < (aln.backtrace).size() && aln.backtrace.at(btIndex) == 'M' &&
                                    matchLen < 255) {
@@ -474,14 +471,14 @@ int result2outputmode(Parameters &par, int mode) {
 
 
                         unsigned short int startPos = aln.dbStartPos + 1; // Starts at 1 in ca3m format
-                        unsigned int targetIdentifier = referenceDBr->getId(
-                                i ? referenceDBr->dbBKeyMap(aln.dbKey) : referenceDBr->dbAKeyMap(aln.dbKey));
+                        unsigned int targetKey = i ? referenceDBr->dbBKeyMap(aln.dbKey) : referenceDBr->dbAKeyMap(aln.dbKey);
+                        unsigned int targetIdentifier = referenceDBr->getId(targetKey);
                         msa.write(reinterpret_cast<const char *>(&targetIdentifier), sizeof(unsigned int));
                         msa.write(reinterpret_cast<const char *>(&startPos), sizeof(unsigned short int));
                         msa.write(reinterpret_cast<const char *>(&nbOfBlocks), sizeof(unsigned short int));
                         msa << firstBlock.str() << blocksDescription.str();
 
-                        totalNumberofBlocks += nbOfBlocks;
+                        totalNumberOfBlocks += nbOfBlocks;
                     }
 
                     result = msa.str();
@@ -555,7 +552,7 @@ int result2outputmode(Parameters &par, int mode) {
                     EXIT(EXIT_FAILURE);
             }
 
-            profileWriter.write(data, dataSize, SSTR(queryKey).c_str(), thread_idx);
+            resultWriter.write(data, dataSize, SSTR(queryKey).c_str(), thread_idx);
 
             MultipleAlignment::deleteMSA(&res);
             for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
@@ -567,7 +564,7 @@ int result2outputmode(Parameters &par, int mode) {
     }
 
     // cleanup
-    profileWriter.close();
+    resultWriter.close();
     if (mode == PSSM) {
         concensusWriter->close();
         delete concensusWriter;
@@ -614,7 +611,7 @@ int result2profile(int argc, const char **argv) {
     gettimeofday(&start, NULL);
     int retCode = result2outputmode(par, PSSM);
     gettimeofday(&end, NULL);
-    int sec = end.tv_sec - start.tv_sec;
+    time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for profile calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     return retCode;
 }
@@ -639,7 +636,7 @@ int result2msa(int argc, const char **argv) {
     }
 
     gettimeofday(&end, NULL);
-    int sec = end.tv_sec - start.tv_sec;
+    time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for msa calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     return retCode;
 }
