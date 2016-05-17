@@ -55,6 +55,10 @@ public:
 
     static const int TARGET_DB_SPLIT = 0;
     static const int QUERY_DB_SPLIT = 1;
+    static const int DETECT_BEST_DB_SPLIT = 2;
+
+    static const int AUTO_SPLIT_DETECTION = 0;
+
     // COMMON
     const char** argv;            //command line parameters
     char argc;              //dimension of argv

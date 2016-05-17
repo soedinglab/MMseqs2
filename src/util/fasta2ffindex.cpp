@@ -91,7 +91,7 @@ int createdb(int argn, const char **argv) {
                 lookupStream << id << "\t" << headerId << "\n";
             } else if(par.useHeader) {
                 id = Util::parseFastaHeader(seq->name.s);
-                if (par.splitSeqByLen){
+                if (splitCnt > 1){
                     id.append("_");
                     id.append(SSTR(split));
                 };

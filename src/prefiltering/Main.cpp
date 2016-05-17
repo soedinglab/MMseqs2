@@ -11,7 +11,6 @@
 #include <omp.h>
 #endif
 
-
 int prefilter(int argc, const char **argv)
 {
     MMseqsMPI::init(argc, argv);
@@ -26,10 +25,13 @@ int prefilter(int argc, const char **argv)
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
+
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-
+#ifdef HAVE_MPI
+    par.split = MMseqsMPI::numProc;
+#endif
     Debug(Debug::WARNING) << "Initialising data structures...\n";
     Prefiltering* pref = new Prefiltering(par.db1,par.db1Index,
             par.db2,par.db2Index,
