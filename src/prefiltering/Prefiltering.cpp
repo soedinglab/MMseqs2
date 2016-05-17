@@ -109,12 +109,16 @@ Prefiltering::Prefiltering(std::string queryDB,
     Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
     if(neededSize > 0.9 * totalMemoryInByte){
         size_t split, neededSize;
+#ifdef HAVE_MPI
+        split = MMseqsMPI::numProc;
+#else
         for(split = 1; split < 100; split++ ){
             neededSize = computeMemoryNeeded(split, tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize, kmerSize, par.threads);
             if(neededSize < 0.9 * totalMemoryInByte){
                 break;
             }
         }
+#endif
         if(par.split == Parameters::AUTO_SPLIT_DETECTION && templateDBIsIndex == false){
             par.split = split;
             Debug(Debug::INFO) << "Set split to " << split << " because of memory constraint. You can change splits with --split  \n";

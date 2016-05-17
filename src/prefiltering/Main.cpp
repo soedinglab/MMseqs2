@@ -29,9 +29,7 @@ int prefilter(int argc, const char **argv)
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-#ifdef HAVE_MPI
-    par.split = MMseqsMPI::numProc;
-#endif
+
     Debug(Debug::WARNING) << "Initialising data structures...\n";
     Prefiltering* pref = new Prefiltering(par.db1,par.db1Index,
             par.db2,par.db2Index,
