@@ -4,7 +4,10 @@
 #include "FileUtil.h"
 
 #include <unistd.h>
-
+#ifdef __APPLE__
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#endif
 KSEQ_INIT(int, read)
 
 size_t Util::countLines(const char *data, size_t length) {
@@ -49,6 +52,7 @@ std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
             EXIT(EXIT_FAILURE);
         }
     }
+    kseq_destroy(seq);
     return map;
 }
 
@@ -200,3 +204,23 @@ void Util::checkAllocation(void *pointer, std::string message) {
         EXIT(EXIT_FAILURE);
     }
 }
+
+size_t Util::get_phys_pages () {
+#if __APPLE__
+    uint64_t mem;
+    size_t len = sizeof(mem);
+    sysctlbyname("hw.memsize", &mem, &len, NULL, 0);
+    static unsigned phys_pages = mem/sysconf(_SC_PAGE_SIZE);
+#else
+    static unsigned phys_pages = sysconf(_SC_PHYS_PAGES);
+#endif
+    return phys_pages;
+}
+
+size_t Util::getTotalSystemMemory()
+{
+    long pages = get_phys_pages();
+    long page_size = sysconf(_SC_PAGE_SIZE);
+    return pages * page_size;
+}
+
