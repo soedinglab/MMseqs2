@@ -49,6 +49,7 @@ std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
             EXIT(EXIT_FAILURE);
         }
     }
+    kseq_destroy(seq);
     return map;
 }
 
