@@ -115,12 +115,15 @@ Prefiltering::Prefiltering(std::string queryDB,
                 break;
             }
         }
-        if(par.split == Parameters::AUTO_SPLIT_DETECTION){
+        if(par.split == Parameters::AUTO_SPLIT_DETECTION && templateDBIsIndex == false){
             par.split = split;
             Debug(Debug::INFO) << "Set split to " << split << " because of memory constraint. You can change splits with --split  \n";
             Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
-        }else{
+        } else {
             Debug(Debug::WARNING) << "WARNING: Process needs too much memory. Consider using --split " << split << " to split the target database. The current run might be very slow. \n";
+            if(templateDBIsIndex == true){
+                Debug(Debug::WARNING) << "WARNING: Split is not possible when using a precomputed index \n";
+            }
         }
         if(splitMode == Parameters::DETECT_BEST_DB_SPLIT){
             splitMode = Parameters::TARGET_DB_SPLIT;
