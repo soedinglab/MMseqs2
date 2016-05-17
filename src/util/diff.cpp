@@ -45,10 +45,9 @@ int diff(int argc, const char** argv) {
 	Parameters par;
 	par.parseParameters(argc, argv, usage, par.empty, 5);
 
-
-
-
-
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
 
     std::string headerDBold(par.db1);
     headerDBold.append("_h");
@@ -102,19 +101,18 @@ int diff(int argc, const char** argv) {
 		std::string keyToSearch = std::string(keysOld[id].first);
 		std::pair<std::string, unsigned  int>* mappedKey = std::upper_bound(keysNew, keysNew + indexSizeNew, keyToSearch, compareKeyToFirstEntry());
 
-		
+
 		if (mappedKey != keysNew + indexSizeNew && keyToSearch.compare(mappedKey->first) == 0)
 		{
 			// Found
-			size_t indexInNewDB = (mappedKey - keysNew) / sizeof(std::pair<std::string, unsigned  int>);	
+			size_t indexInNewDB = (mappedKey - keysNew);// / sizeof(std::pair<std::string, unsigned  int>);	
+			//std::cout << indexInNewDB <<std::endl;
 			checkedNew[indexInNewDB] = true;
 			keptSeqDBWriter << keysNew[indexInNewDB].second << std::endl;
 			
-			std::cout<<keyToSearch<< " Found ! \n";
 		} else {
 			// not found
 			removedSeqDBWriter << keysOld[id].second << std::endl;
-			std::cout<<keyToSearch<< " NOT Found ! \n";
 		}
 	}
 	
@@ -125,21 +123,22 @@ int diff(int argc, const char** argv) {
 	}
 	
 
+
 	DBoldReader->close();
 	DBnewReader->close();
+	
 	delete DBoldReader;
 	delete DBnewReader;
 	
-	delete keysOld;
-	delete keysNew;
+	delete[] keysOld;
+	delete[] keysNew;
 	
-	delete checkedNew;
+	delete[] checkedNew;
 	
 	removedSeqDBWriter.close();
 	keptSeqDBWriter.close();
 	newSeqDBWriter.close();
 	
-	
 	return 0;
 }
-	//	
+
