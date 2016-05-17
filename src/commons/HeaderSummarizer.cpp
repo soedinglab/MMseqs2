@@ -1,10 +1,11 @@
 #include "HeaderSummarizer.h"
 #include "Util.h"
 #include "Debug.h"
+#include "PatternCompiler.h"
 
-#include <cstring>
-#include <sstream>
-#include <algorithm>
+#include <set>
+
+static PatternCompiler uninformative("hypothetical|unknown|putative|predicted|unnamed|probable|partial|possible|uncharacterized|fragment");
 
 struct UniprotHeader {
     std::string dbType;
@@ -30,6 +31,9 @@ struct UniprotHeader {
     void updatePriority() {
         priority = 0;
 
+        if(uninformative.isMatch(identifier.c_str()))
+            return;
+
         if(dbType == "sp") {
             priority = 4;
         } else if (dbType == "tr") {
@@ -46,7 +50,6 @@ struct UniprotHeader {
 };
 
 std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& headers) {
-    const char* pattern = "^>?(\\S+)\\|(\\S+)\\|\\S+ (.+) OS=(.+) GN=(.+) PE=(\\d+) SV=\\d+$";
     std::vector<UniprotHeader> headerQueue;
 
     std::string representingIdentifier;
@@ -58,7 +61,7 @@ std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& h
 
         size_t start = 0;
         size_t end = header.find('|');
-        if(start == std::string::npos)
+        if(end == std::string::npos)
             continue;
         std::string dbType = header.substr(start, end);
 
@@ -114,15 +117,25 @@ std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& h
     const unsigned int maxDescriptions = 5;
 
     std::ostringstream summarizedHeader;
-    summarizedHeader << ">cl|" << representingIdentifier << " n=" << clusterMembers << " Descriptions=[";
+    summarizedHeader << ">cl|" << representingIdentifier.c_str();
+    summarizedHeader << " n=" << clusterMembers;
 
+    std::set<std::string> usedDescriptions;
+    summarizedHeader << " Descriptions=[";
     unsigned int descriptionCount = 0;
     for (std::vector<UniprotHeader>::const_iterator it = headerQueue.begin(); it != headerQueue.end(); ++it) {
-        if(descriptionCount > maxDescriptions)
+        if (descriptionCount > maxDescriptions)
             break;
 
         const UniprotHeader& header = *it;
+
+        if (usedDescriptions.find(header.proteinName) != usedDescriptions.end()) {
+            continue;
+        }
+
         summarizedHeader << header.proteinName;
+
+        usedDescriptions.emplace(header.proteinName);
 
         descriptionCount++;
 
@@ -130,7 +143,9 @@ std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& h
             summarizedHeader << "|";
         }
     }
-    summarizedHeader << "] Members=";
+    summarizedHeader << "]";
+
+    summarizedHeader<< " Members=";
     for (std::vector<UniprotHeader>::const_iterator it = headerQueue.begin(); it != headerQueue.end(); ++it) {
         const UniprotHeader& header = *it;
         summarizedHeader << header.identifier;
