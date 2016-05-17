@@ -158,6 +158,7 @@ int result2outputmode(Parameters &par, int mode) {
 
     DBWriter resultWriter(referenceName.c_str(), referenceIndexName.c_str(), par.threads, DBWriter::BINARY_MODE);
     resultWriter.open();
+
     DBWriter *concensusWriter;
     if (mode == PSSM) {
         concensusWriter = new DBWriter(std::string(par.db4 + "_consensus").c_str(),
@@ -165,9 +166,19 @@ int result2outputmode(Parameters &par, int mode) {
                                        par.threads, DBWriter::ASCII_MODE);
         concensusWriter->open();
     }
+
+    DBWriter* representativeWriter;
+    if (true) {
+        representativeWriter = new DBWriter(std::string(par.db4 + "_representative").c_str(),
+                                            std::string(par.db4 + "_representative.index").c_str(),
+                                            par.threads, DBWriter::ASCII_MODE);
+        representativeWriter->open();
+    }
+
     size_t maxSetSize = findMaxSetSize(resultReader);
     // adjust score of each match state by -0.2 to trim alignment
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
+
     Debug(Debug::INFO) << "Start computing ";
     switch(mode) {
         case MSA:
@@ -266,14 +277,13 @@ int result2outputmode(Parameters &par, int mode) {
                                                                  static_cast<int>(par.qid * 100), par.qsc,
                                                                  static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
 
-            char *data;
-            size_t dataSize;
-            std::stringstream msa;
-            std::string result;
-            switch (mode) {
-                case MSA: {
-                    // TODO : the first sequence in the MSA seems to be overwritten by the query seq
-                    // gather headers
+            if (true) {
+                std::ostringstream representative;
+                if (par.addInternalId) {
+                    representative << "#" << queryKey << "\n";
+                }
+                if (true) {
+                    // gather headers for summary
                     std::vector<std::string> headers;
                     for (size_t i = 0; i < filterRes.setSize; i++) {
                         if (i == 0) {
@@ -282,18 +292,30 @@ int result2outputmode(Parameters &par, int mode) {
                             headers.push_back(tempateHeaderReader->getDataByDBKey(seqSet[i - 1]->getDbKey()));
                         }
                     }
+
+                    representative << ">" << summarizer.summarize(headers).c_str();
+                } else {
+                    representative << ">" << queryHeaderReader->getDataByDBKey(queryKey);
+                }
+                representative << qDbr->getDataByDBKey(queryKey) << "\n";
+
+                std::string result = representative.str();
+                representativeWriter->write(result.c_str(), result.size(), SSTR(queryKey).c_str(), thread_idx);
+            }
+
+            char *data;
+            size_t dataSize;
+            std::ostringstream msa;
+            std::string result;
+            switch (mode) {
+                case MSA: {
+                    // TODO : the first sequence in the MSA seems to be overwritten by the query seq
                     for (size_t i = 0; i < filterRes.setSize; i++) {
                         unsigned int key;
-                        std::string summarizedHeader;
                         char* header;
                         if (i == 0) {
                             key = queryKey;
-                            if (false) {
-                                header = queryHeaderReader->getDataByDBKey(key);
-                            } else {
-                                summarizedHeader = summarizer.summarize(headers);
-                                header = const_cast<char*>(summarizedHeader.c_str());
-                            }
+                            header = queryHeaderReader->getDataByDBKey(key);
                         } else {
                             key = seqSet[i - 1]->getDbKey();
                             header = tempateHeaderReader->getDataByDBKey(key);
@@ -575,6 +597,12 @@ int result2outputmode(Parameters &par, int mode) {
         // do not need to close, hasn't been opened for reading
         delete referenceHeadersDBr;
     }
+
+    if (true) {
+        representativeWriter->close();
+        delete representativeWriter;
+    }
+
     resultReader->close();
     delete resultReader;
 

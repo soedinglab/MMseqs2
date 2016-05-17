@@ -34,7 +34,10 @@ set(commons_source_files
     FileUtil.h
     HeaderSummarizer.cpp
 	HeaderSummarizer.h
+    PatternCompiler.cpp
+    PatternCompiler.h
 )
+
 add_library(commons ${commons_source_files})
 
 target_link_libraries(commons)
