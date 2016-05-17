@@ -111,6 +111,9 @@ private:
     void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
 
     int getKmerThreshold(const float sensitivity, const int score);
+
+    size_t computeMemoryNeeded(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
+                                   int threads);
 };
 
 #endif
