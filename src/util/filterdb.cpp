@@ -34,7 +34,7 @@ inDB(inDB),outDB(outDB),threads(threads),column(column),regexStr(regexStr) {
     }
 }
 
-ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column,bool positiveFiltering=true):
+ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column,bool positiveFiltering):
 inDB(inDB),outDB(outDB),threads(threads),column(column), filterFile(filterFile),positiveFiltering(positiveFiltering){
 
 	initFiles();
@@ -56,6 +56,33 @@ inDB(inDB),outDB(outDB),threads(threads),column(column), filterFile(filterFile),
 }
 
 
+
+ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column):
+inDB(inDB),outDB(outDB),threads(threads),column(column), filterFile(filterFile){
+
+	initFiles();
+	
+	mode = FILE_MAPPING;
+	
+	// Fill the filter with the data contained in the file
+	std::ifstream filterFileStream;
+	filterFileStream.open(filterFile);
+	std::string line;
+	while (std::getline(filterFileStream,line))
+	{
+		std::string keyOld,keyNew;
+		std::istringstream lineToSplit(line);
+		std::getline(lineToSplit,keyOld,'\t');
+		std::getline(lineToSplit,keyNew,'\t');
+		
+		
+		mapping.push_back(std::make_pair(keyOld, keyNew));
+	}
+	
+	std::stable_sort(mapping.begin(), mapping.end(), compareFirstString());
+	
+}
+
 ffindexFilter::~ffindexFilter() {
 	
 	if (mode == REGEX_FILTERING)
@@ -72,14 +99,14 @@ ffindexFilter::~ffindexFilter() {
 int ffindexFilter::runFilter(){
 	
     const size_t LINE_BUFFER_SIZE = 1000000;
-#pragma omp parallel
+//#pragma omp parallel
     {
         char *lineBuffer = new char[LINE_BUFFER_SIZE];
         char *columnValue = new char[LINE_BUFFER_SIZE];
         char **columnPointer = new char*[column + 1];
         std::string buffer = "";
         buffer.reserve(LINE_BUFFER_SIZE);
-#pragma omp for schedule(static)
+//#pragma omp for schedule(static)
         for (size_t id = 0; id < dataDb->getSize(); id++) {
 
             Log::printProgress(id);
@@ -100,11 +127,11 @@ int ffindexFilter::runFilter(){
                     Debug(Debug::ERROR) << "Column=" << column << " does not exist in line " << lineBuffer << "\n";
                     EXIT(EXIT_FAILURE);
                 }
-				  
+
 				  size_t colStrLen;
                 // if column is last column
                 if(column == foundElements){
-                    const ptrdiff_t entrySize = Util::skipLine(data) - columnPointer[(column - 1)];
+                    const size_t entrySize = Util::skipNoneWhitespace(columnPointer[(column - 1)]); //Util::skipLine(data)
                     memcpy(columnValue, columnPointer[column - 1], entrySize);
                     columnValue[entrySize] = '\0';
 					  colStrLen = entrySize;
@@ -114,37 +141,52 @@ int ffindexFilter::runFilter(){
                     columnValue[entrySize] = '\0';
 					  colStrLen = entrySize;
                 }
+				
+				
 					int nomatch;
 					if (mode == REGEX_FILTERING)
 						nomatch = regexec(&regex, columnValue, 0, NULL, 0);
-					else if(mode == FILE_FILTERING)
+					else // i.e. (mode == FILE_FILTERING || mode == FILE_MAPPING)
 					{
 						columnValue[Util::getLastNonWhitespace(columnValue,colStrLen)] = '\0'; // remove the whitespaces at the end
 						std::string toSearch(columnValue);
 						
-						std::vector<std::string>::iterator foundInFilter = std::upper_bound(filter.begin(), filter.end(), toSearch, compareString());
-						if (foundInFilter != filter.end() && toSearch.compare(*foundInFilter) == 0)
-						{ // Found in filter
-							if (positiveFiltering)
+						if (mode == FILE_FILTERING)
+						{
+							std::vector<std::string>::iterator foundInFilter = std::upper_bound(filter.begin(), filter.end(), toSearch, compareString());
+							if (foundInFilter != filter.end() && toSearch.compare(*foundInFilter) == 0)
+							{ // Found in filter
+								if (positiveFiltering)
+									nomatch = 0; // add to the output
+								else
+									nomatch = 1;
+							} else {
+								// not found in the filter
+								if (positiveFiltering)
+									nomatch = 1; // do NOT add to the output
+								else
+									nomatch = 0;
+							}
+						} else if(mode == FILE_MAPPING) {
+							std::vector<std::pair<std::string,std::string>>::iterator foundInFilter = std::upper_bound(mapping.begin(), mapping.end(), toSearch, compareToFirstString());
+							
+							if (foundInFilter != mapping.end() && toSearch.compare(foundInFilter->first) == 0)
+							{ // Found in filter
 								nomatch = 0; // add to the output
-							else
-								nomatch = 1;
-						} else {
-							// not found in the filter
-							if (positiveFiltering)
+								strncpy(lineBuffer,(foundInFilter->second).c_str(),(foundInFilter->second).length() + 1);
+							} else {
 								nomatch = 1; // do NOT add to the output
-							else
-								nomatch = 0;
-						}
+							}
+						} else // Unknown filtering mode, keep all entries
+							nomatch = 0;
 			
-					} else // Unknown filtering mode, keep all entries
-						nomatch = 0;
+					} 
                  
-                if(!(nomatch)){
-                    buffer.append(lineBuffer);
-                    buffer.append("\n");
-                }
-                data = Util::skipLine(data);
+					if(!(nomatch)){
+						buffer.append(lineBuffer);
+						buffer.append("\n");
+					}
+					data = Util::skipLine(data);
             }
 
             dbw->write(buffer.c_str(), buffer.length(), (char*) SSTR(dataDb->getDbKey(id)).c_str(), thread_idx);
@@ -171,16 +213,8 @@ int filterdb(int argn, const char **argv)
     omp_set_num_threads(par.threads);
 #endif
 
-	if (par.filteringFile == "")
+	if (par.filteringFile != "")
 	{
-		ffindexFilter filter(par.db1,
-						par.db2,
-						par.threads,
-						static_cast<size_t>(par.filterColumn),
-						par.filterColumnRegex);
-						
-		return filter.runFilter();
-	} else {
 		std::cout<<"Filtering by file "<<par.filteringFile << std::endl;
 		ffindexFilter filter(par.db1,
 						par.db2,
@@ -189,6 +223,24 @@ int filterdb(int argn, const char **argv)
 						static_cast<size_t>(par.filterColumn),
 						par.positiveFilter);
 		return filter.runFilter();
+	} else if(par.mappingFile != ""){
+		std::cout<<"Mapping keys by file "<<par.mappingFile << std::endl;
+		ffindexFilter filter(par.db1,
+						par.db2,
+						par.mappingFile,
+						par.threads,
+						static_cast<size_t>(par.filterColumn));
+		return filter.runFilter();
+	} else {
+		ffindexFilter filter(par.db1,
+						par.db2,
+						par.threads,
+						static_cast<size_t>(par.filterColumn),
+						par.filterColumnRegex);
+						
+		return filter.runFilter();
+		
+		
 	}
 	
 	return -1;
