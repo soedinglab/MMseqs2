@@ -102,13 +102,13 @@ int diff(int argc, const char** argv) {
 		std::pair<std::string, unsigned  int>* mappedKey = std::upper_bound(keysNew, keysNew + indexSizeNew, keyToSearch, compareKeyToFirstEntry());
 
 
-		if (mappedKey != keysNew + indexSizeNew && keyToSearch.compare(mappedKey->first) == 0)
+		if (mappedKey != keysNew + indexSizeNew && keyToSearch == mappedKey->first)
 		{
 			// Found
 			size_t indexInNewDB = (mappedKey - keysNew);// / sizeof(std::pair<std::string, unsigned  int>);	
 			//std::cout << indexInNewDB <<std::endl;
 			checkedNew[indexInNewDB] = true;
-			keptSeqDBWriter << keysNew[indexInNewDB].second << std::endl;
+			keptSeqDBWriter << keysOld[id].second << "\t" << keysNew[indexInNewDB].second << std::endl;
 			
 		} else {
 			// not found

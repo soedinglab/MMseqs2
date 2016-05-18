@@ -188,6 +188,7 @@ public:
     int filterColumn;
     std::string filterColumnRegex;
 	std::string filteringFile;
+	std::string mappingFile;
 	bool positiveFilter;
 
     // evaluationscores
@@ -323,6 +324,7 @@ public:
     PARAMETER(PARAM_FILTER_REGEX)
     PARAMETER(PARAM_FILTER_POS)
     PARAMETER(PARAM_FILTER_FILE)
+    PARAMETER(PARAM_MAPPING_FILE)
 	
     // evaluationScore
     PARAMETER(PARAM_EVALUATION_ALLVSALL)
