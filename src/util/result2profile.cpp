@@ -507,22 +507,11 @@ int result2outputmode(Parameters &par, int mode) {
                        std::cout << std::endl;
                     }
 */
-		            data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
+                    std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
                                                                   filterRes.filteredMsaSequence, par.wg);
+                    data = (char*)pssmRes.first;
+                    std::string consensusStr = pssmRes.second;
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
-
-                    std::string consensusStr;
-                    for(size_t i = 0; i < res.centerLength; i++){
-                        int maxScore = INT_MIN;
-                        int maxAA = 0;
-                        for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
-                            if(static_cast<int>(data[i * Sequence::PROFILE_AA_SIZE + aa ]) > maxScore){
-                                maxScore = data[i * Sequence::PROFILE_AA_SIZE + aa ];
-                                maxAA = aa;
-                            }
-                        }
-                        consensusStr.push_back(subMat.int2aa[maxAA]);
-                    }
                     consensusStr.push_back('\n');
                     concensusWriter->write(consensusStr.c_str(), consensusStr.length(), SSTR(queryKey).c_str(), thread_idx);
 

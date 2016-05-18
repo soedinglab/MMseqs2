@@ -56,36 +56,38 @@ PSSMCalculator::~PSSMCalculator() {
     delete [] naa;
 }
 
-char const * PSSMCalculator::computePSSMFromMSA(size_t setSize,
+std::pair<const char *, std::string> PSSMCalculator::computePSSMFromMSA(size_t setSize,
                                                 size_t queryLength,
                                                 const char **msaSeqs,
                                                 bool wg) {
-
-    for(size_t pos = 0; pos < queryLength; pos++){
-        if(msaSeqs[0][pos] == MultipleAlignment::GAP){
-            Debug(Debug::ERROR) << "Error in computePSSMFromMSA. First sequence of MSA is not allowed ot contain gaps.\n";
+    for (size_t pos = 0; pos < queryLength; pos++) {
+        if (msaSeqs[0][pos] == MultipleAlignment::GAP) {
+            Debug(Debug::ERROR) <<
+            "Error in computePSSMFromMSA. First sequence of MSA is not allowed ot contain gaps.\n";
             EXIT(EXIT_FAILURE);
         }
     }
 
     // Quick and dirty calculation of the weight per sequence wg[k]
     computeSequenceWeights(seqWeight, queryLength, setSize, msaSeqs);
-    if(wg == false){
+    if (wg == false) {
         // compute context specific counts and Neff
-        computeContextSpecificWeights(matchWeight, seqWeight, Neff_M,  queryLength, setSize, msaSeqs);
+        computeContextSpecificWeights(matchWeight, seqWeight, Neff_M, queryLength, setSize, msaSeqs);
     } else {
         // compute matchWeight based on sequence weight
         computeMatchWeights(matchWeight, seqWeight, setSize, queryLength, msaSeqs);
         // compute NEFF_M
         computeNeff_M(matchWeight, seqWeight, Neff_M, queryLength, setSize, msaSeqs);
     }
+    // compute consensus sequence
+    std::string consensusSequence = computeConsensusSequence(matchWeight, queryLength, subMat->pBack, subMat->int2aa);
     // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
     preparePseudoCounts(matchWeight, pseudocountsWeight, queryLength, (const float *) R);
 //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->int2aa, 20 );
     computePseudoCounts(profile, matchWeight, pseudocountsWeight, queryLength, pca, pcb);
     // create final Matrix
     computeLogPSSM(pssm, profile, queryLength, 0.0);
-    return pssm;
+    return std::make_pair(static_cast<const char*>(pssm), consensusSequence);
 }
 
 void PSSMCalculator::printProfile(size_t queryLength){
@@ -468,6 +470,22 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
     }
     delete [] n;
     free(f);
-
-
 }
+
+std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t queryLength, double *pBack, char *int2aa) {
+    std::string consens;
+    for (size_t pos = 0; pos < queryLength; pos++) {
+        float maxw = 0.0;
+        int maxa = 21;
+        for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
+            float prob = frequency[pos * Sequence::PROFILE_AA_SIZE + aa];
+            if (prob - pBack[aa] > maxw) {
+                maxw = prob - pBack[aa];
+                maxa = aa;
+            }
+        }
+        consens.push_back(int2aa[maxa]);
+    }
+    return consens;
+}
+
