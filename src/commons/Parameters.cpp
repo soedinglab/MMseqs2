@@ -584,7 +584,7 @@ void Parameters::setDefaults() {
     kmerSize =  7;
     kmerScore = INT_MAX;
     alphabetSize = 21;
-    maxSeqLen = 32000; // 2^15
+    maxSeqLen = MAX_SEQ_LEN; // 2^16
     maxResListLen = 300;
     sensitivity = 4;
     split = AUTO_SPLIT_DETECTION;
