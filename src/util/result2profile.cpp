@@ -167,13 +167,10 @@ int result2outputmode(Parameters &par, int mode) {
         concensusWriter->open();
     }
 
-    DBWriter* representativeWriter;
-    if (true) {
-        representativeWriter = new DBWriter(std::string(par.db4 + "_representative").c_str(),
+    DBWriter representativeWriter(std::string(par.db4 + "_representative").c_str(),
                                             std::string(par.db4 + "_representative.index").c_str(),
                                             par.threads, DBWriter::ASCII_MODE);
-        representativeWriter->open();
-    }
+    representativeWriter.open();
 
     size_t maxSetSize = findMaxSetSize(resultReader);
     // adjust score of each match state by -0.2 to trim alignment
@@ -277,31 +274,14 @@ int result2outputmode(Parameters &par, int mode) {
                                                                  static_cast<int>(par.qid * 100), par.qsc,
                                                                  static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
 
-            if (true) {
-                std::ostringstream representative;
-                if (par.addInternalId) {
-                    representative << "#" << queryKey << "\n";
-                }
-                if (true) {
-                    // gather headers for summary
-                    std::vector<std::string> headers;
-                    for (size_t i = 0; i < filterRes.setSize; i++) {
-                        if (i == 0) {
-                            headers.push_back(queryHeaderReader->getDataByDBKey(queryKey));
-                        } else {
-                            headers.push_back(tempateHeaderReader->getDataByDBKey(seqSet[i - 1]->getDbKey()));
-                        }
-                    }
+            std::vector<std::string> headers;
 
-                    representative << ">" << summarizer.summarize(headers).c_str();
-                } else {
-                    representative << ">" << queryHeaderReader->getDataByDBKey(queryKey);
-                }
-                representative << qDbr->getDataByDBKey(queryKey) << "\n";
+            std::ostringstream representativeStream;
+            representativeStream << ">" << queryHeaderReader->getDataByDBKey(queryKey);
+            representativeStream << qDbr->getDataByDBKey(queryKey) << "\n";
 
-                std::string result = representative.str();
-                representativeWriter->write(result.c_str(), result.size(), SSTR(queryKey).c_str(), thread_idx);
-            }
+            std::string representative = representativeStream.str();
+            representativeWriter.write(representative.c_str(), representative.size(), SSTR(queryKey).c_str(), thread_idx);
 
             char *data;
             size_t dataSize;
@@ -309,6 +289,20 @@ int result2outputmode(Parameters &par, int mode) {
             std::string result;
             switch (mode) {
                 case MSA: {
+                    if (par.summarizeHeader) {
+                        // gather headers for summary
+                        std::vector<std::string> headers;
+                        for (size_t i = 0; i < filterRes.setSize; i++) {
+                            if (i == 0) {
+                                headers.push_back(queryHeaderReader->getDataByDBKey(queryKey));
+                            } else {
+                                headers.push_back(tempateHeaderReader->getDataByDBKey(seqSet[i - 1]->getDbKey()));
+                            }
+                        }
+
+                        msa << "#" << summarizer.summarize(headers, par.summaryPrefix + "-" + SSTR(queryKey)).c_str() << "\n";
+                    }
+
                     // TODO : the first sequence in the MSA seems to be overwritten by the query seq
                     for (size_t i = 0; i < filterRes.setSize; i++) {
                         unsigned int key;
@@ -598,10 +592,7 @@ int result2outputmode(Parameters &par, int mode) {
         delete referenceHeadersDBr;
     }
 
-    if (true) {
-        representativeWriter->close();
-        delete representativeWriter;
-    }
+    representativeWriter.close();
 
     resultReader->close();
     delete resultReader;
