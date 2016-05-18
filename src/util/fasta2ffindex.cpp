@@ -28,7 +28,9 @@ int createdb(int argn, const char **argv) {
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.createdb, 2);
-
+    if(par.maxSeqLen == Parameters::MAX_SEQ_LEN){
+        par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;
+    }
     FILE *fasta_file = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
 
     std::string data_filename = par.db2;
