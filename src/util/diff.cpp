@@ -43,7 +43,7 @@ int diff(int argc, const char** argv) {
 	usage.append("\nDesigned and implemented by Clovis Galiez <clovis.galiez@mpibpc.mpg.de>\n");
 
 	Parameters par;
-	par.parseParameters(argc, argv, usage, par.empty, 5);
+	par.parseParameters(argc, argv, usage, par.diff, 5);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
