@@ -59,6 +59,8 @@ public:
 
     static const int AUTO_SPLIT_DETECTION = 0;
 
+    static const int MAX_SEQ_LEN = 32000;
+
     // COMMON
     const char** argv;            //command line parameters
     char argc;              //dimension of argv
