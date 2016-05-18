@@ -150,6 +150,8 @@ public:
     bool allowDeletion;
     bool addInternalId;
     bool compressMSA;
+    bool summarizeHeader;
+    std::string summaryPrefix;
 
     // result2profile
     float filterMaxSeqId;
@@ -263,6 +265,8 @@ public:
     PARAMETER(PARAM_ALLOW_DELETION)
     PARAMETER(PARAM_ADD_INTERNAL_ID)
     PARAMETER(PARAM_COMPRESS_MSA)
+    PARAMETER(PARAM_SUMMARIZE_HEADER)
+    PARAMETER(PARAM_SUMMARY_PREFIX)
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)
