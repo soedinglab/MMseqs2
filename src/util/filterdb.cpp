@@ -4,26 +4,73 @@
 #include "Util.h"
 #include "Log.h"
 #include "Debug.h"
+#include "filterdb.h"
 
-#include <regex.h>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-int dofilter(std::string inputDb, std::string outputDb, int threads, size_t column, std::string regexStr) {
-    DBReader<unsigned int>* dataDb=new DBReader<unsigned int>(inputDb.c_str(),(std::string(inputDb).append(".index")).c_str());
+int ffindexFilter::initFiles() {
+    dataDb=new DBReader<unsigned int>(inDB.c_str(),(std::string(inDB).append(".index")).c_str());
     dataDb->open(DBReader<std::string>::LINEAR_ACCCESS);
-    DBWriter* dbw = new DBWriter(outputDb.c_str(), (std::string(outputDb).append(".index")).c_str(), threads);
+	
+    dbw = new DBWriter(outDB.c_str(), (std::string(outDB).append(".index")).c_str(), threads);
     dbw->open();
+	return 0;
+}
 
-    regex_t regex;
+ffindexFilter::ffindexFilter(std::string inDB,	std::string outDB, int threads, size_t column, std::string regexStr):
+inDB(inDB),outDB(outDB),threads(threads),column(column),regexStr(regexStr) {
+
+	initFiles();
+	
+	mode = REGEX_FILTERING;
+	
     int status = regcomp(&regex, regexStr.c_str(), REG_EXTENDED | REG_NEWLINE);
     if (status != 0 ){
         Debug(Debug::INFO) << "Error in regex " << regexStr << "\n";
         EXIT(EXIT_FAILURE);
     }
+}
 
+ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column,bool positiveFiltering=true):
+inDB(inDB),outDB(outDB),threads(threads),column(column), filterFile(filterFile),positiveFiltering(positiveFiltering){
+
+	initFiles();
+	
+	
+	mode = FILE_FILTERING;
+	
+	// Fill the filter with the data contained in the file
+	std::ifstream filterFileStream;
+	filterFileStream.open(filterFile);
+	std::string line;
+	while (std::getline(filterFileStream,line))
+	{
+		filter.push_back(line);
+	}
+	
+	std::stable_sort(filter.begin(), filter.end(), compareString());
+	
+}
+
+
+ffindexFilter::~ffindexFilter() {
+	
+	if (mode == REGEX_FILTERING)
+		regfree(&regex);
+		
+	dataDb->close();
+	dbw->close();
+	delete dataDb;
+	delete dbw;
+}
+
+
+
+int ffindexFilter::runFilter(){
+	
     const size_t LINE_BUFFER_SIZE = 1000000;
 #pragma omp parallel
     {
@@ -34,6 +81,7 @@ int dofilter(std::string inputDb, std::string outputDb, int threads, size_t colu
         buffer.reserve(LINE_BUFFER_SIZE);
 #pragma omp for schedule(static)
         for (size_t id = 0; id < dataDb->getSize(); id++) {
+
             Log::printProgress(id);
             int thread_idx = 0;
 #ifdef OPENMP
@@ -52,18 +100,46 @@ int dofilter(std::string inputDb, std::string outputDb, int threads, size_t colu
                     Debug(Debug::ERROR) << "Column=" << column << " does not exist in line " << lineBuffer << "\n";
                     EXIT(EXIT_FAILURE);
                 }
+				  
+				  size_t colStrLen;
                 // if column is last column
                 if(column == foundElements){
                     const ptrdiff_t entrySize = Util::skipLine(data) - columnPointer[(column - 1)];
                     memcpy(columnValue, columnPointer[column - 1], entrySize);
                     columnValue[entrySize] = '\0';
+					  colStrLen = entrySize;
                 }else{
                     const ptrdiff_t entrySize = columnPointer[column] - columnPointer[(column - 1)];
                     memcpy(columnValue, columnPointer[column - 1], entrySize);
                     columnValue[entrySize] = '\0';
+					  colStrLen = entrySize;
                 }
-                int nomatch = regexec(&regex, columnValue, 0, NULL, 0);
-
+					int nomatch;
+					if (mode == REGEX_FILTERING)
+						nomatch = regexec(&regex, columnValue, 0, NULL, 0);
+					else if(mode == FILE_FILTERING)
+					{
+						columnValue[Util::getLastNonWhitespace(columnValue,colStrLen)] = '\0'; // remove the whitespaces at the end
+						std::string toSearch(columnValue);
+						
+						std::vector<std::string>::iterator foundInFilter = std::upper_bound(filter.begin(), filter.end(), toSearch, compareString());
+						if (foundInFilter != filter.end() && toSearch.compare(*foundInFilter) == 0)
+						{ // Found in filter
+							if (positiveFiltering)
+								nomatch = 0; // add to the output
+							else
+								nomatch = 1;
+						} else {
+							// not found in the filter
+							if (positiveFiltering)
+								nomatch = 1; // do NOT add to the output
+							else
+								nomatch = 0;
+						}
+			
+					} else // Unknown filtering mode, keep all entries
+						nomatch = 0;
+                 
                 if(!(nomatch)){
                     buffer.append(lineBuffer);
                     buffer.append("\n");
@@ -78,11 +154,7 @@ int dofilter(std::string inputDb, std::string outputDb, int threads, size_t colu
         delete [] columnValue;
         delete [] columnPointer;
     }
-    regfree(&regex);
-    dataDb->close();
-    dbw->close();
-    delete dataDb;
-    delete dbw;
+
     return 0;
 }
 
@@ -98,9 +170,26 @@ int filterdb(int argn, const char **argv)
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-    return dofilter(par.db1,
-                    par.db2,
-                    par.threads,
-                    static_cast<size_t>(par.filterColumn),
-                    par.filterColumnRegex);
+
+	if (par.filteringFile == "")
+	{
+		ffindexFilter filter(par.db1,
+						par.db2,
+						par.threads,
+						static_cast<size_t>(par.filterColumn),
+						par.filterColumnRegex);
+						
+		return filter.runFilter();
+	} else {
+		std::cout<<"Filtering by file "<<par.filteringFile << std::endl;
+		ffindexFilter filter(par.db1,
+						par.db2,
+						par.filteringFile,
+						par.threads,
+						static_cast<size_t>(par.filterColumn),
+						par.positiveFilter);
+		return filter.runFilter();
+	}
+	
+	return -1;
 }

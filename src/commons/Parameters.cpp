@@ -93,8 +93,12 @@ Parameters::Parameters():
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "Type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "Minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
+// filterdb
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "Column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
         PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
+        PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "Used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,"true"),		
+        PARAM_FILTER_FILE(PARAM_FILTER_POS_ID,"--filter-file", "Filter file", "Specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),		
+		
 // evaluationscores
                 PARAM_EVALUATION_ALLVSALL(PARAM_EVALUATION_ALLVSALL_ID, "-a", "All vs all","All cluster members vs all cluster members, otherwise: all against representative",typeid(bool),(void *) &allVsAll, ""),
         PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE_ID, "-r", "Random representative choice","Instead of first cluster member as representative choose a random one.",typeid(bool),(void *) &randomizedRepresentative, ""),
@@ -270,6 +274,8 @@ Parameters::Parameters():
     // filterDb
     filterDb.push_back(PARAM_FILTER_COL);
     filterDb.push_back(PARAM_FILTER_REGEX);
+    filterDb.push_back(PARAM_FILTER_POS);
+    filterDb.push_back(PARAM_FILTER_FILE);
     filterDb.push_back(PARAM_THREADS);
     filterDb.push_back(PARAM_V);
 
@@ -296,6 +302,9 @@ Parameters::Parameters():
     // result2newick
     result2newick.push_back(PARAM_THREADS);
     result2newick.push_back(PARAM_V);
+	
+	
+    diff.push_back(PARAM_THREADS);
 
     checkSaneEnvironment();
     setDefaults();
@@ -496,7 +505,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db1Index.append(".index");
             break;
         default:
-            // Do not abort execution if we exect a variable amount of parameters
+            // Do not abort execution if we expect a variable amount of parameters
             if(isVariadic)
                 break;
         case 0:
@@ -679,6 +688,8 @@ void Parameters::setDefaults() {
     // filterDb
     filterColumn = 1;
     filterColumnRegex = "^.*$";
+    positiveFilter = true;
+    filteringFile = "";
 
     // evaluationscores
     allVsAll = false;
