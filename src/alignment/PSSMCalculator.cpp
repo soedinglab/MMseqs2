@@ -261,7 +261,8 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
 
 void PSSMCalculator::computePseudoCounts(float *profile, float *frequency, float *frequency_with_pseudocounts, size_t queryLength, float pca, float pcb) {
     for (size_t pos = 0; pos < queryLength; pos++) {
-        float tau = fmin(1.0, pca / (1.0 + Neff_M[pos] / pcb));
+        //float tau = fmin(1.0, pca / (1.0 + Neff_M[pos] / pcb));
+        float tau = fmin(1.0, pca * (1.0 + pcb)/ (Neff_M[pos] + pcb));
 
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
             // compute proportion of pseudo counts and signal
