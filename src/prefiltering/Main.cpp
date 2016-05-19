@@ -11,7 +11,6 @@
 #include <omp.h>
 #endif
 
-
 int prefilter(int argc, const char **argv)
 {
     MMseqsMPI::init(argc, argv);
@@ -25,6 +24,7 @@ int prefilter(int argc, const char **argv)
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
+
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

@@ -93,10 +93,16 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
     qseqdbr->open(DBReader<unsigned int>::NOSORT);
     qseqdbr->readMmapedDataInMemory();
-    tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
-    tseqdbr->open(DBReader<unsigned int>::NOSORT);
-    tseqdbr->readMmapedDataInMemory();
     sameQTDB = (querySeqDB.compare(targetSeqDB) == 0);
+    if(sameQTDB == true) {
+        this->tseqdbr = qseqdbr;
+    }else{
+        tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
+        tseqdbr->open(DBReader<unsigned int>::NOSORT);
+        tseqdbr->readMmapedDataInMemory();
+    }
+
+    includeIdentity = par.includeIdentity;
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -140,7 +146,9 @@ Alignment::~Alignment(){
     delete[] dbKeys;
     delete m;
     delete qseqdbr;
-    delete tseqdbr;
+    if(sameQTDB == false){
+        delete tseqdbr;
+    }
     delete prefdbr;
 }
 
@@ -173,7 +181,9 @@ void Alignment::run (const unsigned int mpiRank, const unsigned int mpiNumProc,
 
 void Alignment::closeReader(){
     qseqdbr->close();
-    tseqdbr->close();
+    if(sameQTDB == false) {
+        tseqdbr->close();
+    }
     prefdbr->close();
 }
 
@@ -231,8 +241,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
                 dbKeys[thread_idx] = dbKey;
                 // sequence are identical if qID == dbID  (needed to cluster really short sequences)
-                const bool isIdentity = (queryDbKey == dbKey && sameQTDB) ? true : false;
-
+                const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB))? true : false;
                 // map the database sequence
                 char* dbSeqData = tseqdbr->getDataByDBKey(dbKeys[thread_idx]);
                 if (dbSeqData == NULL){

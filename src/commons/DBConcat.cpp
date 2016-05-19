@@ -40,6 +40,7 @@ void DBConcat::concat(){
 		indexSizeA = dbA->getSize();
 		indexSizeB = dbB->getSize();
 		
+		// keys paris are like : (key,i) where key is the ith key in the ffindex
 		keysA = new std::pair<unsigned int, unsigned int> [indexSizeA];
 		keysB = new std::pair<unsigned int, unsigned int> [indexSizeB];
 		
@@ -88,6 +89,7 @@ void DBConcat::concat(){
 		}
 	}
 	
+		//sort by key
 		std::stable_sort(keysA, keysA  + indexSizeA, compareFirstEntry());
 		std::stable_sort(keysB, keysB  + indexSizeB, compareFirstEntry());
 		
