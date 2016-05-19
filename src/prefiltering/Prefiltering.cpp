@@ -46,8 +46,6 @@ Prefiltering::Prefiltering(std::string queryDB,
         splitMode(par.splitMode),
         searchMode(par.searchMode)
 {
-    if(this->split == 0 )
-        this->split = 1;
 
     this->threads = par.threads;
 #ifdef OPENMP
@@ -61,8 +59,6 @@ Prefiltering::Prefiltering(std::string queryDB,
 //    FileUtil::errorIfFileExist(outDBIndex.c_str());
     this->qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-
     //  check if when qdb and tdb have the same name an index extention exists
     std::string check(targetDB);
     size_t pos = check.find(queryDB);
@@ -76,6 +72,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     }
     // if no match found or two matches found (we want exactly one match)
     sameQTDB = (queryDB.compare(targetDB) == 0 || (nomatch == false) );
+    includeIdentical = par.includeIdentity;
     this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader<unsigned int>::NOSORT);
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
@@ -133,6 +130,8 @@ Prefiltering::Prefiltering(std::string queryDB,
             splitMode = Parameters::TARGET_DB_SPLIT;
         }
     } else {
+        if(this->split == Parameters::AUTO_SPLIT_DETECTION)
+            this->split = 1;
         if(splitMode == Parameters::DETECT_BEST_DB_SPLIT){
             splitMode = Parameters::QUERY_DB_SPLIT;
         }
@@ -420,7 +419,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
         qseq[thread_idx]->mapSequence(id, qKey, seqData);
         // only the corresponding split should include the id (hack for the hack)
         unsigned int targetSeqId = UINT_MAX;
-        if(id >= dbFrom && id < (dbFrom + dbSize) && sameQTDB){
+        if(id >= dbFrom && id < (dbFrom + dbSize) && (sameQTDB || includeIdentical) ){
             targetSeqId = tdbr->getId(qseq[thread_idx]->getDbKey());
             if(targetSeqId != UINT_MAX){
                 targetSeqId = targetSeqId - dbFrom;
@@ -792,6 +791,5 @@ size_t Prefiltering::computeMemoryNeeded(int split, size_t dbSize, size_t resSiz
     size_t threadSize =  threads * (dbSize * 2 * 6 + dbSize * 7 + pow(2, ceil(log(dbSize*2/128)/log(2))) * 128 * 7);
     // some memory needed to keep the index, ....
     size_t background =  dbSize * 32;
-
     return residueSize + indexTableSize + threadSize + background;
 }
