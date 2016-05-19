@@ -231,12 +231,14 @@ void Prefiltering::mergeOutput(std::string outDB, std::string outDBIndex,
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
+
     if(filenames.size() < 2){
         std::rename(filenames[0].first.c_str(),  outDB.c_str());
         std::rename(filenames[0].second.c_str(), outDBIndex.c_str());
         Debug(Debug::INFO) << "No mergeing needed.\n";
         return;
     }
+
 
     std::list<std::pair<std::string, std::string>> files(filenames.begin(), filenames.end());
     size_t mergeStep = 0;

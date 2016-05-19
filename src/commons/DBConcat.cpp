@@ -3,9 +3,13 @@
 #include "DBReader.h"
 
 
-DBConcat::DBConcat(const char* dataFileNameA, const char* indexFileNameA,const char* dataFileNameB, const char* indexFileNameB,const char* dataFileNameC, const char* indexFileNameC, int threads, int dataMode)
-			: DBReader(std::strcmp(dataFileNameA,dataFileNameB) == 0 ? dataFileNameA : dataFileNameC,std::strcmp(indexFileNameA,indexFileNameB) == 0 ? indexFileNameA : indexFileNameC,dataMode)
+DBConcat::DBConcat(const char* dataFileNameA, const char* indexFileNameA,const char* dataFileNameB, const char* indexFileNameB,const char* dataFileNameC, const char* indexFileNameC, int threads, int dataMode, bool preserveKeysA)
+			: preserveKeysA(preserveKeysA),DBReader(std::strcmp(dataFileNameA,dataFileNameB) == 0 ? dataFileNameA : dataFileNameC,std::strcmp(indexFileNameA,indexFileNameB) == 0 ? indexFileNameA : indexFileNameC,dataMode)
 {
+	lastKeyA = 0;
+	
+	std::cout << preserveKeysA << "ALLO\n";
+	
 	if (std::strcmp(dataFileNameA,dataFileNameB) == 0)
 		sameDatabase = true;
 	else
@@ -27,9 +31,6 @@ DBConcat::DBConcat(const char* dataFileNameA, const char* indexFileNameA,const c
  // and "this" will be a reader on "dataFileNameC" after calling open()
  // otherwise, do nothing and "this"  will be a reader on "dataFileNameA"
 void DBConcat::concat(){
-	
-	
-	unsigned int currentKey = 0;
 	
 	if (!sameDatabase)
 	{
@@ -63,14 +64,22 @@ void DBConcat::concat(){
 			thread_idx = omp_get_thread_num();
 	#endif
 			data = dbA->getData(id);
-			concatWriter->write(data, dbA->getSeqLens(id) -1 , SSTR(id).c_str(), thread_idx);
-			keysA[id] = std::make_pair(dbA->getDbKey(id),id);// need to store the index, because it'll be sorted out by keys later
+			unsigned int newKey;
 			
+			if (preserveKeysA)
+				newKey = dbA->getDbKey(id);
+			else
+				newKey = id;
+				
+			concatWriter->write(data, dbA->getSeqLens(id) -1 , SSTR(newKey).c_str(), thread_idx);
+			keysA[id] = std::make_pair(dbA->getDbKey(id),newKey);// need to store the index, because it'll be sorted out by keys later
+			
+			lastKeyA = std::max(lastKeyA,newKey);
 	
-			currentKey++;
 		}
 
-
+	lastKeyA++;
+	
 	#pragma omp for schedule(static)
 		for (size_t id = 0; id < indexSizeB;id++)
 		{
@@ -82,10 +91,9 @@ void DBConcat::concat(){
 			thread_idx = omp_get_thread_num();
 	#endif
 			data = dbB->getData(id);
-			concatWriter->write(data, dbB->getSeqLens(id) -1, SSTR(id+indexSizeA).c_str(), thread_idx);
-			keysB[id] = std::make_pair(dbB->getDbKey(id),id+indexSizeA);// need to store the index, because it'll be sorted out by keys later
+			concatWriter->write(data, dbB->getSeqLens(id) -1, SSTR(id+lastKeyA).c_str(), thread_idx);
+			keysB[id] = std::make_pair(dbB->getDbKey(id),id+lastKeyA);// need to store the index, because it'll be sorted out by keys later
 			
-			currentKey++;
 		}
 	}
 	
@@ -147,7 +155,7 @@ int dbconcat(int argc, const char **argv) {
     
 	//if (par.compressMSA)
 	
-	DBConcat outDB(par.db1.c_str(), par.db1Index.c_str(),par.db2.c_str(), par.db2Index.c_str(),par.db3.c_str(),par.db3Index.c_str(),1);
+	DBConcat outDB(par.db1.c_str(), par.db1Index.c_str(),par.db2.c_str(), par.db2Index.c_str(),par.db3.c_str(),par.db3Index.c_str(),1,DBReader<unsigned int>::USE_DATA|DBReader<unsigned int>::USE_INDEX,true);
 	outDB.concat();
 	
     gettimeofday(&end, NULL);
