@@ -18,6 +18,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
                      std::string prefDB, std::string prefDBIndex,
                      std::string outDB, std::string outDBIndex,
                      Parameters &par){
+    this->showOnlyKeyHit = par.showOnlyKeyHit;
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
@@ -313,21 +314,27 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
             std::stringstream swResultsSs;
             // put the contents of the swResults list into ffindex DB
             for (size_t i = 0; i < swResults.size(); i++){
-                swResultsSs << swResults[i].dbKey << "\t";
-                swResultsSs << swResults[i].score << "\t"; //TODO fix for formats
-                swResultsSs << std::fixed << std::setprecision(3) << swResults[i].seqId << "\t";
-                swResultsSs << std::scientific << swResults[i].eval << "\t";
-                swResultsSs << swResults[i].qStartPos  << "\t";
-                swResultsSs << swResults[i].qEndPos  << "\t";
-                swResultsSs << swResults[i].qLen << "\t";
-                swResultsSs << swResults[i].dbStartPos  << "\t";
-                swResultsSs << swResults[i].dbEndPos  << "\t";
-                if(addBacktrace == true){
-                    swResultsSs << swResults[i].dbLen << "\t";
-                    swResultsSs << Matcher::compressAlignment(swResults[i].backtrace) << "\n";
-                }else{
-                    swResultsSs << swResults[i].dbLen << "\n";
-                }
+                swResultsSs << swResults[i].dbKey;
+				
+				  if (!showOnlyKeyHit)
+				  {
+						swResultsSs << "\t";
+						swResultsSs << swResults[i].score << "\t"; //TODO fix for formats
+						swResultsSs << std::fixed << std::setprecision(3) << swResults[i].seqId << "\t";
+						swResultsSs << std::scientific << swResults[i].eval << "\t";
+						swResultsSs << swResults[i].qStartPos  << "\t";
+						swResultsSs << swResults[i].qEndPos  << "\t";
+						swResultsSs << swResults[i].qLen << "\t";
+						swResultsSs << swResults[i].dbStartPos  << "\t";
+						swResultsSs << swResults[i].dbEndPos  << "\t";
+						if(addBacktrace == true){
+							swResultsSs << swResults[i].dbLen << "\t";
+							swResultsSs << Matcher::compressAlignment(swResults[i].backtrace) << "\n";
+						}else{
+							swResultsSs << swResults[i].dbLen << "\n";
+						}
+				   } else 
+					   swResultsSs << "\n";
             }
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();

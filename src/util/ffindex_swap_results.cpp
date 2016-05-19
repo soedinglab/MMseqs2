@@ -114,11 +114,15 @@ int swapresults (int argc, const char * argv[]){
     }
     dbr.close();
     fclose(dataFile);
+	
     for (SwapIt iterator = swapMap.begin(); iterator != swapMap.end(); iterator++) {
         delete iterator->second;
     }
+	
+	
     // merge output of all swap splits
-    Prefiltering::mergeOutput(par.db2, std::string(par.db2 + ".index"), filesToDelete);
+	Prefiltering::mergeOutput(par.db2, std::string(par.db2 + ".index"), filesToDelete);
+
     for (size_t i = 0; i < filesToDelete.size(); i++) {
         remove(filesToDelete[i].first.c_str());
         remove(filesToDelete[i].second.c_str());
