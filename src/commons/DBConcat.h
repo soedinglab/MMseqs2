@@ -8,8 +8,10 @@
 #include "Util.h"
 #include "Debug.h"
 #include "FileUtil.h"
+#include "Parameters.h"
 
 #include <algorithm> 
+#include <sys/time.h>
 
 #ifdef OPENMP
 #include <omp.h>
