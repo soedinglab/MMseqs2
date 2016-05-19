@@ -59,6 +59,7 @@ Parameters::Parameters():
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "Allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "Add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, ""),
         PARAM_COMPRESS_MSA(PARAM_COMPRESS_MSA_ID,"--compress", "Compress MSA", "Create MSA in ca3m format", typeid(bool), (void*) &compressMSA, ""),
+        PARAM_REPSEQ(PARAM_REPSEQ_ID,"--only-rep-seq","Representative sequence", "Outputs a ffindex with the representative sequences", typeid(bool), (void*) &onlyRepSeq, ""),
 		
 // result2profile
         PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "Includes sequences with < e-value thr. into the profile [0.0,1.0]", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
@@ -201,7 +202,10 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_THREADS);
     result2msa.push_back(PARAM_V);
     result2msa.push_back(PARAM_COMPRESS_MSA);
+    result2msa.push_back(PARAM_REPSEQ);
 
+
+	
     // extract orf
     extractorf.push_back(PARAM_ORF_MIN_LENGTH);
     extractorf.push_back(PARAM_ORF_MAX_LENGTH);
@@ -649,6 +653,10 @@ void Parameters::setDefaults() {
     // result2msa
     allowDeletion = false;
     addInternalId = false;
+	onlyRepSeq = false;
+	compressMSA = false;
+	
+	
     // result2profile
     evalProfile = evalThr;
     filterMaxSeqId = 0.9;

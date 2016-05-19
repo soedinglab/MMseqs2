@@ -159,6 +159,7 @@ public:
     bool allowDeletion;
     bool addInternalId;
     bool compressMSA;
+    bool onlyRepSeq;
 
     // result2profile
     float filterMaxSeqId;
@@ -276,6 +277,7 @@ public:
     PARAMETER(PARAM_ALLOW_DELETION)
     PARAMETER(PARAM_ADD_INTERNAL_ID)
     PARAMETER(PARAM_COMPRESS_MSA)
+    PARAMETER(PARAM_REPSEQ)
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)
@@ -362,6 +364,7 @@ public:
     std::vector<MMseqsParameter> substractresult;
     std::vector<MMseqsParameter> result2newick;
     std::vector<MMseqsParameter> diff;
+    std::vector<MMseqsParameter> dbconcat;
 
     std::vector<MMseqsParameter> evaluationscores;
 

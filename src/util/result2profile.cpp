@@ -24,7 +24,8 @@
 enum {
     MSA = 0,
     PSSM,
-	ca3m
+	ca3m,
+	REPSEQ
 };
 
 size_t findMaxSetSize(DBReader<unsigned int> *reader) {
@@ -209,9 +210,12 @@ int result2outputmode(Parameters &par, int mode) {
 			 // Get the sequence from the queryDB
             unsigned int queryKey = resultReader->getDbKey(id);
             char *seqData = qDbr->getDataByDBKey(queryKey);
-            centerSequence->mapSequence(0, queryKey, seqData);
+			 if (seqData != NULL)
+				 centerSequence->mapSequence(0, queryKey, seqData);
 
             std::vector<Sequence *> seqSet;
+			 std::string *reprSeq = NULL;
+
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
@@ -222,6 +226,15 @@ int result2outputmode(Parameters &par, int mode) {
                 if(columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT){
                     evalue = strtod (entry[3], NULL);
                 }
+				
+				  if(reprSeq == NULL) 
+				  {
+						const size_t edgeId = tDbr->getId(key);
+						char *dbSeqData = tDbr->getData(edgeId);
+						reprSeq = new std::string(dbSeqData); 
+				  }
+				  
+				
                 // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
                 if ( evalue <= par.evalProfile && (key != queryKey || sameDatabase == false) ) {
                     if(columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
@@ -297,6 +310,20 @@ int result2outputmode(Parameters &par, int mode) {
                     dataSize = result.length();
                 }
                     break;
+					case REPSEQ:
+					{
+						if (reprSeq != NULL)
+						{
+							msa << *reprSeq;
+							delete reprSeq;
+						} else {
+								//msa << '\0';
+						}
+						result = msa.str();
+						data = (char *) result.c_str();
+						dataSize = result.length();
+					}
+					break;
 
 
 					// This outputs a a3m format --- TODO
@@ -609,6 +636,8 @@ int result2msa(int argc, const char **argv) {
     int retCode;
 	if (par.compressMSA)
 		retCode = result2outputmode(par, ca3m);
+	else if(par.onlyRepSeq)
+		retCode = result2outputmode(par, REPSEQ);
 	else
 		retCode = result2outputmode(par, MSA);
     gettimeofday(&end, NULL);

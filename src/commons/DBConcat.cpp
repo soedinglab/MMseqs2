@@ -128,3 +128,31 @@ DBConcat::~DBConcat() {
 		delete keysB;
 	}
 }
+
+
+
+int dbconcat(int argc, const char **argv) {
+    std::string usage("Concatenates two ffindex DB.\n");
+    usage.append("USAGE: <DB1> <DB2> <outDB>\n");
+    usage.append("\nDesigned and implemented by Clovis Galiez <clovis.galiez@mpibpc.mpg.de>\n");
+
+
+    Parameters par;
+    par.parseParameters(argc, argv, usage, par.dbconcat, 3);
+
+
+    
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+    
+	//if (par.compressMSA)
+	
+	DBConcat outDB(par.db1.c_str(), par.db1Index.c_str(),par.db2.c_str(), par.db2Index.c_str(),par.db3.c_str(),par.db3Index.c_str(),1);
+	outDB.concat();
+	
+    gettimeofday(&end, NULL);
+    int sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::WARNING) << "Time for concatenating DBs: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    return 0;
+
+}
