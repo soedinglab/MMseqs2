@@ -34,11 +34,11 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
-
+    // prefilter search
     static const int SEARCH_GLOBAL = 0;
     static const int SEARCH_LOCAL = 1;
     static const int SEARCH_LOCAL_FAST = 2;
-
+    // format alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
     static const int FORMAT_ALIGNMENT_SAM       = 2;
@@ -52,12 +52,15 @@ public:
 
     static const int APC_ALIGNMENTSCORE=1;
     static const int APC_SEQID=2;
-
+    // split mode
     static const int TARGET_DB_SPLIT = 0;
     static const int QUERY_DB_SPLIT = 1;
     static const int DETECT_BEST_DB_SPLIT = 2;
-
+    // split
     static const int AUTO_SPLIT_DETECTION = 0;
+    // includeIdentity
+    static const int INCLUDE_HIT_AUTO = 0;
+    static const int FORCE_INCLUDE = 1;
 
     static const int MAX_SEQ_LEN = 32000;
 
@@ -90,8 +93,8 @@ public:
     int    querySeqType;                 // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                      // Amounts of threads
-    bool removeTmpFiles;                // Do not delete temp files
-    
+    bool   removeTmpFiles;               // Do not delete temp files
+    bool   includeIdentity;              // include identical ids as hit
     // PREFILTER
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
@@ -232,6 +235,7 @@ public:
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)
+    PARAMETER(PARAM_INCLUDE_IDENTITY)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
