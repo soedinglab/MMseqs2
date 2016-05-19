@@ -192,6 +192,9 @@ public:
     // filterDb
     int filterColumn;
     std::string filterColumnRegex;
+	std::string filteringFile;
+	std::string mappingFile;
+	bool positiveFilter;
 
     // evaluationscores
     bool allVsAll;
@@ -325,7 +328,10 @@ public:
     // filterDb
     PARAMETER(PARAM_FILTER_COL)
     PARAMETER(PARAM_FILTER_REGEX)
-
+    PARAMETER(PARAM_FILTER_POS)
+    PARAMETER(PARAM_FILTER_FILE)
+    PARAMETER(PARAM_MAPPING_FILE)
+	
     // evaluationScore
     PARAMETER(PARAM_EVALUATION_ALLVSALL)
     PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
@@ -355,6 +361,7 @@ public:
     std::vector<MMseqsParameter> swapresults;
     std::vector<MMseqsParameter> substractresult;
     std::vector<MMseqsParameter> result2newick;
+    std::vector<MMseqsParameter> diff;
 
     std::vector<MMseqsParameter> evaluationscores;
 

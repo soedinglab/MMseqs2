@@ -79,6 +79,23 @@ public:
         }
         return counter;
     }
+	
+	// Return the index i such that data[i] <- '\0' makes a string terminated 
+	// by a non Whitespace character
+	static inline size_t getLastNonWhitespace(char * data, size_t len){
+        size_t counter = len;
+		
+		 if (counter && data[counter] == '\0')
+			 counter--;
+			 
+        while( (data[counter] == ' ' || data[counter] == '\t')) {
+				if(!counter)
+					return 0;
+            counter--;
+        }
+		
+        return counter + 1; 
+    }
     
     static inline size_t skipNoneWhitespace(char * data){
         //A value different from zero (i.e., true) if indeed c is a white-space character. Zero (i.e., false) otherwise.

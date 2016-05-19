@@ -43,7 +43,7 @@ int diff(int argc, const char** argv) {
 	usage.append("\nDesigned and implemented by Clovis Galiez <clovis.galiez@mpibpc.mpg.de>\n");
 
 	Parameters par;
-	par.parseParameters(argc, argv, usage, par.empty, 5);
+	par.parseParameters(argc, argv, usage, par.diff, 5);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
@@ -102,13 +102,13 @@ int diff(int argc, const char** argv) {
 		std::pair<std::string, unsigned  int>* mappedKey = std::upper_bound(keysNew, keysNew + indexSizeNew, keyToSearch, compareKeyToFirstEntry());
 
 
-		if (mappedKey != keysNew + indexSizeNew && keyToSearch.compare(mappedKey->first) == 0)
+		if (mappedKey != keysNew + indexSizeNew && keyToSearch == mappedKey->first)
 		{
 			// Found
 			size_t indexInNewDB = (mappedKey - keysNew);// / sizeof(std::pair<std::string, unsigned  int>);	
 			//std::cout << indexInNewDB <<std::endl;
 			checkedNew[indexInNewDB] = true;
-			keptSeqDBWriter << keysNew[indexInNewDB].second << std::endl;
+			keptSeqDBWriter << keysOld[id].second << "\t" << keysNew[indexInNewDB].second << std::endl;
 			
 		} else {
 			// not found
