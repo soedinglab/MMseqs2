@@ -182,7 +182,7 @@ int main(int argc, char **argv)
                 if(use_header) {
                    idbuffer = getProteinNameForID(targetdb_header, atoi(idbuffer1));
                 }else{
-                    std::string idbuffer =idbuffer1;
+                     idbuffer =idbuffer1;
                 }
 
                 if(representative==""){
