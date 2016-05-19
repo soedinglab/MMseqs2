@@ -46,7 +46,8 @@ public:
     static void rankedDescSort20(short *val, unsigned int *index);
     static void decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
                                            size_t worldRank, size_t worldSize, size_t *start, size_t *end);
-
+    static size_t getTotalSystemMemory();
+    static size_t get_phys_pages();
     static size_t countLines(const char *data, size_t length);
 
     static inline int fast_atoi( const char * str )
@@ -77,6 +78,23 @@ public:
             counter++;
         }
         return counter;
+    }
+	
+	// Return the index i such that data[i] <- '\0' makes a string terminated 
+	// by a non Whitespace character
+	static inline size_t getLastNonWhitespace(char * data, size_t len){
+        size_t counter = len;
+		
+		 if (counter && data[counter] == '\0')
+			 counter--;
+			 
+        while( (data[counter] == ' ' || data[counter] == '\t')) {
+				if(!counter)
+					return 0;
+            counter--;
+        }
+		
+        return counter + 1; 
     }
     
     static inline size_t skipNoneWhitespace(char * data){

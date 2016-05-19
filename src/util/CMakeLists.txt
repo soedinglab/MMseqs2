@@ -26,6 +26,7 @@ set(util_source_files
   computeGOscore.cpp
   detectredundancy.cpp
   order.cpp
+  diff.cpp
   TimeTest.cpp
 )
 

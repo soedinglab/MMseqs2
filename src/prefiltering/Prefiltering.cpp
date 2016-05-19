@@ -46,8 +46,6 @@ Prefiltering::Prefiltering(std::string queryDB,
         splitMode(par.splitMode),
         searchMode(par.searchMode)
 {
-    if(this->split == 0 )
-        this->split = 1;
 
     this->threads = par.threads;
 #ifdef OPENMP
@@ -61,8 +59,6 @@ Prefiltering::Prefiltering(std::string queryDB,
 //    FileUtil::errorIfFileExist(outDBIndex.c_str());
     this->qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-
     //  check if when qdb and tdb have the same name an index extention exists
     std::string check(targetDB);
     size_t pos = check.find(queryDB);
@@ -76,6 +72,7 @@ Prefiltering::Prefiltering(std::string queryDB,
     }
     // if no match found or two matches found (we want exactly one match)
     sameQTDB = (queryDB.compare(targetDB) == 0 || (nomatch == false) );
+    includeIdentical = par.includeIdentity;
     this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader<unsigned int>::NOSORT);
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
@@ -102,6 +99,43 @@ Prefiltering::Prefiltering(std::string queryDB,
     }
     Debug(Debug::INFO) << "Query database: " << par.db1 << "(size=" << qdbr->getSize() << ")\n";
     Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
+    size_t totalMemoryInByte =  Util::getTotalSystemMemory();
+    size_t neededSize = computeMemoryNeeded((par.split > 1)? par.split : 1,
+                                            tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize, kmerSize, par.threads);
+
+    Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
+    if(neededSize > 0.9 * totalMemoryInByte){
+        size_t split, neededSize;
+#ifdef HAVE_MPI
+        split = MMseqsMPI::numProc;
+#else
+        for(split = 1; split < 100; split++ ){
+            neededSize = computeMemoryNeeded(split, tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize, kmerSize, par.threads);
+            if(neededSize < 0.9 * totalMemoryInByte){
+                break;
+            }
+        }
+#endif
+        if(par.split == Parameters::AUTO_SPLIT_DETECTION && templateDBIsIndex == false){
+            par.split = split;
+            Debug(Debug::INFO) << "Set split to " << split << " because of memory constraint. You can change splits with --split  \n";
+            Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
+        } else {
+            Debug(Debug::WARNING) << "WARNING: Process needs too much memory. Consider using --split " << split << " to split the target database. The current run might be very slow. \n";
+            if(templateDBIsIndex == true){
+                Debug(Debug::WARNING) << "WARNING: Split is not possible when using a precomputed index \n";
+            }
+        }
+        if(splitMode == Parameters::DETECT_BEST_DB_SPLIT){
+            splitMode = Parameters::TARGET_DB_SPLIT;
+        }
+    } else {
+        if(this->split == Parameters::AUTO_SPLIT_DETECTION)
+            this->split = 1;
+        if(splitMode == Parameters::DETECT_BEST_DB_SPLIT){
+            splitMode = Parameters::QUERY_DB_SPLIT;
+        }
+    }
 
     // init the substitution matrices
     switch (querySeqType) {
@@ -142,7 +176,6 @@ Prefiltering::Prefiltering(std::string queryDB,
 }
 
 Prefiltering::~Prefiltering(){
-
     for (int i = 0; i < threads; i++){
         delete qseq[i];
         reslens[i]->clear();
@@ -242,7 +275,8 @@ void Prefiltering::run(int mpi_rank, int mpi_num_procs) {
     if(splitMode == Parameters::TARGET_DB_SPLIT){
         maxResListLen = (maxResListLen / mpi_num_procs) + 1;
     }
-    this->run(mpi_rank, mpi_num_procs, splitMode, filenamePair.first.c_str(),
+    this->run(mpi_rank, mpi_num_procs, splitMode,
+              filenamePair.first.c_str(),
               filenamePair.second.c_str());
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
@@ -385,7 +419,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::stri
         qseq[thread_idx]->mapSequence(id, qKey, seqData);
         // only the corresponding split should include the id (hack for the hack)
         unsigned int targetSeqId = UINT_MAX;
-        if(id >= dbFrom && id < (dbFrom + dbSize) && sameQTDB){
+        if(id >= dbFrom && id < (dbFrom + dbSize) && (sameQTDB || includeIdentical) ){
             targetSeqId = tdbr->getId(qseq[thread_idx]->getDbKey());
             if(targetSeqId != UINT_MAX){
                 targetSeqId = targetSeqId - dbFrom;
@@ -614,6 +648,7 @@ IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequen
     gettimeofday(&end, NULL);
     indexTable->printStatisitic(seq->int2aa);
     int sec = end.tv_sec - start.tv_sec;
+    dbr->remapData();
     Debug(Debug::WARNING) << "Time for index table init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
     return indexTable;
 }
@@ -743,4 +778,18 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const int score) {
         }
     }
     return kmerThrBest;
+}
+
+size_t Prefiltering::computeMemoryNeeded(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
+                                         int threads) {
+    // for each residue in the database we need 7 byte
+    size_t residueSize = (resSize * 7) / split;
+    // 21^7 * pointer size is needed for the index
+    size_t indexTableSize   =  pow(alphabetSize, kmerSize) * sizeof(char *);
+    // memory needed for the threads
+    // This memory is an approx. for Countint32Array and QueryTemplateLocalFast
+    size_t threadSize =  threads * (dbSize * 2 * 6 + dbSize * 7 + pow(2, ceil(log(dbSize*2/128)/log(2))) * 128 * 7);
+    // some memory needed to keep the index, ....
+    size_t background =  dbSize * 32;
+    return residueSize + indexTableSize + threadSize + background;
 }
