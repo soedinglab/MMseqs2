@@ -85,6 +85,7 @@ private:
     int splitMode;
     int searchMode;
     bool sameQTDB;
+    bool includeIdentical;
 
     /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
      * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
