@@ -8,8 +8,6 @@ DBConcat::DBConcat(const char* dataFileNameA, const char* indexFileNameA,const c
 {
 	lastKeyA = 0;
 	
-	std::cout << preserveKeysA << "ALLO\n";
-	
 	if (std::strcmp(dataFileNameA,dataFileNameB) == 0)
 		sameDatabase = true;
 	else
