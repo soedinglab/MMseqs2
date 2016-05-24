@@ -165,11 +165,15 @@ int swapresults (int argc, const char * argv[]){
     rdbr.close();
     fclose(dataFile);
     delete [] kmnByLen;
+
     for (SwapIt iterator = swapMap.begin(); iterator != swapMap.end(); iterator++) {
         delete iterator->second;
     }
+	
+	
     // merge output of all swap splits
     Prefiltering::mergeOutput(par.db4, std::string(par.db4 + ".index"), filesToDelete);
+
     for (size_t i = 0; i < filesToDelete.size(); i++) {
         remove(filesToDelete[i].first.c_str());
         remove(filesToDelete[i].second.c_str());
