@@ -25,14 +25,15 @@ Parameters::Parameters():
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-diag-score", "Minimum Diagonal score", "Accepts only hits with a ungapped diagonal score above the min score threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$"),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "Set the K-mer threshold for the K-mer generation",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$"),
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "Maximum result sequences per query",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$"),
-        PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "Splits target set in n equally distributed chunks",typeid(int),(void *) &split,  "^[1-9]{1}[0-9]*$"),
-        PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "MPI Option: Target set: 0 (low memory) or query set: 1 (faster but memory intensive)",typeid(int),(void *) &splitMode,  "^[0-1]{1}$"),
+        PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "Splits target set in n equally distributed chunks. In default the split is automatically set",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$"),
+        PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "MPI Option: db set: 0 (low memory), query set: 1 (faster but memory intensive) or auto: 2 (computes best mode)",typeid(int),(void *) &splitMode,  "^[0-2]{1}$"),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$"),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "Amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, ""),
         PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "Search mode. Debug: 1 (debug) Normal: 2 (default)",typeid(int), (void *) &searchMode, "^[0-2]{1}$"),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","Switch off local amino acid composition bias correction[0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$"),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "Spaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}" ),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, ""),
+        PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--include-id", "Include identical Seq. Id.","Include identical Seq. Id to hitlist",typeid(bool), (void *) &includeIdentity, ""),
 // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "Alignment mode 0=fastest based on parameters, 1=score; 2=score,cov,start/end pos; 3=score,cov,start/end pos,seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$"),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "Maximum e-value[0.0,1.0]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$"),
@@ -42,6 +43,7 @@ Parameters::Parameters():
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "--add-backtrace", "Add backtrace", "Add backtrace string to results (M=Match, D=deletion, I=insertion)", typeid(bool), (void *) &addBacktrace, ""),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "Realign hit with conservative scoring scheme (keeps old evalue and score but overwrites alignment)", typeid(bool), (void *) &realign, ""),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
+		 
 // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-2]{1}$"),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "Start the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
@@ -60,7 +62,8 @@ Parameters::Parameters():
         PARAM_COMPRESS_MSA(PARAM_COMPRESS_MSA_ID,"--compress", "Compress MSA", "Create MSA in ca3m format", typeid(bool), (void*) &compressMSA, ""),
         PARAM_SUMMARIZE_HEADER(PARAM_SUMMARIZE_HEADER_ID,"--summarize", "Summarize headers", "Summarize cluster headers into a single header description", typeid(bool), (void*) &summarizeHeader, ""),
         PARAM_SUMMARY_PREFIX(PARAM_SUMMARY_PREFIX_ID, "--summary-prefix", "Summary prefix","Sets the cluster summary prefix",typeid(std::string),(void *) &summaryPrefix, ""),
-		
+        PARAM_REPSEQ(PARAM_REPSEQ_ID,"--only-rep-seq","Representative sequence", "Outputs a ffindex with the representative sequences", typeid(bool), (void*) &onlyRepSeq, ""),
+
 // result2profile
         PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "Includes sequences with < e-value thr. into the profile [0.0,1.0]", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum sequence identity threshold", "Maximum sequence identity with all other sequences in alignment [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^[0-9]*(\\.[0-9]+)?$"),
@@ -95,17 +98,18 @@ Parameters::Parameters():
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "Type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "Minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
+// filterdb
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "Column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
         PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
+        PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "Used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,""),		
+        PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "Specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),		
+        PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "Specify a file that translates the keys of a result DB to new keys", typeid(std::string),(void *) &mappingFile,""),		
+		 PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
+		 
 // evaluationscores
-                PARAM_EVALUATION_ALLVSALL(PARAM_EVALUATION_ALLVSALL_ID, "-a", "All vs all","All cluster members vs all cluster members, otherwise: all against representative",typeid(bool),(void *) &allVsAll, ""),
+        PARAM_EVALUATION_ALLVSALL(PARAM_EVALUATION_ALLVSALL_ID, "-a", "All vs all","All cluster members vs all cluster members, otherwise: all against representative",typeid(bool),(void *) &allVsAll, ""),
         PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE_ID, "-r", "Random representative choice","Instead of first cluster member as representative choose a random one.",typeid(bool),(void *) &randomizedRepresentative, ""),
         PARAM_EVALUATION_USE_SEQUENCEHEADER(PARAM_EVALUATION_USE_SEQUENCEHEADER_ID, "-h", "Use sequence db to map numerical ids back to UniProt Id","Use sequence db to map numerical ids back to UniProt Id, should always be set except for UniRef",typeid(bool),(void *) &use_sequenceheader, "")
-
-
-
-
-
 {
     // alignment
     alignment.push_back(PARAM_SUB_MAT);
@@ -118,12 +122,15 @@ Parameters::Parameters():
     alignment.push_back(PARAM_MAX_SEQ_LEN);
     alignment.push_back(PARAM_MAX_SEQS);
     alignment.push_back(PARAM_MAX_REJECTED);
+    alignment.push_back(PARAM_INCLUDE_IDENTITY);
     alignment.push_back(PARAM_NUCL);
     alignment.push_back(PARAM_PROFILE);
     alignment.push_back(PARAM_ADD_BACKTRACE);
     alignment.push_back(PARAM_REALIGN);
     alignment.push_back(PARAM_THREADS);
     alignment.push_back(PARAM_V);
+	
+	
 
     // prefilter
     prefilter.push_back(PARAM_SUB_MAT);
@@ -141,6 +148,7 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     prefilter.push_back(PARAM_DIAGONAL_SCORING);
     prefilter.push_back(PARAM_MIN_DIAG_SCORE);
+    prefilter.push_back(PARAM_INCLUDE_IDENTITY);
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
     prefilter.push_back(PARAM_THREADS);
     prefilter.push_back(PARAM_V);
@@ -202,6 +210,7 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_COMPRESS_MSA);
     result2msa.push_back(PARAM_SUMMARIZE_HEADER);
     result2msa.push_back(PARAM_SUMMARY_PREFIX);
+    result2msa.push_back(PARAM_REPSEQ);
 
     // extract orf
     extractorf.push_back(PARAM_ORF_MIN_LENGTH);
@@ -253,6 +262,7 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
     searchworkflow.push_back(PARAM_USE_INDEX);
     searchworkflow.push_back(PARAM_RUNNER);
+	
 
     clusteringWorkflow = combineList(prefilter, alignment);
     clusteringWorkflow = combineList(clusteringWorkflow, clustering);
@@ -274,9 +284,13 @@ Parameters::Parameters():
     // filterDb
     filterDb.push_back(PARAM_FILTER_COL);
     filterDb.push_back(PARAM_FILTER_REGEX);
+    filterDb.push_back(PARAM_FILTER_POS);
+    filterDb.push_back(PARAM_FILTER_FILE);
+    filterDb.push_back(PARAM_MAPPING_FILE);
     filterDb.push_back(PARAM_THREADS);
     filterDb.push_back(PARAM_V);
-
+    filterDb.push_back(PARAM_TRIM_TO_ONE_COL);
+	
     // swapreults
     swapresults.push_back(PARAM_SPLIT);
     swapresults.push_back(PARAM_V);
@@ -300,6 +314,9 @@ Parameters::Parameters():
     // result2newick
     result2newick.push_back(PARAM_THREADS);
     result2newick.push_back(PARAM_V);
+	
+	
+    diff.push_back(PARAM_THREADS);
 
     checkSaneEnvironment();
     setDefaults();
@@ -500,7 +517,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db1Index.append(".index");
             break;
         default:
-            // Do not abort execution if we exect a variable amount of parameters
+            // Do not abort execution if we expect a variable amount of parameters
             if(isVariadic)
                 break;
         case 0:
@@ -577,11 +594,11 @@ void Parameters::setDefaults() {
     kmerSize =  7;
     kmerScore = INT_MAX;
     alphabetSize = 21;
-    maxSeqLen = 32000; // 2^15
+    maxSeqLen = MAX_SEQ_LEN; // 2^16
     maxResListLen = 300;
     sensitivity = 4;
-    split = 1;
-    splitMode = TARGET_DB_SPLIT;
+    split = AUTO_SPLIT_DETECTION;
+    splitMode = DETECT_BEST_DB_SPLIT;
     splitAA = false;
     querySeqType  = Sequence::AMINO_ACIDS;
     targetSeqType = Sequence::AMINO_ACIDS;
@@ -604,7 +621,7 @@ void Parameters::setDefaults() {
     searchMode = SEARCH_LOCAL_FAST;
     profile = false;
     nucl = false;
-
+    includeIdentity = false;
     alignmentMode = ALIGNMENT_MODE_FAST_AUTO;
     evalThr = 0.001;
     covThr = 0.0;
@@ -638,6 +655,7 @@ void Parameters::setDefaults() {
     // createdb
     splitSeqByLen = true;
 
+	
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
 
@@ -647,6 +665,8 @@ void Parameters::setDefaults() {
     compressMSA = false;
     summarizeHeader = false;
     summaryPrefix = "cl";
+	onlyRepSeq = false;
+	compressMSA = false;
 
     // result2profile
     evalProfile = evalThr;
@@ -687,7 +707,10 @@ void Parameters::setDefaults() {
     // filterDb
     filterColumn = 1;
     filterColumnRegex = "^.*$";
-
+    positiveFilter = true;
+    filteringFile = "";
+    trimToOneColumn = false;
+	
     // evaluationscores
     allVsAll = false;
     randomizedRepresentative = false;

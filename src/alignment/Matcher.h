@@ -85,6 +85,8 @@ public:
     static const unsigned short GAP_OPEN = 11;
     static const unsigned short GAP_EXTEND = 1;
 
+    static std::string resultToString(result_t &result, bool addBacktrace);
+
 private:
 
     // calculate the query profile for SIMD registers processing 8 elements

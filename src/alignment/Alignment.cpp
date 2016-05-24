@@ -18,6 +18,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
                      std::string prefDB, std::string prefDBIndex,
                      std::string outDB, std::string outDBIndex,
                      Parameters &par){
+    
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
@@ -93,10 +94,16 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
     qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
     qseqdbr->open(DBReader<unsigned int>::NOSORT);
     qseqdbr->readMmapedDataInMemory();
-    tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
-    tseqdbr->open(DBReader<unsigned int>::NOSORT);
-    tseqdbr->readMmapedDataInMemory();
     sameQTDB = (querySeqDB.compare(targetSeqDB) == 0);
+    if(sameQTDB == true) {
+        this->tseqdbr = qseqdbr;
+    }else{
+        tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
+        tseqdbr->open(DBReader<unsigned int>::NOSORT);
+        tseqdbr->readMmapedDataInMemory();
+    }
+
+    includeIdentity = par.includeIdentity;
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -140,7 +147,9 @@ Alignment::~Alignment(){
     delete[] dbKeys;
     delete m;
     delete qseqdbr;
-    delete tseqdbr;
+    if(sameQTDB == false){
+        delete tseqdbr;
+    }
     delete prefdbr;
 }
 
@@ -173,7 +182,9 @@ void Alignment::run (const unsigned int mpiRank, const unsigned int mpiNumProc,
 
 void Alignment::closeReader(){
     qseqdbr->close();
-    tseqdbr->close();
+    if(sameQTDB == false) {
+        tseqdbr->close();
+    }
     prefdbr->close();
 }
 
@@ -231,8 +242,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
                 dbKeys[thread_idx] = dbKey;
                 // sequence are identical if qID == dbID  (needed to cluster really short sequences)
-                const bool isIdentity = (queryDbKey == dbKey && sameQTDB) ? true : false;
-
+                const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB))? true : false;
                 // map the database sequence
                 char* dbSeqData = tseqdbr->getDataByDBKey(dbKeys[thread_idx]);
                 if (dbSeqData == NULL){
@@ -301,28 +311,13 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                     swResults[i].dbEndPos = res.dbEndPos;
                 }
             }
-            std::stringstream swResultsSs;
             // put the contents of the swResults list into ffindex DB
+            std::stringstream swResultsString;
             for (size_t i = 0; i < swResults.size(); i++){
-                swResultsSs << swResults[i].dbKey << "\t";
-                swResultsSs << swResults[i].score << "\t"; //TODO fix for formats
-                swResultsSs << std::fixed << std::setprecision(3) << swResults[i].seqId << "\t";
-                swResultsSs << std::scientific << swResults[i].eval << "\t";
-                swResultsSs << swResults[i].qStartPos  << "\t";
-                swResultsSs << swResults[i].qEndPos  << "\t";
-                swResultsSs << swResults[i].qLen << "\t";
-                swResultsSs << swResults[i].dbStartPos  << "\t";
-                swResultsSs << swResults[i].dbEndPos  << "\t";
-                if(addBacktrace == true){
-                    swResultsSs << swResults[i].dbLen << "\t";
-                    swResultsSs << Matcher::compressAlignment(swResults[i].backtrace) << "\n";
-                }else{
-                    swResultsSs << swResults[i].dbLen << "\n";
-                }
+                swResultsString << Matcher::resultToString(swResults[i], addBacktrace);
             }
-            std::string swResultsString = swResultsSs.str();
-            const char* swResultsStringData = swResultsString.c_str();
-            dbw.write(swResultsStringData, swResultsString.length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
+            const char* swResultsStringData = swResultsString.str().c_str();
+            dbw.write(swResultsStringData, swResultsString.str().length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
             swResults.clear();
 //        prefdbr->unmapDataById(id);
         }
