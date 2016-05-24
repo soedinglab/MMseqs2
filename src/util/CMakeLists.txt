@@ -27,6 +27,7 @@ set(util_source_files
   detectredundancy.cpp
   order.cpp
   TimeTest.cpp
+  summarize.cpp
 )
 
 add_library(util ${util_source_files} )

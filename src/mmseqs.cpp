@@ -89,6 +89,8 @@ static struct Command commands[] = {
             "Extracts clustering relationship from clustering steps into Newick trees"},
         {"order",               order,                  &par.onlyverbosity,         COMMAND_HELPER,
                 "Orders an mmseqs ffindex database according to a given list"},
+        {"summarize",           summarize,              &par.onlyverbosity,         COMMAND_HELPER,
+                "Summarizes all the headers in a fasta entry and prepend the summary to the fasta entry"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
         {"computeGOscore",     computeGOscore,        &par.evaluationscores,                 COMMAND_HIDDEN,
