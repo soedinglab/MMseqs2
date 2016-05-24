@@ -1,3 +1,4 @@
+#include <iomanip>
 #include "Matcher.h"
 #include "Util.h"
 #include "Parameters.h"
@@ -257,5 +258,27 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data) {
                                  dbLen, uncompressAlignment(std::string(entry[10], len)));
     }
 }
+
+std::string Matcher::resultToString(result_t &result, bool addBacktrace) {
+    std::stringstream swResultsSs;
+    swResultsSs << result.dbKey << "\t";
+    swResultsSs << result.score << "\t"; //TODO fix for formats
+    swResultsSs << std::fixed << std::setprecision(3) << result.seqId << "\t";
+    swResultsSs << std::scientific << result.eval << "\t";
+    swResultsSs << result.qStartPos  << "\t";
+    swResultsSs << result.qEndPos  << "\t";
+    swResultsSs << result.qLen << "\t";
+    swResultsSs << result.dbStartPos  << "\t";
+    swResultsSs << result.dbEndPos  << "\t";
+    if(addBacktrace == true){
+        swResultsSs << result.dbLen << "\t";
+        swResultsSs << Matcher::compressAlignment(result.backtrace) << "\n";
+    }else{
+        swResultsSs << result.dbLen << "\n";
+    }
+    return swResultsSs.str();
+}
+
+
 
 

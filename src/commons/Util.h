@@ -46,7 +46,8 @@ public:
     static void rankedDescSort20(short *val, unsigned int *index);
     static void decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
                                            size_t worldRank, size_t worldSize, size_t *start, size_t *end);
-
+    static size_t getTotalSystemMemory();
+    static size_t get_phys_pages();
     static size_t countLines(const char *data, size_t length);
 
     static inline int fast_atoi( const char * str )
@@ -77,6 +78,23 @@ public:
             counter++;
         }
         return counter;
+    }
+	
+	// Return the index i such that data[i] <- '\0' makes a string terminated 
+	// by a non Whitespace character
+	static inline size_t getLastNonWhitespace(char * data, size_t len){
+        size_t counter = len;
+		
+		 if (counter && data[counter] == '\0')
+			 counter--;
+			 
+        while( (data[counter] == ' ' || data[counter] == '\t')) {
+				if(!counter)
+					return 0;
+            counter--;
+        }
+		
+        return counter + 1; 
     }
     
     static inline size_t skipNoneWhitespace(char * data){
@@ -147,9 +165,22 @@ public:
     static void checkAllocation(void *pointer, std::string message);
 
     template <typename Iterator, typename Container>
-    static bool isLastIterator(Iterator iterator, const Container& container)
-    {
+    static bool isLastIterator(Iterator iterator, const Container& container) {
         return (iterator != container.end()) && (++iterator == container.end());
+    }
+
+    static std::string csvEscape(const std::string &s) {
+        size_t n = s.size(), wp = 0;
+        std::vector<char> result(n * 2);
+        for (size_t i = 0; i < n; i++) {
+            if (s[i] == '\n' || s[i] == '\t') {
+                result[wp++] = '\\';
+                result[wp++] = 'n';
+                continue;
+            }
+            result[wp++] = s[i];
+        }
+        return std::string(&result[0], &result[wp]);
     }
 };
 #endif

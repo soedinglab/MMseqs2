@@ -20,7 +20,8 @@
 enum {
     MSA = 0,
     PSSM,
-    ca3m
+	ca3m,
+	REPSEQ
 };
 
 size_t findMaxSetSize(DBReader<unsigned int> *reader) {
@@ -111,7 +112,6 @@ int result2outputmode(Parameters &par, int mode) {
         tempateHeaderReader->open(DBReader<unsigned int>::NOSORT);
     }
 
-
     DBConcat *referenceDBr, *referenceHeadersDBr;
     std::string referenceName(par.db4);
     std::string referenceIndexName(par.db4);
@@ -124,15 +124,17 @@ int result2outputmode(Parameters &par, int mode) {
         referenceSeqName.append("_sequence.ffdata");
         referenceSeqIndexName.append("_sequence.ffindex");
 
+        // Use only 1 thread for concat to ensure the same order as the later header concat
         referenceDBr = new DBConcat(par.db1.c_str(), par.db1Index.c_str(), par.db2.c_str(), par.db2Index.c_str(),
-                                    referenceSeqName.c_str(), referenceSeqIndexName.c_str(), par.threads);
+                                    referenceSeqName.c_str(), referenceSeqIndexName.c_str(), 1);
         referenceDBr->concat();
-
         // When exporting in ca3m,
         // we need to have an access in SORT_BY_LINE
         // mode in order to keep track of the original
         // line number in the index file.
         referenceDBr->open(DBReader<unsigned int>::SORT_BY_LINE);
+
+
 
         std::string referenceHeadersName(par.db4);
         std::string referenceHeadersIndexName(par.db4);
@@ -140,10 +142,10 @@ int result2outputmode(Parameters &par, int mode) {
         referenceHeadersName.append("_header.ffdata");
         referenceHeadersIndexName.append("_header.ffindex");
 
+        // Use only 1 thread for concat to ensure the same order as the former sequence concat
         referenceHeadersDBr = new DBConcat(headerNameQuery.c_str(), headerIndexNameQuery.c_str(),
                                            headerNameTarget.c_str(), headerIndexNameTarget.c_str(),
-                                           referenceHeadersName.c_str(), referenceHeadersIndexName.c_str(),
-                                           par.threads);
+                                           referenceHeadersName.c_str(), referenceHeadersIndexName.c_str(), 1);
         referenceHeadersDBr->concat();
     } else {
         referenceIndexName.append(".index");
@@ -226,9 +228,12 @@ int result2outputmode(Parameters &par, int mode) {
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader->getDbKey(id);
             char *seqData = qDbr->getDataByDBKey(queryKey);
-            centerSequence->mapSequence(0, queryKey, seqData);
+			 if (seqData != NULL)
+				 centerSequence->mapSequence(0, queryKey, seqData);
 
             std::vector<Sequence *> seqSet;
+			 std::string *reprSeq = NULL;
+
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
@@ -239,6 +244,15 @@ int result2outputmode(Parameters &par, int mode) {
                 if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
                     evalue = strtod(entry[3], NULL);
                 }
+				
+				  if(reprSeq == NULL) 
+				  {
+						const size_t edgeId = tDbr->getId(key);
+						char *dbSeqData = tDbr->getData(edgeId);
+						reprSeq = new std::string(dbSeqData); 
+				  }
+				  
+				
                 // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
                 if (evalue <= par.evalProfile && (key != queryKey || sameDatabase == false)) {
                     if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
@@ -334,6 +348,20 @@ int result2outputmode(Parameters &par, int mode) {
                     dataSize = result.length();
                 }
                     break;
+					case REPSEQ:
+					{
+						if (reprSeq != NULL)
+						{
+							msa << *reprSeq;
+							delete reprSeq;
+						} else {
+								//msa << '\0';
+						}
+						result = msa.str();
+						data = (char *) result.c_str();
+						dataSize = result.length();
+					}
+					break;
 
                 // This outputs a a3m format --- TODO
 /*                case HMM: {
@@ -535,22 +563,12 @@ int result2outputmode(Parameters &par, int mode) {
                        std::cout << std::endl;
                     }
 */
-                    data = (char *) calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
+                    std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
                                                                   filterRes.filteredMsaSequence, par.wg);
+                    data = (char*)pssmRes.first;
+                    std::string consensusStr = pssmRes.second;
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
 
-                    std::string consensusStr;
-                    for (size_t i = 0; i < res.centerLength; i++) {
-                        int maxScore = INT_MIN;
-                        int maxAA = 0;
-                        for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                            if (static_cast<int>(data[i * Sequence::PROFILE_AA_SIZE + aa]) > maxScore) {
-                                maxScore = data[i * Sequence::PROFILE_AA_SIZE + aa];
-                                maxAA = aa;
-                            }
-                        }
-                        consensusStr.push_back(subMat.int2aa[maxAA]);
-                    }
                     consensusStr.push_back('\n');
                     concensusWriter->write(consensusStr.c_str(), consensusStr.length(), SSTR(queryKey).c_str(),
                                            thread_idx);
@@ -640,6 +658,7 @@ int result2msa(int argc, const char **argv) {
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
     usage.append("\t & Milot Mirdita <milot@mirdita.de>");
+    usage.append("\t & Clovis Galiez <clovis.galiez@mpibpc.mpg.de>");
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.result2msa, 4);
@@ -648,11 +667,13 @@ int result2msa(int argc, const char **argv) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     int retCode;
-    if (par.compressMSA) {
-        retCode = result2outputmode(par, ca3m);
-    } else {
-        retCode = result2outputmode(par, MSA);
-    }
+
+	if (par.compressMSA)
+		retCode = result2outputmode(par, ca3m);
+	else if(par.onlyRepSeq)
+		retCode = result2outputmode(par, REPSEQ);
+	else
+		retCode = result2outputmode(par, MSA);
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;

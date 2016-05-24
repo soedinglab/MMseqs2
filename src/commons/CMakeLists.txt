@@ -36,6 +36,8 @@ set(commons_source_files
 	HeaderSummarizer.h
     PatternCompiler.cpp
     PatternCompiler.h
+    UniprotKB.cpp
+    UniprotKB.h
 )
 
 add_library(commons ${commons_source_files})
