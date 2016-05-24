@@ -53,3 +53,14 @@ include_directories(lib/simd)
 include_directories(lib/seqan)
 add_subdirectory(src)
 
+install(DIRECTORY
+   data
+   DESTINATION .
+   USE_SOURCE_PERMISSIONS
+   FILES_MATCHING PATTERN "*.out"
+)
+
+install(PROGRAMS
+	util/bash-completion.sh
+	DESTINATION util
+)
