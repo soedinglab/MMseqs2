@@ -32,7 +32,14 @@ set(commons_source_files
     MathUtil.h
     FileUtil.cpp
     FileUtil.h
+    HeaderSummarizer.cpp
+	HeaderSummarizer.h
+    PatternCompiler.cpp
+    PatternCompiler.h
+    UniprotKB.cpp
+    UniprotKB.h
 )
+
 add_library(commons ${commons_source_files})
 
 target_link_libraries(commons)

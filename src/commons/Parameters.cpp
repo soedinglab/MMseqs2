@@ -43,7 +43,7 @@ Parameters::Parameters():
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "--add-backtrace", "Add backtrace", "Add backtrace string to results (M=Match, D=deletion, I=insertion)", typeid(bool), (void *) &addBacktrace, ""),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "Realign hit with conservative scoring scheme (keeps old evalue and score but overwrites alignment)", typeid(bool), (void *) &realign, ""),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
-		 PARAM_SHOWONLY_KEY_HIT(PARAM_SHOWONLY_KEY_HIT_ID,"--only-key-hit", "Show only key hit","Do not output any information regarding score nor alignment.",typeid(bool), (void *) &showOnlyKeyHit, ""),
+		 
 // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-2]{1}$"),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "Start the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
@@ -60,8 +60,10 @@ Parameters::Parameters():
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "Allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "Add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, ""),
         PARAM_COMPRESS_MSA(PARAM_COMPRESS_MSA_ID,"--compress", "Compress MSA", "Create MSA in ca3m format", typeid(bool), (void*) &compressMSA, ""),
+        PARAM_SUMMARIZE_HEADER(PARAM_SUMMARIZE_HEADER_ID,"--summarize", "Summarize headers", "Summarize cluster headers into a single header description", typeid(bool), (void*) &summarizeHeader, ""),
+        PARAM_SUMMARY_PREFIX(PARAM_SUMMARY_PREFIX_ID, "--summary-prefix", "Summary prefix","Sets the cluster summary prefix",typeid(std::string),(void *) &summaryPrefix, ""),
         PARAM_REPSEQ(PARAM_REPSEQ_ID,"--only-rep-seq","Representative sequence", "Outputs a ffindex with the representative sequences", typeid(bool), (void*) &onlyRepSeq, ""),
-		
+
 // result2profile
         PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "Includes sequences with < e-value thr. into the profile [0.0,1.0]", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$"),
         PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum sequence identity threshold", "Maximum sequence identity with all other sequences in alignment [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^[0-9]*(\\.[0-9]+)?$"),
@@ -102,7 +104,8 @@ Parameters::Parameters():
         PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "Used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,""),		
         PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "Specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),		
         PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "Specify a file that translates the keys of a result DB to new keys", typeid(std::string),(void *) &mappingFile,""),		
-		
+		 PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
+		 
 // evaluationscores
         PARAM_EVALUATION_ALLVSALL(PARAM_EVALUATION_ALLVSALL_ID, "-a", "All vs all","All cluster members vs all cluster members, otherwise: all against representative",typeid(bool),(void *) &allVsAll, ""),
         PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE_ID, "-r", "Random representative choice","Instead of first cluster member as representative choose a random one.",typeid(bool),(void *) &randomizedRepresentative, ""),
@@ -126,7 +129,7 @@ Parameters::Parameters():
     alignment.push_back(PARAM_REALIGN);
     alignment.push_back(PARAM_THREADS);
     alignment.push_back(PARAM_V);
-    alignment.push_back(PARAM_SHOWONLY_KEY_HIT);
+	
 	
 
     // prefilter
@@ -205,10 +208,10 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_THREADS);
     result2msa.push_back(PARAM_V);
     result2msa.push_back(PARAM_COMPRESS_MSA);
+    result2msa.push_back(PARAM_SUMMARIZE_HEADER);
+    result2msa.push_back(PARAM_SUMMARY_PREFIX);
     result2msa.push_back(PARAM_REPSEQ);
 
-
-	
     // extract orf
     extractorf.push_back(PARAM_ORF_MIN_LENGTH);
     extractorf.push_back(PARAM_ORF_MAX_LENGTH);
@@ -286,7 +289,8 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_MAPPING_FILE);
     filterDb.push_back(PARAM_THREADS);
     filterDb.push_back(PARAM_V);
-
+    filterDb.push_back(PARAM_TRIM_TO_ONE_COL);
+	
     // swapreults
     swapresults.push_back(PARAM_SPLIT);
     swapresults.push_back(PARAM_V);
@@ -651,8 +655,6 @@ void Parameters::setDefaults() {
     // createdb
     splitSeqByLen = true;
 
-    // alignment
-	showOnlyKeyHit = false;
 	
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
@@ -660,10 +662,12 @@ void Parameters::setDefaults() {
     // result2msa
     allowDeletion = false;
     addInternalId = false;
+    compressMSA = false;
+    summarizeHeader = false;
+    summaryPrefix = "cl";
 	onlyRepSeq = false;
 	compressMSA = false;
-	
-	
+
     // result2profile
     evalProfile = evalThr;
     filterMaxSeqId = 0.9;
@@ -705,11 +709,11 @@ void Parameters::setDefaults() {
     filterColumnRegex = "^.*$";
     positiveFilter = true;
     filteringFile = "";
-
+    trimToOneColumn = false;
+	
     // evaluationscores
     allVsAll = false;
     randomizedRepresentative = false;
-
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,

@@ -163,5 +163,24 @@ public:
 
 
     static void checkAllocation(void *pointer, std::string message);
+
+    template <typename Iterator, typename Container>
+    static bool isLastIterator(Iterator iterator, const Container& container) {
+        return (iterator != container.end()) && (++iterator == container.end());
+    }
+
+    static std::string csvEscape(const std::string &s) {
+        size_t n = s.size(), wp = 0;
+        std::vector<char> result(n * 2);
+        for (size_t i = 0; i < n; i++) {
+            if (s[i] == '\n' || s[i] == '\t') {
+                result[wp++] = '\\';
+                result[wp++] = 'n';
+                continue;
+            }
+            result[wp++] = s[i];
+        }
+        return std::string(&result[0], &result[wp]);
+    }
 };
 #endif
