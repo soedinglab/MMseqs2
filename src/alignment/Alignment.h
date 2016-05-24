@@ -78,6 +78,8 @@ private:
     void mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> vector);
 
     bool sameQTDB;
+    // include id
+    bool includeIdentity;
     // merge fragments
     bool fragmentMerge;
 
@@ -86,6 +88,7 @@ private:
 
     // realign with different score matrix
     bool realign;
+	
 };
 
 #endif

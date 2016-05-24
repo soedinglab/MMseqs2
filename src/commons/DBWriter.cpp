@@ -96,6 +96,8 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr, std::vector<std::pair<st
         std::ostringstream ss;
         // get all data for the id from all files
         for (size_t i = 0; i < fileCount; i++) {
+			char *data = filesToMerge[i]->getDataByDBKey(qdbr.getDbKey(id));
+			if (data != NULL)
             ss << filesToMerge[i]->getDataByDBKey(qdbr.getDbKey(id));
         }
         // write result

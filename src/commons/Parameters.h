@@ -34,11 +34,11 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
-
+    // prefilter search
     static const int SEARCH_GLOBAL = 0;
     static const int SEARCH_LOCAL = 1;
     static const int SEARCH_LOCAL_FAST = 2;
-
+    // format alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
     static const int FORMAT_ALIGNMENT_SAM       = 2;
@@ -52,9 +52,18 @@ public:
 
     static const int APC_ALIGNMENTSCORE=1;
     static const int APC_SEQID=2;
-
+    // split mode
     static const int TARGET_DB_SPLIT = 0;
     static const int QUERY_DB_SPLIT = 1;
+    static const int DETECT_BEST_DB_SPLIT = 2;
+    // split
+    static const int AUTO_SPLIT_DETECTION = 0;
+    // includeIdentity
+    static const int INCLUDE_HIT_AUTO = 0;
+    static const int FORCE_INCLUDE = 1;
+
+    static const int MAX_SEQ_LEN = 32000;
+
     // COMMON
     const char** argv;            //command line parameters
     char argc;              //dimension of argv
@@ -84,8 +93,8 @@ public:
     int    querySeqType;                 // Query sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                      // Amounts of threads
-    bool removeTmpFiles;                // Do not delete temp files
-    
+    bool   removeTmpFiles;               // Do not delete temp files
+    bool   includeIdentity;              // include identical ids as hit
     // PREFILTER
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
@@ -113,6 +122,7 @@ public:
     bool   fragmentMerge;                // allow fragments to in the result
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
+	
     // workflow
     std::string runner;
 
@@ -150,6 +160,7 @@ public:
     bool allowDeletion;
     bool addInternalId;
     bool compressMSA;
+    bool onlyRepSeq;
 
     // result2profile
     float filterMaxSeqId;
@@ -183,6 +194,10 @@ public:
     // filterDb
     int filterColumn;
     std::string filterColumnRegex;
+	std::string filteringFile;
+	std::string mappingFile;
+	bool positiveFilter;
+	bool trimToOneColumn;
 
     // evaluationscores
     bool allVsAll;
@@ -226,6 +241,7 @@ public:
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)
+    PARAMETER(PARAM_INCLUDE_IDENTITY)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
@@ -236,7 +252,6 @@ public:
     PARAMETER(PARAM_MAX_REJECTED)
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
-
     PARAMETER(PARAM_MIN_SEQ_ID)
 
     std::vector<MMseqsParameter> alignment;
@@ -263,6 +278,7 @@ public:
     PARAMETER(PARAM_ALLOW_DELETION)
     PARAMETER(PARAM_ADD_INTERNAL_ID)
     PARAMETER(PARAM_COMPRESS_MSA)
+    PARAMETER(PARAM_REPSEQ)
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)
@@ -315,7 +331,11 @@ public:
     // filterDb
     PARAMETER(PARAM_FILTER_COL)
     PARAMETER(PARAM_FILTER_REGEX)
-
+    PARAMETER(PARAM_FILTER_POS)
+    PARAMETER(PARAM_FILTER_FILE)
+    PARAMETER(PARAM_MAPPING_FILE)
+    PARAMETER(PARAM_TRIM_TO_ONE_COL)
+	
     // evaluationScore
     PARAMETER(PARAM_EVALUATION_ALLVSALL)
     PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
@@ -345,6 +365,8 @@ public:
     std::vector<MMseqsParameter> swapresults;
     std::vector<MMseqsParameter> substractresult;
     std::vector<MMseqsParameter> result2newick;
+    std::vector<MMseqsParameter> diff;
+    std::vector<MMseqsParameter> dbconcat;
 
     std::vector<MMseqsParameter> evaluationscores;
 

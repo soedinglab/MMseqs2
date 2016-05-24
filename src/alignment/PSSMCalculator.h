@@ -2,6 +2,7 @@
 #define MMSEQS_PSSM_H
 
 #include <cstddef>
+#include <string>
 
 class SubstitutionMatrix;
 
@@ -12,7 +13,7 @@ public:
 
     ~PSSMCalculator();
 
-    char const * computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
+    std::pair<const char *, std::string> computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
                                     bool wg);
 
     void printProfile(size_t queryLength);
@@ -85,6 +86,8 @@ private:
 
     float pca;
     float pcb;
+
+    std::string computeConsensusSequence(float *pDouble, size_t queryLength, double *back, char *int2aa);
 };
 
 
