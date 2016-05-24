@@ -4,6 +4,7 @@
 #include "PatternCompiler.h"
 
 #include <set>
+#include <algorithm>
 
 static PatternCompiler uninformative("hypothetical|unknown|putative|predicted|unnamed|probable|partial|possible|uncharacterized|fragment");
 

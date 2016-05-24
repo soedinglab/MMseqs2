@@ -35,5 +35,6 @@ extern int kbtotsv(int argc, const char** argv);
 extern int computeGOscore(int argc, const char** argv);
 extern int detectredundancy(int argc, const char** argv);
 extern int order(int argc, const char** argv);
+extern int summarize(int argc, const char** argv);
 
 #endif
