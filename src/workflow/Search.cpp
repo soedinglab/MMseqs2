@@ -16,6 +16,7 @@ int search(int argc, const char *argv[]) {
 
     CommandCaller cmd;
 
+
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }

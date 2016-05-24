@@ -85,6 +85,7 @@ private:
     int splitMode;
     int searchMode;
     bool sameQTDB;
+    bool includeIdentical;
 
     /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
      * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
@@ -111,6 +112,9 @@ private:
     void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
 
     int getKmerThreshold(const float sensitivity, const int score);
+
+    size_t computeMemoryNeeded(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
+                                   int threads);
 };
 
 #endif
