@@ -18,7 +18,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
                      std::string prefDB, std::string prefDBIndex,
                      std::string outDB, std::string outDBIndex,
                      Parameters &par){
-    this->showOnlyKeyHit = par.showOnlyKeyHit;
+    
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;

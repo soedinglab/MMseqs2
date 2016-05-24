@@ -33,8 +33,6 @@ int alignment(int argc, const char *argv[])
                                    par.db3,           par.db3Index,
                                    par.db4,           par.db4Index,
                                    par);
-								   
-								   std::cout<<"Para : "<<par.showOnlyKeyHit<<std::endl;
 
     Debug(Debug::WARNING) << "Calculation of Smith-Waterman alignments.\n";
     struct timeval start, end;

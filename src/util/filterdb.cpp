@@ -20,8 +20,8 @@ int ffindexFilter::initFiles() {
 	return 0;
 }
 
-ffindexFilter::ffindexFilter(std::string inDB,	std::string outDB, int threads, size_t column, std::string regexStr):
-inDB(inDB),outDB(outDB),threads(threads),column(column),regexStr(regexStr) {
+ffindexFilter::ffindexFilter(std::string inDB,	std::string outDB, int threads, size_t column, std::string regexStr, bool trimToOneColumn):
+inDB(inDB),outDB(outDB),threads(threads),column(column),regexStr(regexStr),trimToOneColumn(trimToOneColumn) {
 
 	initFiles();
 	
@@ -183,7 +183,10 @@ int ffindexFilter::runFilter(){
 					} 
                  
 					if(!(nomatch)){
-						buffer.append(lineBuffer);
+						if (trimToOneColumn)
+							buffer.append(columnValue);
+						else
+							buffer.append(lineBuffer);
 						buffer.append("\n");
 					}
 					data = Util::skipLine(data);
@@ -236,7 +239,7 @@ int filterdb(int argn, const char **argv)
 						par.db2,
 						par.threads,
 						static_cast<size_t>(par.filterColumn),
-						par.filterColumnRegex);
+						par.filterColumnRegex,par.trimToOneColumn);
 						
 		return filter.runFilter();
 		

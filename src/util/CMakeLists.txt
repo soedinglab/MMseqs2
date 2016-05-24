@@ -28,6 +28,7 @@ set(util_source_files
   order.cpp
   diff.cpp
   TimeTest.cpp
+  summarize.cpp
 )
 
 add_library(util ${util_source_files} )

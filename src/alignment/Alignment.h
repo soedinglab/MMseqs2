@@ -89,8 +89,6 @@ private:
     // realign with different score matrix
     bool realign;
 	
-	// hide in the outputs information regarding the score and the alignment
-	bool showOnlyKeyHit;
 };
 
 #endif
