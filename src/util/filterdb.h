@@ -31,7 +31,8 @@ public:
 					std::string outDB,
                   int threads,
 					size_t column,
-                  std::string regexStr);
+                  std::string regexStr,
+					bool trimToOneColumn=false);
 	// Constructor for File based Filtering			  
 	ffindexFilter(std::string inDB,
 					std::string outDB,
@@ -53,6 +54,7 @@ private:
 	int mode;
 	int threads;
 	size_t column;
+	bool trimToOneColumn;
 	
 	std::string inDB,outDB;
 	DBWriter* dbw;

@@ -122,7 +122,6 @@ public:
     bool   fragmentMerge;                // allow fragments to in the result
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
-    bool showOnlyKeyHit;                 // only outputs the keys corresponding to the hits, with no score/alignment information.
 	
     // workflow
     std::string runner;
@@ -198,6 +197,7 @@ public:
 	std::string filteringFile;
 	std::string mappingFile;
 	bool positiveFilter;
+	bool trimToOneColumn;
 
     // evaluationscores
     bool allVsAll;
@@ -253,7 +253,6 @@ public:
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
-    PARAMETER(PARAM_SHOWONLY_KEY_HIT)
 
     std::vector<MMseqsParameter> alignment;
 
@@ -335,6 +334,7 @@ public:
     PARAMETER(PARAM_FILTER_POS)
     PARAMETER(PARAM_FILTER_FILE)
     PARAMETER(PARAM_MAPPING_FILE)
+    PARAMETER(PARAM_TRIM_TO_ONE_COL)
 	
     // evaluationScore
     PARAMETER(PARAM_EVALUATION_ALLVSALL)
