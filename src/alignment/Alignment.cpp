@@ -310,26 +310,11 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                     swResults[i].dbEndPos = res.dbEndPos;
                 }
             }
-            std::stringstream swResultsSs;
             // put the contents of the swResults list into ffindex DB
+            std::string swResultsString;
             for (size_t i = 0; i < swResults.size(); i++){
-                swResultsSs << swResults[i].dbKey << "\t";
-                swResultsSs << swResults[i].score << "\t"; //TODO fix for formats
-                swResultsSs << std::fixed << std::setprecision(3) << swResults[i].seqId << "\t";
-                swResultsSs << std::scientific << swResults[i].eval << "\t";
-                swResultsSs << swResults[i].qStartPos  << "\t";
-                swResultsSs << swResults[i].qEndPos  << "\t";
-                swResultsSs << swResults[i].qLen << "\t";
-                swResultsSs << swResults[i].dbStartPos  << "\t";
-                swResultsSs << swResults[i].dbEndPos  << "\t";
-                if(addBacktrace == true){
-                    swResultsSs << swResults[i].dbLen << "\t";
-                    swResultsSs << Matcher::compressAlignment(swResults[i].backtrace) << "\n";
-                }else{
-                    swResultsSs << swResults[i].dbLen << "\n";
-                }
+                swResultsString = Matcher::resultToString(swResults[i], addBacktrace);
             }
-            std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
             dbw.write(swResultsStringData, swResultsString.length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
             swResults.clear();
