@@ -18,6 +18,7 @@ Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
                      std::string prefDB, std::string prefDBIndex,
                      std::string outDB, std::string outDBIndex,
                      Parameters &par){
+    this->showOnlyKeyHit = par.showOnlyKeyHit;
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
@@ -311,12 +312,12 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 }
             }
             // put the contents of the swResults list into ffindex DB
-            std::string swResultsString;
+            std::stringstream swResultsString;
             for (size_t i = 0; i < swResults.size(); i++){
-                swResultsString = Matcher::resultToString(swResults[i], addBacktrace);
+                swResultsString << Matcher::resultToString(swResults[i], addBacktrace);
             }
-            const char* swResultsStringData = swResultsString.c_str();
-            dbw.write(swResultsStringData, swResultsString.length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
+            const char* swResultsStringData = swResultsString.str().c_str();
+            dbw.write(swResultsStringData, swResultsString.str().length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
             swResults.clear();
 //        prefdbr->unmapDataById(id);
         }
