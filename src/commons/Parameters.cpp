@@ -43,7 +43,7 @@ Parameters::Parameters():
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "--add-backtrace", "Add backtrace", "Add backtrace string to results (M=Match, D=deletion, I=insertion)", typeid(bool), (void *) &addBacktrace, ""),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "Realign hit with conservative scoring scheme (keeps old evalue and score but overwrites alignment)", typeid(bool), (void *) &realign, ""),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","Minimum sequence identity of sequences in a cluster [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$"),
-		 PARAM_SHOWONLY_KEY_HIT(PARAM_SHOWONLY_KEY_HIT_ID,"--only-key-hit", "Show only key hit","Do not output any information regarding score nor alignment.",typeid(bool), (void *) &showOnlyKeyHit, ""),
+		 
 // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0 Setcover, 1 connected component, 2 Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-2]{1}$"),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "Start the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, ""),
@@ -102,7 +102,8 @@ Parameters::Parameters():
         PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "Used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,""),		
         PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "Specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),		
         PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "Specify a file that translates the keys of a result DB to new keys", typeid(std::string),(void *) &mappingFile,""),		
-		
+		 PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
+		 
 // evaluationscores
         PARAM_EVALUATION_ALLVSALL(PARAM_EVALUATION_ALLVSALL_ID, "-a", "All vs all","All cluster members vs all cluster members, otherwise: all against representative",typeid(bool),(void *) &allVsAll, ""),
         PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE_ID, "-r", "Random representative choice","Instead of first cluster member as representative choose a random one.",typeid(bool),(void *) &randomizedRepresentative, ""),
@@ -126,7 +127,7 @@ Parameters::Parameters():
     alignment.push_back(PARAM_REALIGN);
     alignment.push_back(PARAM_THREADS);
     alignment.push_back(PARAM_V);
-    alignment.push_back(PARAM_SHOWONLY_KEY_HIT);
+	
 	
 
     // prefilter
@@ -286,7 +287,8 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_MAPPING_FILE);
     filterDb.push_back(PARAM_THREADS);
     filterDb.push_back(PARAM_V);
-
+    filterDb.push_back(PARAM_TRIM_TO_ONE_COL);
+	
     // swapreults
     swapresults.push_back(PARAM_SPLIT);
     swapresults.push_back(PARAM_V);
@@ -651,8 +653,6 @@ void Parameters::setDefaults() {
     // createdb
     splitSeqByLen = true;
 
-    // alignment
-	showOnlyKeyHit = false;
 	
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
@@ -705,7 +705,8 @@ void Parameters::setDefaults() {
     filterColumnRegex = "^.*$";
     positiveFilter = true;
     filteringFile = "";
-
+    trimToOneColumn = false;
+	
     // evaluationscores
     allVsAll = false;
     randomizedRepresentative = false;
