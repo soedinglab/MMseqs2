@@ -111,6 +111,7 @@ Parameters::Parameters():
         PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE_ID, "-r", "Random representative choice","Instead of first cluster member as representative choose a random one.",typeid(bool),(void *) &randomizedRepresentative, ""),
         PARAM_EVALUATION_USE_SEQUENCEHEADER(PARAM_EVALUATION_USE_SEQUENCEHEADER_ID, "-h", "Use sequence db to map numerical ids back to UniProt Id","Use sequence db to map numerical ids back to UniProt Id, should always be set except for UniRef",typeid(bool),(void *) &use_sequenceheader, "")
 {
+	
     // alignment
     alignment.push_back(PARAM_SUB_MAT);
     alignment.push_back(PARAM_ALIGNMENT_MODE);
@@ -270,7 +271,11 @@ Parameters::Parameters():
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
 
-    clusterUpdate = combineList(clusteringWorkflow, searchworkflow);
+
+
+    clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
+    clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
+    clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
 
 
     // translate nucleotide
@@ -748,8 +753,11 @@ std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par)
             ss << par[i].name << " ";
             ss << *((float *)par[i].value) << " ";
         }else if(typeid(std::string) == par[i].type ){
-            ss << par[i].name << " ";
-            ss << *((std::string *) par[i].value) << " ";
+            if (*((std::string *) par[i].value)  != "")
+            {
+               ss << par[i].name << " ";
+               ss << *((std::string *) par[i].value) << " ";
+            }
         }else if (typeid(bool) == par[i].type){
             bool val = *((bool *)(par[i].value));
             if(val == true){
@@ -761,4 +769,14 @@ std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par)
         }
     }
     return ss.str();
+}
+
+std::vector<MMseqsParameter> Parameters::removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x){
+	std::vector<MMseqsParameter> newParamList;
+	for (std::vector<MMseqsParameter>::iterator i = par.begin();i!=par.end();i++)
+	{
+		if (i->name != x.name)
+			newParamList.push_back(*i);
+	}
+	return newParamList;
 }

@@ -221,6 +221,9 @@ public:
                            const std::vector<MMseqsParameter> &parameters);
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
+	
+	std::vector<MMseqsParameter> removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x);
+	
     Parameters();
     ~Parameters(){};
 
@@ -362,6 +365,8 @@ public:
     std::vector<MMseqsParameter> detectredundancy;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
+    std::vector<MMseqsParameter> clusterUpdateSearch;
+    std::vector<MMseqsParameter> clusterUpdateClust;
     std::vector<MMseqsParameter> clusterUpdate;
     std::vector<MMseqsParameter> translateNucleotide;
     std::vector<MMseqsParameter> addSequences;
