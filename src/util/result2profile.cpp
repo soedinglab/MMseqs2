@@ -437,7 +437,7 @@ int result2outputmode(Parameters &par, int mode) {
                     std::vector<Matcher::result_t> filteredAln; // alignment information for the sequences that passed the filtering step
 
                     // Retrieve the master sequence
-                    for (size_t pos = 0; pos < centerSequence->L; pos++) {
+                    for (int pos = 0; pos < centerSequence->L; pos++) {
                         centerSeqStr << subMat.int2aa[centerSequence->int_sequence[pos]];
                     }
 

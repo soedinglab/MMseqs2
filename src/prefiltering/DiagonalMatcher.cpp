@@ -2,7 +2,6 @@
 // Created by mad on 12/15/15.
 
 #include "DiagonalMatcher.h"
-#include "MathUtil.h"
 
 DiagonalMatcher::DiagonalMatcher(const unsigned int maxSeqLen,
                                  BaseMatrix * substitutionMatrix,
@@ -72,10 +71,10 @@ inline const __m256i DiagonalMatcher::Shuffle(const __m256i & value, const __m25
 }
 #endif
 
-const simd_int  DiagonalMatcher::vectorDiagonalScoring(const char *profile,
-                                                       const char bias,
-                                                       const unsigned int seqLen,
-                                                       const unsigned char *dbSeq) {
+simd_int DiagonalMatcher::vectorDiagonalScoring(const char *profile,
+                                                const char bias,
+                                                const unsigned int seqLen,
+                                                const unsigned char *dbSeq) {
     simd_int vscore        = simdi_setzero();
     simd_int vMaxScore     = simdi_setzero();
     const simd_int vBias   = simdi8_set(bias);

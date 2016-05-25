@@ -52,7 +52,7 @@ private:
                                     const unsigned char *dbSeq);
 
     // scores the diagonal of  16/32 db sequences in parallel
-    const simd_int vectorDiagonalScoring(const char *profile,
+    simd_int vectorDiagonalScoring(const char *profile,
                                          const char bias, const unsigned int seqLen, const unsigned char *dbSeq);
 
     std::pair<unsigned char *, unsigned int> mapSequences(std::pair<unsigned char *, unsigned int> * seqs, unsigned int seqCount);
