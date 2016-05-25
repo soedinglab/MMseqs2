@@ -6,6 +6,9 @@
 #include "Debug.h"
 #include "filterdb.h"
 
+#include <fstream>
+#include <iostream>
+
 
 #ifdef OPENMP
 #include <omp.h>
@@ -37,7 +40,7 @@ ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, s
 
 ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column,
 							 bool positiveFiltering) :
-		inDB(inDB), outDB(outDB), threads(threads), filterFile(filterFile), column(column),
+		inDB(inDB), outDB(outDB), filterFile(filterFile), threads(threads), column(column),
 		positiveFiltering(positiveFiltering){
 
 	initFiles();
