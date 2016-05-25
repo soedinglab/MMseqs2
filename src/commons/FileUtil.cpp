@@ -14,6 +14,11 @@ bool FileUtil::fileExists(const char* fileName) {
     return stat(fileName, &st) == 0;
 }
 
+bool FileUtil::directoryExists(const char* directoryName) {
+    struct stat st;
+    return stat(directoryName, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
 FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool shouldExist) {
     bool exists = FileUtil::fileExists(fileName);
     if(exists && !shouldExist) {
