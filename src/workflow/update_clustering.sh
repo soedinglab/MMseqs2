@@ -28,66 +28,64 @@ OLDCLUST=$3 #"DBclustered"
 NEWDB=$2 #"../data/targetDB"
 TMP=$5 #"tmp/"
 
-$RUNNER mmseqs diff $OLDDB $NEWDB $TMP/removedSeqs $TMP/mappingSeqs $TMP/newSeqs && checkReturnCode "Diff died"
+notExists "$TMP/removedSeqs" && mmseqs diff $OLDDB $NEWDB $TMP/removedSeqs $TMP/mappingSeqs $TMP/newSeqs && checkReturnCode "Diff died"
 
 echo "==================================================="
 echo "====== Filter out the new from old sequences ======"
 echo "==================================================="
-$RUNNER mmseqs order $TMP/newSeqs $NEWDB $TMP/NEWDB.newSeqs && checkReturnCode "Order died"
+notExists "$TMP/NEWDB.newSeqs" && mmseqs order $TMP/newSeqs $NEWDB $TMP/NEWDB.newSeqs && checkReturnCode "Order died"
 
 echo "==================================================="
 echo "=== Update the old clustering with the new keys ==="
 echo "==================================================="
-
-$RUNNER mmseqs filterdb $OLDCLUST $TMP/OLDCLUST.mapped --mapping-file $TMP/mappingSeqs && checkReturnCode "Filterdb died"
+notExists "$TMP/OLDCLUST.mapped" && mmseqs filterdb $OLDCLUST $TMP/OLDCLUST.mapped --mapping-file $TMP/mappingSeqs && checkReturnCode "Filterdb died"
 
 
 
 echo "==================================================="
 echo "======= Extract representative sequences =========="
 echo "==================================================="
-$RUNNER mmseqs result2msa   $NEWDB  $NEWDB $TMP/OLDCLUST.mapped $TMP/OLDDB.mapped.repSeq --only-rep-seq  && checkReturnCode "Result2msa died"
+notExists "$TMP/OLDDB.mapped.repSeq" && mmseqs result2msa   $NEWDB  $NEWDB $TMP/OLDCLUST.mapped $TMP/OLDDB.mapped.repSeq --only-rep-seq  && checkReturnCode "Result2msa died"
 
 
 echo "==================================================="
 echo "======= Search the new sequences against =========="
 echo "========= previous (rep seq of) clusters =========="
 echo "==================================================="
-$RUNNER mmseqs search $TMP/NEWDB.newSeqs $TMP/OLDDB.mapped.repSeq $TMP/newSeqsHits $TMP --max-seqs 1  && checkReturnCode "Search died"
-$RUNNER mmseqs swapresults $TMP/NEWDB.newSeqs $TMP/OLDDB.mapped.repSeq $TMP/newSeqsHits $TMP/newSeqsHits.swapped.all --split 1  && checkReturnCode "Swapresults died"
-$RUNNER mmseqs filterdb $TMP/newSeqsHits.swapped.all $TMP/newSeqsHits.swapped --trim-to-one-column && checkReturnCode "Trimming died"
+notExists "$TMP/newSeqsHits" && $RUNNER mmseqs search $TMP/NEWDB.newSeqs $TMP/OLDDB.mapped.repSeq $TMP/newSeqsHits $TMP --max-seqs 1 $SEARCH_PAR && checkReturnCode "Search died"
+notExists "$TMP/newSeqsHits.swapped.all" && mmseqs swapresults $TMP/NEWDB.newSeqs $TMP/OLDDB.mapped.repSeq $TMP/newSeqsHits $TMP/newSeqsHits.swapped.all --split 1  && checkReturnCode "Swapresults died"
+notExists "$TMP/newSeqsHits.swapped" && mmseqs filterdb $TMP/newSeqsHits.swapped.all $TMP/newSeqsHits.swapped --trim-to-one-column && checkReturnCode "Trimming died"
 
 echo "==================================================="
 echo "= Merge the found sequence with previous clustering"
 echo "==================================================="
-$RUNNER mmseqs mergeffindex $TMP/OLDCLUST.mapped  $TMP/updatedClust $TMP/newSeqsHits.swapped $TMP/OLDCLUST.mapped && checkReturnCode "Mergeffindex died"
+notExists "$TMP/updatedClust" && mmseqs mergeffindex $TMP/OLDCLUST.mapped  $TMP/updatedClust $TMP/newSeqsHits.swapped $TMP/OLDCLUST.mapped && checkReturnCode "Mergeffindex died"
 
 echo "==================================================="
 echo "=========== Extract unmapped sequences ============"
 echo "==================================================="
-awk '$3==1{print $1}' $TMP/newSeqsHits.index > $TMP/noHitSeqList
-$RUNNER mmseqs order $TMP/noHitSeqList $NEWDB $TMP/toBeClusteredSeparately  && checkReturnCode "Order of no hit seq. died"
+notExists "$TMP/noHitSeqList" && awk '$3==1{print $1}' $TMP/newSeqsHits.index > $TMP/noHitSeqList
+notExists "$TMP/toBeClusteredSeparately" && mmseqs order $TMP/noHitSeqList $NEWDB $TMP/toBeClusteredSeparately  && checkReturnCode "Order of no hit seq. died"
 
 
 echo "==================================================="
 echo "===== Cluster separately the alone sequences ======"
 echo "==================================================="
-$RUNNER mmseqs clusteringworkflow $TMP/toBeClusteredSeparately $TMP/newClusters $TMP && checkReturnCode "Clustering of new seq. died"
-
-#
+notExists "$TMP/newClusters" && mmseqs clusteringworkflow $TMP/toBeClusteredSeparately $TMP/newClusters $TMP $CLUST_PAR && checkReturnCode "Clustering of new seq. died"
 
 echo "==================================================="
 echo "==== Merge the updated clustering together with ==="
 echo "=====         the new clusters               ======"
 echo "==================================================="
-$RUNNER mmseqs dbconcat $TMP/updatedClust $TMP/newClusters $4 && checkReturnCode "Dbconcat died"
+notExists "$4" && mmseqs dbconcat $TMP/updatedClust $TMP/newClusters $4 && checkReturnCode "Dbconcat died"
 
 
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-	rm -f "$TMP/newClusters" "$TMP/toBeClusteredSeparately" "$TMP/noHitSeqList" "$TMP/newSeqsHits.index" "$TMP/newSeqsHits" "$TMP/newSeqsHits.swapped"
-	rm -f "$TMP/newSeqsHits" "$TMP/NEWDB.newSeqs" "$TMP/OLDCLUST.mapped" "$TMP/mappingSeqs" "$TMP/newSeqs" "$TMP/removedSeqs"
+	rm -f "$TMP/newClusters" "$TMP/toBeClusteredSeparately" "$TMP/toBeClusteredSeparately.index" "$TMP/noHitSeqList" "$TMP/newSeqsHits.index" "$TMP/newSeqsHits" "$TMP/newSeqsHits.swapped" "$TMP/newSeqsHits.swapped.index"
+	rm -f "$TMP/newSeqsHits.swapped.all" "$TMP/newSeqsHits.swapped.all.index" "$TMP/NEWDB.newSeqs" "$TMP/NEWDB.newSeqs.index" "$TMP/OLDCLUST.mapped" "$TMP/OLDCLUST.mapped.index"  "$TMP/mappingSeqs" "$TMP/newSeqs" "$TMP/removedSeqs"
+	rm -f "$TMP/OLDDB.mapped.repSeq" "$TMP/OLDDB.mapped.repSeq.index" "$TMP/updatedClust" "$TMP/updatedClust.index"
 fi
 
 

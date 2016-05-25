@@ -270,8 +270,8 @@ Parameters::Parameters():
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
 
-    clusterUpdate = combineList(alignment, prefilter);
-    clusterUpdate = combineList(clusterUpdate, clustering);
+    clusterUpdate = combineList(clusteringWorkflow, searchworkflow);
+
 
     // translate nucleotide
     translateNucleotide.push_back(PARAM_TRANSLATION_TABLE);
