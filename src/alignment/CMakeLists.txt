@@ -14,6 +14,8 @@ set(alignment_source_files
   BlastScoreUtils.h
   MsaFilter.cpp
   MsaFilter.h
+  CompressedA3M.cpp
+  CompressedA3M.h
 )
 add_library(alignment ${alignment_source_files})
 
