@@ -1,6 +1,8 @@
 #include <string>
+#include <cstring>
 #include <vector>
 #include <sstream>
+#include <algorithm>
 
 #include "UniprotKB.h"
 #include "Debug.h"
