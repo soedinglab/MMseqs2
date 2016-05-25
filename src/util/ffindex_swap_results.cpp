@@ -65,8 +65,8 @@ void processSplit(DBReader<unsigned int> &dbr,
     }
 }
 
-void setSwapDefaults(Parameters& p) {
-    p.split = 1;
+void setSwapDefaults(Parameters *p) {
+    p->split = 1;
 }
 
 int swapresults (int argc, const char * argv[]){
@@ -76,7 +76,7 @@ int swapresults (int argc, const char * argv[]){
 
 
     Parameters par;
-    setSwapDefaults(par);
+    setSwapDefaults(&par);
     par.parseParameters(argc, argv, usage, par.swapresults, 4);
 
     size_t splitSize = par.split;
