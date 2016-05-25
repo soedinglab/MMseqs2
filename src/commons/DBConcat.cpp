@@ -1,10 +1,11 @@
-
 #include "DBConcat.h"
-#include "DBReader.h"
 
-
-DBConcat::DBConcat(const char* dataFileNameA, const char* indexFileNameA,const char* dataFileNameB, const char* indexFileNameB,const char* dataFileNameC, const char* indexFileNameC, int threads, int dataMode, bool preserveKeysA)
-			: preserveKeysA(preserveKeysA),DBReader(std::strcmp(dataFileNameA,dataFileNameB) == 0 ? dataFileNameA : dataFileNameC,std::strcmp(indexFileNameA,indexFileNameB) == 0 ? indexFileNameA : indexFileNameC,dataMode)
+DBConcat::DBConcat(const char *dataFileNameA, const char *indexFileNameA, const char *dataFileNameB,
+				   const char *indexFileNameB, const char *dataFileNameC, const char *indexFileNameC, int threads,
+				   int dataMode, bool preserveKeysA)
+		: DBReader(std::strcmp(dataFileNameA, dataFileNameB) == 0 ? dataFileNameA : dataFileNameC,
+				   std::strcmp(indexFileNameA, indexFileNameB) == 0 ? indexFileNameA : indexFileNameC, dataMode),
+		  preserveKeysA(preserveKeysA)
 {
 	lastKeyA = 0;
 	

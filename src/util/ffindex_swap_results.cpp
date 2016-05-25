@@ -6,7 +6,7 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Prefiltering.h"
-#include "Util.h"
+
 typedef std::map<unsigned int, std::string *>::iterator SwapIt;
 
 void readAllKeysIntoMap(std::string datafile,
@@ -93,11 +93,13 @@ int swapresults (int argc, const char * argv[]){
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     double * kmnByLen = new double[par.maxSeqLen];
 
-    BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(), Matcher::GAP_OPEN, Matcher::GAP_EXTEND);
-    for(int len = 0; len < par.maxSeqLen; len++){
-        kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta, qdbr.getAminoAcidDBSize(), qdbr.getSize());
+    BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(),
+                                                                                  Matcher::GAP_OPEN,
+                                                                                  Matcher::GAP_EXTEND);
+    for (size_t len = 0; len < par.maxSeqLen; len++) {
+        kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
+                                                    qdbr.getAminoAcidDBSize(), qdbr.getSize());
     }
-
 
     // read all keys
     readAllKeysIntoMap(resultDb.first, swapMap);
