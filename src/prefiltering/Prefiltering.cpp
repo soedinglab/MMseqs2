@@ -21,12 +21,12 @@
 #include <mpi.h>
 #endif
 
-Prefiltering::Prefiltering(std::string queryDB,
-                           std::string queryDBIndex,
-                           std::string targetDB,
-                           std::string targetDBIndex,
-                           std::string outDB,
-                           std::string outDBIndex,
+Prefiltering::Prefiltering(const std::string& queryDB,
+                           const std::string& queryDBIndex,
+                           const std::string& targetDB,
+                           const std::string& targetDBIndex,
+                           const std::string& outDB,
+                           const std::string& outDBIndex,
                            Parameters &par):
         outDB(outDB),
         outDBIndex(outDBIndex),
@@ -226,8 +226,8 @@ void Prefiltering::run(){
     this->closeReader();
 }
 
-void Prefiltering::mergeOutput(std::string outDB, std::string outDBIndex,
-                               std::vector<std::pair<std::string, std::string> > filenames){
+void Prefiltering::mergeOutput(const std::string& outDB, const std::string& outDBIndex,
+                               const std::vector<std::pair<std::string, std::string>>& filenames){
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
@@ -343,7 +343,7 @@ IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize
     }
 }
 
-void Prefiltering::run(size_t split, size_t splitCount, int splitMode, std::string resultDB, std::string resultDBIndex) {
+void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std::string& resultDB, const std::string& resultDBIndex) {
 
     Debug(Debug::WARNING) << "Process prefiltering step " << split << " of " << splitCount <<  "\n\n";
 
@@ -505,7 +505,7 @@ void Prefiltering::closeReader(){
 
 // write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
-                                       std::pair<hit_t *, size_t> prefResults,
+                                       const std::pair<hit_t *, size_t>& prefResults,
                                        size_t seqIdOffset, bool diagonalScoring) {
     // write prefiltering results to a string
     size_t l = 0;
@@ -544,7 +544,7 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
 }
 
 
-void Prefiltering::printStatistics(statistics_t &stats, size_t empty) {
+void Prefiltering::printStatistics(const statistics_t &stats, size_t empty) {
     // sort and merge the result list lengths (for median calculation)
     reslens[0]->sort();
     for (int i = 1; i < threads; i++){
@@ -572,7 +572,7 @@ void Prefiltering::printStatistics(statistics_t &stats, size_t empty) {
     Debug(Debug::INFO) << empty << " sequences with 0 size result lists.\n";
 }
 
-BaseMatrix * Prefiltering:: getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSize, float bitFactor,
+BaseMatrix * Prefiltering:: getSubstitutionMatrix(const std::string& scoringMatrixFile, int alphabetSize, float bitFactor,
                                                   bool ignoreX) {
     Debug(Debug::INFO) << "Substitution matrices...\n";
     BaseMatrix* subMat;
@@ -747,7 +747,7 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
                         querySeqLenSum, diagonalOverflow, resultsPassedPref/ querySetSize);
 }
 
-void Prefiltering::mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode) {
+void Prefiltering::mergeFiles(const std::vector<std::pair<std::string, std::string>>& splitFiles, int mode) {
     if(mode == Parameters::TARGET_DB_SPLIT){
         this->mergeOutput(outDB, outDBIndex, splitFiles);
     }else if (mode == Parameters::QUERY_DB_SPLIT){
