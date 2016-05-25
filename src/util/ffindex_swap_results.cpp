@@ -78,6 +78,7 @@ int swapresults (int argc, const char * argv[]){
     std::pair<std::string, std::string> queryDb = Util::databaseNames(par.db1);
     std::pair<std::string, std::string> targetDb = Util::databaseNames(par.db2);
     std::pair<std::string, std::string> resultDb = Util::databaseNames(par.db3);
+
     DBReader<unsigned int> qdbr(queryDb.first.c_str(), queryDb.second.c_str());
     qdbr.open(DBReader<unsigned int>::NOSORT);
     DBReader<unsigned int> tdbr(targetDb.first.c_str(), targetDb.second.c_str());
@@ -85,7 +86,7 @@ int swapresults (int argc, const char * argv[]){
     DBReader<unsigned int> rdbr(resultDb.first.c_str(), resultDb.second.c_str());
     rdbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    Debug(Debug::INFO) << "Start to swap results. Write to " << par.db2 << ".\n";
+    Debug(Debug::INFO) << "Start to swap results. Write to " << par.db3 << ".\n";
     size_t entries_num = 0;
     std::vector<std::pair<std::string, std::string> > filesToDelete;
     std::map<unsigned int, std::string *> swapMap;
