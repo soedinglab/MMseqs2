@@ -249,7 +249,7 @@ std::list<int> CompareGOTerms::getGOListforProtein(const char *protid) {
     }
 
     size_t counter = 0;
-    snprintf(buffer, 7, "%s", data + counter);
+    snprintf(buffer, 7, "%s", data + counter + 3);
     result.push_back(convert_GOterm_to_index(atoi(buffer)));
 
     while (data[counter] != '\0') {
