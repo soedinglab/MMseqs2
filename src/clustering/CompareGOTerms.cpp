@@ -366,12 +366,14 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(const std::string& cluster_
             data = Util::skipLine(data);
         }
 
-        for (std::list<std::string>::iterator it = idswithgo.begin(); it != idswithgo.end(); ++it) {
+        for (std::list<std::string>::const_iterator it = idswithgo.begin(); it != idswithgo.end(); ++it) {
+            std::string id1 = *it;
             if (randomized) {
-                std::advance(it, rand() % idswithgo.size());
+                std::list<std::string>::const_iterator random = idswithgo.begin();
+                std::advance(random, rand() % idswithgo.size());
+                id1 = *random;
             }
 
-            const std::string& id1 = *it;
             for (const std::string& id2 : idswithgo) {
                 if (id1 != id2) {
                     double score = compare_protein_ids((char *) id1.c_str(), (char *) id2.c_str());
