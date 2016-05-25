@@ -17,31 +17,38 @@
 
 class Prefiltering {
 public:
-    Prefiltering(std::string queryDB,
-                 std::string queryDBIndex,
-                 std::string targetDB,
-                 std::string targetDBIndex,
-                 std::string outDB,
-                 std::string outDBIndex,
+    Prefiltering(const std::string &queryDB,
+                 const std::string &queryDBIndex,
+                 const std::string &targetDB,
+                 const std::string &targetDBIndex,
+                 const std::string &outDB,
+                 const std::string &outDBIndex,
                  Parameters &par);
 
     ~Prefiltering();
-    void run(size_t dbFrom, size_t dbSize, int splitMode, std::string resultDB, std::string resultDBIndex);
+
+    void run(size_t dbFrom, size_t dbSize, int splitMode, const std::string &resultDB,
+             const std::string &resultDBIndex);
+
     void run(int mpi_rank, int mpi_num_procs);
-    void run ();
+
+    void run();
+
     void closeReader();
-    static void mergeOutput(std::string outDb, std::string outDBIndex, std::vector<std::pair<std::string, std::string> > filenames);
+
+    static void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
+                            const std::vector<std::pair<std::string, std::string>> &filenames);
+
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
 
-    static IndexTable *generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, int alphabetSize, int kmerSize,
+    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, int alphabetSize, int kmerSize,
                                           size_t dbFrom, size_t dbTo, int searchMode, bool diagonalScoring);
 
-    static void fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, IndexTable * indexTable,
+    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
                              size_t dbFrom, size_t dbTo);
 
-
-    // get substituion matrix
-    static BaseMatrix *getSubstitutionMatrix(std::string scoringMatrixFile, int alphabetSize, float bitFactor,
+    // get substitution matrix
+    static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, int alphabetSize, float bitFactor,
                                              bool ignoreX);
 
 
@@ -50,18 +57,18 @@ private:
 
     int threads;
 
-    DBReader<unsigned int>* qdbr;
-    DBReader<unsigned int>* tdbr;
-    DBReader<unsigned int>* tidxdbr;
+    DBReader<unsigned int> *qdbr;
+    DBReader<unsigned int> *tdbr;
+    DBReader<unsigned int> *tidxdbr;
 
 
-    Sequence** qseq;
-    int* notEmpty;
+    Sequence **qseq;
+    int *notEmpty;
 
-    std::list<int>** reslens;
-    BaseMatrix* subMat;
-    ExtendedSubstitutionMatrix* _2merSubMatrix;
-    ExtendedSubstitutionMatrix* _3merSubMatrix;
+    std::list<int> **reslens;
+    BaseMatrix *subMat;
+    ExtendedSubstitutionMatrix *_2merSubMatrix;
+    ExtendedSubstitutionMatrix *_3merSubMatrix;
 
     std::string outDB;
     std::string outDBIndex;
@@ -92,9 +99,11 @@ private:
      */
     std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr,
                                               DBReader<unsigned int> *tdbr, const int kmerScore);
+
     // write prefiltering to ffindex database
     int writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
-                             std::pair<hit_t *, size_t> prefResults, size_t seqIdOffset, bool diagonalScoring);
+                             const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset, bool diagonalScoring);
+
     // init QueryTemplateMatcher
     QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
                                                       unsigned int *seqLens, short kmerThr,
@@ -105,16 +114,18 @@ private:
                                                       size_t maxHitsPerQuery);
 
 
-    void printStatistics(statistics_t &stats, size_t empty);
+    void printStatistics(const statistics_t &stats, size_t empty);
 
-    statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize, unsigned int *querySeqsIds, bool reverseQuery, const size_t kmerThrMid);
+    statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,
+                                                  unsigned int *querySeqsIds, bool reverseQuery,
+                                                  const size_t kmerThrMid);
 
-    void mergeFiles(std::vector<std::pair<std::string, std::string>> splitFiles, int mode);
+    void mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles, int mode);
 
     int getKmerThreshold(const float sensitivity, const int score);
 
     size_t computeMemoryNeeded(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
-                                   int threads);
+                               int threads);
 };
 
 #endif
