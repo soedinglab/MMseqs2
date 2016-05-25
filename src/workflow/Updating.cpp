@@ -26,6 +26,8 @@ int clusterupdate (int argc, const char * argv[]){
     }
 	
 	cmd.addVariable("RUNNER", par.runner.c_str());
+	cmd.addVariable("SEARCH_PAR", par.createParameterString(par.clusterUpdateSearch).c_str());
+	cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusterUpdateClust).c_str());
 	std::string program(par.mmdir);
 	program.append("/bin/update_clustering.sh");
 	cmd.execProgram(program.c_str(), 5, argv);
