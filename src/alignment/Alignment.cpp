@@ -316,8 +316,10 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
             for (size_t i = 0; i < swResults.size(); i++){
                 swResultsString << Matcher::resultToString(swResults[i], addBacktrace);
             }
-            const char* swResultsStringData = swResultsString.str().c_str();
-            dbw.write(swResultsStringData, swResultsString.str().length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
+
+            std::string swResultString = swResultsString.str();
+            const char* swResultsData = swResultString.c_str();
+            dbw.write(swResultsData, swResultString.length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
             swResults.clear();
 //        prefdbr->unmapDataById(id);
         }

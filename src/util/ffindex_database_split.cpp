@@ -36,7 +36,8 @@ int splitffindex (int argc, const char * argv[])
     for (int split = 0; split < par.split; split++) {
         std::ostringstream outName;
         outName << par.db2 << "_" << split << "_" << par.split;
-        DBWriter writer(outName.str().c_str(), std::string(outName.str() + ".index").c_str());
+        std::string outString = outName.str();
+        DBWriter writer(outString.c_str(), std::string(outName.str() + ".index").c_str());
         writer.open();
 
         size_t startIndex = 0;

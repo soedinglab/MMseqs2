@@ -30,12 +30,13 @@ void CommandCaller::addVariable(const char* key, const char* value) {
 }
 
 int CommandCaller::callProgram(const char* program, size_t argc, const char **argv) {
-    std::stringstream argString(program);
+    std::stringstream argStream(program);
     for (size_t i = 0; i < argc; i++) {
-        argString << " " << argv[i];
+        argStream << " " << argv[i];
     }
 
-    if (std::system(argString.str().c_str()) != EXIT_SUCCESS) {
+    std::string argString = argStream.str();
+    if (std::system(argString.c_str()) != EXIT_SUCCESS) {
         EXIT(EXIT_FAILURE);
     }
 
