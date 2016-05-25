@@ -20,8 +20,9 @@ int ffindexFilter::initFiles() {
 	return 0;
 }
 
-ffindexFilter::ffindexFilter(std::string inDB,	std::string outDB, int threads, size_t column, std::string regexStr, bool trimToOneColumn):
-inDB(inDB),outDB(outDB),threads(threads),column(column),regexStr(regexStr),trimToOneColumn(trimToOneColumn) {
+ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column, std::string regexStr,
+							 bool trimToOneColumn) :
+		inDB(inDB), outDB(outDB), threads(threads), column(column), regexStr(regexStr), trimToOneColumn(trimToOneColumn) {
 
 	initFiles();
 	
@@ -34,12 +35,13 @@ inDB(inDB),outDB(outDB),threads(threads),column(column),regexStr(regexStr),trimT
     }
 }
 
-ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column,bool positiveFiltering):
-inDB(inDB),outDB(outDB),threads(threads),column(column), filterFile(filterFile),positiveFiltering(positiveFiltering){
+ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column,
+							 bool positiveFiltering) :
+		inDB(inDB), outDB(outDB), threads(threads), filterFile(filterFile), column(column),
+		positiveFiltering(positiveFiltering){
 
 	initFiles();
-	
-	
+
 	mode = FILE_FILTERING;
 	
 	// Fill the filter with the data contained in the file
@@ -55,10 +57,8 @@ inDB(inDB),outDB(outDB),threads(threads),column(column), filterFile(filterFile),
 	
 }
 
-
-
-ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column):
-inDB(inDB),outDB(outDB),threads(threads),column(column), filterFile(filterFile){
+ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column) :
+		inDB(inDB), outDB(outDB), filterFile(filterFile), threads(threads), column(column) {
 
 	initFiles();
 	
@@ -207,7 +207,7 @@ int filterdb(int argn, const char **argv)
 {
     std::string usage;
     usage.append("Filter a database by column regex\n");
-    usage.append("USAGE:  <ffindexDB> <outDB>\n");
+    usage.append("USAGE: <ffindexDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
     Parameters par;
@@ -240,10 +240,7 @@ int filterdb(int argn, const char **argv)
 						par.threads,
 						static_cast<size_t>(par.filterColumn),
 						par.filterColumnRegex,par.trimToOneColumn);
-						
 		return filter.runFilter();
-		
-		
 	}
 	
 	return -1;
