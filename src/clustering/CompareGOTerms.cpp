@@ -86,7 +86,6 @@ void CompareGOTerms::init() {
         goterm_to_index[atoi(singletermbuffer)] = i;
         // Debug(Debug::INFO) << childterm << "\t" << i << "\t" << index_togoterm[i] << "\t" <<
         // convert_index_toGOterm(i) << "\t" << convert_GOterm_to_index(convert_index_toGOterm(i)) << "\n";
-
     }
 
     //second iterationgetGOListforProtein
@@ -109,11 +108,8 @@ void CompareGOTerms::init() {
                             atoi(singletermbuffer));
                     is_a_relation_size[i]++;
                 }
-
             }
             //Debug(Debug::INFO) << "\n";
-            //
-
 
             data = Util::skipLine(data);
         }
@@ -155,9 +151,8 @@ void CompareGOTerms::init() {
             }
             counter++;
         }
-
-
     }
+
     //transfer counts to parents
     count_goterm_total_sum = 0.0;
     for (size_t i = 0; i < total_go_number; i++) {
@@ -168,10 +163,9 @@ void CompareGOTerms::init() {
             count_accumulated_goterm[parentid] += count_goterm[i];
         }
         // Debug(Debug::INFO) << "\n";
-
     }
-    //print
 
+    //print
     for (size_t i = 0; i < total_go_number; i++) {
         //Debug(Debug::INFO) << convert_index_toGOterm(i) << "\t" << count_goterm[i] << "\t" << count_accumulated_goterm[i] <<"\n";
     }
@@ -209,13 +203,14 @@ void CompareGOTerms::all_against_all_comparison_proteinset() {
 
 double CompareGOTerms::similarity_of_list(const std::list<int>& ids1, const std::list<int>& ids2) {
     double result = 0;
-    for (int id1:ids1) {
+    for (int id1 : ids1) {
         double maxscore = 0;
         for (int id2 : ids2) {
             maxscore = std::max(maxscore, similarity(id1, id2));
         }
         result += maxscore;
     }
+
     for (int id2 : ids2) {
         double maxscore = 0;
         for (int id1 : ids1) {
@@ -223,6 +218,7 @@ double CompareGOTerms::similarity_of_list(const std::list<int>& ids1, const std:
         }
         result += maxscore;
     }
+
     return result / (ids1.size() + ids2.size());
 }
 
@@ -352,8 +348,9 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(const std::string& cluster_
             if (representative == "") {
                 representative = idbuffer;
             }
+
             if (protid_go_ffindex_reader->getDataByDBKey(idbuffer) != NULL) {
-                idswithgo.push_back(std::string(idbuffer));
+                idswithgo.push_back(idbuffer);
 
                 withgo++;
                 clusterwithgo = 0;
