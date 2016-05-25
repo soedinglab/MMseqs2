@@ -65,6 +65,10 @@ void processSplit(DBReader<unsigned int> &dbr,
     }
 }
 
+void setSwapDefaults(Parameters& p) {
+    p.split = 1;
+}
+
 int swapresults (int argc, const char * argv[]){
     std::string usage("Swaps results of ffindex database. A -> A, B, C to A->A, B->A, C->A \n");
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n\n");
@@ -72,7 +76,9 @@ int swapresults (int argc, const char * argv[]){
 
 
     Parameters par;
+    setSwapDefaults(par);
     par.parseParameters(argc, argv, usage, par.swapresults, 4);
+
     size_t splitSize = par.split;
     Debug(Debug::INFO) << "FFindex input file is " << par.db1 << "\n";
     std::pair<std::string, std::string> queryDb = Util::databaseNames(par.db1);
@@ -86,7 +92,7 @@ int swapresults (int argc, const char * argv[]){
     DBReader<unsigned int> rdbr(resultDb.first.c_str(), resultDb.second.c_str());
     rdbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    Debug(Debug::INFO) << "Start to swap results. Write to " << par.db3 << ".\n";
+    Debug(Debug::INFO) << "Start to swap results. Write to " << par.db4 << ".\n";
     size_t entries_num = 0;
     std::vector<std::pair<std::string, std::string> > filesToDelete;
     std::map<unsigned int, std::string *> swapMap;
