@@ -120,6 +120,10 @@ public:
         return lambdaLog2 * score - logKLog2;
     }
 
+    static inline double bitScoreToRawScore(double bitScore, double lambdaLog2, double logKLog2){
+        return (bitScore + logKLog2) / lambdaLog2;
+    }
+
     static inline double computeEvalue(double score, double Kmn, double lambda) {
         return Kmn * exp(-lambda * score);
     }
