@@ -140,7 +140,7 @@ std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& h
 
         descriptionCount++;
 
-        if(Util::isLastIterator(it, headerQueue) == false) {
+        if(Util::isLastIterator(it, headerQueue) == false && descriptionCount <= maxDescriptions) {
             summarizedHeader << "|";
         }
     }
