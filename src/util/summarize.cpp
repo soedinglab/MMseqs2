@@ -53,11 +53,13 @@ int summarize(int argc, const char** argv) {
         std::istringstream inStream(data);
         std::string line;
         size_t entry = 0;
+        std::string representative;
         while (std::getline(inStream, line))
         {
             char* header;
             if(entry == 0) {
                 header = queryReader.getDataByDBKey(line);
+                representative = line;
             } else {
                 header = targetReader.getDataByDBKey(line);
             }
@@ -66,8 +68,10 @@ int summarize(int argc, const char** argv) {
             entry++;
         }
 
-        std::string summary = summarizer.summarize(headers, par.summaryPrefix);
+        std::ostringstream oss;
+        oss << par.summaryPrefix << "-" << representative << "|" << summarizer.summarize(headers);
 
+        std::string summary = oss.str();
         writer.write(summary.c_str(), summary.length(), id.c_str(), thread_idx);
     }
     writer.close();

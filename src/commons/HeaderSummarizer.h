@@ -6,12 +6,12 @@
 
 class HeaderSummarizer {
 public:
-    virtual std::string summarize(const std::vector<std::string>& headers, const std::string& prefix) = 0;
+    virtual std::string summarize(const std::vector<std::string>& headers) = 0;
 };
 
 class UniprotHeaderSummarizer : public HeaderSummarizer {
 public:
-    std::string summarize(const std::vector<std::string>& headers, const std::string& prefix);
+    std::string summarize(const std::vector<std::string>& headers);
 };
 
 
