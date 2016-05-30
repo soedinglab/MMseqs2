@@ -201,6 +201,9 @@ public:
 	bool positiveFilter;
 	bool trimToOneColumn;
 
+    // mergeffindex
+    std::string mergePrefixes;
+
     // evaluationscores
     bool allVsAll;
     bool randomizedRepresentative;
@@ -342,7 +345,10 @@ public:
     PARAMETER(PARAM_FILTER_FILE)
     PARAMETER(PARAM_MAPPING_FILE)
     PARAMETER(PARAM_TRIM_TO_ONE_COL)
-	
+
+    // mergeffindex
+    PARAMETER(PARAM_MERGE_PREFIXES)
+
     // evaluationScore
     PARAMETER(PARAM_EVALUATION_ALLVSALL)
     PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
@@ -376,7 +382,8 @@ public:
     std::vector<MMseqsParameter> result2newick;
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> dbconcat;
-
+    std::vector<MMseqsParameter> mergeffindex;
+    std::vector<MMseqsParameter> summarize;
     std::vector<MMseqsParameter> evaluationscores;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,

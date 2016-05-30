@@ -187,6 +187,9 @@ int result2outputmode(Parameters &par, int mode) {
         case ca3m:
             Debug(Debug::INFO) << "compressed multiple sequence alignments";
             break;
+        case REPSEQ:
+            Debug(Debug::INFO) << "representative sequences";
+            break;
         case PSSM:
         default:
             Debug(Debug::INFO) << "profiles";
@@ -315,7 +318,7 @@ int result2outputmode(Parameters &par, int mode) {
                             }
                         }
 
-                        msa << "#" << summarizer.summarize(headers, par.summaryPrefix + "-" + SSTR(queryKey)).c_str() << "\n";
+                        msa << "#" << par.summaryPrefix << "-" << queryKey << "|" << summarizer.summarize(headers) << "\n";
                     }
 
                     // TODO : the first sequence in the MSA seems to be overwritten by the query seq

@@ -31,8 +31,10 @@ class DBWriter {
         char* getIndexFileName() { return indexFileName; }
 
         void write(const char *data, size_t dataSize, const char *key, unsigned int threadIdx = 0);
-    
-        void mergeFiles(DBReader<unsigned int>& qdbr, std::vector<std::pair<std::string, std::string> > files);
+
+        void mergeFiles(DBReader<unsigned int>& qdbr,
+                        const std::vector<std::pair<std::string, std::string> >& files,
+                        const std::vector<std::string>& prefixes);
 
         void sortDatafileByIdOrder(DBReader<unsigned int>& qdbr);
 

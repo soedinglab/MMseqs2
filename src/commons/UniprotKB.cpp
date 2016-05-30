@@ -7,6 +7,15 @@
 #include "UniprotKB.h"
 #include "Debug.h"
 
+const std::string UniprotKB::columnNames[] = {
+        "ID", "AC",
+        "DT", "DE", "GN",
+        "OS", "OG", "OC",
+        "OX", "OH", "REF",
+        "CC", "DR", "PE",
+        "KW", "FT", "SEQ"
+};
+
 std::string removeAfterFirstColon(std::string in) {
     in.erase(in.find_first_of(":"));
     return in;

@@ -50,7 +50,7 @@ struct UniprotHeader {
     }
 };
 
-std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& headers, const std::string& prefix) {
+std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& headers) {
     std::vector<UniprotHeader> headerQueue;
 
     std::string representingIdentifier;
@@ -118,7 +118,7 @@ std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& h
     const unsigned int maxDescriptions = 5;
 
     std::ostringstream summarizedHeader;
-    summarizedHeader << prefix << "|" << representingIdentifier.c_str();
+    summarizedHeader << "Representative=" << representingIdentifier.c_str();
     summarizedHeader << " n=" << clusterMembers;
 
     std::set<std::string> usedDescriptions;
@@ -140,7 +140,7 @@ std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& h
 
         descriptionCount++;
 
-        if(Util::isLastIterator(it, headerQueue) == false) {
+        if(Util::isLastIterator(it, headerQueue) == false && descriptionCount <= maxDescriptions) {
             summarizedHeader << "|";
         }
     }
