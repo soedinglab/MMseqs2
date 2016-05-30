@@ -348,7 +348,7 @@ public:
 
     // mergeffindex
     PARAMETER(PARAM_MERGE_PREFIXES)
-	
+
     // evaluationScore
     PARAMETER(PARAM_EVALUATION_ALLVSALL)
     PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
@@ -383,6 +383,7 @@ public:
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> dbconcat;
     std::vector<MMseqsParameter> mergeffindex;
+    std::vector<MMseqsParameter> summarize;
     std::vector<MMseqsParameter> evaluationscores;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
