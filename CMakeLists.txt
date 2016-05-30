@@ -60,6 +60,13 @@ install(DIRECTORY
    FILES_MATCHING PATTERN "*.out"
 )
 
+install(DIRECTORY
+   src/workflow/
+   DESTINATION bin
+   USE_SOURCE_PERMISSIONS
+   FILES_MATCHING PATTERN "*.sh"
+)
+
 install(PROGRAMS
 	util/bash-completion.sh
 	DESTINATION util

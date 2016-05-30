@@ -1,4 +1,4 @@
-#!/bin/bash -xe
+#!/bin/bash -x
 # Clustering workflow script
 checkReturnCode () {
 	if [ $? -ne 0 ]; then
@@ -34,7 +34,6 @@ cd -
 
 STEP=0
 QUERYDB=$ABS_QUERY
-echo /cbscratch/martin/mmseqs2.0_bench/tools/mmseqs-dev/
 # processing
 [ -z "$NUM_IT" ] && NUM_IT=3;
 while [ $STEP -lt $NUM_IT ]; do
@@ -71,8 +70,8 @@ while [ $STEP -lt $NUM_IT ]; do
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
         notExists "$TMP_PATH/profile_$STEP" && mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR \
                 && checkReturnCode "Create profile died"
-        ln -s $QUERYDB"_h" "$TMP_PATH/profile_$STEP""_h"
-        ln -s $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
+        ln -sf $QUERYDB"_h" "$TMP_PATH/profile_$STEP""_h"
+        ln -sf $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
     fi
 	QUERYDB="$TMP_PATH/profile_$STEP"
     if [ $STEP -eq 0 ] && [ $PROFILE -eq 0 ]; then
