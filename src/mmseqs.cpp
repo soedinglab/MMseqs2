@@ -90,7 +90,7 @@ static struct Command commands[] = {
         {"order",               order,                  &par.onlyverbosity,         COMMAND_HELPER,
                 "Orders an mmseqs ffindex database according to a given list"},
         {"summarize",           summarize,              &par.onlyverbosity,         COMMAND_HELPER,
-                "Summarizes all the headers in a fasta entry and prepend the summary to the fasta entry"},
+                "Summarizes all the headers from a clustering results"},
         {"diff",               diff,                  &par.onlyverbosity,         COMMAND_HELPER,
                 "Output the differences between two sequence databases based on sequence identifiers"},
         {"dbconcat",               dbconcat,                  &par.onlyverbosity,         COMMAND_HELPER,
