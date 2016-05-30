@@ -327,6 +327,10 @@ Parameters::Parameters():
     mergeffindex.push_back(PARAM_MERGE_PREFIXES);
     mergeffindex.push_back(PARAM_V);
 
+    // summarize
+    summarize.push_back(PARAM_SUMMARY_PREFIX);
+    summarize.push_back(PARAM_V);
+
     diff.push_back(PARAM_THREADS);
 
     checkSaneEnvironment();

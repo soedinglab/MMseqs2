@@ -15,7 +15,7 @@ int summarize(int argc, const char** argv) {
     usage.append("USAGE: prefilter <queryHeaderDB> <targetHeaderDB> <resultDB> <outDB>\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.onlyverbosity, 2);
+    par.parseParameters(argc, argv, usage, par.summarize, 2);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

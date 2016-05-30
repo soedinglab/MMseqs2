@@ -89,7 +89,7 @@ static struct Command commands[] = {
             "Extracts clustering relationship from clustering steps into Newick trees"},
         {"order",               order,                  &par.onlyverbosity,         COMMAND_HELPER,
                 "Orders an mmseqs ffindex database according to a given list"},
-        {"summarize",           summarize,              &par.onlyverbosity,         COMMAND_HELPER,
+        {"summarize",           summarize,              &par.summarize,             COMMAND_HELPER,
                 "Summarizes all the headers from a clustering results"},
         {"diff",               diff,                  &par.onlyverbosity,         COMMAND_HELPER,
                 "Output the differences between two sequence databases based on sequence identifiers"},
