@@ -47,8 +47,8 @@ int kbtotsv(int argn, const char **argv) {
             }
             tsvOut << Util::csvEscape(kb.getColumn(kb.getColumnCount())) << "\n";
 
-            std::string accessions = kb.getColumn(UniprotColumns::COL_KB_AC);
-            std::string identifier = kb.getColumn(UniprotColumns::COL_KB_ID);
+            std::string accessions = kb.getColumn(UniprotKB::COL_KB_AC);
+            std::string identifier = kb.getColumn(UniprotKB::COL_KB_ID);
 
             std::vector<std::string> acs = Util::split(accessions, ";");
 
