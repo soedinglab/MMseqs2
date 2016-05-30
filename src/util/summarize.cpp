@@ -10,26 +10,33 @@
 #endif
 
 int summarize(int argc, const char** argv) {
-    std::string usage("Summarizes all the headers in a fasta entry and prepend the summary to the fasta entry.\n");
+    std::string usage("Summarizes all the headers from a clustering results.\n");
     usage.append("Written by Milot Mirdita (milot@mirdita.de)\n");
-    usage.append("USAGE: prefilter <inDB> <outDB>\n");
+    usage.append("USAGE: prefilter <queryHeaderDB> <targetHeaderDB> <resultDB> <outDB>\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.onlyverbosity, 2);
+    par.parseParameters(argc, argv, usage, par.summarize, 2);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
-    DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str());
+
+    DBReader<std::string> queryReader(par.db1.c_str(), par.db1Index.c_str());
+    queryReader.open(DBReader<std::string>::NOSORT);
+
+    DBReader<std::string> targetReader(par.db2.c_str(), par.db2Index.c_str());
+    targetReader.open(DBReader<std::string>::NOSORT);
+
+    DBReader<std::string> reader(par.db3.c_str(), par.db3Index.c_str());
     reader.open(DBReader<std::string>::NOSORT);
 
-    DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads);
+    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads);
     writer.open();
 
     UniprotHeaderSummarizer summarizer;
 
-    Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
+    Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
 
     #pragma omp for schedule(dynamic, 100)
     for (size_t i = 0; i < reader.getSize(); ++i) {
@@ -45,22 +52,32 @@ int summarize(int argc, const char** argv) {
 
         std::istringstream inStream(data);
         std::string line;
+        size_t entry = 0;
+        std::string representative;
         while (std::getline(inStream, line))
         {
-            if(line[0] == '>') {
-                headers.emplace_back(line);
+            char* header;
+            if(entry == 0) {
+                header = queryReader.getDataByDBKey(line);
+                representative = line;
+            } else {
+                header = targetReader.getDataByDBKey(line);
             }
+
+            headers.emplace_back(header);
+            entry++;
         }
 
-        std::string summary = summarizer.summarize(headers, par.summaryPrefix);
+        std::ostringstream oss;
+        oss << par.summaryPrefix << "-" << representative << "|" << summarizer.summarize(headers);
 
-        std::ostringstream outStream;
-        outStream << summary << data;
-        std::string out = outStream.str();
-        writer.write(out.c_str(), out.length(), id.c_str(), thread_idx);
+        std::string summary = oss.str();
+        writer.write(summary.c_str(), summary.length(), id.c_str(), thread_idx);
     }
     writer.close();
     reader.close();
+    targetReader.close();
+    queryReader.close();
 
     return EXIT_SUCCESS;
 }
