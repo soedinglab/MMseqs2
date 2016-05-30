@@ -80,8 +80,10 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
     Debug(Debug::INFO) << "Done\n";
 }
 
-void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr, std::vector<std::pair<std::string, std::string>> files) {
-    Debug(Debug::INFO) << "Merging the results... to " << dataFileName << " .. ";
+void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
+                          const std::vector<std::pair<std::string, std::string>>& files,
+                          const std::vector<std::string>& prefixes) {
+    Debug(Debug::INFO) << "Merging the results to " << dataFileName << "\n";
 
     // open DBReader
     const size_t fileCount = files.size();
@@ -97,8 +99,12 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr, std::vector<std::pair<st
         // get all data for the id from all files
         for (size_t i = 0; i < fileCount; i++) {
 			char *data = filesToMerge[i]->getDataByDBKey(qdbr.getDbKey(id));
-			if (data != NULL)
-            ss << filesToMerge[i]->getDataByDBKey(qdbr.getDbKey(id));
+			if (data != NULL) {
+                if(i < prefixes.size()) {
+                    ss << prefixes[i];
+                }
+                ss << filesToMerge[i]->getDataByDBKey(qdbr.getDbKey(id));
+            }
         }
         // write result
         std::string result = ss.str();
@@ -112,7 +118,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr, std::vector<std::pair<st
     }
     delete [] filesToMerge;
 
-    Debug(Debug::INFO) << "Done";
+    Debug(Debug::INFO) << "Done\n";
 }
 
 // allocates heap memory, careful
