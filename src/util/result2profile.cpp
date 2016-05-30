@@ -187,6 +187,9 @@ int result2outputmode(Parameters &par, int mode) {
         case ca3m:
             Debug(Debug::INFO) << "compressed multiple sequence alignments";
             break;
+        case REPSEQ:
+            Debug(Debug::INFO) << "representative sequences";
+            break;
         case PSSM:
         default:
             Debug(Debug::INFO) << "profiles";
