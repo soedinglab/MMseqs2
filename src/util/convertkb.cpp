@@ -1,64 +1,60 @@
 #include "Parameters.h"
-#include "DBReader.h"
 #include "DBWriter.h"
 #include "Util.h"
 #include "FileUtil.h"
-#include "Log.h"
 #include "Debug.h"
+#include "UniprotKB.h"
 
-int convertkb(int argn, const char **argv)
-{
+#include <fstream>
+
+int convertkb(int argn, const char **argv) {
     std::string usage;
-    usage.append("Turns an UniprotKB file into a ffindex database.\n");
-    usage.append("USAGE: <uniprotKB> <outDB>\n");
+    usage.append("Turns an UniprotKB file into multiple ffindex database for every KB column.\n");
+    usage.append("USAGE: <uniprotKB> <outDbPrefix>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
 
     Parameters par;
     par.parseParameters(argn, argv, usage, par.onlyverbosity, 2);
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str());
-    writer.open();
 
-    FILE* kbFile = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
+    std::ifstream kbIn(par.db1);
+    if (kbIn.fail()) {
+        Debug(Debug::ERROR) << "File " << par.db1 << " not found!\n";
+        EXIT(EXIT_FAILURE);
+    }
 
-    bool isInEntry = false;
+    UniprotKB kb;
 
-    std::string identifier;
-    std::stringstream s;
-    char * line = NULL;
-    size_t n = 0;
-    ssize_t read = 0;
-    while ((read = getline(&line, &n, kbFile)) != -1) {
-        if(read < 2) {
+    size_t columns = kb.getColumnCount();
+    DBWriter **writers = new DBWriter*[columns];
+    for (size_t i = 0; i < columns; ++i) {
+        std::string dataFile = par.db2 + "_" + kb.columnNames[i];
+        std::string indexFile = par.db2 + "_" + kb.columnNames[i] + ".index";
+        writers[i] = new DBWriter(dataFile.c_str(), indexFile.c_str(), 1);
+        writers[i]->open();
+    }
+
+    std::string line;
+    while (std::getline(kbIn, line)) {
+        if (line.length() < 2) {
             Debug(Debug::WARNING) << "Invalid line" << "\n";
             continue;
         }
 
-        if(strncmp("ID", line, 2) == 0) {
-            isInEntry = true;
-            std::vector<std::string> words = Util::split(line, " ");
-            if(words.size() < 2) {
-                Debug(Debug::WARNING) << "Invalid entry" << "\n";
-                isInEntry = false;
-                continue;
+        if (kb.readLine(line.c_str())) {
+            std::string accession = kb.getColumn(UniprotKB::COL_KB_ID);
+            for (size_t i = 1; i < columns; ++i) {
+                std::string column = kb.getColumn(i);
+                writers[i]->write(column.c_str(), column.length(), accession.c_str());
             }
-            identifier = words[1];
-        }
-
-        if(isInEntry) {
-            s << line;
-        }
-
-        if(strncmp("//", line, 2) == 0) {
-            isInEntry = false;
-            std::string entry = s.str();
-            s.str("");
-            s.clear();
-            writer.write(entry.c_str(), entry.length(), identifier.c_str());
         }
     }
 
-    fclose(kbFile);
-    writer.close();
+    for (size_t i = 0; i < columns; ++i) {
+        writers[i]->close();
+        delete writers[i];
+    }
+    delete[] writers;
+
     return EXIT_SUCCESS;
 }
