@@ -119,7 +119,16 @@ std::map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute
             " is not assigned to a cluster\n";
             continue;
         }
-        retMap[assignedcluster[i]].push_back(i);
+
+        // make sure the representative is always the first entry
+        if(retMap.find(assignedcluster[i]) == retMap.end()) {
+            retMap[assignedcluster[i]].push_back(assignedcluster[i]);
+        }
+
+        // and don't add it a second time
+        if(i != assignedcluster[i]) {
+            retMap[assignedcluster[i]].push_back(i);
+        }
     }
     delete [] assignedcluster;
     return retMap;
