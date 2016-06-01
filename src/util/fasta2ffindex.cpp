@@ -71,36 +71,39 @@ int createdb(int argn, const char **argv) {
 
     kseq_t *seq = kseq_init(fileno(fasta_file));
     while (kseq_read(seq) >= 0) {
-
         if (seq->name.l == 0) {
             Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
             return EXIT_FAILURE;
         }
+
         size_t splitCnt = 1;
         if(par.splitSeqByLen == true){
             splitCnt = (size_t) ceilf(static_cast<float>(seq->seq.l) / static_cast<float>(par.maxSeqLen));
         }
+
+        std::string headerId = Util::parseFastaHeader(seq->name.s);
         for(size_t split = 0; split < splitCnt; split++){
+            std::string splitId = headerId;
+            if (splitCnt > 1){
+                splitId.append("_");
+                splitId.append(SSTR(split));
+            }
+
             std::string id;
             if (par.db3.length() > 0) {
-                std::string key = Util::parseFastaHeader(seq->name.s);
-                if (mapping.find(key) == mapping.end()) {
-                    Debug(Debug::ERROR) << "Could not find entry: " << key << " in mapping file.\n";
+                if (mapping.find(splitId) == mapping.end()) {
+                    Debug(Debug::ERROR) << "Could not find entry: " << headerId << " in mapping file.\n";
                     return EXIT_FAILURE;
                 }
-                id = SSTR(mapping[key]);
-                std::string headerId = Util::parseFastaHeader(seq->name.s);
-                lookupStream << id << "\t" << headerId << "\n";
+                id = SSTR(mapping[splitId]);
             } else if(par.useHeader) {
-                id = Util::parseFastaHeader(seq->name.s);
-                if (splitCnt > 1){
-                    id.append("_");
-                    id.append(SSTR(split));
-                };
+                id = splitId;
             } else {
                 id = SSTR(par.identifierOffset + entries_num);
-                std::string headerId = Util::parseFastaHeader(seq->name.s);
-                lookupStream << id << "\t" << headerId << "\n";
+            }
+
+            if(par.useHeader == false) {
+                lookupStream << id << "\t" << splitId << "\n";
             }
 
             // header
@@ -109,10 +112,12 @@ int createdb(int argn, const char **argv) {
                 header_line.append(" ", 1);
                 header_line.append(seq->comment.s, seq->comment.l);
             }
+
             if(par.splitSeqByLen == true) {
                 header_line.append(" Split=");
                 header_line.append(SSTR(split));
             }
+
             // space is needed for later parsing
             header_line.append(" ", 1);
             header_line.append("\n");
@@ -131,7 +136,7 @@ int createdb(int argn, const char **argv) {
     }
     kseq_destroy(seq);
 
-    if(!par.useHeader) {
+    if(par.useHeader == false) {
         lookupStream.close();
     }
     fclose(fasta_file);
