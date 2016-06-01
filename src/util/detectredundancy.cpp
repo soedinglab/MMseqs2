@@ -129,18 +129,18 @@ int detectredundancy (int argc, const char * argv[])
                 pos++;
             }
             for(size_t i = 0; i < setIds.size(); i++) {
-                unsigned int queryLength = seqDbr.getSeqLens(setIds[i]);
+                unsigned int queryLength = std::max(seqDbr.getSeqLens(setIds[i]), 3) - 2;
                 const char * querySeq =  seqDbr.getData(setIds[i]);
                 std::stringstream swResultsSs;
                 swResultsSs << SSTR(seqDbr.getDbKey(setIds[i])).c_str() << "\t";
                 swResultsSs << 255 << "\t";
                 swResultsSs << std::fixed << std::setprecision(3) << 1.0f << "\t";
                 swResultsSs << std::scientific << 0 << "\t";
-                swResultsSs << 1 << "\t";
+                swResultsSs << 0 << "\t";
+                swResultsSs << queryLength - 1 << "\t";
                 swResultsSs << queryLength << "\t";
-                swResultsSs << queryLength << "\t";
-                swResultsSs << 1 << "\t";
-                swResultsSs << queryLength << "\t";
+                swResultsSs << 0 << "\t";
+                swResultsSs << queryLength - 1 << "\t";
                 swResultsSs << queryLength << "\n";
                 if(found[i] == true){
                     goto outer;
@@ -159,11 +159,11 @@ int detectredundancy (int argc, const char * argv[])
                             swResultsSs << 255 << "\t";
                             swResultsSs << std::fixed << std::setprecision(3) << seqId << "\t";
                             swResultsSs << std::scientific << 0 << "\t";
-                            swResultsSs << 1 << "\t";
+                            swResultsSs << 0 << "\t";
+                            swResultsSs << queryLength - 1 << "\t";
                             swResultsSs << queryLength << "\t";
-                            swResultsSs << queryLength << "\t";
-                            swResultsSs << 1 << "\t";
-                            swResultsSs << queryLength << "\t";
+                            swResultsSs << 0 << "\t";
+                            swResultsSs << queryLength - 1 << "\t";
                             swResultsSs << queryLength << "\n";
                             found[j] = true;
                         }
