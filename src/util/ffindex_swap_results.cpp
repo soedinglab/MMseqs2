@@ -106,6 +106,9 @@ int swapresults (int argc, const char * argv[]){
         kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
                                                     qdbr.getAminoAcidDBSize(), qdbr.getSize());
     }
+    double logK = log( stats.K);
+    double lambdaLog2 =  stats.lambda / log(2.0);
+    double logKLog2 = logK / log(2.0);
 
     // read all keys
     readAllKeysIntoMap(resultDb.first, swapMap);
@@ -138,12 +141,12 @@ int swapresults (int argc, const char * argv[]){
                     std::vector<Matcher::result_t> alnRes = Matcher::readAlignmentResults((char*)iterator->second->c_str());
                     std::stringstream swResultsSs;
                     for(size_t i = 0; i < alnRes.size(); i++){
-                        Matcher::result_t res = alnRes[i];
-                        //TODO I can not use score here because its bit score and not RAW
-                        res.eval = BlastScoreUtils::computeEvalue(res.score, kmnByLen[res.dbLen], stats.lambda);
-                        size_t qstart = res.qStartPos;
-                        size_t qend    = res.qEndPos;
-                        size_t qLen    = res.qLen;
+                        Matcher::result_t &res = alnRes[i];
+                        double rawScore = BlastScoreUtils::bitScoreToRawScore(res.score, lambdaLog2, logKLog2);
+                        res.eval = BlastScoreUtils::computeEvalue(rawScore, kmnByLen[res.dbLen], stats.lambda);
+                        unsigned int qstart  = res.qStartPos;
+                        unsigned int qend    = res.qEndPos;
+                        unsigned int qLen    = res.qLen;
                         res.qStartPos  = res.dbStartPos;
                         res.qEndPos    = res.dbEndPos;
                         res.qLen       = res.dbLen;
