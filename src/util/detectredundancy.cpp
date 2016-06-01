@@ -8,11 +8,13 @@
 #include <limits>
 #include <string>
 #include <vector>
-#include <DBWriter.h>
-#include <Log.h>
-#include <SubstitutionMatrix.h>
-#include <ReducedMatrix.h>
 #include <iomanip>
+#include <algorithm>
+
+#include "ReducedMatrix.h"
+#include "DBWriter.h"
+#include "Log.h"
+#include "SubstitutionMatrix.h"
 #include "Util.h"
 #include "Parameters.h"
 #include "Matcher.h"
@@ -129,7 +131,7 @@ int detectredundancy (int argc, const char * argv[])
                 pos++;
             }
             for(size_t i = 0; i < setIds.size(); i++) {
-                unsigned int queryLength = std::max(seqDbr.getSeqLens(setIds[i]), 3) - 2;
+                unsigned int queryLength = std::max(seqDbr.getSeqLens(setIds[i]), 3ul) - 2;
                 const char * querySeq =  seqDbr.getData(setIds[i]);
                 std::stringstream swResultsSs;
                 swResultsSs << SSTR(seqDbr.getDbKey(setIds[i])).c_str() << "\t";
@@ -149,7 +151,7 @@ int detectredundancy (int argc, const char * argv[])
                 for (size_t j = 0; j < setIds.size(); j++) {
                     if(found[j] == true)
                         continue;
-                    unsigned int targetLength = seqDbr.getSeqLens(setIds[j]);
+                    unsigned int targetLength = std::max(seqDbr.getSeqLens(setIds[j]), 3ul) - 2;
                     if(i != j && queryLength == targetLength){
                         const char * targetSeq = seqDbr.getData(setIds[j]);
                         unsigned int distance = computeHammingDistance(querySeq, targetSeq, queryLength);
