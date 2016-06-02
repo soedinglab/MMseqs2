@@ -33,6 +33,9 @@ public:
               const size_t dbFrom, const size_t dbSize,
               const unsigned int maxAlnNum, const unsigned int maxRejected);
 
+    static void mergeAndRemoveTmpDatabases(std::string out, std::string outIndex,
+                                           std::vector<std::pair<std::string, std::string >> vector);
+
 private:
 
     // keeps state of alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
@@ -75,7 +78,6 @@ private:
     std::string outDB;
     std::string outDBIndex;
 
-    void mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> vector);
 
     bool sameQTDB;
     // include id

@@ -5,6 +5,7 @@
 #include <vector>
 #include <sstream>
 #include <sys/time.h>
+#include <Alignment.h>
 
 #include "MsaFilter.h"
 #include "Parameters.h"
@@ -21,7 +22,7 @@
 enum {
     MSA = 0,
     PSSM,
-	ca3m,
+	CA3M,
 	REPSEQ
 };
 
@@ -64,7 +65,9 @@ MultipleAlignment::MSAResult computeAlignment(MultipleAlignment &aligner, Sequen
 }
 
 
-int result2outputmode(Parameters &par, int mode) {
+int result2outputmode(Parameters &par, std::string outpath,
+                      const size_t dbFrom, const size_t dbSize,
+                      int mode) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
@@ -113,15 +116,15 @@ int result2outputmode(Parameters &par, int mode) {
         tempateHeaderReader->open(DBReader<unsigned int>::NOSORT);
     }
 
-    DBConcat *referenceDBr, *referenceHeadersDBr;
-    std::string referenceName(par.db4);
-    std::string referenceIndexName(par.db4);
-    if (mode == ca3m) {
+    DBConcat *referenceDBr = NULL, *referenceHeadersDBr = NULL;
+    std::string referenceName(outpath);
+    std::string referenceIndexName(outpath);
+    if (mode == CA3M) {
         referenceName.append("_ca3m.ffdata");
         referenceIndexName.append("_ca3m.ffindex");
 
-        std::string referenceSeqName(par.db4);
-        std::string referenceSeqIndexName(par.db4);
+        std::string referenceSeqName(outpath);
+        std::string referenceSeqIndexName(outpath);
         referenceSeqName.append("_sequence.ffdata");
         referenceSeqIndexName.append("_sequence.ffindex");
 
@@ -137,8 +140,8 @@ int result2outputmode(Parameters &par, int mode) {
 
 
 
-        std::string referenceHeadersName(par.db4);
-        std::string referenceHeadersIndexName(par.db4);
+        std::string referenceHeadersName(outpath);
+        std::string referenceHeadersIndexName(outpath);
 
         referenceHeadersName.append("_header.ffdata");
         referenceHeadersIndexName.append("_header.ffindex");
@@ -164,16 +167,11 @@ int result2outputmode(Parameters &par, int mode) {
 
     DBWriter *concensusWriter;
     if (mode == PSSM) {
-        concensusWriter = new DBWriter(std::string(par.db4 + "_consensus").c_str(),
-                                       std::string(par.db4 + "_consensus.index").c_str(),
+        concensusWriter = new DBWriter(std::string(outpath + "_consensus").c_str(),
+                                       std::string(outpath + "_consensus.index").c_str(),
                                        par.threads, DBWriter::ASCII_MODE);
         concensusWriter->open();
     }
-
-    DBWriter representativeWriter(std::string(par.db4 + "_representative").c_str(),
-                                            std::string(par.db4 + "_representative.index").c_str(),
-                                            par.threads, DBWriter::ASCII_MODE);
-    representativeWriter.open();
 
     size_t maxSetSize = findMaxSetSize(resultReader);
     // adjust score of each match state by -0.2 to trim alignment
@@ -184,7 +182,7 @@ int result2outputmode(Parameters &par, int mode) {
         case MSA:
             Debug(Debug::INFO) << "multiple sequence alignments";
             break;
-        case ca3m:
+        case CA3M:
             Debug(Debug::INFO) << "compressed multiple sequence alignments";
             break;
         case REPSEQ:
@@ -216,7 +214,7 @@ int result2outputmode(Parameters &par, int mode) {
                                                 sequenceType, 0, false, par.compBiasCorrection);
 
 #pragma omp for schedule(static)
-        for (size_t id = 0; id < resultReader->getSize(); id++) {
+        for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
 
             Log::printProgress(id);
             unsigned int thread_idx = 0;
@@ -291,15 +289,7 @@ int result2outputmode(Parameters &par, int mode) {
                                                                  res.centerLength, static_cast<int>(par.cov * 100),
                                                                  static_cast<int>(par.qid * 100), par.qsc,
                                                                  static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
-
             std::vector<std::string> headers;
-
-            std::ostringstream representativeStream;
-            representativeStream << ">" << queryHeaderReader->getDataByDBKey(queryKey);
-            representativeStream << qDbr->getDataByDBKey(queryKey) << "\n";
-
-            std::string representative = representativeStream.str();
-            representativeWriter.write(representative.c_str(), representative.size(), SSTR(queryKey).c_str(), thread_idx);
 
             char *data;
             size_t dataSize;
@@ -365,76 +355,7 @@ int result2outputmode(Parameters &par, int mode) {
                 }
                     break;
 
-                // This outputs a a3m format --- TODO
-/*                case HMM: {
-
-
-                    std::cout << "====== Cluster " << id << " =====" << std::endl;
-
-                    // First, decide for each column of the alignment
-                    // if it is a match or insertion state
-                    int *matchCount = new int[res.centerLength];
-                    for (size_t pos = 0; pos < res.centerLength; pos++) matchCount[pos] = 0;
-
-                    for (size_t i = 0; i < filterRes.setSize; i++) {
-                        for (size_t pos = 0; pos < res.centerLength; pos++) {
-                            char aa = filterRes.filteredMsaSequence[i][pos];
-                            matchCount[pos] += (aa < MultipleAlignment::NAA) ? 1 : 0;
-                        }
-
-                    }
-
-                    // then write the alignment
-                    for (size_t i = 0; i < filterRes.setSize; i++) {
-
-                        unsigned int key;
-                        char *data;
-
-                        if (i == 0) {
-                            key = queryKey;
-                            data = queryHeaderReader->getDataByDBKey(key);
-                        } else {
-                            key = seqSet[i - 1]->getDbKey();
-                            data = tempateHeaderReader->getDataByDBKey(key);
-                        }
-                        if (par.addInternalId) {
-                            msa << "#" << key << "\n";
-                        }
-
-                        msa << ">" << data;
-                        for (size_t pos = 0; pos < res.centerLength; pos++) {
-
-                            char aa = filterRes.filteredMsaSequence[i][pos];
-                            aa = ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
-
-                            bool insertionState = matchCount[pos] < filterRes.setSize /
-                                                                    2;//centerSequence->int_sequence[pos] > MultipleAlignment::NAA; //
-                            //std::cout << (std::string)(insertionState ? "GAP":"NNN");
-                            if (insertionState) {
-                                if (aa != '-')
-                                    msa << (char) tolower(aa); // insert state a2m format : lowercase
-                                // else do not match an insert state -> nothing written (a2m format)
-
-                            } else // else it's a match state and nothing special has to be done
-                            {
-                                msa << aa;
-                            }
-
-                        }
-                        msa << "\n";
-                    }
-                    result = msa.str();
-
-                    std::cout << result << std::endl;
-
-
-                    data = (char *) result.c_str();
-                    dataSize = result.length();
-                }
-                    break;
-*/
-
-                case ca3m: {
+                case CA3M: {
                     // Here the backtrace information should be present in the alnResults[i].backtrace for all i
                     std::ostringstream centerSeqStr;
                     std::vector<Matcher::result_t> filteredAln; // alignment information for the sequences that passed the filtering step
@@ -472,38 +393,6 @@ int result2outputmode(Parameters &par, int mode) {
                 }
                     break;
                 case PSSM: {
-//                    std::cout << centerSequence->getDbKey() << " " << res.setSize << std::endl;;
-//                    for (size_t i = 0; i < res.setSize; i++) {
-//                        for (size_t pos = 0; pos < res.msaSequenceLength; pos++) {
-//                            char aa = res.msaSequence[i][pos];
-//                            std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
-//                        }
-//                        std::cout << std::endl;
-//                    }
-//
-//                    if (par.pruneSequences) {
-//                        filter.pruneAlignment((char **) res.msaSequence, res.setSize, res.centerLength);
-//                    }
-//
-//                    std::cout << centerSequence->getDbKey() << " " << res.setSize << " " << filterRes.setSize <<
-//                    std::endl;
-//                    for (size_t i = 0; i < filterRes.setSize; i++) {
-//                        for (size_t pos = 0; pos < res.msaSequenceLength; pos++) {
-//                            char aa = filterRes.filteredMsaSequence[i][pos];
-//                            std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
-//                        }
-//                        std::cout << std::endl;
-//                    }
-
-/*                  std::cout << centerSequence->getDbKey() << " " << res.setSize << " " << filterRes.setSize << std::endl;
-		    for (size_t i = 0; i < filterRes.setSize; i++) {
-                       for(size_t pos = 0; pos < res.msaSequenceLength; pos++){
-                              char aa = filterRes.filteredMsaSequence[i][pos];
-                              std::cout << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-');
-                       }
-                       std::cout << std::endl;
-                    }
-*/
                     std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
                                                                   filterRes.filteredMsaSequence, par.wg);
                     data = (char*)pssmRes.first;
@@ -543,15 +432,13 @@ int result2outputmode(Parameters &par, int mode) {
     if (mode == PSSM) {
         concensusWriter->close();
         delete concensusWriter;
-    } else if (mode == ca3m) {
+    } else if (mode == CA3M) {
         referenceDBr->close();
         delete referenceDBr;
 
         // do not need to close, hasn't been opened for reading
         delete referenceHeadersDBr;
     }
-
-    representativeWriter.close();
 
     resultReader->close();
     delete resultReader;
@@ -573,8 +460,60 @@ int result2outputmode(Parameters &par, int mode) {
     return EXIT_SUCCESS;
 }
 
+int result2outputmode(Parameters &par, int mode) {
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    qDbr->open(DBReader<unsigned int>::NOSORT);
+    size_t querySize = qDbr->getSize();
+    qDbr->close();
+    delete qDbr;
+    result2outputmode(par, par.db4, 0, querySize, mode);
+    return 0;
+}
+
+int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, const unsigned int mpiNumProc) {
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    qDbr->open(DBReader<unsigned int>::NOSORT);
+
+
+    size_t dbFrom = 0;
+    size_t dbSize = 0;
+    Util::decomposeDomainByAminoAcid(qDbr->getAminoAcidDBSize(), qDbr->getSeqLens(), qDbr->getSize(),
+                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    qDbr->close();
+    Debug(Debug::WARNING) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, mpiRank);
+    result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode);
+
+    // close reader to reduce memory
+#ifdef HAVE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+    if(mpiRank == 0){ // master reduces results
+        const char * ext[2] = {"", "_consensus"};
+        size_t extCount = 1;
+        if(mode == PSSM){
+            extCount = 2;
+        }
+        for(size_t i = 0; i < extCount; i++){
+            std::vector<std::pair<std::string, std::string> > splitFiles;
+            for(unsigned int procs = 0; procs < mpiNumProc; procs++){
+                std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, procs);
+                splitFiles.push_back(std::make_pair(tmpFile.first + ext[i],  tmpFile.first + ext[i] + ".index"));
+                std::cout << tmpFile.first + ext[i] + ".index" << std::endl;
+            }
+            // merge output ffindex databases
+            std::cout << par.db4 + ext[i] + ".index" << std::endl;
+            Alignment::mergeAndRemoveTmpDatabases(par.db4 + ext[i], par.db4 + ext[i] + ".index", splitFiles);
+        }
+    }
+
+    delete qDbr;
+    return 0;
+}
 
 int result2profile(int argc, const char **argv) {
+    MMseqsMPI::init(argc, argv);
+
     std::string usage("Calculates profiles from a clustering.\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
@@ -587,14 +526,23 @@ int result2profile(int argc, const char **argv) {
     Debug(Debug::WARNING) << "Compute profile.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
+#ifdef HAVE_MPI
+    int retCode = result2outputmode(par, PSSM, MMseqsMPI::rank, MMseqsMPI::numProc);
+#else
     int retCode = result2outputmode(par, PSSM);
+#endif
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for profile calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
     return retCode;
 }
 
 int result2msa(int argc, const char **argv) {
+    MMseqsMPI::init(argc, argv);
+
     std::string usage("Calculates MSAs from a clustering.\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
@@ -610,17 +558,29 @@ int result2msa(int argc, const char **argv) {
     int retCode;
 
 	if (par.compressMSA)
-		retCode = result2outputmode(par, ca3m);
+#ifdef HAVE_MPI
+        retCode = result2outputmode(par, CA3M, MMseqsMPI::rank, MMseqsMPI::numProc);
+#else
+		retCode = result2outputmode(par, CA3M);
+#endif
 	else if(par.onlyRepSeq)
+#ifdef HAVE_MPI
+        retCode = result2outputmode(par, REPSEQ, MMseqsMPI::rank, MMseqsMPI::numProc);
+#else
 		retCode = result2outputmode(par, REPSEQ);
+#endif
 	else
-		retCode = result2outputmode(par, MSA);
+#ifdef HAVE_MPI
+        retCode = result2outputmode(par, MSA, MMseqsMPI::rank, MMseqsMPI::numProc);
+#else
+        retCode = result2outputmode(par, MSA);
+#endif
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for msa calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
     return retCode;
 }
-
-
-

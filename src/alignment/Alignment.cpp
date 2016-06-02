@@ -175,7 +175,7 @@ void Alignment::run (const unsigned int mpiRank, const unsigned int mpiNumProc,
             splitFiles.push_back(Util::createTmpFileNames(outDB, outDBIndex, procs));
         }
         // merge output ffindex databases
-        this->mergeAndRemoveTmpDatabases(splitFiles);
+        this->mergeAndRemoveTmpDatabases(outDB, outDBIndex, splitFiles);
     }
 }
 
@@ -336,14 +336,15 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
     Debug(Debug::INFO) << hits_f << " hits per query sequence.\n";
 }
 
-void Alignment::mergeAndRemoveTmpDatabases(std::vector<std::pair<std::string, std::string >> files) {
+void Alignment::mergeAndRemoveTmpDatabases(std::string out, std::string outIndex,
+                                           std::vector<std::pair<std::string, std::string >> files) {
     const char ** datafilesNames = new const char*[files.size()];
     const char ** indexFilesNames= new const char*[files.size()];
     for(size_t i = 0; i < files.size(); i++){
         datafilesNames[i] = files[i].first.c_str();
         indexFilesNames[i] = files[i].second.c_str();
     }
-    DBWriter::mergeResults(outDB.c_str(), outDBIndex.c_str(), datafilesNames, indexFilesNames, files.size());
+    DBWriter::mergeResults(out.c_str(), outIndex.c_str(), datafilesNames, indexFilesNames, files.size());
     delete [] datafilesNames;
     delete [] indexFilesNames;
 }
