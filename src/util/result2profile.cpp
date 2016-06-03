@@ -540,9 +540,10 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, par.db4Index, mpiRank);
 
     result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode, referenceDBr);
-
-    referenceDBr->close();
-    delete referenceDBr;
+    if(referenceDBr != NULL){
+        referenceDBr->close();
+        delete referenceDBr;
+    }
 
     // close reader to reduce memory
 #ifdef HAVE_MPI
