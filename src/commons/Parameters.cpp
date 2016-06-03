@@ -304,6 +304,7 @@ Parameters::Parameters():
 
     // substractresult
     substractresult.push_back(PARAM_THREADS);
+    substractresult.push_back(PARAM_E_PROFILE);
     substractresult.push_back(PARAM_V);
 
     //evaluationscores
