@@ -5,8 +5,8 @@
 #include <vector>
 #include <sstream>
 #include <sys/time.h>
-#include <Alignment.h>
 
+#include "Alignment.h"
 #include "MsaFilter.h"
 #include "Parameters.h"
 #include "PSSMCalculator.h"
@@ -19,7 +19,7 @@
 #include <omp.h>
 #endif
 
-enum {
+enum outputmode {
     MSA = 0,
     PSSM,
 	CA3M,
@@ -67,10 +67,15 @@ MultipleAlignment::MSAResult computeAlignment(MultipleAlignment &aligner, Sequen
 
 int result2outputmode(Parameters &par, std::string outpath,
                       const size_t dbFrom, const size_t dbSize,
-                      int mode) {
+                      const int mode, DBConcat* referenceDBr = NULL) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
+
+    if (mode == CA3M && referenceDBr == NULL) {
+        Debug(Debug::ERROR) << "Need a sequence and header database for ca3m output!\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qDbr->open(DBReader<unsigned int>::NOSORT);
@@ -116,44 +121,9 @@ int result2outputmode(Parameters &par, std::string outpath,
         tempateHeaderReader->open(DBReader<unsigned int>::NOSORT);
     }
 
-    DBConcat *referenceDBr = NULL, *referenceHeadersDBr = NULL;
     std::string referenceName(outpath);
     std::string referenceIndexName(outpath);
-    if (mode == CA3M) {
-        referenceName.append("_ca3m.ffdata");
-        referenceIndexName.append("_ca3m.ffindex");
-
-        std::string referenceSeqName(outpath);
-        std::string referenceSeqIndexName(outpath);
-        referenceSeqName.append("_sequence.ffdata");
-        referenceSeqIndexName.append("_sequence.ffindex");
-
-        // Use only 1 thread for concat to ensure the same order as the later header concat
-        referenceDBr = new DBConcat(par.db1.c_str(), par.db1Index.c_str(), par.db2.c_str(), par.db2Index.c_str(),
-                                    referenceSeqName.c_str(), referenceSeqIndexName.c_str(), 1);
-        referenceDBr->concat();
-        // When exporting in ca3m,
-        // we need to have an access in SORT_BY_LINE
-        // mode in order to keep track of the original
-        // line number in the index file.
-        referenceDBr->open(DBReader<unsigned int>::SORT_BY_LINE);
-
-
-
-        std::string referenceHeadersName(outpath);
-        std::string referenceHeadersIndexName(outpath);
-
-        referenceHeadersName.append("_header.ffdata");
-        referenceHeadersIndexName.append("_header.ffindex");
-
-        // Use only 1 thread for concat to ensure the same order as the former sequence concat
-        referenceHeadersDBr = new DBConcat(headerNameQuery.c_str(), headerIndexNameQuery.c_str(),
-                                           headerNameTarget.c_str(), headerIndexNameTarget.c_str(),
-                                           referenceHeadersName.c_str(), referenceHeadersIndexName.c_str(), 1);
-        referenceHeadersDBr->concat();
-    } else {
-        referenceIndexName.append(".index");
-    }
+    referenceIndexName.append(".index");
 
     DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -165,7 +135,7 @@ int result2outputmode(Parameters &par, std::string outpath,
     DBWriter resultWriter(referenceName.c_str(), referenceIndexName.c_str(), par.threads, DBWriter::BINARY_MODE);
     resultWriter.open();
 
-    DBWriter *concensusWriter;
+    DBWriter *concensusWriter = NULL;
     if (mode == PSSM) {
         concensusWriter = new DBWriter(std::string(outpath + "_consensus").c_str(),
                                        std::string(outpath + "_consensus.index").c_str(),
@@ -215,7 +185,6 @@ int result2outputmode(Parameters &par, std::string outpath,
 
 #pragma omp for schedule(static)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
-
             Log::printProgress(id);
             unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -289,8 +258,6 @@ int result2outputmode(Parameters &par, std::string outpath,
                                                                  res.centerLength, static_cast<int>(par.cov * 100),
                                                                  static_cast<int>(par.qid * 100), par.qsc,
                                                                  static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
-            std::vector<std::string> headers;
-
             char *data;
             size_t dataSize;
             std::ostringstream msa;
@@ -308,7 +275,8 @@ int result2outputmode(Parameters &par, std::string outpath,
                             }
                         }
 
-                        msa << "#" << par.summaryPrefix << "-" << queryKey << "|" << summarizer.summarize(headers) << "\n";
+                        std::string summary = summarizer.summarize(headers);
+                        msa << "#" << par.summaryPrefix.c_str() << "-" << queryKey << "|" << summary.c_str() << "\n";
                     }
 
                     // TODO : the first sequence in the MSA seems to be overwritten by the query seq
@@ -383,7 +351,8 @@ int result2outputmode(Parameters &par, std::string outpath,
                     }
 
                     // Write the query sequence (== center sequence == consensus sequence)
-                    msa << ">" << queryHeaderReader->getDataByDBKey(queryKey) << centerSeqStr.str() << "\n;";
+                    std::string centerSeq = centerSeqStr.str();
+                    msa << ">" << queryHeaderReader->getDataByDBKey(queryKey) << centerSeq.c_str() << "\n;";
 
                     msa << CompressedA3M::fromAlignmentResult(filteredAln, referenceDBr);
 
@@ -432,12 +401,6 @@ int result2outputmode(Parameters &par, std::string outpath,
     if (mode == PSSM) {
         concensusWriter->close();
         delete concensusWriter;
-    } else if (mode == CA3M) {
-        referenceDBr->close();
-        delete referenceDBr;
-
-        // do not need to close, hasn't been opened for reading
-        delete referenceHeadersDBr;
     }
 
     resultReader->close();
@@ -466,7 +429,49 @@ int result2outputmode(Parameters &par, int mode) {
     size_t querySize = qDbr->getSize();
     qDbr->close();
     delete qDbr;
-    result2outputmode(par, par.db4, 0, querySize, mode);
+
+    std::string outname = par.db4;
+    DBConcat *referenceDBr = NULL;
+    if (mode == CA3M) {
+        std::string referenceSeqName(outname);
+        std::string referenceSeqIndexName(outname);
+        referenceSeqName.append("_sequence.ffdata");
+        referenceSeqIndexName.append("_sequence.ffindex");
+
+        // Use only 1 thread for concat to ensure the same order as the later header concat
+        referenceDBr = new DBConcat(par.db1.c_str(), par.db1Index.c_str(), par.db2.c_str(), par.db2Index.c_str(),
+                                    referenceSeqName.c_str(), referenceSeqIndexName.c_str(), 1);
+        referenceDBr->concat();
+        // When exporting in ca3m,
+        // we need to have an access in SORT_BY_LINE
+        // mode in order to keep track of the original
+        // line number in the index file.
+        referenceDBr->open(DBReader<unsigned int>::SORT_BY_LINE);
+
+        std::string headerQuery(par.db1);
+        headerQuery.append("_h");
+        std::pair<std::string, std::string> query = Util::databaseNames(headerQuery);
+
+        std::string headerTarget(par.db2);
+        headerTarget.append("_h");
+        std::pair<std::string, std::string> target = Util::databaseNames(headerTarget);
+
+        std::string referenceHeadersName(outname);
+        std::string referenceHeadersIndexName(outname);
+
+        referenceHeadersName.append("_header.ffdata");
+        referenceHeadersIndexName.append("_header.ffindex");
+
+        // Use only 1 thread for concat to ensure the same order as the former sequence concat
+        DBConcat referenceHeadersDBr(query.first.c_str(), query.second.c_str(),
+                                     target.first.c_str(), target.second.c_str(),
+                                     referenceHeadersName.c_str(), referenceHeadersIndexName.c_str(), 1);
+        referenceHeadersDBr.concat();
+
+        outname.append("_ca3m");
+    }
+
+    result2outputmode(par, par.db4, 0, querySize, mode, referenceDBr);
     return 0;
 }
 
@@ -474,21 +479,77 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
     DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qDbr->open(DBReader<unsigned int>::NOSORT);
 
-
     size_t dbFrom = 0;
     size_t dbSize = 0;
     Util::decomposeDomainByAminoAcid(qDbr->getAminoAcidDBSize(), qDbr->getSeqLens(), qDbr->getSize(),
                                      mpiRank, mpiNumProc, &dbFrom, &dbSize);
     qDbr->close();
+    delete qDbr;
+
     Debug(Debug::WARNING) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, mpiRank);
-    result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode);
+
+    DBConcat *referenceDBr = NULL;
+    std::string outname = par.db4;
+    if (mode == CA3M) {
+        std::string referenceSeqName(outname);
+        std::string referenceSeqIndexName(outname);
+        referenceSeqName.append("_sequence.ffdata");
+        referenceSeqIndexName.append("_sequence.ffindex");
+
+        // Use only 1 thread for concat to ensure the same order as the later header concat
+        referenceDBr = new DBConcat(par.db1.c_str(), par.db1Index.c_str(), par.db2.c_str(), par.db2Index.c_str(),
+                                    referenceSeqName.c_str(), referenceSeqIndexName.c_str(), 1);
+        if(mpiRank == 0) {
+            referenceDBr->concat();
+        }
+
+#ifdef HAVE_MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+#endif
+        // When exporting in ca3m,
+        // we need to have an access in SORT_BY_LINE
+        // mode in order to keep track of the original
+        // line number in the index file.
+        referenceDBr->open(DBReader<unsigned int>::SORT_BY_LINE);
+
+        if(mpiRank == 0) {
+            std::string headerQuery(par.db1);
+            headerQuery.append("_h");
+            std::pair<std::string, std::string> query = Util::databaseNames(headerQuery);
+
+            std::string headerTarget(par.db2);
+            headerTarget.append("_h");
+            std::pair<std::string, std::string> target = Util::databaseNames(headerTarget);
+
+            std::string referenceHeadersName(outname);
+            std::string referenceHeadersIndexName(outname);
+
+            referenceHeadersName.append("_header.ffdata");
+            referenceHeadersIndexName.append("_header.ffindex");
+
+            // Use only 1 thread for concat to ensure the same order as the former sequence concat
+            DBConcat referenceHeadersDBr(query.first.c_str(), query.second.c_str(),
+                                         target.first.c_str(), target.second.c_str(),
+                                         referenceHeadersName.c_str(), referenceHeadersIndexName.c_str(), 1);
+            referenceHeadersDBr.concat();
+        }
+
+        outname.append("_ca3m");
+    }
+
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, par.db4Index, mpiRank);
+
+    result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode, referenceDBr);
+
+    referenceDBr->close();
+    delete referenceDBr;
 
     // close reader to reduce memory
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-    if(mpiRank == 0){ // master reduces results
+    // master reduces results
+    if(mpiRank == 0) {
         const char * ext[2] = {"", "_consensus"};
         size_t extCount = 1;
         if(mode == PSSM){
@@ -499,15 +560,14 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
             for(unsigned int procs = 0; procs < mpiNumProc; procs++){
                 std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, procs);
                 splitFiles.push_back(std::make_pair(tmpFile.first + ext[i],  tmpFile.first + ext[i] + ".index"));
-                std::cout << tmpFile.first + ext[i] + ".index" << std::endl;
+//                std::cout << tmpFile.first + ext[i] + ".index" << std::endl;
             }
             // merge output ffindex databases
-            std::cout << par.db4 + ext[i] + ".index" << std::endl;
+//            std::cout << par.db4 + ext[i] + ".index" << std::endl;
             Alignment::mergeAndRemoveTmpDatabases(par.db4 + ext[i], par.db4 + ext[i] + ".index", splitFiles);
         }
     }
 
-    delete qDbr;
     return 0;
 }
 
@@ -526,14 +586,16 @@ int result2profile(int argc, const char **argv) {
     Debug(Debug::WARNING) << "Compute profile.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
+
 #ifdef HAVE_MPI
     int retCode = result2outputmode(par, PSSM, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
     int retCode = result2outputmode(par, PSSM);
 #endif
+
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for profile calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif
@@ -552,35 +614,32 @@ int result2msa(int argc, const char **argv) {
     Parameters par;
     par.parseParameters(argc, argv, usage, par.result2msa, 4);
 
-    Debug(Debug::WARNING) << "Compute Msa.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
     int retCode;
 
-	if (par.compressMSA)
+    outputmode mode;
+	if (par.compressMSA) {
+        mode = CA3M;
+    } else if(par.onlyRepSeq) {
+        mode = REPSEQ;
+    } else {
+        mode = MSA;
+    }
+
 #ifdef HAVE_MPI
-        retCode = result2outputmode(par, CA3M, MMseqsMPI::rank, MMseqsMPI::numProc);
+        retCode = result2outputmode(par, mode, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
-		retCode = result2outputmode(par, CA3M);
-#endif
-	else if(par.onlyRepSeq)
-#ifdef HAVE_MPI
-        retCode = result2outputmode(par, REPSEQ, MMseqsMPI::rank, MMseqsMPI::numProc);
-#else
-		retCode = result2outputmode(par, REPSEQ);
-#endif
-	else
-#ifdef HAVE_MPI
-        retCode = result2outputmode(par, MSA, MMseqsMPI::rank, MMseqsMPI::numProc);
-#else
-        retCode = result2outputmode(par, MSA);
+		retCode = result2outputmode(par, mode);
 #endif
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for msa calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif
+
     return retCode;
 }
