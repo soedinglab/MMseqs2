@@ -65,11 +65,20 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
             // get all data for the leftDbkey from rightDbr
             // check if right ids are in elementsId
             char *data = rightDbr.getDataByDBKey(leftDbKey);
+            char *entry[255];
+
             if (data != NULL) {
                 while (*data != '\0') {
                     Util::parseKey(data, key);
                     unsigned int element = std::strtoul(key, NULL, 10);
-                    elementLookup[element] = false;
+                    double evalue = 0.0;
+                    const size_t columns = Util::getWordsOfLine(data, entry, 255);
+                    if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                        evalue = strtod(entry[3], NULL);
+                    }
+                    if(evalue <= evalThreshold) {
+                        elementLookup[element] = false;
+                    }
                     data = Util::skipLine(data);
                 }
             }
