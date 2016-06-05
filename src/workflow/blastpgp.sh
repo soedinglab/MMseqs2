@@ -22,7 +22,6 @@ notExists () {
 
 export OMP_PROC_BIND=TRUE
 
-
 cd $(dirname $1)
 QUERY_FILE=$(basename $1)
 ABS_QUERY="$(pwd)/${QUERY_FILE}"
@@ -37,17 +36,19 @@ QUERYDB=$ABS_QUERY
 # processing
 [ -z "$NUM_IT" ] && NUM_IT=3;
 while [ $STEP -lt $NUM_IT ]; do
-
     # call prefilter module
     notExists "$TMP_PATH/pref_$STEP" && $RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP"  $PREFILTER_PAR \
             && checkReturnCode "Prefilter died"
 
     if [ $STEP -ge 1 ]; then
-        # pref -aln
-        mmseqs substractresult "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR \
-            && checkReturnCode "Substract died"
-        mv -f "$TMP_PATH/pref_next_$STEP" "$TMP_PATH/pref_$STEP"
-        mv -f "$TMP_PATH/pref_next_$STEP.index" "$TMP_PATH/pref_$STEP.index"
+        if notExists "$TMP_PATH/pref_$STEP.hasnext"; then
+            # pref -aln
+            mmseqs substractresult "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR \
+                && checkReturnCode "Substract died"
+            mv -f "$TMP_PATH/pref_next_$STEP" "$TMP_PATH/pref_$STEP"
+            mv -f "$TMP_PATH/pref_next_$STEP.index" "$TMP_PATH/pref_$STEP.index"
+            touch "$TMP_PATH/pref_$STEP.hasnext"
+        fi
     fi
     echo "RUN alignmment"
 
@@ -60,18 +61,23 @@ while [ $STEP -lt $NUM_IT ]; do
 	        && checkReturnCode "Alignment died"
 
     if [ $STEP -gt 0 ]; then
-        mmseqs mergeffindex "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP" \
-            && checkReturnCode "Alignment died"
-        mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_0"
-        mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_0.index"
+        if notExists "$TMP_PATH/aln_$STEP.hasmerge"; then
+            mmseqs mergeffindex "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP" \
+                && checkReturnCode "Alignment died"
+            mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_0"
+            mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_0.index"
+            touch "$TMP_PATH/aln_$STEP.hasmerge"
+        fi
     fi
 
 # create profiles
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
-        notExists "$TMP_PATH/profile_$STEP" && mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR \
-                && checkReturnCode "Create profile died"
-        ln -sf $QUERYDB"_h" "$TMP_PATH/profile_$STEP""_h"
-        ln -sf $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
+        if notExists "$TMP_PATH/profile_$STEP"; then
+            mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR \
+                    && checkReturnCode "Create profile died"
+            ln -sf $QUERYDB"_h" "$TMP_PATH/profile_$STEP""_h"
+            ln -sf $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
+        fi
     fi
 	QUERYDB="$TMP_PATH/profile_$STEP"
     if [ $STEP -eq 0 ] && [ $PROFILE -eq 0 ]; then
