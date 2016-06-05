@@ -209,8 +209,6 @@ public:
     bool randomizedRepresentative;
     bool use_sequenceheader;
 
-
-
     
     void checkSaneEnvironment();
     void setDefaults();
@@ -385,6 +383,7 @@ public:
     std::vector<MMseqsParameter> mergeffindex;
     std::vector<MMseqsParameter> summarize;
     std::vector<MMseqsParameter> evaluationscores;
+    std::vector<MMseqsParameter> prefixid;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);

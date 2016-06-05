@@ -332,7 +332,14 @@ Parameters::Parameters():
     summarize.push_back(PARAM_SUMMARY_PREFIX);
     summarize.push_back(PARAM_V);
 
+    // diff
     diff.push_back(PARAM_THREADS);
+    diff.push_back(PARAM_V);
+
+    // prefixid
+    prefixid.push_back(PARAM_MAPPING_FILE);
+    prefixid.push_back(PARAM_THREADS);
+    prefixid.push_back(PARAM_V);
 
     checkSaneEnvironment();
     setDefaults();
