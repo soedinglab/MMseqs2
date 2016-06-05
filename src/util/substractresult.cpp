@@ -6,6 +6,7 @@
 #include <list>
 #include <vector>
 #include <sys/time.h>
+#include <Matcher.h>
 #include "DBReader.h"
 #include "Debug.h"
 #include "DBWriter.h"
@@ -17,7 +18,7 @@
 #endif
 
 void dosubstractresult(std::string leftDb, std::string rightDb, std::string outDb,
-                       size_t maxLineLength, int threads)
+                       size_t maxLineLength, double evalThreshold, int threads)
 {
     Debug(Debug::INFO) << "Remove " << rightDb << " ids from "<< leftDb << "\n";
     DBReader<unsigned int> leftDbr(leftDb.c_str(), (leftDb + std::string(".index")).c_str());
@@ -45,21 +46,39 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
             // fill element id look up with left side elementLookup
             {
                 char *data = (char *) leftData;
+                char *entry[255];
                 while (*data != '\0') {
                     Util::parseKey(data, key);
                     unsigned int dbKey = std::strtoul(key, NULL, 10);
-                    elementLookup[dbKey] = true;
+                    double evalue = 0.0;
+                    const size_t columns = Util::getWordsOfLine(data, entry, 255);
+                    // its an aln result (parse e-value)
+                    if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                        evalue = strtod(entry[3], NULL);
+                    }
+                    if(evalue <= evalThreshold){
+                        elementLookup[dbKey] = true;
+                    }
                     data = Util::skipLine(data);
                 }
             }
             // get all data for the leftDbkey from rightDbr
             // check if right ids are in elementsId
             char *data = rightDbr.getDataByDBKey(leftDbKey);
+            char *entry[255];
+
             if (data != NULL) {
                 while (*data != '\0') {
                     Util::parseKey(data, key);
                     unsigned int element = std::strtoul(key, NULL, 10);
-                    elementLookup[element] = false;
+                    double evalue = 0.0;
+                    const size_t columns = Util::getWordsOfLine(data, entry, 255);
+                    if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                        evalue = strtod(entry[3], NULL);
+                    }
+                    if(evalue <= evalThreshold) {
+                        elementLookup[element] = false;
+                    }
                     data = Util::skipLine(data);
                 }
             }
@@ -126,7 +145,7 @@ int substractresult(int argc,const char **argv)
     omp_set_num_threads(par.threads);
 #endif
 
-    dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.threads);
+    dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.evalProfile, par.threads);
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for profile substracting: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";

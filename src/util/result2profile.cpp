@@ -22,8 +22,8 @@
 enum outputmode {
     MSA = 0,
     PSSM,
-	CA3M,
-	REPSEQ
+    CA3M,
+    REPSEQ
 };
 
 size_t findMaxSetSize(DBReader<unsigned int> *reader) {
@@ -165,7 +165,7 @@ int result2outputmode(Parameters &par, std::string outpath,
     }
     Debug(Debug::INFO) << ".\n";
 
-    #pragma omp parallel
+#pragma omp parallel
     {
         Matcher matcher(maxSequenceLength, &subMat, tDbr->getAminoAcidDBSize(), tDbr->getSize(),
                         par.compBiasCorrection);
@@ -199,11 +199,11 @@ int result2outputmode(Parameters &par, std::string outpath,
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader->getDbKey(id);
             char *seqData = qDbr->getDataByDBKey(queryKey);
-			 if (seqData != NULL)
-				 centerSequence->mapSequence(0, queryKey, seqData);
+            if (seqData != NULL)
+                centerSequence->mapSequence(0, queryKey, seqData);
 
             std::vector<Sequence *> seqSet;
-			 std::string *reprSeq = NULL;
+            std::string *reprSeq = NULL;
 
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
@@ -215,15 +215,15 @@ int result2outputmode(Parameters &par, std::string outpath,
                 if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
                     evalue = strtod(entry[3], NULL);
                 }
-				
-				  if(reprSeq == NULL) 
-				  {
-						const size_t edgeId = tDbr->getId(key);
-						char *dbSeqData = tDbr->getData(edgeId);
-						reprSeq = new std::string(dbSeqData); 
-				  }
-				  
-				
+
+                if(reprSeq == NULL)
+                {
+                    const size_t edgeId = tDbr->getId(key);
+                    char *dbSeqData = tDbr->getData(edgeId);
+                    reprSeq = new std::string(dbSeqData);
+                }
+
+
                 // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
                 if (evalue <= par.evalProfile && (key != queryKey || sameDatabase == false)) {
                     if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
@@ -363,7 +363,7 @@ int result2outputmode(Parameters &par, std::string outpath,
                     break;
                 case PSSM: {
                     std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
-                                                                  filterRes.filteredMsaSequence, par.wg);
+                                                                                                filterRes.filteredMsaSequence, par.wg);
                     data = (char*)pssmRes.first;
                     std::string consensusStr = pssmRes.second;
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
@@ -472,6 +472,10 @@ int result2outputmode(Parameters &par, int mode) {
     }
 
     result2outputmode(par, par.db4, 0, querySize, mode, referenceDBr);
+    if(referenceDBr != NULL) {
+        referenceDBr->close();
+        delete referenceDBr;
+    }
     return 0;
 }
 
@@ -540,9 +544,10 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, par.db4Index, mpiRank);
 
     result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode, referenceDBr);
-
-    referenceDBr->close();
-    delete referenceDBr;
+    if(referenceDBr != NULL){
+        referenceDBr->close();
+        delete referenceDBr;
+    }
 
     // close reader to reduce memory
 #ifdef HAVE_MPI
@@ -619,7 +624,7 @@ int result2msa(int argc, const char **argv) {
     int retCode;
 
     outputmode mode;
-	if (par.compressMSA) {
+    if (par.compressMSA) {
         mode = CA3M;
     } else if(par.onlyRepSeq) {
         mode = REPSEQ;
@@ -628,9 +633,9 @@ int result2msa(int argc, const char **argv) {
     }
 
 #ifdef HAVE_MPI
-        retCode = result2outputmode(par, mode, MMseqsMPI::rank, MMseqsMPI::numProc);
+    retCode = result2outputmode(par, mode, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
-		retCode = result2outputmode(par, mode);
+    retCode = result2outputmode(par, mode);
 #endif
 
     gettimeofday(&end, NULL);
