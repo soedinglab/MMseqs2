@@ -16,12 +16,12 @@ int prefixid(int argn, const char **argv) {
     usage.append("USAGE: <ffindexInDB>  <ffindexOutDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
 
+    Parameters par;
+    par.parseParameters(argn, argv, usage, par.prefixid, 2);
+
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-
-    Parameters par;
-    par.parseParameters(argn, argv, usage, par.prefixid, 2);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader<unsigned int>::NOSORT);
