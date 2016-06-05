@@ -73,7 +73,7 @@ while [ $STEP -lt $NUM_IT ]; do
 # create profiles
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
         if notExists "$TMP_PATH/profile_$STEP"; then
-            mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR \
+            $RUNNER mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR \
                     && checkReturnCode "Create profile died"
             ln -sf $QUERYDB"_h" "$TMP_PATH/profile_$STEP""_h"
             ln -sf $QUERYDB"_h.index" "$TMP_PATH/profile_$STEP""_h.index"
