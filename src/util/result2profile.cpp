@@ -199,7 +199,8 @@ int result2outputmode(Parameters &par, std::string outpath,
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader->getDbKey(id);
             char *seqData = qDbr->getDataByDBKey(queryKey);
-            if (seqData != NULL)
+            
+            if (seqData != NULL && !par.firstSeqRepr)
                 centerSequence->mapSequence(0, queryKey, seqData);
 
             std::vector<Sequence *> seqSet;
@@ -220,6 +221,8 @@ int result2outputmode(Parameters &par, std::string outpath,
                 {
                     const size_t edgeId = tDbr->getId(key);
                     char *dbSeqData = tDbr->getData(edgeId);
+                    if (par.firstSeqRepr)
+                        centerSequence->mapSequence(0, key, dbSeqData);
                     reprSeq = new std::string(dbSeqData);
                 }
 
@@ -240,8 +243,9 @@ int result2outputmode(Parameters &par, std::string outpath,
                 results = Util::skipLine(results);
             }
 
-
-            if (alnResults.size() != seqSet.size()) // Make sure we have the backtrace info for all the sequences
+            // Recompute the backtrace if the center seq has to be the first seq
+            // or if not all the backtraces are present
+            if (par.firstSeqRepr || alnResults.size() != seqSet.size()) 
             {
                 //Debug(Debug::INFO) << "BT info is missing... will recompute alignments.\n";
                 alnResults.clear(); // will force to recompute alignments together with bt information
@@ -424,11 +428,19 @@ int result2outputmode(Parameters &par, std::string outpath,
 }
 
 int result2outputmode(Parameters &par, int mode) {
+    /*
     DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qDbr->open(DBReader<unsigned int>::NOSORT);
     size_t querySize = qDbr->getSize();
     qDbr->close();
-    delete qDbr;
+    delete qDbr;*/
+    
+
+    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    resultReader->open(DBReader<unsigned int>::NOSORT);
+    size_t resultSize = resultReader->getSize();
+    resultReader->close();
+    delete resultReader;
 
     std::string outname = par.db4;
     DBConcat *referenceDBr = NULL;
@@ -471,7 +483,9 @@ int result2outputmode(Parameters &par, int mode) {
         outname.append("_ca3m");
     }
 
-    result2outputmode(par, par.db4, 0, querySize, mode, referenceDBr);
+    //result2outputmode(par, par.db4, 0, querySize, mode, referenceDBr);
+    result2outputmode(par, par.db4, 0, resultSize, mode, referenceDBr);
+    
     if(referenceDBr != NULL) {
         referenceDBr->close();
         delete referenceDBr;

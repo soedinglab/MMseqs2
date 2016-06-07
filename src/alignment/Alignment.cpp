@@ -336,8 +336,8 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
     Debug(Debug::INFO) << hits_f << " hits per query sequence.\n";
 }
 
-void Alignment::mergeAndRemoveTmpDatabases(std::string& out, std::string& outIndex,
-                                           std::vector<std::pair<std::string, std::string >>& files) {
+void Alignment::mergeAndRemoveTmpDatabases(const std::string& out,const  std::string& outIndex,
+                                           const std::vector<std::pair<std::string, std::string >>& files) {
     const char ** datafilesNames = new const char*[files.size()];
     const char ** indexFilesNames= new const char*[files.size()];
     for(size_t i = 0; i < files.size(); i++){
