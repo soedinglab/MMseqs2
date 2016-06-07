@@ -193,6 +193,7 @@ int result2outputmode(Parameters &par, std::string outpath,
             char *results = resultReader->getData(id);
             char dbKey[255 + 1];
             unsigned int centerSequenceKey;
+            char *centerSequenceHeader;
 
             // check if already aligned results exists
             std::vector<Matcher::result_t> alnResults;
@@ -205,6 +206,7 @@ int result2outputmode(Parameters &par, std::string outpath,
             {
                 centerSequence->mapSequence(0, queryKey, seqData);
                 centerSequenceKey = queryKey;
+                centerSequenceHeader = queryHeaderReader->getDataByDBKey(centerSequenceKey);
             }
 
             std::vector<Sequence *> seqSet;
@@ -229,6 +231,7 @@ int result2outputmode(Parameters &par, std::string outpath,
                     {
                         centerSequence->mapSequence(0, key, dbSeqData);
                         centerSequenceKey = key;
+                        centerSequenceHeader = tempateHeaderReader->getDataByDBKey(centerSequenceKey);
                     }
                     reprSeq = new std::string(dbSeqData);
                 }
@@ -280,14 +283,14 @@ int result2outputmode(Parameters &par, std::string outpath,
                         std::vector<std::string> headers;
                         for (size_t i = 0; i < filterRes.setSize; i++) {
                             if (i == 0) {
-                                headers.push_back(queryHeaderReader->getDataByDBKey(queryKey));
+                                headers.push_back(centerSequenceHeader);
                             } else {
-                                headers.push_back(tempateHeaderReader->getDataByDBKey(seqSet[i - 1]->getDbKey()));
+                                headers.push_back(tempateHeaderReader->getDataByDBKey(seqSet[i]->getDbKey()));
                             }
                         }
 
                         std::string summary = summarizer.summarize(headers);
-                        msa << "#" << par.summaryPrefix.c_str() << "-" << queryKey << "|" << summary.c_str() << "\n";
+                        msa << "#" << par.summaryPrefix.c_str() << "-" << centerSequenceKey << "|" << summary.c_str() << "\n";
                     }
 
                     // TODO : the first sequence in the MSA seems to be overwritten by the query seq
@@ -295,10 +298,10 @@ int result2outputmode(Parameters &par, std::string outpath,
                         unsigned int key;
                         char* header;
                         if (i == 0) {
-                            key = queryKey;
-                            header = queryHeaderReader->getDataByDBKey(key);
+                            key = centerSequenceKey;
+                            header = centerSequenceHeader;
                         } else {
-                            key = seqSet[i - 1]->getDbKey();
+                            key = seqSet[i]->getDbKey();
                             header = tempateHeaderReader->getDataByDBKey(key);
                         }
                         if (par.addInternalId) {
