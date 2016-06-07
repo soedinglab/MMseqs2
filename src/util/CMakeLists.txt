@@ -29,6 +29,7 @@ set(util_source_files
   diff.cpp
   TimeTest.cpp
   summarize.cpp
+  prefixid.cpp
 )
 
 add_library(util ${util_source_files} )
