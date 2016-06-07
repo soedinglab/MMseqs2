@@ -692,8 +692,8 @@ void Parameters::setDefaults() {
     cov = 0.0;           // default for minimum coverage threshold
     Ndiff = 100;         // pick Ndiff most different sequences from alignment
     wg = false;
-    pca = 1.4;
-    pcb = 2.5;
+    pca = 1.0;
+    pcb = 1.5;
     // logging
     verbosity = Debug::INFO;
 
