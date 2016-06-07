@@ -192,6 +192,7 @@ int result2outputmode(Parameters &par, std::string outpath,
 #endif
             char *results = resultReader->getData(id);
             char dbKey[255 + 1];
+            unsigned int centerSequenceKey;
 
             // check if already aligned results exists
             std::vector<Matcher::result_t> alnResults;
@@ -201,11 +202,14 @@ int result2outputmode(Parameters &par, std::string outpath,
             char *seqData = qDbr->getDataByDBKey(queryKey);
             
             if (seqData != NULL && !par.firstSeqRepr)
+            {
                 centerSequence->mapSequence(0, queryKey, seqData);
+                centerSequenceKey = queryKey;
+            }
 
             std::vector<Sequence *> seqSet;
             std::string *reprSeq = NULL;
-
+            
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
@@ -222,7 +226,10 @@ int result2outputmode(Parameters &par, std::string outpath,
                     const size_t edgeId = tDbr->getId(key);
                     char *dbSeqData = tDbr->getData(edgeId);
                     if (par.firstSeqRepr)
+                    {
                         centerSequence->mapSequence(0, key, dbSeqData);
+                        centerSequenceKey = key;
+                    }
                     reprSeq = new std::string(dbSeqData);
                 }
 
@@ -339,7 +346,7 @@ int result2outputmode(Parameters &par, std::string outpath,
 
                     // Put the query sequence (master sequence) first in the alignment
                     Matcher::result_t firstSequence;
-                    firstSequence.dbKey = queryKey;
+                    firstSequence.dbKey = centerSequenceKey;
                     firstSequence.qStartPos = 0;
                     firstSequence.dbStartPos = 0;
                     firstSequence.backtrace = std::string((centerSeqStr.str()).size(), 'M'); // only matches
@@ -646,6 +653,15 @@ int result2msa(int argc, const char **argv) {
         mode = MSA;
     }
 
+    // Can only use the first sequence as representative sequence with a clustering result
+    // otherwise the key would point to a sequence in the query DB instead of the target DB
+    // TODO : can fix that by passing the firstSeqRepr to CompressedA3M::fromAlignmentResult
+    if (par.firstSeqRepr && par.db1.compare(par.db2) != 0)
+    {
+        Debug(Debug::ERROR) << "Use first sequence as representative only with clustering results (<queryDB> and <targetDB> should be the same).\n";
+        return -1;
+    }
+    
 #ifdef HAVE_MPI
     retCode = result2outputmode(par, mode, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
