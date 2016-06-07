@@ -175,6 +175,7 @@ public:
     float pca;
     float pcb;
     bool noPruning;
+    bool firstSeqRepr;
 
     // createdb
     bool useHeader;
@@ -298,6 +299,7 @@ public:
     PARAMETER(PARAM_WG)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
+    PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
 //    PARAMETER(PARAM_NO_PRUNING)
 
 

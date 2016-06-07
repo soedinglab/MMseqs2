@@ -74,6 +74,7 @@ Parameters::Parameters():
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "Use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, ""),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Overall pseudo count admixture", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Admixture paramter b", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$"),
+        PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "First sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, ""),
 // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","Sets the MPI runner",typeid(std::string),(void *) &runner, ""),
 // search workflow
@@ -191,6 +192,7 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_PCB);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
+    result2profile.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
     // format alignment
     formatalignment.push_back(PARAM_FORMAT_MODE);
@@ -214,6 +216,7 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_SUMMARIZE_HEADER);
     result2msa.push_back(PARAM_SUMMARY_PREFIX);
     result2msa.push_back(PARAM_REPSEQ);
+    result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
     // extract orf
     extractorf.push_back(PARAM_ORF_MIN_LENGTH);
@@ -701,6 +704,8 @@ void Parameters::setDefaults() {
     wg = false;
     pca = 1.0;
     pcb = 1.5;
+    firstSeqRepr = false;
+    
     // logging
     verbosity = Debug::INFO;
 

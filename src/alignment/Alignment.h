@@ -33,8 +33,8 @@ public:
               const size_t dbFrom, const size_t dbSize,
               const unsigned int maxAlnNum, const unsigned int maxRejected);
 
-    static void mergeAndRemoveTmpDatabases(std::string& out, std::string& outIndex,
-                                           std::vector<std::pair<std::string, std::string >>& vector);
+    static void mergeAndRemoveTmpDatabases(const std::string& out, const std::string& outIndex,
+                                           const  std::vector<std::pair<std::string, std::string >>& vector);
 
 private:
 
