@@ -13,10 +13,10 @@
 #endif
 
 
-Alignment::Alignment(std::string querySeqDB, std::string querySeqDBIndex,
-                     std::string targetSeqDB, std::string targetSeqDBIndex,
-                     std::string prefDB, std::string prefDBIndex,
-                     std::string outDB, std::string outDBIndex,
+Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
+                     std::string& targetSeqDB, std::string& targetSeqDBIndex,
+                     std::string& prefDB, std::string& prefDBIndex,
+                     std::string& outDB, std::string& outDBIndex,
                      Parameters &par){
     
     this->covThr = par.covThr;
@@ -336,8 +336,8 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
     Debug(Debug::INFO) << hits_f << " hits per query sequence.\n";
 }
 
-void Alignment::mergeAndRemoveTmpDatabases(std::string out, std::string outIndex,
-                                           std::vector<std::pair<std::string, std::string >> files) {
+void Alignment::mergeAndRemoveTmpDatabases(std::string& out, std::string& outIndex,
+                                           std::vector<std::pair<std::string, std::string >>& files) {
     const char ** datafilesNames = new const char*[files.size()];
     const char ** indexFilesNames= new const char*[files.size()];
     for(size_t i = 0; i < files.size(); i++){
