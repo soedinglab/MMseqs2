@@ -30,6 +30,7 @@ CompareGOTerms::CompareGOTerms(const std::string& go_ffindex, const std::string&
     this->evaluationfolder = evaluationfolder;
     if (this->evaluationfolder.back() != '/') {
         this->evaluationfolder = evaluationfolder + '/';
+        this->evaluationfolder = evaluationfolder + '/';
     }
     if (FileUtil::directoryExists(evaluationfolder.c_str()) == false) {
         Debug(Debug::ERROR) << "Evaluationfolder: " << evaluationfolder << " does not exist!\n";
@@ -125,11 +126,12 @@ void CompareGOTerms::init() {
     //Debug(Debug::INFO) << <<"\t";
     parentsets = new std::set<int>[total_go_number];
     for (size_t i = 0; i < total_go_number; i++) {
+        //Debug(Debug::INFO) << i <<"\n";
         parentsets[i] = *new std::set<int>();
         compute_parentnodes(parentsets[i], i);
     }
     /*    //print
-   for (size_t i = 0; i < n; i++) {
+   for (size_t i = 0; i < total_go_number; i++) {
        Debug(Debug::INFO) << convert_index_toGOterm(i)<<":\n";
        for(int parentid : parentsets[i]){
            Debug(Debug::INFO) << convert_index_toGOterm(parentid)<<"\t";
@@ -272,17 +274,21 @@ int CompareGOTerms::convert_index_toGOterm(int index) {
 }
 
 void  CompareGOTerms::compute_parentnodes(std::set<int> &result, int id) {
+    //Debug(Debug::INFO) << id <<"\n";
     if (result.find(id) != result.end()) {
-        Debug(Debug::INFO) << "circularity in GO term graph: please recheck your GO input! \n";
+        //Debug(Debug::INFO) << "circularity in GO term graph: please recheck your GO input! \n";
         return;
     }
 
     result.insert(id);
 
-    if (is_a_relation_size[id] != 0) {
+    if(is_a_relation_size[id]==0){
+        return;
+    }else{
         for (int i = 0; i < is_a_relation_size[id]; ++i) {
-            compute_parentnodes(result, is_a_relation[id][i]);
+            compute_parentnodes(result,is_a_relation[id][i]);
         }
+        return;
     }
 }
 
@@ -338,7 +344,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(const std::string& cluster_
         double sumofscore = 0;
         double minscore = 1;
         double maxscore = 0;
-
+       // Debug(Debug::INFO) << i << "\n";
         std::list<std::string> idswithgo;
 
         //Debug(Debug::INFO) << representative << "\t" << "not available" << "\n";
@@ -412,8 +418,7 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(const std::string& cluster_
                             << maxscore << "\n";
         //}
     }
-
-    for (int j = 0; j < binsize; ++j) {
+            for (int j = 0; j < binsize; ++j) {
         binned_scores_file << fileprefix << "\t" << filesuffix << "\t"
                         << (j / (double) binsize) << "\t" << binned_avg[j] << "\t"
                         << binned_min[j] << "\t" << binned_max[j] << "\n";
