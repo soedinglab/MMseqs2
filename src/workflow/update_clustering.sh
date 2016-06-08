@@ -59,7 +59,12 @@ notExists "$TMP/newSeqsHits.swapped" && mmseqs filterdb $TMP/newSeqsHits.swapped
 echo "==================================================="
 echo "= Merge the found sequence with previous clustering"
 echo "==================================================="
-notExists "$TMP/updatedClust" && mmseqs mergeffindex $TMP/OLDCLUST.mapped  $TMP/updatedClust $TMP/newSeqsHits.swapped $TMP/OLDCLUST.mapped && checkReturnCode "Mergeffindex died"
+if [ -f $TMP/newSeqsHits.swapped ]; then
+    notExists "$TMP/updatedClust" && mmseqs mergeffindex $TMP/OLDCLUST.mapped  $TMP/updatedClust $TMP/newSeqsHits.swapped $TMP/OLDCLUST.mapped && checkReturnCode "Mergeffindex died"
+else
+    notExists "$TMP/updatedClust" && mv $TMP/OLDCLUST.mapped $TMP/updatedClust  && checkReturnCode "Mv Oldclust to update died"
+    notExists "$TMP/updatedClust.index" && mv $TMP/OLDCLUST.mapped.index $TMP/updatedClust.index  && checkReturnCode "Mv Oldclust to update died"
+fi
 
 echo "==================================================="
 echo "=========== Extract unmapped sequences ============"
@@ -77,7 +82,13 @@ echo "==================================================="
 echo "==== Merge the updated clustering together with ==="
 echo "=====         the new clusters               ======"
 echo "==================================================="
-notExists "$4" && mmseqs dbconcat $TMP/updatedClust $TMP/newClusters $4 && checkReturnCode "Dbconcat died"
+if [ -f $TMP/newClusters ]; then
+    notExists "$4" && mmseqs dbconcat $TMP/updatedClust $TMP/newClusters $4 && checkReturnCode "Dbconcat died"
+else
+    notExists "$4" && mv $TMP/updatedClust $4 && checkReturnCode "Mv died"
+    notExists "$4.index" && mv $TMP/updatedClust.index $4.index && checkReturnCode "Mv died"
+fi
+
 
 
 
