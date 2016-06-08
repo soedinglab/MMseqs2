@@ -603,6 +603,10 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
         char* seqData = dbr->getData(id);
         unsigned int qKey = dbr->getDbKey(id);
         seq->mapSequence(id - dbFrom, qKey, seqData);
+
+        Util::maskLowComplexity(seq->int_sequence, seq->L, 12, 3,
+                                indexTable->getAlphabetSize(), seq->aa2int['X']);
+
         aaCount += seq->L;
         indexTable->addKmerCount(seq);
     }
@@ -623,6 +627,8 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
         //TODO - dbFrom?!?
         unsigned int qKey = dbr->getDbKey(id);
         seq->mapSequence(id - dbFrom, qKey, seqData);
+        Util::maskLowComplexity(seq->int_sequence, seq->L, 12, 3,
+                                indexTable->getAlphabetSize(), seq->aa2int['X']);
         indexTable->addSequence(seq);
     }
 

@@ -182,5 +182,7 @@ public:
         }
         return std::string(&result[0], &result[wp]);
     }
+
+    static void maskLowComplexity(int *sequence, int seqLen, int windowSize, int maxAAinWindow, int alphabetSize, int maskValue);
 };
 #endif

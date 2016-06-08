@@ -220,7 +220,6 @@ public:
         this->size++; // amount of sequences added
         s->resetCurrPos();
         idxer->reset();
-
         while(s->hasNextKmer()){
             kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
             // if region got masked do not add kmer
@@ -269,6 +268,14 @@ public:
 
     SequenceLookup *getSequenceLookup(){ return sequenceLookup; }
 
+    int getKmerSize() {
+        return kmerSize;
+    }
+
+    int getAlphabetSize() {
+        return alphabetSize;
+    }
+
 protected:
     // number of entries in all sequence lists
     int64_t tableEntriesNum; // must be 64bit
@@ -302,4 +309,8 @@ protected:
     SequenceLookup *sequenceLookup;
 
 };
+
+
+
+
 #endif

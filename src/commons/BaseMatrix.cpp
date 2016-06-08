@@ -113,33 +113,36 @@ void BaseMatrix::print(double** matrix, char* int2aa, int size){
 }
 
 void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, float ** subMatrixPseudoCounts,
-                                   int size){
+                                   int size) {
 
     // calculate background distribution for the amino acids
-    double * pBack = new double[size];
-    for (int i = 0; i < size; i++){
+    double *pBack = new double[size];
+    for (int i = 0; i < size; i++) {
         pBack[i] = 0;
-        for (int j = 0; j < size; j++){
+        for (int j = 0; j < size; j++) {
             pBack[i] += probMatrix[i][j];
         }
     }
     //Precompute matrix R for amino acid pseudocounts:
-    for (int i = 0; i < size; i++){
-        for (int j = 0; j < size; j++){
-            subMatrixPseudoCounts[i][j] = probMatrix[i][j]/(pBack[j]); //subMatrixPseudoCounts[a][b]=P(a|b)
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            subMatrixPseudoCounts[i][j] = probMatrix[i][j] / (pBack[j]); //subMatrixPseudoCounts[a][b]=P(a|b)
         }
     }
 
     // calculate the substitution matrix
-    for (int i = 0; i < size; i++){
-        for (int j = 0; j < size; j++){
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
             subMatrix[i][j] = MathUtil::log2(probMatrix[i][j] / (pBack[i] * pBack[j]));
         }
     }
-    delete [] pBack;
-    //subMatrix[size-1][size-1] = 0.0;
+    delete[] pBack;
+    subMatrix[size - 1][size - 1] = 0.0;
+    for (int i = 0; i < size; i++) {
+        subMatrix[size - 1][i] = -.7;
+        subMatrix[i][size - 1] = -.7;
+    }
 }
-
 void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix,
                                    short **subMatrix2Bit, int size, double bitFactor, double scoringBias){
     double** sm = new double* [size];
