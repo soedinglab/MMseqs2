@@ -68,7 +68,7 @@ void Util::decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, siz
         *size = count;
         return;
     }
-    
+
     size_t aaPerSplit =  aaSize / worldSize;
     size_t currentRank = 0;
     size_t currentSize = 0;
@@ -130,14 +130,14 @@ std::string Util::parseFastaHeader(std::string header){
     std::vector<std::string> arr = Util::split(header,"|");
     if(arr.size() > 1) {
         if (Util::startWith("cl|",   header) ||
-                Util::startWith("sp|",   header) ||
-                Util::startWith("tr|",   header) ||
-                Util::startWith("ref|",  header) ||
-                Util::startWith("pdb|",  header) ||
-                Util::startWith("bbs|",  header) ||
-                Util::startWith("lcl|",  header) ||
-                Util::startWith("pir||", header) ||
-                Util::startWith("prf||", header)) {
+            Util::startWith("sp|",   header) ||
+            Util::startWith("tr|",   header) ||
+            Util::startWith("ref|",  header) ||
+            Util::startWith("pdb|",  header) ||
+            Util::startWith("bbs|",  header) ||
+            Util::startWith("lcl|",  header) ||
+            Util::startWith("pir||", header) ||
+            Util::startWith("prf||", header)) {
             return arr[1];
         }
         else if (Util::startWith("gnl|", header) || Util::startWith("pat|", header))
@@ -223,4 +223,92 @@ size_t Util::getTotalSystemMemory()
     long page_size = sysconf(_SC_PAGE_SIZE);
     return pages * page_size;
 }
+
+
+/* Scaled log-likelihood ratios for coiled-coil heptat repeat */
+const float     ccoilmat[23][7] =
+        {
+                {249, 310, 74, 797, -713, 235, -102},           // 0 A
+                {-85, -6214, -954, -820, -1980, -839, -2538},   // 1 C
+                {-2688, 743, 498, -1703, -409, 458, 337},       // 2 D
+                {-1269, 1209, 1097, -236, 1582, 1006, 1338},    // 3 E
+                {-713, -2590, -939, -447, -2079, -2513, -3270}, // 4 F
+                {-2476, -1537, -839, -2198, -1877, -1002, -2079}, // 5 G
+                {-527, -436, -537, -171, -1180, -492, -926},      // 6 H
+                {878, -1343, -1064, -71, -911, -820, -1241},      // 7 I
+                {209, 785, 597, -492, 739, 522, 706},             // 8 K
+                {1097, -1313, -1002, 1348, -673, -665, -576},     // 9 L
+                {770, -502, -816, 365, -499, -783, -562},         // 10 M
+                {207, 520, 768, -1624, 502, 887, 725},            // 11 N
+                {-5521, -2225, -4017, -5115, -4605, -5521, -4961},// 12 P
+                {-1167, 828, 845, -209, 953, 767, 949},           // 13 Q
+                {13, 389, 571, -2171, 511, 696, 611},             // 14 R
+                {-1102, -283, -72, -858, -309, -221, -657},       // 15 S
+                {-1624, -610, -435, -385, -99, -441, -213},       // 16 T
+                {421, -736, -1049, -119, -1251, -1049, -1016},    // 17 V
+                {-2718, -2748, -2733, -291, -5115, -2162, -4268}, // 18 W
+                {276, -2748, -2513, 422, -1589, -2137, -2343},    // 19 Y
+                {0, 0, 0, 0, 0, 0, 0}                             // 20 X
+        };
+
+/* Sample Means for 100-residue windows */
+const float     aamean100[20] =
+        {
+                7.44,5.08,4.69,5.36,1.54,3.93,6.24,6.34,2.24,6.09,
+                9.72, 6.00,2.39,4.30,4.69,7.23,5.61,1.25,3.31,6.53
+        };
+/* Sample Standard Deviations for 100-residue windows */
+const float     aasd100[20] =
+        {
+                4.02,3.05,2.87,2.71,1.88,2.63,3.46,3.45,1.79,3.19,
+                3.77,3.64,1.71,2.62,3.00,3.63,2.83,1.32,2.18,2.92
+        };
+void Util::maskLowComplexity(int *sequence, int seqLen, int windowSize,
+                             int maxAAinWindow,
+                             int alphabetSize, int maskValue) {
+    size_t aafreq[21];
+    int * mask = new int[seqLen];
+    memset(mask, 0, seqLen * sizeof(int));
+    // filter low complex
+    for (int i = 0; i <= seqLen - windowSize; i++)
+    {
+        for (int j = 0; j < alphabetSize; j++){
+            aafreq[j] = 0;
+        }
+        for (int j = 0; j < windowSize; j++){
+            aafreq[sequence[i + j]]++;
+        }
+        int n = 0;
+        for (int j = 0; j < alphabetSize; j++){
+            if (aafreq[j]){
+                n++; // count # amino acids
+            }
+        }
+        if (n <= maxAAinWindow)
+        {
+            for (int j = 0; j < windowSize; j++)
+                mask[i + j] = 1;
+        }
+    }
+
+    // filter coil
+    // look at 3 possible coils -> 21 pos (3 * 7)
+    for (int i = 0; i <= seqLen - 21; i++)
+    {
+        int tot = 0;
+        for (int l = 0; l < 21; l++)
+            tot += ccoilmat[sequence[i + l]][l % 7];
+        if (tot > 10000)
+        {
+            for (int l = 0; l < 21; l++)
+                mask[i + l] = 1;
+        }
+    }
+    for (int i = 0; i < seqLen; i++){
+        sequence[i] = (mask[i]) ? maskValue : sequence[i];
+    }
+    delete [] mask;
+}
+
+
 
