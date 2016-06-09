@@ -161,6 +161,7 @@ public:
 
     static std::map<std::string, size_t> readMapping(const char *fastaFile);
 
+    static std::map<unsigned int, std::string> readLookup(const std::string& fastaFile);
 
     static void checkAllocation(void *pointer, std::string message);
 
