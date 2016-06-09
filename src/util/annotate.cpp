@@ -293,12 +293,13 @@ int annotate(int argc, const char **argv) {
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 
-        unsigned int id = blastTabReader.getDbKey(i);
+        unsigned int id = msaReader.getDbKey(i);
 
         std::ostringstream oss;
 
-        char *data = blastTabReader.getData(i);
-        size_t entryLength = blastTabReader.getSeqLens(i) - 1;
+        size_t entry = msaReader.getId(id);
+        char *data = blastTabReader.getData(entry);
+        size_t entryLength = blastTabReader.getSeqLens(entry) - 1;
 
         std::string msa;
         switch (par.msaType) {
