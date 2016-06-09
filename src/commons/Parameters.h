@@ -210,6 +210,9 @@ public:
     bool randomizedRepresentative;
     bool use_sequenceheader;
 
+    // annotate
+    float overlap;
+    int msaType;
     
     void checkSaneEnvironment();
     void setDefaults();
@@ -354,6 +357,10 @@ public:
     PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
     PARAMETER(PARAM_EVALUATION_USE_SEQUENCEHEADER)
 
+    // annotate
+    PARAMETER(PARAM_OVERLAP)
+    PARAMETER(PARAM_MSA_TYPE)
+
     std::vector<MMseqsParameter> empty;
 
     std::vector<MMseqsParameter> onlyverbosity;
@@ -386,6 +393,7 @@ public:
     std::vector<MMseqsParameter> summarize;
     std::vector<MMseqsParameter> evaluationscores;
     std::vector<MMseqsParameter> prefixid;
+    std::vector<MMseqsParameter> annotate;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);

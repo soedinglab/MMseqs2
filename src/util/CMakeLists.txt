@@ -30,6 +30,7 @@ set(util_source_files
   TimeTest.cpp
   summarize.cpp
   prefixid.cpp
+  annotate.cpp
 )
 
 add_library(util ${util_source_files} )
