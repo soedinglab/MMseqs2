@@ -38,6 +38,8 @@ set(commons_source_files
     PatternCompiler.h
     UniprotKB.cpp
     UniprotKB.h
+    A3MReader.cpp
+    A3MReader.h
 )
 
 add_library(commons ${commons_source_files})

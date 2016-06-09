@@ -97,6 +97,8 @@ static struct Command commands[] = {
                 "Concatenates two ffindex databases"},
         {"prefixid",            prefixid,               &par.prefixid,              COMMAND_HELPER,
                 "Prepend the index key to each line of the corresponding entry"},
+        {"annotate",            annotate,               &par.annotate,              COMMAND_HELPER,
+                "Extract annotations from HHblits blasttab results"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
         {"computeGOscore",     computeGOscore,        &par.evaluationscores,                 COMMAND_HIDDEN,

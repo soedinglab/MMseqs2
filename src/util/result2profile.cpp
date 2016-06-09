@@ -368,7 +368,7 @@ int result2outputmode(Parameters &par, std::string outpath,
                     std::string centerSeq = centerSeqStr.str();
                     msa << ">" << queryHeaderReader->getDataByDBKey(queryKey) << centerSeq.c_str() << "\n;";
 
-                    msa << CompressedA3M::fromAlignmentResult(filteredAln, referenceDBr);
+                    msa << CompressedA3M::fromAlignmentResult(filteredAln, *referenceDBr);
 
                     result = msa.str();
                     data = (char *) result.c_str();
