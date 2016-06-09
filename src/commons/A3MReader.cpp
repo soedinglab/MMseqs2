@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <algorithm>
+#include <iterator>
 
 #include "kseq.h"
 #include "kseq_buffer_reader.h"
