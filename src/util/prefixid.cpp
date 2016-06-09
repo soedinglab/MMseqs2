@@ -31,21 +31,7 @@ int prefixid(int argn, const char **argv) {
 
     size_t entries = reader.getSize();
 
-    std::map<unsigned int, std::string> mapping;
-    if (par.mappingFile.length() > 0) {
-        std::fstream mappingStream(par.mappingFile);
-        if (mappingStream.fail()) {
-            Debug(Debug::ERROR) << "File " << par.mappingFile << " not found!\n";
-            EXIT(EXIT_FAILURE);
-        }
-
-        std::string line;
-        while (std::getline(mappingStream, line)) {
-            std::vector<std::string> split = Util::split(line, "\t");
-            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
-            mapping.emplace(id, split[1]);
-        }
-    }
+    std::map<unsigned int, std::string> mapping = Util::readLookup(par.mappingFile);
 
 #pragma omp for schedule(dynamic, 100)
     for (size_t i = 0; i < entries; ++i) {

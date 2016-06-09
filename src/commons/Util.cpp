@@ -8,6 +8,9 @@
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #endif
+
+#include <fstream>
+
 KSEQ_INIT(int, read)
 
 size_t Util::countLines(const char *data, size_t length) {
@@ -309,6 +312,28 @@ void Util::maskLowComplexity(int *sequence, int seqLen, int windowSize,
     }
     delete [] mask;
 }
+
+std::map<unsigned int, std::string> Util::readLookup(const std::string& file) {
+    std::map<unsigned int, std::string> mapping;
+    if (file.length() > 0) {
+        std::fstream mappingStream(file);
+        if (mappingStream.fail()) {
+            Debug(Debug::ERROR) << "File " << file << " not found!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        std::string line;
+        while (std::getline(mappingStream, line)) {
+            std::vector<std::string> split = Util::split(line, "\t");
+            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
+            mapping.emplace(id, split[1]);
+        }
+    }
+
+    return mapping;
+}
+
+
 
 
 
