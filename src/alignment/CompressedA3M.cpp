@@ -86,9 +86,8 @@ std::string CompressedA3M::extractA3M(const char *data, size_t data_size,
         readU32(&data, entry_index);
         index += 4;
 
-        size_t entry_id = sequenceReader.getId(entry_index);
-        std::string sequence = sequenceReader.getData(entry_id);
-        std::string header = headerReader.getData(entry_id);
+        std::string sequence = sequenceReader.getData(entry_index);
+        std::string header = headerReader.getData(entry_index);
 
         // make sure we always have a valid fasta prefix
         if (header[0] != '>') {
