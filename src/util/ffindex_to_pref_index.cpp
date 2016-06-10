@@ -21,7 +21,9 @@ int createindex (int argc, const char * argv[])
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.createindex, 1);
-
+    if(par.split == 0){
+        par.split = 1;
+    }
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
     dbr.open(DBReader<unsigned int>::NOSORT);
 

@@ -185,5 +185,7 @@ public:
     }
 
     static void maskLowComplexity(int *sequence, int seqLen, int windowSize, int maxAAinWindow, int alphabetSize, int maskValue);
+
+    static void filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM);
 };
 #endif

@@ -31,6 +31,7 @@ set(util_source_files
   summarize.cpp
   prefixid.cpp
   annotate.cpp
+  extractalignedregion.cpp
 )
 
 add_library(util ${util_source_files} )

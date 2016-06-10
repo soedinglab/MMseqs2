@@ -266,14 +266,49 @@ const float     aasd100[20] =
                 4.02,3.05,2.87,2.71,1.88,2.63,3.46,3.45,1.79,3.19,
                 3.77,3.64,1.71,2.62,3.00,3.63,2.83,1.32,2.18,2.92
         };
+
+
+
+void Util::filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM){
+    char id[1000];
+    for (int j=0; j<W; j++){
+        id[j]=0;
+    }
+    int sum = 0;         // number of identities
+    int j = 0;
+    for (int i = p; i < seqLen; i++)
+    {
+        sum -= id[j];
+        id[j] = ( seq[i - p] == seq[i] ? 1 : 0 );
+        sum += id[j];
+        if (sum >= W - MM)
+            for (int k = std::max(0,i - W - p + 1); k <= i; k++){
+                mask[k] = 1;
+            }
+        if (++j >= W) {
+            j=0;
+        }
+    }
+}
 void Util::maskLowComplexity(int *sequence, int seqLen, int windowSize,
                              int maxAAinWindow,
                              int alphabetSize, int maskValue) {
     size_t aafreq[21];
-    int * mask = new int[seqLen];
-    memset(mask, 0, seqLen * sizeof(int));
+    char * mask = new char[seqLen];
+    memset(mask, 0, seqLen * sizeof(char));
+
+
+//    // Filter runs of 4 identical residues
+//    filterRepeates(sequence, seqLen, mask, 1, 4, 0);
+//
+//    // Filter runs of 4 doublets with a maximum of one mismatch
+//    filterRepeates(sequence, seqLen, mask, 2, 8, 3);
+//
+//    // Filter runs of 4 triplets with a maximum of two mismatches
+//    filterRepeates(sequence, seqLen, mask, 3, 9, 2);
+
     // filter low complex
-    for (int i = 0; i <= seqLen - windowSize; i++)
+    for (int i = 0; i < seqLen - windowSize; i++)
     {
         for (int j = 0; j < alphabetSize; j++){
             aafreq[j] = 0;
@@ -296,7 +331,7 @@ void Util::maskLowComplexity(int *sequence, int seqLen, int windowSize,
 
     // filter coil
     // look at 3 possible coils -> 21 pos (3 * 7)
-    for (int i = 0; i <= seqLen - 21; i++)
+    for (int i = 0; i < seqLen - 21; i++)
     {
         int tot = 0;
         for (int l = 0; l < 21; l++)
