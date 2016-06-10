@@ -40,5 +40,6 @@ extern int diff(int argc, const char** argv);
 extern int dbconcat(int argc, const char** argv);
 extern int prefixid(int argc, const char** argv);
 extern int annotate(int argc, const char** argv);
+extern int extractalignedregion(int argc, const char** argv);
 
 #endif
