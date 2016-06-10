@@ -81,7 +81,6 @@ std::vector<Domain> mapDomains(const std::vector<Domain> &input, double overlap,
     return result;
 }
 
-
 std::map<std::string, unsigned int> readLength(const std::string &file) {
     std::fstream mappingStream(file);
     if (mappingStream.fail()) {
@@ -134,10 +133,10 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
     return result;
 }
 
-double computeEvalue(unsigned int query_len, double score) {
+double computeEvalue(unsigned int queryLength, double score) {
     const double K = 0.041;
     const double lambdaLin = 0.267;
-    return K * 1 * query_len * std::exp(-lambdaLin * score);
+    return K * 1 * queryLength * std::exp(-lambdaLin * score);
 }
 
 int scoreSubAlignment(std::string query, std::string target, unsigned int qStart, unsigned int qEnd,
@@ -157,7 +156,7 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
             while (qPos < qEnd && query[tPos] == '-') {
                 rawScore = std::max(0, rawScore - 1);
             }
-            qPos = qPos + 1;
+            qPos++;
         }
 
         // skip gaps and lower letters (since they are insertions)
@@ -168,11 +167,10 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
                 tPos++;
             }
         } else {
-
-            rawScore = std::max(0,
-                                rawScore + matrix.subMatrix[matrix.aa2int[query[qPos]]][matrix.aa2int[target[tPos]]]);
-            qPos = qPos + 1;
-            tPos = tPos + 1;
+            int matchScore = matrix.subMatrix[matrix.aa2int[query[qPos]]][matrix.aa2int[target[tPos]]];
+            rawScore = std::max(0, rawScore + matchScore);
+            qPos++;
+            tPos++;
         }
     }
 
