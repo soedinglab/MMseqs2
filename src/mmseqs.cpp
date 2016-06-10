@@ -16,13 +16,9 @@ enum CommandMode {
 
 struct Command {
     const char *cmd;
-
     int (*commandFunction)(int, const char **);
-
     std::vector<MMseqsParameter>* params;
-
     CommandMode mode;
-
     const char *description;
 };
 
@@ -99,6 +95,8 @@ static struct Command commands[] = {
                 "Prepend the index key to each line of the corresponding entry"},
         {"annotate",            annotate,               &par.annotate,              COMMAND_HELPER,
                 "Extract annotations from HHblits blasttab results"},
+        {"extractalignedregion",            extractalignedregion,    &par.extractalignedregion,  COMMAND_HELPER,
+                "Extract aligned region of an alignment results"},
         {"timetest",            timetest,               &par.empty,                 COMMAND_HIDDEN, ""},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
         {"computeGOscore",     computeGOscore,        &par.evaluationscores,                 COMMAND_HIDDEN,

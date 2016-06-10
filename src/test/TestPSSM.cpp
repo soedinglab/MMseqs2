@@ -1592,7 +1592,7 @@ int main (int argc, const char * argv[])
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;
 //    }
     std::cout <<"Filterted MSA" << std::endl;
-    for(int k = 0; k < filterResult.setSize; k++){
+    for(size_t k = 0; k < filterResult.setSize; k++){
         printf("k=%.3d ", k);
         for(size_t pos = 0; pos < res.centerLength; pos++){
             char aa = filterResult.filteredMsaSequence[k][pos];
