@@ -165,8 +165,8 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
             rawScore = std::max(0, rawScore - 10);
             while (tPos < tEnd && (target[tPos] == '-' || (target[tPos] == tolower(target[tPos])))) {
                 rawScore = std::max(0, rawScore - 1);
+                tPos++;
             }
-            tPos = tPos + 1;
         } else {
 
             rawScore = std::max(0,
