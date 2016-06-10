@@ -64,9 +64,12 @@ struct Domain {
 
 std::vector<Domain> mapDomains(const std::vector<Domain> &input, double overlap, double minCoverage,
                                double eValThreshold) {
-    std::vector<bool> covered(input[0].qLength, false);
     std::vector<Domain> result;
+    if(input.size() == 0) {
+        return result;
+    }
 
+    std::vector<bool> covered(input[0].qLength, false);
     for (std::vector<Domain>::const_iterator it = input.begin(); it != input.end(); ++it) {
         double percentageOverlap = getOverlap(covered, (*it).qStart, (*it).qEnd);
         double targetCov = getCoverage((*it).tStart, (*it).tEnd, (*it).tLength);
@@ -295,9 +298,17 @@ int annotate(int argc, const char **argv) {
 
         std::ostringstream oss;
 
-        size_t entry = msaReader.getId(id);
-        char *data = blastTabReader.getData(entry);
-        size_t entryLength = blastTabReader.getSeqLens(entry) - 1;
+        size_t entry = blastTabReader.getId(id);
+        const std::vector<Domain> entries = getEntries(blastTabReader.getData(entry),
+                                                       blastTabReader.getSeqLens(entry) - 1, lengths);
+        std::vector<Domain> result = mapDomains(entries, par.overlap, par.cov, par.evalThr);
+        if (result.size() == 0) {
+            Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
+            continue;
+        }
+
+        char *data = msaReader.getData(i);
+        size_t entryLength = msaReader.getSeqLens(i) - 1;
 
         std::string msa;
         switch (par.msaType) {
@@ -321,10 +332,8 @@ int annotate(int argc, const char **argv) {
                 EXIT(EXIT_FAILURE);
         }
 
-        const std::vector<Domain> entries = getEntries(const_cast<char *>(msa.c_str()), msa.length(), lengths);
-        std::vector<Domain> result = mapDomains(entries, par.overlap, par.cov, par.evalThr);
         for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
-            std::vector<Domain> mapping = mapMsa(msaReader.getData(i), (msaReader.getSeqLens(i) - 1), *j, par.cov,
+            std::vector<Domain> mapping = mapMsa(const_cast<char*>(msa.c_str()), msa.length(), *j, par.cov,
                                                  par.evalThr, subMat);
             for (std::vector<Domain>::const_iterator k = mapping.begin(); k != result.end(); ++k) {
                 (*k).writeResult(oss);
