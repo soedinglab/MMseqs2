@@ -249,7 +249,7 @@ int annotate(int argc, const char **argv) {
     omp_set_num_threads(par.threads);
 #endif
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 8.0, 0);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0);
 
     std::string msaDataName = par.db1;
     std::string msaIndexName = par.db1Index;
