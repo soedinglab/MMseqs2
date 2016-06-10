@@ -603,7 +603,7 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
 int result2profile(int argc, const char **argv) {
     MMseqsMPI::init(argc, argv);
 
-    std::string usage("Calculates profiles from a clustering.\n");
+    std::string usage("Calculates profiles from a result.\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
 
@@ -634,7 +634,7 @@ int result2profile(int argc, const char **argv) {
 int result2msa(int argc, const char **argv) {
     MMseqsMPI::init(argc, argv);
 
-    std::string usage("Calculates MSAs from a clustering.\n");
+    std::string usage("Calculates MSAs from a result.\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
     usage.append("\t & Milot Mirdita <milot@mirdita.de>");
