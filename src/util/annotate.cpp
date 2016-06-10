@@ -113,20 +113,39 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
             continue;
         }
 
+        size_t offset = 1;
         std::vector<std::string> fields = Util::split(buffer, "\t");
 
-        unsigned int qStart = static_cast<unsigned int>(strtoul(fields[6].c_str(), NULL, 10));
-        unsigned int qEnd = static_cast<unsigned int>(strtoul(fields[7].c_str(), NULL, 10));
-        unsigned int qLength = lengths.at(fields[0]);
+        unsigned int qStart = static_cast<unsigned int>(strtoul(fields[offset + 6].c_str(), NULL, 10));
+        unsigned int qEnd = static_cast<unsigned int>(strtoul(fields[offset + 7].c_str(), NULL, 10));
+
+        std::map<std::string, unsigned int>::const_iterator it = lengths.lower_bound(fields[0]);
+        unsigned int qLength;
+        if(it != lengths.end()) {
+            qLength = (*it).second;
+        } else {
+            Debug(Debug::WARNING) << "Missing query length! Skipping line.\n";
+            data = Util::skipLine(data);
+            continue;
+        }
 
 
-        unsigned int tStart = static_cast<unsigned int>(strtoul(fields[8].c_str(), NULL, 10));
-        unsigned int tEnd = static_cast<unsigned int>(strtoul(fields[9].c_str(), NULL, 10));
-        unsigned int tLength = lengths.at(fields[1]);
+        unsigned int tStart = static_cast<unsigned int>(strtoul(fields[offset + 8].c_str(), NULL, 10));
+        unsigned int tEnd = static_cast<unsigned int>(strtoul(fields[offset + 9].c_str(), NULL, 10));
 
-        double eValue = strtod(fields[10].c_str(), NULL);
+        it = lengths.lower_bound(fields[offset + 1]);
+        unsigned int tLength;
+        if(it != lengths.end()) {
+            tLength = (*it).second;
+        } else {
+            Debug(Debug::WARNING) << "Missing target length! Skipping line.\n";
+            data = Util::skipLine(data);
+            continue;
+        }
 
-        result.emplace_back(fields[0], qStart, qEnd, qLength, fields[1], tStart, tEnd, tLength, eValue);
+        double eValue = strtod(fields[offset + 10].c_str(), NULL);
+
+        result.emplace_back(fields[0], qStart, qEnd, qLength, fields[offset + 1], tStart, tEnd, tLength, eValue);
 
         data = Util::skipLine(data);
     }
@@ -221,7 +240,7 @@ std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, doubl
             if (i == e.qEnd && foundStart == true) {
                 unsigned int domainEnd = sequencePosition;
                 double domainCov = getCoverage(domainStart, domainEnd, e.tLength);
-                double score = scoreSubAlignment(e.query, e.target, e.qStart, e.qEnd, domainStart, domainEnd, matrix);
+                double score = scoreSubAlignment(querySequence, sequence, e.qStart, e.qEnd, domainStart, domainEnd, matrix);
                 double domainEvalue = computeEvalue(length, score);
                 if (domainCov > minCoverage && domainEvalue > eValThreshold) {
                     result.emplace_back(e.query, domainStart, domainEnd, length, e.target, e.qStart, e.qEnd, e.tLength,
@@ -299,8 +318,9 @@ int annotate(int argc, const char **argv) {
         std::ostringstream oss;
 
         size_t entry = blastTabReader.getId(id);
-        const std::vector<Domain> entries = getEntries(blastTabReader.getData(entry),
-                                                       blastTabReader.getSeqLens(entry) - 1, lengths);
+        char* tabData = blastTabReader.getData(entry);
+        size_t tabLength = blastTabReader.getSeqLens(entry) - 1;
+        const std::vector<Domain> entries = getEntries(tabData, tabLength, lengths);
         std::vector<Domain> result = mapDomains(entries, par.overlap, par.cov, par.evalThr);
         if (result.size() == 0) {
             Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
@@ -335,7 +355,7 @@ int annotate(int argc, const char **argv) {
         for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
             std::vector<Domain> mapping = mapMsa(const_cast<char*>(msa.c_str()), msa.length(), *j, par.cov,
                                                  par.evalThr, subMat);
-            for (std::vector<Domain>::const_iterator k = mapping.begin(); k != result.end(); ++k) {
+            for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
                 (*k).writeResult(oss);
             }
         }
