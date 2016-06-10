@@ -27,7 +27,7 @@ A3mReader::A3mReader(std::string a3m) {
 std::string A3mReader::getFasta() {
     std::ostringstream ss;
     for (size_t i = 0; i < entries.size(); ++i) {
-        ss << headers[i];
+        ss << ">" << headers[i] << "\n";
 
         std::vector<char> copy = entries[i];
         for (std::vector<char>::iterator it = copy.begin(); it != copy.end(); ++it) {
@@ -37,6 +37,7 @@ std::string A3mReader::getFasta() {
         }
 
         std::copy(copy.begin(), copy.end(), std::ostream_iterator<char>(ss));
+        ss << "\n";
     }
 
     return ss.str();
