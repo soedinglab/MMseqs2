@@ -42,14 +42,14 @@ public:
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
     static const int FORMAT_ALIGNMENT_SAM       = 2;
-
+    // createprofiledb
     static const int PROFILE_MODE_HMM = 0;
     static const int PROFILE_MODE_PSSM = 1;
-
+    // clustering
     static const int SET_COVER = 0;
     static const int CONNECTED_COMPONENT = 1;
     static const int GREEDY = 2;
-
+    // clustering
     static const int APC_ALIGNMENTSCORE=1;
     static const int APC_SEQID=2;
     // split mode
@@ -63,6 +63,10 @@ public:
     static const int FORCE_INCLUDE = 1;
 
     static const int MAX_SEQ_LEN = 32000;
+
+    // extractalignedregion
+    static const int EXTRACT_QUERY  = 1;
+    static const int EXTRACT_TARGET = 2;
 
     // COMMON
     const char** argv;            //command line parameters
@@ -213,6 +217,9 @@ public:
     // annotate
     float overlap;
     int msaType;
+
+    // extractalignedregion
+    int extractMode;
     
     void checkSaneEnvironment();
     void setDefaults();
@@ -361,6 +368,10 @@ public:
     PARAMETER(PARAM_OVERLAP)
     PARAMETER(PARAM_MSA_TYPE)
 
+    // extract aligned region
+    PARAMETER(PARAM_EXTRACT_MODE)
+
+
     std::vector<MMseqsParameter> empty;
 
     std::vector<MMseqsParameter> onlyverbosity;
@@ -394,7 +405,7 @@ public:
     std::vector<MMseqsParameter> evaluationscores;
     std::vector<MMseqsParameter> prefixid;
     std::vector<MMseqsParameter> annotate;
-
+    std::vector<MMseqsParameter> extractalignedregion;
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);
 
