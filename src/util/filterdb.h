@@ -15,6 +15,8 @@
 #define REGEX_FILTERING 0
 #define FILE_FILTERING 1
 #define FILE_MAPPING 2
+#define GET_FIRST_ENTRY 3
+
 
 class ffindexFilter {
 public:
@@ -38,6 +40,12 @@ public:
 	ffindexFilter(std::string inDB,
 				  std::string outDB,
 				  std::string filterFile,
+				  int threads,
+				  size_t column);
+
+	// Constructor for extract first line
+	ffindexFilter(std::string inDB,
+				  std::string outDB,
 				  int threads,
 				  size_t column);
 				  

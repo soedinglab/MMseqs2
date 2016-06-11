@@ -205,6 +205,7 @@ public:
 	std::string mappingFile;
 	bool positiveFilter;
 	bool trimToOneColumn;
+    int extractLines;
 
     // mergeffindex
     std::string mergePrefixes;
@@ -355,6 +356,8 @@ public:
     PARAMETER(PARAM_FILTER_FILE)
     PARAMETER(PARAM_MAPPING_FILE)
     PARAMETER(PARAM_TRIM_TO_ONE_COL)
+    PARAMETER(PARAM_EXTRACT_LINES)
+
 
     // mergeffindex
     PARAMETER(PARAM_MERGE_PREFIXES)

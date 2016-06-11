@@ -105,7 +105,9 @@ Parameters::Parameters():
         PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "Used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,""),		
         PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "Specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),		
         PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "Specify a file that translates the keys of a result DB to new keys", typeid(std::string),(void *) &mappingFile,""),		
-		 PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
+        PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
+        PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "Extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
+
 // mergeffindex
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "Comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
 
@@ -140,7 +142,8 @@ Parameters::Parameters():
 	
 	
 
-    // prefilter
+    // pre
+
     prefilter.push_back(PARAM_SUB_MAT);
     prefilter.push_back(PARAM_S);
     prefilter.push_back(PARAM_K);
@@ -304,7 +307,7 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_THREADS);
     filterDb.push_back(PARAM_V);
     filterDb.push_back(PARAM_TRIM_TO_ONE_COL);
-	
+	filterDb.push_back(PARAM_EXTRACT_LINES);
     // swapreults
     swapresults.push_back(PARAM_SPLIT);
     swapresults.push_back(PARAM_V);
@@ -755,6 +758,7 @@ void Parameters::setDefaults() {
     positiveFilter = true;
     filteringFile = "";
     trimToOneColumn = false;
+    extractLines = 0;
 
     // mergeffindex
     mergePrefixes = "";
