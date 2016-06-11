@@ -351,6 +351,7 @@ Parameters::Parameters():
     // annoate
     annotate.push_back(PARAM_SUB_MAT);
     annotate.push_back(PARAM_MSA_TYPE);
+    annotate.push_back(PARAM_OVERLAP);
     annotate.push_back(PARAM_E);
     annotate.push_back(PARAM_C);
     annotate.push_back(PARAM_THREADS);
