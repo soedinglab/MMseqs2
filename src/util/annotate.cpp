@@ -234,7 +234,7 @@ std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, doubl
                 double domainCov = getCoverage(domainStart, domainEnd, e.tLength);
                 double score = scoreSubAlignment(querySequence, sequence, e.qStart, e.qEnd, domainStart, domainEnd, matrix);
                 double domainEvalue = e.eValue + computeEvalue(length, score);
-                if (domainCov > minCoverage && domainEvalue > eValThreshold) {
+                if (domainCov > minCoverage && domainEvalue < eValThreshold) {
                     result.emplace_back(e.query, domainStart, domainEnd, length, e.target, e.qStart, e.qEnd, e.tLength,
                                         domainEvalue);
                 }
