@@ -63,7 +63,7 @@ public:
         return (!str.compare(0, prefix.size(), prefix));
     }
 
-    static std::vector<std::string> split(std::string str, std::string sep);
+    static std::vector<std::string> split(const std::string &str, const std::string &sep);
 
     static inline char * skipLine(char * data){
         while( *data !='\n' ) { data++; }
