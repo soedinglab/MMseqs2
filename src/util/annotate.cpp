@@ -5,7 +5,6 @@
 #include "DBWriter.h"
 #include "SubstitutionMatrix.h"
 #include "CompressedA3M.h"
-#include "A3MReader.h"
 
 #include <fstream>
 
@@ -18,7 +17,7 @@
 
 KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
-double getOverlap(std::vector<bool> covered, unsigned int qStart, unsigned int qEnd) {
+double getOverlap(const std::vector<bool>& covered, unsigned int qStart, unsigned int qEnd) {
     size_t counter = 0;
     for (size_t i = (qStart - 1); i < (qEnd - 1); ++i) {
         counter += covered[i];
@@ -28,7 +27,7 @@ double getOverlap(std::vector<bool> covered, unsigned int qStart, unsigned int q
 }
 
 double getCoverage(size_t start, size_t end, size_t length) {
-    return static_cast<double>(end - start) / static_cast<double>(length);
+    return static_cast<double>(end - start + 1) / static_cast<double>(length);
 }
 
 struct Domain {
@@ -73,7 +72,7 @@ std::vector<Domain> mapDomains(const std::vector<Domain> &input, double overlap,
     for (std::vector<Domain>::const_iterator it = input.begin(); it != input.end(); ++it) {
         double percentageOverlap = getOverlap(covered, (*it).qStart, (*it).qEnd);
         double targetCov = getCoverage((*it).tStart, (*it).tEnd, (*it).tLength);
-        if (percentageOverlap <= overlap && targetCov >= minCoverage && (*it).eValue < eValThreshold) {
+        if (percentageOverlap <= overlap && targetCov > minCoverage && (*it).eValue < eValThreshold) {
             for (unsigned int i = ((*it).qStart - 1); i < ((*it).qEnd - 1); ++i) {
                 covered[i] = true;
             }
@@ -166,10 +165,10 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
         // skip gaps and lower letters (since they are insertions)
         if (query[qPos] == '-') {
             rawScore = std::max(0, rawScore - 10);
-            while (qPos < qEnd && query[tPos] == '-') {
+            while (qPos < qEnd && query[qPos] == '-') {
                 rawScore = std::max(0, rawScore - 1);
+                qPos++;
             }
-            qPos++;
         }
 
         // skip gaps and lower letters (since they are insertions)
@@ -219,12 +218,12 @@ std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, doubl
         unsigned int i = 0;
         for (std::string::const_iterator it = sequence.begin(); sequence.end() != it; ++it) {
             const char &c = *it;
-            if (c != '-' && foundStart == false && i >= e.qStart && i < e.qEnd) {
+            if ((c != '-' && c != '.') && foundStart == false && i >= e.qStart && i < e.qEnd) {
                 foundStart = true;
-                domainStart = i;
+                domainStart = sequencePosition;
             }
 
-            if (c != '-') {
+            if (c != tolower(c)) {
                 sequencePosition++;
             }
 
@@ -232,7 +231,7 @@ std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, doubl
                 unsigned int domainEnd = sequencePosition;
                 double domainCov = getCoverage(domainStart, domainEnd, e.tLength);
                 double score = scoreSubAlignment(querySequence, sequence, e.qStart, e.qEnd, domainStart, domainEnd, matrix);
-                double domainEvalue = computeEvalue(length, score);
+                double domainEvalue = e.eValue + computeEvalue(length, score);
                 if (domainCov > minCoverage && domainEvalue > eValThreshold) {
                     result.emplace_back(e.query, domainStart, domainEnd, length, e.target, e.qStart, e.qEnd, e.tLength,
                                         domainEvalue);
@@ -329,17 +328,10 @@ int annotate(int argc, const char **argv) {
         std::string msa;
         switch (par.msaType) {
             case 0: {
-                std::string a3m = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader);
-                A3mReader r(a3m);
-                msa = r.getFasta();
+                msa = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader);
                 break;
             }
             case 1: {
-                A3mReader r(std::string(data, entryLength));
-                msa = r.getFasta();
-                break;
-            }
-            case 2: {
                 msa = std::string(data, entryLength);
                 break;
             }
