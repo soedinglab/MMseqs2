@@ -7,6 +7,7 @@
 #include "CompressedA3M.h"
 
 #include <fstream>
+#include <iomanip>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -17,17 +18,17 @@
 
 KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
-double getOverlap(const std::vector<bool>& covered, unsigned int qStart, unsigned int qEnd) {
+float getOverlap(const std::vector<bool>& covered, unsigned int qStart, unsigned int qEnd) {
     size_t counter = 0;
     for (size_t i = (qStart - 1); i < (qEnd - 1); ++i) {
         counter += covered[i];
     }
 
-    return static_cast<double>(counter) / static_cast<double>(qEnd - qStart + 1);
+    return static_cast<float>(counter) / static_cast<float>(qEnd - qStart + 1);
 }
 
-double getCoverage(size_t start, size_t end, size_t length) {
-    return static_cast<double>(end - start + 1) / static_cast<double>(length);
+float getCoverage(size_t start, size_t end, size_t length) {
+    return static_cast<float>(end - start + 1) / static_cast<float>(length);
 }
 
 struct Domain {
@@ -61,7 +62,7 @@ struct Domain {
     }
 };
 
-std::vector<Domain> mapDomains(const std::vector<Domain> &input, double overlap, double minCoverage,
+std::vector<Domain> mapDomains(const std::vector<Domain> &input, float overlap, float minCoverage,
                                double eValThreshold) {
     std::vector<Domain> result;
     if(input.size() == 0) {
@@ -70,8 +71,8 @@ std::vector<Domain> mapDomains(const std::vector<Domain> &input, double overlap,
 
     std::vector<bool> covered(input[0].qLength, false);
     for (std::vector<Domain>::const_iterator it = input.begin(); it != input.end(); ++it) {
-        double percentageOverlap = getOverlap(covered, (*it).qStart, (*it).qEnd);
-        double targetCov = getCoverage((*it).tStart, (*it).tEnd, (*it).tLength);
+        float percentageOverlap = getOverlap(covered, (*it).qStart, (*it).qEnd);
+        float targetCov = getCoverage((*it).tStart, (*it).tEnd, (*it).tLength);
         if (percentageOverlap <= overlap && targetCov > minCoverage && (*it).eValue < eValThreshold) {
             for (unsigned int i = ((*it).qStart - 1); i < ((*it).qEnd - 1); ++i) {
                 covered[i] = true;
@@ -145,7 +146,7 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
     return result;
 }
 
-double computeEvalue(unsigned int queryLength, double score) {
+double computeEvalue(unsigned int queryLength, int score) {
     const double K = 0.041;
     const double lambdaLin = 0.267;
     return K * 1 * queryLength * std::exp(-lambdaLin * score);
@@ -179,7 +180,9 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
                 tPos++;
             }
         } else {
-            int matchScore = matrix.subMatrix[matrix.aa2int[query[qPos]]][matrix.aa2int[target[tPos]]];
+            unsigned char queryAA = query[qPos];
+            unsigned char targetAA = target[tPos];
+            int matchScore = matrix.subMatrix[matrix.aa2int[queryAA]][matrix.aa2int[targetAA]];
             rawScore = std::max(0, rawScore + matchScore);
             qPos++;
             tPos++;
@@ -190,7 +193,7 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
     return rawScore;
 }
 
-std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, double minCoverage,
+std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, float minCoverage,
                            double eValThreshold, const SubstitutionMatrix &matrix) {
     std::vector<Domain> result;
 
@@ -211,7 +214,6 @@ std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, doubl
         bool foundStart = false;
         unsigned int domainStart = 0, sequencePosition = 0;
 
-
         unsigned int i = 0;
         for (std::string::const_iterator it = sequence.begin(); sequence.end() != it; ++it) {
             const char &c = *it;
@@ -226,10 +228,10 @@ std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, doubl
 
             if (i == e.qEnd && foundStart == true) {
                 unsigned int domainEnd = sequencePosition;
-                double domainCov = getCoverage(domainStart, domainEnd, e.tLength);
-                double score = scoreSubAlignment(querySequence, sequence, e.qStart, e.qEnd, domainStart, domainEnd, matrix);
+                float domainCov = getCoverage(domainStart, domainEnd, e.tLength);
+                int score = scoreSubAlignment(querySequence, sequence, e.qStart, e.qEnd, domainStart, domainEnd, matrix);
                 double domainEvalue = e.eValue + computeEvalue(length, score);
-                if (domainCov > minCoverage && domainEvalue > eValThreshold) {
+                if (domainCov > minCoverage && domainEvalue < eValThreshold) {
                     result.emplace_back(e.query, domainStart, domainEnd, length, e.target, e.qStart, e.qEnd, e.tLength,
                                         domainEvalue);
                 }
@@ -302,8 +304,6 @@ int annotate(int argc, const char **argv) {
 
         unsigned int id = blastTabReader.getDbKey(i);
 
-        std::ostringstream oss;
-
         char* tabData = blastTabReader.getData(i);
         size_t tabLength = blastTabReader.getSeqLens(i) - 1;
         const std::vector<Domain> entries = getEntries(tabData, tabLength, lengths);
@@ -318,30 +318,40 @@ int annotate(int argc, const char **argv) {
             continue;
         }
 
-        size_t entry = msaReader.getId(id);
-        char *data = msaReader.getData(entry);
-        size_t entryLength = msaReader.getSeqLens(entry) - 1;
+        std::ostringstream oss;
+        oss << std::setprecision(std::numeric_limits<float>::digits10);
 
-        std::string msa;
-        switch (par.msaType) {
-            case 0: {
-                msa = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader);
-                break;
-            }
-            case 1: {
-                msa = std::string(data, entryLength);
-                break;
-            }
-            default:
-                Debug(Debug::ERROR) << "Input type not implemented!\n";
-                EXIT(EXIT_FAILURE);
-        }
+        if (true) {
+            size_t entry = msaReader.getId(id);
+            char *data = msaReader.getData(entry);
+            size_t entryLength = msaReader.getSeqLens(entry) - 1;
 
-        for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
-            std::vector<Domain> mapping = mapMsa(const_cast<char*>(msa.c_str()), msa.length(), *j, par.cov,
-                                                 par.evalThr, subMat);
-            for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
-                (*k).writeResult(oss);
+            std::string msa;
+            switch (par.msaType) {
+                case 0: {
+                    msa = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader);
+                    break;
+                }
+                case 1: {
+                    msa = std::string(data, entryLength);
+                    break;
+                }
+                default:
+                    Debug(Debug::ERROR) << "Input type not implemented!\n";
+                    EXIT(EXIT_FAILURE);
+            }
+
+            for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
+                std::vector<Domain> mapping = mapMsa(const_cast<char*>(msa.c_str()), msa.length(), *j, par.cov,
+                                                     par.evalThr, subMat);
+                for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
+                    (*k).writeResult(oss);
+                    oss << "\n";
+                }
+            }
+        } else {
+            for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
+                (*j).writeResult(oss);
                 oss << "\n";
             }
         }
