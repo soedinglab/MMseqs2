@@ -197,14 +197,11 @@ std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, doubl
     kseq_buffer_t d(data, dataLength);
     kseq_t *seq = kseq_init(&d);
     bool hasFirst = false;
-    std::string queryHeader;
     std::string querySequence;
     while (kseq_read(seq) >= 0) {
-        std::string header = std::string(seq->name.s) + seq->comment.s;
         std::string sequence = seq->seq.s;
 
         if (hasFirst == false) {
-            queryHeader = header;
             querySequence = sequence;
             hasFirst = true;
         }
