@@ -180,7 +180,9 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
                 tPos++;
             }
         } else {
-            int matchScore = matrix.subMatrix[matrix.aa2int[query[qPos]]][matrix.aa2int[target[tPos]]];
+            unsigned char queryAA = query[qPos];
+            unsigned char targetAA = target[tPos];
+            int matchScore = matrix.subMatrix[matrix.aa2int[queryAA]][matrix.aa2int[targetAA]];
             rawScore = std::max(0, rawScore + matchScore);
             qPos++;
             tPos++;
