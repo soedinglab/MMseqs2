@@ -308,8 +308,6 @@ int annotate(int argc, const char **argv) {
 
         unsigned int id = blastTabReader.getDbKey(i);
 
-        std::ostringstream oss;
-
         char* tabData = blastTabReader.getData(i);
         size_t tabLength = blastTabReader.getSeqLens(i) - 1;
         const std::vector<Domain> entries = getEntries(tabData, tabLength, lengths);
@@ -324,37 +322,45 @@ int annotate(int argc, const char **argv) {
             continue;
         }
 
-        size_t entry = msaReader.getId(id);
-        char *data = msaReader.getData(entry);
-        size_t entryLength = msaReader.getSeqLens(entry) - 1;
+        std::ostringstream oss;
+        if (true) {
+            size_t entry = msaReader.getId(id);
+            char *data = msaReader.getData(entry);
+            size_t entryLength = msaReader.getSeqLens(entry) - 1;
 
-        std::string msa;
-        switch (par.msaType) {
-            case 0: {
-                std::string a3m = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader);
-                A3mReader r(a3m);
-                msa = r.getFasta();
-                break;
+            std::string msa;
+            switch (par.msaType) {
+                case 0: {
+                    std::string a3m = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader);
+                    A3mReader r(a3m);
+                    msa = r.getFasta();
+                    break;
+                }
+                case 1: {
+                    A3mReader r(std::string(data, entryLength));
+                    msa = r.getFasta();
+                    break;
+                }
+                case 2: {
+                    msa = std::string(data, entryLength);
+                    break;
+                }
+                default:
+                    Debug(Debug::ERROR) << "Input type not implemented!\n";
+                    EXIT(EXIT_FAILURE);
             }
-            case 1: {
-                A3mReader r(std::string(data, entryLength));
-                msa = r.getFasta();
-                break;
-            }
-            case 2: {
-                msa = std::string(data, entryLength);
-                break;
-            }
-            default:
-                Debug(Debug::ERROR) << "Input type not implemented!\n";
-                EXIT(EXIT_FAILURE);
-        }
 
-        for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
-            std::vector<Domain> mapping = mapMsa(const_cast<char*>(msa.c_str()), msa.length(), *j, par.cov,
-                                                 par.evalThr, subMat);
-            for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
-                (*k).writeResult(oss);
+            for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
+                std::vector<Domain> mapping = mapMsa(const_cast<char*>(msa.c_str()), msa.length(), *j, par.cov,
+                                                     par.evalThr, subMat);
+                for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
+                    (*k).writeResult(oss);
+                    oss << "\n";
+                }
+            }
+        } else {
+            for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
+                (*j).writeResult(oss);
                 oss << "\n";
             }
         }
