@@ -105,16 +105,11 @@ std::map<std::string, unsigned int> readLength(const std::string &file) {
 std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::string, unsigned int> &lengths) {
     std::vector<Domain> result;
 
-    const size_t LINE_BUFFER_SIZE = 1000000;
-    char buffer[LINE_BUFFER_SIZE];
-    while (*data != '\0') {
-        if (!Util::getLine(data, length, buffer, LINE_BUFFER_SIZE)) {
-            Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
-            continue;
-        }
-
+    std::string line;
+    std::istringstream iss(std::string(data, length));
+    while (std::getline(iss, line)) {
         size_t offset = 1;
-        std::vector<std::string> fields = Util::split(buffer, "\t");
+        std::vector<std::string> fields = Util::split(line.c_str(), "\t");
 
         unsigned int qStart = static_cast<unsigned int>(strtoul(fields[offset + 6].c_str(), NULL, 10));
         unsigned int qEnd = static_cast<unsigned int>(strtoul(fields[offset + 7].c_str(), NULL, 10));
@@ -125,7 +120,6 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
             qLength = (*it).second;
         } else {
             Debug(Debug::WARNING) << "Missing query length! Skipping line.\n";
-            data = Util::skipLine(data);
             continue;
         }
 
@@ -139,15 +133,12 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
             tLength = (*it).second;
         } else {
             Debug(Debug::WARNING) << "Missing target length! Skipping line.\n";
-            data = Util::skipLine(data);
             continue;
         }
 
         double eValue = strtod(fields[offset + 10].c_str(), NULL);
 
         result.emplace_back(fields[0], qStart, qEnd, qLength, fields[offset + 1], tStart, tEnd, tLength, eValue);
-
-        data = Util::skipLine(data);
     }
 
     std::stable_sort(result.begin(), result.end());
@@ -287,10 +278,10 @@ int annotate(int argc, const char **argv) {
         msaSequenceIndexName = par.db1 + "_sequence.ffindex";
 
         headerReader = new DBReader<unsigned int>(msaHeaderDataName.c_str(), msaHeaderIndexName.c_str());
-        headerReader->open(DBReader<std::string>::NOSORT);
+        headerReader->open(DBReader<unsigned int>::SORT_BY_LINE);;
 
         sequenceReader = new DBReader<unsigned int>(msaSequenceDataName.c_str(), msaSequenceIndexName.c_str());
-        sequenceReader->open(DBReader<std::string>::NOSORT);
+        sequenceReader->open(DBReader<unsigned int>::SORT_BY_LINE);
     }
 
     DBReader<unsigned int> msaReader(msaDataName.c_str(), msaIndexName.c_str());
@@ -306,29 +297,34 @@ int annotate(int argc, const char **argv) {
 
     Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
 
-#pragma omp for schedule(dynamic, 100)
-    for (size_t i = 0; i < msaReader.getSize(); ++i) {
+#pragma omp parallel for schedule(dynamic, 100)
+    for (size_t i = 0; i < blastTabReader.getSize(); ++i) {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 
-        unsigned int id = msaReader.getDbKey(i);
+        unsigned int id = blastTabReader.getDbKey(i);
 
         std::ostringstream oss;
 
-        size_t entry = blastTabReader.getId(id);
-        char* tabData = blastTabReader.getData(entry);
-        size_t tabLength = blastTabReader.getSeqLens(entry) - 1;
+        char* tabData = blastTabReader.getData(i);
+        size_t tabLength = blastTabReader.getSeqLens(i) - 1;
         const std::vector<Domain> entries = getEntries(tabData, tabLength, lengths);
+        if (entries.size() == 0) {
+            Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
+            continue;
+        }
+
         std::vector<Domain> result = mapDomains(entries, par.overlap, par.cov, par.evalThr);
         if (result.size() == 0) {
             Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
             continue;
         }
 
-        char *data = msaReader.getData(i);
-        size_t entryLength = msaReader.getSeqLens(i) - 1;
+        size_t entry = msaReader.getId(id);
+        char *data = msaReader.getData(entry);
+        size_t entryLength = msaReader.getSeqLens(entry) - 1;
 
         std::string msa;
         switch (par.msaType) {
@@ -357,6 +353,7 @@ int annotate(int argc, const char **argv) {
                                                  par.evalThr, subMat);
             for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
                 (*k).writeResult(oss);
+                oss << "\n";
             }
         }
 
@@ -365,6 +362,7 @@ int annotate(int argc, const char **argv) {
     }
     writer.close();
     blastTabReader.close();
+    msaReader.close();
 
     if (headerReader != NULL) {
         headerReader->close();
