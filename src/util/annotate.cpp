@@ -5,6 +5,7 @@
 #include "DBWriter.h"
 #include "SubstitutionMatrix.h"
 #include "CompressedA3M.h"
+#include "Alignment.h"
 
 #include <fstream>
 #include <iomanip>
@@ -232,7 +233,8 @@ std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, float
                 int score = scoreSubAlignment(querySequence, sequence, e.qStart, e.qEnd, domainStart, domainEnd, matrix);
                 double domainEvalue = e.eValue + computeEvalue(length, score);
                 if (domainCov > minCoverage && domainEvalue < eValThreshold) {
-                    result.emplace_back(e.query, domainStart, domainEnd, length, e.target, e.qStart, e.qEnd, e.tLength,
+                    result.emplace_back(e.query, domainStart, domainEnd, length,
+                                        e.target, e.qStart, e.qEnd, e.tLength,
                                         domainEvalue);
                 }
             }
@@ -243,17 +245,11 @@ std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, float
     kseq_destroy(seq);
 
     return result;
-
 }
 
-int annotate(int argc, const char **argv) {
-    std::string usage("Extract annotations from HHblits blasttab results.\n");
-    usage.append("Written by Milot Mirdita (milot@mirdita.de) & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
-    usage.append("USAGE: <msaDB> <blastTabDB> <lengthFile> <outDB>\n");
-
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.annotate, 4);
-
+int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
+               const std::pair<std::string, std::string>& resultdb,
+               const size_t dbFrom, const size_t dbSize) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
@@ -285,10 +281,7 @@ int annotate(int argc, const char **argv) {
     DBReader<unsigned int> msaReader(msaDataName.c_str(), msaIndexName.c_str());
     msaReader.open(DBReader<std::string>::NOSORT);
 
-    DBReader<unsigned int> blastTabReader(par.db2.c_str(), par.db2Index.c_str());
-    blastTabReader.open(DBReader<std::string>::NOSORT);
-
-    DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), static_cast<unsigned int>(par.threads));
+    DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads));
     writer.open();
 
     std::map<std::string, unsigned int> lengths = readLength(par.db3);
@@ -296,7 +289,7 @@ int annotate(int argc, const char **argv) {
     Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
 
 #pragma omp parallel for schedule(dynamic, 100)
-    for (size_t i = 0; i < blastTabReader.getSize(); ++i) {
+    for (size_t i = dbFrom; i < dbSize; ++i) {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
@@ -359,8 +352,8 @@ int annotate(int argc, const char **argv) {
         std::string annotation = oss.str();
         writer.write(annotation.c_str(), annotation.length(), SSTR(id).c_str(), thread_idx);
     }
+
     writer.close();
-    blastTabReader.close();
     msaReader.close();
 
     if (headerReader != NULL) {
@@ -373,6 +366,71 @@ int annotate(int argc, const char **argv) {
         delete sequenceReader;
     }
 
-
     return EXIT_SUCCESS;
+}
+
+int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
+    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str());
+    reader.open(DBReader<unsigned int>::NOSORT);
+
+    size_t dbFrom = 0;
+    size_t dbSize = 0;
+    Util::decomposeDomainByAminoAcid(reader.getAminoAcidDBSize(), reader.getSeqLens(), reader.getSize(),
+                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, mpiRank);
+
+    int status = doAnnotate(par, reader, tmpOutput, dbFrom, dbSize);
+
+    reader.close();
+
+#ifdef HAVE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+    // master reduces results
+    if(mpiRank == 0) {
+        std::vector<std::pair<std::string, std::string>> splitFiles;
+        for(unsigned int proc = 0; proc < mpiNumProc; ++proc){
+            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, proc);
+            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.first + ".index"));
+        }
+        Alignment::mergeAndRemoveTmpDatabases(par.db4, par.db4 + ".index", splitFiles);
+    }
+
+    return status;
+}
+
+int doAnnotate(Parameters &par) {
+    size_t resultSize;
+
+    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str());
+    reader.open(DBReader<unsigned int>::NOSORT);
+    resultSize = reader.getSize();
+
+    int status = doAnnotate(par, reader, std::make_pair(par.db4, par.db4Index), 0, resultSize);
+
+    reader.close();
+
+    return status;
+}
+
+int annotate(int argc, const char **argv) {
+    MMseqsMPI::init(argc, argv);
+
+    std::string usage("Extract annotations from HHblits blasttab results.\n");
+    usage.append("Written by Milot Mirdita (milot@mirdita.de) & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
+    usage.append("USAGE: <msaDB> <blastTabDB> <lengthFile> <outDB>\n");
+
+    Parameters par;
+    par.parseParameters(argc, argv, usage, par.annotate, 4);
+
+#ifdef HAVE_MPI
+    int status = doAnnotate(par, MMseqsMPI::rank, MMseqsMPI::numProc);
+#else
+    int status = doAnnotate(par);
+#endif
+
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
+    return status;
 }
