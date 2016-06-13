@@ -47,8 +47,8 @@ int search(int argc, const char *argv[]) {
     } else {
 
         bool startSens  = false;
-        for (size_t i = 0; i < par.clusteringWorkflow.size(); i++) {
-            if (par.prefilter[i].uniqid == par.PARAM_START_SENS.uniqid && par.prefilter[i].wasSet) {
+        for (size_t i = 0; i < par.searchworkflow.size(); i++) {
+            if (par.searchworkflow[i].uniqid == par.PARAM_START_SENS.uniqid && par.searchworkflow[i].wasSet) {
                 startSens = true;
             }
         }
