@@ -13,6 +13,7 @@
 #endif
 
 #include <sys/time.h>
+#include <unistd.h>
 
 int doExtractAlignedRegion(Parameters &par) {
     DBReader<unsigned int> *qdbr = NULL;
@@ -34,9 +35,9 @@ int doExtractAlignedRegion(Parameters &par) {
         tdbr->readMmapedDataInMemory();
     }
     std::string qffindexHeaderDB = (par.db1 + "_h");
-    Debug(Debug::INFO) << "Query Header file: " << qffindexHeaderDB << "\n";
-    std::string dbffindexHeaderDB = (par.db2 + "_h");
-    Debug(Debug::INFO) << "Target Header file: " << dbffindexHeaderDB << "\n";
+    std::string qffindexHeaderDBIndex = (par.db1 + "_h.index");
+    std::string outffindexHeaderDB = (par.db4 + "_h");
+    std::string outffindexHeaderDBIndex = (par.db4 + "_h.index");
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
     DBReader<unsigned int> alndbr(par.db3.c_str(), par.db3Index.c_str());
@@ -75,13 +76,23 @@ int doExtractAlignedRegion(Parameters &par) {
             if (seq) {
                 std::string result(seq, length);
                 result.append("\n");
-                dbw.write(result.c_str(), result.length(), SSTR(res.dbKey).c_str(), thread_idx);
+                dbw.write(result.c_str(), result.length(), SSTR(queryKey).c_str(), thread_idx);
             } else {
                 Debug(Debug::ERROR) << "Missing extraction type!\n";
                 EXIT(EXIT_FAILURE);
             }
         }
     }
+
+    Debug(Debug::INFO) << "Set sym link from " << qffindexHeaderDB << " to " << outffindexHeaderDB << "\n";
+    char *abs_in_header_filename = realpath(qffindexHeaderDB.c_str(), NULL);
+    symlink(abs_in_header_filename, outffindexHeaderDB.c_str());
+    free(abs_in_header_filename);
+    char *abs_in_header_index_filename = realpath(qffindexHeaderDBIndex.c_str(), NULL);
+    Debug(Debug::INFO) << "Set sym link from " << qffindexHeaderDBIndex << " to " << outffindexHeaderDBIndex << "\n";
+    symlink(abs_in_header_index_filename, outffindexHeaderDBIndex.c_str());
+    free(abs_in_header_index_filename);
+
 
     Debug(Debug::INFO) << "Done." << "\n";
     dbw.close();
