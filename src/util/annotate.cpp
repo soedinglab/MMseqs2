@@ -112,8 +112,8 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
         size_t offset = 1;
         std::vector<std::string> fields = Util::split(line.c_str(), "\t");
 
-        unsigned int qStart = static_cast<unsigned int>(strtoul(fields[offset + 6].c_str(), NULL, 10));
-        unsigned int qEnd = static_cast<unsigned int>(strtoul(fields[offset + 7].c_str(), NULL, 10));
+        unsigned int qStart = static_cast<unsigned int>(strtoul(fields[offset + 6].c_str(), NULL, 10)) - 1;
+        unsigned int qEnd = static_cast<unsigned int>(strtoul(fields[offset + 7].c_str(), NULL, 10)) - 1;
 
         std::map<std::string, unsigned int>::const_iterator it = lengths.lower_bound(fields[0]);
         unsigned int qLength;
@@ -125,8 +125,8 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
         }
 
 
-        unsigned int tStart = static_cast<unsigned int>(strtoul(fields[offset + 8].c_str(), NULL, 10));
-        unsigned int tEnd = static_cast<unsigned int>(strtoul(fields[offset + 9].c_str(), NULL, 10));
+        unsigned int tStart = static_cast<unsigned int>(strtoul(fields[offset + 8].c_str(), NULL, 10)) - 1;
+        unsigned int tEnd = static_cast<unsigned int>(strtoul(fields[offset + 9].c_str(), NULL, 10)) - 1;
 
         it = lengths.lower_bound(fields[offset + 1]);
         unsigned int tLength;
@@ -174,9 +174,9 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
         }
 
         // skip gaps and lower letters (since they are insertions)
-        if (target[tPos] == '-' || (target[tPos] == tolower(target[tPos]))) {
+        if (target[tPos] == '-' || (islower(target[tPos]))) {
             rawScore = std::max(0, rawScore - 10);
-            while (tPos < tEnd && (target[tPos] == '-' || (target[tPos] == tolower(target[tPos])))) {
+            while (tPos < tEnd && (target[tPos] == '-' || islower(target[tPos]))) {
                 rawScore = std::max(0, rawScore - 1);
                 tPos++;
             }
@@ -194,55 +194,91 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
     return rawScore;
 }
 
-std::vector<Domain> mapMsa(char *data, size_t dataLength, const Domain &e, float minCoverage,
+struct FastaEntry {
+    std::string name;
+    std::string sequence;
+
+    FastaEntry(const std::string &name, const std::string &sequence) : name(name), sequence(sequence) {};
+};
+
+std::vector<FastaEntry> readMsa(char *data, size_t dataLength) {
+    std::vector<FastaEntry> result;
+    kseq_buffer_t d(data, dataLength);
+    kseq_t *seq = kseq_init(&d);
+    while (kseq_read(seq) >= 0) {
+        std::string name = Util::parseFastaHeader(seq->name.s);
+        std::string comment(seq->comment.s);
+        size_t start = comment.find("Split=");
+        if (start != std::string::npos) {
+            start += 6;
+            size_t end = comment.find_first_of(" \n", start);
+            if (end != std::string::npos) {
+                std::string split = comment.substr(start, end - start);
+
+                if (split != "0") {
+                    name.append("_");
+                    name.append(split);
+                }
+            }
+        }
+
+        result.emplace_back(name, seq->seq.s);
+    }
+    kseq_destroy(seq);
+
+    return result;
+}
+
+std::vector<Domain> mapMsa(const std::vector<FastaEntry> &msa, const Domain &e, float minCoverage,
                            double eValThreshold, const SubstitutionMatrix &matrix) {
     std::vector<Domain> result;
 
-    kseq_buffer_t d(data, dataLength);
-    kseq_t *seq = kseq_init(&d);
     bool hasFirst = false;
+    std::string queryHeader;
     std::string querySequence;
-    while (kseq_read(seq) >= 0) {
-        std::string sequence = seq->seq.s;
-
+    for (std::vector<FastaEntry>::const_iterator i = msa.begin(); i != msa.end(); ++i) {
+        const std::string& name = (*i).name;
+        const std::string& sequence = (*i).sequence;
         if (hasFirst == false) {
+            queryHeader = name;
             querySequence = sequence;
             hasFirst = true;
         }
 
-        unsigned int length = static_cast<unsigned int>(std::count_if(querySequence.begin(), querySequence.end(), isalpha));
+        unsigned int length = static_cast<unsigned int>(std::count_if(sequence.begin(), sequence.end(), isalpha));
 
         bool foundStart = false;
         unsigned int domainStart = 0, sequencePosition = 0;
 
-        unsigned int i = 0;
-        for (std::string::const_iterator it = sequence.begin(); sequence.end() != it; ++it) {
-            const char &c = *it;
-            if ((c != '-' && c != '.') && foundStart == false && i >= e.qStart && i < e.qEnd) {
+        unsigned int pos = 0;
+        for (std::string::const_iterator j = sequence.begin(); sequence.end() != j; ++j) {
+            const char &c = *j;
+            if ((c != '-' && c != '.') && foundStart == false && pos >= e.qStart && pos <= e.qEnd) {
                 foundStart = true;
                 domainStart = sequencePosition;
             }
 
-            if (c != tolower(c)) {
+            if (islower(c) == false) {
                 sequencePosition++;
             }
 
-            if (i == e.qEnd && foundStart == true) {
+            if (pos == e.qEnd && foundStart == true) {
+                foundStart = false;
                 unsigned int domainEnd = sequencePosition;
                 float domainCov = getCoverage(domainStart, domainEnd, e.tLength);
-                int score = scoreSubAlignment(querySequence, sequence, e.qStart, e.qEnd, domainStart, domainEnd, matrix);
+                int score = scoreSubAlignment(querySequence, sequence, e.qStart, e.qEnd,
+                                              domainStart, domainEnd, matrix);
                 double domainEvalue = e.eValue + computeEvalue(length, score);
                 if (domainCov > minCoverage && domainEvalue < eValThreshold) {
-                    result.emplace_back(e.query, domainStart, domainEnd, length,
+                    result.emplace_back(name, domainStart, domainEnd, length,
                                         e.target, e.qStart, e.qEnd, e.tLength,
                                         domainEvalue);
                 }
             }
 
-            i++;
+            pos++;
         }
     }
-    kseq_destroy(seq);
 
     return result;
 }
@@ -272,7 +308,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
         msaSequenceIndexName = par.db1 + "_sequence.ffindex";
 
         headerReader = new DBReader<unsigned int>(msaHeaderDataName.c_str(), msaHeaderIndexName.c_str());
-        headerReader->open(DBReader<unsigned int>::SORT_BY_LINE);;
+        headerReader->open(DBReader<unsigned int>::SORT_BY_LINE);
 
         sequenceReader = new DBReader<unsigned int>(msaSequenceDataName.c_str(), msaSequenceIndexName.c_str());
         sequenceReader->open(DBReader<unsigned int>::SORT_BY_LINE);
@@ -334,9 +370,11 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
                     EXIT(EXIT_FAILURE);
             }
 
+            std::vector<FastaEntry> fasta = readMsa(const_cast<char*>(msa.c_str()), msa.length());
+
             for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
-                std::vector<Domain> mapping = mapMsa(const_cast<char*>(msa.c_str()), msa.length(), *j, par.cov,
-                                                     par.evalThr, subMat);
+                std::vector<Domain> mapping = mapMsa(fasta, *j, par.cov, par.evalThr, subMat);
+
                 for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
                     (*k).writeResult(oss);
                     oss << "\n";
