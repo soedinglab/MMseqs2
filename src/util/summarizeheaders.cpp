@@ -9,13 +9,13 @@
 #include <omp.h>
 #endif
 
-int summarize(int argc, const char** argv) {
+int summarizeheaders(int argc, const char **argv) {
     std::string usage("Summarizes all the headers from a clustering results.\n");
     usage.append("Written by Milot Mirdita (milot@mirdita.de)\n");
     usage.append("USAGE: <queryHeaderDB> <targetHeaderDB> <resultDB> <outDB>\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.summarize, 2);
+    par.parseParameters(argc, argv, usage, par.summarizeheaders, 2);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

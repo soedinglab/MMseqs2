@@ -336,8 +336,8 @@ Parameters::Parameters():
     mergeffindex.push_back(PARAM_V);
 
     // summarize
-    summarize.push_back(PARAM_SUMMARY_PREFIX);
-    summarize.push_back(PARAM_V);
+    summarizeheaders.push_back(PARAM_SUMMARY_PREFIX);
+    summarizeheaders.push_back(PARAM_V);
 
     // diff
     diff.push_back(PARAM_THREADS);
@@ -349,13 +349,19 @@ Parameters::Parameters():
     prefixid.push_back(PARAM_V);
 
     // annoate
-    annotate.push_back(PARAM_SUB_MAT);
-    annotate.push_back(PARAM_MSA_TYPE);
-    annotate.push_back(PARAM_OVERLAP);
-    annotate.push_back(PARAM_E);
-    annotate.push_back(PARAM_C);
-    annotate.push_back(PARAM_THREADS);
-    annotate.push_back(PARAM_V);
+    summarizetabs.push_back(PARAM_OVERLAP);
+    summarizetabs.push_back(PARAM_E);
+    summarizetabs.push_back(PARAM_C);
+    summarizetabs.push_back(PARAM_THREADS);
+    summarizetabs.push_back(PARAM_V);
+
+    // annoate
+    summarizetabs.push_back(PARAM_SUB_MAT);
+    summarizetabs.push_back(PARAM_MSA_TYPE);
+    summarizetabs.push_back(PARAM_E);
+    summarizetabs.push_back(PARAM_C);
+    summarizetabs.push_back(PARAM_THREADS);
+    summarizetabs.push_back(PARAM_V);
 
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);
@@ -764,7 +770,7 @@ void Parameters::setDefaults() {
     allVsAll = false;
     randomizedRepresentative = false;
 
-    // annotate
+    // summarizetabs
     overlap = 0.0f;
     msaType = 0;
 
