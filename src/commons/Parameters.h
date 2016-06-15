@@ -214,7 +214,7 @@ public:
     bool randomizedRepresentative;
     bool use_sequenceheader;
 
-    // annotate
+    // summarizetabs
     float overlap;
     int msaType;
 
@@ -364,8 +364,10 @@ public:
     PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
     PARAMETER(PARAM_EVALUATION_USE_SEQUENCEHEADER)
 
-    // annotate
+    // summarizetabs
     PARAMETER(PARAM_OVERLAP)
+
+    // extractdomains
     PARAMETER(PARAM_MSA_TYPE)
 
     // extract aligned region
@@ -401,10 +403,11 @@ public:
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> dbconcat;
     std::vector<MMseqsParameter> mergeffindex;
-    std::vector<MMseqsParameter> summarize;
+    std::vector<MMseqsParameter> summarizeheaders;
     std::vector<MMseqsParameter> evaluationscores;
     std::vector<MMseqsParameter> prefixid;
-    std::vector<MMseqsParameter> annotate;
+    std::vector<MMseqsParameter> summarizetabs;
+    std::vector<MMseqsParameter> extractdomains;
     std::vector<MMseqsParameter> extractalignedregion;
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);
