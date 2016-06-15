@@ -1,7 +1,8 @@
 #include <cstddef>
-#include <stdio.h>
-#include <Matcher.h>
-#include <SubstitutionMatrix.h>
+#include <cstdio>
+
+#include "Matcher.h"
+#include "SubstitutionMatrix.h"
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
@@ -106,8 +107,8 @@ int swapresults (int argc, const char * argv[]){
         kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
                                                     qdbr.getAminoAcidDBSize(), qdbr.getSize());
     }
-    double logK = log( stats.K);
-    double lambdaLog2 =  stats.lambda / log(2.0);
+    double logK = log(stats.K);
+    double lambdaLog2 = stats.lambda / log(2.0);
     double logKLog2 = logK / log(2.0);
 
     // read all keys
@@ -115,11 +116,11 @@ int swapresults (int argc, const char * argv[]){
     FILE * dataFile = fopen(resultDb.first.c_str(), "r");
     for (size_t split = 0; split < splitSize; split++) {
         // create and open db write
-        // create splite file name
+        // create split file name
         std::string splitName(par.db4);
         splitName.append("_").append(SSTR(split));
         std::pair<std::string, std::string> splitNames = Util::databaseNames(splitName);
-        filesToDelete.push_back(std::pair<std::string, std::string>(splitNames.first, splitNames.second));
+        filesToDelete.push_back(splitNames);
 
         DBWriter splitWrite(splitNames.first.c_str(), splitNames.second.c_str(), 1);
         splitWrite.open();
@@ -130,17 +131,17 @@ int swapresults (int argc, const char * argv[]){
         Debug(Debug::INFO) << "Process split " << split << " from " << startIndex << " to " << (startIndex + domainSize) << " ... ";
 
         processSplit(rdbr, dataFile, swapMap, startIndex, domainSize);
+
         // Write sorted results and delete memory
         char * wordCnt[255];
-        for (SwapIt iterator = swapMap.begin(); iterator != swapMap.end(); iterator++) {
-            std::string resultData;
-            resultData = std::string(iterator->second->c_str());
-            if(iterator->second->size() > 1){
-                size_t cols = Util::getWordsOfLine((char*)iterator->second->c_str(), wordCnt, 254);
-                if(Matcher::ALN_RES_WITH_OUT_BT_COL_CNT >= cols){
-                    std::vector<Matcher::result_t> alnRes = Matcher::readAlignmentResults((char*)iterator->second->c_str());
-                    std::stringstream swResultsSs;
-                    for(size_t i = 0; i < alnRes.size(); i++){
+        for (SwapIt iterator = swapMap.begin(); iterator != swapMap.end(); ++iterator) {
+            unsigned int id = iterator->first;
+            std::string result = *iterator->second;
+            if (result.size() > 1){
+                size_t cols = Util::getWordsOfLine((char*)result.c_str(), wordCnt, 254);
+                if (Matcher::ALN_RES_WITH_OUT_BT_COL_CNT >= cols){
+                    std::vector<Matcher::result_t> alnRes = Matcher::readAlignmentResults((char*)result.c_str());
+                    for (size_t i = 0; i < alnRes.size(); i++){
                         Matcher::result_t &res = alnRes[i];
                         double rawScore = BlastScoreUtils::bitScoreToRawScore(res.score, lambdaLog2, logKLog2);
                         res.eval = BlastScoreUtils::computeEvalue(rawScore, kmnByLen[res.dbLen], stats.lambda);
@@ -154,21 +155,28 @@ int swapresults (int argc, const char * argv[]){
                         res.dbEndPos   = qend;
                         res.dbLen      = qLen;
                     }
+
                     std::sort(alnRes.begin(), alnRes.end(), Matcher::compareHits);
-                    for(size_t i = 0; i < alnRes.size(); i++){
-                        swResultsSs << Matcher::resultToString(alnRes[i], (Matcher::ALN_RES_WITH_BT_COL_CNT==cols));
+
+                    std::ostringstream swResultsSs;
+                    for (size_t i = 0; i < alnRes.size(); i++){
+                        bool addBacktrace = Matcher::ALN_RES_WITH_BT_COL_CNT == cols;
+                        swResultsSs << Matcher::resultToString(alnRes[i], addBacktrace);
                     }
-                    resultData = swResultsSs.str();
+                    result = swResultsSs.str();
                 }
             }
-            splitWrite.write((char *) resultData.c_str(), iterator->second->size(),
-                             (char *) SSTR(iterator->first).c_str(), 0);
+
+            splitWrite.write(result.c_str(), result.size(), SSTR(id).c_str(), 0);
+
             entries_num++;
+
             // remove just the value (string *) not the keys
             // the keys are needed for the merging step later
             delete iterator->second;
             iterator->second = new std::string();
         }
+
         Debug(Debug::INFO) << "Done.\n";
         splitWrite.close();
     }
