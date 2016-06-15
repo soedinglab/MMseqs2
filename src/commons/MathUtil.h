@@ -4,9 +4,9 @@
 #include <cmath>
 #include <climits>
 #include <cfloat>
+#include <vector>
 
 class MathUtil {
-
 public:
     static inline int ipow(int base, int exponent) {
         int res = 1;
@@ -107,6 +107,19 @@ public:
         i = i - ((i >> 1) & 0x55555555);
         i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
         return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+    }
+
+    static inline float getOverlap(const std::vector<bool>& covered, unsigned int qStart, unsigned int qEnd) {
+        size_t counter = 0;
+        for (size_t i = (qStart - 1); i < (qEnd - 1); ++i) {
+            counter += covered[i];
+        }
+
+        return static_cast<float>(counter) / static_cast<float>(qEnd - qStart + 1);
+    }
+
+    static inline float getCoverage(size_t start, size_t end, size_t length) {
+        return static_cast<float>(end - start + 1) / static_cast<float>(length);
     }
 };
 
