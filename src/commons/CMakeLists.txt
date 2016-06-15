@@ -40,6 +40,7 @@ set(commons_source_files
     UniprotKB.h
     A3MReader.cpp
     A3MReader.h
+    Domain.h
 )
 
 add_library(commons ${commons_source_files})

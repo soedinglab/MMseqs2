@@ -28,9 +28,10 @@ set(util_source_files
   order.cpp
   diff.cpp
   TimeTest.cpp
-  summarize.cpp
+  summarizeheaders.cpp
   prefixid.cpp
-  annotate.cpp
+  summarizetabs.cpp
+  extractdomains.cpp
   extractalignedregion.cpp
 )
 

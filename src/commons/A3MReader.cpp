@@ -25,18 +25,29 @@ A3mReader::A3mReader(std::string a3m) {
 }
 
 std::string A3mReader::getFasta() {
+    if(entries.size() < 1) {
+        return std::string();
+    }
+
+    const std::vector<char>& query = entries[0];
+
     std::ostringstream ss;
     for (size_t i = 0; i < entries.size(); ++i) {
         ss << ">" << headers[i] << "\n";
 
-        std::vector<char> copy = entries[i];
-        for (std::vector<char>::iterator it = copy.begin(); it != copy.end(); ++it) {
-            if((*it) == '.') {
-                (*it) = '-';
+        const std::vector<char> &entry = entries[i];
+        for (size_t i = 0; i < query.size(); ++i) {
+            if(query[i] == '.' || query[i] == '-') {
+                continue;
+            } else {
+                if(entry[i] == '.') {
+                    ss << '-';
+                } else {
+                    ss << entry[i];
+                }
             }
         }
 
-        std::copy(copy.begin(), copy.end(), std::ostream_iterator<char>(ss));
         ss << "\n";
     }
 
