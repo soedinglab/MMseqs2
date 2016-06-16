@@ -306,7 +306,9 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_TRIM_TO_ONE_COL);
 	
     // swapreults
-    swapresults.push_back(PARAM_SPLIT);
+    swapresults.push_back(PARAM_SUB_MAT);
+    swapresults.push_back(PARAM_MAX_SEQ_LEN);
+    swapresults.push_back(PARAM_THREADS);
     swapresults.push_back(PARAM_V);
 
     // substractresult
