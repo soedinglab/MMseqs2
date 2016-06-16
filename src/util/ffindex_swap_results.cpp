@@ -3,7 +3,7 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
-#include "Alignment.h"
+#include "Prefiltering.h"
 #include "Util.h"
 
 #include <fstream>
@@ -11,6 +11,8 @@
 #ifdef OPENMP
 #include <omp.h>
 #endif
+
+#define ENABLE_MPI_SWAP 0
 
 typedef std::map<unsigned int, std::string *> SwapIt;
 
@@ -54,7 +56,7 @@ void processSplit(DBReader<unsigned int> &dbr,
         char dbKey[255 + 1];
         int c1;
         while ((c1 = fgetc(dataFile)) != EOF && c1 != (int) '\0') {
-            ss << c1;
+            ss << static_cast<char>(c1);
         }
         ss << '\0';
         std::string result = ss.str();
@@ -65,7 +67,14 @@ void processSplit(DBReader<unsigned int> &dbr,
             // extract key from results (ids must be always at the first position)
             Util::parseKey(data, dbKey);
             unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-            std::string *entry = map[key];
+            std::string *entry = NULL;
+            SwapIt::const_iterator it = map.find(key);
+            if (it != map.end()) {
+                entry = it->second;
+            } else {
+                entry = new std::string();
+                map.emplace(key, entry);
+            }
             // write data to map
             entry->append(outerKey);
             // next db key
@@ -207,7 +216,7 @@ int doSwap(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNu
             std::pair<std::string, std::string> names = Util::createTmpFileNames(par.db4, par.db4Index, proc);
             splitFiles.push_back(std::make_pair(names.first, names.second));
         }
-        Alignment::mergeAndRemoveTmpDatabases(par.db4, par.db4Index, splitFiles);
+        Prefiltering::mergeOutput(par.db4, par.db4, splitFiles);
     }
 
     return status;
@@ -227,8 +236,9 @@ int doSwap(Parameters &par) {
 }
 
 int swapresults(int argc, const char *argv[]) {
+#if ENABLE_MPI_SWAP
     MMseqsMPI::init(argc, argv);
-
+#endif
     std::string usage("Swaps results of ffindex database. A -> A, B, C to A->A, B->A, C->A \n");
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n");
     usage.append("USAGE: <queryDb> <targetDb> <ffindexDB> <fastaDB>\n");
@@ -236,13 +246,13 @@ int swapresults(int argc, const char *argv[]) {
     Parameters par;
     par.parseParameters(argc, argv, usage, par.swapresults, 4);
 
-#ifdef HAVE_MPI
+#if defined(HAVE_MPI) && ENABLE_MPI_SWAP
     int status = doSwap(par, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
     int status = doSwap(par);
 #endif
 
-#ifdef HAVE_MPI
+#if defined(HAVE_MPI) && ENABLE_MPI_SWAP
     MPI_Finalize();
 #endif
 
