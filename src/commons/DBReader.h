@@ -23,15 +23,15 @@ public:
     };
     DBReader(const char* dataFileName, const char* indexFileName, int mode = USE_DATA|USE_INDEX);
 
-    ~DBReader();
+    virtual ~DBReader();
 
     void open(int sort);
 
     void close();
 
-    char* getDataFileName() { return dataFileName; }
+    const char* getDataFileName() { return dataFileName; }
 
-    char* getIndexFileName() { return indexFileName; }
+    const char* getIndexFileName() { return indexFileName; }
 
     size_t getAminoAcidDBSize(){ return aaDbSize; }
 
@@ -54,7 +54,6 @@ public:
     // does a binary search in the ffindex and returns index of the entry with dbKey
     // returns UINT_MAX if the key is not contained in index
     size_t getId (T dbKey);
-
 
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
