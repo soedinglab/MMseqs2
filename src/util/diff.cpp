@@ -7,7 +7,7 @@
 #include <vector>
 #include <sstream>
 #include <sys/time.h>
-
+#include <algorithm>
 
 #include "Parameters.h"
 
