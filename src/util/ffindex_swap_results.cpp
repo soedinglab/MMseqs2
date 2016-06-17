@@ -38,7 +38,7 @@ SwapIt readAllKeysIntoMap(const std::string &datafile) {
 
         SwapIt::iterator it = result.find(key);
         if (it == result.end()) {
-            result[key] = new std::string();
+            result.emplace(key, new std::string());
         }
     }
     resultFile.close();
@@ -54,7 +54,7 @@ void processSplit(DBReader<unsigned int> &dbr,
         char dbKey[255 + 1];
         int c1;
         while ((c1 = fgetc(dataFile)) != EOF && c1 != (int) '\0') {
-            ss << c1;
+            ss << static_cast<char>(c1);
         }
         ss << '\0';
         std::string result = ss.str();
@@ -113,8 +113,7 @@ int doSwap(Parameters &par, DBReader<unsigned int> &rdbr,
     const SwapIt swapMap = readAllKeysIntoMap(rdbr.getDataFileName());
 
     // create and open db write
-    DBWriter splitWriter(resultdb.first.c_str(), resultdb.second.c_str(),
-                         static_cast<unsigned int>(par.threads));
+    DBWriter splitWriter(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads));
     splitWriter.open();
 
     FILE *dataFile = fopen(rdbr.getDataFileName(), "r");
@@ -200,9 +199,9 @@ int doSwap(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNu
         std::vector<std::pair<std::string, std::string>> splitFiles;
         for (unsigned int proc = 0; proc < mpiNumProc; ++proc) {
             std::pair<std::string, std::string> names = Util::createTmpFileNames(par.db4, par.db4Index, proc);
-            splitFiles.push_back(std::make_pair(names.first, names.first + ".index"));
+            splitFiles.push_back(std::make_pair(names.first, names.second));
         }
-        Alignment::mergeAndRemoveTmpDatabases(par.db4, par.db4 + ".index", splitFiles);
+        Alignment::mergeAndRemoveTmpDatabases(par.db4, par.db4Index, splitFiles);
     }
 
     return status;
