@@ -47,7 +47,7 @@ SwapIt readAllKeysIntoMap(const std::string &datafile) {
 }
 
 void processSplit(DBReader<unsigned int> &dbr,
-                  FILE *dataFile, const std::map<unsigned int, std::string *> &map,
+                  FILE *dataFile, std::map<unsigned int, std::string *> &map,
                   size_t startIndex, size_t domainSize) {
     for (size_t i = startIndex; i < (startIndex + domainSize); i++) {
         std::ostringstream ss;
@@ -65,13 +65,7 @@ void processSplit(DBReader<unsigned int> &dbr,
             // extract key from results (ids must be always at the first position)
             Util::parseKey(data, dbKey);
             unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-            std::string *entry = NULL;
-            SwapIt::const_iterator it = map.find(key);
-            if (it != map.end()) {
-                entry = it->second;
-            } else {
-                entry = new std::string();
-            }
+            std::string *entry = map[key];
             // write data to map
             entry->append(outerKey);
             // next db key
@@ -110,62 +104,74 @@ int doSwap(Parameters &par, DBReader<unsigned int> &rdbr,
     const double logKLog2 = logK / log(2.0);
 
     // read all keys
-    const SwapIt swapMap = readAllKeysIntoMap(rdbr.getDataFileName());
-
-    // create and open db write
-    DBWriter splitWriter(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads));
-    splitWriter.open();
+    SwapIt swapMap = readAllKeysIntoMap(rdbr.getDataFileName());
 
     FILE *dataFile = fopen(rdbr.getDataFileName(), "r");
     processSplit(rdbr, dataFile, swapMap, startIndex, domainSize);
     fclose(dataFile);
 
+    // create and open db for writing
     Debug(Debug::INFO) << "Start to swap results. Write to " << resultdb.first << ".\n";
+    DBWriter splitWriter(resultdb.first.c_str(), resultdb.second.c_str(),
+                         static_cast<unsigned int>(par.threads));
+    splitWriter.open();
 
     // Write sorted results and delete memory
     char *wordCnt[255];
-#pragma omp parallel for schedule(dynamic, 100)
-    for (SwapIt::const_iterator it = swapMap.begin(); it != swapMap.end(); ++it) {
+#pragma omp parallel
+    {     
         unsigned int thread_idx = 0;
+        unsigned int thread_cnt = 1;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+        thread_cnt = static_cast<unsigned int>(omp_get_num_threads());
 #endif
-        unsigned int id = it->first;
-        std::string result = *it->second;
-        if (result.size() > 1) {
-            size_t cols = Util::getWordsOfLine((char *) result.c_str(), wordCnt, 254);
-            if (Matcher::ALN_RES_WITH_OUT_BT_COL_CNT >= cols) {
-                std::vector<Matcher::result_t> alnRes = Matcher::readAlignmentResults((char *) result.c_str());
-                for (size_t i = 0; i < alnRes.size(); i++) {
-                    Matcher::result_t &res = alnRes[i];
-                    double rawScore = BlastScoreUtils::bitScoreToRawScore(res.score, lambdaLog2, logKLog2);
-                    res.eval = BlastScoreUtils::computeEvalue(rawScore, kmnByLen[res.dbLen], stats.lambda);
-                    unsigned int qstart = res.qStartPos;
-                    unsigned int qend = res.qEndPos;
-                    unsigned int qLen = res.qLen;
-                    res.qStartPos = res.dbStartPos;
-                    res.qEndPos = res.dbEndPos;
-                    res.qLen = res.dbLen;
-                    res.dbStartPos = qstart;
-                    res.dbEndPos = qend;
-                    res.dbLen = qLen;
-                }
+        size_t size = swapMap.size();
+        SwapIt::const_iterator it = swapMap.begin();
+        std::advance(it, thread_idx);
 
-                std::stable_sort(alnRes.begin(), alnRes.end(), Matcher::compareHits);
+        for (unsigned int i = thread_idx; i < size; i+= thread_cnt) {
+            unsigned int id = it->first;
+            std::string result = *it->second;
+            if (result.size() > 1) {
+                size_t cols = Util::getWordsOfLine((char *) result.c_str(), wordCnt, 254);
+                if (Matcher::ALN_RES_WITH_OUT_BT_COL_CNT >= cols) {
+                    std::vector<Matcher::result_t> alnRes = Matcher::readAlignmentResults((char *) result.c_str());
+                    for (size_t i = 0; i < alnRes.size(); i++) {
+                        Matcher::result_t &res = alnRes[i];
+                        double rawScore = BlastScoreUtils::bitScoreToRawScore(res.score, lambdaLog2, logKLog2);
+                        res.eval = BlastScoreUtils::computeEvalue(rawScore, kmnByLen[res.dbLen], stats.lambda);
+                        unsigned int qstart = res.qStartPos;
+                        unsigned int qend = res.qEndPos;
+                        unsigned int qLen = res.qLen;
+                        res.qStartPos = res.dbStartPos;
+                        res.qEndPos = res.dbEndPos;
+                        res.qLen = res.dbLen;
+                        res.dbStartPos = qstart;
+                        res.dbEndPos = qend;
+                        res.dbLen = qLen;
+                    }
 
-                std::ostringstream swResultsSs;
-                for (size_t i = 0; i < alnRes.size(); i++) {
-                    bool addBacktrace = Matcher::ALN_RES_WITH_BT_COL_CNT == cols;
-                    swResultsSs << Matcher::resultToString(alnRes[i], addBacktrace);
+                    std::stable_sort(alnRes.begin(), alnRes.end(), Matcher::compareHits);
+
+                    std::ostringstream swResultsSs;
+                    for (size_t i = 0; i < alnRes.size(); i++) {
+                        bool addBacktrace = Matcher::ALN_RES_WITH_BT_COL_CNT == cols;
+                        swResultsSs << Matcher::resultToString(alnRes[i], addBacktrace);
+                    }
+                    result = swResultsSs.str();
                 }
-                result = swResultsSs.str();
+            }
+
+            splitWriter.write(result.c_str(), result.size(), SSTR(id).c_str(), thread_idx);
+
+            // remove just the value (string *)
+            delete it->second;
+
+            if (i + thread_cnt < size) {
+                std::advance(it, thread_cnt);
             }
         }
-
-        splitWriter.write(result.c_str(), result.size(), SSTR(id).c_str(), thread_idx);
-
-        // remove just the value (string *)
-        delete it->second;
     }
 
     Debug(Debug::INFO) << "Done.\n";
