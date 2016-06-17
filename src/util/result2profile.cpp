@@ -14,6 +14,9 @@
 #include "DBConcat.h"
 #include "HeaderSummarizer.h"
 #include "CompressedA3M.h"
+#include "Debug.h"
+#include "Util.h"
+#include "Log.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -529,6 +532,8 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
                                     referenceSeqName.c_str(), referenceSeqIndexName.c_str(), 1);
         if(mpiRank == 0) {
             referenceDBr->concat();
+        } else {
+            referenceDBr->concat(false);
         }
 
 #ifdef HAVE_MPI
