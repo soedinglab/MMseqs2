@@ -38,7 +38,6 @@ void DBConcat::concat(bool write) {
     DBReader<unsigned int> dbA(dataFileNameA.c_str(), indexFileNameA.c_str());
     DBReader<unsigned int> dbB(dataFileNameB.c_str(), indexFileNameB.c_str());
 
-    DBWriter concatWriter(dataFileNameC.c_str(), indexFileNameC.c_str(), threads, DBWriter::BINARY_MODE);
 
     dbA.open(DBReader<unsigned int>::NOSORT);
     dbB.open(DBReader<unsigned int>::NOSORT);
@@ -50,8 +49,10 @@ void DBConcat::concat(bool write) {
     keysA = new std::pair<unsigned int, unsigned int>[indexSizeA];
     keysB = new std::pair<unsigned int, unsigned int>[indexSizeB];
 
+    DBWriter* concatWriter = NULL;
     if (write) {
-        concatWriter.open();
+        concatWriter = new DBWriter(dataFileNameC.c_str(), indexFileNameC.c_str(), threads, DBWriter::BINARY_MODE);
+        concatWriter->open();
     }
 
     // where the new key numbering of B should start
@@ -73,7 +74,7 @@ void DBConcat::concat(bool write) {
 
         if (write) {
             char *data = dbA.getData(id);
-            concatWriter.write(data, dbA.getSeqLens(id) - 1, SSTR(newKey).c_str(), thread_idx);
+            concatWriter->write(data, dbA.getSeqLens(id) - 1, SSTR(newKey).c_str(), thread_idx);
         }
 
         // need to store the index, because it'll be sorted out by keys later
@@ -91,7 +92,7 @@ void DBConcat::concat(bool write) {
 #endif
         if (write) {
             char *data = dbB.getData(id);
-            concatWriter.write(data, dbB.getSeqLens(id) - 1, SSTR(id + maxKeyA).c_str(), thread_idx);
+            concatWriter->write(data, dbB.getSeqLens(id) - 1, SSTR(id + maxKeyA).c_str(), thread_idx);
         }
 
         // need to store the index, because it'll be sorted out by keys later
@@ -102,7 +103,10 @@ void DBConcat::concat(bool write) {
     std::stable_sort(keysA, keysA + indexSizeA, compareFirstEntry());
     std::stable_sort(keysB, keysB + indexSizeB, compareFirstEntry());
 
-    concatWriter.close();
+    if (write) {
+        concatWriter->close();
+        delete concatWriter;
+    }
     dbA.close();
     dbB.close();
 }
