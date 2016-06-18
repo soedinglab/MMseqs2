@@ -507,7 +507,7 @@ int result2outputmode(Parameters &par, int mode) {
 }
 
 int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     qDbr->open(DBReader<unsigned int>::NOSORT);
 
     size_t dbFrom = 0;
