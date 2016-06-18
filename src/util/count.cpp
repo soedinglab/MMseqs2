@@ -14,7 +14,7 @@ int count(int argn, const char **argv) {
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
 
     Parameters par;
-    par.parseParameters(argn, argv, usage, par.onlyverbosity, 2);
+    par.parseParameters(argn, argv, usage, par.count, 2);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
@@ -47,6 +47,7 @@ int count(int argn, const char **argv) {
 
         unsigned int id = reader.getDbKey(i);
         std::string result = SSTR(lines);
+        result.append("\n");
         writer.write(result.c_str(), result.length(), SSTR(id).c_str(), thread_idx);
     }
 
