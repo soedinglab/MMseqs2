@@ -107,14 +107,15 @@ public:
         return counter;
     }
 
-    static std::pair<std::string, std::string> createTmpFileNames(std::string db, std::string dbindex, int numb){
-        std::string splitSuffix = std::string("_tmp_") + SSTR(numb);
-        std::string dataFile  = db + splitSuffix;
-        std::string indexFile = dbindex + splitSuffix;
-        return std::make_pair(dataFile, indexFile);
+    static std::pair<std::string, std::string> createTmpFileNames(const std::string &db,
+                                                                  const std::string &dbindex, int count){
+        std::string suffix = std::string("_tmp_") + SSTR(count);
+        std::string data  = db + suffix;
+        std::string index = dbindex + suffix;
+        return std::make_pair(data, index);
     }
 
-    static std::pair<std::string, std::string> databaseNames(std::string basename) {
+    static std::pair<std::string, std::string> databaseNames(const std::string &basename) {
         std::string index = basename;
         index.append(".index");
         return std::make_pair(basename, index);
