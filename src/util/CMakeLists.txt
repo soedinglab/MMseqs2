@@ -33,6 +33,7 @@ set(util_source_files
   summarizetabs.cpp
   extractdomains.cpp
   extractalignedregion.cpp
+  count.cpp
 )
 
 add_library(util ${util_source_files} )

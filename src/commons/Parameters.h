@@ -412,6 +412,8 @@ public:
     std::vector<MMseqsParameter> summarizetabs;
     std::vector<MMseqsParameter> extractdomains;
     std::vector<MMseqsParameter> extractalignedregion;
+    std::vector<MMseqsParameter> count;
+
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);
 

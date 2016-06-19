@@ -373,6 +373,10 @@ Parameters::Parameters():
     extractalignedregion.push_back(PARAM_THREADS);
     extractalignedregion.push_back(PARAM_V);
 
+    // count
+    count.push_back(PARAM_THREADS);
+    count.push_back(PARAM_V);
+
     checkSaneEnvironment();
     setDefaults();
 }
