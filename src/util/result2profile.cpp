@@ -68,7 +68,7 @@ MultipleAlignment::MSAResult computeAlignment(MultipleAlignment &aligner, Sequen
 }
 
 
-int result2outputmode(Parameters &par, std::string outpath,
+int result2outputmode(Parameters &par, const std::string &outpath,
                       const size_t dbFrom, const size_t dbSize,
                       const int mode, DBConcat* referenceDBr = NULL) {
 #ifdef OPENMP
@@ -441,14 +441,6 @@ int result2outputmode(Parameters &par, std::string outpath,
 }
 
 int result2outputmode(Parameters &par, int mode) {
-    /*
-    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
-    qDbr->open(DBReader<unsigned int>::NOSORT);
-    size_t querySize = qDbr->getSize();
-    qDbr->close();
-    delete qDbr;*/
-    
-
     DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     resultReader->open(DBReader<unsigned int>::NOSORT);
     size_t resultSize = resultReader->getSize();
@@ -496,18 +488,17 @@ int result2outputmode(Parameters &par, int mode) {
         outname.append("_ca3m");
     }
 
-    //result2outputmode(par, par.db4, 0, querySize, mode, referenceDBr);
-    result2outputmode(par, par.db4, 0, resultSize, mode, referenceDBr);
+    int status = result2outputmode(par, outname, 0, resultSize, mode, referenceDBr);
     
     if(referenceDBr != NULL) {
         referenceDBr->close();
         delete referenceDBr;
     }
-    return 0;
+    return status;
 }
 
 int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     qDbr->open(DBReader<unsigned int>::NOSORT);
 
     size_t dbFrom = 0;
@@ -517,7 +508,7 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
     qDbr->close();
     delete qDbr;
 
-    Debug(Debug::WARNING) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
+    Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
 
     DBConcat *referenceDBr = NULL;
     std::string outname = par.db4;
@@ -570,39 +561,41 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
         outname.append("_ca3m");
     }
 
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, par.db4Index, mpiRank);
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, "", mpiRank);
+    int status = result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode, referenceDBr);
 
-    result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode, referenceDBr);
+    // close reader to reduce memory
     if(referenceDBr != NULL){
         referenceDBr->close();
         delete referenceDBr;
     }
 
-    // close reader to reduce memory
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
+
     // master reduces results
     if(mpiRank == 0) {
         const char * ext[2] = {"", "_consensus"};
+
         size_t extCount = 1;
         if(mode == PSSM){
             extCount = 2;
         }
+
         for(size_t i = 0; i < extCount; i++){
             std::vector<std::pair<std::string, std::string> > splitFiles;
             for(unsigned int procs = 0; procs < mpiNumProc; procs++){
-                std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, procs);
+                std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outname, "", procs);
                 splitFiles.push_back(std::make_pair(tmpFile.first + ext[i],  tmpFile.first + ext[i] + ".index"));
-//                std::cout << tmpFile.first + ext[i] + ".index" << std::endl;
             }
+
             // merge output ffindex databases
-//            std::cout << par.db4 + ext[i] + ".index" << std::endl;
-            Alignment::mergeAndRemoveTmpDatabases(par.db4 + ext[i], par.db4 + ext[i] + ".index", splitFiles);
+            Alignment::mergeAndRemoveTmpDatabases(outname + ext[i], outname + ext[i] + ".index", splitFiles);
         }
     }
 
-    return 0;
+    return status;
 }
 
 int result2profile(int argc, const char **argv) {

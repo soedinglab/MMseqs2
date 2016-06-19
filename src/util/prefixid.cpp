@@ -13,7 +13,7 @@
 int prefixid(int argn, const char **argv) {
     std::string usage;
     usage.append("Prepend the index key to each line of the corresponding entry.\n");
-    usage.append("USAGE: <ffindexInDB>  <ffindexOutDB>\n");
+    usage.append("USAGE: <ffindexInDB> <ffindexOutDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
 
     Parameters par;
