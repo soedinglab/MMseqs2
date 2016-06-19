@@ -15,6 +15,15 @@
 #include <omp.h>
 #endif
 
+static inline float getOverlap(const std::vector<bool>& covered, unsigned int qStart, unsigned int qEnd) {
+    size_t counter = 0;
+    for (size_t i = qStart; i < qEnd; ++i) {
+        counter += covered[i];
+    }
+    return static_cast<float>(counter) / static_cast<float>(qEnd - qStart + 1);
+}
+
+
 std::vector<Domain> mapDomains(const std::vector<Domain> &input, float overlap, float minCoverage,
                                double eValThreshold) {
     std::vector<Domain> result;
@@ -23,18 +32,37 @@ std::vector<Domain> mapDomains(const std::vector<Domain> &input, float overlap, 
     }
 
     std::vector<bool> covered(input[0].qLength, false);
-    for (std::vector<Domain>::const_iterator it = input.begin(); it != input.end(); ++it) {
-        float percentageOverlap = MathUtil::getOverlap(covered, (*it).qStart, (*it).qEnd);
-        float targetCov = MathUtil::getCoverage((*it).tStart, (*it).tEnd, (*it).tLength);
-        if (percentageOverlap <= overlap && targetCov > minCoverage && (*it).eValue < eValThreshold) {
-            // FIXME possible bug with -1
-            for (unsigned int i = ((*it).qStart - 1); i < ((*it).qEnd - 1); ++i) {
+    for (size_t i = 0; i  < input.size(); i++) {
+        Domain domain = input[i];
+        if(domain.qStart > domain.qLength || domain.qEnd > domain.qLength){
+            Debug(Debug::WARNING) << "Query alignment start or end is great than query length in set "
+            << domain.query << "! Skipping line.\n";
+            continue;
+        }
+        if(domain.qStart > domain.qEnd){
+            Debug(Debug::WARNING) << "Query alignment end is great than start in set "
+            << domain.query << "! Skipping line.\n";
+            continue;
+        }
+        float percentageOverlap = getOverlap(covered, domain.qStart, domain.qEnd);
+        if(domain.tStart > domain.tEnd){
+            Debug(Debug::WARNING) << "Target alignment end is great than start in set "
+            << domain.query << "! Skipping line.\n";
+            continue;
+        }
+        if(domain.tStart > domain.tLength || domain.tEnd > domain.tLength){
+            Debug(Debug::WARNING) << "Target alignment start or end is great than target length in set "
+            << domain.query << "! Skipping line.\n";
+            continue;
+        }
+        float targetCov = MathUtil::getCoverage(domain.tStart, domain.tEnd, domain.tLength);
+        if (percentageOverlap <= overlap && targetCov > minCoverage && domain.eValue < eValThreshold) {
+            for (unsigned int i = domain.qStart; i < domain.qEnd; ++i) {
                 covered[i] = true;
             }
-            result.push_back(*it);
+            result.push_back(domain);
         }
     }
-
     return result;
 }
 
@@ -44,7 +72,6 @@ std::map<std::string, unsigned int> readLength(const std::string &file) {
         Debug(Debug::ERROR) << "File " << file << " not found!\n";
         EXIT(EXIT_FAILURE);
     }
-
     std::map<std::string, unsigned int> mapping;
     std::string line;
     while (std::getline(mappingStream, line)) {
@@ -52,17 +79,15 @@ std::map<std::string, unsigned int> readLength(const std::string &file) {
         unsigned int length = static_cast<unsigned int>(strtoul(split[1].c_str(), NULL, 10));
         mapping.emplace(split[0], length);
     }
-
     return mapping;
 }
 
 std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::string, unsigned int> &lengths) {
     std::vector<Domain> result;
-
     std::string line;
     std::istringstream iss(std::string(data, length));
     while (std::getline(iss, line)) {
-        size_t offset = 1;
+        size_t offset = 0;
         std::vector<std::string> fields = Util::split(line.c_str(), "\t");
 
         unsigned int qStart = static_cast<unsigned int>(strtoul(fields[offset + 6].c_str(), NULL, 10)) - 1;
@@ -77,10 +102,8 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
             continue;
         }
 
-
         unsigned int tStart = static_cast<unsigned int>(strtoul(fields[offset + 8].c_str(), NULL, 10)) - 1;
         unsigned int tEnd = static_cast<unsigned int>(strtoul(fields[offset + 9].c_str(), NULL, 10)) - 1;
-
         it = lengths.lower_bound(fields[offset + 1]);
         unsigned int tLength;
         if(it != lengths.end()) {
@@ -92,7 +115,7 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
 
         double eValue = strtod(fields[offset + 10].c_str(), NULL);
 
-        result.emplace_back(fields[0], qStart, qEnd, qLength, fields[offset + 1], tStart, tEnd, tLength, eValue);
+        result.push_back(Domain(fields[0], qStart, qEnd, qLength, fields[offset + 1], tStart, tEnd, tLength, eValue));
     }
 
     std::stable_sort(result.begin(), result.end());
@@ -100,7 +123,7 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
     return result;
 }
 
-int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
+int doAnnotate(Parameters &par, DBReader<std::string> &blastTabReader,
                const std::pair<std::string, std::string>& resultdb,
                const size_t dbFrom, const size_t dbSize) {
 #ifdef OPENMP
@@ -110,9 +133,9 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads));
     writer.open();
 
-    std::map<std::string, unsigned int> lengths = readLength(par.db3);
+    std::map<std::string, unsigned int> lengths = readLength(par.db2);
 
-    Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
+    Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
 
 #pragma omp parallel for schedule(dynamic, 100)
     for (size_t i = dbFrom; i < dbSize; ++i) {
@@ -121,7 +144,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 
-        unsigned int id = blastTabReader.getDbKey(i);
+        std::string id = blastTabReader.getDbKey(i);
 
         char* tabData = blastTabReader.getData(i);
         size_t tabLength = blastTabReader.getSeqLens(i) - 1;
@@ -140,13 +163,14 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
         std::ostringstream oss;
         oss << std::setprecision(std::numeric_limits<float>::digits10);
 
-        for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
-            (*j).writeResult(oss);
+        for (size_t j = 0; j < result.size(); j++) {
+            Domain d = result[j];
+            d.writeResult(oss);
             oss << "\n";
         }
 
         std::string annotation = oss.str();
-        writer.write(annotation.c_str(), annotation.length(), SSTR(id).c_str(), thread_idx);
+        writer.write(annotation.c_str(), annotation.length(), id.c_str(), thread_idx);
     }
 
     writer.close();
@@ -155,7 +179,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
 }
 
 int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<std::string> reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader<unsigned int>::NOSORT);
 
     size_t dbFrom = 0;
@@ -180,28 +204,22 @@ int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int m
         }
         Alignment::mergeAndRemoveTmpDatabases(par.db3, par.db3 + ".index", splitFiles);
     }
-
     return status;
 }
 
 int doAnnotate(Parameters &par) {
-    size_t resultSize;
-
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader<unsigned int>::NOSORT);
-    resultSize = reader.getSize();
-
+    DBReader<std::string> reader(par.db1.c_str(), par.db1Index.c_str());
+    reader.open(DBReader<std::string>::NOSORT);
+    size_t resultSize = reader.getSize();
     int status = doAnnotate(par, reader, std::make_pair(par.db3, par.db3Index), 0, resultSize);
-
     reader.close();
-
     return status;
 }
 
 int summarizetabs(int argc, const char **argv) {
     MMseqsMPI::init(argc, argv);
 
-    std::string usage("Extract annotations from HHblits blasttab results.\n");
+    std::string usage("Extract annotations from BLASTtab format.\n");
     usage.append("Written by Milot Mirdita (milot@mirdita.de) & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
     usage.append("USAGE: <blastTabDB> <lengthFile> <outDB>\n");
 
