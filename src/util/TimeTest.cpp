@@ -82,7 +82,7 @@ void doTimeTest(const std::string &targetDB,
                     int kmerThrMax = kmerThrPerPosMax * kmerSize;
 
                     Debug(Debug::INFO) << "a = " << alphabetSize << ",  k = " << kmerSize << "\n";
-                    IndexTable *indexTable = Prefiltering::generateIndexTable(&tdbr, seqs[0], alphabetSize, kmerSize, 0,
+                    IndexTable *indexTable = Prefiltering::generateIndexTable(&tdbr, seqs[0], subMat, alphabetSize, kmerSize, 0,
                                                                               tdbr.getSize(), isLocal, 0);
 
                     short decr = 1;
