@@ -105,7 +105,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
 
     Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
     if(neededSize > 0.9 * totalMemoryInByte){
-        size_t split, neededSize;
+        size_t split = 0, neededSize = 0;
 #ifdef HAVE_MPI
         split = MMseqsMPI::numProc;
 #else
@@ -339,7 +339,7 @@ IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize
         return PrefilteringIndexReader::generateIndexTable(tidxdbr, split, diagonalScoring);
     }else{
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, aaBiasCorrection);
-        return generateIndexTable(tdbr, &tseq, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, diagonalScoring);
+        return generateIndexTable(tdbr, &tseq, subMat, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, diagonalScoring);
     }
 }
 
@@ -591,27 +591,29 @@ BaseMatrix * Prefiltering:: getSubstitutionMatrix(const std::string& scoringMatr
 
 
 void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, IndexTable * indexTable,
-                                size_t dbFrom, size_t dbTo)
+                                BaseMatrix *subMat, size_t dbFrom, size_t dbTo)
 {
 
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
     size_t aaCount = 0;
     dbTo=std::min(dbTo,dbr->getSize());
+    size_t maskedResidues = 0;
     for (unsigned int id = dbFrom; id < dbTo; id++){
+        seq->resetCurrPos();
         Log::printProgress(id - dbFrom);
         char* seqData = dbr->getData(id);
         unsigned int qKey = dbr->getDbKey(id);
         seq->mapSequence(id - dbFrom, qKey, seqData);
 
-        Util::maskLowComplexity(seq->int_sequence, seq->L, 12, 3,
+        maskedResidues += Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
                                 indexTable->getAlphabetSize(), seq->aa2int['X']);
 
         aaCount += seq->L;
         indexTable->addKmerCount(seq);
     }
     Debug(Debug::INFO) << "\n";
-
+    std::cout << "Masked residues: " << maskedResidues << std::endl;
     Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
     size_t tableEntriesNum = 0;
     for(size_t i = 0; i < indexTable->getTableSize(); i++){
@@ -622,12 +624,13 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 
     Debug(Debug::INFO) << "Index table: fill...\n";
     for (unsigned int id = dbFrom; id < dbTo; id++){
+        seq->resetCurrPos();
         Log::printProgress(id - dbFrom);
         char* seqData = dbr->getData(id);
         //TODO - dbFrom?!?
         unsigned int qKey = dbr->getDbKey(id);
         seq->mapSequence(id - dbFrom, qKey, seqData);
-        Util::maskLowComplexity(seq->int_sequence, seq->L, 12, 3,
+        Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
                                 indexTable->getAlphabetSize(), seq->aa2int['X']);
         indexTable->addSequence(seq);
     }
@@ -641,7 +644,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 
 }
 
-IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, int alphabetSize, int kmerSize,
+IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, BaseMatrix * subMat, int alphabetSize, int kmerSize,
                                               size_t dbFrom, size_t dbTo, int searchMode, bool diagonalScoring) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -652,7 +655,7 @@ IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequen
         Debug(Debug::ERROR) << "Seach mode is not valid.\n";
         EXIT(EXIT_FAILURE);
     }
-    fillDatabase(dbr, seq, indexTable, dbFrom, dbTo);
+    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo);
     gettimeofday(&end, NULL);
     indexTable->printStatisitic(seq->int2aa);
     int sec = end.tv_sec - start.tv_sec;
