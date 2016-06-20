@@ -22,7 +22,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 }
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr, Sequence *seq,
-                                             int split, int alphabetSize, int kmerSize, bool hasSpacedKmer,
+                                              BaseMatrix * subMat, int split, int alphabetSize, int kmerSize, bool hasSpacedKmer,
                                              int searchMode) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
@@ -45,7 +45,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
             EXIT(EXIT_FAILURE);
         }
 
-        Prefiltering::fillDatabase(dbr, seq, indexTable, splitStart, splitStart + splitSize);
+        Prefiltering::fillDatabase(dbr, seq, indexTable, subMat, splitStart, splitStart + splitSize);
 
         // save the entries
         std::string entries_key = SSTR(MathUtil::concatenate(ENTRIES, step));
