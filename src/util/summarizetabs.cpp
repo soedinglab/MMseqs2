@@ -87,7 +87,7 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
     std::string line;
     std::istringstream iss(std::string(data, length));
     while (std::getline(iss, line)) {
-        size_t offset = 0;
+        size_t offset = 1;
         std::vector<std::string> fields = Util::split(line.c_str(), "\t");
 
         unsigned int qStart = static_cast<unsigned int>(strtoul(fields[offset + 6].c_str(), NULL, 10)) - 1;
