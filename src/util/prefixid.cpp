@@ -23,8 +23,8 @@ int prefixid(int argn, const char **argv) {
     omp_set_num_threads(par.threads);
 #endif
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<std::string> reader(par.db1.c_str(), par.db1Index.c_str());
+    reader.open(DBReader<std::string>::NOSORT);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads);
     writer.open();
@@ -40,21 +40,22 @@ int prefixid(int argn, const char **argv) {
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 
-        unsigned int key = reader.getDbKey(i);
+        std::string key = reader.getDbKey(i);
         std::istringstream data(reader.getData(i));
         std::ostringstream ss;
 
         std::string line;
         while (std::getline(data, line)) {
             if (par.mappingFile.length() > 0) {
-                ss << mapping[key] << "\t" << line << "\n";
+                unsigned int k = static_cast<unsigned int>(strtoul(key.c_str(), NULL, 10));
+                ss << mapping[k] << "\t" << line << "\n";
             } else {
                 ss << key << "\t" << line << "\n";
             }
         }
 
         std::string result = ss.str();
-        writer.write(result.c_str(), result.length(), SSTR(key).c_str(), thread_idx);
+        writer.write(result.c_str(), result.length(), key.c_str(), thread_idx);
     }
 
     writer.close();
