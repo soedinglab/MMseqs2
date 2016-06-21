@@ -68,7 +68,7 @@ MultipleAlignment::MSAResult computeAlignment(MultipleAlignment &aligner, Sequen
 }
 
 
-int result2outputmode(Parameters &par, const std::string &outpath,
+int result2outputmode(Parameters &par, std::string outpath,
                       const size_t dbFrom, const size_t dbSize,
                       const int mode, DBConcat* referenceDBr = NULL) {
 #ifdef OPENMP
@@ -275,6 +275,8 @@ int result2outputmode(Parameters &par, const std::string &outpath,
                                                                  res.centerLength, static_cast<int>(par.cov * 100),
                                                                  static_cast<int>(par.qid * 100), par.qsc,
                                                                  static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
+                                                                 
+                                                                 
             char *data;
             size_t dataSize;
             std::ostringstream msa;
@@ -342,12 +344,23 @@ int result2outputmode(Parameters &par, const std::string &outpath,
 
                 case CA3M: {
                     // Here the backtrace information should be present in the alnResults[i].backtrace for all i
-                    std::ostringstream centerSeqStr;
+                    std::string consensusStr;
                     std::vector<Matcher::result_t> filteredAln; // alignment information for the sequences that passed the filtering step
 
-                    // Retrieve the master sequence
-                    for (int pos = 0; pos < centerSequence->L; pos++) {
-                        centerSeqStr << subMat.int2aa[centerSequence->int_sequence[pos]];
+                    
+                    if (par.useConsensus)
+                    {
+                        std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
+                                                                                                    filterRes.filteredMsaSequence, par.wg);
+                        consensusStr = pssmRes.second;
+                    } else { // use query sequence as consensus sequence
+                        std::ostringstream centerSeqStr;
+                        // Retrieve the master sequence
+                        for (int pos = 0; pos < centerSequence->L; pos++) {
+                            centerSeqStr << subMat.int2aa[centerSequence->int_sequence[pos]];
+                        }
+                        consensusStr = centerSeqStr.str();
+
                     }
 
                     // Put the query sequence (master sequence) first in the alignment
@@ -355,7 +368,7 @@ int result2outputmode(Parameters &par, const std::string &outpath,
                     firstSequence.dbKey = centerSequenceKey;
                     firstSequence.qStartPos = 0;
                     firstSequence.dbStartPos = 0;
-                    firstSequence.backtrace = std::string((centerSeqStr.str()).size(), 'M'); // only matches
+                    firstSequence.backtrace = std::string(centerSequence->L, 'M'); // only matches
                     filteredAln.push_back(firstSequence);
 
                     // Filtering out alnResults using the same filter as previously
@@ -368,8 +381,7 @@ int result2outputmode(Parameters &par, const std::string &outpath,
                     }
 
                     // Write the query sequence (== center sequence == consensus sequence)
-                    std::string centerSeq = centerSeqStr.str();
-                    msa << ">" << queryHeaderReader->getDataByDBKey(queryKey) << centerSeq.c_str() << "\n;";
+                    msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) << consensusStr.c_str() << "\n;";
 
                     msa << CompressedA3M::fromAlignmentResult(filteredAln, *referenceDBr);
 
@@ -441,6 +453,14 @@ int result2outputmode(Parameters &par, const std::string &outpath,
 }
 
 int result2outputmode(Parameters &par, int mode) {
+    /*
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    qDbr->open(DBReader<unsigned int>::NOSORT);
+    size_t querySize = qDbr->getSize();
+    qDbr->close();
+    delete qDbr;*/
+    
+
     DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     resultReader->open(DBReader<unsigned int>::NOSORT);
     size_t resultSize = resultReader->getSize();
@@ -488,17 +508,18 @@ int result2outputmode(Parameters &par, int mode) {
         outname.append("_ca3m");
     }
 
-    int status = result2outputmode(par, outname, 0, resultSize, mode, referenceDBr);
+    //result2outputmode(par, par.db4, 0, querySize, mode, referenceDBr);
+    result2outputmode(par, par.db4, 0, resultSize, mode, referenceDBr);
     
     if(referenceDBr != NULL) {
         referenceDBr->close();
         delete referenceDBr;
     }
-    return status;
+    return 0;
 }
 
 int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qDbr->open(DBReader<unsigned int>::NOSORT);
 
     size_t dbFrom = 0;
@@ -508,7 +529,7 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
     qDbr->close();
     delete qDbr;
 
-    Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
+    Debug(Debug::WARNING) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
 
     DBConcat *referenceDBr = NULL;
     std::string outname = par.db4;
@@ -561,41 +582,39 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
         outname.append("_ca3m");
     }
 
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, "", mpiRank);
-    int status = result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode, referenceDBr);
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, par.db4Index, mpiRank);
 
-    // close reader to reduce memory
+    result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode, referenceDBr);
     if(referenceDBr != NULL){
         referenceDBr->close();
         delete referenceDBr;
     }
 
+    // close reader to reduce memory
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
-
     // master reduces results
     if(mpiRank == 0) {
         const char * ext[2] = {"", "_consensus"};
-
         size_t extCount = 1;
         if(mode == PSSM){
             extCount = 2;
         }
-
         for(size_t i = 0; i < extCount; i++){
             std::vector<std::pair<std::string, std::string> > splitFiles;
             for(unsigned int procs = 0; procs < mpiNumProc; procs++){
-                std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outname, "", procs);
+                std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, procs);
                 splitFiles.push_back(std::make_pair(tmpFile.first + ext[i],  tmpFile.first + ext[i] + ".index"));
+//                std::cout << tmpFile.first + ext[i] + ".index" << std::endl;
             }
-
             // merge output ffindex databases
-            Alignment::mergeAndRemoveTmpDatabases(outname + ext[i], outname + ext[i] + ".index", splitFiles);
+//            std::cout << par.db4 + ext[i] + ".index" << std::endl;
+            Alignment::mergeAndRemoveTmpDatabases(par.db4 + ext[i], par.db4 + ext[i] + ".index", splitFiles);
         }
     }
 
-    return status;
+    return 0;
 }
 
 int result2profile(int argc, const char **argv) {

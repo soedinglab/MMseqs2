@@ -180,6 +180,7 @@ public:
     float pcb;
     bool noPruning;
     bool firstSeqRepr;
+    bool useConsensus;
 
     // createdb
     bool useHeader;
