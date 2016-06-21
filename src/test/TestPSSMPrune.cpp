@@ -47,7 +47,7 @@ int main (int argc, const char * argv[])
     char ** seqsCpy = new char*[counter];
     for (int k = 0; k < counter; ++k) {
         seqsCpy[k] = MultipleAlignment::initX(strlen(seqs[0]));
-        for (int pos = 0; pos < strlen(seqs[0]); ++pos) {
+        for (size_t pos = 0; pos < strlen(seqs[0]); ++pos) {
 //            seqs[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : subMat.aa2int[(int) seqs[k][pos]];
             seqsCpy[k][pos] = (seqs[k][pos] == '-') ? MultipleAlignment::GAP : subMat.aa2int[(int) seqs[k][pos]];
         }
@@ -60,7 +60,7 @@ int main (int argc, const char * argv[])
     msaFilter.pruneAlignment((char**)res.msaSequence, res.setSize, res.centerLength);
 
     std::cout <<"Pruned MSA" << std::endl;
-    for(int k = 0; k < res.setSize; k++){
+    for(int k = 0; k < (int)res.setSize; k++){
         //printf("k=%.3d ", k);
         for(size_t pos = 0; pos < res.centerLength; pos++){
             char aa = res.msaSequence[k][pos];
@@ -76,7 +76,7 @@ int main (int argc, const char * argv[])
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;
 //    }
     std::cout <<"Filterted MSA" << std::endl;
-    for(int k = 0; k < filterResult.setSize; k++){
+    for(int k = 0; k < (int)filterResult.setSize; k++){
         printf("k=%.3d ", k);
         for(size_t pos = 0; pos < res.centerLength; pos++){
             char aa = filterResult.filteredMsaSequence[k][pos];

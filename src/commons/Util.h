@@ -8,6 +8,8 @@
 #include <map>
 
 #include "MMseqsMPI.h"
+#include "Sequence.h"
+#include "BaseMatrix.h"
 
 #ifndef EXIT
 #define EXIT(exitCode) exit(exitCode)
@@ -185,8 +187,10 @@ public:
         return std::string(&result[0], &result[wp]);
     }
 
-    static void maskLowComplexity(int *sequence, int seqLen, int windowSize, int maxAAinWindow, int alphabetSize, int maskValue);
+    static size_t maskLowComplexity(BaseMatrix * mat, Sequence *sequence, int seqLen, int windowSize, int maxAAinWindow, int alphabetSize, int maskValue);
 
     static void filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM);
+
+    static void filterByBiasCorrection(Sequence *s, int seqLen, BaseMatrix *m, char *mask, int scoreThr);
 };
 #endif

@@ -53,12 +53,16 @@ double computeEvalue(unsigned int queryLength, int score) {
 int scoreSubAlignment(std::string query, std::string target, unsigned int qStart, unsigned int qEnd,
                       unsigned int tStart, unsigned int tEnd, const SubstitutionMatrix &matrix) {
     int rawScore = 0;
+    int maxScore = 0;
+//    std::cout << "query:  " << qStart << "\t" << qEnd << std::endl;
+//    std::cout << "target: " << tStart << "\t" << tEnd << std::endl;
+
     unsigned int tPos = tStart;
     unsigned int qPos = qStart;
 
     for (unsigned int i = 0; i < (qEnd - qStart); ++i) {
         if (tPos >= tEnd) {
-            return rawScore;
+            break;
         }
 
         // skip gaps and lower letters (since they are insertions)
@@ -67,28 +71,38 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
             while (qPos < qEnd && query[qPos] == '-') {
                 rawScore = std::max(0, rawScore - 1);
                 qPos++;
+                tPos++;
             }
+//            std::cout << "qGap\t"  << query[qPos] << "\t" << target[tPos] << "\t" << rawScore << "\t" << rawScore << "\t" << maxScore << std::endl;
         }
-
         // skip gaps and lower letters (since they are insertions)
         if (target[tPos] == '-' || (islower(target[tPos]))) {
             rawScore = std::max(0, rawScore - 10);
-            while (tPos < tEnd && (target[tPos] == '-' || islower(target[tPos]))) {
+            while (tPos < tEnd && target[tPos] == '-') {
+                rawScore = std::max(0, rawScore - 1);
+                tPos++;
+                qPos++;
+            }
+            while (tPos < tEnd && islower(target[tPos])){
                 rawScore = std::max(0, rawScore - 1);
                 tPos++;
             }
+//            std::cout << "tGap\t"  << query[qPos] << "\t" << target[tPos] << "\t" << rawScore << "\t" << rawScore << "\t" << maxScore << std::endl;
         } else {
             unsigned char queryAA = query[qPos];
             unsigned char targetAA = target[tPos];
             int matchScore = matrix.subMatrix[matrix.aa2int[queryAA]][matrix.aa2int[targetAA]];
             rawScore = std::max(0, rawScore + matchScore);
+//            std::cout << "Matc\t"  << queryAA << "\t" << targetAA << "\t" << matchScore << "\t" << rawScore << "\t" << maxScore << std::endl;
+
             qPos++;
             tPos++;
         }
+        maxScore = std::max(maxScore, rawScore);
     }
-
+//    std::cout << "I return " << maxScore << " as max score" << std::endl;
     // bit_score = computeBitScore(raw_score);
-    return rawScore;
+    return maxScore;
 }
 
 struct FastaEntry {
@@ -126,7 +140,7 @@ std::vector<FastaEntry> readMsa(char *data, size_t dataLength) {
     return result;
 }
 
-std::vector<Domain> mapMsa(const std::vector<FastaEntry> &msa, const Domain &e, float minCoverage,
+std::vector<Domain> mapMsa(const std::vector<FastaEntry> &msa, const Domain &domain, float minCoverage,
                            double eValThreshold, const SubstitutionMatrix &matrix) {
     std::vector<Domain> result;
 
@@ -145,35 +159,39 @@ std::vector<Domain> mapMsa(const std::vector<FastaEntry> &msa, const Domain &e, 
         unsigned int length = static_cast<unsigned int>(std::count_if(sequence.begin(), sequence.end(), isalpha));
 
         bool foundStart = false;
-        unsigned int domainStart = 0, sequencePosition = 0;
+        unsigned int domainStart = 0;
 
-        unsigned int pos = 0;
-        for (std::string::const_iterator j = sequence.begin(); sequence.end() != j; ++j) {
-            const char &c = *j;
-            if ((c != '-' && c != '.') && foundStart == false && pos >= e.qStart && pos <= e.qEnd) {
+        unsigned int posWithoutInsertion = 0;
+        unsigned int queryDomainOffset = 0;
+        for(size_t aa_pos = 0; aa_pos < sequence.length(); aa_pos++){
+            const char c = sequence[aa_pos];
+            if ((c != '-' && c != '.') && foundStart == false
+                && posWithoutInsertion >= domain.qStart
+                && posWithoutInsertion <= domain.qEnd) {
                 foundStart = true;
-                domainStart = sequencePosition;
+                domainStart = aa_pos;
+                queryDomainOffset = posWithoutInsertion - domain.qStart;
             }
 
             if (islower(c) == false) {
-                sequencePosition++;
+                posWithoutInsertion++;
             }
 
-            if (pos == e.qEnd && foundStart == true) {
+            if (posWithoutInsertion == domain.qEnd && foundStart == true) {
                 foundStart = false;
-                unsigned int domainEnd = sequencePosition;
-                float domainCov = MathUtil::getCoverage(domainStart, domainEnd, e.tLength);
-                int score = scoreSubAlignment(querySequence, sequence, e.qStart, e.qEnd,
+                unsigned int domainEnd = aa_pos;
+                float domainCov = MathUtil::getCoverage(domainStart, domainEnd, domain.tLength);
+                int score = scoreSubAlignment(querySequence, sequence, domain.qStart + queryDomainOffset, domain.qEnd,
                                               domainStart, domainEnd, matrix);
-                double domainEvalue = e.eValue + computeEvalue(length, score);
+                double domainEvalue = domain.eValue + computeEvalue(length, score);
+//                std::cout << name <<  "\t" << domainStart <<  "\t" << domainEnd << "\t" << domainEvalue << "\t" << score << std::endl;
                 if (domainCov > minCoverage && domainEvalue < eValThreshold) {
                     result.emplace_back(name, domainStart, domainEnd, length,
-                                        e.target, e.qStart, e.qEnd, e.tLength,
+                                        domain.target, domain.qStart, domain.qEnd, domain.tLength,
                                         domainEvalue);
+                    break;
                 }
             }
-
-            pos++;
         }
     }
 
@@ -341,7 +359,7 @@ int extractdomains(int argc, const char **argv) {
     usage.append("USAGE: <domainDB> <msaDB> <outDB>\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.summarizetabs, 3);
+    par.parseParameters(argc, argv, usage, par.extractdomains, 3);
 
 #ifdef HAVE_MPI
     int status = doExtract(par, MMseqsMPI::rank, MMseqsMPI::numProc);

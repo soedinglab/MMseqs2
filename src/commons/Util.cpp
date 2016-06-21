@@ -2,6 +2,9 @@
 #include "Debug.h"
 #include "kseq.h"
 #include "FileUtil.h"
+#include "BaseMatrix.h"
+#include "SubstitutionMatrix.h"
+#include "Sequence.h"
 
 #include <unistd.h>
 #ifdef __APPLE__
@@ -291,23 +294,27 @@ void Util::filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM
         }
     }
 }
-void Util::maskLowComplexity(int *sequence, int seqLen, int windowSize,
+size_t Util::maskLowComplexity(BaseMatrix * m, Sequence *s,
+                             int seqLen,
+                             int windowSize,
                              int maxAAinWindow,
                              int alphabetSize, int maskValue) {
     size_t aafreq[21];
+
     char * mask = new char[seqLen];
     memset(mask, 0, seqLen * sizeof(char));
 
 
 //    // Filter runs of 4 identical residues
-//    filterRepeates(sequence, seqLen, mask, 1, 4, 0);
+    filterRepeates(s->int_sequence, seqLen, mask, 1, 4, 0);
 //
 //    // Filter runs of 4 doublets with a maximum of one mismatch
-//    filterRepeates(sequence, seqLen, mask, 2, 8, 3);
+    filterRepeates(s->int_sequence, seqLen, mask, 2, 8, 1);
 //
 //    // Filter runs of 4 triplets with a maximum of two mismatches
-//    filterRepeates(sequence, seqLen, mask, 3, 9, 2);
-
+    filterRepeates(s->int_sequence, seqLen, mask, 3, 9, 2);
+    filterByBiasCorrection(s, seqLen, m, mask, 70);
+//
     // filter low complex
     for (int i = 0; i < seqLen - windowSize; i++)
     {
@@ -315,7 +322,7 @@ void Util::maskLowComplexity(int *sequence, int seqLen, int windowSize,
             aafreq[j] = 0;
         }
         for (int j = 0; j < windowSize; j++){
-            aafreq[sequence[i + j]]++;
+            aafreq[s->int_sequence[i + j]]++;
         }
         int n = 0;
         for (int j = 0; j < alphabetSize; j++){
@@ -336,17 +343,20 @@ void Util::maskLowComplexity(int *sequence, int seqLen, int windowSize,
     {
         int tot = 0;
         for (int l = 0; l < 21; l++)
-            tot += ccoilmat[sequence[i + l]][l % 7];
+            tot += ccoilmat[s->int_sequence[i + l]][l % 7];
         if (tot > 10000)
         {
             for (int l = 0; l < 21; l++)
                 mask[i + l] = 1;
         }
     }
+    size_t maskedResidues = 0;
     for (int i = 0; i < seqLen; i++){
-        sequence[i] = (mask[i]) ? maskValue : sequence[i];
+        maskedResidues += (mask[i]);
+        s->int_sequence[i] = (mask[i]) ? maskValue : s->int_sequence[i];
     }
     delete [] mask;
+    return maskedResidues;
 }
 
 std::map<unsigned int, std::string> Util::readLookup(const std::string& file) {
@@ -368,6 +378,37 @@ std::map<unsigned int, std::string> Util::readLookup(const std::string& file) {
 
     return mapping;
 }
+
+void Util::filterByBiasCorrection(Sequence *s, int seqLen, BaseMatrix *m, char *mask, int scoreThr) {
+    char * compositionBias = new char[seqLen];
+    float * tmp_composition_bias = new float[seqLen];
+    SubstitutionMatrix::calcLocalAaBiasCorrection(m, s->int_sequence, seqLen, tmp_composition_bias);
+    //const int8_t seed_6_spaced[] = {1, 1, 0, 1, 0, 1, 0, 0, 1, 1}; // better than 11101101
+    const int8_t pos[] = {0, 1, 3, 5, 8, 9}; // better than 11101101
+
+    for(int i = 0; i < seqLen; i++){
+        compositionBias[i] = (int8_t) (tmp_composition_bias[i] < 0.0)
+                             ? tmp_composition_bias[i] - 0.5: tmp_composition_bias[i] + 0.5;
+    }
+    for(int i = 0; i < seqLen - 10; i++){
+        int kmerScore = 0;
+        for (unsigned int kmerPos = 0; kmerPos < 6; kmerPos++) {
+            unsigned int aa_pos = i + pos[kmerPos];
+            unsigned int aa = s->int_sequence[aa_pos];
+            kmerScore += m->subMatrix[aa][aa] + compositionBias[aa_pos];
+        }
+        if(kmerScore <= scoreThr) {
+            for (unsigned int kmerPos = 0; kmerPos < 6; kmerPos++) {
+                unsigned int aa_pos = i +  pos[kmerPos];
+                mask[aa_pos] = 1;
+            }
+        }
+    }
+    delete [] compositionBias;
+    delete [] tmp_composition_bias;
+}
+
+
 
 
 
