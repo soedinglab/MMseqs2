@@ -108,7 +108,7 @@ int doExtractAlignedRegion(Parameters &par) {
 }
 
 int extractalignedregion(int argc, const char **argv) {
-    std::string usage("Extract aligned regions from a alignment result.\n");
+    std::string usage("Extract aligned regions from an alignment result.\n");
     usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
 

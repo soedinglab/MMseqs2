@@ -361,12 +361,12 @@ Parameters::Parameters():
     summarizetabs.push_back(PARAM_V);
 
     // annoate
-    summarizetabs.push_back(PARAM_SUB_MAT);
-    summarizetabs.push_back(PARAM_MSA_TYPE);
-    summarizetabs.push_back(PARAM_E);
-    summarizetabs.push_back(PARAM_C);
-    summarizetabs.push_back(PARAM_THREADS);
-    summarizetabs.push_back(PARAM_V);
+    extractdomains.push_back(PARAM_SUB_MAT);
+    extractdomains.push_back(PARAM_MSA_TYPE);
+    extractdomains.push_back(PARAM_E);
+    extractdomains.push_back(PARAM_C);
+    extractdomains.push_back(PARAM_THREADS);
+    extractdomains.push_back(PARAM_V);
 
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);

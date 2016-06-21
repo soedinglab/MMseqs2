@@ -41,10 +41,11 @@ public:
 
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
 
-    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, int alphabetSize, int kmerSize,
-                                          size_t dbFrom, size_t dbTo, int searchMode, bool diagonalScoring);
+    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
+                                          int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
+                                          int searchMode, bool diagonalScoring);
 
-    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
+    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
                              size_t dbFrom, size_t dbTo);
 
     // get substitution matrix
