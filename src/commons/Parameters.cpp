@@ -738,6 +738,7 @@ void Parameters::setDefaults() {
     pca = 1.0;
     pcb = 1.5;
     firstSeqRepr = false;
+    useConsensus = true;
     
     // logging
     verbosity = Debug::INFO;
