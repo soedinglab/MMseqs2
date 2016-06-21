@@ -165,7 +165,7 @@ std::string UniprotKB::getColumn(size_t column) {
         return "";
     }
 
-    if (column > dbColumns) {
+    if (column >= dbColumns) {
         Debug(Debug::WARNING) << "Invalid column selected\n";
         return std::string();
     }
