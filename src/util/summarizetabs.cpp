@@ -35,23 +35,23 @@ std::vector<Domain> mapDomains(const std::vector<Domain> &input, float overlap, 
     for (size_t i = 0; i  < input.size(); i++) {
         Domain domain = input[i];
         if(domain.qStart > domain.qLength || domain.qEnd > domain.qLength){
-            Debug(Debug::WARNING) << "Query alignment start or end is great than query length in set "
+            Debug(Debug::WARNING) << "Query alignment start or end is greater than query length in set "
             << domain.query << "! Skipping line.\n";
             continue;
         }
         if(domain.qStart > domain.qEnd){
-            Debug(Debug::WARNING) << "Query alignment end is great than start in set "
+            Debug(Debug::WARNING) << "Query alignment end is greater than start in set "
             << domain.query << "! Skipping line.\n";
             continue;
         }
         float percentageOverlap = getOverlap(covered, domain.qStart, domain.qEnd);
         if(domain.tStart > domain.tEnd){
-            Debug(Debug::WARNING) << "Target alignment end is great than start in set "
+            Debug(Debug::WARNING) << "Target alignment end is greater than start in set "
             << domain.query << "! Skipping line.\n";
             continue;
         }
         if(domain.tStart > domain.tLength || domain.tEnd > domain.tLength){
-            Debug(Debug::WARNING) << "Target alignment start or end is great than target length in set "
+            Debug(Debug::WARNING) << "Target alignment start or end is greater than target length in set "
             << domain.query << "! Skipping line.\n";
             continue;
         }
