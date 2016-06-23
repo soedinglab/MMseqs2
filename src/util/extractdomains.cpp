@@ -238,7 +238,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
     Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
 
 #pragma omp parallel for schedule(dynamic, 100)
-    for (size_t i = dbFrom; i < dbSize; ++i) {
+    for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
@@ -309,7 +309,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
 
 int doExtract(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader<unsigned int>::NOSORT);
+    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
@@ -329,7 +329,7 @@ int doExtract(Parameters &par, const unsigned int mpiRank, const unsigned int mp
         std::vector<std::pair<std::string, std::string>> splitFiles;
         for(unsigned int proc = 0; proc < mpiNumProc; ++proc){
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
-            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.first + ".index"));
+            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
         Alignment::mergeAndRemoveTmpDatabases(par.db3, par.db3 + ".index", splitFiles);
     }
@@ -341,7 +341,7 @@ int doExtract(Parameters &par) {
     size_t resultSize;
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader<unsigned int>::NOSORT);
+    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     resultSize = reader.getSize();
 
     int status = doExtract(par, reader, std::make_pair(par.db3, par.db3Index), 0, resultSize);

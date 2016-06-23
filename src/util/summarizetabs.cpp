@@ -140,7 +140,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
     Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
 
 #pragma omp parallel for schedule(dynamic, 100)
-    for (size_t i = dbFrom; i < dbSize; ++i) {
+    for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
