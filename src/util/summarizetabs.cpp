@@ -202,7 +202,7 @@ int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int m
         std::vector<std::pair<std::string, std::string>> splitFiles;
         for(unsigned int proc = 0; proc < mpiNumProc; ++proc){
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
-            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.first + ".index"));
+            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
         Alignment::mergeAndRemoveTmpDatabases(par.db3, par.db3 + ".index", splitFiles);
     }
