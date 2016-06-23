@@ -57,8 +57,8 @@ std::vector<Domain> mapDomains(const std::vector<Domain> &input, float overlap, 
         }
         float targetCov = MathUtil::getCoverage(domain.tStart, domain.tEnd, domain.tLength);
         if (percentageOverlap <= overlap && targetCov > minCoverage && domain.eValue < eValThreshold) {
-            for (unsigned int i = domain.qStart; i < domain.qEnd; ++i) {
-                covered[i] = true;
+            for (unsigned int j = domain.qStart; j < domain.qEnd; ++j) {
+                covered[j] = true;
             }
             result.push_back(domain);
         }
