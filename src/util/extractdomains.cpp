@@ -105,16 +105,16 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
     return maxScore;
 }
 
-struct FastaEntry {
-    std::string name;
-    std::string sequence;
 
-    FastaEntry(const std::string &name, const std::string &sequence) : name(name), sequence(sequence) {};
-};
+std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &domains, float minCoverage,
+                           double eValThreshold, const SubstitutionMatrix &matrix) {
+    std::vector<Domain> result;
 
-std::vector<FastaEntry> readMsa(char *data, size_t dataLength) {
-    std::vector<FastaEntry> result;
-    kseq_buffer_t d(data, dataLength);
+    bool hasFirst = false;
+    std::string queryHeader;
+    std::string querySequence;
+
+    kseq_buffer_t d(const_cast<char*>(msa.c_str()), msa.length());
     kseq_t *seq = kseq_init(&d);
     while (kseq_read(seq) >= 0) {
         std::string fullName(seq->name.s);
@@ -138,67 +138,55 @@ std::vector<FastaEntry> readMsa(char *data, size_t dataLength) {
             }
         }
 
-        result.emplace_back(name, seq->seq.s);
-    }
-    kseq_destroy(seq);
-
-    return result;
-}
-
-std::vector<Domain> mapMsa(const std::vector<FastaEntry> &msa, const Domain &domain, float minCoverage,
-                           double eValThreshold, const SubstitutionMatrix &matrix) {
-    std::vector<Domain> result;
-
-    bool hasFirst = false;
-    std::string queryHeader;
-    std::string querySequence;
-    for (std::vector<FastaEntry>::const_iterator i = msa.begin(); i != msa.end(); ++i) {
-        const std::string& name = (*i).name;
-        const std::string& sequence = (*i).sequence;
+        std::string sequence(seq->seq.s);
         if (hasFirst == false) {
             queryHeader = name;
             querySequence = sequence;
             hasFirst = true;
         }
 
-        unsigned int length = static_cast<unsigned int>(std::count_if(sequence.begin(), sequence.end(), isalpha));
+        for(std::vector<Domain>::const_iterator it = domains.begin(); it != domains.end(); ++it) {
+            const Domain &domain = *it;
+            unsigned int length = static_cast<unsigned int>(std::count_if(sequence.begin(), sequence.end(), isalpha));
 
-        bool foundStart = false;
-        unsigned int domainStart = 0;
+            bool foundStart = false;
+            unsigned int domainStart = 0;
 
-        unsigned int posWithoutInsertion = 0;
-        unsigned int queryDomainOffset = 0;
-        for(size_t aa_pos = 0; aa_pos < sequence.length(); aa_pos++){
-            const char c = sequence[aa_pos];
-            if ((c != '-' && c != '.') && foundStart == false
-                && posWithoutInsertion >= domain.qStart
-                && posWithoutInsertion <= domain.qEnd) {
-                foundStart = true;
-                domainStart = aa_pos;
-                queryDomainOffset = posWithoutInsertion - domain.qStart;
-            }
+            unsigned int posWithoutInsertion = 0;
+            unsigned int queryDomainOffset = 0;
+            for(size_t aa_pos = 0; aa_pos < sequence.length(); aa_pos++){
+                const char c = sequence[aa_pos];
+                if ((c != '-' && c != '.') && foundStart == false
+                    && posWithoutInsertion >= domain.qStart
+                    && posWithoutInsertion <= domain.qEnd) {
+                    foundStart = true;
+                    domainStart = aa_pos;
+                    queryDomainOffset = posWithoutInsertion - domain.qStart;
+                }
 
-            if (islower(c) == false) {
-                posWithoutInsertion++;
-            }
+                if (islower(c) == false) {
+                    posWithoutInsertion++;
+                }
 
-            if (posWithoutInsertion == domain.qEnd && foundStart == true) {
-                foundStart = false;
-                unsigned int domainEnd = aa_pos;
-                float domainCov = MathUtil::getCoverage(domainStart, domainEnd, domain.tLength);
-                int score = scoreSubAlignment(querySequence, sequence, domain.qStart + queryDomainOffset, domain.qEnd,
-                                              domainStart, domainEnd, matrix);
-                double domainEvalue = domain.eValue + computeEvalue(length, score);
-//                std::cout << name <<  "\t" << domainStart <<  "\t" << domainEnd << "\t" << domainEvalue << "\t" << score << std::endl;
-                if (domainCov > minCoverage && domainEvalue < eValThreshold) {
-                    result.emplace_back(name, domainStart, domainEnd, length,
-                                        domain.target, domain.qStart, domain.qEnd, domain.tLength,
-                                        domainEvalue);
-                    break;
+                if (posWithoutInsertion == domain.qEnd && foundStart == true) {
+                    foundStart = false;
+                    unsigned int domainEnd = aa_pos;
+                    float domainCov = MathUtil::getCoverage(domainStart, domainEnd, domain.tLength);
+                    int score = scoreSubAlignment(querySequence, sequence, domain.qStart + queryDomainOffset, domain.qEnd,
+                                                  domainStart, domainEnd, matrix);
+                    double domainEvalue = domain.eValue + computeEvalue(length, score);
+    //                std::cout << name <<  "\t" << domainStart <<  "\t" << domainEnd << "\t" << domainEvalue << "\t" << score << std::endl;
+                    if (domainCov > minCoverage && domainEvalue < eValThreshold) {
+                        result.emplace_back(name, domainStart, domainEnd, length,
+                                            domain.target, domain.qStart, domain.qEnd, domain.tLength,
+                                            domainEvalue);
+                        break;
+                    }
                 }
             }
         }
     }
+    kseq_destroy(seq);
 
     return result;
 }
@@ -278,18 +266,14 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
                 EXIT(EXIT_FAILURE);
         }
 
-        std::vector<FastaEntry> fasta = readMsa(const_cast<char*>(msa.c_str()), msa.length());
-
         std::ostringstream oss;
         oss << std::setprecision(std::numeric_limits<float>::digits10);
 
-        for (std::vector<Domain>::const_iterator j = result.begin(); j != result.end(); ++j) {
-            std::vector<Domain> mapping = mapMsa(fasta, *j, par.cov, par.evalThr, subMat);
+        std::vector<Domain> mapping = mapMsa(msa, result, par.cov, par.evalThr, subMat);
 
-            for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
-                (*k).writeResult(oss);
-                oss << "\n";
-            }
+        for (std::vector<Domain>::const_iterator k = mapping.begin(); k != mapping.end(); ++k) {
+            (*k).writeResult(oss);
+            oss << "\n";
         }
 
         std::string annotation = oss.str();
