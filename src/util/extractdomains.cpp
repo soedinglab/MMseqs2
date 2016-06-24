@@ -117,7 +117,12 @@ std::vector<FastaEntry> readMsa(char *data, size_t dataLength) {
     kseq_buffer_t d(data, dataLength);
     kseq_t *seq = kseq_init(&d);
     while (kseq_read(seq) >= 0) {
-        std::string name = Util::parseFastaHeader(seq->name.s);
+        std::string fullName(seq->name.s);
+        if(Util::startWith("consensus_", fullName) || Util::endsWith("_consensus", fullName)) {
+            continue;
+        }
+
+        std::string name = Util::parseFastaHeader(fullName);
         std::string comment(seq->comment.s);
         size_t start = comment.find("Split=");
         if (start != std::string::npos) {
