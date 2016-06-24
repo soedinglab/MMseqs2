@@ -127,23 +127,30 @@ std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &do
     kseq_buffer_t d(const_cast<char*>(msa.c_str()), msa.length());
     kseq_t *seq = kseq_init(&d);
     while (kseq_read(seq) >= 0) {
+        if(seq->name.l == 0 || seq->seq.l == 0) {
+            Debug(Debug::WARNING) << "Invalid fasta entry!\n";
+            continue
+        }
+
         std::string fullName(seq->name.s);
         if(Util::startWith("consensus_", fullName) || Util::endsWith("_consensus", fullName)) {
             continue;
         }
 
         std::string name = Util::parseFastaHeader(fullName);
-        std::string comment(seq->comment.s);
-        size_t start = comment.find("Split=");
-        if (start != std::string::npos) {
-            start += 6;
-            size_t end = comment.find_first_of(" \n", start);
-            if (end != std::string::npos) {
-                std::string split = comment.substr(start, end - start);
+        if(seq->comment.l > 0) {
+            std::string comment(seq->comment.s);
+            size_t start = comment.find("Split=");
+            if (start != std::string::npos) {
+                start += 6;
+                size_t end = comment.find_first_of(" \n", start);
+                if (end != std::string::npos) {
+                    std::string split = comment.substr(start, end - start);
 
-                if (split != "0") {
-                    name.append("_");
-                    name.append(split);
+                    if (split != "0") {
+                        name.append("_");
+                        name.append(split);
+                    }
                 }
             }
         }
