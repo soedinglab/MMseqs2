@@ -60,6 +60,15 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
     unsigned int tPos = tStart;
     unsigned int qPos = qStart;
 
+    Sequence qSeq(query.length() + 1, matrix.aa2int, matrix.int2aa,
+                 Sequence::AMINO_ACIDS, 0, false, false);
+    qSeq.mapSequence(0, 0, query.c_str());
+
+    Sequence tSeq(target.length() + 1, matrix.aa2int, matrix.int2aa,
+                 Sequence::AMINO_ACIDS, 0, false, false);
+
+    tSeq.mapSequence(0, 0, target.c_str());
+
     for (unsigned int i = 0; i < (qEnd - qStart); ++i) {
         if (tPos >= tEnd) {
             break;
@@ -89,9 +98,10 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
             }
 //            std::cout << "tGap\t"  << query[qPos] << "\t" << target[tPos] << "\t" << rawScore << "\t" << rawScore << "\t" << maxScore << std::endl;
         } else {
-            unsigned char queryAA = query[qPos];
-            unsigned char targetAA = target[tPos];
-            int matchScore = matrix.subMatrix[matrix.aa2int[queryAA]][matrix.aa2int[targetAA]];
+
+            int queryRes = qSeq.int_sequence[qPos];
+            int targetRes = tSeq.int_sequence[tPos];
+            int matchScore = matrix.subMatrix[queryRes][targetRes];
             rawScore = std::max(0, rawScore + matchScore);
 //            std::cout << "Matc\t"  << queryAA << "\t" << targetAA << "\t" << matchScore << "\t" << rawScore << "\t" << maxScore << std::endl;
 
