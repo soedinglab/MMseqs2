@@ -127,18 +127,18 @@ std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &do
     kseq_buffer_t d(const_cast<char*>(msa.c_str()), msa.length());
     kseq_t *seq = kseq_init(&d);
     while (kseq_read(seq) >= 0) {
-        if(seq->name.l == 0 || seq->seq.l == 0) {
+        if (seq->name.l == 0 || seq->seq.l == 0) {
             Debug(Debug::WARNING) << "Invalid fasta entry!\n";
-            continue
+            continue;
         }
 
         std::string fullName(seq->name.s);
-        if(Util::startWith("consensus_", fullName) || Util::endsWith("_consensus", fullName)) {
+        if (Util::startWith("consensus_", fullName) || Util::endsWith("_consensus", fullName)) {
             continue;
         }
 
         std::string name = Util::parseFastaHeader(fullName);
-        if(seq->comment.l > 0) {
+        if (seq->comment.l > 0) {
             std::string comment(seq->comment.s);
             size_t start = comment.find("Split=");
             if (start != std::string::npos) {
