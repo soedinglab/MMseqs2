@@ -255,6 +255,12 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
 #endif
 
         unsigned int id = blastTabReader.getDbKey(i);
+        size_t entry = msaReader.getId(id);
+        if (entry == UINT_MAX) {
+            Debug(Debug::WARNING) << "Could not find MSA for key " << id << "!\n";
+            continue;
+        }
+
 
         char* tabData = blastTabReader.getData(i);
         size_t tabLength = blastTabReader.getSeqLens(i) - 1;
@@ -264,7 +270,6 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
             continue;
         }
 
-        size_t entry = msaReader.getId(id);
         char *data = msaReader.getData(entry);
         size_t entryLength = msaReader.getSeqLens(entry) - 1;
 
