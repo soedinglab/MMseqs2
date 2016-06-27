@@ -118,7 +118,9 @@ Parameters::Parameters():
         PARAM_OVERLAP(PARAM_OVERLAP_ID, "--overlap", "Overlap", "Maximum overlap", typeid(float), (void*) &overlap, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_MSA_TYPE(PARAM_MSA_TYPE_ID,"--msa-type", "MSA type", "MSA Type: cA3M 0 or A3M 1", typeid(int), (void *) &msaType, "^[0-2]{1}$"),
 // extractalignedregion
-        PARAM_EXTRACT_MODE(PARAM_EXTRACT_MODE_ID,"--extract-mode", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &extractMode, "^[1-2]{1}$")
+        PARAM_EXTRACT_MODE(PARAM_EXTRACT_MODE_ID,"--extract-mode", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &extractMode, "^[1-2]{1}$"),
+// convertkb
+        PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "List of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, "")
 {
 	
     // alignment
@@ -376,6 +378,10 @@ Parameters::Parameters():
     // count
     count.push_back(PARAM_THREADS);
     count.push_back(PARAM_V);
+
+    // convertkb
+    convertkb.push_back(PARAM_KB_COLUMNS);
+    convertkb.push_back(PARAM_V);
 
     checkSaneEnvironment();
     setDefaults();
@@ -787,6 +793,9 @@ void Parameters::setDefaults() {
 
     // extractalignedregion
     extractMode = EXTRACT_TARGET;
+
+    // convertkb
+    kbColumns = "";
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,
