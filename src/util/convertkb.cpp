@@ -22,7 +22,7 @@ std::string getPrimaryAccession(const std::string &accession) {
     return accession.substr(0, end);
 }
 
-std::vector<unsigned int> getEnabledColumns(const std::string& columns, size_t maxColumn) {
+std::vector<unsigned int> getEnabledColumns(const std::string& columns, unsigned int maxColumn) {
     std::vector<std::string> kbColumns = Util::split(columns, ",");
     std::set<unsigned int> enabledColumns;
     for (std::vector<std::string>::const_iterator it = kbColumns.begin(); it != kbColumns.end(); ++it) {
@@ -33,7 +33,7 @@ std::vector<unsigned int> getEnabledColumns(const std::string& columns, size_t m
             EXIT(EXIT_FAILURE);
         }
 
-        if (col >= columns) {
+        if (col >= maxColumn) {
             Debug(Debug::ERROR) << "Invalid selected column: " << col << "!\n";
             EXIT(EXIT_FAILURE);
         }
@@ -43,9 +43,9 @@ std::vector<unsigned int> getEnabledColumns(const std::string& columns, size_t m
     return std::vector<unsigned int>(enabledColumns.begin(), enabledColumns.end());
 }
 
-void setConvertKbDefaults(Parameters* par, size_t maxColumns) {
+void setConvertKbDefaults(Parameters* par, unsigned int maxColumns) {
     std::ostringstream ss;
-    for (int i = 0; i < maxColumns - 1; ++i) {
+    for (unsigned int i = 0; i < maxColumns - 1; ++i) {
         ss << i << ",";
     }
     ss << maxColumns - 1;
@@ -60,7 +60,7 @@ int convertkb(int argn, const char **argv) {
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
 
     UniprotKB kb;
-    size_t columns = kb.getColumnCount();
+    size_t columns = static_cast<unsigned int>(kb.getColumnCount());
 
     Parameters par;
     setConvertKbDefaults(&par, columns);
@@ -87,11 +87,11 @@ int convertkb(int argn, const char **argv) {
     }
 
     DBWriter **writers = new DBWriter*[columns];
-    for (size_t i = 0; i < columns; ++i) {
-        std::string dataFile = par.db2 + "_" + kb.columnNames[i];
-        std::string indexFile = par.db2 + "_" + kb.columnNames[i] + ".index";
-        writers[i] = new DBWriter(dataFile.c_str(), indexFile.c_str(), 1);
-        writers[i]->open();
+    for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {
+        std::string dataFile = par.db2 + "_" + kb.columnNames[*it];
+        std::string indexFile = par.db2 + "_" + kb.columnNames[*it] + ".index";
+        writers[*it] = new DBWriter(dataFile.c_str(), indexFile.c_str(), 1);
+        writers[*it]->open();
     }
 
     std::string line;
@@ -114,9 +114,9 @@ int convertkb(int argn, const char **argv) {
     }
     delete kbIn;
 
-    for (size_t i = 0; i < columns; ++i) {
-        writers[i]->close();
-        delete writers[i];
+    for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {
+        writers[*it]->close();
+        delete writers[*it];
     }
     delete[] writers;
 
