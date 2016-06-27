@@ -5,6 +5,10 @@
 #include "Debug.h"
 #include "UniprotKB.h"
 
+#ifdef HAVE_ZLIB
+#include "gzstream.h"
+#endif
+
 #include <fstream>
 #include <set>
 
@@ -63,13 +67,23 @@ int convertkb(int argn, const char **argv) {
 
     std::vector<unsigned int> enabledColumns = getEnabledColumns(par.kbColumns, columns);
 
+    std::istream *kbIn;
+    if (Util::endsWith(".gz", par.db1)) {
+#ifdef HAVE_ZLIB
+        kbIn = new igzstream(par.db1.c_str());
+#else
+        Debug(Debug::ERROR) << "MMseqs was not compiled with zlib support. Can not read compressed input!\n";
+        EXIT(EXIT_FAILURE);
+#endif
+    } else {
+        kbIn = new std::ifstream(par.db1);
+    }
 
-    std::ifstream kbIn(par.db1);
-    if (kbIn.fail()) {
+
+    if (kbIn->fail()) {
         Debug(Debug::ERROR) << "File " << par.db1 << " not found!\n";
         EXIT(EXIT_FAILURE);
     }
-
 
     DBWriter **writers = new DBWriter*[columns];
     for (size_t i = 0; i < columns; ++i) {
@@ -80,7 +94,7 @@ int convertkb(int argn, const char **argv) {
     }
 
     std::string line;
-    while (std::getline(kbIn, line)) {
+    while (std::getline(*kbIn, line)) {
         if (line.length() < 2) {
             Debug(Debug::WARNING) << "Invalid line" << "\n";
             continue;
@@ -94,6 +108,7 @@ int convertkb(int argn, const char **argv) {
             }
         }
     }
+    delete kbIn;
 
     for (size_t i = 0; i < columns; ++i) {
         writers[i]->close();
