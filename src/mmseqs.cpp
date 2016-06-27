@@ -77,7 +77,7 @@ static struct Command commands[] = {
                 "Masks the sequences in an ffindex database by the selected rows in a gff file"},
         {"gff2ffindex",         gff2ffindex ,           &par.gff2ffindex,           COMMAND_HELPER,
                 "Turn a GFF3 file into a ffindex database"},
-        {"convertkb",           convertkb,              &par.onlyverbosity,         COMMAND_HELPER,
+        {"convertkb",           convertkb,              &par.convertkb,             COMMAND_HELPER,
             "Converts Uniprot flat file into ffindex database"},
         {"kbtotsv",             kbtotsv,                &par.onlyverbosity,         COMMAND_HELPER,
                 "Turns an UniprotKB file into separate TSV tables"},

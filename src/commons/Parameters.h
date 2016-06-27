@@ -222,6 +222,9 @@ public:
 
     // extractalignedregion
     int extractMode;
+
+    // convertkb
+    std::string kbColumns;
     
     void checkSaneEnvironment();
     void setDefaults();
@@ -377,6 +380,8 @@ public:
     // extract aligned region
     PARAMETER(PARAM_EXTRACT_MODE)
 
+    // convertkb
+    PARAMETER(PARAM_KB_COLUMNS)
 
     std::vector<MMseqsParameter> empty;
 
@@ -414,6 +419,7 @@ public:
     std::vector<MMseqsParameter> extractdomains;
     std::vector<MMseqsParameter> extractalignedregion;
     std::vector<MMseqsParameter> count;
+    std::vector<MMseqsParameter> convertkb;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);
