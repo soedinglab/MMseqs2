@@ -91,6 +91,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
                     Util::parseKey(data, key);
                     if (!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
                         Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
+                        data = Util::skipLine(data);
                         continue;
                     }
                     unsigned int elementIdx = std::strtoul(key, NULL, 10);

@@ -131,6 +131,7 @@ int ffindexFilter::runFilter(){
 			while (*data != '\0') {
 				if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
 					Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
+					data = Util::skipLine(data);
 					continue;
 				}
 				size_t foundElements = Util::getWordsOfLine(lineBuffer, columnPointer, column + 1);
