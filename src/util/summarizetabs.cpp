@@ -35,30 +35,30 @@ std::vector<Domain> mapDomains(const std::vector<Domain> &input, float overlap, 
     for (size_t i = 0; i  < input.size(); i++) {
         Domain domain = input[i];
         if(domain.qStart > domain.qLength || domain.qEnd > domain.qLength){
-            Debug(Debug::WARNING) << "Query alignment start or end is great than query length in set "
+            Debug(Debug::WARNING) << "Query alignment start or end is greater than query length in set "
             << domain.query << "! Skipping line.\n";
             continue;
         }
         if(domain.qStart > domain.qEnd){
-            Debug(Debug::WARNING) << "Query alignment end is great than start in set "
+            Debug(Debug::WARNING) << "Query alignment end is greater than start in set "
             << domain.query << "! Skipping line.\n";
             continue;
         }
         float percentageOverlap = getOverlap(covered, domain.qStart, domain.qEnd);
         if(domain.tStart > domain.tEnd){
-            Debug(Debug::WARNING) << "Target alignment end is great than start in set "
+            Debug(Debug::WARNING) << "Target alignment end is greater than start in set "
             << domain.query << "! Skipping line.\n";
             continue;
         }
         if(domain.tStart > domain.tLength || domain.tEnd > domain.tLength){
-            Debug(Debug::WARNING) << "Target alignment start or end is great than target length in set "
+            Debug(Debug::WARNING) << "Target alignment start or end is greater than target length in set "
             << domain.query << "! Skipping line.\n";
             continue;
         }
         float targetCov = MathUtil::getCoverage(domain.tStart, domain.tEnd, domain.tLength);
         if (percentageOverlap <= overlap && targetCov > minCoverage && domain.eValue < eValThreshold) {
-            for (unsigned int i = domain.qStart; i < domain.qEnd; ++i) {
-                covered[i] = true;
+            for (unsigned int j = domain.qStart; j < domain.qEnd; ++j) {
+                covered[j] = true;
             }
             result.push_back(domain);
         }
@@ -82,18 +82,20 @@ std::map<std::string, unsigned int> readLength(const std::string &file) {
     return mapping;
 }
 
-std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::string, unsigned int> &lengths) {
+std::vector<Domain> getEntries(unsigned int queryId, char *data, size_t length, const std::map<std::string, unsigned int> &lengths) {
     std::vector<Domain> result;
+
+    std::string query = SSTR(queryId);
+
     std::string line;
     std::istringstream iss(std::string(data, length));
     while (std::getline(iss, line)) {
-        size_t offset = 1;
         std::vector<std::string> fields = Util::split(line.c_str(), "\t");
 
-        unsigned int qStart = static_cast<unsigned int>(strtoul(fields[offset + 6].c_str(), NULL, 10)) - 1;
-        unsigned int qEnd = static_cast<unsigned int>(strtoul(fields[offset + 7].c_str(), NULL, 10)) - 1;
+        unsigned int qStart = static_cast<unsigned int>(strtoul(fields[6].c_str(), NULL, 10)) - 1;
+        unsigned int qEnd = static_cast<unsigned int>(strtoul(fields[7].c_str(), NULL, 10)) - 1;
 
-        std::map<std::string, unsigned int>::const_iterator it = lengths.lower_bound(fields[0]);
+        std::map<std::string, unsigned int>::const_iterator it = lengths.lower_bound(query);
         unsigned int qLength;
         if(it != lengths.end()) {
             qLength = (*it).second;
@@ -102,9 +104,9 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
             continue;
         }
 
-        unsigned int tStart = static_cast<unsigned int>(strtoul(fields[offset + 8].c_str(), NULL, 10)) - 1;
-        unsigned int tEnd = static_cast<unsigned int>(strtoul(fields[offset + 9].c_str(), NULL, 10)) - 1;
-        it = lengths.lower_bound(fields[offset + 1]);
+        unsigned int tStart = static_cast<unsigned int>(strtoul(fields[8].c_str(), NULL, 10)) - 1;
+        unsigned int tEnd = static_cast<unsigned int>(strtoul(fields[9].c_str(), NULL, 10)) - 1;
+        it = lengths.lower_bound(fields[1]);
         unsigned int tLength;
         if(it != lengths.end()) {
             tLength = (*it).second;
@@ -113,9 +115,9 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
             continue;
         }
 
-        double eValue = strtod(fields[offset + 10].c_str(), NULL);
+        double eValue = strtod(fields[10].c_str(), NULL);
 
-        result.push_back(Domain(fields[0], qStart, qEnd, qLength, fields[offset + 1], tStart, tEnd, tLength, eValue));
+        result.push_back(Domain(query, qStart, qEnd, qLength, fields[1], tStart, tEnd, tLength, eValue));
     }
 
     std::stable_sort(result.begin(), result.end());
@@ -123,7 +125,7 @@ std::vector<Domain> getEntries(char *data, size_t length, const std::map<std::st
     return result;
 }
 
-int doAnnotate(Parameters &par, DBReader<std::string> &blastTabReader,
+int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
                const std::pair<std::string, std::string>& resultdb,
                const size_t dbFrom, const size_t dbSize) {
 #ifdef OPENMP
@@ -138,17 +140,17 @@ int doAnnotate(Parameters &par, DBReader<std::string> &blastTabReader,
     Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
 
 #pragma omp parallel for schedule(dynamic, 100)
-    for (size_t i = dbFrom; i < dbSize; ++i) {
+    for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 
-        std::string id = blastTabReader.getDbKey(i);
+        unsigned int id = blastTabReader.getDbKey(i);
 
         char* tabData = blastTabReader.getData(i);
         size_t tabLength = blastTabReader.getSeqLens(i) - 1;
-        const std::vector<Domain> entries = getEntries(tabData, tabLength, lengths);
+        const std::vector<Domain> entries = getEntries(id, tabData, tabLength, lengths);
         if (entries.size() == 0) {
             Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
             continue;
@@ -170,7 +172,7 @@ int doAnnotate(Parameters &par, DBReader<std::string> &blastTabReader,
         }
 
         std::string annotation = oss.str();
-        writer.write(annotation.c_str(), annotation.length(), id.c_str(), thread_idx);
+        writer.write(annotation.c_str(), annotation.length(), SSTR(id).c_str(), thread_idx);
     }
 
     writer.close();
@@ -179,8 +181,8 @@ int doAnnotate(Parameters &par, DBReader<std::string> &blastTabReader,
 }
 
 int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    DBReader<std::string> reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     size_t dbFrom = 0;
     size_t dbSize = 0;
@@ -200,7 +202,7 @@ int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int m
         std::vector<std::pair<std::string, std::string>> splitFiles;
         for(unsigned int proc = 0; proc < mpiNumProc; ++proc){
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
-            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.first + ".index"));
+            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
         Alignment::mergeAndRemoveTmpDatabases(par.db3, par.db3 + ".index", splitFiles);
     }
@@ -208,8 +210,8 @@ int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int m
 }
 
 int doAnnotate(Parameters &par) {
-    DBReader<std::string> reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader<std::string>::NOSORT);
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    reader.open(DBReader<std::string>::LINEAR_ACCCESS);
     size_t resultSize = reader.getSize();
     int status = doAnnotate(par, reader, std::make_pair(par.db3, par.db3Index), 0, resultSize);
     reader.close();
