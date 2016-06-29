@@ -178,14 +178,13 @@ std::vector<std::pair<unsigned int, std::string*>> readSwap(const char* dataFile
     DBReader<unsigned int> reader(dataFile, indexFile);
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    std::vector<std::pair<unsigned int, std::string*>> result;
     // read all keys
     SwapIt swapMap = readAllKeysIntoMap(reader.getDataFileName());
 
     FILE *file = fopen(reader.getDataFileName(), "r");
     processSplit(reader, file, swapMap, 0, reader.getSize());
     fclose(file);
-    std::copy(swapMap.begin(), swapMap.end(), result.begin());
+    std::vector<std::pair<unsigned int, std::string*>> result(swapMap.begin(), swapMap.end());
 
     reader.close();
 

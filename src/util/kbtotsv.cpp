@@ -3,6 +3,7 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "UniprotKB.h"
+#include "Log.h"
 
 #include <fstream>
 
@@ -35,6 +36,7 @@ int kbtotsv(int argn, const char **argv) {
 
     UniprotKB kb;
     std::string line;
+    size_t i = 0;
     while (std::getline(kbIn, line)) {
         if (line.length() < 2) {
             Debug(Debug::WARNING) << "Invalid line" << "\n";
@@ -42,10 +44,11 @@ int kbtotsv(int argn, const char **argv) {
         }
 
         if(kb.readLine(line.c_str())) {
-            for (size_t i = 0; i < kb.getColumnCount() - 1; ++i) {
+            Log::printProgress(i);
+            for (size_t i = 0; i < kb.getColumnCount() - 2; ++i) {
                 tsvOut << Util::csvEscape(kb.getColumn(i)) << "\t";
             }
-            tsvOut << Util::csvEscape(kb.getColumn(kb.getColumnCount())) << "\n";
+            tsvOut << Util::csvEscape(kb.getColumn(kb.getColumnCount() - 1)) << "\n";
 
             std::string accessions = kb.getColumn(UniprotKB::COL_KB_AC);
             std::string identifier = kb.getColumn(UniprotKB::COL_KB_ID);
@@ -56,6 +59,8 @@ int kbtotsv(int argn, const char **argv) {
                 std::string ac = *it;
                 accessionOut << ac << "\t" << identifier << "\n";
             }
+
+            i++;
         }
     }
 

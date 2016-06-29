@@ -61,8 +61,20 @@ public:
         return val;
     }
 
-    static bool startWith(std::string prefix, std::string str){
-        return (!str.compare(0, prefix.size(), prefix));
+    static bool startWith(const std::string &prefix, const std::string &str){
+        if (str.length() < prefix.length()) {
+            return false;
+        }
+
+        return (!str.compare(0, prefix.length(), prefix));
+    }
+
+    static bool endsWith(const std::string &suffix, const std::string &str){
+        if (str.length() < suffix.length()) {
+            return false;
+        }
+
+        return (!str.compare(str.length() - suffix.length(), suffix.length(), suffix));
     }
 
     static std::vector<std::string> split(const std::string &str, const std::string &sep);
@@ -72,7 +84,7 @@ public:
         return (data+1);
     }
 
-    static size_t getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength);
+    static bool getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength);
 
     static inline size_t skipWhitespace(char * data){
         size_t counter = 0;
