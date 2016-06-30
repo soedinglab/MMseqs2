@@ -306,7 +306,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                             key = centerSequenceKey;
                             header = centerSequenceHeader;
                         } else {
-                            key = seqSet[i]->getDbKey();
+                            key = seqSet[i-1]->getDbKey();
                             header = tempateHeaderReader->getDataByDBKey(key);
                         }
                         if (par.addInternalId) {
