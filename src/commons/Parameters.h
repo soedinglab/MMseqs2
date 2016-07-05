@@ -198,6 +198,7 @@ public:
 
     // addSequences
     int minSequences;
+    int maxSequences;
 
     // filterDb
     int filterColumn;
@@ -352,6 +353,7 @@ public:
 
     // addsequences
     PARAMETER(PARAM_MIN_SEQUENCES)
+    PARAMETER(PARAM_MAX_SEQUENCES)
 
     // filterDb
     PARAMETER(PARAM_FILTER_COL)
