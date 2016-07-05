@@ -301,6 +301,7 @@ Parameters::Parameters():
     // addSequences
     addSequences.push_back(PARAM_MIN_SEQUENCES);
     addSequences.push_back(PARAM_MAX_SEQUENCES);
+    addSequences.push_back(PARAM_HH_FORMAT);
     addSequences.push_back(PARAM_V);
 
     // filterDb
