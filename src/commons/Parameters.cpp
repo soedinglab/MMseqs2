@@ -99,6 +99,7 @@ Parameters::Parameters():
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "Type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "Minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
+        PARAM_MAX_SEQUENCES(PARAM_MAX_SEQUENCES_ID,"--max-sequences", "Max Sequences", "Maximum number of sequences a cluster may contain", typeid(int),(void *) &maxSequences,"^[1-9]{1}[0-9]*$"),
 // filterdb
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "Column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
         PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "Regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
@@ -298,6 +299,7 @@ Parameters::Parameters():
 
     // addSequences
     addSequences.push_back(PARAM_MIN_SEQUENCES);
+    addSequences.push_back(PARAM_MAX_SEQUENCES);
     addSequences.push_back(PARAM_V);
 
     // filterDb
@@ -771,6 +773,7 @@ void Parameters::setDefaults() {
 
     // addSequences
     minSequences = 1;
+    maxSequences = INT_MAX;
 
     // filterDb
     filterColumn = 1;
