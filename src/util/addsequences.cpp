@@ -42,9 +42,9 @@ int addsequences(int argc, const char **argv)
 
         char* data = clusters.getData(i);
 
-        if(par.minSequences > 1) {
+        if (par.minSequences > 1) {
             size_t entries = Util::countLines(data, dataLengths[i] - 1);
-            if(entries < (unsigned int) par.minSequences || entries > (unsigned int) par.maxSequences) {
+            if (entries < (unsigned int) par.minSequences || entries > (unsigned int) par.maxSequences) {
                 continue;
             }
         }
@@ -63,13 +63,13 @@ int addsequences(int argc, const char **argv)
             }
 
 			char* header = headers.getDataByDBKey(entryId);
-            if(header == NULL) {
+            if (header == NULL) {
                 Debug(Debug::WARNING) << "Entry " << entry << " does not contain a header!" << "\n";
                 continue;
             }
 
             char* body = bodies.getDataByDBKey(entryId);
-            if(body == NULL) {
+            if (body == NULL) {
                 Debug(Debug::WARNING) << "Entry " << entry << " does not contain a sequence!" << "\n";
                 continue;
             }
