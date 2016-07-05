@@ -187,7 +187,7 @@ std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &do
 
                 if (posWithoutInsertion == domain.qEnd && foundStart == true) {
                     foundStart = false;
-                    unsigned int domainEnd = std::min(static_cast<unsigned int >(aa_pos), length);
+                    unsigned int domainEnd = std::min(static_cast<unsigned int >(aa_pos), length - 1);
                     float domainCov = MathUtil::getCoverage(domainStart, domainEnd, domain.tLength);
                     int score = scoreSubAlignment(querySequence, sequence, domain.qStart + queryDomainOffset, domain.qEnd,
                                                   domainStart, domainEnd, matrix);
