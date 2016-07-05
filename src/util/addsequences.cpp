@@ -74,7 +74,14 @@ int addsequences(int argc, const char **argv)
                 continue;
             }
 
-            fastaStream << ">" << header << body;
+            if (entries_num == 1 && par.hhFormat) {
+                std::string consensusHeader(header);
+                fastaStream << "#" << header
+                            << ">" << Util::removeAfterFirstSpace(consensusHeader) << "_consensus\n" << body
+                            << ">" << header << body;
+            } else {
+                fastaStream << ">" << header << body;
+            }
 		}
 
         std::string fasta = fastaStream.str();
