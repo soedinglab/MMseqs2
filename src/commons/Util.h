@@ -204,5 +204,10 @@ public:
     static void filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM);
 
     static void filterByBiasCorrection(Sequence *s, int seqLen, BaseMatrix *m, char *mask, int scoreThr);
+
+    static std::string removeAfterFirstSpace(std::string in) {
+        in.erase(in.find_first_of(" "));
+        return in;
+    }
 };
 #endif

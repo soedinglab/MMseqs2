@@ -7,6 +7,10 @@
 
 #include "Util.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 int addsequences(int argc, const char **argv)
 {
     std::string usage("Adds sequences in fasta format to an mmseqs clustering.\n");
@@ -16,12 +20,17 @@ int addsequences(int argc, const char **argv)
     Parameters par;
     par.parseParameters(argc, argv, usage, par.addSequences, 3);
 
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
+
     DBReader<unsigned int> clusters(par.db1.c_str(), par.db1Index.c_str());
     clusters.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     DBReader<unsigned int> bodies(par.db2.c_str(), par.db2Index.c_str());
     bodies.open(DBReader<unsigned int>::NOSORT);
     bodies.readMmapedDataInMemory();
+
     std::string headerFilename(par.db2);
     headerFilename.append("_h");
 
@@ -32,19 +41,24 @@ int addsequences(int argc, const char **argv)
     headers.open(DBReader<unsigned int>::NOSORT);
     headers.readMmapedDataInMemory();
 
-    DBWriter msaOut(par.db3.c_str(), par.db3Index.c_str());
+    DBWriter msaOut(par.db3.c_str(), par.db3Index.c_str(), static_cast<unsigned int>(par.threads));
     msaOut.open();
 
     unsigned int* dataLengths = clusters.getSeqLens();
 
-	for (size_t i = 0; i < clusters.getSize(); i++){
+    size_t entries = clusters.getSize();
+#pragma omp for schedule(dynamic, 100)
+	for (size_t i = 0; i < entries; ++i){
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
 		std::ostringstream fastaStream;
-
         char* data = clusters.getData(i);
 
-        if(par.minSequences > 1) {
+        if (par.minSequences > 1) {
             size_t entries = Util::countLines(data, dataLengths[i] - 1);
-            if(entries < (unsigned int) par.minSequences) {
+            if (entries < (unsigned int) par.minSequences || entries > (unsigned int) par.maxSequences) {
                 continue;
             }
         }
@@ -63,23 +77,30 @@ int addsequences(int argc, const char **argv)
             }
 
 			char* header = headers.getDataByDBKey(entryId);
-            if(header == NULL) {
+            if (header == NULL) {
                 Debug(Debug::WARNING) << "Entry " << entry << " does not contain a header!" << "\n";
                 continue;
             }
 
             char* body = bodies.getDataByDBKey(entryId);
-            if(body == NULL) {
+            if (body == NULL) {
                 Debug(Debug::WARNING) << "Entry " << entry << " does not contain a sequence!" << "\n";
                 continue;
             }
 
-            fastaStream << ">" << header << body;
+            if (entries_num == 1 && par.hhFormat) {
+                std::string consensusHeader(header);
+                fastaStream << "#" << header
+                            << ">" << Util::removeAfterFirstSpace(consensusHeader) << "_consensus\n" << body
+                            << ">" << header << body;
+            } else {
+                fastaStream << ">" << header << body;
+            }
 		}
 
         std::string fasta = fastaStream.str();
         std::string key = SSTR(clusters.getDbKey(i));
-        msaOut.write(fasta.c_str(), fasta.length(), key.c_str());
+        msaOut.write(fasta.c_str(), fasta.length(), key.c_str(), thread_idx);
     }
 
 	msaOut.close();
