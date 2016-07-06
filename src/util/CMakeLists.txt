@@ -23,6 +23,7 @@ set(util_source_files
   kbtotsv.cpp
   substractresult.cpp
   result2newick.cpp
+  result2stats.cpp
   computeGOscore.cpp
   detectredundancy.cpp
   order.cpp

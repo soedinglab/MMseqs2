@@ -67,6 +67,9 @@ static struct Command commands[] = {
                 "Calculates profiles from a clustering"},
         {"result2msa",          result2msa,             &par.result2msa,            COMMAND_HELPER,
                 "Calculates MSAs from a clustering"},
+        {"result2stats",          result2stats,             &par.result2stats,            COMMAND_HELPER,
+                "Compute statistics for each result entry"},
+                
         {"rebuildfasta",        rebuildfasta,           &par.rebuildfasta,          COMMAND_HELPER,
                 "Rebuild a fasta file from a ffindex database"},
         {"extractorf",          extractorf,             &par.extractorf,            COMMAND_HELPER,
