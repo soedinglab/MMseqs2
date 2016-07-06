@@ -61,11 +61,11 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
     unsigned int qPos = qStart;
 
     Sequence qSeq(query.length() + 1, matrix.aa2int, matrix.int2aa,
-                 Sequence::AMINO_ACIDS, 0, false, false);
+                  Sequence::AMINO_ACIDS, 0, false, false);
     qSeq.mapSequence(0, 0, query.c_str());
 
     Sequence tSeq(target.length() + 1, matrix.aa2int, matrix.int2aa,
-                 Sequence::AMINO_ACIDS, 0, false, false);
+                  Sequence::AMINO_ACIDS, 0, false, false);
 
     tSeq.mapSequence(0, 0, target.c_str());
 
@@ -187,15 +187,15 @@ std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &do
 
                 if (posWithoutInsertion == domain.qEnd && foundStart == true) {
                     foundStart = false;
-                    unsigned int domainEnd = aa_pos;
+                    unsigned int domainEnd = std::min(static_cast<unsigned int >(aa_pos), length - 1);
                     float domainCov = MathUtil::getCoverage(domainStart, domainEnd, domain.tLength);
                     int score = scoreSubAlignment(querySequence, sequence, domain.qStart + queryDomainOffset, domain.qEnd,
                                                   domainStart, domainEnd, matrix);
                     double domainEvalue = domain.eValue + computeEvalue(length, score);
-    //                std::cout << name <<  "\t" << domainStart <<  "\t" << domainEnd << "\t" << domainEvalue << "\t" << score << std::endl;
+//                std::cout << name <<  "\t" << domainStart <<  "\t" << domainEnd << "\t" << domainEvalue << "\t" << score << std::endl;
                     if (domainCov > minCoverage && domainEvalue < eValThreshold) {
                         result.emplace_back(name, domainStart, domainEnd, length,
-                                            domain.target, domain.qStart, domain.qEnd, domain.tLength,
+                                            domain.target, domain.tStart, domain.tEnd, domain.tLength,
                                             domainEvalue);
                         break;
                     }
@@ -209,8 +209,8 @@ std::vector<Domain> mapMsa(const std::string &msa, const std::vector<Domain> &do
 }
 
 int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
-               const std::pair<std::string, std::string>& resultdb,
-               const size_t dbFrom, const size_t dbSize) {
+              const std::pair<std::string, std::string>& resultdb,
+              const size_t dbFrom, const size_t dbSize) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
