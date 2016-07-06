@@ -181,6 +181,9 @@ public:
     bool noPruning;
     bool firstSeqRepr;
     bool useConsensus;
+    
+    //result2stats
+    std::string stat;
 
     // createdb
     bool useHeader;
@@ -319,6 +322,9 @@ public:
     PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
 //    PARAMETER(PARAM_NO_PRUNING)
 
+    // result2stat
+    
+    PARAMETER(PARAM_STAT)
 
     // workflow
     PARAMETER(PARAM_RUNNER)
@@ -394,6 +400,7 @@ public:
     std::vector<MMseqsParameter> createprofiledb;
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2msa;
+    std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorf;
     std::vector<MMseqsParameter> splitffindex;
     std::vector<MMseqsParameter> createindex;
