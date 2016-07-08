@@ -75,6 +75,8 @@ Parameters::Parameters():
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "Overall pseudo count admixture", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Admixture paramter b", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "First sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, ""),
+// result2stats
+        PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "Compute a statistic for each entry", typeid(std::string), (void*) &stat, ""),
 // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","Sets the MPI runner",typeid(std::string),(void *) &runner, ""),
 // search workflow
@@ -110,6 +112,10 @@ Parameters::Parameters():
         PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "Extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
 
+
+// concatdb
+        PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "The keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
+        
 // mergeffindex
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "Comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
 
@@ -204,6 +210,9 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
     result2profile.push_back(PARAM_FIRST_SEQ_REP_SEQ);
+    
+    //result2stats
+    result2stats.push_back(PARAM_STAT);
 
     // format alignment
     formatalignment.push_back(PARAM_FORMAT_MODE);
@@ -375,6 +384,9 @@ Parameters::Parameters():
     extractdomains.push_back(PARAM_THREADS);
     extractdomains.push_back(PARAM_V);
 
+    // dbconcat
+    dbconcat.push_back(PARAM_PRESERVEKEYS);
+    
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);
     extractalignedregion.push_back(PARAM_THREADS);
@@ -787,6 +799,9 @@ void Parameters::setDefaults() {
     trimToOneColumn = false;
     extractLines = 0;
 
+    // dbconcat
+    preserveKeysB = false;
+    
     // mergeffindex
     mergePrefixes = "";
 	
