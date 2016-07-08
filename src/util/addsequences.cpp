@@ -56,11 +56,9 @@ int addsequences(int argc, const char **argv)
 		std::ostringstream fastaStream;
         char* data = clusters.getData(i);
 
-        if (par.minSequences > 1) {
-            size_t entries = Util::countLines(data, dataLengths[i] - 1);
-            if (entries < (unsigned int) par.minSequences || entries > (unsigned int) par.maxSequences) {
-                continue;
-            }
+        size_t entries = Util::countLines(data, dataLengths[i] - 1);
+        if (entries < (unsigned int) par.minSequences || entries > (unsigned int) par.maxSequences) {
+            continue;
         }
 
         std::string entry;
