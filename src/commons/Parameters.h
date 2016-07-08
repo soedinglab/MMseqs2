@@ -231,6 +231,9 @@ public:
     // convertkb
     std::string kbColumns;
     
+    // dbconcat
+    bool preserveKeysB;
+    
     void checkSaneEnvironment();
     void setDefaults();
     void parseParameters(int argc, const char* argv[],
@@ -372,7 +375,10 @@ public:
     PARAMETER(PARAM_TRIM_TO_ONE_COL)
     PARAMETER(PARAM_EXTRACT_LINES)
 
-
+    // concatdb
+    PARAMETER(PARAM_PRESERVEKEYS)
+    
+    
     // mergeffindex
     PARAMETER(PARAM_MERGE_PREFIXES)
 
@@ -417,6 +423,7 @@ public:
     std::vector<MMseqsParameter> translateNucleotide;
     std::vector<MMseqsParameter> addSequences;
     std::vector<MMseqsParameter> filterDb;
+    std::vector<MMseqsParameter> concatdb;
     std::vector<MMseqsParameter> swapresults;
     std::vector<MMseqsParameter> substractresult;
     std::vector<MMseqsParameter> result2newick;

@@ -112,6 +112,10 @@ Parameters::Parameters():
         PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "Extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
 
+
+// concatdb
+        PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "The keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
+        
 // mergeffindex
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "Comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
 
@@ -380,6 +384,9 @@ Parameters::Parameters():
     extractdomains.push_back(PARAM_THREADS);
     extractdomains.push_back(PARAM_V);
 
+    // dbconcat
+    dbconcat.push_back(PARAM_PRESERVEKEYS);
+    
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);
     extractalignedregion.push_back(PARAM_THREADS);
@@ -792,6 +799,9 @@ void Parameters::setDefaults() {
     trimToOneColumn = false;
     extractLines = 0;
 
+    // dbconcat
+    preserveKeysB = false;
+    
     // mergeffindex
     mergePrefixes = "";
 	

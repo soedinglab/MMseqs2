@@ -17,13 +17,13 @@
 DBConcat::DBConcat(const std::string &dataFileNameA, const std::string &indexFileNameA,
                    const std::string &dataFileNameB, const std::string &indexFileNameB,
                    const std::string &dataFileNameC, const std::string &indexFileNameC,
-                   unsigned int threads, int dataMode, bool preserveKeysA)
+                   unsigned int threads, int dataMode, bool preserveKeysA, bool preserveKeysB)
         : DBReader((dataFileNameA == dataFileNameB ? dataFileNameA : dataFileNameC).c_str(),
                    (indexFileNameA == indexFileNameB ? indexFileNameA : indexFileNameC).c_str(), dataMode),
           dataFileNameA(dataFileNameA), indexFileNameA(indexFileNameA),
           dataFileNameB(dataFileNameB), indexFileNameB(indexFileNameB),
           dataFileNameC(dataFileNameC), indexFileNameC(indexFileNameC),
-          threads(threads), preserveKeysA(preserveKeysA) {
+          threads(threads), preserveKeysA(preserveKeysA),preserveKeysB(preserveKeysB) {
     sameDatabase = dataFileNameA == dataFileNameB;
 }
 
@@ -90,9 +90,17 @@ void DBConcat::concat(bool write) {
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+        unsigned int newKey;
+        
+        if (preserveKeysB) {
+            newKey = dbB.getDbKey(id);
+        } else {
+            newKey = static_cast<unsigned int>(id) + maxKeyA;
+        }
+        
         if (write) {
             char *data = dbB.getData(id);
-            concatWriter->write(data, dbB.getSeqLens(id) - 1, SSTR(id + maxKeyA).c_str(), thread_idx);
+            concatWriter->write(data, dbB.getSeqLens(id) - 1, SSTR(newKey).c_str(), thread_idx);
         }
 
         // need to store the index, because it'll be sorted out by keys later
@@ -160,7 +168,7 @@ int dbconcat(int argc, const char **argv) {
     DBConcat outDB(par.db1.c_str(), par.db1Index.c_str(),
                    par.db2.c_str(), par.db2Index.c_str(),
                    par.db3.c_str(), par.db3Index.c_str(),
-                   static_cast<unsigned int>(par.threads), datamode, true);
+                   static_cast<unsigned int>(par.threads), datamode, true, par.preserveKeysB);
     outDB.concat();
 
     gettimeofday(&end, NULL);
