@@ -10,7 +10,7 @@ public:
              const std::string &dataFileNameB, const std::string &indexFileNameB,
              const std::string &dataFileNameC, const std::string &indexFileNameC,
              unsigned int threads, int dataMode = USE_DATA | USE_INDEX,
-             bool preserveKeysA = false);
+             bool preserveKeysA = false, bool preserveKeysB = false);
 
     ~DBConcat();
 
@@ -37,6 +37,7 @@ private:
     bool sameDatabase;
 
     bool preserveKeysA; // do not change the keys of DBA
+    bool preserveKeysB; // do not change the keys of DBA
 
     struct compareFirstEntry {
         bool operator()(const std::pair<unsigned int, unsigned int> &lhs,

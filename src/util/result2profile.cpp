@@ -380,7 +380,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                         }
                     }
 
-                    // Write the query sequence (== center sequence == consensus sequence)
+                    // Write the consensus sequence
                     msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) << consensusStr.c_str() << "\n;";
 
                     msa << CompressedA3M::fromAlignmentResult(filteredAln, *referenceDBr);
