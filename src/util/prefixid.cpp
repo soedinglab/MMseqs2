@@ -33,7 +33,7 @@ int prefixid(int argn, const char **argv) {
 
     std::map<unsigned int, std::string> mapping = Util::readLookup(par.mappingFile);
 
-#pragma omp for schedule(dynamic, 100)
+#pragma omp parallel for schedule(dynamic, 100)
     for (size_t i = 0; i < entries; ++i) {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
