@@ -212,6 +212,8 @@ public:
 	bool positiveFilter;
 	bool trimToOneColumn;
     int extractLines;
+    float compValue;
+    std::string compOperator;
 
     // mergeffindex
     std::string mergePrefixes;
@@ -374,6 +376,8 @@ public:
     PARAMETER(PARAM_MAPPING_FILE)
     PARAMETER(PARAM_TRIM_TO_ONE_COL)
     PARAMETER(PARAM_EXTRACT_LINES)
+    PARAMETER(PARAM_COMP_OPERATOR)
+    PARAMETER(PARAM_COMP_VALUE)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
