@@ -111,6 +111,8 @@ Parameters::Parameters():
         PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "Specify a file that translates the keys of a result DB to new keys", typeid(std::string),(void *) &mappingFile,""),		
         PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "Trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "Extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
+        PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID,"--comparison-operator", "Numerical comparison operator", "Compare numerically (le, ge, e) each entry to a comparison value.",typeid(std::string), (void *) &compOperator, ""),
+        PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID,"--comparison-value", "Numerical comparison value", "Compare numerically (le, ge, e) each entry to this comparison value.",typeid(float), (void *) &compValue, ""),
 
 
 // concatdb
@@ -324,6 +326,10 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_V);
     filterDb.push_back(PARAM_TRIM_TO_ONE_COL);
 	filterDb.push_back(PARAM_EXTRACT_LINES);
+	filterDb.push_back(PARAM_COMP_OPERATOR);
+	filterDb.push_back(PARAM_COMP_VALUE);
+    
+    
     // swapreults
     swapresults.push_back(PARAM_SUB_MAT);
     swapresults.push_back(PARAM_MAX_SEQ_LEN);
@@ -798,6 +804,8 @@ void Parameters::setDefaults() {
     filteringFile = "";
     trimToOneColumn = false;
     extractLines = 0;
+    compOperator = "";
+    compValue = 0;
 
     // dbconcat
     preserveKeysB = false;

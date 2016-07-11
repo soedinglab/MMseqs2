@@ -16,9 +16,11 @@
 #define FILE_FILTERING 1
 #define FILE_MAPPING 2
 #define GET_FIRST_LINES 3
-#define GE_FILTER 4
-#define LE_FILTER 5
+#define NUMERIC_COMPARISON 4
 
+#define GREATER_OR_EQUAL "ge"
+#define LOWER_OR_EQUAL "le"
+#define EQUAL "e"
 
 class ffindexFilter {
 public:
@@ -51,6 +53,14 @@ public:
 				  int threads,
 				  size_t column,
                  int numberOfLines);
+                 
+	// Constructor for numeric comparison
+	ffindexFilter(std::string inDB,
+				  std::string outDB,
+				  int threads,
+				  size_t column,
+                 float compValue,
+                 std::string compOperator);
 				  
 	~ffindexFilter();
 	
@@ -69,6 +79,8 @@ private:
     bool positiveFiltering;
     int numberOfLines;
     int mode;
+    std::string compOperator;
+    float compValue;
 
     DBWriter* dbw;
 	DBReader<unsigned int>* dataDb;
