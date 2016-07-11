@@ -24,11 +24,22 @@ int ffindexFilter::initFiles() {
 	return 0;
 }
 
-ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column) :
-		inDB(inDB), outDB(outDB), threads(threads), column(column), trimToOneColumn(false) {
+ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column, float compValue,
+                 std::string compOperator) :
+		inDB(inDB), outDB(outDB), threads(threads), column(column), trimToOneColumn(false),compValue(compValue),compOperator(compOperator) {
 
 	initFiles();
-	mode = GET_FIRST_ENTRY;
+	mode = NUMERIC_COMPARISON;
+    
+}
+
+
+
+ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column, int numberOfLines) :
+		inDB(inDB), outDB(outDB), threads(threads), column(column), trimToOneColumn(false),numberOfLines(numberOfLines) {
+
+	initFiles();
+	mode = GET_FIRST_LINES;
 }
 
 ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column, std::string regexStr,
@@ -156,12 +167,24 @@ int ffindexFilter::runFilter(){
 
 
 				int nomatch;
-				if(mode == GET_FIRST_ENTRY){
-					nomatch = 0;
-					if(counter > 1){
-						nomatch = 1;
+				if(mode == GET_FIRST_LINES){
+					nomatch = 0; // output the line
+					if(counter > numberOfLines){
+						nomatch = 1; // hide the line in the output
 					}
-				} else if (mode == REGEX_FILTERING){
+				} else if (mode == NUMERIC_COMPARISON) {
+                    float toCompare = atof(columnValue);
+                    if (compOperator == GREATER_OR_EQUAL) {
+                        nomatch = !(toCompare >= compValue); // keep if the comparison is true
+                    } else if(compOperator == LOWER_OR_EQUAL) {
+                        nomatch = !(toCompare <= compValue); // keep if the comparison is true
+                    } else if(compOperator == EQUAL) {
+                        nomatch = !(toCompare == compValue); // keep if the comparison is true
+                    } else {
+                        nomatch = 0;
+                    } 
+
+                } else if (mode == REGEX_FILTERING){
 					nomatch = regexec(&regex, columnValue, 0, NULL, 0);
 				}
 				else // i.e. (mode == FILE_FILTERING || mode == FILE_MAPPING)
@@ -252,13 +275,22 @@ int filterdb(int argn, const char **argv)
 							 par.threads,
 							 static_cast<size_t>(par.filterColumn));
 		return filter.runFilter();
-	} else if(par.extractLines > 0){
+	} else if(par.extractLines > 0){ // GET_FIRST_LINES mode
 		ffindexFilter filter(par.db1,
 							 par.db2,
 							 par.threads,
-							 static_cast<size_t>(par.filterColumn));
+							 static_cast<size_t>(par.filterColumn),
+                           par.extractLines);
 		return filter.runFilter();
-	} else {
+	} else if(par.compOperator != ""){ // NUMERIC_COMPARISON mode
+		ffindexFilter filter(par.db1,
+							 par.db2,
+							 par.threads,
+							 static_cast<size_t>(par.filterColumn),
+                           par.compValue,
+                           par.compOperator);
+		return filter.runFilter();
+	} else { // RegEx filter
 		ffindexFilter filter(par.db1,
 							 par.db2,
 							 par.threads,

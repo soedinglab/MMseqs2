@@ -181,6 +181,9 @@ public:
     bool noPruning;
     bool firstSeqRepr;
     bool useConsensus;
+    
+    //result2stats
+    std::string stat;
 
     // createdb
     bool useHeader;
@@ -209,6 +212,8 @@ public:
 	bool positiveFilter;
 	bool trimToOneColumn;
     int extractLines;
+    float compValue;
+    std::string compOperator;
 
     // mergeffindex
     std::string mergePrefixes;
@@ -230,6 +235,9 @@ public:
 
     //count
     std::string countCharacter;
+    
+    // dbconcat
+    bool preserveKeysB;
     
     void checkSaneEnvironment();
     void setDefaults();
@@ -322,6 +330,9 @@ public:
     PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
 //    PARAMETER(PARAM_NO_PRUNING)
 
+    // result2stat
+    
+    PARAMETER(PARAM_STAT)
 
     // workflow
     PARAMETER(PARAM_RUNNER)
@@ -368,8 +379,13 @@ public:
     PARAMETER(PARAM_MAPPING_FILE)
     PARAMETER(PARAM_TRIM_TO_ONE_COL)
     PARAMETER(PARAM_EXTRACT_LINES)
+    PARAMETER(PARAM_COMP_OPERATOR)
+    PARAMETER(PARAM_COMP_VALUE)
 
-
+    // concatdb
+    PARAMETER(PARAM_PRESERVEKEYS)
+    
+    
     // mergeffindex
     PARAMETER(PARAM_MERGE_PREFIXES)
 
@@ -400,6 +416,7 @@ public:
     std::vector<MMseqsParameter> createprofiledb;
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2msa;
+    std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorf;
     std::vector<MMseqsParameter> splitffindex;
     std::vector<MMseqsParameter> createindex;
