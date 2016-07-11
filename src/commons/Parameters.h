@@ -227,6 +227,9 @@ public:
 
     // convertkb
     std::string kbColumns;
+
+    //count
+    std::string countCharacter;
     
     void checkSaneEnvironment();
     void setDefaults();
@@ -386,6 +389,9 @@ public:
 
     // convertkb
     PARAMETER(PARAM_KB_COLUMNS)
+
+    // count
+    PARAMETER(PARAM_COUNT_CHARACTER)
 
     std::vector<MMseqsParameter> empty;
 

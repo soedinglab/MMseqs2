@@ -122,7 +122,8 @@ Parameters::Parameters():
 // extractalignedregion
         PARAM_EXTRACT_MODE(PARAM_EXTRACT_MODE_ID,"--extract-mode", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &extractMode, "^[1-2]{1}$"),
 // convertkb
-        PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "List of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, "")
+        PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "List of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
+        PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "Character to count", typeid(std::string), (void *) &countCharacter, "")
 {
 	
     // alignment
@@ -381,6 +382,7 @@ Parameters::Parameters():
     extractalignedregion.push_back(PARAM_V);
 
     // count
+    count.push_back(PARAM_COUNT_CHARACTER);
     count.push_back(PARAM_THREADS);
     count.push_back(PARAM_V);
 
@@ -424,7 +426,17 @@ void Parameters::printUsageMessage(const std::string &programUsageHeader,
             if(index != std::string::npos) {
                 out.replace(index, mmdir.length(), "$MMDIR");
             }
-            ss << "[text:" << std::right << std::setw(10) << out << "]";
+            ss << "[text:" << std::right << std::setw(10);
+            for(std::string::const_iterator j = out.begin(); j != out.end(); ++j) {
+                if(*j == '\n') {
+                    ss << "\\n";
+                } else if (*j == '\t') {
+                    ss << "\\t";
+                } else {
+                    ss << *j;
+                }
+            }
+            ss << "]";
         }
         ss << "\t";
         ss << std::left << std::setw(60) << par.description << std::endl;
@@ -803,6 +815,9 @@ void Parameters::setDefaults() {
 
     // convertkb
     kbColumns = "";
+
+    // count
+    countCharacter = "\n";
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,
