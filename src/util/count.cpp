@@ -26,6 +26,8 @@ int count(int argn, const char **argv) {
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), static_cast<unsigned int>(par.threads));
     writer.open();
 
+    char countCharacter = par.countCharacter[0];
+
     size_t entries = reader.getSize();
 #pragma omp for schedule(dynamic, 100)
     for (size_t i = 0; i < entries; ++i) {
@@ -40,7 +42,7 @@ int count(int argn, const char **argv) {
         size_t lines = 0;
         for(size_t j = 0; j < length; ++j) {
             char c = data[j];
-            if(c == '\n') {
+            if(c == countCharacter) {
                 lines++;
             }
         }
