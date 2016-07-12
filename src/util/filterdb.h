@@ -105,8 +105,8 @@ private:
 	};
 
 	struct compareToFirstString {
-		bool operator() (const std::string& lhs, const std::pair<std::string,std::string>& rhs) const{
-			return (lhs.compare(rhs.first)<=0);
+		bool operator() (const std::pair<std::string,std::string>& lhs,const std::string& rhs) const{
+			return (lhs.first.compare(rhs)<0);
 		}
 	};
 
