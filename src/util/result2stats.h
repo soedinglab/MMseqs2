@@ -15,6 +15,9 @@
 
 
 #define STAT_LINECOUNT_STR "linecount"
+#define STAT_MEAN_STR "mean"
+#define STAT_DOOLITTLE_STR "doolittle"
+#define STAT_CHARGES_STR "charges"
 
 
 class statsComputer {
@@ -23,8 +26,12 @@ public:
 	~statsComputer();
 	int run();
 private:
-
+    const size_t LINE_BUFFER_SIZE = 1000000;
+    
     enum {  STAT_LINECOUNT,
+            STAT_MEAN,
+            STAT_DOOLITTLE,
+            STAT_CHARGES,
             STAT_UNKNOWN
     };
 	
@@ -39,7 +46,17 @@ private:
 
     DBWriter *statWriter;
     
+    float pH;
+    std::unordered_map<char,float> doolittleValues;
+    std::unordered_map<char,float> chargeValues;
+    
+    float averageValueOnAminoAcids(std::unordered_map<char,float> values,char* seq);
+    int sequenceWise(float (statsComputer::*statFunction)(char*));
+    
     int countNumberOfLines();
+    int meanValue();
+    float doolittle(char *);
+    float charges(char *);
 	
 };
 
