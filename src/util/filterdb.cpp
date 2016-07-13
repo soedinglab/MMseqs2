@@ -227,14 +227,14 @@ int ffindexFilter::runFilter(){
                           }
                       size_t fieldLength = Util::skipNoneWhitespace(columnPointer[column-1]);
                       
-                      // Output all the possible mapping value
+		      // Output all the possible mapping value
                       while (foundInFilter != mapping.end() && toSearch.compare(foundInFilter->first) == 0)
 			{
                             nomatch = 0; // add to the output
                             
                             // copy the previous columns
-                            //memcpy(newLineBuffer + newLineBufferIndex,lineBuffer,columnPointer[column-1] - columnPointer[0]);
-                            //newLineBufferIndex += columnPointer[column-1] - columnPointer[0];
+                            memcpy(newLineBuffer + newLineBufferIndex,lineBuffer,columnPointer[column-1] - columnPointer[0]);
+                            newLineBufferIndex += columnPointer[column-1] - columnPointer[0];
                             
                             // map the current column value
                             memcpy(newLineBuffer + newLineBufferIndex,(foundInFilter->second).c_str(),(foundInFilter->second).length());
@@ -246,16 +246,15 @@ int ffindexFilter::runFilter(){
                             {
                                 memcpy(newLineBuffer + newLineBufferIndex,columnPointer[column-1]+fieldLength,endLine - (columnPointer[column-1]+fieldLength));
                                 newLineBufferIndex += endLine - (columnPointer[column-1]+fieldLength);
+                            } else {
+                                newLineBuffer[newLineBufferIndex++] = '\n';
                             }
-                            
-                            newLineBuffer[newLineBufferIndex++] = '\n';
                             newLineBuffer[newLineBufferIndex] = '\0';
                             
                             foundInFilter++;
 			}
-                      
                       if(!nomatch)
-                        memcpy(lineBuffer,newLineBuffer,newLineBufferIndex);
+                        memcpy(lineBuffer,newLineBuffer,newLineBufferIndex+1);
 
                       delete [] newLineBuffer;
 
