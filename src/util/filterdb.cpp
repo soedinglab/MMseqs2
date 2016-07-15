@@ -229,7 +229,7 @@ int ffindexFilter::runFilter(){
                       
 		      // Output all the possible mapping value
                       while (foundInFilter != mapping.end() && toSearch.compare(foundInFilter->first) == 0)
-			{
+                        {
                             nomatch = 0; // add to the output
                             
                             // copy the previous columns
@@ -252,7 +252,7 @@ int ffindexFilter::runFilter(){
                             newLineBuffer[newLineBufferIndex] = '\0';
                             
                             foundInFilter++;
-			}
+                        }
                       if(!nomatch)
                         memcpy(lineBuffer,newLineBuffer,newLineBufferIndex+1);
 
