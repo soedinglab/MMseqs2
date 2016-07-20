@@ -76,6 +76,7 @@ notExists "$TMP/toBeClusteredSeparately" && mmseqs order $TMP/noHitSeqList $NEWD
 echo "==================================================="
 echo "===== Cluster separately the alone sequences ======"
 echo "==================================================="
+rm -f $TMP/aln_* $TMP/pref_* $TMP/clu_* $TMP/input_*
 notExists "$TMP/newClusters" && mmseqs clusteringworkflow $TMP/toBeClusteredSeparately $TMP/newClusters $TMP $CLUST_PAR && checkReturnCode "Clustering of new seq. died"
 
 echo "==================================================="
