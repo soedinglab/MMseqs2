@@ -214,14 +214,14 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins,
             duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
         }
         // clean memory faster if current bin size is smaller duplicateBitArraySize
-//        if(currBinSize < duplicateBitArraySize/16){
-//            for (size_t n = 0; n < currBinSize; n++) {
-//                const unsigned int byteArrayPos = binStartPos[n].id >> (MASK_0_5_BIT);
-//                duplicateBitArray[byteArrayPos] = 255;
-//            }
-//        }else{
-//            memset(duplicateBitArray, 255, duplicateBitArraySize * sizeof(unsigned char));
-//        }
+        if(currBinSize < duplicateBitArraySize/16){
+            for (size_t n = 0; n < currBinSize; n++) {
+                const unsigned int byteArrayPos = binStartPos[n].id >> (MASK_0_5_BIT);
+                duplicateBitArray[byteArrayPos] = 255;
+            }
+        }else{
+            memset(duplicateBitArray, 255, duplicateBitArraySize * sizeof(unsigned char));
+        }
     }
     return doubleElementCount;
 }
