@@ -19,6 +19,9 @@
 class Matcher{
 
 public:
+    static const unsigned int SCORE_ONLY = 0;
+    static const unsigned int SCORE_COV = 1;
+    static const unsigned int SCORE_COV_SEQID = 2;
     const static int ALN_RES_WITH_OUT_BT_COL_CNT = 10;
 
     const static int ALN_RES_WITH_BT_COL_CNT = 11;
