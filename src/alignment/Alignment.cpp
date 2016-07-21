@@ -18,7 +18,7 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
                      std::string& prefDB, std::string& prefDBIndex,
                      std::string& outDB, std::string& outDBIndex,
                      Parameters &par){
-    
+
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
@@ -35,38 +35,40 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
             EXIT(EXIT_FAILURE);
         }
     }
+    this->swMode = Matcher::SCORE_ONLY; // fast
     switch (par.alignmentMode){
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
-            if(this->covThr == 0.0 && this->seqIdThr == 0.0){
-                Debug(Debug::WARNING) << "Compute score only.\n";
-                this->mode = Matcher::SCORE_ONLY; //fastest
-                if(fragmentMerge == true){
-                    Debug(Debug::ERROR) << "Fragment merge does not work with Score only mode. Set --alignment-mode to 2 or 3.\n";
-                    EXIT(EXIT_FAILURE);
-                }
-            } else if(this->covThr > 0.0 && this->seqIdThr == 0.0) {
-                Debug(Debug::WARNING) << "Compute score and coverage.\n";
-                this->mode = Matcher::SCORE_COV; // fast
-            } else { // if seq id is needed
-                Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
-                this->mode = Matcher::SCORE_COV_SEQID; // slowest
+            if(this->covThr > 0.0 && this->seqIdThr == 0.0) {
+                this->swMode = Matcher::SCORE_COV; // fast
+            } else if(this->covThr > 0.0 && this->seqIdThr > 0.0) { // if seq id is needed
+                this->swMode = Matcher::SCORE_COV_SEQID; // slowest
             }
             break;
-        case Parameters::ALIGNMENT_MODE_SCORE_ONLY:
+        case Parameters::ALIGNMENT_MODE_SCORE_COV:
+            this->swMode = Matcher::SCORE_COV; // fast
+            break;
+        case Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID:
+            this->swMode = Matcher::SCORE_COV_SEQID; // fast
+            break;
+    }
+    // print out mode and check for errors
+    switch(swMode){
+        case Matcher::SCORE_ONLY:
             Debug(Debug::WARNING) << "Compute score only.\n";
-            this->mode = Matcher::SCORE_ONLY; // fast
             if(fragmentMerge == true){
                 Debug(Debug::ERROR) << "Fragment merge does not work with Score only mode. Set --alignment-mode to 2 or 3.\n";
                 EXIT(EXIT_FAILURE);
             }
             break;
-        case Parameters::ALIGNMENT_MODE_SCORE_COV:
+        case Matcher::SCORE_COV:
             Debug(Debug::WARNING) << "Compute score and coverage.\n";
-            this->mode = Matcher::SCORE_COV; // fast
             break;
-        case Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID:
+        case Matcher::SCORE_COV_SEQID:
             Debug(Debug::WARNING) << "Compute score, coverage and sequence id.\n";
-            this->mode = Matcher::SCORE_COV_SEQID; // fast
+            break;
+        default:
+            Debug(Debug::ERROR) << "Wronge swMode mode.\n";
+            EXIT(EXIT_FAILURE);
             break;
     }
 
@@ -266,7 +268,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                     }
                 }
                 // calculate Smith-Waterman alignment
-                Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->mode);
+                Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->swMode);
                 alignmentsNum++;
                 //set coverage and seqid if identity
                 if (isIdentity){
@@ -282,7 +284,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                     (res.eval <= evalThr && res.seqId >= seqIdThr && res.qcov >= covThr && res.dbcov >= covThr)
                     ||
                     // check for fragment
-                    (( mode == Matcher::SCORE_COV_SEQID || mode == Matcher::SCORE_COV) && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 ))
+                    (( swMode == Matcher::SCORE_COV_SEQID || swMode == Matcher::SCORE_COV) && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 ))
                 {
                     swResults.push_back(res);
                     passedNum++;
@@ -302,8 +304,8 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                     char* dbSeqData = tseqdbr->getDataByDBKey(swResults[i].dbKey);
                     dbSeqs[thread_idx]->mapSequence(-1, swResults[i].dbKey, dbSeqData);
                     Matcher::result_t res = realigner[thread_idx]->getSWResult(dbSeqs[thread_idx],
-                                                                              tseqdbr->getSize(), 0.0,
-                                                                              Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID);
+                                                                               tseqdbr->getSize(), 0.0,
+                                                                               Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID);
                     swResults[i].backtrace = res.backtrace;
                     swResults[i].qStartPos = res.qStartPos;
                     swResults[i].qEndPos = res.qEndPos;
