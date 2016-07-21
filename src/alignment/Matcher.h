@@ -34,22 +34,22 @@ public:
         float seqId;
         double eval;
         unsigned int alnLength;
-        unsigned int qStartPos;
-        unsigned int qEndPos;
+        int qStartPos;
+        int qEndPos;
         unsigned int qLen;
-        unsigned int dbStartPos;
-        unsigned int dbEndPos;
+        int dbStartPos;
+        int dbEndPos;
         unsigned int dbLen;
         std::string backtrace;
         result_t(unsigned int dbkey,int score,
                  float qcov, float dbcov,
                  float seqId, double eval,
                  unsigned int alnLength,
-                 unsigned int qStartPos,
-                 unsigned int qEndPos,
+                 int qStartPos,
+                 int qEndPos,
                  unsigned int qLen,
-                 unsigned int dbStartPos,
-                 unsigned int dbEndPos,
+                 int dbStartPos,
+                 int dbEndPos,
                  unsigned int dbLen,
                  std::string backtrace) : dbKey(dbkey), score(score), qcov(qcov),
                                           dbcov(dbcov), seqId(seqId), eval(eval), alnLength(alnLength),
