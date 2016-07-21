@@ -38,8 +38,8 @@ public:
 
 private:
 
-    // keeps state of alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
-    unsigned mode;
+    // keeps state of the SW alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
+    unsigned swMode;
     int threads;
 
     // sequence identity threshold
