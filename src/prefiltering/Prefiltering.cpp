@@ -795,12 +795,14 @@ size_t Prefiltering::computeMemoryNeeded(int split, size_t dbSize, size_t resSiz
                                          int threads) {
     // for each residue in the database we need 7 byte
     size_t residueSize = (resSize * 7) / split;
+    size_t dbSizeSplit = (dbSize) / split;
+
     // 21^7 * pointer size is needed for the index
     size_t indexTableSize   =  pow(alphabetSize, kmerSize) * sizeof(char *);
     // memory needed for the threads
     // This memory is an approx. for Countint32Array and QueryTemplateLocalFast
-    size_t threadSize =  threads * (dbSize * 2 * 6 + dbSize * 7 + pow(2, ceil(log(dbSize*2/128)/log(2))) * 128 * 7);
+    size_t threadSize =  threads * (dbSizeSplit * 2 * 6 + dbSizeSplit * 7 + pow(2, ceil(log(dbSizeSplit*2/128)/log(2))) * 128 * 7);
     // some memory needed to keep the index, ....
-    size_t background =  dbSize * 32;
+    size_t background =  dbSize * 22;
     return residueSize + indexTableSize + threadSize + background;
 }
