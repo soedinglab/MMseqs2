@@ -117,7 +117,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         }
 #endif
         if(par.split == Parameters::AUTO_SPLIT_DETECTION && templateDBIsIndex == false){
-            par.split = split;
+            this->split = split;
             Debug(Debug::INFO) << "Set split to " << split << " because of memory constraint. You can change splits with --split  \n";
             Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
         } else {
@@ -161,7 +161,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
     // init all thread-specific data structures
     this->qseq = new Sequence*[threads];
     this->reslens = new std::list<int>*[threads];
-    this->notEmpty = new int[qdbr->getSize()];
+    this->notEmpty = new char[qdbr->getSize()];
 
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++){
@@ -401,7 +401,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
     size_t realResSize = 0;
     size_t diagonalOverflow = 0;
     size_t totalQueryDBSize = querySize;
-    memset(notEmpty, 0, qdbr->getSize() * sizeof(int)); // init notEmpty
+    memset(notEmpty, 0, qdbr->getSize() * sizeof(char)); // init notEmpty
 
     Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step "<< split << " of " << splitCount << ")\n";
     Debug(Debug::WARNING) << "Query db start  "<< queryFrom << " to " << queryFrom + querySize << "\n";
