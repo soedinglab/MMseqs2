@@ -64,7 +64,7 @@ private:
 
 
     Sequence **qseq;
-    int *notEmpty;
+    char *notEmpty;
 
     std::list<int> **reslens;
     BaseMatrix *subMat;
