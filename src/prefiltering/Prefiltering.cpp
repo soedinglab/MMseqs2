@@ -613,7 +613,18 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
         indexTable->addKmerCount(seq);
     }
     Debug(Debug::INFO) << "\n";
-    std::cout << "Masked residues: " << maskedResidues << std::endl;
+    Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
+    size_t lowSelectiveResidues = 0;
+    const float dbSize = static_cast<float>(dbTo - dbFrom);
+    for(size_t kmerIdx = 0; kmerIdx < indexTable->getTableSize(); kmerIdx++){
+        size_t res = (size_t) indexTable->getTable(kmerIdx);
+        float selectivityOfKmer = (static_cast<float>(res)/dbSize);
+        if(selectivityOfKmer > 0.005){
+            indexTable->getTable()[kmerIdx] = 0;
+            lowSelectiveResidues += res;
+        }
+    }
+    Debug(Debug::INFO) << "Index table: Remove "<< lowSelectiveResidues <<" none selective residues\n";
     Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
     size_t tableEntriesNum = 0;
     for(size_t i = 0; i < indexTable->getTableSize(); i++){
