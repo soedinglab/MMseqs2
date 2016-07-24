@@ -78,9 +78,10 @@ size_t QueryTemplateLocalFast::evaluateBins(IndexEntryLocal **hitsByIndex,
                                             CounterResult *output,
                                             size_t outputSize,
                                             unsigned short indexFrom,
-                                            unsigned short indexTo) {
+                                            unsigned short indexTo,
+                                            bool computeTotalScore) {
     size_t localResultSize = 0;
-    localResultSize += counter->countElements(hitsByIndex, output, outputSize, indexFrom, indexTo);
+    localResultSize += counter->countElements(hitsByIndex, output, outputSize, indexFrom, indexTo, computeTotalScore);
     return localResultSize;
 }
 
@@ -175,7 +176,7 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
                 const size_t hitCount = evaluateBins(indexPointer,
                                                      foundDiagonals + overflowHitCount,
                                                      counterResultSize - overflowHitCount,
-                                                     indexStart, current_i);
+                                                     indexStart, current_i, (diagonalScoring == false));
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
                     if(diagonalScoring == true) {
@@ -207,7 +208,7 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
     outer:
     indexPointer[indexTo + 1] = databaseHits + numMatches;
     size_t hitCount = evaluateBins(indexPointer, foundDiagonals + overflowHitCount,
-                                   counterResultSize - overflowHitCount, indexStart, indexTo);
+                                   counterResultSize - overflowHitCount, indexStart, indexTo,  (diagonalScoring == false));
     //fill the output
     if(overflowHitCount != 0){ // overflow occurred
         if(diagonalScoring == true){

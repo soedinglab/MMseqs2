@@ -25,7 +25,7 @@ public:
 
     // find duplicates in the diagonal bins
     size_t evaluateBins(IndexEntryLocal **hitsByIndex, CounterResult *output,
-                        size_t outputSize, unsigned short indexFrom, unsigned short indexTo);
+                        size_t outputSize, unsigned short indexFrom, unsigned short indexTo, bool computeTotalScore);
 
     void updateScoreBins(CounterResult *result, size_t elementCount);
 protected:

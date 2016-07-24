@@ -102,7 +102,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.fragmentMerge = true;
         int minDiagScoreThr = par.minDiagScoreThr;
         par.minDiagScoreThr = 0;
-        //par.diagonalScoring = 0;
+        par.diagonalScoring = 0;
         par.compBiasCorrection = 0;
 
         cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
