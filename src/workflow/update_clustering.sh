@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 checkReturnCode () {
 	if [ $? -ne 0 ]; then
 	    echo "$1"
