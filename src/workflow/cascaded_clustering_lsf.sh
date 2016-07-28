@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 hasCommand () {
     command -v $1 >/dev/null 2>&1 || { echo >&2 "Please make sure that $1 is in $PATH."; exit 1; }
 }

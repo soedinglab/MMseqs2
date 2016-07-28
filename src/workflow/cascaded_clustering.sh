@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 # Clustering workflow script
 # helper functions
 checkReturnCode () { 

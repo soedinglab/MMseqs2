@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 # Clustering workflow script
 checkReturnCode () {
 	if [ $? -ne 0 ]; then
