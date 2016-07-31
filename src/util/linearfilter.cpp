@@ -22,6 +22,8 @@
 #include <omp.h>
 #endif
 
+
+#define SIZE_T_MAX ((size_t) -1)
 struct KmerPosition {
     size_t kmer;
     unsigned int id;
@@ -285,3 +287,5 @@ int linearfilter (int argc, const char * argv[])
     dbw.close();
     return 0;
 }
+
+#undef SIZE_T_MAX
