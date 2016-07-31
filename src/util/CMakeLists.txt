@@ -36,6 +36,7 @@ set(util_source_files
   extractalignedregion.cpp
   count.cpp
   mapresult.cpp
+  linearfilter.cpp
 )
 
 add_library(util ${util_source_files} )
