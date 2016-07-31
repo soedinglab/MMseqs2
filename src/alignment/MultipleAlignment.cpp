@@ -145,7 +145,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
         }
         size_t bufferPos = 0;
         // fill initial positions with gaps (local alignment)
-        for(size_t pos = 0; pos < result.qStartPos; pos++){
+        for(int pos = 0; pos < result.qStartPos; pos++){
             edgeSeqMSA[bufferPos] = '-';
             bufferPos++;
         }

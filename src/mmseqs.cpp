@@ -45,6 +45,8 @@ static struct Command commands[] = {
                 "Convert ffindex to tsv"},
         {"detectredundancy",    detectredundancy,       &par.prefilter,             COMMAND_HELPER,
                 "Detects redundancy based on reduced alphabet hashing and hamming distance"},
+        {"linearcluster",           linearfilter,       &par.prefilter,             COMMAND_HELPER,
+                "Detects TODO TODO"},
         {"createprofiledb",     createprofiledb,        &par.createprofiledb,       COMMAND_HELPER,
                 "Convert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database"},
         {"filterdb",            filterdb,               &par.filterDb,              COMMAND_HELPER,
