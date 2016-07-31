@@ -15,7 +15,7 @@
 
 Parameters::Parameters():
         PARAM_S(PARAM_S_ID,"-s", "Sensitivity","Sensitivity in the range [1.0:10.0]. From low (1.0) to high (10.0) sensitivity.", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$"),
-        PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7]",typeid(int),  (void *) &kmerSize, "^[6-7]{1}$"),
+        PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7]",typeid(int),  (void *) &kmerSize, "^[1-9]{1}[0-9]*$"),
         PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "Number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$"),
         PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "Amino acid alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$"),
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$"),
@@ -354,6 +354,14 @@ Parameters::Parameters():
     detectredundancy.push_back(PARAM_MAX_SEQ_LEN);
     detectredundancy.push_back(PARAM_THREADS);
     detectredundancy.push_back(PARAM_V);
+
+    // linearfilter
+    linearfilter.push_back(PARAM_SUB_MAT);
+    linearfilter.push_back(PARAM_ALPH_SIZE);
+    linearfilter.push_back(PARAM_K);
+    linearfilter.push_back(PARAM_MAX_SEQ_LEN);
+    linearfilter.push_back(PARAM_THREADS);
+    linearfilter.push_back(PARAM_V);
 
     // result2newick
     result2newick.push_back(PARAM_THREADS);
