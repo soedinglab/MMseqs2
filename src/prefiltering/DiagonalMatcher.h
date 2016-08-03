@@ -75,6 +75,7 @@ private:
 
     short createProfile(Sequence *seq, float *biasCorrection, short **subMat, int alphabetSize);
 
+    unsigned int diagonalLength(const short diagonal, const unsigned int len, const unsigned int second);
 };
 
 

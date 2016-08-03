@@ -42,9 +42,9 @@ void DiagonalMatcher::processQuery(Sequence *seq,
 }
 
 int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
-                                                 const int bias,
-                                                 const unsigned int seqLen,
-                                                 const unsigned char * dbSeq) {
+                                           const int bias,
+                                           const unsigned int seqLen,
+                                           const unsigned char * dbSeq) {
     int max = 0;
     int score = 0;
     for(unsigned int pos = 0; pos < seqLen; pos++){
@@ -79,7 +79,7 @@ simd_int DiagonalMatcher::vectorDiagonalScoring(const char *profile,
     simd_int vMaxScore     = simdi_setzero();
     const simd_int vBias   = simdi8_set(bias);
 #ifndef AVX2
-#ifdef SSE
+    #ifdef SSE
     const simd_int sixten  = simdi8_set(16);
     const simd_int fiveten = simdi8_set(15);
 #endif
@@ -157,9 +157,9 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
     //    unsigned char maxDistToDiagonal = (minDistToDiagonal == 0) ? 0 : (DIAGONALCOUNT - minDistToDiagonal);
     //    unsigned int i_splits = computeSplit(queryLen, minDistToDiagonal);
     unsigned short minDistToDiagonal = distanceFromDiagonal(diagonal);
-    if(hitSize > (VECSIZE_INT * 4) / 16){
-        std::pair<unsigned char *, unsigned int> seqs[VECSIZE_INT*4];
-        for(unsigned int seqIdx = 0; seqIdx < hitSize;  seqIdx++) {
+    if (hitSize > (VECSIZE_INT * 4) / 16) {
+        std::pair<unsigned char *, unsigned int> seqs[VECSIZE_INT * 4];
+        for (unsigned int seqIdx = 0; seqIdx < hitSize; seqIdx++) {
             std::pair<const unsigned char *, const unsigned int> tmp = sequenceLookup->getSequence(
                     hits[seqIdx]->id);
             seqs[seqIdx] = std::make_pair((unsigned char *) tmp.first, (unsigned int) tmp.second);
@@ -168,19 +168,22 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
 
         simd_int vMaxScore = simdi_setzero();
 
-        if(diagonal >= 0 && minDistToDiagonal < queryLen){
+        if (diagonal >= 0 && minDistToDiagonal < queryLen) {
             unsigned int minSeqLen = std::min(seq.second, queryLen - minDistToDiagonal);
-            simd_int ret = vectorDiagonalScoring(queryProfile + (minDistToDiagonal * PROFILESIZE ), bias, minSeqLen, seq.first);
+            simd_int ret = vectorDiagonalScoring(queryProfile + (minDistToDiagonal * PROFILESIZE), bias, minSeqLen,
+                                                 seq.first);
             vMaxScore = simdui8_max(ret, vMaxScore);
-        }else if(diagonal < 0 && minDistToDiagonal < seq.second) {
+        } else if (diagonal < 0 && minDistToDiagonal < seq.second) {
             unsigned int minSeqLen = std::min(seq.second - minDistToDiagonal, queryLen);
-            simd_int ret = vectorDiagonalScoring(queryProfile, bias, minSeqLen, seq.first + minDistToDiagonal * VECSIZE_INT * 4 );
+            simd_int ret = vectorDiagonalScoring(queryProfile, bias, minSeqLen,
+                                                 seq.first + minDistToDiagonal * VECSIZE_INT * 4);
             vMaxScore = simdui8_max(ret, vMaxScore);
         }
         extractScores(score_arr, vMaxScore);
         // update score
-        for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
-            hits[hitIdx]->count = normalizeScore(score_arr[hitIdx], seqs[hitIdx].second);
+        for (size_t hitIdx = 0; hitIdx < hitSize; hitIdx++) {
+            unsigned int diagLen = diagonalLength(minDistToDiagonal, queryLen, seqs[hitIdx].second);
+            hits[hitIdx]->count = normalizeScore(score_arr[hitIdx], diagLen);
         }
 
     }else {
@@ -198,7 +201,9 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
                 int scores = scalarDiagonalScoring(queryProfile, bias, minSeqLen, dbSeq.first + minDistToDiagonal);
                 max = std::max(scores, max);
             }
-            hits[hitIdx]->count = normalizeScore(static_cast<unsigned char>(std::min(255, max)), dbSeq.second);
+            unsigned int diagLen = diagonalLength(minDistToDiagonal, queryLen, dbSeq.second);
+
+            hits[hitIdx]->count = normalizeScore(static_cast<unsigned char>(std::min(255, max)), diagLen);
         }
     }
 }
@@ -322,3 +327,16 @@ short DiagonalMatcher::createProfile(Sequence *seq,
     }
     return bias;
 }
+
+unsigned int DiagonalMatcher::diagonalLength(const short diagonal, const unsigned int queryLen,
+                                             const unsigned int targetLen) {
+    unsigned int diagLen = targetLen;
+    if(diagonal >= 0) {
+        diagLen = std::min(targetLen, queryLen - diagonal);
+    }else if(diagonal < 0){
+        diagLen = std::min(targetLen - diagonal, queryLen);
+    }
+    return diagLen;
+}
+
+
