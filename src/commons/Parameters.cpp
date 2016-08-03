@@ -359,6 +359,7 @@ Parameters::Parameters():
     linearfilter.push_back(PARAM_SUB_MAT);
     linearfilter.push_back(PARAM_ALPH_SIZE);
     linearfilter.push_back(PARAM_K);
+    linearfilter.push_back(PARAM_C);
     linearfilter.push_back(PARAM_MAX_SEQ_LEN);
     linearfilter.push_back(PARAM_THREADS);
     linearfilter.push_back(PARAM_V);
