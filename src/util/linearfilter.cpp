@@ -22,8 +22,9 @@
 #include <omp.h>
 #endif
 
-
+#ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t) -1)
+#endif
 struct KmerPosition {
     size_t kmer;
     unsigned int id;
@@ -103,7 +104,7 @@ int linearfilter (int argc, const char * argv[])
 //  The best sensitivity at sufficient specificity can be obtained by choosing the alphabet size with
 //  largest log2(A) / |log2 (1-seqid)| and then choosing the k = 56 / log2(A).
     const size_t KMER_SIZE = par.kmerSize;
-    size_t chooseTopKmer = 10;
+    size_t chooseTopKmer = 20;
     DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), 1);
     dbw.open();
     Debug(Debug::WARNING) << "Generate k-mers list ... \n";
@@ -237,8 +238,16 @@ int linearfilter (int argc, const char * argv[])
         
         std::stringstream swResultsSs;
         unsigned int queryLength = std::max(seqDbr.getSeqLens(queryId), 3ul) - 2;
+        unsigned int writeSets = 0;
         for(size_t i = 0; i < setIds.size(); i++) {
             unsigned int targetLength = std::max(seqDbr.getSeqLens(setIds[i]), 3ul) - 2;
+            if(par.fragmentMerge == false && setIds[i] != queryId ){
+                if ( (((float) queryLength) / ((float) targetLength) < par.covThr) ||
+                     (((float) targetLength) / ((float) queryLength) < par.covThr) ) {
+                    foundAlready[setIds[i]] = 0;
+                    continue;
+                }
+            }
             swResultsSs << SSTR(seqDbr.getDbKey(setIds[i])).c_str() << "\t";
             swResultsSs << 255 << "\t";
             swResultsSs << std::fixed << std::setprecision(3) << 1.0f << "\t";
@@ -249,8 +258,9 @@ int linearfilter (int argc, const char * argv[])
             swResultsSs << 0 << "\t";
             swResultsSs << targetLength - 1 << "\t";
             swResultsSs << targetLength << "\n";
+            writeSets++;
         }
-        if(setIds.size() > 0){
+        if(writeSets > 0){
             foundAlready[queryId] = 2;
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
