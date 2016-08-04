@@ -9,6 +9,7 @@
 
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <omptl/omptl_algorithm>
 
 #include "Debug.h"
 #include "Util.h"
@@ -85,7 +86,7 @@ void DBReader<std::string>::sortIndex() {
         for (size_t i = 0; i < size; i++) {
             sortArray[i] = std::make_pair(index[i], seqLens[i]);
         }
-        std::stable_sort(sortArray, sortArray + size, compareIndexLengthPairById());
+        omptl::sort(sortArray, sortArray + size, compareIndexLengthPairById());
         for (size_t i = 0; i < size; ++i) {
             index[i].id = sortArray[i].first.id;
             index[i].offset = sortArray[i].first.offset;
@@ -111,12 +112,12 @@ void DBReader<unsigned int>::sortIndex() {
     for (size_t i = 0; i < size; i++) {
         sortArray[i] = std::make_pair(index[i], std::make_pair(i,seqLens[i]));
     }
-    std::stable_sort(sortArray, sortArray + size, compareIndexLengthPairByIdKeepTrack());
+    omptl::sort(sortArray, sortArray + size, compareIndexLengthPairByIdKeepTrack());
     for (size_t i = 0; i < size; ++i) {
         index[i].id = sortArray[i].first.id;
         index[i].offset = sortArray[i].first.offset;
         seqLens[i] = (sortArray[i].second).second;
-		 mappingToOriginalIndex[i] = (sortArray[i].second).first;
+		mappingToOriginalIndex[i] = (sortArray[i].second).first;
     }
 	
     delete[] sortArray;
@@ -130,7 +131,7 @@ void DBReader<unsigned int>::sortIndex() {
             local2id[i] = i;
             sortForMapping[i] = std::make_pair(i, seqLens[i]);
         }
-        std::stable_sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
+        omptl::sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
@@ -147,7 +148,7 @@ void DBReader<unsigned int>::sortIndex() {
             local2id[i] = i;
             sortForMapping[i] = std::make_pair(i, index[i].offset);
         }
-        std::stable_sort(sortForMapping, sortForMapping + size, comparePairByOffset());
+        omptl::sort(sortForMapping, sortForMapping + size, comparePairByOffset());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
