@@ -20,6 +20,8 @@
 #include "omptl/omptl_algorithm"
 #ifdef OPENMP
 #include <omp.h>
+#include <sys/time.h>
+
 #endif
 
 #ifndef SIZE_T_MAX
@@ -60,13 +62,14 @@ bool compareKmerPositionByKmerAndSize(KmerPosition first, KmerPosition second){
     return false;
 }
 
-
 int linearfilter (int argc, const char * argv[])
 {
     std::string usage;
     usage.append("Detects redundant sequences based on reduced alphabet and k-mer sorting.\n");
     usage.append("USAGE: <sequenceDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.linearfilter, 2);
@@ -76,33 +79,16 @@ int linearfilter (int argc, const char * argv[])
 
     BaseMatrix * subMat;
     if(par.alphabetSize == 21){
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 8.0, -0.2);
     }else{
-        SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, par.alphabetSize, 2.0);
+        SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 8.0, -0.2);
+        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, par.alphabetSize, 8.0);
     }
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());
     seqDbr.open(DBReader<unsigned int>::NOSORT);
     seqDbr.readMmapedDataInMemory();
 
-//  Sensitivity: For good sensitivity we will need a reduced alphabet, e.g. 8 states,
-//  while for maintaining good specificity we need a sufficient k-mer length, as shown now.
-//  Say in reduced alphabet the sequence identity is seqid, e.g. 90% for 70% sequence identity in original alphabet.
-//  Then the probability for two homologous k-mers to be identical is 1 - (1-seqid)^k.
-//  The probability that two full-length homologous sequences of length L will have a common k-mer is
-//  therefore approximately 1 - (1 - (1-seqid)^k)^L. This number should be near 1.
-
-//  Specificity: Each sequence should have a probability much less than 1
-//  that it will have a chance k-mer match with a non-homologous sequence in the database:
-//  L * NL * (1/A)^k «1. Let's say we demand a probability 0.001, then we get k ≥ 56 / log2(A).
-//  At A=8 this gives k=19, at A=4 it gives 28.
-//  That is probably already too long since spacing of the pattern will require no gap within ~50 residues.
-//  That will reduce sensitivity.
-//  Combined
-//  These two conditions can be combined into 56 / log2(A) ≤ k « log2(1/L)/Log2(1-seqid).
-//  The best sensitivity at sufficient specificity can be obtained by choosing the alphabet size with
-//  largest log2(A) / |log2 (1-seqid)| and then choosing the k = 56 / log2(A).
     const size_t KMER_SIZE = par.kmerSize;
     size_t chooseTopKmer = 20;
     DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), 1);
@@ -140,6 +126,8 @@ int linearfilter (int argc, const char * argv[])
         for(size_t id = dbFrom; id < (dbFrom + dbSize); id++){
             Log::printProgress(id);
             seq.mapSequence(id, id, seqDbr.getData(id));
+//            Util::maskLowComplexity(subMat, &seq, seq.L, 12, 3,
+//                                    subMat->alphabetSize, seq.aa2int['X']);
             int seqKmerCount = 0;
             unsigned int seqId = seq.getId();
             while(seq.hasNextKmer()) {
@@ -202,21 +190,15 @@ int linearfilter (int argc, const char * argv[])
     omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, compareKmerPositionByKmerAndSize);
     Debug(Debug::WARNING) << "Done\n";
 
-    //DEBUG code
-//    Indexer idxer(subMat->alphabetSize, KMER_SIZE);
-//    for(size_t id = 0; id < kmerCounter; id++){
-//        idxer.printKmer(hashSeqPair[id].kmer, KMER_SIZE, subMat->int2aa);
-//
-//        Debug(Debug::WARNING) << "\t" << hashSeqPair[id].id;
-//        Debug(Debug::WARNING) << "\t" << hashSeqPair[id].size;
-//        Debug(Debug::WARNING) << "\n";
-//    }
-
-
     char * foundAlready = new char[seqDbr.getSize()];
     memset(foundAlready, 0, seqDbr.getSize() * sizeof(char));
 
     for(size_t pos = 0; pos < kmerCounter; pos++) {
+        if(hashSeqPair[pos].size <= 1){ // stop when there is just one memeber per cluster
+                                        // speed up computation
+            break;
+        }
+
         size_t initKmer = hashSeqPair[pos].kmer;
         std::vector<unsigned int> setIds;
         unsigned int queryId = 0;
@@ -295,6 +277,11 @@ int linearfilter (int argc, const char * argv[])
     delete [] hashSeqPair;
     seqDbr.close();
     dbw.close();
+
+    gettimeofday(&end, NULL);
+    time_t sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+
     return 0;
 }
 
