@@ -27,7 +27,7 @@ Indexer::~Indexer(){
 
 size_t Indexer::int2index( const int *int_seq,const int begin,const int end){
     this->lastKmerIndex = 0;
-    for( size_t i=begin; i<end; i++ ) {
+    for(int i = begin; i < end; i++) {
         this->lastKmerIndex += int_seq[i]*this->powers[i-begin];
     }
     return this->lastKmerIndex;
