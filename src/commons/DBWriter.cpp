@@ -308,5 +308,6 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
         fprintf(indexFiles[0], "%s\t%zd\t%zd\n", SSTR(key).c_str(), currOffset, seqLen);
         currOffset += seqLen;
     }
-
+    reader2.close();
+    reader1.close();
 }
