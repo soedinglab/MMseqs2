@@ -45,6 +45,8 @@ public:
     // createprofiledb
     static const int PROFILE_MODE_HMM = 0;
     static const int PROFILE_MODE_PSSM = 1;
+    static const int PROFILE_MODE_HMM3 = 2;
+
     // clustering
     static const int SET_COVER = 0;
     static const int CONNECTED_COMPONENT = 1;
