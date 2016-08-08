@@ -131,7 +131,7 @@ public:
             size_t page_size = getpagesize();
             char *inbuf = (char *) mem_align(page_size, insize);
 #if HAVE_POSIX_FADVISE
-            ignore_value (posix_fadvise (input_desc, 0, 0, FADVISE_SEQUENTIAL));
+            ignore_value (posix_fadvise (input_desc, 0, 0, POSIX_FADV_SEQUENTIAL));
 #endif
             /* Loop until the end of the file.  */
 //            std::cout << "(size_t) p1 % alignment=" << (size_t) (inbuf + page_size - 1) % page_size << std::endl;
