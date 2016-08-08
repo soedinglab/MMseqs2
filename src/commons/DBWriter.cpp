@@ -9,6 +9,7 @@
 #include "Debug.h"
 #include "Util.h"
 #include "FileUtil.h"
+#include "Concat.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -208,21 +209,25 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     gettimeofday(&start, NULL);
     // merge results from each thread into one result file
     // merge each data file
-    for(unsigned int i = 1; i < fileCount; i++)
+    FILE * outFile = fopen(outFileName, "w");
+    FILE ** infiles = new FILE*[fileCount];
+    for(unsigned int i = 0; i < fileCount; i++)
     {
-        std::ofstream data_file_stream(dataFileNames[0], std::ios_base::binary | std::ios_base::app);
-        std::ifstream data_to_add_stream(dataFileNames[i], std::ios_base::binary);
-        data_file_stream.seekp(0, std::ios_base::end);
-        data_file_stream << data_to_add_stream.rdbuf();
-        data_to_add_stream.close();
+        infiles[i] = fopen(dataFileNames[i], "r");
+    }
+    Concat::concatFiles(infiles, fileCount , outFile);
+    for(unsigned int i = 0; i < fileCount; i++){
+        fclose(infiles[i]);
         if (std::remove(dataFileNames[i]) != 0) {
             Debug(Debug::WARNING) << "Could not remove file " << dataFileNames[i] << "\n";
         }
-        data_file_stream.close();
     }
+    delete [] infiles;
+
+    fclose(outFile);
 
     // rename file to datafile
-    std::rename(dataFileNames[0], outFileName);
+    //std::rename(dataFileNames[0], outFileName);
 
     FILE *index_file = fopen(outFileNameIndex, "w");
     if (index_file == NULL) {

@@ -4,6 +4,26 @@ if(OPENMP_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOPENMP=1 ${OpenMP_CXX_FLAGS}")
 endif()
 
+# needed for concat.h
+include(CheckCXXSourceRuns)
+check_cxx_source_runs("
+        #include <stdlib.h>
+        #include <fcntl.h>
+        #include <stdio.h>
+
+        int main()
+        {
+          FILE* tmpf = tmpfile();
+          int input_desc = fileno(tmpf);
+          int test =  posix_fadvise (input_desc, 0, 0, POSIX_FADV_SEQUENTIAL);
+          fclose(tmpf);
+        }"
+        HAVE_POSIX_FADVISE)
+if(HAVE_POSIX_FADVISE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_POSIX_FADVISE=1 ")
+endif()
+
+
 #SSE
 if(${HAVE_AVX2})
     add_definitions("-DAVX2")

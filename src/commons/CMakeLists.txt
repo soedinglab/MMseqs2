@@ -6,6 +6,7 @@ set(commons_source_files
     DBReader.h
     DBConcat.cpp
     DBConcat.h
+    Concat.h
     DBWriter.cpp
     DBWriter.h
     Debug.cpp
