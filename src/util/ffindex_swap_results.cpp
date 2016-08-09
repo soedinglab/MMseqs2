@@ -97,7 +97,7 @@ int doSwap(Parameters &par,
             }
         }
 
-        splitWriter.write(result.c_str(), result.size(), SSTR(id).c_str(), thread_idx);
+        splitWriter.writeData(result.c_str(), result.size(), SSTR(id).c_str(), thread_idx);
 
         delete swaps[i].second;
     }

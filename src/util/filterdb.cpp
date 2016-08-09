@@ -274,7 +274,7 @@ int ffindexFilter::runFilter(){
 				data = Util::skipLine(data);
 			}
 
-			dbw->write(buffer.c_str(), buffer.length(), (char*) SSTR(dataDb->getDbKey(id)).c_str(), thread_idx);
+            dbw->writeData(buffer.c_str(), buffer.length(), (char *) SSTR(dataDb->getDbKey(id)).c_str(), thread_idx);
 			buffer.clear();
 		}
 		delete [] lineBuffer;

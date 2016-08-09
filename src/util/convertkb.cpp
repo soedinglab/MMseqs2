@@ -107,7 +107,7 @@ int convertkb(int argn, const char **argv) {
             std::string accession = getPrimaryAccession(kb.getColumn(UniprotKB::COL_KB_AC));
             for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {
                 std::string column = kb.getColumn(*it);
-                writers[*it]->write(column.c_str(), column.length(), accession.c_str());
+                writers[*it]->writeData(column.c_str(), column.length(), accession.c_str());
             }
             i++;
         }

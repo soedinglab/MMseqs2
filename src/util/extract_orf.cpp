@@ -147,11 +147,11 @@ int extractorf(int argn, const char** argv)
                 char buffer[LINE_MAX];
                 snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", header.c_str(), loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
-                headerWriter.write(buffer, strlen(buffer), id.c_str(), thread_idx);
+                headerWriter.writeData(buffer, strlen(buffer), id.c_str(), thread_idx);
 
                 std::string sequence = orf.view(loc);
                 sequence.append("\n");
-                sequenceWriter.write(sequence.c_str(), sequence.length(), id.c_str(), thread_idx);
+                sequenceWriter.writeData(sequence.c_str(), sequence.length(), id.c_str(), thread_idx);
             }
         }
     }

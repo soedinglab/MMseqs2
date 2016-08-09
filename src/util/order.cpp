@@ -38,7 +38,7 @@ int order(int argc, const char * argv[])
         const char* data = reader.getData(id);
         // discard null byte
         size_t length = reader.getSeqLens(id) - 1;
-        writer.write(data, length, line.c_str());
+        writer.writeData(data, length, line.c_str());
     }
     orderFile.close();
     writer.close();

@@ -98,7 +98,7 @@ int addsequences(int argc, const char **argv)
 
         std::string fasta = fastaStream.str();
         std::string key = SSTR(clusters.getDbKey(i));
-        msaOut.write(fasta.c_str(), fasta.length(), key.c_str(), thread_idx);
+        msaOut.writeData(fasta.c_str(), fasta.length(), key.c_str(), thread_idx);
     }
 
 	msaOut.close();

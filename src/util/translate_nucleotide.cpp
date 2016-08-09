@@ -153,8 +153,8 @@ int translatenucleotide(int argn, const char **argv)
         }
 
         aa[length/3] = '\n';
-        
-        writer.write(aa, (length / 3) + 1, (char*)key.c_str());
+
+        writer.writeData(aa, (length / 3) + 1, (char *) key.c_str());
         delete[] aa;
     }
 

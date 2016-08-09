@@ -249,7 +249,7 @@ void Prefiltering::mergeOutput(const std::string& outDB, const std::string& outD
         files.pop_front();
         std::pair<std::string, std::string> out   = std::make_pair((outDB + "_merge_"+ SSTR(mergeStep)).c_str(), (outDBIndex + "_merge_"+ SSTR(mergeStep)).c_str());
         DBWriter writer(out.first.c_str(), out.second.c_str(), 1);
-        writer.open();
+        writer.open(1024 * 1024 * 1024); // 1 GB buffer
         writer.mergeFilePair(file1.first.c_str(), file1.second.c_str(), file2.first.c_str(), file2.second.c_str());
         // remove split
         remove(file1.first.c_str()); remove(file1.second.c_str());
@@ -538,7 +538,7 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
     // write prefiltering results string to ffindex database
     const size_t prefResultsLength = prefResultsOutString.length();
     char* prefResultsOutData = (char *) prefResultsOutString.c_str();
-    dbWriter->write(prefResultsOutData, prefResultsLength, SSTR(qdbr->getDbKey(id)).c_str(), thread_idx);
+    dbWriter->writeData(prefResultsOutData, prefResultsLength, SSTR(qdbr->getDbKey(id)).c_str(), thread_idx);
     return 0;
 
 }

@@ -122,7 +122,7 @@ int createdb(int argn, const char **argv) {
             header_line.append(" ", 1);
             header_line.append("\n");
 
-            out_hdr_writer.write(header_line.c_str(), header_line.length(), id.c_str());
+            out_hdr_writer.writeData(header_line.c_str(), header_line.length(), id.c_str());
             header_line.clear();
 
             // sequence
@@ -130,7 +130,7 @@ int createdb(int argn, const char **argv) {
             size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
             std::string splitString(sequence.c_str() + split*par.maxSeqLen, len);
             splitString.append("\n");
-            out_writer.write(splitString.c_str(), splitString.length(), id.c_str());
+            out_writer.writeData(splitString.c_str(), splitString.length(), id.c_str());
             entries_num++;
         }
     }

@@ -50,7 +50,7 @@ int count(int argn, const char **argv) {
         unsigned int id = reader.getDbKey(i);
         std::string result = SSTR(lines);
         result.append("\n");
-        writer.write(result.c_str(), result.length(), SSTR(id).c_str(), thread_idx);
+        writer.writeData(result.c_str(), result.length(), SSTR(id).c_str(), thread_idx);
     }
 
     writer.close();

@@ -299,7 +299,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
         }
 
         std::string annotation = oss.str();
-        writer.write(annotation.c_str(), annotation.length(), SSTR(id).c_str(), thread_idx);
+        writer.writeData(annotation.c_str(), annotation.length(), SSTR(id).c_str(), thread_idx);
     }
 
     writer.close();

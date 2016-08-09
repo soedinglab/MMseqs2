@@ -76,7 +76,7 @@ int doExtractAlignedRegion(Parameters &par) {
             if (seq) {
                 std::string result(seq, length);
                 result.append("\n");
-                dbw.write(result.c_str(), result.length(), SSTR(queryKey).c_str(), thread_idx);
+                dbw.writeData(result.c_str(), result.length(), SSTR(queryKey).c_str(), thread_idx);
             } else {
                 Debug(Debug::ERROR) << "Missing extraction type!\n";
                 EXIT(EXIT_FAILURE);

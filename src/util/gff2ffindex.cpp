@@ -132,14 +132,14 @@ int gff2ffindex(int argn, const char **argv) {
 
         // hack: header contains a new line, lets just overwrite the new line with a space
         buffer[headerLength - 2] = ' ';
-        out_hdr_writer.write(buffer, strlen(buffer), id.c_str());
+        out_hdr_writer.writeData(buffer, strlen(buffer), id.c_str());
         delete[] buffer;
 
         // sequence
         char* bodyBuffer = new char[length + 1];
         strncpy(bodyBuffer, body + start, length);
         bodyBuffer[length] = '\n';
-        out_writer.write(bodyBuffer, length + 1, id.c_str());
+        out_writer.writeData(bodyBuffer, length + 1, id.c_str());
         delete[] bodyBuffer;
     }
     file_in.close();

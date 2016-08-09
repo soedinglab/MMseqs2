@@ -174,7 +174,8 @@ int detectredundancy (int argc, const char * argv[])
                 outer:
                 std::string swResultsString = swResultsSs.str();
                 const char* swResultsStringData = swResultsString.c_str();
-                dbw.write(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(setIds[i])).c_str(), thread_idx);
+                dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(setIds[i])).c_str(),
+                              thread_idx);
             }
             setIds.clear();
             found.clear();
