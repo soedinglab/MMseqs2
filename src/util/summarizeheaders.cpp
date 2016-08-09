@@ -72,7 +72,7 @@ int summarizeheaders(int argc, const char **argv) {
         oss << par.summaryPrefix << "-" << representative << "|" << summarizer.summarize(headers);
 
         std::string summary = oss.str();
-        writer.write(summary.c_str(), summary.length(), id.c_str(), thread_idx);
+        writer.writeData(summary.c_str(), summary.length(), id.c_str(), thread_idx);
     }
     writer.close();
     reader.close();

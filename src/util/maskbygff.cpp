@@ -125,8 +125,8 @@ int maskbygff(int argn, const char** argv) {
         }
 
         // ignore nulls
-        writer.write(data + index[i].offset, seqLengths[i] - 1, id.c_str());
-        headerWriter.write(headerData + headerIndex[i].offset, headerLengths[i] - 1, id.c_str());
+        writer.writeData(data + index[i].offset, seqLengths[i] - 1, id.c_str());
+        headerWriter.writeData(headerData + headerIndex[i].offset, headerLengths[i] - 1, id.c_str());
     }
     headerWriter.close();
     writer.close();

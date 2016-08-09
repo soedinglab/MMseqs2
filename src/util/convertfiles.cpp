@@ -215,7 +215,7 @@ void convertfiles::convertDomainFileToFFindex(std::string domainscorefile, std::
             memcpy(clusterid, domainIdentifier[lastid].c_str(), domainIdentifier[lastid].length() * sizeof(char));
             clusterid[domainIdentifier[lastid].length()]='\0';
             memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length() * sizeof(char));
-            dbw->write(outBuffer, cluResultsOutString.length(), clusterid);
+            dbw->writeData(outBuffer, cluResultsOutString.length(), clusterid);
             //clear res
             res.str("");
             res.clear();
@@ -234,7 +234,7 @@ void convertfiles::convertDomainFileToFFindex(std::string domainscorefile, std::
     memcpy(clusterid, domainIdentifier[a].c_str(), domainIdentifier[a].length() * sizeof(char));
     clusterid[domainIdentifier[a].length()]='\0';
     memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length() * sizeof(char));
-    dbw->write(outBuffer, cluResultsOutString.length(), clusterid);
+    dbw->writeData(outBuffer, cluResultsOutString.length(), clusterid);
     //clear res
     res.str("");
     res.clear();

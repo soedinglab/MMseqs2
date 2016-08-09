@@ -310,9 +310,9 @@ int createprofiledb(int argn, const char **argv) {
             header.append(dataIn.getDbKey(i));
             header.append(" \n");
         }
-        seqOut.write(sequence.c_str(), sequence.size(), (char *) idStr.c_str());
-        dataOut.write(profileBuffer, elementSize, (char *) idStr.c_str());
-        headerOut.write((char *) header.c_str(), header.length(), (char *) idStr.c_str());
+        seqOut.writeData(sequence.c_str(), sequence.size(), (char *) idStr.c_str());
+        dataOut.writeData(profileBuffer, elementSize, (char *) idStr.c_str());
+        headerOut.writeData((char *) header.c_str(), header.length(), (char *) idStr.c_str());
         sequence.clear();
         header.clear();
     }

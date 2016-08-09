@@ -170,9 +170,10 @@ int statsComputer::countNumberOfLines()
             }
             
             lineCountString = std::to_string(lineCount) + '\n';
-            
-            statWriter->write(lineCountString.c_str(), lineCountString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
-                                           thread_idx);
+
+        statWriter->writeData(lineCountString.c_str(), lineCountString.length(),
+                              SSTR(resultReader->getDbKey(id)).c_str(),
+                              thread_idx);
     }
     return 0;
     
@@ -204,9 +205,9 @@ int statsComputer::meanValue()
                 
                 
             meanValString = std::to_string(meanVal/nbSeq) + '\n';
-            
-            statWriter->write(meanValString.c_str(), meanValString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
-                                           thread_idx);
+
+        statWriter->writeData(meanValString.c_str(), meanValString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
+                              thread_idx);
     }
     return 0;
     
@@ -265,10 +266,10 @@ int statsComputer::sequenceWise(float (statsComputer::*statFunction)(char*))
                 
                 results = Util::skipLine(results);
             }
-            
-            
-            statWriter->write(statString.c_str(), statString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
-                                           thread_idx);
+
+
+        statWriter->writeData(statString.c_str(), statString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
+                              thread_idx);
     }
     
     return 0;

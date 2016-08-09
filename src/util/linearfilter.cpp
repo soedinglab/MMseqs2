@@ -246,7 +246,7 @@ int linearfilter (int argc, const char * argv[])
             foundAlready[queryId] = 2;
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
-            dbw.write(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(queryId)).c_str(), 0);
+            dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(queryId)).c_str(), 0);
         }
         setIds.clear();
         swResultsSs.clear();
@@ -268,7 +268,7 @@ int linearfilter (int argc, const char * argv[])
             swResultsSs << queryLength << "\n";
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
-            dbw.write(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(id)).c_str(), 0);
+            dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(id)).c_str(), 0);
         }
     }
 

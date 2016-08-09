@@ -22,7 +22,7 @@ class DBWriter {
 
         ~DBWriter();
 
-        void open();
+        void open(size_t bufferSize = 64 * 1024 * 1024);
 
         void close();
     
@@ -30,7 +30,7 @@ class DBWriter {
     
         char* getIndexFileName() { return indexFileName; }
 
-        void write(const char *data, size_t dataSize, const char *key, unsigned int threadIdx = 0);
+        void writeData(const char *data, size_t dataSize, const char *key, unsigned int threadIdx = 0);
 
         void mergeFiles(DBReader<unsigned int>& qdbr,
                         const std::vector<std::pair<std::string, std::string> >& files,
@@ -50,6 +50,8 @@ private:
     char* indexFileName;
 
     FILE** dataFiles;
+    char** dataFilesBuffer;
+    size_t bufferSize;
     FILE** indexFiles;
 
     char** dataFileNames;

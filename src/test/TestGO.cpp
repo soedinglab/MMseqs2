@@ -530,7 +530,8 @@ int numberofthreads=1;
                     continue;
                 }
                 memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length() * sizeof(char));
-                dbw->write(outBuffer, cluResultsOutString.length(),  std::to_string(alnDbr->getDbKey(i)).c_str(),thread_idx);
+                dbw->writeData(outBuffer, cluResultsOutString.length(), std::to_string(alnDbr->getDbKey(i)).c_str(),
+                               thread_idx);
 
                 //  data = Util::skipLine(data);
                 //  }

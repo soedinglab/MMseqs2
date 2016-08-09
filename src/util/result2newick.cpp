@@ -200,7 +200,7 @@ int result2newick(int argc, const char *argv[]) {
         }
 
         for (std::set<unsigned int>::const_iterator it = identifiers.begin(); it != identifiers.end(); ++it) {
-            writer.write(newick.c_str(), newick.length(), SSTR(*it).c_str());
+            writer.writeData(newick.c_str(), newick.length(), SSTR(*it).c_str());
         }
     }
 

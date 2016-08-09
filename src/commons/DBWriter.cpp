@@ -1,9 +1,9 @@
 #include <cstdlib>
-
+#include <stdio.h>
 #include <sstream>
 #include <fstream>
 #include <sys/time.h>
-
+#include <unistd.h>
 #include "DBWriter.h"
 #include "DBReader.h"
 #include "Debug.h"
@@ -25,6 +25,8 @@ DBWriter::DBWriter(const char *dataFileName_,
     this->threads = threads;
 
     dataFiles = new FILE *[threads];
+    dataFilesBuffer = new char *[threads];
+
     dataFileNames = new char *[threads];
 
     indexFiles = new FILE *[threads];
@@ -56,9 +58,11 @@ DBWriter::~DBWriter() {
     delete[] indexFiles;
 
     for (unsigned int i = 0; i < threads; i++) {
+        delete [] dataFilesBuffer[i];
         free(dataFileNames[i]);
         free(indexFileNames[i]);
     }
+    delete[] dataFilesBuffer;
     delete[] dataFileNames;
     delete[] indexFileNames;
 
@@ -75,7 +79,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
         thread_idx = omp_get_thread_num();
 #endif
         char *data = dbr.getData(id);
-        write(data, strlen(data), SSTR(dbr.getDbKey(id)).c_str(), thread_idx);
+        writeData(data, strlen(data), SSTR(dbr.getDbKey(id)).c_str(), thread_idx);
     }
 
     Debug(Debug::INFO) << "Done\n";
@@ -99,8 +103,8 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
         std::ostringstream ss;
         // get all data for the id from all files
         for (size_t i = 0; i < fileCount; i++) {
-			char *data = filesToMerge[i]->getDataByDBKey(qdbr.getDbKey(id));
-			if (data != NULL) {
+            char *data = filesToMerge[i]->getDataByDBKey(qdbr.getDbKey(id));
+            if (data != NULL) {
                 if(i < prefixes.size()) {
                     ss << prefixes[i];
                 }
@@ -109,7 +113,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
         }
         // write result
         std::string result = ss.str();
-        write(result.c_str(), result.length(), SSTR(qdbr.getDbKey(id)).c_str(), 0);
+        writeData(result.c_str(), result.length(), SSTR(qdbr.getDbKey(id)).c_str(), 0);
     }
 
     // close all reader
@@ -130,7 +134,7 @@ char* makeResultFilename(const char* name, size_t split) {
     return strdup(s.c_str());
 }
 
-void DBWriter::open() {
+void DBWriter::open(size_t bufferSize) {
     for (unsigned int i = 0; i < threads; i++) {
         dataFileNames[i] = makeResultFilename(dataFileName, i);
         indexFileNames[i] = makeResultFilename(indexFileName, i);
@@ -139,8 +143,17 @@ void DBWriter::open() {
         FileUtil::errorIfFileExist(indexFileNames[i]);
 
         dataFiles[i] = fopen(dataFileNames[i], datafileMode.c_str());
-        indexFiles[i] = fopen(indexFileNames[i], "w");
+        dataFilesBuffer[i] = new char[bufferSize];
+        this->bufferSize = bufferSize;
+        // set buffer to 64
+        if(setvbuf (dataFiles[i], dataFilesBuffer[i] , _IOFBF , bufferSize ) != 0){
+            Debug(Debug::ERROR) << "Write buffer could not be allocated (bufferSize=" << bufferSize << ")\n";
+        }
 
+        indexFiles[i] = fopen(indexFileNames[i], "w");
+        if(setvbuf ( indexFiles[i]  , NULL , _IOFBF , bufferSize ) != 0){
+            Debug(Debug::ERROR) << "Write buffer could not be allocated (bufferSize=" << bufferSize << ")\n";
+        }
         if (dataFiles[i] == NULL) {
             perror(dataFileNames[i]);
             EXIT(EXIT_FAILURE);
@@ -167,7 +180,7 @@ void DBWriter::close() {
     closed = true;
 }
 
-void DBWriter::write(const char *data, size_t dataSize, const char *key, unsigned int thrIdx) {
+void DBWriter::writeData(const char *data, size_t dataSize, const char *key, unsigned int thrIdx) {
     checkClosed();
     if (thrIdx >= threads) {
         Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
@@ -209,62 +222,59 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     gettimeofday(&start, NULL);
     // merge results from each thread into one result file
     // merge each data file
-    FILE * outFile = fopen(outFileName, "w");
-    FILE ** infiles = new FILE*[fileCount];
-    for(unsigned int i = 0; i < fileCount; i++)
-    {
-        infiles[i] = fopen(dataFileNames[i], "r");
-    }
-    Concat::concatFiles(infiles, fileCount , outFile);
-    for(unsigned int i = 0; i < fileCount; i++){
-        fclose(infiles[i]);
-        if (std::remove(dataFileNames[i]) != 0) {
-            Debug(Debug::WARNING) << "Could not remove file " << dataFileNames[i] << "\n";
+
+    if(fileCount > 1 ) {
+        FILE *outFile = fopen(outFileName, "w");
+        FILE **infiles = new FILE *[fileCount];
+        for (unsigned int i = 0; i < fileCount; i++) {
+            infiles[i] = fopen(dataFileNames[i], "r");
         }
-    }
-    delete [] infiles;
-
-    fclose(outFile);
-
-    // rename file to datafile
-    //std::rename(dataFileNames[0], outFileName);
-
-    FILE *index_file = fopen(outFileNameIndex, "w");
-    if (index_file == NULL) {
-        perror(outFileNameIndex);
-        EXIT(EXIT_FAILURE);
-    }
-
-    // merge index
-    size_t globalOffset = 0;
-    for (unsigned int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
-        DBReader<std::string> reader(indexFileNames[fileIdx], indexFileNames[fileIdx],
-                                     DBReader<std::string>::USE_INDEX);
-        reader.open(DBReader<std::string>::NOSORT);
-        if(reader.getSize() > 0){
-            size_t tmpOffset = 0;
-            for(size_t i = 0; i < reader.getSize(); i++){
-                const char *id = reader.getIndex()[i].id.c_str();
-                size_t currOffset = reader.getIndex()[i].offset;
-                size_t seqLens = reader.getSeqLens(i);
-                fprintf(index_file, "%s\t%zd\t%zd\n", id, globalOffset + currOffset, seqLens);
-                tmpOffset += reader.getSeqLens(i);
+        Concat::concatFiles(infiles, fileCount, outFile);
+        for (unsigned int i = 0; i < fileCount; i++) {
+            fclose(infiles[i]);
+            if (std::remove(dataFileNames[i]) != 0) {
+                Debug(Debug::WARNING) << "Could not remove file " << dataFileNames[i] << "\n";
             }
-            globalOffset += tmpOffset;
         }
-        reader.close();
-
-        if (std::remove(indexFileNames[fileIdx]) != 0) {
-            Debug(Debug::WARNING) << "Could not remove file " << indexFileNames[fileIdx] << "\n";
+        delete[] infiles;
+        fclose(outFile);
+        FILE *index_file = fopen(outFileNameIndex, "w");
+        if (index_file == NULL) {
+            perror(outFileNameIndex);
+            EXIT(EXIT_FAILURE);
         }
+        // merge index
+        size_t globalOffset = 0;
+        for (unsigned int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
+            DBReader<std::string> reader(indexFileNames[fileIdx], indexFileNames[fileIdx],
+                                         DBReader<std::string>::USE_INDEX);
+            reader.open(DBReader<std::string>::NOSORT);
+            if (reader.getSize() > 0) {
+                size_t tmpOffset = 0;
+                for (size_t i = 0; i < reader.getSize(); i++) {
+                    const char *id = reader.getIndex()[i].id.c_str();
+                    size_t currOffset = reader.getIndex()[i].offset;
+                    size_t seqLens = reader.getSeqLens(i);
+                    fprintf(index_file, "%s\t%zd\t%zd\n", id, globalOffset + currOffset, seqLens);
+                    tmpOffset += reader.getSeqLens(i);
+                }
+                globalOffset += tmpOffset;
+            }
+            reader.close();
+            if (std::remove(indexFileNames[fileIdx]) != 0) {
+                Debug(Debug::WARNING) << "Could not remove file " << indexFileNames[fileIdx] << "\n";
+            }
+        }
+        fclose(index_file);
+    }else {  // fileCount < 1
+        std::rename(dataFileNames[0], outFileName);
+        std::rename(indexFileNames[0], outFileNameIndex);
     }
-    fclose(index_file);
-
     // sort the index
     DBReader<std::string> indexReader(outFileNameIndex, outFileNameIndex, DBReader<std::string>::USE_INDEX);
     indexReader.open(DBReader<std::string>::SORT_BY_ID);
     DBReader<std::string>::Index *index = indexReader.getIndex();
-    index_file = fopen(outFileNameIndex, "w");
+    FILE *index_file  = fopen(outFileNameIndex, "w");
     for (size_t i = 0; i < indexReader.getSize(); i++) {
         const char *id = index[i].id.c_str();
         size_t currOffset = index[i].offset;
@@ -278,32 +288,57 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     Debug(Debug::INFO) << "Time for merging files: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) <<" s\n";
 }
 
+
 void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
                              const char *inData2, const char *inIndex2) {
     FILE *file1 = fopen(inData1, "r");
     FILE *file2 = fopen(inData2, "r");
+#if HAVE_POSIX_FADVISE
+    if (posix_fadvise (fileno(file1), 0, 0, POSIX_FADV_SEQUENTIAL) != 0){
+       Debug(Debug::ERROR) << "posix_fadvise returned an error\n";
+    }
+    if (posix_fadvise (fileno(file2), 0, 0, POSIX_FADV_SEQUENTIAL) != 0){
+       Debug(Debug::ERROR) << "posix_fadvise returned an error\n";
+    }
+#endif
     int c1, c2;
-    while((c1=fgetc(file1)) != EOF) {
-        char file1Char = (char) c1;
-        if(file1Char == '\0'){
-            while((c2=fgetc(file2)) != EOF && c2 != (int) '\0') {
-                char file2Char = (char) c2;
-                fwrite(&file2Char, sizeof(char), 1, dataFiles[0]);
+    char * buffer = dataFilesBuffer[0];
+    size_t writePos = 0;
+    int dataFilefd =  fileno(dataFiles[0]);
+    while((c1=getc_unlocked(file1)) != EOF) {
+        if(c1 == '\0'){
+            while((c2=getc_unlocked(file2)) != EOF && c2 != '\0') {
+                buffer[writePos] = (char) c2;
+                writePos++;
+                if(writePos == bufferSize){
+                    write(dataFilefd, buffer, bufferSize);
+                }
             }
-            char nullByte = '\0';
-            fwrite(&nullByte, sizeof(char), 1, dataFiles[0]);
+            buffer[writePos] = '\0';
+            writePos++;
+            if(writePos == bufferSize){
+                write(dataFilefd, buffer, bufferSize);
+            }
         }else{
-            fwrite(&file1Char, sizeof(char), 1, dataFiles[0]);
+            buffer[writePos] = (char) c1;;
+            writePos++;
+            if(writePos == bufferSize){
+                write(dataFilefd, buffer, bufferSize);
+            }
         }
     }
+    if(writePos != 0){ // if there are data in the buffer that are not yet written
+        write(dataFilefd, (const void *) dataFilesBuffer[0], writePos);
+    }
+
     fclose(file1);
     fclose(file2);
     Debug(Debug::WARNING) << "Merge file " << inData1 << " and " << inData2 << "\n";
     DBReader<unsigned int> reader1(inIndex1, inIndex1,
-                                 DBReader<std::string>::USE_INDEX);
+                                   DBReader<std::string>::USE_INDEX);
     reader1.open(DBReader<unsigned int>::NOSORT);
     DBReader<unsigned int> reader2(inIndex2, inIndex2,
-                                  DBReader<std::string>::USE_INDEX);
+                                   DBReader<std::string>::USE_INDEX);
     reader2.open(DBReader<unsigned int>::NOSORT);
     size_t currOffset = 0;
     for(size_t id = 0; id < reader1.getSize(); id++){

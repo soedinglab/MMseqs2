@@ -114,7 +114,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
             }
             // write result
             char *mergeResultsOutData = (char *) minusResultsOutString.c_str();
-            writer.write(mergeResultsOutData, minusResultsOutString.length(), SSTR(leftDbKey).c_str(), thread_idx);
+            writer.writeData(mergeResultsOutData, minusResultsOutString.length(), SSTR(leftDbKey).c_str(), thread_idx);
             minusResultsOutString.clear();
         }
         delete [] lineBuffer;

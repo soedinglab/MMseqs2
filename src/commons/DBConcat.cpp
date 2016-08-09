@@ -74,7 +74,7 @@ void DBConcat::concat(bool write) {
 
         if (write) {
             char *data = dbA.getData(id);
-            concatWriter->write(data, dbA.getSeqLens(id) - 1, SSTR(newKey).c_str(), thread_idx);
+            concatWriter->writeData(data, dbA.getSeqLens(id) - 1, SSTR(newKey).c_str(), thread_idx);
         }
 
         // need to store the index, because it'll be sorted out by keys later
@@ -100,7 +100,7 @@ void DBConcat::concat(bool write) {
         
         if (write) {
             char *data = dbB.getData(id);
-            concatWriter->write(data, dbB.getSeqLens(id) - 1, SSTR(newKey).c_str(), thread_idx);
+            concatWriter->writeData(data, dbB.getSeqLens(id) - 1, SSTR(newKey).c_str(), thread_idx);
         }
 
         // need to store the index, because it'll be sorted out by keys later

@@ -321,7 +321,8 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
 
             std::string swResultString = swResultsString.str();
             const char* swResultsData = swResultString.c_str();
-            dbw.write(swResultsData, swResultString.length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(), thread_idx);
+            dbw.writeData(swResultsData, swResultString.length(), SSTR(qSeqs[thread_idx]->getDbKey()).c_str(),
+                          thread_idx);
             swResults.clear();
 //        prefdbr->unmapDataById(id);
         }
