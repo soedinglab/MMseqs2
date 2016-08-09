@@ -166,6 +166,7 @@ char * u32toa_sse2(uint32_t value, char* buffer) {
         const __m128i result = _mm_srli_si128(ba, 8);
         _mm_storel_epi64(reinterpret_cast<__m128i*>(buffer), result);
         buffer[8] = '\0';
+        buffer = buffer + 9;
     }
     return buffer;
 }
@@ -279,6 +280,7 @@ void i32toa_sse2(int32_t value, char* buffer) {
         const __m128i va = _mm_add_epi8(_mm_packus_epi16(a0, a1), reinterpret_cast<const __m128i*>(kAsciiZero)[0]);
         _mm_storeu_si128(reinterpret_cast<__m128i*>(buffer), va);
         buffer[16] = '\0';
+        buffer = buffer + 17;
     }
     return buffer;
 }
