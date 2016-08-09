@@ -312,18 +312,21 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
                 writePos++;
                 if(writePos == bufferSize){
                     write(dataFilefd, buffer, bufferSize);
+                    writePos = 0;
                 }
             }
             buffer[writePos] = '\0';
             writePos++;
             if(writePos == bufferSize){
                 write(dataFilefd, buffer, bufferSize);
+                writePos = 0;
             }
         }else{
             buffer[writePos] = (char) c1;;
             writePos++;
             if(writePos == bufferSize){
                 write(dataFilefd, buffer, bufferSize);
+                writePos = 0;
             }
         }
     }
