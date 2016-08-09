@@ -240,6 +240,7 @@ void i32toa_sse2(int32_t value, char* buffer) {
         __m128i result = ShiftDigits_SSE2(va, digit);
         _mm_storeu_si128(reinterpret_cast<__m128i*>(buffer), result);
         buffer[16 - digit] = '\0';
+        buffer = buffer  + (16 - digit) + 1;
     }
     else {
         const uint32_t a = static_cast<uint32_t>(value / 10000000000000000); // 1 to 1844
