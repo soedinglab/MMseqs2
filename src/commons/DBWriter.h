@@ -10,6 +10,7 @@
 
 #include <string>
 #include <vector>
+#include "DBReader.h"
 
 template <typename T> class DBReader;
 
@@ -42,7 +43,17 @@ class DBWriter {
                                         const char **indexFileNames, unsigned int fileCount);
 
         void mergeFilePair(const char *inData1, const char *inIndex1, const char *inData2, const char *inIndex2);
+
+
 private:
+
+    struct IndexType {
+        typedef DBReader<unsigned int>::Index int_type;
+        typedef DBReader<std::string>::Index string_type;
+    };
+    static void writeIndex(FILE *outFile, IndexType::string_type *index, size_t indexSize, unsigned int *seqLen);
+    static void writeIndex(FILE *outFile, size_t indexSize, IndexType::int_type *index, unsigned int *seqLen);
+
 
     void checkClosed();
 
@@ -64,6 +75,8 @@ private:
     bool closed;
 
     std::string datafileMode;
+
+
 };
 
 #endif

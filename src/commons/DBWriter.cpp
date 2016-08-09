@@ -10,6 +10,7 @@
 #include "Util.h"
 #include "FileUtil.h"
 #include "Concat.h"
+#include "itoa.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -251,13 +252,13 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
             reader.open(DBReader<std::string>::NOSORT);
             if (reader.getSize() > 0) {
                 size_t tmpOffset = 0;
+                DBReader<std::string>::Index * index = reader.getIndex();
                 for (size_t i = 0; i < reader.getSize(); i++) {
-                    const char *id = reader.getIndex()[i].id.c_str();
                     size_t currOffset = reader.getIndex()[i].offset;
-                    size_t seqLens = reader.getSeqLens(i);
-                    fprintf(index_file, "%s\t%zd\t%zd\n", id, globalOffset + currOffset, seqLens);
+                    index[i].offset = globalOffset + currOffset;
                     tmpOffset += reader.getSeqLens(i);
                 }
+                writeIndex(index_file, index, reader.getSize(), reader.getSeqLens());
                 globalOffset += tmpOffset;
             }
             reader.close();
@@ -275,19 +276,13 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     indexReader.open(DBReader<std::string>::SORT_BY_ID);
     DBReader<std::string>::Index *index = indexReader.getIndex();
     FILE *index_file  = fopen(outFileNameIndex, "w");
-    for (size_t i = 0; i < indexReader.getSize(); i++) {
-        const char *id = index[i].id.c_str();
-        size_t currOffset = index[i].offset;
-        size_t seqLens = indexReader.getSeqLens(i);
-        fprintf(index_file, "%s\t%zd\t%zd\n", id, currOffset, seqLens);
-    }
+    writeIndex(index_file, index, indexReader.getSize(), indexReader.getSeqLens());
     fclose(index_file);
     indexReader.close();
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "Time for merging files: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) <<" s\n";
 }
-
 
 void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
                              const char *inData2, const char *inIndex2) {
@@ -344,13 +339,50 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
                                    DBReader<std::string>::USE_INDEX);
     reader2.open(DBReader<unsigned int>::NOSORT);
     size_t currOffset = 0;
+    DBReader<unsigned int>::Index* index1 = reader1.getIndex();
+    unsigned int * seqLen1 = reader1.getSeqLens();
+    unsigned int * seqLen2 = reader2.getSeqLens();
     for(size_t id = 0; id < reader1.getSize(); id++){
         // add lenght for file1 and file2 and substrace -1 for one null byte
-        size_t seqLen = reader1.getSeqLens(id) + reader2.getSeqLens(id) - 1;
-        unsigned int key = reader1.getIndex()[id].id;
-        fprintf(indexFiles[0], "%s\t%zd\t%zd\n", SSTR(key).c_str(), currOffset, seqLen);
+        size_t seqLen = seqLen1[id] + seqLen2[id] - 1;
+        seqLen1[id] = seqLen;
+        index1[id].offset = currOffset;
         currOffset += seqLen;
     }
+    writeIndex(indexFiles[0], reader1.getSize(), index1, seqLen1);
     reader2.close();
     reader1.close();
+}
+
+void DBWriter::writeIndex(FILE *outFile, IndexType::string_type  *index, size_t indexSize,  unsigned int *seqLen){
+    char buff1[1024];
+
+    for(size_t id = 0; id < indexSize; id++){
+        strncpy(buff1, index[id].id.c_str(), index[id].id.length());
+        buff1[index[id].id.length()] = '\t';
+        uint64_t currOffset = index[id].offset;
+        char * tmpBuff = u64toa_sse2(currOffset, buff1 + (index[id].id.length() + 1) );
+        *(tmpBuff-1) = '\t';
+        uint32_t sLen = seqLen[id];
+        tmpBuff = u32toa_sse2(sLen, tmpBuff);
+        *(tmpBuff-1) = '\n';
+        *(tmpBuff) = '\0';
+        fwrite(buff1, sizeof(char), strlen(buff1), outFile);
+    }
+}
+
+void DBWriter::writeIndex(FILE *outFile,   size_t indexSize, IndexType::int_type  *index,  unsigned int *seqLen){
+    char buff1[1024];
+    for(size_t id = 0; id < indexSize; id++){
+        char * tmpBuff = u32toa_sse2((uint32_t)index[id].id,buff1);
+        *(tmpBuff-1) = '\t';
+        uint64_t currOffset = index[id].offset;
+        tmpBuff = u64toa_sse2(currOffset, tmpBuff);
+        *(tmpBuff-1) = '\t';
+        uint32_t sLen = seqLen[id];
+        tmpBuff = u32toa_sse2(sLen,tmpBuff);
+        *(tmpBuff-1) = '\n';
+        *(tmpBuff) = '\0';
+        fwrite(buff1, sizeof(char), strlen(buff1), outFile);
+    }
 }

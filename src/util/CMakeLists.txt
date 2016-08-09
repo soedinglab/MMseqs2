@@ -37,6 +37,7 @@ set(util_source_files
   count.cpp
   mapresult.cpp
   linearfilter.cpp
+  itoa.h
 )
 
 add_library(util ${util_source_files} )
