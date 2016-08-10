@@ -42,6 +42,9 @@ set(commons_source_files
     A3MReader.cpp
     A3MReader.h
     Domain.h
+    itoa.h
+    MemoryMapped.cpp
+    MemoryMapped.h
 )
 
 add_library(commons ${commons_source_files})
