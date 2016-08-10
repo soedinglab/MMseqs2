@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <fstream>
+#include <fcntl.h>
 
 void FileUtil::errorIfFileExist(const char * file){
     struct stat st;
