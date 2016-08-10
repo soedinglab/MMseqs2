@@ -6,8 +6,9 @@
 
 #include "MemoryMapped.h"
 
-#include <stdexcept>
 #include <cstdio>
+#include "Debug.h"
+#include "Util.h"
 
 // OS-specific
 #ifdef _MSC_VER
@@ -29,8 +30,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
-#include <Debug.h>
-#include "Util.h"
 
 #endif
 
