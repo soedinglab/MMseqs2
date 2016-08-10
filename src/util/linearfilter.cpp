@@ -18,10 +18,10 @@
 #include "Debug.h"
 #include "DBReader.h"
 #include "omptl/omptl_algorithm"
-#ifdef OPENMP
-#include <omp.h>
 #include <sys/time.h>
 
+#ifdef OPENMP
+#include <omp.h>
 #endif
 
 #ifndef SIZE_T_MAX

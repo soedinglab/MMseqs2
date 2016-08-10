@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <omptl/omptl_algorithm>
+#include <MemoryMapped.h>
 
 #include "Debug.h"
 #include "Util.h"
@@ -309,45 +310,45 @@ template <typename T> void DBReader<T>::checkClosed(){
 
 template<typename T>
 void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength) {
-    std::ifstream indexFile(indexFileName);
-
-    if (indexFile.fail()) {
+    MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+    if (!indexData.isValid()){
         Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
         EXIT(EXIT_FAILURE);
     }
 
-    char *save;
     size_t i = 0;
-    std::string line;
 
-    while (std::getline(indexFile, line)) {
-        char *l = (char *) line.c_str();
-        readIndexId(&index[i].id, l, &save);
-        size_t offset = strtoull(strtok_r(NULL, "\t", &save), NULL, 10);
-        size_t length = strtoull(strtok_r(NULL, "\t", &save), NULL, 10);
+    size_t currPos = 0;
+    char* indexDataChar = (char *) indexData.getData();
+    char * cols[3];
 
+    while (currPos < indexData.size()){
         if (i >= this->size) {
             Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
             EXIT(EXIT_FAILURE);
         }
-
+        Util::getWordsOfLine(indexDataChar, cols, 3 );
+        readIndexId(&index[i].id, indexDataChar, cols);
+        size_t offset = strtoull(cols[1], NULL, 10);
+        size_t length = strtoull(cols[2], NULL, 10);
         index[i].offset = offset;
-
         entryLength[i] = length;
-
+        indexDataChar = Util::skipLine(indexDataChar);
+        currPos = indexDataChar - (char *) indexData.getData();
         i++;
+
     }
-
-    indexFile.close();
+    indexData.close();
 }
 
 template<>
-void DBReader<std::string>::readIndexId(std::string* id, char* line, char** save) {
-    *id = strtok_r(line, "\t", save);
+void DBReader<std::string>::readIndexId(std::string* id, char * line, char** cols){
+    ptrdiff_t keySize =  (cols[1] - line);
+    id->assign(line, keySize);
 }
 template<>
-void DBReader<unsigned int>::readIndexId(unsigned int* id, char* line, char** save) {
-    *id = (unsigned int) strtoul(strtok_r(line, "\t", save), NULL, 10);
+void DBReader<unsigned int>::readIndexId(unsigned int* id, char * line, char** cols) {
+    *id = (unsigned int) strtoul(cols[0], NULL, 10);
 }
 
 template <typename T> void DBReader<T>::unmapData() {

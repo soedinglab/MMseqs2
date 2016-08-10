@@ -376,7 +376,7 @@ void DBWriter::writeIndex(FILE *outFile,   size_t indexSize, IndexType::int_type
     for(size_t id = 0; id < indexSize; id++){
         char * tmpBuff = u32toa_sse2((uint32_t)index[id].id,buff1);
         *(tmpBuff-1) = '\t';
-        uint64_t currOffset = index[id].offset;
+        size_t currOffset = index[id].offset;
         tmpBuff = u64toa_sse2(currOffset, tmpBuff);
         *(tmpBuff-1) = '\t';
         uint32_t sLen = seqLen[id];
