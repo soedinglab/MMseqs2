@@ -4,7 +4,8 @@
 // see http://create.stephan-brumme.com/disclaimer.html
 //
 
-#pragma once
+#ifndef MEMORYMAPPED_H
+#define MEMORYMAPPED_H
 
 // define fixed size integer types
 #ifdef _MSC_VER
@@ -98,3 +99,4 @@ private:
   /// pointer to the file contents mapped into memory
   void*       _mappedView;
 };
+#endif
