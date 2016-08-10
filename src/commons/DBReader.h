@@ -77,7 +77,7 @@ public:
 
     void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
 
-    void readIndexId(T* id, char* line, char** save);
+    void readIndexId(T* id, char * line, char** cols);
 
     void readMmapedDataInMemory();
 
