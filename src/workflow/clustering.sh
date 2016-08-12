@@ -30,7 +30,7 @@ notExists "$3/pref" && $RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$3/pref" $PRE
 # call alignment module
 notExists "$3/aln"  && $RUNNER mmseqs alignment "$INPUT" "$INPUT" "$3/pref" "$3/aln" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
 # call cluster module
-notExists "$3/clu_step0"  && $RUNNER mmseqs cluster   "$INPUT" "$3/aln" "$3/clu_step0" $CLUSTER_PAR          && checkReturnCode "Clustering died"
+notExists "$3/clu_step0"  && mmseqs cluster "$INPUT" "$3/aln" "$3/clu_step0" $CLUSTER_PAR          && checkReturnCode "Clustering died"
 # merg clu_redundancy and clu
 notExists "$3/clu" && mmseqs mergecluster "$1" "$3/clu" "$3/clu_redundancy" "$3/clu_step0" && checkReturnCode "Merging of clusters has died"
 # post processing
