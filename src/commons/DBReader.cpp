@@ -343,7 +343,7 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
 
 template<>
 void DBReader<std::string>::readIndexId(std::string* id, char * line, char** cols){
-    ptrdiff_t keySize =  (cols[1] - line);
+    ptrdiff_t keySize =  ((cols[1] - 1) - line) ;
     id->assign(line, keySize);
 }
 template<>
