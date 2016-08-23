@@ -77,6 +77,8 @@ Parameters::Parameters():
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "First sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, ""),
 // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "Compute a statistic for each entry", typeid(std::string), (void*) &stat, ""),
+// linearcluster
+        PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "Kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$"),
 // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","Sets the MPI runner",typeid(std::string),(void *) &runner, ""),
 // search workflow
@@ -358,12 +360,12 @@ Parameters::Parameters():
     // linearfilter
     linearfilter.push_back(PARAM_SUB_MAT);
     linearfilter.push_back(PARAM_ALPH_SIZE);
+    linearfilter.push_back(PARAM_KMER_PER_SEQ);
     linearfilter.push_back(PARAM_K);
     linearfilter.push_back(PARAM_C);
     linearfilter.push_back(PARAM_MAX_SEQ_LEN);
     linearfilter.push_back(PARAM_THREADS);
     linearfilter.push_back(PARAM_V);
-
     // result2newick
     result2newick.push_back(PARAM_THREADS);
     result2newick.push_back(PARAM_V);
@@ -847,6 +849,9 @@ void Parameters::setDefaults() {
 
     // convertkb
     kbColumns = "";
+
+    // linearcluster
+    kmersPerSequence = 10;
 
     // count
     countCharacter = "\n";

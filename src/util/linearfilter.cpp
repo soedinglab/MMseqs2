@@ -90,7 +90,7 @@ int linearfilter (int argc, const char * argv[])
     seqDbr.readMmapedDataInMemory();
 
     const size_t KMER_SIZE = par.kmerSize;
-    size_t chooseTopKmer = 20;
+    size_t chooseTopKmer = par.kmersPerSequence;
     DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), 1);
     dbw.open();
     Debug(Debug::WARNING) << "Generate k-mers list ... \n";

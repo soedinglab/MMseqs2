@@ -187,6 +187,9 @@ public:
     //result2stats
     std::string stat;
 
+    // linearcluster
+    int kmersPerSequence;
+
     // createdb
     bool useHeader;
     int identifierOffset;
@@ -333,9 +336,10 @@ public:
 //    PARAMETER(PARAM_NO_PRUNING)
 
     // result2stat
-    
     PARAMETER(PARAM_STAT)
 
+    // linearcluster
+    PARAMETER(PARAM_KMER_PER_SEQ)
     // workflow
     PARAMETER(PARAM_RUNNER)
 
