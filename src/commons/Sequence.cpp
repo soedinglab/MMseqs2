@@ -100,25 +100,39 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
                 return std::make_pair<const char *, unsigned int>((const char *) &seed_7, ARRAY_SIZE(seed_7));
             }
             break;
+        case 9:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_9_spaced, ARRAY_SIZE(seed_9_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_9, ARRAY_SIZE(seed_9));
+            }
+            break;
+        case 10:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_10_spaced, ARRAY_SIZE(seed_10_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_10, ARRAY_SIZE(seed_10));
+            }
+            break;
         case 11:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_11_spaced, ARRAY_SIZE(seed_14_spaced));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_11_spaced, ARRAY_SIZE(seed_11_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_11, ARRAY_SIZE(seed_14));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_11, ARRAY_SIZE(seed_11));
             }
             break;
         case 12:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_12_spaced, ARRAY_SIZE(seed_14_spaced));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_12_spaced, ARRAY_SIZE(seed_12_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_12, ARRAY_SIZE(seed_14));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_12, ARRAY_SIZE(seed_12));
             }
             break;
         case 13:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_13_spaced, ARRAY_SIZE(seed_14_spaced));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_13_spaced, ARRAY_SIZE(seed_13_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_13, ARRAY_SIZE(seed_14));
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_13, ARRAY_SIZE(seed_13));
             }
             break;
         case 14:
