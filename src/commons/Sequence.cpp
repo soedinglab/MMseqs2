@@ -100,6 +100,27 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
                 return std::make_pair<const char *, unsigned int>((const char *) &seed_7, ARRAY_SIZE(seed_7));
             }
             break;
+        case 11:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_11_spaced, ARRAY_SIZE(seed_14_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_11, ARRAY_SIZE(seed_14));
+            }
+            break;
+        case 12:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_12_spaced, ARRAY_SIZE(seed_14_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_12, ARRAY_SIZE(seed_14));
+            }
+            break;
+        case 13:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_13_spaced, ARRAY_SIZE(seed_14_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_13, ARRAY_SIZE(seed_14));
+            }
+            break;
         case 14:
             if(spaced){
                 return std::make_pair<const char *, unsigned int>((const char *) &seed_14_spaced, ARRAY_SIZE(seed_14_spaced));
