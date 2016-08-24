@@ -851,7 +851,7 @@ void Parameters::setDefaults() {
     kbColumns = "";
 
     // linearcluster
-    kmersPerSequence = 10;
+    kmersPerSequence = 20;
 
     // count
     countCharacter = "\n";
