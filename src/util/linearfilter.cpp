@@ -33,6 +33,7 @@ struct KmerPosition {
     unsigned int size;
 };
 
+
 bool compareKmerPositionByKmer(KmerPosition first, KmerPosition second){
     return (first.kmer < second.kmer) ? true : false;
 }
@@ -60,6 +61,20 @@ bool compareKmerPositionByKmerAndSize(KmerPosition first, KmerPosition second){
     if(second.kmer < first.kmer )
         return false;
     return false;
+}
+
+
+size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer) {
+    size_t totalKmers = 0;
+    for(size_t id = 0; id < reader.getSize(); id++ ){
+        int kmerAdjustedSeqLen = std::max(0, static_cast<int>(reader.getSeqLens(id)) - static_cast<int>(KMER_SIZE - 1)-2) ;
+        totalKmers += std::min(kmerAdjustedSeqLen, static_cast<int>( chooseTopKmer ) );
+    }
+    return totalKmers;
+}
+
+size_t computeMemoryNeededLinearfilter(size_t totalKmer) {
+    return sizeof(KmerPosition) * totalKmer;
 }
 
 int linearfilter (int argc, const char * argv[])
@@ -93,12 +108,24 @@ int linearfilter (int argc, const char * argv[])
     size_t chooseTopKmer = par.kmersPerSequence;
     DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), 1);
     dbw.open();
-    Debug(Debug::WARNING) << "Generate k-mers list ... \n";
-    size_t totalKmers = 0;
-    for(size_t id = 0; id < seqDbr.getSize(); id++ ){
-        int kmerAdjustedSeqLen = std::max(0, static_cast<int>(seqDbr.getSeqLens(id)) - static_cast<int>(KMER_SIZE - 1)-2) ;
-        totalKmers += std::min(kmerAdjustedSeqLen, static_cast<int>( chooseTopKmer ) );
+    size_t totalMemoryInByte =  Util::getTotalSystemMemory();
+
+    Debug(Debug::WARNING) << "Check requirements\n";
+    size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
+    size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
+    Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
+    while(totalSizeNeeded > totalMemoryInByte){
+        Debug(Debug::INFO) << "Adjust memory demand by reducing kmers per sequence\n";
+        chooseTopKmer = chooseTopKmer / 2;
+        totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
+        totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
+        if(chooseTopKmer == 1 && totalSizeNeeded > totalMemoryInByte){
+            Debug(Debug::ERROR) << "There is not enough memory on this machine\n";
+            EXIT(EXIT_FAILURE);
+        }
+        Debug(Debug::INFO) << chooseTopKmer << " k-mer per sequence needs " << totalSizeNeeded << " byte of memory.\n";
     }
+    Debug(Debug::WARNING) << "Generate k-mers list ... \n";
     KmerPosition * hashSeqPair = new KmerPosition[totalKmers+1];
     for(size_t i = 0; i < totalKmers+1; i++){
         hashSeqPair[i].kmer = SIZE_T_MAX;
@@ -161,7 +188,6 @@ int linearfilter (int argc, const char * argv[])
     Debug(Debug::WARNING) << "Kmer considered " << kmerCounter << "\n";
     if(totalKmers != kmerCounter ){
         Debug(Debug::WARNING) << "Problem totalKmers(" << totalKmers << ") != kmerCounter("<<kmerCounter << ") \n";
-
     }
 
     Debug(Debug::WARNING) << "Sort kmer ... ";
@@ -284,5 +310,6 @@ int linearfilter (int argc, const char * argv[])
 
     return 0;
 }
+
 
 #undef SIZE_T_MAX
