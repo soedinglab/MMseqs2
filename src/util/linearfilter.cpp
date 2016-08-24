@@ -119,7 +119,7 @@ int linearfilter (int argc, const char * argv[])
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
     Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
     while(totalSizeNeeded > totalMemoryInByte){
-        Debug(Debug::INFO) << "Adjust memory demand by reducing kmers per sequence\n";
+        Debug(Debug::INFO) << "Adjust memory demand by reducing k-mers per sequence\n";
         chooseTopKmer = chooseTopKmer / 2;
         totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
         totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
@@ -151,14 +151,11 @@ int linearfilter (int argc, const char * argv[])
             int kmerAdjustedSeqLen = std::max(0, static_cast<int>(seqDbr.getSeqLens(id)) - static_cast<int>(KMER_SIZE)  - 2);
             kmerStartPos += std::min(kmerAdjustedSeqLen, static_cast<int>(chooseTopKmer));
         }
-
         KmerPosition * tmpHashSeqPair=hashSeqPair + kmerStartPos;
         std::pair<float, size_t > * kmers = new std::pair<float, size_t >[par.maxSeqLen];
         for(size_t id = dbFrom; id < (dbFrom + dbSize); id++){
             Log::printProgress(id);
             seq.mapSequence(id, id, seqDbr.getData(id));
-//            Util::maskLowComplexity(subMat, &seq, seq.L, 12, 3,
-//                                    subMat->alphabetSize, seq.aa2int['X']);
             int seqKmerCount = 0;
             unsigned int seqId = seq.getId();
             while(seq.hasNextKmer()) {
@@ -188,12 +185,9 @@ int linearfilter (int argc, const char * argv[])
         delete [] kmers;
     }
     Debug(Debug::WARNING) << "Done." << "\n";
-
-    Debug(Debug::WARNING) << "Kmer considered " << kmerCounter << "\n";
     if(totalKmers != kmerCounter ){
         Debug(Debug::WARNING) << "Problem totalKmers(" << totalKmers << ") != kmerCounter("<<kmerCounter << ") \n";
     }
-
     Debug(Debug::WARNING) << "Sort kmer ... ";
     omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, compareKmerPositionByKmer);
     Debug(Debug::WARNING) << "Done." << "\n";
@@ -301,7 +295,7 @@ int linearfilter (int argc, const char * argv[])
             dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(id)).c_str(), 0);
         }
     }
-
+    // free memory
     delete subMat;
     delete [] foundAlready;
     delete [] hashSeqPair;
