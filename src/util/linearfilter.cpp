@@ -33,6 +33,13 @@ struct KmerPosition {
     unsigned int size;
 };
 
+void setLinearFilterDefault(Parameters *p) {
+    p->spacedKmer = false;
+    p->covThr = 0.8;
+    p->kmerSize = 9;
+    p->alphabetSize = 15;
+    p->kmersPerSequence = 20;
+}
 
 bool compareKmerPositionByKmer(KmerPosition first, KmerPosition second){
     return (first.kmer < second.kmer) ? true : false;
@@ -50,7 +57,6 @@ bool compareByMutalInformation(std::pair<float, size_t > first, std::pair<float,
     return (first.first > second.first) ? true : false;
 }
 
-
 bool compareKmerPositionByKmerAndSize(KmerPosition first, KmerPosition second){
     if(first.size > second.size )
         return true;
@@ -62,7 +68,6 @@ bool compareKmerPositionByKmerAndSize(KmerPosition first, KmerPosition second){
         return false;
     return false;
 }
-
 
 size_t computeKmerCount(DBReader<unsigned int> &reader, size_t KMER_SIZE, size_t chooseTopKmer) {
     size_t totalKmers = 0;
@@ -87,6 +92,7 @@ int linearfilter (int argc, const char * argv[])
     gettimeofday(&start, NULL);
 
     Parameters par;
+    setLinearFilterDefault(&par);
     par.parseParameters(argc, argv, usage, par.linearfilter, 2);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
@@ -103,13 +109,11 @@ int linearfilter (int argc, const char * argv[])
     DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());
     seqDbr.open(DBReader<unsigned int>::NOSORT);
     seqDbr.readMmapedDataInMemory();
-
     const size_t KMER_SIZE = par.kmerSize;
     size_t chooseTopKmer = par.kmersPerSequence;
     DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), 1);
     dbw.open();
     size_t totalMemoryInByte =  Util::getTotalSystemMemory();
-
     Debug(Debug::WARNING) << "Check requirements\n";
     size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
@@ -220,7 +224,7 @@ int linearfilter (int argc, const char * argv[])
     memset(foundAlready, 0, seqDbr.getSize() * sizeof(char));
 
     for(size_t pos = 0; pos < kmerCounter; pos++) {
-        if(hashSeqPair[pos].size <= 1){ // stop when there is just one memeber per cluster
+        if(hashSeqPair[pos].size <= 1){ // stop when there is just one member per cluster
                                         // speed up computation
             break;
         }
@@ -310,6 +314,5 @@ int linearfilter (int argc, const char * argv[])
 
     return 0;
 }
-
 
 #undef SIZE_T_MAX
