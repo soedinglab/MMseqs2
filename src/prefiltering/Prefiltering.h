@@ -78,6 +78,7 @@ private:
     const int kmerScore;
     bool spacedKmer;
     const float sensitivity;
+    size_t resListOffset;
     size_t maxResListLen;
     int alphabetSize;
     const size_t maxSeqLen;
@@ -103,7 +104,8 @@ private:
 
     // write prefiltering to ffindex database
     int writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
-                             const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset, bool diagonalScoring);
+                             const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
+                             bool diagonalScoring, size_t resultOffsetPos);
 
     // init QueryTemplateMatcher
     QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
