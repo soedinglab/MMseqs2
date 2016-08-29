@@ -116,6 +116,7 @@ public:
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB (MPI only)
     bool   splitAA;                      // Split database by amino acid count instead
+    size_t resListOffset;             // Offsets result list
 
     // ALIGNMENT
     std::string ffindexPrefDB;           // prefilter database (input for alignment module)
@@ -282,6 +283,7 @@ public:
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
+    PARAMETER(PARAM_RES_LIST_OFFSET)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment

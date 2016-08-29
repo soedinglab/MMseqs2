@@ -34,6 +34,7 @@ Parameters::Parameters():
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "Spaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}" ),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, ""),
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--include-id", "Include identical Seq. Id.","Include identical Seq. Id to hitlist",typeid(bool), (void *) &includeIdentity, ""),
+        PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$"),
 // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "Alignment mode 0=fastest based on parameters, 1=score; 2=score,cov,start/end pos; 3=score,cov,start/end pos,seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$"),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "Maximum e-value[0.0,1.0]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$"),
@@ -154,11 +155,8 @@ Parameters::Parameters():
     alignment.push_back(PARAM_REALIGN);
     alignment.push_back(PARAM_THREADS);
     alignment.push_back(PARAM_V);
-	
-	
 
-    // pre
-
+    // prefilter
     prefilter.push_back(PARAM_SUB_MAT);
     prefilter.push_back(PARAM_S);
     prefilter.push_back(PARAM_K);
@@ -168,6 +166,7 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_PROFILE);
     prefilter.push_back(PARAM_NUCL);
     prefilter.push_back(PARAM_MAX_SEQS);
+    prefilter.push_back(PARAM_RES_LIST_OFFSET);
     prefilter.push_back(PARAM_SPLIT);
     prefilter.push_back(PARAM_SPLIT_MODE);
     prefilter.push_back(PARAM_SEARCH_MODE);
@@ -744,6 +743,7 @@ void Parameters::setDefaults() {
     clusteringMode = SET_COVER;
     validateClustering = 0;
     cascaded = false;
+    resListOffset = 0;
 
     // affinity clustering
     maxIteration=1000;

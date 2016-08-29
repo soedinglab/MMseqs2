@@ -34,6 +34,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         kmerScore(par.kmerScore),
         spacedKmer(par.spacedKmer),
         sensitivity(par.sensitivity),
+        resListOffset(par.resListOffset),
         maxResListLen(par.maxResListLen),
         alphabetSize(par.alphabetSize),
         maxSeqLen(par.maxSeqLen),
@@ -431,7 +432,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
         std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx], targetSeqId);
         const size_t resultSize = prefResults.second;
         // write
-        if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults, dbFrom, diagonalScoring) != 0)
+        if(writePrefilterOutput(&tmpDbw, thread_idx, id, prefResults, dbFrom, diagonalScoring, resListOffset) != 0)
             continue; // could not write result because of too much results
 
         // update statistics counters
@@ -505,12 +506,12 @@ void Prefiltering::closeReader(){
 
 // write prefiltering to ffindex database
 int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
-                                       const std::pair<hit_t *, size_t>& prefResults,
-                                       size_t seqIdOffset, bool diagonalScoring) {
+                                       const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
+                                       bool diagonalScoring, size_t resultOffsetPos) {
     // write prefiltering results to a string
     size_t l = 0;
-    hit_t * resultVector = prefResults.first;
-    const size_t resultSize = prefResults.second;
+    hit_t * resultVector = prefResults.first + resultOffsetPos;
+    const size_t resultSize = (prefResults.second < resultOffsetPos) ? 0 : prefResults.second - resultOffsetPos;
     std::string prefResultsOutString;
     prefResultsOutString.reserve(BUFFER_SIZE);
     char buffer [100];
@@ -614,18 +615,18 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
     }
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
-    size_t lowSelectiveResidues = 0;
-    const float dbSize = static_cast<float>(dbTo - dbFrom);
-    for(size_t kmerIdx = 0; kmerIdx < indexTable->getTableSize(); kmerIdx++){
-        size_t res = (size_t) indexTable->getTable(kmerIdx);
-        float selectivityOfKmer = (static_cast<float>(res)/dbSize);
-        if(selectivityOfKmer > 0.005){
-            indexTable->getTable()[kmerIdx] = 0;
-            lowSelectiveResidues += res;
-        }
-    }
-    Debug(Debug::INFO) << "Index table: Remove "<< lowSelectiveResidues <<" none selective residues\n";
-    Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
+//    size_t lowSelectiveResidues = 0;
+//    const float dbSize = static_cast<float>(dbTo - dbFrom);
+//    for(size_t kmerIdx = 0; kmerIdx < indexTable->getTableSize(); kmerIdx++){
+//        size_t res = (size_t) indexTable->getTable(kmerIdx);
+//        float selectivityOfKmer = (static_cast<float>(res)/dbSize);
+//        if(selectivityOfKmer > 0.005){
+//            indexTable->getTable()[kmerIdx] = 0;
+//            lowSelectiveResidues += res;
+//        }
+//    }
+//    Debug(Debug::INFO) << "Index table: Remove "<< lowSelectiveResidues <<" none selective residues\n";
+//    Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
     size_t tableEntriesNum = 0;
     for(size_t i = 0; i < indexTable->getTableSize(); i++){
         tableEntriesNum += (size_t) indexTable->getTable(i);
