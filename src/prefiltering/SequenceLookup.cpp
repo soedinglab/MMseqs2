@@ -18,11 +18,22 @@ SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize) {
     currWritePos = data;
     sequence[0] = data;
     sequence[dbSize] = &data[entrySize];
+    externalData = false;
+}
+
+SequenceLookup::SequenceLookup(size_t dbSize) {
+    sequenceCount = dbSize;
+    data = NULL;
+    sequence = new(std::nothrow) char*[sequenceCount + 1];
+    Util::checkAllocation(sequence, "Could not allocate sequence memory in SequenceLookup");
+    externalData = true;
 }
 
 SequenceLookup::~SequenceLookup() {
     delete [] sequence;
-    delete [] data;
+    if(externalData == false){
+        delete [] data;
+    }
 }
 
 void SequenceLookup::addSequence(Sequence * seq) {
@@ -51,26 +62,10 @@ size_t SequenceLookup::getSequenceCount() {
     return sequenceCount;
 }
 
-void SequenceLookup::initLookupByExternalData(FILE * datafile,
-                                              size_t seqSizesOffset,
-                                              size_t seqDataOffset) {
+void SequenceLookup::initLookupByExternalData(char * seqData,
+                                              unsigned int * seqSizes) {
     // copy data to data element
-
-    fseek (datafile, seqDataOffset, SEEK_SET);
-    size_t errCode = fread(data, 1,  dataSize * sizeof(char),datafile);
-    if (errCode != dataSize * sizeof(char)) {
-        Debug(Debug::ERROR) << "IndexTable error while reading entries.\n";
-        EXIT (EXIT_FAILURE);
-    }
-    fseek (datafile , seqSizesOffset, SEEK_SET);
-    unsigned int *seqSizes = new unsigned int[sequenceCount];
-
-    errCode = fread (seqSizes, 1, sequenceCount * sizeof(unsigned int), datafile);
-    if (errCode != sequenceCount * sizeof(unsigned int)) {
-        Debug(Debug::ERROR) << "IndexTable error while reading entries.\n";
-        EXIT (EXIT_FAILURE);
-    }
-
+    data = seqData;
     char * it = data;
     // set the pointers
     for (size_t i = 0; i < sequenceCount; i++){
@@ -78,5 +73,4 @@ void SequenceLookup::initLookupByExternalData(FILE * datafile,
         sequence[i] = (char *) it;
         it += entriesCount;
     }
-    delete [] seqSizes;
 }

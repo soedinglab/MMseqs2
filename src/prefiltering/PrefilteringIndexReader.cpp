@@ -139,14 +139,17 @@ DBReader<unsigned int>*PrefilteringIndexReader::openNewReader(DBReader<unsigned 
 IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*dbr, int split, bool diagonalScoring) {
     int64_t   entriesNum    = *((int64_t *) dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESNUM, split)));
     size_t sequenceCount    = *((size_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQCOUNT, split)));
-    int64_t  seqDataSize    = *((int64_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQINDEXDATASIZE, split)));
     PrefilteringIndexData data = getMetadata(dbr);
-    dbr->unmapData();
-    FILE * dataFile = dbr->getDatafile();
-    size_t entriesOffset  = dbr->getDataOffset(MathUtil::concatenate(ENTRIES, split));
-    size_t entrieSizesOffset  = dbr->getDataOffset(MathUtil::concatenate(ENTRIESIZES, split));
-    size_t seqDataOffset  = dbr->getDataOffset(MathUtil::concatenate(SEQINDEXDATA, split));
-    size_t seqSizesOffset = dbr->getDataOffset(MathUtil::concatenate(SEQINDEXSEQSIZE, split));
+//    dbr->unmapData();
+    //size_t entriesOffset  = dbr->getDataOffset(MathUtil::concatenate(ENTRIES, split));
+    char * entriesData    = dbr->getDataByDBKey(MathUtil::concatenate(ENTRIES, split));
+    //size_t entrieSizesOffset  = dbr->getDataOffset(MathUtil::concatenate(ENTRIESIZES, split));
+    char * entrieSizesData    = dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESIZES, split));
+    //size_t seqDataOffset  = dbr->getDataOffset(MathUtil::concatenate(SEQINDEXDATA, split));
+    char * seqData    = dbr->getDataByDBKey(MathUtil::concatenate(SEQINDEXDATA, split));
+    //size_t seqSizesOffset = dbr->getDataOffset(MathUtil::concatenate(SEQINDEXSEQSIZE, split));
+    char * seqSizesData    = dbr->getDataByDBKey(MathUtil::concatenate(SEQINDEXSEQSIZE, split));
+
     IndexTable *retTable;
     if (data.local) {
         retTable = new IndexTable(data.alphabetSize, data.kmerSize, diagonalScoring);
@@ -154,9 +157,11 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*d
         Debug(Debug::ERROR) << "Seach mode is not valid.\n";
         EXIT(EXIT_FAILURE);
     }
-    retTable->initTableByExternalData(dataFile, entriesNum,
-                                      entrieSizesOffset, entriesOffset, sequenceCount,
-                                      seqSizesOffset, seqDataOffset, seqDataSize);
+
+    retTable->initTableByExternalData(sequenceCount, entriesNum,
+                                      entriesData, (size_t *)entrieSizesData,
+                                      seqData,  (unsigned int *) seqSizesData);
+
     return retTable;
 }
 
