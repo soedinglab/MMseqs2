@@ -58,7 +58,8 @@ public:
     }
 
     void deleteEntries(){
-        if(entries != NULL){
+        munlock(entries, tableEntriesNum);
+        if(entries != NULL && externalData == false){
             delete [] entries;
             entries = NULL;
         }
@@ -102,6 +103,7 @@ public:
         // allocate memory for the sequence id lists
         // tablesSizes is added to put the Size of the entry infront fo the memory
         entries = new(std::nothrow) char [(tableEntriesNum + 1) * this->sizeOfEntry]; // +1 for table[tableSize] pointer address
+        externalData = false;
         Util::checkAllocation(entries, "Could not allocate entries memory in IndexTable::initMemory");
     }
 
@@ -118,43 +120,27 @@ public:
     }
 
     // init index table with external data (needed for index readin)
-    void initTableByExternalData(FILE * data, int64_t tableEntriesNum,
-                                 size_t sizeOffset, size_t entriesOffset,
-                                 size_t sequenzeCount, size_t seqSizesOffset,
-                                 size_t seqDataOffset, int64_t seqDataSize) {
+    void initTableByExternalData(size_t sequenzeCount, size_t tableEntriesNum,
+                                 char * entries, size_t * entriesSize,
+                                 char * seqData, unsigned int  * seqSize) {
         this->tableEntriesNum = tableEntriesNum;
         this->size = sequenzeCount;
-        initMemory(sequenzeCount, tableEntriesNum, seqDataSize);
+//        initMemory(sequenzeCount, tableEntriesNum, seqDataSize);
         if(hasSequenceLookup == true){
-            sequenceLookup->initLookupByExternalData(data, seqSizesOffset, seqDataOffset);
+            sequenceLookup = new SequenceLookup(sequenzeCount);
+            sequenceLookup->initLookupByExternalData(seqData, seqSize);
         }
-        Debug(Debug::WARNING) << "Copy " << this->tableEntriesNum
-        << " Entries (" <<  this->tableEntriesNum*this->sizeOfEntry  << " byte)\n";
-
-        fseek (data , entriesOffset, SEEK_SET);
-        size_t errcode = fread (entries, 1, this->tableEntriesNum * this->sizeOfEntry ,data);
-        if (errcode != this->tableEntriesNum * this->sizeOfEntry) {
-            Debug(Debug::ERROR) << "IndexTable error while reading entries.\n";
-            EXIT (EXIT_FAILURE);
-        }
-
-        size_t *sizes = new size_t[tableSize];
-        fseek (data , sizeOffset, SEEK_SET);
-        errcode = fread (sizes, 1, this->tableSize * sizeof(size_t) , data);
-        if (errcode != this->tableSize * sizeof(size_t)) {
-            Debug(Debug::ERROR) << "IndexTable error while reading sizeTable.\n";
-            EXIT (EXIT_FAILURE);
-        }
+        this->entries = entries;
+        mlock(entries, tableEntriesNum);
         Debug(Debug::WARNING) << "Setup Sizes  \n";
         char* it = this->entries;
         // set the pointers in the index table to the start of the list for a certain k-mer
         for (size_t i = 0; i < tableSize; i++){
             table[i] = it;
-            it += sizes[i] * this->sizeOfEntry;
+            it += entriesSize[i] * this->sizeOfEntry;
         }
-        delete [] sizes;
-
         table[tableSize] = it;
+        externalData = true;
         Debug(Debug::WARNING) << "Read IndexTable ... Done\n";
     }
 
@@ -307,6 +293,10 @@ protected:
 
     // sequence lookup
     SequenceLookup *sequenceLookup;
+
+    // external data from mmap
+    bool externalData;
+
 
 };
 

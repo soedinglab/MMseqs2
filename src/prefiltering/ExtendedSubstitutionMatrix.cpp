@@ -35,12 +35,15 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
     std::vector<std::vector<int> > permutation;
     std::vector<int> outputTemp;
     createCartesianProduct(permutation, outputTemp, input.begin(), input.end());
+#pragma omp parallel
+{
     std::pair<short,unsigned int> * tmpScoreMatrix = new std::pair<short, unsigned int> [this->size];
     // fill matrix
-    for(std::vector<int>::size_type i = 0; i != permutation.size(); i++) {
+#pragma omp for schedule(static)
+    for(size_t i = 0; i < permutation.size(); i++) {
         const unsigned int i_index=indexer.int2index(&permutation[i][0]);
         
-        for(std::vector<int>::size_type j = 0; j != permutation.size(); j++) {
+        for(size_t j = 0; j < permutation.size(); j++) {
             const unsigned int j_index=indexer.int2index(&permutation[j][0]);
             const short score=calcScore(&permutation[i][0],&permutation[j][0],kmerSize,subMatrix);
             tmpScoreMatrix[j].first  = score;
@@ -57,6 +60,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
         }
     }
     delete [] tmpScoreMatrix;
+}
     outputTemp.clear();
     permutation.clear();
     this->scoreMatrix = new ScoreMatrix(score, index, size, row_size);
