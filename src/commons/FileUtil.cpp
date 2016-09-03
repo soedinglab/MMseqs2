@@ -1,6 +1,7 @@
 #include "FileUtil.h"
 #include "Util.h"
 #include "Debug.h"
+#include "MemoryMapped.h"
 #include <sys/stat.h>
 #include <stdio.h>
 #include <fstream>
@@ -41,18 +42,13 @@ FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool sho
 }
 
 size_t FileUtil::countLines(const char* name) {
-    FILE *file1 = fopen(name, "r");
-#if HAVE_POSIX_FADVISE
-    if (posix_fadvise (fileno(file1), 0, 0, POSIX_FADV_SEQUENTIAL) != 0){
-       Debug(Debug::ERROR) << "posix_fadvise returned an error\n";
-    }
-#endif
+    MemoryMapped indexData(name, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     size_t cnt = 0;
-    int c1;
-    while((c1=getc_unlocked(file1)) != EOF) {
-        cnt += (c1 == '\n') ? 1 : 0;
+    char* indexDataChar = (char *) indexData.getData();
+    for(size_t pos = 0; pos < indexData.size(); pos++) {
+        cnt += (indexDataChar[pos] == '\n') ? 1 : 0;
     }
-    fclose(file1);
+    indexData.close();
     return cnt;
 }
 

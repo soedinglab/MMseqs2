@@ -178,7 +178,7 @@ void DBReader<unsigned int>::sortIndex() {
         }
         delete[] tmpSizeArray;
     }
-
+    delete [] mappingToOriginalIndex;
 }
 
 template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize){
