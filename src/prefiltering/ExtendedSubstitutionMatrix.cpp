@@ -19,7 +19,6 @@ struct sort_by_score {
 ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
                                                        const size_t kmerSize,
                                                        const size_t alphabetSize){
-    Indexer indexer( (int) alphabetSize, (int) kmerSize);
     this->size = pow(alphabetSize, kmerSize);
     size_t row_size = this->size / ALIGN_INT;
     row_size = (row_size + 1) * ALIGN_INT; // for SIMD memory alignment
@@ -38,6 +37,7 @@ ExtendedSubstitutionMatrix::ExtendedSubstitutionMatrix(short ** subMatrix,
 #pragma omp parallel
 {
     std::pair<short,unsigned int> * tmpScoreMatrix = new std::pair<short, unsigned int> [this->size];
+    Indexer indexer( (int) alphabetSize, (int) kmerSize);
     // fill matrix
 #pragma omp for schedule(static)
     for(size_t i = 0; i < permutation.size(); i++) {
