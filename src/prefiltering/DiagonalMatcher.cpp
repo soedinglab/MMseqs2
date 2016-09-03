@@ -183,7 +183,8 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
         // update score
         for (size_t hitIdx = 0; hitIdx < hitSize; hitIdx++) {
             unsigned int diagLen = diagonalLength(minDistToDiagonal, queryLen, seqs[hitIdx].second);
-            hits[hitIdx]->count = normalizeScore(score_arr[hitIdx], diagLen);
+            // 2*diagLen because of bits/2
+            hits[hitIdx]->count = normalizeScore(score_arr[hitIdx], 2*diagLen);
         }
 
     }else {
