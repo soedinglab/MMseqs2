@@ -47,6 +47,9 @@ private:
     // if data are read from mmap
     bool externalData;
 
+    // magic byte to cache database
+    size_t magicByte;
+
 };
 
 
