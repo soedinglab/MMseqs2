@@ -58,10 +58,11 @@ public:
     }
 
     void deleteEntries(){
-        munlock(entries, tableEntriesNum);
         if(entries != NULL && externalData == false){
             delete [] entries;
             entries = NULL;
+        }else{
+            munlock(entries, tableEntriesNum);
         }
     }
 
@@ -131,13 +132,14 @@ public:
             sequenceLookup->initLookupByExternalData(seqData, seqSize);
         }
         this->entries = entries;
-        mlock(entries, tableEntriesNum);
-        Debug(Debug::WARNING) << "Setup Sizes  \n";
+        Debug(Debug::WARNING) << "Cache database  \n";
         char* it = this->entries;
         // set the pointers in the index table to the start of the list for a certain k-mer
+        magicByte = 0; // read each entry to keep them in memory
         for (size_t i = 0; i < tableSize; i++){
             table[i] = it;
             it += entriesSize[i] * this->sizeOfEntry;
+            magicByte += *it;
         }
         table[tableSize] = it;
         externalData = true;
@@ -297,7 +299,8 @@ protected:
     // external data from mmap
     bool externalData;
 
-
+    // magic byte to avoid compiler optimisation
+    size_t magicByte;
 };
 
 

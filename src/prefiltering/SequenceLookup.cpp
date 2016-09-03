@@ -3,6 +3,7 @@
 //
 #include <new>
 #include <cstring>
+#include <sys/mman.h>
 #include "Debug.h"
 #include "Util.h"
 #include "SequenceLookup.h"
@@ -33,6 +34,8 @@ SequenceLookup::~SequenceLookup() {
     delete [] sequence;
     if(externalData == false){
         delete [] data;
+    }else{
+        munlock(data, dataSize);
     }
 }
 
@@ -67,10 +70,15 @@ void SequenceLookup::initLookupByExternalData(char * seqData,
     // copy data to data element
     data = seqData;
     char * it = data;
+    magicByte = 0;
     // set the pointers
     for (size_t i = 0; i < sequenceCount; i++){
         const unsigned int entriesCount = (unsigned int) seqSizes[i];
         sequence[i] = (char *) it;
         it += entriesCount;
+        magicByte += sequence[i][0]; // this will read 4kb
     }
+    dataSize = it - data;
+    mlock(data, dataSize);
+    sequence[sequenceCount] = it;
 }
