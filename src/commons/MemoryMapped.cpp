@@ -59,7 +59,8 @@ MemoryMapped::MemoryMapped(const std::string& filename, size_t mappedBytes, Cach
 #ifdef _MSC_VER
         _mappedFile (NULL),
 #endif
-          _mappedView (NULL)
+          _mappedView (NULL),
+          openned(false)
 {
     open(filename, mappedBytes, hint);
 }
@@ -75,12 +76,13 @@ MemoryMapped::~MemoryMapped()
 /// open file
 bool MemoryMapped::open(const std::string& filename, size_t mappedBytes, CacheHint hint)
 {
-    // already open ?
-    if (isValid())
-        return false;
 
-    _file       = 0;
+    // already open ?
+    if (openned)
+        return false;
+    
     _filesize   = 0;
+    _file       = 0;
     _hint       = hint;
 #ifdef _MSC_VER
     _mappedFile = NULL;
@@ -142,6 +144,7 @@ bool MemoryMapped::open(const std::string& filename, size_t mappedBytes, CacheHi
     if (!_mappedView)
         return false;
 
+    openned = true;
     // everything's fine
     return true;
 }
@@ -213,7 +216,14 @@ const unsigned char* MemoryMapped::getData() const
 /// true, if file successfully opened
 bool MemoryMapped::isValid() const
 {
-    return _mappedView != NULL;
+    if (_filesize)
+    {
+        return _mappedView != NULL;
+    }
+    else
+    {
+        return true;
+    }
 }
 
 
