@@ -10,7 +10,7 @@
 int mergeffindex(int argc, const char **argv) {
     std::string usage("\nMerge multiple ffindex files based on similar id into one file. \n");
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n\n");
-    usage.append("USAGE: <outDB> <ffindexDB1> ... <ffindexDBn>\n");
+    usage.append("USAGE: <QueryDB> <outDB> <ffindexDB1> ... <ffindexDBn>\n");
     Parameters par;
     par.parseParameters(argc, argv, usage, par.mergeffindex, 2, true, true);
 
