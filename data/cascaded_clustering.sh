@@ -14,7 +14,7 @@ hasCommand () {
     command -v $1 >/dev/null 2>&1 || { echo "Please make sure that $1 is in \$PATH."; exit 1; }
 }
 #pre processing
-[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
+#[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
 # check amount of input variables
 [ "$#" -ne 3 ] && echo "Please provide <sequenceDB> <outDB> <tmp>" && exit 1;
 # check if files exists
@@ -27,38 +27,38 @@ hasCommand awk
 export OMP_PROC_BIND=TRUE
 
 INPUT="$1"
-notExists "$3/aln_redundancy" && mmseqs detectredundancy "$INPUT" "$3/aln_redundancy" ${DETECTREDUNDANCY_PAR} && checkReturnCode "Fast filter step $STEP died"
-notExists "$3/clu_redundancy" && mmseqs cluster $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER1_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
+notExists "$3/aln_redundancy" && $MMSEQS detectredundancy "$INPUT" "$3/aln_redundancy" ${DETECTREDUNDANCY_PAR} && checkReturnCode "Fast filter step $STEP died"
+notExists "$3/clu_redundancy" && $MMSEQS cluster $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER1_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
 awk '{ print $1 }' "$3/clu_redundancy.index" > "$3/order_redundancy"
-notExists "$3/input_step_redundancy" && mmseqs order "$3/order_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
+notExists "$3/input_step_redundancy" && $MMSEQS order "$3/order_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
 
 INPUT="$3/input_step_redundancy"
 STEP=0
 while [ $STEP -lt 4 ]; do
     PARAM=PREFILTER${STEP}_PAR
     notExists "$3/pref_step$STEP" \
-        && $RUNNER mmseqs prefilter "$INPUT" "$INPUT" "$3/pref_step$STEP" ${!PARAM} \
+        && $RUNNER $MMSEQS prefilter "$INPUT" "$INPUT" "$3/pref_step$STEP" ${!PARAM} \
         && checkReturnCode "Prefilter step $STEP died"
     PARAM=ALIGNMENT${STEP}_PAR
     notExists "$3/aln_step$STEP" \
-        && $RUNNER mmseqs alignment "$INPUT" "$INPUT" "$3/pref_step$STEP" "$3/aln_step$STEP" ${!PARAM} \
+        && $RUNNER $MMSEQS alignment "$INPUT" "$INPUT" "$3/pref_step$STEP" "$3/aln_step$STEP" ${!PARAM} \
         && checkReturnCode "Alignment step $STEP died"
     PARAM=CLUSTER${STEP}_PAR
     notExists "$3/clu_step$STEP" \
-        && mmseqs cluster "$INPUT" "$3/aln_step$STEP" "$3/clu_step$STEP" ${!PARAM} \
+        && $MMSEQS cluster "$INPUT" "$3/aln_step$STEP" "$3/clu_step$STEP" ${!PARAM} \
         && checkReturnCode "Clustering step $STEP died"
 
     NEXTINPUT="$3/input_step$((STEP+1))"
     if [ $STEP -eq 3 ]; then
         notExists "$3/clu" \
-            && mmseqs mergecluster "$1" "$3/clu" "$3/clu_redundancy" "$3/clu_step0" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3" \
+            && $MMSEQS mergecluster "$1" "$3/clu" "$3/clu_redundancy" "$3/clu_step0" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3" \
             && checkReturnCode "Merging of clusters has died"
     else
         notExists "$3/order_step$STEP" \
             && awk '{ print $1 }' "$3/clu_step$STEP.index" > "$3/order_step$STEP" \
             && checkReturnCode "Awk step $STEP died"
         notExists "$NEXTINPUT" \
-            && mmseqs order "$3/order_step$STEP" "$INPUT" "$NEXTINPUT" \
+            && $MMSEQS order "$3/order_step$STEP" "$INPUT" "$NEXTINPUT" \
             && checkReturnCode "Order step $STEP died"
     fi
 

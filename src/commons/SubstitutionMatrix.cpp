@@ -6,21 +6,39 @@
 #include <algorithm>
 #include <fstream>
 #include <cmath>
+#include <blosum62.out.h>
 
 
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
                                        float bitFactor, float scoreBias = -0.2) :
         scoringMatrixFileName(scoringMatrixFileName_) {
-    // read amino acid substitution matrix from file
-    std::string fileName(scoringMatrixFileName);
-    matrixName = Util::base_name(fileName, "/\\");
-    matrixName = Util::remove_extension(matrixName);
-    if (fileName.substr(fileName.length() - 4, 4).compare(".out") == 0)
-        readProbMatrix();
-    else {
-        Debug(Debug::ERROR) << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
-        EXIT(EXIT_FAILURE);
+
+    if(strcmp(scoringMatrixFileName,"blosum62.out") != 0) {
+        // read amino acid substitution matrix from file
+        std::string fileName(scoringMatrixFileName);
+        matrixName = Util::base_name(fileName, "/\\");
+        matrixName = Util::remove_extension(matrixName);
+        if (fileName.substr(fileName.length() - 4, 4).compare(".out") == 0){
+            std::ifstream in(fileName);
+            if (in.fail()) {
+                Debug(Debug::ERROR) << "Cannot read " << scoringMatrixFileName << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+            std::string str((std::istreambuf_iterator<char>(in)),
+                            std::istreambuf_iterator<char>());
+            readProbMatrix(str);
+            in.close();
+        }
+        else {
+            Debug(Debug::ERROR) << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }else{
+        matrixName = "blosum62";
+        std::string submat((const char*)blosum62_out,blosum62_out_len);
+        readProbMatrix(submat);
     }
+
 
     generateSubMatrix(this->probMatrix, this->subMatrixPseudoCounts, this->subMatrix, this->subMatrix2Bit,
                       this->alphabetSize, bitFactor, scoreBias);
@@ -117,13 +135,10 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(short *profileScores,
 SubstitutionMatrix::~SubstitutionMatrix() {
 }
 
-void SubstitutionMatrix::readProbMatrix() {
+void SubstitutionMatrix::readProbMatrix(std::string matrixData) {
 
-    std::ifstream in(scoringMatrixFileName);
-    if (in.fail()) {
-        Debug(Debug::ERROR) << "Cannot read " << scoringMatrixFileName << "\n";
-        EXIT(EXIT_FAILURE);
-    }
+    std::stringstream in(matrixData);
+
 
     int row = 0;
     int column = 0;
@@ -175,7 +190,6 @@ void SubstitutionMatrix::readProbMatrix() {
             }
         }
     }
-    in.close();
 
     double sum = 0.0;
     for (int i = 0; i < alphabetSize; ++i)

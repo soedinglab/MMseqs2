@@ -90,8 +90,6 @@ public:
     std::string db5;
     std::string db5Index;
 
-    std::string mmdir;
-
     std::string scoringMatrixFile;       // path to scoring matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
@@ -116,7 +114,7 @@ public:
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB (MPI only)
     bool   splitAA;                      // Split database by amino acid count instead
-    size_t resListOffset;             // Offsets result list
+    size_t resListOffset;                // Offsets result list
 
     // ALIGNMENT
     std::string ffindexPrefDB;           // prefilter database (input for alignment module)

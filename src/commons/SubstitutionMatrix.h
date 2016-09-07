@@ -32,7 +32,7 @@ private:
 
         const char* scoringMatrixFileName;
 
-        void readProbMatrix();
+        void readProbMatrix(std::string matrixData);
 
         float bitFactor;
 
