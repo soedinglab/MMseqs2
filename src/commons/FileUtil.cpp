@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <fstream>
 #include <fcntl.h>
+#include <unistd.h>
 
 void FileUtil::errorIfFileExist(const char * file){
     struct stat st;
@@ -59,4 +60,10 @@ void FileUtil::deleteTempFiles(std::list<std::string> tmpFiles) {
             Debug(Debug::WARNING) << "Error deleting file " << *it << "\n";
         }
     }
+}
+
+void FileUtil::writeFile(std::string pathToFile, unsigned char *data, size_t len) {
+    int file = open(pathToFile.c_str(), O_RDWR|O_CREAT, 0700);
+    write(file, data, len);
+    close(file);
 }

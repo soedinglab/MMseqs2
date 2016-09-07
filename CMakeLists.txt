@@ -55,19 +55,9 @@ include_directories(lib/seqan)
 include_directories(lib/gzstream)
 add_subdirectory(src)
 
-install(DIRECTORY
-   data
-   DESTINATION .
-   USE_SOURCE_PERMISSIONS
-   FILES_MATCHING PATTERN "*.out"
-)
 
-install(DIRECTORY
-   src/workflow/
-   DESTINATION bin
-   USE_SOURCE_PERMISSIONS
-   FILES_MATCHING PATTERN "*.sh"
-)
+
+
 
 install(PROGRAMS
 	util/bash-completion.sh

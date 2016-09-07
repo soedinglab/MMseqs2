@@ -2,7 +2,8 @@
 
 #include <sys/time.h>
 #include <cassert>
-
+#include <FileUtil.h>
+#include <update_clustering.sh.h>
 
 #include "CommandCaller.h"
 #include "Util.h"
@@ -19,8 +20,6 @@ int clusterupdate (int argc, const char * argv[]){
     par.parseParameters(argc, argv, usage, par.clusterUpdate, 5);
 
     CommandCaller cmd;
-
-
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
@@ -28,8 +27,9 @@ int clusterupdate (int argc, const char * argv[]){
 	cmd.addVariable("RUNNER", par.runner.c_str());
 	cmd.addVariable("SEARCH_PAR", par.createParameterString(par.clusterUpdateSearch).c_str());
 	cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusterUpdateClust).c_str());
-	std::string program(par.mmdir);
-	program.append("/bin/update_clustering.sh");
+
+    FileUtil::writeFile(par.db5 + "/update_clustering.sh", update_clustering_sh, update_clustering_sh_len);
+    std::string program(par.db5 + "/update_clustering.sh");
 	cmd.execProgram(program.c_str(), 5, argv);
 
     // Should never get here
