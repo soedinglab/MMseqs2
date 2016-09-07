@@ -1,7 +1,8 @@
 #include "Parameters.h"
-
 #include <string>
 #include <cassert>
+#include <cascaded_clustering.sh.h>
+#include <clustering.sh.h>
 
 #include "DBWriter.h"
 #include "CommandCaller.h"
@@ -84,7 +85,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
 //    FileUtil::errorIfFileExist(par.db2Index.c_str());
 
     CommandCaller cmd;
-
+//    FileUtil::writeFile(clustering_sh, clustering_sh_len);
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
@@ -135,19 +136,16 @@ int clusteringworkflow(int argc, const char *argv[]) {
         cmd.addVariable("PREFILTER3_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(par.alignment).c_str());
         cmd.addVariable("CLUSTER3_PAR", par.createParameterString(par.clustering).c_str());
-
-        std::string program(par.mmdir);
-        program.append("/bin/cascaded_clustering.sh");
+        FileUtil::writeFile(par.db3 + "/cascaded_clustering.sh", cascaded_clustering_sh, cascaded_clustering_sh_len);
+        std::string program(par.db3 + "/cascaded_clustering.sh");
         cmd.execProgram(program.c_str(), 3, argv);
-
     } else {
         cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.detectredundancy).c_str());
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clustering).c_str());
-
-        std::string program(par.mmdir);
-        program.append("/bin/clustering.sh");
+        FileUtil::writeFile(par.db3 + "/clustering.sh", clustering_sh, clustering_sh_len);
+        std::string program(par.db3 + "/clustering.sh");
         cmd.execProgram(program.c_str(), 3, argv);
     }
 
