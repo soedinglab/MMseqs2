@@ -19,6 +19,8 @@ public:
     static size_t countLines(const char* name);
 
     static void deleteTempFiles(std::list<std::string> tmpFiles);
+
+    static void writeFile(std::string pathToFile, unsigned char *sh, size_t len);
 };
 
 

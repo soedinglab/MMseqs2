@@ -71,7 +71,6 @@ static struct Command commands[] = {
                 "Calculates MSAs from a clustering"},
         {"result2stats",          result2stats,             &par.result2stats,            COMMAND_HELPER,
                 "Compute statistics for each result entry"},
-                
         {"rebuildfasta",        rebuildfasta,           &par.rebuildfasta,          COMMAND_HELPER,
                 "Rebuild a fasta file from a ffindex database"},
         {"extractorf",          extractorf,             &par.extractorf,            COMMAND_HELPER,
@@ -208,6 +207,7 @@ int main(int argc, const char **argv) {
         printUsage();
         EXIT(EXIT_FAILURE);
     }
+    setenv("MMSEQS", argv[0], true);
     if (isCommand(argv[1])) {
         for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
             struct Command *p = commands + i;

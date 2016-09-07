@@ -10,7 +10,7 @@ notExists () {
 	[ ! -f "$1" ]
 }
 #pre processing
-[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
+[ -z "$MMSEQS" ] && echo "Please set the environment variable \$MMSEQS to your MMSEQS binary." && exit 1;
 # check amount of input variables
 [ "$#" -ne 4 ] && echo "Please provide <queryDB> <targetDB> <outDB> <tmp>" && exit 1;
 # check if files exists
@@ -38,14 +38,14 @@ QUERYDB="$ABS_QUERY"
 while [ $STEP -lt $NUM_IT ]; do
     # call prefilter module
     if notExists "$TMP_PATH/pref_$STEP"; then
-        $RUNNER mmseqs prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP" $PREFILTER_PAR
+        $RUNNER $MMSEQS prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP" $PREFILTER_PAR
         checkReturnCode "Prefilter died"
     fi
 
     if [ $STEP -ge 1 ]; then
         if notExists "$TMP_PATH/pref_$STEP.hasnext"; then
             # pref -aln
-            mmseqs substractresult "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR
+            $MMSEQS substractresult "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR
             checkReturnCode "Substract died"
             mv -f "$TMP_PATH/pref_next_$STEP" "$TMP_PATH/pref_$STEP"
             mv -f "$TMP_PATH/pref_next_$STEP.index" "$TMP_PATH/pref_$STEP.index"
@@ -60,13 +60,13 @@ while [ $STEP -lt $NUM_IT ]; do
 	fi
 	# call alignment module
 	if notExists "$TMP_PATH/aln_$STEP"; then
-        $RUNNER mmseqs alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN --add-backtrace
+        $RUNNER $MMSEQS alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN --add-backtrace
         checkReturnCode "Alignment died"
     fi
 
     if [ $STEP -gt 0 ]; then
         if notExists "$TMP_PATH/aln_$STEP.hasmerge"; then
-            mmseqs mergeffindex "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP"
+            $MMSEQS mergeffindex "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP"
             checkReturnCode "Merge died"
             mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_0"
             mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_0.index"
@@ -77,7 +77,7 @@ while [ $STEP -lt $NUM_IT ]; do
 # create profiles
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
         if notExists "$TMP_PATH/profile_$STEP"; then
-            $RUNNER mmseqs result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR
+            $RUNNER $MMSEQS result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR
             checkReturnCode "Create profile died"
             ln -sf "${QUERYDB}_h" "$TMP_PATH/profile_${STEP}_h"
             ln -sf "${QUERYDB}_h.index" "$TMP_PATH/profile_${STEP}_h.index"

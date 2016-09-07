@@ -78,10 +78,6 @@ add_executable(testgo ${testgo})
 target_link_libraries(testgo util)
 target_link_libraries(testgo workflow)
 
-set(testcommand TestCommandCaller.cpp )
-add_executable(testcommand ${testcommand})
-target_link_libraries(testcommand commons)
-
 set(test_dbreader TestDBReader.cpp )
 add_executable(test_dbreader ${test_dbreader})
 target_link_libraries(test_dbreader util)

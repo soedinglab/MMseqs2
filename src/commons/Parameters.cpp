@@ -116,8 +116,6 @@ Parameters::Parameters():
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "Extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
         PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID,"--comparison-operator", "Numerical comparison operator", "Compare numerically (le, ge, e) each entry to a comparison value.",typeid(std::string), (void *) &compOperator, ""),
         PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID,"--comparison-value", "Numerical comparison value", "Compare numerically (le, ge, e) each entry to this comparison value.",typeid(float), (void *) &compValue, ""),
-
-
 // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "The keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         
@@ -300,12 +298,9 @@ Parameters::Parameters():
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
 
-
-
     clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
-
 
     // translate nucleotide
     translateNucleotide.push_back(PARAM_TRANSLATION_TABLE);
@@ -418,7 +413,7 @@ Parameters::Parameters():
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
 
-    checkSaneEnvironment();
+    //checkSaneEnvironment();
     setDefaults();
 }
 
@@ -450,10 +445,7 @@ void Parameters::printUsageMessage(const std::string &programUsageHeader,
             ss << "[bool:" << std::right << std::setw(10) << *((bool *) par.value) << "]";
         }else if (par.type == typeid(std::string)) {
             std::string& out = *((std::string *) par.value);
-            size_t index = out.find(mmdir);
-            if(index != std::string::npos) {
-                out.replace(index, mmdir.length(), "$MMDIR");
-            }
+
             ss << "[text:" << std::right << std::setw(10);
             for(std::string::const_iterator j = out.begin(); j != out.end(); ++j) {
                 if(*j == '\n') {
@@ -697,9 +689,7 @@ void Parameters::checkSaneEnvironment() {
 }
 
 void Parameters::setDefaults() {
-    mmdir = getenv("MMDIR");
-    scoringMatrixFile = mmdir;
-    scoringMatrixFile.append("/data/blosum62.out");
+    scoringMatrixFile = "blosum62.out";
 
     kmerSize =  7;
     kmerScore = INT_MAX;

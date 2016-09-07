@@ -1,11 +1,12 @@
 #include <string>
 #include <cassert>
-
+#include <FileUtil.h>
+#include <blastpgp.sh.h>
+#include <blastp.sh.h>
 #include "CommandCaller.h"
 #include "Util.h"
 #include "Debug.h"
 #include "Parameters.h"
-
 int search(int argc, const char *argv[]) {
     std::string usage("\nCompares all sequences in the query database with all sequences in the target database.\n");
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
@@ -15,7 +16,6 @@ int search(int argc, const char *argv[]) {
     par.parseParameters(argc, argv, usage, par.searchworkflow, 4);
 
     CommandCaller cmd;
-
 
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
@@ -41,8 +41,8 @@ int search(int argc, const char *argv[]) {
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
         cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.result2profile).c_str());
         cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.substractresult).c_str());
-        std::string program(par.mmdir);
-        program.append("/bin/blastpgp.sh");
+        FileUtil::writeFile(par.db4 + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
+        std::string program(par.db4 + "/blastpgp.sh");
         cmd.execProgram(program.c_str(), 4, argv);
     } else {
 
@@ -70,11 +70,11 @@ int search(int argc, const char *argv[]) {
             }
         }
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());
-
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
 
-        std::string program(par.mmdir);
-        program.append("/bin/blastp.sh");
+
+        FileUtil::writeFile(par.db4 + "/blastp.sh", blastp_sh, blastp_sh_len);
+        std::string program(par.db4 + "/blastp.sh");
         cmd.execProgram(program.c_str(), 4, argv);
     }
 
