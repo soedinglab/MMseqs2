@@ -16,7 +16,7 @@ PROFILEDB=profileDB
 
 eval=$5
 k=$6
-MEMORY_FOR_SWAPPING=1000000 #10000000
+MEMORY_FOR_SWAPPING=$(free|grep Mem|awk '{print $4}')#1000000 #10000000
 offset=0 #start with the first result
 
 nProfiles=$(wc -l $PROFILEDB.index|cut -f1 -d' ')
@@ -32,7 +32,7 @@ do
 
     # compute the max number of sequence that are reasonable to swap
     # according to the number of profiles
-    let MAX_SEQS=MEMORY_FOR_SWAPPING/nProfiles/90 # 90 bytes/query-result line ?
+    let MAX_SEQS=MEMORY_FOR_SWAPPING*1024/nProfiles/90 # 90 bytes/query-result line max.
 
     rm -f $TMP/aln_4.* $TMP/pref_4* $TMP/searchOut.notSwapped* $TMP/searchOut.current*
     mmseqs search $PROFILEDB $SEQDB $TMP/searchOut.notSwapped $TMP -e $currentEval --max-seqs $MAX_SEQS --profile --offset-result $offset
