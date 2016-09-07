@@ -33,6 +33,7 @@ ffindexapply=/home/clovis/Software/hh-suite/bin/ffindex_apply_mpi
     mmseqs order $TMP/profilesSampled.lst $PROFILEDB $TMP/profileDBsampled
     mmseqs order $TMP/profilesRemaining.lst $PROFILEDB $TMP/profileDBremaining
 
+
 while [$eval -le $currentEval]
 do
     # Search the samples against the seq DB
