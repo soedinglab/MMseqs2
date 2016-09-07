@@ -5,7 +5,6 @@
 #include "Util.h"
 
 #include <sys/time.h>
-#include <Prefiltering.h>
 
 
 int mergeffindex(int argc, const char **argv) {
@@ -18,7 +17,7 @@ int mergeffindex(int argc, const char **argv) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     std::vector<std::pair<std::string, std::string>> filenames;
-    for (int i = 1; i < argc; i++) {
+    for (int i = 2; i < argc; i++) {
         std::string arg = argv[i];
         if(arg[0] == '-') {
             i++;
@@ -28,18 +27,17 @@ int mergeffindex(int argc, const char **argv) {
         filenames.emplace_back(arg, arg + ".index");
     }
 
-//    std::vector<std::string> prefixes = Util::split(par.mergePrefixes, ",");
+    std::vector<std::string> prefixes = Util::split(par.mergePrefixes, ",");
 
-//    DBReader<unsigned int> qdbr(par.db1.c_str(), std::string(par.db1 + ".index").c_str());
-//    qdbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> qdbr(par.db1.c_str(), std::string(par.db1 + ".index").c_str());
+    qdbr.open(DBReader<unsigned int>::NOSORT);
 
-//    DBWriter writer(par.db2.c_str(), std::string(par.db2 + ".index").c_str());
-//    writer.open();
-//    writer.mergeFiles(qdbr, filenames, prefixes);
-    Prefiltering::mergeOutput(par.db1, par.db1Index, filenames);
-//    writer.close();
+    DBWriter writer(par.db2.c_str(), std::string(par.db2 + ".index").c_str());
+    writer.open();
+    writer.mergeFiles(qdbr, filenames, prefixes);
+    writer.close();
 
-//    qdbr.close();
+    qdbr.close();
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
