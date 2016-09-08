@@ -125,4 +125,6 @@ private:
     size_t keepMaxElement(CounterResult **pResult, const unsigned int bincount, CounterResult *pCounterResult);
 };
 
+#undef BITS_TO_REPRESENT
+#undef IS_REPRESENTIBLE_IN_D_BITS
 #endif
