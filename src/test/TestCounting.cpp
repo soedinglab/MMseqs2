@@ -2,7 +2,7 @@
 #include <list>
 #include <algorithm>
 #include <math.h>
-#include <CountInt32Array.h>
+#include <CacheFriendlyOperations.h>
 #include <map>
 
 
@@ -34,14 +34,14 @@ void fillNumbers(unsigned int * data, size_t len) {
 int main(int argc, char **argv)
 {
     // DBR;ader test
-/*    CountInt32Array counter(3000000,2);
+/*    CacheFriendlyOperations diagonalMatcher(3000000,2);
 
     unsigned int input[] = {1000001,1000000,2000000,3000000,4000000,5000000,6000000,7000000,8000000,9000000
                                    ,1000000,2000000,3000000,4000000,4000000};
     CounterResult * output1 = new CounterResult[N];
     CounterResult * output2 = new CounterResult[N];
 
-    size_t resSize = counter.countElements(input, sizeof(input) / sizeof(unsigned int), output1);
+    size_t resSize = diagonalMatcher.countElements(input, sizeof(input) / sizeof(unsigned int), output1);
     std::cout << resSize << std::endl;
     for(size_t i = 0; i < resSize; i++){
         std::cout << output1[i].id << " " << (int) output1[i].count << std::endl;
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 ////    // try big data
 //    unsigned int * number = new unsigned int[N];
 //    fillNumbers(number, N);
-//    CountInt32Array counter2(ENTRYRANGE,N/2048);
+//    CacheFriendlyOperations counter2(ENTRYRANGE,N/2048);
 //    std::map<int, int> cntMap;
 //    for(int i = 0; i < N;i++){
 //        cntMap[number[i]]++;

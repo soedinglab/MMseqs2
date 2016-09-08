@@ -1,9 +1,9 @@
 //
 // Created by mad on 12/15/15.
 
-#include "DiagonalMatcher.h"
+#include "UngappedAlignment.h"
 
-DiagonalMatcher::DiagonalMatcher(const unsigned int maxSeqLen,
+UngappedAlignment::UngappedAlignment(const unsigned int maxSeqLen,
                                  BaseMatrix * substitutionMatrix,
                                  SequenceLookup * sequenceLookup) {
     score_arr = new unsigned int[VECSIZE_INT*4];
@@ -20,7 +20,7 @@ DiagonalMatcher::DiagonalMatcher(const unsigned int maxSeqLen,
     this->sequenceLookup = sequenceLookup;
 }
 
-DiagonalMatcher::~DiagonalMatcher() {
+UngappedAlignment::~UngappedAlignment() {
     delete [] score_arr;
     delete [] diagonalCounter;
     free(vectorSequence);
@@ -32,7 +32,7 @@ DiagonalMatcher::~DiagonalMatcher() {
     delete [] diagonalMatches;
 }
 
-void DiagonalMatcher::processQuery(Sequence *seq,
+void UngappedAlignment::processQuery(Sequence *seq,
                                    float *biasCorrection,
                                    CounterResult *results,
                                    size_t resultSize,
@@ -41,7 +41,7 @@ void DiagonalMatcher::processQuery(Sequence *seq,
     computeScores(queryProfile, seq->L, results, resultSize, bias, thr);
 }
 
-int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
+int UngappedAlignment::scalarDiagonalScoring(const char * profile,
                                            const int bias,
                                            const unsigned int seqLen,
                                            const unsigned char * dbSeq) {
@@ -58,7 +58,7 @@ int DiagonalMatcher::scalarDiagonalScoring(const char * profile,
 }
 
 #ifdef AVX2
-inline const __m256i DiagonalMatcher::Shuffle(const __m256i & value, const __m256i & shuffle)
+inline const __m256i UngappedAlignment::Shuffle(const __m256i & value, const __m256i & shuffle)
 {
     const __m256i K0 = _mm256_setr_epi8(
             (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70, (char)0x70,
@@ -71,7 +71,7 @@ inline const __m256i DiagonalMatcher::Shuffle(const __m256i & value, const __m25
 }
 #endif
 
-simd_int DiagonalMatcher::vectorDiagonalScoring(const char *profile,
+simd_int UngappedAlignment::vectorDiagonalScoring(const char *profile,
                                                 const char bias,
                                                 const unsigned int seqLen,
                                                 const unsigned char *dbSeq) {
@@ -130,7 +130,7 @@ simd_int DiagonalMatcher::vectorDiagonalScoring(const char *profile,
     return vMaxScore;
 }
 
-std::pair<unsigned char *, unsigned int> DiagonalMatcher::mapSequences(std::pair<unsigned char *, unsigned int> * seqs,
+std::pair<unsigned char *, unsigned int> UngappedAlignment::mapSequences(std::pair<unsigned char *, unsigned int> * seqs,
                                                                        unsigned int seqCount) {
     unsigned int maxLen = 0;
     for(unsigned int seqIdx = 0; seqIdx < seqCount;  seqIdx++) {
@@ -147,7 +147,7 @@ std::pair<unsigned char *, unsigned int> DiagonalMatcher::mapSequences(std::pair
     return std::make_pair(vectorSequence, maxLen);
 }
 
-void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
+void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
                                                  const unsigned int queryLen,
                                                  const short diagonal,
                                                  CounterResult ** hits,
@@ -209,7 +209,7 @@ void DiagonalMatcher::scoreDiagonalAndUpdateHits(const char * queryProfile,
     }
 }
 
-void DiagonalMatcher::computeScores(const char *queryProfile,
+void UngappedAlignment::computeScores(const char *queryProfile,
                                     const unsigned int queryLen,
                                     CounterResult * results,
                                     const size_t resultSize,
@@ -240,14 +240,14 @@ void DiagonalMatcher::computeScores(const char *queryProfile,
     }
 }
 
-unsigned short DiagonalMatcher::distanceFromDiagonal(const unsigned short diagonal) {
+unsigned short UngappedAlignment::distanceFromDiagonal(const unsigned short diagonal) {
     const unsigned short zero = 0;
     const unsigned short dist1 =  zero - diagonal;
     const unsigned short dist2 =  diagonal - zero;
     return std::min(dist1 , dist2);
 }
 
-void DiagonalMatcher::extractScores(unsigned int *score_arr, simd_int score) {
+void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
 #ifdef AVX2
 #define EXTRACT_AVX(i) score_arr[i] = _mm256_extract_epi8(score, i)
     EXTRACT_AVX(0);  EXTRACT_AVX(1);  EXTRACT_AVX(2);  EXTRACT_AVX(3);
@@ -269,13 +269,13 @@ void DiagonalMatcher::extractScores(unsigned int *score_arr, simd_int score) {
 #endif
 }
 
-unsigned char DiagonalMatcher::normalizeScore(const unsigned char score, const unsigned int len) {
+unsigned char UngappedAlignment::normalizeScore(const unsigned char score, const unsigned int len) {
     float log2Len = MathUtil::flog2(static_cast<float>(len));
     float floatScore = static_cast<float>(score);
     return static_cast<unsigned char>((log2Len > floatScore) ? 0.0 : floatScore - log2Len );
 }
 
-short DiagonalMatcher::createProfile(Sequence *seq,
+short UngappedAlignment::createProfile(Sequence *seq,
                                      float * biasCorrection,
                                      short **subMat, int alphabetSize) {
     short bias = 0;
@@ -329,7 +329,7 @@ short DiagonalMatcher::createProfile(Sequence *seq,
     return bias;
 }
 
-unsigned int DiagonalMatcher::diagonalLength(const short diagonal, const unsigned int queryLen,
+unsigned int UngappedAlignment::diagonalLength(const short diagonal, const unsigned int queryLen,
                                              const unsigned int targetLen) {
     unsigned int diagLen = targetLen;
     if(diagonal >= 0) {

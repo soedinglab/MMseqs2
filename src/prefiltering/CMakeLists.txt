@@ -25,8 +25,8 @@ set(prefiltering_source_files
     SequenceLookup.cpp
     SequenceLookup.h
     SubstitutionMatrixWithoutX.h
-    DiagonalMatcher.cpp
-    DiagonalMatcher.h
+        UngappedAlignment.cpp
+        UngappedAlignment.h
 )
 add_library(prefiltering ${prefiltering_source_files})
 target_link_libraries(prefiltering)

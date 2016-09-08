@@ -28,8 +28,8 @@ set(commons_source_files
     Util.h
     CommandCaller.cpp
     CommandCaller.h
-    CountInt32Array.cpp
-    CountInt32Array.h
+        CacheFriendlyOperations.cpp
+        CacheFriendlyOperations.h
     MathUtil.h
     FileUtil.cpp
     FileUtil.h
