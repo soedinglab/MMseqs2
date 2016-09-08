@@ -8,7 +8,6 @@
 #include "Parameters.h"
 
 #include "MMseqsMPI.h"
-#define HAVE_MPI 1
 #ifdef OPENMP
 #include <omp.h>
 #endif
