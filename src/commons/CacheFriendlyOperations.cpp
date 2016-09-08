@@ -1,38 +1,39 @@
-#include "CountInt32Array.h"
+#include "CacheFriendlyOperations.h"
 #include <new>
 #include <iostream>
 #include "IndexTable.h"
 #include "Util.h"
 
-CountInt32Array::CountInt32Array(size_t maxElement, size_t initBinSize) {
+template<unsigned int BINSIZE> CacheFriendlyOperations<BINSIZE>::CacheFriendlyOperations(size_t maxElement, size_t initBinSize) {
     // find nearest upper power of 2^(x)
     size_t size = pow(2, ceil(log(maxElement)/log(2)));
     size = std::max(size  >> MASK_0_5_BIT, (size_t) 1); // space needed in bit array
     duplicateBitArraySize = size;
     duplicateBitArray = new(std::nothrow) unsigned char[size];
-    Util::checkAllocation(duplicateBitArray, "Could not allocate duplicateBitArray memory in CountInt32Array");
+    Util::checkAllocation(duplicateBitArray, "Could not allocate duplicateBitArray memory in CacheFriendlyOperations");
     memset(duplicateBitArray, 255, duplicateBitArraySize * sizeof(unsigned char));
     // find nearest upper power of 2^(x)
     initBinSize = pow(2, ceil(log(initBinSize)/log(2)));
     binSize = initBinSize;
-    tmpElementBuffer = new TmpResult[binSize];
+    tmpElementBuffer = new(std::nothrow) TmpResult[binSize];
+    Util::checkAllocation(tmpElementBuffer, "Could not allocate tmpElementBuffer memory in CacheFriendlyOperations");
 
     bins = new CounterResult*[BINCOUNT];
     binDataFrame = new(std::nothrow) CounterResult[BINCOUNT * binSize];
-    Util::checkAllocation(binDataFrame, "Could not allocate binDataFrame memory in CountInt32Array");
+    Util::checkAllocation(binDataFrame, "Could not allocate binDataFrame memory in CacheFriendlyOperations");
 
 }
 
-CountInt32Array::~CountInt32Array(){
+template<unsigned int BINSIZE> CacheFriendlyOperations<BINSIZE>::~CacheFriendlyOperations<BINSIZE>(){
     delete [] duplicateBitArray;
     delete [] binDataFrame;
     delete [] tmpElementBuffer;
     delete [] bins;
 }
 
-    size_t CountInt32Array::countElements(IndexEntryLocal **input, CounterResult *output,
-                                      size_t outputSize, unsigned short indexFrom, unsigned short indexTo,
-                                        bool computeTotalScore)
+template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::countElements(IndexEntryLocal **input, CounterResult *output,
+                                                                              size_t outputSize, unsigned short indexFrom, unsigned short indexTo,
+                                                                              bool computeTotalScore)
 {
     newStart:
     setupBinPointer(bins, BINCOUNT, binDataFrame, binSize);
@@ -47,7 +48,7 @@ CountInt32Array::~CountInt32Array(){
     return findDuplicates(this->bins, this->BINCOUNT, output, outputSize, computeTotalScore);
 }
 
-size_t CountInt32Array::mergeElementsByScore(CounterResult *inputOutputArray, const size_t N) {
+template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::mergeElementsByScore(CounterResult *inputOutputArray, const size_t N) {
     newStart:
     setupBinPointer(bins, BINCOUNT, binDataFrame, binSize);
     hashElements(inputOutputArray, N, this->bins);
@@ -56,8 +57,7 @@ size_t CountInt32Array::mergeElementsByScore(CounterResult *inputOutputArray, co
     return mergeDuplicates(this->bins, this->BINCOUNT, inputOutputArray);
 }
 
-
-size_t CountInt32Array::mergeElementsByDiagonal(CounterResult *inputOutputArray, const size_t N) {
+template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::mergeElementsByDiagonal(CounterResult *inputOutputArray, const size_t N) {
     newStart:
     setupBinPointer(bins, BINCOUNT, binDataFrame, binSize);
     hashElements(inputOutputArray, N, this->bins);
@@ -66,7 +66,7 @@ size_t CountInt32Array::mergeElementsByDiagonal(CounterResult *inputOutputArray,
     return mergeDiagonalDuplicates(this->bins, this->BINCOUNT, inputOutputArray);
 }
 
-size_t CountInt32Array::keepMaxScoreElementOnly(CounterResult *inputOutputArray, const size_t N) {
+template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::keepMaxScoreElementOnly(CounterResult *inputOutputArray, const size_t N) {
     newStart:
     setupBinPointer(bins, BINCOUNT, binDataFrame, binSize);
     hashElements(inputOutputArray, N, this->bins);
@@ -76,8 +76,8 @@ size_t CountInt32Array::keepMaxScoreElementOnly(CounterResult *inputOutputArray,
 }
 
 
-size_t CountInt32Array::mergeDiagonalDuplicates(CounterResult **bins, unsigned int binCount,
-                                                CounterResult * output) {
+template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::mergeDiagonalDuplicates(CounterResult **bins, unsigned int binCount,
+                                                                                        CounterResult * output) {
     size_t doubleElementCount = 0;
     const CounterResult *bin_ref_pointer = binDataFrame;
 
@@ -109,8 +109,8 @@ size_t CountInt32Array::mergeDiagonalDuplicates(CounterResult **bins, unsigned i
     return doubleElementCount;
 }
 
-size_t CountInt32Array::mergeDuplicates(CounterResult **bins, unsigned int binCount,
-                                        CounterResult * output) {
+template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::mergeDuplicates(CounterResult **bins, unsigned int binCount,
+                                                                                CounterResult * output) {
     size_t doubleElementCount = 0;
     const CounterResult *bin_ref_pointer = binDataFrame;
     memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
@@ -142,11 +142,11 @@ size_t CountInt32Array::mergeDuplicates(CounterResult **bins, unsigned int binCo
     return doubleElementCount;
 }
 
-size_t CountInt32Array::findDuplicates(CounterResult **bins,
-                                       unsigned int binCount,
-                                       CounterResult * output,
-                                       size_t outputSize,
-                                        bool computeTotalScore) {
+template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::findDuplicates(CounterResult **bins,
+                                                                               unsigned int binCount,
+                                                                               CounterResult * output,
+                                                                               size_t outputSize,
+                                                                               bool computeTotalScore) {
     size_t doubleElementCount = 0;
     const CounterResult * bin_ref_pointer = binDataFrame;
     for (size_t bin = 0; bin < binCount; bin++) {
@@ -162,10 +162,10 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins,
             // check if duplicate element was found before
             const unsigned char currDiagonal = element.diagonal;
             //currDiagonal = (currDiagonal == 0) ? 200 : currDiagonal;
-            const unsigned char dbDiagonal = duplicateBitArray[hashBinElement];
+            const unsigned char prevDiagonal = duplicateBitArray[hashBinElement];
             tmpElementBuffer[elementCount].id = element.id;
             tmpElementBuffer[elementCount].diagonal = element.diagonal;
-            elementCount += (UNLIKELY(currDiagonal == dbDiagonal)) ? 1 : 0;
+            elementCount += (UNLIKELY(currDiagonal == prevDiagonal)) ? 1 : 0;
             // set element corresponding bit in byte
             duplicateBitArray[hashBinElement] = currDiagonal;
         }
@@ -230,9 +230,9 @@ size_t CountInt32Array::findDuplicates(CounterResult **bins,
     return doubleElementCount;
 }
 
-bool CountInt32Array::checkForOverflowAndResizeArray(CounterResult **bins,
-                                                     const unsigned int binCount,
-                                                     const size_t binSize) {
+template<unsigned int BINSIZE> bool CacheFriendlyOperations<BINSIZE>::checkForOverflowAndResizeArray(CounterResult **bins,
+                                                                                             const unsigned int binCount,
+                                                                                             const size_t binSize) {
     const CounterResult * bin_ref_pointer = binDataFrame;
     CounterResult * lastPosition = (binDataFrame + binCount * binSize) - 1;
     for (size_t bin = 0; bin < binCount; bin++) {
@@ -253,17 +253,17 @@ bool CountInt32Array::checkForOverflowAndResizeArray(CounterResult **bins,
     return false;
 }
 
-void CountInt32Array::reallocBinMemory(const unsigned int binCount, const size_t binSize) {
+template<unsigned int BINSIZE> void CacheFriendlyOperations<BINSIZE>::reallocBinMemory(const unsigned int binCount, const size_t binSize) {
     delete [] binDataFrame;
     delete [] tmpElementBuffer;
     binDataFrame     = new(std::nothrow) CounterResult[binCount * binSize];
-    Util::checkAllocation(binDataFrame, "Could not allocate reallocBinMemory memory in CountInt32Array::reallocBinMemory");
+    Util::checkAllocation(binDataFrame, "Could not allocate reallocBinMemory memory in CacheFriendlyOperations::reallocBinMemory");
     tmpElementBuffer = new(std::nothrow) TmpResult[binSize];
-    Util::checkAllocation(tmpElementBuffer, "Could not allocate tmpElementBuffer memory in CountInt32Array::reallocBinMemory");
+    Util::checkAllocation(tmpElementBuffer, "Could not allocate tmpElementBuffer memory in CacheFriendlyOperations::reallocBinMemory");
 }
 
-void CountInt32Array::setupBinPointer(CounterResult **bins, const unsigned int binCount,
-                                      CounterResult *binDataFrame, const size_t binSize)
+template<unsigned int BINSIZE> void CacheFriendlyOperations<BINSIZE>::setupBinPointer(CounterResult **bins, const unsigned int binCount,
+                                                                              CounterResult *binDataFrame, const size_t binSize)
 {
     // Example binCount = 3
     // bin start             |-----------------------|-----------------------| bin end
@@ -277,7 +277,7 @@ void CountInt32Array::setupBinPointer(CounterResult **bins, const unsigned int b
     }
 }
 
-void CountInt32Array::hashElements(CounterResult *inputArray, size_t N, CounterResult **hashBins)
+template<unsigned int BINSIZE> void CacheFriendlyOperations<BINSIZE>::hashElements(CounterResult *inputArray, size_t N, CounterResult **hashBins)
 {
     CounterResult * lastPosition = (binDataFrame + BINCOUNT * binSize) - 1;
     for(size_t n = 0; n < N; n++) {
@@ -292,8 +292,8 @@ void CountInt32Array::hashElements(CounterResult *inputArray, size_t N, CounterR
     }
 }
 
-void CountInt32Array::hashIndexEntry(unsigned short position_i, IndexEntryLocal *inputArray,
-                                     size_t N, CounterResult **hashBins, CounterResult * lastPosition)
+template<unsigned int BINSIZE> void CacheFriendlyOperations<BINSIZE>::hashIndexEntry(unsigned short position_i, IndexEntryLocal *inputArray,
+                                                                             size_t N, CounterResult **hashBins, CounterResult * lastPosition)
 {
     for(size_t n = 0; n < N; n++) {
         const IndexEntryLocal element = inputArray[n];
@@ -307,8 +307,8 @@ void CountInt32Array::hashIndexEntry(unsigned short position_i, IndexEntryLocal 
     }
 }
 
-size_t CountInt32Array::keepMaxElement(CounterResult **bins, unsigned int binCount,
-                                       CounterResult * output) {
+template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::keepMaxElement(CounterResult **bins, unsigned int binCount,
+                                                                               CounterResult * output) {
     size_t doubleElementCount = 0;
     const CounterResult *bin_ref_pointer = binDataFrame;
     memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
@@ -339,3 +339,15 @@ size_t CountInt32Array::keepMaxElement(CounterResult **bins, unsigned int binCou
     }
     return doubleElementCount;
 }
+
+template class CacheFriendlyOperations<2048>;
+template class CacheFriendlyOperations<1024>;
+template class CacheFriendlyOperations<512>;
+template class CacheFriendlyOperations<256>;
+template class CacheFriendlyOperations<128>;
+template class CacheFriendlyOperations<64>;
+template class CacheFriendlyOperations<32>;
+template class CacheFriendlyOperations<16>;
+template class CacheFriendlyOperations<8>;
+template class CacheFriendlyOperations<4>;
+template class CacheFriendlyOperations<2>;

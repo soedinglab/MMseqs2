@@ -7,17 +7,17 @@
 
 #include "SubstitutionMatrix.h"
 #include "simd.h"
-#include "CountInt32Array.h"
+#include "CacheFriendlyOperations.h"
 #include "QueryScore.h"
 #include "SequenceLookup.h"
-class DiagonalMatcher {
+class UngappedAlignment {
 
 public:
 
-    DiagonalMatcher(const unsigned int maxSeqLen, BaseMatrix *substitutionMatrix,
+    UngappedAlignment(const unsigned int maxSeqLen, BaseMatrix *substitutionMatrix,
                     SequenceLookup *sequenceLookup);
 
-    ~DiagonalMatcher();
+    ~UngappedAlignment();
 
     // This function computes the diagonal score for each CounterResult object
     // it assigns the diagonal score to the CounterResult object

@@ -5,9 +5,9 @@
 #ifndef MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
 #define MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
 
-#include "CountInt32Array.h"
+#include "CacheFriendlyOperations.h"
 #include "QueryTemplateMatcher.h"
-#include "DiagonalMatcher.h"
+#include "UngappedAlignment.h"
 
 
 class QueryTemplateLocalFast : public virtual QueryTemplateMatcher {
@@ -34,10 +34,25 @@ protected:
     unsigned int dbSize;
 
     // result hit buffer
-    CountInt32Array * counter;
+    //CacheFriendlyOperations * diagonalMatcher;
+    static const unsigned int L2_CACH_SIZE = 262144;
+    unsigned int activeCounter;
+#define CacheFriendlyOperations(x)  CacheFriendlyOperations<x> * cachedOperation##x
+    CacheFriendlyOperations(2);
+    CacheFriendlyOperations(4);
+    CacheFriendlyOperations(8);
+    CacheFriendlyOperations(16);
+    CacheFriendlyOperations(32);
+    CacheFriendlyOperations(64);
+    CacheFriendlyOperations(128);
+    CacheFriendlyOperations(256);
+    CacheFriendlyOperations(512);
+    CacheFriendlyOperations(1024);
+    CacheFriendlyOperations(2048);
+#undef CacheFriendlyOperations
 
     // matcher for diagonal
-    DiagonalMatcher *diagonalMatcher;
+    UngappedAlignment *ungappedAlignment;
 
     // score distribution of current query
     unsigned int *scoreSizes;
@@ -90,8 +105,16 @@ protected:
     // diagonal scoring active
     bool diagonalScoring;
     unsigned int minDiagScoreThr;
-    // size of max counter result objects
+    // size of max diagonalMatcher result objects
     size_t counterResultSize;
+
+    void initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches);
+
+    void deleteDiagonalMatcher(unsigned int activeCounter);
+
+    size_t mergeElements(bool diagonalScoring, CounterResult *foundDiagonals, size_t hitCounter);
+
+    size_t keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

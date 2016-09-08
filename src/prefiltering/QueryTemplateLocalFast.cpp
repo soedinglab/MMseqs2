@@ -7,6 +7,24 @@
 #include "QueryScoreLocal.h"
 #include "QueryScore.h"
 
+
+#define FE_1(WHAT, X) WHAT(X)
+#define FE_2(WHAT, X, ...) WHAT(X)FE_1(WHAT, __VA_ARGS__)
+#define FE_3(WHAT, X, ...) WHAT(X)FE_2(WHAT, __VA_ARGS__)
+#define FE_4(WHAT, X, ...) WHAT(X)FE_3(WHAT, __VA_ARGS__)
+#define FE_5(WHAT, X, ...) WHAT(X)FE_4(WHAT, __VA_ARGS__)
+#define FE_6(WHAT, X, ...) WHAT(X)FE_5(WHAT, __VA_ARGS__)
+#define FE_7(WHAT, X, ...) WHAT(X)FE_6(WHAT, __VA_ARGS__)
+#define FE_8(WHAT, X, ...) WHAT(X)FE_7(WHAT, __VA_ARGS__)
+#define FE_9(WHAT, X, ...) WHAT(X)FE_8(WHAT, __VA_ARGS__)
+#define FE_10(WHAT, X, ...) WHAT(X)FE_9(WHAT, __VA_ARGS__)
+#define FE_11(WHAT, X, ...) WHAT(X)FE_10(WHAT, __VA_ARGS__)
+
+#define GET_MACRO(_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,_11,NAME,...) NAME
+#define FOR_EACH(action,...) \
+  GET_MACRO(__VA_ARGS__,FE_11,FE_10,FE_9,FE_8,FE_7,FE_6,FE_5,FE_4,FE_3,FE_2,FE_1)(action,__VA_ARGS__)
+
+#define PRINT(var,format) printf(#var" is %"#format"\n",var)
 QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexTable,
                                                unsigned int *seqLens, short kmerThr,
                                                double kmerMatchProb, int kmerSize, size_t dbSize,
@@ -36,7 +54,8 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
     memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
     this->maxHitsPerQuery = maxHitsPerQuery;
     // this array will need 128 * (maxDbMatches / 128) * 5byte ~ 500MB for 50 Mio. Sequences
-    this->counter = new CountInt32Array(dbSize, maxDbMatches / 128 );
+    initDiagonalMatcher(dbSize, maxDbMatches);
+//    this->diagonalMatcher = new CacheFriendlyOperations(dbSize, maxDbMatches / 128 );
     // needed for p-value calc.
     this->mu = kmerMatchProb;
     this->logMatchProb = log(kmerMatchProb);
@@ -53,24 +72,24 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
             this->seqLens[i] = 1.0f;
     }
     compositionBias = new float[maxSeqLen];
-    diagonalMatcher = NULL;
+    ungappedAlignment = NULL;
     if(this->diagonalScoring == true) {
-        diagonalMatcher = new DiagonalMatcher(maxSeqLen, m, indexTable->getSequenceLookup());
+        ungappedAlignment = new UngappedAlignment(maxSeqLen, m, indexTable->getSequenceLookup());
     }
 }
 
 QueryTemplateLocalFast::~QueryTemplateLocalFast(){
+    deleteDiagonalMatcher(activeCounter);
     free(resList);
     delete [] scoreSizes;
     delete [] databaseHits;
     delete [] indexPointer;
     delete [] foundDiagonals;
-    delete counter;
     delete [] logScoreFactorial;
     delete [] seqLens;
     delete [] compositionBias;
-    if(diagonalMatcher != NULL){
-        delete diagonalMatcher;
+    if(ungappedAlignment != NULL){
+        delete ungappedAlignment;
     }
 }
 
@@ -81,7 +100,11 @@ size_t QueryTemplateLocalFast::evaluateBins(IndexEntryLocal **hitsByIndex,
                                             unsigned short indexTo,
                                             bool computeTotalScore) {
     size_t localResultSize = 0;
-    localResultSize += counter->countElements(hitsByIndex, output, outputSize, indexFrom, indexTo, computeTotalScore);
+#define COUNT_CASE(x) case x: localResultSize += cachedOperation##x->countElements(hitsByIndex, output, outputSize, indexFrom, indexTo, computeTotalScore); break;
+    switch (activeCounter){
+        FOR_EACH(COUNT_CASE,2,4,8,16,32,64,128,256,512,1024,2048)
+    }
+#undef COUNT_CASE
     return localResultSize;
 }
 
@@ -105,9 +128,9 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
     std::pair<hit_t *, size_t > queryResult;
     if(diagonalScoring == true) {
         // write diagonal scores in count value
-        diagonalMatcher->processQuery(seq, compositionBias, foundDiagonals, resultSize, 0);
+        ungappedAlignment->processQuery(seq, compositionBias, foundDiagonals, resultSize, 0);
         memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
-        resultSize = counter->keepMaxScoreElementOnly(foundDiagonals, resultSize);
+        resultSize = keepMaxScoreElementOnly(foundDiagonals, resultSize);
         updateScoreBins(foundDiagonals, resultSize);
         unsigned int diagonalThr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         diagonalThr = std::max(minDiagScoreThr, diagonalThr);
@@ -179,13 +202,8 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
                                                      indexStart, current_i, (diagonalScoring == false));
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
-                    if(diagonalScoring == true) {
-                        overflowHitCount = counter->mergeElementsByDiagonal(foundDiagonals,
-                                                                            overflowHitCount + hitCount);
-                    }else{
-                        overflowHitCount = counter->mergeElementsByScore(foundDiagonals,
-                                                                         overflowHitCount + hitCount);
-                    }
+                    overflowHitCount = mergeElements(diagonalScoring, foundDiagonals, overflowHitCount +  hitCount);
+
                 } else {
                     overflowHitCount = hitCount;
                 }
@@ -211,15 +229,7 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
                                    counterResultSize - overflowHitCount, indexStart, indexTo,  (diagonalScoring == false));
     //fill the output
     if(overflowHitCount != 0){ // overflow occurred
-        if(diagonalScoring == true){
-            hitCount = counter->mergeElementsByDiagonal(foundDiagonals,
-                                                        overflowHitCount + hitCount);
-
-        }else {
-            hitCount = counter->mergeElementsByScore(foundDiagonals,
-                                                     overflowHitCount + hitCount);
-
-        }
+        hitCount = mergeElements(diagonalScoring, foundDiagonals, overflowHitCount + hitCount);
     }
     updateScoreBins(foundDiagonals, hitCount);
     stats->doubleMatches = getDoubleDiagonalMatches();
@@ -283,3 +293,80 @@ std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * re
     std::pair<hit_t *, size_t>  pair = std::make_pair(this->resList, elementCounter);
     return pair;
 }
+
+void QueryTemplateLocalFast::initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches) {
+#define INIT(x)   cachedOperation##x = new CacheFriendlyOperations<x>(dbsize, maxDbMatches/x); \
+                  activeCounter = x;
+
+    if(dbsize/2 < L2_CACH_SIZE){
+        INIT(2)
+    }else if(dbsize/4 < L2_CACH_SIZE){
+        INIT(4)
+    }else if(dbsize/8 < L2_CACH_SIZE){
+        INIT(8)
+    }else if(dbsize/16 < L2_CACH_SIZE){
+        INIT(16)
+    }else if(dbsize/32 < L2_CACH_SIZE){
+        INIT(32)
+    }else if(dbsize/64 < L2_CACH_SIZE){
+        INIT(64)
+    }else if(dbsize/128 < L2_CACH_SIZE){
+        INIT(128)
+    }else if(dbsize/256 < L2_CACH_SIZE){
+        INIT(256)
+    }else if(dbsize/512 < L2_CACH_SIZE){
+        INIT(512)
+    }else if(dbsize/1024 < L2_CACH_SIZE){
+        INIT(1024)
+    }else {
+        INIT(2048)
+    }
+#undef INIT
+}
+
+void QueryTemplateLocalFast::deleteDiagonalMatcher(unsigned int activeCounter){
+#define DELETE_CASE(x) case x: delete cachedOperation##x; break;
+    switch (activeCounter){
+        FOR_EACH(DELETE_CASE,2,4,8,16,32,64,128,256,512,1024,2048)
+    }
+#undef DELETE_CASE
+}
+
+size_t QueryTemplateLocalFast::mergeElements(bool diagonalScoring, CounterResult *foundDiagonals, size_t hitCounter) {
+    size_t overflowHitCount = 0;
+#define MERGE_CASE(x) \
+    case x: overflowHitCount = (diagonalScoring == true) ? \
+                                cachedOperation##x->mergeElementsByDiagonal(foundDiagonals,hitCounter) : \
+                                cachedOperation##x->mergeElementsByScore(foundDiagonals,hitCounter); \
+    break;
+
+    switch (activeCounter){
+        FOR_EACH(MERGE_CASE,2,4,8,16,32,64,128,256,512,1024,2048)
+    }
+#undef MERGE_CASE
+    return overflowHitCount;
+}
+
+size_t QueryTemplateLocalFast::keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize) {
+    size_t retSize = 0;
+#define MAX_CASE(x) case x: retSize = cachedOperation##x->keepMaxScoreElementOnly(foundDiagonals, resultSize); break;
+    switch (activeCounter){
+        FOR_EACH(MAX_CASE,2,4,8,16,32,64,128,256,512,1024,2048)
+    }
+#undef MAX_CASE
+    return retSize;
+}
+
+#undef FOR_EACH
+#undef GET_MACRO
+#undef FE_11
+#undef FE_10
+#undef FE_9
+#undef FE_8
+#undef FE_7
+#undef FE_6
+#undef FE_5
+#undef FE_4
+#undef FE_3
+#undef FE_2
+#undef FE_1

@@ -5,7 +5,7 @@
 
 #include "SequenceLookup.h"
 #include "SubstitutionMatrix.h"
-#include "DiagonalMatcher.h"
+#include "UngappedAlignment.h"
 #include "QueryScore.h"
 #include "ExtendedSubstitutionMatrix.h"
 
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
 
     float * compositionBias = new float[10000];
     CounterResult hits[32];
-    DiagonalMatcher matcher(10000, &subMat, &lookup);
+    UngappedAlignment matcher(10000, &subMat, &lookup);
 
     SubstitutionMatrix::calcLocalAaBiasCorrection(&subMat, s5.int_sequence, s5.L, compositionBias);
     memset(compositionBias, 0.0, sizeof(float)*s5.L);
