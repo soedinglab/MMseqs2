@@ -30,11 +30,12 @@ public:
     void run(size_t dbFrom, size_t dbSize, int splitMode, const std::string &resultDB,
              const std::string &resultDBIndex);
 
-    void run(int mpi_rank, int mpi_num_procs);
-
-    void run();
+    void run(size_t fromSplit, size_t splits);
 
     void closeReader();
+    // merge file
+    static void mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles, int mode,
+                           std::string outDb, std::string outDBIndex);
 
     static void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
                             const std::vector<std::pair<std::string, std::string>> &filenames);
@@ -52,7 +53,13 @@ public:
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, int alphabetSize, float bitFactor,
                                              bool ignoreX);
 
+    size_t getSplitMode(){
+        return splitMode;
+    }
 
+    size_t setSplit(size_t split){
+        return this->split = split;
+    }
 private:
     static const size_t BUFFER_SIZE = 1000000;
 
@@ -81,7 +88,7 @@ private:
     size_t resListOffset;
     size_t maxResListLen;
     int alphabetSize;
-    const size_t maxSeqLen;
+    size_t maxSeqLen;
     const int querySeqType;
     const int targetSeqType;
     bool templateDBIsIndex;
@@ -122,8 +129,6 @@ private:
     statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,
                                                   unsigned int *querySeqsIds, bool reverseQuery,
                                                   const size_t kmerThrMid);
-
-    void mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles, int mode);
 
     int getKmerThreshold(const float sensitivity, const int score);
 
