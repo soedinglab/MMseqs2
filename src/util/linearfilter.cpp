@@ -36,8 +36,8 @@ struct KmerPosition {
 void setLinearFilterDefault(Parameters *p) {
     p->spacedKmer = false;
     p->covThr = 0.8;
-    p->kmerSize = 9;
-    p->alphabetSize = 15;
+    p->kmerSize = 14;
+    p->alphabetSize = 14;
     p->kmersPerSequence = 20;
 }
 
