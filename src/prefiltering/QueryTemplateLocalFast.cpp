@@ -41,8 +41,10 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
     this->maxDbMatches = dbSize * 2;
     this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
+    memset(databaseHits, 0, sizeof(IndexEntryLocal) * maxDbMatches);
     Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryTemplateLocalFast");
     this->foundDiagonals = new(std::nothrow) CounterResult[counterResultSize];
+    memset(foundDiagonals, 0, sizeof(CounterResult) * counterResultSize);
     Util::checkAllocation(foundDiagonals, "Could not allocate foundDiagonals memory in QueryTemplateLocalFast");
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new(std::nothrow) IndexEntryLocal*[maxSeqLen + 1];
@@ -231,8 +233,11 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
     if(overflowHitCount != 0){ // overflow occurred
         hitCount = mergeElements(diagonalScoring, foundDiagonals, overflowHitCount + hitCount);
     }
-    updateScoreBins(foundDiagonals, hitCount);
-    stats->doubleMatches = getDoubleDiagonalMatches();
+    stats->doubleMatches = 0;
+    if(diagonalScoring == false) {
+        updateScoreBins(foundDiagonals, hitCount);
+        stats->doubleMatches = getDoubleDiagonalMatches();
+    }
     stats->kmersPerPos   = ((double)kmerListLen/(double)seq->L);
     stats->querySeqLen   = seq->L;
     stats->dbMatches     = overflowNumMatches + numMatches;
