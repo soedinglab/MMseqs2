@@ -129,32 +129,86 @@ void Util::rankedDescSort20(short *val, unsigned int *index){
 #undef SWAP
 }
 
-std::string Util::parseFastaHeader(std::string header){
-    if(header.length() == 0)
+// find start and end position of an identifier in a FASTA header
+std::pair<ssize_t,ssize_t> Util::getFastaHeaderPosition(const std::string& header) {
+    const std::pair<size_t, size_t> errorPosition = std::make_pair(-1, -1);
+    if (header.length() == 0)
+        return errorPosition;
+
+    size_t offset = 0;
+    if (Util::startWith("consensus_", header)) {
+        offset = 10;
+    }
+
+    struct Databases {
+        std::string prefix;
+        unsigned int length;
+        unsigned int verticalBarPos;
+    };
+
+    const struct Databases databases[] = {
+            { "uc",   2, 0}, // Uniclust
+            { "cl|",   3, 1},
+            { "sp|",   3, 1}, // Swiss prot
+            { "tr|",   3, 1}, // trembl
+            { "gb|",   3, 1}, // GenBank
+            { "ref|",  4, 1}, // NCBI Reference Sequence
+            { "pdb|",  4, 1}, // Brookhaven Protein Data Bank
+            { "bbs|",  4, 1}, // GenInfo Backbone Id
+            { "lcl|",  4, 1}, // Local Sequence identifier
+            { "pir||", 5, 1}, // NBRF PIR
+            { "prf||", 5, 1}, // Protein Research Foundation
+            { "gnl|",  4, 2}, // General database identifier
+            { "pat|",  4, 2}, // Patents
+            { "gi|",   3, 3}  // NCBI GI
+    };
+    const unsigned int database_count = 14;
+
+    for (size_t i = 0; i < database_count; ++i) {
+        if (Util::startWith(databases[i].prefix, header, offset)) {
+            size_t start = offset + databases[i].length;
+            if (databases[i].verticalBarPos > 1) {
+                for (size_t j = 0; j < databases[i].verticalBarPos - 1; ++j) {
+                    size_t end = header.find_first_of('|', start);
+                    if (end != std::string::npos) {
+                        start = end + 1;
+                    } else {
+                        return errorPosition;
+                    }
+                }
+            }
+
+            size_t end = header.find_first_of('|', start);
+            if (end != std::string::npos) {
+                return std::make_pair(start, end);
+            } else {
+                end = header.find_first_of(" \n", start);
+                if (end != std::string::npos || end == header.length()) {
+                    return std::make_pair(start, end);
+                } else {
+                    return errorPosition;
+                }
+            }
+        }
+    }
+
+    // if we can not find one of the existing database ids,
+    // we use the first part of the string or the whole string
+    size_t end = header.find_first_of(" \n", offset);
+    if (end != std::string::npos || end == header.length()) {
+        return std::make_pair(offset, end);
+    } else {
+        return errorPosition;
+    }
+}
+
+
+std::string Util::parseFastaHeader(const std::string& header) {
+    std::pair<ssize_t, ssize_t> pos = Util::getFastaHeaderPosition(header);
+    if(pos.first == -1 && pos.second == -1)
         return "";
 
-    std::vector<std::string> arr = Util::split(header,"|");
-    if(arr.size() > 1) {
-        if (Util::startWith("cl|",   header) ||
-            Util::startWith("sp|",   header) ||
-            Util::startWith("tr|",   header) ||
-            Util::startWith("ref|",  header) ||
-            Util::startWith("pdb|",  header) ||
-            Util::startWith("bbs|",  header) ||
-            Util::startWith("lcl|",  header) ||
-            Util::startWith("pir||", header) ||
-            Util::startWith("prf||", header)) {
-            return arr[1];
-        }
-        else if (Util::startWith("gnl|", header) || Util::startWith("pat|", header))
-            return arr[2];
-        else if (Util::startWith("gi|", header))
-            return arr[3];
-
-    }
-    arr = Util::split(header," ");
-    arr = Util::split(arr[0],"\n");
-    return arr[0];
+    return header.substr(pos.first, pos.second - pos.first);
 }
 
 void Util::parseByColumnNumber(char *data, char *key, int position) {
