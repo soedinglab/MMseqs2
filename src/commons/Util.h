@@ -152,7 +152,8 @@ public:
     }
 
 
-    static std::string parseFastaHeader(std::string header);
+    static std::pair<ssize_t,ssize_t> getFastaHeaderPosition(const std::string& header);
+    static std::string parseFastaHeader(const std::string& header);
 
     static inline char toUpper(char character){
         character += ('a' <= character && character <= 'z') ? ('A' - 'a') : 0;
