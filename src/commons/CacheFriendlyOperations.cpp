@@ -257,8 +257,10 @@ template<unsigned int BINSIZE> void CacheFriendlyOperations<BINSIZE>::reallocBin
     delete [] binDataFrame;
     delete [] tmpElementBuffer;
     binDataFrame     = new(std::nothrow) CounterResult[binCount * binSize];
+    memset(binDataFrame, 0, sizeof(CounterResult) * binSize * binCount);
     Util::checkAllocation(binDataFrame, "Could not allocate reallocBinMemory memory in CacheFriendlyOperations::reallocBinMemory");
     tmpElementBuffer = new(std::nothrow) TmpResult[binSize];
+    memset(tmpElementBuffer, 0, sizeof(TmpResult) * binSize);
     Util::checkAllocation(tmpElementBuffer, "Could not allocate tmpElementBuffer memory in CacheFriendlyOperations::reallocBinMemory");
 }
 
@@ -307,7 +309,8 @@ template<unsigned int BINSIZE> void CacheFriendlyOperations<BINSIZE>::hashIndexE
     }
 }
 
-template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::keepMaxElement(CounterResult **bins, unsigned int binCount,
+template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::keepMaxElement(CounterResult **bins,
+                                                                               unsigned int binCount,
                                                                                CounterResult * output) {
     size_t doubleElementCount = 0;
     const CounterResult *bin_ref_pointer = binDataFrame;

@@ -50,8 +50,8 @@ int prefilter(int argc, const char **argv)
     if(par.split > MMseqsMPI::numProc){
         // if split size is great than nodes than we have to
         // distribute all splits equally over all nodes
-        int * splitCntPerProc = new int[MMseqsMPI::numProc];
-        memset(splitCntPerProc, 0, sizeof(int) * MMseqsMPI::numProc);
+        unsigned int * splitCntPerProc = new int[MMseqsMPI::numProc];
+        memset(splitCntPerProc, 0, sizeof(unsigned int) * MMseqsMPI::numProc);
         for(int i = 0; i < par.split; i++){
             splitCntPerProc[i % MMseqsMPI::numProc] += 1;
         }
