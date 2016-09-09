@@ -61,12 +61,12 @@ public:
         return val;
     }
 
-    static bool startWith(const std::string &prefix, const std::string &str){
+    static bool startWith(const std::string &prefix, const std::string &str, const size_t offset = 0){
         if (str.length() < prefix.length()) {
             return false;
         }
 
-        return (!str.compare(0, prefix.length(), prefix));
+        return (!str.compare(offset, prefix.length(), prefix));
     }
 
     static bool endsWith(const std::string &suffix, const std::string &str){
