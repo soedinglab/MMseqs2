@@ -58,16 +58,14 @@ int createdb(int argn, const char **argv) {
     out_writer.open();
     out_hdr_writer.open();
 
+    bool doMapping = par.db3.length() > 0;
     std::map<std::string, size_t> mapping;
-    if (par.db3.length() > 0) {
+    if (doMapping) {
         const char *mapping_filename = par.db3.c_str();
         mapping = Util::readMapping(mapping_filename);
     }
 
     size_t entries_num = 1;
-
-    std::string header_line;
-    header_line.reserve(10000);
 
     kseq_t *seq = kseq_init(fileno(fasta_file));
     while (kseq_read(seq) >= 0) {
@@ -81,18 +79,35 @@ int createdb(int argn, const char **argv) {
             splitCnt = (size_t) ceilf(static_cast<float>(seq->seq.l) / static_cast<float>(par.maxSeqLen));
         }
 
-        std::string headerId = Util::parseFastaHeader(seq->name.s);
+        // header
+        std::string header(seq->name.s, seq->name.l);
+        if (seq->comment.l > 0) {
+            header.append(" ", 1);
+            header.append(seq->comment.s, seq->comment.l);
+        }
+
+        std::string headerId = Util::parseFastaHeader(header);
+        if(headerId == "") {
+            // An identifier is necessary for these two cases, so we should just give up
+            if(par.useHeader || doMapping) {
+                Debug(Debug::ERROR) << "Could not extract identifier from entry " << entries_num << "!.\n";
+                return EXIT_FAILURE;
+            } else {
+                Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
+            }
+        }
+
         for(size_t split = 0; split < splitCnt; split++){
-            std::string splitId = headerId;
+            std::string splitId(headerId);
             if (splitCnt > 1){
                 splitId.append("_");
                 splitId.append(SSTR(split));
             }
 
             std::string id;
-            if (par.db3.length() > 0) {
+            if (doMapping) {
                 if (mapping.find(splitId) == mapping.end()) {
-                    Debug(Debug::ERROR) << "Could not find entry: " << headerId << " in mapping file.\n";
+                    Debug(Debug::ERROR) << "Could not find entry: " << splitId << " in mapping file.\n";
                     return EXIT_FAILURE;
                 }
                 id = SSTR(mapping[splitId]);
@@ -106,24 +121,27 @@ int createdb(int argn, const char **argv) {
                 lookupStream << id << "\t" << splitId << "\n";
             }
 
-            // header
-            header_line.append(seq->name.s, seq->name.l);
-            if (seq->comment.l) {
-                header_line.append(" ", 1);
-                header_line.append(seq->comment.s, seq->comment.l);
-            }
-
-            if(par.splitSeqByLen == true) {
-                header_line.append(" Split=");
-                header_line.append(SSTR(split));
+            // For split entries replace the found identifier by identifier_splitNumber
+            // Also add another hint that it was split to the end of the header
+            std::string splitHeader(header);
+            if(par.splitSeqByLen == true && splitCnt > 1) {
+                if(headerId != "") {
+                    size_t pos = splitHeader.find(headerId);
+                    if(pos != std::string::npos) {
+                        splitHeader.erase(pos, headerId.length());
+                        splitHeader.insert(pos, splitId);
+                    }
+                }
+                splitHeader.append(" Split=");
+                splitHeader.append(SSTR(split));
             }
 
             // space is needed for later parsing
-            header_line.append(" ", 1);
-            header_line.append("\n");
+            splitHeader.append(" ", 1);
+            splitHeader.append("\n");
 
-            out_hdr_writer.writeData(header_line.c_str(), header_line.length(), id.c_str());
-            header_line.clear();
+            // Finally write down the entry
+            out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id.c_str());
 
             // sequence
             std::string sequence = seq->seq.s;
@@ -131,6 +149,7 @@ int createdb(int argn, const char **argv) {
             std::string splitString(sequence.c_str() + split*par.maxSeqLen, len);
             splitString.append("\n");
             out_writer.writeData(splitString.c_str(), splitString.length(), id.c_str());
+
             entries_num++;
         }
     }
