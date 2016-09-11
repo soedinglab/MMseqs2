@@ -3,10 +3,7 @@
 //
 #include <new>
 #include <SubstitutionMatrix.h>
-#include "QueryTemplateLocalFast.h"
-#include "QueryScoreLocal.h"
-#include "QueryScore.h"
-
+#include "QueryMatcher.h"
 
 #define FE_1(WHAT, X) WHAT(X)
 #define FE_2(WHAT, X, ...) WHAT(X)FE_1(WHAT, __VA_ARGS__)
@@ -24,36 +21,40 @@
 #define FOR_EACH(action,...) \
   GET_MACRO(__VA_ARGS__,FE_11,FE_10,FE_9,FE_8,FE_7,FE_6,FE_5,FE_4,FE_3,FE_2,FE_1)(action,__VA_ARGS__)
 
-#define PRINT(var,format) printf(#var" is %"#format"\n",var)
-QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexTable,
+QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
                                                unsigned int *seqLens, short kmerThr,
                                                double kmerMatchProb, int kmerSize, size_t dbSize,
                                                unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                                                size_t maxHitsPerQuery, bool aaBiasCorrection,
                                                bool diagonalScoring, unsigned int minDiagScoreThr)
-        : QueryTemplateMatcher(m, indexTable, seqLens,
-                               kmerThr, kmerMatchProb, kmerSize,
-                               dbSize, aaBiasCorrection, maxSeqLen) {
+{
+    this->m = m;
+    this->indexTable = indexTable;
+    this->kmerSize = kmerSize;
+    this->kmerThr = kmerThr;
+    this->kmerGenerator = new KmerGenerator(kmerSize, m->alphabetSize, kmerThr);
+    this->aaBiasCorrection = aaBiasCorrection;
+    this->stats = new statistics_t();
     // assure that the whole database can be matched (extreme case)
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
     this->dbSize = dbSize;
     this->counterResultSize = std::max((size_t)1000000, dbSize);
     this->maxDbMatches = dbSize * 2;
-    this->resList = (hit_t *) mem_align(ALIGN_INT, QueryScore::MAX_RES_LIST_LEN * sizeof(hit_t) );
+    this->resList = (hit_t *) mem_align(ALIGN_INT, MAX_RES_LIST_LEN * sizeof(hit_t) );
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
     memset(databaseHits, 0, sizeof(IndexEntryLocal) * maxDbMatches);
-    Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryTemplateLocalFast");
+    Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryMatcher");
     this->foundDiagonals = new(std::nothrow) CounterResult[counterResultSize];
     memset(foundDiagonals, 0, sizeof(CounterResult) * counterResultSize);
-    Util::checkAllocation(foundDiagonals, "Could not allocate foundDiagonals memory in QueryTemplateLocalFast");
+    Util::checkAllocation(foundDiagonals, "Could not allocate foundDiagonals memory in QueryMatcher");
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new(std::nothrow) IndexEntryLocal*[maxSeqLen + 1];
-    Util::checkAllocation(indexPointer, "Could not allocate indexPointer memory in QueryTemplateLocalFast");
+    Util::checkAllocation(indexPointer, "Could not allocate indexPointer memory in QueryMatcher");
     this->diagonalScoring = diagonalScoring;
     this->minDiagScoreThr = minDiagScoreThr;
     // data for histogram of score distribution
-    this->scoreSizes = new unsigned int[QueryScoreLocal::SCORE_RANGE];
-    memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
+    this->scoreSizes = new unsigned int[SCORE_RANGE];
+    memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
     this->maxHitsPerQuery = maxHitsPerQuery;
     // this array will need 128 * (maxDbMatches / 128) * 5byte ~ 500MB for 50 Mio. Sequences
     initDiagonalMatcher(dbSize, maxDbMatches);
@@ -61,8 +62,8 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
     // needed for p-value calc.
     this->mu = kmerMatchProb;
     this->logMatchProb = log(kmerMatchProb);
-    this->logScoreFactorial = new double[QueryScoreLocal::SCORE_RANGE];
-    QueryScoreLocal::computeFactorial(logScoreFactorial, QueryScoreLocal::SCORE_RANGE);
+    this->logScoreFactorial = new double[SCORE_RANGE];
+    MathUtil::computeFactorial(logScoreFactorial, SCORE_RANGE);
 
     // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
     this->seqLens = new float[dbSize];
@@ -80,7 +81,7 @@ QueryTemplateLocalFast::QueryTemplateLocalFast(BaseMatrix *m, IndexTable *indexT
     }
 }
 
-QueryTemplateLocalFast::~QueryTemplateLocalFast(){
+QueryMatcher::~QueryMatcher(){
     deleteDiagonalMatcher(activeCounter);
     free(resList);
     delete [] scoreSizes;
@@ -93,9 +94,11 @@ QueryTemplateLocalFast::~QueryTemplateLocalFast(){
     if(ungappedAlignment != NULL){
         delete ungappedAlignment;
     }
+    delete stats;
+    delete kmerGenerator;
 }
 
-size_t QueryTemplateLocalFast::evaluateBins(IndexEntryLocal **hitsByIndex,
+size_t QueryMatcher::evaluateBins(IndexEntryLocal **hitsByIndex,
                                             CounterResult *output,
                                             size_t outputSize,
                                             unsigned short indexFrom,
@@ -110,10 +113,10 @@ size_t QueryTemplateLocalFast::evaluateBins(IndexEntryLocal **hitsByIndex,
     return localResultSize;
 }
 
-std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, unsigned int identityId){
+std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned int identityId){
     seq->resetCurrPos();
 //    std::cout << "Id: " << seq->getId() << std::endl;
-    memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
+    memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
 
     // bias correction
     if(aaBiasCorrection == true){
@@ -131,35 +134,35 @@ std::pair<hit_t *, size_t> QueryTemplateLocalFast::matchQuery (Sequence * seq, u
     if(diagonalScoring == true) {
         // write diagonal scores in count value
         ungappedAlignment->processQuery(seq, compositionBias, foundDiagonals, resultSize, 0);
-        memset(scoreSizes, 0, QueryScoreLocal::SCORE_RANGE * sizeof(unsigned int));
+        memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
         resultSize = keepMaxScoreElementOnly(foundDiagonals, resultSize);
         updateScoreBins(foundDiagonals, resultSize);
-        unsigned int diagonalThr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
+        unsigned int diagonalThr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         diagonalThr = std::max(minDiagScoreThr, diagonalThr);
         queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, diagonalThr, true);
     }else{
-        unsigned int thr = QueryScoreLocal::computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
+        unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, thr, false);
     }
     if(queryResult.second > 1){
         if (identityId != UINT_MAX){
             if(diagonalScoring == true) {
-                std::sort(resList + 1, resList + queryResult.second, QueryScore::compareHitsByDiagonalScore);
+                std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByDiagonalScore);
             }else {
-                std::sort(resList + 1, resList + queryResult.second, QueryScore::compareHitsByPValue);
+                std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByPValue);
             }
         } else{
             if(diagonalScoring == true) {
-                std::sort(resList, resList + queryResult.second, QueryScore::compareHitsByDiagonalScore);
+                std::sort(resList, resList + queryResult.second, hit_t::compareHitsByDiagonalScore);
             } else {
-                std::sort(resList, resList + queryResult.second, QueryScore::compareHitsByPValue);
+                std::sort(resList, resList + queryResult.second, hit_t::compareHitsByPValue);
             }
         }
     }
     return queryResult;
 }
 
-size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
+size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     // go through the query sequence
     size_t kmerListLen = 0;
     size_t numMatches = 0;
@@ -244,22 +247,22 @@ size_t QueryTemplateLocalFast::match(Sequence *seq, float *compositionBias) {
     return hitCount;
 }
 
-size_t QueryTemplateLocalFast::getDoubleDiagonalMatches(){
+size_t QueryMatcher::getDoubleDiagonalMatches(){
     size_t retValue = 0;
-    for(size_t i = 1; i < QueryScoreLocal::SCORE_RANGE; i++){
+    for(size_t i = 1; i < SCORE_RANGE; i++){
         retValue += scoreSizes[i] * i;
         //std::cout << scoreSizes[i] * i << std::endl;
     }
     return retValue;
 }
 
-void QueryTemplateLocalFast::updateScoreBins(CounterResult *result, size_t elementCount) {
+void QueryMatcher::updateScoreBins(CounterResult *result, size_t elementCount) {
     for(size_t i = 0; i < elementCount; i++){
         scoreSizes[result[i].count]++;
     }
 }
 
-std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * results,
+std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                                                               size_t resultSize, const int l,
                                                               const unsigned int id,
                                                               const unsigned short thr,
@@ -267,13 +270,13 @@ std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * re
     size_t elementCounter = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
-        const unsigned short rawScore  = QueryScoreLocal::SCORE_RANGE-1;
+        const unsigned short rawScore  = SCORE_RANGE-1;
         result->seqId = id;
         result->prefScore = rawScore;
         result->diagonal = 0;
         //result->pScore = (((float)rawScore) - mu)/ sqrtMu;
-        result->pScore = (diagonalScoring) ? 0.0 : -QueryScoreLocal::computeLogProbability(rawScore, seqLens[id],
-                                                                                           mu, logMatchProb, logScoreFactorial[rawScore]);
+        result->pScore = (diagonalScoring) ? 0.0 : -computeLogProbability(rawScore, seqLens[id],
+                                                                          mu, logMatchProb, logScoreFactorial[rawScore]);
         elementCounter++;
     }
 
@@ -288,10 +291,10 @@ std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * re
             result->prefScore = scoreCurr;
             result->diagonal = diagCurr;
             //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
-            result->pScore =  (diagonalScoring) ? 0.0 :  -QueryScoreLocal::computeLogProbability(scoreCurr, seqLens[seqIdCurr],
-                                                                                                 mu, logMatchProb, logScoreFactorial[scoreCurr]);
+            result->pScore =  (diagonalScoring) ? 0.0 :  -computeLogProbability(scoreCurr, seqLens[seqIdCurr],
+                                                                                mu, logMatchProb, logScoreFactorial[scoreCurr]);
             elementCounter++;
-            if (elementCounter >= QueryScore::MAX_RES_LIST_LEN)
+            if (elementCounter >= MAX_RES_LIST_LEN)
                 break;
         }
     }
@@ -299,10 +302,9 @@ std::pair<hit_t *, size_t>  QueryTemplateLocalFast::getResult(CounterResult * re
     return pair;
 }
 
-void QueryTemplateLocalFast::initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches) {
+void QueryMatcher::initDiagonalMatcher(size_t dbsize, unsigned int maxDbMatches) {
 #define INIT(x)   cachedOperation##x = new CacheFriendlyOperations<x>(dbsize, maxDbMatches/x); \
                   activeCounter = x;
-
     if(dbsize/2 < L2_CACH_SIZE){
         INIT(2)
     }else if(dbsize/4 < L2_CACH_SIZE){
@@ -329,7 +331,7 @@ void QueryTemplateLocalFast::initDiagonalMatcher(size_t dbsize, unsigned int max
 #undef INIT
 }
 
-void QueryTemplateLocalFast::deleteDiagonalMatcher(unsigned int activeCounter){
+void QueryMatcher::deleteDiagonalMatcher(unsigned int activeCounter){
 #define DELETE_CASE(x) case x: delete cachedOperation##x; break;
     switch (activeCounter){
         FOR_EACH(DELETE_CASE,2,4,8,16,32,64,128,256,512,1024,2048)
@@ -337,7 +339,7 @@ void QueryTemplateLocalFast::deleteDiagonalMatcher(unsigned int activeCounter){
 #undef DELETE_CASE
 }
 
-size_t QueryTemplateLocalFast::mergeElements(bool diagonalScoring, CounterResult *foundDiagonals, size_t hitCounter) {
+size_t QueryMatcher::mergeElements(bool diagonalScoring, CounterResult *foundDiagonals, size_t hitCounter) {
     size_t overflowHitCount = 0;
 #define MERGE_CASE(x) \
     case x: overflowHitCount = (diagonalScoring == true) ? \
@@ -352,7 +354,7 @@ size_t QueryTemplateLocalFast::mergeElements(bool diagonalScoring, CounterResult
     return overflowHitCount;
 }
 
-size_t QueryTemplateLocalFast::keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize) {
+size_t QueryMatcher::keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize) {
     size_t retSize = 0;
 #define MAX_CASE(x) case x: retSize = cachedOperation##x->keepMaxScoreElementOnly(foundDiagonals, resultSize); break;
     switch (activeCounter){
@@ -361,7 +363,6 @@ size_t QueryTemplateLocalFast::keepMaxScoreElementOnly(CounterResult *foundDiago
 #undef MAX_CASE
     return retSize;
 }
-
 #undef FOR_EACH
 #undef GET_MACRO
 #undef FE_11
