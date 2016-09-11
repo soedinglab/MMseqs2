@@ -22,8 +22,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 }
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr, Sequence *seq,
-                                              BaseMatrix * subMat, int split, int alphabetSize, int kmerSize, bool hasSpacedKmer,
-                                             int searchMode) {
+                                              BaseMatrix * subMat, int split, int alphabetSize, int kmerSize, bool hasSpacedKmer) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
@@ -37,14 +36,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         size_t splitSize  = 0;
         Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                                          step, stepCnt, &splitStart, &splitSize);
-        IndexTable *indexTable;
-        if (searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST) {
-            indexTable = new IndexTable(alphabetSize, kmerSize, true);
-        }else{
-            Debug(Debug::ERROR) << "Seach mode is not valid.\n";
-            EXIT(EXIT_FAILURE);
-        }
-
+        IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, true);
         Prefiltering::fillDatabase(dbr, seq, indexTable, subMat, splitStart, splitStart + splitSize);
 
         // save the entries
@@ -109,7 +101,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         delete indexTable;
     }
     Debug(Debug::WARNING) << "Write " << META << "\n";
-    int local = (searchMode) ? 1 : 0;
+    int local = 1;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
     int metadata[] = {kmerSize, alphabetSize, 0, split, local, spacedKmer};
     char *metadataptr = (char *) &metadata;

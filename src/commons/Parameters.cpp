@@ -20,7 +20,7 @@ Parameters::Parameters():
         PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "Amino acid alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$"),
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$"),
         PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "HMM Profile input",typeid(bool),(void *) &profile, ""),
-        PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
+//PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "Use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$"),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-diag-score", "Minimum Diagonal score", "Accepts only hits with a ungapped diagonal score above the min score threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$"),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "Set the K-mer threshold for the K-mer generation",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$"),
@@ -29,7 +29,6 @@ Parameters::Parameters():
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "MPI Option: db set: 0 (low memory), query set: 1 (faster but memory intensive) or auto: 2 (computes best mode)",typeid(int),(void *) &splitMode,  "^[0-2]{1}$"),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$"),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "Amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, ""),
-        PARAM_SEARCH_MODE(PARAM_SEARCH_MODE_ID,"--search-mode", "Search mode", "Search mode. Debug: 1 (debug) Normal: 2 (default)",typeid(int), (void *) &searchMode, "^[0-2]{1}$"),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","Switch off local amino acid composition bias correction[0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$"),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "Spaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}" ),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, ""),
@@ -147,7 +146,7 @@ Parameters::Parameters():
     alignment.push_back(PARAM_MAX_SEQS);
     alignment.push_back(PARAM_MAX_REJECTED);
     alignment.push_back(PARAM_INCLUDE_IDENTITY);
-    alignment.push_back(PARAM_NUCL);
+//    alignment.push_back(PARAM_NUCL);
     alignment.push_back(PARAM_PROFILE);
     alignment.push_back(PARAM_ADD_BACKTRACE);
     alignment.push_back(PARAM_REALIGN);
@@ -162,12 +161,11 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_ALPH_SIZE);
     prefilter.push_back(PARAM_MAX_SEQ_LEN);
     prefilter.push_back(PARAM_PROFILE);
-    prefilter.push_back(PARAM_NUCL);
+//    prefilter.push_back(PARAM_NUCL);
     prefilter.push_back(PARAM_MAX_SEQS);
     prefilter.push_back(PARAM_RES_LIST_OFFSET);
     prefilter.push_back(PARAM_SPLIT);
     prefilter.push_back(PARAM_SPLIT_MODE);
-    prefilter.push_back(PARAM_SEARCH_MODE);
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     prefilter.push_back(PARAM_DIAGONAL_SCORING);
     prefilter.push_back(PARAM_MIN_DIAG_SCORE);
@@ -262,7 +260,6 @@ Parameters::Parameters():
     createindex.push_back(PARAM_ALPH_SIZE);
     createindex.push_back(PARAM_MAX_SEQ_LEN);
     createindex.push_back(PARAM_SPLIT);
-    createindex.push_back(PARAM_SEARCH_MODE);
     createindex.push_back(PARAM_SPACED_KMER_MODE);
     createindex.push_back(PARAM_V);
 
@@ -718,7 +715,6 @@ void Parameters::setDefaults() {
     diagonalScoring = 1;
     minDiagScoreThr = 30;
     spacedKmer = true;
-    searchMode = SEARCH_LOCAL_FAST;
     profile = false;
     nucl = false;
     includeIdentity = false;

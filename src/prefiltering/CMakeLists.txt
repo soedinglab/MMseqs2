@@ -11,15 +11,8 @@ set(prefiltering_source_files
     Prefiltering.h
     PrefilteringIndexReader.cpp
     PrefilteringIndexReader.h
-    QueryScore.cpp
-    QueryScore.h
-    QueryScoreLocal.cpp
-    QueryScoreLocal.h
-    QueryTemplateMatcher.h
-    QueryTemplateMatcherLocal.cpp
-    QueryTemplateMatcherLocal.h
-    QueryTemplateLocalFast.cpp
-    QueryTemplateLocalFast.h
+        QueryMatcher.cpp
+    QueryMatcher.h
     ReducedMatrix.cpp
     ReducedMatrix.h
     SequenceLookup.cpp

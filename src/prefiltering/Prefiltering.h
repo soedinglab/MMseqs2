@@ -7,8 +7,7 @@
 #include "IndexTable.h"
 #include "BaseMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
-#include "QueryScore.h"
-#include "QueryTemplateMatcher.h"
+#include "QueryMatcher.h"
 
 #include <string>
 #include <list>
@@ -44,7 +43,7 @@ public:
 
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
                                           int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
-                                          int searchMode, bool diagonalScoring);
+                                          bool diagonalScoring);
 
     static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
                              size_t dbFrom, size_t dbTo);
@@ -99,7 +98,6 @@ private:
     double kmerMatchProb;
     int split;
     int splitMode;
-    int searchMode;
     bool sameQTDB;
     bool includeIdentical;
 
@@ -115,13 +113,12 @@ private:
                              bool diagonalScoring, size_t resultOffsetPos);
 
     // init QueryTemplateMatcher
-    QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
+    QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
                                                       unsigned int *seqLens, short kmerThr,
                                                       double kmerMatchProb, int kmerSize,
                                                       size_t effectiveKmerSize, size_t dbSize,
                                                       bool aaBiasCorrection, bool diagonalScoring,
-                                                      unsigned int maxSeqLen, int searchMode,
-                                                      size_t maxHitsPerQuery);
+                                                      unsigned int maxSeqLen, size_t maxHitsPerQuery);
 
 
     void printStatistics(const statistics_t &stats, size_t empty);

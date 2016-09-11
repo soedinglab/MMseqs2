@@ -79,8 +79,8 @@ private:
     bool positiveFiltering;
     int numberOfLines;
     int mode;
-    std::string compOperator;
     float compValue;
+	std::string compOperator;
 
     DBWriter* dbw;
 	DBReader<unsigned int>* dataDb;

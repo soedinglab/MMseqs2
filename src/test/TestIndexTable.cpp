@@ -12,7 +12,6 @@
 
 #include "../prefiltering/IndexTable.h"
 #include "../prefiltering/IndexTableGlobal.h"
-#include "../prefiltering/QueryScore.h"
 #include "../prefiltering/QueryScoreGlobal.h"
 
 int main (int argc, const char * argv[])

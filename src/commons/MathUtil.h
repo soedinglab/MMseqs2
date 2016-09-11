@@ -5,6 +5,7 @@
 #include <climits>
 #include <cfloat>
 #include <vector>
+#include <limits>
 
 class MathUtil {
 public:
@@ -113,6 +114,17 @@ public:
         return static_cast<float>(end - start + 1) / static_cast<float>(length);
     }
 
+// compute look up table based on stirling approximation
+    static void computeFactorial(double *output, const size_t range) {
+        output[0] = log(1.0);
+        for(size_t score = 1; score < range; score++){
+            const double scoreDbl = static_cast<double>(score);
+
+            const double S_fact = std::min(std::numeric_limits<double>::max(),
+                                           sqrt(2 * M_PI * scoreDbl) * pow(scoreDbl / exp(1), scoreDbl) * exp(1 / (12  * scoreDbl)));
+            output[score] = log(S_fact);
+        }
+    }
 };
 
 #endif

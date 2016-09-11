@@ -1,7 +1,6 @@
 #include "Prefiltering.h"
 #include "PrefilteringIndexReader.h"
-#include "QueryTemplateLocalFast.h"
-#include "QueryTemplateMatcherLocal.h"
+#include "QueryMatcher.h"
 #include "NucleotideMatrix.h"
 #include "ReducedMatrix.h"
 #include "SubstitutionMatrixWithoutX.h"
@@ -40,8 +39,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         minDiagScoreThr(par.minDiagScoreThr),
         aaBiasCorrection(par.compBiasCorrection),
         split(par.split),
-        splitMode(par.splitMode),
-        searchMode(par.searchMode)
+        splitMode(par.splitMode)
 {
     this->threads = par.threads;
 #ifdef OPENMP
@@ -79,8 +77,6 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         this->alphabetSize = data.alphabetSize;
         this->split        = data.split;
         this->spacedKmer   = (data.spacedKmer == 1) ? true : false;
-        this->searchMode   = (data.local == 1) ? ((par.searchMode >= 1) ? par.searchMode : Parameters::SEARCH_LOCAL)
-                                               : Parameters::SEARCH_GLOBAL;
     }
     if(templateDBIsIndex == false && sameQTDB == true){
         this->tdbr->close();
@@ -253,32 +249,23 @@ void Prefiltering::mergeOutput(const std::string& outDB, const std::string& outD
     Debug(Debug::WARNING) << "\nTime for mergeing results: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 }
 
-QueryTemplateMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
+QueryMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
                                                                  unsigned int *seqLens, short kmerThr,
                                                                  double kmerMatchProb, int kmerSize,
                                                                  size_t effectiveKmerSize, size_t dbSize,
                                                                  bool aaBiasCorrection, bool diagonalScoring,
-                                                                 unsigned int maxSeqLen, int searchMode,
-                                                                 size_t maxHitsPerQuery) {
-    QueryTemplateMatcher** matchers = new QueryTemplateMatcher *[threads];
+                                                                 unsigned int maxSeqLen, size_t maxHitsPerQuery) {
+    QueryMatcher** matchers = new QueryMatcher *[threads];
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < this->threads; i++){
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        if (searchMode == Parameters::SEARCH_LOCAL) {
-            matchers[thread_idx] = new QueryTemplateMatcherLocal(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                                 kmerSize, effectiveKmerSize, dbSize, maxSeqLen,
-                                                                 maxHitsPerQuery);
-        } else if(searchMode == Parameters::SEARCH_LOCAL_FAST) {
-            matchers[thread_idx] = new QueryTemplateLocalFast(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+
+        matchers[thread_idx] = new QueryMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
                                                               kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
                                                               maxHitsPerQuery, aaBiasCorrection, diagonalScoring, minDiagScoreThr);
-        } else {
-            Debug(Debug::ERROR) << "Seach mode is not valid.\n";
-            EXIT(EXIT_FAILURE);
-        }
         if(querySeqType == Sequence::HMM_PROFILE){
             matchers[thread_idx]->setProfileMatrix(qseq[thread_idx]->profile_matrix);
         } else {
@@ -293,7 +280,7 @@ IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize
         return PrefilteringIndexReader::generateIndexTable(tidxdbr, split, diagonalScoring);
     }else{
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, aaBiasCorrection);
-        return generateIndexTable(tdbr, &tseq, subMat, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, searchMode, diagonalScoring);
+        return generateIndexTable(tdbr, &tseq, subMat, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, diagonalScoring);
     }
 }
 
@@ -338,12 +325,12 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable,
+    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable,
                                                                   tdbr->getSeqLens() + dbFrom, // offset for split mode
                                                                   kmerThr, kmerMatchProb, kmerSize,
                                                                   qseq[0]->getEffectiveKmerSize(), dbSize,
                                                                   aaBiasCorrection, diagonalScoring,
-                                                                  maxSeqLen, searchMode, maxResListLen);
+                                                                  maxSeqLen, maxResListLen);
     size_t kmersPerPos = 0;
     size_t dbMatches = 0;
     size_t doubleMatches = 0;
@@ -358,7 +345,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
     Debug(Debug::WARNING) << "Query db start  "<< queryFrom << " to " << queryFrom + querySize << "\n";
     Debug(Debug::WARNING) << "Target db start  "<< dbFrom << " to " << dbFrom + dbSize << "\n";
 
-#pragma omp parallel for schedule(dynamic, 100) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
+#pragma omp parallel for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
     for (size_t id = queryFrom; id < queryFrom + querySize; id++){
         Log::printProgress(id);
 
@@ -540,15 +527,20 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
     size_t aaCount = 0;
     dbTo=std::min(dbTo,dbr->getSize());
     size_t maskedResidues = 0;
+
     for (unsigned int id = dbFrom; id < dbTo; id++){
+        maskedResidues += Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
+                                                  indexTable->getAlphabetSize(), seq->aa2int['X']);
+    }
+
+        for (unsigned int id = dbFrom; id < dbTo; id++){
         seq->resetCurrPos();
         Log::printProgress(id - dbFrom);
         char* seqData = dbr->getData(id);
         unsigned int qKey = dbr->getDbKey(id);
         seq->mapSequence(id - dbFrom, qKey, seqData);
 
-        maskedResidues += Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
-                                indexTable->getAlphabetSize(), seq->aa2int['X']);
+
 
         aaCount += seq->L;
         indexTable->addKmerCount(seq);
@@ -595,16 +587,11 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 }
 
 IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, BaseMatrix * subMat, int alphabetSize, int kmerSize,
-                                              size_t dbFrom, size_t dbTo, int searchMode, bool diagonalScoring) {
+                                              size_t dbFrom, size_t dbTo, bool diagonalScoring) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     IndexTable * indexTable;
-    if (searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST) {
-        indexTable = new IndexTable(alphabetSize, kmerSize, diagonalScoring);
-    } else{
-        Debug(Debug::ERROR) << "Seach mode is not valid.\n";
-        EXIT(EXIT_FAILURE);
-    }
+    indexTable = new IndexTable(alphabetSize, kmerSize, diagonalScoring);
     fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo);
     gettimeofday(&end, NULL);
     indexTable->printStatisitic(seq->int2aa);
@@ -632,17 +619,16 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
     // 1000 * 350 * 100000 * 350
     size_t lenSum_pc = 12250000000000;
     statistics_t stats;
-    stats = computeStatisticForKmerThreshold(indexTable, querySetSize, querySeqs, searchMode, kmerScore);
+    stats = computeStatisticForKmerThreshold(indexTable, querySetSize, querySeqs, true, kmerScore);
     // match probability with pseudocounts
     // add pseudo-counts (1/20^k * kmerPerPos * length of pseudo counts)
     dbMatchesExp_pc = (size_t)(((double)lenSum_pc) * stats.kmersPerPos * pow((1.0/((double)(subMat->alphabetSize-1))), kmerSize));
     // match probability with pseudocounts
     double kmerMatchProb = ((double)stats.dbMatches + dbMatchesExp_pc) / ((double) (stats.querySeqLen * targetSeqLenSum + lenSum_pc));
     // compute match prob for local match
-    if(searchMode == Parameters::SEARCH_LOCAL || searchMode == Parameters::SEARCH_LOCAL_FAST){
-        kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
-        kmerMatchProb /= 256;
-    }
+    kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
+    kmerMatchProb /= 256;
+
     kmerMatchProb = std::max(kmerMatchProb, std::numeric_limits<double>::min());
     Debug(Debug::INFO) << "\tk-mers per position = " << stats.kmersPerPos << ", k-mer match probability: " << kmerMatchProb << "\n";
     delete[] querySeqs;
@@ -652,10 +638,10 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
 statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,
                                                             unsigned int *querySeqsIds, bool reverseQuery, size_t kmerThrMid) {
     // determine k-mer match probability for kmerThrMid
-    QueryTemplateMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid,
+    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid,
                                                                   1.0, kmerSize, qseq[0]->getEffectiveKmerSize(),
                                                                   indexTable->getSize(), aaBiasCorrection, false, maxSeqLen,
-                                                                  searchMode, LONG_MAX);
+                                                                  LONG_MAX);
     size_t dbMatchesSum = 0;
     size_t doubleMatches = 0;
     size_t querySeqLenSum = 0;
