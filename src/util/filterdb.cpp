@@ -106,10 +106,8 @@ ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string fi
 }
 
 ffindexFilter::~ffindexFilter() {
-
 	if (mode == REGEX_FILTERING)
 		regfree(&regex);
-
 	dataDb->close();
 	dbw->close();
 	delete dataDb;
@@ -119,7 +117,6 @@ ffindexFilter::~ffindexFilter() {
 
 
 int ffindexFilter::runFilter(){
-
 	const size_t LINE_BUFFER_SIZE = 1000000;
 #pragma omp parallel
 	{
@@ -165,7 +162,6 @@ int ffindexFilter::runFilter(){
 					columnValue[entrySize] = '\0';
 					colStrLen = entrySize;
 				}
-
 
 				int nomatch;
 				if(mode == GET_FIRST_LINES){

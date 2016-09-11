@@ -6,7 +6,6 @@
 #include "SequenceLookup.h"
 #include "SubstitutionMatrix.h"
 #include "UngappedAlignment.h"
-#include "QueryScore.h"
 #include "ExtendedSubstitutionMatrix.h"
 
 #include "Clustering.h"

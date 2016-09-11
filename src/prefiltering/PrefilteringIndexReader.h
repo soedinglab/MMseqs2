@@ -32,8 +32,7 @@ public:
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
 
     static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr, Sequence *seq,
-                                BaseMatrix * subMat, int split, int alphabetSize, int kmerSize, bool hasSpacedKmer,
-                                   int searchMode);
+                                BaseMatrix * subMat, int split, int alphabetSize, int kmerSize, bool hasSpacedKmer);
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr);
 

@@ -28,8 +28,7 @@ set(util_source_files
   detectredundancy.cpp
   order.cpp
   diff.cpp
-  TimeTest.cpp
-  summarizeheaders.cpp
+        summarizeheaders.cpp
   prefixid.cpp
   summarizetabs.cpp
   extractdomains.cpp

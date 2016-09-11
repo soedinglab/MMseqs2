@@ -8,7 +8,6 @@
 #include "SubstitutionMatrix.h"
 #include "simd.h"
 #include "CacheFriendlyOperations.h"
-#include "QueryScore.h"
 #include "SequenceLookup.h"
 class UngappedAlignment {
 
