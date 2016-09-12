@@ -210,5 +210,10 @@ public:
         in.erase(in.find_first_of(" "));
         return in;
     }
+
+    static size_t overlappingKmers(int seqLen, unsigned int kmerSize) {
+        int kmersPerSize = seqLen - static_cast<int>(kmerSize);
+        return  (kmersPerSize >= 0) ? kmersPerSize + 1 :  0;
+    }
 };
 #endif
