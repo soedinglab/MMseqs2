@@ -14,6 +14,7 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
     this->aaBiasCorrection = aaBiasCorrection;
     this->maxLen = maxLen;
     this->aa2int = aa2int;
+    this->spaced = spaced;
     this->int2aa = int2aa;
     this->seqType = seqType;
     std::pair<const char *, unsigned int> spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
@@ -31,7 +32,7 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
         // setup memory for profiles
         profile_row_size = (size_t) PROFILE_AA_SIZE / (VECSIZE_INT*4); //
         profile_row_size = (profile_row_size+1) * (VECSIZE_INT*4); // for SIMD memory alignment
-        profile_matrix = new ScoreMatrix*[20]; // init 20 matrix pointer (its more than enough for all kmer parameter)
+        profile_matrix = new ScoreMatrix*[PROFILE_AA_SIZE]; // init 20 matrix pointer (its more than enough for all kmer parameter)
         for (size_t i = 0; i < kmerSize; i++) {
             profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
         }
@@ -189,6 +190,23 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence){
     currItPos = -1;
 
 }
+
+void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *,const unsigned int> data){
+    this->id = id;
+    this->dbKey = dbKey;
+    if (this->seqType == Sequence::AMINO_ACIDS){
+        this->L = data.second;
+        for(size_t aa = 0; aa < this->L; aa++){
+            this->int_sequence[aa] = data.first[aa];
+        }
+    }else  {
+        Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    currItPos = -1;
+}
+
+
 
 void Sequence::mapNucleotideSequence(const char * sequence){
     size_t l = 0;
