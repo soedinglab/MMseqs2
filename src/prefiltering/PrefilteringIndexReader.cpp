@@ -22,7 +22,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 }
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr, Sequence *seq,
-                                              BaseMatrix * subMat, int split, int alphabetSize, int kmerSize, bool hasSpacedKmer) {
+                                              BaseMatrix * subMat, int split, int alphabetSize, int kmerSize, bool hasSpacedKmer, int threads) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
@@ -37,7 +37,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                                          step, stepCnt, &splitStart, &splitSize);
         IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, true);
-        Prefiltering::fillDatabase(dbr, seq, indexTable, subMat, splitStart, splitStart + splitSize);
+        IndexTable::parallelFillDatabase(dbr, seq, indexTable, subMat, splitStart, splitStart + splitSize, threads);
 
         // save the entries
         std::string entries_key = SSTR(MathUtil::concatenate(ENTRIES, step));
@@ -150,10 +150,13 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*d
         EXIT(EXIT_FAILURE);
     }
 
+    SequenceLookup * sequenceLookup = NULL;
+    if(diagonalScoring == true) {
+        sequenceLookup = new SequenceLookup(sequenceCount);
+        sequenceLookup->initLookupByExternalData(seqData, (unsigned int *) seqSizesData);
+    }
     retTable->initTableByExternalData(sequenceCount, entriesNum,
-                                      entriesData, (size_t *)entrieSizesData,
-                                      seqData,  (unsigned int *) seqSizesData);
-
+                                      entriesData, (size_t *)entrieSizesData, sequenceLookup);
     return retTable;
 }
 

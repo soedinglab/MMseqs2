@@ -39,11 +39,11 @@ public:
     static void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
                             const std::vector<std::pair<std::string, std::string>> &filenames);
 
-    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
+    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, int threads); // needed for index lookup
 
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
                                           int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
-                                          bool diagonalScoring);
+                                          bool diagonalScoring, int threads);
 
     static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
                              size_t dbFrom, size_t dbTo);
