@@ -305,7 +305,7 @@ public:
                                              thread_idx, threads, &threadFrom, &threadSize);
             size_t kmerStartPos = 0;
             for(size_t id = 0; id < threadFrom; id++ ){
-                kmerStartPos += std::max(0, static_cast<int>(dbr->getSeqLens(id)) - 2 - static_cast<int>(s.getEffectiveKmerSize()) + 1 );
+                kmerStartPos +=  Util::overlappingKmers(static_cast<int>(dbr->getSeqLens(id)) - 2, s.getEffectiveKmerSize());
             }
             std::cout << thread_idx << "\t" << threadFrom << "\t" << threadSize << "\t" << kmerStartPos << std::endl;
             TableEntry * threadEntry = entries + kmerStartPos;
@@ -347,7 +347,7 @@ public:
             if(id < dbTo - 1){
                 sequenceOffSet[idFromNull + 1] =  sequenceOffSet[idFromNull] + seqLen;
             }
-            tableEntriesNum += (seqLen - seq->getEffectiveKmerSize()) + 1;
+            tableEntriesNum += Util::overlappingKmers(seqLen, seq->getEffectiveKmerSize());
         }
         
         SequenceLookup * sequenceLookup = new SequenceLookup(dbSize, aaDbSize);
@@ -393,16 +393,18 @@ public:
         Debug(Debug::INFO) << "Done";
         char * entries =  (char *) realloc(indexEntries, sizeof(IndexEntryLocal) * tableEntriesNum);
         indexTable->initTableByExternalData(dbSize, tableEntriesNum, entries, (size_t *)indexTable->table, sequenceLookup);
-        
-        //        size_t totalKmerSumTable = 0;
-        Indexer idx(subMat->alphabetSize, seq->getKmerSize());
+//        Indexer idx(subMat->alphabetSize, seq->getKmerSize());
 #pragma omp for schedule(static)
         for(size_t pos = 0; pos < indexTable->tableSize; pos++){
             size_t size;
             IndexEntryLocal * indexEntry = indexTable->getDBSeqList<IndexEntryLocal>(pos, &size);
             if(size > 0){
                 std::sort(indexEntry, indexEntry + size, IndexEntryLocal::comapreByIdAndPos);
-
+//                for(size_t i = 0; i < size; i++){
+//                    idx.printKmer(pos, seq->getKmerSize(), subMat->int2aa);
+//                    std::cout << "\t" << indexEntry[i].seqId << "\t";
+//                    std::cout << indexEntry[i].position_j << std::endl;
+//                }
             }
         }
     }
