@@ -58,13 +58,6 @@ add_executable(testalignment_perf ${testalignment_perf})
 target_link_libraries(testalignment_perf util)
 target_link_libraries(testalignment_perf workflow)
 
-
-set(testexternalsort_perf TestMmapExternalSort.cpp )
-add_executable(testexternalsort_perf ${testexternalsort_perf})
-
-target_link_libraries(testexternalsort_perf util)
-target_link_libraries(testexternalsort_perf workflow)
-
 set(testkmergenerator_perf TestKmerGenerator.cpp )
 add_executable(testkmergenerator_perf ${testkmergenerator_perf})
 
