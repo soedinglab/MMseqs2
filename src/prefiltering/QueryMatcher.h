@@ -46,10 +46,10 @@ struct hit_t {
 class QueryMatcher {
 public:
     QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
-                           unsigned int *seqLens, short kmerThr,
-                           double kmerMatchProb, int kmerSize, size_t dbSize,
-                           unsigned int maxSeqLen, unsigned int effectiveKmerSize,
-                           size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring, unsigned int minDiagScoreThr);
+                 unsigned int *seqLens, short kmerThr,
+                 double kmerMatchProb, int kmerSize, size_t dbSize,
+                 unsigned int maxSeqLen, unsigned int effectiveKmerSize,
+                 size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring, unsigned int minDiagScoreThr);
     ~QueryMatcher();
 
     // returns result for the sequence
@@ -91,16 +91,16 @@ public:
     }
 
 // compute -log(p)
-static inline double computeLogProbability(const unsigned short rawScore, const unsigned int dbSeqLen,
-                                           const double kmerMatchProb, const double logMatchProb,
-                                           const double logScoreFactorial) {
-    const double score = static_cast<double>(rawScore);
-    const double dbSeqLenDbl = static_cast<double>(dbSeqLen);
-    const double mu = kmerMatchProb * dbSeqLenDbl;
-    const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
-    const double first_term = -(mu * score /(score + 1));
-    return first_term + mid_term - logScoreFactorial;
-}
+    static inline double computeLogProbability(const unsigned short rawScore, const unsigned int dbSeqLen,
+                                               const double kmerMatchProb, const double logMatchProb,
+                                               const double logScoreFactorial) {
+        const double score = static_cast<double>(rawScore);
+        const double dbSeqLenDbl = static_cast<double>(dbSeqLen);
+        const double mu = kmerMatchProb * dbSeqLenDbl;
+        const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
+        const double first_term = -(mu * score /(score + 1));
+        return first_term + mid_term - logScoreFactorial;
+    }
 
 protected:
 
@@ -112,7 +112,7 @@ protected:
     /* generates kmer lists */
     KmerGenerator * kmerGenerator;
     /* contains the sequences for a kmer */
-IndexTable * indexTable;
+    IndexTable * indexTable;
     // k of the k-mer
     int kmerSize;
     // local amino acid bias correction

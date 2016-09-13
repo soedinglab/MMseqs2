@@ -487,9 +487,6 @@ void Prefiltering::printStatistics(const statistics_t &stats, size_t empty) {
     }
     Debug(Debug::INFO) << "\n" << stats.kmersPerPos << " k-mers per position.\n";
     Debug(Debug::INFO) << stats.dbMatches << " DB matches per sequence.\n";
-    if(stats.doubleMatches){
-        Debug(Debug::INFO) << stats.doubleMatches << " Double diagonal matches per sequence.\n";
-    }
     Debug(Debug::INFO) << stats.diagonalOverflow << " Overflows .\n";
     Debug(Debug::INFO) << stats.resultsPassedPrefPerSeq << " sequences passed prefiltering per query sequence";
     if (stats.resultsPassedPrefPerSeq > maxResListLen)
@@ -595,10 +592,13 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
         thread_idx = omp_get_thread_num();
 #endif
         size_t threadFrom, threadSize;
-        char ** table = (indexTable->getTable());
-        Util::decomposeDomainSizet(tableEntriesNum,  (size_t *) table , indexTable->getTableSize(),
-                                         thread_idx, threads, &threadFrom, &threadSize);
-        std::cout << thread_idx << "\t" << threadFrom << "\t" << threadSize << std::endl;
+        char **table = (indexTable->getTable());
+        Util::decomposeDomainSizet(tableEntriesNum, (size_t *) table, indexTable->getTableSize(),
+                                   thread_idx, threads, &threadFrom, &threadSize);
+        std::stringstream stream;
+        stream << thread_idx << "\t" << threadFrom << "\t" << threadSize;
+        std::cout << stream.str() << std::endl;
+
 #pragma omp barrier
         if(thread_idx == 0){
             indexTable->initMemory(dbTo - dbFrom, tableEntriesNum, aaCount, sequenceLookup);

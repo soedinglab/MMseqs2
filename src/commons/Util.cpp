@@ -65,7 +65,7 @@ std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
 
 
 void Util::decomposeDomainSizet(size_t aaSize, size_t *seqSizes, size_t count,
-                                      size_t worldRank, size_t worldSize, size_t *start, size_t *size){
+                                size_t worldRank, size_t worldSize, size_t *start, size_t *size){
     if (worldSize > aaSize) {
         // Assume the domain size is greater than the world size.
         Debug(Debug::ERROR) << "World Size: " << worldSize << " aaSize: " << aaSize << "\n";
@@ -390,10 +390,10 @@ void Util::filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM
     }
 }
 size_t Util::maskLowComplexity(BaseMatrix * m, Sequence *s,
-                             int seqLen,
-                             int windowSize,
-                             int maxAAinWindow,
-                             int alphabetSize, int maskValue) {
+                               int seqLen,
+                               int windowSize,
+                               int maxAAinWindow,
+                               int alphabetSize, int maskValue) {
     size_t aafreq[21];
 
     char * mask = new char[seqLen];

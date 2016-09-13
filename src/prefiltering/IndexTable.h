@@ -31,7 +31,7 @@
 struct __attribute__((__packed__)) IndexEntryLocal {
     unsigned int seqId;
     unsigned short position_j;
-    
+
     static bool comapreByIdAndPos(IndexEntryLocal first, IndexEntryLocal second){
         if(first.seqId < second.seqId )
             return true;
@@ -46,9 +46,9 @@ struct __attribute__((__packed__)) IndexEntryLocal {
 };
 
 class IndexTable {
-    
+
 public:
-    
+
     IndexTable (int alphabetSize, int kmerSize, bool hasSequenceLookup) {
         this->alphabetSize = alphabetSize;
         this->kmerSize = kmerSize;
@@ -64,7 +64,7 @@ public:
         entries = NULL;
         sequenceLookup = NULL;
     }
-    
+
     virtual ~IndexTable(){
         deleteEntries();
         delete[] table;
@@ -73,7 +73,7 @@ public:
             delete sequenceLookup;
         }
     }
-    
+
     void deleteEntries(){
         if(entries != NULL && externalData == false){
             delete [] entries;
@@ -82,7 +82,7 @@ public:
             munlock(entries, tableEntriesNum);
         }
     }
-    
+
     // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
     size_t addKmerCount (Sequence* s, Indexer * idxer){
         unsigned int kmerIdx;
@@ -98,23 +98,23 @@ public:
         }
         return countKmer;
     }
-    
+
     inline  char * getTable(unsigned int kmer){
         return table[kmer];
     }
-    
+
     // get list of DB sequences containing this k-mer
     template<typename T> inline T* getDBSeqList (int kmer, size_t* matchedListSize){
         const ptrdiff_t diff =  (table[kmer + 1] - table[kmer]) / sizeof( T );
         *matchedListSize = diff;
         return (T *) table[kmer];
     }
-    
+
     // get pointer to entries array
     char * getEntries(){
         return entries;
     }
-    
+
     // init the arrays for the sequence lists
     void initMemory(size_t sequenzeCount, size_t tableEntriesNum, size_t aaDbSize, SequenceLookup * seqLookup) {
         this->tableEntriesNum = tableEntriesNum;
@@ -127,7 +127,7 @@ public:
         externalData = false;
         Util::checkAllocation(entries, "Could not allocate entries memory in IndexTable::initMemory");
     }
-    
+
     // allocates memory for index tables
     void init(){
         char * it = entries;
@@ -139,7 +139,7 @@ public:
         }
         table[tableSize] = it;
     }
-    
+
     // init index table with external data (needed for index readin)
     void initTableByExternalData(size_t sequenzeCount, size_t tableEntriesNum,
                                  char * entries, size_t * entriesSize, SequenceLookup * lookup) {
@@ -164,26 +164,26 @@ public:
         externalData = true;
         Debug(Debug::WARNING) << "Read IndexTable ... Done\n";
     }
-    
+
     void revertPointer(){
         for(size_t i = tableSize - 1; i > 0; i--){
             table[i] = table[i-1];
         }
         table[0] = entries;
     }
-    
+
     void printStatisitic(char * int2aa){
         size_t minKmer = 0;
-        
+
         size_t entries = 0;
         double avgKmer = 0;
-        
+
         size_t emptyKmer = 0;
         const size_t top_N = 10;
         std::pair<size_t, size_t> topElements[top_N];
         for(size_t j =0; j < top_N; j++)
             topElements[j].first = 0;
-        
+
         for(size_t i = 0; i < tableSize - 1; i++){
             const ptrdiff_t size =  (table[i + 1] - table[i]) / this->sizeOfEntry;
             minKmer = std::min(minKmer, (size_t)size);
@@ -209,16 +209,16 @@ public:
         Debug(Debug::WARNING) << "Top " << top_N << " Kmers\n   ";
         for(size_t j =0; j < top_N; j++){
             Debug(Debug::WARNING) << "\t";
-            
+
             this->idxer->printKmer(topElements[j].second, kmerSize, int2aa);
             Debug(Debug::WARNING) << "\t\t" << topElements[j].first << "\n";
         }
         Debug(Debug::WARNING) << "Min Kmer Size:   " << minKmer << "\n";
         Debug(Debug::WARNING) << "Empty list: " << emptyKmer << "\n";
         Debug(Debug::WARNING) << "\n";
-        
+
     }
-    
+
     // FUNCTIONS TO OVERWRITE
     // add k-mers of the sequence to the index table
     void addSequence (Sequence* s, Indexer * idxer, size_t aaFrom, size_t aaSize){
@@ -229,7 +229,7 @@ public:
         while(s->hasNextKmer()){
             const int * kmer = s->nextKmer();
             unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
-            if(kmerIdx > aaFrom  && kmerIdx < aaFrom + aaSize){
+            if(kmerIdx >= aaFrom  && kmerIdx < aaFrom + aaSize){
                 // if region got masked do not add kmer
                 if((table[kmerIdx+1] - table[kmerIdx]) == 0)
                     continue;
@@ -240,12 +240,12 @@ public:
             }
         }
     }
-    
+
     // prints the IndexTable
     void print(char * int2aa) {
         for (size_t i = 0; i < tableSize; i++){
             ptrdiff_t entrieSize = (table[i+1] - table[i]) / sizeof(IndexEntryLocal);
-            
+
             if (entrieSize > 0){
                 idxer->printKmer(i, kmerSize, int2aa);
                 Debug(Debug::INFO) << "\n";
@@ -256,39 +256,39 @@ public:
             }
         }
     };
-    
+
     // get amount of sequences in Index
     size_t getSize() {  return size; };
-    
+
     // returns the size of  table entries
     int64_t getTableEntriesNum(){ return tableEntriesNum; };
-    
+
     // returns table size
     size_t getTableSize(){ return tableSize; };
-    
+
     // returns table
     char ** getTable(){ return table; };
-    
+
     // returns the size of the entry (int for global) (IndexEntryLocal for local)
     size_t getSizeOfEntry() { return sizeOfEntry; }
-    
+
     SequenceLookup *getSequenceLookup(){ return sequenceLookup; }
-    
+
     int getKmerSize() {
         return kmerSize;
     }
-    
+
     int getAlphabetSize() {
         return alphabetSize;
     }
-    
-    
+
+
     struct __attribute__((__packed__)) TableEntry{
         unsigned int kmer;
         unsigned int seqId;
         unsigned short position_j;
     };
-    
+
     static void fillEntries(DBReader<unsigned int> *dbr, size_t aaSize, size_t dbFrom, size_t dbTo,
                             Sequence *seq, SequenceLookup * sequenceLookup,
                             IndexTable::TableEntry *entries, size_t tableEntrieNum, size_t alphabetSize, size_t threads) {
@@ -297,7 +297,7 @@ public:
             Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
                        seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
             Indexer idxer(alphabetSize, seq->getKmerSize());
-            
+
             size_t threadFrom, threadSize;
             int thread_idx = 0;
 #ifdef OPENMP
@@ -326,10 +326,10 @@ public:
                 }
             }
         }
-        
+
     }
-    
-    
+
+
     static bool compareTableEntryByKmer(TableEntry first, TableEntry second){
         return (first.kmer < second.kmer) ? true : false;
     }
@@ -351,7 +351,7 @@ public:
             }
             tableEntriesNum += Util::overlappingKmers(seqLen, seq->getEffectiveKmerSize());
         }
-        
+
         SequenceLookup * sequenceLookup = new SequenceLookup(dbSize, aaDbSize);
         size_t maskedResidues = 0;
         size_t aaCount = 0;
@@ -384,7 +384,7 @@ public:
         Debug(Debug::INFO) << "\nIndex table: sort residues ... ";
         omptl::sort(sortableEntries, sortableEntries + tableEntriesNum, compareTableEntryByKmer);
         Debug(Debug::INFO) << "Done";
-        
+
         IndexEntryLocal * indexEntries = (IndexEntryLocal *) sortableEntries;
         Debug(Debug::INFO) << "\nIndex table: Count and rewrite entries  ... ";
         for(size_t pos = 0; pos < tableEntriesNum; pos++){
@@ -410,43 +410,43 @@ public:
             }
         }
     }
-    
-    
+
+
 protected:
     // number of entries in all sequence lists
     int64_t tableEntriesNum; // must be 64bit
-    
+
     // alphabetSize**kmerSize
     size_t tableSize;
-    
+
     // Index table: contains pointers to the k-mer start position in entries array
     // Needed for fast access
     char** __restrict table;
-    
+
     // Index table entries: ids of sequences containing a certain k-mer, stored sequentially in the memory
     char* entries;
-    
+
     Indexer* idxer;
-    
+
     int alphabetSize;
-    
+
     int kmerSize;
-    
+
     // is sequence lookup needed
     bool hasSequenceLookup;
-    
+
     // amount of sequences in Index
     size_t size;
-    
+
     // entry size
     size_t sizeOfEntry;
-    
+
     // sequence lookup
     SequenceLookup *sequenceLookup;
-    
+
     // external data from mmap
     bool externalData;
-    
+
     // magic byte to avoid compiler optimisation
     size_t magicByte;
 };

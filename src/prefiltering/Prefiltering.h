@@ -114,11 +114,11 @@ private:
 
     // init QueryTemplateMatcher
     QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
-                                                      unsigned int *seqLens, short kmerThr,
-                                                      double kmerMatchProb, int kmerSize,
-                                                      size_t effectiveKmerSize, size_t dbSize,
-                                                      bool aaBiasCorrection, bool diagonalScoring,
-                                                      unsigned int maxSeqLen, size_t maxHitsPerQuery);
+                                              unsigned int *seqLens, short kmerThr,
+                                              double kmerMatchProb, int kmerSize,
+                                              size_t effectiveKmerSize, size_t dbSize,
+                                              bool aaBiasCorrection, bool diagonalScoring,
+                                              unsigned int maxSeqLen, size_t maxHitsPerQuery);
 
 
     void printStatistics(const statistics_t &stats, size_t empty);
