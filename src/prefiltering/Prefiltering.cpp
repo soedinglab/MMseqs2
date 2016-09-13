@@ -562,6 +562,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
         }
     }
     delete [] sequenceOffSet;
+    dbr->remapData();
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
     //TODO find smart way to remove extrem k-mers without harming huge protein families
@@ -595,9 +596,9 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
         char **table = (indexTable->getTable());
         Util::decomposeDomainSizet(tableEntriesNum, (size_t *) table, indexTable->getTableSize(),
                                    thread_idx, threads, &threadFrom, &threadSize);
-        std::stringstream stream;
-        stream << thread_idx << "\t" << threadFrom << "\t" << threadSize;
-        std::cout << stream.str() << std::endl;
+//        std::stringstream stream;
+//        stream << thread_idx << "\t" << threadFrom << "\t" << threadSize;
+//        std::cout << stream.str() << std::endl;
 
 #pragma omp barrier
         if(thread_idx == 0){
@@ -608,7 +609,9 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 #pragma omp barrier
         for (unsigned int id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
-            Log::printProgress(id - dbFrom);
+            if(thread_idx == 0) {
+                Log::printProgress(id - dbFrom);
+            }
             //char *seqData = dbr->getData(id);
             //TODO - dbFrom?!?
             unsigned int qKey = dbr->getDbKey(id);
