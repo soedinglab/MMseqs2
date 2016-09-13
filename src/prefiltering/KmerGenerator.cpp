@@ -1,5 +1,6 @@
 #include "KmerGenerator.h"
 #include <algorithm>    // std::reverse
+#include <MathUtil.h>
 #include "simd.h"
 
 
@@ -239,7 +240,7 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
             score_j_lt_cutoff = simdi8_movemask(cmp);
             // subsstract all elements that are under the threshold from counter
 
-            counter-= _mm_popcnt_u32(score_j_lt_cutoff) / 2;
+            counter-= MathUtil::popCount(score_j_lt_cutoff) / 2;
 
         }
     }
