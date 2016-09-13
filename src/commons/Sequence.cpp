@@ -196,7 +196,7 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
     this->dbKey = dbKey;
     if (this->seqType == Sequence::AMINO_ACIDS){
         this->L = data.second;
-        for(size_t aa = 0; aa < this->L; aa++){
+        for(int aa = 0; aa < this->L; aa++){
             this->int_sequence[aa] = data.first[aa];
         }
     }else  {

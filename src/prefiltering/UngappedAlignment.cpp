@@ -218,9 +218,9 @@ void UngappedAlignment::computeScores(const char *queryProfile,
     memset(diagonalCounter, 0, DIAGONALCOUNT * sizeof(unsigned char));
     for(size_t i = 0; i < resultSize; i++){
         // skip all that count not find enough diagonals
-        if(results[i].count < thr){
-            continue;
-        }
+//        if(results[i].count < thr){
+//            continue;
+//        }
         const unsigned short currDiag = results[i].diagonal;
         diagonalMatches[currDiag][diagonalCounter[currDiag]] = &results[i];
         diagonalCounter[currDiag]++;
