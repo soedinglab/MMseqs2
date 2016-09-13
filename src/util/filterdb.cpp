@@ -135,7 +135,7 @@ int ffindexFilter::runFilter(){
 #endif
 			char *data = dataDb->getData(id);
 			size_t dataLength = dataDb->getSeqLens(id);
-			size_t counter = 0;
+			int counter = 0;
 			while (*data != '\0') {
 				if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
 					Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
