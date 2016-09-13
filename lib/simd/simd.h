@@ -248,7 +248,7 @@ typedef __m256 simd_float;
 #ifdef SSE
 uint16_t simd_hmax16(const __m128i buffer);
 uint8_t simd_hmax8(const __m128i buffer);
-#include <nmmintrin.h>  //SSE4.2
+#include <smmintrin.h>  //SSE4.1
 // double support
 #ifndef SIMD_DOUBLE
 #define SIMD_DOUBLE
