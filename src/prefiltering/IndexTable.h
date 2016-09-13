@@ -84,16 +84,19 @@ public:
     }
     
     // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
-    void addKmerCount (Sequence* s){
+    size_t addKmerCount (Sequence* s, Indexer * idxer){
         unsigned int kmerIdx;
         s->resetCurrPos();
-        idxer->reset();
-        
+        //idxer->reset();
+        size_t countKmer = 0;
         while(s->hasNextKmer()){
             kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
-            table[kmerIdx] += 1; // size increases by one
-            tableEntriesNum++;
+            //table[kmerIdx] += 1;
+            // size increases by one
+            __sync_fetch_and_add( (int *) &table[kmerIdx], 1 );
+            countKmer++;
         }
+        return countKmer;
     }
     
     inline  char * getTable(unsigned int kmer){
@@ -113,10 +116,10 @@ public:
     }
     
     // init the arrays for the sequence lists
-    void initMemory(size_t sequenzeCount, size_t tableEntriesNum, size_t aaDbSize) {
+    void initMemory(size_t sequenzeCount, size_t tableEntriesNum, size_t aaDbSize, SequenceLookup * seqLookup) {
         this->tableEntriesNum = tableEntriesNum;
-        if(hasSequenceLookup == true){
-            sequenceLookup = new SequenceLookup(sequenzeCount, aaDbSize);
+        if(hasSequenceLookup == true && seqLookup != NULL){
+            sequenceLookup = seqLookup;
         }
         // allocate memory for the sequence id lists
         // tablesSizes is added to put the Size of the entry infront fo the memory
@@ -218,24 +221,23 @@ public:
     
     // FUNCTIONS TO OVERWRITE
     // add k-mers of the sequence to the index table
-    void addSequence (Sequence* s){
+    void addSequence (Sequence* s, Indexer * idxer, size_t aaFrom, size_t aaSize){
         // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
-        unsigned int kmerIdx;
         this->size++; // amount of sequences added
         s->resetCurrPos();
         idxer->reset();
         while(s->hasNextKmer()){
-            kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
-            // if region got masked do not add kmer
-            if((table[kmerIdx+1] - table[kmerIdx]) == 0)
-                continue;
-            IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
-            entry->seqId      = s->getId();
-            entry->position_j = s->getCurrentPosition();
-            table[kmerIdx] += sizeof(IndexEntryLocal);
-        }
-        if(hasSequenceLookup == true){
-            sequenceLookup->addSequence(s);
+            const int * kmer = s->nextKmer();
+            unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
+            if(kmerIdx > aaFrom  && kmerIdx < aaFrom + aaSize){
+                // if region got masked do not add kmer
+                if((table[kmerIdx+1] - table[kmerIdx]) == 0)
+                    continue;
+                IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
+                entry->seqId      = s->getId();
+                entry->position_j = s->getCurrentPosition();
+                table[kmerIdx] += sizeof(IndexEntryLocal);
+            }
         }
     }
     

@@ -521,26 +521,50 @@ BaseMatrix * Prefiltering:: getSubstitutionMatrix(const std::string& scoringMatr
 
 
 void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, IndexTable * indexTable,
-                                BaseMatrix *subMat, size_t dbFrom, size_t dbTo)
+                                BaseMatrix *subMat, size_t dbFrom, size_t dbTo, int threads)
 {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
     size_t aaCount = 0;
     dbTo=std::min(dbTo,dbr->getSize());
     size_t maskedResidues = 0;
+    size_t totalKmerCount = 0;
+
+    size_t dbSize = dbTo - dbFrom;
+    size_t * sequenceOffSet = new size_t[dbSize];
+    size_t aaDbSize = 0;
+    sequenceOffSet[0] = 0;
     for (unsigned int id = dbFrom; id < dbTo; id++){
-        seq->resetCurrPos();
-        Log::printProgress(id - dbFrom);
-        char* seqData = dbr->getData(id);
-        unsigned int qKey = dbr->getDbKey(id);
-        seq->mapSequence(id - dbFrom, qKey, seqData);
-
-        maskedResidues += Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
-                                                  indexTable->getAlphabetSize(), seq->aa2int['X']);
-
-        aaCount += seq->L;
-        indexTable->addKmerCount(seq);
+        int seqLen = std::max(static_cast<int>(dbr->getSeqLens(id)) - 2, 0);
+        aaDbSize += seqLen; // remove /n and /0
+        size_t idFromNull = (id - dbFrom);
+        if(id < dbTo - 1){
+            sequenceOffSet[idFromNull + 1] =  sequenceOffSet[idFromNull] + seqLen;
+        }
     }
+    SequenceLookup * sequenceLookup = new SequenceLookup(dbSize, aaDbSize);
+#pragma omp parallel
+    {
+        Indexer idxer(subMat->alphabetSize, seq->getKmerSize());
+        Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
+                   seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
+#pragma omp for schedule(dynamic, 100) reduction(+:aaCount, totalKmerCount, maskedResidues)
+        for (unsigned int id = dbFrom; id < dbTo; id++) {
+            s.resetCurrPos();
+            Log::printProgress(id - dbFrom);
+            char *seqData = dbr->getData(id);
+            unsigned int qKey = dbr->getDbKey(id);
+            s.mapSequence(id - dbFrom, qKey, seqData);
+
+            maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
+                                                      indexTable->getAlphabetSize(), seq->aa2int['X']);
+
+            aaCount += s.L;
+            totalKmerCount += indexTable->addKmerCount(&s, &idxer);
+            sequenceLookup->addSequence(&s, sequenceOffSet[id-dbFrom]);
+        }
+    }
+    delete [] sequenceOffSet;
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
     //TODO find smart way to remove extrem k-mers without harming huge protein families
@@ -560,19 +584,40 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
     for(size_t i = 0; i < indexTable->getTableSize(); i++){
         tableEntriesNum += (size_t) indexTable->getTable(i);
     }
-    indexTable->initMemory(dbTo - dbFrom, tableEntriesNum, aaCount);
-    indexTable->init();
-    Debug(Debug::INFO) << "Index table: fill...\n";
-    for (unsigned int id = dbFrom; id < dbTo; id++){
-        seq->resetCurrPos();
-        Log::printProgress(id - dbFrom);
-        char* seqData = dbr->getData(id);
-        //TODO - dbFrom?!?
-        unsigned int qKey = dbr->getDbKey(id);
-        seq->mapSequence(id - dbFrom, qKey, seqData);
-        Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
-                                indexTable->getAlphabetSize(), seq->aa2int['X']);
-        indexTable->addSequence(seq);
+
+#pragma omp parallel
+    {
+        Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
+                   seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
+        Indexer idxer(subMat->alphabetSize, seq->getKmerSize());
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
+        size_t threadFrom, threadSize;
+        char ** table = (indexTable->getTable());
+        Util::decomposeDomainSizet(tableEntriesNum,  (size_t *) table , indexTable->getTableSize(),
+                                         thread_idx, threads, &threadFrom, &threadSize);
+        std::cout << thread_idx << "\t" << threadFrom << "\t" << threadSize << std::endl;
+#pragma omp barrier
+        if(thread_idx == 0){
+            indexTable->initMemory(dbTo - dbFrom, tableEntriesNum, aaCount, sequenceLookup);
+            indexTable->init();
+            Debug(Debug::INFO) << "Index table: fill...\n";
+        }
+#pragma omp barrier
+        for (unsigned int id = dbFrom; id < dbTo; id++) {
+            s.resetCurrPos();
+            Log::printProgress(id - dbFrom);
+            //char *seqData = dbr->getData(id);
+            //TODO - dbFrom?!?
+            unsigned int qKey = dbr->getDbKey(id);
+            //seq->mapSequence(id - dbFrom, qKey, seqData);
+            s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id));
+//            Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
+//                                    indexTable->getAlphabetSize(), seq->aa2int['X']);
+            indexTable->addSequence(&s, &idxer, threadFrom, threadSize);
+        }
     }
     if ((dbTo-dbFrom) > 10000)
         Debug(Debug::INFO) << "\n";
@@ -588,7 +633,7 @@ IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequen
     gettimeofday(&start, NULL);
     IndexTable * indexTable;
     indexTable = new IndexTable(alphabetSize, kmerSize, diagonalScoring);
-    IndexTable::parallelFillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, threads);
+    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, threads);
     gettimeofday(&end, NULL);
     indexTable->printStatisitic(seq->int2aa);
     int sec = end.tv_sec - start.tv_sec;
