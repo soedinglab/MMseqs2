@@ -37,7 +37,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                                          step, stepCnt, &splitStart, &splitSize);
         IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, true);
-        IndexTable::parallelFillDatabase(dbr, seq, indexTable, subMat, splitStart, splitStart + splitSize, threads);
+        Prefiltering::fillDatabase(dbr, seq, indexTable, subMat, splitStart, splitStart + splitSize, threads);
 
         // save the entries
         std::string entries_key = SSTR(MathUtil::concatenate(ENTRIES, step));
