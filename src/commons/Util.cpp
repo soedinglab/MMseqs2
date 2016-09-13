@@ -62,6 +62,46 @@ std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
     return map;
 }
 
+
+
+void Util::decomposeDomainSizet(size_t aaSize, size_t *seqSizes, size_t count,
+                                size_t worldRank, size_t worldSize, size_t *start, size_t *size){
+    if (worldSize > aaSize) {
+        // Assume the domain size is greater than the world size.
+        Debug(Debug::ERROR) << "World Size: " << worldSize << " aaSize: " << aaSize << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (worldSize == 1) {
+        *start = 0;
+        *size = count;
+        return;
+    }
+
+    size_t aaPerSplit =  aaSize / worldSize;
+    size_t currentRank = 0;
+    size_t currentSize = 0;
+    *start = 0;
+    for(size_t i = 0; i < count; i++ ){
+        if(currentSize > aaPerSplit){
+            currentSize = 0;
+            currentRank++;
+            if(currentRank > worldRank){
+                *size = (i) - *start ;
+                break;
+            }else if (currentRank == worldRank){
+                *start = i;
+                if(worldRank == worldSize-1){
+                    *size = count - *start;
+                    break;
+                }
+            }
+        }
+        currentSize += seqSizes[i];
+    }
+}
+
+
+
 void Util::decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
                                       size_t worldRank, size_t worldSize, size_t *start, size_t *size){
     if (worldSize > aaSize) {
@@ -350,10 +390,10 @@ void Util::filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM
     }
 }
 size_t Util::maskLowComplexity(BaseMatrix * m, Sequence *s,
-                             int seqLen,
-                             int windowSize,
-                             int maxAAinWindow,
-                             int alphabetSize, int maskValue) {
+                               int seqLen,
+                               int windowSize,
+                               int maxAAinWindow,
+                               int alphabetSize, int maskValue) {
     size_t aafreq[21];
 
     char * mask = new char[seqLen];
