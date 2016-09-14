@@ -24,6 +24,11 @@ int createindex (int argc, const char * argv[])
     if(par.split == 0){
         par.split = 1;
     }
+
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
+
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
     dbr.open(DBReader<unsigned int>::NOSORT);
 

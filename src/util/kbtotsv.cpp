@@ -3,7 +3,6 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "UniprotKB.h"
-#include "Log.h"
 
 #include <fstream>
 
@@ -44,7 +43,7 @@ int kbtotsv(int argn, const char **argv) {
         }
 
         if(kb.readLine(line.c_str())) {
-            Log::printProgress(i);
+            Debug::printProgress(i);
             for (size_t i = 0; i < kb.getColumnCount() - 2; ++i) {
                 tsvOut << Util::csvEscape(kb.getColumn(i)) << "\t";
             }

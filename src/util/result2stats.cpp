@@ -18,7 +18,6 @@
 #include "result2stats.h"
 #include "Debug.h"
 #include "Util.h"
-#include "Log.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -156,7 +155,7 @@ statsComputer::~statsComputer()
 int statsComputer::countNumberOfLines()
 {
     for (size_t id = 0; id < resultReader->getSize(); id++) {
-            Log::printProgress(id);
+            Debug::printProgress(id);
             unsigned int thread_idx = 0;
             unsigned int lineCount(0);
             std::string lineCountString;
@@ -182,8 +181,10 @@ int statsComputer::countNumberOfLines()
 
 int statsComputer::meanValue()
 {
+    char * buffer = new char[LINE_BUFFER_SIZE];
+
     for (size_t id = 0; id < resultReader->getSize(); id++) {
-            Log::printProgress(id);
+            Debug::printProgress(id);
             unsigned int thread_idx = 0;
             float meanVal(0.0);
             std::string meanValString;
@@ -193,7 +194,6 @@ int statsComputer::meanValue()
             size_t nbSeq = 0;
             while(*results!='\0')
             {
-                char buffer[LINE_BUFFER_SIZE];
                 Util::getLine(results,dataLength,buffer,LINE_BUFFER_SIZE);
                 meanVal += atof(buffer);
                 nbSeq++;
@@ -209,6 +209,7 @@ int statsComputer::meanValue()
         statWriter->writeData(meanValString.c_str(), meanValString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
                               thread_idx);
     }
+    delete [] buffer;
     return 0;
     
 }
@@ -246,7 +247,7 @@ float statsComputer::averageValueOnAminoAcids(std::unordered_map<char,float> val
 int statsComputer::sequenceWise(float (statsComputer::*statFunction)(char*))
 {
     for (size_t id = 0; id < resultReader->getSize(); id++) {
-            Log::printProgress(id);
+            Debug::printProgress(id);
             unsigned int thread_idx = 0;
             char dbKey[255 + 1];
 

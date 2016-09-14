@@ -4,7 +4,6 @@
 #include "FileUtil.h"
 #include "Debug.h"
 #include "UniprotKB.h"
-#include "Log.h"
 
 #ifdef HAVE_ZLIB
 #include "gzstream.h"
@@ -103,7 +102,7 @@ int convertkb(int argn, const char **argv) {
         }
 
         if (kb.readLine(line.c_str())) {
-            Log::printProgress(i);
+            Debug::printProgress(i);
             std::string accession = getPrimaryAccession(kb.getColumn(UniprotKB::COL_KB_AC));
             for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {
                 std::string column = kb.getColumn(*it);

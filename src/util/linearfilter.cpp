@@ -10,7 +10,6 @@
 #include <Indexer.h>
 #include "ReducedMatrix.h"
 #include "DBWriter.h"
-#include "Log.h"
 #include "SubstitutionMatrix.h"
 #include "Util.h"
 #include "Parameters.h"
@@ -154,7 +153,7 @@ int linearfilter (int argc, const char * argv[])
         KmerPosition * tmpHashSeqPair=hashSeqPair + kmerStartPos;
         std::pair<float, size_t > * kmers = new std::pair<float, size_t >[par.maxSeqLen];
         for(size_t id = dbFrom; id < (dbFrom + dbSize); id++){
-            Log::printProgress(id);
+            Debug::printProgress(id);
             seq.mapSequence(id, id, seqDbr.getData(id));
             int seqKmerCount = 0;
             unsigned int seqId = seq.getId();

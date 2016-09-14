@@ -1,9 +1,7 @@
 //
 // Created by lars on 08.06.15.
 //
-
 #include <sys/time.h>
-#include "Log.h"
 #include "ClusteringAlgorithms.h"
 #include "Util.h"
 #include "Debug.h"
@@ -263,7 +261,7 @@ void ClusteringAlgorithms::greedyIncremental(unsigned int **elementLookupTable, 
     for(size_t i = 0; i < n; i++) {
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
-        Log::printProgress(i);
+        Debug::printProgress(i);
         if(assignedcluster[i] == UINT_MAX){
             size_t elementSize = (elementOffsets[i + 1] - elementOffsets[i]);
             for (size_t elementId = 0; elementId < elementSize; elementId++) {

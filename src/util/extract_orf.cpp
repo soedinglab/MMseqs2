@@ -8,7 +8,6 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Util.h"
-#include "Log.h"
 
 #include "Orf.h"
 
@@ -92,7 +91,7 @@ int extractorf(int argn, const char** argv)
 
         #pragma omp for schedule(static)
         for (unsigned int i = 0; i < reader.getSize(); ++i){
-            Log::printProgress(i);
+            Debug::printProgress(i);
             int thread_idx = 0;
             #ifdef OPENMP
             thread_idx = omp_get_thread_num();

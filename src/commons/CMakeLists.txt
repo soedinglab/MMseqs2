@@ -11,8 +11,6 @@ set(commons_source_files
     DBWriter.h
     Debug.cpp
     Debug.h
-    Log.cpp
-    Log.h
     NucleotideMatrix.cpp
     NucleotideMatrix.h
     Orf.cpp
@@ -28,14 +26,11 @@ set(commons_source_files
     Util.h
     CommandCaller.cpp
     CommandCaller.h
-        CacheFriendlyOperations.cpp
-        CacheFriendlyOperations.h
     MathUtil.h
     FileUtil.cpp
     FileUtil.h
     HeaderSummarizer.cpp
 	HeaderSummarizer.h
-    PatternCompiler.cpp
     PatternCompiler.h
     UniprotKB.cpp
     UniprotKB.h
@@ -45,7 +40,7 @@ set(commons_source_files
     itoa.h
     MemoryMapped.cpp
     MemoryMapped.h
-)
+    CpuInfo.h)
 
 add_library(commons ${commons_source_files})
 

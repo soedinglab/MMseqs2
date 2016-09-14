@@ -16,7 +16,6 @@
 #include "CompressedA3M.h"
 #include "Debug.h"
 #include "Util.h"
-#include "Log.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -188,7 +187,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
 
 #pragma omp for schedule(static)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
-            Log::printProgress(id);
+            Debug::printProgress(id);
             unsigned int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();

@@ -33,7 +33,6 @@ int prefilter(int argc, const char **argv)
     Debug(Debug::WARNING) << "Initialising data structures...\n";
 #ifdef HAVE_MPI
     std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(par.db3, par.db3Index, MMseqsMPI::rank);
-    std::cout << filenamePair.first.c_str() << "\t" <<  filenamePair.second.c_str() << std::endl;
     Prefiltering* pref = new Prefiltering(par.db1,par.db1Index,
                                           par.db2,par.db2Index,
                                           filenamePair.first.c_str(), filenamePair.second.c_str(), par);

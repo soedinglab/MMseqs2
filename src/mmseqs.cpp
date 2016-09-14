@@ -4,6 +4,7 @@
 #include "Parameters.h"
 
 #include <iomanip>
+#include <CpuInfo.h>
 
 Parameters par;
 
@@ -113,6 +114,8 @@ static struct Command commands[] = {
 };
 
 
+void checkCpu();
+
 void printUsage() {
     std::stringstream usage;
     usage << "All available MMseqs commands\n";
@@ -206,6 +209,7 @@ int main(int argc, const char **argv) {
         printUsage();
         EXIT(EXIT_FAILURE);
     }
+    checkCpu();
     setenv("MMSEQS", argv[0], true);
     if (isCommand(argv[1])) {
         for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
@@ -221,4 +225,24 @@ int main(int argc, const char **argv) {
     }
 
     return 0;
+}
+
+void checkCpu() {
+    CpuInfo info;
+    if(info.HW_x64 == false) {
+        Debug(Debug::ERROR) << "64 bit system is required to run MMseqs.\n";
+        EXIT(EXIT_FAILURE);
+    }
+#ifdef SEE
+    if(info.HW_SSE41 == false) {
+        Debug(Debug::ERROR) << "SSE4.1 is required to run MMseqs.\n";
+        EXIT(EXIT_FAILURE);
+    }
+#endif
+#ifdef AVX2
+    if(info.HW_AVX2 == false){
+        Debug(Debug::ERROR) << "AVX2 is required to run MMseqs.\n";
+        EXIT(EXIT_FAILURE);
+    }
+#endif
 }

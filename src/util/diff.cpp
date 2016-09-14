@@ -14,7 +14,6 @@
 #include "DBReader.h"
 #include "DBConcat.h"
 #include "DBWriter.h"
-#include "Log.h"
 #include "Util.h"
 #include "Debug.h"
 #include "FileUtil.h"

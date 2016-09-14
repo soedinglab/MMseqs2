@@ -7,7 +7,6 @@
 #include "Util.h"
 #include "FileUtil.h"
 #include "Debug.h"
-#include "Log.h"
 
 #include <regex.h>
 #include <sys/time.h>
@@ -347,7 +346,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
 
 #pragma omp parallel for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
     for (size_t id = queryFrom; id < queryFrom + querySize; id++){
-        Log::printProgress(id);
+        Debug::printProgress(id);
 
         int thread_idx = 0;
 #ifdef OPENMP
@@ -548,7 +547,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 #pragma omp for schedule(dynamic, 100) reduction(+:aaCount, totalKmerCount, maskedResidues)
         for (unsigned int id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
-            Log::printProgress(id - dbFrom);
+            Debug::printProgress(id - dbFrom);
             char *seqData = dbr->getData(id);
             unsigned int qKey = dbr->getDbKey(id);
             s.mapSequence(id - dbFrom, qKey, seqData);
@@ -610,7 +609,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
         for (unsigned int id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
             if(thread_idx == 0) {
-                Log::printProgress(id - dbFrom);
+                Debug::printProgress(id - dbFrom);
             }
             //char *seqData = dbr->getData(id);
             //TODO - dbFrom?!?

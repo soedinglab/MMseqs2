@@ -13,7 +13,6 @@
 
 #include "ReducedMatrix.h"
 #include "DBWriter.h"
-#include "Log.h"
 #include "SubstitutionMatrix.h"
 #include "Util.h"
 #include "Parameters.h"
@@ -76,7 +75,7 @@ int detectredundancy (int argc, const char * argv[])
         Sequence seq(par.maxSeqLen, redSubMat.aa2int, redSubMat.int2aa, Sequence::AMINO_ACIDS, 0, false, false);
 #pragma omp for schedule(dynamic, 10000)
         for(size_t id = 0; id < seqDbr.getSize(); id++){
-            Log::printProgress(id);
+            Debug::printProgress(id);
             unsigned int queryKey = seqDbr.getDbKey(id);
             char * data = seqDbr.getData(id);
             seq.mapSequence(id, queryKey, data);
@@ -119,7 +118,7 @@ int detectredundancy (int argc, const char * argv[])
         for(size_t hashId = 0; hashId < uniqHashes; hashId++) {
             size_t initHash = hashLookup[hashId]->first;
             size_t pos = 0;
-            Log::printProgress(hashId);
+            Debug::printProgress(hashId);
 
             int thread_idx = 0;
 #ifdef OPENMP

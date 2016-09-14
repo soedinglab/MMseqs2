@@ -14,7 +14,6 @@
 #include <sys/mman.h>
 #include <new>
 #include <DBReader.h>
-#include <Log.h>
 #ifdef OPENMP
 #include <omp.h>
 #endif

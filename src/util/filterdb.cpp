@@ -2,7 +2,6 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Util.h"
-#include "Log.h"
 #include "Debug.h"
 #include "filterdb.h"
 
@@ -128,7 +127,7 @@ int ffindexFilter::runFilter(){
 #pragma omp for schedule(static)
 		for (size_t id = 0; id < dataDb->getSize(); id++) {
 
-			Log::printProgress(id);
+			Debug::printProgress(id);
 			int thread_idx = 0;
 #ifdef OPENMP
 			thread_idx = omp_get_thread_num();
