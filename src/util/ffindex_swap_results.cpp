@@ -10,7 +10,6 @@
 #include "omptl/omptl_algorithm"
 
 #include <fstream>
-#include <chrono>
 #include <mutex>
 
 #ifdef OPENMP
@@ -27,9 +26,7 @@ int doSwap(Parameters &par,
 
 
 
-    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
-    
+       
     // evalue correction for the swapping
     double *kmnByLen = NULL;
     double lambda, logK, lambdaLog2, logKLog2;
@@ -114,10 +111,6 @@ int doSwap(Parameters &par,
     }
 
 
-
-    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-    std::cout<< "Duration of eval updtaing & writing : " << duration <<std::endl;
  
     Debug(Debug::INFO) << "Done.\n";
     splitWriter.close();
@@ -199,17 +192,11 @@ std::vector<std::pair<unsigned int, std::string*>> readSwap(const char* dataFile
     // read all keys
     SwapIt swapMap = readAllKeysIntoMap(reader.getDataFileName());
 
-    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
- 
-
     FILE *file = fopen(reader.getDataFileName(), "r");
     createSwappedResultMap(reader, file, swapMap, 0, reader.getSize());
     fclose(file);
     
     
-    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-    std::cout<< "Duration of reading into map : " << duration <<std::endl;
  
     
     std::vector<std::pair<unsigned int, std::string*>> result(swapMap.begin(), swapMap.end());
@@ -275,14 +262,16 @@ int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap)
     resultWriter.open();
 
     
-#pragma omp parallel //private(thread_num,num_threads,start,end)
+#pragma omp parallel 
     {
-        int thread_num,num_threads;
+        int thread_num = 0,num_threads = 1;
         size_t start,end,orgStart,orgEnd;
-        
+
         size_t size = resMap->size();
+#ifdef OPENMP
         thread_num = omp_get_thread_num();
         num_threads = omp_get_num_threads();
+#endif
         orgStart = thread_num * size / num_threads;
         orgEnd = (thread_num + 1) * size / num_threads;
 
@@ -302,7 +291,6 @@ int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap)
             for (size_t i = start;i < end; ++i)
             {
                 
-                // TODO sort by evalue
                 // If we enter a new chunk, flush the results to file
                 if (lastKey != resMap->at(i).first.first)
                 {
@@ -319,7 +307,6 @@ int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap)
                     curRes.clear();
                 }
                 curRes.push_back(resMap->at(i));
-                //result.append(resMap->at(i).second);
                 lastKey = (resMap->at(i)).first.first;
             }
             omptl::sort(curRes.begin(),curRes.end(),compareEval());
@@ -386,15 +373,17 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
     //std::cout<<sizeof(Matcher::result_t)<<std::endl; -> 96bytes
 
 
-    int thread_num, num_threads;
+    int thread_num = 0, num_threads = 1;
     size_t start, end, size;
     std::mutex lock;
     
     #pragma omp parallel private(thread_num,num_threads,start,end)
 {
     size = resultReader.getSize();
+#ifdef OPENMP
     thread_num = omp_get_thread_num();
     num_threads = omp_get_num_threads();
+#endif
     start = thread_num * size / num_threads;
     end = (thread_num + 1) * size / num_threads;
 
@@ -479,24 +468,14 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
 
 int doSwapSortOpt(Parameters &par)
 {
-    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+    
     std::vector<alnResultEntry> resMap;
     swapAlnResults(par, &resMap);
     
-    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
     omptl::sort(resMap.begin(),resMap.end(),compareKey()); // sort by target id
     
-    std::chrono::high_resolution_clock::time_point t3 = std::chrono::high_resolution_clock::now();
     writeSwappedResults(par,&resMap);
     
-    std::chrono::high_resolution_clock::time_point t4 = std::chrono::high_resolution_clock::now();
-    
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
-    std::cout<< "Reading and updating : " << duration <<std::endl;
-    duration = std::chrono::duration_cast<std::chrono::microseconds>( t3 - t2 ).count();
-    std::cout<< "Sorting : " << duration <<std::endl;
-    duration = std::chrono::duration_cast<std::chrono::microseconds>( t4 - t3 ).count();
-    std::cout<< "Writing : " << duration <<std::endl;
  
     return 0;
   
