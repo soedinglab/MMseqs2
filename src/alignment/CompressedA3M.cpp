@@ -1,6 +1,7 @@
 /*
  * extractA3M adapted from HH-suite 3.0: a3m_compress.h
  * Original Author: meiermark
+ * Licensed under GPLv3
  */
 
 #include "CompressedA3M.h"
