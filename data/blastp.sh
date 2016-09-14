@@ -36,10 +36,10 @@ while [ $SENS -le $TARGET_SENS ]; do
     # call prefilter module
     notExists "$TMP_PATH/pref_$SENS" && $RUNNER $MMSEQS prefilter "$INPUT" "$TARGET_DB_PREF" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS && checkReturnCode "Prefilter died"
     # call alignment module
-    notExists "$TMP_PATH/aln_$SENS"  && $RUNNER $MMSEQS alignment "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
+    notExists "$TMP_PATH/aln_$SENS"  && $RUNNER $MMSEQS align "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
 
     if [ $SENS -gt $START_SENS ]; then
-        $MMSEQS mergeffindex "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${START_SENS}" "$TMP_PATH/aln_$SENS" \
+        $MMSEQS mergedbs "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${START_SENS}" "$TMP_PATH/aln_$SENS" \
             && checkReturnCode "Alignment died"
         mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_${START_SENS}"
         mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_${START_SENS}.index"
@@ -51,7 +51,7 @@ while [ $SENS -le $TARGET_SENS ]; do
             && awk '$3 < 2 { print $1 }' "$TMP_PATH/aln_$SENS.index" > "$TMP_PATH/order_step$SENS" \
             && checkReturnCode "Awk step $SENS died"
         notExists "$NEXTINPUT" \
-            && $MMSEQS order "$TMP_PATH/order_step$SENS" "$INPUT" "$NEXTINPUT" \
+            && $MMSEQS createsubdb "$TMP_PATH/order_step$SENS" "$INPUT" "$NEXTINPUT" \
             && checkReturnCode "Order step $SENS died"
     fi
     let SENS=SENS+SENS_STEP_SIZE

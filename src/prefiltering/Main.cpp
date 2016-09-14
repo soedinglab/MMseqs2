@@ -20,7 +20,7 @@ int prefilter(int argc, const char **argv)
     usage.append("USAGE: prefilter <queryDB> <targetDB> <outDB> [opts]\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.prefilter, 3);
+    par.parseParameters(argc, argv, usage, par.clustlinear, 3);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);

@@ -128,7 +128,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
 }
 
-int mergecluster(int argc,const char **argv)
+int mergeclusters(int argc, const char **argv)
 {
     std::string usage;
     usage.append("Combines n cluster steps to a final clustering\n");

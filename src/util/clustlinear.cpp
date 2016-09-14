@@ -81,7 +81,7 @@ size_t computeMemoryNeededLinearfilter(size_t totalKmer) {
     return sizeof(KmerPosition) * totalKmer;
 }
 
-int linearfilter (int argc, const char * argv[])
+int clustlinear(int argc, const char *argv[])
 {
     std::string usage;
     usage.append("Detects redundant sequences based on reduced alphabet and k-mer sorting.\n");

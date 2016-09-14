@@ -1,5 +1,5 @@
 /*
- * gff2ffindex
+ * gff2db
  * written by Milot Mirdita <milot@mirdita.de>
  */
 
@@ -14,7 +14,7 @@
 #include "Parameters.h"
 #include "Util.h"
 
-int gff2ffindex(int argn, const char **argv) {
+int gff2db(int argn, const char **argv) {
     std::string usage("Converts a gff file and the matching ffindex database into a ffindex.\n");
     usage.append("USAGE: <gff3> <inDB> <outDB>\n");
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");

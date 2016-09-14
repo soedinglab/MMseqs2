@@ -11,14 +11,14 @@
 #include <omp.h>
 #endif
 
-int addsequences(int argc, const char **argv)
+int createseqfiledb(int argc, const char **argv)
 {
     std::string usage("Adds sequences in fasta format to an mmseqs clustering.\n");
     usage.append("Written by Milot Mirdita (milot@mirdita.de).\n");
     usage.append("USAGE: <clusteredDB> <fastaInDB> <fastaOut>\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.addSequences, 3);
+    par.parseParameters(argc, argv, usage, par.createseqfiledb, 3);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

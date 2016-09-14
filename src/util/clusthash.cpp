@@ -42,7 +42,7 @@ size_t hash(int * x, size_t length){
     return h;
 }
 
-int detectredundancy (int argc, const char * argv[])
+int clusthash(int argc, const char *argv[])
 {
     std::string usage;
     usage.append("Detects redundant sequences based on reduced alphabet hashing and hamming distance. \n");
@@ -50,7 +50,7 @@ int detectredundancy (int argc, const char * argv[])
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.detectredundancy, 2);
+    par.parseParameters(argc, argv, usage, par.clusthash, 2);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif

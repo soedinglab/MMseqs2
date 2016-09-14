@@ -11,7 +11,7 @@
 #include "MMseqsMPI.h"
 
 
-int alignment(int argc, const char *argv[])
+int align(int argc, const char *argv[])
 {
 	MMseqsMPI::init(argc, argv);
 
@@ -19,7 +19,7 @@ int alignment(int argc, const char *argv[])
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
     usage.append("USAGE: alignment <queryDB> <targetDB> <prefResultsDB> <outDB> [opts]\n");
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.alignment, 4);
+    par.parseParameters(argc, argv, usage, par.align, 4);
 
     Debug::setDebugLevel(Debug::INFO);
 

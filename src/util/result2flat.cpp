@@ -6,7 +6,7 @@
 #include "Util.h"
 
 
-int createfasta (int argc, const char * argv[])
+int result2flat(int argc, const char *argv[])
 {
     std::string usage("Converts a ffindex database to fasta \n");
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");

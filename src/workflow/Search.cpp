@@ -37,10 +37,10 @@ int search(int argc, const char *argv[]) {
     if (par.numIterations > 1) {
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
         cmd.addVariable("PROFILE", SSTR((par.profile) ? 1 : 0).c_str());
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.clustlinear).c_str());
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.result2profile).c_str());
-        cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.substractresult).c_str());
+        cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
         FileUtil::writeFile(par.db4 + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
         std::string program(par.db4 + "/blastpgp.sh");
         cmd.execProgram(program.c_str(), 4, argv);
@@ -64,13 +64,13 @@ int search(int argc, const char *argv[]) {
         }
 
         std::vector<MMseqsParameter> prefilterWithoutS;
-        for(size_t i = 0; i < par.prefilter.size(); i++){
-            if(par.prefilter[i].uniqid != par.PARAM_S.uniqid ){
-                prefilterWithoutS.push_back(par.prefilter[i]);
+        for(size_t i = 0; i < par.clustlinear.size(); i++){
+            if(par.clustlinear[i].uniqid != par.PARAM_S.uniqid ){
+                prefilterWithoutS.push_back(par.clustlinear[i]);
             }
         }
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.alignment).c_str());
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
 
 
         FileUtil::writeFile(par.db4 + "/blastp.sh", blastp_sh, blastp_sh_len);

@@ -36,7 +36,7 @@ struct compareKeyToFirstEntry {
 	}
 };
 
-int diff(int argc, const char** argv) {
+int diffseqdbs(int argc, const char **argv) {
 	std::string usage("Output 3 filtering files, to be used with \"order\" function, representing the differences between two sequence databases based on sequence identifiers.\n");
 	usage.append("USAGE: <DBold> <DBnew> <removedSeqList> <keptSeqMapping> <newSeqList>\n");
 	usage.append("\nDesigned and implemented by Clovis Galiez <clovis.galiez@mpibpc.mpg.de>\n");

@@ -45,7 +45,7 @@ while [ $STEP -lt $NUM_IT ]; do
     if [ $STEP -ge 1 ]; then
         if notExists "$TMP_PATH/pref_$STEP.hasnext"; then
             # pref -aln
-            $MMSEQS substractresult "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR
+            $MMSEQS subtractdbs "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR
             checkReturnCode "Substract died"
             mv -f "$TMP_PATH/pref_next_$STEP" "$TMP_PATH/pref_$STEP"
             mv -f "$TMP_PATH/pref_next_$STEP.index" "$TMP_PATH/pref_$STEP.index"
@@ -60,13 +60,13 @@ while [ $STEP -lt $NUM_IT ]; do
 	fi
 	# call alignment module
 	if notExists "$TMP_PATH/aln_$STEP"; then
-        $RUNNER $MMSEQS alignment "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN --add-backtrace
+        $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN --add-backtrace
         checkReturnCode "Alignment died"
     fi
 
     if [ $STEP -gt 0 ]; then
         if notExists "$TMP_PATH/aln_$STEP.hasmerge"; then
-            $MMSEQS mergeffindex "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP"
+            $MMSEQS mergedbs "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP"
             checkReturnCode "Merge died"
             mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_0"
             mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_0.index"

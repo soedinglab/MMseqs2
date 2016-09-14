@@ -147,7 +147,7 @@ void setDbConcatDefault(Parameters *par) {
     par->threads = 1;
 }
 
-int dbconcat(int argc, const char **argv) {
+int concatdbs(int argc, const char **argv) {
     std::string usage("Concatenates two ffindex DB.\n");
     usage.append("USAGE: <DB1> <DB2> <outDB>\n");
     usage.append("\nDesigned and implemented by Clovis Galiez <clovis.galiez@mpibpc.mpg.de>\n");

@@ -1,7 +1,7 @@
 set(workflow_source_files
-  Clustering.cpp
+        Cluster.cpp
   Search.cpp
-  Updating.cpp
+        ClusterUpdate.cpp
 )
 add_library(workflow ${workflow_source_files})
 

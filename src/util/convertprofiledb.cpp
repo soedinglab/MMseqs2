@@ -248,14 +248,14 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
     *size = curr_pos;
 }
 
-int createprofiledb(int argn, const char **argv) {
+int convertprofiledb(int argn, const char **argv) {
     std::string usage;
     usage.append("Convert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database.\n");
     usage.append("USAGE: <ffindexProfileDB> <ffindexDB>\n");
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
     Parameters par;
-    par.parseParameters(argn, argv, usage, par.createprofiledb, 2);
+    par.parseParameters(argn, argv, usage, par.convertprofiledb, 2);
 
     switch (par.profileMode) {
         case Parameters::PROFILE_MODE_HMM:

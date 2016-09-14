@@ -7,7 +7,7 @@
 #include <sys/time.h>
 
 
-int mergeffindex(int argc, const char **argv) {
+int mergedbs(int argc, const char **argv) {
     std::string usage("\nMerge multiple ffindex files based on similar id into one file. \n");
     usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n\n");
     usage.append("USAGE: <QueryDB> <outDB> <ffindexDB1> ... <ffindexDBn>\n");

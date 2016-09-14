@@ -13,7 +13,7 @@
 
 #include "Util.h"
 
-int translatenucleotide(int argn, const char **argv)
+int translatenucs(int argn, const char **argv)
 {
     std::string usage;
     usage.append("Translate nucleotide sequences into aminoacid sequences in a FFindex database.\n");
@@ -21,7 +21,7 @@ int translatenucleotide(int argn, const char **argv)
     usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
 
     Parameters par;
-    par.parseParameters(argn, argv, usage, par.translateNucleotide, 2);
+    par.parseParameters(argn, argv, usage, par.translatenucs, 2);
 
     std::string in_header_filename = std::string(par.db1 + "_h");
     std::string in_header_index_filename = std::string(par.db1 + "_h.index");

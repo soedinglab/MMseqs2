@@ -127,7 +127,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
     Debug(Debug::INFO) << "Stored results in " << outDb << "\n";
 }
 
-int substractresult(int argc,const char **argv)
+int subtractdbs(int argc, const char **argv)
 {
 
     std::string usage;
@@ -140,7 +140,7 @@ int substractresult(int argc,const char **argv)
     gettimeofday(&start, NULL);
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.substractresult, 3);
+    par.parseParameters(argc, argv, usage, par.subtractdbs, 3);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

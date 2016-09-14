@@ -54,7 +54,7 @@ Parameters::Parameters():
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","Verbosity level: 0=NOTHING, 1=ERROR, 2=WARNING, 3=INFO",typeid(int), (void *) &verbosity, "^[0-3]{1}$"),
 // create profile (HMM, PSSM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "MPI Option: HMM (HHsuite) 0, PSSM 1 or HMMER3 2",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
-// formatalignment
+// convertalignments
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "Output format BLAST TAB=0, PAIRWISE=1, or SAM=2 ", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
 // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "Allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
@@ -118,7 +118,7 @@ Parameters::Parameters():
 // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "The keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         
-// mergeffindex
+// mergedbs
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "Comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
 
 // evaluationscores
@@ -135,60 +135,60 @@ Parameters::Parameters():
 {
 	
     // alignment
-    alignment.push_back(PARAM_SUB_MAT);
-    alignment.push_back(PARAM_ALIGNMENT_MODE);
-    alignment.push_back(PARAM_E);
-    alignment.push_back(PARAM_C);
-    alignment.push_back(PARAM_FRAG_MERGE);
-    alignment.push_back(PARAM_NO_COMP_BIAS_CORR);
-    alignment.push_back(PARAM_MIN_SEQ_ID);
-    alignment.push_back(PARAM_MAX_SEQ_LEN);
-    alignment.push_back(PARAM_MAX_SEQS);
-    alignment.push_back(PARAM_MAX_REJECTED);
-    alignment.push_back(PARAM_INCLUDE_IDENTITY);
+    align.push_back(PARAM_SUB_MAT);
+    align.push_back(PARAM_ALIGNMENT_MODE);
+    align.push_back(PARAM_E);
+    align.push_back(PARAM_C);
+    align.push_back(PARAM_FRAG_MERGE);
+    align.push_back(PARAM_NO_COMP_BIAS_CORR);
+    align.push_back(PARAM_MIN_SEQ_ID);
+    align.push_back(PARAM_MAX_SEQ_LEN);
+    align.push_back(PARAM_MAX_SEQS);
+    align.push_back(PARAM_MAX_REJECTED);
+    align.push_back(PARAM_INCLUDE_IDENTITY);
 //    alignment.push_back(PARAM_NUCL);
-    alignment.push_back(PARAM_PROFILE);
-    alignment.push_back(PARAM_ADD_BACKTRACE);
-    alignment.push_back(PARAM_REALIGN);
-    alignment.push_back(PARAM_THREADS);
-    alignment.push_back(PARAM_V);
+    align.push_back(PARAM_PROFILE);
+    align.push_back(PARAM_ADD_BACKTRACE);
+    align.push_back(PARAM_REALIGN);
+    align.push_back(PARAM_THREADS);
+    align.push_back(PARAM_V);
 
     // prefilter
-    prefilter.push_back(PARAM_SUB_MAT);
-    prefilter.push_back(PARAM_S);
-    prefilter.push_back(PARAM_K);
-    prefilter.push_back(PARAM_K_SCORE);
-    prefilter.push_back(PARAM_ALPH_SIZE);
-    prefilter.push_back(PARAM_MAX_SEQ_LEN);
-    prefilter.push_back(PARAM_PROFILE);
+    clustlinear.push_back(PARAM_SUB_MAT);
+    clustlinear.push_back(PARAM_S);
+    clustlinear.push_back(PARAM_K);
+    clustlinear.push_back(PARAM_K_SCORE);
+    clustlinear.push_back(PARAM_ALPH_SIZE);
+    clustlinear.push_back(PARAM_MAX_SEQ_LEN);
+    clustlinear.push_back(PARAM_PROFILE);
 //    prefilter.push_back(PARAM_NUCL);
-    prefilter.push_back(PARAM_MAX_SEQS);
-    prefilter.push_back(PARAM_RES_LIST_OFFSET);
-    prefilter.push_back(PARAM_SPLIT);
-    prefilter.push_back(PARAM_SPLIT_MODE);
-    prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
-    prefilter.push_back(PARAM_DIAGONAL_SCORING);
-    prefilter.push_back(PARAM_MIN_DIAG_SCORE);
-    prefilter.push_back(PARAM_INCLUDE_IDENTITY);
-    prefilter.push_back(PARAM_SPACED_KMER_MODE);
-    prefilter.push_back(PARAM_THREADS);
-    prefilter.push_back(PARAM_V);
+    clustlinear.push_back(PARAM_MAX_SEQS);
+    clustlinear.push_back(PARAM_RES_LIST_OFFSET);
+    clustlinear.push_back(PARAM_SPLIT);
+    clustlinear.push_back(PARAM_SPLIT_MODE);
+    clustlinear.push_back(PARAM_NO_COMP_BIAS_CORR);
+    clustlinear.push_back(PARAM_DIAGONAL_SCORING);
+    clustlinear.push_back(PARAM_MIN_DIAG_SCORE);
+    clustlinear.push_back(PARAM_INCLUDE_IDENTITY);
+    clustlinear.push_back(PARAM_SPACED_KMER_MODE);
+    clustlinear.push_back(PARAM_THREADS);
+    clustlinear.push_back(PARAM_V);
 
     // clustering
-    clustering.push_back(PARAM_CLUSTER_MODE);
-    clustering.push_back(PARAM_MAX_SEQS);
-    clustering.push_back(PARAM_V);
-    clustering.push_back(PARAM_MAXITERATIONS);
-    clustering.push_back(PARAM_SIMILARITYSCORE);
-    clustering.push_back(PARAM_THREADS);
+    clust.push_back(PARAM_CLUSTER_MODE);
+    clust.push_back(PARAM_MAX_SEQS);
+    clust.push_back(PARAM_V);
+    clust.push_back(PARAM_MAXITERATIONS);
+    clust.push_back(PARAM_SIMILARITYSCORE);
+    clust.push_back(PARAM_THREADS);
 
     // find orf
     onlyverbosity.push_back(PARAM_V);
 
-    // createprofiledb
-    createprofiledb.push_back(PARAM_SUB_MAT);
-    createprofiledb.push_back(PARAM_PROFILE_TYPE);
-    createprofiledb.push_back(PARAM_V);
+    // convertprofiledb
+    convertprofiledb.push_back(PARAM_SUB_MAT);
+    convertprofiledb.push_back(PARAM_PROFILE_TYPE);
+    convertprofiledb.push_back(PARAM_V);
 
     // create fasta
     createFasta.push_back(PARAM_USE_HEADER);
@@ -215,9 +215,9 @@ Parameters::Parameters():
     result2stats.push_back(PARAM_STAT);
 
     // format alignment
-    formatalignment.push_back(PARAM_FORMAT_MODE);
-    //formatalignment.push_back(PARAM_THREADS);
-    formatalignment.push_back(PARAM_V);
+    convertalignments.push_back(PARAM_FORMAT_MODE);
+    //convertalignments.push_back(PARAM_THREADS);
+    convertalignments.push_back(PARAM_V);
     // result2msa
     result2msa.push_back(PARAM_SUB_MAT);
     result2msa.push_back(PARAM_PROFILE);
@@ -239,20 +239,20 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
     // extract orf
-    extractorf.push_back(PARAM_ORF_MIN_LENGTH);
-    extractorf.push_back(PARAM_ORF_MAX_LENGTH);
-    extractorf.push_back(PARAM_ORF_MAX_GAP);
-    extractorf.push_back(PARAM_ORF_SKIP_INCOMPLETE);
-    extractorf.push_back(PARAM_ORF_LONGEST);
-    extractorf.push_back(PARAM_ORF_EXTENDMIN);
-    extractorf.push_back(PARAM_ORF_FORWARD_FRAMES);
-    extractorf.push_back(PARAM_ORF_REVERSE_FRAMES);
-    extractorf.push_back(PARAM_USE_HEADER);
-    extractorf.push_back(PARAM_ID_OFFSET);
+    extractorfs.push_back(PARAM_ORF_MIN_LENGTH);
+    extractorfs.push_back(PARAM_ORF_MAX_LENGTH);
+    extractorfs.push_back(PARAM_ORF_MAX_GAP);
+    extractorfs.push_back(PARAM_ORF_SKIP_INCOMPLETE);
+    extractorfs.push_back(PARAM_ORF_LONGEST);
+    extractorfs.push_back(PARAM_ORF_EXTENDMIN);
+    extractorfs.push_back(PARAM_ORF_FORWARD_FRAMES);
+    extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);
+    extractorfs.push_back(PARAM_USE_HEADER);
+    extractorfs.push_back(PARAM_ID_OFFSET);
 
-    // splitffindex
-    splitffindex.push_back(PARAM_SPLIT);
-    splitffindex.push_back(PARAM_SPLIT_AMINOACID);
+    // splitdb
+    splitdb.push_back(PARAM_SPLIT);
+    splitdb.push_back(PARAM_SPLIT_AMINOACID);
 
     // create index
     createindex.push_back(PARAM_SUB_MAT);
@@ -271,17 +271,17 @@ Parameters::Parameters():
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
 
-    // rebuildfasta
-    rebuildfasta.push_back(PARAM_USE_HEADER_FILE);
-    rebuildfasta.push_back(PARAM_V);
+    // convert2fasta
+    convert2fasta.push_back(PARAM_USE_HEADER_FILE);
+    convert2fasta.push_back(PARAM_V);
 
-    // gff2ffindex
+    // gff2db
     gff2ffindex.push_back(PARAM_GFF_TYPE);
     gff2ffindex.push_back(PARAM_USE_HEADER);
     gff2ffindex.push_back(PARAM_ID_OFFSET);
     gff2ffindex.push_back(PARAM_V);
 
-    searchworkflow = combineList(alignment, prefilter);
+    searchworkflow = combineList(align, clustlinear);
     searchworkflow = combineList(searchworkflow, result2profile);
     searchworkflow.push_back(PARAM_NUM_ITERATIONS);
     searchworkflow.push_back(PARAM_START_SENS);
@@ -290,8 +290,8 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_RUNNER);
 	
 
-    clusteringWorkflow = combineList(prefilter, alignment);
-    clusteringWorkflow = combineList(clusteringWorkflow, clustering);
+    clusteringWorkflow = combineList(clustlinear, align);
+    clusteringWorkflow = combineList(clusteringWorkflow, clust);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
@@ -301,15 +301,15 @@ Parameters::Parameters():
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
 
     // translate nucleotide
-    translateNucleotide.push_back(PARAM_TRANSLATION_TABLE);
-    translateNucleotide.push_back(PARAM_V);
+    translatenucs.push_back(PARAM_TRANSLATION_TABLE);
+    translatenucs.push_back(PARAM_V);
 
-    // addSequences
-    addSequences.push_back(PARAM_MIN_SEQUENCES);
-    addSequences.push_back(PARAM_MAX_SEQUENCES);
-    addSequences.push_back(PARAM_HH_FORMAT);
-    addSequences.push_back(PARAM_THREADS);
-    addSequences.push_back(PARAM_V);
+    // createseqfiledb
+    createseqfiledb.push_back(PARAM_MIN_SEQUENCES);
+    createseqfiledb.push_back(PARAM_MAX_SEQUENCES);
+    createseqfiledb.push_back(PARAM_HH_FORMAT);
+    createseqfiledb.push_back(PARAM_THREADS);
+    createseqfiledb.push_back(PARAM_V);
 
     // filterDb
     filterDb.push_back(PARAM_FILTER_COL);
@@ -331,23 +331,23 @@ Parameters::Parameters():
     swapresults.push_back(PARAM_THREADS);
     swapresults.push_back(PARAM_V);
 
-    // substractresult
-    substractresult.push_back(PARAM_THREADS);
-    substractresult.push_back(PARAM_E_PROFILE);
-    substractresult.push_back(PARAM_V);
+    // subtractdbs
+    subtractdbs.push_back(PARAM_THREADS);
+    subtractdbs.push_back(PARAM_E_PROFILE);
+    subtractdbs.push_back(PARAM_V);
 
     //evaluationscores
     evaluationscores.push_back(PARAM_EVALUATION_ALLVSALL);
     evaluationscores.push_back(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE);
     evaluationscores.push_back(PARAM_EVALUATION_USE_SEQUENCEHEADER);
 
-    // detectredundancy
-    detectredundancy.push_back(PARAM_SUB_MAT);
-    detectredundancy.push_back(PARAM_ALPH_SIZE);
-    detectredundancy.push_back(PARAM_MIN_SEQ_ID);
-    detectredundancy.push_back(PARAM_MAX_SEQ_LEN);
-    detectredundancy.push_back(PARAM_THREADS);
-    detectredundancy.push_back(PARAM_V);
+    // clusthash
+    clusthash.push_back(PARAM_SUB_MAT);
+    clusthash.push_back(PARAM_ALPH_SIZE);
+    clusthash.push_back(PARAM_MIN_SEQ_ID);
+    clusthash.push_back(PARAM_MAX_SEQ_LEN);
+    clusthash.push_back(PARAM_THREADS);
+    clusthash.push_back(PARAM_V);
 
     // linearfilter
     linearfilter.push_back(PARAM_SUB_MAT);
@@ -362,7 +362,7 @@ Parameters::Parameters():
     result2newick.push_back(PARAM_THREADS);
     result2newick.push_back(PARAM_V);
 
-    // mergeffindex
+    // mergedbs
     mergeffindex.push_back(PARAM_MERGE_PREFIXES);
     mergeffindex.push_back(PARAM_V);
 
@@ -394,7 +394,7 @@ Parameters::Parameters():
     extractdomains.push_back(PARAM_THREADS);
     extractdomains.push_back(PARAM_V);
 
-    // dbconcat
+    // concatdbs
     dbconcat.push_back(PARAM_PRESERVEKEYS);
     
     // extractalignedregion
@@ -747,7 +747,7 @@ void Parameters::setDefaults() {
     // Clustering workflow
     removeTmpFiles = false;
 
-    // createprofiledb
+    // convertprofiledb
     profileMode = PROFILE_MODE_HMM;
 
     // createdb
@@ -796,13 +796,13 @@ void Parameters::setDefaults() {
     useHeader = false;
     identifierOffset = 0;
 
-    // rebuildfasta
+    // convert2fasta
     useHeaderFile = false;
 
     // translate nucleotide
     translationTable = 1;
 
-    // addSequences
+    // createseqfiledb
     minSequences = 1;
     maxSequences = INT_MAX;
     hhFormat = false;
@@ -817,10 +817,10 @@ void Parameters::setDefaults() {
     compOperator = "";
     compValue = 0;
 
-    // dbconcat
+    // concatdbs
     preserveKeysB = false;
     
-    // mergeffindex
+    // mergedbs
     mergePrefixes = "";
 	
     // evaluationscores

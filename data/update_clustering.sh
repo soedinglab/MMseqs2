@@ -28,12 +28,12 @@ OLDCLUST=$3 #"DBclustered"
 NEWDB=$2 #"../data/targetDB"
 TMP=$5 #"tmp/"
 
-notExists "$TMP/removedSeqs" && $MMSEQS diff $OLDDB $NEWDB $TMP/removedSeqs $TMP/mappingSeqs $TMP/newSeqs && checkReturnCode "Diff died"
+notExists "$TMP/removedSeqs" && $MMSEQS diffseqdbs $OLDDB $NEWDB $TMP/removedSeqs $TMP/mappingSeqs $TMP/newSeqs && checkReturnCode "Diff died"
 
 echo "==================================================="
 echo "====== Filter out the new from old sequences ======"
 echo "==================================================="
-notExists "$TMP/NEWDB.newSeqs" && $MMSEQS order $TMP/newSeqs $NEWDB $TMP/NEWDB.newSeqs && checkReturnCode "Order died"
+notExists "$TMP/NEWDB.newSeqs" && $MMSEQS createsubdb $TMP/newSeqs $NEWDB $TMP/NEWDB.newSeqs && checkReturnCode "Order died"
 
 echo "==================================================="
 echo "=== Update the old clustering with the new keys ==="
@@ -60,7 +60,7 @@ echo "==================================================="
 echo "= Merge the found sequence with previous clustering"
 echo "==================================================="
 if [ -f $TMP/newSeqsHits.swapped ]; then
-    notExists "$TMP/updatedClust" && $MMSEQS mergeffindex $TMP/OLDCLUST.mapped  $TMP/updatedClust $TMP/newSeqsHits.swapped $TMP/OLDCLUST.mapped && checkReturnCode "Mergeffindex died"
+    notExists "$TMP/updatedClust" && $MMSEQS mergedbs $TMP/OLDCLUST.mapped  $TMP/updatedClust $TMP/newSeqsHits.swapped $TMP/OLDCLUST.mapped && checkReturnCode "Mergeffindex died"
 else
     notExists "$TMP/updatedClust" && mv $TMP/OLDCLUST.mapped $TMP/updatedClust  && checkReturnCode "Mv Oldclust to update died"
     notExists "$TMP/updatedClust.index" && mv $TMP/OLDCLUST.mapped.index $TMP/updatedClust.index  && checkReturnCode "Mv Oldclust to update died"
@@ -70,21 +70,21 @@ echo "==================================================="
 echo "=========== Extract unmapped sequences ============"
 echo "==================================================="
 notExists "$TMP/noHitSeqList" && awk '$3==1{print $1}' $TMP/newSeqsHits.index > $TMP/noHitSeqList
-notExists "$TMP/toBeClusteredSeparately" && $MMSEQS order $TMP/noHitSeqList $NEWDB $TMP/toBeClusteredSeparately  && checkReturnCode "Order of no hit seq. died"
+notExists "$TMP/toBeClusteredSeparately" && $MMSEQS createsubdb $TMP/noHitSeqList $NEWDB $TMP/toBeClusteredSeparately  && checkReturnCode "Order of no hit seq. died"
 
 
 echo "==================================================="
 echo "===== Cluster separately the alone sequences ======"
 echo "==================================================="
 rm -f $TMP/aln_* $TMP/pref_* $TMP/clu_* $TMP/input_*
-notExists "$TMP/newClusters" && $MMSEQS clusteringworkflow $TMP/toBeClusteredSeparately $TMP/newClusters $TMP $CLUST_PAR && checkReturnCode "Clustering of new seq. died"
+notExists "$TMP/newClusters" && $MMSEQS cluster $TMP/toBeClusteredSeparately $TMP/newClusters $TMP $CLUST_PAR && checkReturnCode "Clustering of new seq. died"
 
 echo "==================================================="
 echo "==== Merge the updated clustering together with ==="
 echo "=====         the new clusters               ======"
 echo "==================================================="
 if [ -f $TMP/newClusters ]; then
-    notExists "$4" && $MMSEQS dbconcat $TMP/updatedClust $TMP/newClusters $4 && checkReturnCode "Dbconcat died"
+    notExists "$4" && $MMSEQS concatdbs $TMP/updatedClust $TMP/newClusters $4 && checkReturnCode "Dbconcat died"
 else
     notExists "$4" && mv $TMP/updatedClust $4 && checkReturnCode "Mv died"
     notExists "$4.index" && mv $TMP/updatedClust.index $4.index && checkReturnCode "Mv died"

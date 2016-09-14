@@ -10,8 +10,11 @@ Parameters par;
 
 enum CommandMode {
     COMMAND_MAIN = 0,
-    COMMAND_WORKFLOW,
-    COMMAND_HELPER,
+    COMMAND_FORMAT_CONVERSION,
+    COMMAND_CLUSTER,
+    COMMAND_DB,
+    COMMAND_EXPERT,
+    COMMAND_SPECIAL,
     COMMAND_HIDDEN
 };
 
@@ -24,84 +27,88 @@ struct Command {
 };
 
 static struct Command commands[] = {
-        {"prefilter",           prefilter,              &par.prefilter,             COMMAND_MAIN,
-                "Calculates similarity scores between all sequences in the query db and all sequences in the target db"},
-        {"alignment",           alignment,              &par.alignment,             COMMAND_MAIN,
-                "Calculates Smith-Waterman alignment scores from prefilter output"},
-        {"cluster",             cluster,                &par.clustering,            COMMAND_MAIN,
-                "Calculates clustering of a sequence database based on alignment output with set cover algorithm"},
-        {"search",              search,                 &par.searchworkflow,        COMMAND_WORKFLOW,
-                "Searches protein sequences in a protein database"},
-        {"clusteringworkflow",  clusteringworkflow,     &par.clusteringWorkflow,    COMMAND_WORKFLOW,
-                "Calculates cascaded clustering of a ffindex sequence database. (Prefiltering -> Alignment -> Cluster)*n"},
-        {"clusterupdate",       clusterupdate,          &par.clusterUpdate,         COMMAND_WORKFLOW,
-                "Updates the existing clustering of the previous database version with new sequences from the current version"},
-        {"createdb",            createdb,               &par.createdb,              COMMAND_HELPER,
-                "Convert fasta to ffindex (all programs need ffindex as input)"},
-        {"createindex",         createindex,            &par.createindex,           COMMAND_HELPER,
-                "Convert ffindex to fast index for prefiltering"},
-        {"createfasta",         createfasta,            &par.onlyverbosity,         COMMAND_HELPER,
-                "Convert ffindex to fasta"},
-        {"createtsv",           createtsv,              &par.onlyverbosity,         COMMAND_HELPER,
-                "Convert ffindex to tsv"},
-        {"detectredundancy",    detectredundancy,       &par.prefilter,             COMMAND_HELPER,
-                "Detects redundancy based on reduced alphabet hashing and hamming distance"},
-        {"linearcluster",           linearfilter,       &par.prefilter,             COMMAND_HELPER,
-                "Detects TODO TODO"},
-        {"createprofiledb",     createprofiledb,        &par.createprofiledb,       COMMAND_HELPER,
-                "Convert ffindex profile databse (HMM/PSSM) to MMseqs ffindex profile database"},
-        {"filterdb",            filterdb,               &par.filterDb,              COMMAND_HELPER,
-                "Filter a database by column regex"},
-        {"formatalignment",     formatalignment,        &par.formatalignment,       COMMAND_HELPER,
-                "Convert a ffindex alignment database to BLAST tab, pairwise alignments or SAM flat file"},
-        {"swapresults",         swapresults,            &par.empty,                 COMMAND_HELPER,
-                "Swaps results from the mapping A -> (A,B,C) to A -> A, B -> A, C -> A"},
-        {"addsequences",        addsequences,           &par.addSequences,          COMMAND_HELPER,
-                "Adds sequences in fasta format to a mmseqs clustering"},
-        {"mergeffindex",        mergeffindex,           &par.empty,                 COMMAND_HELPER,
-                "Merge multiple ffindex files based on ids into one file"},
-        {"splitffindex",        splitffindex,           &par.splitffindex,          COMMAND_HELPER,
-                "Splits a ffindex database into multiple ffindex databases"},
-        {"mergecluster",        mergecluster,           &par.onlyverbosity,         COMMAND_HELPER,
-                "Merge multiple cluster result files into one"},
-        {"substractresult",     substractresult,        &par.substractresult,       COMMAND_HELPER,
-                "Removes all entries with same ID (out = left - right)"},
-        {"result2profile",      result2profile,         &par.result2profile,        COMMAND_HELPER,
-                "Calculates profiles from a clustering"},
-        {"result2msa",          result2msa,             &par.result2msa,            COMMAND_HELPER,
-                "Calculates MSAs from a clustering"},
-        {"result2stats",          result2stats,             &par.result2stats,            COMMAND_HELPER,
-                "Compute statistics for each result entry"},
-        {"rebuildfasta",        rebuildfasta,           &par.rebuildfasta,          COMMAND_HELPER,
-                "Rebuild a fasta file from a ffindex database"},
-        {"extractorf",          extractorf,             &par.extractorf,            COMMAND_HELPER,
-                "Extract all open reading frames from a nucleotide ffindex into a second ffindex database"},
-        {"translatenucleotide", translatenucleotide,    &par.translateNucleotide,   COMMAND_HELPER,
-                "Translate nucleotide sequences into aminoacid sequences in a ffindex database"},
-        {"maskbygff",           maskbygff,              &par.gff2ffindex,           COMMAND_HELPER,
-                "Masks the sequences in an ffindex database by the selected rows in a gff file"},
-        {"gff2ffindex",         gff2ffindex ,           &par.gff2ffindex,           COMMAND_HELPER,
-                "Turn a GFF3 file into a ffindex database"},
-        {"convertkb",           convertkb,              &par.convertkb,             COMMAND_HELPER,
-            "Converts Uniprot flat file into ffindex database"},
-        {"kbtotsv",             kbtotsv,                &par.onlyverbosity,         COMMAND_HELPER,
-                "Turns an UniprotKB file into separate TSV tables"},
-        {"order",               order,                  &par.onlyverbosity,         COMMAND_HELPER,
-                "Orders an mmseqs ffindex database according to a given list"},
-        {"summarizeheaders",    summarizeheaders,       &par.summarizeheaders,      COMMAND_HELPER,
-                "Summarizes all the headers from a clustering results"},
-        {"diff",                diff,                   &par.onlyverbosity,         COMMAND_HELPER,
-                "Output the differences between two sequence databases based on sequence identifiers"},
-        {"dbconcat",            dbconcat,               &par.onlyverbosity,         COMMAND_HELPER,
-                "Concatenates two ffindex databases"},
-        {"prefixid",            prefixid,               &par.prefixid,              COMMAND_HELPER,
-                "Prepend the index key to each line of the corresponding entry"},
-        {"summarizetabs",       summarizetabs,          &par.summarizetabs,         COMMAND_HELPER,
-                "Extract annotations from HHblits blasttab results"},
-        {"extractalignedregion",extractalignedregion,   &par.extractalignedregion,  COMMAND_HELPER,
-                "Extract aligned region of an alignment results"},
-        {"extractdomains",      extractdomains,         &par.extractdomains,        COMMAND_HELPER,
-                "Extract annotations from HHblits blasttab results"},
+// Main tools  (for non-experts)
+        {"createdb",            createdb,               &par.createdb,              COMMAND_MAIN,
+                "Convert protein sequence set in a FASTA file to MMseqs’ sequence DB format"},
+        {"search",              search,                 &par.searchworkflow,        COMMAND_MAIN,
+                "Search with query sequence or profile DB (iteratively) through target sequence DB"},
+        {"cluster",  clusteringworkflow,     &par.clusteringWorkflow,    COMMAND_MAIN,
+                "Compute clustering of a sequence DB (quadratic time)"},
+        {"createindex",         createindex,            &par.createindex,           COMMAND_MAIN,
+                "Precompute index table of sequence DB for faster searches"},
+// Utility tools for format conversions
+        {"createtsv",           createtsv,              &par.onlyverbosity,         COMMAND_FORMAT_CONVERSION,
+                "Create tab-separated flat file from prefilter DB, alignment DB, or cluster DB"},
+        {"convertalignments",     convertalignments,        &par.convertalignments,       COMMAND_FORMAT_CONVERSION,
+                "Convert alignment DB to BLAST-tab format, SAM flat file, or to raw pairwise alignments"},
+        {"convertprofiledb",     convertprofiledb,        &par.convertprofiledb,       COMMAND_FORMAT_CONVERSION,
+                "Convert ffindex DB of HMM/HMMER3/PSSM files to MMseqs profile DB"},
+        {"convert2fasta",        convert2fasta,           &par.convert2fasta,          COMMAND_FORMAT_CONVERSION,
+                "Convert sequence DB to FASTA format"},
+        {"result2flat",         result2flat,            &par.onlyverbosity,         COMMAND_FORMAT_CONVERSION,
+                "Create a FASTA-like flat file from prefilter DB, alignment DB, or cluster DB"},
+// Utility tools for clustering
+        {"clusterupdate",       clusterupdate,          &par.clusterUpdate,         COMMAND_CLUSTER,
+                "Update clustering of old sequence DB to clustering of new sequence DB"},
+        {"createseqfiledb",        createseqfiledb,           &par.createseqfiledb,          COMMAND_CLUSTER,
+                "Create DB of unaligned FASTA files, one per cluster in cluster DB"},
+        {"mergeclusters",        mergeclusters,           &par.onlyverbosity,         COMMAND_CLUSTER,
+                "Merge multiple cluster DBs into single cluster DB"},
+// Expert tools (for advanced users)
+        {"prefilter",           prefilter,              &par.clustlinear,             COMMAND_EXPERT,
+                "Search with query sequence / profile DB through target DB (k-mer matching + ungapped alignment)"},
+        {"align",           align,              &par.align,             COMMAND_EXPERT,
+                "Compute Smith-Waterman alignments for previous results (e.g. prefilter DB, cluster DB)"},
+        {"clust",             clust,                &par.clust,            COMMAND_EXPERT,
+                "Cluster sequence DB from alignment DB (e.g. created by searching DB against itself)"},
+        {"clustlinear",           clustlinear,       &par.clustlinear,             COMMAND_EXPERT,
+                "Cluster sequences of >70% sequence identity *in linear time*"},
+        {"clusthash",   clusthash,       &par.clusthash,             COMMAND_EXPERT,
+                "Cluster sequences of same length and >90% sequence identity *in linear time*"},
+// Utility tools to manipulate DBs
+        {"extractorfs",          extractorfs,             &par.extractorfs,            COMMAND_DB,
+                "Extract open reading frames from all six frames from nucleotide sequence DB"},
+        {"translatenucs", translatenucs,    &par.translatenucs,   COMMAND_DB,
+                "Translate nucleotide sequence DB into protein sequence DB"},
+        {"swapresults",         swapresults,            &par.empty,                 COMMAND_DB,
+                "Reformat prefilter/alignment/cluster DB as if target DB had been searched through query DB"},
+        {"mergedbs",        mergedbs,           &par.empty,                 COMMAND_DB,
+                "Merge multiple DBs into a single DB, based on IDs (names) of entries"},
+        {"splitdb",        splitdb,           &par.splitdb,          COMMAND_DB,
+                "Split a mmseqs DB into multiple DBs"},
+        {"subtractdbs",     subtractdbs,        &par.subtractdbs,       COMMAND_DB,
+                "Generate a DB with entries of first DB not occurring in second DB"},
+        {"filterdb",            filterdb,               &par.filterDb,              COMMAND_DB,
+                "Filter a DB by conditioning (regex, numerical, …) on one of its whitespace-separated columns"},
+        {"createsubdb",         createsubdb,                  &par.onlyverbosity,         COMMAND_DB,
+                "Create a subset of a DB from a file of IDs of entries"},
+        {"result2profile",      result2profile,         &par.result2profile,        COMMAND_DB,
+                "Compute profile and consensus DB from a prefilter, alignment or cluster DB"},
+        {"result2msa",          result2msa,             &par.result2msa,            COMMAND_DB,
+                "Generate MSAs for queries by locally aligning their matched targets in prefilter/alignment/cluster DB"},
+        {"result2stats",          result2stats,             &par.result2stats,            COMMAND_DB,
+                "Compute statistics for each entry in a sequence, prefilter, alignment or cluster DB"},
+// Special-purpose utilities
+        {"diffseqdbs",           diffseqdbs,                   &par.onlyverbosity,         COMMAND_SPECIAL,
+                "Find IDs of sequences kept, added and removed between two versions of sequence DB"},
+        {"concatdbs",            concatdbs,               &par.onlyverbosity,         COMMAND_SPECIAL,
+                "Concatenate two DBs, giving new IDs to entries from second input DB"},
+        {"summarizetabs",       summarizetabs,          &par.summarizetabs,         COMMAND_SPECIAL,
+                "Extract annotations from HHblits BAST-tab-formatted results"},
+        {"gff2db",         gff2db ,           &par.gff2ffindex,           COMMAND_SPECIAL,
+                "Turn a gff3 (generic feature format) file into a gff3 DB"},
+        {"maskbygff",           maskbygff,              &par.gff2ffindex,           COMMAND_SPECIAL,
+                "X out sequence regions in a sequence DB by features in a gff3 file"},
+        {"prefixid",            prefixid,               &par.prefixid,              COMMAND_SPECIAL,
+                "For each entry in a DB prepend the entry ID to the entry itself"},
+        {"convertkb",           convertkb,              &par.convertkb,             COMMAND_SPECIAL,
+            "Convert UniProt knowledge flat file into knowledge DB for the selected column types"},
+        {"summarizeheaders",    summarizeheaders,       &par.summarizeheaders,      COMMAND_SPECIAL,
+                "Return a new summarized header DB from the UniProt headers of a cluster DB"},
+        {"extractalignedregion",extractalignedregion,   &par.extractalignedregion,  COMMAND_SPECIAL,
+                "Extract aligned sequence region"},
+        {"extractdomains",      extractdomains,         &par.extractdomains,        COMMAND_SPECIAL,
+                "Extract highest scoring alignment region for each sequence from BLAST-tab file"},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
         {"computeGOscore",      computeGOscore,         &par.evaluationscores,      COMMAND_HIDDEN,
                 "Compute GO scores for a result of clustering"},
@@ -112,7 +119,9 @@ void checkCpu();
 
 void printUsage() {
     std::stringstream usage;
-    usage << "All available MMseqs commands\n";
+    usage << "MMseqs2 (Many against Many sequence searching) is an open-source software suite for very fast, \n"
+            "parallelizable protein sequence searches and clustering of huge protein sequence data sets.\n\n";
+    usage << "Please cite: M. Steinegger and J. Soding. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv XXXX (2016).\n\n";
 #ifdef GIT_SHA1
 #define str2(s) #s
 #define str(s) str2(s)
@@ -121,15 +130,18 @@ void printUsage() {
 #undef str
 #undef str2
 #endif
-    usage << "Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n";
+    usage << "(C) Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser)\n";
 
     struct {
         const char* title;
         CommandMode mode;
     } categories[] = {
-            {"Main Tools",  COMMAND_MAIN},
-            {"Workflows",   COMMAND_WORKFLOW},
-            {"Helpers",     COMMAND_HELPER},
+            {"Main tools  (for non-experts)",  COMMAND_MAIN},
+            {"Utility tools for format conversions",   COMMAND_FORMAT_CONVERSION},
+            {"Utility tools for clustering",     COMMAND_CLUSTER},
+            {"Expert tools (for advanced users)",     COMMAND_EXPERT},
+            {"Utility tools to manipulate DBs",     COMMAND_DB},
+            {"Special-purpose utilities",     COMMAND_SPECIAL},
     };
 
     for(size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
@@ -141,10 +153,8 @@ void printUsage() {
         }
     }
 
-    usage << "\nBash completion for subcommands and parameters can be installed by adding the following lines to your ~/.bash_profile:\n";
-    usage << "if [ -f $MMDIR/util/bash-completion.sh ]; then\n";
-    usage << "\t. $MMDIR/util/bash-completion.sh\n";
-    usage << "fi\n";
+    usage << "\nBash completion for tools and parameters can be installed by adding a line \"util/bash-completion.sh\" in your \"$HOME/.bash_profile\".\n"
+            "Include the location of the MMseqs binaries is in your \"$PATH\" environment variable.";
 
     Debug(Debug::INFO) << usage.str() << "\n";
 }

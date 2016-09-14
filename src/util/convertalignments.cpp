@@ -41,7 +41,7 @@ void printSeqBasedOnAln(FILE * out, char *seq, unsigned int offset, std::string 
     }
 
 }
-int formatalignment (int argc, const char * argv[])
+int convertalignments(int argc, const char *argv[])
 {
 
     std::string usage;
@@ -50,7 +50,7 @@ int formatalignment (int argc, const char * argv[])
     usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.formatalignment, 4);
+    par.parseParameters(argc, argv, usage, par.convertalignments, 4);
 
     DBReader<unsigned int> * query = NULL;
     DBReader<unsigned int> * target = NULL;

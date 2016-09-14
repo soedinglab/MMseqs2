@@ -1,5 +1,5 @@
 /*
- * rebuildfasta
+ * convert2fasta
  * written by Milot Mirdita <milot@mirdita.de>
  */
 
@@ -15,14 +15,14 @@
 const char header_start[] = {'>'};
 const char newline[] = {'\n'};
 
-int rebuildfasta(int argc, const char * argv[])
+int convert2fasta(int argc, const char *argv[])
 {
     std::string usage("Converts an mmseqs ffindex database back to a fasta file. \n");
     usage.append("Written by Milot Mirdita <milot@mirdita.de>.\n\n");
     usage.append("USAGE: <dbIn> <fastaOut>\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.rebuildfasta, 2);
+    par.parseParameters(argc, argv, usage, par.convert2fasta, 2);
 
     std::string data_filename = par.db1;
     std::string index_filename = par.db1Index;

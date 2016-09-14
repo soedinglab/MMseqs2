@@ -11,7 +11,7 @@
 #include "DBWriter.h"
 #include "Debug.h"
 
-int order(int argc, const char * argv[])
+int createsubdb(int argc, const char *argv[])
 {
     std::string usage("Orders an mmseqs database according to a given list.\n");
     usage.append("Written by Milot Mirdita <milot@mirdita.de>.\n\n");

@@ -5,7 +5,7 @@
 #include "Util.h"
 #include <sstream>
 
-int splitffindex (int argc, const char * argv[])
+int splitdb(int argc, const char *argv[])
 {
     int err = EXIT_SUCCESS;
 
@@ -15,7 +15,7 @@ int splitffindex (int argc, const char * argv[])
     usage.append("USAGE: <ffindexInDB> <ffindexOutDB>\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.splitffindex, 2);
+    par.parseParameters(argc, argv, usage, par.splitdb, 2);
 
     if(par.split < 1) {
         Debug(Debug::ERROR) << "Cannot split databases into 0 or negative chunks.";

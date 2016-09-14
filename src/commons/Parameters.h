@@ -42,7 +42,7 @@ public:
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
     static const int FORMAT_ALIGNMENT_SAM       = 2;
-    // createprofiledb
+    // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;
     static const int PROFILE_MODE_PSSM = 1;
     static const int PROFILE_MODE_HMM3 = 2;
@@ -144,7 +144,7 @@ public:
     int maxIteration;                   // Maximum depth of breadth first search in connected component
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
 
-    //extractorf
+    //extractorfs
     int orfMinLength;
     int orfMaxLength;
     int orfMaxGaps;
@@ -154,7 +154,7 @@ public:
     std::string forwardFrames;
     std::string reverseFrames;
 
-    // createprofiledb
+    // convertprofiledb
     int profileMode;
     bool useIndex;
     // format alignment
@@ -193,16 +193,16 @@ public:
     int identifierOffset;
     bool splitSeqByLen;
 
-    // rebuildfasta
+    // convert2fasta
     bool useHeaderFile;
 
-    // gff2ffindex
+    // gff2db
     std::string gffType;
 
     // translate nucleotide
     int translationTable;
 
-    // addSequences
+    // createseqfiledb
     int minSequences;
     int maxSequences;
     bool hhFormat;
@@ -218,7 +218,7 @@ public:
     float compValue;
     std::string compOperator;
 
-    // mergeffindex
+    // mergedbs
     std::string mergePrefixes;
 
     // evaluationscores
@@ -239,7 +239,7 @@ public:
     //count
     std::string countCharacter;
     
-    // dbconcat
+    // concatdbs
     bool preserveKeysB;
     
     void checkSaneEnvironment();
@@ -280,7 +280,7 @@ public:
     PARAMETER(PARAM_REMOVE_TMP_FILES)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
-    std::vector<MMseqsParameter> prefilter;
+    std::vector<MMseqsParameter> clustlinear;
 
     // alignment
     PARAMETER(PARAM_ALIGNMENT_MODE)
@@ -292,7 +292,7 @@ public:
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
 
-    std::vector<MMseqsParameter> alignment;
+    std::vector<MMseqsParameter> align;
 
     // clustering
     PARAMETER(PARAM_CLUSTER_MODE)
@@ -304,7 +304,7 @@ public:
     PARAMETER(PARAM_SIMILARITYSCORE)
     // logging
     PARAMETER(PARAM_V)
-    std::vector<MMseqsParameter> clustering;
+    std::vector<MMseqsParameter> clust;
 
     // create profile (HMM, PSSM)
     PARAMETER(PARAM_PROFILE_TYPE)
@@ -357,20 +357,20 @@ public:
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
 
     // createdb
-    PARAMETER(PARAM_USE_HEADER) // also used by extractorf
+    PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
     PARAMETER(PARAM_ID_OFFSET)  // same
     PARAMETER(PARAM_DONT_SPLIT_SEQ_BY_LEN)
 
-    // rebuildfasta
+    // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
 
-    // gff2ffindex
+    // gff2db
     PARAMETER(PARAM_GFF_TYPE)
 
     // translate_nucleotide
     PARAMETER(PARAM_TRANSLATION_TABLE)
 
-    // addsequences
+    // createseqfiledb
     PARAMETER(PARAM_MIN_SEQUENCES)
     PARAMETER(PARAM_MAX_SEQUENCES)
     PARAMETER(PARAM_HH_FORMAT)
@@ -390,7 +390,7 @@ public:
     PARAMETER(PARAM_PRESERVEKEYS)
     
     
-    // mergeffindex
+    // mergedbs
     PARAMETER(PARAM_MERGE_PREFIXES)
 
     // evaluationScore
@@ -417,29 +417,29 @@ public:
 
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createFasta;
-    std::vector<MMseqsParameter> createprofiledb;
+    std::vector<MMseqsParameter> convertprofiledb;
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2msa;
     std::vector<MMseqsParameter> result2stats;
-    std::vector<MMseqsParameter> extractorf;
-    std::vector<MMseqsParameter> splitffindex;
+    std::vector<MMseqsParameter> extractorfs;
+    std::vector<MMseqsParameter> splitdb;
     std::vector<MMseqsParameter> createindex;
-    std::vector<MMseqsParameter> formatalignment;
+    std::vector<MMseqsParameter> convertalignments;
     std::vector<MMseqsParameter> createdb;
-    std::vector<MMseqsParameter> rebuildfasta;
+    std::vector<MMseqsParameter> convert2fasta;
     std::vector<MMseqsParameter> gff2ffindex;
-    std::vector<MMseqsParameter> detectredundancy;
+    std::vector<MMseqsParameter> clusthash;
     std::vector<MMseqsParameter> linearfilter;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;
     std::vector<MMseqsParameter> clusterUpdateClust;
     std::vector<MMseqsParameter> clusterUpdate;
-    std::vector<MMseqsParameter> translateNucleotide;
-    std::vector<MMseqsParameter> addSequences;
+    std::vector<MMseqsParameter> translatenucs;
+    std::vector<MMseqsParameter> createseqfiledb;
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> swapresults;
-    std::vector<MMseqsParameter> substractresult;
+    std::vector<MMseqsParameter> subtractdbs;
     std::vector<MMseqsParameter> result2newick;
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> dbconcat;
