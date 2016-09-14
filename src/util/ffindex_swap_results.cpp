@@ -5,8 +5,13 @@
 #include "Debug.h"
 #include "Alignment.h"
 #include "Util.h"
+#include "QueryMatcher.h"
+
+#include "omptl/omptl_algorithm"
 
 #include <fstream>
+#include <chrono>
+#include <mutex>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -20,9 +25,14 @@ int doSwap(Parameters &par,
     omp_set_num_threads(par.threads);
 #endif
 
+
+
+    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+
+    
+    // evalue correction for the swapping
     double *kmnByLen = NULL;
     double lambda, logK, lambdaLog2, logKLog2;
-
     {
         DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
         qdbr.open(DBReader<unsigned int>::NOSORT);
@@ -69,7 +79,7 @@ int doSwap(Parameters &par,
         if (result.size() > 1) {
             char *wordCnt[255];
             size_t cols = Util::getWordsOfLine((char *) result.c_str(), wordCnt, 254);
-            if (Matcher::ALN_RES_WITH_OUT_BT_COL_CNT >= cols) {
+            if (Matcher::ALN_RES_WITH_OUT_BT_COL_CNT >= cols) { // TODO : does it work with pefilter results ?
                 std::vector<Matcher::result_t> alnRes = Matcher::readAlignmentResults((char *) result.c_str());
                 for (size_t j = 0; j < alnRes.size(); j++) {
                     Matcher::result_t &res = alnRes[j];
@@ -96,12 +106,19 @@ int doSwap(Parameters &par,
                 result = swResultsSs.str();
             }
         }
+            
 
         splitWriter.writeData(result.c_str(), result.size(), SSTR(id).c_str(), thread_idx);
 
         delete swaps[i].second;
     }
 
+
+
+    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    std::cout<< "Duration of eval updtaing & writing : " << duration <<std::endl;
+ 
     Debug(Debug::INFO) << "Done.\n";
     splitWriter.close();
 
@@ -144,9 +161,10 @@ SwapIt readAllKeysIntoMap(const std::string &datafile) {
     return result;
 }
 
-void processSplit(DBReader<unsigned int> &dbr,
+void createSwappedResultMap(DBReader<unsigned int> &dbr,
                   FILE *dataFile, std::map<unsigned int, std::string *> &map,
                   size_t startIndex, size_t domainSize) {
+                      
     for (size_t i = startIndex; i < (startIndex + domainSize); i++) {
         std::ostringstream ss;
         char dbKey[255 + 1];
@@ -181,9 +199,19 @@ std::vector<std::pair<unsigned int, std::string*>> readSwap(const char* dataFile
     // read all keys
     SwapIt swapMap = readAllKeysIntoMap(reader.getDataFileName());
 
+    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+ 
+
     FILE *file = fopen(reader.getDataFileName(), "r");
-    processSplit(reader, file, swapMap, 0, reader.getSize());
+    createSwappedResultMap(reader, file, swapMap, 0, reader.getSize());
     fclose(file);
+    
+    
+    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    std::cout<< "Duration of reading into map : " << duration <<std::endl;
+ 
+    
     std::vector<std::pair<unsigned int, std::string*>> result(swapMap.begin(), swapMap.end());
 
     reader.close();
@@ -192,6 +220,8 @@ std::vector<std::pair<unsigned int, std::string*>> readSwap(const char* dataFile
 }
 
 int doSwap(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
+    
+    
     std::vector<std::pair<unsigned int, std::string*>> swap = readSwap(par.db3.c_str(), par.db3Index.c_str());
 
     size_t dbFrom = 0;
@@ -217,6 +247,262 @@ int doSwap(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNu
     return status;
 }
 
+
+
+
+typedef std::pair <std::pair <unsigned int,double> ,std::string>  alnResultEntry;
+
+struct compareKey {
+    bool operator()(const alnResultEntry &lhs,
+                    const alnResultEntry &rhs) const {
+        return (lhs.first.first < rhs.first.first);
+    }
+};
+
+struct compareEval {
+    bool operator()(const alnResultEntry &lhs,
+                    const alnResultEntry &rhs) const {
+        return ((lhs.first).second < (rhs.first).second);
+    }
+};
+
+
+int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap)
+{
+    
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(),
+                         static_cast<unsigned int>(par.threads));
+    resultWriter.open();
+
+    
+#pragma omp parallel //private(thread_num,num_threads,start,end)
+    {
+        int thread_num,num_threads;
+        size_t start,end,orgStart,orgEnd;
+        
+        size_t size = resMap->size();
+        thread_num = omp_get_thread_num();
+        num_threads = omp_get_num_threads();
+        orgStart = thread_num * size / num_threads;
+        orgEnd = (thread_num + 1) * size / num_threads;
+
+        // Wedge the start and end pos to complete targetKey chunks
+        start = orgStart;
+        while (orgStart && start < size && resMap->at(orgStart).first.first == resMap->at(start).first.first)
+            start++;
+        end = orgEnd;
+        while (end < size && resMap->at(orgEnd).first.first == resMap->at(end).first.first)
+            end++;
+
+        if (end-start)
+        {
+            //std::string result;
+            unsigned int lastKey = resMap->at(start).first.first;
+            std::vector<alnResultEntry> curRes;
+            for (size_t i = start;i < end; ++i)
+            {
+                
+                // TODO sort by evalue
+                // If we enter a new chunk, flush the results to file
+                if (lastKey != resMap->at(i).first.first)
+                {
+                    
+                    omptl::sort(curRes.begin(),curRes.end(),compareEval());
+                    std::string result;
+                    for (size_t j = 0;j < curRes.size(); j++)
+                    {
+                        result.append(curRes[j].second);
+                    }
+                        
+                    resultWriter.writeData(result.c_str(), result.size(), SSTR(lastKey).c_str(), thread_num);
+                    
+                    curRes.clear();
+                }
+                curRes.push_back(resMap->at(i));
+                //result.append(resMap->at(i).second);
+                lastKey = (resMap->at(i)).first.first;
+            }
+            omptl::sort(curRes.begin(),curRes.end(),compareEval());
+            std::string result;
+            for (size_t j = 0;j < curRes.size(); j++)
+                result.append(curRes[j].second);
+                
+            resultWriter.writeData(result.c_str(), result.size(), SSTR(lastKey).c_str(), thread_num);
+        }
+    }    
+    resultWriter.close();
+    
+    return 0;
+}
+
+void swapBt(std::string *bt)
+{
+    for (size_t i = 0; i < bt->size(); i++)
+        if(bt->at(i) == 'I')
+            bt->at(i) = 'D';
+        else if(bt->at(i) == 'D')
+            bt->at(i) = 'I';
+}
+
+int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
+{
+    
+
+    // evalue correction for the swapping
+    double *kmnByLen = NULL;
+    double lambda, logK, lambdaLog2, logKLog2;
+    {
+        DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
+        qdbr.open(DBReader<unsigned int>::NOSORT);
+        DBReader<unsigned int> tdbr(par.db2.c_str(), par.db2Index.c_str());
+        tdbr.open(DBReader<unsigned int>::NOSORT);
+
+        SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(),
+                                                                                      Matcher::GAP_OPEN,
+                                                                                      Matcher::GAP_EXTEND);
+
+        int seqLen = static_cast<int>(par.maxSeqLen);
+        kmnByLen = new double[seqLen];
+        for (int len = 0; len < seqLen; len++) {
+            kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
+                                                        qdbr.getAminoAcidDBSize(), qdbr.getSize());
+        }
+
+        lambda = stats.lambda;
+        logK = log(stats.K);
+        lambdaLog2 = lambda / log(2.0);
+        logKLog2 = logK / log(2.0);
+
+        qdbr.close();
+        tdbr.close();
+    }
+
+
+    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
+    resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+     
+    
+    //std::cout<<sizeof(Matcher::result_t)<<std::endl; -> 96bytes
+
+
+    int thread_num, num_threads;
+    size_t start, end, size;
+    std::mutex lock;
+    
+    #pragma omp parallel private(thread_num,num_threads,start,end)
+{
+    size = resultReader.getSize();
+    thread_num = omp_get_thread_num();
+    num_threads = omp_get_num_threads();
+    start = thread_num * size / num_threads;
+    end = (thread_num + 1) * size / num_threads;
+
+    for (size_t i = start;i < end; ++i)
+    {
+        unsigned int queryKey = resultReader.getDbKey(i);
+        char * data = resultReader.getData(i);
+                 
+        //std::cout << 100.0*((float)i-start)/((float)end-start)<<std::endl;
+
+        char *wordCnt[255];
+        size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
+        if (cols <= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+        
+            std::vector<Matcher::result_t> alnRes = Matcher::readAlignmentResults(data);
+            for (size_t j = 0; j < alnRes.size(); j++) {
+                Matcher::result_t &res = alnRes[j];
+                double rawScore = BlastScoreUtils::bitScoreToRawScore(res.score, lambdaLog2, logKLog2);
+                res.eval = BlastScoreUtils::computeEvalue(rawScore, kmnByLen[res.dbLen], lambda);
+                unsigned int qstart = res.qStartPos;
+                unsigned int qend = res.qEndPos;
+                unsigned int qLen = res.qLen;
+                res.qStartPos = res.dbStartPos;
+                res.qEndPos = res.dbEndPos;
+                res.qLen = res.dbLen;
+                res.dbStartPos = qstart;
+                res.dbEndPos = qend;
+                res.dbLen = qLen;
+                
+                unsigned int targetKey = res.dbKey;
+                
+                res.dbKey = queryKey;
+
+                bool addBacktrace = cols >= Matcher::ALN_RES_WITH_BT_COL_CNT;
+                if (addBacktrace)
+                {
+                    swapBt(&res.backtrace);
+                    
+                }
+                std::string result = Matcher::resultToString(res, addBacktrace);
+                
+                lock.lock();
+                    resMap->push_back(std::make_pair( std::make_pair(targetKey,res.eval) ,result));
+                lock.unlock();
+                
+            }
+
+        } else // prefilter case
+        { //TODO Test it !!!
+            char* curData = data;
+            
+            while(*curData != '\0')
+            {
+                hit_t hit = parsePrefilterHit(curData);
+                
+                unsigned int targetKey = hit.seqId;
+                hit.seqId = queryKey;
+                
+                float eval = exp(-hit.prefScore);
+                
+                std::string result = prefilterHitToString(hit);
+                lock.lock();
+                    resMap->push_back(std::make_pair( std::make_pair(targetKey,eval) ,result));
+                lock.unlock();
+                
+                curData = Util::skipLine(curData);
+                
+            }
+            
+        }
+            
+            
+    }
+}
+
+    delete[] kmnByLen;
+    resultReader.close();
+    
+    return 0;
+}
+
+
+int doSwapSortOpt(Parameters &par)
+{
+    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+    std::vector<alnResultEntry> resMap;
+    swapAlnResults(par, &resMap);
+    
+    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+    omptl::sort(resMap.begin(),resMap.end(),compareKey()); // sort by target id
+    
+    std::chrono::high_resolution_clock::time_point t3 = std::chrono::high_resolution_clock::now();
+    writeSwappedResults(par,&resMap);
+    
+    std::chrono::high_resolution_clock::time_point t4 = std::chrono::high_resolution_clock::now();
+    
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+    std::cout<< "Reading and updating : " << duration <<std::endl;
+    duration = std::chrono::duration_cast<std::chrono::microseconds>( t3 - t2 ).count();
+    std::cout<< "Sorting : " << duration <<std::endl;
+    duration = std::chrono::duration_cast<std::chrono::microseconds>( t4 - t3 ).count();
+    std::cout<< "Writing : " << duration <<std::endl;
+ 
+    return 0;
+  
+}
+
+
 int doSwap(Parameters &par) {
     std::vector<std::pair<unsigned int, std::string*>> swap = readSwap(par.db3.c_str(), par.db3Index.c_str());
 
@@ -225,6 +511,10 @@ int doSwap(Parameters &par) {
 
     return status;
 }
+
+
+//#define DOSWAP doSwap
+#define DOSWAP doSwapSortOpt
 
 int swapresults(int argc, const char *argv[]) {
     MMseqsMPI::init(argc, argv);
@@ -236,10 +526,12 @@ int swapresults(int argc, const char *argv[]) {
     Parameters par;
     par.parseParameters(argc, argv, usage, par.swapresults, 4);
 
+
+
 #ifdef HAVE_MPI
-    int status = doSwap(par, MMseqsMPI::rank, MMseqsMPI::numProc);
+    int status = DOSWAP(par, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
-    int status = doSwap(par);
+    int status = DOSWAP(par);
 #endif
 
 #ifdef HAVE_MPI
