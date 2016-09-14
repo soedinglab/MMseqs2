@@ -63,7 +63,7 @@ private:
                                     const short bias);
 
 #ifdef AVX2
-    const __m256i Shuffle(const __m256i &value, const __m256i &shuffle);
+    __m256i Shuffle(const __m256i &value, const __m256i &shuffle);
 #endif
 
     unsigned short distanceFromDiagonal(const unsigned short diagonal);
