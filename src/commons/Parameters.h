@@ -20,9 +20,19 @@ struct MMseqsParameter {
     void * value;
     const char * regex;
     bool wasSet;
+    int category;
+
+    static const int COMMAND_PREFILTER = 1;
+    static const int COMMAND_ALIGN = 2;
+    static const int COMMAND_CLUST = 4;
+    static const int COMMAND_COMMON = 8;
+    static const int COMMAND_PROFILE = 16;
+    static const int COMMAND_MISC = 32;
+
     MMseqsParameter(int uid, const char * n, const char *display,
-                    const char * d, const std::type_info &hash, void * value, const char * regex):
-                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false){}
+                    const char * d, const std::type_info &hash,
+                    void * value, const char * regex, int category = COMMAND_MISC):
+                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false), category(category){}
 };
 
 
