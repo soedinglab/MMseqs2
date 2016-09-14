@@ -48,6 +48,8 @@ public:
     static void rankedDescSort20(short *val, unsigned int *index);
     static void decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
                                            size_t worldRank, size_t worldSize, size_t *start, size_t *end);
+    static void decomposeDomainSizet(size_t aaSize, size_t *seqSizes, size_t count,
+                                     size_t worldRank, size_t worldSize, size_t *start, size_t *size);
     static size_t getTotalSystemMemory();
     static size_t get_phys_pages();
     static size_t countLines(const char *data, size_t length);
@@ -98,29 +100,29 @@ public:
         }
         return counter;
     }
-	
-	// Return the index i such that data[i] <- '\0' makes a string terminated 
-	// by a non Whitespace character
-	static inline size_t getLastNonWhitespace(char * data, size_t len){
+
+    // Return the index i such that data[i] <- '\0' makes a string terminated
+    // by a non Whitespace character
+    static inline size_t getLastNonWhitespace(char * data, size_t len){
         size_t counter = len;
-		
-		 if (counter && data[counter] == '\0')
-			 counter--;
-			 
+
+        if (counter && data[counter] == '\0')
+            counter--;
+
         while( (data[counter] == ' ' || data[counter] == '\t')) {
-				if(!counter)
-					return 0;
+            if(!counter)
+                return 0;
             counter--;
         }
-		
-        return counter + 1; 
+
+        return counter + 1;
     }
-    
+
     static inline size_t skipNoneWhitespace(char * data){
         //A value different from zero (i.e., true) if indeed c is a white-space character. Zero (i.e., false) otherwise.
         size_t counter = 0;
         while(( data[counter] == ' '  || data[counter] == '\t'
-             || data[counter] == '\n' || data[counter] == '\0' ) == false ) {
+                || data[counter] == '\n' || data[counter] == '\0' ) == false ) {
             counter++;
         }
         return counter;
@@ -139,7 +141,7 @@ public:
         index.append(".index");
         return std::make_pair(basename, index);
     };
-    
+
     static inline size_t getWordsOfLine(char * data, char ** words, size_t maxElement ){
         size_t elementCounter = 0;
         while(*data !=  '\n' && *data != '\0'){
@@ -214,6 +216,11 @@ public:
     static std::string removeAfterFirstSpace(std::string in) {
         in.erase(in.find_first_of(" "));
         return in;
+    }
+
+    static size_t overlappingKmers(int seqLen, unsigned int kmerSize) {
+        int kmersPerSize = seqLen - static_cast<int>(kmerSize);
+        return  (kmersPerSize >= 0) ? kmersPerSize + 1 :  0;
     }
 };
 #endif

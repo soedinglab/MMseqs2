@@ -16,6 +16,9 @@ public:
     SequenceLookup(size_t dbSize);
     ~SequenceLookup();
 
+    // add sequence at offset
+    void addSequence(Sequence * seq, size_t offset);
+
     // add sequence to index
     void addSequence(Sequence * seq);
 

@@ -20,7 +20,12 @@ struct statistics_t{
     size_t resultsPassedPrefPerSeq;
     statistics_t() : kmersPerPos(0.0) , dbMatches(0) , doubleMatches(0), querySeqLen(0), diagonalOverflow(0), resultsPassedPrefPerSeq(0) {};
     statistics_t(double kmersPerPos, size_t dbMatches,
-                 size_t doubleMatches, size_t querySeqLen, size_t diagonalOverflow, size_t resultsPassedPrefPerSeq) : kmersPerPos(kmersPerPos), resultsPassedPrefPerSeq(resultsPassedPrefPerSeq){};
+                 size_t doubleMatches, size_t querySeqLen, size_t diagonalOverflow, size_t resultsPassedPrefPerSeq) : kmersPerPos(kmersPerPos),
+                                                                                                                      dbMatches(dbMatches),
+                                                                                                                      doubleMatches(doubleMatches),
+                                                                                                                      querySeqLen(querySeqLen),
+                                                                                                                      diagonalOverflow(diagonalOverflow),
+                                                                                                                      resultsPassedPrefPerSeq(resultsPassedPrefPerSeq){};
 };
 
 struct hit_t {
@@ -49,10 +54,10 @@ std::string prefilterHitToString(hit_t h);
 class QueryMatcher {
 public:
     QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
-                           unsigned int *seqLens, short kmerThr,
-                           double kmerMatchProb, int kmerSize, size_t dbSize,
-                           unsigned int maxSeqLen, unsigned int effectiveKmerSize,
-                           size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring, unsigned int minDiagScoreThr);
+                 unsigned int *seqLens, short kmerThr,
+                 double kmerMatchProb, int kmerSize, size_t dbSize,
+                 unsigned int maxSeqLen, unsigned int effectiveKmerSize,
+                 size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring, unsigned int minDiagScoreThr);
     ~QueryMatcher();
 
     // returns result for the sequence
@@ -94,16 +99,16 @@ public:
     }
 
 // compute -log(p)
-static inline double computeLogProbability(const unsigned short rawScore, const unsigned int dbSeqLen,
-                                           const double kmerMatchProb, const double logMatchProb,
-                                           const double logScoreFactorial) {
-    const double score = static_cast<double>(rawScore);
-    const double dbSeqLenDbl = static_cast<double>(dbSeqLen);
-    const double mu = kmerMatchProb * dbSeqLenDbl;
-    const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
-    const double first_term = -(mu * score /(score + 1));
-    return first_term + mid_term - logScoreFactorial;
-}
+    static inline double computeLogProbability(const unsigned short rawScore, const unsigned int dbSeqLen,
+                                               const double kmerMatchProb, const double logMatchProb,
+                                               const double logScoreFactorial) {
+        const double score = static_cast<double>(rawScore);
+        const double dbSeqLenDbl = static_cast<double>(dbSeqLen);
+        const double mu = kmerMatchProb * dbSeqLenDbl;
+        const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
+        const double first_term = -(mu * score /(score + 1));
+        return first_term + mid_term - logScoreFactorial;
+    }
 
 protected:
 
