@@ -205,11 +205,11 @@ int shellcompletion(int argc, const char** argv) {
 }
 
 int main(int argc, const char **argv) {
+    checkCpu();
     if (argc < 2) {
         printUsage();
         EXIT(EXIT_FAILURE);
     }
-    checkCpu();
     setenv("MMSEQS", argv[0], true);
     if (isCommand(argv[1])) {
         for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
