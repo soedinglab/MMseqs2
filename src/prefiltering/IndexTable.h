@@ -47,11 +47,10 @@ struct __attribute__((__packed__)) IndexEntryLocal {
 class IndexTable {
 
 public:
-    IndexTable (int alphabetSize, int kmerSize, bool hasSequenceLookup) {
+    IndexTable (int alphabetSize, int kmerSize) {
         this->alphabetSize = alphabetSize;
         this->kmerSize = kmerSize;
         this->size = 0;
-        this->hasSequenceLookup = hasSequenceLookup;
         this->sizeOfEntry = sizeof(IndexEntryLocal);
         tableSize = MathUtil::ipow(alphabetSize, kmerSize);
         table = new(std::nothrow) char*[tableSize + 1]; // 1 + needed for the last pointer to calculate the size
@@ -114,9 +113,11 @@ public:
     }
 
     // init the arrays for the sequence lists
-    void initMemory(size_t sequenzeCount, size_t tableEntriesNum, size_t aaDbSize, SequenceLookup * seqLookup) {
+    void initMemory(size_t sequenzeCount, size_t tableEntriesNum, size_t aaDbSize, SequenceLookup * seqLookup, size_t dbSize) {
         this->tableEntriesNum = tableEntriesNum;
-        if(hasSequenceLookup == true && seqLookup != NULL){
+        this->size = dbSize; // amount of sequences added
+
+        if(seqLookup != NULL){
             sequenceLookup = seqLookup;
         }
         // allocate memory for the sequence id lists
@@ -144,7 +145,7 @@ public:
         this->tableEntriesNum = tableEntriesNum;
         this->size = sequenzeCount;
         //        initMemory(sequenzeCount, tableEntriesNum, seqDataSize);
-        if(hasSequenceLookup == true && lookup != NULL){
+        if(lookup != NULL){
             sequenceLookup = lookup;
         }
         this->entries = entries;
@@ -221,7 +222,6 @@ public:
     // add k-mers of the sequence to the index table
     void addSequence (Sequence* s, Indexer * idxer, size_t aaFrom, size_t aaSize){
         // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
-        this->size++; // amount of sequences added
         s->resetCurrPos();
         idxer->reset();
         while(s->hasNextKmer()){
@@ -299,9 +299,6 @@ protected:
     int alphabetSize;
 
     int kmerSize;
-
-    // is sequence lookup needed
-    bool hasSequenceLookup;
 
     // amount of sequences in Index
     size_t size;

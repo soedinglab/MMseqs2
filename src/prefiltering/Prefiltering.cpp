@@ -517,7 +517,7 @@ BaseMatrix * Prefiltering:: getSubstitutionMatrix(const std::string& scoringMatr
 
 
 void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, IndexTable * indexTable,
-                                BaseMatrix *subMat, size_t dbFrom, size_t dbTo, int threads)
+                                BaseMatrix *subMat, size_t dbFrom, size_t dbTo, bool diagonalScoring, int threads)
 {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
@@ -525,6 +525,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
     dbTo=std::min(dbTo,dbr->getSize());
     size_t maskedResidues = 0;
     size_t totalKmerCount = 0;
+    size_t tableSize = 0;
 
     size_t dbSize = dbTo - dbFrom;
     size_t * sequenceOffSet = new size_t[dbSize];
@@ -536,6 +537,9 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
         size_t idFromNull = (id - dbFrom);
         if(id < dbTo - 1){
             sequenceOffSet[idFromNull + 1] =  sequenceOffSet[idFromNull] + seqLen;
+        }
+        if(Util::overlappingKmers(seqLen, seq->getEffectiveKmerSize() > 0)){
+            tableSize += 1;
         }
     }
     SequenceLookup * sequenceLookup = new SequenceLookup(dbSize, aaDbSize);
@@ -561,7 +565,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
         }
     }
     delete [] sequenceOffSet;
-    dbr->remapData();
+  //  dbr->remapData();
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
     //TODO find smart way to remove extrem k-mers without harming huge protein families
@@ -601,7 +605,11 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 
 #pragma omp barrier
         if(thread_idx == 0){
-            indexTable->initMemory(dbTo - dbFrom, tableEntriesNum, aaCount, sequenceLookup);
+            if(diagonalScoring == true){
+                indexTable->initMemory(dbTo - dbFrom, tableEntriesNum, aaCount, sequenceLookup, tableSize);
+            }else{
+                indexTable->initMemory(dbTo - dbFrom, tableEntriesNum, aaCount, NULL, tableSize);
+            }
             indexTable->init();
             Debug(Debug::INFO) << "Index table: fill...\n";
         }
@@ -621,6 +629,9 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
             indexTable->addSequence(&s, &idxer, threadFrom, threadSize);
         }
     }
+    if(diagonalScoring == false){
+        delete sequenceLookup;
+    }
     if ((dbTo-dbFrom) > 10000)
         Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: removing duplicate entries...\n";
@@ -634,8 +645,8 @@ IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequen
     struct timeval start, end;
     gettimeofday(&start, NULL);
     IndexTable * indexTable;
-    indexTable = new IndexTable(alphabetSize, kmerSize, diagonalScoring);
-    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, threads);
+    indexTable = new IndexTable(alphabetSize, kmerSize);
+    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, threads);
     gettimeofday(&end, NULL);
     indexTable->printStatisitic(seq->int2aa);
     int sec = end.tv_sec - start.tv_sec;
@@ -648,9 +659,11 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
                                                         DBReader<unsigned int> *tdbr, const int kmerScore) {
     size_t targetDbSize = indexTable->getSize();
     size_t targetSeqLenSum = 0;
+
     for (size_t i = 0; i < targetDbSize; i++){
         targetSeqLenSum += (tdbr->getSeqLens(i) - qseq[0]->getEffectiveKmerSize());
     }
+
     // generate a small random sequence set for testing
     size_t querySetSize = std::min ( qdbr->getSize(), (size_t) 1000);
     unsigned int * querySeqs = new unsigned int[querySetSize];
@@ -658,18 +671,12 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
     for (size_t i = 0; i < querySetSize; i++){
         querySeqs[i] = rand() % qdbr->getSize();
     }
-    size_t dbMatchesExp_pc;
-    // 1000 * 350 * 100000 * 350
-    size_t lenSum_pc = 12250000000000;
+
     statistics_t stats;
     stats = computeStatisticForKmerThreshold(indexTable, querySetSize, querySeqs, true, kmerScore);
-    // match probability with pseudocounts
-    // add pseudo-counts (1/20^k * kmerPerPos * length of pseudo counts)
-    dbMatchesExp_pc = (size_t)(((double)lenSum_pc) * stats.kmersPerPos * pow((1.0/((double)(subMat->alphabetSize-1))), kmerSize));
-    // match probability with pseudocounts
-    double kmerMatchProb = ((double)stats.dbMatches + dbMatchesExp_pc) / ((double) (stats.querySeqLen * targetSeqLenSum + lenSum_pc));
+
     // compute match prob for local match
-    kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
+    double kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
     kmerMatchProb /= 256;
 
     kmerMatchProb = std::max(kmerMatchProb, std::numeric_limits<double>::min());

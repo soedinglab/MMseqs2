@@ -46,7 +46,7 @@ public:
                                           bool diagonalScoring, int threads);
 
     static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
-                             size_t dbFrom, size_t dbTo, int threads);
+                             size_t dbFrom, size_t dbTo, bool diagonalScoring, int threads);
 
     // get substitution matrix
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, int alphabetSize, float bitFactor,

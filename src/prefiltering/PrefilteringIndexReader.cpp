@@ -22,7 +22,8 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 }
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr, Sequence *seq,
-                                              BaseMatrix * subMat, int split, int alphabetSize, int kmerSize, bool hasSpacedKmer, int threads) {
+                                              BaseMatrix * subMat, int split, int alphabetSize, int kmerSize,
+                                              bool hasSpacedKmer, bool diagonalScoring, int threads) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
@@ -36,8 +37,8 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         size_t splitSize  = 0;
         Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                                          step, stepCnt, &splitStart, &splitSize);
-        IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, true);
-        Prefiltering::fillDatabase(dbr, seq, indexTable, subMat, splitStart, splitStart + splitSize, threads);
+        IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize);
+        Prefiltering::fillDatabase(dbr, seq, indexTable, subMat, splitStart, splitStart + splitSize, diagonalScoring, threads);
 
         // save the entries
         std::string entries_key = SSTR(MathUtil::concatenate(ENTRIES, step));
@@ -144,7 +145,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*d
 
     IndexTable *retTable;
     if (data.local) {
-        retTable = new IndexTable(data.alphabetSize, data.kmerSize, diagonalScoring);
+        retTable = new IndexTable(data.alphabetSize, data.kmerSize);
     }else {
         Debug(Debug::ERROR) << "Seach mode is not valid.\n";
         EXIT(EXIT_FAILURE);
