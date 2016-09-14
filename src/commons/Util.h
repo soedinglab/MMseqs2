@@ -86,6 +86,11 @@ public:
         return (data+1);
     }
 
+    static inline char * seekToNextEntry(char * data){
+        while( *data !='\0' ) { data++; }
+        return (data+1);
+    }
+
     static bool getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength);
 
     static inline size_t skipWhitespace(char * data){

@@ -43,6 +43,14 @@ struct hit_t {
     }
 };
 
+
+
+
+
+hit_t parsePrefilterHit(char* data);
+std::string prefilterHitToString(hit_t h);
+
+
 class QueryMatcher {
 public:
     QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
