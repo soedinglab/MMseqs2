@@ -164,8 +164,7 @@ public:
 
             {
                 /* The following is ok, since we know that 0 < n_read.  */
-                size_t n = n_read;
-                if (full_write(out_desc, buf, n) != n) {
+                if (full_write(out_desc, buf, n_read) != (ssize_t) n_read) {
                     Debug(Debug::ERROR) << "write error\n";
                     EXIT(EXIT_FAILURE);
                 }

@@ -13,8 +13,6 @@
 
 #include "Util.h"
 
-#define MAX_FILENAME_LIST_FILES 4096
-
 int translatenucleotide(int argn, const char **argv)
 {
     std::string usage;

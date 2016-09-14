@@ -30,7 +30,6 @@ extern int maskbygff(int argc, const char** argv);
 extern int filterdb(int argc, const char** argv);
 extern int convertkb(int argc, const char** argv);
 extern int substractresult(int argc, const char** argv);
-extern int result2newick(int argc, const char** argv);
 extern int kbtotsv(int argc, const char** argv);
 extern int computeGOscore(int argc, const char** argv);
 extern int detectredundancy(int argc, const char** argv);
@@ -42,8 +41,6 @@ extern int prefixid(int argc, const char** argv);
 extern int summarizetabs(int argc, const char **argv);
 extern int extractalignedregion(int argc, const char** argv);
 extern int extractdomains(int argc, const char **argv);
-extern int count(int argc, const char **argv);
-extern int mapresult(int argc, const char **argv);
 extern int linearfilter(int argc, const char **argv);
 
 #endif

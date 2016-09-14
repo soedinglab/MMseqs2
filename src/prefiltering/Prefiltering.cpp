@@ -557,7 +557,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
             s.mapSequence(id - dbFrom, qKey, seqData);
 
             maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
-                                                      indexTable->getAlphabetSize(), seq->aa2int['X']);
+                                                      indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X']);
 
             aaCount += s.L;
             totalKmerCount += indexTable->addKmerCount(&s, &idxer);

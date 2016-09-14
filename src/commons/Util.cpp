@@ -366,8 +366,6 @@ const float     aasd100[20] =
                 3.77,3.64,1.71,2.62,3.00,3.63,2.83,1.32,2.18,2.92
         };
 
-
-
 void Util::filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM){
     char id[1000];
     for (int j=0; j<W; j++){

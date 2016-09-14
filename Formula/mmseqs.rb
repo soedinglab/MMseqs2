@@ -18,11 +18,6 @@ class Mmseqs < Formula
     system "make"
 
     bin.install "src/mmseqs"
-    bin.install "src/workflow/blastp.sh"
-    bin.install "src/workflow/blastpgp.sh"
-    bin.install "src/workflow/clustering.sh"
-    bin.install "src/workflow/cascaded_clustering.sh"
-    prefix.install Dir["data"]
     doc.install "userguide.pdf"
     bash_completion.install "util/bash-completion.sh" => "mmseqs.sh"
   end
