@@ -241,7 +241,12 @@ void checkCpu() {
 #endif
 #ifdef AVX2
     if(info.HW_AVX2 == false){
-        Debug(Debug::ERROR) << "AVX2 is required to run MMseqs.\n";
+        Debug(Debug::ERROR) << "Your machine does not support AVX2.\n";
+        if(info.HW_SSE41 == false) {
+            Debug(Debug::ERROR) << "Please compile with SSE4.1 cmake -DHAVE_SSE4_1=1 \n";
+        }else{
+            Debug(Debug::ERROR) << "SSE 4.1 is the minimum requirement to run MMseqs.\n";
+        }
         EXIT(EXIT_FAILURE);
     }
 #endif
