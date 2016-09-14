@@ -22,7 +22,6 @@ set(util_source_files
   convertkb.cpp
   kbtotsv.cpp
   substractresult.cpp
-  result2newick.cpp
   result2stats.cpp
   computeGOscore.cpp
   detectredundancy.cpp
