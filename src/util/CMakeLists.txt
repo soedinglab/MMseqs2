@@ -33,7 +33,6 @@ set(util_source_files
   extractdomains.cpp
   extractalignedregion.cpp
   count.cpp
-  mapresult.cpp
   linearfilter.cpp
 )
 

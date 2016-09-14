@@ -96,8 +96,6 @@ static struct Command commands[] = {
                 "Concatenates two ffindex databases"},
         {"prefixid",            prefixid,               &par.prefixid,              COMMAND_HELPER,
                 "Prepend the index key to each line of the corresponding entry"},
-        {"mapresult",           mapresult,              &par.prefixid,              COMMAND_HELPER,
-                "Maps each line of the input database with the lookup file"},
         {"summarizetabs",       summarizetabs,          &par.summarizetabs,         COMMAND_HELPER,
                 "Extract annotations from HHblits blasttab results"},
         {"extractalignedregion",extractalignedregion,   &par.extractalignedregion,  COMMAND_HELPER,
