@@ -527,11 +527,11 @@ int swapresults(int argc, const char *argv[]) {
     par.parseParameters(argc, argv, usage, par.swapresults, 4);
 
 
-
+    int status = 0;
 #ifdef HAVE_MPI
-    int status = DOSWAP(par, MMseqsMPI::rank, MMseqsMPI::numProc);
+//  status = DOSWAP(par, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
-    int status = DOSWAP(par);
+    status = DOSWAP(par);
 #endif
 
 #ifdef HAVE_MPI
