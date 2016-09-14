@@ -1593,7 +1593,7 @@ int main (int argc, const char * argv[])
 //    }
     std::cout <<"Filterted MSA" << std::endl;
     for(size_t k = 0; k < filterResult.setSize; k++){
-        printf("k=%.3d ", k);
+        printf("k=%.3zu ", k);
         for(size_t pos = 0; pos < res.centerLength; pos++){
             char aa = filterResult.filteredMsaSequence[k][pos];
             printf("%c", (aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-' );
