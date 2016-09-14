@@ -76,7 +76,7 @@ Parameters::Parameters():
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "Admixture paramter b", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "First sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, ""),
 // result2stats
-        PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "Compute a statistic for each entry", typeid(std::string), (void*) &stat, ""),
+        PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "Can be one of: linecount, mean, doolittle, charges.", typeid(std::string), (void*) &stat, ""),
 // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "Kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$"),
 // workflow
