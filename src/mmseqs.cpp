@@ -102,8 +102,6 @@ static struct Command commands[] = {
                 "Extract aligned region of an alignment results"},
         {"extractdomains",      extractdomains,         &par.extractdomains,        COMMAND_HELPER,
                 "Extract annotations from HHblits blasttab results"},
-        {"count",               count,                  &par.count,                 COMMAND_HELPER,
-                "Count number of lines in every entry"},
         {"shellcompletion",     shellcompletion,        &par.empty,                 COMMAND_HIDDEN, ""},
         {"computeGOscore",      computeGOscore,         &par.evaluationscores,      COMMAND_HIDDEN,
                 "Compute GO scores for a result of clustering"},

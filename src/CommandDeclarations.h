@@ -41,7 +41,6 @@ extern int prefixid(int argc, const char** argv);
 extern int summarizetabs(int argc, const char **argv);
 extern int extractalignedregion(int argc, const char** argv);
 extern int extractdomains(int argc, const char **argv);
-extern int count(int argc, const char **argv);
 extern int linearfilter(int argc, const char **argv);
 
 #endif

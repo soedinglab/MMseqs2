@@ -32,7 +32,6 @@ set(util_source_files
   summarizetabs.cpp
   extractdomains.cpp
   extractalignedregion.cpp
-  count.cpp
   linearfilter.cpp
 )
 
