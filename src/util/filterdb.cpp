@@ -2,7 +2,6 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Util.h"
-#include "Log.h"
 #include "Debug.h"
 #include "filterdb.h"
 
@@ -128,14 +127,14 @@ int ffindexFilter::runFilter(){
 #pragma omp for schedule(static)
 		for (size_t id = 0; id < dataDb->getSize(); id++) {
 
-			Log::printProgress(id);
+			Debug::printProgress(id);
 			int thread_idx = 0;
 #ifdef OPENMP
 			thread_idx = omp_get_thread_num();
 #endif
 			char *data = dataDb->getData(id);
 			size_t dataLength = dataDb->getSeqLens(id);
-			size_t counter = 0;
+			int counter = 0;
 			while (*data != '\0') {
 				if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
 					Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";

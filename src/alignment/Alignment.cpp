@@ -2,7 +2,6 @@
 #include "BlastScoreUtils.h"
 #include "Util.h"
 #include "Debug.h"
-#include "Log.h"
 
 #include <list>
 #include <iomanip>
@@ -195,7 +194,6 @@ void Alignment::run(const unsigned int maxAlnNum, const unsigned int maxRejected
     this->closeReader();
 }
 
-
 void Alignment::run (const char * outDB, const char * outDBIndex,
                      const size_t dbFrom, const size_t dbSize,
                      const unsigned int maxAlnNum, const unsigned int maxRejected){
@@ -211,7 +209,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
         size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
 # pragma omp parallel for schedule(dynamic, 100) reduction (+: alignmentsNum, totalPassedNum)
         for (size_t id = start; id < (start + bucketSize); id++){
-            Log::printProgress(id);
+            Debug::printProgress(id);
             int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = omp_get_thread_num();

@@ -8,7 +8,8 @@
 #include "Util.h"
 #include "SequenceLookup.h"
 
-SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize) {
+SequenceLookup::SequenceLookup(size_t dbSize,
+                               size_t entrySize) {
     sequenceCount = dbSize;
     sequence = new(std::nothrow) char*[sequenceCount + 1];
     Util::checkAllocation(sequence, "Could not allocate sequence memory in SequenceLookup");
@@ -39,12 +40,16 @@ SequenceLookup::~SequenceLookup() {
     }
 }
 
-void SequenceLookup::addSequence(Sequence * seq) {
-    sequence[seq->getId()] = currWritePos;
+void SequenceLookup::addSequence(Sequence *  seq, size_t offset){
+    sequence[seq->getId()] = data + offset;
     for(int pos = 0; pos < seq->L; pos++){
         unsigned char aa = seq->int_sequence[pos];
         sequence[seq->getId()][pos] = aa;
     }
+}
+
+void SequenceLookup::addSequence(Sequence * seq) {
+    addSequence(seq, currWritePos - data);
     currWritePos = currWritePos + seq->L;
 }
 

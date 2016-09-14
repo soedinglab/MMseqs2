@@ -56,7 +56,10 @@ class Sequence
 
         // Map char -> int
         void mapSequence(size_t id, unsigned int dbKey, const char *seq);
-    
+
+        // map sequence from SequenceLookup
+        void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
+
         // map profile HMM, *data points to start position of Profile
         void mapProfile(const char *data);
 
@@ -75,11 +78,13 @@ class Sequence
     
         int getCurrentPosition() { return currItPos; }
 
-
         unsigned int getDbKey() { return dbKey; }
     
         int getSeqType() { return seqType; }
 
+        size_t getMaxLen(){ return maxLen; }
+        unsigned int getKmerSize(){ return kmerSize; }
+        bool isSpaced(){ return spaced; }
 
         // reverse the sequence for the match statistics calculation
         void reverse();
@@ -125,6 +130,7 @@ class Sequence
 
         unsigned int getEffectiveKmerSize();
 
+
 private:
         void mapProteinSequence(const char *seq);
         void mapNucleotideSequence(const char *seq);
@@ -160,5 +166,8 @@ private:
 
         // bias correction in profiles
         bool aaBiasCorrection;
+
+        // spaced pattern
+        bool spaced;
 };
 #endif

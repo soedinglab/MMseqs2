@@ -4,6 +4,34 @@
 #include <new>
 #include <SubstitutionMatrix.h>
 #include "QueryMatcher.h"
+#include "Util.h"
+
+
+hit_t parsePrefilterHit(char* data)
+{
+    hit_t result;
+    char *wordCnt[255];
+    size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
+    if (cols>=3)
+    {
+        result.seqId = std::stoul(wordCnt[0],NULL,10);
+        result.prefScore = std::stol(wordCnt[1],NULL,10);
+        result.diagonal = std::stol(wordCnt[2],NULL,10);
+    } else { //error
+        result.seqId = -1;
+    }
+    return result;
+}
+
+
+std::string prefilterHitToString(hit_t h)
+{
+    std::ostringstream resStream;
+    resStream << h.seqId << '\t' << (int)h.prefScore << '\t' << h.diagonal << '\n';
+    return resStream.str();
+}
+
+
 
 #define FE_1(WHAT, X) WHAT(X)
 #define FE_2(WHAT, X, ...) WHAT(X)FE_1(WHAT, __VA_ARGS__)

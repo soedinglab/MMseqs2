@@ -17,6 +17,13 @@ if(GMOCK_FOUND)
 endif()
 endif()
 
+
+set(testindextable TestIndexTable.cpp )
+add_executable(test_indextable ${testindextable} )
+
+target_link_libraries(test_indextable util)
+target_link_libraries(test_indextable workflow)
+
 set(testalignment TestAlignment.cpp )
 add_executable(test_alignment ${testalignment} )
 
@@ -50,7 +57,6 @@ add_executable(testalignment_perf ${testalignment_perf})
 
 target_link_libraries(testalignment_perf util)
 target_link_libraries(testalignment_perf workflow)
-
 
 set(testkmergenerator_perf TestKmerGenerator.cpp )
 add_executable(testkmergenerator_perf ${testkmergenerator_perf})

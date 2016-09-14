@@ -1,7 +1,6 @@
 #include "DBConcat.h"
 #include "DBWriter.h"
 
-#include "Log.h"
 #include "Util.h"
 #include "Debug.h"
 #include "FileUtil.h"
@@ -59,7 +58,7 @@ void DBConcat::concat(bool write) {
     unsigned int maxKeyA = 0;
 #pragma omp parallel for schedule(static) num_threads(threads) reduction(max:maxKeyA)
     for (size_t id = 0; id < indexSizeA; id++) {
-        Log::printProgress(id);
+        Debug::printProgress(id);
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
@@ -85,7 +84,7 @@ void DBConcat::concat(bool write) {
 
 #pragma omp parallel for schedule(static) num_threads(threads)
     for (size_t id = 0; id < indexSizeB; id++) {
-        Log::printProgress(id);
+        Debug::printProgress(id);
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());

@@ -11,15 +11,17 @@ set(prefiltering_source_files
     Prefiltering.h
     PrefilteringIndexReader.cpp
     PrefilteringIndexReader.h
-        QueryMatcher.cpp
+    QueryMatcher.cpp
     QueryMatcher.h
     ReducedMatrix.cpp
     ReducedMatrix.h
     SequenceLookup.cpp
     SequenceLookup.h
     SubstitutionMatrixWithoutX.h
-        UngappedAlignment.cpp
-        UngappedAlignment.h
+    UngappedAlignment.cpp
+    UngappedAlignment.h
+    CacheFriendlyOperations.cpp
+    CacheFriendlyOperations.h
 )
 add_library(prefiltering ${prefiltering_source_files})
 target_link_libraries(prefiltering)

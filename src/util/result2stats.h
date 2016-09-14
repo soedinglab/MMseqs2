@@ -7,7 +7,6 @@
 #include "PSSMCalculator.h"
 #include "DBReader.h"
 #include "DBWriter.h"
-#include "Log.h"
 #include "Util.h"
 #include "Debug.h"
 #include "FileUtil.h"

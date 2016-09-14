@@ -261,6 +261,7 @@ Parameters::Parameters():
     createindex.push_back(PARAM_MAX_SEQ_LEN);
     createindex.push_back(PARAM_SPLIT);
     createindex.push_back(PARAM_SPACED_KMER_MODE);
+    createindex.push_back(PARAM_THREADS);
     createindex.push_back(PARAM_V);
 
     // create db

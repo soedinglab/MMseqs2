@@ -7,7 +7,6 @@
 #include "convertfiles.h"
 #include "DBWriter.h"
 #include "Parameters.h"
-#include "Log.h"
 #include "CompareGOTerms.h"
 
 #include <cmath>
@@ -488,7 +487,7 @@ int numberofthreads=1;
 
 #pragma omp for schedule(dynamic, 100)
             for (unsigned int i = 0; i < seqDbr->getSize(); i++) {
-                Log::printProgress(i);
+                Debug::printProgress(i);
                 int thread_idx = 0;
 #ifdef OPENMP
                 thread_idx = omp_get_thread_num();

@@ -39,14 +39,14 @@ public:
     static void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
                             const std::vector<std::pair<std::string, std::string>> &filenames);
 
-    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
+    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, int threads); // needed for index lookup
 
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
                                           int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
-                                          bool diagonalScoring);
+                                          bool diagonalScoring, int threads);
 
     static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
-                             size_t dbFrom, size_t dbTo);
+                             size_t dbFrom, size_t dbTo, int threads);
 
     // get substitution matrix
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, int alphabetSize, float bitFactor,
@@ -114,11 +114,11 @@ private:
 
     // init QueryTemplateMatcher
     QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
-                                                      unsigned int *seqLens, short kmerThr,
-                                                      double kmerMatchProb, int kmerSize,
-                                                      size_t effectiveKmerSize, size_t dbSize,
-                                                      bool aaBiasCorrection, bool diagonalScoring,
-                                                      unsigned int maxSeqLen, size_t maxHitsPerQuery);
+                                              unsigned int *seqLens, short kmerThr,
+                                              double kmerMatchProb, int kmerSize,
+                                              size_t effectiveKmerSize, size_t dbSize,
+                                              bool aaBiasCorrection, bool diagonalScoring,
+                                              unsigned int maxSeqLen, size_t maxHitsPerQuery);
 
 
     void printStatistics(const statistics_t &stats, size_t empty);

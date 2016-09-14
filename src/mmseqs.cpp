@@ -4,6 +4,7 @@
 #include "Parameters.h"
 
 #include <iomanip>
+#include <CpuInfo.h>
 
 Parameters par;
 
@@ -113,6 +114,8 @@ static struct Command commands[] = {
 };
 
 
+void checkCpu();
+
 void printUsage() {
     std::stringstream usage;
     usage << "All available MMseqs commands\n";
@@ -202,6 +205,7 @@ int shellcompletion(int argc, const char** argv) {
 }
 
 int main(int argc, const char **argv) {
+    checkCpu();
     if (argc < 2) {
         printUsage();
         EXIT(EXIT_FAILURE);
@@ -221,4 +225,29 @@ int main(int argc, const char **argv) {
     }
 
     return 0;
+}
+
+void checkCpu() {
+    CpuInfo info;
+    if(info.HW_x64 == false) {
+        Debug(Debug::ERROR) << "64 bit system is required to run MMseqs.\n";
+        EXIT(EXIT_FAILURE);
+    }
+#ifdef SEE
+    if(info.HW_SSE41 == false) {
+        Debug(Debug::ERROR) << "SSE4.1 is required to run MMseqs.\n";
+        EXIT(EXIT_FAILURE);
+    }
+#endif
+#ifdef AVX2
+    if(info.HW_AVX2 == false){
+        Debug(Debug::ERROR) << "Your machine does not support AVX2.\n";
+        if(info.HW_SSE41 == true) {
+            Debug(Debug::ERROR) << "Please compile with SSE4.1 cmake -DHAVE_SSE4_1=1 \n";
+        }else{
+            Debug(Debug::ERROR) << "SSE 4.1 is the minimum requirement to run MMseqs.\n";
+        }
+        EXIT(EXIT_FAILURE);
+    }
+#endif
 }
