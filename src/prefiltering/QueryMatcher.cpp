@@ -27,7 +27,7 @@ hit_t parsePrefilterHit(char* data)
 std::string prefilterHitToString(hit_t h)
 {
     std::ostringstream resStream;
-    resStream << h.seqId << '\t' << h.prefScore << '\t' << h.diagonal;
+    resStream << h.seqId << '\t' << (int)h.prefScore << '\t' << h.diagonal << '\n';
     return resStream.str();
 }
 
