@@ -407,7 +407,7 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
 
         char *wordCnt[255];
         size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
-        if (cols <= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+        if (cols >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
         
             std::vector<Matcher::result_t> alnRes = Matcher::readAlignmentResults(data);
             for (size_t j = 0; j < alnRes.size(); j++) {
@@ -443,7 +443,7 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
             }
 
         } else // prefilter case
-        { //TODO Test it !!!
+        { 
             char* curData = data;
             
             while(*curData != '\0')
