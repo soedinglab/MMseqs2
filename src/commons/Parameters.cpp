@@ -423,9 +423,9 @@ void Parameters::printUsageMessage(const std::string &programUsageHeader,
             {"prefilter",MMseqsParameter::COMMAND_PREFILTER},
             {"align",    MMseqsParameter::COMMAND_ALIGN},
             {"clust",    MMseqsParameter::COMMAND_CLUST},
-            {"common",   MMseqsParameter::COMMAND_COMMON},
-            {"misc",     MMseqsParameter::COMMAND_MISC},
             {"profile",  MMseqsParameter::COMMAND_PROFILE},
+            {"misc",     MMseqsParameter::COMMAND_MISC},
+            {"common",   MMseqsParameter::COMMAND_COMMON},
     };
 
     size_t maxWidth = 0;
