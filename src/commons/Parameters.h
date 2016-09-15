@@ -8,6 +8,8 @@
 #include <vector>
 #include <typeinfo>
 
+#define CITATION "\nPlease cite: \nM. Steinegger and J. Soding.  Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv XXXX (2016).\n"
+
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
 

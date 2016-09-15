@@ -148,10 +148,12 @@ void setDbConcatDefault(Parameters *par) {
 }
 
 int concatdbs(int argc, const char **argv) {
-    std::string usage("Concatenates two ffindex DB.\n");
-    usage.append("USAGE: <DB1> <DB2> <outDB>\n");
-    usage.append("\nDesigned and implemented by Clovis Galiez <clovis.galiez@mpibpc.mpg.de>\n");
-
+    std::string usage("Concatenates two databases (disjoint union) into one unique database.");
+    usage.append("The keys of the first database DB1 will be preserved, the keys of the second database DB2 will start incrementally after the last key of DB1.\n");
+    usage.append(CITATION);
+    usage.append("\n© Clovis Galiez & Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n\n");
+    usage.append("Usage: <DB1> <DB2> <outDB>\n");
+    
     Parameters par;
     setDbConcatDefault(&par);
     par.parseParameters(argc, argv, usage, par.dbconcat, 3);
