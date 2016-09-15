@@ -646,11 +646,12 @@ int result2profile(int argc, const char **argv) {
 int result2msa(int argc, const char **argv) {
     MMseqsMPI::init(argc, argv);
 
-    std::string usage("Calculates MSAs from a result.\n");
-    usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
-    usage.append("\t & Milot Mirdita <milot@mirdita.de>");
-    usage.append("\t & Clovis Galiez <clovis.galiez@mpibpc.mpg.de>");
+    std::string usage("Convert an alignment result database to a multiple sequence alignment file.\n");
+    
+    usage.append(CITATION);
+    usage.append("\n© Martin Steinegger (martin.steinegger@mpibpc.mpg.de) &  Milot Mirdita &  Clovis Galiez.\n");
+    usage.append("Usage: <queryDB> <targetDB> <resultDB> <outDB>\n");
+   
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.result2msa, 4);

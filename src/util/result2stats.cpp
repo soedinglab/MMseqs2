@@ -284,9 +284,11 @@ int statsComputer::sequenceWise(float (statsComputer::*statFunction)(char*))
 int result2stats(int argc, const char **argv) {
     //MMseqsMPI::init(argc, argv);
 
-    std::string usage("Compute statistics from a result.\n");
-    usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
-    usage.append("\nDesigned and implemented by Clovis Galiez <clovis.galiez@mpibpc.mpg.de>\n");
+    std::string usage("Compute user-defined statistics for each entry of a sequence or result database.\n");
+    usage.append(CITATION);
+    usage.append("\n© Clovis Galiez & Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n");
+    usage.append("Usage: <queryDB> <targetDB> <resultDB> <outDB>\n");
+    
     
     
     Parameters par;

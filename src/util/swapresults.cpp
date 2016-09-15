@@ -466,7 +466,7 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
 }
 
 
-int doSwapSortOpt(Parameters &par)
+int doSwapSort(Parameters &par)
 {
     
     std::vector<alnResultEntry> resMap;
@@ -482,6 +482,48 @@ int doSwapSortOpt(Parameters &par)
 }
 
 
+int doSwapSortMPI(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
+    
+    
+    std::vector<std::pair<unsigned int, std::string*>> swap = readSwap(par.db3.c_str(), par.db3Index.c_str());
+
+    size_t dbFrom = 0;
+    size_t dbSize = 0;
+    Util::decomposeDomain(swap.size(), mpiRank, mpiNumProc, &dbFrom, &dbSize);
+
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, mpiRank);
+    int status = doSwap(par, swap, tmpOutput, dbFrom, dbSize);
+
+#ifdef HAVE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+
+    // master reduces results
+    if (mpiRank == 0) {
+        std::vector<std::pair<std::string, std::string>> splitFiles;
+        for (unsigned int proc = 0; proc < mpiNumProc; ++proc) {
+            splitFiles.push_back(Util::createTmpFileNames(par.db4, par.db4Index, proc));
+        }
+        Alignment::mergeAndRemoveTmpDatabases(par.db4, par.db4Index, splitFiles);
+    }
+
+    return status;
+}
+/*
+    
+    std::vector<alnResultEntry> resMap;
+    swapAlnResults(par, &resMap);
+    
+    omptl::sort(resMap.begin(),resMap.end(),compareKey()); // sort by target id
+    
+    writeSwappedResults(par,&resMap);
+    
+ 
+    return 0;
+  
+}
+*/
+
 int doSwap(Parameters &par) {
     std::vector<std::pair<unsigned int, std::string*>> swap = readSwap(par.db3.c_str(), par.db3Index.c_str());
 
@@ -492,8 +534,7 @@ int doSwap(Parameters &par) {
 }
 
 
-//#define DOSWAP doSwap
-#define DOSWAP doSwapSortOpt
+
 
 int swapresults(int argc, const char *argv[]) {
     MMseqsMPI::init(argc, argv);
@@ -508,9 +549,9 @@ int swapresults(int argc, const char *argv[]) {
 
     int status = 0;
 #ifdef HAVE_MPI
-//  status = DOSWAP(par, MMseqsMPI::rank, MMseqsMPI::numProc);
+  status = doSwapSortMPI(par, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
-    status = DOSWAP(par);
+    status = doSwapSort(par);
 #endif
 
 #ifdef HAVE_MPI
