@@ -93,6 +93,9 @@ statsComputer::statsComputer(Parameters &par)//:par(par)
                 chargeValues[k->first] = chargeSign[k->first] /(1+pow(10,(chargeSign[k->first] * (pH - pKs[k->first]))));
 
         stat = STAT_CHARGES;
+    }  else if (par.stat == STAT_SEQLEN_STR)
+    {
+        stat = STAT_SEQLEN;
     } else {
         stat = STAT_UNKNOWN;
         Debug(Debug::WARNING) << "Unrecognized statistics: " << par.stat << "\n";
@@ -130,6 +133,8 @@ int statsComputer::run(){
             return sequenceWise(&statsComputer::doolittle);
         case STAT_CHARGES:
             return sequenceWise(&statsComputer::charges);
+        case STAT_SEQLEN:
+            return sequenceWise(&statsComputer::strlen);
         default:
             return 0;
         
@@ -217,6 +222,10 @@ int statsComputer::meanValue()
     }
     return 0;
     
+}
+
+float statsComputer::strlen(char *seq) {
+    return (float)std::strlen(seq);
 }
 
 float statsComputer::doolittle(char *seq) {
