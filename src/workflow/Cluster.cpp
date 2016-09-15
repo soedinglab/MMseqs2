@@ -106,7 +106,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.diagonalScoring = 0;
         par.compBiasCorrection = 0;
 
-        cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.clustlinear).c_str());
+        cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("CLUSTER0_PAR", par.createParameterString(par.clust).c_str());
 
@@ -119,21 +119,21 @@ int clusteringworkflow(int argc, const char *argv[]) {
         par.compBiasCorrection = 1;
         par.minDiagScoreThr = minDiagScoreThr;
 
-        cmd.addVariable("PREFILTER1_PAR", par.createParameterString(par.clustlinear).c_str());
+        cmd.addVariable("PREFILTER1_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT1_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("CLUSTER1_PAR", par.createParameterString(par.clust).c_str());
 
         // set parameter for second step
         par.sensitivity = targetSensitivity * (2.0 / 3.0);
         par.maxResListLen = 200;
-        cmd.addVariable("PREFILTER2_PAR", par.createParameterString(par.clustlinear).c_str());
+        cmd.addVariable("PREFILTER2_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT2_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("CLUSTER2_PAR", par.createParameterString(par.clust).c_str());
 
         // set parameter for last step
         par.sensitivity = targetSensitivity;
         par.maxResListLen = maxResListLen;
-        cmd.addVariable("PREFILTER3_PAR", par.createParameterString(par.clustlinear).c_str());
+        cmd.addVariable("PREFILTER3_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("CLUSTER3_PAR", par.createParameterString(par.clust).c_str());
         FileUtil::writeFile(par.db3 + "/cascaded_clustering.sh", cascaded_clustering_sh, cascaded_clustering_sh_len);
@@ -141,7 +141,7 @@ int clusteringworkflow(int argc, const char *argv[]) {
         cmd.execProgram(program.c_str(), 3, argv);
     } else {
         cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.clusthash).c_str());
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.clustlinear).c_str());
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
         FileUtil::writeFile(par.db3 + "/clustering.sh", clustering_sh, clustering_sh_len);

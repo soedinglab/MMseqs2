@@ -30,7 +30,7 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
     if(realign == true){
         par.alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_ONLY;
         if(addBacktrace == false){
-            Debug(Debug::ERROR) << "Realign is just useful in combination with --add-backtrace.\n";
+            Debug(Debug::ERROR) << "Realign is just useful in combination with -a.\n";
             EXIT(EXIT_FAILURE);
         }
     }

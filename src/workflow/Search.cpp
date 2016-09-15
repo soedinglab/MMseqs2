@@ -35,9 +35,14 @@ int search(int argc, const char *argv[]) {
     cmd.addVariable("TARGET_DB_PREF", templateDB.c_str());
 
     if (par.numIterations > 1) {
+        for (size_t i = 0; i < par.searchworkflow.size(); i++) {
+            if (par.searchworkflow[i].uniqid == par.PARAM_E_PROFILE.uniqid && par.searchworkflow[i].wasSet== false) {
+                par.evalProfile = 0.001;
+            }
+        }
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
         cmd.addVariable("PROFILE", SSTR((par.profile) ? 1 : 0).c_str());
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.clustlinear).c_str());
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.result2profile).c_str());
         cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
@@ -64,9 +69,9 @@ int search(int argc, const char *argv[]) {
         }
 
         std::vector<MMseqsParameter> prefilterWithoutS;
-        for(size_t i = 0; i < par.clustlinear.size(); i++){
-            if(par.clustlinear[i].uniqid != par.PARAM_S.uniqid ){
-                prefilterWithoutS.push_back(par.clustlinear[i]);
+        for(size_t i = 0; i < par.prefilter.size(); i++){
+            if(par.prefilter[i].uniqid != par.PARAM_S.uniqid ){
+                prefilterWithoutS.push_back(par.prefilter[i]);
             }
         }
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());

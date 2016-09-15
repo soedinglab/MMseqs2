@@ -60,7 +60,7 @@ while [ $STEP -lt $NUM_IT ]; do
 	fi
 	# call alignment module
 	if notExists "$TMP_PATH/aln_$STEP"; then
-        $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN --add-backtrace
+        $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN -a
         checkReturnCode "Alignment died"
     fi
 
