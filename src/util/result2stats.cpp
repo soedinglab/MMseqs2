@@ -154,9 +154,14 @@ statsComputer::~statsComputer()
 
 int statsComputer::countNumberOfLines()
 {
+    #pragma omp parallel
     for (size_t id = 0; id < resultReader->getSize(); id++) {
             Debug::printProgress(id);
             unsigned int thread_idx = 0;
+            #ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+            #endif
+
             unsigned int lineCount(0);
             std::string lineCountString;
             

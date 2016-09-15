@@ -53,7 +53,7 @@ echo "======= Search the new sequences against =========="
 echo "========= previous (rep seq of) clusters =========="
 echo "==================================================="
 notExists "$TMP/newSeqsHits" && $RUNNER $MMSEQS search $TMP/NEWDB.newSeqs $TMP/OLDDB.mapped.repSeq $TMP/newSeqsHits $TMP --max-seqs 1 $SEARCH_PAR && checkReturnCode "Search died"
-notExists "$TMP/newSeqsHits.swapped.all" && $MMSEQS swapresults $TMP/NEWDB.newSeqs $TMP/OLDDB.mapped.repSeq $TMP/newSeqsHits $TMP/newSeqsHits.swapped.all --split 1  && checkReturnCode "Swapresults died"
+notExists "$TMP/newSeqsHits.swapped.all" && $MMSEQS swapresults $TMP/NEWDB.newSeqs $TMP/OLDDB.mapped.repSeq $TMP/newSeqsHits $TMP/newSeqsHits.swapped.all && checkReturnCode "Swapresults died"
 notExists "$TMP/newSeqsHits.swapped" && $MMSEQS filterdb $TMP/newSeqsHits.swapped.all $TMP/newSeqsHits.swapped --trim-to-one-column && checkReturnCode "Trimming died"
 
 echo "==================================================="
