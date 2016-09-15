@@ -645,9 +645,7 @@ int result2profile(int argc, const char **argv) {
 
 int result2msa(int argc, const char **argv) {
     MMseqsMPI::init(argc, argv);
-
     std::string usage("Convert an alignment result database to a multiple sequence alignment file.\n");
-    
     usage.append(CITATION);
     usage.append("\n© Martin Steinegger (martin.steinegger@mpibpc.mpg.de) &  Milot Mirdita &  Clovis Galiez.\n");
     usage.append("Usage: <queryDB> <targetDB> <resultDB> <outDB>\n");

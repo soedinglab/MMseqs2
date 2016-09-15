@@ -12,9 +12,10 @@
 
 
 int clusterupdate (int argc, const char * argv[]){
-    std::string usage("\nUpdates the existing clustering of the previous database version with new sequences from the current version of the same database.\n");
-    usage.append("Written by Clovis Galiez (clovis.galiez@mpibpc.mpg.de)\n");
-    usage.append("USAGE: clusterupdate <oldDB> <newDB> <oldDB_clustering> <newDB_clustering> <tmpDir> [opts]\n");
+    std::string usage("\nCreate a clustering of a database newDB by update a clustering of an older version oldDB of newDB.\n");
+    usage.append(CITATION);
+    usage.append("\n© Clovis Galiez & Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n");
+    usage.append("Usage: clusterupdate <oldDB> <newDB> <oldDB_clustering> <newDB_clustering> <tmpDir> [opts]\n");
 
     Parameters par;
     par.parseParameters(argc, argv, usage, par.clusterUpdate, 5);
