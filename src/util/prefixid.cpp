@@ -11,7 +11,7 @@
 #endif
 
 int prefixid(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
 #ifdef OPENMP

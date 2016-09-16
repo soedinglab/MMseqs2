@@ -16,7 +16,7 @@
 
 int main (int argc, const char * argv[])
 {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     std::cout << "Subustitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);

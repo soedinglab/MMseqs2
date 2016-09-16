@@ -56,7 +56,7 @@ int convertkb(int argc, const char **argv, const Command& command) {
     UniprotKB kb;
     size_t columns = static_cast<unsigned int>(kb.getColumnCount());
 
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     setConvertKbDefaults(&par, columns);
     par.parseParameters(argc, argv, command, 2);
 

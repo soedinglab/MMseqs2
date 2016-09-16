@@ -14,7 +14,7 @@
 int main (int argc, const char * argv[])
 {
     const int reductionAlphabetSize = 5;
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0);
     subMat.print(subMat.subMatrix, subMat.int2aa,21);
     for(int i = 0; i<subMat.alphabetSize;i++)

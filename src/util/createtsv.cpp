@@ -7,7 +7,7 @@
 
 
 int createtsv (int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
     Debug(Debug::WARNING) << "Query file is " <<  par.db1 << "\n";

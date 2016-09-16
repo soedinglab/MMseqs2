@@ -7,7 +7,7 @@
 #include "Debug.h"
 
 int createsubdb(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
     DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str());

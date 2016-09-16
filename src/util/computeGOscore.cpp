@@ -4,7 +4,7 @@
 #include "CompareGOTerms.h"
 
 int computeGOscore(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 5);
 
     std::string gofolder = par.db1;

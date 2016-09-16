@@ -14,7 +14,7 @@
 #include "Parameters.h"
 int main (int argc, const char * argv[])
 {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
 
     const size_t kmer_size=6;
 

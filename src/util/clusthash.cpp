@@ -48,7 +48,7 @@ void setClustHashDefaults(Parameters *p) {
 }
 
 int clusthash(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     setClustHashDefaults(&par);
     par.parseParameters(argc, argv, command, 2);
 #ifdef OPENMP

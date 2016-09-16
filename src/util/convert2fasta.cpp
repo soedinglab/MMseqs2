@@ -16,7 +16,7 @@ const char header_start[] = {'>'};
 const char newline[] = {'\n'};
 
 int convert2fasta(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
     std::string data_filename = par.db1;

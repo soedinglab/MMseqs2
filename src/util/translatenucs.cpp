@@ -14,7 +14,7 @@
 #include "Util.h"
 
 int translatenucs(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
     std::string in_header_filename = std::string(par.db1 + "_h");

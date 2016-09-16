@@ -295,7 +295,7 @@ int statsComputer::sequenceWise(float (statsComputer::*statFunction)(char*))
 }
 
 int result2stats(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
     //MMseqsMPI::init(argc, argv);

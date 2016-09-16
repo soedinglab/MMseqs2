@@ -82,7 +82,7 @@ size_t computeMemoryNeededLinearfilter(size_t totalKmer) {
 }
 
 int clustlinear(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     setLinearFilterDefault(&par);
     par.parseParameters(argc, argv, command, 2, true, false, MMseqsParameter::COMMAND_CLUSTLINEAR);
 #ifdef OPENMP

@@ -253,6 +253,12 @@ public:
     
     // concatdbs
     bool preserveKeysB;
+
+    static Parameters& getInstance()
+    {
+        static Parameters instance;
+        return instance;
+    }
     
     void checkSaneEnvironment();
     void setDefaults();
@@ -268,8 +274,7 @@ public:
                          const std::vector<MMseqsParameter> &par);
 	
 	std::vector<MMseqsParameter> removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x);
-	
-    Parameters();
+
     ~Parameters(){};
 
     PARAMETER(PARAM_S)
@@ -469,6 +474,10 @@ public:
                                               std::vector<MMseqsParameter> &par2);
 
     std::string createParameterString(std::vector < MMseqsParameter > &vector);
+private:
+    Parameters();
+    Parameters(Parameters const&);
+    void operator=(Parameters const&);
 
 };
 

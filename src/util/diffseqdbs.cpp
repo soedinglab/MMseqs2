@@ -37,7 +37,7 @@ struct compareKeyToFirstEntry {
 };
 
 int diffseqdbs(int argc, const char **argv, const Command& command) {
-	Parameters par;
+	Parameters& par = Parameters::getInstance();
 	par.parseParameters(argc, argv, command, 5);
 
 #ifdef OPENMP

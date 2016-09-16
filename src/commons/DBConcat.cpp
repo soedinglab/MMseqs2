@@ -148,7 +148,7 @@ void setDbConcatDefault(Parameters *par) {
 }
 
 int concatdbs(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     setDbConcatDefault(&par);
     par.parseParameters(argc, argv, command, 3);
 

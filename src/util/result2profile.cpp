@@ -617,7 +617,7 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
 }
 
 int result2profile(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
     MMseqsMPI::init(argc, argv);
@@ -644,7 +644,7 @@ int result2profile(int argc, const char **argv, const Command& command) {
 }
 
 int result2msa(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
     MMseqsMPI::init(argc, argv);

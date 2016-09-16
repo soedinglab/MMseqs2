@@ -12,7 +12,7 @@
 #include <omp.h>
 #endif
 int prefilter(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, false, MMseqsParameter::COMMAND_PREFILTER );
 
     MMseqsMPI::init(argc, argv);

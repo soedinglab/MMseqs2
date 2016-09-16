@@ -15,7 +15,7 @@
 #include "Util.h"
 
 int gff2db(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
     std::string headerFilename(par.db2);

@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <CpuInfo.h>
 
-Parameters par;
+Parameters& par = Parameters::getInstance();
 
 static struct Command commands[] = {
 // Main tools  (for non-experts)

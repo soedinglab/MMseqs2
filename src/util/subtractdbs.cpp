@@ -128,7 +128,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
 }
 
 int subtractdbs(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
     struct timeval start, end;

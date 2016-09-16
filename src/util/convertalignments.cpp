@@ -43,7 +43,7 @@ void printSeqBasedOnAln(FILE * out, char *seq, unsigned int offset, std::string 
 }
 
 int convertalignments(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
     DBReader<unsigned int> * query = NULL;

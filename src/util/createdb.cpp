@@ -22,7 +22,7 @@
 
 KSEQ_INIT(int, read)
 int createdb(int argn, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argn, argv, command, 2);
 
     if(par.maxSeqLen == Parameters::MAX_SEQ_LEN){

@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 {
 
     size_t kmer_size = 6;
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(),
                               8.0, 0.0);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);

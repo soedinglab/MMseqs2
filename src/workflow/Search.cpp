@@ -8,7 +8,7 @@
 #include "Debug.h"
 #include "Parameters.h"
 int search(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, true, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
 
     CommandCaller cmd;

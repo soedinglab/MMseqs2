@@ -35,7 +35,7 @@ std::pair<float, bool> setAutomaticThreshold(float seqId) {
 }
 
 int clusteringworkflow(int argc, const char **argv, const Command& command) {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, 3);
 
