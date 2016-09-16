@@ -142,3 +142,15 @@ The other three commands execute the single modules which are used by the workfl
 * `result2profile`    	Compute profile and consensus DB from a prefilter, alignment or cluster DB
 * `result2msa`        	Generate MSAs for queries by locally aligning their matched targets in prefilter/alignment/cluster DB
 * `result2stats`      	Compute statistics for each entry in a sequence, prefilter, alignment or cluster DB
+* 
+### Special-purpose utilities
+* `diffseqdbs`        	Find IDs of sequences kept, added and removed between two versions of sequence DB
+* `concatdbs`         	Concatenate two DBs, giving new IDs to entries from second input DB
+* `summarizetabs`     	Extract annotations from HHblits BAST-tab-formatted results
+* `gff2db`            	Turn a gff3 (generic feature format) file into a gff3 DB
+* `maskbygff`         	X out sequence regions in a sequence DB by features in a gff3 file
+* `prefixid`          	For each entry in a DB prepend the entry ID to the entry itself
+* `convertkb`         	Convert UniProt knowledge flat file into knowledge DB for the selected column types
+* `summarizeheaders`  	Return a new summarized header DB from the UniProt headers of a cluster DB
+* `extractalignedregion`	Extract aligned sequence region
+* `extractdomains`    	Extract highest scoring alignment region for each sequence from BLAST-tab file
