@@ -20,13 +20,13 @@ static struct Command commands[] = {
         {"search",               search,               &par.searchworkflow,       COMMAND_MAIN,
             "Search with query sequence or profile DB (iteratively) through target sequence DB",
             "Searches with the sequences or profiles query DB through the target sequence DB by running the prefilter tool and the align tool for Smith-Waterman alignment. For each query a results file with sequence matches is written as entry into a database of search results (“alignmentDB”).\nIn iterative profile search mode, the detected sequences satisfying user-specified criteria are aligned to the query MSA, and the resulting query profile is used for the next search iteration. Iterative profile searches are usually much more sensitive than (and at least as sensitive as) searches with single query sequences.",
-            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Maria Hauser",
+            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:queryDB> <i:targetDB> <o:alignmentDB> <tmpDir>",
             CITATION_MMSEQS2},
         {"cluster",              clusteringworkflow,   &par.clusteringWorkflow,   COMMAND_MAIN,
             "Compute clustering of a sequence DB (quadratic time)",
             "Clusters sequences by similarity. It compares all sequences in the sequence DB with each other using mmseqs search, filters alignments according to user-specified criteria (max. E-value, min. coverage,...),   and runs mmseqs clust to group similar sequences together into clusters.",
-            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Lars von den Driesch & Maria Hauser",
+            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Lars von den Driesch",
             "<i:queryDB> <i:targetDB> <o:clusterDB> <tmpDir>",
             CITATION_MMSEQS2|CITATION_MMSEQS1},
         {"createindex",          createindex,          &par.createindex,          COMMAND_MAIN,
@@ -39,7 +39,7 @@ static struct Command commands[] = {
         {"createtsv",            createtsv,            &par.onlyverbosity,        COMMAND_FORMAT_CONVERSION,
             "Create tab-separated flat file from prefilter DB, alignment DB, or cluster DB",
             NULL,
-            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Maria Hauser",
+            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>r",
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:tsvFile>",
             CITATION_MMSEQS2},
         {"convertalis",          convertalignments,    &par.convertalignments,    COMMAND_FORMAT_CONVERSION,
@@ -63,7 +63,7 @@ static struct Command commands[] = {
         {"result2flat",          result2flat,          &par.onlyverbosity,        COMMAND_FORMAT_CONVERSION,
             "Create a FASTA-like flat file from prefilter DB, alignment DB, or cluster DB",
             NULL,
-            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Maria Hauser",
+            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:fastaDB>",
             CITATION_MMSEQS2},
 // Utility tools for clustering
@@ -89,7 +89,7 @@ static struct Command commands[] = {
         {"prefilter",            prefilter,            &par.prefilter,            COMMAND_EXPERT,
             "Search with query sequence / profile DB through target DB (k-mer matching + ungapped alignment)",
             "Searches with the sequences or profiles in query DB through the target sequence DB in two consecutive stages: a very fast k-mer matching stage (double matches on same diagonal) and a subsequent ungapped alignment stage. For each query a results file with sequence matches is written as entry into the prefilter DB.",
-            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Maria Hauser ",
+            "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Maria Hauser",
             "<i:queryDB> <i:targetDB> <o:prefilterDB>",
             CITATION_MMSEQS2},
         {"align",                align,                &par.align,                COMMAND_EXPERT,
@@ -273,7 +273,7 @@ void printUsage() {
 #undef str
 #undef str2
 #endif
-    usage << "(C) Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser)\n";
+    usage << "(C) Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n";
 
     struct {
         const char* title;
