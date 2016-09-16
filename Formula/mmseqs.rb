@@ -1,7 +1,7 @@
 class Mmseqs < Formula
   desc "MMseqs (Many-against-Many sequence searching) is a software suite for very fast protein sequence searches and clustering of huge protein sequence data sets."
   homepage "https://github.com/soedinglab/mmseqs"
-  head "git@bitbucket.org:soedinglab/mmseqs-dev.git", :using => :git
+  head "git@github.com:soedinglab/mmseqs2.git", :using => :git
 
   option "with-tests", "Build MMseqs test utils"
 
