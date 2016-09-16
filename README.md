@@ -4,8 +4,18 @@ MMseqs2 (Many-against-Many searching) is a software suite to search and cluster 
 MMseqs2 has not just improved in sensitivity and speed it also improved usability through several helper tools. The utilities comprise tools for format conversion, multiple sequence alignment, sequence profile calculation, 6-frame translation for ORF extraction, set operations on sequence sets, regex-based filters, and statistics tools to analyse results.
 
 ## Installation
-The manuscript for MMseqs2 is still in preparations therefore we can just offer static compiled binaries. We hope that the full source code will be available within the next weeks.
+### Compile
+Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which might improve its performance. To compile mmseqs `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in in `build/bin/`.
 
+        git clone https://github.com/soedinglab/MMseqs2.git
+        cd mmseqs
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
+        make
+        make install 
+        
+        
 ### Static version
 The following command will download the last MMseqs version, extract it and set the environment variables.
 
