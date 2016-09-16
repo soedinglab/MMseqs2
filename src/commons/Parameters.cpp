@@ -73,7 +73,7 @@ Parameters::Parameters():
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (0.0,infinity)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
-        PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_PROFILE),
+        //PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_PROFILE),
 // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen.", typeid(std::string), (void*) &stat, ""),
 // linearcluster
@@ -206,7 +206,7 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_PCB);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
-    result2profile.push_back(PARAM_FIRST_SEQ_REP_SEQ);
+    //result2profile.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
     //result2stats
     result2stats.push_back(PARAM_STAT);
@@ -233,7 +233,7 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_SUMMARIZE_HEADER);
     result2msa.push_back(PARAM_SUMMARY_PREFIX);
     result2msa.push_back(PARAM_REPSEQ);
-    result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
+    //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
     // extract orf
     extractorfs.push_back(PARAM_ORF_MIN_LENGTH);
@@ -810,7 +810,6 @@ void Parameters::setDefaults() {
     wg = false;
     pca = 1.0;
     pcb = 1.5;
-    firstSeqRepr = false;
     useConsensus = true;
 
     // logging
