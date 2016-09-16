@@ -13,7 +13,7 @@ int search(int argc, const char *argv[]) {
     usage.append("USAGE: mmseqs search <queryDB> <targetDB> <outDB> <tmpDir> [opts]\n");
 
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.searchworkflow, 4);
+    par.parseParameters(argc, argv, usage, par.searchworkflow, 4, true, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
 
     CommandCaller cmd;
 
