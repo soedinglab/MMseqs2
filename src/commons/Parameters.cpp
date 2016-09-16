@@ -15,11 +15,11 @@
 
 Parameters::Parameters():
         PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity in the range [1.0:10.0]. From low (1.0) to high (10.0) sensitivity.", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
-        PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7]",typeid(int),  (void *) &kmerSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
+        PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7]",typeid(int),  (void *) &kmerSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
-        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "amino acid alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
+        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "amino acid alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
-        PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "HMM Profile input",typeid(bool),(void *) &profile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN),
+        PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "query database is a profile DB",typeid(bool),(void *) &profile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
 //PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-diag-score", "Minimum Diagonal score", "accepts only hits with a ungapped diagonal score above the min score threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
@@ -29,19 +29,19 @@ Parameters::Parameters():
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "split mode", "MPI Option: db set: 0 (low memory), query set: 1 (faster but memory intensive) or auto: 2 (computes best mode)",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$"),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON),
-        PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN),
+        PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
         PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "spaced Kmer", "Spaced kmers mode (use consecutive pattern). Disable: 0, Enable: 1",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, ""),
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--include-id", "include identical Seq. Id.","include alignments to targets with identical ID as query (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN),
         PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
 // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
-        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "mximum E-value of matches [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
-        PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "minimum fraction of query residues covered by alignment [0.0,1.0]",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) query residues",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "compute more conservative, shorter alignments (scores and E-values not changed)", typeid(bool), (void *) &realign, "", MMseqsParameter::COMMAND_ALIGN),
-        PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","minimum sequence identity of query and target sequence (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_FRAG_MERGE(PARAM_FRAG_MERGE_ID,"--frag-merge", "Detect fragments", "include alignments with cov > 0.95 and seq. id > 0.90 (for clustering)",typeid(bool), (void *) &fragmentMerge, "", MMseqsParameter::COMMAND_ALIGN),
 
 // clustering
@@ -77,7 +77,7 @@ Parameters::Parameters():
 // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges.", typeid(std::string), (void*) &stat, ""),
 // linearcluster
-        PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "kmer per sequence", "Kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$"),
+        PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "kmer per sequence", "Kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
 // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","sets the MPI runner",typeid(std::string),(void *) &runner, ""),
 // search workflow
@@ -136,14 +136,14 @@ Parameters::Parameters():
     align.push_back(PARAM_ADD_BACKTRACE);
     align.push_back(PARAM_ALIGNMENT_MODE);
     align.push_back(PARAM_E);
+    align.push_back(PARAM_MIN_SEQ_ID);
+    align.push_back(PARAM_C);
     align.push_back(PARAM_MAX_SEQ_LEN);
     align.push_back(PARAM_MAX_SEQS);
     align.push_back(PARAM_NO_COMP_BIAS_CORR);
 //    alignment.push_back(PARAM_NUCL);
     align.push_back(PARAM_PROFILE);
     align.push_back(PARAM_REALIGN);
-    align.push_back(PARAM_MIN_SEQ_ID);
-    align.push_back(PARAM_C);
     align.push_back(PARAM_MAX_REJECTED);
     align.push_back(PARAM_FRAG_MERGE);
     align.push_back(PARAM_INCLUDE_IDENTITY);
@@ -413,7 +413,8 @@ Parameters::Parameters():
 }
 
 void Parameters::printUsageMessage(const std::string &programUsageHeader,
-                                   const std::vector<MMseqsParameter> &parameters){
+                                   const std::vector<MMseqsParameter> &parameters,
+                                   const int outputFlag){
     std::ostringstream ss;
     ss << programUsageHeader << std::endl;
 
@@ -424,6 +425,7 @@ void Parameters::printUsageMessage(const std::string &programUsageHeader,
             {"prefilter",MMseqsParameter::COMMAND_PREFILTER},
             {"align",    MMseqsParameter::COMMAND_ALIGN},
             {"clust",    MMseqsParameter::COMMAND_CLUST},
+            {"clustlinear", MMseqsParameter::COMMAND_CLUSTLINEAR},
             {"profile",  MMseqsParameter::COMMAND_PROFILE},
             {"misc",     MMseqsParameter::COMMAND_MISC},
             {"common",   MMseqsParameter::COMMAND_COMMON},
@@ -433,6 +435,7 @@ void Parameters::printUsageMessage(const std::string &programUsageHeader,
     for(size_t i = 0; i < parameters.size(); i++) {
         maxWidth = std::max(strlen(parameters[i].name), maxWidth);
     }
+    maxWidth+=2; // space in front of options
 
     // header
     ss << std::setprecision(1) << std::fixed;
@@ -441,7 +444,11 @@ void Parameters::printUsageMessage(const std::string &programUsageHeader,
         for (size_t j = 0; j < parameters.size(); j++) {
             const MMseqsParameter &par = parameters[j];
             if (par.category & categories[i].category) {
+                int others = (par.category ^ categories[i].category);
+                if(others & outputFlag)
+                    continue;
                 categoryFound = true;
+                break;
             }
         }
         if(categoryFound){
@@ -502,7 +509,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                                  std::vector<MMseqsParameter> &par,
                                  size_t requiredParameterCount,
                                  bool printPar,
-                                 bool isVariadic)
+                                 bool isVariadic,
+                                 int outputFlag)
 {
     std::vector<std::string> getFilename;
     size_t parametersFound = 0;
@@ -514,13 +522,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
                 if(parameter.compare(par[parIdx].name) == 0) {
                     if (typeid(bool) != par[parIdx].type && argIdx + 1 == argc) {
-                        printUsageMessage(programUsageHeader, par);
+                        printUsageMessage(programUsageHeader, par, outputFlag);
                         Debug(Debug::ERROR) << "Missing argument " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
 
                     if (par[parIdx].wasSet) {
-                        printUsageMessage(programUsageHeader, par);
+                        printUsageMessage(programUsageHeader, par, outputFlag);
                         Debug(Debug::ERROR) << "Duplicate parameter " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
@@ -532,7 +540,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         regfree(&regex);
                         // if no match found or two matches found (we want exactly one match)
                         if (nomatch){
-                            printUsageMessage(programUsageHeader, par);
+                            printUsageMessage(programUsageHeader, par, outputFlag);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -546,7 +554,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
                         regfree(&regex);
                         if (nomatch){
-                            printUsageMessage(programUsageHeader, par);
+                            printUsageMessage(programUsageHeader, par, outputFlag);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -579,7 +587,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             }
 
             if (hasUnrecognizedParameter) {
-                printUsageMessage(programUsageHeader, par);
+                printUsageMessage(programUsageHeader, par, outputFlag);
                 Debug(Debug::ERROR) << "Unrecognized parameter " << parameter << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -615,7 +623,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
     }
 
     if (getFilename.size() < requiredParameterCount){
-        printUsageMessage(programUsageHeader, par);
+        printUsageMessage(programUsageHeader, par, outputFlag);
         Debug(Debug::ERROR) << requiredParameterCount << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
@@ -647,7 +655,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             if(isVariadic)
                 break;
         case 0:
-            printUsageMessage(programUsageHeader, par);
+            printUsageMessage(programUsageHeader, par, outputFlag);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
             printParameters(argc, pargv, par);
             EXIT(EXIT_FAILURE);
