@@ -101,8 +101,8 @@ Note that the memory consumption grows linearly with the number of the sequences
 The two auxiliary arrays consume `(8*a^k) byte`, with a being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the  k-mer size k.
 
 ## Overview of MMseqs
-MMseqs contains a single binary `mmseqs`, which contains several commands to execute complete workflows, tools or utilities. 
-MMseqs modular architecture, can be used chain tools together to create workflows for analysing huge sequence sets. Three plug-and-play bash-scripted workflows for sequence searching `mmseqs search`, sequence clustering `mmseqs cluster`, and updating clusterings`clusterupdate` facilitate the usage for standard tasks.
+MMseqs is stand-alone binary `mmseqs`, which contains several commands to execute complete workflows, tools or utilities. 
+MMseqs modular architecture, can be used chain tools together to create workflows for analysing huge sequence sets. Three plug-and-play bash-scripted workflows for sequence searching `mmseqs search`, sequence clustering `mmseqs cluster`, and updating clusterings`clusterupdate` facilitate the usage for standard tasks. Example bash scripted workflows can be found in the `util` folder.
 
 ### Main tools
 * `mmseqs createdb` converts a protein sequence set in a FASTA formatted file to MMseqs’ sequence DB format. This format is needed as input to mmseqs search and many other tools.
