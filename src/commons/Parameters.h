@@ -170,7 +170,6 @@ public:
 
     // convertprofiledb
     int profileMode;
-    bool useIndex;
     // format alignment
     int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
 
@@ -364,7 +363,6 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEP_SIZE)
-    PARAMETER(PARAM_USE_INDEX)
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)

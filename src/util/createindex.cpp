@@ -27,11 +27,15 @@ int createindex (int argc, const char **argv, const Command& command)
     dbr.open(DBReader<unsigned int>::NOSORT);
 
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
-
-    Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, par.kmerSize, par.spacedKmer, par.compBiasCorrection);
+    size_t kmerSize = par.kmerSize;
+    if(par.kmerSize == 0){ // set k-mer based on aa size in database
+        // if we have less than 10Mio * 335 amino acids use 6mers
+        kmerSize = dbr.getAminoAcidDBSize() < 3350000000 ? 6 : 7;
+    }
+    Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, kmerSize, par.spacedKmer, par.compBiasCorrection);
 
     PrefilteringIndexReader::createIndexFile(par.db1, &dbr, &seq, subMat, par.split,
-                                             subMat->alphabetSize, par.kmerSize, par.spacedKmer, par.diagonalScoring, par.threads);
+                                             subMat->alphabetSize, kmerSize, par.spacedKmer, par.diagonalScoring, par.threads);
 
     // write code
     dbr.close();

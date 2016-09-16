@@ -25,10 +25,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
                                               BaseMatrix * subMat, int split, int alphabetSize, int kmerSize,
                                               bool hasSpacedKmer, bool diagonalScoring, int threads) {
 
-    if(kmerSize == 0){ // set k-mer based on aa size in database
-        // if we have less than 10Mio * 335 amino acids use 6mers
-        kmerSize = dbr->getAminoAcidDBSize() < 3351637806 ? 6 : 7;
-    }
+
 
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
