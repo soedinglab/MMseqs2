@@ -104,7 +104,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
         }
         prevHash = hashSeqPair[id].first;
     }
-    Debug(Debug::WARNING) << "Compute "<< uniqHashes <<" uniq hashes.\n";
+    Debug(Debug::WARNING) << "Compute "<< uniqHashes <<" unique hashes.\n";
 
 #pragma omp parallel
     {
