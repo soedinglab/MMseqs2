@@ -93,6 +93,9 @@ statsComputer::statsComputer(Parameters &par)//:par(par)
                 chargeValues[k->first] = chargeSign[k->first] /(1+pow(10,(chargeSign[k->first] * (pH - pKs[k->first]))));
 
         stat = STAT_CHARGES;
+    }  else if (par.stat == STAT_SEQLEN_STR)
+    {
+        stat = STAT_SEQLEN;
     } else {
         stat = STAT_UNKNOWN;
         Debug(Debug::WARNING) << "Unrecognized statistics: " << par.stat << "\n";
@@ -130,6 +133,8 @@ int statsComputer::run(){
             return sequenceWise(&statsComputer::doolittle);
         case STAT_CHARGES:
             return sequenceWise(&statsComputer::charges);
+        case STAT_SEQLEN:
+            return sequenceWise(&statsComputer::strlen);
         default:
             return 0;
         
@@ -154,7 +159,7 @@ statsComputer::~statsComputer()
 
 int statsComputer::countNumberOfLines()
 {
-    #pragma omp parallel
+    #pragma omp parallel for schedule(static)
     for (size_t id = 0; id < resultReader->getSize(); id++) {
             Debug::printProgress(id);
             unsigned int thread_idx = 0;
@@ -186,11 +191,13 @@ int statsComputer::countNumberOfLines()
 
 int statsComputer::meanValue()
 {
-    char * buffer = new char[LINE_BUFFER_SIZE];
-
+    #pragma omp parallel for schedule(static)
     for (size_t id = 0; id < resultReader->getSize(); id++) {
             Debug::printProgress(id);
             unsigned int thread_idx = 0;
+            #ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+            #endif
             float meanVal(0.0);
             std::string meanValString;
             
@@ -199,8 +206,7 @@ int statsComputer::meanValue()
             size_t nbSeq = 0;
             while(*results!='\0')
             {
-                Util::getLine(results,dataLength,buffer,LINE_BUFFER_SIZE);
-                meanVal += atof(buffer);
+                meanVal += atof(results);
                 nbSeq++;
                 results = Util::skipLine(results);
             }
@@ -211,12 +217,15 @@ int statsComputer::meanValue()
                 
             meanValString = std::to_string(meanVal/nbSeq) + '\n';
 
-        statWriter->writeData(meanValString.c_str(), meanValString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
+            statWriter->writeData(meanValString.c_str(), meanValString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
                               thread_idx);
     }
-    delete [] buffer;
     return 0;
     
+}
+
+float statsComputer::strlen(char *seq) {
+    return (float)std::strlen(seq);
 }
 
 float statsComputer::doolittle(char *seq) {
@@ -251,9 +260,13 @@ float statsComputer::averageValueOnAminoAcids(std::unordered_map<char,float> val
 
 int statsComputer::sequenceWise(float (statsComputer::*statFunction)(char*))
 {
+    #pragma omp parallel for schedule(static)
     for (size_t id = 0; id < resultReader->getSize(); id++) {
             Debug::printProgress(id);
             unsigned int thread_idx = 0;
+            #ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+            #endif
             char dbKey[255 + 1];
 
             
@@ -274,7 +287,7 @@ int statsComputer::sequenceWise(float (statsComputer::*statFunction)(char*))
             }
 
 
-        statWriter->writeData(statString.c_str(), statString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
+            statWriter->writeData(statString.c_str(), statString.length(), SSTR(resultReader->getDbKey(id)).c_str(),
                               thread_idx);
     }
     

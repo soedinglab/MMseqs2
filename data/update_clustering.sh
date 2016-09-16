@@ -57,7 +57,7 @@ notExists "$TMP/newSeqsHits.swapped.all" && $MMSEQS swapresults $TMP/NEWDB.newSe
 notExists "$TMP/newSeqsHits.swapped" && $MMSEQS filterdb $TMP/newSeqsHits.swapped.all $TMP/newSeqsHits.swapped --trim-to-one-column && checkReturnCode "Trimming died"
 
 echo "==================================================="
-echo "= Merge the found sequence with previous clustering"
+echo "=  Merge found sequences with previous clustering ="
 echo "==================================================="
 if [ -f $TMP/newSeqsHits.swapped ]; then
     notExists "$TMP/updatedClust" && $MMSEQS mergedbs $TMP/OLDCLUST.mapped  $TMP/updatedClust $TMP/newSeqsHits.swapped $TMP/OLDCLUST.mapped && checkReturnCode "Mergeffindex died"
