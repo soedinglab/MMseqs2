@@ -536,16 +536,11 @@ int doSwap(Parameters &par) {
 
 
 
-int swapresults(int argc, const char *argv[]) {
-    MMseqsMPI::init(argc, argv);
-
-    std::string usage("Swaps results of ffindex database. A -> A, B, C to A->A, B->A, C->A \n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n");
-    usage.append("USAGE: <queryDb> <targetDb> <ffindexDB> <fastaDB>\n");
-
+int swapresults(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.swapresults, 4);
+    par.parseParameters(argc, argv, command, 4);
 
+    MMseqsMPI::init(argc, argv);
 
     int status = 0;
 #ifdef HAVE_MPI

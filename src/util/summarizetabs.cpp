@@ -218,15 +218,11 @@ int doAnnotate(Parameters &par) {
     return status;
 }
 
-int summarizetabs(int argc, const char **argv) {
-    MMseqsMPI::init(argc, argv);
-
-    std::string usage("Extract annotations from BLASTtab format.\n");
-    usage.append("Written by Milot Mirdita (milot@mirdita.de) & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
-    usage.append("USAGE: <blastTabDB> <lengthFile> <outDB>\n");
-
+int summarizetabs(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.summarizetabs, 3);
+    par.parseParameters(argc, argv, command, 3);
+
+    MMseqsMPI::init(argc, argv);
 
 #ifdef HAVE_MPI
     int status = doAnnotate(par, MMseqsMPI::rank, MMseqsMPI::numProc);

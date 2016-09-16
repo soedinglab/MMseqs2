@@ -52,18 +52,13 @@ void setConvertKbDefaults(Parameters* par, unsigned int maxColumns) {
     par->kbColumns = ss.str();
 }
 
-int convertkb(int argn, const char **argv) {
-    std::string usage;
-    usage.append("Turns an UniprotKB file into multiple ffindex database for every KB column.\n");
-    usage.append("USAGE: <uniprotKB> <outDbPrefix>\n");
-    usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-
+int convertkb(int argc, const char **argv, const Command& command) {
     UniprotKB kb;
     size_t columns = static_cast<unsigned int>(kb.getColumnCount());
 
     Parameters par;
     setConvertKbDefaults(&par, columns);
-    par.parseParameters(argn, argv, usage, par.convertkb, 2);
+    par.parseParameters(argc, argv, command, 2);
 
     std::vector<unsigned int> enabledColumns = getEnabledColumns(par.kbColumns, columns);
 

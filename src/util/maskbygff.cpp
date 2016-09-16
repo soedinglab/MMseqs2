@@ -8,13 +8,9 @@
 #include "Parameters.h"
 #include "Util.h"
 
-int maskbygff(int argn, const char** argv) {
-    std::string usage("Masks the sequences in an ffindex database by the selected rows in a gff file.\n");
-    usage.append("USAGE: <gff3> <ffindexInDB> <ffindexOutDB>\n");
-    usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-
+int maskbygff(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argn, argv, usage, par.gff2ffindex, 3);
+    par.parseParameters(argc, argv, command, 3);
 
     DBReader<std::string> ffindexReader(par.db2.c_str(), par.db2Index.c_str(),
                                         DBReader<std::string>::USE_DATA | DBReader<std::string>::USE_WRITABLE);

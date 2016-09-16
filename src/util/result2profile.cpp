@@ -612,15 +612,11 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
     return status;
 }
 
-int result2profile(int argc, const char **argv) {
-    MMseqsMPI::init(argc, argv);
-
-    std::string usage("Calculates profiles from a result.\n");
-    usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
-
+int result2profile(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.result2profile, 4);
+    par.parseParameters(argc, argv, command, 4);
+
+    MMseqsMPI::init(argc, argv);
 
     // never allow deletions
     par.allowDeletion = false;
@@ -643,16 +639,11 @@ int result2profile(int argc, const char **argv) {
     return retCode;
 }
 
-int result2msa(int argc, const char **argv) {
-    MMseqsMPI::init(argc, argv);
-    std::string usage("Convert an alignment result database to a multiple sequence alignment file.\n");
-    usage.append(CITATION);
-    usage.append("\n© Martin Steinegger (martin.steinegger@mpibpc.mpg.de) &  Milot Mirdita &  Clovis Galiez.\n");
-    usage.append("Usage: <queryDB> <targetDB> <resultDB> <outDB>\n");
-   
-
+int result2msa(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.result2msa, 4);
+    par.parseParameters(argc, argv, command, 4);
+
+    MMseqsMPI::init(argc, argv);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);

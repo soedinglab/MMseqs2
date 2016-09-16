@@ -280,17 +280,10 @@ int ffindexFilter::runFilter(){
 	return 0;
 }
 
-int filterdb(int argn, const char **argv)
-{
-    std::string usage;
-    usage.append("Filter a database by setting conditions on a user-defined column. The conditions can be regular expression, numerical comparison, mapping of the content, or a limited amount of lines.\n");
-    usage.append(CITATION);
-    usage.append("\n© Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Clovis Galiez.\n");
-    usage.append("Usage: <ffindexDB> <outDB>\n");
-	
-
+int filterdb(int argc, const char **argv, const Command& command) {
 	Parameters par;
-	par.parseParameters(argn, argv, usage, par.filterDb, 2);
+	par.parseParameters(argc, argv, command, 2);
+
 #ifdef OPENMP
 	omp_set_num_threads(par.threads);
 #endif

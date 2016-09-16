@@ -9,18 +9,13 @@
 #include <omp.h>
 #endif
 
-int summarizeheaders(int argc, const char **argv) {
-    std::string usage("Summarizes all the headers from a clustering results.\n");
-    usage.append("Written by Milot Mirdita (milot@mirdita.de)\n");
-    usage.append("USAGE: <queryHeaderDB> <targetHeaderDB> <resultDB> <outDB>\n");
-
+int summarizeheaders(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.summarizeheaders, 2);
+    par.parseParameters(argc, argv, command, 2);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-
 
     DBReader<std::string> queryReader(par.db1.c_str(), par.db1Index.c_str());
     queryReader.open(DBReader<std::string>::NOSORT);

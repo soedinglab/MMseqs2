@@ -11,16 +11,10 @@
 #include <vector>
 #include <utility>      // std::pair
 
-int createindex (int argc, const char * argv[])
+int createindex (int argc, const char **argv, const Command& command)
 {
-    
-    std::string usage("\nCreate index for fast readin.\n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE: <ffindexDb> \n");
-
-
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.createindex, 1);
+    par.parseParameters(argc, argv, command, 1);
     if(par.split == 0){
         par.split = 1;
     }

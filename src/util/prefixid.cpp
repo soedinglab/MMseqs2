@@ -10,14 +10,9 @@
 #include <omp.h>
 #endif
 
-int prefixid(int argn, const char **argv) {
-    std::string usage;
-    usage.append("Prepend the index key to each line of the corresponding entry.\n");
-    usage.append("USAGE: <ffindexInDB> <ffindexOutDB>\n");
-    usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-
+int prefixid(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argn, argv, usage, par.prefixid, 2);
+    par.parseParameters(argc, argv, command, 2);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

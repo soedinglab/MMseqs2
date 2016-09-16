@@ -11,14 +11,9 @@
 #include "Parameters.h"
 
 
-int clusterupdate (int argc, const char * argv[]){
-    std::string usage("\nCreate a clustering of a database newDB by update a clustering of an older version oldDB of newDB.\n");
-    usage.append(CITATION);
-    usage.append("\n© Clovis Galiez & Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n");
-    usage.append("Usage: clusterupdate <oldDB> <newDB> <oldDB_clustering> <newDB_clustering> <tmpDir> [opts]\n");
-
+int clusterupdate(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.clusterUpdate, 5);
+    par.parseParameters(argc, argv, command, 5);
 
     CommandCaller cmd;
     if(par.removeTmpFiles) {

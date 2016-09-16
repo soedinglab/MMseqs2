@@ -11,15 +11,11 @@
 #include "MMseqsMPI.h"
 
 
-int align(int argc, const char *argv[])
-{
-	MMseqsMPI::init(argc, argv);
-
-    std::string usage("\nCalculates Smith-Waterman alignment scores between all sequences in the query database and the sequences of the target database which passed the prefiltering.\n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: alignment <queryDB> <targetDB> <prefResultsDB> <outDB> [opts]\n");
+int align(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.align, 4, true, false, MMseqsParameter::COMMAND_ALIGN);
+    par.parseParameters(argc, argv, command, 4, true, false, MMseqsParameter::COMMAND_ALIGN);
+
+    MMseqsMPI::init(argc, argv);
 
     Debug::setDebugLevel(Debug::INFO);
 

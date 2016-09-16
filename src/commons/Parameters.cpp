@@ -412,11 +412,31 @@ Parameters::Parameters():
     setDefaults();
 }
 
-void Parameters::printUsageMessage(const std::string &programUsageHeader,
-                                   const std::vector<MMseqsParameter> &parameters,
+void Parameters::printUsageMessage(const Command& command,
                                    const int outputFlag){
+    const std::vector<MMseqsParameter>& parameters = *command.params;
+
     std::ostringstream ss;
-    ss << programUsageHeader << std::endl;
+    ss << "mmseqs " << command.cmd << ":\n";
+    ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
+
+    if(command.citations > 0) {
+        ss << "Please cite:\n";
+        if(command.citations & CITATION_MMSEQS2) {
+            ss << "Steinegger, M. & Soding, J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv XXXX (2016)\n\n";
+        }
+
+        if(command.citations & CITATION_MMSEQS1) {
+            ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
+        }
+
+        if(command.citations & CITATION_UNICLUST) {
+            ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin M., Soding J. & Steinegger M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. In revision. \n\n";
+        }
+    }
+
+    ss << "© " << command.author << "\n\n";
+    ss << "Usage: " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
 
     struct {
         const char* title;
@@ -505,14 +525,14 @@ int compileRegex(regex_t * regex, const char * regexText){
 }
 
 void Parameters::parseParameters(int argc, const char* pargv[],
-                                 const std::string &programUsageHeader,
-                                 std::vector<MMseqsParameter> &par,
+                                 const Command& command,
                                  size_t requiredParameterCount,
                                  bool printPar,
                                  bool isVariadic,
                                  int outputFlag)
 {
     std::vector<std::string> getFilename;
+    std::vector<MMseqsParameter>& par = *command.params;
     size_t parametersFound = 0;
     for(int argIdx = 0; argIdx < argc; argIdx++ ){
         // it is a parameter if it starts with - or --
@@ -522,13 +542,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
                 if(parameter.compare(par[parIdx].name) == 0) {
                     if (typeid(bool) != par[parIdx].type && argIdx + 1 == argc) {
-                        printUsageMessage(programUsageHeader, par, outputFlag);
+                        printUsageMessage(command, outputFlag);
                         Debug(Debug::ERROR) << "Missing argument " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
 
                     if (par[parIdx].wasSet) {
-                        printUsageMessage(programUsageHeader, par, outputFlag);
+                        printUsageMessage(command, outputFlag);
                         Debug(Debug::ERROR) << "Duplicate parameter " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
@@ -540,7 +560,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         regfree(&regex);
                         // if no match found or two matches found (we want exactly one match)
                         if (nomatch){
-                            printUsageMessage(programUsageHeader, par, outputFlag);
+                            printUsageMessage(command, outputFlag);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -554,7 +574,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
                         regfree(&regex);
                         if (nomatch){
-                            printUsageMessage(programUsageHeader, par, outputFlag);
+                            printUsageMessage(command, outputFlag);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -587,7 +607,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             }
 
             if (hasUnrecognizedParameter) {
-                printUsageMessage(programUsageHeader, par, outputFlag);
+                printUsageMessage(command, outputFlag);
                 Debug(Debug::ERROR) << "Unrecognized parameter " << parameter << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -623,7 +643,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
     }
 
     if (getFilename.size() < requiredParameterCount){
-        printUsageMessage(programUsageHeader, par, outputFlag);
+        printUsageMessage(command, outputFlag);
         Debug(Debug::ERROR) << requiredParameterCount << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
@@ -655,7 +675,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             if(isVariadic)
                 break;
         case 0:
-            printUsageMessage(programUsageHeader, par, outputFlag);
+            printUsageMessage(command, outputFlag);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
             printParameters(argc, pargv, par);
             EXIT(EXIT_FAILURE);

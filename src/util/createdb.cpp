@@ -21,16 +21,14 @@
 #include "kseq.h"
 
 KSEQ_INIT(int, read)
-int createdb(int argn, const char **argv) {
-    std::string usage("Converts a fasta database to ffindex.\n");
-    usage.append("USAGE: <fastaDB>  <ffindexDB> [mappingFasta]\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
-
+int createdb(int argn, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argn, argv, usage, par.createdb, 2);
+    par.parseParameters(argn, argv, command, 2);
+
     if(par.maxSeqLen == Parameters::MAX_SEQ_LEN){
         par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;
     }
+
     FILE *fasta_file = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
 
     std::string data_filename = par.db2;

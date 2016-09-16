@@ -34,15 +34,10 @@ std::pair<float, bool> setAutomaticThreshold(float seqId) {
     return std::make_pair(sens, cascaded);
 }
 
-int clusteringworkflow(int argc, const char *argv[]) {
-    std::string usage("\nCalculates the clustering of the sequences in the input database.\n");
-    usage.append("Written by Martin Steinegger(martin.steinegger@mpibpc.mpg.de) Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: mmseqs clusteringworkflow <sequenceDB> <outDB> <tmpDir> [opts]\n");
-
-
+int clusteringworkflow(int argc, const char **argv, const Command& command) {
     Parameters par;
     setWorkflowDefaults(&par);
-    par.parseParameters(argc, argv, usage, par.clusteringWorkflow, 3);
+    par.parseParameters(argc, argv, command, 3);
 
     bool parameterSet = false;
     bool compositionBiasSet = false;

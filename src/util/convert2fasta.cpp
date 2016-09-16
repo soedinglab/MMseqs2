@@ -15,14 +15,9 @@
 const char header_start[] = {'>'};
 const char newline[] = {'\n'};
 
-int convert2fasta(int argc, const char *argv[])
-{
-    std::string usage("Converts an mmseqs ffindex database back to a fasta file. \n");
-    usage.append("Written by Milot Mirdita <milot@mirdita.de>.\n\n");
-    usage.append("USAGE: <dbIn> <fastaOut>\n");
-
+int convert2fasta(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.convert2fasta, 2);
+    par.parseParameters(argc, argv, command, 2);
 
     std::string data_filename = par.db1;
     std::string index_filename = par.db1Index;

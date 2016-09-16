@@ -1,8 +1,3 @@
-/*
- * order
- * written by Milot Mirdita <milot@mirdita.de>
- */
-
 #include <climits>
 #include <fstream>
 
@@ -11,14 +6,9 @@
 #include "DBWriter.h"
 #include "Debug.h"
 
-int createsubdb(int argc, const char *argv[])
-{
-    std::string usage("Orders an mmseqs database according to a given list.\n");
-    usage.append("Written by Milot Mirdita <milot@mirdita.de>.\n\n");
-    usage.append("USAGE: <orderFile> <dbIn> <dbOut>\n");
-
+int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.onlyverbosity, 3);
+    par.parseParameters(argc, argv, command, 3);
 
     DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str());
     reader.open(DBReader<std::string>::NOSORT);

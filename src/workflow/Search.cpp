@@ -7,13 +7,9 @@
 #include "Util.h"
 #include "Debug.h"
 #include "Parameters.h"
-int search(int argc, const char *argv[]) {
-    std::string usage("\nCompares all sequences in the query database with all sequences in the target database.\n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: mmseqs search <queryDB> <targetDB> <outDB> <tmpDir> [opts]\n");
-
+int search(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argc, argv, usage, par.searchworkflow, 4);
+    par.parseParameters(argc, argv, command, 4);
 
     CommandCaller cmd;
 

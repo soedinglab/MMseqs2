@@ -13,15 +13,9 @@
 
 #include "Util.h"
 
-int translatenucs(int argn, const char **argv)
-{
-    std::string usage;
-    usage.append("Translate nucleotide sequences into aminoacid sequences in a FFindex database.\n");
-    usage.append("USAGE: <ffindexInDB>  <ffindexOutDB>\n");
-    usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-
+int translatenucs(int argc, const char **argv, const Command& command) {
     Parameters par;
-    par.parseParameters(argn, argv, usage, par.translatenucs, 2);
+    par.parseParameters(argc, argv, command, 2);
 
     std::string in_header_filename = std::string(par.db1 + "_h");
     std::string in_header_index_filename = std::string(par.db1 + "_h.index");
