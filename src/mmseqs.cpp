@@ -77,7 +77,7 @@ static struct Command commands[] = {
             "Create DB of unaligned FASTA files (1 per cluster) from sequence DB and cluster DB",
             NULL,
             "Milot Mirdita <milot@mirdita.de>",
-            "<i:clusterDB> <i:sequenceDB> <o:fastaDB>",
+            "<i:sequenceDB> <i:clusterDB> <o:fastaDB>",
             CITATION_MMSEQS2},
         {"mergeclusters",        mergeclusters,        &par.onlyverbosity,        COMMAND_CLUSTER,
             "Merge multiple cluster DBs into single cluster DB",
@@ -273,7 +273,7 @@ void printUsage() {
 #undef str
 #undef str2
 #endif
-    usage << "(C) Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n";
+    usage << "© Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n";
 
     struct {
         const char* title;

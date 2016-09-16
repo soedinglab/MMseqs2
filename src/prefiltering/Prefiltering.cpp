@@ -96,7 +96,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
     }
     if(kmerSize == 0){ // set k-mer based on aa size in database
         // if we have less than 10Mio * 335 amino acids use 6mers
-        kmerSize = tdbr->getAminoAcidDBSize() < 3351637806 ? 6 : 7;
+        kmerSize = tdbr->getAminoAcidDBSize() < 3350000000 ? 6 : 7;
     }
     Debug(Debug::INFO) << "Query database: " << par.db1 << "(size=" << qdbr->getSize() << ")\n";
     Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
