@@ -82,6 +82,8 @@ public:
     static const int EXTRACT_QUERY  = 1;
     static const int EXTRACT_TARGET = 2;
 
+    static const int CLUST_HASH_DEFAULT_ALPH_SIZE = 3;
+
     // COMMON
     const char** argv;            //command line parameters
     char argc;              //dimension of argv

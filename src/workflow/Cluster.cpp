@@ -89,8 +89,12 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     if (par.cascaded) {
         float targetSensitivity = par.sensitivity;
         size_t maxResListLen = par.maxResListLen;
+        size_t alphabetSize = par.alphabetSize;
+
+        par.alphabetSize = Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE;
         cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.clusthash).c_str());
 
+        par.alphabetSize = alphabetSize;
         // 1 is lowest sens
         par.clusteringMode = Parameters::GREEDY;
         par.sensitivity = 1;

@@ -43,7 +43,7 @@ size_t hash(int * x, size_t length){
 }
 
 void setClustHashDefaults(Parameters *p) {
-    p->alphabetSize = 3;
+    p->alphabetSize = Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE;
 
 }
 
