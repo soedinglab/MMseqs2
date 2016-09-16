@@ -10,7 +10,7 @@ The manuscript for MMseqs2 is still in preparations therefore we can just offer 
 The following command will download the last MMseqs version, extract it and set the environment variables.
 
         wget https://mmseqs.com/latest/mmseqs.tar.gz
-        tar xvzf mmseqs.tar.gz
+        tar xvfz mmseqs.tar.gz
 
 MMseqs comes with a bash command and parameter auto completion
 by pressing tab. The bash completion for subcommands and parameters can be installed by adding the following lines to your $HOME/.bash_profile:
@@ -100,12 +100,41 @@ The two auxiliary arrays consume `(8*a^k) byte`, with a being the size of the am
 MMseqs contains one binary `mmseqs`. It contains several commands to execute complete workflows that combines the MMseqs core modules. 
 The other three commands execute the single modules which are used by the workflows and are available for advanced users.
 
-### Workflows
-* `mmseqs search` Compares all sequences in the query database with all sequences in the target database.
-* `mmseqs cluster` Clusters the sequences in the input database by sequence similarity.
+### Main tools
+* `mmseqs createdb` converts a protein sequence set in a FASTA formatted file to MMseqs’ sequence DB format. This format is needed as input to mmseqs search and many other tools.
+* `mmseqs search` Search with query sequence or profile DB (iteratively) through target sequence DB", Searches with the sequences or profiles query DB through the target sequence DB by running the prefilter tool and the align tool for Smith-Waterman alignment. For each query a results file with sequence matches is written as entry into a database of search results (“alignmentDB”). In iterative profile search mode, the detected sequences satisfying user-specified criteria are aligned to the query MSA, and the resulting query profile is used for the next search iteration. Iterative profile searches are usually much more sensitive than (and at least as sensitive as) searches with single query sequences.
+* `mmseqs cluster`  Clusters sequences by similarity. It compares all sequences in the sequence DB with each other using mmseqs search, filters alignments according to user-specified criteria (max. E-value, min. coverage,...), and runs mmseqs clust to group similar sequences together into clusters.
+* `mmseqs createindex` Precomputes an index table for the sequence DB. Handing over the precomputed index table as input to mmseqs search or mmseqs prefilter eliminates the computational overhead of building the index table on the fly.
 
-### Single modules
-* `mmseqs prefilter` Computes k-mer similarity scores between all sequences in the query database and all sequences in the target database.
-* `mmseqs align` Computes Smith-Waterman alignment scores between all sequences in the query database and the sequences of the target database whose prefiltering scores
-* `mmseqs cluster` Computes a similarity clustering of a sequence database based on Smith-Waterman alignment scores of the sequence pairs computed by `mmseqs align`.
 
+### Core modules
+* `mmseqs prefilter` Search with query sequence / profile DB through target DB (k-mer matching + ungapped alignment)
+* `mmseqs align` Compute Smith-Waterman alignments for previous results (e.g. prefilter DB, cluster DB)
+* `mmseqs clust` Cluster sequence DB from alignment DB (e.g. created by searching DB against itself)
+* `clustlinear`       	Cluster sequences of >70% sequence identity *in linear time*
+* `clusthash`         	Cluster sequences of same length and >90% sequence identity *in linear time*
+
+### Utility tools for format conversions
+* `createtsv`         	Create tab-separated flat file from prefilter DB, alignment DB, or cluster DB
+* `convertalis`       	Convert alignment DB to BLAST-tab format, SAM flat file, or to raw pairwise alignments
+* `convertprofiledb`  	Convert ffindex DB of HMM/HMMER3/PSSM files to MMseqs profile DB
+* `convert2fasta`     	Convert sequence DB to FASTA format
+* `result2flat`       	Create a FASTA-like flat file from prefilter DB, alignment DB, or cluster DB
+
+### Utility tools for clustering
+* `clusterupdate`     	Update clustering of old sequence DB to clustering of new sequence DB
+* `createseqfiledb`   	Create DB of unaligned FASTA files (1 per cluster) from sequence DB and cluster DB
+* `mergeclusters`     	Merge multiple cluster DBs into single cluster DB
+
+### Utility tools to manipulate DBs
+* `extractorfs`       	Extract open reading frames from all six frames from nucleotide sequence DB
+* `translatenucs`     	Translate nucleotide sequence DB into protein sequence DB
+* `swapresults`       	Reformat prefilter/alignment/cluster DB as if target DB had been searched through query DB
+* `mergedbs`          	Merge multiple DBs into a single DB, based on IDs (names) of entries
+* `splitdb`           	Split a mmseqs DB into multiple DBs
+* `subtractdbs`       	Generate a DB with entries of first DB not occurring in second DB
+* `filterdb`          	Filter a DB by conditioning (regex, numerical, ...) on one of its whitespace-separated columns
+* `createsubdb`       	Create a subset of a DB from a file of IDs of entries
+* `result2profile`    	Compute profile and consensus DB from a prefilter, alignment or cluster DB
+* `result2msa`        	Generate MSAs for queries by locally aligning their matched targets in prefilter/alignment/cluster DB
+* `result2stats`      	Compute statistics for each entry in a sequence, prefilter, alignment or cluster DB
