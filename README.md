@@ -1,7 +1,7 @@
 # MMseqs2.0: ultra fast and sensitive search and clustering suite
-MMseqs2 is a software suite for very fast protein sequence searches and clustering of huge protein sequence data sets. MMseqs2 reaches the same sensitivity as BLAST magnitude faster and which can also perform profile searches like PSI-BLAST but also ~500x faster.
+MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and Mac OS. The software is designed run on multiple cores and servers and exhibits very good scalability. MMseqs2 reaches the same sensitivity as BLAST magnitude faster and which can also perform profile searches like PSI-BLAST but also ~270x faster.
 
-MMseqs2 has not just improved in sensitivity and speed it also improved usability through several helper tools, to convert formats,  do six frame translations, GFF tools, ...
+MMseqs2 has not just improved in sensitivity and speed it also improved usability through several helper tools. The utilities comprise tools for format conversion, multiple sequence alignment, sequence profile calculation, 6-frame translation for ORF extraction, set operations on sequence sets, regex-based filters, and statistics tools to analyse results.
 
 ## Installation
 The manuscript for MMseqs2 is still in preparations therefore we can just offer static compiled binaries. We hope that the full source code will be available within the next weeks.
