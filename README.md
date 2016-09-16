@@ -20,7 +20,7 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
 The following command will download the last MMseqs version, extract it and set the environment variables.
 
         wget https://mmseqs.com/latest/mmseqs.tar.gz
-        tar xvfz mmseqs.tar.gz
+        tar xvzf mmseqs.tar.gz
 
 MMseqs comes with a bash command and parameter auto completion
 by pressing tab. The bash completion for subcommands and parameters can be installed by adding the following lines to your $HOME/.bash_profile:
