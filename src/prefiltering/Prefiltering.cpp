@@ -87,6 +87,10 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
         tdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     }
+    if(kmerSize == 0){ // set k-mer based on aa size in database
+        // if we have less than 10Mio * 335 amino acids use 6mers
+        kmerSize = tdbr->getAminoAcidDBSize() < 3350000000 ? 6 : 7;
+    }
     Debug(Debug::INFO) << "Query database: " << par.db1 << "(size=" << qdbr->getSize() << ")\n";
     Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
     size_t totalMemoryInByte =  Util::getTotalSystemMemory();
