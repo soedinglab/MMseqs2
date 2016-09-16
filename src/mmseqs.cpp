@@ -51,7 +51,7 @@ static struct Command commands[] = {
         {"clusterupdate",       clusterupdate,          &par.clusterUpdate,         COMMAND_CLUSTER,
                 "Update clustering of old sequence DB to clustering of new sequence DB"},
         {"createseqfiledb",        createseqfiledb,           &par.createseqfiledb,          COMMAND_CLUSTER,
-                "Create DB of unaligned FASTA files, one per cluster in cluster DB"},
+                "Create DB of unaligned FASTA files (1 per cluster) from sequence DB and cluster DB"},
         {"mergeclusters",        mergeclusters,           &par.onlyverbosity,         COMMAND_CLUSTER,
                 "Merge multiple cluster DBs into single cluster DB"},
 // Expert tools (for advanced users)
@@ -139,7 +139,7 @@ void printUsage() {
             {"Main tools  (for non-experts)",  COMMAND_MAIN},
             {"Utility tools for format conversions",   COMMAND_FORMAT_CONVERSION},
             {"Utility tools for clustering",     COMMAND_CLUSTER},
-            {"Main expert tools",     COMMAND_EXPERT},
+            {"Core tools (for advanced users)",     COMMAND_EXPERT},
             {"Utility tools to manipulate DBs",     COMMAND_DB},
             {"Special-purpose utilities",     COMMAND_SPECIAL},
     };
