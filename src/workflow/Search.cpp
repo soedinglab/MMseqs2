@@ -18,16 +18,6 @@ int search(int argc, const char **argv, const Command& command) {
     }
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string templateDB(par.db2);
-    // create index suffix
-    if(par.useIndex){
-        std::string indexSuffix = ".";
-        if(par.spacedKmer) {
-            indexSuffix.push_back('s');
-        }
-        indexSuffix += 'k';
-        indexSuffix.append(SSTR(par.kmerSize));
-        templateDB.append(indexSuffix);
-    }
     cmd.addVariable("TARGET_DB_PREF", templateDB.c_str());
 
     if (par.numIterations > 1) {
