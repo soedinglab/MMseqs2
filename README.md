@@ -85,12 +85,6 @@ To generate a TSV-style formatted output file from the ffindex output file, type
         mmseqs createtsv DB DB clu clu.tsv
 
 
-## Requirements
-
-To compile from source, you will need:
-
-  * a recent C and C++ compiler (Minimum requirement is GCC 4.6. GCC 4.8 or later is recommended).
-
 ### Memory Requirements
 When using MMseqs the available memory limits the size of database you will be able to compute. 
 We recommend at least 128 GB of RAM so you can compute databases up to 30.000.000 entries:
