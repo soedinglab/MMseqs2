@@ -68,7 +68,7 @@ Then convert the result ffindex database into a FASTA formatted database:
 ### How to cluster 
 Before clustering, convert your FASTA database into ffindex format:
 
-        mmseqs createdb $MMDIR/data/DB.fasta DB
+        mmseqs createdb examples/DB.fasta DB
 
 Please ensure that in case of large input databases the temporary folder tmp  provides enough free space.
 For the disc space requirements, see the user guide. 
