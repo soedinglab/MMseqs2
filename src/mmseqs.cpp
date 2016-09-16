@@ -153,7 +153,7 @@ void printUsage() {
         }
     }
 
-    usage << "\nBash completion for tools and parameters can be installed by adding a line \"util/bash-completion.sh\" in your \"$HOME/.bash_profile\".\n"
+    usage << "\nBash completion for tools and parameters can be installed by adding \"source path/to/mmseqs/util/bash-completion.sh\" to your \"$HOME/.bash_profile\".\n"
             "Include the location of the MMseqs binaries is in your \"$PATH\" environment variable.";
 
     Debug(Debug::INFO) << usage.str() << "\n";
