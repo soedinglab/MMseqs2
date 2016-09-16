@@ -142,7 +142,7 @@ The other three commands execute the single modules which are used by the workfl
 * `result2profile`    	Compute profile and consensus DB from a prefilter, alignment or cluster DB
 * `result2msa`        	Generate MSAs for queries by locally aligning their matched targets in prefilter/alignment/cluster DB
 * `result2stats`      	Compute statistics for each entry in a sequence, prefilter, alignment or cluster DB
-* 
+
 ### Special-purpose utilities
 * `diffseqdbs`        	Find IDs of sequences kept, added and removed between two versions of sequence DB
 * `concatdbs`         	Concatenate two DBs, giving new IDs to entries from second input DB
