@@ -21,12 +21,12 @@ std::pair<float, bool> setAutomaticThreshold(float seqId) {
     float sens;
     bool cascaded = true;
     if (seqId <= 0.3) {
-        sens = 7.0;
+        sens = 6;
         cascaded = true;
     } else if (seqId > 0.8) {
         sens = 1.0;
     } else {
-        sens = 1.0 + (1.2 * (0.8 - seqId) * 10);
+        sens = 1.0 + (1.0 * (0.8 - seqId) * 10);
     }
     if (sens <= 2.0) {
         cascaded = false;

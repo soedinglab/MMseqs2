@@ -94,6 +94,10 @@ int result2outputmode(Parameters &par,const std::string &outpath,
     std::string headerIndexNameTarget(par.db2);
     headerIndexNameTarget.append("_h.index");
 
+    bool firstSeqRepr = par.db1.compare(par.db2) == 0; 
+    if (firstSeqRepr)
+        Debug(Debug::INFO) << "Using the first target sequence as center sequence for making each alignment.\n";
+    
     DBReader<unsigned int> *queryHeaderReader = new DBReader<unsigned int>(headerNameQuery.c_str(),
                                                                            headerIndexNameQuery.c_str());
     // NOSORT because the index should be in the same order as resultReader
@@ -204,7 +208,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             unsigned int queryKey = resultReader->getDbKey(id);
             char *seqData = qDbr->getDataByDBKey(queryKey);
             
-            if (seqData != NULL && !par.firstSeqRepr)
+            if (seqData != NULL && !firstSeqRepr)
             {
                 centerSequence->mapSequence(0, queryKey, seqData);
                 centerSequenceKey = queryKey;
@@ -229,7 +233,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                 {
                     const size_t edgeId = tDbr->getId(key);
                     char *dbSeqData = tDbr->getData(edgeId);
-                    if (par.firstSeqRepr)
+                    if (firstSeqRepr)
                     {
                         centerSequence->mapSequence(0, key, dbSeqData);
                         centerSequenceKey = key;
@@ -257,7 +261,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
 
             // Recompute the backtrace if the center seq has to be the first seq
             // or if not all the backtraces are present
-            if (par.firstSeqRepr || alnResults.size() != seqSet.size()) 
+            if (firstSeqRepr || alnResults.size() != seqSet.size()) 
             {
                 //Debug(Debug::INFO) << "BT info is missing... will recompute alignments.\n";
                 alnResults.clear(); // will force to recompute alignments together with bt information
@@ -658,6 +662,8 @@ int result2msa(int argc, const char **argv, const Command& command) {
         mode = MSA;
     }
 
+
+    /*
     // Can only use the first sequence as representative sequence with a clustering result
     // otherwise the key would point to a sequence in the query DB instead of the target DB
     // TODO : can fix that by passing the firstSeqRepr to CompressedA3M::fromAlignmentResult
@@ -665,7 +671,7 @@ int result2msa(int argc, const char **argv, const Command& command) {
     {
         Debug(Debug::ERROR) << "Use first sequence as representative only with clustering results (<queryDB> and <targetDB> should be the same).\n";
         return -1;
-    }
+    }*/
     
 #ifdef HAVE_MPI
     retCode = result2outputmode(par, mode, MMseqsMPI::rank, MMseqsMPI::numProc);
