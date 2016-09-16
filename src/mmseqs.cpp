@@ -39,7 +39,7 @@ static struct Command commands[] = {
 // Utility tools for format conversions
         {"createtsv",           createtsv,              &par.onlyverbosity,         COMMAND_FORMAT_CONVERSION,
                 "Create tab-separated flat file from prefilter DB, alignment DB, or cluster DB"},
-        {"convertalignments",     convertalignments,        &par.convertalignments,       COMMAND_FORMAT_CONVERSION,
+        {"convertalis",     convertalignments,        &par.convertalignments,       COMMAND_FORMAT_CONVERSION,
                 "Convert alignment DB to BLAST-tab format, SAM flat file, or to raw pairwise alignments"},
         {"convertprofiledb",     convertprofiledb,        &par.convertprofiledb,       COMMAND_FORMAT_CONVERSION,
                 "Convert ffindex DB of HMM/HMMER3/PSSM files to MMseqs profile DB"},
@@ -51,17 +51,17 @@ static struct Command commands[] = {
         {"clusterupdate",       clusterupdate,          &par.clusterUpdate,         COMMAND_CLUSTER,
                 "Update clustering of old sequence DB to clustering of new sequence DB"},
         {"createseqfiledb",        createseqfiledb,           &par.createseqfiledb,          COMMAND_CLUSTER,
-                "Create DB of unaligned FASTA files, one per cluster in cluster DB"},
+                "Create DB of unaligned FASTA files (1 per cluster) from sequence DB and cluster DB"},
         {"mergeclusters",        mergeclusters,           &par.onlyverbosity,         COMMAND_CLUSTER,
                 "Merge multiple cluster DBs into single cluster DB"},
 // Expert tools (for advanced users)
-        {"prefilter",           prefilter,              &par.clustlinear,             COMMAND_EXPERT,
+        {"prefilter",           prefilter,              &par.prefilter,             COMMAND_EXPERT,
                 "Search with query sequence / profile DB through target DB (k-mer matching + ungapped alignment)"},
         {"align",           align,              &par.align,             COMMAND_EXPERT,
                 "Compute Smith-Waterman alignments for previous results (e.g. prefilter DB, cluster DB)"},
         {"clust",             clust,                &par.clust,            COMMAND_EXPERT,
                 "Cluster sequence DB from alignment DB (e.g. created by searching DB against itself)"},
-        {"clustlinear",           clustlinear,       &par.clustlinear,             COMMAND_EXPERT,
+        {"clustlinear",           clustlinear,       &par.prefilter,             COMMAND_EXPERT,
                 "Cluster sequences of >70% sequence identity *in linear time*"},
         {"clusthash",   clusthash,       &par.clusthash,             COMMAND_EXPERT,
                 "Cluster sequences of same length and >90% sequence identity *in linear time*"},
@@ -139,7 +139,7 @@ void printUsage() {
             {"Main tools  (for non-experts)",  COMMAND_MAIN},
             {"Utility tools for format conversions",   COMMAND_FORMAT_CONVERSION},
             {"Utility tools for clustering",     COMMAND_CLUSTER},
-            {"Expert tools (for advanced users)",     COMMAND_EXPERT},
+            {"Core tools (for advanced users)",     COMMAND_EXPERT},
             {"Utility tools to manipulate DBs",     COMMAND_DB},
             {"Special-purpose utilities",     COMMAND_SPECIAL},
     };
@@ -149,7 +149,7 @@ void printUsage() {
         for (size_t j = 0; j < ARRAY_SIZE(commands); j++) {
             struct Command *p = commands + j;
             if (p->mode == categories[i].mode)
-                usage << std::setw(20) << p->cmd << "\t" << p->description << "\n";
+                usage << std::left << std::setw(20) << "  " + std::string(p->cmd) << "\t" << p->description << "\n";
         }
     }
 

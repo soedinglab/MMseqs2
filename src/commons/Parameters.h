@@ -8,6 +8,8 @@
 #include <vector>
 #include <typeinfo>
 
+#define CITATION "\nPlease cite: \nM. Steinegger and J. Soding.  Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv XXXX (2016).\n"
+
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
 
@@ -28,6 +30,7 @@ struct MMseqsParameter {
     static const int COMMAND_COMMON = 8;
     static const int COMMAND_PROFILE = 16;
     static const int COMMAND_MISC = 32;
+    static const int COMMAND_CLUSTLINEAR = 64;
 
     MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash,
@@ -259,9 +262,11 @@ public:
                          std::vector<MMseqsParameter> &par,
                          size_t requiredParameterCount,
                          bool printParameters = true,
-                         bool isVariadic = false);
+                         bool isVariadic = false,
+                         int outputFlag = 0);
     void printUsageMessage(const std::string &programUsageHeader,
-                           const std::vector<MMseqsParameter> &parameters);
+                           const std::vector<MMseqsParameter> &parameters,
+                           const int outputFlag);
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	
@@ -290,17 +295,17 @@ public:
     PARAMETER(PARAM_REMOVE_TMP_FILES)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
-    std::vector<MMseqsParameter> clustlinear;
+    std::vector<MMseqsParameter> prefilter;
 
     // alignment
     PARAMETER(PARAM_ALIGNMENT_MODE)
     PARAMETER(PARAM_E)
     PARAMETER(PARAM_C)
-    PARAMETER(PARAM_FRAG_MERGE)
     PARAMETER(PARAM_MAX_REJECTED)
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
+    PARAMETER(PARAM_FRAG_MERGE)
 
     std::vector<MMseqsParameter> align;
 

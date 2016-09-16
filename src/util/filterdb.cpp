@@ -282,10 +282,12 @@ int ffindexFilter::runFilter(){
 
 int filterdb(int argn, const char **argv)
 {
-	std::string usage;
-	usage.append("Filter a database by column regex\n");
-	usage.append("USAGE: <ffindexDB> <outDB>\n");
-	usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
+    std::string usage;
+    usage.append("Filter a database by setting conditions on a user-defined column. The conditions can be regular expression, numerical comparison, mapping of the content, or a limited amount of lines.\n");
+    usage.append(CITATION);
+    usage.append("\n© Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Clovis Galiez.\n");
+    usage.append("Usage: <ffindexDB> <outDB>\n");
+	
 
 	Parameters par;
 	par.parseParameters(argn, argv, usage, par.filterDb, 2);

@@ -17,7 +17,7 @@
 #define STAT_MEAN_STR "mean"
 #define STAT_DOOLITTLE_STR "doolittle"
 #define STAT_CHARGES_STR "charges"
-
+#define STAT_SEQLEN_STR "seqlen"
 
 class statsComputer {
 public:
@@ -31,6 +31,7 @@ private:
             STAT_MEAN,
             STAT_DOOLITTLE,
             STAT_CHARGES,
+            STAT_SEQLEN,
             STAT_UNKNOWN
     };
 	
@@ -56,6 +57,7 @@ private:
     int meanValue();
     float doolittle(char *);
     float charges(char *);
+    float strlen(char *);
 	
 };
 

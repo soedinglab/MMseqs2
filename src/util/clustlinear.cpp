@@ -92,7 +92,7 @@ int clustlinear(int argc, const char *argv[])
 
     Parameters par;
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, usage, par.linearfilter, 2);
+    par.parseParameters(argc, argv, usage, par.linearfilter, 2, true, false, MMseqsParameter::COMMAND_CLUSTLINEAR);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
