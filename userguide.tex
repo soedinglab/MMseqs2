@@ -2,6 +2,7 @@
 \usepackage[binary-units=true]{siunitx}
 \usepackage{hyperref}
 \usepackage{listings}
+\usepackage{fancyvrb}
 \begin{document}
 \chapter*{MMseqs2 User Guide}
 \renewcommand*\thesection{\arabic{section}}
@@ -56,6 +57,13 @@ MMseqs2 comes with a bash command and parameter auto-completion, which can usual
 \begin{flushleft}
 \texttt{source \textit{path/to/mmseqs}/util/bash-completion.sh}
 \end{flushleft}
+
+
+\subsubsection{Mac OS}
+If you are using Mac OS you can install MMseqs through Homebrew by executing the following:
+\begin{Verbatim}[fontsize=\footnotesize]
+$ brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs.rb --HEAD
+\end{Verbatim}
 \section{Getting Started}
 Here we explain how to run a search for sequences matches in the query database against a target database and how to cluster a sequence database. Test data (a query and a target database for the sequence search and a database for the clustering) are stored in the \texttt{examples} folder.
 \subsection*{Search}
@@ -845,7 +853,7 @@ Calculates a clustering of a sequence database based on Smith Waterman alignment
 \textbf{Usage:}
 
 
-\texttt{mmseqs cluster <sequenceDB> <alnResultsDB> <outDB> {[}opts{]}}
+\texttt{mmseqs clust <sequenceDB> <alnResultsDB> <outDB> {[}opts{]}}
 
 
 \textbf{Options:}
