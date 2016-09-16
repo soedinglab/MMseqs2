@@ -1,6 +1,6 @@
 FROM debian:jessie
 MAINTAINER Martin Steinegger
-RUN apt-get update && apt-get install -y cmake git ssh build-essential 
+RUN apt-get update && apt-get install -y cmake git ssh build-essential vim-common 
 RUN mkdir -m 700 /root/.ssh
 RUN echo 'Host *' >>  /root/.ssh/config
 RUN echo '  StrictHostKeyChecking no' >>  /root/.ssh/config
