@@ -9,16 +9,22 @@ The manuscript for MMseqs2 is still in preparations therefore we can just offer 
 ### Static version
 The following command will download the last MMseqs version, extract it and set the environment variables.
 
-        wget http://mmseqs.com/latest/mmseqs.tar.gz
+        wget https://mmseqs.com/latest/mmseqs.tar.gz
         tar xvfz mmseqs.tar.gz
 
 MMseqs comes with a bash command and parameter auto completion
-by pressing tab. The bash completion for subcommands and parameters can be installed by adding the following lines to your $HOME/.bash profile:
+by pressing tab. The bash completion for subcommands and parameters can be installed by adding the following lines to your $HOME/.bash_profile:
 
         if [ -f /path/to/mmseqs/util/bash-completion.sh ]; then
-         .  $MMDIR/util/bash-completion.sh
+         .  /path/to/mmseqs/util/bash-completion.sh
         fi
 
+#### Mac OS
+You can install MMseqs2 for Mac OS through [Homebrew](https://github.com/Homebrew/brew) by executing the following:
+
+        brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs.rb --HEAD
+
+This will also automatically install the bash completion (you might have to do `brew install bash-completion` first).
 
 ### How to search
 You can use the query database queryDB.fasta and target database targetDB.fasta to test the search workflow.
