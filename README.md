@@ -29,12 +29,13 @@ by pressing tab. The bash completion for subcommands and parameters can be insta
          .  /path/to/mmseqs/util/bash-completion.sh
         fi
 
-#### Mac OS
+#### [Homebrew](https://github.com/Homebrew/brew) 
 You can install MMseqs2 for Mac OS through [Homebrew](https://github.com/Homebrew/brew) by executing the following:
 
         brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs.rb --HEAD
 
 This will also automatically install the bash completion (you might have to do `brew install bash-completion` first).
+The formula will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
 
 ### How to search
 You can use the query database queryDB.fasta and target database targetDB.fasta to test the search workflow.
