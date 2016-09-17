@@ -18,8 +18,8 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
         make install 
         
         
-### Static version
-The following command will download the last MMseqs version, extract it and set the environment variables.
+### Static Linux version
+The following command will download the last MMseqs version, extract it and set the environment variables. This version runs just on linux. If you want to run it on Mac please compile it or use brew.
 
         wget https://mmseqs.com/latest/mmseqs.tar.gz
         tar xvzf mmseqs.tar.gz
