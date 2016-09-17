@@ -131,9 +131,9 @@ This modular architecture, can be used chain tools together to create workflows 
 * `mmseqs createindex` Precomputes an index table for the sequence DB. Handing over the precomputed index table as input to mmseqs search or mmseqs prefilter eliminates the computational overhead of building the index table on the fly.
 
 ### Core modules
-* `mmseqs prefilter` Search with query sequence / profile DB through target DB (k-mer matching + ungapped alignment)
-* `mmseqs align` Compute Smith-Waterman alignments for previous results (e.g. prefilter DB, cluster DB)
-* `mmseqs clust` Cluster sequence DB from alignment DB (e.g. created by searching DB against itself)
+* `prefilter` Search with query sequence / profile DB through target DB (k-mer matching + ungapped alignment)
+* `align` Compute Smith-Waterman alignments for previous results (e.g. prefilter DB, cluster DB)
+* `clust` Cluster sequence DB from alignment DB (e.g. created by searching DB against itself)
 * `clustlinear`       	Cluster sequences of >70% sequence identity *in linear time*
 * `clusthash`         	Cluster sequences of same length and >90% sequence identity *in linear time*
 
