@@ -94,22 +94,21 @@ We recommend at least 128 GB of RAM so you can compute databases up to 30.000.00
 
 You can calculate the memory requirements in bytes for L columns and N rows using the following formula:
         
-        M = (7*N*L + 8*a^k) byte
+        M = (7 B × N × L + 8 B × a^k) byte
 
 MMseqs stores an index table and two auxiliary arrays, which have a total size of M byte.
 
-For a database containing N sequences with an average length L, the memory consumption of the index table is `(7*N*L) byte`.
+For a database containing N sequences with an average length L, the memory consumption of the index table is `(7B × N × L)` byte.
 Note that the memory consumption grows linearly with the number of the sequences N in the database.
 
-The two auxiliary arrays consume `(8*a^k) byte`, with a being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the  k-mer size k.
+The two auxiliary arrays consume `(8 B × a^k)` bytes, with a being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the  k-mer size k.
 
-
-### How to run mmseqs on multipe servers
+### How to run MMseqs2 on multipe servers using MPI
 MMseqs2 can run on multiple cores and servers using OpenMP (OMP) and message passing interface (MPI).
 MPI assigns database splits to each servers and each server computes them using multiple cores (OMP). 
 Currently `prefilter`, `align`, `result2profile`, `swapresults` can take advantage of MPI.
 
-To parallelize the time-consuming k-mer matching and gapless alignment stages `prefilter` among multiple servers, two different modes are available. In the first, MMseqs2 can split the target sequence set into approximately equal-sized chunks, and each server searches all queries against its chunk. Alternatively, the query sequence set is split into equal-sized chunks and each server searches its query chunk against the entire target set. Splitting the target database is less time-efficient due to the slow, IO-limited merging of results. MMseqs2 will try to detect the optimal split mode based on the main memory of the machine. We assume that all machines have the same amount of memory. 
+To parallelize the time-consuming k-mer matching and gapless alignment stages `prefilter` among multiple servers, two different modes are available. In the first, MMseqs2 can split the target sequence set into approximately equal-sized chunks, and each server searches all queries against its chunk. Alternatively, the query sequence set is split into equal-sized chunks and each server searches its query chunk against the entire target set. Splitting the target database is less time-efficient due to the slow, IO-limited merging of results. But it reduces the memory required on each server to `7 × N L/#chunks + a^k × 8 B` and allows users to search through huge databases on servers with moderate memory sizes. If the number of chunks is larger than the number of servers, chunks will be distributed among servers and processed sequentially. By default, MMseqs2 automatically decides which mode to pick based on the available memory (assume that all machines have the same amount of memory). 
 
 Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`cmake -DHAVE_MPI=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..`). Our precomplied static version of MMseqs2 can not use MPI.
 
@@ -122,8 +121,8 @@ For clustering just call the clustering. The TMP folder has to be shared between
         RUNNER="mpirun -np 42" mmseqs cluster DB clu tmp
 
 ## Overview of MMseqs
-MMseqs is stand-alone binary `mmseqs`, which contains several commands to execute complete workflows, tools or utilities. 
-MMseqs modular architecture, can be used chain tools together to create workflows for analysing huge sequence sets. Three plug-and-play bash-scripted workflows for sequence searching `mmseqs search`, sequence clustering `mmseqs cluster`, and updating clusterings`clusterupdate` facilitate the usage for standard tasks. Example bash scripted workflows can be found in the `data` folder.
+MMseqs2 is a stand-alone binary `mmseqs`, which contains commands to execute complete workflows, tools or utilities. 
+This modular architecture, can be used chain tools together to create workflows for analysing huge sequence sets. Three plug-and-play bash-scripted workflows for sequence searching `mmseqs search`, sequence clustering `mmseqs cluster`, and updating clusterings`clusterupdate` facilitate the usage for standard tasks. Example bash scripted workflows can be found in the `data` folder.
 
 ### Main tools
 * `mmseqs createdb` converts a protein sequence set in a FASTA formatted file to MMseqs’ sequence DB format. This format is needed as input to mmseqs search and many other tools.
