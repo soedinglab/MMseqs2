@@ -114,7 +114,7 @@ Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`
 
 To search with multiple server just call the search and add the RUNNER variable. The TMP folder has to be shared between all nodes (e.g. NFS)
 
-        RUNNER="mpirun -np 42" mmseqs search DB clu tmp
+        RUNNER="mpirun -np 42" mmseqs search queryDB targetDB resultDB tmp
 
 For clustering just call the clustering. The TMP folder has to be shared between all nodes (e.g. NFS)
 
@@ -129,7 +129,6 @@ This modular architecture, can be used chain tools together to create workflows 
 * `mmseqs search` Search with query sequence or profile DB (iteratively) through target sequence DB", Searches with the sequences or profiles query DB through the target sequence DB by running the prefilter tool and the align tool for Smith-Waterman alignment. For each query a results file with sequence matches is written as entry into a database of search results (“alignmentDB”). In iterative profile search mode, the detected sequences satisfying user-specified criteria are aligned to the query MSA, and the resulting query profile is used for the next search iteration. Iterative profile searches are usually much more sensitive than (and at least as sensitive as) searches with single query sequences.
 * `mmseqs cluster`  Clusters sequences by similarity. It compares all sequences in the sequence DB with each other using mmseqs search, filters alignments according to user-specified criteria (max. E-value, min. coverage,...), and runs mmseqs clust to group similar sequences together into clusters.
 * `mmseqs createindex` Precomputes an index table for the sequence DB. Handing over the precomputed index table as input to mmseqs search or mmseqs prefilter eliminates the computational overhead of building the index table on the fly.
-
 
 ### Core modules
 * `mmseqs prefilter` Search with query sequence / profile DB through target DB (k-mer matching + ungapped alignment)
