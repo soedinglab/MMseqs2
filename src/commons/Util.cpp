@@ -223,10 +223,11 @@ std::pair<ssize_t,ssize_t> Util::getFastaHeaderPosition(const std::string& heade
                 return std::make_pair(start, end);
             } else {
                 end = header.find_first_of(" \n", start);
-                if (end != std::string::npos || end == header.length()) {
+                if (end != std::string::npos) {
                     return std::make_pair(start, end);
                 } else {
-                    return errorPosition;
+                    // return until the end of the line
+                    return std::make_pair(start, header.length());
                 }
             }
         }
@@ -235,10 +236,11 @@ std::pair<ssize_t,ssize_t> Util::getFastaHeaderPosition(const std::string& heade
     // if we can not find one of the existing database ids,
     // we use the first part of the string or the whole string
     size_t end = header.find_first_of(" \n", offset);
-    if (end != std::string::npos || end == header.length()) {
+    if (end != std::string::npos) {
         return std::make_pair(offset, end);
     } else {
-        return errorPosition;
+        // return until the end of the line
+        return std::make_pair(offset, header.length());
     }
 }
 
