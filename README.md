@@ -41,8 +41,8 @@ The formula will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
 You can use the query database queryDB.fasta and target database targetDB.fasta to test the search workflow.
 Before clustering, you need to convert your database containing query sequences (queryDB.fasta) and your target database (targetDB.fasta) into mmseqs database format:
 
-        mmseqs createdb example/queryDB.fasta queryDB
-        mmseqs createdb example/targetDB.fasta targetDB
+        mmseqs createdb examples/QUERY.fasta queryDB
+        mmseqs createdb examples/DB.fasta targetDB
         
 It generates ffindex database files, e. g. queryDB and ffindex index file queryDB.index
 from queryDB.fasta. Then, generate a directory for tmp files:
@@ -78,8 +78,8 @@ For the disc space requirements, see the user guide.
 
 To generate a FASTA-style formatted output file from the ffindex output file, type:
 
-        mmseqs createseqfiledb DB DB_clu DB_clu_seq 
-        mmseqs result2flat DB DB DB_clu_seq DB_clu_seq.fasta
+        mmseqs createseqfiledb DB clu clu_seq 
+        mmseqs result2flat DB DB clu_seq clu_seq.fasta
         
 To generate a TSV-style formatted output file from the ffindex output file, type:
 
