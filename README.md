@@ -103,9 +103,27 @@ Note that the memory consumption grows linearly with the number of the sequences
 
 The two auxiliary arrays consume `(8*a^k) byte`, with a being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the  k-mer size k.
 
+
+### How to run mmseqs on multipe servers
+MMseqs2 can run on multiple cores and servers using OpenMP (OMP) and message passing interface (MPI).
+MPI assigns database splits to each servers and each server computes them using multiple cores (OMP). 
+Currently `prefilter`, `align`, `result2profile`, `swapresults` can take advantage of MPI.
+
+To parallelize the time-consuming k-mer matching and gapless alignment stages `prefilter` among multiple servers, two different modes are available. In the first, MMseqs2 can split the target sequence set into approximately equal-sized chunks, and each server searches all queries against its chunk. Alternatively, the query sequence set is split into equal-sized chunks and each server searches its query chunk against the entire target set. Splitting the target database is less time-efficient due to the slow, IO-limited merging of results. MMseqs2 will try to detect the optimal split mode based on the main memory of the machine. We assume that all machines have the same amount of memory. 
+
+Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`cmake -DHAVE_MPI=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..`). Our precomplied static version of MMseqs2 can not use MPI.
+
+To search with multiple server just call the search and add the RUNNER variable. The TMP folder has to be shared between all nodes (e.g. NFS)
+
+        RUNNER="mpirun -np 42" mmseqs search DB clu tmp
+
+For clustering just call the clustering. The TMP folder has to be shared between all nodes (e.g. NFS)
+
+        RUNNER="mpirun -np 42" mmseqs cluster DB clu tmp
+
 ## Overview of MMseqs
 MMseqs is stand-alone binary `mmseqs`, which contains several commands to execute complete workflows, tools or utilities. 
-MMseqs modular architecture, can be used chain tools together to create workflows for analysing huge sequence sets. Three plug-and-play bash-scripted workflows for sequence searching `mmseqs search`, sequence clustering `mmseqs cluster`, and updating clusterings`clusterupdate` facilitate the usage for standard tasks. Example bash scripted workflows can be found in the `util` folder.
+MMseqs modular architecture, can be used chain tools together to create workflows for analysing huge sequence sets. Three plug-and-play bash-scripted workflows for sequence searching `mmseqs search`, sequence clustering `mmseqs cluster`, and updating clusterings`clusterupdate` facilitate the usage for standard tasks. Example bash scripted workflows can be found in the `data` folder.
 
 ### Main tools
 * `mmseqs createdb` converts a protein sequence set in a FASTA formatted file to MMseqs’ sequence DB format. This format is needed as input to mmseqs search and many other tools.
