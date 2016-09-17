@@ -4,6 +4,8 @@ MMseqs2 (Many-against-Many searching) is a software suite to search and cluster 
 MMseqs2 has not just improved in sensitivity and speed it also improved usability through several helper tools. The utilities comprise tools for format conversion, multiple sequence alignment, sequence profile calculation, 6-frame translation for ORF extraction, set operations on sequence sets, regex-based filters, and statistics tools to analyse results.
 
 ## Installation
+MMseqs can be installed by compiling the binary, download a static version of use homebrew. MMseqs2 requirements a 64 bit system with SSE4.1. 
+
 ### Compile
 Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which might improve its performance. To compile mmseqs `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in in `build/bin/`.
 
