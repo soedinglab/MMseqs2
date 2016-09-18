@@ -24,13 +24,12 @@ The following command will download the last MMseqs version, extract it and set 
 If your computer supports AVX2 use this (faster than SSE4.1):
 
         wget https://mmseqs.com/latest/mmseqs-static_avx2.tar.gz 
-        tar xvzf mmseqs.tar.gz
-        
+        tar xvzf mmseqs-static_avx2.tar.gz
         
 If your computer supports SSE4.1 use:
 
         wget https://mmseqs.com/latest/mmseqs-static_sse41.tar.gz 
-        tar xvzf mmseqs.tar.gz
+        tar xvzf mmseqs-static_sse41.tar.gz
 
 MMseqs comes with a bash command and parameter auto completion
 by pressing tab. The bash completion for subcommands and parameters can be installed by adding the following lines to your $HOME/.bash_profile:
