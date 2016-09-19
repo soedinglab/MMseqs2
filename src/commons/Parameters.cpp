@@ -746,7 +746,7 @@ void Parameters::setDefaults() {
     alphabetSize = 21;
     maxSeqLen = MAX_SEQ_LEN; // 2^16
     maxResListLen = 300;
-    sensitivity = 4;
+    sensitivity = 6.1;
     split = AUTO_SPLIT_DETECTION;
     splitMode = DETECT_BEST_DB_SPLIT;
     splitAA = false;
