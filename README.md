@@ -1,5 +1,5 @@
 # MMseqs2.0: ultra fast and sensitive search and clustering suite
-MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and Mac OS. The software is designed run on multiple cores and servers and exhibits very good scalability. MMseqs2 reaches the same sensitivity as BLAST magnitude faster and which can also perform profile searches like PSI-BLAST but also ~270x faster.
+MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and Mac OS. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 reaches the same sensitivity as BLAST magnitude faster and which can also perform profile searches like PSI-BLAST but also ~270x faster.
 
 MMseqs2 has not just improved in sensitivity and speed it also improved usability through several helper tools. The utilities comprise tools for format conversion, multiple sequence alignment, sequence profile calculation, 6-frame translation for ORF extraction, set operations on sequence sets, regex-based filters, and statistics tools to analyse results.
 
@@ -10,7 +10,7 @@ MMseqs can be installed by compiling the binary, download a statically compiled 
 Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which might improve its performance. To compile mmseqs `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in in `build/bin/`.
 
         git clone https://github.com/soedinglab/MMseqs2.git
-        cd mmseqs
+        cd MMseqs2
         mkdir build
         cd build
         cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
