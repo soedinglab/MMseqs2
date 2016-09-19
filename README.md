@@ -66,7 +66,7 @@ MMseqs can produce a high IO on the file system. It is recommend to create this 
 
         mkdir tmp
 
-Please ensure that in case of large input databases tmp provides enough free space.
+The `mmseqs search` searches the `queryDB` against the `targetDB`. The sensitivity for it can be adjusted with `-s` and should be adapted based on the use case. If you want to use alignment backtraces in later step add `-a`. Please ensure that in case of large input databases tmp provides enough free space.
 For the disc space requirements, see the user guide.
 To run the search type:
 
