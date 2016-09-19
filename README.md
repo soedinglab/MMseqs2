@@ -50,7 +50,7 @@ You can install MMseqs2 for Mac OS through [Homebrew](https://github.com/Homebre
 This will also automatically install the bash completion (you might have to do `brew install bash-completion` first).
 The formula will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
 
-### How to search
+## How to search
 You can use the query database queryDB.fasta and target database targetDB.fasta to test the search workflow.
 Before clustering, you need to convert your database containing query sequences (queryDB.fasta) and your target database (targetDB.fasta) into mmseqs database format:
 
@@ -75,12 +75,15 @@ To run the search type:
 
         mmseqs search queryDB targetDB resultDB tmp
 
-Then convert the result ffindex database into a FASTA formatted database: 
+Then convert the result database into a BLAST-tab formatted database (format: qId, tId, seqIdentity, alnLen, mismatchCnt, gapOpenCnt, qStart, qEnd, tStart, tEnd, eVal, bitScore).
 
         mmseqs convertalis queryDB targetDB resultDB resultDB.m8
 
+Use the option `--format-mode 1` to convert the results to pairwise alignments. Make sure that you searched with the option `-a` (`mmseqs search ... -a`).
 
-### How to cluster 
+        mmseqs convertalis queryDB targetDB resultDB resultDB.pair --format-mode 1
+
+## How to cluster 
 Before clustering, convert your FASTA database into ffindex format:
 
         mmseqs createdb examples/DB.fasta DB
