@@ -37,10 +37,11 @@ If your computer supports SSE4.1 use:
 MMseqs comes with a bash command and parameter auto completion
 by pressing tab. The bash completion for subcommands and parameters can be installed by adding the following lines to your $HOME/.bash_profile:
 
-        if [ -f /path/to/mmseqs/util/bash-completion.sh ]; then
-         .  /path/to/mmseqs/util/bash-completion.sh
+<pre>
+        if [ -f /<b>Path to MMseqs2</b>/util/bash-completion.sh ]; then
+         .  /<b>Path to MMseqs2</b>/util/bash-completion.sh
         fi
-
+</pre>
 #### [Homebrew](https://github.com/Homebrew/brew) 
 You can install MMseqs2 for Mac OS through [Homebrew](https://github.com/Homebrew/brew) by executing the following:
 
