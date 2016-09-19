@@ -4,7 +4,7 @@ MMseqs2 (Many-against-Many searching) is a software suite to search and cluster 
 MMseqs2 has not just improved in sensitivity and speed it also improved usability through several helper tools. The utilities comprise tools for format conversion, multiple sequence alignment, sequence profile calculation, 6-frame translation for ORF extraction, set operations on sequence sets, regex-based filters, and statistics tools to analyse results.
 
 ## Installation
-MMseqs can be installed by compiling the binary, download a statically compiled version or using [Homebrew](https://github.com/Homebrew/brew). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS). MMseqs2 will automatically use AVX2 instruction set it is available. 
+MMseqs can be installed by compiling the binary, download a statically compiled version or using [Homebrew](https://github.com/Homebrew/brew). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS). MMseqs2 will automatically detect the availability of SSE4.1 or AVX2 instruction set and set the newest standard. 
 
 ### Compile
 Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which might improve its performance. To compile mmseqs `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in in `build/bin/`.
@@ -16,21 +16,32 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
         cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
         make
         make install 
+        export PATH=$(pwd)/bin/:$PATH
         
         
 ### Static Linux version
 The following command will download the last MMseqs version, extract it and set the environment variables. This version runs just on linux. If you want to run it on Mac please compile it or use brew.
 
-        wget https://mmseqs.com/latest/mmseqs.tar.gz
-        tar xvzf mmseqs.tar.gz
+If your computer supports AVX2 use this (faster than SSE4.1):
+
+        wget https://mmseqs.com/latest/mmseqs-static_avx2.tar.gz 
+        tar xvzf mmseqs-static_avx2.tar.gz
+        export PATH=$(pwd)/mmseqs/bin/:$PATH
+        
+If your computer supports SSE4.1 use:
+
+        wget https://mmseqs.com/latest/mmseqs-static_sse41.tar.gz 
+        tar xvzf mmseqs-static_sse41.tar.gz
+        export PATH=$(pwd)/mmseqs/bin/:$PATH
 
 MMseqs comes with a bash command and parameter auto completion
 by pressing tab. The bash completion for subcommands and parameters can be installed by adding the following lines to your $HOME/.bash_profile:
 
-        if [ -f /path/to/mmseqs/util/bash-completion.sh ]; then
-         .  /path/to/mmseqs/util/bash-completion.sh
+<pre>
+        if [ -f /<b>Path to MMseqs2</b>/util/bash-completion.sh ]; then
+         .  /<b>Path to MMseqs2</b>/util/bash-completion.sh
         fi
-
+</pre>
 #### [Homebrew](https://github.com/Homebrew/brew) 
 You can install MMseqs2 for Mac OS through [Homebrew](https://github.com/Homebrew/brew) by executing the following:
 
@@ -39,7 +50,7 @@ You can install MMseqs2 for Mac OS through [Homebrew](https://github.com/Homebre
 This will also automatically install the bash completion (you might have to do `brew install bash-completion` first).
 The formula will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
 
-### How to search
+## How to search
 You can use the query database queryDB.fasta and target database targetDB.fasta to test the search workflow.
 Before clustering, you need to convert your database containing query sequences (queryDB.fasta) and your target database (targetDB.fasta) into mmseqs database format:
 
@@ -56,18 +67,23 @@ MMseqs can produce a high IO on the file system. It is recommend to create this 
 
         mkdir tmp
 
+The `mmseqs search` searches the `queryDB` against the `targetDB`. The sensitivity can be adjusted with `-s` and should be adapted based on your use case. If you want to use alignment backtraces in later steps add the option `-a`.  An iterative profile search (like PSI-BLAST) can be trigged with `--num-iterations`. 
+
 Please ensure that in case of large input databases tmp provides enough free space.
 For the disc space requirements, see the user guide.
 To run the search type:
 
         mmseqs search queryDB targetDB resultDB tmp
 
-Then convert the result ffindex database into a FASTA formatted database: 
+Then convert the result database into a BLAST-tab formatted database (format: qId, tId, seqIdentity, alnLen, mismatchCnt, gapOpenCnt, qStart, qEnd, tStart, tEnd, eVal, bitScore).
 
         mmseqs convertalis queryDB targetDB resultDB resultDB.m8
 
+Use the option `--format-mode 1` to convert the results to pairwise alignments. Make sure that you searched with the option `-a` (`mmseqs search ... -a`).
 
-### How to cluster 
+        mmseqs convertalis queryDB targetDB resultDB resultDB.pair --format-mode 1
+
+## How to cluster 
 Before clustering, convert your FASTA database into ffindex format:
 
         mmseqs createdb examples/DB.fasta DB
