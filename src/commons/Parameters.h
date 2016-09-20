@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 #include <typeinfo>
-
-#define CITATION "\nPlease cite: \nM. Steinegger and J. Soding.  Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv XXXX (2016).\n"
+#include "Command.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
@@ -82,6 +81,8 @@ public:
     // extractalignedregion
     static const int EXTRACT_QUERY  = 1;
     static const int EXTRACT_TARGET = 2;
+
+    static const int CLUST_HASH_DEFAULT_ALPH_SIZE = 3;
 
     // COMMON
     const char** argv;            //command line parameters
@@ -169,7 +170,6 @@ public:
 
     // convertprofiledb
     int profileMode;
-    bool useIndex;
     // format alignment
     int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
 
@@ -254,25 +254,31 @@ public:
     
     // concatdbs
     bool preserveKeysB;
+
+    static Parameters& getInstance()
+    {
+        static Parameters instance;
+        return instance;
+    }
     
     void checkSaneEnvironment();
     void setDefaults();
     void parseParameters(int argc, const char* argv[],
-                         const std::string &programUsageHeader,
-                         std::vector<MMseqsParameter> &par,
+                         const Command& command,
                          size_t requiredParameterCount,
                          bool printParameters = true,
                          bool isVariadic = false,
                          int outputFlag = 0);
+                         
     void printUsageMessage(const std::string &programUsageHeader,
                            const std::vector<MMseqsParameter> &parameters,
                            const int outputFlag);
+                           
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	
 	std::vector<MMseqsParameter> removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x);
-	
-    Parameters();
+
     ~Parameters(){};
 
     PARAMETER(PARAM_S)
@@ -360,7 +366,6 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEP_SIZE)
-    PARAMETER(PARAM_USE_INDEX)
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
@@ -472,6 +477,10 @@ public:
                                               std::vector<MMseqsParameter> &par2);
 
     std::string createParameterString(std::vector < MMseqsParameter > &vector);
+private:
+    Parameters();
+    Parameters(Parameters const&);
+    void operator=(Parameters const&);
 
 };
 

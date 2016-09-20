@@ -294,23 +294,11 @@ int statsComputer::sequenceWise(float (statsComputer::*statFunction)(char*))
     return 0;
 }
 
+int result2stats(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 4);
 
-
-
-
-
-int result2stats(int argc, const char **argv) {
     //MMseqsMPI::init(argc, argv);
-
-    std::string usage("Compute user-defined statistics for each entry of a sequence or result database.\n");
-    usage.append(CITATION);
-    usage.append("\n© Clovis Galiez & Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n");
-    usage.append("Usage: <queryDB> <targetDB> <resultDB> <outDB>\n");
-    
-    
-    
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.result2stats, 4);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -319,8 +307,6 @@ int result2stats(int argc, const char **argv) {
     statsComputer computeStats(par);
 
     retCode = computeStats.run();
-    
-
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;

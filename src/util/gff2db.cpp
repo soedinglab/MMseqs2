@@ -14,13 +14,9 @@
 #include "Parameters.h"
 #include "Util.h"
 
-int gff2db(int argn, const char **argv) {
-    std::string usage("Converts a gff file and the matching ffindex database into a ffindex.\n");
-    usage.append("USAGE: <gff3> <inDB> <outDB>\n");
-    usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-
-    Parameters par;
-    par.parseParameters(argn, argv, usage, par.gff2ffindex, 3);
+int gff2db(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 3);
 
     std::string headerFilename(par.db2);
     headerFilename.append("_h");

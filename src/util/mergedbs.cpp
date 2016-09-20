@@ -7,12 +7,9 @@
 #include <sys/time.h>
 
 
-int mergedbs(int argc, const char **argv) {
-    std::string usage("\nMerge multiple ffindex files based on similar id into one file. \n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de).\n\n");
-    usage.append("USAGE: <QueryDB> <outDB> <ffindexDB1> ... <ffindexDBn>\n");
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.mergeffindex, 2, true, true);
+int mergedbs(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 2, true, true);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);

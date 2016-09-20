@@ -24,6 +24,9 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr, Sequence *seq,
                                               BaseMatrix * subMat, int split, int alphabetSize, int kmerSize,
                                               bool hasSpacedKmer, bool diagonalScoring, int threads) {
+
+
+
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));

@@ -36,20 +36,9 @@ struct compareKeyToFirstEntry {
 	}
 };
 
-int diffseqdbs(int argc, const char **argv) {
-    std::string usage("Find the sequences that are removed, kept and added between two sequence databases.\n");
-    usage.append("It creates 3 filtering files, that can be used in cunjunction with \"createsubdb\" tool.");
-    usage.append("The first file contains the keys that has been removed from DBold to DBnew.");
-    usage.append("The second file maps the keys of the kept sequences from DBold to DBnew.");
-    usage.append("The third file contains the keys of the sequences that have been added in DBnew.\n");
-    usage.append(CITATION);
-    usage.append("\n© Clovis Galiez & Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n\n");
-    
-    usage.append("Usage: <DBold> <DBnew> <rmSeqKeysOut> <keptSeqKeyMappingOut> <newSeqKeysOut>\n");
-    
-
-	Parameters par;
-	par.parseParameters(argc, argv, usage, par.diff, 5);
+int diffseqdbs(int argc, const char **argv, const Command& command) {
+	Parameters& par = Parameters::getInstance();
+	par.parseParameters(argc, argv, command, 5);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

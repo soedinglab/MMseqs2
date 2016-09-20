@@ -107,13 +107,9 @@ int doExtractAlignedRegion(Parameters &par) {
     return EXIT_SUCCESS;
 }
 
-int extractalignedregion(int argc, const char **argv) {
-    std::string usage("Extract aligned regions from an alignment result.\n");
-    usage.append("USAGE: <queryDB> <targetDB> <resultDB> <outDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
-
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.extractalignedregion, 4);
+int extractalignedregion(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 4);
 
     // never allow deletions
     par.allowDeletion = false;

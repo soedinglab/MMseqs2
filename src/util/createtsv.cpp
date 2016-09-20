@@ -6,13 +6,9 @@
 #include "Util.h"
 
 
-int createtsv (int argc, const char * argv[])
-{
-    std::string usage("Converts a ffindex database to tsv\n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE: <queryDB> <targetDB> <resultDB> <tsvFile>\n");
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.onlyverbosity, 4);
+int createtsv (int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 4);
 
     Debug(Debug::WARNING) << "Query file is " <<  par.db1 << "\n";
     std::string queryHeaderDB =  par.db1 + "_h";

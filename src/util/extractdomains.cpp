@@ -362,15 +362,11 @@ int doExtract(Parameters &par) {
     return status;
 }
 
-int extractdomains(int argc, const char **argv) {
+int extractdomains(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 3);
+
     MMseqsMPI::init(argc, argv);
-
-    std::string usage("Maps domain annotations from tab files to MSAs.\n");
-    usage.append("Written by Milot Mirdita (milot@mirdita.de) & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>\n");
-    usage.append("USAGE: <domainDB> <msaDB> <outDB>\n");
-
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.extractdomains, 3);
 
 #ifdef HAVE_MPI
     int status = doExtract(par, MMseqsMPI::rank, MMseqsMPI::numProc);

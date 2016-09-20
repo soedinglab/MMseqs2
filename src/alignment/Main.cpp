@@ -21,6 +21,7 @@ int align(int argc, const char *argv[])
     Parameters par;
     par.parseParameters(argc, argv, usage, par.align, 4, true, false, MMseqsParameter::COMMAND_ALIGN);
 
+
     Debug::setDebugLevel(Debug::INFO);
 
 #ifdef OPENMP

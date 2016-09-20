@@ -5,17 +5,9 @@
 #include "Util.h"
 #include <sstream>
 
-int splitdb(int argc, const char *argv[])
-{
-    int err = EXIT_SUCCESS;
-
-    std::string usage;
-    usage.append("\nSplits a ffindex database into multiple ffindex databases.\n");
-    usage.append("Written by Milot Mirdita (milot@mirdita.de).\n\n");
-    usage.append("USAGE: <ffindexInDB> <ffindexOutDB>\n");
-
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.splitdb, 2);
+int splitdb(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 2);
 
     if(par.split < 1) {
         Debug(Debug::ERROR) << "Cannot split databases into 0 or negative chunks.";
@@ -59,5 +51,5 @@ int splitdb(int argc, const char *argv[])
     }
 
     dbr.close();
-    return err;
+    return EXIT_SUCCESS;
 }

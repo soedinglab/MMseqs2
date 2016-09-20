@@ -65,7 +65,14 @@ Prefiltering::Prefiltering(const std::string& queryDB,
     // if no match found or two matches found (we want exactly one match)
     sameQTDB = (queryDB.compare(targetDB) == 0 || (nomatch == false) );
     includeIdentical = par.includeIdentity;
-    this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
+    std::string indexDB = searchForIndex(targetDB);
+
+    //TODO optimize this. Dont read twice the target index. This seems to be slow
+    if(indexDB != ""){
+        this->tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
+    }else{
+        this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
+    }
     tdbr->open(DBReader<unsigned int>::NOSORT);
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
     if(templateDBIsIndex == true){ // exchange reader with old ffindex reader
@@ -86,6 +93,10 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         delete tdbr;
         this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
         tdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    }
+    if(kmerSize == 0){ // set k-mer based on aa size in database
+        // if we have less than 10Mio * 335 amino acids use 6mers
+        kmerSize = tdbr->getAminoAcidDBSize() < 3350000000 ? 6 : 7;
     }
     Debug(Debug::INFO) << "Query database: " << par.db1 << "(size=" << qdbr->getSize() << ")\n";
     Debug(Debug::INFO) << "Target database: " << par.db2 << "(size=" << tdbr->getSize() << ")\n";
@@ -779,4 +790,18 @@ size_t Prefiltering::computeMemoryNeeded(int split, size_t dbSize, size_t resSiz
     // some memory needed to keep the index, ....
     size_t background =  dbSize * 22;
     return residueSize + indexTableSize + threadSize + background;
+}
+
+std::string Prefiltering::searchForIndex(const std::string &pathToDB) {
+    for(size_t spaced = 0; spaced < 2; spaced++) {
+        for (size_t k = 5; k < 7; k++) {
+            std::string outIndexName(pathToDB); // db.sk6
+            std::string s = (spaced == true) ? "s" : "";
+            outIndexName.append(".").append(s).append("k").append(SSTR(k));
+            if (FileUtil::fileExists(outIndexName.c_str()) == true) {
+                return outIndexName;
+            }
+        }
+    }
+    return "";
 }

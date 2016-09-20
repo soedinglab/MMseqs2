@@ -11,30 +11,25 @@
 #include <omp.h>
 #endif
 
-int createseqfiledb(int argc, const char **argv)
-{
-    std::string usage("Adds sequences in fasta format to an mmseqs clustering.\n");
-    usage.append("Written by Milot Mirdita (milot@mirdita.de).\n");
-    usage.append("USAGE: <clusteredDB> <fastaInDB> <fastaOut>\n");
-
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.createseqfiledb, 3);
+int createseqfiledb(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 3);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
-    DBReader<unsigned int> clusters(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> clusters(par.db2.c_str(), par.db2Index.c_str());
     clusters.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBReader<unsigned int> bodies(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<unsigned int> bodies(par.db1.c_str(), par.db1Index.c_str());
     bodies.open(DBReader<unsigned int>::NOSORT);
     bodies.readMmapedDataInMemory();
 
-    std::string headerFilename(par.db2);
+    std::string headerFilename(par.db1);
     headerFilename.append("_h");
 
-    std::string headerIndexFilename(par.db2);
+    std::string headerIndexFilename(par.db1);
     headerIndexFilename.append("_h.index");
 
     DBReader<unsigned int> headers(headerFilename.c_str(), headerIndexFilename.c_str());

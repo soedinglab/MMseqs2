@@ -11,20 +11,16 @@
 #ifdef OPENMP
 #include <omp.h>
 #endif
-int prefilter(int argc, const char **argv)
-{
+int prefilter(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 3, true, false, MMseqsParameter::COMMAND_PREFILTER );
+
+
     MMseqsMPI::init(argc, argv);
 
-    std::string usage("\nCalculates k-mer similarity scores between all sequences in the query database and all sequences in the target database.\n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n");
-    usage.append("USAGE: prefilter <queryDB> <targetDB> <outDB> [opts]\n");
-
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.prefilter, 3, true, false, MMseqsParameter::COMMAND_PREFILTER );
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

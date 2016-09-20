@@ -81,21 +81,18 @@ size_t computeMemoryNeededLinearfilter(size_t totalKmer) {
     return sizeof(KmerPosition) * totalKmer;
 }
 
-int clustlinear(int argc, const char *argv[])
-{
-    std::string usage;
-    usage.append("Detects redundant sequences based on reduced alphabet and k-mer sorting.\n");
-    usage.append("USAGE: <sequenceDB> <outDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-
-    Parameters par;
+int clustlinear(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, usage, par.linearfilter, 2, true, false, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, 2, true, false, MMseqsParameter::COMMAND_CLUSTLINEAR);
+
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
+
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
 
     BaseMatrix * subMat;
     if(par.alphabetSize == 21){

@@ -36,15 +36,9 @@ unsigned int getFrames(std::string frames) {
     return result;
 }
 
-int extractorfs(int argn, const char **argv)
-{
-    std::string usage;
-    usage.append("Extract all open reading frames from a nucleotide ffindex into a second ffindex database.\n");
-    usage.append("USAGE: <fastaDB> <ffindexDB>\n");
-    usage.append("\nDesigned and implemented by Milot Mirdita <milot@mirdita.de>.\n");
-
-    Parameters par;
-    par.parseParameters(argn, argv, usage, par.extractorfs, 2);
+int extractorfs(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 2);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

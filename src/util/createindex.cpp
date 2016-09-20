@@ -11,16 +11,10 @@
 #include <vector>
 #include <utility>      // std::pair
 
-int createindex (int argc, const char * argv[])
+int createindex (int argc, const char **argv, const Command& command)
 {
-    
-    std::string usage("\nCreate index for fast readin.\n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE: <ffindexDb> \n");
-
-
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.createindex, 1);
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 1);
     if(par.split == 0){
         par.split = 1;
     }
@@ -33,11 +27,15 @@ int createindex (int argc, const char * argv[])
     dbr.open(DBReader<unsigned int>::NOSORT);
 
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
-
-    Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, par.kmerSize, par.spacedKmer, par.compBiasCorrection);
+    size_t kmerSize = par.kmerSize;
+    if(par.kmerSize == 0){ // set k-mer based on aa size in database
+        // if we have less than 10Mio * 335 amino acids use 6mers
+        kmerSize = dbr.getAminoAcidDBSize() < 3350000000 ? 6 : 7;
+    }
+    Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, kmerSize, par.spacedKmer, par.compBiasCorrection);
 
     PrefilteringIndexReader::createIndexFile(par.db1, &dbr, &seq, subMat, par.split,
-                                             subMat->alphabetSize, par.kmerSize, par.spacedKmer, par.diagonalScoring, par.threads);
+                                             subMat->alphabetSize, kmerSize, par.spacedKmer, par.diagonalScoring, par.threads);
 
     // write code
     dbr.close();

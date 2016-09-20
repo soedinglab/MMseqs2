@@ -3,13 +3,9 @@
 #include "Util.h"
 #include "CompareGOTerms.h"
 
-int computeGOscore(int argc, const char **argv) {
-    std::string usage("Computes GOscore for a clustering result\n");
-    usage.append(
-            "Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de).\n\n");
-    usage.append("USAGE: <gofolder> <clustering_file> <prefix> <outputfolder>\n");
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.evaluationscores, 5);
+int computeGOscore(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 5);
 
     std::string gofolder = par.db1;
     Debug(Debug::INFO) << "GO folder is " << gofolder << "\n";
@@ -25,9 +21,6 @@ int computeGOscore(int argc, const char **argv) {
 
     std::string sequencedb = par.db5;
     Debug(Debug::INFO) << "Sequence db  is " << sequencedb << "\n";
-
-    usage.append(
-            "-go <gofolder> <prot_go_folder> <clustering_file> <prefix> <outputfolder> <yes : all against all |no : representative against all(default) ><yes : randomized representative choice |no : representative against all(default) > \n");
 
 
     bool allagainstall = par.allVsAll;

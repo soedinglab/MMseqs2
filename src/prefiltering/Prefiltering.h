@@ -131,6 +131,8 @@ private:
 
     size_t computeMemoryNeeded(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
                                int threads);
+
+    std::string searchForIndex(const std::string &pathToDB);
 };
 
 #endif

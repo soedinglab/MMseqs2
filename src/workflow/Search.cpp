@@ -7,13 +7,9 @@
 #include "Util.h"
 #include "Debug.h"
 #include "Parameters.h"
-int search(int argc, const char *argv[]) {
-    std::string usage("\nCompares all sequences in the query database with all sequences in the target database.\n");
-    usage.append("Written by Martin Steinegger (martin.steinegger@mpibpc.mpg.de) & Maria Hauser (mhauser@genzentrum.lmu.de)\n\n");
-    usage.append("USAGE: mmseqs search <queryDB> <targetDB> <outDB> <tmpDir> [opts]\n");
-
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.searchworkflow, 4);
+int search(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 4, true, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
 
     CommandCaller cmd;
 
@@ -22,16 +18,6 @@ int search(int argc, const char *argv[]) {
     }
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string templateDB(par.db2);
-    // create index suffix
-    if(par.useIndex){
-        std::string indexSuffix = ".";
-        if(par.spacedKmer) {
-            indexSuffix.push_back('s');
-        }
-        indexSuffix += 'k';
-        indexSuffix.append(SSTR(par.kmerSize));
-        templateDB.append(indexSuffix);
-    }
     cmd.addVariable("TARGET_DB_PREF", templateDB.c_str());
 
     if (par.numIterations > 1) {

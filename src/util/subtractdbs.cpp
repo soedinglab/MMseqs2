@@ -127,21 +127,12 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
     Debug(Debug::INFO) << "Stored results in " << outDb << "\n";
 }
 
-int subtractdbs(int argc, const char **argv)
-{
-
-    std::string usage;
-    usage.append("Removes all entries with same ID from resultDbLeft contained in resultDbRight ( out = left - right) \n");
-    usage.append("USAGE: <resultDbLeft> <resultDbRight> <outDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
-
+int subtractdbs(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 3);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.subtractdbs, 3);
-
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif

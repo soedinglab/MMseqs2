@@ -42,22 +42,19 @@ size_t hash(int * x, size_t length){
     return h;
 }
 
-int clusthash(int argc, const char *argv[])
-{
-    std::string usage;
-    usage.append("Detects redundant sequences based on reduced alphabet hashing and hamming distance. \n");
-    usage.append("USAGE: <sequenceDB> <outDB>\n");
-    usage.append("\nDesigned and implemented by Martin Steinegger <martin.steinegger@mpibpc.mpg.de>.\n");
+void setClustHashDefaults(Parameters *p) {
+    p->alphabetSize = Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE;
 
-    Parameters par;
-    par.parseParameters(argc, argv, usage, par.clusthash, 2);
+}
+
+int clusthash(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    setClustHashDefaults(&par);
+    par.parseParameters(argc, argv, command, 2);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
-    if(par.alphabetSize == 21){
-        par.alphabetSize = 3;
-    }
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, -0.2);
     ReducedMatrix redSubMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, par.alphabetSize, 2.0);
 
@@ -107,7 +104,7 @@ int clusthash(int argc, const char *argv[])
         }
         prevHash = hashSeqPair[id].first;
     }
-    Debug(Debug::WARNING) << "Compute "<< uniqHashes <<" uniq hashes.\n";
+    Debug(Debug::WARNING) << "Compute "<< uniqHashes <<" unique hashes.\n";
 
 #pragma omp parallel
     {
