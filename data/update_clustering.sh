@@ -78,6 +78,9 @@ echo "==================================================="
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files 1/2"
     rm -f $TMP/aln_* $TMP/pref_* $TMP/clu_* $TMP/input_*
+else
+    mkdir -p "$TMP/search"
+    mv $TMP/aln_* $TMP/pref_* $TMP/clu_* $TMP/input_* "$TMP/search"
 fi
 notExists "$TMP/newClusters" && $MMSEQS cluster $TMP/toBeClusteredSeparately $TMP/newClusters $TMP $CLUST_PAR && checkReturnCode "Clustering of new seq. died"
 
