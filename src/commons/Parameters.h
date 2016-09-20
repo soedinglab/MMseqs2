@@ -269,11 +269,8 @@ public:
                          bool printParameters = true,
                          bool isVariadic = false,
                          int outputFlag = 0);
-                         
-    void printUsageMessage(const std::string &programUsageHeader,
-                           const std::vector<MMseqsParameter> &parameters,
+    void printUsageMessage(const Command& command,
                            const int outputFlag);
-                           
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	

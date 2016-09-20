@@ -14,10 +14,10 @@
 #endif
 
 Parameters::Parameters():
-        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity in the range [1.0:10.0]. From low (1.0) to high (10.0) sensitivity.", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
-        PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7]",typeid(int),  (void *) &kmerSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
+        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity: 1.0 faster; 4.0 fast; 6.1 default; 7.5 sensitive [1.0,7.5]", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
+        PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7] (0: set automatically to optimum)",typeid(int),  (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
-        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "amino acid alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
+        PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
         PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "query database is a profile DB",typeid(bool),(void *) &profile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
 //PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
@@ -410,10 +410,10 @@ Parameters::Parameters():
     setDefaults();
 }
 
-
-void Parameters::printUsageMessage(const std::string &programUsageHeader,
-                                   const std::vector<MMseqsParameter> &parameters,
+void Parameters::printUsageMessage(const Command& command,
                                    const int outputFlag){
+    const std::vector<MMseqsParameter>& parameters = *command.params;
+
     std::ostringstream ss;
     ss << "mmseqs " << command.cmd << ":\n";
     ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
@@ -433,7 +433,7 @@ void Parameters::printUsageMessage(const std::string &programUsageHeader,
         }
     }
 
-    ss << "© " << command.author << "\n\n";
+    ss << "Â© " << command.author << "\n\n";
     ss << "Usage: " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
 
     struct {
@@ -540,13 +540,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
                 if(parameter.compare(par[parIdx].name) == 0) {
                     if (typeid(bool) != par[parIdx].type && argIdx + 1 == argc) {
-                        printUsageMessage(programUsageHeader, par, outputFlag);
+                        printUsageMessage(command, outputFlag);
                         Debug(Debug::ERROR) << "Missing argument " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
 
                     if (par[parIdx].wasSet) {
-                        printUsageMessage(programUsageHeader, par, outputFlag);
+                        printUsageMessage(command, outputFlag);
                         Debug(Debug::ERROR) << "Duplicate parameter " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
@@ -558,7 +558,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         regfree(&regex);
                         // if no match found or two matches found (we want exactly one match)
                         if (nomatch){
-                            printUsageMessage(programUsageHeader, par, outputFlag);
+                            printUsageMessage(command, outputFlag);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -572,7 +572,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
                         regfree(&regex);
                         if (nomatch){
-                            printUsageMessage(programUsageHeader, par, outputFlag);
+                            printUsageMessage(command, outputFlag);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -605,7 +605,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             }
 
             if (hasUnrecognizedParameter) {
-                printUsageMessage(programUsageHeader, par, outputFlag);
+                printUsageMessage(command, outputFlag);
                 Debug(Debug::ERROR) << "Unrecognized parameter " << parameter << "\n";
                 EXIT(EXIT_FAILURE);
             }
@@ -641,7 +641,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
     }
 
     if (getFilename.size() < requiredParameterCount){
-        printUsageMessage(programUsageHeader, par, outputFlag);
+        printUsageMessage(command, outputFlag);
         Debug(Debug::ERROR) << requiredParameterCount << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
@@ -673,7 +673,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             if(isVariadic)
                 break;
         case 0:
-            printUsageMessage(programUsageHeader, par, outputFlag);
+            printUsageMessage(command, outputFlag);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
             printParameters(argc, pargv, par);
             EXIT(EXIT_FAILURE);

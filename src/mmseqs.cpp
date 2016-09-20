@@ -12,14 +12,14 @@ Parameters& par = Parameters::getInstance();
 static struct Command commands[] = {
 // Main tools  (for non-experts)
         {"createdb",             createdb,             &par.createdb,             COMMAND_MAIN,
-            "Convert protein sequence set in a FASTA file to MMseqs’ sequence DB format",
-            "converts a protein sequence set in a FASTA formatted file to MMseqs’ sequence DB format. This format is needed as input to mmseqs search and many other tools.",
+            "Convert protein sequence set in a FASTA file to MMseqsâ€™ sequence DB format",
+            "converts a protein sequence set in a FASTA formatted file to MMseqsâ€™ sequence DB format. This format is needed as input to mmseqs search and many other tools.",
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:fastaFile>  <o:sequenceDB> [mappingFasta]",
             CITATION_MMSEQS2},
         {"search",               search,               &par.searchworkflow,       COMMAND_MAIN,
             "Search with query sequence or profile DB (iteratively) through target sequence DB",
-            "Searches with the sequences or profiles query DB through the target sequence DB by running the prefilter tool and the align tool for Smith-Waterman alignment. For each query a results file with sequence matches is written as entry into a database of search results (“alignmentDB”).\nIn iterative profile search mode, the detected sequences satisfying user-specified criteria are aligned to the query MSA, and the resulting query profile is used for the next search iteration. Iterative profile searches are usually much more sensitive than (and at least as sensitive as) searches with single query sequences.",
+            "Searches with the sequences or profiles query DB through the target sequence DB by running the prefilter tool and the align tool for Smith-Waterman alignment. For each query a results file with sequence matches is written as entry into a database of search results (â€œalignmentDBâ€).\nIn iterative profile search mode, the detected sequences satisfying user-specified criteria are aligned to the query MSA, and the resulting query profile is used for the next search iteration. Iterative profile searches are usually much more sensitive than (and at least as sensitive as) searches with single query sequences.",
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:queryDB> <i:targetDB> <o:alignmentDB> <tmpDir>",
             CITATION_MMSEQS2},
@@ -67,12 +67,24 @@ static struct Command commands[] = {
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:fastaDB>",
             CITATION_MMSEQS2},
 // Utility tools for clustering
-        {"clusterupdate",       clusterupdate,          &par.clusterUpdate,         COMMAND_CLUSTER,
-                "Update clustering of old sequence DB to clustering of new sequence DB"},
-        {"createseqfiledb",        createseqfiledb,           &par.createseqfiledb,          COMMAND_CLUSTER,
-                "Create DB of unaligned FASTA files (1 per cluster) from sequence DB and cluster DB"},
-        {"mergeclusters",        mergeclusters,           &par.onlyverbosity,         COMMAND_CLUSTER,
-                "Merge multiple cluster DBs into single cluster DB"},
+        {"clusterupdate",        clusterupdate,        &par.clusterUpdate,        COMMAND_CLUSTER,
+            "Update clustering of old sequence DB to clustering of new sequence DB",
+            NULL,
+            "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+            "<i:oldSequenceDB> <i:newSequenceDB> <i:oldClustResultDB> <o:newClustResultDB> <tmpDir>",
+            CITATION_MMSEQS2|CITATION_MMSEQS1},
+        {"createseqfiledb",      createseqfiledb,      &par.createseqfiledb,      COMMAND_CLUSTER,
+            "Create DB of unaligned FASTA files (1 per cluster) from sequence DB and cluster DB",
+            NULL,
+            "Milot Mirdita <milot@mirdita.de>",
+            "<i:sequenceDB> <i:clusterDB> <o:fastaDB>",
+            CITATION_MMSEQS2},
+        {"mergeclusters",        mergeclusters,        &par.onlyverbosity,        COMMAND_CLUSTER,
+            "Merge multiple cluster DBs into single cluster DB",
+            NULL,
+            "Maria Hauser & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+            "<i:sequenceDB> <o:clusterDB> <i:clusterDB1> ... <i:clusterDBn>",
+            CITATION_MMSEQS2},
 // Expert tools (for advanced users)
         {"prefilter",            prefilter,            &par.prefilter,            COMMAND_EXPERT,
             "Search with query sequence / profile DB through target DB (k-mer matching + ungapped alignment)",
@@ -261,7 +273,7 @@ void printUsage() {
 #undef str
 #undef str2
 #endif
-    usage << "© Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n";
+    usage << "Â© Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n";
 
     struct {
         const char* title;
