@@ -60,7 +60,7 @@ static struct Command commands[] = {
             "Milot Mirdita <milot@mirdita.de>",
             "<i:sequenceDB> <o:fastaFile>",
             CITATION_MMSEQS2},
-        {"result2flat",          result2flat,          &par.onlyverbosity,        COMMAND_FORMAT_CONVERSION,
+        {"result2flat",          result2flat,          &par.result2flat,          COMMAND_FORMAT_CONVERSION,
             "Create a FASTA-like flat file from prefilter DB, alignment DB, or cluster DB",
             NULL,
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",

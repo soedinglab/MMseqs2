@@ -270,7 +270,11 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     // convert2fasta
     convert2fasta.push_back(PARAM_USE_HEADER_FILE);
     convert2fasta.push_back(PARAM_V);
-    
+
+    // result2flat
+    result2flat.push_back(PARAM_USE_HEADER);
+    result2flat.push_back(PARAM_V);
+
     // gff2db
     gff2ffindex.push_back(PARAM_GFF_TYPE);
     gff2ffindex.push_back(PARAM_USE_HEADER);

@@ -444,6 +444,7 @@ public:
     std::vector<MMseqsParameter> convertalignments;
     std::vector<MMseqsParameter> createdb;
     std::vector<MMseqsParameter> convert2fasta;
+    std::vector<MMseqsParameter> result2flat;
     std::vector<MMseqsParameter> gff2ffindex;
     std::vector<MMseqsParameter> clusthash;
     std::vector<MMseqsParameter> linearfilter;
