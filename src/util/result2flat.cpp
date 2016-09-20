@@ -54,8 +54,15 @@ int result2flat(int argc, const char *argv[])
             std::string dataStr;
             if(header_data != NULL){
                 dataStr = Util::parseFastaHeader(header_data);
-            }if( par.useHeader == true ) {
-                dataStr = Util::parseFastaHeader(data);
+            }
+            if( par.useHeader == true ) {
+                dataStr = Util::parseFastaHeader(header_data);
+                char * endLenData = Util::skipLine(data);
+                size_t keyLen = strlen(dbKey);
+                char * dataWithoutKey = data + keyLen;
+                size_t dataToCopySize = endLenData-dataWithoutKey;
+                std::string data(dataWithoutKey, dataToCopySize);
+                dataStr.append(data);
             }else{
                 char * startLine = data;
                 char * endLine = Util::skipLine(data);

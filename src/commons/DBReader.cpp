@@ -335,10 +335,16 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
         entryLength[i] = length;
         indexDataChar = Util::skipLine(indexDataChar);
         currPos = indexDataChar - (char *) indexData.getData();
+        lastKey = std::max(index[i].id,lastKey); 
         i++;
 
     }
     indexData.close();
+}
+
+template<typename T> T DBReader<T>::getLastKey()
+{
+    return lastKey;
 }
 
 template<>

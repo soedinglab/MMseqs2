@@ -30,6 +30,7 @@ struct MMseqsParameter {
     static const int COMMAND_COMMON = 8;
     static const int COMMAND_PROFILE = 16;
     static const int COMMAND_MISC = 32;
+    static const int COMMAND_CLUSTLINEAR = 64;
 
     MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash,
@@ -261,9 +262,11 @@ public:
                          std::vector<MMseqsParameter> &par,
                          size_t requiredParameterCount,
                          bool printParameters = true,
-                         bool isVariadic = false);
+                         bool isVariadic = false,
+                         int outputFlag = 0);
     void printUsageMessage(const std::string &programUsageHeader,
-                           const std::vector<MMseqsParameter> &parameters);
+                           const std::vector<MMseqsParameter> &parameters,
+                           const int outputFlag);
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	
