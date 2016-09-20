@@ -316,6 +316,7 @@ void Sequence::mapProteinSequence(const char * sequence){
     size_t atgcCnt = 0;
     char curr = sequence[l];
     size_t pos = 0;
+    bool hasUncommonCharacters = false;
     while (curr != '\0'){
         if (curr != '\n'){
             // replace non-common amino acids
@@ -350,7 +351,6 @@ void Sequence::mapProteinSequence(const char * sequence){
                 case 'O': this->int_sequence[l] = this->aa2int[(int)'X']; break;
                 case 'Z': this->int_sequence[l] = this->aa2int[(int)'E']; break;
                 case 'B': this->int_sequence[l] = this->aa2int[(int)'D']; break;
-                case '?':
                 case '*':
                 case '-':
                 case '.': this->int_sequence[l] = this->aa2int[(int)'X']; break;
@@ -359,6 +359,8 @@ void Sequence::mapProteinSequence(const char * sequence){
                         Debug(Debug::ERROR) << "ERROR: Sequence (dbKey=" << dbKey <<") conatains none printable characters. The database might contain profiles. Use the parameter --profile for a profile databases.\n";
                         EXIT(EXIT_FAILURE);
                     }
+                    this->int_sequence[l] = this->aa2int[(int)'X']; break;
+                    hasUncommonCharacters = true;
                     break;
             }
             l++;
@@ -371,8 +373,10 @@ void Sequence::mapProteinSequence(const char * sequence){
         curr  = sequence[pos];
     }
     if (atgcCnt >= l){
-        Debug(Debug::WARNING) << "WARNING: Sequence (dbKey=" << dbKey
-        <<") contains only ATGC. It might be a nucleotide sequence.\n";
+        Debug(Debug::WARNING) << "WARNING: Sequence (dbKey=" << dbKey <<") contains only ATGC. It might be a nucleotide sequence.\n";
+    }
+    if (hasUncommonCharacters){
+        Debug(Debug::WARNING) << "WARNING: Sequence (dbKey=" << dbKey << ") contains uncommon characters, these where mapped to the X amino acid.\n";
     }
     this->L = l;
 }
