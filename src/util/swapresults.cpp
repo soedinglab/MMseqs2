@@ -236,7 +236,7 @@ int doSwap(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNu
 
 
 
-
+// ((TargetKey,eVal),resultLine)
 typedef std::pair <std::pair <unsigned int,double> ,std::string>  alnResultEntry;
 
 struct compareKey {
@@ -254,10 +254,19 @@ struct compareEval {
 };
 
 
-int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap)
+int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned int procNumber = 0, unsigned int nbOfProc = 1)
 {
+    std::pair<std::string, std::string> outputDB;
     
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(),
+    
+    if (nbOfProc > 1)
+    {
+        outputDB = Util::createTmpFileNames(par.db4, par.db4Index, procNumber);
+    } else {
+        outputDB = std::make_pair(par.db4, par.db4Index);
+    }
+    
+    DBWriter resultWriter(outputDB.first.c_str(),outputDB.second.c_str(),
                          static_cast<unsigned int>(par.threads));
     resultWriter.open();
 
@@ -331,7 +340,7 @@ void swapBt(std::string *bt)
             bt->at(i) = 'I';
 }
 
-int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
+int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned int targetKeyMin, unsigned int targetKeyMax)
 {
     
 
@@ -401,34 +410,37 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
             std::vector<Matcher::result_t> alnRes = Matcher::readAlignmentResults(data);
             for (size_t j = 0; j < alnRes.size(); j++) {
                 Matcher::result_t &res = alnRes[j];
-                double rawScore = BlastScoreUtils::bitScoreToRawScore(res.score, lambdaLog2, logKLog2);
-                res.eval = BlastScoreUtils::computeEvalue(rawScore, kmnByLen[res.dbLen], lambda);
-                unsigned int qstart = res.qStartPos;
-                unsigned int qend = res.qEndPos;
-                unsigned int qLen = res.qLen;
-                res.qStartPos = res.dbStartPos;
-                res.qEndPos = res.dbEndPos;
-                res.qLen = res.dbLen;
-                res.dbStartPos = qstart;
-                res.dbEndPos = qend;
-                res.dbLen = qLen;
                 
                 unsigned int targetKey = res.dbKey;
-                
-                res.dbKey = queryKey;
-
-                bool addBacktrace = cols >= Matcher::ALN_RES_WITH_BT_COL_CNT;
-                if (addBacktrace)
+                if(targetKey >= targetKeyMin && targetKey < targetKeyMax)
                 {
-                    swapBt(&res.backtrace);
+                    double rawScore = BlastScoreUtils::bitScoreToRawScore(res.score, lambdaLog2, logKLog2);
+                    res.eval = BlastScoreUtils::computeEvalue(rawScore, kmnByLen[res.dbLen], lambda);
+                    unsigned int qstart = res.qStartPos;
+                    unsigned int qend = res.qEndPos;
+                    unsigned int qLen = res.qLen;
+                    res.qStartPos = res.dbStartPos;
+                    res.qEndPos = res.dbEndPos;
+                    res.qLen = res.dbLen;
+                    res.dbStartPos = qstart;
+                    res.dbEndPos = qend;
+                    res.dbLen = qLen;
                     
+                    
+                    res.dbKey = queryKey;
+
+                    bool addBacktrace = cols >= Matcher::ALN_RES_WITH_BT_COL_CNT;
+                    if (addBacktrace)
+                    {
+                        swapBt(&res.backtrace);
+                        
+                    }
+                    std::string result = Matcher::resultToString(res, addBacktrace);
+                    
+                    lock.lock();
+                        resMap->push_back(std::make_pair( std::make_pair(targetKey,res.eval) ,result));
+                    lock.unlock();
                 }
-                std::string result = Matcher::resultToString(res, addBacktrace);
-                
-                lock.lock();
-                    resMap->push_back(std::make_pair( std::make_pair(targetKey,res.eval) ,result));
-                lock.unlock();
-                
             }
 
         } else // prefilter case
@@ -440,15 +452,17 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
                 hit_t hit = parsePrefilterHit(curData);
                 
                 unsigned int targetKey = hit.seqId;
-                hit.seqId = queryKey;
-                
-                float eval = exp(-hit.prefScore);
-                
-                std::string result = prefilterHitToString(hit);
-                lock.lock();
-                    resMap->push_back(std::make_pair( std::make_pair(targetKey,eval) ,result));
-                lock.unlock();
-                
+                if(targetKey >= targetKeyMin && targetKey < targetKeyMax)
+                {
+                    hit.seqId = queryKey;
+                    
+                    float eval = exp(-hit.prefScore);
+                    
+                    std::string result = prefilterHitToString(hit);
+                    lock.lock();
+                        resMap->push_back(std::make_pair( std::make_pair(targetKey,eval) ,result));
+                    lock.unlock();
+                }
                 curData = Util::skipLine(curData);
                 
             }
@@ -466,63 +480,55 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap)
 }
 
 
-int doSwapSort(Parameters &par)
+
+int doSwapSort(Parameters &par,unsigned int procNumber = 0, unsigned int nbOfProc = 1)
 {
     
     std::vector<alnResultEntry> resMap;
-    swapAlnResults(par, &resMap);
-    
-    omptl::sort(resMap.begin(),resMap.end(),compareKey()); // sort by target id
-    
-    writeSwappedResults(par,&resMap);
-    
- 
-    return 0;
-  
-}
-
-
-int doSwapSortMPI(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
+    unsigned int targetKeyMin = 0, targetKeyMax = -1;
     
     
-    std::vector<std::pair<unsigned int, std::string*>> swap = readSwap(par.db3.c_str(), par.db3Index.c_str());
-
-    size_t dbFrom = 0;
-    size_t dbSize = 0;
-    Util::decomposeDomain(swap.size(), mpiRank, mpiNumProc, &dbFrom, &dbSize);
-
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, mpiRank);
-    int status = doSwap(par, swap, tmpOutput, dbFrom, dbSize);
-
-#ifdef HAVE_MPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-
-    // master reduces results
-    if (mpiRank == 0) {
-        std::vector<std::pair<std::string, std::string>> splitFiles;
-        for (unsigned int proc = 0; proc < mpiNumProc; ++proc) {
-            splitFiles.push_back(Util::createTmpFileNames(par.db4, par.db4Index, proc));
-        }
-        Alignment::mergeAndRemoveTmpDatabases(par.db4, par.db4Index, splitFiles);
+    
+    if (nbOfProc > 1)
+    {
+        DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str());
+        targetReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+        unsigned int lastKey = targetReader.getLastKey();
+        targetReader.close();
+        
+        targetKeyMin = procNumber * lastKey / nbOfProc;
+        targetKeyMax = (procNumber + 1) * lastKey / nbOfProc;
     }
-
-    return status;
-}
-/*
     
-    std::vector<alnResultEntry> resMap;
-    swapAlnResults(par, &resMap);
+    swapAlnResults(par, &resMap,targetKeyMin,targetKeyMax);
     
     omptl::sort(resMap.begin(),resMap.end(),compareKey()); // sort by target id
     
-    writeSwappedResults(par,&resMap);
+    writeSwappedResults(par,&resMap,procNumber,nbOfProc);
     
- 
+
+
+    // In case of MPI paralelization, merge the partial results
+    if (nbOfProc > 1)
+    {
+#ifdef HAVE_MPI
+        MPI_Barrier(MPI_COMM_WORLD);
+#endif
+        if (procNumber == 0)
+        {
+            std::vector<std::pair<std::string, std::string>> partialResFiles;
+            for (unsigned int proc = 0; proc < nbOfProc; ++proc) {
+                partialResFiles.push_back(Util::createTmpFileNames(par.db4, par.db4Index, proc));
+            }
+            Alignment::mergeAndRemoveTmpDatabases(par.db4, par.db4Index, partialResFiles);
+        }
+    }
+    
     return 0;
   
 }
-*/
+
+
 
 int doSwap(Parameters &par) {
     std::vector<std::pair<unsigned int, std::string*>> swap = readSwap(par.db3.c_str(), par.db3Index.c_str());
@@ -536,15 +542,18 @@ int doSwap(Parameters &par) {
 
 
 
+
 int swapresults(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
     MMseqsMPI::init(argc, argv);
+    
+    
 
     int status = 0;
 #ifdef HAVE_MPI
-  status = doSwapSortMPI(par, MMseqsMPI::rank, MMseqsMPI::numProc);
+  status = doSwapSort(par, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
     status = doSwapSort(par);
 #endif

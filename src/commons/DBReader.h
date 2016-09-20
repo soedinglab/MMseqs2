@@ -97,6 +97,8 @@ public:
     }
 
     void printMagicNumber();
+    
+    T getLastKey();
 
 private:
 
@@ -151,6 +153,8 @@ private:
     unsigned int * id2local;
     unsigned int * local2id;
 
+    T lastKey;
+    
     bool dataMapped;
     int accessType;
 
