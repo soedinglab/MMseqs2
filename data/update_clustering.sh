@@ -5,13 +5,13 @@ checkReturnCode () {
 	    exit 1
 	fi
 }
+
 notExists () {
 	[ ! -f "$1" ]
 }
 
 #pre processing
-#[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
-# check amount of input variables
+# check number of input variables
 [ "$#" -ne 5 ] && echo "Please provide  <oldDB> <newDB> <oldDB_clustering> <newDB_clustering> <tmpDir>" && exit 1;
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
@@ -21,7 +21,6 @@ notExists () {
 [ ! -d "$5" ] &&  echo "tmp directory $5 not found!" && exit 1;
 
 export OMP_PROC_BIND=TRUE
-
 
 OLDDB=$1 #"../data/DB"
 OLDCLUST=$3 #"DBclustered"
@@ -76,7 +75,13 @@ notExists "$TMP/toBeClusteredSeparately" && $MMSEQS createsubdb $TMP/noHitSeqLis
 echo "==================================================="
 echo "===== Cluster separately the alone sequences ======"
 echo "==================================================="
-rm -f $TMP/aln_* $TMP/pref_* $TMP/clu_* $TMP/input_*
+if [ -n "$REMOVE_TMP" ]; then
+    echo "Remove temporary files 1/2"
+    rm -f $TMP/aln_* $TMP/pref_* $TMP/clu_* $TMP/input_*
+else
+    mkdir -p "$TMP/search"
+    mv $TMP/aln_* $TMP/pref_* $TMP/clu_* $TMP/input_* "$TMP/search"
+fi
 notExists "$TMP/newClusters" && $MMSEQS cluster $TMP/toBeClusteredSeparately $TMP/newClusters $TMP $CLUST_PAR && checkReturnCode "Clustering of new seq. died"
 
 echo "==================================================="
@@ -91,10 +96,8 @@ else
 fi
 
 
-
-
 if [ -n "$REMOVE_TMP" ]; then
-    echo "Remove temporary files"
+    echo "Remove temporary files 2/2"
 	rm -f "$TMP/newClusters" "$TMP/toBeClusteredSeparately" "$TMP/toBeClusteredSeparately.index" "$TMP/noHitSeqList" "$TMP/newSeqsHits.index" "$TMP/newSeqsHits" "$TMP/newSeqsHits.swapped" "$TMP/newSeqsHits.swapped.index"
 	rm -f "$TMP/newSeqsHits.swapped.all" "$TMP/newSeqsHits.swapped.all.index" "$TMP/NEWDB.newSeqs" "$TMP/NEWDB.newSeqs.index" "$TMP/OLDCLUST.mapped" "$TMP/OLDCLUST.mapped.index"  "$TMP/mappingSeqs" "$TMP/newSeqs" "$TMP/removedSeqs"
 	rm -f "$TMP/OLDDB.mapped.repSeq" "$TMP/OLDDB.mapped.repSeq.index" "$TMP/updatedClust" "$TMP/updatedClust.index"
