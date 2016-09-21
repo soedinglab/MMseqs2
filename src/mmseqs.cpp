@@ -27,7 +27,7 @@ static struct Command commands[] = {
             "Compute clustering of a sequence DB (quadratic time)",
             "Clusters sequences by similarity. It compares all sequences in the sequence DB with each other using mmseqs search, filters alignments according to user-specified criteria (max. E-value, min. coverage,...),   and runs mmseqs clust to group similar sequences together into clusters.",
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Lars von den Driesch",
-            "<i:queryDB> <i:targetDB> <o:clusterDB> <tmpDir>",
+            "<i:sequenceDB> <o:clusterDB> <tmpDir>",
             CITATION_MMSEQS2|CITATION_MMSEQS1},
         {"createindex",          createindex,          &par.createindex,          COMMAND_MAIN,
             "Precompute index table of sequence DB for faster searches",
