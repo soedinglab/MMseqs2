@@ -12,13 +12,14 @@
 (c) 2016 Martin Steinegger and Johannes S\"oding
 \section{Summary}
 
-MMseqs2 (Many-against-Many sequence searching) is a software suite for very fast protein sequence searches and clustering of huge protein sequence data sets. MMseqs2 is around 1000 times faster than protein BLAST and sensitive enough to capture sequence similarities down to less than 30\% sequence identity.
+MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and Mac OS. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 reaches the same sensitivity as BLAST magnitude faster and which can also perform profile searches like PSI-BLAST but also ~270x faster.
 
-At the core of MMseqs2 are two modules for the comparison of two sequence sets with each other - the prefiltering and the alignment modules. The first, prefiltering module computes the similarities between all sequences in one set with all sequences in the other based on a very fast and sensitive alignment-free metric, the sum of scores of similar $k$-mers. The alignment module implements an SSE2-accelerated Smith-Waterman-alignment of all sequences that pass a cut-off for the prefiltering score in the first module. Both modules are parallelized to use all cores of a computer to full capacity. Due to its unparalleled combination of speed and sensitivity, searches of all predicted ORFs in large metagenomics data sets through the entire UniProtKB or NCBI-NR databases are feasible. This could allow for assigning to functional clusters and taxonomic clades many reads that are too diverged to be mappable by current software.
+At the core of MMseqs2 are two modules for the comparison of two sequence sets with each other - the prefiltering and the alignment modules. The first, prefiltering module computes the similarities between all sequences in one query database with all sequences a target database based on a very fast and sensitive k-mer matching stage followed by an ungapped alignment. The alignment module implements an vectorized Smith-Waterman-alignment of all sequences that pass a cut-off for the ungapped alignment score in the first module. Both modules are parallelized to use all cores of a computer to full capacity. Due to its unparalleled combination of speed and sensitivity, searches of all predicted ORFs in large metagenomics data sets through the entire UniProtKB or NCBI-NR databases are feasible. This could allow for assigning to functional clusters and taxonomic clades many reads that are too diverged to be mappable by current software.
 
-MMseqs' clustering module can cluster sequence sets efficiently into groups of similar sequences. It takes as input the similarity graph obtained from the comparison of the sequence set with itself in the prefiltering and alignment modules. MMseqs2 further supports an updating mode in which sequences can be added to an existing clustering with stable cluster identifiers and without the need to recluster the entire sequence set. We are using MMseqs2 to regularly update versions of the UniProtKB database clustered down to 30\% sequence similarity threshold. This database is available at \href{https://uniclust.mmseqs.com}{uniclust.mmseqs.com}.
+MMseqs2 clustering module can cluster sequence sets efficiently into groups of similar sequences. It takes as input the similarity graph obtained from the comparison of the sequence set with itself in the prefiltering and alignment modules. MMseqs2 further supports an updating mode in which sequences can be added to an existing clustering with stable cluster identifiers and without the need to recluster the entire sequence set. We are using MMseqs2 to regularly update versions of the UniProtKB database clustered down to 30\% sequence similarity threshold. This database is available at \href{https://uniclust.mmseqs.com}{uniclust.mmseqs.com}.
 
 \clearpage
+
 
 \section{Installation}
 
@@ -137,7 +138,7 @@ MMseqs2 runs on modern UNIX operating systems; it was tested on Linux and OSX. A
 
 MMseqs2 needs uses a lot main memory (see section memory requirements). We offer an option for limiting the memory usage at the cost of longer runtimes. The database is split into chunks and the program only holds one chunk in memory at any time. For clustering large databases containing tens of millions of sequences, you should provide enough free disc space ($\approx$500 GB). In section \ref{sec:Sensitivity-and-consumption}, we will discuss the runtime, memory and disc space consumption of MMseqs2 and how to reduce resource requirements for large databases.
 \section{Database Format}
-MMseqs2 works internally with an database format simliar to the ffindex databases as input and output. The format was developed to avoid drastically slowing down the file system when millions of files need to be written and accessed. ffindex hides the single files from the file system by storing them as unstructured data records in a single huge binary \emph{data file}. In addition to this data file, an ffindex database includes a secondary file: This \emph{index file} stores for each entry as tab separated line with an unique accession code, the start position in bytes of the data record in the ffindex data file, and a record length.
+MMseqs2 works internally with a database format similar to the ffindex databases. The format was developed to avoid drastically slowing down the file system when millions of files need to be written and accessed. ffindex hides the single files from the file system by storing them as unstructured data records in a single huge binary \emph{data file}. In addition to this data file, an ffindex database includes a secondary file: This \emph{index file} stores for each entry as tab separated line with an unique accession code, the start position in bytes of the data record in the ffindex data file, and a record length.
 
 %When transforming a FASTA file with multiple sequences into an ffindex database, the accession code is the ID of the sequence parsed from the header. If no ID can be identified, the accession code is the whole header without the \textgreater character before the first blank space.
 
@@ -145,7 +146,7 @@ The MMseqs2 modules \texttt{createdb} and \texttt{createfasta} do the format con
 \texttt{createdb} generates a ffindex database from a FASTA sequence database. 
 \texttt{createfasta} converts an ffindex database to a FASTA formatted text file: the headers are ffindex accession codes preceded by \textgreater, with the corresponding dataset from the ffindex data file following.
 
-However, for a fast access to the particular datasets in very large databases it is advisable to use the ffindex database directly without converting. We provided several tools (query, build and apply function on each entry) to work with ffindex databases at \url{http://github.com/soedinglab/ffindex/}. The binary \texttt{ffindex\_get} can be used to directly access single records stored in an ffindex database.
+However, for a fast access to the particular datasets in very large databases it is advisable to use the ffindex database directly without converting. We provided several tools (query, build and apply function on each entry) to work with ffindex databases at \url{http://github.com/soedinglab/ffindex_soedinglab/}. The binary \texttt{ffindex\_get} can be used to directly access single records stored in an ffindex database.
 \section{Overview of Folders in MMseqs}
 \begin{itemize}
 \item \texttt{bin}: \texttt{mmseqs}, \texttt{blastp.sh}, \texttt{blastpgp.sh}, \texttt{cascaded\_clustering.sh}, \texttt{clustering.sh}.
@@ -154,7 +155,7 @@ However, for a fast access to the particular datasets in very large databases it
 \end{itemize}
 
 \section{Overview of MMseqs2 Commands}
-MMseqs2 contains three workflows that combine the three core MMseqs2 modules (prefilter, alignment, and clustering) and several other smaller ones. 
+MMseqs2 contains three workflows that combine the three core MMseqs2 modules (prefilter, align, and clust) and several other smaller ones. 
 
 Workflows:
 \begin{itemize}
