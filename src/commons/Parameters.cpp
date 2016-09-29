@@ -362,8 +362,8 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     result2newick.push_back(PARAM_V);
     
     // mergedbs
-    mergeffindex.push_back(PARAM_MERGE_PREFIXES);
-    mergeffindex.push_back(PARAM_V);
+    mergedbs.push_back(PARAM_MERGE_PREFIXES);
+    mergedbs.push_back(PARAM_V);
     
     // summarize
     summarizeheaders.push_back(PARAM_SUMMARY_PREFIX);
