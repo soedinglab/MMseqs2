@@ -31,9 +31,9 @@ public:
 
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
 
-    static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr, Sequence *seq,
-                                BaseMatrix * subMat, int split, int alphabetSize, int kmerSize,
-                                bool hasSpacedKmer, bool diagonalScoring, int threads);
+    static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr,
+                                BaseMatrix * subMat, int maxSeqLen, bool spacedKmer, bool compBiasCorrection, int split, int alphabetSize, int kmerSize,
+                                bool diagonalScoring, int threads);
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr);
 

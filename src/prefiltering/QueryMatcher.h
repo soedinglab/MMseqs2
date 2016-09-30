@@ -110,6 +110,7 @@ public:
         return first_term + mid_term - logScoreFactorial;
     }
 
+    const static size_t MAX_RES_LIST_LEN = 150000;
 protected:
 
     // keeps stats for run
@@ -215,7 +216,6 @@ protected:
 
     size_t keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize);
 
-    const static size_t MAX_RES_LIST_LEN = 150000;
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

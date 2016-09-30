@@ -40,12 +40,13 @@ int prefilter(int argc, const char **argv, const Command& command) {
     Debug(Debug::WARNING) << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
     gettimeofday(&start, NULL);
 #ifdef HAVE_MPI
-    if(par.split > MMseqsMPI::numProc){
+    //TODO check again :(
+    if(pref->getSplit() > MMseqsMPI::numProc){
         // if split size is great than nodes than we have to
         // distribute all splits equally over all nodes
         unsigned int * splitCntPerProc = new unsigned int[MMseqsMPI::numProc];
         memset(splitCntPerProc, 0, sizeof(unsigned int) * MMseqsMPI::numProc);
-        for(int i = 0; i < par.split; i++){
+        for(int i = 0; i < pref->getSplit(); i++){
             splitCntPerProc[i % MMseqsMPI::numProc] += 1;
         }
         int fromSplit = 0;
@@ -54,19 +55,17 @@ int prefilter(int argc, const char **argv, const Command& command) {
         }
         pref->run(fromSplit, splitCntPerProc[MMseqsMPI::rank]);
         delete [] splitCntPerProc;
-    }if(par.split == 0 ){
+    } else {
+        // if more nodes exists than splits are needed set split to the amount of nodes
+        // each node needs to compute 1 target split
+        // OR
         // if database fits into the memory of a single node split by query.
         // each node should just compute 1 query split
         pref->setSplit(MMseqsMPI::numProc);
         pref->run(MMseqsMPI::rank, 1);
-    }else{
-        // if more nodes exists than splits are needed set split to the amount of nodes
-        // each node needs to compute 1 target split
-        pref->setSplit(MMseqsMPI::numProc);
-        pref->run(MMseqsMPI::rank, 1);
     }
 #else
-    pref->run(0, (par.split == 0) ?  1 : par.split );
+    pref->run(0, pref->getSplit() );
 #endif
     delete pref;
 

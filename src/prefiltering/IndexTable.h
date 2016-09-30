@@ -280,6 +280,22 @@ public:
         return alphabetSize;
     }
 
+    static int computeKmerSize(size_t aaSize) {
+        return aaSize < getUpperBoundAACountForKmerSize(6) ? 6 : 7;
+    }
+
+
+    static size_t getUpperBoundAACountForKmerSize(int kmerSize) {
+        switch(kmerSize){
+            case 6:
+                return 3350000000;
+            case 7:
+                return (UINT_MAX - 1); // UINT_MAX is often reserved as safe flag
+        }
+        return 0;
+    }
+
+
 protected:
     // number of entries in all sequence lists
     int64_t tableEntriesNum; // must be 64bit
