@@ -87,6 +87,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     if (par.cascaded) {
+        // save some values to restore them later
         float targetSensitivity = par.sensitivity;
         size_t maxResListLen = par.maxResListLen;
         size_t alphabetSize = par.alphabetSize;
@@ -139,7 +140,12 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         std::string program(par.db3 + "/cascaded_clustering.sh");
         cmd.execProgram(program.c_str(), 3, argv);
     } else {
+        // same as above, clusthash needs a smaller alphabetsize
+        size_t alphabetSize = par.alphabetSize;
+        par.alphabetSize = Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE;
         cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.clusthash).c_str());
+        par.alphabetSize = alphabetSize;
+
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());

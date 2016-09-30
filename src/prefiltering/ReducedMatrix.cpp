@@ -1,6 +1,11 @@
 #include "ReducedMatrix.h"
+#include "Util.h"
 
 ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize, float bitFactor){
+    if(reducedAlphabetSize >= alphabetSize) {
+        Debug(Debug::ERROR) << "Reduced alphabet has to be smaller than the original one!";
+        EXIT(EXIT_FAILURE);
+    }
 
     // swap the matrix and alphabet mappings
     this->origAlphabetSize = this->alphabetSize;

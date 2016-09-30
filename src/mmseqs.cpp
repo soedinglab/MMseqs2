@@ -135,7 +135,7 @@ static struct Command commands[] = {
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Clovis Galiez",
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:resultDB>",
             CITATION_MMSEQS2},
-        {"mergedbs",             mergedbs,             &par.empty,                COMMAND_DB,
+        {"mergedbs",             mergedbs,             &par.mergedbs,             COMMAND_DB,
             "Merge multiple DBs into a single DB, based on IDs (names) of entries",
             NULL,
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",

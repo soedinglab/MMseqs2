@@ -461,7 +461,7 @@ public:
     std::vector<MMseqsParameter> result2newick;
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> dbconcat;
-    std::vector<MMseqsParameter> mergeffindex;
+    std::vector<MMseqsParameter> mergedbs;
     std::vector<MMseqsParameter> summarizeheaders;
     std::vector<MMseqsParameter> evaluationscores;
     std::vector<MMseqsParameter> prefixid;
