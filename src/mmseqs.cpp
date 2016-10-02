@@ -3,6 +3,7 @@
 #include "CommandDeclarations.h"
 #include "Util.h"
 #include "Parameters.h"
+#include "DistanceCalculator.h"
 
 #include <iomanip>
 #include <CpuInfo.h>
@@ -369,7 +370,27 @@ int main(int argc, const char **argv) {
         }
     } else {
         printUsage();
-        Debug(Debug::ERROR) << "Invalid Command: " << argv[1] << "\n";
+        Debug(Debug::ERROR) << "\nInvalid Command: " << argv[1] << "\n";
+
+        // Suggest some command that the user might have meant
+        size_t index = SIZE_MAX;
+        size_t minDistance = SIZE_MAX;
+        for (size_t i = 0; i < ARRAY_SIZE(commands); ++i) {
+            struct Command *p = commands + i;
+            if(p->mode == COMMAND_HIDDEN)
+                continue;
+
+            size_t distance = DistanceCalculator::uiLevenshteinDistance(argv[1], p->cmd);
+            if(distance < minDistance) {
+                minDistance = distance;
+                index = i;
+            }
+        }
+
+        if(index != SIZE_MAX) {
+            Debug(Debug::ERROR) << "Did you mean \"mmseqs " << (commands + index)->cmd << "\"?\n";
+        }
+
         EXIT(EXIT_FAILURE);
     }
 
