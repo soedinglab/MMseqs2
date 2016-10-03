@@ -2,6 +2,7 @@
 #include "Sequence.h"
 #include "Debug.h"
 #include "Util.h"
+#include "DistanceCalculator.h"
 
 #include <iomanip>
 #include <regex.h>
@@ -611,6 +612,22 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             if (hasUnrecognizedParameter) {
                 printUsageMessage(command, outputFlag);
                 Debug(Debug::ERROR) << "Unrecognized parameter " << parameter << "\n";
+
+                // Suggest some parameter that the user might have meant
+                std::vector<MMseqsParameter>::const_iterator index = par.end();
+                size_t minDistance = SIZE_MAX;
+                for (std::vector<MMseqsParameter>::const_iterator it = par.begin(); it != par.end(); ++it) {
+                    size_t distance = DistanceCalculator::levenshteinDistance(parameter, (*it).name);
+                    if(distance < minDistance) {
+                        minDistance = distance;
+                        index = it;
+                    }
+                }
+
+                if(index != par.end()) {
+                    Debug(Debug::ERROR) << "Did you mean \"" << (*index).name << "\"?\n";
+                }
+
                 EXIT(EXIT_FAILURE);
             }
             

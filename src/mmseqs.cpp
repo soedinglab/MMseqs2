@@ -380,7 +380,7 @@ int main(int argc, const char **argv) {
             if(p->mode == COMMAND_HIDDEN)
                 continue;
 
-            size_t distance = DistanceCalculator::uiLevenshteinDistance(argv[1], p->cmd);
+            size_t distance = DistanceCalculator::levenshteinDistance(argv[1], p->cmd);
             if(distance < minDistance) {
                 minDistance = distance;
                 index = i;
