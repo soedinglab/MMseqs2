@@ -8,6 +8,7 @@
 #include "DBWriter.h"
 #include "Parameters.h"
 #include "CompareGOTerms.h"
+#include "Debug.h"
 
 #include <cmath>
 #include <fstream>
