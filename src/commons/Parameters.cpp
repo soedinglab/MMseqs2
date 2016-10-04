@@ -2,6 +2,7 @@
 #include "Sequence.h"
 #include "Debug.h"
 #include "Util.h"
+#include <unistd.h>
 
 #include <iomanip>
 #include <regex.h>
@@ -765,11 +766,16 @@ void Parameters::setDefaults() {
     
     threads = 1;
 #ifdef OPENMP
-    threads = omp_get_max_threads();
+#ifdef _SC_NPROCESSORS_ONLN
+    threads = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+    if(threads  <= 1){
+        threads = Util::omp_thread_count();
+    }
 #endif
     compBiasCorrection = 1;
     diagonalScoring = 1;
-    minDiagScoreThr = 30;
+    minDiagScoreThr = 15;
     spacedKmer = true;
     profile = false;
     nucl = false;
