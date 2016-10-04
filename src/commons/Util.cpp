@@ -401,14 +401,14 @@ size_t Util::maskLowComplexity(BaseMatrix * m, Sequence *s,
 
 
 //    // Filter runs of 4 identical residues
-    filterRepeates(s->int_sequence, seqLen, mask, 1, 4, 0);
-//
-//    // Filter runs of 4 doublets with a maximum of one mismatch
-    filterRepeates(s->int_sequence, seqLen, mask, 2, 8, 1);
-//
-//    // Filter runs of 4 triplets with a maximum of two mismatches
-    filterRepeates(s->int_sequence, seqLen, mask, 3, 9, 2);
-    filterByBiasCorrection(s, seqLen, m, mask, 70);
+//    filterRepeates(s->int_sequence, seqLen, mask, 1, 4, 0);
+////
+////    // Filter runs of 4 doublets with a maximum of one mismatch
+//    filterRepeates(s->int_sequence, seqLen, mask, 2, 8, 1);
+////
+////    // Filter runs of 4 triplets with a maximum of two mismatches
+//    filterRepeates(s->int_sequence, seqLen, mask, 3, 9, 2);
+//    filterByBiasCorrection(s, seqLen, m, mask, 70);
 //
     // filter low complex
     for (int i = 0; i < seqLen - windowSize; i++)
