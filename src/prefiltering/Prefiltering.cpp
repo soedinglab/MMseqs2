@@ -827,7 +827,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
 
 std::string Prefiltering::searchForIndex(const std::string &pathToDB) {
     for(size_t spaced = 0; spaced < 2; spaced++) {
-        for (size_t k = 5; k < 7; k++) {
+        for (size_t k = 5; k <= 7; k++) {
             std::string outIndexName(pathToDB); // db.sk6
             std::string s = (spaced == true) ? "s" : "";
             outIndexName.append(".").append(s).append("k").append(SSTR(k));
