@@ -249,7 +249,7 @@ void Prefiltering::mergeOutput(const std::string& outDB, const std::string& outD
     if(filenames.size() < 2){
         std::rename(filenames[0].first.c_str(),  outDB.c_str());
         std::rename(filenames[0].second.c_str(), outDBIndex.c_str());
-        Debug(Debug::INFO) << "No mergeing needed.\n";
+        Debug(Debug::INFO) << "No merging needed.\n";
         return;
     }
     std::list<std::pair<std::string, std::string>> files(filenames.begin(), filenames.end());
@@ -280,7 +280,7 @@ void Prefiltering::mergeOutput(const std::string& outDB, const std::string& outD
     std::rename(out.second.c_str(), outDBIndex.c_str());
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "\nTime for mergeing results: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::WARNING) << "\nTime for merging results: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 }
 
 QueryMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,

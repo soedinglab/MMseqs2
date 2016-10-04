@@ -210,7 +210,7 @@ int main(int argc, char **argv)
                     if (std::string(id1) != std::string(id2)) {
                         char*proteinName1 =protname_db_reader->getDataByDBKey((char *) id1.c_str());
                         char *proteinName2 =protname_db_reader->getDataByDBKey((char *) id2.c_str());
-                        double levenshteinScore = DistanceCalculator::uiLevenshteinDistance(proteinName1, proteinName2);
+                        double levenshteinScore = DistanceCalculator::levenshteinDistance(proteinName1, proteinName2);
                         levenshteinScore = 1- (levenshteinScore /std::max(strlen(proteinName1),strlen(proteinName2)));
                         sumofscore += levenshteinScore;
                         minscore=std::min(levenshteinScore,minscore);
@@ -544,7 +544,7 @@ int numberofthreads=1;
         dbw->~DBWriter();
     }else{
         printHelp();
-        Debug(Debug::INFO)<<DistanceCalculator::uiLevenshteinDistance("bla","bla21");
+        Debug(Debug::INFO)<<DistanceCalculator::levenshteinDistance("bla","bla21");
     }
 
 
