@@ -69,8 +69,11 @@ Prefiltering::Prefiltering(const std::string& queryDB,
 
     //TODO optimize this. Dont read twice the target index. This seems to be slow
     if(indexDB != ""){
+        Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
+
         this->tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
     }else{
+        Debug(Debug::INFO) << "Cound not find precomputed index. Compute index.\n";
         this->tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
     }
     tdbr->open(DBReader<unsigned int>::NOSORT);

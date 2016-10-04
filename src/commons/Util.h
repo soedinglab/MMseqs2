@@ -222,5 +222,7 @@ public:
         int kmersPerSize = seqLen - static_cast<int>(kmerSize);
         return  (kmersPerSize >= 0) ? kmersPerSize + 1 :  0;
     }
+
+    static int omp_thread_count();
 };
 #endif

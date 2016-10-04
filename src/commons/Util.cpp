@@ -503,6 +503,13 @@ void Util::filterByBiasCorrection(Sequence *s, int seqLen, BaseMatrix *m, char *
     delete [] tmp_composition_bias;
 }
 
+int Util::omp_thread_count() {
+        int n = 0;
+#pragma omp parallel reduction(+:n)
+        n += 1;
+        return n;
+}
+
 
 
 
