@@ -5,15 +5,13 @@
 #ifndef MMSEQS_DISTANCECALCULATOR_H
 #define MMSEQS_DISTANCECALCULATOR_H
 
-
-#include "Debug.h"
 #include <sstream>
 
 class DistanceCalculator {
 public:
     /*
      * Adapted from levenshtein.js (https://gist.github.com/andrei-m/982927)
-     * Changed to hold only two rows of the dynamic programing matrix
+     * Changed to hold only one row of the dynamic programing matrix
      * Copyright (c) 2011 Andrei Mackenzie
      * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
      * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
@@ -28,40 +26,34 @@ public:
         if (n == 0)
             return m;
 
-        size_t *matrix[2];
-        // initialize first row and first column with increasing gap costs
-        for (size_t i = 0; i < 2; ++i) {
-            matrix[i] = new size_t[m + 1];
-            matrix[i][0] = i;
-        }
-
+        // we don't need the full matrix just for the distance
+        // we only need space for one row + the last value;
+        size_t *row  = new size_t[m + 1];
         for (size_t i = 0; i <= m; ++i) {
-            matrix[0][i] = i;
+            row[i] = i;
         }
 
         // fill in the rest of the matrix
         for (size_t i = 1; i <= n; i++) {
-            // previous row can be overwritten now
-            size_t *curr = matrix[i & 1];
-            size_t *prev = matrix[!(i & 1)];
-            curr[0] = i;
+            size_t prev = i;
             for (size_t j = 1; j <= m; j++) {
+                size_t val;
                 if (s2[i - 1] == s1[j - 1]) {
-                    curr[j] = prev[j - 1]; // match
+                    val = row[j - 1]; // match
                 } else {
-                    curr[j] = std::min(prev[j - 1] + 1, // substitution
-                              std::min(curr[j - 1] + 1, // insertion
-                                       prev[j] + 1));   // deletion
+                    val = std::min(row[j - 1] + 1, // substitution
+                          std::min(prev + 1,       // insertion
+                                   row[j] + 1));   // deletion
                 }
+                row[j - 1] = prev;
+                prev = val;
             }
+            row[m] = prev;
         }
 
         // the last element of the matrix is the distance
-        size_t distance = matrix[n & 1][m];
-
-        for (size_t i = 0; i < 2; ++i) {
-            delete matrix[i];
-        }
+        size_t distance = row[m];
+        delete[] row;
 
         return distance;
     }
