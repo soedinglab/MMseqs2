@@ -184,7 +184,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
         for (size_t hitIdx = 0; hitIdx < hitSize; hitIdx++) {
             unsigned int diagLen = diagonalLength(minDistToDiagonal, queryLen, seqs[hitIdx].second);
             // 2*diagLen because of bits/2
-            hits[hitIdx]->count = normalizeScore(score_arr[hitIdx], 2*diagLen);
+            hits[hitIdx]->count = normalizeScore(score_arr[hitIdx], diagLen);
         }
 
     }else {
