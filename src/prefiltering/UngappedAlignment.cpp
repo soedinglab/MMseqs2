@@ -268,7 +268,7 @@ void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
 unsigned char UngappedAlignment::normalizeScore(const unsigned char score, const unsigned int len) {
     float log2Len = MathUtil::flog2(static_cast<float>(len));
     float floatScore = static_cast<float>(score);
-    return static_cast<unsigned char>((log2Len > floatScore) ? 0.0 : floatScore - log2Len );
+    return static_cast<unsigned char>((log2Len > floatScore) ? 0.0 : (floatScore - log2Len) + 0.5 );
 }
 
 short UngappedAlignment::createProfile(Sequence *seq,
