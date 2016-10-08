@@ -1,12 +1,11 @@
 # MMseqs2.0: ultra fast and sensitive search and clustering suite
 MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and Mac OS. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 reaches the same sensitivity as BLAST magnitude faster and which can also perform profile searches like PSI-BLAST but also ~270x faster.
 
-MMseqs2 has not just improved in sensitivity and speed it also improved usability through several helper tools. The utilities comprise tools for format conversion, multiple sequence alignment, sequence profile calculation, 6-frame translation for ORF extraction, set operations on sequence sets, regex-based filters, and statistics tools to analyse results.
-
 Please cite M. Steinegger, J. Soeding, "Sensitive protein sequence searching for the analysis of massive data sets.", bioRxiv 079681 (2016).
 
 ## Installation
-MMseqs can be installed by compiling the binary, download a statically compiled version or using [Homebrew](https://github.com/Homebrew/brew). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS). MMseqs2 will automatically detect the availability of the SSE4.1 or AVX2 instruction set and set the newest standard. 
+MMseqs can be installed by compiling the binary, download a statically compiled version or using [Homebrew](https://github.com/Homebrew/brew). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
+
 ### Compile
 Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which might improve its performance. To compile MMseqs2 `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in in `build/bin/`.
 
@@ -18,8 +17,7 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
         make
         make install 
         export PATH=$(pwd)/bin/:$PATH
-        
-        
+                
 ### Static Linux version
 The following command will download the last MMseqs version, extract it and set the environment variables. This version runs just on linux. If you want to run it on Mac please compile it or use brew.
 
@@ -52,15 +50,13 @@ This will also automatically install the bash completion (you might have to do `
 The formula will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
 
 ## How to search
-You can use the query database queryDB.fasta and target database targetDB.fasta to test the search workflow.
-Before clustering, you need to convert your database containing query sequences (queryDB.fasta) and your target database (targetDB.fasta) into mmseqs database format:
+You can use the query database "queryDB.fasta" and target database "targetDB.fasta" in the examples folder to test the search workflow.
+As a frist step you need to convert the fasta files to into mmseqs database format. The database should be stored on a on a local drive.
 
         mmseqs createdb examples/QUERY.fasta queryDB
         mmseqs createdb examples/DB.fasta targetDB
         
-It generates ffindex database files, e. g. queryDB and ffindex index file queryDB.index
-from queryDB.fasta. Then, generate a directory for tmp files:
-For the next step computes an index file of the the targetDB for fast read in. It is recommend to compute the index if the targetDB is reused for search several times.
+It is recommended to precomputes an index of the the targetDB for fast read in if the target databse is reused for again. The index should be created on a computer that has the same amount of memory as the computer that performs the search. 
 
         mmseqs createindex targetDB
         
