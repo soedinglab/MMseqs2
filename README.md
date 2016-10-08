@@ -51,7 +51,7 @@ The formula will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
 
 ## How to search
 You can use the query database "queryDB.fasta" and target database "targetDB.fasta" in the examples folder to test the search workflow.
-As a frist step you need to convert the fasta files to into mmseqs database format. The database should be stored on a on a local drive.
+As a frist step you need to convert the fasta files to into mmseqs database format. The database should be stored on a local drive.
 
         mmseqs createdb examples/QUERY.fasta queryDB
         mmseqs createdb examples/DB.fasta targetDB
@@ -81,14 +81,17 @@ Use the option `--format-mode 1` to convert the results to pairwise alignments. 
         mmseqs convertalis queryDB targetDB resultDB resultDB.pair --format-mode 1
 
 ## How to cluster 
-Before clustering, convert your FASTA database into ffindex format:
+Before clustering, convert your database into the mmseqs database format:
 
         mmseqs createdb examples/DB.fasta DB
 
-Please ensure that in case of large input databases the temporary folder tmp  provides enough free space.
-For the disc space requirements, see the user guide. 
+Create a temporary folder for the run. 
 
         mkdir tmp
+
+Please ensure that in case of large input databases the temporary folder tmp provides enough free space.
+For the disc space requirements, see the user guide. 
+
         mmseqs cluster DB clu tmp
 
 To generate a FASTA-style formatted output file from the ffindex output file, type:
@@ -99,7 +102,6 @@ To generate a FASTA-style formatted output file from the ffindex output file, ty
 To generate a TSV-style formatted output file from the ffindex output file, type:
 
         mmseqs createtsv DB DB clu clu.tsv
-
 
 ### Memory Requirements
 When using MMseqs the available memory limits the size of database you will be able to compute. 
