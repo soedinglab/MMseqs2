@@ -265,7 +265,7 @@ void printUsage() {
     std::stringstream usage;
     usage << "MMseqs2 (Many against Many sequence searching) is an open-source software suite for very fast, \n"
             "parallelizable protein sequence searches and clustering of huge protein sequence data sets.\n\n";
-    usage << "Please cite: M. Steinegger and J. Soding. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv XXXX (2016).\n\n";
+    usage << "Please cite: M. Steinegger and J. Soding. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv 079681 (2016).\n\n";
 #ifdef GIT_SHA1
 #define str2(s) #s
 #define str(s) str2(s)

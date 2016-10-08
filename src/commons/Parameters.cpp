@@ -427,7 +427,7 @@ void Parameters::printUsageMessage(const Command& command,
     if(command.citations > 0) {
         ss << "Please cite:\n";
         if(command.citations & CITATION_MMSEQS2) {
-            ss << "Steinegger, M. & Soding, J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv XXXX (2016)\n\n";
+            ss << "Steinegger, M. & Soding, J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv 079681 (2016)\n\n";
         }
         
         if(command.citations & CITATION_MMSEQS1) {
