@@ -38,7 +38,8 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         minDiagScoreThr(par.minDiagScoreThr),
         aaBiasCorrection(par.compBiasCorrection),
         split(par.split),
-        splitMode(par.splitMode)
+        splitMode(par.splitMode),
+        covThr(par.covThr)
 {
     this->threads = par.threads;
 #ifdef OPENMP
@@ -491,6 +492,15 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
         if (targetSeqId >= tdbr->getSize()) {
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id)<< " -> " << targetSeqId << "\t" << res->prefScore << "\n";
         }
+        if(covThr > 0.0){
+            // check if the sequences could pass the coverage threshold
+            float queryLength = static_cast<float>(qdbr->getSeqLens(id));
+            float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId));
+            if((queryLength / targetLength < covThr) || (targetLength / queryLength < covThr))
+                continue;
+
+        }
+
         int len;
         if(diagonalScoring == true){
             len = snprintf(buffer, 100, "%s\t%d\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
