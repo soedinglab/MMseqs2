@@ -105,6 +105,7 @@ private:
     double kmerMatchProb;
     int split;
     int splitMode;
+    float covThr;
     bool sameQTDB;
     bool includeIdentical;
 
