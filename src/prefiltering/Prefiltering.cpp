@@ -504,7 +504,7 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
         int len;
         if(diagonalScoring == true){
             len = snprintf(buffer, 100, "%s\t%d\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
-                           res->prefScore, res->diagonal);
+                           res->prefScore, (short) res->diagonal);
         }else {
             len = snprintf(buffer, 100, "%s\t%.4f\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
                            res->pScore, res->prefScore);
@@ -602,7 +602,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
             s.mapSequence(id - dbFrom, qKey, seqData);
 
             maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
-                                                      indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X']);
+                                                      indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X'], true, true, true, true);
 
             aaCount += s.L;
             totalKmerCount += indexTable->addKmerCount(&s, &idxer);
@@ -651,9 +651,9 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 #pragma omp barrier
         if(thread_idx == 0){
             if(diagonalScoring == true){
-                indexTable->initMemory(dbTo - dbFrom, tableEntriesNum, aaCount, sequenceLookup, tableSize);
+                indexTable->initMemory(tableEntriesNum, sequenceLookup, tableSize);
             }else{
-                indexTable->initMemory(dbTo - dbFrom, tableEntriesNum, aaCount, NULL, tableSize);
+                indexTable->initMemory(tableEntriesNum,  NULL, tableSize);
             }
             indexTable->init();
             Debug(Debug::INFO) << "Index table: fill...\n";
@@ -866,4 +866,14 @@ std::pair<int, int> Prefiltering::optimizeSplit(size_t totalMemoryInByte, DBRead
         }
     }
     return std::make_pair(-1, -1);
+}
+
+std::vector<hit_t> Prefiltering::readPrefilterResults(char *data) {
+    std::vector<hit_t> ret;
+    while(*data != '\0'){
+        hit_t result = parsePrefilterHit(data);
+        ret.push_back(result);
+        data = Util::skipLine(data);
+    }
+    return ret;
 }

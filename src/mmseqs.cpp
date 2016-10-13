@@ -185,6 +185,12 @@ static struct Command commands[] = {
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:statsDB>",
             CITATION_MMSEQS2},
 // Special-purpose utilities
+        {"rescorediagonal",           rescorediagonal,           &par.rescorediagonal,        COMMAND_SPECIAL,
+                "Compute sequence identity for diagonal",
+                NULL,
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                "<i:queryDB> <i:targetDB> <i:prefilterDB> <o:resultDB>",
+                CITATION_MMSEQS2},
         {"diffseqdbs",           diffseqdbs,           &par.onlyverbosity,        COMMAND_SPECIAL,
             "Find IDs of sequences kept, added and removed between two versions of sequence DB",
             "It creates 3 filtering files, that can be used in cunjunction with \"createsubdb\" tool.\nThe first file contains the keys that has been removed from DBold to DBnew.\nThe second file maps the keys of the kept sequences from DBold to DBnew.\nThe third file contains the keys of the sequences that have been added in DBnew.",

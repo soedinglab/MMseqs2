@@ -21,7 +21,6 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
     this->covThr = par.covThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
-    this->fragmentMerge = par.fragmentMerge;
     this->addBacktrace = par.addBacktrace;
     this->realign = par.realign;
     if(addBacktrace == true){
@@ -54,10 +53,6 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
     switch(swMode){
         case Matcher::SCORE_ONLY:
             Debug(Debug::WARNING) << "Compute score only.\n";
-            if(fragmentMerge == true){
-                Debug(Debug::ERROR) << "Fragment merge does not work with Score only mode. Set --alignment-mode to 2 or 3.\n";
-                EXIT(EXIT_FAILURE);
-            }
             break;
         case Matcher::SCORE_COV:
             Debug(Debug::WARNING) << "Compute score and coverage.\n";
@@ -257,14 +252,12 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 //char *maskedDbSeq = seg[thread_idx]->maskseq(dbSeqData);
                 dbSeqs[thread_idx]->mapSequence(-1, dbKeys[thread_idx], dbSeqData);
                 // check if the sequences could pass the coverage threshold
-                if(fragmentMerge == false){
                     if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
                          (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ) {
                         rejected++;
                         data = Util::skipLine(data);
                         continue;
                     }
-                }
                 // calculate Smith-Waterman alignment
                 Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->swMode);
                 alignmentsNum++;
@@ -279,10 +272,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 if (isIdentity
                     ||
                     // general accaptance criteria
-                    (res.eval <= evalThr && res.seqId >= seqIdThr && res.qcov >= covThr && res.dbcov >= covThr)
-                    ||
-                    // check for fragment
-                    (( swMode == Matcher::SCORE_COV_SEQID || swMode == Matcher::SCORE_COV) && fragmentMerge == true && res.dbcov >= 0.95 && res.seqId >= 0.9 ))
+                    (res.eval <= evalThr && res.seqId >= seqIdThr && res.qcov >= covThr && res.dbcov >= covThr))
                 {
                     swResults.push_back(res);
                     passedNum++;

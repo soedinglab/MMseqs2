@@ -82,8 +82,6 @@ private:
     bool sameQTDB;
     // include id
     bool includeIdentity;
-    // merge fragments
-    bool fragmentMerge;
 
     // includes backtrace to alignment
     bool addBacktrace;

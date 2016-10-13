@@ -113,7 +113,7 @@ public:
     }
 
     // init the arrays for the sequence lists
-    void initMemory(size_t sequenzeCount, size_t tableEntriesNum, size_t aaDbSize, SequenceLookup * seqLookup, size_t dbSize) {
+    void initMemory(size_t tableEntriesNum, SequenceLookup * seqLookup, size_t dbSize) {
         this->tableEntriesNum = tableEntriesNum;
         this->size = dbSize; // amount of sequences added
 

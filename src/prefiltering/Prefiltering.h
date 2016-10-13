@@ -55,6 +55,10 @@ public:
     // compute kmer size and split size for index table
     static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, int threads);
 
+    // estimates memory consumption while runtime
+    static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
+                                            int threads);
+
     size_t getSplitMode(){
         return splitMode;
     }
@@ -66,6 +70,9 @@ public:
     int getSplit(){
         return split;
     }
+
+    static std::vector<hit_t> readPrefilterResults(char *data);
+
 private:
     static const size_t BUFFER_SIZE = 1000000;
 
@@ -136,9 +143,6 @@ private:
                                                   const size_t kmerThrMid);
 
     int getKmerThreshold(const float sensitivity, const int score);
-
-    static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
-                                            int threads);
 
     std::string searchForIndex(const std::string &pathToDB);
 

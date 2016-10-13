@@ -22,15 +22,10 @@
 
 #ifdef OPENMP
 #include <omp.h>
+#include <DistanceCalculator.h>
+
 #endif
 
-unsigned int computeHammingDistance(const char *seq1, const char *seq2, unsigned int length){
-    unsigned int diff = 0;
-    for (unsigned int pos = 0; pos < length; pos++ ) {
-        diff += (seq1[pos] != seq2[pos]);
-    }
-    return diff;
-}
 
 size_t hash(int * x, size_t length){
     const size_t INITIAL_VALUE = 0;
@@ -150,7 +145,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
                     unsigned int targetLength = std::max(seqDbr.getSeqLens(setIds[j]), 3ul) - 2;
                     if(i != j && queryLength == targetLength){
                         const char * targetSeq = seqDbr.getData(setIds[j]);
-                        unsigned int distance = computeHammingDistance(querySeq, targetSeq, queryLength);
+                        unsigned int distance = DistanceCalculator::computeHammingDistance(querySeq, targetSeq, queryLength);
                         float seqId = (static_cast<float>(queryLength) - static_cast<float>(distance))/static_cast<float>(queryLength);
                         if(seqId > par.seqIdThr) {
                             swResultsSs << SSTR(seqDbr.getDbKey(setIds[j])).c_str() << "\t";

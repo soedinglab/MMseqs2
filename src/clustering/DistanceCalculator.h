@@ -9,6 +9,17 @@
 
 class DistanceCalculator {
 public:
+
+
+    static unsigned int computeHammingDistance(const char *seq1, const char *seq2, unsigned int length){
+        unsigned int diff = 0;
+        for (unsigned int pos = 0; pos < length; pos++ ) {
+            diff += (seq1[pos] != seq2[pos]);
+        }
+        return diff;
+    }
+
+
     /*
      * Adapted from levenshtein.js (https://gist.github.com/andrei-m/982927)
      * Changed to hold only one row of the dynamic programing matrix

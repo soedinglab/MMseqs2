@@ -100,7 +100,6 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.clusteringMode = Parameters::GREEDY;
         par.sensitivity = 1;
         par.maxResListLen = 20;
-        par.fragmentMerge = true;
         int minDiagScoreThr = par.minDiagScoreThr;
         par.minDiagScoreThr = 0;
         par.diagonalScoring = 0;
@@ -114,7 +113,6 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.clusteringMode = Parameters::SET_COVER;
         par.sensitivity = targetSensitivity / 3.0;
         par.maxResListLen = 100;
-        par.fragmentMerge = false;
         par.diagonalScoring = 1;
         par.compBiasCorrection = 1;
         par.minDiagScoreThr = minDiagScoreThr;

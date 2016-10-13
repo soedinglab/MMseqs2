@@ -56,6 +56,7 @@ bool compareByMutalInformation(std::pair<float, size_t > first, std::pair<float,
     return (first.first > second.first) ? true : false;
 }
 
+
 bool compareKmerPositionByKmerAndSize(KmerPosition first, KmerPosition second){
     if(first.size > second.size )
         return true;
@@ -129,6 +130,10 @@ int clustlinear(int argc, const char **argv, const Command& command) {
     for(size_t i = 0; i < totalKmers+1; i++){
         hashSeqPair[i].kmer = SIZE_T_MAX;
     }
+    float * mutualInformationLookup = new float[subMat->alphabetSize];
+    for(int aa = 0; aa < subMat->alphabetSize; aa++){
+        mutualInformationLookup[aa] = computeMutualInformation(aa, subMat);
+    }
     size_t kmerCounter = 0;
 #pragma omp parallel reduction (+: kmerCounter)
     {
@@ -151,21 +156,22 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         for(size_t id = dbFrom; id < (dbFrom + dbSize); id++){
             Debug::printProgress(id);
             seq.mapSequence(id, id, seqDbr.getData(id));
+            Util::maskLowComplexity(subMat, &seq, seq.L, 12, 3,
+                                    par.alphabetSize, seq.aa2int[(unsigned char) 'X'], true, false, false, true);
             int seqKmerCount = 0;
             unsigned int seqId = seq.getId();
             while(seq.hasNextKmer()) {
                 const int *kmer = seq.nextKmer();
                 float kmerMutualInformation = 0.0;
                 for (size_t kpos = 0; kpos < KMER_SIZE; kpos++) {
-                    kmerMutualInformation += computeMutualInformation(kmer[kpos], subMat);
+                    kmerMutualInformation += mutualInformationLookup[kmer[kpos]];
                 }
                 (kmers+seqKmerCount)->first = kmerMutualInformation;
                 size_t kmerIdx = idxer.int2index(kmer, 0, KMER_SIZE);
-
                 (kmers+seqKmerCount)->second = kmerIdx;
                 seqKmerCount++;
             }
-            if(seqKmerCount > 0){
+            if(seqKmerCount > 1){
                 std::sort(kmers, kmers+seqKmerCount, compareByMutalInformation);
             }
             size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer), seqKmerCount);
@@ -179,6 +185,7 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         }
         delete [] kmers;
     }
+    delete [] mutualInformationLookup;
     Debug(Debug::WARNING) << "Done." << "\n";
     if(totalKmers != kmerCounter ){
         Debug(Debug::WARNING) << "Problem totalKmers(" << totalKmers << ") != kmerCounter("<<kmerCounter << ") \n";
@@ -242,7 +249,7 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         unsigned int writeSets = 0;
         for(size_t i = 0; i < setIds.size(); i++) {
             unsigned int targetLength = std::max(seqDbr.getSeqLens(setIds[i]), 3ul) - 2;
-            if(par.fragmentMerge == false && setIds[i] != queryId ){
+            if(setIds[i] != queryId ){
                 if ( (((float) queryLength) / ((float) targetLength) < par.covThr) ||
                      (((float) targetLength) / ((float) queryLength) < par.covThr) ) {
                     foundAlready[setIds[i]] = 0;
