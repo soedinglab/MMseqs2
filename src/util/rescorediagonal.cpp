@@ -39,47 +39,59 @@ int rescorediagonal(int argc, const char **argv, const Command& command) {
     Debug(Debug::WARNING) << "Result database: " << par.db4 << "\n";
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
     resultWriter.open();
+    const size_t flushSize = 1000000;
+    size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize())/static_cast<double>(flushSize)));
+    for(size_t i = 0; i < iterations; i++) {
+        size_t start = (i * flushSize);
+        size_t bucketSize = std::min(dbr_res.getSize() - (i * flushSize), flushSize);
 #pragma omp parallel for schedule(dynamic, 10)
-    for(size_t id = 0; id < dbr_res.getSize(); id++){
-        Debug::printProgress(id);
-        char buffer[100];
-        std::string prefResultsOutString;
-        prefResultsOutString.reserve(1000000);
-        unsigned int thread_idx = 0;
+        for (size_t id = start; id < (start + bucketSize); id++){
+            Debug::printProgress(id);
+            char buffer[100];
+            std::string prefResultsOutString;
+            prefResultsOutString.reserve(1000000);
+            unsigned int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = (unsigned int) omp_get_thread_num();
+            thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-        char * data = dbr_res.getData(id);
-        char * querySeq = qdbr->getData(id);
-        unsigned int queryLen = qdbr->getSeqLens(id) - 2; // - 2 because of /0/n
-        std::vector<hit_t> results = Prefiltering::readPrefilterResults(data);
-        for(size_t entryIdx = 0; entryIdx < results.size(); entryIdx++){
-            unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
-            unsigned int targetLen = tdbr->getSeqLens(targetId) - 2; // - 2 because of /0/n
-            short diagonal = results[entryIdx].diagonal;
-            short distanceToDiagonal = abs(diagonal);
-            unsigned int diagonalLen = 0;
-            unsigned int distance = 0;
-            if(diagonal >= 0 && distanceToDiagonal < queryLen){
-                diagonalLen = std::min(targetLen, queryLen - distanceToDiagonal);
-                distance = DistanceCalculator::computeHammingDistance(querySeq  + distanceToDiagonal, tdbr->getData(targetId), diagonalLen);
-            }else if(diagonal < 0 && distanceToDiagonal < targetLen) {
-                diagonalLen = std::min(targetLen - distanceToDiagonal, queryLen);
-                distance = DistanceCalculator::computeHammingDistance(querySeq, tdbr->getData(targetId) + distanceToDiagonal, diagonalLen);
-            }
+            char *data = dbr_res.getData(id);
+            char *querySeq = qdbr->getData(id);
+            unsigned int queryLen = qdbr->getSeqLens(id) - 2; // - 2 because of /0/n
+            std::vector<hit_t> results = Prefiltering::readPrefilterResults(data);
+            for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
+                unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
+                unsigned int targetLen = tdbr->getSeqLens(targetId) - 2; // - 2 because of /0/n
+                short diagonal = results[entryIdx].diagonal;
+                short distanceToDiagonal = abs(diagonal);
+                unsigned int diagonalLen = 0;
+                unsigned int distance = 0;
+                if (diagonal >= 0 && distanceToDiagonal < queryLen) {
+                    diagonalLen = std::min(targetLen, queryLen - distanceToDiagonal);
+                    distance = DistanceCalculator::computeHammingDistance(querySeq + distanceToDiagonal,
+                                                                          tdbr->getData(targetId), diagonalLen);
+                } else if (diagonal < 0 && distanceToDiagonal < targetLen) {
+                    diagonalLen = std::min(targetLen - distanceToDiagonal, queryLen);
+                    distance = DistanceCalculator::computeHammingDistance(querySeq,
+                                                                          tdbr->getData(targetId) + distanceToDiagonal,
+                                                                          diagonalLen);
+                }
 
-            float seqId = (static_cast<float>(diagonalLen) - static_cast<float>(distance))/static_cast<float>(diagonalLen);
-            float targetCov = static_cast<float>(diagonalLen)/static_cast<float>(targetLen);
-            float queryCov = static_cast<float>(diagonalLen)/static_cast<float>(queryLen);
-            if(targetCov >= (par.targetCovThr - 0.0001) && seqId >= (par.seqIdThr - 0.0001) ){
-                int len = snprintf(buffer, 100, "%s\t%d\t%.2f\t%.2f\t%.2f\n", SSTR(tdbr->getDbKey(targetId)).c_str(), seqId, diagonal, queryCov, targetCov);
-                prefResultsOutString.append(buffer, len);
+                float seqId = (static_cast<float>(diagonalLen) - static_cast<float>(distance)) /
+                              static_cast<float>(diagonalLen);
+                float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLen);
+                float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
+                if (targetCov >= (par.targetCovThr - 0.0001) && seqId >= (par.seqIdThr - 0.0001)) {
+                    int len = snprintf(buffer, 100, "%s\t%d\t%.2f\t%.2f\t%.2f\n",
+                                       SSTR(tdbr->getDbKey(targetId)).c_str(), seqId, diagonal, queryCov, targetCov);
+                    prefResultsOutString.append(buffer, len);
+                }
             }
+            // write prefiltering results string to ffindex database
+            const size_t prefResultsLength = prefResultsOutString.length();
+            char *prefResultsOutData = (char *) prefResultsOutString.c_str();
+            resultWriter.writeData(prefResultsOutData, prefResultsLength, SSTR(qdbr->getDbKey(id)).c_str(), thread_idx);
         }
-        // write prefiltering results string to ffindex database
-        const size_t prefResultsLength = prefResultsOutString.length();
-        char* prefResultsOutData = (char *) prefResultsOutString.c_str();
-        resultWriter.writeData(prefResultsOutData, prefResultsLength, SSTR(qdbr->getDbKey(id)).c_str(), thread_idx);
+        dbr_res.remapData();
     }
     Debug(Debug::WARNING) << "Done." << "\n";
     dbr_res.close();
