@@ -44,6 +44,7 @@ int rescorediagonal(int argc, const char **argv, const Command& command) {
     for(size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
         size_t bucketSize = std::min(dbr_res.getSize() - (i * flushSize), flushSize);
+
 #pragma omp parallel for schedule(dynamic, 10)
         for (size_t id = start; id < (start + bucketSize); id++){
             Debug::printProgress(id);
