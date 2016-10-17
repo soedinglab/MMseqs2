@@ -41,6 +41,10 @@ struct hit_t {
     static bool compareHitsByDiagonalScore(hit_t first, hit_t second){
         return (first.prefScore > second.prefScore) ? true : false;
     }
+
+    static bool  compareHitsByEvalue(hit_t first, hit_t second){
+        return (first.pScore < second.pScore) ? true : false;
+    }
 };
 
 
@@ -178,6 +182,13 @@ protected:
     //log match prob (mu) of poisson distribution
     double logMatchProb;
 
+    // lenght adjusted Kmn for e-value
+    double * kmnByLen;
+
+    // lambda for e-value statistic
+    double lambda;
+
+
     //pre computed score factorials
     // S_fact = score!
     double *logScoreFactorial;
@@ -196,6 +207,7 @@ protected:
                                          size_t resultSize,
                                          const int l, const unsigned int id,
                                          const unsigned short thr,
+                                         const double lambda,
                                          const bool diagonalScoring);
     // compute double hits
     size_t getDoubleDiagonalMatches();

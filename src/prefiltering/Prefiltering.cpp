@@ -503,8 +503,8 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
 
         int len;
         if(diagonalScoring == true){
-            len = snprintf(buffer, 100, "%s\t%d\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
-                           res->prefScore, (short) res->diagonal);
+            len = snprintf(buffer, 100, "%s\t%.2e\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
+                           res->pScore, (short) res->diagonal);
         }else {
             len = snprintf(buffer, 100, "%s\t%.4f\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
                            res->pScore, res->prefScore);

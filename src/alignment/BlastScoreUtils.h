@@ -22,31 +22,31 @@ public:
 
 
 #define BLOSUM45_VALUES_MAX 14
-    static double blosum45_values[BLOSUM45_VALUES_MAX][8];
+    static double blosum45_values[BLOSUM45_VALUES_MAX][10];
     static int blosum45_prefs[BLOSUM45_VALUES_MAX];
 
 
 #define BLOSUM50_VALUES_MAX 16
-    static double blosum50_values[BLOSUM50_VALUES_MAX][8];
+    static double blosum50_values[BLOSUM50_VALUES_MAX][10];
 
     static int blosum50_prefs[BLOSUM50_VALUES_MAX];
 
 #define BLOSUM62_VALUES_MAX 12
-    static double blosum62_values[BLOSUM62_VALUES_MAX][8];
+    static double blosum62_values[BLOSUM62_VALUES_MAX][10];
     static int blosum62_prefs[BLOSUM62_VALUES_MAX];
 
 
 #define BLOSUM80_VALUES_MAX 10
-    static double blosum80_values[BLOSUM80_VALUES_MAX][8];
+    static double blosum80_values[BLOSUM80_VALUES_MAX][10];
     static int blosum80_prefs[BLOSUM80_VALUES_MAX];
 
 #define BLOSUM90_VALUES_MAX 8
-    static double blosum90_values[BLOSUM90_VALUES_MAX][8];
+    static double blosum90_values[BLOSUM90_VALUES_MAX][10];
 
     static int blosum90_prefs[BLOSUM90_VALUES_MAX];
 
 #define BLOSUM62_20_VALUES_MAX 65
-    static double blosum62_20_values[BLOSUM62_20_VALUES_MAX][8];
+    static double blosum62_20_values[BLOSUM62_20_VALUES_MAX][10];
 
     static int blosum62_20_prefs[BLOSUM62_20_VALUES_MAX];
 
@@ -111,7 +111,7 @@ public:
     static int BlastComputeLengthAdjustment(double K, double logK, double alpha_d_lambda, double beta,
                                             int query_length, size_t db_length, size_t db_num_seqs);
 
-    static BlastStat getAltschulStatsForMatrix(std::string matrix, long gopen, long gextend);
+    static BlastStat getAltschulStatsForMatrix(std::string matrix, long gopen, long gextend, bool gapped);
 
     static double computeKmn(int qlen, double K, double lambda, double alpha, double beta, size_t dbLen,
                       size_t seqCnt);
