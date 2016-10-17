@@ -2,9 +2,6 @@
 // Created by mad on 2/25/16.
 //
 
-//
-// Created by mad on 10/21/15.
-//
 #include <limits>
 #include <string>
 #include <vector>
@@ -19,11 +16,10 @@
 #include "Matcher.h"
 #include "Debug.h"
 #include "DBReader.h"
+#include "DistanceCalculator.h"
 
 #ifdef OPENMP
 #include <omp.h>
-#include <DistanceCalculator.h>
-
 #endif
 
 
