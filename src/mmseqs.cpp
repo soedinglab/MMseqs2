@@ -3,6 +3,7 @@
 #include "CommandDeclarations.h"
 #include "Util.h"
 #include "Parameters.h"
+#include "DistanceCalculator.h"
 
 #include <iomanip>
 #include <CpuInfo.h>
@@ -27,7 +28,7 @@ static struct Command commands[] = {
             "Compute clustering of a sequence DB (quadratic time)",
             "Clusters sequences by similarity. It compares all sequences in the sequence DB with each other using mmseqs search, filters alignments according to user-specified criteria (max. E-value, min. coverage,...),   and runs mmseqs clust to group similar sequences together into clusters.",
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Lars von den Driesch",
-            "<i:queryDB> <i:targetDB> <o:clusterDB> <tmpDir>",
+            "<i:sequenceDB> <o:clusterDB> <tmpDir>",
             CITATION_MMSEQS2|CITATION_MMSEQS1},
         {"createindex",          createindex,          &par.createindex,          COMMAND_MAIN,
             "Precompute index table of sequence DB for faster searches",
@@ -60,7 +61,7 @@ static struct Command commands[] = {
             "Milot Mirdita <milot@mirdita.de>",
             "<i:sequenceDB> <o:fastaFile>",
             CITATION_MMSEQS2},
-        {"result2flat",          result2flat,          &par.onlyverbosity,        COMMAND_FORMAT_CONVERSION,
+        {"result2flat",          result2flat,          &par.result2flat,          COMMAND_FORMAT_CONVERSION,
             "Create a FASTA-like flat file from prefilter DB, alignment DB, or cluster DB",
             NULL,
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
@@ -135,7 +136,7 @@ static struct Command commands[] = {
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Clovis Galiez",
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:resultDB>",
             CITATION_MMSEQS2},
-        {"mergedbs",             mergedbs,             &par.empty,                COMMAND_DB,
+        {"mergedbs",             mergedbs,             &par.mergedbs,             COMMAND_DB,
             "Merge multiple DBs into a single DB, based on IDs (names) of entries",
             NULL,
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
@@ -184,6 +185,12 @@ static struct Command commands[] = {
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:statsDB>",
             CITATION_MMSEQS2},
 // Special-purpose utilities
+        {"rescorediagonal",           rescorediagonal,           &par.rescorediagonal,        COMMAND_SPECIAL,
+                "Compute sequence identity for diagonal",
+                NULL,
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                "<i:queryDB> <i:targetDB> <i:prefilterDB> <o:resultDB>",
+                CITATION_MMSEQS2},
         {"diffseqdbs",           diffseqdbs,           &par.onlyverbosity,        COMMAND_SPECIAL,
             "Find IDs of sequences kept, added and removed between two versions of sequence DB",
             "It creates 3 filtering files, that can be used in cunjunction with \"createsubdb\" tool.\nThe first file contains the keys that has been removed from DBold to DBnew.\nThe second file maps the keys of the kept sequences from DBold to DBnew.\nThe third file contains the keys of the sequences that have been added in DBnew.",
@@ -264,7 +271,7 @@ void printUsage() {
     std::stringstream usage;
     usage << "MMseqs2 (Many against Many sequence searching) is an open-source software suite for very fast, \n"
             "parallelizable protein sequence searches and clustering of huge protein sequence data sets.\n\n";
-    usage << "Please cite: M. Steinegger and J. Soding. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv XXXX (2016).\n\n";
+    usage << "Please cite: M. Steinegger and J. Soding. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv 079681 (2016).\n\n";
 #ifdef GIT_SHA1
 #define str2(s) #s
 #define str(s) str2(s)
@@ -369,7 +376,27 @@ int main(int argc, const char **argv) {
         }
     } else {
         printUsage();
-        Debug(Debug::ERROR) << "Invalid Command: " << argv[1] << "\n";
+        Debug(Debug::ERROR) << "\nInvalid Command: " << argv[1] << "\n";
+
+        // Suggest some command that the user might have meant
+        size_t index = SIZE_MAX;
+        size_t minDistance = SIZE_MAX;
+        for (size_t i = 0; i < ARRAY_SIZE(commands); ++i) {
+            struct Command *p = commands + i;
+            if(p->mode == COMMAND_HIDDEN)
+                continue;
+
+            size_t distance = DistanceCalculator::levenshteinDistance(argv[1], p->cmd);
+            if(distance < minDistance) {
+                minDistance = distance;
+                index = i;
+            }
+        }
+
+        if(index != SIZE_MAX) {
+            Debug(Debug::ERROR) << "Did you mean \"mmseqs " << (commands + index)->cmd << "\"?\n";
+        }
+
         EXIT(EXIT_FAILURE);
     }
 

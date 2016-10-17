@@ -15,9 +15,7 @@ int createindex (int argc, const char **argv, const Command& command)
 {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 1);
-    if(par.split == 0){
-        par.split = 1;
-    }
+
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
@@ -27,15 +25,9 @@ int createindex (int argc, const char **argv, const Command& command)
     dbr.open(DBReader<unsigned int>::NOSORT);
 
     BaseMatrix* subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
-    size_t kmerSize = par.kmerSize;
-    if(par.kmerSize == 0){ // set k-mer based on aa size in database
-        // if we have less than 10Mio * 335 amino acids use 6mers
-        kmerSize = dbr.getAminoAcidDBSize() < 3350000000 ? 6 : 7;
-    }
-    Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, kmerSize, par.spacedKmer, par.compBiasCorrection);
 
-    PrefilteringIndexReader::createIndexFile(par.db1, &dbr, &seq, subMat, par.split,
-                                             subMat->alphabetSize, kmerSize, par.spacedKmer, par.diagonalScoring, par.threads);
+    PrefilteringIndexReader::createIndexFile(par.db1, &dbr, subMat, par.maxSeqLen, par.spacedKmer, par.compBiasCorrection, par.split,
+                                             subMat->alphabetSize, par.kmerSize, par.diagonalScoring, par.threads);
 
     // write code
     dbr.close();

@@ -1,13 +1,11 @@
 FROM debian:jessie
 MAINTAINER Martin Steinegger
-RUN apt-get update && apt-get install -y cmake git ssh build-essential
+RUN apt-get update && apt-get install -y cmake git ssh build-essential vim-common 
 RUN mkdir -m 700 /root/.ssh
-COPY id_rsa_docker /root/.ssh/id_rsa
-RUN chmod 600 /root/.ssh/id_rsa
 RUN echo 'Host *' >>  /root/.ssh/config
 RUN echo '  StrictHostKeyChecking no' >>  /root/.ssh/config
 RUN echo '  UserKnownHostsFile /dev/null' >>  /root/.ssh/config
-RUN git clone git@bitbucket.org:soedinglab/mmseqs-dev.git /root/mmseqs  
+RUN git clone http://github.com/soedinglab/mmseqs2 /root/mmseqs  
 RUN mkdir /root/mmseqs/build
 RUN mkdir /root/mmseqs/mmseqs
 

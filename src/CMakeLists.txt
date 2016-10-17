@@ -75,6 +75,8 @@ if(${HAVE_MPI})
         set(CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS} ${MPI_LINK_FLAGS})
         include_directories(${MPI_INCLUDE_PATH})
         ADD_DEFINITIONS("-DHAVE_MPI")
+        message("-- Found MPI")
+
     endif()
 endif()
 

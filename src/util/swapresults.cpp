@@ -39,7 +39,7 @@ int doSwap(Parameters &par,
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
         BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(),
                                                                                       Matcher::GAP_OPEN,
-                                                                                      Matcher::GAP_EXTEND);
+                                                                                      Matcher::GAP_EXTEND, false);
 
         int seqLen = static_cast<int>(par.maxSeqLen);
         kmnByLen = new double[seqLen];
@@ -356,7 +356,7 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
         BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(),
                                                                                       Matcher::GAP_OPEN,
-                                                                                      Matcher::GAP_EXTEND);
+                                                                                      Matcher::GAP_EXTEND, false);
 
         int seqLen = static_cast<int>(par.maxSeqLen);
         kmnByLen = new double[seqLen];

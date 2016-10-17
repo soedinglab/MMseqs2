@@ -181,10 +181,8 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
         }
         extractScores(score_arr, vMaxScore);
         // update score
-        for (size_t hitIdx = 0; hitIdx < hitSize; hitIdx++) {
-            unsigned int diagLen = diagonalLength(minDistToDiagonal, queryLen, seqs[hitIdx].second);
-            // 2*diagLen because of bits/2
-            hits[hitIdx]->count = normalizeScore(score_arr[hitIdx], 2*diagLen);
+        for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
+            hits[hitIdx]->count = normalizeScore(score_arr[hitIdx], seqs[hitIdx].second);
         }
 
     }else {
@@ -202,9 +200,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
                 int scores = scalarDiagonalScoring(queryProfile, bias, minSeqLen, dbSeq.first + minDistToDiagonal);
                 max = std::max(scores, max);
             }
-            unsigned int diagLen = diagonalLength(minDistToDiagonal, queryLen, dbSeq.second);
-
-            hits[hitIdx]->count = normalizeScore(static_cast<unsigned char>(std::min(255, max)), diagLen);
+            hits[hitIdx]->count = normalizeScore(static_cast<unsigned char>(std::min(255, max)), dbSeq.second);
         }
     }
 }
@@ -272,7 +268,7 @@ void UngappedAlignment::extractScores(unsigned int *score_arr, simd_int score) {
 unsigned char UngappedAlignment::normalizeScore(const unsigned char score, const unsigned int len) {
     float log2Len = MathUtil::flog2(static_cast<float>(len));
     float floatScore = static_cast<float>(score);
-    return static_cast<unsigned char>((log2Len > floatScore) ? 0.0 : floatScore - log2Len );
+    return static_cast<unsigned char>((log2Len > floatScore) ? 0.0 : (floatScore - log2Len) + 0.5 );
 }
 
 short UngappedAlignment::createProfile(Sequence *seq,

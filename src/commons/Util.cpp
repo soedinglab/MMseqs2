@@ -143,14 +143,14 @@ void Util::decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, siz
 // sorting networks
 void Util::rankedDescSort20(short *val, unsigned int *index){
 #define SWAP(x,y){\
-    if( val[x] < val[y] ){   \
-        short tmp1 = val[x];    \
-        val[x] = val[y];     \
-        val[y] = tmp1;        \
-        unsigned int tmp2 = index[x];      \
-        index[x] = index[y]; \
-        index[y] = tmp2;      \
-    } \
+if( val[x] < val[y] ){   \
+short tmp1 = val[x];    \
+val[x] = val[y];     \
+val[y] = tmp1;        \
+unsigned int tmp2 = index[x];      \
+index[x] = index[y]; \
+index[y] = tmp2;      \
+} \
 }
     SWAP(0,16);SWAP(1,17);SWAP(2,18);SWAP(3,19);SWAP(4,12);SWAP(5,13);SWAP(6,14);SWAP(7,15);
     SWAP(0,8);SWAP(1,9);SWAP(2,10);SWAP(3,11);
@@ -223,10 +223,11 @@ std::pair<ssize_t,ssize_t> Util::getFastaHeaderPosition(const std::string& heade
                 return std::make_pair(start, end);
             } else {
                 end = header.find_first_of(" \n", start);
-                if (end != std::string::npos || end == header.length()) {
+                if (end != std::string::npos) {
                     return std::make_pair(start, end);
                 } else {
-                    return errorPosition;
+                    // return until the end of the line
+                    return std::make_pair(start, header.length());
                 }
             }
         }
@@ -235,10 +236,11 @@ std::pair<ssize_t,ssize_t> Util::getFastaHeaderPosition(const std::string& heade
     // if we can not find one of the existing database ids,
     // we use the first part of the string or the whole string
     size_t end = header.find_first_of(" \n", offset);
-    if (end != std::string::npos || end == header.length()) {
+    if (end != std::string::npos) {
         return std::make_pair(offset, end);
     } else {
-        return errorPosition;
+        // return until the end of the line
+        return std::make_pair(offset, header.length());
     }
 }
 
@@ -391,56 +393,64 @@ size_t Util::maskLowComplexity(BaseMatrix * m, Sequence *s,
                                int seqLen,
                                int windowSize,
                                int maxAAinWindow,
-                               int alphabetSize, int maskValue) {
+                               int alphabetSize, int maskValue,
+                               bool repeates=true, bool score =true,
+                               bool ccoil=true, bool window =true) {
     size_t aafreq[21];
 
     char * mask = new char[seqLen];
     memset(mask, 0, seqLen * sizeof(char));
 
+    if(repeates){
+        // Filter runs of 4 identical residues
+        filterRepeates(s->int_sequence, seqLen, mask, 1, 4, 0);
+        //
+        //    // Filter runs of 4 doublets with a maximum of one mismatch
+        filterRepeates(s->int_sequence, seqLen, mask, 2, 8, 1);
+        //
+        //    // Filter runs of 4 triplets with a maximum of two mismatches
+        filterRepeates(s->int_sequence, seqLen, mask, 3, 9, 2);
+    }
+    if(score){
+        filterByBiasCorrection(s, seqLen, m, mask, 70);
+    }
+    if(window){
 
-//    // Filter runs of 4 identical residues
-    filterRepeates(s->int_sequence, seqLen, mask, 1, 4, 0);
-//
-//    // Filter runs of 4 doublets with a maximum of one mismatch
-    filterRepeates(s->int_sequence, seqLen, mask, 2, 8, 1);
-//
-//    // Filter runs of 4 triplets with a maximum of two mismatches
-    filterRepeates(s->int_sequence, seqLen, mask, 3, 9, 2);
-    filterByBiasCorrection(s, seqLen, m, mask, 70);
-//
-    // filter low complex
-    for (int i = 0; i < seqLen - windowSize; i++)
-    {
-        for (int j = 0; j < alphabetSize; j++){
-            aafreq[j] = 0;
-        }
-        for (int j = 0; j < windowSize; j++){
-            aafreq[s->int_sequence[i + j]]++;
-        }
-        int n = 0;
-        for (int j = 0; j < alphabetSize; j++){
-            if (aafreq[j]){
-                n++; // count # amino acids
+        // filter low complex
+        for (int i = 0; i < seqLen - windowSize; i++)
+        {
+            for (int j = 0; j < alphabetSize; j++){
+                aafreq[j] = 0;
+            }
+            for (int j = 0; j < windowSize; j++){
+                aafreq[s->int_sequence[i + j]]++;
+            }
+            int n = 0;
+            for (int j = 0; j < alphabetSize; j++){
+                if (aafreq[j]){
+                    n++; // count # amino acids
+                }
+            }
+            if (n <= maxAAinWindow)
+            {
+                for (int j = 0; j < windowSize; j++)
+                    mask[i + j] = 1;
             }
         }
-        if (n <= maxAAinWindow)
-        {
-            for (int j = 0; j < windowSize; j++)
-                mask[i + j] = 1;
-        }
     }
-
-    // filter coil
-    // look at 3 possible coils -> 21 pos (3 * 7)
-    for (int i = 0; i < seqLen - 21; i++)
-    {
-        int tot = 0;
-        for (int l = 0; l < 21; l++)
-            tot += ccoilmat[s->int_sequence[i + l]][l % 7];
-        if (tot > 10000)
+    if(ccoil){
+        // filter coil
+        // look at 3 possible coils -> 21 pos (3 * 7)
+        for (int i = 0; i < seqLen - 21; i++)
         {
+            int tot = 0;
             for (int l = 0; l < 21; l++)
-                mask[i + l] = 1;
+                tot += ccoilmat[s->int_sequence[i + l]][l % 7];
+            if (tot > 10000)
+            {
+                for (int l = 0; l < 21; l++)
+                    mask[i + l] = 1;
+            }
         }
     }
     size_t maskedResidues = 0;
@@ -499,6 +509,13 @@ void Util::filterByBiasCorrection(Sequence *s, int seqLen, BaseMatrix *m, char *
     }
     delete [] compositionBias;
     delete [] tmp_composition_bias;
+}
+
+int Util::omp_thread_count() {
+    int n = 0;
+#pragma omp parallel reduction(+:n)
+    n += 1;
+    return n;
 }
 
 

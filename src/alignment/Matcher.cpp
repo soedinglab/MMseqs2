@@ -10,7 +10,7 @@ Matcher::Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize, bool
     this->maxSeqLen = maxSeqLen;
     aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
     kmnByLen = new double[maxSeqLen];
-    BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(m->getMatrixName(), GAP_OPEN, GAP_EXTEND);
+    BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(m->getMatrixName(), GAP_OPEN, GAP_EXTEND, true);
     for(int len = 0; len < maxSeqLen; len++){
         kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta, dbLen, dbSize);
     }

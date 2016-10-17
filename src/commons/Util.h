@@ -207,7 +207,7 @@ public:
         return std::string(&result[0], &result[wp]);
     }
 
-    static size_t maskLowComplexity(BaseMatrix * mat, Sequence *sequence, int seqLen, int windowSize, int maxAAinWindow, int alphabetSize, int maskValue);
+    static size_t maskLowComplexity(BaseMatrix * mat, Sequence *sequence, int seqLen, int windowSize, int maxAAinWindow, int alphabetSize, int maskValue, bool repeates, bool score, bool ccoil, bool window);
 
     static void filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM);
 
@@ -222,5 +222,7 @@ public:
         int kmersPerSize = seqLen - static_cast<int>(kmerSize);
         return  (kmersPerSize >= 0) ? kmersPerSize + 1 :  0;
     }
+
+    static int omp_thread_count();
 };
 #endif

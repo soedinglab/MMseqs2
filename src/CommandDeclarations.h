@@ -42,5 +42,5 @@ extern int summarizetabs(int argc, const char **argv, const Command& command);
 extern int extractalignedregion(int argc, const char **argv, const Command& command);
 extern int extractdomains(int argc, const char **argv, const Command& command);
 extern int clustlinear(int argc, const char **argv, const Command& command);
-
+extern int rescorediagonal(int argc, const char **argv, const Command& command);
 #endif

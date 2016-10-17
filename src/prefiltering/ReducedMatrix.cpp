@@ -1,6 +1,11 @@
 #include "ReducedMatrix.h"
+#include "Util.h"
 
 ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize, float bitFactor){
+    if(reducedAlphabetSize >= alphabetSize) {
+        Debug(Debug::ERROR) << "Reduced alphabet has to be smaller than the original one!";
+        EXIT(EXIT_FAILURE);
+    }
 
     // swap the matrix and alphabet mappings
     this->origAlphabetSize = this->alphabetSize;
@@ -186,15 +191,14 @@ std::pair<size_t,size_t> ReducedMatrix::coupleWithBestInfo(double ** pinput, dou
     for(size_t i = 0; i < size; i++){
         tempsub[i]=new double [size];
         tempp[i]=new double [size];
-
     }
 
-    for (size_t i=0; i< size; i++){
+    for (size_t i=0; i < size; i++){
 
         // To store the mutual information of the matrix.
         double temp = 0;
 
-        for (size_t j=i+1; j< size; j++){
+        for (size_t j=i+1; j  < size; j++){
             coupleBases(pinput, tempp, size, i, j);
             // Generate the new substitution matrix after two bases have been coupled.
             generateSubMatrix(tempp, tempsub, rMatrix, size-1);

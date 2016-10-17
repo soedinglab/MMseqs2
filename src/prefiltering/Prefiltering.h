@@ -52,6 +52,13 @@ public:
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, int alphabetSize, float bitFactor,
                                              bool ignoreX);
 
+    // compute kmer size and split size for index table
+    static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, int threads);
+
+    // estimates memory consumption while runtime
+    static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
+                                            int threads);
+
     size_t getSplitMode(){
         return splitMode;
     }
@@ -59,6 +66,13 @@ public:
     size_t setSplit(size_t split){
         return this->split = split;
     }
+
+    int getSplit(){
+        return split;
+    }
+
+    static std::vector<hit_t> readPrefilterResults(char *data);
+
 private:
     static const size_t BUFFER_SIZE = 1000000;
 
@@ -98,6 +112,7 @@ private:
     double kmerMatchProb;
     int split;
     int splitMode;
+    float covThr;
     bool sameQTDB;
     bool includeIdentical;
 
@@ -129,10 +144,8 @@ private:
 
     int getKmerThreshold(const float sensitivity, const int score);
 
-    size_t computeMemoryNeeded(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
-                               int threads);
-
     std::string searchForIndex(const std::string &pathToDB);
+
 };
 
 #endif

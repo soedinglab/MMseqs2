@@ -134,10 +134,11 @@ public:
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
                                          // 1=score only, 2=score, cov, start/end pos, 3=score, cov, start/end pos, seq.id,
     float  evalThr;                      // e-value threshold for acceptance
-    float  covThr;                       // coverage threshold for acceptance
+    float  covThr;                       // coverage query&target threshold for acceptance
+    float  targetCovThr;                 // coverage target threshold for acceptance
+
     int    maxRejected;                  // after n sequences that are above eval stop
     float  seqIdThr;                     // sequence identity threshold for acceptance
-    bool   fragmentMerge;                // allow fragments to in the result
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
 	
@@ -304,11 +305,11 @@ public:
     PARAMETER(PARAM_ALIGNMENT_MODE)
     PARAMETER(PARAM_E)
     PARAMETER(PARAM_C)
+    PARAMETER(PARAM_TARGET_COV)
     PARAMETER(PARAM_MAX_REJECTED)
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
-    PARAMETER(PARAM_FRAG_MERGE)
 
     std::vector<MMseqsParameter> align;
 
@@ -431,7 +432,7 @@ public:
     PARAMETER(PARAM_COUNT_CHARACTER)
 
     std::vector<MMseqsParameter> empty;
-
+    std::vector<MMseqsParameter> rescorediagonal;
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createFasta;
     std::vector<MMseqsParameter> convertprofiledb;
@@ -444,6 +445,7 @@ public:
     std::vector<MMseqsParameter> convertalignments;
     std::vector<MMseqsParameter> createdb;
     std::vector<MMseqsParameter> convert2fasta;
+    std::vector<MMseqsParameter> result2flat;
     std::vector<MMseqsParameter> gff2ffindex;
     std::vector<MMseqsParameter> clusthash;
     std::vector<MMseqsParameter> linearfilter;
@@ -460,7 +462,7 @@ public:
     std::vector<MMseqsParameter> result2newick;
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> dbconcat;
-    std::vector<MMseqsParameter> mergeffindex;
+    std::vector<MMseqsParameter> mergedbs;
     std::vector<MMseqsParameter> summarizeheaders;
     std::vector<MMseqsParameter> evaluationscores;
     std::vector<MMseqsParameter> prefixid;
