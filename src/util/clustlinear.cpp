@@ -29,7 +29,14 @@
 struct KmerPosition {
     size_t kmer;
     unsigned int id;
-    unsigned int size;
+    unsigned short size;
+    unsigned short pos;
+};
+
+struct SequencePosition{
+    size_t kmer;
+    unsigned int pos;
+    float mutualInformation;
 };
 
 void setLinearFilterDefault(Parameters *p) {
@@ -52,10 +59,9 @@ float computeMutualInformation(int x, BaseMatrix *subMat){
     return mutalInformation;
 }
 
-bool compareByMutalInformation(std::pair<float, size_t > first, std::pair<float, size_t > second){
-    return (first.first > second.first) ? true : false;
+bool compareByMutalInformation(SequencePosition first, SequencePosition second){
+    return (first.mutualInformation > second.mutualInformation) ? true : false;
 }
-
 
 bool compareKmerPositionByKmerAndSize(KmerPosition first, KmerPosition second){
     if(first.size > second.size )
@@ -152,7 +158,8 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             kmerStartPos += std::min(kmerAdjustedSeqLen, static_cast<int>(chooseTopKmer));
         }
         KmerPosition * tmpHashSeqPair=hashSeqPair + kmerStartPos;
-        std::pair<float, size_t > * kmers = new std::pair<float, size_t >[par.maxSeqLen];
+
+        SequencePosition * kmers = new SequencePosition[par.maxSeqLen];
         for(size_t id = dbFrom; id < (dbFrom + dbSize); id++){
             Debug::printProgress(id);
             seq.mapSequence(id, id, seqDbr.getData(id));
@@ -166,9 +173,10 @@ int clustlinear(int argc, const char **argv, const Command& command) {
                 for (size_t kpos = 0; kpos < KMER_SIZE; kpos++) {
                     kmerMutualInformation += mutualInformationLookup[kmer[kpos]];
                 }
-                (kmers+seqKmerCount)->first = kmerMutualInformation;
+                (kmers+seqKmerCount)->mutualInformation = kmerMutualInformation;
                 size_t kmerIdx = idxer.int2index(kmer, 0, KMER_SIZE);
-                (kmers+seqKmerCount)->second = kmerIdx;
+                (kmers+seqKmerCount)->kmer = kmerIdx;
+                (kmers+seqKmerCount)->pos = seq.getCurrentPosition();
                 seqKmerCount++;
             }
             if(seqKmerCount > 1){
@@ -177,8 +185,9 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer), seqKmerCount);
 
             for(size_t topKmer = 0; topKmer < kmerConsidered; topKmer++){
-                tmpHashSeqPair->kmer  = (kmers + topKmer)->second;
-                tmpHashSeqPair->id = seqId;
+                tmpHashSeqPair->kmer  = (kmers + topKmer)->kmer;
+                tmpHashSeqPair->id    = seqId;
+                tmpHashSeqPair->pos   = (kmers + topKmer)->pos;
                 tmpHashSeqPair++;
             }
             kmerCounter += kmerConsidered;
@@ -202,7 +211,7 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         if(prevHash !=  hashSeqPair[pos].kmer){
             uniqHashes++;
             for(size_t i = prevHashStart; i < pos; i++){
-                hashSeqPair[i].size = prevSetSize;
+                hashSeqPair[i].size = (prevSetSize < SHRT_MAX) ? prevSetSize : SHRT_MAX;
             }
             prevSetSize = 0;
             prevHashStart = pos;
@@ -226,18 +235,22 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         }
 
         size_t initKmer = hashSeqPair[pos].kmer;
-        std::vector<unsigned int> setIds;
+        std::vector<std::pair<unsigned int, unsigned short> > setIds;
         unsigned int queryId = 0;
+        unsigned short max_i_Pos = 0;
         size_t maxSeqLen = 0;
         while(hashSeqPair[pos].kmer == initKmer){
             const unsigned int id = hashSeqPair[pos].id;
+            const unsigned int i_pos = hashSeqPair[pos].pos;
+
             if(foundAlready[id] == 0){
-                setIds.push_back(id);
+                setIds.push_back(std::make_pair(id, i_pos) );
                 foundAlready[id] = 1;
                 size_t currSeqLen = seqDbr.getSeqLens(id);
                 if( currSeqLen > maxSeqLen ){
                     queryId = id;
                     maxSeqLen = currSeqLen;
+                    max_i_Pos = i_pos;
                 }
             }
             pos++;
@@ -248,24 +261,20 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         unsigned int queryLength = std::max(seqDbr.getSeqLens(queryId), 3ul) - 2;
         unsigned int writeSets = 0;
         for(size_t i = 0; i < setIds.size(); i++) {
-            unsigned int targetLength = std::max(seqDbr.getSeqLens(setIds[i]), 3ul) - 2;
-            if(setIds[i] != queryId ){
+            unsigned int targetId = setIds[i].first;
+            unsigned short j_Pos = setIds[i].second;
+            unsigned int targetLength = std::max(seqDbr.getSeqLens(targetId), 3ul) - 2;
+            if(targetId != queryId ){
                 if ( (((float) queryLength) / ((float) targetLength) < par.covThr) ||
                      (((float) targetLength) / ((float) queryLength) < par.covThr) ) {
-                    foundAlready[setIds[i]] = 0;
+                    foundAlready[targetId] = 0;
                     continue;
                 }
             }
-            swResultsSs << SSTR(seqDbr.getDbKey(setIds[i])).c_str() << "\t";
+            short diagonal = max_i_Pos - j_Pos;
+            swResultsSs << SSTR(seqDbr.getDbKey(targetId)).c_str() << "\t";
             swResultsSs << 255 << "\t";
-            swResultsSs << std::fixed << std::setprecision(3) << 1.0f << "\t";
-            swResultsSs << std::scientific << 0 << "\t";
-            swResultsSs << 0 << "\t";
-            swResultsSs << queryLength - 1 << "\t";
-            swResultsSs << queryLength << "\t";
-            swResultsSs << 0 << "\t";
-            swResultsSs << targetLength - 1 << "\t";
-            swResultsSs << targetLength << "\n";
+            swResultsSs << diagonal << "\n";
             writeSets++;
         }
         if(writeSets > 0){
@@ -281,17 +290,9 @@ int clustlinear(int argc, const char **argv, const Command& command) {
     for(size_t id = 0; id < seqDbr.getSize(); id++){
         if(foundAlready[id] != 2){
             std::stringstream swResultsSs;
-            unsigned int queryLength = std::max(seqDbr.getSeqLens(id), 3ul) - 2;
             swResultsSs << SSTR(seqDbr.getDbKey(id)).c_str() << "\t";
             swResultsSs << 255 << "\t";
-            swResultsSs << std::fixed << std::setprecision(3) << 1.0f << "\t";
-            swResultsSs << std::scientific << 0 << "\t";
-            swResultsSs << 0 << "\t";
-            swResultsSs << queryLength - 1 << "\t";
-            swResultsSs << queryLength << "\t";
-            swResultsSs << 0 << "\t";
-            swResultsSs << queryLength - 1 << "\t";
-            swResultsSs << queryLength << "\n";
+            swResultsSs << 0 << "\n";
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
             dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(id)).c_str(), 0);
