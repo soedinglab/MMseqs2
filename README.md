@@ -1,5 +1,5 @@
-# MMseqs2.0: ultra fast and sensitive search and clustering suite
-MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and Mac OS. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 reaches the same sensitivity as BLAST magnitude faster and which can also perform profile searches like PSI-BLAST but also ~270x faster.
+# MMseqs2.0: ultra fast and sensitive protein search and clustering suite
+MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge protein sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and Mac OS. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 reaches the same sensitivity as BLAST magnitude faster and which can also perform profile searches like PSI-BLAST but also ~270x faster.
 
 Please cite M. Steinegger, J. Soeding, "Sensitive protein sequence searching for the analysis of massive data sets.", bioRxiv 079681 (2016).
 
