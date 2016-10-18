@@ -361,6 +361,7 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     linearfilter.push_back(PARAM_SUB_MAT);
     linearfilter.push_back(PARAM_ALPH_SIZE);
     linearfilter.push_back(PARAM_KMER_PER_SEQ);
+    linearfilter.push_back(PARAM_TARGET_COV);
     linearfilter.push_back(PARAM_K);
     linearfilter.push_back(PARAM_C);
     linearfilter.push_back(PARAM_MAX_SEQ_LEN);

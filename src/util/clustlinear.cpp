@@ -244,9 +244,9 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             const unsigned int id = hashSeqPair[pos].id;
             const unsigned int i_pos = hashSeqPair[pos].pos;
 
-            if(foundAlready[id] == 0){
+            if(foundAlready[id] < 1){
                 setIds.push_back(std::make_pair(id, i_pos) );
-                foundAlready[id] = 1;
+                foundAlready[id] += 1;
                 size_t currSeqLen = seqDbr.getSeqLens(id);
                 if( currSeqLen > maxSeqLen ){
                     queryId = id;
@@ -265,14 +265,27 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             unsigned int targetId = setIds[i].first;
             unsigned short j_Pos = setIds[i].second;
             unsigned int targetLength = std::max(seqDbr.getSeqLens(targetId), 3ul) - 2;
+            short diagonal = max_i_Pos - j_Pos;
+            unsigned short distanceToDiagonal = abs(diagonal);
+            unsigned int diagonalLen = 0;
+            //unsigned int distance = 0;
+            if (diagonal >= 0 && distanceToDiagonal < queryLength) {
+                diagonalLen = std::min(targetLength, queryLength - distanceToDiagonal);
+            } else if (diagonal < 0 && distanceToDiagonal < targetLength) {
+                diagonalLen = std::min(targetLength - distanceToDiagonal, queryLength);
+            }
+
+            float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLength);
+            
             if(targetId != queryId ){
-                if ( (((float) queryLength) / ((float) targetLength) < par.covThr) ||
-                     (((float) targetLength) / ((float) queryLength) < par.covThr) ) {
+                if ( (par.targetCovThr == 0.0 || ( targetCov< par.targetCovThr) )  &&
+                   ( (((float) queryLength) / ((float) targetLength) < par.covThr) ||
+                     (((float) targetLength) / ((float) queryLength) < par.covThr) ) ) {
                     foundAlready[targetId] = 0;
                     continue;
                 }
             }
-            short diagonal = max_i_Pos - j_Pos;
+            
             swResultsSs << SSTR(seqDbr.getDbKey(targetId)).c_str() << "\t";
             swResultsSs << 255 << "\t";
             swResultsSs << diagonal << "\n";

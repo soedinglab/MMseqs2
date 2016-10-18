@@ -105,7 +105,7 @@ static struct Command commands[] = {
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Lars von den Driesch & Maria Hauser",
             "<i:sequenceDB> <i:alignmentDB> <o:clusterDB>",
             CITATION_MMSEQS2|CITATION_MMSEQS1},
-        {"clustlinear",          clustlinear,          &par.prefilter,            COMMAND_EXPERT,
+        {"clustlinear",          clustlinear,          &par.linearfilter,            COMMAND_EXPERT,
             "Cluster sequences of >70% sequence identity *in linear time*",
             "Detects redundant sequences based on reduced alphabet and k-mer sorting.",
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> ",
