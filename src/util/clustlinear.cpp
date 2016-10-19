@@ -33,6 +33,12 @@ struct KmerPosition {
     unsigned short pos;
 };
 
+struct hit {
+    unsigned int id;
+    unsigned int clusterID;
+    short diagonal;
+};
+
 struct SequencePosition{
     size_t kmer;
     unsigned int pos;
@@ -61,6 +67,10 @@ float computeMutualInformation(int x, BaseMatrix *subMat){
 
 bool compareByMutalInformation(SequencePosition first, SequencePosition second){
     return (first.mutualInformation > second.mutualInformation) ? true : false;
+}
+
+bool compareByClusterID(hit a, hit b){
+    return (a.clusterID < b.clusterID) ? true : false;
 }
 
 bool compareKmerPositionByKmerAndSize(KmerPosition first, KmerPosition second){
@@ -226,9 +236,19 @@ int clustlinear(int argc, const char **argv, const Command& command) {
     omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, compareKmerPositionByKmerAndSize);
     Debug(Debug::WARNING) << "Done\n";
 
-    char * foundAlready = new char[seqDbr.getSize()];
-    memset(foundAlready, 0, seqDbr.getSize() * sizeof(char));
-
+    /*unsigned int * foundAlready = new unsigned int[seqDbr.getSize()];
+    memset(foundAlready, -1, seqDbr.getSize() * sizeof(unsigned int));
+    char * diagonals = new diagonals[seqDbr.getSize()];
+    memset(diagonals, 0, seqDbr.getSize() * sizeof(diagonals));*/
+    hit noHit;
+    noHit.id = -1;
+    noHit.clusterID = -1;
+    noHit.diagonal = 0;
+    // ClusterID,diagonal
+    std::vector<hit> foundAlready(seqDbr.getSize(),noHit);
+    for(size_t id = 0; id < seqDbr.getSize(); id++)
+        foundAlready[id].id=id;
+            
     for(size_t pos = 0; pos < kmerCounter; pos++) {
         if(hashSeqPair[pos].size <= 1){ // stop when there is just one member per cluster
                                         // speed up computation
@@ -240,13 +260,15 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         unsigned int queryId = 0;
         unsigned short max_i_Pos = 0;
         size_t maxSeqLen = 0;
+        std::vector <unsigned int> alreadyAttributedIds;
+        
         while(hashSeqPair[pos].kmer == initKmer){
             const unsigned int id = hashSeqPair[pos].id;
             const unsigned int i_pos = hashSeqPair[pos].pos;
 
-            if(foundAlready[id] < 1){
+            if(foundAlready[id].clusterID == -1){
                 setIds.push_back(std::make_pair(id, i_pos) );
-                foundAlready[id] += 1;
+                //foundAlready[id] = 1;
                 size_t currSeqLen = seqDbr.getSeqLens(id);
                 if( currSeqLen > maxSeqLen ){
                     queryId = id;
@@ -254,11 +276,17 @@ int clustlinear(int argc, const char **argv, const Command& command) {
                     max_i_Pos = i_pos;
                 }
             }
+            else
+            {
+                alreadyAttributedIds.push_back(id);
+            }
             pos++;
         }
         pos--;
         
-        std::stringstream swResultsSs;
+        
+            
+        
         unsigned int queryLength = std::max(seqDbr.getSeqLens(queryId), 3ul) - 2;
         unsigned int writeSets = 0;
         for(size_t i = 0; i < setIds.size(); i++) {
@@ -266,9 +294,11 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             unsigned short j_Pos = setIds[i].second;
             unsigned int targetLength = std::max(seqDbr.getSeqLens(targetId), 3ul) - 2;
             short diagonal = max_i_Pos - j_Pos;
+            
+
+            
             unsigned short distanceToDiagonal = abs(diagonal);
             unsigned int diagonalLen = 0;
-            //unsigned int distance = 0;
             if (diagonal >= 0 && distanceToDiagonal < queryLength) {
                 diagonalLen = std::min(targetLength, queryLength - distanceToDiagonal);
             } else if (diagonal < 0 && distanceToDiagonal < targetLength) {
@@ -276,32 +306,127 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             }
 
             float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLength);
+    
+            unsigned int key = seqDbr.getDbKey(targetId);
+            unsigned int investKey = 4;
+       
+        
+            if ( par.targetCovThr != 0.0 )
+            {
+                if(targetId == queryId || targetCov < par.targetCovThr)   // if the rep seq do not cover the sequence,
+                {                               // we put if possible in a previous cluster
             
-            if(targetId != queryId ){
-                if ( (par.targetCovThr == 0.0 || ( targetCov< par.targetCovThr) )  &&
-                   ( (((float) queryLength) / ((float) targetLength) < par.covThr) ||
-                     (((float) targetLength) / ((float) queryLength) < par.covThr) ) ) {
-                    foundAlready[targetId] = 0;
-                    continue;
+                    for (size_t j = 0 ; j < alreadyAttributedIds.size() ; j++)
+                    {
+                            
+                        short curDiagonal = setIds[alreadyAttributedIds[j]].second - j_Pos;
+                        unsigned short curDistanceToDiagonal = abs(curDiagonal);
+                        unsigned int curDiagonalLen = 0;
+                        unsigned int curQueryLen = seqDbr.getSeqLens(alreadyAttributedIds[j]);
+                        
+                        if (curDiagonal >= 0 && curDistanceToDiagonal < curQueryLen) {
+                            diagonalLen = std::min(targetLength, curQueryLen - curDistanceToDiagonal);
+                        } else if (curDiagonal < 0 && curDistanceToDiagonal < targetLength) {
+                            diagonalLen = std::min(targetLength - curDistanceToDiagonal, curQueryLen);
+                        }
+                        float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLength);
+                        if (targetCov >= par.targetCovThr)
+                        {
+                            foundAlready[targetId].clusterID = foundAlready[alreadyAttributedIds[j]].clusterID;
+                            foundAlready[targetId].diagonal = curDiagonal + foundAlready[alreadyAttributedIds[j]].diagonal;
+                            break;
+                        }
+                        
+                    }
+                } else {
+                    if ( targetId != queryId)
+                    {
+                        foundAlready[targetId].clusterID = queryId;
+                        foundAlready[targetId].diagonal = diagonal;
+                    }
                 }
+                
+            } else {
+                if ( targetId != queryId && ! ( (((float) queryLength) / ((float) targetLength) < par.covThr) ||
+                    (((float) targetLength) / ((float) queryLength) < par.covThr) ) ) 
+                    {                            
+                        foundAlready[targetId].clusterID = queryId;
+                        foundAlready[targetId].diagonal = diagonal;
+                    }
+                
             }
+        
             
-            swResultsSs << SSTR(seqDbr.getDbKey(targetId)).c_str() << "\t";
+            if(foundAlready[targetId].clusterID != -1)
+            {
+                //std::cout<<"attributting " << seqDbr.getDbKey(foundAlready[targetId].clusterID) << "! with " << seqDbr.getDbKey(targetId) <<std::endl;
+                foundAlready[foundAlready[targetId].clusterID].clusterID = foundAlready[targetId].clusterID;
+            
+            }
+            /*swResultsSs << SSTR(seqDbr.getDbKey(targetId)).c_str() << "\t";
             swResultsSs << 255 << "\t";
             swResultsSs << diagonal << "\n";
-            writeSets++;
+            writeSets++;*/
         }
-        if(writeSets > 0){
+        /*if(writeSets > 0){
             foundAlready[queryId] = 2;
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
             dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(queryId)).c_str(), 0);
-        }
+        }*/
         setIds.clear();
-        swResultsSs.clear();
+        //swResultsSs.clear();
     }
+    
+    omptl::sort(foundAlready.begin(), foundAlready.end(), compareByClusterID);
+    
+    size_t i = 0;
+    unsigned int curCluster;
+    std::stringstream swResultsSs;
+    while (i < foundAlready.size())
+    {
+        curCluster = foundAlready[i].clusterID;
+        
+        // representative sequence
+        if (curCluster != -1)
+        {
+            swResultsSs << SSTR(seqDbr.getDbKey(foundAlready[i].clusterID)).c_str() << "\t";
+            swResultsSs << 255 << "\t";
+            swResultsSs << 0 << "\n";
+        }
+        
+        while (curCluster != -1 && i < foundAlready.size() && foundAlready[i].clusterID == curCluster)
+        {
+            // rep seq already output first
+            if (foundAlready[i].clusterID != foundAlready[i].id)
+            {
+                swResultsSs << SSTR(seqDbr.getDbKey(foundAlready[i].id)).c_str() << "\t";
+                swResultsSs << 255 << "\t";
+                swResultsSs << foundAlready[i].diagonal << "\n";
+            }
+            i++;
+        }
+        
+    
+        // add missing entries to the result (needed for clustering)
+        if (curCluster == -1)
+        {
+            swResultsSs << SSTR(seqDbr.getDbKey(foundAlready[i].id)).c_str() << "\t";
+            swResultsSs << 255 << "\t";
+            swResultsSs << 0 << "\n";
+            curCluster = foundAlready[i].id;
+            i++;
+        }
+        
+        std::string swResultsString = swResultsSs.str();
+        const char* swResultsStringData = swResultsString.c_str();
+        dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(curCluster)).c_str(), 0);
+        swResultsSs.str("");
+    }
+    
+    
     // add missing entries to the result (needed for clustering)
-    for(size_t id = 0; id < seqDbr.getSize(); id++){
+    /*for(size_t id = 0; id < seqDbr.getSize(); id++){
         if(foundAlready[id] != 2){
             std::stringstream swResultsSs;
             swResultsSs << SSTR(seqDbr.getDbKey(id)).c_str() << "\t";
@@ -311,10 +436,12 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             const char* swResultsStringData = swResultsString.c_str();
             dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(id)).c_str(), 0);
         }
-    }
+    }*/
+    
+    
     // free memory
     delete subMat;
-    delete [] foundAlready;
+    //delete [] foundAlready;
     delete [] hashSeqPair;
     seqDbr.close();
     dbw.close();
