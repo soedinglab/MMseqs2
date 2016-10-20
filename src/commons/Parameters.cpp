@@ -102,7 +102,7 @@ PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "num
 PARAM_DONT_SPLIT_SEQ_BY_LEN(PARAM_DONT_SPLIT_SEQ_BY_LEN_ID,"--dont-split-seq-by-len", "Split Seq. by len", "Dont split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
 PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
 PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
-PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1=CANONICAL, 2=VERT_MITOCHONDRIAL, 3=YEAST_MITOCHONDRIAL, 4=MOLD_MITOCHONDRIAL, 5=INVERT_MITOCHONDRIAL, 6=CILIATE, 9=FLATWORM_MITOCHONDRIAL, 10=EUPLOTID, 11=PROKARYOTE, 12=ALT_YEAST, 13=ASCIDIAN_MITOCHONDRIAL, 14=ALT_FLATWORM_MITOCHONDRIAL, 15=BLEPHARISMA, 16=CHLOROPHYCEAN_MITOCHONDRIAL, 21=TREMATODE_MITOCHONDRIAL, 22=SCENEDESMUS_MITOCHONDRIAL, 23=THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24=PTEROBRANCHIA_MITOCHONDRIAL, 25=GRACILIBACTERI (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
+PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "CANONICAL=0, VERT_MITOCHONDRIAL=1, YEAST_MITOCHONDRIAL=2,MOLD_MITOCHONDRIAL=3, INVERT_MITOCHONDRIAL=4, CILIATE=5, FLATWORM_MITOCHONDRIAL=6, EUPLOTID=7, PROKARYOTE=8, ALT_YEAST=9, ASCIDIAN_MITOCHONDRIAL=10, ALT_FLATWORM_MITOCHONDRIAL=11, BLEPHARISMA=12, CHLOROPHYCEAN_MITOCHONDRIAL=13, TREMATODE_MITOCHONDRIAL=14, SCENEDESMUS_MITOCHONDRIAL=15, THRAUSTOCHYTRIUM_MITOCHONDRIAL=16, PTEROBRANCHIA_MITOCHONDRIAL=17, GRACILIBACTERIA=18, PACHYSOLEN=19, KARYORELICT=20, CONDYLOSTOMA=21, MESODINIUM=22, PERTRICH=23, BLASTOCRITHIDIA=24 (Note gaps between tables)", typeid(int),(void *) &translationTable, "(^[1-6]{1}$|9|10|11|12|13|14|15|16|21|22|23|24|25)"),
 PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
 PARAM_MAX_SEQUENCES(PARAM_MAX_SEQUENCES_ID,"--max-sequences", "Max Sequences", "maximum number of sequences a cluster may contain", typeid(int),(void *) &maxSequences,"^[1-9]{1}[0-9]*$"),
 PARAM_HH_FORMAT(PARAM_HH_FORMAT_ID,"--hh-format", "HH format", "format entries to use with hhsuite (for singleton clusters)", typeid(bool), (void *) &hhFormat, ""),
@@ -884,7 +884,7 @@ void Parameters::setDefaults() {
     useHeaderFile = false;
     
     // translate nucleotide
-    translationTable = 1;
+    translationTable = 0;
     
     // createseqfiledb
     minSequences = 1;

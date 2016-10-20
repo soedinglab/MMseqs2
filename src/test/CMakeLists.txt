@@ -100,6 +100,11 @@ add_executable(test_compbias ${test_compbias})
 target_link_libraries(test_compbias util)
 target_link_libraries(test_compbias workflow)
 
+set(test_translate TestTranslate.cpp )
+add_executable(test_translate ${test_translate})
+target_link_libraries(test_translate util)
+target_link_libraries(test_translate workflow)
+
 set(test_sequenceindex TestSequenceIndex.cpp )
 add_executable(test_sequenceindex ${test_sequenceindex})
 target_link_libraries(test_sequenceindex util)

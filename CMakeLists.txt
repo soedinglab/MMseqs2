@@ -51,7 +51,6 @@ include_directories(lib)
 include_directories(lib/getoptpp)
 include_directories(lib/kseq)
 include_directories(lib/simd)
-include_directories(lib/seqan)
 include_directories(lib/gzstream)
 add_subdirectory(src)
 

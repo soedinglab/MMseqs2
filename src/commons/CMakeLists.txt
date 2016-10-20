@@ -40,7 +40,8 @@ set(commons_source_files
     itoa.h
     MemoryMapped.cpp
     MemoryMapped.h
-    CpuInfo.h)
+    CpuInfo.h
+    TranslateNucl.h)
 
 add_library(commons ${commons_source_files})
 
