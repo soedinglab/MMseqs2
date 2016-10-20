@@ -260,7 +260,7 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         unsigned int queryId = 0;
         unsigned short max_i_Pos = 0;
         size_t maxSeqLen = 0;
-        std::vector <unsigned int> alreadyAttributedIds;
+        std::vector<std::pair<unsigned int, unsigned short> > alreadyAttributedIds;
         
         while(hashSeqPair[pos].kmer == initKmer){
             const unsigned int id = hashSeqPair[pos].id;
@@ -269,6 +269,7 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             if(foundAlready[id].clusterID == -1){
                 setIds.push_back(std::make_pair(id, i_pos) );
                 //foundAlready[id] = 1;
+                
                 size_t currSeqLen = seqDbr.getSeqLens(id);
                 if( currSeqLen > maxSeqLen ){
                     queryId = id;
@@ -278,7 +279,7 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             }
             else
             {
-                alreadyAttributedIds.push_back(id);
+                alreadyAttributedIds.push_back(std::make_pair(id, i_pos));
             }
             pos++;
         }
@@ -291,6 +292,8 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         unsigned int writeSets = 0;
         for(size_t i = 0; i < setIds.size(); i++) {
             unsigned int targetId = setIds[i].first;
+            if (foundAlready[targetId].clusterID != -1) // TODO maybe this is too restrictive can merge further by transitivity
+                continue;                               
             unsigned short j_Pos = setIds[i].second;
             unsigned int targetLength = std::max(seqDbr.getSeqLens(targetId), 3ul) - 2;
             short diagonal = max_i_Pos - j_Pos;
@@ -306,23 +309,19 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             }
 
             float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLength);
-    
-            unsigned int key = seqDbr.getDbKey(targetId);
-            unsigned int investKey = 4;
-       
         
             if ( par.targetCovThr != 0.0 )
             {
-                if(targetId == queryId || targetCov < par.targetCovThr)   // if the rep seq do not cover the sequence,
-                {                               // we put if possible in a previous cluster
+                if(targetId == queryId || targetCov < par.targetCovThr)   // if the rep seq does not cover the sequence,
+                {                                                         // we put it if possible in a previous cluster
             
                     for (size_t j = 0 ; j < alreadyAttributedIds.size() ; j++)
                     {
                             
-                        short curDiagonal = setIds[alreadyAttributedIds[j]].second - j_Pos;
+                        short curDiagonal = alreadyAttributedIds[j].second - j_Pos;
                         unsigned short curDistanceToDiagonal = abs(curDiagonal);
                         unsigned int curDiagonalLen = 0;
-                        unsigned int curQueryLen = seqDbr.getSeqLens(alreadyAttributedIds[j]);
+                        unsigned int curQueryLen = seqDbr.getSeqLens(alreadyAttributedIds[j].first);
                         
                         if (curDiagonal >= 0 && curDistanceToDiagonal < curQueryLen) {
                             diagonalLen = std::min(targetLength, curQueryLen - curDistanceToDiagonal);
@@ -332,8 +331,8 @@ int clustlinear(int argc, const char **argv, const Command& command) {
                         float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLength);
                         if (targetCov >= par.targetCovThr)
                         {
-                            foundAlready[targetId].clusterID = foundAlready[alreadyAttributedIds[j]].clusterID;
-                            foundAlready[targetId].diagonal = curDiagonal + foundAlready[alreadyAttributedIds[j]].diagonal;
+                            foundAlready[targetId].clusterID = foundAlready[alreadyAttributedIds[j].first].clusterID;
+                            foundAlready[targetId].diagonal = curDiagonal + foundAlready[alreadyAttributedIds[j].first].diagonal;
                             break;
                         }
                         
