@@ -357,24 +357,11 @@ int clustlinear(int argc, const char **argv, const Command& command) {
         
             
             if(foundAlready[targetId].clusterID != -1)
-            {
-                //std::cout<<"attributting " << seqDbr.getDbKey(foundAlready[targetId].clusterID) << "! with " << seqDbr.getDbKey(targetId) <<std::endl;
                 foundAlready[foundAlready[targetId].clusterID].clusterID = foundAlready[targetId].clusterID;
             
-            }
-            /*swResultsSs << SSTR(seqDbr.getDbKey(targetId)).c_str() << "\t";
-            swResultsSs << 255 << "\t";
-            swResultsSs << diagonal << "\n";
-            writeSets++;*/
+            
         }
-        /*if(writeSets > 0){
-            foundAlready[queryId] = 2;
-            std::string swResultsString = swResultsSs.str();
-            const char* swResultsStringData = swResultsString.c_str();
-            dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(queryId)).c_str(), 0);
-        }*/
         setIds.clear();
-        //swResultsSs.clear();
     }
     
     omptl::sort(foundAlready.begin(), foundAlready.end(), compareByClusterID);
@@ -406,36 +393,33 @@ int clustlinear(int argc, const char **argv, const Command& command) {
             i++;
         }
         
+        if (curCluster != -1)
+        {
+            std::string swResultsString = swResultsSs.str();
+            const char* swResultsStringData = swResultsString.c_str();
+            dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(curCluster)).c_str(), 0);
+            swResultsSs.str("");
+        } else {
+            i++;
+        }
+    }
     
-        // add missing entries to the result (needed for clustering)
-        if (curCluster == -1)
+    // Add member sequences that are singletons or not representative sequences
+    for(size_t i = 0; i < foundAlready.size(); i++)
+    {
+        if (foundAlready[i].id != foundAlready[i].clusterID)
         {
             swResultsSs << SSTR(seqDbr.getDbKey(foundAlready[i].id)).c_str() << "\t";
             swResultsSs << 255 << "\t";
             swResultsSs << 0 << "\n";
-            curCluster = foundAlready[i].id;
-            i++;
-        }
-        
-        std::string swResultsString = swResultsSs.str();
-        const char* swResultsStringData = swResultsString.c_str();
-        dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(curCluster)).c_str(), 0);
-        swResultsSs.str("");
-    }
-    
-    
-    // add missing entries to the result (needed for clustering)
-    /*for(size_t id = 0; id < seqDbr.getSize(); id++){
-        if(foundAlready[id] != 2){
-            std::stringstream swResultsSs;
-            swResultsSs << SSTR(seqDbr.getDbKey(id)).c_str() << "\t";
-            swResultsSs << 255 << "\t";
-            swResultsSs << 0 << "\n";
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
-            dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(id)).c_str(), 0);
+            dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(foundAlready[i].id)).c_str(), 0);
+            swResultsSs.str("");
         }
-    }*/
+        
+        
+    }
     
     
     // free memory
