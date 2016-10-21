@@ -257,6 +257,9 @@ public:
     
     // concatdbs
     bool preserveKeysB;
+    
+    // diff
+    bool useSequenceId;
 
     static Parameters& getInstance()
     {
@@ -409,6 +412,8 @@ public:
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
     
+    //diff
+    PARAMETER(PARAM_USESEQID)
     
     // mergedbs
     PARAMETER(PARAM_MERGE_PREFIXES)

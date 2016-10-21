@@ -26,8 +26,16 @@ OLDDB=$1 #"../data/DB"
 OLDCLUST=$3 #"DBclustered"
 NEWDB=$2 #"../data/targetDB"
 TMP=$5 #"tmp/"
+NEWCLUST=$4
 
-notExists "$TMP/removedSeqs" && $MMSEQS diffseqdbs $OLDDB $NEWDB $TMP/removedSeqs $TMP/mappingSeqs $TMP/newSeqs && checkReturnCode "Diff died"
+notExists "$TMP/removedSeqs" && $MMSEQS diffseqdbs $OLDDB $NEWDB $TMP/removedSeqs $TMP/mappingSeqs $TMP/newSeqs $DIFF_PAR && checkReturnCode "Diff died"
+[ ! -s $TMP/mappingSeqs ] && echo WARNING : There is no common sequences between $OLDDB and $NEWDB. \
+                                && echo If you aim at adding the sequences of $NEWDB to your previous clustering $OLDCLUST, you need to run : && echo \
+                                && echo mmseqs concatdbs \"$OLDDB\" \"$NEWDB\" \"$OLDDB.withNewSequences\"\
+                                && echo mmseqs concatdbs \""$OLDDB"_h\" \""$NEWDB"_h\" \"$OLDDB.withNewSequences_h\"\
+                                && echo mmseqs clusterupdate \"$OLDDB\" \"$OLDDB.withNewSequences\" $OLDCLUST $NEWCLUST $TMP && echo  \
+                                && rm -f $TMP/removedSeqs  $TMP/mappingSeqs $TMP/newSeqs \
+                                && exit 1
 
 echo "==================================================="
 echo "====== Filter out the new from old sequences ======"
