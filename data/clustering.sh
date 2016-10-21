@@ -20,7 +20,8 @@ export OMP_PROC_BIND=TRUE
 # processing
 
 INPUT="$1"
-notExists "$3/aln_redundancy" && $MMSEQS clusthash "$INPUT" "$3/aln_redundancy" ${DETECTREDUNDANCY_PAR}  && checkReturnCode "Fast filter step $STEP died"
+notExists "$3/pref_redundancy" && $MMSEQS clustlinear "$INPUT" "$3/pref_redundancy" ${CLUSTLINEAR_PAR}  && checkReturnCode "Fast clustlinear step $STEP died"
+notExists "$3/aln_redundancy" && $RUNNER $MMSEQS align $INPUT $INPUT "$3/pref_redundancy" "$3/aln_redundancy" "$3/clu_redundancy" ${ALIGNMENT_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
 notExists "$3/clu_redundancy" && $MMSEQS clust $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
 awk '{ print $1 }' "$3/clu_redundancy.index" > "$3/order_redundancy"
 notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/order_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"

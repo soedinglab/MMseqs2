@@ -83,6 +83,8 @@ public:
     static const int EXTRACT_TARGET = 2;
 
     static const int CLUST_HASH_DEFAULT_ALPH_SIZE = 3;
+    static const int CLUST_LINEAR_DEFAULT_ALPH_SIZE = 14;
+    static const int CLUST_LINEAR_DEFAULT_K = 14;
 
     // COMMON
     const char** argv;            //command line parameters

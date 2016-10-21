@@ -297,9 +297,9 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
     searchworkflow.push_back(PARAM_RUNNER);
     
-    
     clusteringWorkflow = combineList(prefilter, align);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
+    clusteringWorkflow = combineList(clusteringWorkflow, linearfilter);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);

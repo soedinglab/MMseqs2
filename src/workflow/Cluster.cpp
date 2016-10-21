@@ -90,12 +90,14 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         // save some values to restore them later
         float targetSensitivity = par.sensitivity;
         size_t maxResListLen = par.maxResListLen;
+
         size_t alphabetSize = par.alphabetSize;
-
-        par.alphabetSize = Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE;
-        cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.clusthash).c_str());
-
+        par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
+        size_t kmerSize = par.kmerSize;
+        par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
+        cmd.addVariable("CLUSTLINEAR_PAR", par.createParameterString(par.linearfilter).c_str());
         par.alphabetSize = alphabetSize;
+        par.kmerSize = kmerSize;
         // 1 is lowest sens
         par.clusteringMode = Parameters::GREEDY;
         par.sensitivity = 1;
@@ -140,10 +142,12 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     } else {
         // same as above, clusthash needs a smaller alphabetsize
         size_t alphabetSize = par.alphabetSize;
-        par.alphabetSize = Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE;
-        cmd.addVariable("DETECTREDUNDANCY_PAR", par.createParameterString(par.clusthash).c_str());
+        par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
+        size_t kmerSize = par.kmerSize;
+        par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
+        cmd.addVariable("CLUSTLINEAR_PAR", par.createParameterString(par.linearfilter).c_str());
         par.alphabetSize = alphabetSize;
-
+        par.kmerSize = kmerSize;
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
