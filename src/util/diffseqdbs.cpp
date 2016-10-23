@@ -78,11 +78,17 @@ int diffseqdbs(int argc, const char **argv, const Command& command) {
 	// Fill up the hash tables for the old and new DB
 #pragma omp for schedule(static)
 	for (size_t id = 0; id < indexSizeOld; id++) {
-		keysOld[id] = std::make_pair(std::string(DBoldReader->getData(id)),DBoldReader->getDbKey(id));
+        if (par.useSequenceId)
+            keysOld[id] = std::make_pair(Util::parseFastaHeader(DBoldReader->getData(id)),DBoldReader->getDbKey(id));
+        else
+            keysOld[id] = std::make_pair(std::string(DBoldReader->getData(id)),DBoldReader->getDbKey(id));
 	}
 #pragma omp for schedule(static)
 	for (size_t id = 0; id < indexSizeNew; id++) {
-		keysNew[id] = std::make_pair(std::string(DBnewReader->getData(id)),DBnewReader->getDbKey(id));
+        if (par.useSequenceId)
+            keysNew[id] = std::make_pair(Util::parseFastaHeader(DBnewReader->getData(id)),DBnewReader->getDbKey(id));
+        else
+            keysNew[id] = std::make_pair(std::string(DBnewReader->getData(id)),DBnewReader->getDbKey(id));
 		checkedNew[id] = false;
 	}
 

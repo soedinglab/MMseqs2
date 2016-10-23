@@ -118,6 +118,9 @@ PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID,"--comparison-operator", "Numerical c
 PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID,"--comparison-value", "Numerical comparison value", "compare numerically (le, ge, e) each entry to this comparison value.",typeid(float), (void *) &compValue, ""),
 // concatdb
 PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
+//diff
+PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their ID", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
+
 // mergedbs
 PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
 // evaluationscores
@@ -307,6 +310,7 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
+    clusterUpdate.push_back(PARAM_USESEQID);
     
     // translate nucleotide
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);
@@ -380,6 +384,7 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     summarizeheaders.push_back(PARAM_V);
     
     // diff
+    diff.push_back(PARAM_USESEQID);
     diff.push_back(PARAM_THREADS);
     diff.push_back(PARAM_V);
     
@@ -903,6 +908,9 @@ void Parameters::setDefaults() {
     
     // concatdbs
     preserveKeysB = false;
+    
+    // diff
+    useSequenceId = false;
     
     // mergedbs
     mergePrefixes = "";

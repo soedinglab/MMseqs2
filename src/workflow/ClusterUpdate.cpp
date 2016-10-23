@@ -20,9 +20,10 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
 	
-	cmd.addVariable("RUNNER", par.runner.c_str());
-	cmd.addVariable("SEARCH_PAR", par.createParameterString(par.clusterUpdateSearch).c_str());
-	cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusterUpdateClust).c_str());
+    cmd.addVariable("RUNNER", par.runner.c_str());
+    cmd.addVariable("DIFF_PAR", par.createParameterString(par.diff).c_str());
+    cmd.addVariable("SEARCH_PAR", par.createParameterString(par.clusterUpdateSearch).c_str());
+    cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusterUpdateClust).c_str());
 
     FileUtil::writeFile(par.db5 + "/update_clustering.sh", update_clustering_sh, update_clustering_sh_len);
     std::string program(par.db5 + "/update_clustering.sh");
