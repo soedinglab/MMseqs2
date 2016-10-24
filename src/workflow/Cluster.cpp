@@ -84,6 +84,10 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
+    if(par.clusterFragments) {
+        cmd.addVariable("CLUSTER_FRAG", "TRUE");
+    }
+
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     if (par.cascaded) {
