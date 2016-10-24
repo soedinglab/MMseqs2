@@ -23,6 +23,7 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
     this->dataFileName = strdup(dataFileName_);
     this->indexFileName = strdup(indexFileName_);
     closed = 1;
+    lastKey = T();
     accessType = 0;
 }
 

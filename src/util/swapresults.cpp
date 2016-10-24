@@ -496,8 +496,8 @@ int doSwapSort(Parameters &par,unsigned int procNumber = 0, unsigned int nbOfPro
         unsigned int lastKey = targetReader.getLastKey();
         targetReader.close();
         
-        targetKeyMin = procNumber * lastKey / nbOfProc;
-        targetKeyMax = (procNumber + 1) * lastKey / nbOfProc;
+        targetKeyMin = procNumber * (lastKey+1) / nbOfProc;
+        targetKeyMax = (procNumber + 1) * (lastKey+1) / nbOfProc;
     }
     
     swapAlnResults(par, &resMap,targetKeyMin,targetKeyMax);
