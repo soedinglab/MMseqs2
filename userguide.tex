@@ -502,9 +502,19 @@ For clustering just call the clustering. The TMP folder has to be shared between
    RUNNER="mpirun -np 42" mmseqs cluster DB clu tmp
 \end{verbatim}
 
+\section{Common questions}
+This section describes common questions. 
+\subsection{How to search nucleotides against a protein database}
+To search with nucleotide sequences against a protein database the following protocol can be used. 
+\begin{verbatim}
+mmseqs createdb nucl.fasta nucldb
+mmseqs extractorf nucldb nucldb_orf --longest-orf --min-length 30 --max-length 48000
+mmseqs translatenucleotide  nucldb_orf nucldb_orf_aa
+mmseqs search nucldb_orf_aa targetDB resultDB tmp 
+\end{verbatim}
 
-
-
+First you convert your DNA fasta file to a mmseqs database with \texttt{createdb}. All open reading frames (ORFs) from each six frame can be extraced by using \texttt{extractorf}.
+This ORFs can be converted into proteins by \texttt{translatenucleotide}. 
 
 \section{Detailed Parameter List} \label{sec:Detailed-parameter-list}
 \subsection{Search Workflow} \label{sub:Search-workflow}
