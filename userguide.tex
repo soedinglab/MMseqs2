@@ -143,7 +143,7 @@ MMseqs2 needs uses a lot main memory (see section memory requirements). We offer
 \section{Database Format}
 MMseqs2 works internally with a database format similar to the ffindex databases. The format was developed to avoid drastically slowing down the file system when millions of files need to be written and accessed. ffindex hides the single files from the file system by storing them as unstructured data records in a single huge binary \emph{data file}. In addition to this data file, an ffindex database includes a secondary file: This \emph{index file} stores for each entry as tab separated line with an unique accession code, the start position in bytes of the data record in the ffindex data file, and a record length.
 
-An example \texttt{.index} could look like this.
+An example index file (file extention \texttt{.index}) could look like this.
 
 \begin{verbatim}
 Q9ZZZ1	0	10
@@ -264,13 +264,11 @@ MMseqs2 will use the output for the first iteration sequence-sequence search to 
 $ mmseqs search queryDB targetDB outDB tmp --num-iterations 2
 \end{verbatim}
 
-%The default sensitivity is 4, sensitivity can be set in the range $[1.0:9.0]$.
-
 This workflow combines the prefiltering and alignment modules into a fast and sensitive batch protein sequence search that compares all sequences in the query database with all sequences in the target database.
 
 Query and target databases may be identical. The program outputs for each query sequence all database sequences satisfying the search criteria (such as sensitivity).
 
-MMseqs2 can precompute the prefilter index \texttt{createindex} to speed up subsequence prefilter index read-ins. If the parameter \texttt{--use-index} is provided to MMseqs2 \texttt{search} will try to use this index for the prefilter. We recommend to use an index for iterative searches, if a target database will be reused several times.
+MMseqs2 can precompute the prefilter index \texttt{createindex} to speed up subsequence prefilter index read-ins. If the parameter \texttt{--use-index} is provided to MMseqs2 \texttt{search} will try to use this index for the prefilter. We recommend to use an index for iterative searches, if a target database will be reused several times. Reading in the index can be bottle neck when using network file systems (NFS). It is recommended to keep the index on a local hard drive. If storing the index file on a local hard drive is not possible and the NFS is a bottleneck than do not precompute the index. MMseqs2 will compute an index on the fly which reduces the IO volume by roughly a factor of seven.
 
 The underlying algorithm is explained in more detail in section \ref{sub:Prefiltering}, and the full parameter list can be found in section \ref{sub:Search-workflow}.
 \subsection{Clustering Databases using \texttt{mmseqs clusteringworkflow}} \label{sub:Clustering}
@@ -407,7 +405,7 @@ targetID, alnScore, seqIdentity, eVal, qStart, qEnd, qLen, tStart, tEnd, tLen, a
 \end{verbatim}
 
 where \texttt{targetID} is the database identifier of the matched sequence, \texttt{alnScore} is the bit score of the alignment in half bits, \texttt{seqIdentity} is the sequence identity $[0:1]$, \texttt{eVal} is the e-value of the match \texttt{qStart} is the begin of the alignment in the query \texttt{qEnd} is the end of the alignment in the query, 
- \texttt{tStart,tEnd,tLen} is the same for the target, \texttt{alnCigar} describes a compressed alignment (M = Match, I = insertion, D = deletion). Eg. 373M = 373 x matches
+ \texttt{tStart,tEnd,tLen} is the same for the target, \texttt{alnCigar} describes a compressed alignment (M = Match, I = insertion, D = deletion). Eg. 373M = 373 x matches. The \texttt{alnCigar} is just included in the result if the option \texttt{-a} was used at the search workflow.
 
 \begin{verbatim}
 2 705 1.000 8.771e-207 0  372 373 0  372 373 373M
@@ -448,16 +446,15 @@ The prefiltering module is the most time consuming step. To cluster the 55 milli
 The prefiltering results for very large databases can grow to considerable sizes (in the order of TB) of the disc space if very long result lists are allowed and a low Z-score threshold is set. As an example, an all-against-all prefiltering run on the UniProtKB with \texttt{-{}-max-seqs} 300 yielded prefiltering list with an average length of 150 and an output file size of 146 GB.
 \subsubsection{Important Options for Tuning the Memory, Runtime and Disc Space Usage}
 \begin{itemize}
-\item The option \texttt{-s} controls the sensitivity in the MMseqs2 prefiltering module. The lower the sensitivity, the faster the prefiltering becomes, though at the cost of search sensitivity. The default sensitivity is 4, increasing the sensitivity by one roughly doubles the runtime of the prefiltering. In order to cluster the UniProtKB down to $\approx$30\% sequence identity, you should leave this parameter at the default value of 4. For clustering down to 90\%, sensitivity 1 should be sufficient, although there are still no specific tests for the optimum parameters necessary for clustering down to a fixed sequence identity.
-\item The option \texttt{-{}-max-seqs }controls the maximum number of prefiltering results per query sequence. For very large databases (tens of millions of sequences), it is a good advice to keep this number at reasonable values (i.e. the default value 300). For considerably larger values of \texttt{-{}-max-seqs}, the size of the output can be in the range of several TB of disc space for databases containing tens of millions of sequences. Changing \texttt{-{}-max-seqs} option has no effect on the run time.
-\item The option \texttt{-{}-z-score} describes the minimum significance of the results written to the output. Usually, this option is set automatically depending on the sensitivity. However, especially for the sequence search it can be desired to see also less significant results. Setting \texttt{-{}-z-score} at lower values yields more results and therefore increases the size of the output written to disc. In addition, it slows down the program.
+\item The option \texttt{-s} controls the sensitivity in the MMseqs2 prefiltering module. The lower the sensitivity, the faster the prefiltering becomes, though at the cost of search sensitivity. 
+\item The option \texttt{-{}-max-seqs}controls the maximum number of prefiltering results per query sequence. For very large databases (tens of millions of sequences), it is a good advice to keep this number at reasonable values (i.e. the default value 300). For considerably larger values of \texttt{-{}-max-seqs}, the size of the output can be in the range of several TB of disc space for databases containing tens of millions of sequences. Changing \texttt{-{}-max-seqs} option has no effect on the run time.
 \end{itemize}
 \subsection{Alignment Module}
 In the alignment module, generally only the total runtime and disk space are the critical issues.
 \subsubsection{Memory Consumption}
 The major part of the memory is required for the three dynamic programming matrices, once per core. Since most sequences are quite short, the memory requirements of the alignment module for a typical database are in the order of a few GB. 
 \subsubsection{Runtime}
-It takes about 2-3 days to compute Smith-Waterman alignments for the UniProtKB sequence pairs which passed the prefiltering step (at default parameters for deep clustering down to $\approx 20 - 30\%$ pairwise sequence identity).
+It takes about 1 day to compute Smith-Waterman alignments for the UniProtKB sequence pairs which passed the prefiltering step (at default parameters for deep clustering down to $\approx 20 - 30\%$ pairwise sequence identity).
 
 If a huge amount of alignments have to be calculated, the run time of the alignment module can become a bottleneck. The run time of the alignment module depends essentially on two parameters:
 \begin{itemize}
@@ -672,8 +669,6 @@ Maximum number of sequences passing the alignment per query. Sequences are read 
 \texttt{\small -{}-max-rejected {[}int{]} Maximum rejected alignments before alignment calculation for a query is aborted. (default=INT\_MAX)}{\small \par}
 
 Maximum number of rejected alignments for a query until the alignment calculation is stopped. A rejected alignment is an alignment that does not satisfy the e-value and alignment coverage thresholds. Default = \texttt{INT\_MAX} (i.e., all alignments are calculated).
-
-\texttt{\small -{}-nucl Nucleotide sequences input.}{\small \par}
 
 \texttt{\small --profile HMM Profile input.}{\small \par}
 
