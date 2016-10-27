@@ -480,6 +480,12 @@ float profileStates::score(size_t stateA, size_t stateB)
     return MathUtil::flog2(result);
 }
 
+float profileStates::distance(float* profileA, float* profileB)
+{
+    float ip = innerProd(profileA,profileB);
+    return MathUtil::flog2(innerProd(profileA,profileA) * innerProd(profileB,profileB) / (ip*ip));
+}
+
 float* profileStates::getProfile(size_t state)
 {
     return profiles[state];
@@ -493,3 +499,4 @@ profileStates::~profileStates()
     delete background;
     delete subMat;
 }
+

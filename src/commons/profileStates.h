@@ -113,7 +113,7 @@ public:
     // Score a sequence with local AA bias correction
     float score(float* profile, float* avgProf, size_t state);
     float score(float* profileA, float* avgProfA, float* profileB);
-    
+    float distance(float* profileA, float* profileB);
     
     void slidingAverage(float* sequence, size_t length, float* avgSequence);
 
@@ -132,7 +132,7 @@ private:
     float* background;
     
     
-    float distance(float* profileA, float* profileB);
+    
     float score(float* profileA, float* profileB);
     float innerProd(float* profileA, float* profileB);
     
