@@ -1,13 +1,13 @@
 # MMseqs2.0: ultra fast and sensitive protein search and clustering suite
-MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge protein sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and Mac OS. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 reaches the same sensitivity as BLAST magnitude faster and which can also perform profile searches like PSI-BLAST but also ~270x faster.
+MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge protein sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and MacOS. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 can run 10000 times faster than BLAST. At 100 times its speed it achieves the same sensitivity. It can also perform profile searches with the same sensitivity as PSI-BLAST but at around 270 times its speed.
 
-Please cite M. Steinegger, J. Soeding, "Sensitive protein sequence searching for the analysis of massive data sets.", bioRxiv 079681 (2016).
+Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv, doi: 10.1101/079681 (2016)](http://www.biorxiv.org/content/early/2016/10/20/079681).
 
 ## Installation
-MMseqs can be installed by compiling the binary, download a statically compiled version or using [Homebrew](https://github.com/Homebrew/brew). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
+MMseqs can be installed by compiling the binary from source, download a statically compiled version, or using [Homebrew](https://github.com/Homebrew/brew). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
 
-### Compile
-Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which might improve its performance. To compile MMseqs2 `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in in `build/bin/`.
+### Compile from source
+Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which should improve its performance. To compile MMseqs2 `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in `build/bin/`.
 
         git clone https://github.com/soedinglab/MMseqs2.git
         cd MMseqs2
@@ -18,10 +18,10 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
         make install 
         export PATH=$(pwd)/bin/:$PATH
                 
-### Static Linux version
-The following command will download the last MMseqs version, extract it and set the environment variables. This version runs just on linux. If you want to run it on Mac please compile it or use brew.
+### Install static Linux version
+The following command will download the last MMseqs version, extract it and set the `PATH` variable. This version runs only on linux. If you want to run it on Mac please compile it or use brew.
 
-If your computer supports AVX2 use this (faster than SSE4.1):
+If your computer supports AVX2 use this (faster than SSE4.1, check by executing `cat /proc/cpuinfo | grep avx2` on Linux and `sysctl -a | grep machdep.cpu.leaf7_features | grep AVX2` on MacOS):
 
         wget https://mmseqs.com/latest/mmseqs-static_avx2.tar.gz 
         tar xvzf mmseqs-static_avx2.tar.gz
@@ -41,30 +41,33 @@ by pressing tab. The bash completion for subcommands and parameters can be insta
          .  /<b>Path to MMseqs2</b>/util/bash-completion.sh
         fi
 </pre>
-#### [Homebrew](https://github.com/Homebrew/brew) 
+
+### Install with Homebrew
 You can install MMseqs2 for Mac OS through [Homebrew](https://github.com/Homebrew/brew) by executing the following:
 
         brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs.rb --HEAD
 
-This will also automatically install the bash completion (you might have to do `brew install bash-completion` first).
-The formula will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
+This will also automatically install the bash completion (you might have to execute `brew install bash-completion` first). This will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
 
 ## How to search
-You can use the query database "queryDB.fasta" and target database "targetDB.fasta" in the examples folder to test the search workflow.
-As a frist step you need to convert the fasta files to into mmseqs database format. The database should be stored on a local drive.
+You can use the query database "queryDB.fasta" and target database "targetDB.fasta" in the examples folder to test the search workflow. First, you need to convert the fasta files into mmseqs database format. 
 
         mmseqs createdb examples/QUERY.fasta queryDB
         mmseqs createdb examples/DB.fasta targetDB
         
-It is recommended to precomputes an index of the the targetDB for fast read in if the target databse is reused for again. The index should be created on a computer that has the same amount of memory as the computer that performs the search. 
+If the target database is to be used several times, it is recommended to precompute an index of the targetDB as this saves overhead computations. The index should be created on a computer that has the same amount of memory as the computer that performs the search. 
+
+Transfer of large database files via NFS quickly becomes time-limiting for MMseqs2. Therefore, ideally the database and database index file should be stored on a fast local drive.
 
         mmseqs createindex targetDB
         
-MMseqs can produce a high IO on the file system. It is recommend to create this tmp on a local drive.        
+You need to create a temporary directory in which MMseqs2 will store intermediate results.
 
-        mkdir tmp
+        mkdir <fast_local_drive>/tmp
 
-The `mmseqs search` searches the `queryDB` against the `targetDB`. The sensitivity can be adjusted with `-s` and should be adapted based on your use case. If you want to use alignment backtraces in later steps add the option `-a`.  An iterative profile search (like PSI-BLAST) can be trigged with `--num-iterations`. 
+It is recommend to create this tmp on a local drive to reduce load on the NFS.
+
+The `mmseqs search` searches the `queryDB` against the `targetDB`. The sensitivity can be adjusted with `-s` and should be adapted based on your use case. If you want to use alignment backtraces in later steps add the option `-a`.  An iterative profile search (like PSI-BLAST) can be trigged with `--num-iterations`.
 
 Please ensure that in case of large input databases tmp provides enough free space.
 For the disc space requirements, see the user guide.

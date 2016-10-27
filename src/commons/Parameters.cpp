@@ -34,6 +34,8 @@ PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "amino acid substituti
 PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
 PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced Kmer", "0: use consecutive positions a k-mers; 1: use spaced k-mers",typeid(int), (void *) &spacedKmer,  "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER),
 PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, ""),
+PARAM_CLUSTER_FRAGMENTS(PARAM_CLUSTER_FRAGMENTS_ID, "--cluster-fragments", "Cluster fragments" , "Cluster sequence fragments with target coverage > 0.95 and sequence identity > 0.9", typeid(bool), (void *) &clusterFragments, ""),
+
 PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add alignments of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN),
 PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
 // alignment
@@ -304,6 +306,7 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
     clusteringWorkflow = combineList(clusteringWorkflow, linearfilter);
     clusteringWorkflow.push_back(PARAM_CASCADED);
+    clusteringWorkflow.push_back(PARAM_CLUSTER_FRAGMENTS);
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
     
@@ -836,7 +839,8 @@ void Parameters::setDefaults() {
     
     // Clustering workflow
     removeTmpFiles = false;
-    
+    clusterFragments = false;
+
     // convertprofiledb
     profileMode = PROFILE_MODE_HMM;
     

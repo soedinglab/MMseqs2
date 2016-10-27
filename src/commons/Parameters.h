@@ -114,6 +114,7 @@ public:
     int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                      // Amounts of threads
     bool   removeTmpFiles;               // Do not delete temp files
+    bool   clusterFragments;             // cluster fragments
     bool   includeIdentity;              // include identical ids as hit
     // PREFILTER
     float  sensitivity;                  // target sens
@@ -302,6 +303,7 @@ public:
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)
+    PARAMETER(PARAM_CLUSTER_FRAGMENTS)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
     std::vector<MMseqsParameter> prefilter;
