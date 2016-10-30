@@ -7,6 +7,8 @@ class convertfiles {
 public:
     explicit convertfiles(std::string sequencedb, bool use_header);
 
+    ~convertfiles();
+
     void getAlignmentscoresForCluster(std::string clusteringfile, std::string alignmentfile, std::string outputfile);
 
     void convertDomainFileToFFindex(std::string domainscorefile, std::string domainIdentifierFile,
@@ -20,6 +22,7 @@ public:
 private:
     bool use_header;
     DBReader<unsigned int> *targetdb_header;
+
     std::string getProteinNameForID(unsigned int dbKey);
 };
 

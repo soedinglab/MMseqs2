@@ -34,7 +34,7 @@
 
 KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
-A3mReader::A3mReader(std::string a3m) {
+A3mReader::A3mReader(std::string a3m) : length(0) {
     kseq_buffer_t buffer(const_cast<char*>(a3m.c_str()), a3m.length());
     kseq_t *seq = kseq_init(&buffer);
     while (kseq_read(seq) >= 0) {

@@ -36,14 +36,14 @@ int convert2fasta(int argc, const char **argv, const Command& command) {
 
     FILE *fastaFP =  FileUtil::openFileOrDie(par.db2.c_str(), "w", false);
 
-    DBReader<std::string>& from = db;
+    DBReader<std::string>* from = &db;
     if(par.useHeaderFile) {
-        from = db_header;
+        from = &db_header;
     }
 
     Debug(Debug::INFO) << "Start writing file to " << par.db2 << "\n";
-    for(size_t i = 0; i < from.getSize(); i++){
-        std::string key = from.getDbKey(i);
+    for(size_t i = 0; i < from->getSize(); i++){
+        std::string key = from->getDbKey(i);
 
         const char* header_data = db_header.getDataByDBKey(key.c_str());
 
@@ -54,7 +54,6 @@ int convert2fasta(int argc, const char **argv, const Command& command) {
         const char* body_data = db.getDataByDBKey(key.c_str());
         fwrite(body_data, sizeof(char), strlen(body_data) - 1, fastaFP);
         fwrite(newline, sizeof(char), 1, fastaFP);
-
     }
 
     fclose(fastaFP);
