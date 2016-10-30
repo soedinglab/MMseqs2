@@ -103,7 +103,7 @@ public:
         return (void *) (p1 - (size_t) p1 % alignment);
     }
 
-    static size_t io_blksize(struct stat sb) {
+    static size_t io_blksize(const struct stat& sb) {
         const size_t IO_BUFSIZE = 64 * 1024;
         return std::max(IO_BUFSIZE, static_cast<size_t >(sb.st_blksize));
     }

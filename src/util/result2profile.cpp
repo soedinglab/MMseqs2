@@ -336,6 +336,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     if (reprSeq != NULL) {
                         msa << *reprSeq;
                         delete reprSeq;
+                        reprSeq = NULL;
                     } else {
                         //msa << '\0';
                     }
@@ -423,6 +424,11 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
                 Sequence *seq = *it;
                 delete seq;
+            }
+
+            if (reprSeq != NULL) {
+                delete reprSeq;
+                reprSeq = NULL;
             }
         }
         delete centerSequence;

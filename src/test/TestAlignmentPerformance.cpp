@@ -46,6 +46,7 @@ std::vector<std::string> readData(std::string fasta_filename){
         }
     }
 	kseq_destroy(seq);
+    fclose(fasta_file);
     return retVec;
 }
 int main (int argc, const char * argv[])

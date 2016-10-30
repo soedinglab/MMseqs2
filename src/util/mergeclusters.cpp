@@ -13,14 +13,14 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     // open the sequence database
     // it will serve as the reference for sequence indexes
     std::string seqDBIndex = seqDB + ".index";
-    DBReader<unsigned int>* dbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str());
-    dbr->open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> dbr(seqDB.c_str(), seqDBIndex.c_str());
+    dbr.open(DBReader<unsigned int>::NOSORT);
 
     // init the structure for cluster merging
     // it has the size of all possible cluster (sequence amount)
-    std::list<int>** mergedClustering = new std::list<int>*[dbr->getSize()];
-    Debug(Debug::WARNING) << "List amount "<< dbr->getSize() << "\n";
-    for (size_t i = 0; i < dbr->getSize(); i++){
+    std::list<int>** mergedClustering = new std::list<int>*[dbr.getSize()];
+    Debug(Debug::WARNING) << "List amount "<< dbr.getSize() << "\n";
+    for (size_t i = 0; i < dbr.getSize(); i++){
         mergedClustering[i] = new std::list<int>();
     }
 
@@ -33,13 +33,13 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
     for (size_t i = 0; i < cluStepDbr->getSize(); i++){
         unsigned int clusterId = cluStepDbr->getDbKey(i);
-        size_t cluId = dbr->getId(clusterId);
+        size_t cluId = dbr.getId(clusterId);
         std::stringstream lineSs (cluStepDbr->getData(i));
         std::string val;
         // go through the sequences in the cluster and add them to the initial clustering
         while (std::getline(lineSs, val)){
             unsigned int key = (unsigned  int) strtoul(val.c_str(), NULL, 10);
-            size_t seqId = dbr->getId(key);
+            size_t seqId = dbr.getId(key);
             mergedClustering[cluId]->push_back(seqId);
         }
     }
@@ -60,7 +60,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
         // go through the clusters and merge them into the clusters from the previous clustering step
         for (size_t i = 0; i < cluStepDbr->getSize(); i++){
-            size_t cluId = dbr->getId(cluStepDbr->getDbKey(i));
+            size_t cluId = dbr.getId(cluStepDbr->getDbKey(i));
             char* cluData = cluStepDbr->getData(i);
             std::stringstream lineSs(cluData);
             std::string val;
@@ -68,7 +68,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
             // afterwards, delete the added cluster from the clustering
             while (std::getline(lineSs, val, '\n')){
                 unsigned int key = (unsigned  int) strtoul(val.c_str(), NULL, 10);
-                size_t seqId = dbr->getId(key);
+                size_t seqId = dbr.getId(key);
                 if(seqId != cluId) // to avoid copies of the same cluster list
                     mergedClustering[cluId]->splice(mergedClustering[cluId]->end(), *mergedClustering[seqId]);
             }
@@ -89,18 +89,18 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     size_t BUFFER_SIZE = 1000000;
     char* outBuffer = new char[BUFFER_SIZE];
     // go through all sequences in the database
-    for (size_t i = 0; i < dbr->getSize(); i++){
+    for (size_t i = 0; i < dbr.getSize(); i++){
 
         // no cluster for this representative
         if (mergedClustering[i]->size() == 0)
             continue;
 
         // representative
-        unsigned int dbKey = dbr->getDbKey(i);
+        unsigned int dbKey = dbr.getDbKey(i);
 
         std::stringstream res;
         for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
-            res << dbr->getDbKey(*it) << "\n";
+            res << dbr.getDbKey(*it) << "\n";
         }
 
         std::string cluResultsOutString = res.str();
@@ -120,7 +120,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     delete[] outBuffer;
 
     // delete the clustering data structure
-    for (unsigned int i = 0; i < dbr->getSize(); i++){
+    for (unsigned int i = 0; i < dbr.getSize(); i++){
         delete mergedClustering[i];
     }
     delete[] mergedClustering;

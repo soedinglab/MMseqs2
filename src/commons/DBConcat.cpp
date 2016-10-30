@@ -138,8 +138,8 @@ unsigned int DBConcat::dbBKeyMap(unsigned int key) {
 
 DBConcat::~DBConcat() {
     if (!sameDatabase) {
-        delete keysA;
-        delete keysB;
+        delete[] keysA;
+        delete[] keysB;
     }
 }
 
