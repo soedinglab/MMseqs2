@@ -20,8 +20,6 @@ notExists () {
 [   -f "$4" ] &&  echo "$4 exists already!" && exit 1;
 [ ! -d "$5" ] &&  echo "tmp directory $5 not found!" && exit 1;
 
-export OMP_PROC_BIND=TRUE
-
 OLDDB=$1 #"../data/DB"
 OLDCLUST=$3 #"DBclustered"
 NEWDB=$2 #"../data/targetDB"
