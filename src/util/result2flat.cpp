@@ -48,10 +48,7 @@ int result2flat(int argc, const char **argv, const Command& command) {
             Util::parseKey(data, dbKey);
             char * header_data = targetdb_header.getDataByDBKey(dbKey);
             std::string dataStr;
-            if(header_data != NULL){
-                dataStr = Util::parseFastaHeader(header_data);
-            }
-            if( par.useHeader == true ) {
+            if(par.useHeader == true && header_data != NULL) {
                 dataStr = Util::parseFastaHeader(header_data);
                 char * endLenData = Util::skipLine(data);
                 size_t keyLen = strlen(dbKey);

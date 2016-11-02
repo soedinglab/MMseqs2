@@ -428,6 +428,10 @@ void CompareGOTerms::run_evaluation_mmseqsclustering(const std::string& cluster_
                 << cluster_ffindex_reader.getSize() << "\t" << clusterwithgo << "\t"
                 << clusterwithoutgo << "\t" << this->count_goterm_total_sum << "\n";
 
+    delete[] binned_avg;
+    delete[] binned_max;
+    delete[] binned_min;
+
     clusters_summary_file.close();
     clusters_full_file.close();
     summary_file.close();

@@ -18,6 +18,7 @@
 
 template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode)
 {
+    data = NULL;
     dataSize = 0;
     this->dataMode = dataMode;
     this->dataFileName = strdup(dataFileName_);

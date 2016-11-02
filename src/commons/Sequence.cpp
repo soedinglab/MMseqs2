@@ -359,7 +359,7 @@ void Sequence::mapProteinSequence(const char * sequence){
                         Debug(Debug::ERROR) << "ERROR: Sequence (dbKey=" << dbKey <<") conatains none printable characters. The database might contain profiles. Use the parameter --profile for a profile databases.\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    this->int_sequence[l] = this->aa2int[(int)'X']; break;
+                    this->int_sequence[l] = this->aa2int[(int)'X'];
                     hasUncommonCharacters = true;
                     break;
             }

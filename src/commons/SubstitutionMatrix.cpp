@@ -181,7 +181,7 @@ void SubstitutionMatrix::readProbMatrix(std::string matrixData) {
             char *words[20];
             char *data = (char *) line.c_str();
             if (Util::getWordsOfLine(data, words, 20) != 20) {
-                Debug(Debug::ERROR) << "Not enough AminoAcids in Substituon matrix, please check format.\n";
+                Debug(Debug::ERROR) << "Not enough AminoAcids in Substitution matrix, please check format.\n";
                 EXIT(EXIT_FAILURE);
             } else {
                 for (size_t i = 0; i < 20; i++) {
