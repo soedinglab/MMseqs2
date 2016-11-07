@@ -1,35 +1,37 @@
 set(util_source_files
-  fasta2ffindex.cpp
-  profile2ffindex.cpp
-  addsequences.cpp
+        createdb.cpp
+        convertprofiledb.cpp
+        createseqfiledb.cpp
   result2profile.cpp
-  ffindex2fasta.cpp
-  ffindex_database_merge.cpp
-  ffindex_database_split.cpp
-  ffindex_to_pref_index.cpp
-  ffindex_swap_results.cpp
-  translate_nucleotide.cpp
-  mergecluster.cpp
+        result2flat.cpp
+        mergedbs.cpp
+        splitdb.cpp
+        createindex.cpp
+        swapresults.cpp
+        translatenucs.cpp
+        mergeclusters.cpp
   convertfiles.h
   convertfiles.cpp
-  format_alignment.cpp
-  ffindex2tsv.cpp
-  rebuildfasta.cpp
-  gff2ffindex.cpp
+        convertalignments.cpp
+        createtsv.cpp
+        convert2fasta.cpp
+        gff2db.cpp
   maskbygff.cpp
-  extract_orf.cpp
+        extractorfs.cpp
   filterdb.cpp
   convertkb.cpp
-  kbtotsv.cpp
-  substractresult.cpp
-  result2newick.cpp
+        subtractdbs.cpp
+  result2stats.cpp
   computeGOscore.cpp
-  detectredundancy.cpp
-  order.cpp
-  diff.cpp
-  TimeTest.cpp
-  summarize.cpp
+        clusthash.cpp
+        createsubdb.cpp
+        diffseqdbs.cpp
+        summarizeheaders.cpp
   prefixid.cpp
+  summarizetabs.cpp
+  extractdomains.cpp
+  extractalignedregion.cpp
+        clustlinear.cpp
 )
 
 add_library(util ${util_source_files} )

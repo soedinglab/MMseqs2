@@ -4,9 +4,10 @@
 #include <cmath>
 #include <climits>
 #include <cfloat>
+#include <vector>
+#include <limits>
 
 class MathUtil {
-
 public:
     static inline int ipow(int base, int exponent) {
         int res = 1;
@@ -107,6 +108,22 @@ public:
         i = i - ((i >> 1) & 0x55555555);
         i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
         return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+    }
+
+    static inline float getCoverage(size_t start, size_t end, size_t length) {
+        return static_cast<float>(end - start + 1) / static_cast<float>(length);
+    }
+
+// compute look up table based on stirling approximation
+    static void computeFactorial(double *output, const size_t range) {
+        output[0] = log(1.0);
+        for(size_t score = 1; score < range; score++){
+            const double scoreDbl = static_cast<double>(score);
+
+            const double S_fact = std::min(std::numeric_limits<double>::max(),
+                                           sqrt(2 * M_PI * scoreDbl) * pow(scoreDbl / exp(1), scoreDbl) * exp(1 / (12  * scoreDbl)));
+            output[score] = log(S_fact);
+        }
     }
 };
 

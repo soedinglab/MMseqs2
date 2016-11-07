@@ -8,7 +8,7 @@
 #include "Parameters.h"
 #include "Util.h"
 #include "Debug.h"
-#include "Log.h"
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -21,7 +21,7 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
     const size_t dbSize = seqDbr->getSize();
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
-        Log::printProgress(i);
+        Debug::printProgress(i);
         // seqDbr is descending sorted by length
         // the assumption is that clustering is B -> B (not A -> B)
         const unsigned int clusterId = seqDbr->getDbKey(i);
@@ -127,7 +127,7 @@ void AlignmentSymmetry::addMissingLinks(unsigned int **elementLookupTable,
     // iterate over all connections and check if it exists in the corresponding set
     // if not add it
     for(size_t setId = 0; setId < dbSize; setId++) {
-        Log::printProgress(setId);
+        Debug::printProgress(setId);
         const size_t oldElementSize = LEN(offsetTableWithOutNewLinks, setId);
         const size_t newElementSize = LEN(offsetTableWithNewLinks, setId);
         if(oldElementSize > newElementSize){

@@ -14,6 +14,7 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
     this->aaBiasCorrection = aaBiasCorrection;
     this->maxLen = maxLen;
     this->aa2int = aa2int;
+    this->spaced = spaced;
     this->int2aa = int2aa;
     this->seqType = seqType;
     std::pair<const char *, unsigned int> spacedKmerInformation = getSpacedPattern(spaced, kmerSize);
@@ -31,7 +32,7 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
         // setup memory for profiles
         profile_row_size = (size_t) PROFILE_AA_SIZE / (VECSIZE_INT*4); //
         profile_row_size = (profile_row_size+1) * (VECSIZE_INT*4); // for SIMD memory alignment
-        profile_matrix = new ScoreMatrix*[20]; // init 20 matrix pointer (its more than enough for all kmer parameter)
+        profile_matrix = new ScoreMatrix*[PROFILE_AA_SIZE]; // init 20 matrix pointer (its more than enough for all kmer parameter)
         for (size_t i = 0; i < kmerSize; i++) {
             profile_matrix[i] = new ScoreMatrix(NULL, NULL, PROFILE_AA_SIZE, profile_row_size);
         }
@@ -100,6 +101,69 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
                 return std::make_pair<const char *, unsigned int>((const char *) &seed_7, ARRAY_SIZE(seed_7));
             }
             break;
+        case 9:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_9_spaced, ARRAY_SIZE(seed_9_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_9, ARRAY_SIZE(seed_9));
+            }
+            break;
+        case 10:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_10_spaced, ARRAY_SIZE(seed_10_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_10, ARRAY_SIZE(seed_10));
+            }
+            break;
+        case 11:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_11_spaced, ARRAY_SIZE(seed_11_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_11, ARRAY_SIZE(seed_11));
+            }
+            break;
+        case 12:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_12_spaced, ARRAY_SIZE(seed_12_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_12, ARRAY_SIZE(seed_12));
+            }
+            break;
+        case 13:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_13_spaced, ARRAY_SIZE(seed_13_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_13, ARRAY_SIZE(seed_13));
+            }
+            break;
+        case 14:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_14_spaced, ARRAY_SIZE(seed_14_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_14, ARRAY_SIZE(seed_14));
+            }
+            break;
+        case 15:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_15_spaced, ARRAY_SIZE(seed_15_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_15, ARRAY_SIZE(seed_15));
+            }
+            break;
+        case 16:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_16_spaced, ARRAY_SIZE(seed_16_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_16, ARRAY_SIZE(seed_16));
+            }
+            break;
+        case 17:
+            if(spaced){
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_17_spaced, ARRAY_SIZE(seed_17_spaced));
+            }else{
+                return std::make_pair<const char *, unsigned int>((const char *) &seed_17, ARRAY_SIZE(seed_17));
+            }
+            break;
         default:
             Debug(Debug::ERROR) << "Did not find spaced pattern for kmerSize: " << kmerSize << ". \n";
             Debug(Debug::ERROR) << "Please report this bug to the developer\n";
@@ -126,6 +190,23 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence){
     currItPos = -1;
 
 }
+
+void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *,const unsigned int> data){
+    this->id = id;
+    this->dbKey = dbKey;
+    if (this->seqType == Sequence::AMINO_ACIDS){
+        this->L = data.second;
+        for(int aa = 0; aa < this->L; aa++){
+            this->int_sequence[aa] = data.first[aa];
+        }
+    }else  {
+        Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    currItPos = -1;
+}
+
+
 
 void Sequence::mapNucleotideSequence(const char * sequence){
     size_t l = 0;

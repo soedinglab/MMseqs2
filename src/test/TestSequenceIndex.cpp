@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 {
 
     size_t kmer_size = 6;
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(),
                               2.0, 0.0);
     std::string S1 = "PQITLWQRPLVTIKIGGQLKEALLDTGADDTVLEEMSLPGRWKPKMIGGIGGFIKVRQYDQILIEICGHKAIGTVLVGPTPVNIIGRNLLTQIGCTLNF";

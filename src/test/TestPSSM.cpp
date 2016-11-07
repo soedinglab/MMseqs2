@@ -16,7 +16,7 @@
 
 int main (int argc, const char * argv[])
 {
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     std::cout << "Subustitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
@@ -1592,8 +1592,8 @@ int main (int argc, const char * argv[])
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;
 //    }
     std::cout <<"Filterted MSA" << std::endl;
-    for(int k = 0; k < filterResult.setSize; k++){
-        printf("k=%.3d ", k);
+    for(size_t k = 0; k < filterResult.setSize; k++){
+        printf("k=%.3zu ", k);
         for(size_t pos = 0; pos < res.centerLength; pos++){
             char aa = filterResult.filteredMsaSequence[k][pos];
             printf("%c", (aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-' );

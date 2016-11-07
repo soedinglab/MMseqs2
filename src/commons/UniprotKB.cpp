@@ -6,6 +6,7 @@
 
 #include "UniprotKB.h"
 #include "Debug.h"
+#include "Util.h"
 
 const std::string UniprotKB::columnNames[] = {
         "ID", "AC",
@@ -18,11 +19,6 @@ const std::string UniprotKB::columnNames[] = {
 
 std::string removeAfterFirstColon(std::string in) {
     in.erase(in.find_first_of(":"));
-    return in;
-}
-
-std::string removeAfterFirstSpace(std::string in) {
-    in.erase(in.find_first_of(" "));
     return in;
 }
 
@@ -84,7 +80,7 @@ struct uniprotkb {
 };
 
 const uniprotkb uniprotkb_prefix[] = {
-        {UNIPROT_ID,  "ID", "Identification",               OCCURENCE_REQUIRED, LINES_SINGLE,          true,  0,  removeAfterFirstSpace},
+        {UNIPROT_ID,  "ID", "Identification",               OCCURENCE_REQUIRED, LINES_SINGLE,          true,  0,  Util::removeAfterFirstSpace},
         {UNIPROT_AC,  "AC", "Accession number(s)",          OCCURENCE_REQUIRED, LINES_MULTIPLE_CONCAT, false, 1,  removeWhiteSpace},
         {UNIPROT_DT,  "DT", "Date",                         OCCURENCE_REQUIRED, LINES_MULTIPLE,        true,  2,  NULL},
         {UNIPROT_DE,  "DE", "Description",                  OCCURENCE_REQUIRED, LINES_MULTIPLE,        true,  3,  NULL},
@@ -165,7 +161,7 @@ std::string UniprotKB::getColumn(size_t column) {
         return "";
     }
 
-    if (column > dbColumns) {
+    if (column >= dbColumns) {
         Debug(Debug::WARNING) << "Invalid column selected\n";
         return std::string();
     }

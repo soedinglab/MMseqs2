@@ -26,6 +26,27 @@ const int8_t seed_7[]        = {1, 1, 1, 1, 1, 1, 1};
 //const char seed_7_spaced[] = {1, 1, 1, 1, 0, 1, 0, 1, 0, 1};
 const int8_t seed_7_spaced[] = {1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1};
 
+
+const int8_t seed_9[]         = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_9_spaced[]  = {1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_10[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_10_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_11[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_11_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_12[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_12_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_13[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_13_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_14[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_14_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_15[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_15_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_16[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_16_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_17[]        = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const int8_t seed_17_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
+
 class Sequence
 {
     public:
@@ -35,7 +56,10 @@ class Sequence
 
         // Map char -> int
         void mapSequence(size_t id, unsigned int dbKey, const char *seq);
-    
+
+        // map sequence from SequenceLookup
+        void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
+
         // map profile HMM, *data points to start position of Profile
         void mapProfile(const char *data);
 
@@ -54,11 +78,13 @@ class Sequence
     
         int getCurrentPosition() { return currItPos; }
 
-
         unsigned int getDbKey() { return dbKey; }
     
         int getSeqType() { return seqType; }
 
+        size_t getMaxLen(){ return maxLen; }
+        unsigned int getKmerSize(){ return kmerSize; }
+        bool isSpaced(){ return spaced; }
 
         // reverse the sequence for the match statistics calculation
         void reverse();
@@ -104,6 +130,7 @@ class Sequence
 
         unsigned int getEffectiveKmerSize();
 
+
 private:
         void mapProteinSequence(const char *seq);
         void mapNucleotideSequence(const char *seq);
@@ -139,5 +166,8 @@ private:
 
         // bias correction in profiles
         bool aaBiasCorrection;
+
+        // spaced pattern
+        bool spaced;
 };
 #endif

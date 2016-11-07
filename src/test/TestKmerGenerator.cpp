@@ -20,7 +20,7 @@ int main (int argc, const char * argv[])
     const size_t kmer_size=6;
 
 
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 8.0, 0);
     std::cout << "Subustitution matrix:\n";
 
@@ -46,7 +46,7 @@ int main (int argc, const char * argv[])
     KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,161);
 
     kmerGen.setDivideStrategy(extMatthree.scoreMatrix, extMattwo.scoreMatrix );
-    int* testKmer = new int[kmer_size];
+    size_t * testKmer = new size_t[kmer_size];
     int i = 0; 
     while(s->hasNextKmer()){
         const int * curr_pos = s->nextKmer();

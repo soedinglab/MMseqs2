@@ -5,8 +5,7 @@
 
 #include "SequenceLookup.h"
 #include "SubstitutionMatrix.h"
-#include "DiagonalMatcher.h"
-#include "QueryScore.h"
+#include "UngappedAlignment.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "FileUtil.h"
 
@@ -28,7 +27,7 @@ int main(int argc, char **argv)
 {
 
     size_t kmer_size = 6;
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(),
                               8.0, 0.0);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
@@ -75,7 +74,7 @@ int main(int argc, char **argv)
     }
     kseq_destroy(seq);
     std::cout << maxLen << std::endl;
-    DiagonalMatcher matcher(maxLen, &subMat, &lookup);
+    UngappedAlignment matcher(maxLen, &subMat, &lookup);
     CounterResult hits[16000];
     hits[0].id =142424;
     hits[0].diagonal = 50;

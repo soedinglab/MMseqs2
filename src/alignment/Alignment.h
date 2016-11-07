@@ -16,10 +16,10 @@ class Alignment {
 
 public:
 
-    Alignment (std::string querySeqDB, std::string querySeqDBIndex,
-               std::string targetSeqDB, std::string targetSeqDBIndex,
-               std::string prefDB, std::string prefDBIndex,
-               std::string outDB, std::string outDBIndex,
+    Alignment (std::string& querySeqDB, std::string& querySeqDBIndex,
+               std::string& targetSeqDB, std::string& targetSeqDBIndex,
+               std::string& prefDB, std::string& prefDBIndex,
+               std::string& outDB, std::string& outDBIndex,
                Parameters &par);
 
     ~Alignment();
@@ -33,13 +33,13 @@ public:
               const size_t dbFrom, const size_t dbSize,
               const unsigned int maxAlnNum, const unsigned int maxRejected);
 
-    static void mergeAndRemoveTmpDatabases(std::string out, std::string outIndex,
-                                           std::vector<std::pair<std::string, std::string >> vector);
+    static void mergeAndRemoveTmpDatabases(const std::string& out, const std::string& outIndex,
+                                           const  std::vector<std::pair<std::string, std::string >>& vector);
 
 private:
 
-    // keeps state of alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
-    unsigned mode;
+    // keeps state of the SW alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
+    unsigned swMode;
     int threads;
 
     // sequence identity threshold

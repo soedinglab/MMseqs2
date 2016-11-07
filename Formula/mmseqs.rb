@@ -1,7 +1,7 @@
 class Mmseqs < Formula
   desc "MMseqs (Many-against-Many sequence searching) is a software suite for very fast protein sequence searches and clustering of huge protein sequence data sets."
   homepage "https://github.com/soedinglab/mmseqs"
-  head "git@bitbucket.org:soedinglab/mmseqs-dev.git", :using => :git
+  head "git@github.com:soedinglab/mmseqs2.git", :using => :git
 
   option "with-tests", "Build MMseqs test utils"
 
@@ -18,11 +18,6 @@ class Mmseqs < Formula
     system "make"
 
     bin.install "src/mmseqs"
-    bin.install "src/workflow/blastp.sh"
-    bin.install "src/workflow/blastpgp.sh"
-    bin.install "src/workflow/clustering.sh"
-    bin.install "src/workflow/cascaded_clustering.sh"
-    prefix.install Dir["data"]
     doc.install "userguide.pdf"
     bash_completion.install "util/bash-completion.sh" => "mmseqs.sh"
   end

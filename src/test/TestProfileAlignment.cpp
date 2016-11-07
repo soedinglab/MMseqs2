@@ -23,7 +23,7 @@ int main (int argc, const char * argv[])
 
     const size_t kmer_size=6;
 
-    Parameters par;
+    Parameters& par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0);
     std::cout << "Subustitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
@@ -755,7 +755,7 @@ int main (int argc, const char * argv[])
     //const char* sequence = read_seq;
     PSSMCalculator pssmCalculator(&subMat, 10000, 1.4, 2.5);
     const size_t setSize = 1;
-    char * msaSeq[setSize] = {"LFILNIISMNKQTKVKGYLLLLLVISSLFISLVGHGYTANKVSAPNPAKEYPQDNLSVIDMKNLPGTQIKSMVKDELQQFLEEQGFRRLKNKSLVDLRRIWLGFMYEDFFYTMHKKTDLPISVIYAFFIIEATNAGIESKLMAKALNPGGIKYRGTGKKMKAMDDCY",
+    const char * msaSeq[setSize] = {"LFILNIISMNKQTKVKGYLLLLLVISSLFISLVGHGYTANKVSAPNPAKEYPQDNLSVIDMKNLPGTQIKSMVKDELQQFLEEQGFRRLKNKSLVDLRRIWLGFMYEDFFYTMHKKTDLPISVIYAFFIIEATNAGIESKLMAKALNPGGIKYRGTGKKMKAMDDCY",
                         };
     char * msaSequence[setSize];
 

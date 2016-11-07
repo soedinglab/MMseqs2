@@ -13,8 +13,11 @@ class SequenceLookup {
 
 public:
     SequenceLookup(size_t dbSize, size_t entrySize);
-
+    SequenceLookup(size_t dbSize);
     ~SequenceLookup();
+
+    // add sequence at offset
+    void addSequence(Sequence * seq, size_t offset);
 
     // add sequence to index
     void addSequence(Sequence * seq);
@@ -28,7 +31,8 @@ public:
 
     size_t getSequenceCount();
 
-    void initLookupByExternalData(FILE *datafile, size_t seqSizesOffset, size_t seqDataOffset);
+    void initLookupByExternalData(char * seqData,
+                                  unsigned int * seqSizes);
 
 private:
 
@@ -42,6 +46,12 @@ private:
     char * currWritePos;
     size_t sequenceCount;
     size_t dataSize;
+
+    // if data are read from mmap
+    bool externalData;
+
+    // magic byte to cache database
+    size_t magicByte;
 
 };
 

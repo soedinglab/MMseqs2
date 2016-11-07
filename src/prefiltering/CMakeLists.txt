@@ -11,22 +11,17 @@ set(prefiltering_source_files
     Prefiltering.h
     PrefilteringIndexReader.cpp
     PrefilteringIndexReader.h
-    QueryScore.cpp
-    QueryScore.h
-    QueryScoreLocal.cpp
-    QueryScoreLocal.h
-    QueryTemplateMatcher.h
-    QueryTemplateMatcherLocal.cpp
-    QueryTemplateMatcherLocal.h
-    QueryTemplateLocalFast.cpp
-    QueryTemplateLocalFast.h
+    QueryMatcher.cpp
+    QueryMatcher.h
     ReducedMatrix.cpp
     ReducedMatrix.h
     SequenceLookup.cpp
     SequenceLookup.h
     SubstitutionMatrixWithoutX.h
-    DiagonalMatcher.cpp
-    DiagonalMatcher.h
+    UngappedAlignment.cpp
+    UngappedAlignment.h
+    CacheFriendlyOperations.cpp
+    CacheFriendlyOperations.h
 )
 add_library(prefiltering ${prefiltering_source_files})
 target_link_libraries(prefiltering)

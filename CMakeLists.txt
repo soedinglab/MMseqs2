@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 project(MMseqs CXX)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(HAVE_MPI 0 CACHE BOOL "Have MPI")
-set(HAVE_SSE4_2 0 CACHE BOOL "Have SSE4.2")
+set(HAVE_SSE4_1 0 CACHE BOOL "Have SSE4.1")
 set(HAVE_AVX2 0 CACHE BOOL "Have AVX2")
 set(HAVE_TESTS 1 CACHE BOOL "Have Tests")
 set(MMSEQS_DIR ${PROJECT_SOURCE_DIR})
@@ -47,25 +47,17 @@ include_directories(src/prefiltering)
 include_directories(src/alignment)
 include_directories(src/clustering)
 include_directories(src/util)
+include_directories(lib)
 include_directories(lib/getoptpp)
 include_directories(lib/kseq)
 include_directories(lib/simd)
 include_directories(lib/seqan)
+include_directories(lib/gzstream)
 add_subdirectory(src)
 
-install(DIRECTORY
-   data
-   DESTINATION .
-   USE_SOURCE_PERMISSIONS
-   FILES_MATCHING PATTERN "*.out"
-)
 
-install(DIRECTORY
-   src/workflow/
-   DESTINATION bin
-   USE_SOURCE_PERMISSIONS
-   FILES_MATCHING PATTERN "*.sh"
-)
+
+
 
 install(PROGRAMS
 	util/bash-completion.sh

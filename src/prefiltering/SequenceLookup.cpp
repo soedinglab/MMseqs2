@@ -3,11 +3,13 @@
 //
 #include <new>
 #include <cstring>
+#include <sys/mman.h>
 #include "Debug.h"
 #include "Util.h"
 #include "SequenceLookup.h"
 
-SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize) {
+SequenceLookup::SequenceLookup(size_t dbSize,
+                               size_t entrySize) {
     sequenceCount = dbSize;
     sequence = new(std::nothrow) char*[sequenceCount + 1];
     Util::checkAllocation(sequence, "Could not allocate sequence memory in SequenceLookup");
@@ -18,19 +20,36 @@ SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize) {
     currWritePos = data;
     sequence[0] = data;
     sequence[dbSize] = &data[entrySize];
+    externalData = false;
+}
+
+SequenceLookup::SequenceLookup(size_t dbSize) {
+    sequenceCount = dbSize;
+    data = NULL;
+    sequence = new(std::nothrow) char*[sequenceCount + 1];
+    Util::checkAllocation(sequence, "Could not allocate sequence memory in SequenceLookup");
+    externalData = true;
 }
 
 SequenceLookup::~SequenceLookup() {
     delete [] sequence;
-    delete [] data;
+    if(externalData == false){
+        delete [] data;
+    }else{
+        munlock(data, dataSize);
+    }
 }
 
-void SequenceLookup::addSequence(Sequence * seq) {
-    sequence[seq->getId()] = currWritePos;
+void SequenceLookup::addSequence(Sequence *  seq, size_t offset){
+    sequence[seq->getId()] = data + offset;
     for(int pos = 0; pos < seq->L; pos++){
         unsigned char aa = seq->int_sequence[pos];
         sequence[seq->getId()][pos] = aa;
     }
+}
+
+void SequenceLookup::addSequence(Sequence * seq) {
+    addSequence(seq, currWritePos - data);
     currWritePos = currWritePos + seq->L;
 }
 
@@ -51,32 +70,20 @@ size_t SequenceLookup::getSequenceCount() {
     return sequenceCount;
 }
 
-void SequenceLookup::initLookupByExternalData(FILE * datafile,
-                                              size_t seqSizesOffset,
-                                              size_t seqDataOffset) {
+void SequenceLookup::initLookupByExternalData(char * seqData,
+                                              unsigned int * seqSizes) {
     // copy data to data element
-
-    fseek (datafile, seqDataOffset, SEEK_SET);
-    size_t errCode = fread(data, 1,  dataSize * sizeof(char),datafile);
-    if (errCode != dataSize * sizeof(char)) {
-        Debug(Debug::ERROR) << "IndexTable error while reading entries.\n";
-        EXIT (EXIT_FAILURE);
-    }
-    fseek (datafile , seqSizesOffset, SEEK_SET);
-    unsigned int *seqSizes = new unsigned int[sequenceCount];
-
-    errCode = fread (seqSizes, 1, sequenceCount * sizeof(unsigned int), datafile);
-    if (errCode != sequenceCount * sizeof(unsigned int)) {
-        Debug(Debug::ERROR) << "IndexTable error while reading entries.\n";
-        EXIT (EXIT_FAILURE);
-    }
-
+    data = seqData;
     char * it = data;
+    magicByte = 0;
     // set the pointers
     for (size_t i = 0; i < sequenceCount; i++){
         const unsigned int entriesCount = (unsigned int) seqSizes[i];
         sequence[i] = (char *) it;
         it += entriesCount;
+        magicByte += sequence[i][0]; // this will read 4kb
     }
-    delete [] seqSizes;
+    dataSize = it - data;
+    mlock(data, dataSize);
+    sequence[sequenceCount] = it;
 }

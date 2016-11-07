@@ -594,7 +594,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 		}
 
 		/* Lazy_F loop: has been revised to disallow adjecent insertion and then deletion, so don't update E(i, j), learn from SWPS3 */
-		for (k = 0; LIKELY(k < SIMD_SIZE); ++k) {
+		for (k = 0; LIKELY(k < (int32_t) SIMD_SIZE); ++k) {
 			vF = simdi8_shiftl (vF, 2);
 			for (j = 0; LIKELY(j < segLen); ++j) {
 				vH = simdi_load(pvHStore + j);
@@ -611,7 +611,7 @@ SmithWaterman::alignment_end* SmithWaterman::sw_sse2_word (const int* db_sequenc
 		vTemp = simdi16_eq(vMaxMark, vMaxScore);
 		int32_t cmp = simdi8_movemask(vTemp);
 #ifdef AVX2
-		if (cmp != 0xffffffff)
+		if (cmp != (int32_t)0xffffffff)
 #else
 			if (cmp != 0xffff)
 #endif

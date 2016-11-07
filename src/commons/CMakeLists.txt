@@ -6,12 +6,11 @@ set(commons_source_files
     DBReader.h
     DBConcat.cpp
     DBConcat.h
+    Concat.h
     DBWriter.cpp
     DBWriter.h
     Debug.cpp
     Debug.h
-    Log.cpp
-    Log.h
     NucleotideMatrix.cpp
     NucleotideMatrix.h
     Orf.cpp
@@ -27,18 +26,21 @@ set(commons_source_files
     Util.h
     CommandCaller.cpp
     CommandCaller.h
-    CountInt32Array.cpp
-    CountInt32Array.h
     MathUtil.h
     FileUtil.cpp
     FileUtil.h
     HeaderSummarizer.cpp
 	HeaderSummarizer.h
-    PatternCompiler.cpp
     PatternCompiler.h
     UniprotKB.cpp
     UniprotKB.h
-)
+    A3MReader.cpp
+    A3MReader.h
+    Domain.h
+    itoa.h
+    MemoryMapped.cpp
+    MemoryMapped.h
+    CpuInfo.h)
 
 add_library(commons ${commons_source_files})
 

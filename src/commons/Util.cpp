@@ -2,12 +2,18 @@
 #include "Debug.h"
 #include "kseq.h"
 #include "FileUtil.h"
+#include "BaseMatrix.h"
+#include "SubstitutionMatrix.h"
+#include "Sequence.h"
 
 #include <unistd.h>
 #ifdef __APPLE__
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #endif
+
+#include <fstream>
+
 KSEQ_INIT(int, read)
 
 size_t Util::countLines(const char *data, size_t length) {
@@ -56,6 +62,46 @@ std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
     return map;
 }
 
+
+
+void Util::decomposeDomainSizet(size_t aaSize, size_t *seqSizes, size_t count,
+                                size_t worldRank, size_t worldSize, size_t *start, size_t *size){
+    if (worldSize > aaSize) {
+        // Assume the domain size is greater than the world size.
+        Debug(Debug::ERROR) << "World Size: " << worldSize << " aaSize: " << aaSize << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if (worldSize == 1) {
+        *start = 0;
+        *size = count;
+        return;
+    }
+
+    size_t aaPerSplit =  aaSize / worldSize;
+    size_t currentRank = 0;
+    size_t currentSize = 0;
+    *start = 0;
+    for(size_t i = 0; i < count; i++ ){
+        if(currentSize > aaPerSplit){
+            currentSize = 0;
+            currentRank++;
+            if(currentRank > worldRank){
+                *size = (i) - *start ;
+                break;
+            }else if (currentRank == worldRank){
+                *start = i;
+                if(worldRank == worldSize-1){
+                    *size = count - *start;
+                    break;
+                }
+            }
+        }
+        currentSize += seqSizes[i];
+    }
+}
+
+
+
 void Util::decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
                                       size_t worldRank, size_t worldSize, size_t *start, size_t *size){
     if (worldSize > aaSize) {
@@ -68,7 +114,7 @@ void Util::decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, siz
         *size = count;
         return;
     }
-    
+
     size_t aaPerSplit =  aaSize / worldSize;
     size_t currentRank = 0;
     size_t currentSize = 0;
@@ -123,32 +169,86 @@ void Util::rankedDescSort20(short *val, unsigned int *index){
 #undef SWAP
 }
 
-std::string Util::parseFastaHeader(std::string header){
-    if(header.length() == 0)
+// find start and end position of an identifier in a FASTA header
+std::pair<ssize_t,ssize_t> Util::getFastaHeaderPosition(const std::string& header) {
+    const std::pair<size_t, size_t> errorPosition = std::make_pair(-1, -1);
+    if (header.length() == 0)
+        return errorPosition;
+
+    size_t offset = 0;
+    if (Util::startWith("consensus_", header)) {
+        offset = 10;
+    }
+
+    struct Databases {
+        std::string prefix;
+        unsigned int length;
+        unsigned int verticalBarPos;
+    };
+
+    const struct Databases databases[] = {
+            { "uc",   2, 0}, // Uniclust
+            { "cl|",   3, 1},
+            { "sp|",   3, 1}, // Swiss prot
+            { "tr|",   3, 1}, // trembl
+            { "gb|",   3, 1}, // GenBank
+            { "ref|",  4, 1}, // NCBI Reference Sequence
+            { "pdb|",  4, 1}, // Brookhaven Protein Data Bank
+            { "bbs|",  4, 1}, // GenInfo Backbone Id
+            { "lcl|",  4, 1}, // Local Sequence identifier
+            { "pir||", 5, 1}, // NBRF PIR
+            { "prf||", 5, 1}, // Protein Research Foundation
+            { "gnl|",  4, 2}, // General database identifier
+            { "pat|",  4, 2}, // Patents
+            { "gi|",   3, 3}  // NCBI GI
+    };
+    const unsigned int database_count = 14;
+
+    for (size_t i = 0; i < database_count; ++i) {
+        if (Util::startWith(databases[i].prefix, header, offset)) {
+            size_t start = offset + databases[i].length;
+            if (databases[i].verticalBarPos > 1) {
+                for (size_t j = 0; j < databases[i].verticalBarPos - 1; ++j) {
+                    size_t end = header.find_first_of('|', start);
+                    if (end != std::string::npos) {
+                        start = end + 1;
+                    } else {
+                        return errorPosition;
+                    }
+                }
+            }
+
+            size_t end = header.find_first_of('|', start);
+            if (end != std::string::npos) {
+                return std::make_pair(start, end);
+            } else {
+                end = header.find_first_of(" \n", start);
+                if (end != std::string::npos || end == header.length()) {
+                    return std::make_pair(start, end);
+                } else {
+                    return errorPosition;
+                }
+            }
+        }
+    }
+
+    // if we can not find one of the existing database ids,
+    // we use the first part of the string or the whole string
+    size_t end = header.find_first_of(" \n", offset);
+    if (end != std::string::npos || end == header.length()) {
+        return std::make_pair(offset, end);
+    } else {
+        return errorPosition;
+    }
+}
+
+
+std::string Util::parseFastaHeader(const std::string& header) {
+    std::pair<ssize_t, ssize_t> pos = Util::getFastaHeaderPosition(header);
+    if(pos.first == -1 && pos.second == -1)
         return "";
 
-    std::vector<std::string> arr = Util::split(header,"|");
-    if(arr.size() > 1) {
-        if (Util::startWith("cl|",   header) ||
-                Util::startWith("sp|",   header) ||
-                Util::startWith("tr|",   header) ||
-                Util::startWith("ref|",  header) ||
-                Util::startWith("pdb|",  header) ||
-                Util::startWith("bbs|",  header) ||
-                Util::startWith("lcl|",  header) ||
-                Util::startWith("pir||", header) ||
-                Util::startWith("prf||", header)) {
-            return arr[1];
-        }
-        else if (Util::startWith("gnl|", header) || Util::startWith("pat|", header))
-            return arr[2];
-        else if (Util::startWith("gi|", header))
-            return arr[3];
-
-    }
-    arr = Util::split(header," ");
-    arr = Util::split(arr[0],"\n");
-    return arr[0];
+    return header.substr(pos.first, pos.second - pos.first);
 }
 
 void Util::parseByColumnNumber(char *data, char *key, int position) {
@@ -171,22 +271,23 @@ void Util::parseKey(char *data, char *key) {
     key[keySize] = '\0';
 }
 
-std::vector<std::string> Util::split(std::string str, std::string sep) {
-    char buffer[1024];
-    snprintf(buffer, 1024, "%s", str.c_str());
-    char *cstr = (char *) &buffer;
-    char *current;
-    char *rest;
+std::vector<std::string> Util::split(const std::string &str, const std::string &sep) {
     std::vector<std::string> arr;
-    current = strtok_r(cstr, sep.c_str(), &rest);
+
+    char *cstr = strdup(str.c_str());
+    const char* csep = sep.c_str();
+    char *rest;
+    char *current = strtok_r(cstr, csep, &rest);
     while (current != NULL) {
-        arr.push_back(current);
-        current = strtok_r(NULL, sep.c_str(), &rest);
+        arr.emplace_back(current);
+        current = strtok_r(NULL, csep, &rest);
     }
+    free(cstr);
+
     return arr;
 }
 
-size_t Util::getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength) {
+bool Util::getLine(const char* data, size_t dataLength, char* buffer, size_t bufferLength) {
     size_t keySize = 0;
     while (((data[keySize] != '\n') && (data[keySize] != '\0')) && keySize < dataLength) {
         keySize++;
@@ -195,7 +296,8 @@ size_t Util::getLine(const char* data, size_t dataLength, char* buffer, size_t b
     strncpy(buffer, data, maxLength);
     buffer[maxLength - 1] = '\0';
 
-    return bufferLength > dataLength;
+    bool didCutoff = (keySize + 1) > bufferLength;
+    return didCutoff == false;
 }
 
 void Util::checkAllocation(void *pointer, std::string message) {
@@ -223,4 +325,185 @@ size_t Util::getTotalSystemMemory()
     long page_size = sysconf(_SC_PAGE_SIZE);
     return pages * page_size;
 }
+
+
+/* Scaled log-likelihood ratios for coiled-coil heptat repeat */
+const float     ccoilmat[23][7] =
+        {
+                {249, 310, 74, 797, -713, 235, -102},           // 0 A
+                {-85, -6214, -954, -820, -1980, -839, -2538},   // 1 C
+                {-2688, 743, 498, -1703, -409, 458, 337},       // 2 D
+                {-1269, 1209, 1097, -236, 1582, 1006, 1338},    // 3 E
+                {-713, -2590, -939, -447, -2079, -2513, -3270}, // 4 F
+                {-2476, -1537, -839, -2198, -1877, -1002, -2079}, // 5 G
+                {-527, -436, -537, -171, -1180, -492, -926},      // 6 H
+                {878, -1343, -1064, -71, -911, -820, -1241},      // 7 I
+                {209, 785, 597, -492, 739, 522, 706},             // 8 K
+                {1097, -1313, -1002, 1348, -673, -665, -576},     // 9 L
+                {770, -502, -816, 365, -499, -783, -562},         // 10 M
+                {207, 520, 768, -1624, 502, 887, 725},            // 11 N
+                {-5521, -2225, -4017, -5115, -4605, -5521, -4961},// 12 P
+                {-1167, 828, 845, -209, 953, 767, 949},           // 13 Q
+                {13, 389, 571, -2171, 511, 696, 611},             // 14 R
+                {-1102, -283, -72, -858, -309, -221, -657},       // 15 S
+                {-1624, -610, -435, -385, -99, -441, -213},       // 16 T
+                {421, -736, -1049, -119, -1251, -1049, -1016},    // 17 V
+                {-2718, -2748, -2733, -291, -5115, -2162, -4268}, // 18 W
+                {276, -2748, -2513, 422, -1589, -2137, -2343},    // 19 Y
+                {0, 0, 0, 0, 0, 0, 0}                             // 20 X
+        };
+
+/* Sample Means for 100-residue windows */
+const float     aamean100[20] =
+        {
+                7.44,5.08,4.69,5.36,1.54,3.93,6.24,6.34,2.24,6.09,
+                9.72, 6.00,2.39,4.30,4.69,7.23,5.61,1.25,3.31,6.53
+        };
+/* Sample Standard Deviations for 100-residue windows */
+const float     aasd100[20] =
+        {
+                4.02,3.05,2.87,2.71,1.88,2.63,3.46,3.45,1.79,3.19,
+                3.77,3.64,1.71,2.62,3.00,3.63,2.83,1.32,2.18,2.92
+        };
+
+void Util::filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM){
+    char id[1000];
+    for (int j=0; j<W; j++){
+        id[j]=0;
+    }
+    int sum = 0;         // number of identities
+    int j = 0;
+    for (int i = p; i < seqLen; i++)
+    {
+        sum -= id[j];
+        id[j] = ( seq[i - p] == seq[i] ? 1 : 0 );
+        sum += id[j];
+        if (sum >= W - MM)
+            for (int k = std::max(0,i - W - p + 1); k <= i; k++){
+                mask[k] = 1;
+            }
+        if (++j >= W) {
+            j=0;
+        }
+    }
+}
+size_t Util::maskLowComplexity(BaseMatrix * m, Sequence *s,
+                               int seqLen,
+                               int windowSize,
+                               int maxAAinWindow,
+                               int alphabetSize, int maskValue) {
+    size_t aafreq[21];
+
+    char * mask = new char[seqLen];
+    memset(mask, 0, seqLen * sizeof(char));
+
+
+//    // Filter runs of 4 identical residues
+    filterRepeates(s->int_sequence, seqLen, mask, 1, 4, 0);
+//
+//    // Filter runs of 4 doublets with a maximum of one mismatch
+    filterRepeates(s->int_sequence, seqLen, mask, 2, 8, 1);
+//
+//    // Filter runs of 4 triplets with a maximum of two mismatches
+    filterRepeates(s->int_sequence, seqLen, mask, 3, 9, 2);
+    filterByBiasCorrection(s, seqLen, m, mask, 70);
+//
+    // filter low complex
+    for (int i = 0; i < seqLen - windowSize; i++)
+    {
+        for (int j = 0; j < alphabetSize; j++){
+            aafreq[j] = 0;
+        }
+        for (int j = 0; j < windowSize; j++){
+            aafreq[s->int_sequence[i + j]]++;
+        }
+        int n = 0;
+        for (int j = 0; j < alphabetSize; j++){
+            if (aafreq[j]){
+                n++; // count # amino acids
+            }
+        }
+        if (n <= maxAAinWindow)
+        {
+            for (int j = 0; j < windowSize; j++)
+                mask[i + j] = 1;
+        }
+    }
+
+    // filter coil
+    // look at 3 possible coils -> 21 pos (3 * 7)
+    for (int i = 0; i < seqLen - 21; i++)
+    {
+        int tot = 0;
+        for (int l = 0; l < 21; l++)
+            tot += ccoilmat[s->int_sequence[i + l]][l % 7];
+        if (tot > 10000)
+        {
+            for (int l = 0; l < 21; l++)
+                mask[i + l] = 1;
+        }
+    }
+    size_t maskedResidues = 0;
+    for (int i = 0; i < seqLen; i++){
+        maskedResidues += (mask[i]);
+        s->int_sequence[i] = (mask[i]) ? maskValue : s->int_sequence[i];
+    }
+    delete [] mask;
+    return maskedResidues;
+}
+
+std::map<unsigned int, std::string> Util::readLookup(const std::string& file) {
+    std::map<unsigned int, std::string> mapping;
+    if (file.length() > 0) {
+        std::fstream mappingStream(file);
+        if (mappingStream.fail()) {
+            Debug(Debug::ERROR) << "File " << file << " not found!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        std::string line;
+        while (std::getline(mappingStream, line)) {
+            std::vector<std::string> split = Util::split(line, "\t");
+            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
+            mapping.emplace(id, split[1]);
+        }
+    }
+
+    return mapping;
+}
+
+void Util::filterByBiasCorrection(Sequence *s, int seqLen, BaseMatrix *m, char *mask, int scoreThr) {
+    char * compositionBias = new char[seqLen];
+    float * tmp_composition_bias = new float[seqLen];
+    SubstitutionMatrix::calcLocalAaBiasCorrection(m, s->int_sequence, seqLen, tmp_composition_bias);
+    //const int8_t seed_6_spaced[] = {1, 1, 0, 1, 0, 1, 0, 0, 1, 1}; // better than 11101101
+    const int8_t pos[] = {0, 1, 3, 5, 8, 9}; // better than 11101101
+
+    for(int i = 0; i < seqLen; i++){
+        compositionBias[i] = (int8_t) (tmp_composition_bias[i] < 0.0)
+                             ? tmp_composition_bias[i] - 0.5: tmp_composition_bias[i] + 0.5;
+    }
+    for(int i = 0; i < seqLen - 10; i++){
+        int kmerScore = 0;
+        for (unsigned int kmerPos = 0; kmerPos < 6; kmerPos++) {
+            unsigned int aa_pos = i + pos[kmerPos];
+            unsigned int aa = s->int_sequence[aa_pos];
+            kmerScore += m->subMatrix[aa][aa] + compositionBias[aa_pos];
+        }
+        if(kmerScore <= scoreThr) {
+            for (unsigned int kmerPos = 0; kmerPos < 6; kmerPos++) {
+                unsigned int aa_pos = i +  pos[kmerPos];
+                mask[aa_pos] = 1;
+            }
+        }
+    }
+    delete [] compositionBias;
+    delete [] tmp_composition_bias;
+}
+
+
+
+
+
+
 

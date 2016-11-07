@@ -1,8 +1,12 @@
 #include "FileUtil.h"
 #include "Util.h"
 #include "Debug.h"
+#include "MemoryMapped.h"
 #include <sys/stat.h>
+#include <stdio.h>
 #include <fstream>
+#include <fcntl.h>
+#include <unistd.h>
 
 void FileUtil::errorIfFileExist(const char * file){
     struct stat st;
@@ -39,26 +43,13 @@ FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool sho
 }
 
 size_t FileUtil::countLines(const char* name) {
-    std::ifstream index(name);
-    if (index.fail()) {
-        Debug(Debug::ERROR) << "File " << name << " not found!\n";
-        EXIT(EXIT_FAILURE);
-    }
-
+    MemoryMapped indexData(name, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     size_t cnt = 0;
-    std::vector<char> buffer(1024 * 1024);
-    index.read(buffer.data(), buffer.size());
-    while (size_t r = index.gcount()) {
-        for (size_t i = 0; i < r; i++) {
-            const char *p = buffer.data();
-            if (p[i] == '\n') {
-                cnt++;
-            }
-        }
-        index.read(buffer.data(), buffer.size());
+    char* indexDataChar = (char *) indexData.getData();
+    for(size_t pos = 0; pos < indexData.size(); pos++) {
+        cnt += (indexDataChar[pos] == '\n') ? 1 : 0;
     }
-    index.close();
-
+    indexData.close();
     return cnt;
 }
 
@@ -69,4 +60,10 @@ void FileUtil::deleteTempFiles(std::list<std::string> tmpFiles) {
             Debug(Debug::WARNING) << "Error deleting file " << *it << "\n";
         }
     }
+}
+
+void FileUtil::writeFile(std::string pathToFile, unsigned char *data, size_t len) {
+    int file = open(pathToFile.c_str(), O_RDWR|O_CREAT, 0700);
+    write(file, data, len);
+    close(file);
 }

@@ -179,9 +179,9 @@ double CompareGOTerms::compare_protein_ids(const char *prot1, const char *prot2)
 }
 
 void CompareGOTerms::all_against_all_comparison() {
-    for (int i = 0; i < total_go_number; i++) {
+    for (int i = 0; i < (int) total_go_number; i++) {
         Debug(Debug::INFO) << convert_index_toGOterm(i) << "\t";
-        for (int j = 0; j < total_go_number; ++j) {
+        for (int j = 0; j < (int) total_go_number; ++j) {
             if (count_goterm[i] > 0 && count_goterm[j] > 0) {
                 Debug(Debug::INFO) << similarity(i, j) << "\t";
             }

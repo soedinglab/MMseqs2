@@ -15,6 +15,12 @@
 #define REGEX_FILTERING 0
 #define FILE_FILTERING 1
 #define FILE_MAPPING 2
+#define GET_FIRST_LINES 3
+#define NUMERIC_COMPARISON 4
+
+#define GREATER_OR_EQUAL "ge"
+#define LOWER_OR_EQUAL "le"
+#define EQUAL "e"
 
 class ffindexFilter {
 public:
@@ -40,6 +46,21 @@ public:
 				  std::string filterFile,
 				  int threads,
 				  size_t column);
+
+	// Constructor for extract first line
+	ffindexFilter(std::string inDB,
+				  std::string outDB,
+				  int threads,
+				  size_t column,
+                 int numberOfLines);
+                 
+	// Constructor for numeric comparison
+	ffindexFilter(std::string inDB,
+				  std::string outDB,
+				  int threads,
+				  size_t column,
+                 float compValue,
+                 std::string compOperator);
 				  
 	~ffindexFilter();
 	
@@ -56,7 +77,10 @@ private:
     bool trimToOneColumn;
     // positiveFilter = true => outDB = inDB \intersect filter ; othw : outDB = inDB - filter
     bool positiveFiltering;
+    int numberOfLines;
     int mode;
+    float compValue;
+	std::string compOperator;
 
     DBWriter* dbw;
 	DBReader<unsigned int>* dataDb;
@@ -81,8 +105,8 @@ private:
 	};
 
 	struct compareToFirstString {
-		bool operator() (const std::string& lhs, const std::pair<std::string,std::string>& rhs) const{
-			return (lhs.compare(rhs.first)<=0);
+		bool operator() (const std::pair<std::string,std::string>& lhs,const std::string& rhs) const{
+			return (lhs.first.compare(rhs)<0);
 		}
 	};
 

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <typeinfo>
+#include "Command.h"
 
 #define PARAMETER(x) const static int x##_ID = __COUNTER__; \
     				 MMseqsParameter x;
@@ -20,9 +21,20 @@ struct MMseqsParameter {
     void * value;
     const char * regex;
     bool wasSet;
+    int category;
+
+    static const int COMMAND_PREFILTER = 1;
+    static const int COMMAND_ALIGN = 2;
+    static const int COMMAND_CLUST = 4;
+    static const int COMMAND_COMMON = 8;
+    static const int COMMAND_PROFILE = 16;
+    static const int COMMAND_MISC = 32;
+    static const int COMMAND_CLUSTLINEAR = 64;
+
     MMseqsParameter(int uid, const char * n, const char *display,
-                    const char * d, const std::type_info &hash, void * value, const char * regex):
-                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false){}
+                    const char * d, const std::type_info &hash,
+                    void * value, const char * regex, int category = COMMAND_MISC):
+                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false), category(category){}
 };
 
 
@@ -42,14 +54,16 @@ public:
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
     static const int FORMAT_ALIGNMENT_SAM       = 2;
-
+    // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;
     static const int PROFILE_MODE_PSSM = 1;
+    static const int PROFILE_MODE_HMM3 = 2;
 
+    // clustering
     static const int SET_COVER = 0;
     static const int CONNECTED_COMPONENT = 1;
     static const int GREEDY = 2;
-
+    // clustering
     static const int APC_ALIGNMENTSCORE=1;
     static const int APC_SEQID=2;
     // split mode
@@ -63,6 +77,12 @@ public:
     static const int FORCE_INCLUDE = 1;
 
     static const int MAX_SEQ_LEN = 32000;
+
+    // extractalignedregion
+    static const int EXTRACT_QUERY  = 1;
+    static const int EXTRACT_TARGET = 2;
+
+    static const int CLUST_HASH_DEFAULT_ALPH_SIZE = 3;
 
     // COMMON
     const char** argv;            //command line parameters
@@ -84,8 +104,6 @@ public:
     std::string db5;
     std::string db5Index;
 
-    std::string mmdir;
-
     std::string scoringMatrixFile;       // path to scoring matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
@@ -100,7 +118,6 @@ public:
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
-    int    searchMode;                   // Local search type
     bool   profile;                      // using profile information
     bool   nucl;                         // using nucl informatoin
     int    compBiasCorrection;           // Aminoacid composiont correction
@@ -110,6 +127,7 @@ public:
     int    split;                        // Split database in n equal chunks
     int    splitMode;                    // Split by query or target DB (MPI only)
     bool   splitAA;                      // Split database by amino acid count instead
+    size_t resListOffset;                // Offsets result list
 
     // ALIGNMENT
     std::string ffindexPrefDB;           // prefilter database (input for alignment module)
@@ -140,7 +158,7 @@ public:
     int maxIteration;                   // Maximum depth of breadth first search in connected component
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
 
-    //extractorf
+    //extractorfs
     int orfMinLength;
     int orfMaxLength;
     int orfMaxGaps;
@@ -150,9 +168,8 @@ public:
     std::string forwardFrames;
     std::string reverseFrames;
 
-    // createprofiledb
+    // convertprofiledb
     int profileMode;
-    bool useIndex;
     // format alignment
     int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
 
@@ -175,23 +192,33 @@ public:
     float pca;
     float pcb;
     bool noPruning;
+    bool firstSeqRepr;
+    bool useConsensus;
+    
+    //result2stats
+    std::string stat;
+
+    // linearcluster
+    int kmersPerSequence;
 
     // createdb
     bool useHeader;
     int identifierOffset;
     bool splitSeqByLen;
 
-    // rebuildfasta
+    // convert2fasta
     bool useHeaderFile;
 
-    // gff2ffindex
+    // gff2db
     std::string gffType;
 
     // translate nucleotide
     int translationTable;
 
-    // addSequences
+    // createseqfiledb
     int minSequences;
+    int maxSequences;
+    bool hhFormat;
 
     // filterDb
     int filterColumn;
@@ -200,8 +227,11 @@ public:
 	std::string mappingFile;
 	bool positiveFilter;
 	bool trimToOneColumn;
+    int extractLines;
+    float compValue;
+    std::string compOperator;
 
-    // mergeffindex
+    // mergedbs
     std::string mergePrefixes;
 
     // evaluationscores
@@ -209,23 +239,43 @@ public:
     bool randomizedRepresentative;
     bool use_sequenceheader;
 
+    // summarizetabs
+    float overlap;
+    int msaType;
+
+    // extractalignedregion
+    int extractMode;
+
+    // convertkb
+    std::string kbColumns;
+
+    //count
+    std::string countCharacter;
+    
+    // concatdbs
+    bool preserveKeysB;
+
+    static Parameters& getInstance()
+    {
+        static Parameters instance;
+        return instance;
+    }
     
     void checkSaneEnvironment();
     void setDefaults();
     void parseParameters(int argc, const char* argv[],
-                         const std::string &programUsageHeader,
-                         std::vector<MMseqsParameter> &par,
+                         const Command& command,
                          size_t requiredParameterCount,
                          bool printParameters = true,
-                         bool isVariadic = false);
-    void printUsageMessage(const std::string &programUsageHeader,
-                           const std::vector<MMseqsParameter> &parameters);
+                         bool isVariadic = false,
+                         int outputFlag = 0);
+    void printUsageMessage(const Command& command,
+                           const int outputFlag);
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	
 	std::vector<MMseqsParameter> removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x);
-	
-    Parameters();
+
     ~Parameters(){};
 
     PARAMETER(PARAM_S)
@@ -234,7 +284,7 @@ public:
     PARAMETER(PARAM_ALPH_SIZE)
     PARAMETER(PARAM_MAX_SEQ_LEN)
     PARAMETER(PARAM_PROFILE)
-    PARAMETER(PARAM_NUCL)
+    //PARAMETER(PARAM_NUCL)
     PARAMETER(PARAM_DIAGONAL_SCORING)
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)
@@ -243,24 +293,24 @@ public:
     PARAMETER(PARAM_SPLIT_MODE)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)
-    PARAMETER(PARAM_SEARCH_MODE)
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
+    PARAMETER(PARAM_RES_LIST_OFFSET)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
     PARAMETER(PARAM_ALIGNMENT_MODE)
     PARAMETER(PARAM_E)
     PARAMETER(PARAM_C)
-    PARAMETER(PARAM_FRAG_MERGE)
     PARAMETER(PARAM_MAX_REJECTED)
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
+    PARAMETER(PARAM_FRAG_MERGE)
 
-    std::vector<MMseqsParameter> alignment;
+    std::vector<MMseqsParameter> align;
 
     // clustering
     PARAMETER(PARAM_CLUSTER_MODE)
@@ -272,7 +322,7 @@ public:
     PARAMETER(PARAM_SIMILARITYSCORE)
     // logging
     PARAMETER(PARAM_V)
-    std::vector<MMseqsParameter> clustering;
+    std::vector<MMseqsParameter> clust;
 
     // create profile (HMM, PSSM)
     PARAMETER(PARAM_PROFILE_TYPE)
@@ -298,9 +348,14 @@ public:
     PARAMETER(PARAM_WG)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
+    //PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
 //    PARAMETER(PARAM_NO_PRUNING)
 
+    // result2stat
+    PARAMETER(PARAM_STAT)
 
+    // linearcluster
+    PARAMETER(PARAM_KMER_PER_SEQ)
     // workflow
     PARAMETER(PARAM_RUNNER)
 
@@ -308,7 +363,6 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEP_SIZE)
-    PARAMETER(PARAM_USE_INDEX)
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
@@ -320,21 +374,23 @@ public:
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
 
     // createdb
-    PARAMETER(PARAM_USE_HEADER) // also used by extractorf
+    PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
     PARAMETER(PARAM_ID_OFFSET)  // same
     PARAMETER(PARAM_DONT_SPLIT_SEQ_BY_LEN)
 
-    // rebuildfasta
+    // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
 
-    // gff2ffindex
+    // gff2db
     PARAMETER(PARAM_GFF_TYPE)
 
     // translate_nucleotide
     PARAMETER(PARAM_TRANSLATION_TABLE)
 
-    // addsequences
+    // createseqfiledb
     PARAMETER(PARAM_MIN_SEQUENCES)
+    PARAMETER(PARAM_MAX_SEQUENCES)
+    PARAMETER(PARAM_HH_FORMAT)
 
     // filterDb
     PARAMETER(PARAM_FILTER_COL)
@@ -343,8 +399,15 @@ public:
     PARAMETER(PARAM_FILTER_FILE)
     PARAMETER(PARAM_MAPPING_FILE)
     PARAMETER(PARAM_TRIM_TO_ONE_COL)
+    PARAMETER(PARAM_EXTRACT_LINES)
+    PARAMETER(PARAM_COMP_OPERATOR)
+    PARAMETER(PARAM_COMP_VALUE)
 
-    // mergeffindex
+    // concatdb
+    PARAMETER(PARAM_PRESERVEKEYS)
+    
+    
+    // mergedbs
     PARAMETER(PARAM_MERGE_PREFIXES)
 
     // evaluationScore
@@ -352,43 +415,69 @@ public:
     PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
     PARAMETER(PARAM_EVALUATION_USE_SEQUENCEHEADER)
 
+    // summarizetabs
+    PARAMETER(PARAM_OVERLAP)
+
+    // extractdomains
+    PARAMETER(PARAM_MSA_TYPE)
+
+    // extract aligned region
+    PARAMETER(PARAM_EXTRACT_MODE)
+
+    // convertkb
+    PARAMETER(PARAM_KB_COLUMNS)
+
+    // count
+    PARAMETER(PARAM_COUNT_CHARACTER)
+
     std::vector<MMseqsParameter> empty;
 
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createFasta;
-    std::vector<MMseqsParameter> createprofiledb;
+    std::vector<MMseqsParameter> convertprofiledb;
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2msa;
-    std::vector<MMseqsParameter> extractorf;
-    std::vector<MMseqsParameter> splitffindex;
+    std::vector<MMseqsParameter> result2stats;
+    std::vector<MMseqsParameter> extractorfs;
+    std::vector<MMseqsParameter> splitdb;
     std::vector<MMseqsParameter> createindex;
-    std::vector<MMseqsParameter> formatalignment;
+    std::vector<MMseqsParameter> convertalignments;
     std::vector<MMseqsParameter> createdb;
-    std::vector<MMseqsParameter> rebuildfasta;
+    std::vector<MMseqsParameter> convert2fasta;
     std::vector<MMseqsParameter> gff2ffindex;
-    std::vector<MMseqsParameter> detectredundancy;
+    std::vector<MMseqsParameter> clusthash;
+    std::vector<MMseqsParameter> linearfilter;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;
     std::vector<MMseqsParameter> clusterUpdateClust;
     std::vector<MMseqsParameter> clusterUpdate;
-    std::vector<MMseqsParameter> translateNucleotide;
-    std::vector<MMseqsParameter> addSequences;
+    std::vector<MMseqsParameter> translatenucs;
+    std::vector<MMseqsParameter> createseqfiledb;
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> swapresults;
-    std::vector<MMseqsParameter> substractresult;
+    std::vector<MMseqsParameter> subtractdbs;
     std::vector<MMseqsParameter> result2newick;
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> dbconcat;
     std::vector<MMseqsParameter> mergeffindex;
-    std::vector<MMseqsParameter> summarize;
+    std::vector<MMseqsParameter> summarizeheaders;
     std::vector<MMseqsParameter> evaluationscores;
     std::vector<MMseqsParameter> prefixid;
+    std::vector<MMseqsParameter> summarizetabs;
+    std::vector<MMseqsParameter> extractdomains;
+    std::vector<MMseqsParameter> extractalignedregion;
+    std::vector<MMseqsParameter> count;
+    std::vector<MMseqsParameter> convertkb;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);
 
     std::string createParameterString(std::vector < MMseqsParameter > &vector);
+private:
+    Parameters();
+    Parameters(Parameters const&);
+    void operator=(Parameters const&);
 
 };
 

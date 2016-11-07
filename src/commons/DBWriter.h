@@ -10,6 +10,7 @@
 
 #include <string>
 #include <vector>
+#include "DBReader.h"
 
 template <typename T> class DBReader;
 
@@ -22,7 +23,7 @@ class DBWriter {
 
         ~DBWriter();
 
-        void open();
+        void open(size_t bufferSize = 64 * 1024 * 1024);
 
         void close();
     
@@ -30,7 +31,7 @@ class DBWriter {
     
         char* getIndexFileName() { return indexFileName; }
 
-        void write(const char *data, size_t dataSize, const char *key, unsigned int threadIdx = 0);
+        void writeData(const char *data, size_t dataSize, const char *key, unsigned int threadIdx = 0);
 
         void mergeFiles(DBReader<unsigned int>& qdbr,
                         const std::vector<std::pair<std::string, std::string> >& files,
@@ -42,7 +43,17 @@ class DBWriter {
                                         const char **indexFileNames, unsigned int fileCount);
 
         void mergeFilePair(const char *inData1, const char *inIndex1, const char *inData2, const char *inIndex2);
+
+
 private:
+
+    struct IndexType {
+        typedef DBReader<unsigned int>::Index int_type;
+        typedef DBReader<std::string>::Index string_type;
+    };
+    static void writeIndex(FILE *outFile, IndexType::string_type *index, size_t indexSize, unsigned int *seqLen);
+    static void writeIndex(FILE *outFile, size_t indexSize, IndexType::int_type *index, unsigned int *seqLen);
+
 
     void checkClosed();
 
@@ -50,6 +61,8 @@ private:
     char* indexFileName;
 
     FILE** dataFiles;
+    char** dataFilesBuffer;
+    size_t bufferSize;
     FILE** indexFiles;
 
     char** dataFileNames;
@@ -62,6 +75,8 @@ private:
     bool closed;
 
     std::string datafileMode;
+
+
 };
 
 #endif

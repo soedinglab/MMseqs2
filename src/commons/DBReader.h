@@ -23,15 +23,15 @@ public:
     };
     DBReader(const char* dataFileName, const char* indexFileName, int mode = USE_DATA|USE_INDEX);
 
-    ~DBReader();
+    virtual ~DBReader();
 
     void open(int sort);
 
     void close();
 
-    char* getDataFileName() { return dataFileName; }
+    const char* getDataFileName() { return dataFileName; }
 
-    char* getIndexFileName() { return indexFileName; }
+    const char* getIndexFileName() { return indexFileName; }
 
     size_t getAminoAcidDBSize(){ return aaDbSize; }
 
@@ -55,7 +55,6 @@ public:
     // returns UINT_MAX if the key is not contained in index
     size_t getId (T dbKey);
 
-
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
     static const int LINEAR_ACCCESS = 2;
@@ -78,7 +77,7 @@ public:
 
     void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
 
-    void readIndexId(T* id, char* line, char** save);
+    void readIndexId(T* id, char * line, char** cols);
 
     void readMmapedDataInMemory();
 
@@ -98,6 +97,8 @@ public:
     }
 
     void printMagicNumber();
+    
+    T getLastKey();
 
 private:
 
@@ -152,6 +153,8 @@ private:
     unsigned int * id2local;
     unsigned int * local2id;
 
+    T lastKey;
+    
     bool dataMapped;
     int accessType;
 

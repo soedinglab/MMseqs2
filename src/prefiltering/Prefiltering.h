@@ -7,8 +7,7 @@
 #include "IndexTable.h"
 #include "BaseMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
-#include "QueryScore.h"
-#include "QueryTemplateMatcher.h"
+#include "QueryMatcher.h"
 
 #include <string>
 #include <list>
@@ -30,28 +29,36 @@ public:
     void run(size_t dbFrom, size_t dbSize, int splitMode, const std::string &resultDB,
              const std::string &resultDBIndex);
 
-    void run(int mpi_rank, int mpi_num_procs);
-
-    void run();
+    void run(size_t fromSplit, size_t splits);
 
     void closeReader();
+    // merge file
+    static void mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles, int mode,
+                           std::string outDb, std::string outDBIndex);
 
     static void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
                             const std::vector<std::pair<std::string, std::string>> &filenames);
 
-    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize); // needed for index lookup
+    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, int threads); // needed for index lookup
 
-    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, int alphabetSize, int kmerSize,
-                                          size_t dbFrom, size_t dbTo, int searchMode, bool diagonalScoring);
+    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
+                                          int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
+                                          bool diagonalScoring, int threads);
 
-    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
-                             size_t dbFrom, size_t dbTo);
+    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
+                             size_t dbFrom, size_t dbTo, bool diagonalScoring, int threads);
 
     // get substitution matrix
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, int alphabetSize, float bitFactor,
                                              bool ignoreX);
 
+    size_t getSplitMode(){
+        return splitMode;
+    }
 
+    size_t setSplit(size_t split){
+        return this->split = split;
+    }
 private:
     static const size_t BUFFER_SIZE = 1000000;
 
@@ -63,7 +70,7 @@ private:
 
 
     Sequence **qseq;
-    int *notEmpty;
+    char *notEmpty;
 
     std::list<int> **reslens;
     BaseMatrix *subMat;
@@ -77,9 +84,10 @@ private:
     const int kmerScore;
     bool spacedKmer;
     const float sensitivity;
+    size_t resListOffset;
     size_t maxResListLen;
     int alphabetSize;
-    const size_t maxSeqLen;
+    size_t maxSeqLen;
     const int querySeqType;
     const int targetSeqType;
     bool templateDBIsIndex;
@@ -90,7 +98,6 @@ private:
     double kmerMatchProb;
     int split;
     int splitMode;
-    int searchMode;
     bool sameQTDB;
     bool includeIdentical;
 
@@ -102,16 +109,16 @@ private:
 
     // write prefiltering to ffindex database
     int writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
-                             const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset, bool diagonalScoring);
+                             const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
+                             bool diagonalScoring, size_t resultOffsetPos);
 
     // init QueryTemplateMatcher
-    QueryTemplateMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
-                                                      unsigned int *seqLens, short kmerThr,
-                                                      double kmerMatchProb, int kmerSize,
-                                                      size_t effectiveKmerSize, size_t dbSize,
-                                                      bool aaBiasCorrection, bool diagonalScoring,
-                                                      unsigned int maxSeqLen, int searchMode,
-                                                      size_t maxHitsPerQuery);
+    QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
+                                              unsigned int *seqLens, short kmerThr,
+                                              double kmerMatchProb, int kmerSize,
+                                              size_t effectiveKmerSize, size_t dbSize,
+                                              bool aaBiasCorrection, bool diagonalScoring,
+                                              unsigned int maxSeqLen, size_t maxHitsPerQuery);
 
 
     void printStatistics(const statistics_t &stats, size_t empty);
@@ -120,12 +127,12 @@ private:
                                                   unsigned int *querySeqsIds, bool reverseQuery,
                                                   const size_t kmerThrMid);
 
-    void mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles, int mode);
-
     int getKmerThreshold(const float sensitivity, const int score);
 
     size_t computeMemoryNeeded(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
                                int threads);
+
+    std::string searchForIndex(const std::string &pathToDB);
 };
 
 #endif
