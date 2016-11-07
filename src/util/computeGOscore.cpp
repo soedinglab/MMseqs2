@@ -49,18 +49,24 @@ int computeGOscore(int argc, const char **argv) {
     //"/home/lars/masterarbeit/data/uniprot/release-2015_04/evaluation"
     //      "/home/lars/masterarbeit/db/sprot/uniprot_sprot_s4_affinity"
 
-    std::string *goCategories = new std::string[3];
-    goCategories[0] = "_C";
-    goCategories[1] = "_F";
-    goCategories[2] = "_P";
+    std::string *goCategories = new std::string[1];
+    goCategories[0] = "_F";
+    //goCategories[1] = "_C";
+    //goCategories[2] = "_P";
 
     std::string *evidenceCategories = new std::string[3];
-    evidenceCategories[0] = "";
-    evidenceCategories[1] = "_EXP";
-    evidenceCategories[2] = "_NON-IEA";
+    evidenceCategories[0] = "_EXP";
+    evidenceCategories[1] = "_NON-IEA";
+    evidenceCategories[2] = "";
 
-    for (int j = 0; j < 3; ++j) {
-        for (int i = 0; i < 3; ++i) {
+    int evidencenumber = 3;
+    
+    if( allagainstall) {
+        evidencenumber=2;
+     }
+
+    for (int j = 0; j < evidencenumber; ++j) {
+        for (int i = 0; i < 1; ++i) {
             CompareGOTerms go(gofolder + "go-fasta_db" + goCategories[i],
                                                     gofolder + "go-fasta_db" + goCategories[i] + ".index",
                                                     gofolder + "uniprot_sprot.dat_go_db" +
