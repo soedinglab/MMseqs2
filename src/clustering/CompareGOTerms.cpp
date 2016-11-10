@@ -81,7 +81,7 @@ void CompareGOTerms::init() {
         count_accumulated_goterm[i] = 0;
         // char *data = go_ffindex_reader->getData(i);
         std::string childterm = go_ffindex_reader->getDbKey(i);
-        snprintf(singletermbuffer, 7, "%s", childterm.c_str() + 3);
+        snprintf(singletermbuffer, 8, "%s", childterm.c_str() + 3);
 
         index_togoterm[i] = atoi(singletermbuffer);
         goterm_to_index[atoi(singletermbuffer)] = i;
@@ -100,7 +100,7 @@ void CompareGOTerms::init() {
             int counter = 0;
             char *position = parentterm;
             while (parentterm[counter] != '\0') {
-                snprintf(singletermbuffer, 7, "%s", position + 3);
+                snprintf(singletermbuffer, 8, "%s", position + 3);
                 //  Debug(Debug::INFO) << singletermbuffer << "\t";
                 counter += 10;
                 position = position + 10;
@@ -144,11 +144,11 @@ void CompareGOTerms::init() {
     for (size_t j = 0; j < m; j++) {
         char *data = protid_go_ffindex_reader->getData(j);
         size_t counter = 0;
-        snprintf(singletermbuffer, 7, "%s", data + counter + 3);
+        snprintf(singletermbuffer, 8, "%s", data + counter + 3);
         count_goterm[convert_GOterm_to_index(atoi(singletermbuffer))]++;
         while (data[counter] != '\0') {
             if (data[counter] == '.' && (data[counter + 1] != '\0' && data[counter + 1] != '\n')) {
-                snprintf(singletermbuffer, 7, "%s", data + counter + 4);
+                snprintf(singletermbuffer, 8, "%s", data + counter + 4);
                 count_goterm[convert_GOterm_to_index(atoi(singletermbuffer))]++;
             }
             counter++;
@@ -232,13 +232,26 @@ double CompareGOTerms::similarity(int id1, int id2) {
 
 int CompareGOTerms::most_specific_parent(int id1, int id2) {
     int result = count_goterm_total_sum;
+
+    std::set<int> set1= *new std::set<int>();
     for (int parentid1 : parentsets[id1]) {
-        for (int parentid2 : parentsets[id2]) {
+        set1.insert(parentid1);
+    }
+    std::set<int> set2= *new std::set<int>();
+    for (int parentid2 : parentsets[id2]) {
+        set2.insert(parentid2);
+    }
+    for (int parentid1 : set1) {
+        for (int parentid2 : set2) {
+                //Debug(Debug::INFO) << parentid1 << " "<<parentid2 << "\n";
             if (parentid1 == parentid2) {
+                //Debug(Debug::INFO) << parentid1 << " "<<parentid2 << "\n";
                 result = std::min(result, count_accumulated_goterm[parentid1]);
             }
         }
     }
+    if (result==0)
+        Debug(Debug::ERROR)<<"Error in most specific term calculation!!!\n";
     return result;
 }
 
@@ -251,12 +264,12 @@ std::list<int> CompareGOTerms::getGOListforProtein(const char *protid) {
     }
 
     size_t counter = 0;
-    snprintf(buffer, 7, "%s", data + counter + 3);
+    snprintf(buffer, 8, "%s", data + counter + 3);
     result.push_back(convert_GOterm_to_index(atoi(buffer)));
 
     while (data[counter] != '\0') {
         if (data[counter] == '.' && (data[counter + 1] != '\0' && data[counter + 1] != '\n')) {
-            snprintf(buffer, 7, "%s", data + counter + 4);
+            snprintf(buffer, 8, "%s", data + counter + 4);
             result.push_back(convert_GOterm_to_index(atoi(buffer)));
         }
         counter++;
