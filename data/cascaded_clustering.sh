@@ -27,19 +27,8 @@ hasCommand awk
 export OMP_PROC_BIND=TRUE
 
 INPUT="$1"
-if [ -n "$CLUSTER_FRAG" ]; then
-    notExists "$3/pref_frag" && $MMSEQS clustlinear     "$INPUT" "$3/pref_frag" --target-cov 0.95 && checkReturnCode "Fast clustlinear step frag died"
-    notExists "$3/aln_frag" &&  $MMSEQS rescorediagonal "$INPUT" "$INPUT" "$3/pref_frag" "$3/aln_frag" --min-seq-id 0.9 --target-cov 0.95 && checkReturnCode "Alignment step frag died"
-    notExists "$3/clu_frag" &&  $MMSEQS clust           "$INPUT" "$3/aln_frag" "$3/clu_frag" --cluster-mode 2 && checkReturnCode "Cluster step frag died"
-    awk '{ print $1 }' "$3/clu_frag.index" > "$3/order_frag"
-    notExists "$3/input_step_frag" && $MMSEQS createsubdb "$3/order_frag" $INPUT "$3/input_step_frag" && checkReturnCode "MMseqs order step $STEP died"
-    INPUT="$3/input_step_frag"
-fi
-
-
-notExists "$3/pref_redundancy" && $MMSEQS clustlinear "$INPUT" "$3/pref_redundancy" ${CLUSTLINEAR_PAR} && checkReturnCode "Fast filter step $STEP died"
-notExists "$3/aln_redundancy" && $RUNNER $MMSEQS align "$INPUT" "$INPUT" "$3/pref_redundancy" "$3/aln_redundancy" ${ALIGNMENT1_PAR} && checkReturnCode "Fast alignment step $STEP died"
-notExists "$3/clu_redundancy" &&  $MMSEQS clust $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER1_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
+notExists "$3/aln_redundancy" && $MMSEQS clusthash "$INPUT" "$3/aln_redundancy" ${DETECTREDUNDANCY_PAR} && checkReturnCode "Fast filter step $STEP died"
+notExists "$3/clu_redundancy" && $MMSEQS clust $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER1_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
 awk '{ print $1 }' "$3/clu_redundancy.index" > "$3/order_redundancy"
 notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/order_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
 
@@ -61,15 +50,9 @@ while [ $STEP -lt 4 ]; do
 
     NEXTINPUT="$3/input_step$((STEP+1))"
     if [ $STEP -eq 3 ]; then
-        if [ -n "$CLUSTER_FRAG" ]; then
-        notExists "$3/clu" \
-            && $MMSEQS mergeclusters "$1" "$3/clu" "$3/clu_frag" "$3/clu_redundancy" "$3/clu_step0" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3" \
-            && checkReturnCode "Merging of clusters has died"
-        else
         notExists "$3/clu" \
             && $MMSEQS mergeclusters "$1" "$3/clu" "$3/clu_redundancy" "$3/clu_step0" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3" \
             && checkReturnCode "Merging of clusters has died"
-        fi
     else
         notExists "$3/order_step$STEP" \
             && awk '{ print $1 }' "$3/clu_step$STEP.index" > "$3/order_step$STEP" \
@@ -90,9 +73,6 @@ checkReturnCode "Could not move result to $2"
 
 if [ -n "$REMOVE_TMP" ]; then
  echo "Remove temporary files"
- rm -f "$3/aln_frag" "$3/aln_frag.index"
- rm -f "$3/clu_frag" "$3/clu_frag.index"
- rm -f "$3/pref_frag" "$3/pre_frag.index"
  rm -f "$3/clu_redundancy" "$3/clu_redundancy.index"
  rm -f "$3/aln_redundancy" "$3/aln_redundancy.index"
  rm -f "$3/input_step_redundancy" "$3/input_step_redundancy.index"
