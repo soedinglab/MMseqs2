@@ -103,7 +103,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.alphabetSize = alphabetSize;
         par.kmerSize = kmerSize;
         // 1 is lowest sens
-        par.clusteringMode = Parameters::GREEDY;
+//        par.clusteringMode = Parameters::GREEDY;
         par.sensitivity = 1;
         par.maxResListLen = 20;
         int minDiagScoreThr = par.minDiagScoreThr;
@@ -116,7 +116,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         cmd.addVariable("CLUSTER0_PAR", par.createParameterString(par.clust).c_str());
 
         // set parameter for first step
-        par.clusteringMode = Parameters::SET_COVER;
+//        par.clusteringMode = Parameters::SET_COVER;
         par.sensitivity = targetSensitivity / 3.0;
         par.maxResListLen = 100;
         par.diagonalScoring = 1;

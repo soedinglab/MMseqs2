@@ -94,7 +94,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
     std::string headerIndexNameTarget(par.db2);
     headerIndexNameTarget.append("_h.index");
 
-    bool firstSeqRepr = par.db1.compare(par.db2) == 0; 
+    bool firstSeqRepr = (par.db1.compare(par.db2) == 0) && (mode == CA3M); 
     if (firstSeqRepr)
         Debug(Debug::INFO) << "Using the first target sequence as center sequence for making each alignment.\n";
     

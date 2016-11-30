@@ -89,7 +89,7 @@ void DBReader<std::string>::sortIndex() {
         for (size_t i = 0; i < size; i++) {
             sortArray[i] = std::make_pair(index[i], seqLens[i]);
         }
-        omptl::sort(sortArray, sortArray + size, compareIndexLengthPairById());
+        std::stable_sort(sortArray, sortArray + size, compareIndexLengthPairById());
         for (size_t i = 0; i < size; ++i) {
             index[i].id = sortArray[i].first.id;
             index[i].offset = sortArray[i].first.offset;
@@ -115,7 +115,7 @@ void DBReader<unsigned int>::sortIndex() {
     for (size_t i = 0; i < size; i++) {
         sortArray[i] = std::make_pair(index[i], std::make_pair(i,seqLens[i]));
     }
-    omptl::sort(sortArray, sortArray + size, compareIndexLengthPairByIdKeepTrack());
+    std::stable_sort(sortArray, sortArray + size, compareIndexLengthPairByIdKeepTrack());
     for (size_t i = 0; i < size; ++i) {
         index[i].id = sortArray[i].first.id;
         index[i].offset = sortArray[i].first.offset;
@@ -134,7 +134,7 @@ void DBReader<unsigned int>::sortIndex() {
             local2id[i] = i;
             sortForMapping[i] = std::make_pair(i, seqLens[i]);
         }
-        omptl::sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
+        std::stable_sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
@@ -151,7 +151,7 @@ void DBReader<unsigned int>::sortIndex() {
             local2id[i] = i;
             sortForMapping[i] = std::make_pair(i, index[i].offset);
         }
-        omptl::sort(sortForMapping, sortForMapping + size, comparePairByOffset());
+        std::stable_sort(sortForMapping, sortForMapping + size, comparePairByOffset());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
