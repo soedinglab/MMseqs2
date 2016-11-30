@@ -268,7 +268,7 @@ This workflow combines the prefiltering and alignment modules into a fast and se
 
 Query and target databases may be identical. The program outputs for each query sequence all database sequences satisfying the search criteria (such as sensitivity).
 
-MMseqs2 can precompute the prefilter index \texttt{createindex} to speed up subsequence prefilter index read-ins. If the parameter \texttt{--use-index} is provided to MMseqs2 \texttt{search} will try to use this index for the prefilter. We recommend to use an index for iterative searches, if a target database will be reused several times. Reading in the index can be bottle neck when using network file systems (NFS). It is recommended to keep the index on a local hard drive. If storing the index file on a local hard drive is not possible and the NFS is a bottleneck than do not precompute the index. MMseqs2 will compute an index on the fly which reduces the IO volume by roughly a factor of seven.
+MMseqs2 can precompute the prefilter index \texttt{createindex} to speed up subsequence prefilter index read-ins. IWe recommend to use an index for iterative searches or if a target database will be reused several times. However reading the index can be bottle neck when using a network file systems (NFS). It is recommended to keep the index on a local hard drive. If storing the index file on a local hard drive is not possible and the NFS is a bottleneck than do not precompute the index. MMseqs2 will compute an index on the fly which reduces the IO volume by roughly a factor of seven.
 
 The underlying algorithm is explained in more detail in section \ref{sub:Prefiltering}, and the full parameter list can be found in section \ref{sub:Search-workflow}.
 \subsection{Clustering Databases using \texttt{mmseqs clusteringworkflow}} \label{sub:Clustering}
@@ -441,9 +441,14 @@ Therefore, the UniProtKB database version of April 2014 containing 55 million se
 
 To limit the memory use at the cost of longer runtimes, the option \texttt{-{}-max-chunk-size} allows the user to split the database into chunks of the given maximum size. 
 \subsubsection{Runtime}
-The prefiltering module is the most time consuming step. To cluster the 55 million sequences of UniProtKB (04/2014), the MMseqs2 prefiltering module needs about 6 days when running on 32 cores and about 10 days when running on 16 cores of a modern computer.
+The prefiltering module is the most time consuming step. It can scale from minutes in runtime to days by adjusting the sensitivity setting. Searching with 647000 protein sequences against 30 Mio Uniprot seqeunces took around 12 minutes on a 16 cores.
 \subsubsection{Disc Space}
-The prefiltering results for very large databases can grow to considerable sizes (in the order of TB) of the disc space if very long result lists are allowed and a low Z-score threshold is set. As an example, an all-against-all prefiltering run on the UniProtKB with \texttt{-{}-max-seqs} 300 yielded prefiltering list with an average length of 150 and an output file size of 146 GB.
+The prefiltering results for very large databases can grow to considerable sizes (in the order of TB) of the disc space if very long result lists are allowed and no strict ungapped score threshold is set. As an example, an all-against-all prefiltering run on the 25 Mio seqeunces with \texttt{-{}-max-seqs} 300 yielded prefiltering list with an average length of 150 and an output file size of 78 GB. One entry needs roughly 21 byte of space. To compute the worse case hard disk space usage $S$  use the following formular. $N$ is the Database sequence size L is  \texttt{-{}-max-seqs}.
+\begin{eqnarray*}
+S & = & (21\, N\, L)\mathrm{B}
+\end{eqnarray*}
+
+
 \subsubsection{Important Options for Tuning the Memory, Runtime and Disc Space Usage}
 \begin{itemize}
 \item The option \texttt{-s} controls the sensitivity in the MMseqs2 prefiltering module. The lower the sensitivity, the faster the prefiltering becomes, though at the cost of search sensitivity. 
