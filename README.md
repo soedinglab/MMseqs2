@@ -5,6 +5,9 @@ Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching f
 
 ![alt tag](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
 
+## News
+We fixed a serious bug in our profile/sequence search. If you use the profile/sequence search please update your MMseqs2 version.
+
 ## Installation
 MMseqs can be installed by compiling the binary from source, download a statically compiled version, or using [Homebrew](https://github.com/Homebrew/brew). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
 
