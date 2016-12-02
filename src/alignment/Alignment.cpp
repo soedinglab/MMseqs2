@@ -293,7 +293,7 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                     dbSeqs[thread_idx]->mapSequence(-1, swResults[i].dbKey, dbSeqData);
                     Matcher::result_t res = realigner[thread_idx]->getSWResult(dbSeqs[thread_idx],
                                                                                tseqdbr->getSize(), 0.0,
-                                                                               Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID);
+                                                                               Matcher::SCORE_COV_SEQID);
                     swResults[i].backtrace = res.backtrace;
                     swResults[i].qStartPos = res.qStartPos;
                     swResults[i].qEndPos = res.qEndPos;
