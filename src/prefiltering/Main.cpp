@@ -69,6 +69,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
 #else
     pref->run(0, pref->getSplit() );
 #endif
+    size_t splitMode = pref->getSplitMode();
     delete pref;
 
 #ifdef HAVE_MPI
@@ -79,7 +80,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
             splitFiles.push_back(Util::createTmpFileNames(par.db3, par.db3Index, procs));
         }
         // merge output ffindex databases
-        Prefiltering::mergeFiles(splitFiles, pref->getSplitMode(), par.db3, par.db3Index);
+        Prefiltering::mergeFiles(splitFiles, splitMode, par.db3, par.db3Index);
     }
 #endif
     gettimeofday(&end, NULL);
