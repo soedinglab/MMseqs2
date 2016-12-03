@@ -22,6 +22,10 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
         make
         make install 
         export PATH=$(pwd)/bin/:$PATH
+        
+:exclamation: Please install and use `gcc` from Homebrew, if you want to compile MMseqs2 on MacOS. The default MacOS `clang` compiler does not support OpenMP and MMseqs2 will not be able to run multithreaded. Use the following cmake call:
+
+        CXX="$(brew --prefix)/bin/gcc-6" cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
                 
 ### Install static Linux version
 The following command will download the last MMseqs version, extract it and set the `PATH` variable. This version runs only on linux. If you want to run it on Mac please compile it or use brew.
