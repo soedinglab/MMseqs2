@@ -459,7 +459,7 @@ In the alignment module, generally only the total runtime and disk space are the
 \subsubsection{Memory Consumption}
 The major part of the memory is required for the three dynamic programming matrices, once per core. Since most sequences are quite short, the memory requirements of the alignment module for a typical database are in the order of a few GB. 
 \subsubsection{Runtime}
-It takes about 1 day to compute Smith-Waterman alignments for the UniProtKB sequence pairs which passed the prefiltering step (at default parameters for deep clustering down to $\approx 20 - 30\%$ pairwise sequence identity).
+The alignment is based on a striped vectorized algorithm which can process roughly 2 giga cell updates per second (GCUPS). The time to compute the alignment of two average sized proteins (350 residues) takes roughly 6.0625E-5 seconds on one CPU. For example computing 23 Mio. alignments on 8 cores takes 2 minutes. 
 
 If a huge amount of alignments have to be calculated, the run time of the alignment module can become a bottleneck. The run time of the alignment module depends essentially on two parameters:
 \begin{itemize}
@@ -475,7 +475,7 @@ In the clustering module, only the memory consumption is a critical issue.
 The clustering module can need large amounts of memory. The memory consumption for a database containing $N$ sequences and an average of $r$ alignment results per sequence can be estimated as
 
 \begin{eqnarray*}
-M & = & 40\times N\times r\,\mathrm{B}
+M & = & 6\times N\times r\,\mathrm{B}
 \end{eqnarray*}
  
 To prevent excessive memory usage for the clustering of large databases, you should use cascaded clustering (\texttt{-{}-cascaded} option) which accumulates sequences per cluster incrementally, therefore avoiding excessive memory use.
@@ -486,7 +486,7 @@ If you run the clustering module separately, you can tune the following paramete
 \item Alternatively, \texttt{-s} parameter can be set to a higher value in order to cluster the database down to higher sequence identities. Only the alignment results above the sequence identity threshold are imported and it results in lower memory usage. 
 \end{itemize}
 \subsubsection{Runtime}
-Clustering is the fastest step. It needs about 2 hours for the clustering of the whole UniProtKB. 
+Clustering is the fastest step. It needs less than an hour for the clustering of the whole UniProtKB. 
 \subsubsection{Disc Space}
 Since only one record is written per cluster, the memory usage is a small fraction of the memory usage in the prefiltering and alignment modules.
 \subsection{Workflows}
@@ -520,6 +520,13 @@ mmseqs search nucldb_orf_aa targetDB resultDB tmp
 
 First you convert your DNA fasta file to a mmseqs database with \texttt{createdb}. All open reading frames (ORFs) from each six frame can be extraced by using \texttt{extractorf}.
 This ORFs can be converted into proteins by \texttt{translatenucleotide}. 
+
+\subsection{How to extract representative sequence from clustering}
+To extract the representative of a clustering the following commands can be used. 
+\begin{verbatim}
+mmseqs result2msa sequenceDB sequenceDB clu clu_rep --only-rep-seq
+mmseqs result2flat sequenceDB sequenceDB clu_rep clu_rep.fasta
+\end{verbatim}
 
 \section{Detailed Parameter List} \label{sec:Detailed-parameter-list}
 \subsection{Search Workflow} \label{sub:Search-workflow}
