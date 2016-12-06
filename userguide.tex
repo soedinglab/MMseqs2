@@ -528,6 +528,15 @@ mmseqs result2msa sequenceDB sequenceDB clu clu_rep --only-rep-seq
 mmseqs result2flat sequenceDB sequenceDB clu_rep clu_rep.fasta
 \end{verbatim}
 
+\subsection{How to redundancy filter sequences with identical length and 100\% length overlap.}
+To redundancy filter sequences of identical length and 100\% overlap (?mmseqs clusthash?) can be used. It reduces each sequence to a five-letter alphabet, computes a 64 bit CRC32 hash value for the full-length sequences, and places sequences with identical hash code that satisfy the sequence identity threshold into the same cluster. 
+
+Example: cluster sequences at 90\% sequence identity 
+\begin{verbatim}
+mmseqs clusterhash sequenceDB resultDB --min-seq-id 0.9
+mmseqs cluster sequenceDB resultDB clusterDB
+\end{verbatim}
+
 \section{Detailed Parameter List} \label{sec:Detailed-parameter-list}
 \subsection{Search Workflow} \label{sub:Search-workflow}
 Compares all sequences in the query database with all sequences in
