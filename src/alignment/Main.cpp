@@ -35,9 +35,9 @@ int align(int argc, const char **argv, const Command& command) {
     gettimeofday(&start, NULL);
 
 #ifdef HAVE_MPI
-    aln->run(MMseqsMPI::rank, MMseqsMPI::numProc, par.maxResListLen, par.maxRejected);
+    aln->run(MMseqsMPI::rank, MMseqsMPI::numProc, par.maxAccept, par.maxRejected);
 #else
-    aln->run(par.maxResListLen, par.maxRejected);
+    aln->run(par.maxAccept, par.maxRejected);
 #endif
 
     gettimeofday(&end, NULL);

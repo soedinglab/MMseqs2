@@ -141,6 +141,7 @@ public:
     float  targetCovThr;                 // coverage target threshold for acceptance
 
     int    maxRejected;                  // after n sequences that are above eval stop
+    int    maxAccept;                    // after n accepted sequences stop
     float  seqIdThr;                     // sequence identity threshold for acceptance
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
@@ -314,6 +315,7 @@ public:
     PARAMETER(PARAM_C)
     PARAMETER(PARAM_TARGET_COV)
     PARAMETER(PARAM_MAX_REJECTED)
+    PARAMETER(PARAM_MAX_ACCEPT)
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
