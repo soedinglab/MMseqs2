@@ -6,7 +6,7 @@ Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching f
 ![alt tag](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
 
 ## News
-07/12/2016 We added a new parameter called --max-accept. This parameter limits the amount of alignment that get accepted. Please do not use --max-seqs to limit your result size since it decreases the sensitivity of MMseqs2.
+07/12/2016 We added a new parameter called --max-accept. This parameter limits the amount of alignments that get accepted. Please do not use --max-seqs to limit your result size since it decreases the sensitivity of MMseqs2.
 
 02/12/2016 We fixed a serious bug in our profile/sequence search. If you use the profile/sequence search please update your MMseqs2 version. We will setup regression tests to avoid this in future. Sorry for the inconvenience.
 
