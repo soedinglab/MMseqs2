@@ -6,8 +6,6 @@
 #include <set>
 #include <algorithm>
 
-static PatternCompiler uninformative("hypothetical|unknown|putative|predicted|unnamed|probable|partial|possible|uncharacterized|fragment");
-
 struct UniprotHeader {
     std::string dbType;
     std::string identifier;
@@ -29,10 +27,15 @@ struct UniprotHeader {
         updatePriority();
     };
 
+    PatternCompiler& isUninformative() {
+        static PatternCompiler uninformative("hypothetical|unknown|putative|predicted|unnamed|probable|partial|possible|uncharacterized|fragment");
+        return uninformative;
+    }
+
     void updatePriority() {
         priority = 0;
 
-        if(uninformative.isMatch(identifier.c_str()))
+        if(isUninformative().isMatch(identifier.c_str()))
             return;
 
         if(dbType == "sp") {

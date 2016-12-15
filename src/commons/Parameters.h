@@ -253,9 +253,6 @@ public:
 
     // convertkb
     std::string kbColumns;
-
-    //count
-    std::string countCharacter;
     
     // concatdbs
     bool preserveKeysB;
@@ -361,7 +358,7 @@ public:
     //PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
 //    PARAMETER(PARAM_NO_PRUNING)
 
-    // result2stat
+    // result2stats
     PARAMETER(PARAM_STAT)
 
     // linearcluster
@@ -439,9 +436,6 @@ public:
     // convertkb
     PARAMETER(PARAM_KB_COLUMNS)
 
-    // count
-    PARAMETER(PARAM_COUNT_CHARACTER)
-
     std::vector<MMseqsParameter> empty;
     std::vector<MMseqsParameter> rescorediagonal;
     std::vector<MMseqsParameter> onlyverbosity;
@@ -470,7 +464,6 @@ public:
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> swapresults;
     std::vector<MMseqsParameter> subtractdbs;
-    std::vector<MMseqsParameter> result2newick;
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> dbconcat;
     std::vector<MMseqsParameter> mergedbs;
@@ -480,7 +473,6 @@ public:
     std::vector<MMseqsParameter> summarizetabs;
     std::vector<MMseqsParameter> extractdomains;
     std::vector<MMseqsParameter> extractalignedregion;
-    std::vector<MMseqsParameter> count;
     std::vector<MMseqsParameter> convertkb;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,

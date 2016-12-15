@@ -1,15 +1,10 @@
-#include <iostream>
-
-#include <sys/time.h>
 #include <cassert>
-#include <FileUtil.h>
-#include <update_clustering.sh.h>
 
-#include "CommandCaller.h"
-#include "Util.h"
-#include "Debug.h"
 #include "Parameters.h"
+#include "FileUtil.h"
+#include "CommandCaller.h"
 
+#include "update_clustering.sh.h"
 
 int clusterupdate(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();

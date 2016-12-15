@@ -70,8 +70,7 @@ size_t SequenceLookup::getSequenceCount() {
     return sequenceCount;
 }
 
-void SequenceLookup::initLookupByExternalData(char * seqData,
-                                              unsigned int * seqSizes) {
+void SequenceLookup::initLookupByExternalData(char * seqData, unsigned int * seqSizes) {
     // copy data to data element
     data = seqData;
     char * it = data;

@@ -111,7 +111,7 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
 
     kmnByLen = new double[maxSeqLen];
     BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(m->getMatrixName(), 11, 1, false);
-    for(int len = 0; len < maxSeqLen; len++){
+    for(unsigned int len = 0; len < maxSeqLen; len++){
         kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
                                                     indexTable->getTableEntriesNum(), dbSize);
     }

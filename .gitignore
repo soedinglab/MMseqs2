@@ -31,3 +31,4 @@ src/workflow/time_test
 
 build/
 .idea/
+cmake-build-*/
