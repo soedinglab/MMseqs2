@@ -13,6 +13,7 @@
 #endif
 
 #include <fstream>
+#include <algorithm>
 
 KSEQ_INIT(int, read)
 
@@ -523,6 +524,10 @@ int Util::omp_thread_count() {
     return n;
 }
 
+std::string Util::removeWhiteSpace(std::string in) {
+    in.erase(std::remove_if(in.begin(), in.end(), isspace), in.end());
+    return in;
+}
 
 
 

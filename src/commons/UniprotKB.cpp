@@ -22,11 +22,6 @@ std::string removeAfterFirstColon(std::string in) {
     return in;
 }
 
-std::string removeWhiteSpace(std::string in) {
-    in.erase(std::remove_if(in.begin(), in.end(), isspace), in.end());
-    return in;
-}
-
 enum uniprot_prefix_type_t {
     UNIPROT_ID = 0,
     UNIPROT_AC,
@@ -81,7 +76,7 @@ struct uniprotkb {
 
 const uniprotkb uniprotkb_prefix[] = {
         {UNIPROT_ID,  "ID", "Identification",               OCCURENCE_REQUIRED, LINES_SINGLE,          true,  0,  Util::removeAfterFirstSpace},
-        {UNIPROT_AC,  "AC", "Accession number(s)",          OCCURENCE_REQUIRED, LINES_MULTIPLE_CONCAT, false, 1,  removeWhiteSpace},
+        {UNIPROT_AC,  "AC", "Accession number(s)",          OCCURENCE_REQUIRED, LINES_MULTIPLE_CONCAT, false, 1,  Util::removeWhiteSpace},
         {UNIPROT_DT,  "DT", "Date",                         OCCURENCE_REQUIRED, LINES_MULTIPLE,        true,  2,  NULL},
         {UNIPROT_DE,  "DE", "Description",                  OCCURENCE_REQUIRED, LINES_MULTIPLE,        true,  3,  NULL},
         {UNIPROT_GN,  "GN", "Gene name(s)",                 OCCURENCE_OPTIONAL, LINES_MULTIPLE_FOLD,   true,  4,  NULL},
@@ -104,7 +99,7 @@ const uniprotkb uniprotkb_prefix[] = {
         {UNIPROT_KW,  "KW", "Keywords",                     OCCURENCE_OPTIONAL, LINES_MULTIPLE_FOLD,   true,  14, NULL},
         {UNIPROT_FT,  "FT", "Feature table data",           OCCURENCE_OPTIONAL, LINES_MULTIPLE,        true,  15, NULL},
         {UNIPROT_SQ,  "SQ", "Sequence header",              OCCURENCE_REQUIRED, LINES_SINGLE,          false, -1, NULL},
-        {UNIPROT_SEQ, "  ", "Sequence data",                OCCURENCE_REQUIRED, LINES_MULTIPLE_CONCAT, true,  16, removeWhiteSpace},
+        {UNIPROT_SEQ, "  ", "Sequence data",                OCCURENCE_REQUIRED, LINES_MULTIPLE_CONCAT, true,  16, Util::removeWhiteSpace},
         {UNIPROT_END, "//", "Termination line",             OCCURENCE_REQUIRED, LINES_SINGLE,          false, -1, NULL}
 };
 
