@@ -260,6 +260,9 @@ public:
     // diff
     bool useSequenceId;
 
+    // clusterUpdate;
+    bool preserveRepresentatives;
+
     static Parameters& getInstance()
     {
         static Parameters instance;
@@ -437,6 +440,9 @@ public:
 
     // convertkb
     PARAMETER(PARAM_KB_COLUMNS)
+
+    // clusterupdate
+    PARAMETER(PARAM_PRESERVE_REPRESENTATIVE)
 
     std::vector<MMseqsParameter> empty;
     std::vector<MMseqsParameter> rescorediagonal;

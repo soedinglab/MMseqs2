@@ -15,6 +15,10 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
+
+    if(par.preserveRepresentatives) {
+        cmd.addVariable("PRESERVE_REPR", "TRUE");
+    }
 	
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("DIFF_PAR", par.createParameterString(par.diff).c_str());
@@ -28,11 +32,7 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     }
 
     scriptPath.append("/update_clustering.sh");
-    if(!FileUtil::fileExists(scriptPath.c_str())) {
-        FileUtil::writeFile(scriptPath, update_clustering_sh, update_clustering_sh_len);
-    } else {
-        Debug(Debug::INFO) << "Update script already exists. Skipped overwriting.\n";
-    }
+    FileUtil::writeFile(scriptPath, update_clustering_sh, update_clustering_sh_len);
     std::string program(par.db5 + "/update_clustering.sh");
 	cmd.execProgram(program.c_str(), 5, argv);
 
