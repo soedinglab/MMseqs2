@@ -80,7 +80,7 @@ PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture stren
 PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (0.0,infinity)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
 //PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_PROFILE),
 // result2stats
-PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen.", typeid(std::string), (void*) &stat, ""),
+PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
 // linearcluster
 PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
 // workflow
@@ -135,7 +135,7 @@ PARAM_MSA_TYPE(PARAM_MSA_TYPE_ID,"--msa-type", "MSA type", "MSA Type: cA3M 0 or 
 PARAM_EXTRACT_MODE(PARAM_EXTRACT_MODE_ID,"--extract-mode", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &extractMode, "^[1-2]{1}$"),
 // convertkb
 PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "list of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
-PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "character to count", typeid(std::string), (void *) &countCharacter, "")
+PARAM_PRESERVE_REPRESENTATIVE(PARAM_PRESERVE_REPRESENTATIVE_ID, "--preserve-representatives", "Preserve Representatives", "Indicates if representatives are allowed to be removed during updating", typeid(bool), (void*) &preserveRepresentatives, "")
 {
     
     // alignment
@@ -224,6 +224,8 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     
     //result2stats
     result2stats.push_back(PARAM_STAT);
+    result2stats.push_back(PARAM_THREADS);
+    result2stats.push_back(PARAM_V);
     
     // format alignment
     convertalignments.push_back(PARAM_FORMAT_MODE);
@@ -315,6 +317,7 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(PARAM_USESEQID);
+    clusterUpdate.push_back(PARAM_PRESERVE_REPRESENTATIVE);
     
     // translate nucleotide
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);
@@ -375,9 +378,6 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     linearfilter.push_back(PARAM_MAX_SEQ_LEN);
     linearfilter.push_back(PARAM_THREADS);
     linearfilter.push_back(PARAM_V);
-    // result2newick
-    result2newick.push_back(PARAM_THREADS);
-    result2newick.push_back(PARAM_V);
     
     // mergedbs
     mergedbs.push_back(PARAM_MERGE_PREFIXES);
@@ -413,17 +413,14 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     extractdomains.push_back(PARAM_V);
     
     // concatdbs
-    dbconcat.push_back(PARAM_PRESERVEKEYS);
+    concatdbs.push_back(PARAM_PRESERVEKEYS);
+    concatdbs.push_back(PARAM_THREADS);
+    concatdbs.push_back(PARAM_V);
     
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);
     extractalignedregion.push_back(PARAM_THREADS);
     extractalignedregion.push_back(PARAM_V);
-    
-    // count
-    count.push_back(PARAM_COUNT_CHARACTER);
-    count.push_back(PARAM_THREADS);
-    count.push_back(PARAM_V);
     
     // convertkb
     convertkb.push_back(PARAM_KB_COLUMNS);
@@ -937,9 +934,9 @@ void Parameters::setDefaults() {
     
     // linearcluster
     kmersPerSequence = 20;
-    
-    // count
-    countCharacter = "\n";
+
+    // result2stats
+    stat = "";
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,
@@ -992,9 +989,9 @@ std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par)
     return ss.str();
 }
 
-std::vector<MMseqsParameter> Parameters::removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x){
+std::vector<MMseqsParameter> Parameters::removeParameter(const std::vector<MMseqsParameter> &par, const MMseqsParameter &x){
     std::vector<MMseqsParameter> newParamList;
-    for (std::vector<MMseqsParameter>::iterator i = par.begin();i!=par.end();i++)
+    for (std::vector<MMseqsParameter>::const_iterator i = par.begin();i!=par.end();i++)
     {
         if (i->name != x.name)
             newParamList.push_back(*i);

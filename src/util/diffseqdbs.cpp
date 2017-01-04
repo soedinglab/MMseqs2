@@ -1,44 +1,42 @@
 // Computes either a PSSM or a MSA from clustering or alignment result
 // For PSSMs: MMseqs just stores the position specific score in 1 byte
 
-#include <iostream>
+#include <cstdlib>
 #include <fstream>
-#include <string>
-#include <vector>
 #include <sstream>
-#include <sys/time.h>
 #include <algorithm>
+#include <utility>
 
 #include "Parameters.h"
 
 #include "DBReader.h"
-#include "DBConcat.h"
 #include "DBWriter.h"
 #include "Util.h"
-#include "Debug.h"
-#include "FileUtil.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-
-
 struct compareFirstEntry {
-	bool operator() (const std::pair<std::string, unsigned  int>& lhs, const std::pair<std::string, unsigned  int>& rhs) const{
-		return (lhs.first.compare(rhs.first)<=0);
-	}
+    bool
+    operator()(const std::pair<std::string, unsigned int> &lhs, const std::pair<std::string, unsigned int> &rhs) const {
+        return (lhs.first.compare(rhs.first) <= 0);
+    }
 };
 
 struct compareKeyToFirstEntry {
-	bool operator() (const std::string& lhs, const std::pair<std::string, unsigned  int>& rhs) const{
-		return (lhs.compare(rhs.first)<=0);
-	}
+    bool operator()(const std::pair<std::string, unsigned int> &lhs, const std::string &rhs) const {
+        return  (lhs.first < rhs);
+    }
+
+    bool operator()(const std::string &lhs, const std::pair<std::string, unsigned int> &rhs) const {
+        return  (lhs < rhs.first);
+    }
 };
 
-int diffseqdbs(int argc, const char **argv, const Command& command) {
-	Parameters& par = Parameters::getInstance();
-	par.parseParameters(argc, argv, command, 5);
+int diffseqdbs(int argc, const char **argv, const Command &command) {
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 5);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
@@ -48,98 +46,116 @@ int diffseqdbs(int argc, const char **argv, const Command& command) {
     headerDBold.append("_h");
     std::string headerDBoldIndex(par.db1);
     headerDBoldIndex.append("_h.index");
-	
+
     std::string headerDBnew(par.db2);
     headerDBnew.append("_h");
-	std::string headerDBnewIndex(par.db2);
+    std::string headerDBnewIndex(par.db2);
     headerDBnewIndex.append("_h.index");
-	
-	
-    DBReader<unsigned int> *DBoldReader = new DBReader<unsigned int>(headerDBold.c_str(), headerDBoldIndex.c_str());
-    DBoldReader->open(DBReader<unsigned int>::NOSORT);
 
-	
-    DBReader<unsigned int> *DBnewReader = new DBReader<unsigned int>(headerDBnew.c_str(), headerDBnewIndex.c_str());
-    DBnewReader->open(DBReader<unsigned int>::NOSORT);
-	
-	std::ofstream removedSeqDBWriter,keptSeqDBWriter,newSeqDBWriter;	
-	removedSeqDBWriter.open(par.db3);
-	keptSeqDBWriter.open(par.db4);
-	newSeqDBWriter.open(par.db5);
+    DBReader<unsigned int> oldReader(headerDBold.c_str(), headerDBoldIndex.c_str());
+    oldReader.open(DBReader<unsigned int>::NOSORT);
 
-	size_t indexSizeOld = DBoldReader->getSize();
-	size_t indexSizeNew = DBnewReader->getSize();
+    DBReader<unsigned int> newReader(headerDBnew.c_str(), headerDBnewIndex.c_str());
+    newReader.open(DBReader<unsigned int>::NOSORT);
 
-	// keys pairs are like : (headerID,key) where key is the ffindex key corresponding to the header
-	std::pair<std::string, unsigned int> *keysOld = new std::pair<std::string, unsigned int> [indexSizeOld];
-	std::pair<std::string, unsigned int> *keysNew = new std::pair<std::string, unsigned int> [indexSizeNew];
-	bool *checkedNew = new bool[indexSizeNew]; // store if the sequence has been seen in the old DB
+    std::ofstream removedSeqDBWriter, keptSeqDBWriter, newSeqDBWriter;
+    removedSeqDBWriter.open(par.db3);
+    keptSeqDBWriter.open(par.db4);
+    newSeqDBWriter.open(par.db5);
 
-	// Fill up the hash tables for the old and new DB
-#pragma omp for schedule(static)
-	for (size_t id = 0; id < indexSizeOld; id++) {
-        if (par.useSequenceId)
-            keysOld[id] = std::make_pair(Util::parseFastaHeader(DBoldReader->getData(id)),DBoldReader->getDbKey(id));
-        else
-            keysOld[id] = std::make_pair(std::string(DBoldReader->getData(id)),DBoldReader->getDbKey(id));
-	}
-#pragma omp for schedule(static)
-	for (size_t id = 0; id < indexSizeNew; id++) {
-        if (par.useSequenceId)
-            keysNew[id] = std::make_pair(Util::parseFastaHeader(DBnewReader->getData(id)),DBnewReader->getDbKey(id));
-        else
-            keysNew[id] = std::make_pair(std::string(DBnewReader->getData(id)),DBnewReader->getDbKey(id));
-		checkedNew[id] = false;
-	}
+    // Fill up the hash tables for the old and new DB
+    size_t indexSizeOld = oldReader.getSize();
+    // keys pairs are like : (headerID,key) where key is the ffindex key corresponding to the header
+    std::pair<std::string, unsigned int> *keysOld
+            = new std::pair<std::string, unsigned int>[indexSizeOld];
 
-	//sort by header
-	std::stable_sort(keysOld, keysOld  + indexSizeOld, compareFirstEntry());
-	std::stable_sort(keysNew, keysNew  + indexSizeNew, compareFirstEntry());
-	
-	#pragma omp for schedule(static)
-	for (size_t id = 0; id < indexSizeOld; id++) {
-		
-		std::string keyToSearch = std::string(keysOld[id].first);
-		std::pair<std::string, unsigned  int>* mappedKey = std::upper_bound(keysNew, keysNew + indexSizeNew, keyToSearch, compareKeyToFirstEntry());
+    #pragma omp parallel for schedule(static)
+    for (size_t id = 0; id < indexSizeOld; ++id) {
+        if (par.useSequenceId) {
+            keysOld[id] = std::make_pair(
+                    Util::parseFastaHeader(oldReader.getData(id)),
+                    oldReader.getDbKey(id)
+            );
+        } else {
+            keysOld[id] = std::make_pair(
+                    Util::removeWhiteSpace(oldReader.getData(id)),
+                    oldReader.getDbKey(id)
+            );
+        }
+    }
 
+    size_t indexSizeNew = newReader.getSize();
+    std::pair<std::string, unsigned int> *keysNew
+            = new std::pair<std::string, unsigned int>[indexSizeNew];
 
-		if (mappedKey != keysNew + indexSizeNew && keyToSearch == mappedKey->first)
-		{
-			// Found
-			size_t indexInNewDB = (mappedKey - keysNew);// / sizeof(std::pair<std::string, unsigned  int>);	
-			//std::cout << indexInNewDB <<std::endl;
-			checkedNew[indexInNewDB] = true;
-			keptSeqDBWriter << keysOld[id].second << "\t" << keysNew[indexInNewDB].second << std::endl;
-			
-		} else {
-			// not found
-			removedSeqDBWriter << keysOld[id].second << std::endl;
-		}
-	}
-	
-	#pragma omp for schedule(static)
-	for (size_t id = 0; id < indexSizeNew; id++) {
-		if (!checkedNew[id])
-			newSeqDBWriter << keysNew[id].second << std::endl;
-	}
-	
+    #pragma omp parallel for schedule(static)
+    for (size_t id = 0; id < indexSizeNew; ++id) {
+        if (par.useSequenceId) {
+            keysNew[id] = std::make_pair(
+                    Util::parseFastaHeader(newReader.getData(id)),
+                    newReader.getDbKey(id)
+            );
+        } else {
+            keysNew[id] = std::make_pair(
+                    Util::removeWhiteSpace(newReader.getData(id)),
+                    newReader.getDbKey(id)
+            );
+        }
+    }
 
+    //sort by header for binary search
+    std::stable_sort(keysNew, keysNew + indexSizeNew, compareFirstEntry());
 
-	DBoldReader->close();
-	DBnewReader->close();
-	
-	delete DBoldReader;
-	delete DBnewReader;
-	
-	delete[] keysOld;
-	delete[] keysNew;
-	
-	delete[] checkedNew;
-	
-	removedSeqDBWriter.close();
-	keptSeqDBWriter.close();
-	newSeqDBWriter.close();
-	
-	return 0;
+    // default initialized with false
+    bool* checkedNew = new bool[indexSizeNew]();
+    // doesn't need to be initialized
+    size_t *mappedIds = new size_t[indexSizeNew];
+
+    bool* deletedIds = new bool[indexSizeOld]();
+
+    #pragma omp parallel for schedule(static)
+    for (size_t id = 0; id < indexSizeOld; ++id) {
+        const std::string &keyToSearch = keysOld[id].first;
+        std::pair<std::string, unsigned int> *mappedKey
+                = std::lower_bound(keysNew, keysNew + indexSizeNew, keyToSearch, compareKeyToFirstEntry());
+
+        if (mappedKey != (keysNew + indexSizeNew) && keyToSearch.compare(mappedKey->first) == 0) {
+            // Found
+            size_t indexInNewDB = (mappedKey - keysNew);
+            checkedNew[indexInNewDB] = true;
+            mappedIds[indexInNewDB] = id;
+        } else {
+            // Not found
+            deletedIds[id] = true;
+        }
+    }
+
+    for (size_t i = 0; i < indexSizeOld; ++i) {
+        if(deletedIds[i]) {
+            removedSeqDBWriter << keysOld[i].second << std::endl;
+        }
+    }
+    removedSeqDBWriter.close();
+
+    for (size_t id = 0; id < indexSizeNew; ++id) {
+        if (checkedNew[id]) {
+            keptSeqDBWriter << keysOld[mappedIds[id]].second << "\t" << keysNew[id].second << std::endl;
+        } else {
+            newSeqDBWriter << keysNew[id].second << std::endl;
+        }
+    }
+    newSeqDBWriter.close();
+    keptSeqDBWriter.close();
+
+    delete[] deletedIds;
+    delete[] mappedIds;
+    delete[] checkedNew;
+    delete[] keysNew;
+    delete[] keysOld;
+
+    newReader.close();
+    oldReader.close();
+
+    return EXIT_SUCCESS;
 }
 

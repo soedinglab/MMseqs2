@@ -253,15 +253,15 @@ public:
 
     // convertkb
     std::string kbColumns;
-
-    //count
-    std::string countCharacter;
     
     // concatdbs
     bool preserveKeysB;
     
     // diff
     bool useSequenceId;
+
+    // clusterUpdate;
+    bool preserveRepresentatives;
 
     static Parameters& getInstance()
     {
@@ -282,7 +282,7 @@ public:
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	
-	std::vector<MMseqsParameter> removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x);
+	std::vector<MMseqsParameter> removeParameter(const std::vector<MMseqsParameter>& par, const MMseqsParameter& x);
 
     ~Parameters(){};
 
@@ -327,7 +327,7 @@ public:
 
     PARAMETER(PARAM_CASCADED)
 
-    //afinity clustering
+    // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
     PARAMETER(PARAM_SIMILARITYSCORE)
     // logging
@@ -361,11 +361,12 @@ public:
     //PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
 //    PARAMETER(PARAM_NO_PRUNING)
 
-    // result2stat
+    // result2stats
     PARAMETER(PARAM_STAT)
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
+
     // workflow
     PARAMETER(PARAM_RUNNER)
 
@@ -373,6 +374,7 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEP_SIZE)
+
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
@@ -415,8 +417,8 @@ public:
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
-    
-    //diff
+
+    // diff
     PARAMETER(PARAM_USESEQID)
     
     // mergedbs
@@ -439,8 +441,8 @@ public:
     // convertkb
     PARAMETER(PARAM_KB_COLUMNS)
 
-    // count
-    PARAMETER(PARAM_COUNT_CHARACTER)
+    // clusterupdate
+    PARAMETER(PARAM_PRESERVE_REPRESENTATIVE)
 
     std::vector<MMseqsParameter> empty;
     std::vector<MMseqsParameter> rescorediagonal;
@@ -470,9 +472,8 @@ public:
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> swapresults;
     std::vector<MMseqsParameter> subtractdbs;
-    std::vector<MMseqsParameter> result2newick;
     std::vector<MMseqsParameter> diff;
-    std::vector<MMseqsParameter> dbconcat;
+    std::vector<MMseqsParameter> concatdbs;
     std::vector<MMseqsParameter> mergedbs;
     std::vector<MMseqsParameter> summarizeheaders;
     std::vector<MMseqsParameter> evaluationscores;
@@ -480,7 +481,6 @@ public:
     std::vector<MMseqsParameter> summarizetabs;
     std::vector<MMseqsParameter> extractdomains;
     std::vector<MMseqsParameter> extractalignedregion;
-    std::vector<MMseqsParameter> count;
     std::vector<MMseqsParameter> convertkb;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,

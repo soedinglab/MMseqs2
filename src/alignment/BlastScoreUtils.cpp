@@ -555,27 +555,27 @@ BlastScoreUtils::BlastStat BlastScoreUtils::getAltschulStatsForMatrix(std::strin
         double (*mat)[10];
         long val;
 
-        if (matrix.compare("blosum45") == 0) {
+        if (matrix.compare("blosum45.out") == 0) {
                 mat = blosum45_values;
                 val = BLOSUM45_VALUES_MAX;
         }
-        else if (matrix.compare("blosum50") == 0) {
+        else if (matrix.compare("blosum50.out") == 0) {
                 mat = blosum50_values;
                 val = BLOSUM50_VALUES_MAX;
         }
-        else if (matrix.compare("blosum62") == 0) {
+        else if (matrix.compare("blosum62.out") == 0) {
                 mat = blosum62_values;
                 val = BLOSUM62_VALUES_MAX;
         }
-        else if (matrix.compare("blosum62_20") == 0) {
+        else if (matrix.compare("blosum62_20.out") == 0) {
                 mat = blosum62_20_values;
                 val = BLOSUM62_20_VALUES_MAX;
         }
-        else if (matrix.compare("blosum80") == 0) {
+        else if (matrix.compare("blosum80.out") == 0) {
                 mat = blosum80_values;
                 val = BLOSUM80_VALUES_MAX;
         }
-        else if (matrix.compare("blosum90") == 0) {
+        else if (matrix.compare("blosum90.out") == 0) {
                 mat = blosum90_values;
                 val = BLOSUM90_VALUES_MAX;
         }

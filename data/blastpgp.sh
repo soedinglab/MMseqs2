@@ -106,5 +106,7 @@ if [ -n "$REMOVE_TMP" ]; then
     rm -f "$TMP_PATH/profile_$STEP" "$TMP_PATH/profile_$STEP.index" "$TMP_PATH/profile_${STEP}_h" "$TMP_PATH/profile_${STEP}_h.index"
     let STEP=STEP+1
  done
+
+ rm -f "$TMP_PATH/blastpgp.sh"
 fi
 

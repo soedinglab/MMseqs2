@@ -43,7 +43,10 @@ if [ -n "$REMOVE_TMP" ]; then
  rm -f "$3/pref" "$3/pref.index"
  rm -f "$3/aln" "$3/aln.index"
  rm -f "$3/clu_step0" "$3/clu_step0.index"
+ rm -f "$3/order_redundancy"
  rm -f "$3/clu_redundancy" "$3/clu_redundancy.index"
  rm -f "$3/aln_redundancy" "$3/aln_redundancy.index"
  rm -f "$3/input_step_redundancy" "$3/input_step_redundancy.index"
+
+ rm -f "$3/clustering.sh"
 fi

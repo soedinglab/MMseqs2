@@ -26,18 +26,12 @@ public:
 
     ~Prefiltering();
 
-    void run(size_t dbFrom, size_t dbSize, int splitMode, const std::string &resultDB,
+    void run(size_t dbFrom, size_t dbSize, const std::string &resultDB,
              const std::string &resultDBIndex);
 
     void run(size_t fromSplit, size_t splits);
 
     void closeReader();
-    // merge file
-    static void mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles, int mode,
-                           std::string outDb, std::string outDBIndex);
-
-    static void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
-                            const std::vector<std::pair<std::string, std::string>> &filenames);
 
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, int threads); // needed for index lookup
 
@@ -72,6 +66,10 @@ public:
     }
 
     static std::vector<hit_t> readPrefilterResults(char *data);
+
+    // merge file
+    void mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles,
+                    const std::string &outDb, const std::string &outDBIndex);
 
 private:
     static const size_t BUFFER_SIZE = 1000000;
@@ -145,6 +143,9 @@ private:
     int getKmerThreshold(const float sensitivity, const int score);
 
     std::string searchForIndex(const std::string &pathToDB);
+
+    void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
+                     const std::vector<std::pair<std::string, std::string>> &filenames);
 
 };
 

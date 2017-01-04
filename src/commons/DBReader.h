@@ -17,7 +17,7 @@ public:
     struct Index {
         T id;
         size_t offset;
-        static bool compareById(Index x, Index y){
+        static bool compareById(const Index& x, const Index& y){
             return (x.id <= y.id);
         }
     };
@@ -158,7 +158,7 @@ private:
     bool dataMapped;
     int accessType;
 
-    // needed to avoid compiler to optimize away the loop
+    // needed to prevent the compiler from optimizing away the loop
     size_t magicBytes;
 };
 

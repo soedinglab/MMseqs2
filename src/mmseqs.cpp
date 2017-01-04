@@ -197,7 +197,7 @@ static struct Command commands[] = {
             "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:oldSequenceDB> <i:newSequenceDB> <o:rmSeqKeysFile> <o:keptSeqKeysFile> <o:newSeqKeysFile>",
             CITATION_MMSEQS2},
-        {"concatdbs",            concatdbs,            &par.onlyverbosity,        COMMAND_SPECIAL,
+        {"concatdbs",            concatdbs,            &par.concatdbs,        COMMAND_SPECIAL,
             "Concatenate two DBs, giving new IDs to entries from second input DB",
             NULL,
             "Clovis Galiez & Martin Steinegger (martin.steinegger@mpibpc.mpg.de)",

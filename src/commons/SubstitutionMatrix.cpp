@@ -17,7 +17,6 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
         // read amino acid substitution matrix from file
         std::string fileName(scoringMatrixFileName);
         matrixName = Util::base_name(fileName, "/\\");
-        matrixName = Util::remove_extension(matrixName);
         if (fileName.substr(fileName.length() - 4, 4).compare(".out") == 0){
             std::ifstream in(fileName);
             if (in.fail()) {
@@ -28,13 +27,12 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
                             std::istreambuf_iterator<char>());
             readProbMatrix(str);
             in.close();
-        }
-        else {
+        } else {
             Debug(Debug::ERROR) << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
             EXIT(EXIT_FAILURE);
         }
     }else{
-        matrixName = "blosum62";
+        matrixName = "blosum62.out";
         std::string submat((const char*)blosum62_out,blosum62_out_len);
         readProbMatrix(submat);
     }

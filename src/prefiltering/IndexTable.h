@@ -140,16 +140,16 @@ public:
     }
 
     // init index table with external data (needed for index readin)
-    void initTableByExternalData(size_t sequenzeCount, size_t tableEntriesNum,
+    void initTableByExternalData(size_t sequenceCount, size_t tableEntriesNum,
                                  char * entries, size_t * entriesSize, SequenceLookup * lookup) {
         this->tableEntriesNum = tableEntriesNum;
-        this->size = sequenzeCount;
-        //        initMemory(sequenzeCount, tableEntriesNum, seqDataSize);
+        this->size = sequenceCount;
+        //        initMemory(sequenceCount, tableEntriesNum, seqDataSize);
         if(lookup != NULL){
             sequenceLookup = lookup;
         }
         this->entries = entries;
-        Debug(Debug::WARNING) << "Cache database  \n";
+        Debug(Debug::INFO) << "Cache database  \n";
         char* it = this->entries;
         // set the pointers in the index table to the start of the list for a certain k-mer
         magicByte = 0; // read each entry to keep them in memory
@@ -161,7 +161,7 @@ public:
         }
         table[tableSize] = it;
         externalData = true;
-        Debug(Debug::WARNING) << "Read IndexTable ... Done\n";
+        Debug(Debug::INFO) << "Read IndexTable ... Done\n";
     }
 
     void revertPointer(){

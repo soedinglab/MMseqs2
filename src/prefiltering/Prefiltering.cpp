@@ -10,6 +10,7 @@
 
 #include <regex.h>
 #include <sys/time.h>
+#include <cstdio>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -116,7 +117,8 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         }
         if(par.split == Parameters::AUTO_SPLIT_DETECTION && templateDBIsIndex == false){
             this->split = splitingSetting.second;
-            if(kmerSize == 0){ // set k-mer based on aa size in database
+            if(kmerSize == 0){
+                // set k-mer based on aa size in database
                 // if we have less than 10Mio * 335 amino acids use 6mers
                 kmerSize = splitingSetting.first;
             }
@@ -131,12 +133,14 @@ Prefiltering::Prefiltering(const std::string& queryDB,
             kmerSize = IndexTable::computeKmerSize(aaSize);
         }
 
-        if(this->split == Parameters::AUTO_SPLIT_DETECTION)
+        if(this->split == Parameters::AUTO_SPLIT_DETECTION) {
             this->split = 1;
+        }
+
         if(splitMode == Parameters::DETECT_BEST_DB_SPLIT){
-            if(templateDBIsIndex == true && this->split > 1){
+            if (templateDBIsIndex == true && this->split > 1){
                 splitMode = Parameters::TARGET_DB_SPLIT;
-            }else{
+            } else {
 #ifdef HAVE_MPI
                 splitMode = Parameters::QUERY_DB_SPLIT;
 #else
@@ -145,7 +149,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
             }
         }
     }
-    Debug(Debug::INFO) << "Use kmer size " << kmerSize << " and split " << this->split << " using split mode " << this->splitMode <<"\n";
+    Debug(Debug::INFO) << "Use kmer size " << kmerSize << " and split " << split << " using split mode " << splitMode << "\n";
     neededSize = estimateMemoryConsumption((splitMode == Parameters::TARGET_DB_SPLIT) ? split : 1, tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize, kmerSize,
                                                         threads);
     //Debug(Debug::INFO) << "Split target databases into " << split << " parts because of memory constraint.\n";
@@ -229,12 +233,11 @@ void Prefiltering::run(size_t fromSplit, size_t splits){
     for(unsigned int split = fromSplit; split < (fromSplit+splits); split++){
         std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(outDB,outDBIndex,split);
         splitFiles.push_back(filenamePair);
-        this->run(split, splitCounter, splitMode, filenamePair.first.c_str(),
-                  filenamePair.second.c_str());
+        run(split, splitCounter, filenamePair.first.c_str(), filenamePair.second.c_str());
     } // prefiltering scores calculation end
     // merge output ffindex databases
     if(splitCounter > 1){
-        mergeFiles(splitFiles, splitMode, outDB, outDBIndex);
+        mergeFiles(splitFiles, outDB, outDBIndex);
     }else{
         std::rename(splitFiles[0].first.c_str(),  outDB.c_str());
         std::rename(splitFiles[0].second.c_str(), outDBIndex.c_str());
@@ -319,9 +322,8 @@ IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize
     }
 }
 
-void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std::string& resultDB, const std::string& resultDBIndex) {
-
-    Debug(Debug::WARNING) << "Process prefiltering step " << split << " of " << splitCount <<  "\n\n";
+void Prefiltering::run(size_t split, size_t splitCount, const std::string& resultDB, const std::string& resultDBIndex) {
+    Debug(Debug::INFO) << "Process prefiltering step " << split << " of " << splitCount <<  "\n\n";
     DBWriter tmpDbw(resultDB.c_str(), resultDBIndex.c_str(), threads);
     tmpDbw.open();
     size_t dbFrom = 0;
@@ -355,8 +357,8 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
     this->kmerThr = calibration.first;
     this->kmerMatchProb = calibration.second;
 
-    Debug(Debug::WARNING) << "k-mer similarity threshold: " << kmerThr << "\n";
-    Debug(Debug::WARNING) << "k-mer match probability: " << kmerMatchProb << "\n\n";
+    Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
+    Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -376,9 +378,9 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
     size_t totalQueryDBSize = querySize;
     memset(notEmpty, 0, qdbr->getSize() * sizeof(char)); // init notEmpty
 
-    Debug(Debug::WARNING) << "Starting prefiltering scores calculation (step "<< split << " of " << splitCount << ")\n";
-    Debug(Debug::WARNING) << "Query db start  "<< queryFrom << " to " << queryFrom + querySize << "\n";
-    Debug(Debug::WARNING) << "Target db start  "<< dbFrom << " to " << dbFrom + dbSize << "\n";
+    Debug(Debug::INFO) << "Starting prefiltering scores calculation (step "<< split << " of " << splitCount << ")\n";
+    Debug(Debug::INFO) << "Query db start  "<< queryFrom << " to " << queryFrom + querySize << "\n";
+    Debug(Debug::INFO) << "Target db start  "<< dbFrom << " to " << dbFrom + dbSize << "\n";
 
 #pragma omp parallel for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
     for (size_t id = queryFrom; id < queryFrom + querySize; id++){
@@ -430,9 +432,10 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
     }
     this->printStatistics(stats, empty);
 
-    if (totalQueryDBSize > 1000)
+    if (totalQueryDBSize > 1000) {
         Debug(Debug::INFO) << "\n";
-    Debug(Debug::WARNING) << "\n";
+    }
+    Debug(Debug::INFO) << "\n";
 
     for (int j = 0; j < threads; j++){
         delete matchers[j];
@@ -442,26 +445,24 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     tmpDbw.close(); // sorts the index
 
     // sort by ids
     // needed to speed up merge later one
     // sorts this datafile according to the index file
-    if(splitMode == Parameters::TARGET_DB_SPLIT) {
-        if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
-            DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
-            resultReader.open(DBReader<unsigned int>::NOSORT);
-            DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
-            resultWriter.open();
-            resultWriter.sortDatafileByIdOrder(resultReader);
-            resultReader.close();
-            resultWriter.close();
-            remove(resultDB.c_str());
-            remove(resultDBIndex.c_str());
-            std::rename((resultDB + "_tmp").c_str(), resultDB.c_str());
-            std::rename((resultDBIndex + "_tmp").c_str(), resultDBIndex.c_str());
-        }
+    if (splitCount > 1 && splitMode == Parameters::TARGET_DB_SPLIT) {
+        DBReader<unsigned int> resultReader(tmpDbw.getDataFileName(), tmpDbw.getIndexFileName());
+        resultReader.open(DBReader<unsigned int>::NOSORT);
+        DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), threads);
+        resultWriter.open();
+        resultWriter.sortDatafileByIdOrder(resultReader);
+        resultReader.close();
+        resultWriter.close();
+        remove(resultDB.c_str());
+        remove(resultDBIndex.c_str());
+        std::rename((resultDB + "_tmp").c_str(), resultDB.c_str());
+        std::rename((resultDBIndex + "_tmp").c_str(), resultDBIndex.c_str());
     }
 }
 
@@ -776,10 +777,11 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
                         querySeqLenSum, diagonalOverflow, resultsPassedPref/ querySetSize);
 }
 
-void Prefiltering::mergeFiles(const std::vector<std::pair<std::string, std::string>>& splitFiles, int mode, std::string outDB, std::string outDBIndex) {
-    if(mode == Parameters::TARGET_DB_SPLIT){
+void Prefiltering::mergeFiles(const std::vector<std::pair<std::string, std::string>>& splitFiles,
+                              const std::string& outDB, const std::string& outDBIndex) {
+    if (splitMode == Parameters::TARGET_DB_SPLIT){
         mergeOutput(outDB, outDBIndex, splitFiles);
-    }else if (mode == Parameters::QUERY_DB_SPLIT){
+    } else if (splitMode == Parameters::QUERY_DB_SPLIT){
         const char ** datafilesNames = new const char *[splitFiles.size()];
         const char ** indexFilesNames = new const char *[splitFiles.size()];
         for(size_t i = 0; i < splitFiles.size(); i++){
@@ -789,6 +791,9 @@ void Prefiltering::mergeFiles(const std::vector<std::pair<std::string, std::stri
         DBWriter::mergeResults(outDB.c_str(), outDBIndex.c_str(), datafilesNames, indexFilesNames, splitFiles.size());
         delete [] datafilesNames;
         delete [] indexFilesNames;
+    } else {
+        Debug(Debug::ERROR) << "Invalid split mode: " << splitMode << "\n";
+        EXIT(EXIT_FAILURE);
     }
 }
 

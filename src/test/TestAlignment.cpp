@@ -30,7 +30,7 @@ int main (int argc, const char * argv[])
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
-    for(size_t i = 0; i < subMat.alphabetSize; i++){
+    for(int i = 0; i < subMat.alphabetSize; i++){
         std::cout << subMat.pBack[i] << std::endl;
     }
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);

@@ -16,12 +16,20 @@
 #endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
 #if __cplusplus <= 199711L
 #define SSTR( x ) \
 dynamic_cast< std::ostringstream& >( \
-( std::ostringstream().flush() << std::dec << x ) ).str()
+( std::ostringstream().flush() << std::dec << (x) ).str()
 #else
-#define SSTR( x ) std::to_string(x)
+#ifndef TOSTRINGIDENTITY
+#define TOSTRINGIDENTITY
+namespace tostringidentity {
+    using std::to_string;
+    const std::string& to_string(const std::string& s);
+}
+#endif
+#define SSTR(x) tostringidentity::to_string((x))
 #endif
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -224,5 +232,7 @@ public:
     }
 
     static int omp_thread_count();
+
+    static std::string removeWhiteSpace(std::string in);
 };
 #endif

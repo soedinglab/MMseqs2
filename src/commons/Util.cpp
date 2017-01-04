@@ -13,8 +13,13 @@
 #endif
 
 #include <fstream>
+#include <algorithm>
 
 KSEQ_INIT(int, read)
+
+const std::string& tostringidentity::to_string(const std::string& s) {
+    return s;
+}
 
 size_t Util::countLines(const char *data, size_t length) {
     size_t newlines = 0;
@@ -519,6 +524,10 @@ int Util::omp_thread_count() {
     return n;
 }
 
+std::string Util::removeWhiteSpace(std::string in) {
+    in.erase(std::remove_if(in.begin(), in.end(), isspace), in.end());
+    return in;
+}
 
 
 

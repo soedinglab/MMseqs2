@@ -66,13 +66,15 @@ checkReturnCode "Could not move result to $3"
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
     SENS=$START_SENS
-    while [ $SENS -lt $TARGET_SENS ]; do
+    while [ $SENS -le $TARGET_SENS ]; do
         rm -f "$TMP_PATH/pref_$SENS" "$TMP_PATH/pref_$SENS.index"
         rm -f "$TMP_PATH/aln_$SENS" "$TMP_PATH/aln_$SENS.index"
         let SENS=SENS+SENS_STEP_SIZE
         NEXTINPUT="$TMP_PATH/input_step$SENS"
         rm -f "$TMP_PATH/input_step$SENS" "$TMP_PATH/input_step$SENS.index"
     done
+
+    rm -f "$TMP_PATH/blastp.sh"
 fi
 
 
