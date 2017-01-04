@@ -296,10 +296,11 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
     }
 
 #if HAVE_POSIX_FADVISE
-    if ((int status = posix_fadvise (fileno(file1), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
+    int status;
+    if ((status = posix_fadvise (fileno(file1), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
        Debug(Debug::ERROR) << "posix_fadvise returned an error: " << strerror(status) << "\n";
     }
-    if ((int status = posix_fadvise (fileno(file2), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
+    if ((status = posix_fadvise (fileno(file2), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
        Debug(Debug::ERROR) << "posix_fadvise returned an error: " << strerror(status) << "\n";;
     }
 #endif
