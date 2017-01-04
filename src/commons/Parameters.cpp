@@ -411,7 +411,9 @@ PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "list
     extractdomains.push_back(PARAM_V);
     
     // concatdbs
-    dbconcat.push_back(PARAM_PRESERVEKEYS);
+    concatdbs.push_back(PARAM_PRESERVEKEYS);
+    concatdbs.push_back(PARAM_THREADS);
+    concatdbs.push_back(PARAM_V);
     
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);

@@ -465,7 +465,7 @@ public:
     std::vector<MMseqsParameter> swapresults;
     std::vector<MMseqsParameter> subtractdbs;
     std::vector<MMseqsParameter> diff;
-    std::vector<MMseqsParameter> dbconcat;
+    std::vector<MMseqsParameter> concatdbs;
     std::vector<MMseqsParameter> mergedbs;
     std::vector<MMseqsParameter> summarizeheaders;
     std::vector<MMseqsParameter> evaluationscores;
