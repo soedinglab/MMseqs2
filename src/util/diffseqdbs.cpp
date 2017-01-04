@@ -78,7 +78,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
             );
         } else {
             keysOld[id] = std::make_pair(
-                    oldReader.getData(id),
+                    Util::removeWhiteSpace(oldReader.getData(id)),
                     oldReader.getDbKey(id)
             );
         }
@@ -97,7 +97,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
             );
         } else {
             keysNew[id] = std::make_pair(
-                    newReader.getData(id),
+                    Util::removeWhiteSpace(newReader.getData(id)),
                     newReader.getDbKey(id)
             );
         }
