@@ -9,6 +9,8 @@
 #include "Util.h"
 #include "Debug.h"
 
+#include <cmath>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -19,54 +21,61 @@ void AlignmentSymmetry::readInData(DBReader<unsigned int>*alnDbr, DBReader<unsig
                                    unsigned int **elementLookupTable, unsigned short **elementScoreTable,
                                    int scoretype, size_t *offsets) {
     const size_t dbSize = seqDbr->getSize();
-#pragma omp parallel for schedule(dynamic, 1000)
-    for(size_t i = 0; i < dbSize; i++) {
-        Debug::printProgress(i);
-        // seqDbr is descending sorted by length
-        // the assumption is that clustering is B -> B (not A -> B)
-        const unsigned int clusterId = seqDbr->getDbKey(i);
-        char *data = alnDbr->getDataByDBKey(clusterId);
+    const size_t flushSize = 1000000;
+    size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize)/static_cast<double>(flushSize)));
+    for(size_t it = 0; it < iterations; it++) {
+        size_t start = it * flushSize;
+        size_t bucketSize = std::min(dbSize - (it * flushSize), flushSize);
+# pragma omp parallel for schedule(dynamic, 100)
+        for (size_t i = start; i < (start + bucketSize); i++) {
+            Debug::printProgress(i);
+            // seqDbr is descending sorted by length
+            // the assumption is that clustering is B -> B (not A -> B)
+            const unsigned int clusterId = seqDbr->getDbKey(i);
+            char *data = alnDbr->getDataByDBKey(clusterId);
 
-        if (*data == '\0') { // check if file contains entry
-            Debug(Debug::ERROR) << "ERROR: Sequence " << i
-            << " does not contain any sequence for key " << clusterId
-            << "!\n";
-            continue;
-        }
-        size_t setSize = LEN(offsets, i);
-        size_t writePos = 0;
-        while (*data != '\0' ) {
-            if(writePos >= setSize){
-                Debug(Debug::ERROR) << "ERROR: Set " << i
-                << " has more elements than allocated (" << setSize
-                << ")!\n";
+            if (*data == '\0') { // check if file contains entry
+                Debug(Debug::ERROR) << "ERROR: Sequence " << i
+                                    << " does not contain any sequence for key " << clusterId
+                                    << "!\n";
                 continue;
             }
-            char similarity[255+1];
-            char dbKey[255 + 1];
-            Util::parseKey(data, dbKey);
-            const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-            const size_t currElement = seqDbr->getId(key);
-            if(elementScoreTable != NULL){
-                if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
-                    //column 1 = alignment score
-                    Util::parseByColumnNumber(data, similarity, 1);
-                    elementScoreTable[i][writePos]  = (unsigned short)(atof(similarity));
-                }else {
-                    //column 2 = sequence identity
-                    Util::parseByColumnNumber(data, similarity, 2);
-                    elementScoreTable[i][writePos]  = (unsigned short)(atof(similarity)*1000.0f);
+            size_t setSize = LEN(offsets, i);
+            size_t writePos = 0;
+            while (*data != '\0') {
+                if (writePos >= setSize) {
+                    Debug(Debug::ERROR) << "ERROR: Set " << i
+                                        << " has more elements than allocated (" << setSize
+                                        << ")!\n";
+                    continue;
                 }
+                char similarity[255 + 1];
+                char dbKey[255 + 1];
+                Util::parseKey(data, dbKey);
+                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                const size_t currElement = seqDbr->getId(key);
+                if (elementScoreTable != NULL) {
+                    if (scoretype == Parameters::APC_ALIGNMENTSCORE) {
+                        //column 1 = alignment score
+                        Util::parseByColumnNumber(data, similarity, 1);
+                        elementScoreTable[i][writePos] = (unsigned short) (atof(similarity));
+                    } else {
+                        //column 2 = sequence identity
+                        Util::parseByColumnNumber(data, similarity, 2);
+                        elementScoreTable[i][writePos] = (unsigned short) (atof(similarity) * 1000.0f);
+                    }
+                }
+                if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
+                    Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                                        << " contained in some alignment list, but not contained in the sequence database!\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                elementLookupTable[i][writePos] = currElement;
+                writePos++;
+                data = Util::skipLine(data);
             }
-            if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
-                Debug(Debug::ERROR) << "ERROR: Element " << dbKey
-                << " contained in some alignment list, but not contained in the sequence database!\n";
-                EXIT(EXIT_FAILURE);
-            }
-            elementLookupTable[i][writePos] = currElement;
-            writePos++;
-            data = Util::skipLine(data);
         }
+        alnDbr->remapData();
     }
 }
 
