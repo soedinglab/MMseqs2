@@ -279,7 +279,7 @@ public:
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	
-	std::vector<MMseqsParameter> removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x);
+	std::vector<MMseqsParameter> removeParameter(const std::vector<MMseqsParameter>& par, const MMseqsParameter& x);
 
     ~Parameters(){};
 
@@ -324,7 +324,7 @@ public:
 
     PARAMETER(PARAM_CASCADED)
 
-    //afinity clustering
+    // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
     PARAMETER(PARAM_SIMILARITYSCORE)
     // logging
@@ -363,6 +363,7 @@ public:
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
+
     // workflow
     PARAMETER(PARAM_RUNNER)
 
@@ -370,6 +371,7 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEP_SIZE)
+
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
@@ -412,8 +414,8 @@ public:
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
-    
-    //diff
+
+    // diff
     PARAMETER(PARAM_USESEQID)
     
     // mergedbs

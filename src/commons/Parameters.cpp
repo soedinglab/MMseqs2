@@ -987,9 +987,9 @@ std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par)
     return ss.str();
 }
 
-std::vector<MMseqsParameter> Parameters::removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x){
+std::vector<MMseqsParameter> Parameters::removeParameter(const std::vector<MMseqsParameter> &par, const MMseqsParameter &x){
     std::vector<MMseqsParameter> newParamList;
-    for (std::vector<MMseqsParameter>::iterator i = par.begin();i!=par.end();i++)
+    for (std::vector<MMseqsParameter>::const_iterator i = par.begin();i!=par.end();i++)
     {
         if (i->name != x.name)
             newParamList.push_back(*i);
