@@ -28,7 +28,7 @@ function joinAndReplace() {
     MAPPING="$3"
     FIELDS="$4"
 
-    LC_ALL=C join -t $'\t' -o "$FIELDS" <(LC_ALL=C sort -k1,1 "$MAPPING") <(LC_ALL=C sort -k1,1 "$INPUT") | LC_ALL=C sort -k1,1 > "$OUTPUT"
+    LC_ALL=C join -t $'\t' -o "$FIELDS" <(LC_ALL=C sort -T "$TMP" -k1,1 "$MAPPING") <(LC_ALL=C sort -T "$TMP" -k1,1 "$INPUT") | LC_ALL=C sort -T "$TMP" -k1,1 > "$OUTPUT"
 }
 
 function hasCommand () {
@@ -87,14 +87,14 @@ if [ -n "$PRESERVE_REPR" ] && [ -f "$TMP/removedSeqs" ]; then
             mv -f "$TMP/OLDCLUST.allReprNN" "$TMP/OLDCLUST.allRepr" \
         ) || fail "result2stats died"
 
-    LC_ALL=C comm -12 <(LC_ALL=C sort "$TMP/removedSeqs") <(LC_ALL=C sort "$TMP/OLDCLUST.allRepr") > "$TMP/OLDCLUST.removedRepr"
+    LC_ALL=C comm -12 <(LC_ALL=C sort -T "$TMP" "$TMP/removedSeqs") <(LC_ALL=C sort -T "$TMP" "$TMP/OLDCLUST.allRepr") > "$TMP/OLDCLUST.removedRepr"
     if [[ -f "$TMP/OLDCLUST.removedRepr" ]]; then
         notExists "$TMP/OLDCLUST.removedReprSeqs" \
             && $MMSEQS createsubdb "$TMP/OLDCLUST.removedRepr" "$OLDDB" "$TMP/OLDDB.removedReprSeqs" \
             || fail "createsubdb died"
 
         notExists "$TMP/OLDCLUST.removedReprMapping" && ( \
-                HIGHESTID="$(sort -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"; \
+                HIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"; \
                 awk -v highest="$HIGHESTID" \
                     'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
                     "$TMP/OLDCLUST.removedRepr" > "$TMP/OLDCLUST.removedReprMapping"; \
@@ -126,8 +126,8 @@ echo "=== Update the new sequences with the old keys ===="
 echo "==================================================="
 
 notExists "$TMP/newMappingSeqs" && ( \
-        OLDHIGHESTID="$(sort -r -n -k1,1 "${OLDDB}.index"| head -n 1 | cut -f1)"; \
-        NEWHIGHESTID="$(sort -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"; \
+        OLDHIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${OLDDB}.index"| head -n 1 | cut -f1)"; \
+        NEWHIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"; \
         MAXID="$(($OLDHIGHESTID>$NEWHIGHESTID?$OLDHIGHESTID:$NEWHIGHESTID))"; \
         awk -v highest="$MAXID" \
             'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
