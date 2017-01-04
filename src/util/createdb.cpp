@@ -21,6 +21,7 @@
 #include "kseq.h"
 
 KSEQ_INIT(int, read)
+
 int createdb(int argn, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argn, argv, command, 2);
@@ -28,8 +29,6 @@ int createdb(int argn, const char **argv, const Command& command) {
     if(par.maxSeqLen == Parameters::MAX_SEQ_LEN){
         par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;
     }
-
-    FILE *fasta_file = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
 
     std::string data_filename = par.db2;
     std::string index_filename = par.db2Index;
@@ -64,12 +63,15 @@ int createdb(int argn, const char **argv, const Command& command) {
     }
 
     size_t entries_num = 1;
+    size_t count = 1;
 
+    FILE *fasta_file = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
     kseq_t *seq = kseq_init(fileno(fasta_file));
     while (kseq_read(seq) >= 0) {
+        Debug::printProgress(count);
         if (seq->name.l == 0) {
             Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
-            return EXIT_FAILURE;
+            EXIT(EXIT_FAILURE);
         }
 
         size_t splitCnt = 1;
@@ -106,7 +108,7 @@ int createdb(int argn, const char **argv, const Command& command) {
             if (doMapping) {
                 if (mapping.find(splitId) == mapping.end()) {
                     Debug(Debug::ERROR) << "Could not find entry: " << splitId << " in mapping file.\n";
-                    return EXIT_FAILURE;
+                    EXIT(EXIT_FAILURE);
                 }
                 id = SSTR(mapping[splitId]);
             } else if(par.useHeader) {
@@ -149,14 +151,16 @@ int createdb(int argn, const char **argv, const Command& command) {
             out_writer.writeData(splitString.c_str(), splitString.length(), id.c_str());
 
             entries_num++;
+            count++;
         }
     }
+
     kseq_destroy(seq);
+    fclose(fasta_file);
 
     if(par.useHeader == false) {
         lookupStream.close();
     }
-    fclose(fasta_file);
     out_hdr_writer.close();
     out_writer.close();
 
