@@ -265,12 +265,11 @@ template<typename T>
 int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyResultDb) {
 
     bool sameQTDB = false;
-    DBReader<unsigned int> *queryReader, *targetReader;
+    DBReader<unsigned int> *queryReader = NULL, *targetReader = NULL;
     if (!onlyResultDb) {
         queryReader = new DBReader<unsigned int>(queryDb.c_str(), queryDbIndex.c_str());
         queryReader->open(DBReader<unsigned int>::NOSORT);
 
-        targetReader;
         bool sameQTDB = (queryDb.compare(targetDb) == 0);
         if (sameQTDB) {
             targetReader = queryReader;
