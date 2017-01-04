@@ -52,11 +52,8 @@ include_directories(lib/getoptpp)
 include_directories(lib/kseq)
 include_directories(lib/simd)
 include_directories(lib/gzstream)
+add_subdirectory(data)
 add_subdirectory(src)
-
-
-
-
 
 install(PROGRAMS
 	util/bash-completion.sh
