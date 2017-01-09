@@ -313,8 +313,8 @@ PARAM_PRESERVE_REPRESENTATIVE(PARAM_PRESERVE_REPRESENTATIVE_ID, "--preserve-repr
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
     
-    clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
-    clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
+    clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_ACCEPT);
+    clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_ACCEPT);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(PARAM_USESEQID);
     clusterUpdate.push_back(PARAM_PRESERVE_REPRESENTATIVE);
