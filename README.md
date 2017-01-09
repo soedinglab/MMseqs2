@@ -5,7 +5,11 @@ Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching f
 
 ![alt tag](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
 
+<p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/mmseqs2_logo.png" height="256" /></p>
+
 ## News
+19/12/2016 MMseqs2 has a mascot now. It is the "little Marv" and was lovingly crafted by Yuna Kwon. Thank you so much.
+
 07/12/2016 We added a new parameter called --max-accept. This parameter limits the amount of alignments that get accepted. Please do not use --max-seqs to limit your result size since it decreases the sensitivity of MMseqs2.
 
 02/12/2016 We fixed a serious bug in our profile/sequence search. If you use the profile/sequence search please update your MMseqs2 version. We will setup regression tests to avoid this in future. Sorry for the inconvenience.
@@ -27,7 +31,7 @@ Compiling MMseqs2 from source has the advantage that it will be optimized to the
         
 :exclamation: Please install and use `gcc` from Homebrew, if you want to compile MMseqs2 on MacOS. The default MacOS `clang` compiler does not support OpenMP and MMseqs2 will not be able to run multithreaded. Use the following cmake call:
 
-        CXX="$(brew --prefix)/bin/gcc-6" cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
+        CXX="$(brew --prefix)/bin/g++-6" cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=. ..
                 
 ### Install static Linux version
 The following command will download the last MMseqs version, extract it and set the `PATH` variable. This version runs only on linux. If you want to run it on Mac please compile it or use brew.
