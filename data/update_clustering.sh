@@ -198,7 +198,7 @@ echo "========= previous (rep seq of) clusters =========="
 echo "==================================================="
 mkdir -p "$TMP/search"
 if notExists "$TMP/newSeqsHits"; then
-    $RUNNER $MMSEQS search "$TMP/NEWDB.newSeqs" "$TMP/OLDDB.repSeq" "$TMP/newSeqsHits" "$TMP/search" --max-seqs 1 ${SEARCH_PAR} \
+    $RUNNER $MMSEQS search "$TMP/NEWDB.newSeqs" "$TMP/OLDDB.repSeq" "$TMP/newSeqsHits" "$TMP/search" --max-accept 1 ${SEARCH_PAR} \
         || fail "Search died"
 fi
 
