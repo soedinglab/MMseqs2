@@ -145,6 +145,7 @@ void SubstitutionMatrix::readProbMatrix(std::string matrixData) {
     std::string line;
     bool capture = false;
     unsigned char aa_lookup[20];
+    memset(aa_lookup, 0, 20 * sizeof(char));
     while (in.good()) {
         getline(in, line);
         if (line.length() > 11 && line.substr(0, 11) != "Frequencies" && !capture)

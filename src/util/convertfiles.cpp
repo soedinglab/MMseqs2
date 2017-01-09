@@ -50,12 +50,12 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile, std::string s
     outfile_stream << "algorithm\tclusterid\tid2\n";
     outfile_stream_cluster_summary << "algorithm\tclusternumber\tsingletons\n";
     int singletons = 0;
+    char *idbuffer1 = new char[255 + 1];
     for (size_t i = 0; i < cluster_ffindex_reader.getSize(); ++i) {
 
         int clustersize = 0;
         char *data = cluster_ffindex_reader.getData(i);
         std::string idbuffer = "";
-        char *idbuffer1 = new char[255 + 1];
         std::string representative = "";
         while (*data != '\0') {
             Util::parseKey(data, idbuffer1);
@@ -72,12 +72,14 @@ void convertfiles::convertFfindexToTsv(std::string clusteringfile, std::string s
             data = Util::skipLine(data);
             clustersize++;
         }
+
         if (clustersize == 1) {
             singletons++;
         }
         outfile_stream.flush();
         outfile_stream_clustersize << suffix << "\t" << representative << "\t" << clustersize << "\n";
     }
+    delete [] idbuffer1;
     outfile_stream_cluster_summary << suffix << "\t" << cluster_ffindex_reader.getSize() << "\t" << singletons << "\n";
 
     cluster_ffindex_reader.close();

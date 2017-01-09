@@ -265,8 +265,13 @@ void Prefiltering::mergeOutput(const std::string& outDB, const std::string& outD
         writer.open(1024 * 1024 * 1024); // 1 GB buffer
         writer.mergeFilePair(file1.first.c_str(), file1.second.c_str(), file2.first.c_str(), file2.second.c_str());
         // remove split
-        remove(file1.first.c_str()); remove(file1.second.c_str());
-        remove(file2.first.c_str()); remove(file2.second.c_str());
+        int error = 0;
+        error += remove(file1.first.c_str()); error += remove(file1.second.c_str());
+        error += remove(file2.first.c_str()); error += remove(file2.second.c_str());
+        if(error != 0){
+            Debug(Debug::ERROR) << "Error while deleting files in mergeOutput \n";
+            EXIT(EXIT_FAILURE);
+        }
         writer.close();
         // push back the current merge to result to the end
         files.push_back(out);
