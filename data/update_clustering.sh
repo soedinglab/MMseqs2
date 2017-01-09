@@ -111,11 +111,12 @@ if [ -n "$PRESERVE_REPR" ] && [ -f "$TMP/removedSeqs" ]; then
         if notExists "$TMP/NEWDB.withOldRepr"; then
             ( \
                 ln -sf "$OLDDB" "$TMP/OLDDB.removedReprDb"; \
+                ln -sf "$OLDDB" "$TMP/OLDDB.removedReprDb_h"; \
                 joinAndReplace "${OLDDB}.index" "$TMP/OLDDB.removedReprDb.index" "$TMP/OLDCLUST.removedReprMapping" "1.2 2.2 2.3"; \
+                joinAndReplace "${OLDDB}_h.index" "$TMP/OLDDB.removedReprDb_h.index" "$TMP/OLDCLUST.removedReprMapping" "1.2 2.2 2.3"; \
                 joinAndReplace "${OLDDB}.lookup" "$TMP/OLDDB.removedReprDb.lookup" "$TMP/OLDCLUST.removedReprMapping" "1.2 2.2"; \
                 $MMSEQS concatdbs "$NEWDB" "$TMP/OLDDB.removedReprDb" "$TMP/NEWDB.withOldRepr" --preserve-keys; \
-                ln -sf "${NEWDB}_h" "$TMP/NEWDB.withOldRepr_h"; \
-                ln -sf "${NEWDB}_h.index" "$TMP/NEWDB.withOldRepr_h.index"; \
+                $MMSEQS concatdbs "${NEWDB}_h" "$TMP/OLDDB.removedReprDb_h" "$TMP/NEWDB.withOldRepr_h" --preserve-keys; \
                 cat "${NEWDB}.lookup" "$TMP/OLDDB.removedReprDb.lookup" > "$TMP/NEWDB.withOldRepr.lookup"; \
                 NEWDB="$TMP/NEWDB.withOldRepr"; \
             ) || fail "Could not create $TMP/NEWDB.withOldRepr"
