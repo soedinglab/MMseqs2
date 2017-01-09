@@ -218,7 +218,7 @@ echo "=  Merge found sequences with previous clustering ="
 echo "==================================================="
 if [ -f "$TMP/newSeqsHits.swapped" ]; then
     if notExists "$TMP/updatedClust"; then
-        $MMSEQS mergedbs "$OLDCLUST" "$TMP/updatedClust" "$TMP/newSeqsHits.swapped" "$OLDCLUST" \
+        $MMSEQS mergedbs "$OLDCLUST" "$TMP/updatedClust" "$OLDCLUST" "$TMP/newSeqsHits.swapped" \
             || fail "Mergeffindex died"
     fi
 else
