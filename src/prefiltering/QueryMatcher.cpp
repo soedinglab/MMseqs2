@@ -8,6 +8,16 @@
 #include "Util.h"
 
 
+std::vector<hit_t> parsePrefilterHits(char *data) {
+    std::vector<hit_t> ret;
+    while (*data != '\0') {
+        hit_t result = parsePrefilterHit(data);
+        ret.push_back(result);
+        data = Util::skipLine(data);
+    }
+    return ret;
+}
+
 hit_t parsePrefilterHit(char* data)
 {
     hit_t result;

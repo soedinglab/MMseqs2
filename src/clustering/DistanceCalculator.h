@@ -6,6 +6,7 @@
 #define MMSEQS_DISTANCECALCULATOR_H
 
 #include <sstream>
+#include <cstring>
 
 class DistanceCalculator {
 public:

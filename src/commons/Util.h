@@ -56,8 +56,8 @@ public:
     static void rankedDescSort20(short *val, unsigned int *index);
     static void decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
                                            size_t worldRank, size_t worldSize, size_t *start, size_t *end);
-    static void decomposeDomainSizet(size_t aaSize, size_t *seqSizes, size_t count,
-                                     size_t worldRank, size_t worldSize, size_t *start, size_t *size);
+    static void decomposeDomainSize(size_t aaSize, size_t *seqSizes, size_t count,
+                                    size_t worldRank, size_t worldSize, size_t *start, size_t *size);
     static size_t getTotalSystemMemory();
     static size_t get_phys_pages();
     static size_t countLines(const char *data, size_t length);

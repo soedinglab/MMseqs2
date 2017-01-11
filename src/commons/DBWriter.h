@@ -40,7 +40,7 @@ class DBWriter {
         void sortDatafileByIdOrder(DBReader<unsigned int>& qdbr);
 
         static void mergeResults(const char *outFileName, const char *outFileNameIndex, const char **dataFileNames,
-                                        const char **indexFileNames, unsigned int fileCount);
+                                        const char **indexFileNames, unsigned long fileCount);
 
         void mergeFilePair(const char *inData1, const char *inIndex1, const char *inData2, const char *inIndex2);
 

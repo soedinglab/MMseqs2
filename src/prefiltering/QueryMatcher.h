@@ -50,8 +50,10 @@ struct hit_t {
 
 
 
-
 hit_t parsePrefilterHit(char* data);
+
+std::vector<hit_t> parsePrefilterHits(char *data);
+
 std::string prefilterHitToString(hit_t h);
 
 
