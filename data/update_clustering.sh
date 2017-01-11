@@ -191,7 +191,7 @@ fi
 echo "==================================================="
 echo "======= Extract representative sequences =========="
 echo "==================================================="
-if notExists "$TMP/OLDDB.mapped.repSeq"; then
+if notExists "$TMP/OLDDB.repSeq"; then
     $MMSEQS result2msa "$OLDDB" "$OLDDB" "$OLDCLUST" "$TMP/OLDDB.repSeq" --only-rep-seq \
         || fail "Result2msa died"
 fi
@@ -293,7 +293,6 @@ if [ -n "$REMOVE_TMP" ]; then
 
 	rm -f "$TMP/newSeqsHits.swapped.all" "$TMP/newSeqsHits.swapped.all.index" \
 	      "$TMP/NEWDB.newSeqs" "$TMP/NEWDB.newSeqs.index" \
-	      "$TMP/OLDCLUST.mapped" "$TMP/OLDCLUST.mapped.index" \
 	      "$TMP/mappingSeqs" "$TMP/newSeqs" "$TMP/removedSeqs"
 
 	rm -f "$TMP/OLDDB.repSeq" "$TMP/OLDDB.repSeq.index" \
