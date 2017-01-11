@@ -91,9 +91,13 @@ if [ -n "$PRESERVE_REPR" ] && [ -f "$TMP/removedSeqs" ]; then
         ) || fail "result2stats died"
     fi
 
-    LC_ALL=C comm -12 <(LC_ALL=C sort -T "$TMP" "$TMP/removedSeqs") <(LC_ALL=C sort -T "$TMP" "$TMP/OLDCLUST.allRepr") > "$TMP/OLDCLUST.removedRepr"
-    if [[ -f "$TMP/OLDCLUST.removedRepr" ]]; then
-        if notExists "$TMP/OLDCLUST.removedReprSeqs"; then
+    if notExists "$TMP/OLDCLUST.removedRepr"; then
+        LC_ALL=C comm -12 <(LC_ALL=C sort -T "$TMP" "$TMP/removedSeqs") <(LC_ALL=C sort -T "$TMP" "$TMP/OLDCLUST.allRepr") > "$TMP/OLDCLUST.removedRepr" \
+        || fail "Could not create $TMP/OLDCLUST.removedRepr"
+    fi
+
+    if [[ -s "$TMP/OLDCLUST.removedRepr" ]]; then
+        if notExists "$TMP/OLDDB.removedReprSeqs"; then
             $MMSEQS createsubdb "$TMP/OLDCLUST.removedRepr" "$OLDDB" "$TMP/OLDDB.removedReprSeqs" \
                 || fail "createsubdb died"
         fi
@@ -165,8 +169,8 @@ if notExists "$TMP/NEWDB.lookup"; then
         || fail "join died"
 fi
 
-ln -s "${NEWDB}" "$TMP/NEWDB"
-ln -s "${NEWDB}_h" "$TMP/NEWDB_h"
+ln -sf "${NEWDB}" "$TMP/NEWDB"
+ln -sf "${NEWDB}_h" "$TMP/NEWDB_h"
 NEWDB="$TMP/NEWDB"
 
 if [ -n "$REMOVE_TMP" ]; then
@@ -224,11 +228,11 @@ if [ -f "$TMP/newSeqsHits.swapped" ]; then
     fi
 else
     if notExists "$TMP/updatedClust"; then
-        ln -s "$OLDCLUST" "$TMP/updatedClust" \
+        ln -sf "$OLDCLUST" "$TMP/updatedClust" \
             || fail "Mv Oldclust to update died"
     fi
     if notExists "$TMP/updatedClust.index"; then
-        ln -s "$OLDCLUST.index" "$TMP/updatedClust.index" \
+        ln -sf "$OLDCLUST.index" "$TMP/updatedClust.index" \
             || fail "Mv Oldclust to update died"
     fi
 fi
