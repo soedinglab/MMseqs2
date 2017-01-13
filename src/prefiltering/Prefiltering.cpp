@@ -624,7 +624,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, Inde
 
             aaCount += s.L;
             totalKmerCount += indexTable->addKmerCount(&s, &idxer);
-            sequenceLookup->addSequence(&s, sequenceOffSet[id - dbFrom]);
+            sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
         }
     }
     delete[] sequenceOffSet;

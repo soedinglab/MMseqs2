@@ -8,54 +8,50 @@
 #include "Util.h"
 #include "SequenceLookup.h"
 
-SequenceLookup::SequenceLookup(size_t dbSize,
-                               size_t entrySize) {
-    sequenceCount = dbSize;
-    sequence = new(std::nothrow) char*[sequenceCount + 1];
-    Util::checkAllocation(sequence, "Could not allocate sequence memory in SequenceLookup");
-    dataSize = entrySize;
-    data = new(std::nothrow)     char[dataSize + 1];
+SequenceLookup::SequenceLookup(size_t dbSize, size_t entrySize)
+        : sequenceCount(dbSize), dataSize(entrySize), currentIndex(0), currentOffset(0), externalData(false) {
+    data = new(std::nothrow) char[dataSize + 1];
     Util::checkAllocation(data, "Could not allocate data memory in SequenceLookup");
 
-    currWritePos = data;
-    sequence[0] = data;
-    sequence[dbSize] = &data[entrySize];
-    externalData = false;
+    offsets = new(std::nothrow) size_t[sequenceCount + 1];
+    Util::checkAllocation(offsets, "Could not allocate offsets memory in SequenceLookup");
+    offsets[sequenceCount] = dataSize;
 }
 
-SequenceLookup::SequenceLookup(size_t dbSize) {
-    sequenceCount = dbSize;
-    data = NULL;
-    sequence = new(std::nothrow) char*[sequenceCount + 1];
-    Util::checkAllocation(sequence, "Could not allocate sequence memory in SequenceLookup");
-    externalData = true;
+SequenceLookup::SequenceLookup(size_t dbSize)
+        : sequenceCount(dbSize), data(NULL), dataSize(0), offsets(NULL), currentIndex(0), currentOffset(0), externalData(true) {
 }
 
 SequenceLookup::~SequenceLookup() {
-    delete [] sequence;
     if(externalData == false){
-        delete [] data;
+        delete[] data;
+        delete[] offsets;
     }else{
         munlock(data, dataSize);
+        munlock(offsets, (sequenceCount + 1) * sizeof(size_t));
     }
 }
 
-void SequenceLookup::addSequence(Sequence *  seq, size_t offset){
-    sequence[seq->getId()] = data + offset;
+void SequenceLookup::addSequence(Sequence *  seq, size_t index, size_t offset){
+    offsets[index] = offset;
     for(int pos = 0; pos < seq->L; pos++){
         unsigned char aa = seq->int_sequence[pos];
-        sequence[seq->getId()][pos] = aa;
+        data[offset + pos] = aa;
     }
+    data[offset + seq->L] = 0;
 }
 
 void SequenceLookup::addSequence(Sequence * seq) {
-    addSequence(seq, currWritePos - data);
-    currWritePos = currWritePos + seq->L;
+    addSequence(seq, currentIndex, currentOffset);
+    currentIndex = currentIndex + 1;
+    currentOffset = currentOffset + seq->L;
 }
 
 std::pair<const unsigned char *, const unsigned int> SequenceLookup::getSequence(size_t id) {
-    const unsigned int N = (sequence[id + 1] - sequence[id])/ sizeof(char);
-    return std::make_pair(( const unsigned char *)sequence[id], N);
+    size_t *offset = (offsets + id);
+    ptrdiff_t N = *(offset + 1) - *offset;
+    char *p = data + *offset;
+    return std::pair<const unsigned char *, const unsigned int>(reinterpret_cast<const unsigned char*>(p), static_cast<unsigned int>(N));
 }
 
 const char *SequenceLookup::getData() {
@@ -70,19 +66,11 @@ size_t SequenceLookup::getSequenceCount() {
     return sequenceCount;
 }
 
-void SequenceLookup::initLookupByExternalData(char * seqData, unsigned int * seqSizes) {
+void SequenceLookup::initLookupByExternalData(char * seqData, size_t seqDataSize, size_t *seqOffsets) {
     // copy data to data element
     data = seqData;
-    char * it = data;
-    magicByte = 0;
-    // set the pointers
-    for (size_t i = 0; i < sequenceCount; i++){
-        const unsigned int entriesCount = (unsigned int) seqSizes[i];
-        sequence[i] = (char *) it;
-        it += entriesCount;
-        magicByte += sequence[i][0]; // this will read 4kb
-    }
-    dataSize = it - data;
-    mlock(data, dataSize);
-    sequence[sequenceCount] = it;
+    dataSize = seqDataSize;
+    mlock(seqData, seqDataSize);
+    offsets = seqOffsets;
+    mlock(seqOffsets, (sequenceCount + 1) * sizeof(size_t));
 }

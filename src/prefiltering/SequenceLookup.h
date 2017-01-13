@@ -17,7 +17,7 @@ public:
     ~SequenceLookup();
 
     // add sequence at offset
-    void addSequence(Sequence * seq, size_t offset);
+    void addSequence(Sequence * seq, size_t index, size_t offset);
 
     // add sequence to index
     void addSequence(Sequence * seq);
@@ -31,28 +31,23 @@ public:
 
     size_t getSequenceCount();
 
-    void initLookupByExternalData(char * seqData,
-                                  unsigned int * seqSizes);
+    void initLookupByExternalData(char *seqData, size_t dataSize, size_t *seqOffsets);
 
 private:
+    size_t sequenceCount;
 
     // data contains sequence data
-    char * data;
+    char *data;
+    size_t dataSize;
 
-    // pointer to the start of the sequence
-    char ** sequence;
+    size_t *offsets;
 
     // write position
-    char * currWritePos;
-    size_t sequenceCount;
-    size_t dataSize;
+    size_t currentIndex;
+    size_t currentOffset;
 
     // if data are read from mmap
     bool externalData;
-
-    // magic byte to cache database
-    size_t magicByte;
-
 };
 
 

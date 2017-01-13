@@ -11,7 +11,7 @@ unsigned int PrefilteringIndexReader::SEQCOUNT = 4;
 unsigned int PrefilteringIndexReader::META = 5;
 unsigned int PrefilteringIndexReader::SEQINDEXDATA = 6;
 unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 7;
-unsigned int PrefilteringIndexReader::SEQINDEXSEQSIZE = 8;
+unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 8;
 bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     char * version = reader->getDataByDBKey(VERSION);
     if(version == NULL){
@@ -95,16 +95,20 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         char *seqindexDataSizePtr = (char *) &seqindexDataSize;
         writer.writeData(seqindexDataSizePtr, 1 * sizeof(int64_t), (char *) seqindex_datasize_key.c_str(), 0);
 
-        unsigned int *sequenceSizes = new unsigned int[lookup->getSequenceCount()];
+        size_t currentOffset = 0;
+        size_t sequenceCount = lookup->getSequenceCount();
+        size_t *sequenceOffsets = new size_t[sequenceCount + 1];
         for (size_t i = 0; i < lookup->getSequenceCount(); i++) {
+            sequenceOffsets[i] = currentOffset;
             unsigned int size = lookup->getSequence(i).second;
-            sequenceSizes[i] = size;
+            currentOffset += size;
         }
-        std::string seqindex_seqsize = SSTR(MathUtil::concatenate(SEQINDEXSEQSIZE, step));
-        Debug(Debug::WARNING) << "Write " << seqindex_seqsize << "\n";
-        writer.writeData((char *) sequenceSizes, lookup->getSequenceCount() * sizeof(unsigned int),
-                         (char *) seqindex_seqsize.c_str(), 0);
-        delete[] sequenceSizes;
+        sequenceOffsets[sequenceCount] = currentOffset;
+        std::string seqindex_seqoffset = SSTR(MathUtil::concatenate(SEQINDEXSEQOFFSET, step));
+        Debug(Debug::WARNING) << "Write " << seqindex_seqoffset << "\n";
+        writer.writeData((char *) sequenceOffsets, sequenceCount * sizeof(size_t),
+                         (char *) seqindex_seqoffset.c_str(), 0);
+        delete[] sequenceOffsets;
 
         // meta data
         // ENTRIESNUM
@@ -161,8 +165,11 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*d
     char * entrieSizesData    = dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESIZES, split));
     //size_t seqDataOffset  = dbr->getDataOffset(MathUtil::concatenate(SEQINDEXDATA, split));
     char * seqData    = dbr->getDataByDBKey(MathUtil::concatenate(SEQINDEXDATA, split));
-    //size_t seqSizesOffset = dbr->getDataOffset(MathUtil::concatenate(SEQINDEXSEQSIZE, split));
-    char * seqSizesData    = dbr->getDataByDBKey(MathUtil::concatenate(SEQINDEXSEQSIZE, split));
+    //size_t seqSizesOffset = dbr->getDataOffset(MathUtil::concatenate(SEQINDEXSEQOFFSET, split));
+
+    unsigned int seqOffsetsId = dbr->getId(MathUtil::concatenate(SEQINDEXSEQOFFSET, split));
+    char * seqOffsetsData     = dbr->getData(seqOffsetsId);
+    size_t seqOffsetLength    = dbr->getSeqLens(seqOffsetsId);
 
     IndexTable *retTable;
     if (data.local) {
@@ -175,7 +182,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*d
     SequenceLookup * sequenceLookup = NULL;
     if(diagonalScoring == true) {
         sequenceLookup = new SequenceLookup(sequenceCount);
-        sequenceLookup->initLookupByExternalData(seqData, (unsigned int *) seqSizesData);
+        sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
     }
     retTable->initTableByExternalData(sequenceCount, entriesNum,
                                       entriesData, (size_t *)entrieSizesData, sequenceLookup);

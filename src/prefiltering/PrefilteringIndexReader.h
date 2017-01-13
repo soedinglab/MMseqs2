@@ -24,7 +24,7 @@ public:
     static unsigned int ENTRIESIZES;
     static unsigned int SEQINDEXDATA;
     static unsigned int SEQINDEXDATASIZE;
-    static unsigned int SEQINDEXSEQSIZE;
+    static unsigned int SEQINDEXSEQOFFSET;
     static unsigned int ENTRIESNUM;
     static unsigned int SEQCOUNT;
     static unsigned int META;
