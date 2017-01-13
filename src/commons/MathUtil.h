@@ -9,8 +9,9 @@
 
 class MathUtil {
 public:
-    static inline int ipow(int base, int exponent) {
-        int res = 1;
+    template<typename T>
+    static inline T ipow(int base, int exponent) {
+        T res = 1;
         for (int i = 0; i < exponent; i++)
             res = res * base;
         return res;
