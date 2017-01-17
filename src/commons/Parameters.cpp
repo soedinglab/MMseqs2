@@ -342,8 +342,6 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     
     
     // swapreults
-    swapresults.push_back(PARAM_SUB_MAT);
-    swapresults.push_back(PARAM_MAX_SEQ_LEN);
     swapresults.push_back(PARAM_THREADS);
     swapresults.push_back(PARAM_V);
     
