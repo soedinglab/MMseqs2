@@ -5,6 +5,8 @@
 #include "BaseMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "Sequence.h"
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <unistd.h>
 #ifdef __APPLE__
