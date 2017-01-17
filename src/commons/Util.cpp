@@ -331,9 +331,9 @@ size_t Util::getTotalSystemMemory()
     long page_size = sysconf(_SC_PAGE_SIZE);
     uint64_t sysMemory = pages * page_size;
     // check for ulimit
-    struct rlimit limit;
-    getrlimit(RLIMIT_MEMLOCK, &limit);
-    return std::min(sysMemory, limit.rlim_max );
+//    struct rlimit limit;
+//    getrlimit(RLIMIT_MEMLOCK, &limit);
+    return sysMemory;
 }
 
 
