@@ -315,12 +315,12 @@ QueryMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTab
     return matchers;
 }
 
-IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize, int threads) {
+IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize, int kmerThr, int threads) {
     if(templateDBIsIndex == true ){
         return PrefilteringIndexReader::generateIndexTable(tidxdbr, split, diagonalScoring);
     }else{
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, aaBiasCorrection);
-        return generateIndexTable(tdbr, &tseq, subMat, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, diagonalScoring, threads);
+        return generateIndexTable(tdbr, &tseq, subMat, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, diagonalScoring, kmerThr, threads);
     }
 }
 
@@ -334,21 +334,8 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
     size_t queryFrom = 0;
     size_t querySize = qdbr->getSize();
     IndexTable * indexTable = NULL;
-    if(splitMode == Parameters::TARGET_DB_SPLIT){
-        Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
-                                         split, splitCount, &dbFrom, &dbSize);
-        //TODO fix this what if we have 10 chunks but only 4 servers (please fix me)
-        indexTable = getIndexTable(split, dbFrom, dbSize, threads);
-    } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        Util::decomposeDomainByAminoAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
-                                         split, splitCount, &queryFrom, &querySize);
-        indexTable = getIndexTable(0, dbFrom, dbSize, threads); // create the whole index table
-    } else{
-        Debug(Debug::ERROR) << "Wrong split mode. This should not happen. Please contact developer.\n";
-        EXIT(EXIT_FAILURE);
-    }
+
     // create index table based on split parameter
-    // run small query sample against the index table to calibrate p-match
     std::pair<short, double> calibration;
     const int kmerScore = getKmerThreshold(this->sensitivity, this->kmerScore);
     if(diagonalScoring == true){
@@ -359,6 +346,21 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
     //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
     this->kmerThr = calibration.first;
     this->kmerMatchProb = calibration.second;
+
+    if(splitMode == Parameters::TARGET_DB_SPLIT){
+        Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
+                                         split, splitCount, &dbFrom, &dbSize);
+        //TODO fix this what if we have 10 chunks but only 4 servers (please fix me)
+        indexTable = getIndexTable(split, dbFrom, dbSize, kmerThr, threads);
+    } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
+        Util::decomposeDomainByAminoAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
+                                         split, splitCount, &queryFrom, &querySize);
+        indexTable = getIndexTable(0, dbFrom, dbSize, kmerThr, threads); // create the whole index table
+    } else{
+        Debug(Debug::ERROR) << "Wrong split mode. This should not happen. Please contact developer.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
 
     Debug(Debug::WARNING) << "k-mer similarity threshold: " << kmerThr << "\n";
     Debug(Debug::WARNING) << "k-mer match probability: " << kmerMatchProb << "\n\n";
@@ -566,8 +568,10 @@ BaseMatrix * Prefiltering:: getSubstitutionMatrix(const std::string& scoringMatr
 }
 
 
-void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, IndexTable * indexTable,
-                                BaseMatrix *subMat, size_t dbFrom, size_t dbTo, bool diagonalScoring, int threads)
+void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
+                                IndexTable * indexTable, BaseMatrix *subMat,
+                                size_t dbFrom, size_t dbTo, bool diagonalScoring,
+                                int kmerThr, int threads)
 {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
@@ -579,6 +583,10 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 
     size_t dbSize = dbTo - dbFrom;
     size_t * sequenceOffSet = new size_t[dbSize];
+    char * idScoreLookup = new char[subMat->alphabetSize];
+    for(size_t aa = 0; aa < subMat->alphabetSize; aa++){
+        idScoreLookup[aa] = subMat->subMatrix[aa][aa];
+    }
     size_t aaDbSize = 0;
     sequenceOffSet[0] = 0;
     for (unsigned int id = dbFrom; id < dbTo; id++){
@@ -592,6 +600,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
             tableSize += 1;
         }
     }
+
     SequenceLookup * sequenceLookup = new SequenceLookup(dbSize, aaDbSize);
 #pragma omp parallel
     {
@@ -610,7 +619,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
                                                       indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X'], true, true, true, true);
 
             aaCount += s.L;
-            totalKmerCount += indexTable->addKmerCount(&s, &idxer);
+            totalKmerCount += indexTable->addKmerCount(&s, &idxer, kmerThr, idScoreLookup);
             sequenceLookup->addSequence(&s, sequenceOffSet[id-dbFrom]);
         }
     }
@@ -676,12 +685,13 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
             s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id-dbFrom));
 //            Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
 //                                    indexTable->getAlphabetSize(), seq->aa2int['X']);
-            indexTable->addSequence(&s, &idxer, threadFrom, threadSize);
+            indexTable->addSequence(&s, &idxer, threadFrom, threadSize, kmerThr, idScoreLookup);
         }
     }
     if(diagonalScoring == false){
         delete sequenceLookup;
     }
+    delete [] idScoreLookup;
     if ((dbTo-dbFrom) > 10000)
         Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: removing duplicate entries...\n";
@@ -690,13 +700,16 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq, Inde
 
 }
 
-IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, BaseMatrix * subMat, int alphabetSize, int kmerSize,
-                                              size_t dbFrom, size_t dbTo, bool diagonalScoring, int threads) {
+IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, BaseMatrix * subMat,
+                                              int alphabetSize, int kmerSize,
+                                              size_t dbFrom, size_t dbTo,
+                                              bool diagonalScoring, int kmerThr,
+                                              int threads) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     IndexTable * indexTable;
     indexTable = new IndexTable(alphabetSize, kmerSize);
-    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, threads);
+    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, kmerThr, threads);
     gettimeofday(&end, NULL);
     indexTable->printStatisitic(seq->int2aa);
     int sec = end.tv_sec - start.tv_sec;

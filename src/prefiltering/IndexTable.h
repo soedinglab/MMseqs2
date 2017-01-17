@@ -81,13 +81,24 @@ public:
     }
 
     // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
-    size_t addKmerCount (Sequence* s, Indexer * idxer){
+    size_t addKmerCount (Sequence* s, Indexer * idxer, int threshold, char * diagonalScore){
         unsigned int kmerIdx;
         s->resetCurrPos();
         //idxer->reset();
         size_t countKmer = 0;
         while(s->hasNextKmer()){
-            kmerIdx = idxer->int2index(s->nextKmer(), 0, kmerSize);
+            const int * kmer = s->nextKmer();
+            if(threshold > 0){
+                int score = 0;
+                for(size_t pos = 0; pos < kmerSize; pos++){
+                    score += diagonalScore[kmer[pos]];
+                }
+                if(score < threshold){
+                    continue;
+                }
+            }
+            kmerIdx = idxer->int2index(kmer, 0, kmerSize);
+
             //table[kmerIdx] += 1;
             // size increases by one
             __sync_fetch_and_add( (int *) &table[kmerIdx], 1 );
@@ -220,7 +231,8 @@ public:
 
     // FUNCTIONS TO OVERWRITE
     // add k-mers of the sequence to the index table
-    void addSequence (Sequence* s, Indexer * idxer, size_t aaFrom, size_t aaSize){
+    void addSequence (Sequence* s, Indexer * idxer, size_t aaFrom, size_t aaSize,
+                      int threshold, char * diagonalScore){
         // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
         s->resetCurrPos();
         idxer->reset();
@@ -231,6 +243,16 @@ public:
                 // if region got masked do not add kmer
                 if((table[kmerIdx+1] - table[kmerIdx]) == 0)
                     continue;
+                if(threshold > 0) {
+                    int score = 0;
+                    for (size_t pos = 0; pos < kmerSize; pos++) {
+                        score += diagonalScore[kmer[pos]];
+                    }
+                    if (score < threshold) {
+                        continue;
+                    }
+                }
+
                 IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
                 entry->seqId      = s->getId();
                 entry->position_j = s->getCurrentPosition();

@@ -26,7 +26,7 @@ int main (int argc, const char * argv[])
     dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     Sequence* s = new Sequence(32000, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 6, true, false);
     IndexTable t(subMat.alphabetSize, 6);
-    Prefiltering::fillDatabase(&dbr, s, &t, &subMat, 0, dbr.getSize(), false, 1 );
+    Prefiltering::fillDatabase(&dbr, s, &t, &subMat, 0, dbr.getSize(), false, 0, 1 );
 
     delete s;
     return 0;
