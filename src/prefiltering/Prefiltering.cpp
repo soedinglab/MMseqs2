@@ -338,6 +338,22 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
     // create index table based on split parameter
     std::pair<short, double> calibration;
     const int kmerScore = getKmerThreshold(this->sensitivity, this->kmerScore);
+
+
+    if(splitMode == Parameters::TARGET_DB_SPLIT){
+        Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
+                                         split, splitCount, &dbFrom, &dbSize);
+        //TODO fix this what if we have 10 chunks but only 4 servers (please fix me)
+        indexTable = getIndexTable(split, dbFrom, dbSize, kmerScore, threads);
+    } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
+        Util::decomposeDomainByAminoAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
+                                         split, splitCount, &queryFrom, &querySize);
+        indexTable = getIndexTable(0, dbFrom, dbSize, kmerScore, threads); // create the whole index table
+    } else{
+        Debug(Debug::ERROR) << "Wrong split mode. This should not happen. Please contact developer.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     if(diagonalScoring == true){
         calibration = std::pair<short, double>(kmerScore, 0.0);
     }else{
@@ -346,21 +362,6 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
     //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
     this->kmerThr = calibration.first;
     this->kmerMatchProb = calibration.second;
-
-    if(splitMode == Parameters::TARGET_DB_SPLIT){
-        Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
-                                         split, splitCount, &dbFrom, &dbSize);
-        //TODO fix this what if we have 10 chunks but only 4 servers (please fix me)
-        indexTable = getIndexTable(split, dbFrom, dbSize, kmerThr, threads);
-    } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        Util::decomposeDomainByAminoAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
-                                         split, splitCount, &queryFrom, &querySize);
-        indexTable = getIndexTable(0, dbFrom, dbSize, kmerThr, threads); // create the whole index table
-    } else{
-        Debug(Debug::ERROR) << "Wrong split mode. This should not happen. Please contact developer.\n";
-        EXIT(EXIT_FAILURE);
-    }
-
 
     Debug(Debug::WARNING) << "k-mer similarity threshold: " << kmerThr << "\n";
     Debug(Debug::WARNING) << "k-mer match probability: " << kmerMatchProb << "\n\n";
