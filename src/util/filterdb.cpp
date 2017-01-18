@@ -17,16 +17,16 @@
 
 
 struct compareFirstEntry {
-    bool operator()(const std::pair <float,std::string> &lhs,
-                    const std::pair <float,std::string> &rhs) const {
+    bool operator()(const std::pair <double,std::string> &lhs,
+                    const std::pair <double,std::string> &rhs) const {
         return (lhs.first < rhs.first);
     }
 };
 
 
 struct compareFirstEntryDecreasing {
-    bool operator()(const std::pair <float,std::string> &lhs,
-                    const std::pair <float,std::string> &rhs) const {
+    bool operator()(const std::pair <double,std::string> &lhs,
+                    const std::pair <double,std::string> &rhs) const {
         return (lhs.first > rhs.first);
     }
 };
@@ -62,10 +62,7 @@ ffindexFilter::ffindexFilter(Parameters &par) {
     if (par.sortEntries)
     {
         mode = SORT_ENTRIES;
-        if (par.sortEntries  == 1)
-            increasing = true;
-        else
-            increasing = false;
+        sortingMode = par.sortEntries;
     }
 
 	initFiles();
@@ -175,7 +172,7 @@ int ffindexFilter::runFilter(){
 			size_t dataLength = dataDb->getSeqLens(id);
 			int counter = 0;
             
-           std::vector<std::pair<float, std::string>> toSort;
+           std::vector<std::pair<double, std::string>> toSort;
            
 			while (*data != '\0') {
 				if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
@@ -296,7 +293,7 @@ int ffindexFilter::runFilter(){
                       delete [] newLineBuffer;
 
 					}  else if(mode == SORT_ENTRIES) {
-                        toSort.push_back(std::make_pair(atof(columnValue),std::string(lineBuffer)));
+                        toSort.push_back(std::make_pair(std::stod(columnValue),std::string(lineBuffer)));
                         nomatch = 1; // do not put anything in the output buffer
                   }
                     else // Unknown filtering mode, keep all entries
@@ -317,10 +314,15 @@ int ffindexFilter::runFilter(){
 
             if(mode == SORT_ENTRIES)
             {
-                if (increasing)
+                if (sortingMode ==INCREASING)
                     omptl::sort(toSort.begin(),toSort.end(),compareFirstEntry());
-                else
+                else if (sortingMode == DECREASING)
                     omptl::sort(toSort.begin(),toSort.end(),compareFirstEntryDecreasing());
+                else if (sortingMode == SHUFFLE)
+                {
+                    srand ( unsigned ( time(0) ) );
+                    std::random_shuffle(toSort.begin(),toSort.end());
+                }
 
                 
                 for (size_t i = 0; i< toSort.size(); i++)

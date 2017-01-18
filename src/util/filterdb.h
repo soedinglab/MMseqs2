@@ -23,6 +23,10 @@
 #define LOWER_OR_EQUAL "le"
 #define EQUAL "e"
 
+#define INCREASING  1
+#define DECREASING  2
+#define SHUFFLE     3
+
 class ffindexFilter {
 public:
 	// Constructor for RegEx Filtering
@@ -74,7 +78,7 @@ private:
 	std::string outDB;
     std::string filterFile;
 
-    bool increasing;
+    int sortingMode;
     
 	int threads;
 	size_t column;
