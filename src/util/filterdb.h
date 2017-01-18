@@ -17,6 +17,7 @@
 #define FILE_MAPPING 2
 #define GET_FIRST_LINES 3
 #define NUMERIC_COMPARISON 4
+#define SORT_ENTRIES 5
 
 #define GREATER_OR_EQUAL "ge"
 #define LOWER_OR_EQUAL "le"
@@ -61,7 +62,9 @@ public:
 				  size_t column,
                  float compValue,
                  std::string compOperator);
-				  
+
+    // TODO:  Should become the unique constructor
+    ffindexFilter(Parameters &par); 
 	~ffindexFilter();
 	
 	int runFilter();
@@ -71,6 +74,8 @@ private:
 	std::string outDB;
     std::string filterFile;
 
+    bool increasing;
+    
 	int threads;
 	size_t column;
     std::string regexStr;
