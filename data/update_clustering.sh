@@ -60,7 +60,7 @@ NEWCLUST="$(abspath $4)"
 
 if notExists "$TMP/removedSeqs"; then
     $MMSEQS diffseqdbs "$OLDDB" "$NEWDB" \
-                          "$TMP/removedSeqs" "$TMP/mappingSeqs" "$TMP/newSeqs" ${DIFF_PAR} \
+                       "$TMP/removedSeqs" "$TMP/mappingSeqs" "$TMP/newSeqs" ${DIFF_PAR} \
         || fail "Diff died"
 fi
 
@@ -77,60 +77,43 @@ WARN
     exit 1
 fi
 
-if [ -n "$PRESERVE_REPR" ] && [ -f "$TMP/removedSeqs" ]; then
+if [ -n "${RECOVER_DELETED}" ] && [ -s "$TMP/removedSeqs" ]; then
     echo "==================================================="
-    echo "========= Recover removed representatives ========="
+    echo "============ Recover removed sequences ============"
     echo "==================================================="
 
-    if notExists "$TMP/OLDCLUST.allRepr"; then
+    if notExists "$TMP/OLDDB.removedSeqs"; then
+        $MMSEQS createsubdb "$TMP/removedSeqs" "$OLDDB" "$TMP/OLDDB.removedSeqs" \
+            || fail "createsubdb died"
+    fi
+
+    if notExists "$TMP/OLDCLUST.removedMapping"; then
         ( \
-            $MMSEQS result2stats "$OLDDB" "$OLDDB" "$OLDCLUST" "$TMP/OLDCLUST.allRepr" --stat firstline; \
-            rm "$TMP/OLDCLUST.allRepr.index"; \
-            tr -d '\000' < "$TMP/OLDCLUST.allRepr" > "$TMP/OLDCLUST.allReprNN"; \
-            mv -f "$TMP/OLDCLUST.allReprNN" "$TMP/OLDCLUST.allRepr" \
-        ) || fail "result2stats died"
+            HIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"; \
+            awk -v highest="$HIGHESTID" \
+                'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
+                "$TMP/OLDCLUST.removed" > "$TMP/OLDCLUST.removedMapping"; \
+            cat "$TMP/OLDCLUST.removedMapping" >> "$TMP/mappingSeqs"; \
+        ) || fail "Could not create $TMP/OLDCLUST.removedMapping"
     fi
 
-    if notExists "$TMP/OLDCLUST.removedRepr"; then
-        LC_ALL=C comm -12 <(LC_ALL=C sort -T "$TMP" "$TMP/removedSeqs") <(LC_ALL=C sort -T "$TMP" "$TMP/OLDCLUST.allRepr") > "$TMP/OLDCLUST.removedRepr" \
-        || fail "Could not create $TMP/OLDCLUST.removedRepr"
+    if notExists "$TMP/NEWDB.withOld"; then
+        ( \
+            ln -sf "$OLDDB" "$TMP/OLDDB.removedDb"; \
+            ln -sf "$OLDDB" "$TMP/OLDDB.removedDb_h"; \
+            joinAndReplace "${OLDDB}.index" "$TMP/OLDDB.removedDb.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"; \
+            joinAndReplace "${OLDDB}_h.index" "$TMP/OLDDB.removedDb_h.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"; \
+            joinAndReplace "${OLDDB}.lookup" "$TMP/OLDDB.removedDb.lookup" "$TMP/OLDCLUST.removedMapping" "1.2 2.2"; \
+            $MMSEQS concatdbs "$NEWDB" "$TMP/OLDDB.removedDb" "$TMP/NEWDB.withOld" --preserve-keys; \
+            $MMSEQS concatdbs "${NEWDB}_h" "$TMP/OLDDB.removedDb_h" "$TMP/NEWDB.withOld_h" --preserve-keys; \
+            cat "${NEWDB}.lookup" "$TMP/OLDDB.removedDb.lookup" > "$TMP/NEWDB.withOld.lookup"; \
+            NEWDB="$TMP/NEWDB.withOld"; \
+        ) || fail "Could not create $TMP/NEWDB.withOld"
     fi
 
-    if [[ -s "$TMP/OLDCLUST.removedRepr" ]]; then
-        if notExists "$TMP/OLDDB.removedReprSeqs"; then
-            $MMSEQS createsubdb "$TMP/OLDCLUST.removedRepr" "$OLDDB" "$TMP/OLDDB.removedReprSeqs" \
-                || fail "createsubdb died"
-        fi
-
-        if notExists "$TMP/OLDCLUST.removedReprMapping"; then
-            ( \
-                HIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"; \
-                awk -v highest="$HIGHESTID" \
-                    'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
-                    "$TMP/OLDCLUST.removedRepr" > "$TMP/OLDCLUST.removedReprMapping"; \
-                cat "$TMP/OLDCLUST.removedReprMapping" >> "$TMP/mappingSeqs"; \
-            ) || fail "Could not create $TMP/OLDCLUST.removedReprMapping"
-        fi
-
-        if notExists "$TMP/NEWDB.withOldRepr"; then
-            ( \
-                ln -sf "$OLDDB" "$TMP/OLDDB.removedReprDb"; \
-                ln -sf "$OLDDB" "$TMP/OLDDB.removedReprDb_h"; \
-                joinAndReplace "${OLDDB}.index" "$TMP/OLDDB.removedReprDb.index" "$TMP/OLDCLUST.removedReprMapping" "1.2 2.2 2.3"; \
-                joinAndReplace "${OLDDB}_h.index" "$TMP/OLDDB.removedReprDb_h.index" "$TMP/OLDCLUST.removedReprMapping" "1.2 2.2 2.3"; \
-                joinAndReplace "${OLDDB}.lookup" "$TMP/OLDDB.removedReprDb.lookup" "$TMP/OLDCLUST.removedReprMapping" "1.2 2.2"; \
-                $MMSEQS concatdbs "$NEWDB" "$TMP/OLDDB.removedReprDb" "$TMP/NEWDB.withOldRepr" --preserve-keys; \
-                $MMSEQS concatdbs "${NEWDB}_h" "$TMP/OLDDB.removedReprDb_h" "$TMP/NEWDB.withOldRepr_h" --preserve-keys; \
-                cat "${NEWDB}.lookup" "$TMP/OLDDB.removedReprDb.lookup" > "$TMP/NEWDB.withOldRepr.lookup"; \
-                NEWDB="$TMP/NEWDB.withOldRepr"; \
-            ) || fail "Could not create $TMP/NEWDB.withOldRepr"
-        fi
-
-        if [ -n "$REMOVE_TMP" ]; then
-            echo "Remove temporary files 1/3"
-            rm -f "$TMP/OLDCLUST."{allRepr,removedRepr,removedReprMapping} \
-                "$TMP/OLDDB."{removedReprDb,removedReprDb.index,removedReprDb.lookup,removedReprSeqs,removedReprSeqs.index}
-        fi
+    if [ -n "$REMOVE_TMP" ]; then
+        echo "Remove temporary files 1/3"
+        rm -f "$TMP/OLDCLUST.removedMapping" "$TMP/OLDDB.removed"{Db,Db.index,Db.lookup,Seqs,Seqs.index}
     fi
 fi
 
@@ -175,7 +158,7 @@ NEWDB="$TMP/NEWDB"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files 2/3"
-    rm -f "$TMP/NEWDB.withOldRepr"{,.index,.lookup,_h,_h.index}
+    rm -f "$TMP/NEWDB.withOld"{,.index,.lookup,_h,_h.index}
 fi
 
 #read -n1
@@ -266,7 +249,7 @@ echo "=====         the new clusters               ======"
 echo "==================================================="
 if [ -f "$TMP/newClusters" ]; then
     if notExists "$NEWCLUST"; then
-        $MMSEQS concatdbs "$TMP/updatedClust" "$TMP/newClusters" "$NEWCLUST" \
+        $MMSEQS concatdbs "$TMP/updatedClust" "$TMP/newClusters" "$NEWCLUST" --preserve-keys \
             || fail "Dbconcat died"
     fi
 else

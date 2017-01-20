@@ -261,7 +261,7 @@ public:
     bool useSequenceId;
 
     // clusterUpdate;
-    bool preserveRepresentatives;
+    bool recoverDeleted;
 
     static Parameters& getInstance()
     {
@@ -442,7 +442,7 @@ public:
     PARAMETER(PARAM_KB_COLUMNS)
 
     // clusterupdate
-    PARAMETER(PARAM_PRESERVE_REPRESENTATIVE)
+    PARAMETER(PARAM_RECOVER_DELETED)
 
     std::vector<MMseqsParameter> empty;
     std::vector<MMseqsParameter> rescorediagonal;

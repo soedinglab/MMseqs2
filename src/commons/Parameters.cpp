@@ -135,7 +135,7 @@ PARAM_MSA_TYPE(PARAM_MSA_TYPE_ID,"--msa-type", "MSA type", "MSA Type: cA3M 0 or 
 PARAM_EXTRACT_MODE(PARAM_EXTRACT_MODE_ID,"--extract-mode", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &extractMode, "^[1-2]{1}$"),
 // convertkb
 PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "list of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
-PARAM_PRESERVE_REPRESENTATIVE(PARAM_PRESERVE_REPRESENTATIVE_ID, "--preserve-representatives", "Preserve Representatives", "Indicates if representatives are allowed to be removed during updating", typeid(bool), (void*) &preserveRepresentatives, "")
+PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover Deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void*) &recoverDeleted, "")
 {
     
     // alignment
@@ -317,7 +317,7 @@ PARAM_PRESERVE_REPRESENTATIVE(PARAM_PRESERVE_REPRESENTATIVE_ID, "--preserve-repr
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_ACCEPT);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(PARAM_USESEQID);
-    clusterUpdate.push_back(PARAM_PRESERVE_REPRESENTATIVE);
+    clusterUpdate.push_back(PARAM_RECOVER_DELETED);
     
     // translate nucleotide
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);

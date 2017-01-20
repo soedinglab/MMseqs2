@@ -16,8 +16,8 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
 
-    if(par.preserveRepresentatives) {
-        cmd.addVariable("PRESERVE_REPR", "TRUE");
+    if(par.recoverDeleted) {
+        cmd.addVariable("RECOVER_DELETED", "TRUE");
     }
 	
     cmd.addVariable("RUNNER", par.runner.c_str());
