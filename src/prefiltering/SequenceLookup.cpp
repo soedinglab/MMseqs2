@@ -48,9 +48,8 @@ void SequenceLookup::addSequence(Sequence * seq) {
 }
 
 std::pair<const unsigned char *, const unsigned int> SequenceLookup::getSequence(size_t id) {
-    size_t *offset = (offsets + id);
-    ptrdiff_t N = *(offset + 1) - *offset;
-    char *p = data + *offset;
+    ptrdiff_t N = offsets[id + 1] - offsets[id];
+    char *p = data + offsets[id];
     return std::pair<const unsigned char *, const unsigned int>(reinterpret_cast<const unsigned char*>(p), static_cast<unsigned int>(N));
 }
 

@@ -98,7 +98,7 @@ public:
         return entries;
     }
 
-    inline size_t getOffset(unsigned int kmer) {
+    inline size_t getOffset(size_t kmer) {
         return offsets[kmer];
     }
 
