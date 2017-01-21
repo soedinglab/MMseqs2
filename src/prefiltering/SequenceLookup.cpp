@@ -62,6 +62,10 @@ int64_t SequenceLookup::getDataSize() {
     return dataSize;
 }
 
+size_t *SequenceLookup::getOffsets() {
+    return offsets;
+}
+
 size_t SequenceLookup::getSequenceCount() {
     return sequenceCount;
 }

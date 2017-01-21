@@ -95,20 +95,11 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         char *seqindexDataSizePtr = (char *) &seqindexDataSize;
         writer.writeData(seqindexDataSizePtr, 1 * sizeof(int64_t), (char *) seqindex_datasize_key.c_str(), 0);
 
-        size_t currentOffset = 0;
+        size_t *sequenceOffsets = lookup->getOffsets();
         size_t sequenceCount = lookup->getSequenceCount();
-        size_t *sequenceOffsets = new size_t[sequenceCount + 1];
-        for (size_t i = 0; i < lookup->getSequenceCount(); i++) {
-            sequenceOffsets[i] = currentOffset;
-            unsigned int size = lookup->getSequence(i).second;
-            currentOffset += size;
-        }
-        sequenceOffsets[sequenceCount] = currentOffset;
         std::string seqindex_seqoffset = SSTR(MathUtil::concatenate(SEQINDEXSEQOFFSET, step));
-        Debug(Debug::WARNING) << "Write " << seqindex_seqoffset << "\n";
-        writer.writeData((char *) sequenceOffsets, sequenceCount * sizeof(size_t),
-                         (char *) seqindex_seqoffset.c_str(), 0);
-        delete[] sequenceOffsets;
+        Debug(Debug::INFO) << "Write " << seqindex_seqoffset << "\n";
+        writer.writeData((char *) sequenceOffsets, (sequenceCount + 1) * sizeof(size_t), seqindex_seqoffset.c_str(), 0);
 
         // meta data
         // ENTRIESNUM

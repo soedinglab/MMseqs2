@@ -31,6 +31,8 @@ public:
 
     size_t getSequenceCount();
 
+    size_t *getOffsets();
+
     void initLookupByExternalData(char *seqData, size_t dataSize, size_t *seqOffsets);
 
 private:
