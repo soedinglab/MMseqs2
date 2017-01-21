@@ -50,16 +50,16 @@ void Util::decomposeDomain(size_t domain_size, size_t world_rank,
 
 std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
     std::map<std::string, size_t> map;
-    FILE * fasta_file = FileUtil::openFileOrDie(fastaFile, "r", true);
+    FILE *fasta_file = FileUtil::openFileOrDie(fastaFile, "r", true);
     kseq_t *seq = kseq_init(fileno(fasta_file));
     size_t i = 0;
     while (kseq_read(seq) >= 0) {
         std::string key = Util::parseFastaHeader(seq->name.s);
-        if(map.find(key) == map.end()){
+        if (map.find(key) == map.end()) {
             map[key] = i;
             i++;
-        }else{
-            Debug(Debug::ERROR) << "Duplicated key "<< key <<" in function readMapping.\n";
+        } else {
+            Debug(Debug::ERROR) << "Duplicated key " << key << " in function readMapping.\n";
             EXIT(EXIT_FAILURE);
         }
     }
