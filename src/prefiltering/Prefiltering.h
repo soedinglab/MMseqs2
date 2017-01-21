@@ -40,8 +40,8 @@ public:
     static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
                              size_t dbFrom, size_t dbTo, bool diagonalScoring, unsigned int threads);
 
-    // compute kmer size and split size for index table
-    static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, unsigned int threads);
+    static void setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const int threads,
+                           const bool templateDBIsIndex, int *kmerSize, int *split, int *splitMode);
 
 #ifdef HAVE_MPI
 public:
@@ -93,8 +93,12 @@ private:
                                           int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
                                           bool diagonalScoring, unsigned int threads);
 
+    // compute kmer size and split size for index table
+    static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, unsigned int threads);
+
     // estimates memory consumption while runtime
     static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize, unsigned int threads);
+
 
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads); // needed for index lookup
 

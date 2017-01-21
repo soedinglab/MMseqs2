@@ -2,7 +2,7 @@
 #include "DBWriter.h"
 #include "Prefiltering.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION="2.0.1";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="3.0.0";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::ENTRIES = 1;
 unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 2;
@@ -22,29 +22,8 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr,
                                               BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
-                                              bool compBiasCorrection,  int split, int alphabetSize, int kmerSize,
+                                              bool compBiasCorrection, const int split, int alphabetSize, int kmerSize,
                                               bool diagonalScoring, int threads) {
-
-    int splitCnt = split;
-    if (splitCnt == 0){
-        const size_t totalMemoryInByte =  Util::getTotalSystemMemory();
-        std::pair<int, int> splitingSetting = Prefiltering::optimizeSplit(totalMemoryInByte, dbr, alphabetSize, kmerSize, threads);
-        if(splitingSetting.second == -1){
-            Debug(Debug::ERROR) << "Can not fit databased into " << totalMemoryInByte <<" byte. Please use a computer with more main memory.\n";
-            EXIT(EXIT_FAILURE);
-        }
-        splitCnt = splitingSetting.second;
-        if(kmerSize == 0){
-            kmerSize = splitingSetting.first;
-        }
-    }
-    
-    if(kmerSize == 0){ // set k-mer based on aa size in database
-        // if we have less than 10Mio * 335 amino acids use 6mers
-        kmerSize = IndexTable::computeKmerSize(dbr->getAminoAcidDBSize());
-    }
-    Debug(Debug::INFO) << "Use kmer size " << kmerSize << " and split " << splitCnt << " using split mode\n";
-
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
@@ -54,11 +33,11 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
 
     Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, kmerSize, hasSpacedKmer, compBiasCorrection);
 
-    for (int step = 0; step < splitCnt; step++) {
+    for (int step = 0; step < split; step++) {
         size_t splitStart = 0;
         size_t splitSize  = 0;
         Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
-                                         step, splitCnt, &splitStart, &splitSize);
+                                         step, split, &splitStart, &splitSize);
         IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
         Prefiltering::fillDatabase(dbr, &seq, indexTable, subMat, splitStart, splitStart + splitSize, diagonalScoring, threads);
 
@@ -101,7 +80,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         Debug(Debug::INFO) << "Write " << entriesnum_key << "\n";
         uint64_t entriesNum = indexTable->getTableEntriesNum();
         char *entriesNumPtr = (char *) &entriesNum;
-        writer.writeData(entriesNumPtr, 1 * sizeof(int64_t), entriesnum_key.c_str(), 0);
+        writer.writeData(entriesNumPtr, 1 * sizeof(uint64_t), entriesnum_key.c_str(), 0);
         // SEQCOUNT
         std::string tablesize_key = SSTR(MathUtil::concatenate(SEQCOUNT, step));
         Debug(Debug::INFO) << "Write " << tablesize_key << "\n";
@@ -157,7 +136,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*d
     if (data.local) {
         retTable = new IndexTable(data.alphabetSize, data.kmerSize, true);
     }else {
-        Debug(Debug::ERROR) << "Seach mode is not valid.\n";
+        Debug(Debug::ERROR) << "Search mode is not valid.\n";
         EXIT(EXIT_FAILURE);
     }
 
