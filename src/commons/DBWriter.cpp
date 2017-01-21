@@ -218,7 +218,7 @@ void DBWriter::checkClosed() {
 }
 
 void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
-                            const char **dataFileNames, const char **indexFileNames, unsigned int fileCount) {
+                            const char **dataFileNames, const char **indexFileNames, unsigned long fileCount) {
 
     struct timeval start, end;
     gettimeofday(&start, NULL);

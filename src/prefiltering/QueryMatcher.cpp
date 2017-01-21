@@ -8,6 +8,16 @@
 #include "Util.h"
 
 
+std::vector<hit_t> parsePrefilterHits(char *data) {
+    std::vector<hit_t> ret;
+    while (*data != '\0') {
+        hit_t result = parsePrefilterHit(data);
+        ret.push_back(result);
+        data = Util::skipLine(data);
+    }
+    return ret;
+}
+
 hit_t parsePrefilterHit(char* data)
 {
     hit_t result;
@@ -231,7 +241,7 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
         // match the index table
         for (unsigned int kmerPos = 0; kmerPos < kmerList.elementSize; kmerPos++) {
             // generate k-mer list
-            const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[kmerPos],
+            const IndexEntryLocal *entries = indexTable->getDBSeqList(kmerList.index[kmerPos],
                                                                                        &seqListSize);
             // detected overflow while matching
             if ((sequenceHits + seqListSize) >= lastSequenceHit) {

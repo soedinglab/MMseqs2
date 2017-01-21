@@ -21,10 +21,10 @@ public:
     static const char*  CURRENT_VERSION;
     static unsigned int VERSION;
     static unsigned int ENTRIES;
-    static unsigned int ENTRIESIZES;
+    static unsigned int ENTRIESOFFSETS;
     static unsigned int SEQINDEXDATA;
     static unsigned int SEQINDEXDATASIZE;
-    static unsigned int SEQINDEXSEQSIZE;
+    static unsigned int SEQINDEXSEQOFFSET;
     static unsigned int ENTRIESNUM;
     static unsigned int SEQCOUNT;
     static unsigned int META;

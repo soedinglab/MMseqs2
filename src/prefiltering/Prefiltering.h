@@ -7,6 +7,7 @@
 #include "IndexTable.h"
 #include "BaseMatrix.h"
 #include "ExtendedSubstitutionMatrix.h"
+#include "PrefilteringIndexReader.h"
 #include "QueryMatcher.h"
 
 #include <string>
@@ -16,131 +17,116 @@
 
 class Prefiltering {
 public:
-    Prefiltering(const std::string &queryDB,
-                 const std::string &queryDBIndex,
-                 const std::string &targetDB,
-                 const std::string &targetDBIndex,
-                 const std::string &outDB,
-                 const std::string &outDBIndex,
-                 Parameters &par);
+    Prefiltering(
+            const std::string &targetDB,
+            const std::string &targetDBIndex,
+            const Parameters &par);
 
     ~Prefiltering();
 
-    void run(size_t dbFrom, size_t dbSize, const std::string &resultDB,
-             const std::string &resultDBIndex);
-
-    void run(size_t fromSplit, size_t splits);
-
-    void closeReader();
-
-    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, int threads); // needed for index lookup
-
-    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
-                                          int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
-                                          bool diagonalScoring, int threads);
-
-    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
-                             size_t dbFrom, size_t dbTo, bool diagonalScoring, int threads);
-
-    // get substitution matrix
-    static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, int alphabetSize, float bitFactor,
-                                             bool ignoreX);
-
-    // compute kmer size and split size for index table
-    static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, int threads);
-
-    // estimates memory consumption while runtime
-    static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
-                                            int threads);
-
-    size_t getSplitMode(){
-        return splitMode;
-    }
-
-    size_t setSplit(size_t split){
-        return this->split = split;
-    }
-
-    int getSplit(){
-        return split;
-    }
-
-    static std::vector<hit_t> readPrefilterResults(char *data);
+    void runAllSplits(const std::string &queryDB, const std::string &queryDBIndex,
+                      const std::string &resultDB, const std::string &resultDBIndex);
+    void runSplits(const std::string &queryDB, const std::string &queryDBIndex,
+                   const std::string &resultDB, const std::string &resultDBIndex,
+                   size_t fromSplit, size_t splits);
 
     // merge file
     void mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles,
                     const std::string &outDb, const std::string &outDBIndex);
 
+    // get substitution matrix
+    static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool ignoreX);
+
+    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
+                             size_t dbFrom, size_t dbTo, bool diagonalScoring, unsigned int threads);
+
+    // compute kmer size and split size for index table
+    static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, unsigned int threads);
+
+#ifdef HAVE_MPI
+public:
+#else
+private:
+#endif
+int split;
 private:
     static const size_t BUFFER_SIZE = 1000000;
 
-    int threads;
-
-    DBReader<unsigned int> *qdbr;
+    const std::string targetDB;
+    const std::string targetDBIndex;
     DBReader<unsigned int> *tdbr;
     DBReader<unsigned int> *tidxdbr;
 
-
-    Sequence **qseq;
-    char *notEmpty;
-
-    std::list<int> **reslens;
     BaseMatrix *subMat;
     ExtendedSubstitutionMatrix *_2merSubMatrix;
     ExtendedSubstitutionMatrix *_3merSubMatrix;
+    IndexTable *indexTable;
 
-    std::string outDB;
-    std::string outDBIndex;
     // parameter
     int kmerSize;
-    const int kmerScore;
     bool spacedKmer;
-    const float sensitivity;
-    size_t resListOffset;
-    size_t maxResListLen;
     int alphabetSize;
-    size_t maxSeqLen;
-    const int querySeqType;
-    const int targetSeqType;
     bool templateDBIsIndex;
-    const bool diagonalScoring;
-    const unsigned int minDiagScoreThr;
-    bool aaBiasCorrection;
     short kmerThr;
     double kmerMatchProb;
-    int split;
     int splitMode;
-    float covThr;
-    bool sameQTDB;
-    bool includeIdentical;
+
+    size_t maxResListLen;
+    const int kmerScore;
+    const float sensitivity;
+    const size_t resListOffset;
+    const size_t maxSeqLen;
+    const int querySeqType;
+    const int targetSeqType;
+    const bool diagonalScoring;
+    const unsigned int minDiagScoreThr;
+    const bool aaBiasCorrection;
+    const float covThr;
+    const bool includeIdentical;
+    const unsigned int threads;
+
+    void runSplit(DBReader<unsigned int> *qdbr,
+                  const std::string &resultDB, const std::string &resultDBIndex,
+                  size_t dbFrom, size_t dbSize, bool sameQTDB);
+
+    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
+                                          int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
+                                          bool diagonalScoring, unsigned int threads);
+
+    // estimates memory consumption while runtime
+    static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize, unsigned int threads);
+
+    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads); // needed for index lookup
 
     /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
      * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
      */
-    std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr,
-                                              DBReader<unsigned int> *tdbr, const int kmerScore);
+    std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, Sequence **qseq,
+                                              DBReader<unsigned int> *tdbr, int kmerScore,
+                                              unsigned int effectiveKmerSize);
 
     // write prefiltering to ffindex database
-    int writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_t id,
-                             const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
-                             bool diagonalScoring, size_t resultOffsetPos);
+    void writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,
+                              const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
+                              bool diagonalScoring, size_t resultOffsetPos);
 
     // init QueryTemplateMatcher
-    QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
+    QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, Sequence** qseq,
                                               unsigned int *seqLens, short kmerThr,
                                               double kmerMatchProb, int kmerSize,
-                                              size_t effectiveKmerSize, size_t dbSize,
+                                              unsigned int effectiveKmerSize, size_t dbSize,
                                               bool aaBiasCorrection, bool diagonalScoring,
                                               unsigned int maxSeqLen, size_t maxHitsPerQuery);
 
 
-    void printStatistics(const statistics_t &stats, size_t empty);
+    void printStatistics(const statistics_t &stats, std::list<int> **reslens, size_t empty);
 
-    statistics_t computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,
+    statistics_t computeStatisticForKmerThreshold(DBReader<unsigned int> *qdbr, Sequence **qseq,
+                                                  IndexTable *indexTable, size_t querySetSize,
                                                   unsigned int *querySeqsIds, bool reverseQuery,
-                                                  const size_t kmerThrMid);
+                                                  const int kmerThrMid);
 
-    int getKmerThreshold(const float sensitivity, const int score);
+    int getKmerThreshold(const float sensitivity);
 
     std::string searchForIndex(const std::string &pathToDB);
 

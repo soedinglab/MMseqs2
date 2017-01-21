@@ -3,13 +3,14 @@
 //
 #include <string>
 #include <vector>
-#include <Prefiltering.h>
-#include <DistanceCalculator.h>
+#include "DistanceCalculator.h"
 #include "Util.h"
 #include "Parameters.h"
 #include "Matcher.h"
 #include "Debug.h"
 #include "DBReader.h"
+#include "DBWriter.h"
+#include "QueryMatcher.h"
 
 int rescorediagonal(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
@@ -59,7 +60,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
             unsigned int queryId = qdbr->getId(dbr_res.getDbKey(id));
             char *querySeq = qdbr->getData(queryId);
             unsigned int queryLen = qdbr->getSeqLens(queryId) - 2; // - 2 because of /0/n
-            std::vector<hit_t> results = Prefiltering::readPrefilterResults(data);
+            std::vector<hit_t> results = parsePrefilterHits(data);
             for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
                 unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
                 unsigned int targetLen = tdbr->getSeqLens(targetId) - 2; // - 2 because of /0/n
