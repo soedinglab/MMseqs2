@@ -20,7 +20,7 @@ static struct Command commands[] = {
             CITATION_MMSEQS2},
         {"search",               search,               &par.searchworkflow,       COMMAND_MAIN,
             "Search with query sequence or profile DB (iteratively) through target sequence DB",
-            "Searches with the sequences or profiles query DB through the target sequence DB by running the prefilter tool and the align tool for Smith-Waterman alignment. For each query a results file with sequence matches is written as entry into a database of search results (â€œalignmentDBâ€).\nIn iterative profile search mode, the detected sequences satisfying user-specified criteria are aligned to the query MSA, and the resulting query profile is used for the next search iteration. Iterative profile searches are usually much more sensitive than (and at least as sensitive as) searches with single query sequences.",
+            "Searches with the sequences or profiles query DB through the target sequence DB by running the prefilter tool and the align tool for Smith-Waterman alignment. For each query a results file with sequence matches is written as entry into a database of search results (alignmentDB).\nIn iterative profile search mode, the detected sequences satisfying user-specified criteria are aligned to the query MSA, and the resulting query profile is used for the next search iteration. Iterative profile searches are usually much more sensitive than (and at least as sensitive as) searches with single query sequences.",
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:queryDB> <i:targetDB> <o:alignmentDB> <tmpDir>",
             CITATION_MMSEQS2},

@@ -710,7 +710,7 @@ IndexTable* Prefiltering::generateIndexTable(DBReader<unsigned int> *dbr, Sequen
     IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize);
     fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, threads);
     gettimeofday(&end, NULL);
-    indexTable->printStatisitic(seq->int2aa);
+    indexTable->printStatistics(seq->int2aa);
     time_t sec = end.tv_sec - start.tv_sec;
     dbr->remapData();
     Debug(Debug::INFO) << "Time for index table init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "

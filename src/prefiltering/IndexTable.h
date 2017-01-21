@@ -156,7 +156,7 @@ public:
         table[0] = entries;
     }
 
-    void printStatisitic(char *int2aa) {
+    void printStatistics(char *int2aa) {
         size_t minKmer = 0;
 
         size_t entries = 0;
