@@ -604,6 +604,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, Inde
             tableSize += 1;
         }
     }
+
     SequenceLookup *sequenceLookup = new SequenceLookup(dbSize, aaDbSize);
 #pragma omp parallel
     {
@@ -635,10 +636,10 @@ void Prefiltering::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, Inde
 //    size_t lowSelectiveResidues = 0;
 //    const float dbSize = static_cast<float>(dbTo - dbFrom);
 //    for(size_t kmerIdx = 0; kmerIdx < indexTable->getTableSize(); kmerIdx++){
-//        size_t res = (size_t) indexTable->getTable(kmerIdx);
+//        size_t res = (size_t) indexTable->getOffset(kmerIdx);
 //        float selectivityOfKmer = (static_cast<float>(res)/dbSize);
 //        if(selectivityOfKmer > 0.005){
-//            indexTable->getTable()[kmerIdx] = 0;
+//            indexTable->getOffset()[kmerIdx] = 0;
 //            lowSelectiveResidues += res;
 //        }
 //    }
@@ -646,7 +647,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, Inde
 //    Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
     size_t tableEntriesNum = 0;
     for (size_t i = 0; i < indexTable->getTableSize(); i++) {
-        tableEntriesNum += (size_t) indexTable->getTable(i);
+        tableEntriesNum += (size_t) indexTable->getOffset(i);
     }
 
 #pragma omp parallel
@@ -659,8 +660,8 @@ void Prefiltering::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, Inde
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
         size_t threadFrom, threadSize;
-        char **table = (indexTable->getTable());
-        Util::decomposeDomainSize(tableEntriesNum, (size_t *) table, indexTable->getTableSize(),
+        size_t *offsets = indexTable->getOffsets();
+        Util::decomposeDomainOffset(tableEntriesNum, offsets, indexTable->getTableSize(),
                                   thread_idx, threads, &threadFrom, &threadSize);
 //        std::stringstream stream;
 //        stream << thread_idx << "\t" << threadFrom << "\t" << threadSize;
@@ -707,7 +708,7 @@ IndexTable* Prefiltering::generateIndexTable(DBReader<unsigned int> *dbr, Sequen
                                  int kmerSize, size_t dbFrom, size_t dbTo, bool diagonalScoring, unsigned int threads) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize);
+    IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
     fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, threads);
     gettimeofday(&end, NULL);
     indexTable->printStatistics(seq->int2aa);
@@ -745,7 +746,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
     Debug(Debug::INFO) << "\tk-mers per position = " << stats.kmersPerPos << ", k-mer match probability: "
                        << kmerMatchProb << "\n";
     delete[] querySeqs;
-    return std::make_pair(kmerScore, kmerMatchProb);
+    return std::make_pair(static_cast<short>(kmerScore), kmerMatchProb);
 }
 
 statistics_t Prefiltering::computeStatisticForKmerThreshold(DBReader<unsigned int> *qdbr, Sequence** qseq,

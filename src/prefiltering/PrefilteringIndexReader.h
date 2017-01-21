@@ -21,7 +21,7 @@ public:
     static const char*  CURRENT_VERSION;
     static unsigned int VERSION;
     static unsigned int ENTRIES;
-    static unsigned int ENTRIESIZES;
+    static unsigned int ENTRIESOFFSETS;
     static unsigned int SEQINDEXDATA;
     static unsigned int SEQINDEXDATASIZE;
     static unsigned int SEQINDEXSEQOFFSET;

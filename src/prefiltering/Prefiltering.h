@@ -37,6 +37,12 @@ public:
     // get substitution matrix
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool ignoreX);
 
+    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
+                             size_t dbFrom, size_t dbTo, bool diagonalScoring, unsigned int threads);
+
+    // compute kmer size and split size for index table
+    static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, unsigned int threads);
+
 #ifdef HAVE_MPI
 public:
 #else
@@ -87,12 +93,6 @@ private:
                                           int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
                                           bool diagonalScoring, unsigned int threads);
 
-    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
-                             size_t dbFrom, size_t dbTo, bool diagonalScoring, unsigned int threads);
-
-    // compute kmer size and split size for index table
-    static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, unsigned int threads);
-
     // estimates memory consumption while runtime
     static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize, unsigned int threads);
 
@@ -132,8 +132,6 @@ private:
 
     void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
                      const std::vector<std::pair<std::string, std::string>> &filenames);
-
-    friend class PrefilteringIndexReader;
 
 };
 

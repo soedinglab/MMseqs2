@@ -68,10 +68,8 @@ std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
     return map;
 }
 
-
-
-void Util::decomposeDomainSize(size_t aaSize, size_t *seqSizes, size_t count,
-                               size_t worldRank, size_t worldSize, size_t *start, size_t *size){
+void Util::decomposeDomainOffset(size_t aaSize, size_t *seqOffsets, size_t count,
+                                 size_t worldRank, size_t worldSize, size_t *start, size_t *size){
     if (worldSize > aaSize) {
         // Assume the domain size is greater than the world size.
         Debug(Debug::ERROR) << "World Size: " << worldSize << " aaSize: " << aaSize << "\n";
@@ -102,7 +100,7 @@ void Util::decomposeDomainSize(size_t aaSize, size_t *seqSizes, size_t count,
                 }
             }
         }
-        currentSize += seqSizes[i];
+        currentSize = seqOffsets[i + 1] - seqOffsets[i];
     }
 }
 
