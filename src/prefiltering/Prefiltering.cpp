@@ -661,11 +661,10 @@ void Prefiltering::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, Inde
 #endif
         size_t threadFrom, threadSize;
         size_t *offsets = indexTable->getOffsets();
-        Util::decomposeDomainOffset(tableEntriesNum, offsets, indexTable->getTableSize(),
+        Util::decomposeDomainSize(tableEntriesNum, offsets, indexTable->getTableSize() + 1,
                                   thread_idx, threads, &threadFrom, &threadSize);
-//        std::stringstream stream;
-//        stream << thread_idx << "\t" << threadFrom << "\t" << threadSize;
-//        std::cout << stream.str() << std::endl;
+
+//        Debug(Debug::WARNING) << thread_idx << "\t" << threadFrom << "\t" << threadSize << "\n";
 
 #pragma omp barrier
         if (thread_idx == 0) {
