@@ -78,12 +78,6 @@ add_executable(test_reduced ${test_reduced})
 target_link_libraries(test_reduced util)
 
 
-set(testgo TestGO.cpp )
-add_executable(testgo ${testgo})
-
-target_link_libraries(testgo util)
-target_link_libraries(testgo workflow)
-
 set(test_dbreader TestDBReader.cpp )
 add_executable(test_dbreader ${test_dbreader})
 target_link_libraries(test_dbreader util)

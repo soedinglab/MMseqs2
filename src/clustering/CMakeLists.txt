@@ -3,8 +3,6 @@ set(clustering_source_files
   Clustering.h
   Main.cpp
   SetElement.h
-  CompareGOTerms.h
-  CompareGOTerms.cpp
   DistanceCalculator.h
   ClusteringAlgorithms.h
   ClusteringAlgorithms.cpp
