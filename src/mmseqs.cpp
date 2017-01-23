@@ -257,12 +257,6 @@ static struct Command commands[] = {
             "",
             "",
             CITATION_MMSEQS2},
-        {"computeGOscore",       computeGOscore,       &par.evaluationscores,     COMMAND_HIDDEN,
-            "Compute GO scores for a result of clustering",
-            NULL,
-            "Lars von den Driesch",
-            "<gofolder> <clustering_file> <prefix> <outputfolder>",
-            CITATION_MMSEQS2},
 };
 
 void checkCpu();

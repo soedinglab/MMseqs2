@@ -31,7 +31,6 @@ extern int maskbygff(int argc, const char **argv, const Command& command);
 extern int filterdb(int argc, const char **argv, const Command& command);
 extern int convertkb(int argc, const char **argv, const Command& command);
 extern int subtractdbs(int argc, const char **argv, const Command& command);
-extern int computeGOscore(int argc, const char **argv, const Command& command);
 extern int clusthash(int argc, const char **argv, const Command& command);
 extern int createsubdb(int argc, const char **argv, const Command& command);
 extern int summarizeheaders(int argc, const char **argv, const Command& command);
