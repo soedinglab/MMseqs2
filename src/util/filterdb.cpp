@@ -35,7 +35,7 @@ struct compareFirstEntryDecreasing {
 
 int ffindexFilter::initFiles() {
 	dataDb=new DBReader<unsigned int>(inDB.c_str(),(std::string(inDB).append(".index")).c_str());
-	dataDb->open(DBReader<std::string>::LINEAR_ACCCESS);
+	dataDb->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
 	dbw = new DBWriter(outDB.c_str(), (std::string(outDB).append(".index")).c_str(), threads);
 	dbw->open();

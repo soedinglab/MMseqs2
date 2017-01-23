@@ -14,8 +14,8 @@ int splitdb(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    DBReader<std::string> dbr(par.db1.c_str(), par.db1Index.c_str());
-    dbr.open(DBReader<std::string>::NOSORT);
+    DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
+    dbr.open(DBReader<unsigned int>::NOSORT);
 
     unsigned int* sizes = dbr.getSeqLens();
     size_t size = dbr.getSize();
@@ -43,9 +43,9 @@ int splitdb(int argc, const char **argv, const Command& command) {
         }
 
         for(size_t i = startIndex; i < (startIndex + domainSize); i++){
-            std::string outerKey = dbr.getDbKey(i);
+            unsigned int outerKey = dbr.getDbKey(i);
             char * data = dbr.getData(i);
-            writer.writeData(data, sizes[i], (char *) outerKey.c_str());
+            writer.writeData(data, sizes[i], (char *) SSTR(outerKey).c_str());
         }
         writer.close();
     }

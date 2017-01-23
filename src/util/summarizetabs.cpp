@@ -211,7 +211,7 @@ int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int m
 
 int doAnnotate(Parameters &par) {
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader<std::string>::LINEAR_ACCCESS);
+    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     size_t resultSize = reader.getSize();
     int status = doAnnotate(par, reader, std::make_pair(par.db3, par.db3Index), 0, resultSize);
     reader.close();

@@ -10,8 +10,8 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str());
-    reader.open(DBReader<std::string>::NOSORT);
+    DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str());
+    reader.open(DBReader<unsigned int>::NOSORT);
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str());
     writer.open();
@@ -20,7 +20,8 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     std::ifstream  orderFile(par.db1);
     std::string line;
     while(std::getline(orderFile, line)) {
-        size_t id = reader.getId(line);
+        const unsigned int key = (unsigned int) strtoul(line.c_str(), NULL, 10);
+        size_t id = reader.getId(key);
         if(id == UINT_MAX) {
             Debug(Debug::WARNING) << "Key " << line << " not found in database\n";
             continue;

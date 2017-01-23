@@ -240,7 +240,7 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
     }
 
     DBReader<unsigned int> msaReader(msaDataName.c_str(), msaIndexName.c_str());
-    msaReader.open(DBReader<std::string>::NOSORT);
+    msaReader.open(DBReader<unsigned int>::NOSORT);
 
     DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads));
     writer.open();
