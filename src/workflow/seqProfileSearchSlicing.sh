@@ -1,8 +1,7 @@
 #!/bin/sh
 
 if [ "$#" -ne 6 ]; then
-	echo "Usage : $0 <SeqDB> <ProfileDB> <OutDB> <tmpDir> <eValThs> <k>"
-	echo "Where k is the maximum number of hit per sequence. "
+	echo "Usage : $0 <SeqDB> <ProfileDB> <OutDB> <tmpDir> <eValThs> "
 	exit -1;
 fi
 
@@ -15,7 +14,7 @@ sort -k1,1 $2.index > $TMP/profileDB.index
 PROFILEDB=profileDB
 
 eval=$5
-k=$6
+
 MEMORY_FOR_SWAPPING=$(free|grep Mem|awk '{print $4}')#1000000 #10000000
 offset=0 #start with the first result
 
@@ -35,14 +34,14 @@ do
     let MAX_SEQS=MEMORY_FOR_SWAPPING*1024/nProfiles/90 # 90 bytes/query-result line max.
 
     rm -f $TMP/aln_4.* $TMP/pref_4* $TMP/searchOut.notSwapped* $TMP/searchOut.current*
-    mmseqs search $PROFILEDB $SEQDB $TMP/searchOut.notSwapped $TMP -e $currentEval --max-seqs $MAX_SEQS --profile --offset-result $offset
+    mmseqs search $PROFILEDB $SEQDB $TMP/searchOut.notSwapped $TMP -e $currentEval --max-seqs $MAX_SEQS --profile --offset-result $offset "${@:6}
     mmseqs swapresults $PROFILEDB $SEQDB $TMP/searchOut.notSwapped $TMP/searchOut.current
     # note here : we recover the right evalue, since it is computed according to the target db which is the full profiledb   
     
     if [ -f $TMP/searchOut ]; then
         if [ $(wc -l $TMP/searchOut|cut -f1 -d ' ') -ge 1 ]; then
             echo "Merging with older results..."
-            mmseqs mergeffindex $SEQDB $TMP/searchOut.new $TMP/searchOut.current $TMP/searchOut
+            mmseqs mergedbs $SEQDB $TMP/searchOut.new $TMP/searchOut.current $TMP/searchOut
             mv -f $TMP/searchOut.new $TMP/searchOut
             mv -f $TMP/searchOut.new.index $TMP/searchOut.index
         fi

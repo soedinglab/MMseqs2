@@ -235,6 +235,7 @@ public:
     int extractLines;
     float compValue;
     std::string compOperator;
+    int sortEntries;
 
     // mergedbs
     std::string mergePrefixes;
@@ -412,6 +413,7 @@ public:
     PARAMETER(PARAM_EXTRACT_LINES)
     PARAMETER(PARAM_COMP_OPERATOR)
     PARAMETER(PARAM_COMP_VALUE)
+    PARAMETER(PARAM_SORT_ENTRIES)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)

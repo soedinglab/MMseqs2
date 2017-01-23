@@ -9,10 +9,29 @@
 #include <iostream>
 #include <algorithm>
 
+#include <omptl/omptl_algorithm>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
+
+
+struct compareFirstEntry {
+    bool operator()(const std::pair <double,std::string> &lhs,
+                    const std::pair <double,std::string> &rhs) const {
+        return (lhs.first < rhs.first);
+    }
+};
+
+
+struct compareFirstEntryDecreasing {
+    bool operator()(const std::pair <double,std::string> &lhs,
+                    const std::pair <double,std::string> &rhs) const {
+        return (lhs.first > rhs.first);
+    }
+};
+
+
 
 int ffindexFilter::initFiles() {
 	dataDb=new DBReader<unsigned int>(inDB.c_str(),(std::string(inDB).append(".index")).c_str());
@@ -34,11 +53,28 @@ ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, s
 
 
 
+ffindexFilter::ffindexFilter(Parameters &par) {
+    inDB = std::string(par.db1);
+    outDB = std::string(par.db2);
+    threads = par.threads;
+    column  = static_cast<size_t>(par.filterColumn);
+    
+    if (par.sortEntries)
+    {
+        mode = SORT_ENTRIES;
+        sortingMode = par.sortEntries;
+    }
+
+	initFiles();
+
+}
+        
 ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column, int numberOfLines) :
 		inDB(inDB), outDB(outDB), threads(threads), column(column), trimToOneColumn(false),numberOfLines(numberOfLines) {
 
 	initFiles();
-	mode = GET_FIRST_LINES;
+
+    mode = GET_FIRST_LINES;
 }
 
 ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column, std::string regexStr,
@@ -135,6 +171,9 @@ int ffindexFilter::runFilter(){
 			char *data = dataDb->getData(id);
 			size_t dataLength = dataDb->getSeqLens(id);
 			int counter = 0;
+            
+           std::vector<std::pair<double, std::string>> toSort;
+           
 			while (*data != '\0') {
 				if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
 					Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
@@ -253,7 +292,11 @@ int ffindexFilter::runFilter(){
 
                       delete [] newLineBuffer;
 
-					} else // Unknown filtering mode, keep all entries
+					}  else if(mode == SORT_ENTRIES) {
+                        toSort.push_back(std::make_pair(std::stod(columnValue),std::string(lineBuffer)));
+                        nomatch = 1; // do not put anything in the output buffer
+                  }
+                    else // Unknown filtering mode, keep all entries
 						nomatch = 0;
 
 				}
@@ -269,6 +312,27 @@ int ffindexFilter::runFilter(){
 				data = Util::skipLine(data);
 			}
 
+            if(mode == SORT_ENTRIES)
+            {
+                if (sortingMode ==INCREASING)
+                    omptl::sort(toSort.begin(),toSort.end(),compareFirstEntry());
+                else if (sortingMode == DECREASING)
+                    omptl::sort(toSort.begin(),toSort.end(),compareFirstEntryDecreasing());
+                else if (sortingMode == SHUFFLE)
+                {
+                    srand ( unsigned ( time(0) ) );
+                    std::random_shuffle(toSort.begin(),toSort.end());
+                }
+
+                
+                for (size_t i = 0; i< toSort.size(); i++)
+                {
+                    buffer.append(toSort[i].second);    
+                    if (buffer.back() != '\n')
+                      buffer.append("\n");
+                }
+                
+            }
             dbw->writeData(buffer.c_str(), buffer.length(), (char *) SSTR(dataDb->getDbKey(id)).c_str(), thread_idx);
 			buffer.clear();
 		}
@@ -288,6 +352,7 @@ int filterdb(int argc, const char **argv, const Command& command) {
 	omp_set_num_threads(par.threads);
 #endif
 
+    // TODO: have only one constructor with Parameter argument, and switch the different modes there
 	if (par.filteringFile != "")
 	{
 		std::cout<<"Filtering by file "<<par.filteringFile << std::endl;
@@ -321,6 +386,9 @@ int filterdb(int argc, const char **argv, const Command& command) {
                            par.compValue,
                            par.compOperator);
 		return filter.runFilter();
+    } else if (par.sortEntries) {
+        		ffindexFilter filter(par);
+                return filter.runFilter();
 	} else { // RegEx filter
 		ffindexFilter filter(par.db1,
 							 par.db2,
