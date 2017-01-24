@@ -2,7 +2,6 @@
 #include "NucleotideMatrix.h"
 #include "ReducedMatrix.h"
 #include "SubstitutionMatrixWithoutX.h"
-#include "FileUtil.h"
 #include "ExtendedSubstitutionMatrix.h"
 
 #include <regex.h>
@@ -28,7 +27,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
 
-    std::string indexDB = searchForIndex(targetDB);
+    std::string indexDB = PrefilteringIndexReader::searchForIndex(targetDB);
     //TODO optimize this. Dont read twice the target index. This seems to be slow
     if (indexDB != "") {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
@@ -870,21 +869,6 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     // some memory needed to keep the index, ....
     size_t background = dbSize * 22;
     return residueSize + indexTableSize + threadSize + background + extendedMatrix;
-}
-
-std::string Prefiltering::searchForIndex(const std::string &pathToDB) {
-    for (size_t spaced = 0; spaced < 2; spaced++) {
-        for (size_t k = 5; k <= 7; k++) {
-            std::string outIndexName(pathToDB); // db.sk6
-            std::string s = (spaced == true) ? "s" : "";
-            outIndexName.append(".").append(s).append("k").append(SSTR(k));
-            if (FileUtil::fileExists(outIndexName.c_str()) == true) {
-                return outIndexName;
-            }
-        }
-    }
-
-    return "";
 }
 
 std::pair<int, int> Prefiltering::optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr,

@@ -8,6 +8,7 @@
 #include "Parameters.h"
 #include "BaseMatrix.h"
 #include "Sequence.h"
+#include "SequenceLookup.h"
 
 class Alignment {
 
@@ -64,29 +65,40 @@ private:
     const std::string outDB;
     const std::string outDBIndex;
 
+    const size_t maxSeqLen;
+    const int querySeqType;
+    const int targetSeqType;
+    const bool compBiasCorrection;
+
     BaseMatrix *m;
-
-    // 2 Sequence objects for each thread: one for the query, one for the DB sequence
-    Sequence **qSeqs;
-
-    Sequence **dbSeqs;
-
-    Matcher **matchers;
 
     // needed for realignment
     BaseMatrix *realign_m;
-    Matcher **realigner;
 
     DBReader<unsigned int> *qseqdbr;
+    SequenceLookup *qSeqLookup;
 
     DBReader<unsigned int> *tseqdbr;
+    DBReader<unsigned int> *tidxdbr;
+    SequenceLookup *tSeqLookup;
 
     DBReader<unsigned int> *prefdbr;
 
-    // buffers for the database keys (needed during the processing of the prefilterings lists)
-    unsigned int *dbKeys;
+    bool templateDBIsIndex;
 
     void closeReaders();
+
+    void setQuerySequence(Sequence &seq, size_t id, unsigned int key);
+
+    void setTargetSequence(Sequence &seq, unsigned int key);
+
+    size_t getQueryDbSize() const;
+
+    size_t getTargetDbSize() const;
+
+    size_t getTargetDbEntries() const;
+
+    size_t getQueryDbEntries() const;
 };
 
 #endif

@@ -40,14 +40,17 @@ public:
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr);
 
+    static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr, int split);
+
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, int split, bool diagonalScoring);
 
     static PrefilteringIndexData getMetadata(DBReader<unsigned int> *dbr);
 
     static std::string getSubstitutionMatrixName(DBReader<unsigned int> *dbr);
 
-//    static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr);
     static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr);
+
+    static std::string searchForIndex(const std::string &pathToDB);
 };
 
 #endif

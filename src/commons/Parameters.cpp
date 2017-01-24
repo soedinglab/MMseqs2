@@ -155,6 +155,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     align.push_back(PARAM_MAX_REJECTED);
     align.push_back(PARAM_MAX_ACCEPT);
     align.push_back(PARAM_INCLUDE_IDENTITY);
+    align.push_back(PARAM_NO_PRELOAD);
     align.push_back(PARAM_THREADS);
     align.push_back(PARAM_V);
     

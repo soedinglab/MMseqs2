@@ -2,6 +2,7 @@
 #include "DBWriter.h"
 #include "Prefiltering.h"
 #include "ExtendedSubstitutionMatrix.h"
+#include "FileUtil.h"
 
 const char*  PrefilteringIndexReader::CURRENT_VERSION="3.1.0";
 unsigned int PrefilteringIndexReader::VERSION = 0;
@@ -130,20 +131,22 @@ DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned
     return DBReader<unsigned int>::unserialize(data);
 }
 
-IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*dbr, int split, bool diagonalScoring) {
-    int64_t   entriesNum    = *((int64_t *) dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESNUM, split)));
+SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int>*dbr, int split) {
     size_t sequenceCount    = *((size_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQCOUNT, split)));
-    PrefilteringIndexData data = getMetadata(dbr);
 
-    char * entriesData = dbr->getDataByDBKey(MathUtil::concatenate(ENTRIES, split));
-    char * entriesOffsetsData = dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESOFFSETS, split));
-
-    char * seqData    = dbr->getDataByDBKey(MathUtil::concatenate(SEQINDEXDATA, split));
-
+    char * seqData = dbr->getDataByDBKey(MathUtil::concatenate(SEQINDEXDATA, split));
     size_t seqOffsetsId = dbr->getId(MathUtil::concatenate(SEQINDEXSEQOFFSET, split));
-    char * seqOffsetsData     = dbr->getData(seqOffsetsId);
-    size_t seqOffsetLength    = dbr->getSeqLens(seqOffsetsId);
+    char * seqOffsetsData = dbr->getData(seqOffsetsId);
+    size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
 
+    SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
+    sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
+
+    return sequenceLookup;
+}
+
+IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*dbr, int split, bool diagonalScoring) {
+    PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
     if (data.local) {
         retTable = new IndexTable(data.alphabetSize, data.kmerSize, true);
@@ -154,9 +157,14 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*d
 
     SequenceLookup * sequenceLookup = NULL;
     if(diagonalScoring == true) {
-        sequenceLookup = new SequenceLookup(sequenceCount);
-        sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
+        sequenceLookup = getSequenceLookup(dbr, split);
     }
+
+    int64_t entriesNum = *((int64_t *)dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESNUM, split)));
+    size_t sequenceCount = *((size_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQCOUNT, split)));
+
+    char *entriesData = dbr->getDataByDBKey(MathUtil::concatenate(ENTRIES, split));
+    char *entriesOffsetsData = dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESOFFSETS, split));
     retTable->initTableByExternalData(sequenceCount, entriesNum,
                                       (IndexEntryLocal*) entriesData, (size_t *)entriesOffsetsData, sequenceLookup);
     return retTable;
@@ -165,8 +173,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*d
 
 PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int>*dbr) {
     PrefilteringIndexData prefData;
-    int *version_tmp = (int *) dbr->getDataByDBKey(VERSION);
-    Debug(Debug::INFO) << "Index version: " << version_tmp[0] << "\n";
+    Debug(Debug::INFO) << "Index version: " << dbr->getDataByDBKey(VERSION) << "\n";
     int *metadata_tmp = (int *) dbr->getDataByDBKey(META);
 
     Debug(Debug::INFO) << "KmerSize:     " << metadata_tmp[0] << "\n";
@@ -199,4 +206,19 @@ std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned
 ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr) {
     PrefilteringIndexData meta = getMetadata(dbr);
     return ScoreMatrix::unserialize(dbr->getDataByDBKey(SCOREMATRIX3MER), meta.alphabetSize, 3);
+}
+
+std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB) {
+    for (size_t spaced = 0; spaced < 2; spaced++) {
+        for (size_t k = 5; k <= 7; k++) {
+            std::string outIndexName(pathToDB); // db.sk6
+            std::string s = (spaced == true) ? "s" : "";
+            outIndexName.append(".").append(s).append("k").append(SSTR(k));
+            if (FileUtil::fileExists(outIndexName.c_str()) == true) {
+                return outIndexName;
+            }
+        }
+    }
+
+    return "";
 }
