@@ -26,9 +26,6 @@ SequenceLookup::~SequenceLookup() {
     if(externalData == false){
         delete[] data;
         delete[] offsets;
-    }else{
-        munlock(data, dataSize);
-        munlock(offsets, (sequenceCount + 1) * sizeof(size_t));
     }
 }
 
@@ -73,7 +70,5 @@ void SequenceLookup::initLookupByExternalData(char * seqData, size_t seqDataSize
     // copy data to data element
     data = seqData;
     dataSize = seqDataSize;
-    mlock(seqData, seqDataSize);
     offsets = seqOffsets;
-    mlock(seqOffsets, (sequenceCount + 1) * sizeof(size_t));
 }

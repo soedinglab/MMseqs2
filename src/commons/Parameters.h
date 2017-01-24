@@ -116,6 +116,7 @@ public:
     bool   removeTmpFiles;               // Do not delete temp files
     bool   clusterFragments;             // cluster fragments
     bool   includeIdentity;              // include identical ids as hit
+
     // PREFILTER
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
@@ -131,6 +132,7 @@ public:
     int    splitMode;                    // Split by query or target DB (MPI only)
     bool   splitAA;                      // Split database by amino acid count instead
     size_t resListOffset;                // Offsets result list
+    bool   noPreload;                     // Do not preload database into memory
 
     // ALIGNMENT
     std::string ffindexPrefDB;           // prefilter database (input for alignment module)
@@ -307,6 +309,7 @@ public:
     PARAMETER(PARAM_CLUSTER_FRAGMENTS)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
+    PARAMETER(PARAM_NO_PRELOAD)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment

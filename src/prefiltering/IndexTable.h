@@ -66,9 +66,6 @@ public:
                 delete[] offsets;
                 offsets = NULL;
             }
-        } else {
-            munlock(entries, tableEntriesNum * sizeof(IndexEntryLocal));
-            munlock(offsets, (tableSize + 1) * sizeof(size_t));
         }
     }
 
@@ -145,9 +142,6 @@ public:
 
         this->entries = entries;
         this->offsets = entryOffsets;
-
-        mlock(entries, tableEntriesNum * sizeof(IndexEntryLocal));
-        mlock(entryOffsets, (tableSize + 1) * sizeof(size_t));
     }
 
     void revertPointer() {

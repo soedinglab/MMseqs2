@@ -41,6 +41,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
     if (templateDBIsIndex == true) { // exchange reader with old ffindex reader
         tidxdbr = tdbr;
+        if(par.noPreload == false) {
+            tidxdbr->readMmapedDataInMemory();
+        }
         tdbr = PrefilteringIndexReader::openNewReader(tdbr);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
         kmerSize = data.kmerSize;

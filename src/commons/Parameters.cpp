@@ -38,6 +38,7 @@ PARAM_CLUSTER_FRAGMENTS(PARAM_CLUSTER_FRAGMENTS_ID, "--cluster-fragments", "Clus
 
 PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add alignments of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN),
 PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
+PARAM_NO_PRELOAD(PARAM_NO_PRELOAD_ID, "--no-preload", "No preload", "Do not preload database", typeid(bool), (void*) &noPreload, "", MMseqsParameter::COMMAND_MISC),
 // alignment
 PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
@@ -176,6 +177,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     prefilter.push_back(PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(PARAM_INCLUDE_IDENTITY);
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
+    prefilter.push_back(PARAM_NO_PRELOAD);
     prefilter.push_back(PARAM_THREADS);
     prefilter.push_back(PARAM_V);
     
@@ -823,6 +825,7 @@ void Parameters::setDefaults() {
     validateClustering = 0;
     cascaded = false;
     resListOffset = 0;
+    noPreload = false;
     
     // affinity clustering
     maxIteration=1000;
