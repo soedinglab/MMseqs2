@@ -29,7 +29,7 @@ SequenceLookup::~SequenceLookup() {
     }
 }
 
-void SequenceLookup::addSequence(Sequence *  seq, size_t index, size_t offset){
+void SequenceLookup::addSequence(Sequence *seq, size_t index, size_t offset){
     offsets[index] = offset;
     for(int pos = 0; pos < seq->L; pos++){
         unsigned char aa = seq->int_sequence[pos];
@@ -38,7 +38,7 @@ void SequenceLookup::addSequence(Sequence *  seq, size_t index, size_t offset){
     data[offset + seq->L] = 0;
 }
 
-void SequenceLookup::addSequence(Sequence * seq) {
+void SequenceLookup::addSequence(Sequence *seq) {
     addSequence(seq, currentIndex, currentOffset);
     currentIndex = currentIndex + 1;
     currentOffset = currentOffset + seq->L;
@@ -66,7 +66,7 @@ size_t SequenceLookup::getSequenceCount() {
     return sequenceCount;
 }
 
-void SequenceLookup::initLookupByExternalData(char * seqData, size_t seqDataSize, size_t *seqOffsets) {
+void SequenceLookup::initLookupByExternalData(char *seqData, size_t seqDataSize, size_t *seqOffsets) {
     // copy data to data element
     data = seqData;
     dataSize = seqDataSize;
