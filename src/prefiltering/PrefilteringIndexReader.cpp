@@ -1,17 +1,23 @@
 #include "PrefilteringIndexReader.h"
 #include "DBWriter.h"
 #include "Prefiltering.h"
+#include "ExtendedSubstitutionMatrix.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION="3.0.0";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="3.1.0";
 unsigned int PrefilteringIndexReader::VERSION = 0;
-unsigned int PrefilteringIndexReader::ENTRIES = 1;
-unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 2;
-unsigned int PrefilteringIndexReader::ENTRIESNUM = 3;
-unsigned int PrefilteringIndexReader::SEQCOUNT = 4;
-unsigned int PrefilteringIndexReader::META = 5;
-unsigned int PrefilteringIndexReader::SEQINDEXDATA = 6;
-unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 7;
-unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 8;
+unsigned int PrefilteringIndexReader::META = 1;
+unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
+unsigned int PrefilteringIndexReader::SCOREMATRIX3MER = 3;
+unsigned int PrefilteringIndexReader::DBRINDEX = 4;
+
+unsigned int PrefilteringIndexReader::ENTRIES = 91;
+unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 92;
+unsigned int PrefilteringIndexReader::ENTRIESNUM = 93;
+unsigned int PrefilteringIndexReader::SEQCOUNT = 94;
+unsigned int PrefilteringIndexReader::SEQINDEXDATA = 95;
+unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 96;
+unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 97;
+
 bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     char * version = reader->getDataByDBKey(VERSION);
     if(version == NULL){
@@ -30,6 +36,13 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
 
     DBWriter writer(outIndexName.c_str(), std::string(outIndexName).append(".index").c_str(), DBWriter::BINARY_MODE);
     writer.open();
+
+    ScoreMatrix *s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
+    char* serialized3mer = ScoreMatrix::serialize(*s3);
+    Debug(Debug::INFO) << "Write " << SCOREMATRIX3MER << "\n";
+    writer.writeData(serialized3mer, ScoreMatrix::size(*s3), SSTR(SCOREMATRIX3MER).c_str(), 0);
+    free(serialized3mer);
+    ScoreMatrix::cleanup(s3);
 
     Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, kmerSize, hasSpacedKmer, compBiasCorrection);
 
@@ -97,25 +110,24 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, 6 * sizeof(int), SSTR(META).c_str(), 0);
 
+    Debug(Debug::INFO) << "Write " << SCOREMATRIXNAME << "\n";
+    writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SSTR(SCOREMATRIXNAME).c_str(), 0);
+
     Debug(Debug::INFO) << "Write " << VERSION << "\n";
     writer.writeData((char *) CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), SSTR(VERSION).c_str(), 0);
 
-    Debug(Debug::INFO) << "Write MMSEQSFFINDEX \n";
-    std::ifstream src(dbr->getIndexFileName(), std::ios::binary);
-    std::ofstream dst(std::string(outIndexName + ".mmseqsindex").c_str(), std::ios::binary);
-    dst << src.rdbuf();
-    src.close();
-    dst.close();
+    Debug(Debug::INFO) << "Write " << DBRINDEX << "\n";
+    char* data = DBReader<unsigned int>::serialize(*dbr);
+    writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*dbr), SSTR(DBRINDEX).c_str(), 0);
+    free(data);
+
     writer.close();
     Debug(Debug::INFO) << "Done. \n";
 }
 
-DBReader<unsigned int>*PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr) {
-    std::string filePath(dbr->getDataFileName());
-    std::string fullPath = filePath + std::string(".mmseqsindex");
-    DBReader<unsigned int>*reader = new DBReader<unsigned int>("", fullPath.c_str(), DBReader<unsigned int>::USE_INDEX);
-    reader->open(DBReader<unsigned int>::NOSORT);
-    return reader;
+DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr) {
+    char * data = dbr->getDataByDBKey(DBRINDEX);
+    return DBReader<unsigned int>::unserialize(data);
 }
 
 IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*dbr, int split, bool diagonalScoring) {
@@ -164,6 +176,8 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
     Debug(Debug::INFO) << "Type:         " << metadata_tmp[4] << "\n";
     Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[5] << "\n";
 
+    Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME) << "\n";
+
     prefData.kmerSize = metadata_tmp[0];
     prefData.alphabetSize = metadata_tmp[1];
     prefData.skip = metadata_tmp[2];
@@ -172,4 +186,17 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
     prefData.spacedKmer = metadata_tmp[5];
 
     return prefData;
+}
+
+std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned int> *dbr) {
+    return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME));
+}
+//
+//ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr) {
+//    return ScoreMatrix::unserialize(dbr->getDataByDBKey(SCOREMATRIX2MER));
+//}
+
+ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr) {
+    PrefilteringIndexData meta = getMetadata(dbr);
+    return ScoreMatrix::unserialize(dbr->getDataByDBKey(SCOREMATRIX3MER), meta.alphabetSize, 3);
 }

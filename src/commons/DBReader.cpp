@@ -16,17 +16,21 @@
 #include "Util.h"
 #include "FileUtil.h"
 
-template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode)
-{
-    data = NULL;
-    dataSize = 0;
-    this->dataMode = dataMode;
-    this->dataFileName = strdup(dataFileName_);
-    this->indexFileName = strdup(indexFileName_);
-    closed = 1;
-    lastKey = T();
-    accessType = 0;
-}
+template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode) :
+        data(NULL), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
+        indexFileName(strdup(indexFileName_)), dataFile(NULL), size(0), dataSize(0), aaDbSize(0), closed(1),
+        index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
+        lastKey(T()), dataMapped(false), accessType(0), externalData(false)
+{}
+
+template <typename T>
+DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize) :
+        data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL), dataFile(NULL),
+        size(size), dataSize(0), aaDbSize(aaDbSize), closed(0),
+        index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
+        lastKey(T()), dataMapped(false), accessType(NOSORT), externalData(true)
+{}
+
 
 template <typename T> void DBReader<T>::readMmapedDataInMemory(){
     size_t bytes = 0;
@@ -42,8 +46,13 @@ void DBReader<T>::printMagicNumber(){
 }
 
 template <typename T> DBReader<T>::~DBReader(){
-    free(dataFileName);
-    free(indexFileName);
+    if(dataFileName != NULL) {
+        free(dataFileName);
+    }
+
+    if(indexFileName != NULL) {
+        free(indexFileName);
+    }
 }
 
 template <typename T> void DBReader<T>::open(int accessType){
@@ -221,8 +230,11 @@ template <typename T> void DBReader<T>::close(){
         delete [] id2local;
         delete [] local2id;
     }
-    delete [] index;
-    delete [] seqLens;
+
+    if(externalData == false) {
+        delete[] index;
+        delete[] seqLens;
+    }
     closed = 1;
 }
 
@@ -372,6 +384,44 @@ template <typename T> void DBReader<T>::unmapData() {
 template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
     size_t id = bsearch(index, size, i);
     return index[id].offset;
+}
+
+template <>
+size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
+    size_t memSize = 2 * sizeof(size_t)
+                     + idx.size * sizeof(DBReader<unsigned int>::Index)
+                     + idx.size * sizeof(unsigned int);
+
+    return memSize;
+}
+
+template <>
+char* DBReader<unsigned int>::serialize(const DBReader<unsigned int> &idx) {
+    char* data = (char*) malloc(indexMemorySize(idx));
+    char* p = data;
+    memcpy(p, &idx.size, sizeof(size_t));
+    p += sizeof(size_t);
+    memcpy(p, &idx.aaDbSize, sizeof(size_t));
+    p += sizeof(size_t);
+    memcpy(p, idx.index, idx.size * sizeof(DBReader<unsigned int>::Index));
+    p += idx.size * sizeof(DBReader<unsigned int>::Index);
+    memcpy(p, idx.seqLens, idx.size * sizeof(unsigned int));
+
+    return data;
+}
+
+template <>
+DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
+    const char* p = data;
+    size_t size = *((size_t*)p);
+    p += sizeof(size_t);
+    size_t aaDbSize = *((size_t*)p);
+    p += sizeof(size_t);
+    DBReader<unsigned int>::Index *idx = (DBReader<unsigned int>::Index *)p;
+    p += size * sizeof(DBReader<unsigned int>::Index);
+    unsigned int *seqLens = (unsigned int *)p;
+
+    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize);
 }
 
 template class DBReader<unsigned int>;

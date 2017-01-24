@@ -23,6 +23,9 @@ public:
     };
     DBReader(const char* dataFileName, const char* indexFileName, int mode = USE_DATA|USE_INDEX);
 
+    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize);
+
+
     virtual ~DBReader();
 
     void open(int sort);
@@ -100,6 +103,12 @@ public:
     
     T getLastKey();
 
+    static size_t indexMemorySize(const DBReader<unsigned int> &idx);
+
+    static char* serialize(const DBReader<unsigned int> &idx);
+
+    static DBReader<unsigned int> *unserialize(const char* data);
+
 private:
 
     struct compareIndexLengthPairById {
@@ -128,15 +137,16 @@ private:
 
     void checkClosed();
 
+    char* data;
+
+    int dataMode;
+
     char* dataFileName;
 
     char* indexFileName;
 
     FILE* dataFile;
 
-    int dataMode;
-
-    char* data;
 
     // number of entries in the index
     size_t size;
@@ -157,6 +167,8 @@ private:
     
     bool dataMapped;
     int accessType;
+
+    bool externalData;
 
     // needed to prevent the compiler from optimizing away the loop
     size_t magicBytes;

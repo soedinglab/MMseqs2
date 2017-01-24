@@ -3,6 +3,7 @@
 #include "ReducedMatrix.h"
 #include "SubstitutionMatrixWithoutX.h"
 #include "FileUtil.h"
+#include "ExtendedSubstitutionMatrix.h"
 
 #include <regex.h>
 #include <sys/time.h>
@@ -14,25 +15,14 @@
 Prefiltering::Prefiltering(const std::string &targetDB,
                            const std::string &targetDBIndex,
                            const Parameters &par) :
-        split(par.split),
-        targetDB(targetDB),
-        targetDBIndex(targetDBIndex),
-        kmerSize(par.kmerSize),
-        spacedKmer(par.spacedKmer != 0),
-        alphabetSize(par.alphabetSize),
-        splitMode(par.splitMode),
-        maxResListLen(par.maxResListLen),
-        kmerScore(par.kmerScore),
-        sensitivity(par.sensitivity),
-        resListOffset(par.resListOffset),
-        maxSeqLen(par.maxSeqLen),
-        querySeqType(par.querySeqType),
-        targetSeqType(par.targetSeqType),
-        diagonalScoring(par.diagonalScoring != 0),
-        minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
-        aaBiasCorrection(par.compBiasCorrection != 0),
-        covThr(par.covThr),
-        includeIdentical(par.includeIdentity),
+        split(par.split), targetDB(targetDB), targetDBIndex(targetDBIndex),
+        kmerSize(par.kmerSize), spacedKmer(par.spacedKmer != 0), alphabetSize(par.alphabetSize),
+        splitMode(par.splitMode), scoringMatrixFile(par.scoringMatrixFile),
+        maxResListLen(par.maxResListLen), kmerScore(par.kmerScore),
+        sensitivity(par.sensitivity), resListOffset(par.resListOffset), maxSeqLen(par.maxSeqLen),
+        querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
+        diagonalScoring(par.diagonalScoring != 0), minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
+        aaBiasCorrection(par.compBiasCorrection != 0), covThr(par.covThr), includeIdentical(par.includeIdentity),
         threads(static_cast<unsigned int>(par.threads)) {
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
@@ -57,6 +47,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         alphabetSize = data.alphabetSize;
         split = data.split;
         spacedKmer = data.spacedKmer == 1;
+        scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
     }
 
     if (templateDBIsIndex == false) {
@@ -78,18 +69,18 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     switch (querySeqType) {
         case Sequence::NUCLEOTIDES:
             subMat = new NucleotideMatrix();
-            _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
-            _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
+            _2merSubMatrix = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+            _3merSubMatrix = getScoreMatrix(*subMat, 3);
             break;
         case Sequence::AMINO_ACIDS:
-            subMat = getSubstitutionMatrix(par.scoringMatrixFile, alphabetSize, 8.0, false);
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
             alphabetSize = subMat->alphabetSize;
-            _2merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 2, subMat->alphabetSize);
-            _3merSubMatrix = new ExtendedSubstitutionMatrix(subMat->subMatrix, 3, subMat->alphabetSize);
+            _2merSubMatrix = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+            _3merSubMatrix = getScoreMatrix(*subMat, 3);
             break;
         case Sequence::HMM_PROFILE:
             // needed for Background distributions
-            subMat = getSubstitutionMatrix(par.scoringMatrixFile, alphabetSize, 8.0, false);
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
             _2merSubMatrix = NULL;
             _3merSubMatrix = NULL;
             break;
@@ -99,7 +90,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     }
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        indexTable = getIndexTable(0, 0, tdbr->getSize(), threads); // create the whole index table
+        // create the whole index table
+        indexTable = getIndexTable(0, 0, tdbr->getSize(), threads);
     } else {
         indexTable = NULL;
     }
@@ -120,10 +112,10 @@ Prefiltering::~Prefiltering() {
 
     delete subMat;
     if (_2merSubMatrix != NULL) {
-        delete _2merSubMatrix;
+        ScoreMatrix::cleanup(_2merSubMatrix);
     }
-    if (_3merSubMatrix != NULL) {
-        delete _3merSubMatrix;
+    if (_3merSubMatrix != NULL && templateDBIsIndex == false) {
+        ScoreMatrix::cleanup(_3merSubMatrix);
     }
 }
 
@@ -258,10 +250,26 @@ QueryMatcher **Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTabl
         if (querySeqType == Sequence::HMM_PROFILE) {
             matchers[thread_idx]->setProfileMatrix(qseq[thread_idx]->profile_matrix);
         } else {
-            matchers[thread_idx]->setSubstitutionMatrix(_3merSubMatrix->scoreMatrix, _2merSubMatrix->scoreMatrix);
+            matchers[thread_idx]->setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
         }
     }
     return matchers;
+}
+
+ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
+    if (templateDBIsIndex == true) {
+        switch(kmerSize) {
+//            case 2:
+//                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr);
+            case 3:
+                return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr);
+            default:
+                Debug(Debug::ERROR) << "Invalid k-mer score matrix!\n";
+                EXIT(EXIT_FAILURE);
+        }
+    } else {
+        return ExtendedSubstitutionMatrix::calcScoreMatrix(matrix, kmerSize);
+    }
 }
 
 IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads) {

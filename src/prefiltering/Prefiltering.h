@@ -6,7 +6,7 @@
 #include "DBWriter.h"
 #include "IndexTable.h"
 #include "BaseMatrix.h"
-#include "ExtendedSubstitutionMatrix.h"
+#include "ScoreMatrix.h"
 #include "PrefilteringIndexReader.h"
 #include "QueryMatcher.h"
 
@@ -58,8 +58,8 @@ private:
     DBReader<unsigned int> *tidxdbr;
 
     BaseMatrix *subMat;
-    ExtendedSubstitutionMatrix *_2merSubMatrix;
-    ExtendedSubstitutionMatrix *_3merSubMatrix;
+    ScoreMatrix *_2merSubMatrix;
+    ScoreMatrix *_3merSubMatrix;
     IndexTable *indexTable;
 
     // parameter
@@ -70,6 +70,7 @@ private:
     short kmerThr;
     double kmerMatchProb;
     int splitMode;
+    std::string scoringMatrixFile;
 
     size_t maxResListLen;
     const int kmerScore;
@@ -98,6 +99,8 @@ private:
 
     // estimates memory consumption while runtime
     static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize, unsigned int threads);
+
+    ScoreMatrix *getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
 
 
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads); // needed for index lookup

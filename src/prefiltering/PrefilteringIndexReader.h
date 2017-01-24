@@ -28,6 +28,9 @@ public:
     static unsigned int ENTRIESNUM;
     static unsigned int SEQCOUNT;
     static unsigned int META;
+    static unsigned int SCOREMATRIXNAME;
+    static unsigned int SCOREMATRIX3MER;
+    static unsigned int DBRINDEX;
 
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
 
@@ -40,6 +43,11 @@ public:
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, int split, bool diagonalScoring);
 
     static PrefilteringIndexData getMetadata(DBReader<unsigned int> *dbr);
+
+    static std::string getSubstitutionMatrixName(DBReader<unsigned int> *dbr);
+
+//    static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr);
+    static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr);
 };
 
 #endif
