@@ -54,6 +54,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
                                          step, split, &splitStart, &splitSize);
         IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
         Prefiltering::fillDatabase(dbr, &seq, indexTable, subMat, splitStart, splitStart + splitSize, diagonalScoring, threads);
+        indexTable->printStatistics(subMat->int2aa);
 
         // save the entries
         std::string entries_key = SSTR(MathUtil::concatenate(ENTRIES, step));
