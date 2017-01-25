@@ -35,6 +35,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         querySeqType(par.querySeqType),
         targetSeqType(par.targetSeqType),
         diagonalScoring(par.diagonalScoring),
+        maskResidues(par.maskResidues),
         minDiagScoreThr(par.minDiagScoreThr),
         aaBiasCorrection(par.compBiasCorrection),
         split(par.split),
@@ -320,7 +321,7 @@ IndexTable * Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize
         return PrefilteringIndexReader::generateIndexTable(tidxdbr, split, diagonalScoring);
     }else{
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, aaBiasCorrection);
-        return generateIndexTable(tdbr, &tseq, subMat, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, diagonalScoring, kmerThr, threads);
+        return generateIndexTable(tdbr, &tseq, subMat, alphabetSize, kmerSize, dbFrom, dbFrom + dbSize, diagonalScoring, maskResidues, kmerThr, threads);
     }
 }
 
@@ -571,7 +572,7 @@ BaseMatrix * Prefiltering:: getSubstitutionMatrix(const std::string& scoringMatr
 
 void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
                                 IndexTable * indexTable, BaseMatrix *subMat,
-                                size_t dbFrom, size_t dbTo, bool diagonalScoring,
+                                size_t dbFrom, size_t dbTo, bool diagonalScoring, bool maskResiudes,
                                 int kmerThr, int threads)
 {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
@@ -608,6 +609,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
         Indexer idxer(subMat->alphabetSize, seq->getKmerSize());
         Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
                    seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
+        unsigned int * buffer = new unsigned int[seq->getMaxLen()];
 #pragma omp for schedule(dynamic, 100) reduction(+:aaCount, totalKmerCount, maskedResidues)
         for (unsigned int id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
@@ -615,19 +617,30 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
             char *seqData = dbr->getData(id);
             unsigned int qKey = dbr->getDbKey(id);
             s.mapSequence(id - dbFrom, qKey, seqData);
-
+            if(maskResiudes){
             maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
                                                       indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X'], true, true, true, true);
-
+            }
             aaCount += s.L;
-            totalKmerCount += indexTable->addKmerCount(&s, &idxer, kmerThr, idScoreLookup);
+            totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             sequenceLookup->addSequence(&s, sequenceOffSet[id-dbFrom]);
         }
+        delete [] buffer;
     }
     delete [] sequenceOffSet;
     dbr->remapData();
     Debug(Debug::INFO) << "\n";
     Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
+    if(totalKmerCount == 0) {
+        Debug(Debug::ERROR) << "No k-mer could be extracted for the database " << dbr->getDataFileName() << ".\n"
+                            << "Maybe the sequences length is less than 14 residues";
+        Debug(Debug::ERROR) << "\n";
+        if (maskedResidues == false){
+            Debug(Debug::ERROR) <<  " or contains only low complexity regions.";
+            Debug(Debug::ERROR) << "Use --do-not-mask to deactivate low complexity filter.\n";
+        }
+        EXIT(EXIT_FAILURE);
+    }
     //TODO find smart way to remove extrem k-mers without harming huge protein families
 //    size_t lowSelectiveResidues = 0;
 //    const float dbSize = static_cast<float>(dbTo - dbFrom);
@@ -651,6 +664,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
         Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
                    seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
         Indexer idxer(subMat->alphabetSize, seq->getKmerSize());
+        std::pair<unsigned int, IndexEntryLocal> * buffer = new std::pair<unsigned int, IndexEntryLocal>[seq->getMaxLen()];
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
@@ -686,8 +700,9 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
             s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id-dbFrom));
 //            Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
 //                                    indexTable->getAlphabetSize(), seq->aa2int['X']);
-            indexTable->addSequence(&s, &idxer, threadFrom, threadSize, kmerThr, idScoreLookup);
+            indexTable->addSequence(&s, &idxer, buffer, threadFrom, threadSize, kmerThr, idScoreLookup);
         }
+        delete [] buffer;
     }
     if(diagonalScoring == false){
         delete sequenceLookup;
@@ -704,13 +719,13 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
 IndexTable * Prefiltering::generateIndexTable(DBReader<unsigned int>*dbr, Sequence *seq, BaseMatrix * subMat,
                                               int alphabetSize, int kmerSize,
                                               size_t dbFrom, size_t dbTo,
-                                              bool diagonalScoring, int kmerThr,
+                                              bool diagonalScoring, bool maskResidues, int kmerThr,
                                               int threads) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     IndexTable * indexTable;
     indexTable = new IndexTable(alphabetSize, kmerSize);
-    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, kmerThr, threads);
+    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, maskResidues, kmerThr, threads);
     gettimeofday(&end, NULL);
     indexTable->printStatisitic(seq->int2aa);
     int sec = end.tv_sec - start.tv_sec;

@@ -125,6 +125,8 @@ public:
     bool   nucl;                         // using nucl informatoin
     int    compBiasCorrection;           // Aminoacid composiont correction
     int    diagonalScoring;              // switch diagonal scoring
+    bool   maskResidues;                 // mask low complex areas
+
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks
@@ -295,6 +297,8 @@ public:
     PARAMETER(PARAM_PROFILE)
     //PARAMETER(PARAM_NUCL)
     PARAMETER(PARAM_DIAGONAL_SCORING)
+    PARAMETER(PARAM_MASK_RESIDUES)
+
     PARAMETER(PARAM_MIN_DIAG_SCORE)
     PARAMETER(PARAM_K_SCORE)
     PARAMETER(PARAM_MAX_SEQS)

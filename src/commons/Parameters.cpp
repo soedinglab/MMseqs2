@@ -24,6 +24,8 @@ PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "
 PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "prefilter with query profiles (query DB must be a profile DB)",typeid(bool),(void *) &profile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
 //PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
 PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER),
+PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--do-not-mask", "Mask Residues", "turn off low complexity masking in prefilter", typeid(bool),(void *) &maskResidues, "", MMseqsParameter::COMMAND_PREFILTER),
+
 PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum Diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
 PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "k-mer threshold for generating similar-k-mer lists",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
 PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
@@ -174,6 +176,8 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     prefilter.push_back(PARAM_C);
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     prefilter.push_back(PARAM_DIAGONAL_SCORING);
+    prefilter.push_back(PARAM_MASK_RESIDUES);
+
     prefilter.push_back(PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(PARAM_INCLUDE_IDENTITY);
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
@@ -271,6 +275,7 @@ PARAM_COUNT_CHARACTER(PARAM_COUNT_CHARACTER_ID, "--count-char", "Count Char", "c
     createindex.push_back(PARAM_K);
     createindex.push_back(PARAM_ALPH_SIZE);
     createindex.push_back(PARAM_MAX_SEQ_LEN);
+    createindex.push_back(PARAM_MASK_RESIDUES);
     createindex.push_back(PARAM_SPLIT);
     createindex.push_back(PARAM_SPACED_KMER_MODE);
     createindex.push_back(PARAM_THREADS);
@@ -808,6 +813,7 @@ void Parameters::setDefaults() {
 #endif
     compBiasCorrection = 1;
     diagonalScoring = 1;
+    maskResidues = true;
     minDiagScoreThr = 15;
     spacedKmer = true;
     profile = false;

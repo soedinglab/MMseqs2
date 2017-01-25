@@ -43,10 +43,10 @@ public:
 
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
                                           int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
-                                          bool diagonalScoring, int kmerThr, int threads);
+                                          bool diagonalScoring, bool maskResidues, int kmerThr, int threads);
 
     static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
-                             size_t dbFrom, size_t dbTo, bool diagonalScoring, int kmerThr, int threads);
+                             size_t dbFrom, size_t dbTo, bool diagonalScoring, bool maskResidues, int kmerThr, int threads);
 
     // get substitution matrix
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, int alphabetSize, float bitFactor,
@@ -106,6 +106,7 @@ private:
     const int targetSeqType;
     bool templateDBIsIndex;
     const bool diagonalScoring;
+    const bool maskResidues;
     const unsigned int minDiagScoreThr;
     bool aaBiasCorrection;
     short kmerThr;

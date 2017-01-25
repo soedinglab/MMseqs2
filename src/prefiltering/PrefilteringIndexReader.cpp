@@ -21,8 +21,9 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 }
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr,
-                                              BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer, bool compBiasCorrection,  int split, int alphabetSize, int kmerSize,
-                                              bool diagonalScoring, int threads) {
+                                              BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
+                                              bool compBiasCorrection,  int split, int alphabetSize, int kmerSize,
+                                              bool diagonalScoring, bool maskResidues, int threads) {
 
     int splitCnt = split;
     if(splitCnt == 0){
@@ -59,7 +60,9 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                                          step, splitCnt, &splitStart, &splitSize);
         IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize);
-        Prefiltering::fillDatabase(dbr, &seq, indexTable, subMat, splitStart, splitStart + splitSize, diagonalScoring, 0, threads);
+        Prefiltering::fillDatabase(dbr, &seq, indexTable, subMat, splitStart,
+                                   splitStart + splitSize, diagonalScoring,
+                                   maskResidues, 0, threads);
 
         // save the entries
         std::string entries_key = SSTR(MathUtil::concatenate(ENTRIES, step));

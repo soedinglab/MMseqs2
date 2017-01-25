@@ -28,6 +28,7 @@
 // IndexEntryLocal is an entry with position and seqId for a kmer
 // structure needs to be packed or it will need 8 bytes instead of 6
 struct __attribute__((__packed__)) IndexEntryLocal {
+
     unsigned int seqId;
     unsigned short position_j;
 
@@ -81,8 +82,10 @@ public:
     }
 
     // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
-    size_t addKmerCount (Sequence* s, Indexer * idxer, int threshold, char * diagonalScore){
-        unsigned int kmerIdx;
+    size_t addKmerCount (Sequence* s, Indexer * idxer,
+                         unsigned int * seqKmerPosBuffer,
+                         int threshold, char * diagonalScore){
+
         s->resetCurrPos();
         //idxer->reset();
         size_t countKmer = 0;
@@ -97,14 +100,26 @@ public:
                     continue;
                 }
             }
-            kmerIdx = idxer->int2index(kmer, 0, kmerSize);
-
-            //table[kmerIdx] += 1;
-            // size increases by one
-            __sync_fetch_and_add( (int *) &table[kmerIdx], 1 );
+            unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
+            seqKmerPosBuffer[countKmer] = kmerIdx;
             countKmer++;
         }
-        return countKmer;
+        if(countKmer > 1){
+            std::sort(seqKmerPosBuffer, seqKmerPosBuffer + countKmer);
+        }
+        unsigned int prevKmerIdx = UINT_MAX;
+        size_t countUniqKmer = 0;
+        for(size_t i = 0; i < countKmer; i++){
+            unsigned int kmerIdx = seqKmerPosBuffer[i];
+            if(prevKmerIdx != kmerIdx){
+                //table[kmerIdx] += 1;
+                // size increases by one
+                __sync_fetch_and_add( (int *) &table[kmerIdx], 1 );
+                countUniqKmer++;
+            }
+            prevKmerIdx = kmerIdx;
+        }
+        return countUniqKmer;
     }
 
     inline  char * getTable(unsigned int kmer){
@@ -231,11 +246,14 @@ public:
 
     // FUNCTIONS TO OVERWRITE
     // add k-mers of the sequence to the index table
-    void addSequence (Sequence* s, Indexer * idxer, size_t aaFrom, size_t aaSize,
+    void addSequence (Sequence* s, Indexer * idxer,
+                      std::pair<unsigned int, IndexEntryLocal> * buffer,
+                      size_t aaFrom, size_t aaSize,
                       int threshold, char * diagonalScore){
         // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
         s->resetCurrPos();
         idxer->reset();
+        size_t kmerPos = 0;
         while(s->hasNextKmer()){
             const int * kmer = s->nextKmer();
             unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
@@ -252,12 +270,31 @@ public:
                         continue;
                     }
                 }
-
+                buffer[kmerPos].first = kmerIdx;
+                buffer[kmerPos].second.seqId      = s->getId();
+                buffer[kmerPos].second.position_j = s->getCurrentPosition();
+                kmerPos++;
+            }
+        }
+        struct compareKmerIndexEntryLocalPair{
+            bool operator()(std::pair<unsigned int, IndexEntryLocal>  const& lhs,
+                            std::pair<unsigned int, IndexEntryLocal>  const& rhs){
+                return lhs.first < rhs.first;
+            }
+        };
+        if(kmerPos>1){
+            std::stable_sort(buffer, buffer+kmerPos, compareKmerIndexEntryLocalPair());
+        }
+        unsigned int prevKmer = UINT_MAX;
+        for(size_t pos = 0; pos < kmerPos; pos++){
+            unsigned int kmerIdx = buffer[pos].first;
+            if(kmerIdx != prevKmer){
                 IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
-                entry->seqId      = s->getId();
-                entry->position_j = s->getCurrentPosition();
+                entry->seqId      = buffer[pos].second.seqId;
+                entry->position_j = buffer[pos].second.position_j;
                 table[kmerIdx] += sizeof(IndexEntryLocal);
             }
+            prevKmer = kmerIdx;
         }
     }
 
