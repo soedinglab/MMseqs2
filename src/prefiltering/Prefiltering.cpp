@@ -636,7 +636,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
         Debug(Debug::ERROR) << "No k-mer could be extracted for the database " << dbr->getDataFileName() << ".\n"
                             << "Maybe the sequences length is less than 14 residues";
         Debug(Debug::ERROR) << "\n";
-        if (maskedResidues == false){
+        if (maskedResidues == true){
             Debug(Debug::ERROR) <<  " or contains only low complexity regions.";
             Debug(Debug::ERROR) << "Use --do-not-mask to deactivate low complexity filter.\n";
         }
