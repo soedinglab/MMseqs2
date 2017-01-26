@@ -7,6 +7,7 @@
 #include "Util.h"
 #include "FileUtil.h"
 #include "Debug.h"
+#include <utility>
 
 #include <regex.h>
 #include <sys/time.h>
@@ -618,8 +619,8 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
             unsigned int qKey = dbr->getDbKey(id);
             s.mapSequence(id - dbFrom, qKey, seqData);
             if(maskResiudes){
-            maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
-                                                      indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X'], true, true, true, true);
+                maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
+                                                          indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X'], true, true, true, true);
             }
             aaCount += s.L;
             totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
@@ -664,7 +665,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
         Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
                    seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
         Indexer idxer(subMat->alphabetSize, seq->getKmerSize());
-        std::pair<unsigned int, IndexEntryLocal> * buffer = new std::pair<unsigned int, IndexEntryLocal>[seq->getMaxLen()];
+        IndexEntryLocalTmp * buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
