@@ -14,5 +14,10 @@ public:
     std::string summarize(const std::vector<std::string>& headers);
 };
 
+class MetaclustHeaderSummarizer : public HeaderSummarizer {
+public:
+    std::string summarize(const std::vector<std::string>& headers);
+};
+
 
 #endif //MMSEQS_HEADERSUMMARIZER_H

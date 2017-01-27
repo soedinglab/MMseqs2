@@ -85,6 +85,9 @@ public:
     static const int CLUST_HASH_DEFAULT_ALPH_SIZE = 3;
     static const int CLUST_LINEAR_DEFAULT_ALPH_SIZE = 14;
     static const int CLUST_LINEAR_DEFAULT_K = 14;
+    // header type
+    static const int HEADER_TYPE_UNICLUST = 1;
+    static const int HEADER_TYPE_METACLUST = 2;
 
     // COMMON
     const char** argv;            //command line parameters
@@ -266,6 +269,10 @@ public:
     // diff
     bool useSequenceId;
 
+    // summarize headers
+    int headerType;
+
+
     static Parameters& getInstance()
     {
         static Parameters instance;
@@ -424,7 +431,10 @@ public:
     
     //diff
     PARAMETER(PARAM_USESEQID)
-    
+
+    // summarize headers
+    PARAMETER(PARAM_HEADER_TYPE)
+
     // mergedbs
     PARAMETER(PARAM_MERGE_PREFIXES)
 

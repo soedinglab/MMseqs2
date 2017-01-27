@@ -125,7 +125,8 @@ Parameters::Parameters():
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
 //diff
         PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their ID", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
-
+// summarize headers
+        PARAM_HEADER_TYPE(PARAM_HEADER_TYPE_ID,"--header-type", "Header type", "Header Type: 1 Uniclust, 2 Metaclust",typeid(int), (void *) &headerType, "[1-2]{1}"),
 // mergedbs
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
 // evaluationscores
@@ -390,6 +391,8 @@ Parameters::Parameters():
 
     // summarize
     summarizeheaders.push_back(PARAM_SUMMARY_PREFIX);
+    summarizeheaders.push_back(PARAM_HEADER_TYPE);
+    summarizeheaders.push_back(PARAM_THREADS);
     summarizeheaders.push_back(PARAM_V);
 
     // diff
@@ -935,6 +938,9 @@ void Parameters::setDefaults() {
     // summarizetabs
     overlap = 0.0f;
     msaType = 0;
+
+    // summarize header
+    headerType = Parameters::HEADER_TYPE_UNICLUST;
 
     // extractalignedregion
     extractMode = EXTRACT_TARGET;
