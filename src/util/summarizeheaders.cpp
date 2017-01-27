@@ -41,7 +41,7 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
 
     Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
 
-    #pragma omp for schedule(dynamic, 100)
+    #pragma omp parallel for schedule(dynamic, 100)
     for (size_t i = 0; i < reader.getSize(); ++i) {
         int thread_idx = 0;
 #ifdef OPENMP
