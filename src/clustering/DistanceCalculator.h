@@ -11,7 +11,61 @@ class DistanceCalculator {
 public:
 
 
-    static unsigned int computeHammingDistance(const char *seq1, const char *seq2, unsigned int length){
+    template<typename T>
+    static unsigned int computeSubstituionDistance(const T *seq1,
+                                                   const T *seq2,
+                                                   const unsigned int length,
+                                                   short ** subMat) {
+        int max = 0;
+        int score = 0;
+        for(unsigned int pos = 0; pos < length; pos++){
+            int curr = subMat[seq1[pos]][seq2[pos]];
+            score = curr  + score;
+            score = (score < 0) ? 0 : score;
+            max = (score > max)? score : max;
+        }
+        return max;
+    }
+
+    struct LocalAlignment{
+        int startPos;
+        int endPos;
+        unsigned int score;
+        LocalAlignment(int startPos, int endPos, int score)
+        : startPos(startPos), endPos(endPos), score(score)
+        {}
+        LocalAlignment() : startPos(-1), endPos(-1), score(-1)  {}
+
+    };
+
+    template<typename T>
+    static LocalAlignment computeSubstituionStartEndDistance(const T *seq1,
+                                                           const T *seq2,
+                                                           const unsigned int length,
+                                                           short ** subMat) {
+        int maxScore = 0;
+        int maxEndPos = 0;
+        int maxStartPos = 0;
+        int minPos = 0;
+        int maxMinPos = 0;
+        int score = 0;
+        for(unsigned int pos = 0; pos < length; pos++){
+            int curr = subMat[seq1[pos]][seq2[pos]];
+            score = curr  + score;
+            const bool isMinScore = (score < 0);
+            score =  (isMinScore) ? 0 : score;
+            minPos = (isMinScore) ? pos : minPos;
+            const bool isNewMaxScore = (score > maxScore);
+            maxEndPos = (isNewMaxScore) ? pos : maxEndPos;
+            maxStartPos = (isNewMaxScore) ? minPos : maxStartPos;
+            maxScore = (isNewMaxScore)? score : maxScore;
+        }
+        return LocalAlignment(maxStartPos, maxEndPos, maxScore);
+    }
+
+
+    template<typename T>
+    static unsigned int computeHammingDistance(const T *seq1, const T *seq2, unsigned int length){
         unsigned int diff = 0;
         for (unsigned int pos = 0; pos < length; pos++ ) {
             diff += (seq1[pos] != seq2[pos]);
@@ -53,8 +107,8 @@ public:
                     val = row[j - 1]; // match
                 } else {
                     val = std::min(row[j - 1] + 1, // substitution
-                          std::min(prev + 1,       // insertion
-                                   row[j] + 1));   // deletion
+                                   std::min(prev + 1,       // insertion
+                                            row[j] + 1));   // deletion
                 }
                 row[j - 1] = prev;
                 prev = val;
