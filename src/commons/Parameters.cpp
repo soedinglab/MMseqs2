@@ -24,7 +24,7 @@ Parameters::Parameters():
         PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "prefilter with query profiles (query DB must be a profile DB)",typeid(bool),(void *) &profile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
 //PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER),
-        PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "turn off low complexity masking in prefilter", typeid(int),(void *) &maskResidues, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER),
+        PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking 1: with low complexity masking", typeid(int),(void *) &maskResidues, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER),
 
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum Diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "k-mer threshold for generating similar-k-mer lists",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
@@ -44,7 +44,7 @@ Parameters::Parameters():
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) query and target residues",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
-        PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1\\.0$"),
+        PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MAX_ACCEPT(PARAM_MAX_ACCEPT_ID,"--max-accept", "Max Accept", "maximum accepted alignments before alignment calculation for a query is stopped",typeid(int),(void *) &maxAccept, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
@@ -63,6 +63,9 @@ Parameters::Parameters():
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "0: HMM (HHsuite) 1: PSSM or 3: HMMER3",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
 // convertalignments
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format BLAST TAB=0, PAIRWISE=1, or SAM=2 ", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
+// rescorediagonal
+        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "rescore diagonal by: 0 hamming distance, 1 local alignment (score only) or 2 local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
+        PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq.id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, ""),
 // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, ""),
@@ -149,6 +152,7 @@ Parameters::Parameters():
     align.push_back(PARAM_E);
     align.push_back(PARAM_MIN_SEQ_ID);
     align.push_back(PARAM_C);
+    align.push_back(PARAM_TARGET_COV);
     align.push_back(PARAM_MAX_SEQ_LEN);
     align.push_back(PARAM_MAX_SEQS);
     align.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -178,7 +182,6 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     prefilter.push_back(PARAM_DIAGONAL_SCORING);
     prefilter.push_back(PARAM_MASK_RESIDUES);
-
     prefilter.push_back(PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(PARAM_INCLUDE_IDENTITY);
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
@@ -197,8 +200,12 @@ Parameters::Parameters():
     onlyverbosity.push_back(PARAM_V);
 
     // rescorediagonal
+    rescorediagonal.push_back(PARAM_RESCORE_MODE);
+    rescorediagonal.push_back(PARAM_FILTER_HITS);
+    rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_TARGET_COV);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
+    rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
 
@@ -312,7 +319,7 @@ Parameters::Parameters():
 
     clusteringWorkflow = combineList(prefilter, align);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
-    clusteringWorkflow = combineList(clusteringWorkflow, linearfilter);
+    clusteringWorkflow = combineList(clusteringWorkflow, kmermatcher);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_CLUSTER_FRAGMENTS);
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
@@ -371,16 +378,16 @@ Parameters::Parameters():
     clusthash.push_back(PARAM_THREADS);
     clusthash.push_back(PARAM_V);
 
-    // linearfilter
-    linearfilter.push_back(PARAM_SUB_MAT);
-    linearfilter.push_back(PARAM_ALPH_SIZE);
-    linearfilter.push_back(PARAM_KMER_PER_SEQ);
-    linearfilter.push_back(PARAM_TARGET_COV);
-    linearfilter.push_back(PARAM_K);
-    linearfilter.push_back(PARAM_C);
-    linearfilter.push_back(PARAM_MAX_SEQ_LEN);
-    linearfilter.push_back(PARAM_THREADS);
-    linearfilter.push_back(PARAM_V);
+    // kmermatcher
+    kmermatcher.push_back(PARAM_SUB_MAT);
+    kmermatcher.push_back(PARAM_ALPH_SIZE);
+    kmermatcher.push_back(PARAM_KMER_PER_SEQ);
+    kmermatcher.push_back(PARAM_TARGET_COV);
+    kmermatcher.push_back(PARAM_K);
+    kmermatcher.push_back(PARAM_C);
+    kmermatcher.push_back(PARAM_MAX_SEQ_LEN);
+    kmermatcher.push_back(PARAM_THREADS);
+    kmermatcher.push_back(PARAM_V);
     // result2newick
     result2newick.push_back(PARAM_THREADS);
     result2newick.push_back(PARAM_V);
@@ -437,6 +444,13 @@ Parameters::Parameters():
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
 
+    // linclust workflow
+    linclustworkflow = combineList(clust, align);
+    linclustworkflow = combineList(clusteringWorkflow, kmermatcher);
+    linclustworkflow = combineList(clusteringWorkflow, rescorediagonal);
+    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    linclustworkflow.push_back(PARAM_RUNNER);
+
     //checkSaneEnvironment();
     setDefaults();
 }
@@ -473,7 +487,7 @@ void Parameters::printUsageMessage(const Command& command,
             {"prefilter",MMseqsParameter::COMMAND_PREFILTER},
             {"align",    MMseqsParameter::COMMAND_ALIGN},
             {"clust",    MMseqsParameter::COMMAND_CLUST},
-            {"clustlinear", MMseqsParameter::COMMAND_CLUSTLINEAR},
+            {"kmermatcher", MMseqsParameter::COMMAND_CLUSTLINEAR},
             {"profile",  MMseqsParameter::COMMAND_PROFILE},
             {"misc",     MMseqsParameter::COMMAND_MISC},
             {"common",   MMseqsParameter::COMMAND_COMMON},
@@ -807,7 +821,7 @@ void Parameters::setDefaults() {
 
     threads = 1;
 #ifdef OPENMP
-    #ifdef _SC_NPROCESSORS_ONLN
+#ifdef _SC_NPROCESSORS_ONLN
     threads = sysconf(_SC_NPROCESSORS_ONLN);
 #endif
     if(threads  <= 1){
@@ -862,6 +876,9 @@ void Parameters::setDefaults() {
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
 
+    // rescore diagonal
+
+
     // result2msa
     allowDeletion = false;
     addInternalId = false;
@@ -911,6 +928,9 @@ void Parameters::setDefaults() {
     maxSequences = INT_MAX;
     hhFormat = false;
 
+    // rescorediagonal
+    rescoreMode = Parameters::RESCORE_MODE_HAMMING;
+    filterHits = false;
     // filterDb
     filterColumn = 1;
     filterColumnRegex = "^.*$";

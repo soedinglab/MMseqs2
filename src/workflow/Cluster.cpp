@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cascaded_clustering.sh.h>
 #include <clustering.sh.h>
+#include <Util.h>
 
 #include "DBWriter.h"
 #include "CommandCaller.h"
@@ -42,6 +43,8 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     bool parameterSet = false;
     bool compositionBiasSet = false;
     bool minDiagonalScore = false;
+    bool targetCov = false;
+    bool cov = false;
 
     for (size_t i = 0; i < par.clusteringWorkflow.size(); i++) {
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_S.uniqid && par.clusteringWorkflow[i].wasSet) {
@@ -53,9 +56,20 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid && par.clusteringWorkflow[i].wasSet) {
             compositionBiasSet = true;
         }
+        if (par.clusteringWorkflow[i].uniqid == par.PARAM_TARGET_COV.uniqid && par.clusteringWorkflow[i].wasSet) {
+            targetCov = true;
+            par.cov = 0.0;
+        }
+        if (par.clusteringWorkflow[i].uniqid == par.PARAM_C.uniqid && par.clusteringWorkflow[i].wasSet) {
+            cov = true;
+        }
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_MIN_DIAG_SCORE.uniqid && par.clusteringWorkflow[i].wasSet) {
             minDiagonalScore = true;
         }
+    }
+    if(cov && targetCov){
+        Debug(Debug::ERROR) << "The paramter -c can not be combined with --target-cov.\n";
+        EXIT(EXIT_FAILURE);
     }
     if (compositionBiasSet == false){
         if(par.seqIdThr > 0.7){
@@ -99,7 +113,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
         size_t kmerSize = par.kmerSize;
         par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
-        cmd.addVariable("CLUSTLINEAR_PAR", par.createParameterString(par.linearfilter).c_str());
+        cmd.addVariable("CLUSTLINEAR_PAR", par.createParameterString(par.kmermatcher).c_str());
         par.alphabetSize = alphabetSize;
         par.kmerSize = kmerSize;
         // 1 is lowest sens
@@ -149,7 +163,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
         size_t kmerSize = par.kmerSize;
         par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
-        cmd.addVariable("CLUSTLINEAR_PAR", par.createParameterString(par.linearfilter).c_str());
+        cmd.addVariable("CLUSTLINEAR_PAR", par.createParameterString(par.kmermatcher).c_str());
         par.alphabetSize = alphabetSize;
         par.kmerSize = kmerSize;
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());

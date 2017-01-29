@@ -167,7 +167,7 @@ This modular architecture, can be used chain tools together to create workflows 
 * `prefilter` Search with query sequence / profile DB through target DB (k-mer matching + ungapped alignment)
 * `align` Compute Smith-Waterman alignments for previous results (e.g. prefilter DB, cluster DB)
 * `clust` Cluster sequence DB from alignment DB (e.g. created by searching DB against itself)
-* `clustlinear`       	Cluster sequences of >70% sequence identity *in linear time*
+* `kmermatcher`       	Cluster sequences of >70% sequence identity *in linear time*
 * `clusthash`         	Cluster sequences of same length and >90% sequence identity *in linear time*
 
 ### Utility tools for format conversions
