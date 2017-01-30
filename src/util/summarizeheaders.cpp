@@ -29,11 +29,19 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db4.c_str(), par.db4Index.c_str(), par.threads);
     writer.open();
 
-    UniprotHeaderSummarizer summarizer;
+    HeaderSummarizer * summarizer;
+    if(par.headerType == Parameters::HEADER_TYPE_METACLUST){
+        summarizer = new MetaclustHeaderSummarizer;
+    }else if(par.headerType == Parameters::HEADER_TYPE_UNICLUST) {
+        summarizer = new UniprotHeaderSummarizer;
+    }else {
+        Debug(Debug::ERROR) << "Header type is not supported\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";
 
-    #pragma omp for schedule(dynamic, 100)
+    #pragma omp parallel for schedule(dynamic, 100)
     for (size_t i = 0; i < reader.getSize(); ++i) {
         int thread_idx = 0;
 #ifdef OPENMP
@@ -59,13 +67,12 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
             } else {
                 header = targetReader.getDataByDBKey((unsigned int) strtoul(line.c_str(), NULL, 10));
             }
-
             headers.emplace_back(header);
             entry++;
         }
 
         std::ostringstream oss;
-        oss << par.summaryPrefix << "-" << representative << "|" << summarizer.summarize(headers);
+        oss << par.summaryPrefix << "-" << representative << "|" << summarizer->summarize(headers);
 
         std::string summary = oss.str();
         writer.writeData(summary.c_str(), summary.length(), SSTR(id).c_str(), thread_idx);
@@ -74,6 +81,6 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
     reader.close();
     targetReader.close();
     queryReader.close();
-
+    delete summarizer;
     return EXIT_SUCCESS;
 }

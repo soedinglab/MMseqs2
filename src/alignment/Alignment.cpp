@@ -19,6 +19,7 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
                      Parameters &par){
 
     this->covThr = par.covThr;
+    this->targetCovThr = par.targetCovThr;
     this->evalThr = par.evalThr;
     this->seqIdThr = par.seqIdThr;
     this->addBacktrace = par.addBacktrace;
@@ -36,9 +37,9 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
     this->swMode = Matcher::SCORE_ONLY; // fast
     switch (par.alignmentMode){
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
-            if(this->covThr > 0.0 && this->seqIdThr == 0.0) {
+            if((this->covThr > 0.0 || this->targetCovThr > 0.0) && this->seqIdThr == 0.0) {
                 this->swMode = Matcher::SCORE_COV; // fast
-            } else if(this->covThr > 0.0 && this->seqIdThr > 0.0) { // if seq id is needed
+            } else if((this->covThr > 0.0 || this->targetCovThr > 0.0) && this->seqIdThr > 0.0) { // if seq id is needed
                 this->swMode = Matcher::SCORE_COV_SEQID; // slowest
             }
             break;
@@ -252,12 +253,12 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                 //char *maskedDbSeq = seg[thread_idx]->maskseq(dbSeqData);
                 dbSeqs[thread_idx]->mapSequence(-1, dbKeys[thread_idx], dbSeqData);
                 // check if the sequences could pass the coverage threshold
-                    if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
-                         (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ) {
-                        rejected++;
-                        data = Util::skipLine(data);
-                        continue;
-                    }
+                if ( (((float) qSeqs[thread_idx]->L) / ((float) dbSeqs[thread_idx]->L) < covThr) ||
+                     (((float) dbSeqs[thread_idx]->L) / ((float) qSeqs[thread_idx]->L) < covThr) ) {
+                    rejected++;
+                    data = Util::skipLine(data);
+                    continue;
+                }
                 // calculate Smith-Waterman alignment
                 Matcher::result_t res = matchers[thread_idx]->getSWResult(dbSeqs[thread_idx], tseqdbr->getSize(), evalThr, this->swMode);
                 alignmentsNum++;
@@ -267,12 +268,19 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                     res.dbcov=1.0f;
                     res.seqId=1.0f;
                 }
-
+                const bool evalOk = (res.eval <= evalThr); // -e
+                const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
+                const bool covOK = (res.qcov >= covThr && res.dbcov >= covThr); //-c
+                const bool targetCovOK = (res.dbcov >= targetCovThr); // --target-cov (-c = 0.0 if --targetCov)
                 // check first if it is identity
                 if (isIdentity
                     ||
                     // general accaptance criteria
-                    (res.eval <= evalThr && res.seqId >= seqIdThr && res.qcov >= covThr && res.dbcov >= covThr))
+                    ( evalOk   &&
+                      seqIdOK  &&
+                      covOK    &&
+                      targetCovOK
+                      ))
                 {
                     swResults.push_back(res);
                     passedNum++;
@@ -296,9 +304,13 @@ void Alignment::run (const char * outDB, const char * outDBIndex,
                                                                                Matcher::SCORE_COV_SEQID);
                     swResults[i].backtrace = res.backtrace;
                     swResults[i].qStartPos = res.qStartPos;
-                    swResults[i].qEndPos = res.qEndPos;
+                    swResults[i].qEndPos   = res.qEndPos;
                     swResults[i].dbStartPos = res.dbStartPos;
-                    swResults[i].dbEndPos = res.dbEndPos;
+                    swResults[i].dbEndPos  = res.dbEndPos;
+                    swResults[i].alnLength = res.alnLength;
+                    swResults[i].seqId     = res.seqId;
+                    swResults[i].qcov      = res.qcov;
+                    swResults[i].dbcov     = res.dbcov;
                 }
             }
             // put the contents of the swResults list into ffindex DB

@@ -48,6 +48,9 @@ private:
     // query sequence coverage threshold
     double covThr;
 
+    // query sequence coverage threshold
+    double targetCovThr;
+
     // e value threshold
     double evalThr;
 

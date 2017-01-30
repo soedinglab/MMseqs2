@@ -84,7 +84,17 @@ public:
 
     static const int CLUST_HASH_DEFAULT_ALPH_SIZE = 3;
     static const int CLUST_LINEAR_DEFAULT_ALPH_SIZE = 14;
-    static const int CLUST_LINEAR_DEFAULT_K = 14;
+    static const int CLUST_LINEAR_DEFAULT_K = 10;
+
+    // rescorediagonal
+    static const int RESCORE_MODE_HAMMING = 0;
+    static const int RESCORE_MODE_SUBSTITUTION = 1;
+    static const int RESCORE_MODE_ALIGNMENT = 2;
+
+    // header type
+    static const int HEADER_TYPE_UNICLUST = 1;
+    static const int HEADER_TYPE_METACLUST = 2;
+
 
     // COMMON
     const char** argv;            //command line parameters
@@ -177,8 +187,13 @@ public:
 
     // convertprofiledb
     int profileMode;
+
     // format alignment
     int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
+
+    // rescorediagonal
+    int rescoreMode;
+    bool filterHits;
 
     // result2msa
     bool allowDeletion;
@@ -254,6 +269,8 @@ public:
     // extractalignedregion
     int extractMode;
 
+
+
     // convertkb
     std::string kbColumns;
 
@@ -265,6 +282,10 @@ public:
     
     // diff
     bool useSequenceId;
+
+    // summarize headers
+    int headerType;
+
 
     static Parameters& getInstance()
     {
@@ -332,7 +353,7 @@ public:
 
     PARAMETER(PARAM_CASCADED)
 
-    //afinity clustering
+    // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
     PARAMETER(PARAM_SIMILARITYSCORE)
     // logging
@@ -344,6 +365,10 @@ public:
 
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
+
+    // rescoremode
+    PARAMETER(PARAM_RESCORE_MODE)
+    PARAMETER(PARAM_FILTER_HITS)
 
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION)
@@ -424,7 +449,10 @@ public:
     
     //diff
     PARAMETER(PARAM_USESEQID)
-    
+
+    // summarize headers
+    PARAMETER(PARAM_HEADER_TYPE)
+
     // mergedbs
     PARAMETER(PARAM_MERGE_PREFIXES)
 
@@ -465,7 +493,8 @@ public:
     std::vector<MMseqsParameter> result2flat;
     std::vector<MMseqsParameter> gff2ffindex;
     std::vector<MMseqsParameter> clusthash;
-    std::vector<MMseqsParameter> linearfilter;
+    std::vector<MMseqsParameter> kmermatcher;
+    std::vector<MMseqsParameter> linclustworkflow;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;

@@ -28,7 +28,7 @@ set(util_source_files
         summarizetabs.cpp
         extractdomains.cpp
         extractalignedregion.cpp
-        clustlinear.cpp
+        kmermatcher.cpp
         rescorediagonal.cpp
         )
 
