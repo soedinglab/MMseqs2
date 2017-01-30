@@ -271,7 +271,7 @@ Query and target databases may be identical. The program outputs for each query 
 MMseqs2 can precompute the prefilter index \texttt{createindex} to speed up subsequence prefilter index read-ins. IWe recommend to use an index for iterative searches or if a target database will be reused several times. However reading the index can be bottle neck when using a network file systems (NFS). It is recommended to keep the index on a local hard drive. If storing the index file on a local hard drive is not possible and the NFS is a bottleneck than do not precompute the index. MMseqs2 will compute an index on the fly which reduces the IO volume by roughly a factor of seven.
 
 The underlying algorithm is explained in more detail in section \ref{sub:Prefiltering}, and the full parameter list can be found in section \ref{sub:Search-workflow}.
-\subsection{Clustering Databases using \texttt{mmseqs clusteringworkflow}} \label{sub:Clustering}
+\subsection{Clustering Databases using \texttt{mmseqs cluster}} \label{sub:Clustering}
 To cluster a database, MMseqs2 needs a sequence database converted with \texttt{createdb} and an empty directory for temporary files. Then, you can run the clustering with:
 
 \begin{verbatim}
@@ -281,13 +281,13 @@ $ mmseqs cluster inDB outDB tmp
 and cascaded clustering with:
 
 \begin{verbatim}
-$ mmseqs cluster  inDB outDB tmp --cascaded
+$ mmseqs cluster inDB outDB tmp --cascaded
 \end{verbatim}
 
 The sensitivity of the clustering can be adjust with the \texttt{-s} option. MMseqs2 will automatically adjust the sensitivity based on the \texttt{--min-seq-id} parameter, if neither \texttt{-{}-cascaded} nor \texttt{-s} are  provided. 
 
 \begin{verbatim}
-$ mmseqs cluster  inDB outDB tmp 
+$ mmseqs cluster inDB outDB tmp 
 \end{verbatim}
 
 The clustering workflow combines the prefiltering, alignment and clustering modules into either a simple clustering or a cascaded clustering of a sequence database. There are two ways to execute the clustering:
@@ -297,6 +297,7 @@ The clustering workflow combines the prefiltering, alignment and clustering modu
 modules with predefined parameters with a single iteration.
 \item \emph{Cascaded clustering} clusters the sequence database using the prefiltering, alignment and clustering modules incrementally in three steps.
 \end{itemize}
+
 \subsubsection{Cascaded Clustering}
 We introduced an extremely fast redundancy filtering preprocessing step that can cluster sequences of identical length and \SI{100}{\percent} overlap. It reduces each sequence to a \num{5}-letter alphabet, computes a \SI{64}{\bit} CRC32 hash value for the full-length sequences, and places sequences with identical hash code that satisfy the sequence identity threshold into the same cluster.
 
@@ -492,7 +493,7 @@ Since only one record is written per cluster, the memory usage is a small fracti
 \subsection{Workflows}
 The search and clustering workflows offer the possibility to set the sensitivity option \texttt{-s} and the maximum sequences per query option \texttt{-{}-max-seqs}. \texttt{-{}-max-rejected} option is set to \texttt{INT\_MAX} per default. Cascaded clustering sets all the options controlling the size of the output, speed and memory consumption, internally adjusting parameters in each cascaded clustering step.
 
-\section{How to run MMseqs2 on multipe servers using MPI}
+\section{How to run MMseqs2 on multiple servers using MPI}
 MMseqs2 can run on multiple cores and servers using OpenMP (OMP) and message passing interface (MPI). MPI assigns database splits to each servers and each server computes them using multiple cores (OMP). Currently \texttt{prefilter}, \texttt{align}, \texttt{result2profile}, \texttt{swapresults} can take advantage of MPI.
 To parallelize the time-consuming k-mer matching and gapless alignment stages prefilter among multiple servers, two different modes are available. In the first, MMseqs2 can split the target sequence set into approximately equal-sized chunks, and each server searches all queries against its chunk. Alternatively, the query sequence set is split into equal-sized chunks and each server searches its query chunk against the entire target set. Splitting the target database is less time-efficient due to the slow, IO-limited merging of results. But it reduces the memory required on each server to  $7 \times NL / \text{\#chunks} + 21^k \times 8\,\mathrm{B}$
  and allows users to search through huge databases on servers with moderate memory sizes. If the number of chunks is larger than the number of servers, chunks will be distributed among servers and processed sequentially. By default, MMseqs2 automatically decides which mode to pick based on the available memory (assume that all machines have the same amount of memory).
@@ -536,6 +537,16 @@ Example: cluster sequences at 90\% sequence identity
 mmseqs clusterhash sequenceDB resultDB --min-seq-id 0.9
 mmseqs cluster sequenceDB resultDB clusterDB
 \end{verbatim}
+
+\subsection{How to add sequence identities and other alignment information to a clustering result.}
+We can add sequence identities and other alignment information to the clustering result \texttt{outDB} by running an additional align step:
+
+\begin{verbatim}
+$ mmseqs align sequenceDB sequenceDB resultDB alignDB -a
+$ mmseqs createtsv sequenceDB sequenceDB alignDB align.tsv 
+\end{verbatim}
+
+The \texttt{-a} parameter computes the whole backtrace. \texttt{-{}-alignment-mode 3} could be used instead if the backtrace is not needed. This would save disk space. The backtrace is however computed anyway (for the calculation of the sequence identities) and then discarded.
 
 \section{Detailed Parameter List} \label{sec:Detailed-parameter-list}
 \subsection{Search Workflow} \label{sub:Search-workflow}
