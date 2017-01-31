@@ -29,7 +29,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
-    gettimeofday(&start, NULL);
+
 #ifdef HAVE_MPI
     std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(par.db3, par.db3Index, MMseqsMPI::rank);
 

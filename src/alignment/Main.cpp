@@ -17,20 +17,18 @@ int align(int argc, const char **argv, const Command& command) {
 
     MMseqsMPI::init(argc, argv);
 
-    Debug::setDebugLevel(Debug::INFO);
-
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
-    Debug(Debug::WARNING) << "Init data structures...\n";
+    Debug(Debug::INFO) << "Init data structures...\n";
     Alignment* aln = new Alignment(par.db1,           par.db1Index,
                                    par.db2,           par.db2Index,
                                    par.db3,           par.db3Index,
                                    par.db4,           par.db4Index,
                                    par);
 
-    Debug(Debug::WARNING) << "Calculation of Smith-Waterman alignments.\n";
+    Debug(Debug::INFO) << "Calculation of Smith-Waterman alignments.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
@@ -41,8 +39,8 @@ int align(int argc, const char **argv, const Command& command) {
 #endif
 
     gettimeofday(&end, NULL);
-    int sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for alignments calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    time_t sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "Time for alignments calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
  
     delete aln;
 
