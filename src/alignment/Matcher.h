@@ -80,9 +80,9 @@ public:
 
     static float estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen);
 
-    static std::string compressAlignment(std::string bt);
+    static std::string compressAlignment(const std::string &bt);
 
-    static std::string uncompressAlignment(std::string cbt);
+    static std::string uncompressAlignment(const std::string &cbt);
 
     // parameter for alignment
     static const unsigned short GAP_OPEN = 11;
