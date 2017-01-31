@@ -24,7 +24,7 @@ int createindex(int argc, const char **argv, const Command &command) {
 
     PrefilteringIndexReader::createIndexFile(par.db1, &dbr, subMat, par.maxSeqLen,
                                              par.spacedKmer, par.compBiasCorrection, split,
-                                             subMat->alphabetSize, kmerSize, par.diagonalScoring, par.threads);
+                                             subMat->alphabetSize, kmerSize, 0, par.diagonalScoring, par.threads);
 
     delete subMat;
     dbr.close();

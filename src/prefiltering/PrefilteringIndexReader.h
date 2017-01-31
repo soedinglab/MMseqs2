@@ -9,7 +9,7 @@
 struct PrefilteringIndexData {
     int kmerSize;
     int alphabetSize;
-    int skip;
+    int mask;
     int split;
     int local;
     int spacedKmer;
@@ -35,7 +35,8 @@ public:
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
 
     static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr,
-                                BaseMatrix * subMat, int maxSeqLen, bool spacedKmer, bool compBiasCorrection, int split, int alphabetSize, int kmerSize,
+                                BaseMatrix * subMat, int maxSeqLen, bool spacedKmer, bool compBiasCorrection,
+                                int split, int alphabetSize, int kmerSize, int mask,
                                 bool diagonalScoring, int threads);
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr);

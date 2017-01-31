@@ -30,7 +30,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr,
                                               BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
                                               bool compBiasCorrection, const int split, int alphabetSize, int kmerSize,
-                                              bool diagonalScoring, int threads) {
+                                              int mask, bool diagonalScoring, int threads) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
@@ -108,7 +108,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     Debug(Debug::INFO) << "Write " << META << "\n";
     int local = 1;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
-    int metadata[] = {kmerSize, alphabetSize, 0, split, local, spacedKmer};
+    int metadata[] = {kmerSize, alphabetSize, mask, split, local, spacedKmer};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, 6 * sizeof(int), SSTR(META).c_str(), 0);
 
@@ -179,7 +179,7 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
 
     Debug(Debug::INFO) << "KmerSize:     " << metadata_tmp[0] << "\n";
     Debug(Debug::INFO) << "AlphabetSize: " << metadata_tmp[1] << "\n";
-    Debug(Debug::INFO) << "Skip:         " << metadata_tmp[2] << "\n";
+    Debug(Debug::INFO) << "Mask:         " << metadata_tmp[2] << "\n";
     Debug(Debug::INFO) << "Split:        " << metadata_tmp[3] << "\n";
     Debug(Debug::INFO) << "Type:         " << metadata_tmp[4] << "\n";
     Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[5] << "\n";
@@ -188,7 +188,7 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
 
     prefData.kmerSize = metadata_tmp[0];
     prefData.alphabetSize = metadata_tmp[1];
-    prefData.skip = metadata_tmp[2];
+    prefData.mask = metadata_tmp[2];
     prefData.split = metadata_tmp[3];
     prefData.local = metadata_tmp[4];
     prefData.spacedKmer = metadata_tmp[5];
