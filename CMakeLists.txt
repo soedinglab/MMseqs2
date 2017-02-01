@@ -34,10 +34,6 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
 endif()
 
 
-#include(UseLATEX)
-#set(PDFLATEX_COMPILER xelatex)
-#add_latex_document(userguide.tex)
-
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 add_definitions("-DGIT_SHA1=${GIT_SHA1}")
@@ -53,10 +49,6 @@ include_directories(lib/kseq)
 include_directories(lib/simd)
 include_directories(lib/gzstream)
 add_subdirectory(src)
-
-
-
-
 
 install(PROGRAMS
 	util/bash-completion.sh
