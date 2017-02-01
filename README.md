@@ -14,6 +14,10 @@ Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching f
 
 07/12/2016 We added a new parameter called --max-accept. This parameter limits the amount of alignments that get accepted. Please do not use --max-seqs to limit your result size since it decreases the sensitivity of MMseqs2.
 
+## Documentation
+The MMseqs2 user guide is available in our [Github Wiki](https://github.com/soedinglab/mmseqs2/wiki). A PDF version of the user guide is also [available](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!).
+You can read on for a quick start guide with installation instructions and examples for searching and clustering.
+
 ## Installation
 MMseqs can be installed by compiling the binary from source, download a statically compiled version, or using [Homebrew](https://github.com/Homebrew/brew). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
 
