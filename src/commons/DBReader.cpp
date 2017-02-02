@@ -20,7 +20,7 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
         data(NULL), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
         indexFileName(strdup(indexFileName_)), dataFile(NULL), size(0), dataSize(0), aaDbSize(0), closed(1),
         index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
-        lastKey(T()), dataMapped(false), accessType(0), externalData(false)
+        lastKey(T()), dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
 
 template <typename T>
@@ -28,17 +28,27 @@ DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t s
         data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL), dataFile(NULL),
         size(size), dataSize(0), aaDbSize(aaDbSize), closed(0),
         index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
-        lastKey(T()), dataMapped(false), accessType(NOSORT), externalData(true)
+        lastKey(T()), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
 
 
-template <typename T> void DBReader<T>::readMmapedDataInMemory(){
+template <typename T>
+void DBReader<T>::readMmapedDataInMemory(){
     size_t bytes = 0;
     for(size_t i = 0; i < dataSize; i++){
         bytes += data[i];
     }
     this->magicBytes = bytes;
 }
+
+template <typename T>
+void DBReader<T>::mlock(){
+    if (didMlock == false) {
+        ::mlock(data, dataSize);
+        didMlock = true;
+    }
+}
+
 
 template <typename T>
 void DBReader<T>::printMagicNumber(){
@@ -214,11 +224,9 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
 
 template <typename T> void DBReader<T>::remapData(){
     if(dataMode & USE_DATA){
-        if(munmap(data, dataSize) < 0){
-            Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
-            EXIT(EXIT_FAILURE);
-        }
+        unmapData();
         data = mmapData(dataFile, &dataSize);
+        dataMapped = true;
     }
 }
 
@@ -374,6 +382,11 @@ void DBReader<unsigned int>::readIndexId(unsigned int* id, char * line, char** c
 
 template <typename T> void DBReader<T>::unmapData() {
     if(dataMapped == true){
+        if (didMlock == true) {
+            munlock(data, dataSize);
+            didMlock = false;
+        }
+
         if(munmap(data, dataSize) < 0){
             Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
             EXIT(EXIT_FAILURE);

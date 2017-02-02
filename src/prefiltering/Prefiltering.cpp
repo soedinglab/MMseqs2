@@ -43,6 +43,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         tidxdbr = tdbr;
         if(par.noPreload == false) {
             tidxdbr->readMmapedDataInMemory();
+            tidxdbr->mlock();
         }
         tdbr = PrefilteringIndexReader::openNewReader(tdbr);
         PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);

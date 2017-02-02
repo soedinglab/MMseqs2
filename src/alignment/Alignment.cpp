@@ -90,6 +90,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     tseqdbr->open(DBReader<unsigned int>::NOSORT);
     if (par.noPreload == false) {
         tseqdbr->readMmapedDataInMemory();
+        tseqdbr->mlock();
     }
 
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tseqdbr);
@@ -106,6 +107,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
             tseqdbr->open(DBReader<unsigned int>::NOSORT);
             if (par.noPreload != false) {
                 tseqdbr->readMmapedDataInMemory();
+                tseqdbr->mlock();
             }
         } else {
             tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, 0);
@@ -122,7 +124,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
         qseqdbr->open(DBReader<unsigned int>::NOSORT);
         //if (par.noPreload == false) {
-            qseqdbr->readMmapedDataInMemory();
+        qseqdbr->readMmapedDataInMemory();
+        qseqdbr->mlock();
         //}
     }
 

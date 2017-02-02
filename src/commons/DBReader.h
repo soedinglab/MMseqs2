@@ -84,6 +84,8 @@ public:
 
     void readMmapedDataInMemory();
 
+    void mlock();
+
     void sortIndex();
 
     void unmapData();
@@ -147,7 +149,6 @@ private:
 
     FILE* dataFile;
 
-
     // number of entries in the index
     size_t size;
     // size of all data stored in ffindex
@@ -170,6 +171,7 @@ private:
 
     bool externalData;
 
+    bool didMlock;
     // needed to prevent the compiler from optimizing away the loop
     size_t magicBytes;
 };
