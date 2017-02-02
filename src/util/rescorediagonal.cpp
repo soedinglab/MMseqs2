@@ -92,7 +92,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     }
     double * kmnByLen = new double[par.maxSeqLen];
     BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(), 11, 1, false);
-    for (size_t len = 0; len < par.maxSeqLen; len++){
+    for (int len = 0; len < par.maxSeqLen; len++){
         kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
                                                     tdbr->getAminoAcidDBSize(), tdbr->getSize());
     }
