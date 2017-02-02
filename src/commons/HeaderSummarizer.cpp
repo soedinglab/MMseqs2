@@ -53,6 +53,36 @@ struct UniprotHeader {
     }
 };
 
+struct MetaclustHeader {
+    std::string dbType;
+    std::string identifier;
+    int priority;
+
+    MetaclustHeader(const std::string& dbType,
+                  const std::string& identifier
+    ) : dbType(dbType),
+        identifier(identifier)
+    {
+        updatePriority();
+    };
+
+    void updatePriority() {
+        priority = 0;
+
+        if(dbType == "UPI") {
+            priority = 4;
+        } else {
+            priority = 1;
+        }
+    }
+
+    friend bool operator<(const MetaclustHeader& h1, const MetaclustHeader& h2)
+    {
+        return h1.priority < h2.priority;
+    }
+};
+
+
 std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& headers) {
     std::vector<UniprotHeader> headerQueue;
 
@@ -160,4 +190,62 @@ std::string UniprotHeaderSummarizer::summarize(const std::vector<std::string>& h
     summarizedHeader << "\n";
 
     return summarizedHeader.str();
+}
+
+
+
+std::string MetaclustHeaderSummarizer::summarize(const std::vector<std::string>& headers) {
+    std::vector<MetaclustHeader> headerQueue;
+
+    std::string representingIdentifier;
+
+    unsigned int clusterMembers = static_cast<unsigned int>(headers.size());
+
+    for(std::vector<std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+        const std::string& header = *it;
+
+        size_t start = 0;
+        //UPI0008DB4360
+        size_t end = header.find("UPI");
+        std::string dbType = "lessImportant";
+        if(end != std::string::npos){
+            dbType = "UPI";
+        }
+
+        end = header.find(' ', start);
+        if(end == std::string::npos)
+            continue;
+        std::string identifier = header.substr(0, end);
+        if(it == headers.begin()) {
+            representingIdentifier = identifier;
+        }
+        headerQueue.emplace_back(dbType, identifier);
+    }
+
+    std::make_heap(headerQueue.begin(), headerQueue.end());
+
+    std::ostringstream summarizedHeader;
+    summarizedHeader << "Representative=" << representingIdentifier.c_str();
+    summarizedHeader << " n=" << clusterMembers;
+
+    summarizedHeader<< " Members=";
+    // +1 to skip representative
+    for (std::vector<MetaclustHeader>::const_iterator it = headerQueue.begin(); it != headerQueue.end(); ++it) {
+        const MetaclustHeader& header = *it;
+        if(header.identifier.compare(representingIdentifier) == 0){
+            continue;
+        }
+        summarizedHeader << header.identifier;
+        if(Util::isLastIterator(it, headerQueue) == false) {
+            summarizedHeader << ",";
+        }
+    }
+    std::string header = summarizedHeader.str();
+    if (header[header.size() -1] == ','){
+        header[header.size() -1] = '\n';
+    }else{
+        header.push_back('\n');
+    }
+
+    return header;
 }

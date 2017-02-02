@@ -24,6 +24,8 @@ PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "
 PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "prefilter with query profiles (query DB must be a profile DB)",typeid(bool),(void *) &profile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
 //PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
 PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER),
+PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking 1: with low complexity masking", typeid(int),(void *) &maskResidues, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER),
+
 PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum Diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
 PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "k-mer threshold for generating similar-k-mer lists",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
 PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
@@ -43,7 +45,7 @@ PARAM_NO_PRELOAD(PARAM_NO_PRELOAD_ID, "--no-preload", "No preload", "Do not prel
 PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) query and target residues",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
-PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1\\.0$"),
+PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_MAX_ACCEPT(PARAM_MAX_ACCEPT_ID,"--max-accept", "Max Accept", "maximum accepted alignments before alignment calculation for a query is stopped",typeid(int),(void *) &maxAccept, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
@@ -62,6 +64,9 @@ PARAM_V(PARAM_V_ID,"-v", "Verbosity","verbosity level: 0=nothing, 1: +errors, 2:
 PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "0: HMM (HHsuite) 1: PSSM or 3: HMMER3",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
 // convertalignments
 PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format BLAST TAB=0, PAIRWISE=1, or SAM=2 ", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
+// rescorediagonal
+PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "rescore diagonal by: 0 hamming distance, 1 local alignment (score only) or 2 local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
+PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq.id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, ""),
 // result2msa
 PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
 PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, ""),
@@ -116,6 +121,7 @@ PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "us
 PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),
 PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "specify a file that translates the keys of a result DB to new keys", typeid(std::string),(void *) &mappingFile,""),
 PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
+PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID,"--sort-entries", "Sort (increasing:1, decreasing: 2, shuffle: 3) the entries by numerical value","Sort the entries by values in the given column --filter-column.",typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
 PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
 PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID,"--comparison-operator", "Numerical comparison operator", "compare numerically (le, ge, e) each entry to a comparison value.",typeid(std::string), (void *) &compOperator, ""),
 PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID,"--comparison-value", "Numerical comparison value", "compare numerically (le, ge, e) each entry to this comparison value.",typeid(float), (void *) &compValue, ""),
@@ -123,7 +129,8 @@ PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID,"--comparison-value", "Numerical comparison
 PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
 //diff
 PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their ID", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
-
+// summarize headers
+PARAM_HEADER_TYPE(PARAM_HEADER_TYPE_ID,"--header-type", "Header type", "Header Type: 1 Uniclust, 2 Metaclust",typeid(int), (void *) &headerType, "[1-2]{1}"),
 // mergedbs
 PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
 // evaluationscores
@@ -138,7 +145,6 @@ PARAM_EXTRACT_MODE(PARAM_EXTRACT_MODE_ID,"--extract-mode", "Extract mode", "Quer
 PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "list of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
 PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover Deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void*) &recoverDeleted, "")
 {
-    
     // alignment
     align.push_back(PARAM_SUB_MAT);
     align.push_back(PARAM_ADD_BACKTRACE);
@@ -146,6 +152,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     align.push_back(PARAM_E);
     align.push_back(PARAM_MIN_SEQ_ID);
     align.push_back(PARAM_C);
+    align.push_back(PARAM_TARGET_COV);
     align.push_back(PARAM_MAX_SEQ_LEN);
     align.push_back(PARAM_MAX_SEQS);
     align.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -158,7 +165,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     align.push_back(PARAM_NO_PRELOAD);
     align.push_back(PARAM_THREADS);
     align.push_back(PARAM_V);
-    
+
     // prefilter
     prefilter.push_back(PARAM_SUB_MAT);
     prefilter.push_back(PARAM_S);
@@ -175,13 +182,14 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     prefilter.push_back(PARAM_C);
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     prefilter.push_back(PARAM_DIAGONAL_SCORING);
+    prefilter.push_back(PARAM_MASK_RESIDUES);
     prefilter.push_back(PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(PARAM_INCLUDE_IDENTITY);
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
     prefilter.push_back(PARAM_NO_PRELOAD);
     prefilter.push_back(PARAM_THREADS);
     prefilter.push_back(PARAM_V);
-    
+
     // clustering
     clust.push_back(PARAM_CLUSTER_MODE);
     clust.push_back(PARAM_MAX_SEQS);
@@ -189,13 +197,17 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     clust.push_back(PARAM_MAXITERATIONS);
     clust.push_back(PARAM_SIMILARITYSCORE);
     clust.push_back(PARAM_THREADS);
-    
+
     // find orf
     onlyverbosity.push_back(PARAM_V);
 
     // rescorediagonal
+    rescorediagonal.push_back(PARAM_RESCORE_MODE);
+    rescorediagonal.push_back(PARAM_FILTER_HITS);
+    rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_TARGET_COV);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
+    rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
 
@@ -203,11 +215,11 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     convertprofiledb.push_back(PARAM_SUB_MAT);
     convertprofiledb.push_back(PARAM_PROFILE_TYPE);
     convertprofiledb.push_back(PARAM_V);
-    
+
     // create fasta
     createFasta.push_back(PARAM_USE_HEADER);
     createFasta.push_back(PARAM_V);
-    
+
     // result2profile
     result2profile.push_back(PARAM_SUB_MAT);
     result2profile.push_back(PARAM_PROFILE);
@@ -224,7 +236,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
     //result2profile.push_back(PARAM_FIRST_SEQ_REP_SEQ);
-    
+
     //result2stats
     result2stats.push_back(PARAM_STAT);
     result2stats.push_back(PARAM_THREADS);
@@ -253,7 +265,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     result2msa.push_back(PARAM_SUMMARY_PREFIX);
     result2msa.push_back(PARAM_REPSEQ);
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
-    
+
     // extract orf
     extractorfs.push_back(PARAM_ORF_MIN_LENGTH);
     extractorfs.push_back(PARAM_ORF_MAX_LENGTH);
@@ -265,28 +277,29 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);
     extractorfs.push_back(PARAM_USE_HEADER);
     extractorfs.push_back(PARAM_ID_OFFSET);
-    
+
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
     splitdb.push_back(PARAM_SPLIT_AMINOACID);
-    
+
     // create index
     createindex.push_back(PARAM_SUB_MAT);
     createindex.push_back(PARAM_K);
     createindex.push_back(PARAM_ALPH_SIZE);
     createindex.push_back(PARAM_MAX_SEQ_LEN);
+    createindex.push_back(PARAM_MASK_RESIDUES);
     createindex.push_back(PARAM_SPLIT);
     createindex.push_back(PARAM_SPACED_KMER_MODE);
     createindex.push_back(PARAM_THREADS);
     createindex.push_back(PARAM_V);
-    
+
     // create db
     createdb.push_back(PARAM_MAX_SEQ_LEN);
     createdb.push_back(PARAM_DONT_SPLIT_SEQ_BY_LEN);
     createdb.push_back(PARAM_USE_HEADER);
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
-    
+
     // convert2fasta
     convert2fasta.push_back(PARAM_USE_HEADER_FILE);
     convert2fasta.push_back(PARAM_V);
@@ -300,22 +313,22 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     gff2ffindex.push_back(PARAM_USE_HEADER);
     gff2ffindex.push_back(PARAM_ID_OFFSET);
     gff2ffindex.push_back(PARAM_V);
-    
+
     searchworkflow = combineList(align, prefilter);
     searchworkflow = combineList(searchworkflow, result2profile);
     searchworkflow.push_back(PARAM_NUM_ITERATIONS);
     searchworkflow.push_back(PARAM_START_SENS);
     searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
     searchworkflow.push_back(PARAM_RUNNER);
-    
+
     clusteringWorkflow = combineList(prefilter, align);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
-    clusteringWorkflow = combineList(clusteringWorkflow, linearfilter);
+    clusteringWorkflow = combineList(clusteringWorkflow, kmermatcher);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_CLUSTER_FRAGMENTS);
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
-    
+
     clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_ACCEPT);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_ACCEPT);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
@@ -325,14 +338,14 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     // translate nucleotide
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);
     translatenucs.push_back(PARAM_V);
-    
+
     // createseqfiledb
     createseqfiledb.push_back(PARAM_MIN_SEQUENCES);
     createseqfiledb.push_back(PARAM_MAX_SEQUENCES);
     createseqfiledb.push_back(PARAM_HH_FORMAT);
     createseqfiledb.push_back(PARAM_THREADS);
     createseqfiledb.push_back(PARAM_V);
-    
+
     // filterDb
     filterDb.push_back(PARAM_FILTER_COL);
     filterDb.push_back(PARAM_FILTER_REGEX);
@@ -345,24 +358,23 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     filterDb.push_back(PARAM_EXTRACT_LINES);
     filterDb.push_back(PARAM_COMP_OPERATOR);
     filterDb.push_back(PARAM_COMP_VALUE);
-    
-    
+    filterDb.push_back(PARAM_SORT_ENTRIES);
+
+
     // swapreults
-    swapresults.push_back(PARAM_SUB_MAT);
-    swapresults.push_back(PARAM_MAX_SEQ_LEN);
     swapresults.push_back(PARAM_THREADS);
     swapresults.push_back(PARAM_V);
-    
+
     // subtractdbs
     subtractdbs.push_back(PARAM_THREADS);
     subtractdbs.push_back(PARAM_E_PROFILE);
     subtractdbs.push_back(PARAM_V);
-    
+
     //evaluationscores
     evaluationscores.push_back(PARAM_EVALUATION_ALLVSALL);
     evaluationscores.push_back(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE);
     evaluationscores.push_back(PARAM_EVALUATION_USE_SEQUENCEHEADER);
-    
+
     // clusthash
     clusthash.push_back(PARAM_SUB_MAT);
     clusthash.push_back(PARAM_ALPH_SIZE);
@@ -370,43 +382,45 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     clusthash.push_back(PARAM_MAX_SEQ_LEN);
     clusthash.push_back(PARAM_THREADS);
     clusthash.push_back(PARAM_V);
-    
-    // linearfilter
-    linearfilter.push_back(PARAM_SUB_MAT);
-    linearfilter.push_back(PARAM_ALPH_SIZE);
-    linearfilter.push_back(PARAM_KMER_PER_SEQ);
-    linearfilter.push_back(PARAM_TARGET_COV);
-    linearfilter.push_back(PARAM_K);
-    linearfilter.push_back(PARAM_C);
-    linearfilter.push_back(PARAM_MAX_SEQ_LEN);
-    linearfilter.push_back(PARAM_THREADS);
-    linearfilter.push_back(PARAM_V);
-    
+
+    // kmermatcher
+    kmermatcher.push_back(PARAM_SUB_MAT);
+    kmermatcher.push_back(PARAM_ALPH_SIZE);
+    kmermatcher.push_back(PARAM_KMER_PER_SEQ);
+    kmermatcher.push_back(PARAM_TARGET_COV);
+    kmermatcher.push_back(PARAM_K);
+    kmermatcher.push_back(PARAM_C);
+    kmermatcher.push_back(PARAM_MAX_SEQ_LEN);
+    kmermatcher.push_back(PARAM_THREADS);
+    kmermatcher.push_back(PARAM_V);
+
     // mergedbs
     mergedbs.push_back(PARAM_MERGE_PREFIXES);
     mergedbs.push_back(PARAM_V);
-    
+
     // summarize
     summarizeheaders.push_back(PARAM_SUMMARY_PREFIX);
+    summarizeheaders.push_back(PARAM_HEADER_TYPE);
+    summarizeheaders.push_back(PARAM_THREADS);
     summarizeheaders.push_back(PARAM_V);
-    
+
     // diff
     diff.push_back(PARAM_USESEQID);
     diff.push_back(PARAM_THREADS);
     diff.push_back(PARAM_V);
-    
+
     // prefixid
     prefixid.push_back(PARAM_MAPPING_FILE);
     prefixid.push_back(PARAM_THREADS);
     prefixid.push_back(PARAM_V);
-    
+
     // annoate
     summarizetabs.push_back(PARAM_OVERLAP);
     summarizetabs.push_back(PARAM_E);
     summarizetabs.push_back(PARAM_C);
     summarizetabs.push_back(PARAM_THREADS);
     summarizetabs.push_back(PARAM_V);
-    
+
     // annoate
     extractdomains.push_back(PARAM_SUB_MAT);
     extractdomains.push_back(PARAM_MSA_TYPE);
@@ -414,21 +428,28 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     extractdomains.push_back(PARAM_C);
     extractdomains.push_back(PARAM_THREADS);
     extractdomains.push_back(PARAM_V);
-    
+
     // concatdbs
     concatdbs.push_back(PARAM_PRESERVEKEYS);
     concatdbs.push_back(PARAM_THREADS);
     concatdbs.push_back(PARAM_V);
-    
+
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);
     extractalignedregion.push_back(PARAM_THREADS);
     extractalignedregion.push_back(PARAM_V);
-    
+
     // convertkb
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
-    
+
+    // linclust workflow
+    linclustworkflow = combineList(clust, align);
+    linclustworkflow = combineList(clusteringWorkflow, kmermatcher);
+    linclustworkflow = combineList(clusteringWorkflow, rescorediagonal);
+    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    linclustworkflow.push_back(PARAM_RUNNER);
+
     //checkSaneEnvironment();
     setDefaults();
 }
@@ -436,47 +457,47 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
 void Parameters::printUsageMessage(const Command& command,
                                    const int outputFlag){
     const std::vector<MMseqsParameter>& parameters = *command.params;
-    
+
     std::ostringstream ss;
     ss << "mmseqs " << command.cmd << ":\n";
     ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
-    
+
     if(command.citations > 0) {
         ss << "Please cite:\n";
         if(command.citations & CITATION_MMSEQS2) {
             ss << "Steinegger, M. & Soding, J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv 079681 (2016)\n\n";
         }
-        
+
         if(command.citations & CITATION_MMSEQS1) {
             ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
         }
-        
+
         if(command.citations & CITATION_UNICLUST) {
             ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin, M., Soding, J. & Steinegger, M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res. 45(D1), D170-D176 (2017). \n\n";
         }
     }
     ss << "© " << command.author << "\n\n";
     ss << "Usage: " << command.usage << (parameters.size() > 0 ? " [options]" : "") << "\n\n";
-    
+
     struct {
         const char* title;
         int category;
     } categories[] = {
-        {"prefilter",MMseqsParameter::COMMAND_PREFILTER},
-        {"align",    MMseqsParameter::COMMAND_ALIGN},
-        {"clust",    MMseqsParameter::COMMAND_CLUST},
-        {"clustlinear", MMseqsParameter::COMMAND_CLUSTLINEAR},
-        {"profile",  MMseqsParameter::COMMAND_PROFILE},
-        {"misc",     MMseqsParameter::COMMAND_MISC},
-        {"common",   MMseqsParameter::COMMAND_COMMON},
+            {"prefilter",MMseqsParameter::COMMAND_PREFILTER},
+            {"align",    MMseqsParameter::COMMAND_ALIGN},
+            {"clust",    MMseqsParameter::COMMAND_CLUST},
+            {"kmermatcher", MMseqsParameter::COMMAND_CLUSTLINEAR},
+            {"profile",  MMseqsParameter::COMMAND_PROFILE},
+            {"misc",     MMseqsParameter::COMMAND_MISC},
+            {"common",   MMseqsParameter::COMMAND_COMMON},
     };
-    
+
     size_t maxWidth = 0;
     for(size_t i = 0; i < parameters.size(); i++) {
         maxWidth = std::max(strlen(parameters[i].name), maxWidth);
     }
     maxWidth+=2; // space in front of options
-    
+
     // header
     ss << std::setprecision(1) << std::fixed;
     for(size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
@@ -497,7 +518,7 @@ void Parameters::printUsageMessage(const Command& command,
             ss << std::left << std::setw(maxWidth) << title << "\t";
             ss << std::left << std::setw(10) << "default" << "\t";
             ss << "description [value range]" << std::endl;
-            
+
             // body
             for (size_t j = 0; j < parameters.size(); j++) {
                 const MMseqsParameter &par = parameters[j];
@@ -566,13 +587,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         Debug(Debug::ERROR) << "Missing argument " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    
+
                     if (par[parIdx].wasSet) {
                         printUsageMessage(command, outputFlag);
                         Debug(Debug::ERROR) << "Duplicate parameter " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    
+
                     if (typeid(int) == par[parIdx].type) {
                         regex_t regex;
                         compileRegex(&regex, par[parIdx].regex);
@@ -620,12 +641,12 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         Debug(Debug::ERROR) << "Wrong parameter type in parseParameters. Please inform the developers\n";
                         EXIT(EXIT_FAILURE);
                     }
-                    
+
                     hasUnrecognizedParameter = false;
                     continue;
                 }
             }
-            
+
             if (hasUnrecognizedParameter) {
                 printUsageMessage(command, outputFlag);
                 Debug(Debug::ERROR) << "Unrecognized parameter " << parameter << "\n";
@@ -647,13 +668,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
                 EXIT(EXIT_FAILURE);
             }
-            
+
             parametersFound++;
         } else { // it is a filename if its not a parameter
             getFilename.push_back(pargv[argIdx]);
         }
     }
-    
+
     Debug::setDebugLevel(verbosity);
 #ifdef OPENMP
     omp_set_num_threads(threads);
@@ -666,24 +687,24 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         querySeqType  = Sequence::NUCLEOTIDES;
         targetSeqType = Sequence::NUCLEOTIDES;
     }
-    
+
     if (querySeqType == Sequence::NUCLEOTIDES){
         alphabetSize = 5;
     }
-    
+
     const size_t MAX_DB_PARAMETER = 5;
-    
+
     if (requiredParameterCount > MAX_DB_PARAMETER) {
         Debug(Debug::ERROR) << "Use argv if you need more than " << MAX_DB_PARAMETER << " db parameters" << "\n";
         EXIT(EXIT_FAILURE);
     }
-    
+
     if (getFilename.size() < requiredParameterCount){
         printUsageMessage(command, outputFlag);
         Debug(Debug::ERROR) << requiredParameterCount << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
-    
+
     switch (std::min(getFilename.size(), MAX_DB_PARAMETER)) {
         case 5:
             db5 = getFilename[4];
@@ -727,15 +748,15 @@ void Parameters::printParameters(int argc, const char* pargv[],
     for (int i = 0; i < argc; i++)
         Debug(Debug::INFO) << pargv[i] << " ";
     Debug(Debug::INFO) << "\n\n";
-    
+
     size_t maxWidth = 0;
     for(size_t i = 0; i < par.size(); i++) {
         maxWidth = std::max(strlen(par[i].display), maxWidth);
     }
-    
+
     std::stringstream ss;
     ss << std::boolalpha;
-    
+
 #ifdef GIT_SHA1
 #define str2(s) #s
 #define str(s) str2(s)
@@ -744,7 +765,7 @@ void Parameters::printParameters(int argc, const char* pargv[],
 #undef str
 #undef str2
 #endif
-    
+
     for (size_t i = 0; i < par.size(); i++) {
         ss << std::setw(maxWidth) << std::left << par[i].display << "\t";
         if(typeid(int) == par[i].type ){
@@ -758,19 +779,19 @@ void Parameters::printParameters(int argc, const char* pargv[],
         }
         ss << "\n";
     }
-    
+
     Debug(Debug::INFO) << ss.str() << "\n";
 }
 
 void Parameters::checkSaneEnvironment() {
     bool isInsane = false;
-    
+
     char* mmdirStr = getenv("MMDIR");
     if (mmdirStr == NULL){
         Debug(Debug::ERROR) << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
         isInsane = true;
     }
-    
+
     if(isInsane) {
         EXIT(EXIT_FAILURE);
     }
@@ -778,7 +799,7 @@ void Parameters::checkSaneEnvironment() {
 
 void Parameters::setDefaults() {
     scoringMatrixFile = "blosum62.out";
-    
+
     kmerSize =  0;
     kmerScore = INT_MAX;
     alphabetSize = 21;
@@ -790,13 +811,13 @@ void Parameters::setDefaults() {
     splitAA = false;
     querySeqType  = Sequence::AMINO_ACIDS;
     targetSeqType = Sequence::AMINO_ACIDS;
-    
+
     // search workflow
     numIterations = 1;
     startSens = 4;
     sensStepSize = 1;
-    
-    
+
+
     threads = 1;
 #ifdef OPENMP
 #ifdef _SC_NPROCESSORS_ONLN
@@ -808,6 +829,7 @@ void Parameters::setDefaults() {
 #endif
     compBiasCorrection = 1;
     diagonalScoring = 1;
+    maskResidues = 1;
     minDiagScoreThr = 15;
     spacedKmer = true;
     profile = false;
@@ -831,7 +853,7 @@ void Parameters::setDefaults() {
     // affinity clustering
     maxIteration=1000;
     similarityScoreType=APC_SEQID;
-    
+
     // workflow
     const char *runnerEnv = getenv("RUNNER");
     if (runnerEnv != NULL) {
@@ -839,21 +861,24 @@ void Parameters::setDefaults() {
     } else {
         runner = "";
     }
-    
+
     // Clustering workflow
     removeTmpFiles = false;
     clusterFragments = false;
 
     // convertprofiledb
     profileMode = PROFILE_MODE_HMM;
-    
+
     // createdb
     splitSeqByLen = true;
-    
-    
+
+
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
-    
+
+    // rescore diagonal
+
+
     // result2msa
     allowDeletion = false;
     addInternalId = false;
@@ -862,7 +887,7 @@ void Parameters::setDefaults() {
     summaryPrefix = "cl";
     onlyRepSeq = false;
     compressMSA = false;
-    
+
     // result2profile
     evalProfile = evalThr;
     filterMaxSeqId = 0.9;
@@ -874,10 +899,10 @@ void Parameters::setDefaults() {
     pca = 1.0;
     pcb = 1.5;
     useConsensus = true;
-    
+
     // logging
     verbosity = Debug::INFO;
-    
+
     //extractorfs
     orfMinLength = 1;
     orfMaxLength = INT_MAX;
@@ -887,22 +912,25 @@ void Parameters::setDefaults() {
     orfExtendMin = false;
     forwardFrames = "1,2,3";
     reverseFrames = "1,2,3";
-    
+
     // createdb
     useHeader = false;
     identifierOffset = 0;
-    
+
     // convert2fasta
     useHeaderFile = false;
-    
+
     // translate nucleotide
     translationTable = 0;
-    
+
     // createseqfiledb
     minSequences = 1;
     maxSequences = INT_MAX;
     hhFormat = false;
-    
+
+    // rescorediagonal
+    rescoreMode = Parameters::RESCORE_MODE_HAMMING;
+    filterHits = false;
     // filterDb
     filterColumn = 1;
     filterColumnRegex = "^.*$";
@@ -912,30 +940,34 @@ void Parameters::setDefaults() {
     extractLines = 0;
     compOperator = "";
     compValue = 0;
-    
+    sortEntries = 0;
+
     // concatdbs
     preserveKeysB = false;
-    
+
     // diff
     useSequenceId = false;
-    
+
     // mergedbs
     mergePrefixes = "";
-    
+
     // evaluationscores
     allVsAll = false;
     randomizedRepresentative = false;
-    
+
     // summarizetabs
     overlap = 0.0f;
     msaType = 0;
-    
+
+    // summarize header
+    headerType = Parameters::HEADER_TYPE_UNICLUST;
+
     // extractalignedregion
     extractMode = EXTRACT_TARGET;
-    
+
     // convertkb
     kbColumns = "";
-    
+
     // linearcluster
     kmersPerSequence = 20;
 

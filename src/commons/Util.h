@@ -71,6 +71,13 @@ public:
         return val;
     }
 
+    static bool isNumber(const std::string& s)
+    {
+        std::string::const_iterator it = s.begin();
+        while (it != s.end() && std::isdigit(*it)) ++it;
+        return !s.empty() && it == s.end();
+    }
+
     static bool startWith(const std::string &prefix, const std::string &str, const size_t offset = 0){
         if (str.length() < prefix.length()) {
             return false;

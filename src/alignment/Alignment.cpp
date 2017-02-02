@@ -16,8 +16,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                      const std::string &prefDB, const std::string &prefDBIndex,
                      const std::string &outDB, const std::string &outDBIndex,
                      const Parameters &par) :
-        covThr(par.covThr), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
-        includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign),
+        covThr(par.covThr), targetCovThr(par.targetCovThr), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
+        includeIdentity(par.includeIdentity), realign(par.realign), addBacktrace(par.addBacktrace),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
         compBiasCorrection(par.compBiasCorrection), qseqdbr(NULL), qSeqLookup(NULL),
@@ -42,9 +42,9 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     swMode = Matcher::SCORE_ONLY;
     switch (alignmentMode) {
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
-            if (covThr > 0.0 && seqIdThr == 0.0) {
+            if((covThr > 0.0 || targetCovThr > 0.0) && seqIdThr == 0.0) {
                 swMode = Matcher::SCORE_COV; // fast
-            } else if (covThr > 0.0 && seqIdThr > 0.0) { // if seq id is needed
+            } else if((covThr > 0.0 || targetCovThr > 0.0) && seqIdThr > 0.0) { // if seq id is needed
                 swMode = Matcher::SCORE_COV_SEQID; // slowest
             }
             break;
@@ -267,10 +267,21 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         res.seqId = 1.0f;
                     }
 
+                    const bool evalOk = (res.eval <= evalThr); // -e
+                    const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
+                    const bool covOK = (res.qcov >= covThr && res.dbcov >= covThr); //-c
+                    const bool targetCovOK = (res.dbcov >= targetCovThr); // --target-cov (-c = 0.0 if --targetCov)
                     // check first if it is identity
-                    if (isIdentity ||
-                        // general acceptance criteria
-                        (res.eval <= evalThr && res.seqId >= seqIdThr && res.qcov >= covThr && res.dbcov >= covThr)) {
+                    if (isIdentity
+                        ||
+                        // general accaptance criteria
+                        ( evalOk   &&
+                          seqIdOK  &&
+                          covOK    &&
+                          targetCovOK
+                        ))
+                    {
+
                         swResults.push_back(res);
                         passedNum++;
                         totalPassedNum++;
@@ -280,6 +291,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     }
                     data = Util::skipLine(data);
                 }
+
                 // write the results
                 std::sort(swResults.begin(), swResults.end(), Matcher::compareHits);
                 if (realign == true) {
@@ -288,13 +300,18 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         setTargetSequence(dbSeq, swResults[result].dbKey);
                         Matcher::result_t res = realigner->getSWResult(&dbSeq, getTargetDbEntries(), 0.0,
                                                                        Matcher::SCORE_COV_SEQID);
-                        swResults[result].backtrace = res.backtrace;
-                        swResults[result].qStartPos = res.qStartPos;
-                        swResults[result].qEndPos = res.qEndPos;
+                        swResults[result].backtrace  = res.backtrace;
+                        swResults[result].qStartPos  = res.qStartPos;
+                        swResults[result].qEndPos    = res.qEndPos;
                         swResults[result].dbStartPos = res.dbStartPos;
-                        swResults[result].dbEndPos = res.dbEndPos;
+                        swResults[result].dbEndPos   = res.dbEndPos;
+                        swResults[result].alnLength  = res.alnLength;
+                        swResults[result].seqId      = res.seqId;
+                        swResults[result].qcov       = res.qcov;
+                        swResults[result].dbcov      = res.dbcov;
                     }
                 }
+
                 // put the contents of the swResults list into ffindex DB
                 std::stringstream swResultsString;
                 for (size_t result = 0; result < swResults.size(); result++) {

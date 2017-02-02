@@ -30,7 +30,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr,
                                               BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
                                               bool compBiasCorrection, const int split, int alphabetSize, int kmerSize,
-                                              int mask, bool diagonalScoring, int threads) {
+                                              bool diagonalScoring, bool maskResidues, int threads) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
@@ -53,8 +53,11 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                                          step, split, &splitStart, &splitSize);
         IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
-        Prefiltering::fillDatabase(dbr, &seq, indexTable, subMat, splitStart, splitStart + splitSize, diagonalScoring, threads);
+        Prefiltering::fillDatabase(dbr, &seq, indexTable, subMat, splitStart,
+                                   splitStart + splitSize, diagonalScoring,
+                                   maskResidues, 0, threads);
         indexTable->printStatistics(subMat->int2aa);
+
 
         // save the entries
         std::string entries_key = SSTR(MathUtil::concatenate(ENTRIES, step));
@@ -108,7 +111,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     Debug(Debug::INFO) << "Write " << META << "\n";
     int local = 1;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
-    int metadata[] = {kmerSize, alphabetSize, mask, split, local, spacedKmer};
+    int metadata[] = {kmerSize, alphabetSize, maskResidues, split, local, spacedKmer};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, 6 * sizeof(int), SSTR(META).c_str(), 0);
 

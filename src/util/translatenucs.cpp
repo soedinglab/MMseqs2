@@ -30,8 +30,8 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     symlink(abs_in_header_index_filename, out_header_index_filename.c_str());
     free(abs_in_header_index_filename);
 
-    DBReader<std::string> reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader<std::string>::NOSORT);
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    reader.open(DBReader<unsigned int>::NOSORT);
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str());
     writer.open();
@@ -40,7 +40,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
     char* aa = new char[par.maxSeqLen/3 + 1];
     for (size_t i = 0; i < entries; ++i) {
-        std::string key = reader.getDbKey(i);
+        unsigned int key = reader.getDbKey(i);
         char* data = reader.getData(i);
 
         // ignore null char at the end
@@ -60,7 +60,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         translateNucl.translate(aa, data, length);
         aa[length/3] = '\n';
 //        std::cout << aa << std::endl;
-        writer.writeData(aa, (length / 3) + 1, (char *) key.c_str());
+        writer.writeData(aa, (length / 3) + 1, (char *) SSTR(key).c_str());
     }
     delete[] aa;
 

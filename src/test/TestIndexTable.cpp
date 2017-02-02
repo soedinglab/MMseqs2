@@ -20,10 +20,12 @@ int main(int argc, const char *argv[]) {
 //                               "/Users/mad/Documents/databases/mmseqs_benchmark/benchmarks/protein_search_uniscop/db/mmseqs/db_sw.index"
                                );
     dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
     Sequence *s = new Sequence(32000, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 6, true, false);
     IndexTable t(subMat.alphabetSize, 6, false);
-    Prefiltering::fillDatabase(&dbr, s, &t, &subMat, 0, dbr.getSize(), false, 1);
+    Prefiltering::fillDatabase(&dbr, s, &t, &subMat, 0, dbr.getSize(), false, true, 0, 1);
     t.printStatistics(s->int2aa);
+
     delete s;
     dbr.close();
 

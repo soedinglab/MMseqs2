@@ -4,6 +4,7 @@
 #include <new>
 #include <SubstitutionMatrix.h>
 #include <BlastScoreUtils.h>
+#include <iomanip>
 #include "QueryMatcher.h"
 #include "Util.h"
 
@@ -26,10 +27,12 @@ hit_t parsePrefilterHit(char* data)
     if (cols>=3)
     {
         result.seqId = std::stoul(wordCnt[0],NULL,10);
-        result.prefScore = std::stol(wordCnt[1],NULL,10);
+        result.pScore = strtod(wordCnt[1],NULL);
         result.diagonal = std::stol(wordCnt[2],NULL,10);
     } else { //error
         result.seqId = -1;
+        result.pScore = -1;
+        result.diagonal = -1;
     }
     return result;
 }
@@ -38,7 +41,7 @@ hit_t parsePrefilterHit(char* data)
 std::string prefilterHitToString(hit_t h)
 {
     std::ostringstream resStream;
-    resStream << h.seqId << '\t' << (int)h.prefScore << '\t' << h.diagonal << '\n';
+    resStream << h.seqId << '\t' << std::fixed << std::setprecision(3)  << std::scientific << h.pScore << '\t' << (short) h.diagonal << '\n';
     return resStream.str();
 }
 
@@ -78,7 +81,7 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
     this->dbSize = dbSize;
     this->counterResultSize = std::max((size_t)1000000, dbSize);
-    this->maxDbMatches = dbSize * 2;
+    this->maxDbMatches = std::max((size_t)1000000, dbSize) * 2;
     this->resList = (hit_t *) mem_align(ALIGN_INT, MAX_RES_LIST_LEN * sizeof(hit_t) );
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
     memset(databaseHits, 0, sizeof(IndexEntryLocal) * maxDbMatches);
@@ -222,6 +225,8 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     size_t seqListSize;
     unsigned short indexStart = 0;
     unsigned short indexTo = 0;
+//    Indexer idx(m->alphabetSize, kmerSize);
+
     while(seq->hasNextKmer()){
         const int* kmer = seq->nextKmer();
         const int * pos = seq->getKmerPositons();
@@ -243,12 +248,22 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
             // generate k-mer list
             const IndexEntryLocal *entries = indexTable->getDBSeqList(kmerList.index[kmerPos],
                                                                                        &seqListSize);
+
+            /////DEBUG
+//            idx.printKmer(kmerList.index[kmerPos], kmerSize, m->int2aa);
+//            std::cout << "\t"<< kmerList.index[kmerPos] << "\t" << kmerList.score[kmerPos] << std::endl;
+//            for(size_t i = 0; i < seqListSize; i++){
+//                char diag = entries[i].position_j - current_i;
+//                std::cout << (int) diag << "\t";
+//            }
+//            std::cout << std::endl;
+            /////DEBUG
             // detected overflow while matching
             if ((sequenceHits + seqListSize) >= lastSequenceHit) {
                 stats->diagonalOverflow = true;
                 // last pointer
                 indexPointer[current_i + 1] = sequenceHits;
-//                std::cout << "Overflow in i=" << indexStart << " IndexTo=" << i << std::endl;
+//                std::cout << "Overflow in i=" << indexStart << std::endl;
                 const size_t hitCount = evaluateBins(indexPointer,
                                                      foundDiagonals + overflowHitCount,
                                                      counterResultSize - overflowHitCount,
@@ -325,8 +340,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
         result->diagonal = 0;
         //result->pScore = (((float)rawScore) - mu)/ sqrtMu;
         if(diagonalScoring == false){
-            result->pScore =  (diagonalScoring) ? 0.0 :  -computeLogProbability(rawScore, seqLens[id],
-                                                                                mu, logMatchProb, logScoreFactorial[rawScore]);
+            result->pScore =  -computeLogProbability(rawScore, seqLens[id], mu, logMatchProb, logScoreFactorial[rawScore]);
         }else{
             double evalue = BlastScoreUtils::computeEvalue(rawScore, this->kmnByLen[l], lambda);
             result->pScore = evalue;

@@ -248,18 +248,18 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         // merge index
         size_t globalOffset = 0;
         for (unsigned int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
-            DBReader<std::string> reader(indexFileNames[fileIdx], indexFileNames[fileIdx],
-                                         DBReader<std::string>::USE_INDEX);
-            reader.open(DBReader<std::string>::NOSORT);
+            DBReader<unsigned int> reader(indexFileNames[fileIdx], indexFileNames[fileIdx],
+                                         DBReader<unsigned int>::USE_INDEX);
+            reader.open(DBReader<unsigned int>::NOSORT);
             if (reader.getSize() > 0) {
                 size_t tmpOffset = 0;
-                DBReader<std::string>::Index * index = reader.getIndex();
+                DBReader<unsigned int>::Index * index = reader.getIndex();
                 for (size_t i = 0; i < reader.getSize(); i++) {
                     size_t currOffset = reader.getIndex()[i].offset;
                     index[i].offset = globalOffset + currOffset;
                     tmpOffset += reader.getSeqLens(i);
                 }
-                writeIndex(index_file, index, reader.getSize(), reader.getSeqLens());
+                writeIndex(index_file, reader.getSize(), index, reader.getSeqLens());
                 globalOffset += tmpOffset;
             }
             reader.close();
@@ -273,11 +273,11 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         std::rename(indexFileNames[0], outFileNameIndex);
     }
     // sort the index
-    DBReader<std::string> indexReader(outFileNameIndex, outFileNameIndex, DBReader<std::string>::USE_INDEX);
-    indexReader.open(DBReader<std::string>::SORT_BY_ID);
-    DBReader<std::string>::Index *index = indexReader.getIndex();
+    DBReader<unsigned int> indexReader(outFileNameIndex, outFileNameIndex, DBReader<unsigned int>::USE_INDEX);
+    indexReader.open(DBReader<unsigned int>::SORT_BY_ID);
+    DBReader<unsigned int>::Index *index = indexReader.getIndex();
     FILE *index_file  = fopen(outFileNameIndex, "w");
-    writeIndex(index_file, index, indexReader.getSize(), indexReader.getSeqLens());
+    writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
     fclose(index_file);
     indexReader.close();
     gettimeofday(&end, NULL);
@@ -343,10 +343,10 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
 
     Debug(Debug::WARNING) << "Merge file " << inData1 << " and " << inData2 << "\n";
     DBReader<unsigned int> reader1(inIndex1, inIndex1,
-                                   DBReader<std::string>::USE_INDEX);
+                                   DBReader<unsigned int>::USE_INDEX);
     reader1.open(DBReader<unsigned int>::NOSORT);
     DBReader<unsigned int> reader2(inIndex2, inIndex2,
-                                   DBReader<std::string>::USE_INDEX);
+                                   DBReader<unsigned int>::USE_INDEX);
     reader2.open(DBReader<unsigned int>::NOSORT);
     size_t currOffset = 0;
     DBReader<unsigned int>::Index* index1 = reader1.getIndex();
@@ -365,24 +365,7 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
     reader1.close();
 }
 
-void DBWriter::writeIndex(FILE *outFile, IndexType::string_type  *index, size_t indexSize,  unsigned int *seqLen){
-    char buff1[1024];
-
-    for(size_t id = 0; id < indexSize; id++){
-        strncpy(buff1, index[id].id.c_str(), index[id].id.length());
-        buff1[index[id].id.length()] = '\t';
-        uint64_t currOffset = index[id].offset;
-        char * tmpBuff = u64toa_sse2(currOffset, buff1 + (index[id].id.length() + 1) );
-        *(tmpBuff-1) = '\t';
-        uint32_t sLen = seqLen[id];
-        tmpBuff = u32toa_sse2(sLen, tmpBuff);
-        *(tmpBuff-1) = '\n';
-        *(tmpBuff) = '\0';
-        fwrite(buff1, sizeof(char), strlen(buff1), outFile);
-    }
-}
-
-void DBWriter::writeIndex(FILE *outFile,   size_t indexSize, IndexType::int_type  *index,  unsigned int *seqLen){
+void DBWriter::writeIndex(FILE *outFile, size_t indexSize, IndexType::int_type  *index,  unsigned int *seqLen){
     char buff1[1024];
     for(size_t id = 0; id < indexSize; id++){
         char * tmpBuff = u32toa_sse2((uint32_t)index[id].id,buff1);

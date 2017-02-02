@@ -51,10 +51,7 @@ private:
         typedef DBReader<unsigned int>::Index int_type;
         typedef DBReader<std::string>::Index string_type;
     };
-    static void writeIndex(FILE *outFile, IndexType::string_type *index, size_t indexSize, unsigned int *seqLen);
     static void writeIndex(FILE *outFile, size_t indexSize, IndexType::int_type *index, unsigned int *seqLen);
-
-
     void checkClosed();
 
     char* dataFileName;

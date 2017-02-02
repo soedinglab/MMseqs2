@@ -1,6 +1,7 @@
 set(COMPILED_RESOURCES
         blastp.sh
         blastpgp.sh
+        linclust.sh
         clustering.sh
         cascaded_clustering.sh
         update_clustering.sh
@@ -20,6 +21,8 @@ set(COMPILED_RESOURCES
         blosum90.out
         blosum95.out
         blosum100.out
+        CovSeqidQscPercMinDiag.out
+        CovSeqidQscPercMinDiagTargetCov.out
         )
 
 set(GENERATED_OUTPUT_HEADERS "")

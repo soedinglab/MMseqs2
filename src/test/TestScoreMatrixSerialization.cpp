@@ -14,7 +14,7 @@ int main (int argc, const char * argv[])
                        << extMattwo->score[0] << " " << extMattwo->index[0] << "\n";
 
     char* serialized = ScoreMatrix::serialize(*extMattwo);
-    ScoreMatrix* unserialized = ScoreMatrix::unserialize(serialized);
+    ScoreMatrix* unserialized = ScoreMatrix::unserialize(serialized, subMat.alphabetSize, 3);
 
     Debug(Debug::INFO) << unserialized->elementSize << " " << unserialized->rowSize << " "
                        << unserialized->score[0] << " " << unserialized->index[0] << "\n";

@@ -12,15 +12,21 @@ int createtsv (int argc, const char **argv, const Command& command) {
 
     Debug(Debug::WARNING) << "Query file is " <<  par.db1 << "\n";
     std::string queryHeaderDB =  par.db1 + "_h";
-    DBReader<unsigned int> querydb_header(queryHeaderDB.c_str(), std::string(queryHeaderDB+".index").c_str());
-    querydb_header.open(DBReader<unsigned int>::NOSORT);
-    querydb_header.readMmapedDataInMemory();
-
-    Debug(Debug::WARNING) << "Target file is " << par.db2 << "\n";
-    std::string targetHeaderDB =  par.db2 + "_h";
-    DBReader<unsigned int> targetdb_header(targetHeaderDB.c_str(), std::string(targetHeaderDB+".index").c_str());
-    targetdb_header.open(DBReader<unsigned int>::NOSORT);
-    targetdb_header.readMmapedDataInMemory();
+    DBReader<unsigned int> * querydb_header = new DBReader<unsigned int>(queryHeaderDB.c_str(), std::string(queryHeaderDB+".index").c_str());
+    querydb_header->open(DBReader<unsigned int>::NOSORT);
+    querydb_header->readMmapedDataInMemory();
+    DBReader<unsigned int> * targetdb_header;
+    bool sameDB = false;
+    if (par.db1.compare(par.db2) == 0) {
+        sameDB = true;
+        targetdb_header = querydb_header;
+    } else {
+        Debug(Debug::WARNING) << "Target file is " << par.db2 << "\n";
+        std::string targetHeaderDB =  par.db2 + "_h";
+        targetdb_header = new DBReader<unsigned int> (targetHeaderDB.c_str(), std::string(targetHeaderDB+".index").c_str());
+        targetdb_header->open(DBReader<unsigned int>::NOSORT);
+        targetdb_header->readMmapedDataInMemory();
+    }
 
     Debug(Debug::WARNING) << "Data file is " << par.db3 << "\n";
     DBReader<unsigned int> dbr_data( par.db3.c_str(), std::string( par.db3+".index").c_str());
@@ -31,21 +37,16 @@ int createtsv (int argc, const char **argv, const Command& command) {
 
     for(size_t i = 0; i < dbr_data.getSize(); i++){
         unsigned int queryKey = dbr_data.getDbKey(i);
-
-        char * header_data = querydb_header.getDataByDBKey(queryKey);
+        char * header_data = querydb_header->getDataByDBKey(queryKey);
         std::string queryHeader = Util::parseFastaHeader(header_data);
-
-
         // write data
         char * data = dbr_data.getData(i);
 
         while(*data != '\0') {
             Util::parseKey(data, dbKey);
             size_t keyLen = strlen(dbKey);
-
             unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
-
-            char * header_data = targetdb_header.getDataByDBKey(key);
+            char * header_data = targetdb_header->getDataByDBKey(key);
             std::string parsedDbkey = Util::parseFastaHeader(header_data);
             char * nextLine = Util::skipLine(data);
             // write to file
@@ -59,14 +60,16 @@ int createtsv (int argc, const char **argv, const Command& command) {
             data = nextLine;
         }
         //fwrite(newline, sizeof(char), 1, tsvFP);
-
     }
     delete [] dbKey;
     Debug(Debug::WARNING) << "Done." << "\n";
-
     fclose(tsvFP);
-    targetdb_header.close();
-    querydb_header.close();
+    if(sameDB==false){
+        targetdb_header->close();
+        delete targetdb_header;
+    }
+    querydb_header->close();
+    delete querydb_header;
     dbr_data.close();
 
 

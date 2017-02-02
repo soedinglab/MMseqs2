@@ -37,8 +37,9 @@ public:
     // get substitution matrix
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool ignoreX);
 
-    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable, BaseMatrix *subMat,
-                             size_t dbFrom, size_t dbTo, bool diagonalScoring, unsigned int threads);
+    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
+                             BaseMatrix *subMat, size_t dbFrom, size_t dbTo, bool diagonalScoring,
+                             bool maskResidues, int kmerThr, unsigned int threads);
 
     static void setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const int threads,
                            const bool templateDBIsIndex, int *kmerSize, int *split, int *splitMode);
@@ -80,6 +81,7 @@ private:
     const int querySeqType;
     const int targetSeqType;
     const bool diagonalScoring;
+    const bool maskResidues;
     const unsigned int minDiagScoreThr;
     const bool aaBiasCorrection;
     const float covThr;
@@ -92,7 +94,7 @@ private:
 
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
                                           int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
-                                          bool diagonalScoring, unsigned int threads);
+                                          bool diagonalScoring, bool maskResidues, int kmerThr, unsigned int threads);
 
     // compute kmer size and split size for index table
     static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, unsigned int threads);
@@ -103,7 +105,8 @@ private:
     ScoreMatrix *getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
 
 
-    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads); // needed for index lookup
+    // needed for index lookup
+    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, int kmerThr, unsigned int threads);
 
     /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
      * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.

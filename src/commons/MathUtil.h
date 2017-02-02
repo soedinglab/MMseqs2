@@ -17,6 +17,11 @@ public:
         return res;
     }
 
+    static bool AreSame(float a, float b)
+    {
+        return fabs(a - b) < std::numeric_limits<float>::epsilon();
+    }
+
     static inline short sadd16_signed(short x, short y) {
         unsigned short ux = x;
         unsigned short uy = y;

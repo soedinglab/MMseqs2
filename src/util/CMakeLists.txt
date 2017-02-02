@@ -10,8 +10,6 @@ set(util_source_files
         swapresults.cpp
         translatenucs.cpp
         mergeclusters.cpp
-        convertfiles.h
-        convertfiles.cpp
         convertalignments.cpp
         createtsv.cpp
         convert2fasta.cpp
@@ -22,7 +20,6 @@ set(util_source_files
         convertkb.cpp
         subtractdbs.cpp
         result2stats.cpp
-        computeGOscore.cpp
         clusthash.cpp
         createsubdb.cpp
         diffseqdbs.cpp
@@ -31,7 +28,7 @@ set(util_source_files
         summarizetabs.cpp
         extractdomains.cpp
         extractalignedregion.cpp
-        clustlinear.cpp
+        kmermatcher.cpp
         rescorediagonal.cpp
         )
 

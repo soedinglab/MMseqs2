@@ -41,6 +41,9 @@ private:
     // query sequence coverage threshold
     const double covThr;
 
+    // query sequence coverage threshold
+    const double targetCovThr;
+
     // e value threshold
     const double evalThr;
 

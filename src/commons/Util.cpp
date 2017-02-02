@@ -5,6 +5,8 @@
 #include "BaseMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "Sequence.h"
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <unistd.h>
 #ifdef __APPLE__
@@ -327,9 +329,14 @@ size_t Util::get_phys_pages () {
 
 size_t Util::getTotalSystemMemory()
 {
+    // check for real physical memory
     long pages = get_phys_pages();
     long page_size = sysconf(_SC_PAGE_SIZE);
-    return pages * page_size;
+    uint64_t sysMemory = pages * page_size;
+    // check for ulimit
+//    struct rlimit limit;
+//    getrlimit(RLIMIT_MEMLOCK, &limit);
+    return sysMemory;
 }
 
 
