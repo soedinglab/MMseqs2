@@ -50,6 +50,7 @@ public:
     static const int SEARCH_GLOBAL = 0;
     static const int SEARCH_LOCAL = 1;
     static const int SEARCH_LOCAL_FAST = 2;
+
     // format alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
@@ -147,7 +148,6 @@ public:
     bool   noPreload;                     // Do not preload database into memory
 
     // ALIGNMENT
-    std::string ffindexPrefDB;           // prefilter database (input for alignment module)
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
                                          // 1=score only, 2=score, cov, start/end pos, 3=score, cov, start/end pos, seq.id,
     float  evalThr;                      // e-value threshold for acceptance
@@ -164,7 +164,6 @@ public:
     std::string runner;
 
     // CLUSTERING
-    std::string ffindexAlnDBBase;
     int    clusteringMode;
     int    validateClustering;
     bool   cascaded;
@@ -345,17 +344,16 @@ public:
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
-
     std::vector<MMseqsParameter> align;
 
     // clustering
     PARAMETER(PARAM_CLUSTER_MODE)
-
     PARAMETER(PARAM_CASCADED)
 
     // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
     PARAMETER(PARAM_SIMILARITYSCORE)
+
     // logging
     PARAMETER(PARAM_V)
     std::vector<MMseqsParameter> clust;
@@ -521,12 +519,12 @@ public:
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);
 
-    std::string createParameterString(std::vector < MMseqsParameter > &vector);
+    std::string createParameterString(std::vector<MMseqsParameter> &vector);
+
 private:
     Parameters();
     Parameters(Parameters const&);
     void operator=(Parameters const&);
-
 };
 
 #endif
