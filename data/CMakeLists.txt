@@ -32,6 +32,8 @@ FOREACH(INPUT_FILE ${COMPILED_RESOURCES})
     message("-- Compile ${INPUT_FILE_NAME} to ${OUTPUT_FILE}")
     add_custom_command(OUTPUT ${OUTPUT_FILE}
             COMMAND xxd -i ${INPUT_FILE_NAME} ${OUTPUT_FILE}
+            COMMAND sed 's!unsigned char!static const unsigned char!' < ${OUTPUT_FILE} > ${OUTPUT_FILE}.tmp
+            COMMAND mv -f ${OUTPUT_FILE}.tmp ${OUTPUT_FILE}
             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/data
             MAIN_DEPENDENCY ${INPUT_FILE_NAME})
     set_source_files_properties(${OUTPUT_FILE} PROPERTIES GENERATED TRUE)
