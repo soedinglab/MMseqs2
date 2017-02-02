@@ -92,7 +92,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     }
     double * kmnByLen = new double[par.maxSeqLen];
     BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(), 11, 1, false);
-    for(int len = 0; len < par.maxSeqLen; len++){
+    for (size_t len = 0; len < par.maxSeqLen; len++){
         kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
                                                     tdbr->getAminoAcidDBSize(), tdbr->getSize());
     }
@@ -185,10 +185,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     //float maxSeqLen = std::max(static_cast<float>(targetLen), static_cast<float>(queryLen));
                     float currScorePerCol = static_cast<float>(distance)/static_cast<float>(diagonalLen);
 
-                    if (targetCov >= (par.targetCovThr - std::numeric_limits<float>::epsilon())  // --target-cov
-                        && queryCov >= par.covThr && targetCov >= par.covThr                     // -c parameter
-                        && seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon())       // --min-seq-id
-                        || (par.filterHits == true  && (currScorePerCol >= scorePerColThr || isIdentity)))       // --filter-hits
+                    if (targetCov >= (par.targetCovThr - std::numeric_limits<float>::epsilon())    // --target-cov
+                        && (queryCov >= par.covThr && targetCov >= par.covThr)                     // -c parameter
+                        && (seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon()))       // --min-seq-id
+                        || ((par.filterHits == true) && ((currScorePerCol >= scorePerColThr) || isIdentity)))  // --filter-hits
                     {
                         int len  = 0;
                         if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {

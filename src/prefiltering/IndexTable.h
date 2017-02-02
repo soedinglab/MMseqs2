@@ -87,18 +87,15 @@ public:
     }
 
     // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
-    size_t addKmerCount(Sequence *s, Indexer *idxer,
-                        unsigned int * seqKmerPosBuffer,
-                        int threshold, char * diagonalScore) {
+    size_t addKmerCount(Sequence *s, Indexer *idxer, unsigned int *seqKmerPosBuffer,
+                        int threshold, char *diagonalScore) {
         s->resetCurrPos();
-        size_t kmerIdx;
         size_t countKmer = 0;
-
         while(s->hasNextKmer()){
             const int * kmer = s->nextKmer();
             if(threshold > 0){
                 int score = 0;
-                for(size_t pos = 0; pos < kmerSize; pos++){
+                for(int pos = 0; pos < kmerSize; pos++){
                     score += diagonalScore[kmer[pos]];
                 }
                 if(score < threshold){
@@ -259,7 +256,7 @@ public:
 
                 if(threshold > 0) {
                     int score = 0;
-                    for (size_t pos = 0; pos < kmerSize; pos++) {
+                    for (int pos = 0; pos < kmerSize; pos++) {
                         score += diagonalScore[kmer[pos]];
                     }
                     if (score < threshold) {

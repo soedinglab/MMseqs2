@@ -612,9 +612,13 @@ void Prefiltering::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, Inde
 
     size_t dbSize = dbTo - dbFrom;
     size_t *sequenceOffSet = new size_t[dbSize];
-    char * idScoreLookup = new char[subMat->alphabetSize];
-    for(size_t aa = 0; aa < subMat->alphabetSize; aa++){
-        idScoreLookup[aa] = subMat->subMatrix[aa][aa];
+    char *idScoreLookup = new char[subMat->alphabetSize];
+    for (int aa = 0; aa < subMat->alphabetSize; aa++){
+        short score = subMat->subMatrix[aa][aa];
+        if (score > CHAR_MAX || score < CHAR_MIN) {
+            Debug(Debug::WARNING) << "Truncating substitution matrix diagonal score!";
+        }
+        idScoreLookup[aa] = (char) score;
     }
 
     size_t aaDbSize = 0;

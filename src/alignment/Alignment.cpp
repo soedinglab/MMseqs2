@@ -17,7 +17,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                      const std::string &outDB, const std::string &outDBIndex,
                      const Parameters &par) :
         covThr(par.covThr), targetCovThr(par.targetCovThr), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
-        includeIdentity(par.includeIdentity), realign(par.realign), addBacktrace(par.addBacktrace),
+        includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
         compBiasCorrection(par.compBiasCorrection), qseqdbr(NULL), qSeqLookup(NULL),
