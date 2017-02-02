@@ -62,7 +62,7 @@ void FileUtil::deleteTempFiles(std::list<std::string> tmpFiles) {
     }
 }
 
-void FileUtil::writeFile(std::string pathToFile, unsigned char *data, size_t len) {
+void FileUtil::writeFile(std::string pathToFile, const unsigned char *data, size_t len) {
     int file = open(pathToFile.c_str(), O_RDWR|O_CREAT, 0700);
     write(file, data, len);
     close(file);

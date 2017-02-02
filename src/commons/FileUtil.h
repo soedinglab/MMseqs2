@@ -20,7 +20,7 @@ public:
 
     static void deleteTempFiles(std::list<std::string> tmpFiles);
 
-    static void writeFile(std::string pathToFile, unsigned char *sh, size_t len);
+    static void writeFile(std::string pathToFile, const unsigned char *sh, size_t len);
 };
 
 
