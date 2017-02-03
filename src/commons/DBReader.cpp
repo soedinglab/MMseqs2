@@ -34,11 +34,12 @@ DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t s
 
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
+    size_t pageSize = Util::getPageSize();
     size_t bytes = 0;
-    for(size_t i = 0; i < dataSize; i++){
+    for(size_t i = 0; i < dataSize; i+=pageSize){
         bytes += data[i];
     }
-    this->magicBytes = bytes;
+    magicBytes = bytes;
 }
 
 template <typename T>

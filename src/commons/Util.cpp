@@ -315,14 +315,18 @@ void Util::checkAllocation(void *pointer, std::string message) {
     }
 }
 
-size_t Util::get_phys_pages () {
+size_t Util::getPageSize() {
+    return sysconf(_SC_PAGE_SIZE);
+}
+
+size_t Util::getTotalMemoryPages() {
 #if __APPLE__
-    uint64_t mem;
+    size_t mem;
     size_t len = sizeof(mem);
     sysctlbyname("hw.memsize", &mem, &len, NULL, 0);
-    static unsigned phys_pages = mem/sysconf(_SC_PAGE_SIZE);
+    static size_t phys_pages = mem / Util::getPageSize();
 #else
-    static unsigned phys_pages = sysconf(_SC_PHYS_PAGES);
+    static size_t phys_pages = sysconf(_SC_PHYS_PAGES);
 #endif
     return phys_pages;
 }
@@ -330,7 +334,7 @@ size_t Util::get_phys_pages () {
 size_t Util::getTotalSystemMemory()
 {
     // check for real physical memory
-    long pages = get_phys_pages();
+    long pages = getTotalMemoryPages();
     long page_size = sysconf(_SC_PAGE_SIZE);
     uint64_t sysMemory = pages * page_size;
     // check for ulimit
