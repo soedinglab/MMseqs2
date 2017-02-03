@@ -122,7 +122,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.maxResListLen = 20;
         int minDiagScoreThr = par.minDiagScoreThr;
         par.minDiagScoreThr = 0;
-        par.diagonalScoring = 0;
+        par.diagonalScoring = 1;
         par.compBiasCorrection = 0;
 
         cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
