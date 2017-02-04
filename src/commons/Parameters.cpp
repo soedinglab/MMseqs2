@@ -499,7 +499,7 @@ void Parameters::printUsageMessage(const Command& command,
     maxWidth+=2; // space in front of options
 
     // header
-    ss << std::setprecision(1) << std::fixed;
+    ss << std::setprecision(3) << std::fixed;
     for(size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
         bool categoryFound = false;
         for (size_t j = 0; j < parameters.size(); j++) {
