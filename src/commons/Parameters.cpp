@@ -446,8 +446,8 @@ Parameters::Parameters():
 
     // linclust workflow
     linclustworkflow = combineList(clust, align);
-    linclustworkflow = combineList(clusteringWorkflow, kmermatcher);
-    linclustworkflow = combineList(clusteringWorkflow, rescorediagonal);
+    linclustworkflow = combineList(linclustworkflow, kmermatcher);
+    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
     linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
     linclustworkflow.push_back(PARAM_RUNNER);
 
