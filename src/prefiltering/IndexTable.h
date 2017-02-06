@@ -347,7 +347,7 @@ public:
             case 6:
                 return 3350000000;
             case 7:
-                return (UINT_MAX - 1); // UINT_MAX is often reserved as safe flag
+                return (SIZE_MAX - 1); // UINT_MAX is often reserved as safe flag
         }
         return 0;
     }
