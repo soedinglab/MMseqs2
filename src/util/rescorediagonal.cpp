@@ -17,7 +17,6 @@
 float parsePrecisionLib(std::string scoreFile, double targetSeqid, double targetCov, double targetPrecision){
     std::stringstream in(scoreFile);
     std::string line;
-    double qsc = 0;
     // find closest lower seq. id in a grid of size 5
     int intTargetSeqid = static_cast<int>((targetSeqid+0.0001)*100);
     int seqIdRest = (intTargetSeqid % 5);
@@ -40,7 +39,7 @@ float parsePrecisionLib(std::string scoreFile, double targetSeqid, double target
                              "cov="<< targetCov << " seq.id=" << targetSeqid << "\n"
                              "No hit will be filtered.\n";
 
-    return qsc;
+    return 0;
 }
 
 int rescorediagonal(int argc, const char **argv, const Command &command) {
@@ -184,11 +183,16 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     //float maxSeqLen = std::max(static_cast<float>(targetLen), static_cast<float>(queryLen));
                     float currScorePerCol = static_cast<float>(distance)/static_cast<float>(diagonalLen);
 
-                    if (targetCov >= (par.targetCovThr - std::numeric_limits<float>::epsilon())    // --target-cov
-                        && (queryCov >= par.covThr && targetCov >= par.covThr)                     // -c parameter
-                        && (seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon()))       // --min-seq-id
-                        || ((par.filterHits == true) && ((currScorePerCol >= scorePerColThr) || isIdentity)))  // --filter-hits
-                    {
+                    // --target-cov
+                    bool matchTargetCov = targetCov >= par.targetCovThr;
+                    // -c parameter
+                    bool matchQueryTargetCov = queryCov >= par.covThr && targetCov >= par.covThr;
+                    // --min-seq-id
+                    bool matchSeqIdThr = seqId >= par.seqIdThr;
+                    // --filter-hits
+                    bool shouldFilter = par.filterHits == true && (currScorePerCol >= scorePerColThr || isIdentity);
+
+                    if ((matchTargetCov && matchQueryTargetCov && matchSeqIdThr) || shouldFilter) {
                         int len  = 0;
                         if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
                             int alnLen = alignment.endPos - alignment.startPos;
@@ -210,7 +214,9 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                 dbEndPos = alignment.endPos + dist;
                             }
 
-                            Matcher::result_t result(results[entryIdx].seqId, distance, queryCov, targetCov, seqId, seqId, alnLen, qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, targetLen, std::string());
+                            Matcher::result_t result(results[entryIdx].seqId, distance, queryCov, targetCov,
+                                                     seqId, seqId, alnLen, qStartPos, qEndPos, queryLen,
+                                                     dbStartPos, dbEndPos, targetLen, std::string());
                             std::string alnString = Matcher::resultToString(result, false);
                             len = snprintf(buffer, 100, "%s", alnString.c_str());
                         } else   if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
