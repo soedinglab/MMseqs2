@@ -1,5 +1,11 @@
 #!/bin/bash -e
 
+function debugWait() {
+    if ((${#UPDATING_DEBUG[@]})); then
+        read -n1
+    fi
+}
+
 function fail() {
     echo "Error: $1"
     exit 1
@@ -29,7 +35,9 @@ function joinAndReplace() {
     MAPPING="$3"
     FIELDS="$4"
 
-    LC_ALL=C join -t $'\t' -o "$FIELDS" <(LC_ALL=C sort -T "$TMP" -k1,1 "$MAPPING") <(LC_ALL=C sort -T "$TMP" -k1,1 "$INPUT") | LC_ALL=C sort -T "$TMP" -k1,1 > "$OUTPUT"
+    LC_ALL=C join -t $'\t' -o "$FIELDS" <(LC_ALL=C sort -T "$TMP" -k1,1 "$MAPPING") \
+        <(LC_ALL=C sort -T "$TMP" -k1,1 "$INPUT") \
+        | LC_ALL=C sort -T "$TMP" -k1,1 > "$OUTPUT"
 }
 
 function hasCommand () {
@@ -43,7 +51,7 @@ hasCommand sort
 
 # pre processing
 # check number of input variables
-[ "$#" -ne 5 ] && echo "Please provide <i:oldDB> <i:newDB> <i:oldDB_clustering> <o:newDB_clustering> <o:tmpDir>" && exit 1;
+[ "$#" -ne 5 ] && echo "Please provide <i:oldSequenceDB> <i:newSequenceDB> <i:oldClusteringDB> <o:newClusteringDB> <o:tmpDir>" && exit 1;
 
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
@@ -53,14 +61,17 @@ hasCommand sort
 [ ! -d "$5" ] &&  echo "tmp directory $5 not found!" && exit 1;
 
 OLDDB="$(abspath $1)" #"../data/DB"
-OLDCLUST="$(abspath $3)" #"DBclustered"
 NEWDB="$(abspath $2)" #"../data/targetDB"
-TMP="$(abspath $5)" #"tmp/"
+OLDCLUST="$(abspath $3)" #"DBclustered"
 NEWCLUST="$(abspath $4)"
+TMP="$(abspath $5)" #"tmp/"
+
+MMSEQS=${MMSEQS:-"mmseqs"}
+
+hasCommand ${MMSEQS}
 
 if notExists "$TMP/removedSeqs"; then
-    $MMSEQS diffseqdbs "$OLDDB" "$NEWDB" \
-                       "$TMP/removedSeqs" "$TMP/mappingSeqs" "$TMP/newSeqs" ${DIFF_PAR} \
+    $MMSEQS diffseqdbs "$OLDDB" "$NEWDB" "$TMP/removedSeqs" "$TMP/mappingSeqs" "$TMP/newSeqs" ${DIFF_PAR} \
         || fail "Diff died"
 fi
 
@@ -88,8 +99,8 @@ if [ -n "${RECOVER_DELETED}" ] && [ -s "$TMP/removedSeqs" ]; then
     fi
 
     if notExists "$TMP/OLDCLUST.removedMapping"; then
-        ( \
-            HIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"; \
+        (
+            HIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"
             awk -v highest="$HIGHESTID" \
                 'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
                 "$TMP/removedSeqs" > "$TMP/OLDCLUST.removedMapping"
@@ -98,41 +109,42 @@ if [ -n "${RECOVER_DELETED}" ] && [ -s "$TMP/removedSeqs" ]; then
     fi
 
     if notExists "$TMP/NEWDB.withOld"; then
-        ( \
-            ln -sf "$OLDDB" "$TMP/OLDDB.removedDb"; \
-            ln -sf "$OLDDB" "$TMP/OLDDB.removedDb_h"; \
-            joinAndReplace "${OLDDB}.index" "$TMP/OLDDB.removedDb.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"; \
-            joinAndReplace "${OLDDB}_h.index" "$TMP/OLDDB.removedDb_h.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"; \
-            joinAndReplace "${OLDDB}.lookup" "$TMP/OLDDB.removedDb.lookup" "$TMP/OLDCLUST.removedMapping" "1.2 2.2"; \
-            $MMSEQS concatdbs "$NEWDB" "$TMP/OLDDB.removedDb" "$TMP/NEWDB.withOld" --preserve-keys; \
-            $MMSEQS concatdbs "${NEWDB}_h" "$TMP/OLDDB.removedDb_h" "$TMP/NEWDB.withOld_h" --preserve-keys; \
-            cat "${NEWDB}.lookup" "$TMP/OLDDB.removedDb.lookup" > "$TMP/NEWDB.withOld.lookup"; \
-            NEWDB="$TMP/NEWDB.withOld"; \
+        (
+            ln -sf "$OLDDB" "$TMP/OLDDB.removedDb"
+            ln -sf "$OLDDB" "$TMP/OLDDB.removedDb_h"
+            joinAndReplace "${OLDDB}.index" "$TMP/OLDDB.removedDb.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"
+            joinAndReplace "${OLDDB}_h.index" "$TMP/OLDDB.removedDb_h.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"
+            joinAndReplace "${OLDDB}.lookup" "$TMP/OLDDB.removedDb.lookup" "$TMP/OLDCLUST.removedMapping" "1.2 2.2"
+            $MMSEQS concatdbs "$NEWDB" "$TMP/OLDDB.removedDb" "$TMP/NEWDB.withOld" --preserve-keys
+            $MMSEQS concatdbs "${NEWDB}_h" "$TMP/OLDDB.removedDb_h" "$TMP/NEWDB.withOld_h" --preserve-keys
+            cat "${NEWDB}.lookup" "$TMP/OLDDB.removedDb.lookup" > "$TMP/NEWDB.withOld.lookup"
         ) || fail "Could not create $TMP/NEWDB.withOld"
     fi
 
+    NEWDB="$TMP/NEWDB.withOld"
+
     if [ -n "$REMOVE_TMP" ]; then
         echo "Remove temporary files 1/3"
-        rm -f "$TMP/OLDCLUST.removedMapping" "$TMP/OLDDB.removed"{Db,Db.index,Db.lookup,Seqs,Seqs.index}
+        rm -f "$TMP/OLDCLUST.removedMapping" "$TMP/OLDDB.removed"{Db,Db.index,Db_h,Db_h.index,Db.lookup,Seqs,Seqs.index}
     fi
 fi
 
-#read -n1
+debugWait
 echo "==================================================="
 echo "=== Update the new sequences with the old keys ===="
 echo "==================================================="
 
 if notExists "$TMP/newMappingSeqs"; then
-    ( \
-        OLDHIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${OLDDB}.index"| head -n 1 | cut -f1)"; \
-        NEWHIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"; \
-        MAXID="$(($OLDHIGHESTID>$NEWHIGHESTID?$OLDHIGHESTID:$NEWHIGHESTID))"; \
+    (
+        OLDHIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${OLDDB}.index"| head -n 1 | cut -f1)"
+        NEWHIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"
+        MAXID="$(($OLDHIGHESTID>$NEWHIGHESTID?$OLDHIGHESTID:$NEWHIGHESTID))"
         awk -v highest="$MAXID" \
             'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
-            "$TMP/newSeqs" > "$TMP/newSeqs.mapped"; \
-        awk '{ print $2"\t"$1 }' "$TMP/mappingSeqs" > "$TMP/mappingSeqs.reverse"; \
-        cat "$TMP/mappingSeqs.reverse" "$TMP/newSeqs.mapped" > "$TMP/newMappingSeqs"; \
-        awk '{ print $2 }' "$TMP/newSeqs.mapped" > "$TMP/newSeqs"; \
+            "$TMP/newSeqs" > "$TMP/newSeqs.mapped"
+        awk '{ print $2"\t"$1 }' "$TMP/mappingSeqs" > "$TMP/mappingSeqs.reverse"
+        cat "$TMP/mappingSeqs.reverse" "$TMP/newSeqs.mapped" > "$TMP/newMappingSeqs"
+        awk '{ print $2 }' "$TMP/newSeqs.mapped" > "$TMP/newSeqs"
     ) || fail "Could not create $TMP/newMappingSeqs"
 fi
 
@@ -161,8 +173,7 @@ if [ -n "$REMOVE_TMP" ]; then
     rm -f "$TMP/NEWDB.withOld"{,.index,.lookup,_h,_h.index}
 fi
 
-#read -n1
-
+debugWait
 echo "==================================================="
 echo "====== Filter out the new from old sequences ======"
 echo "==================================================="
@@ -170,7 +181,8 @@ if notExists "$TMP/NEWDB.newSeqs"; then
     $MMSEQS createsubdb "$TMP/newSeqs" "$NEWDB" "$TMP/NEWDB.newSeqs" \
         || fail "Order died"
 fi
-#read -n1
+
+debugWait
 echo "==================================================="
 echo "======= Extract representative sequences =========="
 echo "==================================================="
@@ -179,7 +191,7 @@ if notExists "$TMP/OLDDB.repSeq"; then
         || fail "Result2msa died"
 fi
 
-#read -n1
+debugWait
 echo "==================================================="
 echo "======== Search the new sequences against ========="
 echo "========= previous (rep seq of) clusters =========="
@@ -200,7 +212,7 @@ if notExists "$TMP/newSeqsHits.swapped"; then
         || fail "Trimming died"
 fi
 
-#read -n1
+debugWait
 echo "==================================================="
 echo "=  Merge found sequences with previous clustering ="
 echo "==================================================="
@@ -220,7 +232,7 @@ else
     fi
 fi
 
-#read -n1
+debugWait
 echo "==================================================="
 echo "=========== Extract unmapped sequences ============"
 echo "==================================================="
@@ -232,7 +244,8 @@ if notExists "$TMP/toBeClusteredSeparately"; then
     $MMSEQS createsubdb "$TMP/noHitSeqList" "$NEWDB" "$TMP/toBeClusteredSeparately" \
         || fail "Order of no hit seq. died"
 fi
-#read -n1
+
+debugWait
 echo "==================================================="
 echo "===== Cluster separately the alone sequences ======"
 echo "==================================================="
@@ -242,7 +255,8 @@ if notExists "$TMP/newClusters"; then
     $MMSEQS cluster "$TMP/toBeClusteredSeparately" "$TMP/newClusters" "$TMP/cluster" ${CLUST_PAR} \
         || fail "Clustering of new seq. died"
 fi
-#read -n1
+
+debugWait
 echo "==================================================="
 echo "==== Merge the updated clustering together with ==="
 echo "=====         the new clusters               ======"
@@ -264,7 +278,7 @@ else
     fi
 fi
 
-#read -n1
+debugWait
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files 3/3"
     rm -f "$TMP/newSeqs.mapped" "$TMP/mappingSeqs.reverse" "$TMP/newMappingSeqs"
