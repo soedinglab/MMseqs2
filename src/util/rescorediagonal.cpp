@@ -78,9 +78,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     float scorePerColThr = 0.0;
     if(par.filterHits){
         if(par.rescoreMode == Parameters::RESCORE_MODE_HAMMING){
-            Debug(Debug::ERROR) << "HAMMING distance can not be used to filter hits. "
-                                   "Please use --rescore-mode 1\n";
-            EXIT(EXIT_FAILURE);
+            Debug(Debug::WARNING) << "HAMMING distance can not be used to filter hits. Using --rescore-mode 1\n";
+            par.rescoreMode = Parameters::RESCORE_MODE_SUBSTITUTION;
         }
         if(par.targetCovThr > 0.0){
             std::string libraryString((const char*)CovSeqidQscPercMinDiagTargetCov_out,CovSeqidQscPercMinDiagTargetCov_out_len);
