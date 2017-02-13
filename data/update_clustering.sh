@@ -92,8 +92,8 @@ if [ -n "${RECOVER_DELETED}" ] && [ -s "$TMP/removedSeqs" ]; then
             HIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"; \
             awk -v highest="$HIGHESTID" \
                 'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
-                "$TMP/OLDCLUST.removed" > "$TMP/OLDCLUST.removedMapping"; \
-            cat "$TMP/OLDCLUST.removedMapping" >> "$TMP/mappingSeqs"; \
+                "$TMP/removedSeqs" > "$TMP/OLDCLUST.removedMapping"
+            cat "$TMP/OLDCLUST.removedMapping" >> "$TMP/mappingSeqs"
         ) || fail "Could not create $TMP/OLDCLUST.removedMapping"
     fi
 
