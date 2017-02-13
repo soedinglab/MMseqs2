@@ -319,6 +319,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     searchworkflow.push_back(PARAM_NUM_ITERATIONS);
     searchworkflow.push_back(PARAM_START_SENS);
     searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
+    searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
     searchworkflow.push_back(PARAM_RUNNER);
 
     clusteringWorkflow = combineList(prefilter, align);
