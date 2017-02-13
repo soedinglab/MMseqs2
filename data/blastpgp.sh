@@ -68,13 +68,13 @@ while [ $STEP -lt $NUM_IT ]; do
 	# call alignment module
 	if notExists "$TMP_PATH/aln_$STEP"; then
         $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN -a \
-            fail "Alignment died"
+            || fail "Alignment died"
     fi
 
     if [ $STEP -gt 0 ]; then
         if notExists "$TMP_PATH/aln_$STEP.hasmerge"; then
             $MMSEQS mergedbs "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP" \
-                fail "Merge died"
+                || fail "Merge died"
             mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_0"
             mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_0.index"
             touch "$TMP_PATH/aln_$STEP.hasmerge"
