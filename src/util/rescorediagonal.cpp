@@ -29,10 +29,10 @@ float parsePrecisionLib(std::string scoreFile, double targetSeqid, double target
         float cov = strtod(values[0].c_str(),NULL);
         float seqid = strtod(values[1].c_str(),NULL);
         float scorePerCol = strtod(values[2].c_str(),NULL);
-        float percision = strtod(values[3].c_str(),NULL);
+        float precision = strtod(values[3].c_str(),NULL);
         if(MathUtil::AreSame(cov, targetCov)
            && MathUtil::AreSame(seqid, targetSeqid)
-           && percision >= targetPrecision){
+           && precision >= targetPrecision){
             return scorePerCol;
         }
     }
