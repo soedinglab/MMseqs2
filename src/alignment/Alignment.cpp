@@ -88,31 +88,36 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
     }
     tseqdbr->open(DBReader<unsigned int>::NOSORT);
-    if (par.noPreload == false) {
-        tseqdbr->readMmapedDataInMemory();
-        tseqdbr->mlock();
-    }
 
+    bool reopenTargetDb = false;
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tseqdbr);
     if (templateDBIsIndex == true) { // exchange reader with old ffindex reader
         tidxdbr = tseqdbr;
         PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tseqdbr);
         if (meta.split != 1) {
             Debug(Debug::WARNING) << "Can not use split index for alignment.\n";
-            tseqdbr->close();
-            delete tseqdbr;
-            tidxdbr = NULL;
+            reopenTargetDb = true;
 
-            tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
-            tseqdbr->open(DBReader<unsigned int>::NOSORT);
-            if (par.noPreload != false) {
-                tseqdbr->readMmapedDataInMemory();
-                tseqdbr->mlock();
-            }
         } else {
             tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, 0);
             tseqdbr = PrefilteringIndexReader::openNewReader(tidxdbr);
         }
+    } else {
+        reopenTargetDb = true;
+    }
+
+    if (reopenTargetDb) {
+        tseqdbr->close();
+        delete tseqdbr;
+        tidxdbr = NULL;
+
+        tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
+        tseqdbr->open(DBReader<unsigned int>::NOSORT);
+    }
+
+    if (par.noPreload == false) {
+        tseqdbr->readMmapedDataInMemory();
+        tseqdbr->mlock();
     }
 
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
