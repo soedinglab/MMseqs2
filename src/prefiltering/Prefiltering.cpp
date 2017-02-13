@@ -52,6 +52,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         Debug(Debug::INFO) << "Could not find precomputed index. Compute index.\n";
         tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
+
+        templateDBIsIndex = false;
     }
 
     if (par.noPreload == false) {
@@ -93,7 +95,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         // create the whole index table
-        indexTable = getIndexTable(0, 0, tdbr->getSize(), kmerScore, threads);
+        const int kmerThr = getKmerThreshold(sensitivity);
+        indexTable = getIndexTable(0, 0, tdbr->getSize(), kmerThr, threads);
     } else {
         indexTable = NULL;
     }
@@ -368,6 +371,7 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     size_t queryFrom = 0;
     size_t querySize = qdbr->getSize();
 
+    const int kmerThr = getKmerThreshold(sensitivity);
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
         Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
                                          split, splitCount, &dbFrom, &dbSize);
@@ -375,22 +379,17 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         if (indexTable != NULL) {
             delete indexTable;
         }
-        indexTable = getIndexTable(split, dbFrom, dbSize, kmerScore, threads);
+        indexTable = getIndexTable(split, dbFrom, dbSize, kmerThr, threads);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
         Util::decomposeDomainByAminoAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
                                          split, splitCount, &queryFrom, &querySize);
     }
     // create index table based on split parameter
     // run small query sample against the index table to calibrate p-match
-    const int kmerScore = getKmerThreshold(sensitivity);
-    std::pair<short, double> calibration = (diagonalScoring == true)
-                                           ? std::make_pair(static_cast<short>(kmerScore), static_cast<double>(0.0f))
-                                           : setKmerThreshold(indexTable, qdbr, qseq, tdbr,
-                                                              kmerScore, qseq[0]->getEffectiveKmerSize());
 
-    //std::pair<short, double> ret = std::pair<short, double>(105, 8.18064e-05);
-    kmerThr = calibration.first;
-    kmerMatchProb = calibration.second;
+    const double kmerMatchProb = (diagonalScoring == true) ? 0.0f
+                                                           : setKmerThreshold(indexTable, qdbr, qseq, tdbr,
+                                                                              kmerThr, qseq[0]->getEffectiveKmerSize());
 
     Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
     Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
@@ -762,8 +761,8 @@ IndexTable* Prefiltering::generateIndexTable(DBReader<unsigned int> *dbr, Sequen
     return indexTable;
 }
 
-std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, Sequence** qseq,
-                                                        DBReader<unsigned int> *tdbr, int kmerScore, unsigned int effectiveKmerSize) {
+double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, Sequence** qseq,
+                                      DBReader<unsigned int> *tdbr, int kmerThr, unsigned int effectiveKmerSize) {
     size_t targetDbSize = indexTable->getSize();
     size_t targetSeqLenSum = 0;
 
@@ -779,7 +778,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
         querySeqs[i] = rand() % qdbr->getSize();
     }
 
-    statistics_t stats = computeStatisticForKmerThreshold(qdbr, qseq, indexTable, querySetSize, querySeqs, true, kmerScore);
+    statistics_t stats = computeStatisticForKmerThreshold(qdbr, qseq, indexTable, querySetSize, querySeqs, true, kmerThr);
 
     // compute match prob for local match
     double kmerMatchProb = ((double) stats.doubleMatches) / ((double) (stats.querySeqLen * targetSeqLenSum));
@@ -789,7 +788,7 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
     Debug(Debug::INFO) << "\tk-mers per position = " << stats.kmersPerPos << ", k-mer match probability: "
                        << kmerMatchProb << "\n";
     delete[] querySeqs;
-    return std::make_pair(static_cast<short>(kmerScore), kmerMatchProb);
+    return kmerMatchProb;
 }
 
 statistics_t Prefiltering::computeStatisticForKmerThreshold(DBReader<unsigned int> *qdbr, Sequence** qseq,

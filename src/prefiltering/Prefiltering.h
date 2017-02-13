@@ -68,8 +68,6 @@ private:
     bool spacedKmer;
     int alphabetSize;
     bool templateDBIsIndex;
-    short kmerThr;
-    double kmerMatchProb;
     bool maskResidues;
     int splitMode;
     std::string scoringMatrixFile;
@@ -111,9 +109,8 @@ private:
     /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
      * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
      */
-    std::pair<short, double> setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, Sequence **qseq,
-                                              DBReader<unsigned int> *tdbr, int kmerScore,
-                                              unsigned int effectiveKmerSize);
+    double setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, Sequence **qseq,
+                            DBReader<unsigned int> *tdbr, int kmerScore, unsigned int effectiveKmerSize);
 
     // write prefiltering to ffindex database
     void writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,
@@ -137,8 +134,6 @@ private:
                                                   const int kmerThrMid);
 
     int getKmerThreshold(const float sensitivity);
-
-    std::string searchForIndex(const std::string &pathToDB);
 
     void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
                      const std::vector<std::pair<std::string, std::string>> &filenames);
