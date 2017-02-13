@@ -70,6 +70,7 @@ private:
     bool templateDBIsIndex;
     short kmerThr;
     double kmerMatchProb;
+    bool maskResidues;
     int splitMode;
     std::string scoringMatrixFile;
 
@@ -81,7 +82,6 @@ private:
     const int querySeqType;
     const int targetSeqType;
     const bool diagonalScoring;
-    const bool maskResidues;
     const unsigned int minDiagScoreThr;
     const bool aaBiasCorrection;
     const float covThr;

@@ -191,7 +191,7 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
 
     prefData.kmerSize = metadata_tmp[0];
     prefData.alphabetSize = metadata_tmp[1];
-    prefData.mask = metadata_tmp[2];
+    prefData.maskResidues = metadata_tmp[2];
     prefData.split = metadata_tmp[3];
     prefData.local = metadata_tmp[4];
     prefData.spacedKmer = metadata_tmp[5];

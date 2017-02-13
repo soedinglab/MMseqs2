@@ -16,12 +16,11 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                            const Parameters &par) :
         split(par.split), targetDB(targetDB), targetDBIndex(targetDBIndex),
         kmerSize(par.kmerSize), spacedKmer(par.spacedKmer != 0), alphabetSize(par.alphabetSize),
-        splitMode(par.splitMode), scoringMatrixFile(par.scoringMatrixFile),
+        maskResidues(par.maskResidues != 0), splitMode(par.splitMode), scoringMatrixFile(par.scoringMatrixFile),
         maxResListLen(par.maxResListLen), kmerScore(par.kmerScore),
         sensitivity(par.sensitivity), resListOffset(par.resListOffset), maxSeqLen(par.maxSeqLen),
         querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
-        diagonalScoring(par.diagonalScoring != 0), maskResidues(par.maskResidues != 0),
-        minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
+        diagonalScoring(par.diagonalScoring != 0), minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0), covThr(par.covThr), includeIdentical(par.includeIdentity),
         threads(static_cast<unsigned int>(par.threads)) {
 #ifdef OPENMP
@@ -29,36 +28,35 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 #endif
 
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetDB);
-    //TODO optimize this. Dont read twice the target index. This seems to be slow
     if (indexDB != "") {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
         tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
-    } else {
-        Debug(Debug::INFO) << "Cound not find precomputed index. Compute index.\n";
-        tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
-    }
-    tdbr->open(DBReader<unsigned int>::NOSORT);
-    templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
-    if (templateDBIsIndex == true) { // exchange reader with old ffindex reader
-        tidxdbr = tdbr;
-        if(par.noPreload == false) {
-            tidxdbr->readMmapedDataInMemory();
-            tidxdbr->mlock();
+        tdbr->open(DBReader<unsigned int>::NOSORT);
+        templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
+        if (templateDBIsIndex == true) {
+            // exchange reader with old ffindex reader
+            tidxdbr = tdbr;
+            tdbr = PrefilteringIndexReader::openNewReader(tdbr);
+            PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
+            kmerSize = data.kmerSize;
+            alphabetSize = data.alphabetSize;
+            maskResidues = data.maskResidues != 0;
+            split = data.split;
+            spacedKmer = data.spacedKmer != 0;
+            scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
+        } else {
+            Debug(Debug::ERROR) << "Outdated index version. Please recompute it with 'createindex'!\n";
+            EXIT(EXIT_FAILURE);
         }
-        tdbr = PrefilteringIndexReader::openNewReader(tdbr);
-        PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
-        kmerSize = data.kmerSize;
-        alphabetSize = data.alphabetSize;
-        split = data.split;
-        spacedKmer = data.spacedKmer == 1;
-        scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
+    } else {
+        Debug(Debug::INFO) << "Could not find precomputed index. Compute index.\n";
+        tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
+        tdbr->open(DBReader<unsigned int>::NOSORT);
     }
 
-    if (templateDBIsIndex == false) {
-        tdbr->close();
-        delete tdbr;
-        tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
-        tdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    if (par.noPreload == false) {
+        tdbr->readMmapedDataInMemory();
+        tdbr->mlock();
     }
 
     Debug(Debug::INFO) << "Target database: " << targetDB << "(size=" << tdbr->getSize() << ")\n";
@@ -175,8 +173,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
     Debug(Debug::INFO) << "Use kmer size " << *kmerSize << " and split "
                        << *split << " using split mode " << *splitMode << "\n";
     neededSize = estimateMemoryConsumption((*splitMode == Parameters::TARGET_DB_SPLIT) ? *split : 1, dbr.getSize(),
-                                           dbr.getAminoAcidDBSize(), alphabetSize, *kmerSize,
-                                           threads);
+                                           dbr.getAminoAcidDBSize(), alphabetSize, *kmerSize, threads);
     Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte
                        << " byte)\n";
     if (neededSize > 0.9 * totalMemoryInByte) {
@@ -215,7 +212,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         error += remove(file1.first.c_str()); error += remove(file1.second.c_str());
         error += remove(file2.first.c_str()); error += remove(file2.second.c_str());
         if(error != 0){
-            Debug(Debug::ERROR) << "Error while deleting files in mergeOutput \n";
+            Debug(Debug::ERROR) << "Error while deleting files in mergeOutput!\n";
             EXIT(EXIT_FAILURE);
         }
         writer.close();
@@ -233,8 +230,8 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
     std::rename(out.second.c_str(), outDBIndex.c_str());
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for merging results: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "
-                       << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "\nTime for merging results: " << (sec / 3600) << " h "
+                       << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 }
 
 QueryMatcher **Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, Sequence** qseq,
@@ -338,7 +335,6 @@ void Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
         std::rename(splitFiles[0].second.c_str(), resultDBIndex.c_str());
     }
 
-
     if (sameQTDB == false) {
         qdbr->close();
         delete qdbr;
@@ -359,8 +355,8 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa, querySeqType, kmerSize, spacedKmer,
-                                        aaBiasCorrection);
+        qseq[thread_idx] = new Sequence(maxSeqLen, subMat->aa2int, subMat->int2aa,
+                                        querySeqType, kmerSize, spacedKmer, aaBiasCorrection);
         reslens[thread_idx] = new std::list<int>();
     }
 
