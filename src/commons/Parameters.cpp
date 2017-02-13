@@ -446,8 +446,8 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
 
     // linclust workflow
     linclustworkflow = combineList(clust, align);
-    linclustworkflow = combineList(clusteringWorkflow, kmermatcher);
-    linclustworkflow = combineList(clusteringWorkflow, rescorediagonal);
+    linclustworkflow = combineList(linclustworkflow, kmermatcher);
+    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
     linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
     linclustworkflow.push_back(PARAM_RUNNER);
 
