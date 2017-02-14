@@ -34,12 +34,12 @@ int prefilter(int argc, const char **argv, const Command& command) {
     std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(par.db3, par.db3Index, MMseqsMPI::rank);
 
     //TODO check again :(
-    if(pref.getSplit() > MMseqsMPI::numProc){
+    if(pref.split > MMseqsMPI::numProc){
         // if split size is great than nodes than we have to
         // distribute all splits equally over all nodes
         unsigned int * splitCntPerProc = new unsigned int[MMseqsMPI::numProc];
         memset(splitCntPerProc, 0, sizeof(unsigned int) * MMseqsMPI::numProc);
-        for(int i = 0; i < pref.getSplit(); i++){
+        for(int i = 0; i < pref.split; i++){
             splitCntPerProc[i % MMseqsMPI::numProc] += 1;
         }
         int fromSplit = 0;
