@@ -302,11 +302,17 @@ int ffindexFilter::runFilter(){
 				}
 
 				if(!(nomatch)){
-					if (trimToOneColumn)
-						buffer.append(columnValue);
-					else
+                    if (trimToOneColumn)
+                    {
+                        columnValue[Util::getLastNonWhitespace(columnValue,colStrLen)] = '\0'; // remove the whitespaces at the end
+                        buffer.append(columnValue);
+                    }
+                    else
+                    {
 						buffer.append(lineBuffer);
-                  if (buffer.back() != '\n')
+                    }
+                    
+                    if (buffer.back() != '\n')
                         buffer.append("\n");
 				}
 				data = Util::skipLine(data);
