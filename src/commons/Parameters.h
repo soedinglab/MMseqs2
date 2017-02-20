@@ -215,8 +215,10 @@ public:
     float pca;
     float pcb;
     bool noPruning;
-    bool firstSeqRepr;
     bool useConsensus;
+    
+    // createtsv
+    bool firstSeqRepr;
     
     //result2stats
     std::string stat;
@@ -392,6 +394,9 @@ public:
     //PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
 //    PARAMETER(PARAM_NO_PRUNING)
 
+    // createtsv
+    PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
+    
     // result2stat
     PARAMETER(PARAM_STAT)
 
@@ -484,6 +489,7 @@ public:
     std::vector<MMseqsParameter> convertprofiledb;
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2msa;
+    std::vector<MMseqsParameter> createtsv;
     std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorfs;
     std::vector<MMseqsParameter> splitdb;

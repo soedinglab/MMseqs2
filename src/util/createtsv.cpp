@@ -41,7 +41,7 @@ int createtsv (int argc, const char **argv, const Command& command) {
         std::string queryHeader = Util::parseFastaHeader(header_data);
         // write data
         char * data = dbr_data.getData(i);
-
+        size_t entryIdx = 0;
         while(*data != '\0') {
             Util::parseKey(data, dbKey);
             size_t keyLen = strlen(dbKey);
@@ -49,6 +49,10 @@ int createtsv (int argc, const char **argv, const Command& command) {
             char * header_data = targetdb_header->getDataByDBKey(key);
             std::string parsedDbkey = Util::parseFastaHeader(header_data);
             char * nextLine = Util::skipLine(data);
+            
+            if (par.firstSeqRepr && !entryIdx)
+                queryHeader = parsedDbkey;
+                
             // write to file
             fwrite(queryHeader.c_str(), sizeof(char), queryHeader.length(), tsvFP);
             fwrite("\t", sizeof(char), 1, tsvFP);
@@ -58,6 +62,7 @@ int createtsv (int argc, const char **argv, const Command& command) {
             fwrite("\n", sizeof(char), 1, tsvFP);
 
             data = nextLine;
+            entryIdx++;
         }
         //fwrite(newline, sizeof(char), 1, tsvFP);
     }

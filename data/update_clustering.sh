@@ -65,7 +65,7 @@ echo "==================================================="
 echo "=  Merge found sequences with previous clustering ="
 echo "==================================================="
 if [ -f $TMP/newSeqsHits.swapped ]; then
-    notExists "$TMP/updatedClust" && $MMSEQS mergedbs $TMP/OLDCLUST.mapped  $TMP/updatedClust $TMP/newSeqsHits.swapped $TMP/OLDCLUST.mapped && checkReturnCode "Mergeffindex died"
+    notExists "$TMP/updatedClust" && $MMSEQS mergedbs $TMP/OLDCLUST.mapped  $TMP/updatedClust $TMP/OLDCLUST.mapped $TMP/newSeqsHits.swapped && checkReturnCode "Mergeffindex died"
 else
     notExists "$TMP/updatedClust" && mv $TMP/OLDCLUST.mapped $TMP/updatedClust  && checkReturnCode "Mv Oldclust to update died"
     notExists "$TMP/updatedClust.index" && mv $TMP/OLDCLUST.mapped.index $TMP/updatedClust.index  && checkReturnCode "Mv Oldclust to update died"

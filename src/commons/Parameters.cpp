@@ -83,7 +83,8 @@ Parameters::Parameters():
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (0.0,infinity)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
-//PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_PROFILE),
+//createtesv
+        PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
 // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen.", typeid(std::string), (void*) &stat, ""),
 // linearcluster
@@ -233,8 +234,10 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_PCB);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
-    //result2profile.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
+    // createtsv
+    createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);;
+    
     //result2stats
     result2stats.push_back(PARAM_STAT);
 
@@ -970,6 +973,10 @@ void Parameters::setDefaults() {
 
     // linearcluster
     kmersPerSequence = 20;
+
+    // createtsv
+    firstSeqRepr = false;
+
 
     // count
     countCharacter = "\n";
