@@ -319,6 +319,7 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_START_SENS);
     searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
     searchworkflow.push_back(PARAM_RUNNER);
+    searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
 
     clusteringWorkflow = combineList(prefilter, align);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
