@@ -976,17 +976,11 @@ void Parameters::setDefaults() {
     // linearcluster
     kmersPerSequence = 20;
 
-<<<<<<< HEAD
     // result2stats
     stat = "";
-=======
+
     // createtsv
     firstSeqRepr = false;
-
-
-    // count
-    countCharacter = "\n";
->>>>>>> github
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,
