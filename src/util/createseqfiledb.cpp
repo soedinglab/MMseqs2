@@ -65,7 +65,7 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
             char* rest;
             unsigned int entryId = strtoul(entry.c_str(), &rest, 10);
             if ((rest != entry.c_str() && *rest != '\0') || errno == ERANGE) {
-                Debug(Debug::WARNING) << "Invalid entry in line " << entries_num << "!\n";
+                Debug(Debug::WARNING) << "Invalid entry in cluster "<< clusters.getDbKey(i) <<", line " << entries_num << "!\n";
                 continue;
             }
 

@@ -21,6 +21,7 @@ struct MMseqsParameter {
     void * value;
     const char * regex;
     bool wasSet;
+    bool automaticSet;
     int category;
 
     static const int COMMAND_PREFILTER = 1;
@@ -33,8 +34,8 @@ struct MMseqsParameter {
 
     MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash,
-                    void * value, const char * regex, int category = COMMAND_MISC):
-                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false), category(category){}
+                    void * value, const char * regex, int category = COMMAND_MISC, bool automaticSet = true):
+                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false), category(category), automaticSet(automaticSet){}
 };
 
 
@@ -215,8 +216,10 @@ public:
     float pca;
     float pcb;
     bool noPruning;
-    bool firstSeqRepr;
     bool useConsensus;
+    
+    // createtsv
+    bool firstSeqRepr;
     
     //result2stats
     std::string stat;
@@ -389,7 +392,10 @@ public:
     //PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
 //    PARAMETER(PARAM_NO_PRUNING)
 
-    // result2stats
+    // createtsv
+    PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
+    
+    // result2stat
     PARAMETER(PARAM_STAT)
 
     // linearcluster
@@ -483,6 +489,7 @@ public:
     std::vector<MMseqsParameter> convertprofiledb;
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2msa;
+    std::vector<MMseqsParameter> createtsv;
     std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorfs;
     std::vector<MMseqsParameter> splitdb;
