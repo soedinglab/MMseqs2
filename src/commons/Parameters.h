@@ -35,7 +35,8 @@ struct MMseqsParameter {
     MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash,
                     void * value, const char * regex, int category = COMMAND_MISC, bool automaticSet = true):
-                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false), category(category), automaticSet(automaticSet){}
+                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex),
+                    wasSet(false), automaticSet(automaticSet), category(category) {}
 };
 
 
