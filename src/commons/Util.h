@@ -112,7 +112,10 @@ public:
     // by a non Whitespace character
     static inline size_t getLastNonWhitespace(char * data, size_t len){
         size_t counter = len;
-
+        
+        if (!counter)
+            return 0;
+            
         if (counter && data[counter] == '\0')
             counter--;
 

@@ -200,7 +200,9 @@ int ffindexFilter::runFilter(){
 					columnValue[entrySize] = '\0';
 					colStrLen = entrySize;
 				}
-
+                
+				columnValue[Util::getLastNonWhitespace(columnValue,colStrLen)] = '\0'; // remove the whitespaces at the end
+                
 				int nomatch;
 				if(mode == GET_FIRST_LINES){
 					nomatch = 0; // output the line
@@ -224,7 +226,6 @@ int ffindexFilter::runFilter(){
 				}
 				else // i.e. (mode == FILE_FILTERING || mode == FILE_MAPPING)
 				{
-					columnValue[Util::getLastNonWhitespace(columnValue,colStrLen)] = '\0'; // remove the whitespaces at the end
 					std::string toSearch(columnValue);
 
 					if (mode == FILE_FILTERING)
@@ -304,7 +305,6 @@ int ffindexFilter::runFilter(){
 				if(!(nomatch)){
                     if (trimToOneColumn)
                     {
-                        columnValue[Util::getLastNonWhitespace(columnValue,colStrLen)] = '\0'; // remove the whitespaces at the end
                         buffer.append(columnValue);
                     }
                     else
