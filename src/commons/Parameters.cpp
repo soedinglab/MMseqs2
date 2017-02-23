@@ -44,7 +44,7 @@ Parameters::Parameters():
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) query and target residues",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
-        PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN,false),
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MAX_ACCEPT(PARAM_MAX_ACCEPT_ID,"--max-accept", "Max Accept", "maximum accepted alignments before alignment calculation for a query is stopped",typeid(int),(void *) &maxAccept, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
@@ -83,7 +83,8 @@ Parameters::Parameters():
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (0.0,infinity)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
-//PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_PROFILE),
+//createtesv
+        PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
 // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen.", typeid(std::string), (void*) &stat, ""),
 // linearcluster
@@ -233,8 +234,10 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_PCB);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
-    //result2profile.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
+    // createtsv
+    createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);;
+    
     //result2stats
     result2stats.push_back(PARAM_STAT);
 
@@ -316,6 +319,7 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_START_SENS);
     searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
     searchworkflow.push_back(PARAM_RUNNER);
+    searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
 
     clusteringWorkflow = combineList(prefilter, align);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
@@ -971,6 +975,10 @@ void Parameters::setDefaults() {
     // linearcluster
     kmersPerSequence = 20;
 
+    // createtsv
+    firstSeqRepr = false;
+
+
     // count
     countCharacter = "\n";
 }
@@ -1000,26 +1008,28 @@ std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter
 std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par) {
     std::stringstream ss;
     for (size_t i = 0; i < par.size(); i++) {
-        if(typeid(int) == par[i].type ){
-            ss << par[i].name << " ";
-            ss << *((int *)par[i].value) << " ";
-        } else if(typeid(float) == par[i].type ){
-            ss << par[i].name << " ";
-            ss << *((float *)par[i].value) << " ";
-        }else if(typeid(std::string) == par[i].type ){
-            if (*((std::string *) par[i].value)  != "")
-            {
+        if (par[i].automaticSet || par[i].wasSet) {
+            if(typeid(int) == par[i].type ){
                 ss << par[i].name << " ";
-                ss << *((std::string *) par[i].value) << " ";
-            }
-        }else if (typeid(bool) == par[i].type){
-            bool val = *((bool *)(par[i].value));
-            if(val == true){
+                ss << *((int *)par[i].value) << " ";
+            } else if(typeid(float) == par[i].type ){
                 ss << par[i].name << " ";
+                ss << *((float *)par[i].value) << " ";
+            }else if(typeid(std::string) == par[i].type ){
+                if (*((std::string *) par[i].value)  != "")
+                {
+                    ss << par[i].name << " ";
+                    ss << *((std::string *) par[i].value) << " ";
+                }
+            }else if (typeid(bool) == par[i].type){
+                bool val = *((bool *)(par[i].value));
+                if(val == true){
+                    ss << par[i].name << " ";
+                }
+            } else {
+                Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers\n";
+                EXIT(EXIT_FAILURE);
             }
-        } else {
-            Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers\n";
-            EXIT(EXIT_FAILURE);
         }
     }
     return ss.str();

@@ -37,7 +37,7 @@ static struct Command commands[] = {
             "<i:sequenceDB> <o:indexDB> <tmpDir>",
             CITATION_MMSEQS2},
 // Utility tools for format conversions
-        {"createtsv",            createtsv,            &par.onlyverbosity,        COMMAND_FORMAT_CONVERSION,
+        {"createtsv",            createtsv,            &par.createtsv,        COMMAND_FORMAT_CONVERSION,
             "Create tab-separated flat file from prefilter DB, alignment DB, or cluster DB",
             NULL,
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>r",

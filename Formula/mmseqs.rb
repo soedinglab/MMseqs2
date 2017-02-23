@@ -18,7 +18,6 @@ class Mmseqs < Formula
     system "make"
 
     bin.install "src/mmseqs"
-    doc.install "userguide.pdf"
     bash_completion.install "util/bash-completion.sh" => "mmseqs.sh"
   end
 
