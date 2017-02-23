@@ -93,28 +93,23 @@ if [ -n "${RECOVER_DELETED}" ] && [ -s "$TMP/removedSeqs" ]; then
     echo "============ Recover removed sequences ============"
     echo "==================================================="
 
-    if notExists "$TMP/OLDDB.removedSeqs"; then
-        $MMSEQS createsubdb "$TMP/removedSeqs" "$OLDDB" "$TMP/OLDDB.removedSeqs" \
-            || fail "createsubdb died"
-    fi
-
-    if notExists "$TMP/OLDCLUST.removedMapping"; then
+    if notExists "$TMP/OLDDB.removedMapping"; then
         (
             HIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"
             awk -v highest="$HIGHESTID" \
                 'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
-                "$TMP/removedSeqs" > "$TMP/OLDCLUST.removedMapping"
-            cat "$TMP/OLDCLUST.removedMapping" >> "$TMP/mappingSeqs"
-        ) || fail "Could not create $TMP/OLDCLUST.removedMapping"
+                "$TMP/removedSeqs" > "$TMP/OLDDB.removedMapping"
+            cat "$TMP/OLDDB.removedMapping" >> "$TMP/mappingSeqs"
+        ) || fail "Could not create $TMP/OLDDB.removedMapping"
     fi
 
     if notExists "$TMP/NEWDB.withOld"; then
         (
-            joinAndReplace "${OLDDB}.index" "$TMP/OLDDB.removedDb.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"
-            joinAndReplace "${OLDDB}_h.index" "$TMP/OLDDB.removedDb_h.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"
-            joinAndReplace "${OLDDB}.lookup" "$TMP/OLDDB.removedDb.lookup" "$TMP/OLDCLUST.removedMapping" "1.2 2.2"
             ln -sf "${OLDDB}" "${TMP}/OLDDB.removedDb"
             ln -sf "${OLDDB}_h" "${TMP}/OLDDB.removedDb_h"
+            joinAndReplace "${OLDDB}.index" "$TMP/OLDDB.removedDb.index" "$TMP/OLDDB.removedMapping" "1.2 2.2 2.3"
+            joinAndReplace "${OLDDB}_h.index" "$TMP/OLDDB.removedDb_h.index" "$TMP/OLDDB.removedMapping" "1.2 2.2 2.3"
+            joinAndReplace "${OLDDB}.lookup" "$TMP/OLDDB.removedDb.lookup" "$TMP/OLDDB.removedMapping" "1.2 2.2"
             $MMSEQS concatdbs "$NEWDB" "$TMP/OLDDB.removedDb" "$TMP/NEWDB.withOld" --preserve-keys
             $MMSEQS concatdbs "${NEWDB}_h" "$TMP/OLDDB.removedDb_h" "$TMP/NEWDB.withOld_h" --preserve-keys
             cat "${NEWDB}.lookup" "$TMP/OLDDB.removedDb.lookup" > "$TMP/NEWDB.withOld.lookup"
@@ -125,7 +120,7 @@ if [ -n "${RECOVER_DELETED}" ] && [ -s "$TMP/removedSeqs" ]; then
 
     if [ -n "$REMOVE_TMP" ]; then
         echo "Remove temporary files 1/3"
-        rm -f "$TMP/OLDCLUST.removedMapping" "$TMP/OLDDB.removed"{Db,Db.index,Db_h,Db_h.index,Db.lookup,Seqs,Seqs.index}
+        rm -f "$TMP/OLDDB.removedMapping" "$TMP/OLDDB.removed"{Db,Db.index,Db_h,Db_h.index,Db.lookup}
     fi
 fi
 
