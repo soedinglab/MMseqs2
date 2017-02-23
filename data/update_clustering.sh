@@ -110,11 +110,11 @@ if [ -n "${RECOVER_DELETED}" ] && [ -s "$TMP/removedSeqs" ]; then
 
     if notExists "$TMP/NEWDB.withOld"; then
         (
-            ln -sf "$OLDDB" "$TMP/OLDDB.removedDb"
-            ln -sf "$OLDDB" "$TMP/OLDDB.removedDb_h"
             joinAndReplace "${OLDDB}.index" "$TMP/OLDDB.removedDb.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"
             joinAndReplace "${OLDDB}_h.index" "$TMP/OLDDB.removedDb_h.index" "$TMP/OLDCLUST.removedMapping" "1.2 2.2 2.3"
             joinAndReplace "${OLDDB}.lookup" "$TMP/OLDDB.removedDb.lookup" "$TMP/OLDCLUST.removedMapping" "1.2 2.2"
+            ln -sf "${OLDDB}" "${TMP}/OLDDB.removedDb"
+            ln -sf "${OLDDB}_h" "${TMP}/OLDDB.removedDb_h"
             $MMSEQS concatdbs "$NEWDB" "$TMP/OLDDB.removedDb" "$TMP/NEWDB.withOld" --preserve-keys
             $MMSEQS concatdbs "${NEWDB}_h" "$TMP/OLDDB.removedDb_h" "$TMP/NEWDB.withOld_h" --preserve-keys
             cat "${NEWDB}.lookup" "$TMP/OLDDB.removedDb.lookup" > "$TMP/NEWDB.withOld.lookup"
