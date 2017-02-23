@@ -184,38 +184,44 @@ template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::findDupl
                 const unsigned int element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
                 duplicateBitArray[element] += (duplicateBitArray[element] < 255) ? 1 : 0;
             }
-            // update score
+            // extract results
             for (size_t n = 0; n < elementCount; n++) {
-                const unsigned int element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
-                tmpElementBuffer[n].score = duplicateBitArray[element];
+                const unsigned int element = tmpElementBuffer[n].id;
+                const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
+                output[doubleElementCount].id    = element;
+                output[doubleElementCount].count = duplicateBitArray[hashBinElement];
+                // memory overflow can not happen since input array = output array
+                doubleElementCount += (duplicateBitArray[hashBinElement] != 0) ? 1 : 0;
+                duplicateBitArray[hashBinElement] = 0;
             }
-        }
-        // set duplicate bit array to first diagonal + 1
-        // so (duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal) is true
-        size_t n = elementCount - 1;
-        while ( n != static_cast<size_t>(-1) )
-        {
-            const unsigned int element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
-            duplicateBitArray[element] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal) + 1;
-            --n;
-        }
+        }else{
+            // set duplicate bit array to first diagonal + 1
+            // so (duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal) is true
+            size_t n = elementCount - 1;
+            while ( n != static_cast<size_t>(-1) )
+            {
+                const unsigned int element = tmpElementBuffer[n].id >> (MASK_0_5_BIT);
+                duplicateBitArray[element] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal) + 1;
+                --n;
+            }
 
-        // extract results
-        for (size_t n = 0; n < elementCount; n++) {
-            const unsigned int element = tmpElementBuffer[n].id;
-            const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
-            output[doubleElementCount].id    = element;
-            output[doubleElementCount].count = tmpElementBuffer[n].score;
-            output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
-//            const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
-            // memory overflow can not happen since input array = output array
-//            if(duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal){
-//                std::cout << "seq="<< output[doubleElementCount].id << "\tDiag=" << (int) output[doubleElementCount].diagonal
-//                <<  " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int)tmpElementBuffer[n].diagonal << std::endl;
-//            }
-            doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
+            // extract results
+            for (size_t n = 0; n < elementCount; n++) {
+                const unsigned int element = tmpElementBuffer[n].id;
+                const unsigned int hashBinElement = element >> (MASK_0_5_BIT);
+                output[doubleElementCount].id    = element;
+                output[doubleElementCount].count = tmpElementBuffer[n].score;
+                output[doubleElementCount].diagonal = tmpElementBuffer[n].diagonal;
+    //            const unsigned char diagonal = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
+                // memory overflow can not happen since input array = output array
+    //            if(duplicateBitArray[hashBinElement] != tmpElementBuffer[n].diagonal){
+    //                std::cout << "seq="<< output[doubleElementCount].id << "\tDiag=" << (int) output[doubleElementCount].diagonal
+    //                <<  " dup.Array=" << (int)duplicateBitArray[hashBinElement] << " tmp.Arr="<< (int)tmpElementBuffer[n].diagonal << std::endl;
+    //            }
+                doubleElementCount += (duplicateBitArray[hashBinElement] != static_cast<unsigned char>(tmpElementBuffer[n].diagonal)) ? 1 : 0;
 
-            duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
+                duplicateBitArray[hashBinElement] = static_cast<unsigned char>(tmpElementBuffer[n].diagonal);
+            }
         }
         // clean memory faster if current bin size is smaller duplicateBitArraySize
         if(currBinSize < duplicateBitArraySize/16){

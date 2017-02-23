@@ -292,6 +292,13 @@ int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap,uns
         while (end < size && resMap->at(orgEnd).first.first == resMap->at(end).first.first)
             end++;
 
+        // When db is too small, only the first thread will deal with the swap
+        if (size < num_threads)
+            if (thread_num == 0)
+                end=size;
+            else
+                start=end;
+
         if (end-start)
         {
             //std::string result;
