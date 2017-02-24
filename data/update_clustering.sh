@@ -202,9 +202,11 @@ if notExists "$TMP/newSeqsHits.swapped.all"; then
         || fail "Swapresults died"
 fi
 
-if notExists "$TMP/newSeqsHits.swapped"; then
-    $MMSEQS filterdb "$TMP/newSeqsHits.swapped.all" "$TMP/newSeqsHits.swapped" --trim-to-one-column \
-        || fail "Trimming died"
+if [ -s "$TMP/newSeqsHits.swapped.all.index" ]; then
+    if notExists "$TMP/newSeqsHits.swapped"; then
+        $MMSEQS filterdb "$TMP/newSeqsHits.swapped.all" "$TMP/newSeqsHits.swapped" --trim-to-one-column \
+            || fail "Trimming died"
+    fi
 fi
 
 debugWait
