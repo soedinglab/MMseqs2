@@ -40,15 +40,12 @@ int createdb(int argn, const char **argv, const Command& command) {
     std::string index_filename_hdr(data_filename);
     index_filename_hdr.append("_h.index");
 
-    std::ofstream lookupStream;
-    if(!par.useHeader) {
-        std::string lookupFile = par.db2;
-        lookupFile.append(".lookup");
-        lookupStream.open(lookupFile);
-        if(lookupStream.fail()) {
-            Debug(Debug::ERROR) << "Could not open " << lookupFile << " for writing.";
-            EXIT(EXIT_FAILURE);
-        }
+    std::string lookupFile = par.db2;
+    lookupFile.append(".lookup");
+    std::ofstream lookupStream(lookupFile);
+    if(lookupStream.fail()) {
+        Debug(Debug::ERROR) << "Could not open " << lookupFile << " for writing.";
+        EXIT(EXIT_FAILURE);
     }
 
     DBWriter out_writer(data_filename.c_str(), index_filename.c_str());
@@ -87,7 +84,7 @@ int createdb(int argn, const char **argv, const Command& command) {
         std::string headerId = Util::parseFastaHeader(header);
         if(headerId == "") {
             // An identifier is necessary for these two cases, so we should just give up
-            if(par.useHeader || doMapping) {
+            if(doMapping) {
                 Debug(Debug::ERROR) << "Could not extract identifier from entry " << entries_num << "!.\n";
                 return EXIT_FAILURE;
             } else {
@@ -109,15 +106,11 @@ int createdb(int argn, const char **argv, const Command& command) {
                     return EXIT_FAILURE;
                 }
                 id = SSTR(mapping[splitId]);
-            } else if(par.useHeader) {
-                id = splitId;
             } else {
                 id = SSTR(par.identifierOffset + entries_num);
             }
 
-            if(par.useHeader == false) {
-                lookupStream << id << "\t" << splitId << "\n";
-            }
+            lookupStream << id << "\t" << splitId << "\n";
 
             // For split entries replace the found identifier by identifier_splitNumber
             // Also add another hint that it was split to the end of the header
@@ -153,9 +146,7 @@ int createdb(int argn, const char **argv, const Command& command) {
     }
     kseq_destroy(seq);
 
-    if(par.useHeader == false) {
-        lookupStream.close();
-    }
+    lookupStream.close();
     fclose(fasta_file);
     out_hdr_writer.close();
     out_writer.close();

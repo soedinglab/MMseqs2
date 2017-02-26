@@ -104,30 +104,17 @@ int extractorfs(int argc, const char **argv, const Command& command) {
             // remove newline in header
             header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
 
-            std::string headerTemplate;
-            if (par.useHeader) {
-                headerTemplate.assign(Util::parseFastaHeader(header));
-                headerTemplate.append("_");
-            }
-
             std::vector<Orf::SequenceLocation> res;
             orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
             size_t orfNum = 0;
             for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
                 Orf::SequenceLocation loc = *it;
 
-                std::string id;
-                if (par.useHeader) {
-                    id = headerTemplate;
-                    id.append(SSTR(orfNum));
-                    orfNum++;
-                } else {
-                    #pragma omp critical
-                    {
-                        orfNum = total++;
-                    }
-                    id = SSTR(orfNum + par.identifierOffset);
+                #pragma omp critical
+                {
+                    orfNum = total++;
                 }
+                std::string id = SSTR(orfNum + par.identifierOffset);
 
                 if (id.length() >= 31) {
                     Debug(Debug::ERROR) << "Id: " << id << " is too long. Maximum of 32 characters are allowed.\n";

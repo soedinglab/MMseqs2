@@ -113,12 +113,7 @@ int maskbygff(int argc, const char **argv, const Command& command) {
     headerWriter.open();
 
     for(size_t i = 0; i < ffindexReader.getSize(); ++i ) {
-        std::string id;
-        if (par.useHeader) {
-            id = index[i].id;
-        } else {
-            id = SSTR(par.identifierOffset + i);
-        }
+        std::string id = SSTR(par.identifierOffset + i);
 
         // ignore nulls
         writer.writeData(data + index[i].offset, seqLengths[i] - 1, id.c_str());

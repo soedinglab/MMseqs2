@@ -111,12 +111,6 @@ int gff2db(int argc, const char **argv, const Command& command) {
             return EXIT_FAILURE;
         }
 
-        std::string id;
-        if (par.useHeader) {
-            id = Util::parseFastaHeader(header);
-        } else {
-            id = SSTR(par.identifierOffset + entries_num);
-        }
 
         // header
         char* buffer = new char[headerLength + 128];
@@ -125,6 +119,8 @@ int gff2db(int argc, const char **argv, const Command& command) {
         } else {
             snprintf(buffer, headerLength + 128, "%s %zu-%zu\n", header, start, end);
         }
+
+        std::string id = SSTR(par.identifierOffset + entries_num);
 
         // hack: header contains a new line, lets just overwrite the new line with a space
         buffer[headerLength - 2] = ' ';
