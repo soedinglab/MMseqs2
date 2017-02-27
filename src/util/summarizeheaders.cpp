@@ -75,7 +75,7 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
         oss << par.summaryPrefix << "-" << representative << "|" << summarizer->summarize(headers);
 
         std::string summary = oss.str();
-        writer.writeData(summary.c_str(), summary.length(), SSTR(id).c_str(), thread_idx);
+        writer.writeData(summary.c_str(), summary.length(), id, thread_idx);
     }
     writer.close();
     reader.close();

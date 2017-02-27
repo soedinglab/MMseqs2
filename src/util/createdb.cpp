@@ -39,15 +39,12 @@ int createdb(int argn, const char **argv, const Command& command) {
     std::string index_filename_hdr(data_filename);
     index_filename_hdr.append("_h.index");
 
-    std::ofstream lookupStream;
-    if(!par.useHeader) {
-        std::string lookupFile = par.db2;
-        lookupFile.append(".lookup");
-        lookupStream.open(lookupFile);
-        if(lookupStream.fail()) {
-            Debug(Debug::ERROR) << "Could not open " << lookupFile << " for writing.";
-            EXIT(EXIT_FAILURE);
-        }
+    std::string lookupFile = par.db2;
+    lookupFile.append(".lookup");
+    std::ofstream lookupStream(lookupFile);
+    if(lookupStream.fail()) {
+        Debug(Debug::ERROR) << "Could not open " << lookupFile << " for writing.";
+        EXIT(EXIT_FAILURE);
     }
 
     DBWriter out_writer(data_filename.c_str(), index_filename.c_str());
@@ -62,7 +59,7 @@ int createdb(int argn, const char **argv, const Command& command) {
         mapping = Util::readMapping(mapping_filename);
     }
 
-    size_t entries_num = 1;
+    unsigned int entries_num = 1;
     size_t count = 1;
 
     FILE *fasta_file = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
@@ -89,7 +86,7 @@ int createdb(int argn, const char **argv, const Command& command) {
         std::string headerId = Util::parseFastaHeader(header);
         if(headerId == "") {
             // An identifier is necessary for these two cases, so we should just give up
-            if(par.useHeader || doMapping) {
+            if(doMapping) {
                 Debug(Debug::ERROR) << "Could not extract identifier from entry " << entries_num << "!.\n";
                 return EXIT_FAILURE;
             } else {
@@ -104,22 +101,18 @@ int createdb(int argn, const char **argv, const Command& command) {
                 splitId.append(SSTR(split));
             }
 
-            std::string id;
+            unsigned int id;
             if (doMapping) {
                 if (mapping.find(splitId) == mapping.end()) {
                     Debug(Debug::ERROR) << "Could not find entry: " << splitId << " in mapping file.\n";
                     EXIT(EXIT_FAILURE);
                 }
-                id = SSTR(mapping[splitId]);
-            } else if(par.useHeader) {
-                id = splitId;
+                id = mapping[splitId];
             } else {
-                id = SSTR(par.identifierOffset + entries_num);
+                id = par.identifierOffset + entries_num;
             }
 
-            if(par.useHeader == false) {
-                lookupStream << id << "\t" << splitId << "\n";
-            }
+            lookupStream << id << "\t" << splitId << "\n";
 
             // For split entries replace the found identifier by identifier_splitNumber
             // Also add another hint that it was split to the end of the header
@@ -141,14 +134,14 @@ int createdb(int argn, const char **argv, const Command& command) {
             splitHeader.append("\n");
 
             // Finally write down the entry
-            out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id.c_str());
+            out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
 
             // sequence
             std::string sequence = seq->seq.s;
             size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
             std::string splitString(sequence.c_str() + split*par.maxSeqLen, len);
             splitString.append("\n");
-            out_writer.writeData(splitString.c_str(), splitString.length(), id.c_str());
+            out_writer.writeData(splitString.c_str(), splitString.length(), id);
 
             entries_num++;
             count++;
@@ -157,10 +150,8 @@ int createdb(int argn, const char **argv, const Command& command) {
 
     kseq_destroy(seq);
     fclose(fasta_file);
+    lookupStream.close();
 
-    if(par.useHeader == false) {
-        lookupStream.close();
-    }
     out_hdr_writer.close();
     out_writer.close();
 

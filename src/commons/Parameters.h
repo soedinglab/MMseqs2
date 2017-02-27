@@ -229,12 +229,14 @@ public:
     int kmersPerSequence;
 
     // createdb
-    bool useHeader;
     int identifierOffset;
     bool splitSeqByLen;
 
     // convert2fasta
     bool useHeaderFile;
+
+    // result2flat
+    bool useHeader;
 
     // gff2db
     std::string gffType;

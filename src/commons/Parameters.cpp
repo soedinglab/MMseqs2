@@ -919,11 +919,13 @@ void Parameters::setDefaults() {
     reverseFrames = "1,2,3";
 
     // createdb
-    useHeader = false;
     identifierOffset = 0;
 
     // convert2fasta
     useHeaderFile = false;
+
+    // result2flat
+    useHeader = false;
 
     // translate nucleotide
     translationTable = 0;

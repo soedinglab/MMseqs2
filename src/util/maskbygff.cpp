@@ -12,9 +12,9 @@ int maskbygff(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    DBReader<std::string> ffindexReader(par.db2.c_str(), par.db2Index.c_str(),
-                                        DBReader<std::string>::USE_DATA | DBReader<std::string>::USE_WRITABLE);
-    ffindexReader.open(DBReader<std::string>::NOSORT);
+    DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str(),
+                                 DBReader<std::string>::USE_DATA | DBReader<std::string>::USE_WRITABLE);
+    reader.open(DBReader<std::string>::NOSORT);
 
     bool shouldCompareType = par.gffType.length() > 0;
 
@@ -22,8 +22,8 @@ int maskbygff(int argc, const char **argv, const Command& command) {
 
     std::ifstream  gffFile(par.db1);
     std::string gffLine;
-    DBReader<std::string>::Index* index = ffindexReader.getIndex();
-    char * data = (char *)ffindexReader.getData();
+    DBReader<std::string>::Index* index = reader.getIndex();
+    char * data = (char *)reader.getData();
     while(std::getline(gffFile, gffLine)) {
         entries_num++;
 
@@ -70,7 +70,7 @@ int maskbygff(int argc, const char **argv, const Command& command) {
         start -= 1;
         end -= 1;
 
-        size_t id = ffindexReader.getId(name);
+        size_t id = reader.getId(name);
         if(id == UINT_MAX) {
             Debug(Debug::ERROR) << "GFF entry not found in fasta ffindex: " << name << "!\n";
             return EXIT_FAILURE;
@@ -85,7 +85,7 @@ int maskbygff(int argc, const char **argv, const Command& command) {
     }
     gffFile.close();
 
-    unsigned int* seqLengths = ffindexReader.getSeqLens();
+    unsigned int* seqLengths = reader.getSeqLens();
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str());
     writer.open();
@@ -112,17 +112,12 @@ int maskbygff(int argc, const char **argv, const Command& command) {
     DBWriter headerWriter(headerOutFilename.c_str(), headerIndexOutFilename.c_str());
     headerWriter.open();
 
-    for(size_t i = 0; i < ffindexReader.getSize(); ++i ) {
-        std::string id;
-        if (par.useHeader) {
-            id = index[i].id;
-        } else {
-            id = SSTR(par.identifierOffset + i);
-        }
+    for(size_t i = 0; i < reader.getSize(); ++i ) {
+        unsigned int id = par.identifierOffset + i;
 
         // ignore nulls
-        writer.writeData(data + index[i].offset, seqLengths[i] - 1, id.c_str());
-        headerWriter.writeData(headerData + headerIndex[i].offset, headerLengths[i] - 1, id.c_str());
+        writer.writeData(data + index[i].offset, seqLengths[i] - 1, id);
+        headerWriter.writeData(headerData + headerIndex[i].offset, headerLengths[i] - 1, id);
     }
     headerWriter.close();
     writer.close();

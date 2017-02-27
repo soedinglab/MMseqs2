@@ -536,10 +536,10 @@ void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *
 
         int len;
         if (diagonalScoring == true) {
-            len = snprintf(buffer, 100, "%s\t%.2e\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
+            len = snprintf(buffer, 100, "%u\t%.2e\t%d\n", tdbr->getDbKey(targetSeqId),
                            res->pScore, (short) res->diagonal);
         } else {
-            len = snprintf(buffer, 100, "%s\t%.4f\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
+            len = snprintf(buffer, 100, "%u\t%.4f\t%d\n", tdbr->getDbKey(targetSeqId),
                            res->pScore, res->prefScore);
         }
         // TODO: error handling for len
@@ -552,7 +552,7 @@ void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *
     // write prefiltering results string to ffindex database
     const size_t prefResultsLength = prefResultsOutString.length();
     char *prefResultsOutData = (char *) prefResultsOutString.c_str();
-    dbWriter->writeData(prefResultsOutData, prefResultsLength, SSTR(qdbr->getDbKey(id)).c_str(), thread_idx);
+    dbWriter->writeData(prefResultsOutData, prefResultsLength, qdbr->getDbKey(id), thread_idx);
 }
 
 void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **reslens, size_t empty) {

@@ -328,8 +328,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                 std::string swResultString = swResultsString.str();
                 const char *swResultsData = swResultString.c_str();
-                dbw.writeData(swResultsData, swResultString.length(), SSTR(qSeq.getDbKey()).c_str(),
-                              thread_idx);
+                dbw.writeData(swResultsData, swResultString.length(), qSeq.getDbKey(), thread_idx);
                 swResults.clear();
             }
             prefdbr->remapData();
