@@ -22,14 +22,15 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     while(std::getline(orderFile, line)) {
         const unsigned int key = (unsigned int) strtoul(line.c_str(), NULL, 10);
         size_t id = reader.getId(key);
-        if(id == UINT_MAX) {
+        if(id >= UINT_MAX) {
             Debug(Debug::WARNING) << "Key " << line << " not found in database\n";
             continue;
         }
+
         const char* data = reader.getData(id);
         // discard null byte
         size_t length = reader.getSeqLens(id) - 1;
-        writer.writeData(data, length, line.c_str());
+        writer.writeData(data, length, key);
     }
     orderFile.close();
     writer.close();

@@ -215,11 +215,9 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                             std::string alnString = Matcher::resultToString(result, false);
                             len = snprintf(buffer, 100, "%s", alnString.c_str());
                         } else   if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
-                            len = snprintf(buffer, 100, "%s\t%.3e\t%d\n", SSTR(results[entryIdx].seqId).c_str(),
-                                           seqId, diagonal);
+                            len = snprintf(buffer, 100, "%u\t%.3e\t%d\n", results[entryIdx].seqId, seqId, diagonal);
                         } else {
-                            len = snprintf(buffer, 100, "%s\t%.2f\t%d\n", SSTR(results[entryIdx].seqId).c_str(),
-                                           seqId, diagonal);
+                            len = snprintf(buffer, 100, "%u\t%.2f\t%d\n", results[entryIdx].seqId, seqId, diagonal);
                         }
                         prefResultsOutString.append(buffer, len);
                     }
@@ -227,8 +225,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                 // write prefiltering results string to ffindex database
                 const size_t prefResultsLength = prefResultsOutString.length();
                 char *prefResultsOutData = (char *) prefResultsOutString.c_str();
-                resultWriter.writeData(prefResultsOutData, prefResultsLength, SSTR(qdbr->getDbKey(queryId)).c_str(),
-                                       thread_idx);
+                resultWriter.writeData(prefResultsOutData, prefResultsLength, qdbr->getDbKey(queryId), thread_idx);
             }
         }
         dbr_res.remapData();

@@ -60,7 +60,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         translateNucl.translate(aa, data, length);
         aa[length/3] = '\n';
 //        std::cout << aa << std::endl;
-        writer.writeData(aa, (length / 3) + 1, (char *) SSTR(key).c_str());
+        writer.writeData(aa, (length / 3) + 1, key);
     }
     delete[] aa;
 

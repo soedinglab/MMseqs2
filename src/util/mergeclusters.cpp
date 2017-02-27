@@ -113,7 +113,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
             outBuffer = new char[BUFFER_SIZE];
         }
         memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->writeData(outBuffer, cluResultsOutString.length(), SSTR(dbKey).c_str());
+        dbw->writeData(outBuffer, cluResultsOutString.length(), dbKey);
     }
     dbw->close();
     delete dbw;

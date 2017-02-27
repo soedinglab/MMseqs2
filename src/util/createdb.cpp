@@ -60,7 +60,7 @@ int createdb(int argn, const char **argv, const Command& command) {
         mapping = Util::readMapping(mapping_filename);
     }
 
-    size_t entries_num = 1;
+    unsigned int entries_num = 1;
 
     kseq_t *seq = kseq_init(fileno(fasta_file));
     while (kseq_read(seq) >= 0) {
@@ -99,15 +99,15 @@ int createdb(int argn, const char **argv, const Command& command) {
                 splitId.append(SSTR(split));
             }
 
-            std::string id;
+            unsigned int id;
             if (doMapping) {
                 if (mapping.find(splitId) == mapping.end()) {
                     Debug(Debug::ERROR) << "Could not find entry: " << splitId << " in mapping file.\n";
                     return EXIT_FAILURE;
                 }
-                id = SSTR(mapping[splitId]);
+                id = mapping[splitId];
             } else {
-                id = SSTR(par.identifierOffset + entries_num);
+                id = par.identifierOffset + entries_num;
             }
 
             lookupStream << id << "\t" << splitId << "\n";
@@ -132,14 +132,14 @@ int createdb(int argn, const char **argv, const Command& command) {
             splitHeader.append("\n");
 
             // Finally write down the entry
-            out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id.c_str());
+            out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
 
             // sequence
             std::string sequence = seq->seq.s;
             size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
             std::string splitString(sequence.c_str() + split*par.maxSeqLen, len);
             splitString.append("\n");
-            out_writer.writeData(splitString.c_str(), splitString.length(), id.c_str());
+            out_writer.writeData(splitString.c_str(), splitString.length(), id);
 
             entries_num++;
         }

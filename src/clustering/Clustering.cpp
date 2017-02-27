@@ -107,7 +107,7 @@ void Clustering::writeData(DBWriter *dbw, const std::map<unsigned int, std::vect
         }
         unsigned int dbKey = seqDbr->getDbKey((*iterator).first);
         std::string cluResultsOutString = res.str();
-        dbw->writeData(cluResultsOutString.c_str(), cluResultsOutString.length(), SSTR(dbKey).c_str());
+        dbw->writeData(cluResultsOutString.c_str(), cluResultsOutString.length(), dbKey);
     }
 }
 

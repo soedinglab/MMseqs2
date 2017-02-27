@@ -172,7 +172,7 @@ int doAnnotate(Parameters &par, DBReader<unsigned int> &blastTabReader,
         }
 
         std::string annotation = oss.str();
-        writer.writeData(annotation.c_str(), annotation.length(), SSTR(id).c_str(), thread_idx);
+        writer.writeData(annotation.c_str(), annotation.length(), id, thread_idx);
     }
 
     writer.close();

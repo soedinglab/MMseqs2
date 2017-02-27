@@ -53,7 +53,7 @@ void parsePSSM(char *data, std::string * sequence, char *profileBuffer, size_t *
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
-void parseHMMer(char *data, std::string *sequence, std::string *header, char *profileBuffer, size_t *size, const char *id, BaseMatrix *subMat) {
+void parseHMMer(char *data, std::string *sequence, std::string *header, char *profileBuffer, size_t *size, unsigned int id, BaseMatrix *subMat) {
     size_t l = 0;
     // find name tag
     while (data[0] != 'N' || data[1] != 'A' || data[2] != 'M' || data[3] != 'E') {
@@ -153,7 +153,7 @@ void parseHMMer(char *data, std::string *sequence, std::string *header, char *pr
 
 
 
-void parseHMM(char *data, std::string *sequence, std::string *header, char *profileBuffer, size_t *size, const char *id, BaseMatrix *subMat) {
+void parseHMM(char *data, std::string *sequence, std::string *header, char *profileBuffer, size_t *size, unsigned int id, BaseMatrix *subMat) {
     size_t l = 0;
     // find name tag
     while (data[0] != 'N' || data[1] != 'A' || data[2] != 'M' || data[3] != 'E') {
@@ -294,20 +294,19 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     char *profileBuffer = new char[maxElementSize * Sequence::PROFILE_AA_SIZE];
     for (size_t i = 0; i < dataIn.getSize(); i++) {
         char *data = dataIn.getData(i);
-        std::string idStr = SSTR(i);
         size_t elementSize = 0;
         if (par.profileMode == Parameters::PROFILE_MODE_HMM) {
-            parseHMM(data, &sequence, &header, profileBuffer, &elementSize, idStr.c_str(), &subMat);
+            parseHMM(data, &sequence, &header, profileBuffer, &elementSize, i, &subMat);
         } else if (par.profileMode == Parameters::PROFILE_MODE_HMM3) {
-            parseHMMer(data, &sequence, &header, profileBuffer, &elementSize, idStr.c_str(), &subMat);
+            parseHMMer(data, &sequence, &header, profileBuffer, &elementSize, i, &subMat);
         } else if (par.profileMode == Parameters::PROFILE_MODE_PSSM) {
             parsePSSM(data, &sequence, profileBuffer, &elementSize, &subMat);
             header.append(dataIn.getDbKey(i));
             header.append(" \n");
         }
-        seqOut.writeData(sequence.c_str(), sequence.size(), (char *) idStr.c_str());
-        dataOut.writeData(profileBuffer, elementSize, (char *) idStr.c_str());
-        headerOut.writeData((char *) header.c_str(), header.length(), (char *) idStr.c_str());
+        seqOut.writeData(sequence.c_str(), sequence.size(), i);
+        dataOut.writeData(profileBuffer, elementSize, i);
+        headerOut.writeData((char *) header.c_str(), header.length(), i);
         sequence.clear();
         header.clear();
     }

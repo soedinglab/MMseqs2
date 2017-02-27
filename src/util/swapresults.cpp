@@ -105,7 +105,7 @@ int doSwap(Parameters &par,
         }
             
 
-        splitWriter.writeData(result.c_str(), result.size(), SSTR(id).c_str(), thread_idx);
+        splitWriter.writeData(result.c_str(), result.size(), id, thread_idx);
 
         delete swaps[i].second;
     }
@@ -318,7 +318,7 @@ int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap,uns
                         result.append(curRes[j].second);
                     }
                         
-                    resultWriter.writeData(result.c_str(), result.size(), SSTR(lastKey).c_str(), thread_num);
+                    resultWriter.writeData(result.c_str(), result.size(), lastKey, thread_num);
                     
                     curRes.clear();
                 }
@@ -330,7 +330,7 @@ int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap,uns
             for (size_t j = 0;j < curRes.size(); j++)
                 result.append(curRes[j].second);
                 
-            resultWriter.writeData(result.c_str(), result.size(), SSTR(lastKey).c_str(), thread_num);
+            resultWriter.writeData(result.c_str(), result.size(), lastKey, thread_num);
         }
     }    
     resultWriter.close();

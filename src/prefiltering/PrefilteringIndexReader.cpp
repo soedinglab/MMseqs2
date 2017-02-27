@@ -65,16 +65,14 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
                                    maskResidues, 0, threads);
 
         // save the entries
-        std::string entries_key = SSTR(MathUtil::concatenate(ENTRIES, step));
+        unsigned int entries_key = MathUtil::concatenate(ENTRIES, step);
         Debug(Debug::WARNING) << "Write " << entries_key << "\n";
         char *entries = (char *) indexTable->getEntries();
-        writer.writeData(entries,
-                         indexTable->getTableEntriesNum() * indexTable->getSizeOfEntry(),
-                         (char *) entries_key.c_str(), 0);
+        writer.writeData(entries, indexTable->getTableEntriesNum() * indexTable->getSizeOfEntry(), entries_key, 0);
         indexTable->deleteEntries();
 
         // save the size
-        std::string entriesizes_key = SSTR(MathUtil::concatenate(ENTRIESIZES, step));
+        unsigned int  entriesizes_key = MathUtil::concatenate(ENTRIESIZES, step);
         Debug(Debug::WARNING) << "Write " << entriesizes_key << "\n";
 
         char **sizes = indexTable->getTable();
@@ -83,45 +81,43 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
             const ptrdiff_t diff =  (sizes[i + 1] - sizes[i]) / indexTable->getSizeOfEntry();
             size[i] = (size_t) diff;
         }
-        writer.writeData((char *) size, indexTable->getTableSize() * sizeof(size_t), (char *) entriesizes_key.c_str(),
-                         0);
+        writer.writeData((char *) size, indexTable->getTableSize() * sizeof(size_t), entriesizes_key, 0);
         delete[] size;
 
         SequenceLookup *lookup = indexTable->getSequenceLookup();
-        std::string seqindexdata_key = SSTR(MathUtil::concatenate(SEQINDEXDATA, step));
+        unsigned int seqindexdata_key = MathUtil::concatenate(SEQINDEXDATA, step);
         Debug(Debug::WARNING) << "Write " << seqindexdata_key << "\n";
-        writer.writeData(lookup->getData(), lookup->getDataSize(), seqindexdata_key.c_str(), 0);
+        writer.writeData(lookup->getData(), lookup->getDataSize(), seqindexdata_key, 0);
 
-        std::string seqindex_datasize_key = SSTR(MathUtil::concatenate(SEQINDEXDATASIZE, step));
+        unsigned int seqindex_datasize_key = MathUtil::concatenate(SEQINDEXDATASIZE, step);
         Debug(Debug::WARNING) << "Write " << seqindex_datasize_key << "\n";
         int64_t seqindexDataSize = lookup->getDataSize();
         char *seqindexDataSizePtr = (char *) &seqindexDataSize;
-        writer.writeData(seqindexDataSizePtr, 1 * sizeof(int64_t), (char *) seqindex_datasize_key.c_str(), 0);
+        writer.writeData(seqindexDataSizePtr, 1 * sizeof(int64_t), seqindex_datasize_key, 0);
 
         unsigned int *sequenceSizes = new unsigned int[lookup->getSequenceCount()];
         for (size_t i = 0; i < lookup->getSequenceCount(); i++) {
             unsigned int size = lookup->getSequence(i).second;
             sequenceSizes[i] = size;
         }
-        std::string seqindex_seqsize = SSTR(MathUtil::concatenate(SEQINDEXSEQSIZE, step));
+        unsigned int seqindex_seqsize = MathUtil::concatenate(SEQINDEXSEQSIZE, step);
         Debug(Debug::WARNING) << "Write " << seqindex_seqsize << "\n";
-        writer.writeData((char *) sequenceSizes, lookup->getSequenceCount() * sizeof(unsigned int),
-                         (char *) seqindex_seqsize.c_str(), 0);
+        writer.writeData((char *) sequenceSizes, lookup->getSequenceCount() * sizeof(unsigned int), seqindex_seqsize, 0);
         delete[] sequenceSizes;
 
         // meta data
         // ENTRIESNUM
-        std::string entriesnum_key = SSTR(MathUtil::concatenate(ENTRIESNUM, step));
+        unsigned int entriesnum_key = MathUtil::concatenate(ENTRIESNUM, step);
         Debug(Debug::WARNING) << "Write " << entriesnum_key << "\n";
         int64_t entriesNum = indexTable->getTableEntriesNum();
         char *entriesNumPtr = (char *) &entriesNum;
-        writer.writeData(entriesNumPtr, 1 * sizeof(int64_t), (char *) entriesnum_key.c_str(), 0);
+        writer.writeData(entriesNumPtr, 1 * sizeof(int64_t), entriesnum_key, 0);
         // SEQCOUNT
-        std::string tablesize_key = SSTR(MathUtil::concatenate(SEQCOUNT, step));
+        unsigned int tablesize_key = MathUtil::concatenate(SEQCOUNT, step);
         Debug(Debug::WARNING) << "Write " << tablesize_key << "\n";
         size_t tablesize = {indexTable->getSize()};
         char *tablesizePtr = (char *) &tablesize;
-        writer.writeData(tablesizePtr, 1 * sizeof(size_t), (char *) tablesize_key.c_str(), 0);
+        writer.writeData(tablesizePtr, 1 * sizeof(size_t), tablesize_key, 0);
 
         delete indexTable;
     }
@@ -130,10 +126,10 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
     int metadata[] = {kmerSize, alphabetSize, 0, split, local, spacedKmer};
     char *metadataptr = (char *) &metadata;
-    writer.writeData(metadataptr, 6 * sizeof(int), SSTR(META).c_str(), 0);
+    writer.writeData(metadataptr, 6 * sizeof(int), META, 0);
 
     Debug(Debug::WARNING) << "Write " << VERSION << "\n";
-    writer.writeData((char *) CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), SSTR(VERSION).c_str(), 0);
+    writer.writeData((char *) CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), VERSION, 0);
 
     Debug(Debug::WARNING) << "Write MMSEQSFFINDEX \n";
     std::ifstream src(dbr->getIndexFileName(), std::ios::binary);

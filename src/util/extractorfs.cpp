@@ -78,7 +78,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     if(par.orfExtendMin)
         extendMode |= Orf::EXTEND_END;
 
-    size_t total = 0;
+    unsigned int total = 0;
     #pragma omp parallel
     {
         Orf orf;
@@ -106,20 +106,14 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 
             std::vector<Orf::SequenceLocation> res;
             orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
-            size_t orfNum = 0;
             for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
                 Orf::SequenceLocation loc = *it;
 
                 #pragma omp critical
                 {
-                    orfNum = total++;
+                    total++;
                 }
-                std::string id = SSTR(orfNum + par.identifierOffset);
-
-                if (id.length() >= 31) {
-                    Debug(Debug::ERROR) << "Id: " << id << " is too long. Maximum of 32 characters are allowed.\n";
-                    EXIT(EXIT_FAILURE);
-                }
+                unsigned int id = total + par.identifierOffset;
 
                 if (par.orfSkipIncomplete && (loc.hasIncompleteStart || loc.hasIncompleteEnd))
                     continue;
@@ -127,11 +121,11 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 char buffer[LINE_MAX];
                 snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", header.c_str(), loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
-                headerWriter.writeData(buffer, strlen(buffer), id.c_str(), thread_idx);
+                headerWriter.writeData(buffer, strlen(buffer), id, thread_idx);
 
                 std::string sequence = orf.view(loc);
                 sequence.append("\n");
-                sequenceWriter.writeData(sequence.c_str(), sequence.length(), id.c_str(), thread_idx);
+                sequenceWriter.writeData(sequence.c_str(), sequence.length(), id, thread_idx);
             }
         }
     }

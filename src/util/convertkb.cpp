@@ -88,8 +88,16 @@ int convertkb(int argc, const char **argv, const Command& command) {
         writers[*it]->open();
     }
 
+    std::string lookupFile = par.db2;
+    lookupFile.append(".lookup");
+    std::ofstream lookupStream(lookupFile);
+    if(lookupStream.fail()) {
+        Debug(Debug::ERROR) << "Could not open " << lookupFile << " for writing.";
+        EXIT(EXIT_FAILURE);
+    }
+
     std::string line;
-    size_t i = 0;
+    unsigned int i = 0;
     while (std::getline(*kbIn, line)) {
         if (line.length() < 2) {
             Debug(Debug::WARNING) << "Invalid line" << "\n";
@@ -101,12 +109,14 @@ int convertkb(int argc, const char **argv, const Command& command) {
             std::string accession = getPrimaryAccession(kb.getColumn(UniprotKB::COL_KB_AC));
             for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {
                 std::string column = kb.getColumn(*it);
-                writers[*it]->writeData(column.c_str(), column.length(), accession.c_str());
+                writers[*it]->writeData(column.c_str(), column.length(), i);
             }
+            lookupStream << i << "\t" << accession << "\n";
             i++;
         }
     }
     delete kbIn;
+    lookupStream.close();
 
     for (std::vector<unsigned int>::const_iterator it = enabledColumns.begin(); it != enabledColumns.end(); ++it) {
         writers[*it]->close();

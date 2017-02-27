@@ -121,7 +121,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
                 unsigned int queryLength = std::max(seqDbr.getSeqLens(setIds[i]), 3ul) - 2;
                 const char * querySeq =  seqDbr.getData(setIds[i]);
                 std::stringstream swResultsSs;
-                swResultsSs << SSTR(seqDbr.getDbKey(setIds[i])).c_str() << "\t";
+                swResultsSs << seqDbr.getDbKey(setIds[i]) << "\t";
                 swResultsSs << 255 << "\t";
                 swResultsSs << std::fixed << std::setprecision(3) << 1.0f << "\t";
                 swResultsSs << std::scientific << 0 << "\t";
@@ -144,7 +144,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
                         unsigned int distance = DistanceCalculator::computeHammingDistance(querySeq, targetSeq, queryLength);
                         float seqId = (static_cast<float>(queryLength) - static_cast<float>(distance))/static_cast<float>(queryLength);
                         if(seqId > par.seqIdThr) {
-                            swResultsSs << SSTR(seqDbr.getDbKey(setIds[j])).c_str() << "\t";
+                            swResultsSs << seqDbr.getDbKey(setIds[j]) << "\t";
                             swResultsSs << 255 << "\t";
                             swResultsSs << std::fixed << std::setprecision(3) << seqId << "\t";
                             swResultsSs << std::scientific << 0 << "\t";
@@ -161,8 +161,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
                 outer:
                 std::string swResultsString = swResultsSs.str();
                 const char* swResultsStringData = swResultsString.c_str();
-                dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(setIds[i])).c_str(),
-                              thread_idx);
+                dbw.writeData(swResultsStringData, swResultsString.length(), seqDbr.getDbKey(setIds[i]), thread_idx);
             }
             setIds.clear();
             found.clear();

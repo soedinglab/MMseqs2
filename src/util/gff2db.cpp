@@ -47,7 +47,7 @@ int gff2db(int argc, const char **argv, const Command& command) {
 
     bool shouldCompareType = par.gffType.length() > 0;
 
-    size_t entries_num = 0;
+    unsigned int entries_num = 0;
 
     std::ifstream  file_in(par.db1);
     std::string    gff_line;
@@ -120,18 +120,18 @@ int gff2db(int argc, const char **argv, const Command& command) {
             snprintf(buffer, headerLength + 128, "%s %zu-%zu\n", header, start, end);
         }
 
-        std::string id = SSTR(par.identifierOffset + entries_num);
+        unsigned int id = par.identifierOffset + entries_num;
 
         // hack: header contains a new line, lets just overwrite the new line with a space
         buffer[headerLength - 2] = ' ';
-        out_hdr_writer.writeData(buffer, strlen(buffer), id.c_str());
+        out_hdr_writer.writeData(buffer, strlen(buffer), id);
         delete[] buffer;
 
         // sequence
         char* bodyBuffer = new char[length + 1];
         strncpy(bodyBuffer, body + start, length);
         bodyBuffer[length] = '\n';
-        out_writer.writeData(bodyBuffer, length + 1, id.c_str());
+        out_writer.writeData(bodyBuffer, length + 1, id);
         delete[] bodyBuffer;
     }
     file_in.close();

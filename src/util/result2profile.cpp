@@ -402,8 +402,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
 
                     consensusStr.push_back('\n');
-                    concensusWriter->writeData(consensusStr.c_str(), consensusStr.length(), SSTR(queryKey).c_str(),
-                                               thread_idx);
+                    concensusWriter->writeData(consensusStr.c_str(), consensusStr.length(), queryKey, thread_idx);
 
                     for (size_t i = 0; i < dataSize; i++) {
                         // Avoid a null byte result
@@ -418,7 +417,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     EXIT(EXIT_FAILURE);
             }
 
-            resultWriter.writeData(data, dataSize, SSTR(queryKey).c_str(), thread_idx);
+            resultWriter.writeData(data, dataSize, queryKey, thread_idx);
 
             MultipleAlignment::deleteMSA(&res);
             for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
