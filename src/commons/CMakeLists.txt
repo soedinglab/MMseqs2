@@ -42,7 +42,9 @@ set(commons_source_files
     MemoryMapped.h
     CpuInfo.h
     TranslateNucl.h
-    profileStates.cpp)
+    profileStates.cpp
+    KSeqWrapper.cpp
+)
 
 add_library(commons ${commons_source_files})
 
