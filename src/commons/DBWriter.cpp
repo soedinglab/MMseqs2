@@ -207,7 +207,7 @@ void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, un
     offsets[thrIdx] += 1;
 
     size_t length = offsets[thrIdx] - offsetStart;
-    fprintf(indexFiles[thrIdx], "%s\t%zd\t%zd\n", key, offsetStart, length);
+    fprintf(indexFiles[thrIdx], "%u\t%zd\t%zd\n", key, offsetStart, length);
 }
 
 void DBWriter::checkClosed() {
