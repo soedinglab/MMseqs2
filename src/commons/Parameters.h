@@ -380,7 +380,6 @@ public:
     PARAMETER(PARAM_COMPRESS_MSA)
     PARAMETER(PARAM_SUMMARIZE_HEADER)
     PARAMETER(PARAM_SUMMARY_PREFIX)
-    PARAMETER(PARAM_REPSEQ)
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)
@@ -513,7 +512,7 @@ public:
     std::vector<MMseqsParameter> translatenucs;
     std::vector<MMseqsParameter> createseqfiledb;
     std::vector<MMseqsParameter> filterDb;
-    std::vector<MMseqsParameter> swapresults;
+    std::vector<MMseqsParameter> onlythreads;
     std::vector<MMseqsParameter> subtractdbs;
     std::vector<MMseqsParameter> diff;
     std::vector<MMseqsParameter> concatdbs;

@@ -25,8 +25,7 @@
 enum outputmode {
     MSA = 0,
     PSSM,
-    CA3M,
-    REPSEQ
+    CA3M
 };
 
 size_t findMaxSetSize(DBReader<unsigned int> *reader) {
@@ -135,10 +134,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
     DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-
-//    FileUtil::errorIfFileExist(par.db4.c_str());
-//    FileUtil::errorIfFileExist(par.db4Index.c_str());
-
     DBWriter resultWriter(referenceName.c_str(), referenceIndexName.c_str(), par.threads, DBWriter::BINARY_MODE);
     resultWriter.open();
 
@@ -161,9 +156,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             break;
         case CA3M:
             Debug(Debug::INFO) << "compressed multiple sequence alignments";
-            break;
-        case REPSEQ:
-            Debug(Debug::INFO) << "representative sequences";
             break;
         case PSSM:
         default:
@@ -217,8 +209,8 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             }
 
             std::vector<Sequence *> seqSet;
-            std::string *reprSeq = NULL;
-            
+            bool reprSeq = false;
+
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
@@ -230,7 +222,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     evalue = strtod(entry[3], NULL);
                 }
 
-                if(reprSeq == NULL)
+                if(reprSeq == false)
                 {
                     const size_t edgeId = tDbr->getId(key);
                     char *dbSeqData = tDbr->getData(edgeId);
@@ -240,7 +232,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                         centerSequenceKey = key;
                         centerSequenceHeader = tempateHeaderReader->getDataByDBKey(centerSequenceKey);
                     }
-                    reprSeq = new std::string(dbSeqData);
+                    reprSeq = true;
                 }
 
 
@@ -333,19 +325,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     dataSize = result.length();
                 }
                     break;
-                case REPSEQ: {
-                    if (reprSeq != NULL) {
-                        msa << *reprSeq;
-                        delete reprSeq;
-                        reprSeq = NULL;
-                    } else {
-                        //msa << '\0';
-                    }
-                    result = msa.str();
-                    data = (char *) result.c_str();
-                    dataSize = result.length();
-                }
-                    break;
 
                 case CA3M: {
                     // Here the backtrace information should be present in the alnResults[i].backtrace for all i
@@ -424,11 +403,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
                 Sequence *seq = *it;
                 delete seq;
-            }
-
-            if (reprSeq != NULL) {
-                delete reprSeq;
-                reprSeq = NULL;
             }
         }
         delete centerSequence;
@@ -588,7 +562,6 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
 
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, "", mpiRank);
     int status = result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode, referenceDBr);
-    
 
     // close reader to reduce memory
     if(referenceDBr != NULL){
@@ -596,7 +569,6 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
         delete referenceDBr;
     }
 
-    
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -662,12 +634,9 @@ int result2msa(int argc, const char **argv, const Command& command) {
     outputmode mode;
     if (par.compressMSA) {
         mode = CA3M;
-    } else if(par.onlyRepSeq) {
-        mode = REPSEQ;
     } else {
         mode = MSA;
     }
-
 
     /*
     // Can only use the first sequence as representative sequence with a clustering result

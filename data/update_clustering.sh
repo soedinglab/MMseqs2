@@ -182,7 +182,7 @@ echo "==================================================="
 echo "======= Extract representative sequences =========="
 echo "==================================================="
 if notExists "$TMP/OLDDB.repSeq"; then
-    $MMSEQS result2msa "$OLDDB" "$OLDDB" "$OLDCLUST" "$TMP/OLDDB.repSeq" --only-rep-seq \
+    $MMSEQS result2reprseq "$OLDDB" "$OLDCLUST" "$TMP/OLDDB.repSeq" \
         || fail "Result2msa died"
 fi
 

@@ -30,6 +30,7 @@ set(util_source_files
         extractalignedregion.cpp
         kmermatcher.cpp
         rescorediagonal.cpp
+        result2reprseq.cpp
         )
 
 add_library(util ${util_source_files} )
