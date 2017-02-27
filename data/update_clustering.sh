@@ -97,7 +97,7 @@ if [ -n "${RECOVER_DELETED}" ] && [ -s "$TMP/removedSeqs" ]; then
         (
             HIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"
             awk -v highest="$HIGHESTID" \
-                'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
+                'BEGIN { start=highest+1 } { print $1"\t"start; start=start+1; }' \
                 "$TMP/removedSeqs" > "$TMP/OLDDB.removedMapping"
             cat "$TMP/OLDDB.removedMapping" >> "$TMP/mappingSeqs"
         ) || fail "Could not create $TMP/OLDDB.removedMapping"
@@ -135,7 +135,7 @@ if notExists "$TMP/newMappingSeqs"; then
         NEWHIGHESTID="$(sort -T "$TMP" -r -n -k1,1 "${NEWDB}.index"| head -n 1 | cut -f1)"
         MAXID="$(($OLDHIGHESTID>$NEWHIGHESTID?$OLDHIGHESTID:$NEWHIGHESTID))"
         awk -v highest="$MAXID" \
-            'BEGIN { start=highest+1 } { print $1"\t"highest; highest=highest+1; }' \
+            'BEGIN { start=highest+1 } { print $1"\t"start; start=start+1; }' \
             "$TMP/newSeqs" > "$TMP/newSeqs.mapped"
         awk '{ print $2"\t"$1 }' "$TMP/mappingSeqs" > "$TMP/mappingSeqs.reverse"
         cat "$TMP/mappingSeqs.reverse" "$TMP/newSeqs.mapped" > "$TMP/newMappingSeqs"
