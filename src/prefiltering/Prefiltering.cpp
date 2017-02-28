@@ -270,9 +270,6 @@ void Prefiltering::runAllSplits(const std::string &queryDB, const std::string &q
 void Prefiltering::runSplits(const std::string &queryDB, const std::string &queryDBIndex,
                              const std::string &resultDB, const std::string &resultDBIndex,
                              size_t fromSplit, size_t splits) {
-//    FileUtil::errorIfFileExist(outDB.c_str());
-//    FileUtil::errorIfFileExist(outDBIndex.c_str());
-
     //  check if when qdb and tdb have the same name an index extension exists
     std::string check(targetDB);
     size_t pos = check.find(queryDB);
