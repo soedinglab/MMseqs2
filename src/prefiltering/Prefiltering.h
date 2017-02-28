@@ -117,14 +117,6 @@ private:
                               const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
                               bool diagonalScoring, size_t resultOffsetPos);
 
-    // init QueryTemplateMatcher
-    QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, Sequence** qseq,
-                                              unsigned int *seqLens, short kmerThr,
-                                              double kmerMatchProb, int kmerSize,
-                                              unsigned int effectiveKmerSize, size_t dbSize,
-                                              bool aaBiasCorrection, bool diagonalScoring,
-                                              unsigned int maxSeqLen, size_t maxHitsPerQuery);
-
 
     void printStatistics(const statistics_t &stats, std::list<int> **reslens, size_t empty);
 

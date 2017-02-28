@@ -237,32 +237,6 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
                        << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 }
 
-QueryMatcher **Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, Sequence** qseq,
-                                                        unsigned int *seqLens, short kmerThr,
-                                                        double kmerMatchProb, int kmerSize,
-                                                        unsigned int effectiveKmerSize, size_t dbSize,
-                                                        bool aaBiasCorrection, bool diagonalScoring,
-                                                        unsigned int maxSeqLen, size_t maxHitsPerQuery) {
-    QueryMatcher **matchers = new QueryMatcher *[threads];
-#pragma omp parallel for schedule(static)
-    for (unsigned int i = 0; i < threads; i++) {
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-
-        matchers[thread_idx] = new QueryMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
-                                                kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
-                                                maxHitsPerQuery, aaBiasCorrection, diagonalScoring, minDiagScoreThr);
-        if (querySeqType == Sequence::HMM_PROFILE) {
-            matchers[thread_idx]->setProfileMatrix(qseq[thread_idx]->profile_matrix);
-        } else {
-            matchers[thread_idx]->setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
-        }
-    }
-    return matchers;
-}
-
 ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
     if (templateDBIsIndex == true) {
         switch(kmerSize) {
@@ -387,20 +361,16 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     // create index table based on split parameter
     // run small query sample against the index table to calibrate p-match
 
-    const double kmerMatchProb = (diagonalScoring == true) ? 0.0f
-                                                           : setKmerThreshold(indexTable, qdbr, qseq, tdbr,
-                                                                              kmerThr, qseq[0]->getEffectiveKmerSize());
+    const double kmerMatchProb = diagonalScoring ? 0.0f
+                                                 : setKmerThreshold(indexTable, qdbr, qseq, tdbr,
+                                                                    kmerThr, qseq[0]->getEffectiveKmerSize());
 
     Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
     Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    QueryMatcher **matchers = createQueryTemplateMatcher(subMat, indexTable, qseq,
-                                                         tdbr->getSeqLens() + dbFrom, // offset for split mode
-                                                         kmerThr, kmerMatchProb, kmerSize,
-                                                         qseq[0]->getEffectiveKmerSize(), dbSize,
-                                                         aaBiasCorrection, diagonalScoring, maxSeqLen, maxResListLen);
+
     size_t kmersPerPos = 0;
     size_t dbMatches = 0;
     size_t doubleMatches = 0;
@@ -414,46 +384,60 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     Debug(Debug::INFO) << "Starting prefiltering scores calculation (step " << split << " of " << splitCount << ")\n";
     Debug(Debug::INFO) << "Query db start  " << queryFrom << " to " << queryFrom + querySize << "\n";
     Debug(Debug::INFO) << "Target db start  " << dbFrom << " to " << dbFrom + dbSize << "\n";
-
-#pragma omp parallel for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
-    for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
-        Debug::printProgress(id);
-
+    #pragma omp parallel
+    {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        // get query sequence
-        char *seqData = qdbr->getData(id);
-        unsigned int qKey = qdbr->getDbKey(id);
-        qseq[thread_idx]->mapSequence(id, qKey, seqData);
-        // only the corresponding split should include the id (hack for the hack)
-        size_t targetSeqId = UINT_MAX;
-        if (id >= dbFrom && id < (dbFrom + dbSize) && (sameQTDB || includeIdentical)) {
-            targetSeqId = tdbr->getId(qseq[thread_idx]->getDbKey());
-            if (targetSeqId != UINT_MAX) {
-                targetSeqId = targetSeqId - dbFrom;
-            }
+        Sequence& seq = *qseq[thread_idx];
+
+        QueryMatcher matcher(subMat, indexTable, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
+                             kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
+                             maxResListLen, aaBiasCorrection, diagonalScoring, minDiagScoreThr);
+        if (querySeqType == Sequence::HMM_PROFILE) {
+            matcher.setProfileMatrix(seq.profile_matrix);
+        } else {
+            matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
         }
-        // calculate prefiltering results
-        std::pair<hit_t *, size_t> prefResults = matchers[thread_idx]->matchQuery(qseq[thread_idx], targetSeqId);
-        size_t resultSize = prefResults.second;
-        // write
-        writePrefilterOutput(qdbr, &tmpDbw, thread_idx, id, prefResults, dbFrom, diagonalScoring, resListOffset);
 
-        // update statistics counters
-        if (resultSize != 0)
-            notEmpty[id] = 1;
+#pragma omp for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
+        for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
+            Debug::printProgress(id);
 
-        kmersPerPos += (size_t) matchers[thread_idx]->getStatistics()->kmersPerPos;
-        dbMatches += matchers[thread_idx]->getStatistics()->dbMatches;
-        doubleMatches += matchers[thread_idx]->getStatistics()->doubleMatches;
-        querySeqLenSum += qseq[thread_idx]->L;
-        diagonalOverflow += matchers[thread_idx]->getStatistics()->diagonalOverflow;
-        resSize += resultSize;
-        realResSize += std::min(resultSize, maxResListLen);
-        reslens[thread_idx]->emplace_back(resultSize);
-    } // step end
+            // get query sequence
+            char *seqData = qdbr->getData(id);
+            unsigned int qKey = qdbr->getDbKey(id);
+            seq.mapSequence(id, qKey, seqData);
+            // only the corresponding split should include the id (hack for the hack)
+            size_t targetSeqId = UINT_MAX;
+            if (id >= dbFrom && id < (dbFrom + dbSize) && (sameQTDB || includeIdentical)) {
+                targetSeqId = tdbr->getId(seq.getDbKey());
+                if (targetSeqId != UINT_MAX) {
+                    targetSeqId = targetSeqId - dbFrom;
+                }
+            }
+            // calculate prefiltering results
+            std::pair<hit_t *, size_t> prefResults = matcher.matchQuery(&seq, targetSeqId);
+            size_t resultSize = prefResults.second;
+            // write
+            writePrefilterOutput(qdbr, &tmpDbw, thread_idx, id, prefResults, dbFrom, diagonalScoring, resListOffset);
+
+            // update statistics counters
+            if (resultSize != 0) {
+                notEmpty[id] = 1;
+            }
+
+            kmersPerPos += (size_t) matcher.getStatistics()->kmersPerPos;
+            dbMatches += matcher.getStatistics()->dbMatches;
+            doubleMatches += matcher.getStatistics()->doubleMatches;
+            querySeqLenSum += seq.L;
+            diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
+            resSize += resultSize;
+            realResSize += std::min(resultSize, maxResListLen);
+            reslens[thread_idx]->emplace_back(resultSize);
+        } // step end
+    }
     statistics_t stats(kmersPerPos / totalQueryDBSize, dbMatches / totalQueryDBSize, doubleMatches / totalQueryDBSize,
                        querySeqLenSum, diagonalOverflow, resSize / totalQueryDBSize);
     size_t empty = 0;
@@ -468,11 +452,6 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         Debug(Debug::INFO) << "\n";
     }
     Debug(Debug::INFO) << "\n";
-
-    for (unsigned int j = 0; j < threads; j++) {
-        delete matchers[j];
-    }
-    delete[] matchers;
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
@@ -796,10 +775,6 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(DBReader<unsigned in
                                                             unsigned int *querySeqsIds, bool reverseQuery,
                                                             int kmerThrMid) {
     // determine k-mer match probability for kmerThrMid
-    QueryMatcher **matchers = createQueryTemplateMatcher(subMat, indexTable, qseq, tdbr->getSeqLens(), kmerThrMid,
-                                                         1.0, kmerSize, qseq[0]->getEffectiveKmerSize(),
-                                                         indexTable->getSize(), aaBiasCorrection, false, maxSeqLen,
-                                                         LONG_MAX);
     size_t dbMatchesSum = 0;
     size_t doubleMatches = 0;
     size_t querySeqLenSum = 0;
@@ -807,33 +782,41 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(DBReader<unsigned in
     size_t resultsPassedPref = 0;
     double kmersPerPos = 0.0;
 
-#pragma omp parallel for schedule(dynamic, 10) reduction (+: dbMatchesSum, doubleMatches, kmersPerPos, querySeqLenSum, diagonalOverflow, resultsPassedPref)
-    for (size_t i = 0; i < querySetSize; i++) {
-        size_t id = querySeqsIds[i];
-
+    #pragma omp parallel
+    {
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        char *seqData = qdbr->getData(id);
-        unsigned int qKey = qdbr->getDbKey(id);
-        qseq[thread_idx]->mapSequence(id, qKey, seqData);
-        if (reverseQuery == true) {
-            qseq[thread_idx]->reverse();
+
+        QueryMatcher matcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid, 1.0,
+                             kmerSize, indexTable->getSize(), maxSeqLen, qseq[0]->getEffectiveKmerSize(),
+                             LONG_MAX, aaBiasCorrection, false, minDiagScoreThr);
+        if (querySeqType == Sequence::HMM_PROFILE) {
+            matcher.setProfileMatrix(qseq[thread_idx]->profile_matrix);
+        } else {
+            matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
         }
-        matchers[thread_idx]->matchQuery(qseq[thread_idx], UINT_MAX);
-        kmersPerPos += matchers[thread_idx]->getStatistics()->kmersPerPos;
-        dbMatchesSum += matchers[thread_idx]->getStatistics()->dbMatches;
-        querySeqLenSum += matchers[thread_idx]->getStatistics()->querySeqLen;
-        doubleMatches += matchers[thread_idx]->getStatistics()->doubleMatches;
-        diagonalOverflow += matchers[thread_idx]->getStatistics()->diagonalOverflow;
-        resultsPassedPref += matchers[thread_idx]->getStatistics()->resultsPassedPrefPerSeq;
+
+        #pragma omp for schedule(dynamic, 10) reduction (+: dbMatchesSum, doubleMatches, kmersPerPos, querySeqLenSum, diagonalOverflow, resultsPassedPref)
+        for (size_t i = 0; i < querySetSize; i++) {
+            size_t id = querySeqsIds[i];
+
+            char *seqData = qdbr->getData(id);
+            unsigned int qKey = qdbr->getDbKey(id);
+            qseq[thread_idx]->mapSequence(id, qKey, seqData);
+            if (reverseQuery == true) {
+                qseq[thread_idx]->reverse();
+            }
+            matcher.matchQuery(qseq[thread_idx], UINT_MAX);
+            kmersPerPos += matcher.getStatistics()->kmersPerPos;
+            dbMatchesSum += matcher.getStatistics()->dbMatches;
+            querySeqLenSum += matcher.getStatistics()->querySeqLen;
+            doubleMatches += matcher.getStatistics()->doubleMatches;
+            diagonalOverflow += matcher.getStatistics()->diagonalOverflow;
+            resultsPassedPref += matcher.getStatistics()->resultsPassedPrefPerSeq;
+        }
     }
-    // clean up memory
-    for (unsigned int j = 0; j < threads; j++) {
-        delete matchers[j];
-    }
-    delete[] matchers;
 
     return statistics_t(kmersPerPos / (double) querySetSize, dbMatchesSum, doubleMatches,
                         querySeqLenSum, diagonalOverflow, resultsPassedPref / querySetSize);
