@@ -576,7 +576,7 @@ BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrix
 
 void Prefiltering::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
                                 BaseMatrix *subMat, size_t dbFrom, size_t dbTo,
-                                bool diagonalScoring, bool maskResiudes, int kmerThr, unsigned int threads) {
+                                bool diagonalScoring, bool maskResidues, int kmerThr, unsigned int threads) {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
     size_t aaCount = 0;
@@ -624,10 +624,10 @@ void Prefiltering::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, Inde
             char *seqData = dbr->getData(id);
             unsigned int qKey = dbr->getDbKey(id);
             s.mapSequence(id - dbFrom, qKey, seqData);
-            maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
-                                                      indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X'],
-                                                      true, true, true, true);
-
+            if (maskResidues) {
+                maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3, indexTable->getAlphabetSize(),
+                                                          seq->aa2int[(unsigned char) 'X'], true, true, true, true);
+            }
             aaCount += s.L;
             totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
