@@ -22,7 +22,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
         diagonalScoring(par.diagonalScoring != 0), minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0), covThr(par.covThr), includeIdentical(par.includeIdentity),
-        threads(static_cast<unsigned int>(par.threads)) {
+        earlyExit(par.earlyExit), threads(static_cast<unsigned int>(par.threads)) {
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
@@ -292,22 +292,26 @@ void Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
     }
     Debug(Debug::INFO) << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
 
-    // splits template database into x sequence steps
-    std::vector<std::pair<std::string, std::string> > splitFiles;
-    for (size_t s = fromSplit; s < (fromSplit + splits); s++) {
-        std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(resultDB, resultDBIndex, s);
-        splitFiles.push_back(filenamePair);
-        runSplit(qdbr, filenamePair.first.c_str(), filenamePair.second.c_str(), s, split, sameQTDB);
-    }
     // prefiltering scores calculation end
 
-    // merge output ffindex databases
     if (split > 1) {
-        mergeFiles(splitFiles, resultDB, resultDBIndex);
+        // splits template database into x sequence steps
+        std::vector<std::pair<std::string, std::string> > splitFiles;
+        for (size_t s = fromSplit; s < (fromSplit + splits); s++) {
+            std::pair<std::string, std::string> filenamePair = Util::createTmpFileNames(resultDB, resultDBIndex, s);
+            splitFiles.push_back(filenamePair);
+            runSplit(qdbr, filenamePair.first.c_str(), filenamePair.second.c_str(), s, split, sameQTDB);
+        }
     } else {
-        std::rename(splitFiles[0].first.c_str(), resultDB.c_str());
-        std::rename(splitFiles[0].second.c_str(), resultDBIndex.c_str());
+        runSplit(qdbr, resultDB.c_str(), resultDBIndex.c_str(), 0, 1, sameQTDB);
     }
+
+#ifndef HAVE_MPI
+    if (earlyExit) {
+        Debug(Debug::INFO) << "Done. Exiting early now.\n";
+        EXIT(EXIT_SUCCESS);
+    }
+#endif
 
     if (sameQTDB == false) {
         qdbr->close();
@@ -448,6 +452,18 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             realResSize += std::min(resultSize, maxResListLen);
             reslens[thread_idx]->emplace_back(resultSize);
         } // step end
+
+#ifndef HAVE_MPI
+        if (earlyExit && splitCount == 1) {
+            #pragma omp barrier
+            if (thread_idx == 0) {
+                tmpDbw.close();
+            }
+            #pragma omp barrier
+            Debug(Debug::INFO) << "Done. Exiting early now.\n";
+            EXIT(EXIT_SUCCESS);
+        }
+#endif
     }
     statistics_t stats(kmersPerPos / totalQueryDBSize, dbMatches / totalQueryDBSize, doubleMatches / totalQueryDBSize,
                        querySeqLenSum, diagonalOverflow, resSize / totalQueryDBSize);

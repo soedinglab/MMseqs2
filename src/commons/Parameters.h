@@ -147,7 +147,8 @@ public:
     int    splitMode;                    // Split by query or target DB (MPI only)
     bool   splitAA;                      // Split database by amino acid count instead
     size_t resListOffset;                // Offsets result list
-    bool   noPreload;                     // Do not preload database into memory
+    bool   noPreload;                    // Do not preload database into memory
+    bool   earlyExit;                    // Exit immediately after writing the result
 
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
@@ -338,6 +339,7 @@ public:
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_NO_PRELOAD)
+    PARAMETER(PARAM_EARLY_EXIT)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment

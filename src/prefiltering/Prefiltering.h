@@ -84,6 +84,7 @@ private:
     const bool aaBiasCorrection;
     const float covThr;
     const bool includeIdentical;
+    const bool earlyExit;
     const unsigned int threads;
 
     void runSplit(DBReader<unsigned int> *qdbr,

@@ -89,6 +89,8 @@ private:
 
     bool templateDBIsIndex;
 
+    const bool earlyExit;
+
     void closeReaders();
 
     void setQuerySequence(Sequence &seq, size_t id, unsigned int key);

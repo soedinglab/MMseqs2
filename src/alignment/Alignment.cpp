@@ -21,7 +21,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
         compBiasCorrection(par.compBiasCorrection), qseqdbr(NULL), qSeqLookup(NULL),
-        tseqdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false) {
+        tseqdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit) {
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
@@ -221,6 +221,11 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
     #pragma omp parallel
     {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+
         Sequence qSeq(maxSeqLen, m->aa2int, m->int2aa, querySeqType, 0, false, compBiasCorrection);
         Sequence dbSeq(maxSeqLen, m->aa2int, m->int2aa, targetSeqType, 0, false, compBiasCorrection);
         Matcher matcher(maxSeqLen, m, getTargetDbSize(), getTargetDbEntries(), compBiasCorrection);
@@ -228,6 +233,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         if (realign) {
             realigner = new Matcher(maxSeqLen, realign_m, getTargetDbSize(), getTargetDbEntries(), compBiasCorrection);
         }
+
         for (size_t i = 0; i < iterations; i++) {
             size_t start = dbFrom + (i * flushSize);
             size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
@@ -235,10 +241,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             #pragma omp for schedule(dynamic, 100) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 Debug::printProgress(id);
-                unsigned int thread_idx = 0;
-#ifdef OPENMP
-                thread_idx = static_cast<unsigned int>(omp_get_thread_num());
-#endif
+
                 // get the prefiltering list
                 char *data = prefdbr->getData(id);
                 unsigned int queryDbKey = prefdbr->getDbKey(id);
@@ -333,6 +336,18 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             }
             prefdbr->remapData();
         }
+#ifndef HAVE_MPI
+        if (earlyExit) {
+            #pragma omp barrier
+            if(thread_idx == 0) {
+                dbw.close();
+            }
+            #pragma omp barrier
+
+            Debug(Debug::INFO) << "Done. Exiting early now.\n";
+            EXIT(EXIT_SUCCESS);
+        }
+#endif
 
         if (realigner) {
             delete realigner;

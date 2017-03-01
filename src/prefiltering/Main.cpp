@@ -7,6 +7,7 @@
 #include "Parameters.h"
 
 #include "MMseqsMPI.h"
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -57,11 +58,6 @@ int prefilter(int argc, const char **argv, const Command& command) {
         pref.split = MMseqsMPI::numProc;
         pref.runSplits(par.db1,par.db1Index, filenamePair.first.c_str(), filenamePair.second.c_str(), MMseqsMPI::rank, 1);
     }
-#else
-    pref.runAllSplits(par.db1, par.db1Index, par.db3, par.db3Index);
-#endif
-
-#ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
     if(MMseqsMPI::rank == 0){
         std::vector<std::pair<std::string, std::string> > splitFiles;
@@ -71,13 +67,13 @@ int prefilter(int argc, const char **argv, const Command& command) {
         // merge output ffindex databases
         pref.mergeFiles(splitFiles, par.db3, par.db3Index);
     }
+#else
+    pref.runAllSplits(par.db1, par.db1Index, par.db3, par.db3Index);
 #endif
+
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "\nOverall time for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
-    return EXIT_SUCCESS;
+    EXIT(EXIT_SUCCESS);
 }
