@@ -767,7 +767,7 @@ double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned 
 
     unsigned int effectiveKmerSize = 0;
 
-    #pragma omp parallel shared(thread_idx)
+    #pragma omp parallel shared(effectiveKmerSize)
     {
         int thread_idx = 0;
 #ifdef OPENMP
