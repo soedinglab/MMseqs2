@@ -106,24 +106,18 @@ private:
     // needed for index lookup
     IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, int kmerThr, unsigned int threads);
 
-    /* Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
+    /*
+     * Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
      * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
      */
-    double setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, Sequence **qseq,
-                            DBReader<unsigned int> *tdbr, int kmerScore, unsigned int effectiveKmerSize);
+    double setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, int kmerThr)
 
     // write prefiltering to ffindex database
     void writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,
                               const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
                               bool diagonalScoring, size_t resultOffsetPos);
 
-
-    void printStatistics(const statistics_t &stats, std::list<int> **reslens, size_t empty);
-
-    statistics_t computeStatisticForKmerThreshold(DBReader<unsigned int> *qdbr, Sequence **qseq,
-                                                  IndexTable *indexTable, size_t querySetSize,
-                                                  unsigned int *querySeqsIds, bool reverseQuery,
-                                                  const int kmerThrMid);
+    void printStatistics(const statistics_t &stats, std::list<int> **reslens, int resLensSize, size_t empty);
 
     int getKmerThreshold(const float sensitivity);
 
