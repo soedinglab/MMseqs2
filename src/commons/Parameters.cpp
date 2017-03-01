@@ -216,7 +216,6 @@ Parameters::Parameters():
     convertprofiledb.push_back(PARAM_V);
 
     // create fasta
-    createFasta.push_back(PARAM_USE_HEADER);
     createFasta.push_back(PARAM_V);
 
     // result2profile
@@ -274,7 +273,6 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_ORF_EXTENDMIN);
     extractorfs.push_back(PARAM_ORF_FORWARD_FRAMES);
     extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);
-    extractorfs.push_back(PARAM_USE_HEADER);
     extractorfs.push_back(PARAM_ID_OFFSET);
 
     // splitdb
@@ -295,7 +293,6 @@ Parameters::Parameters():
     // create db
     createdb.push_back(PARAM_MAX_SEQ_LEN);
     createdb.push_back(PARAM_DONT_SPLIT_SEQ_BY_LEN);
-    createdb.push_back(PARAM_USE_HEADER);
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
 
@@ -309,7 +306,6 @@ Parameters::Parameters():
 
     // gff2db
     gff2ffindex.push_back(PARAM_GFF_TYPE);
-    gff2ffindex.push_back(PARAM_USE_HEADER);
     gff2ffindex.push_back(PARAM_ID_OFFSET);
     gff2ffindex.push_back(PARAM_V);
 
