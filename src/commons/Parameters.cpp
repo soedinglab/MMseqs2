@@ -745,6 +745,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
 void Parameters::printParameters(int argc, const char* pargv[],
                                  const std::vector<MMseqsParameter> &par){
+    if (Debug::debugLevel < 3) {
+        return;
+    }
+
     Debug(Debug::INFO) << "Program call:\n";
     for (int i = 0; i < argc; i++)
         Debug(Debug::INFO) << pargv[i] << " ";
