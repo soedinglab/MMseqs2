@@ -343,7 +343,7 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
     double kmerMatchProb;
     if (diagonalScoring) {
-        kmerMatchProb = 0f;
+        kmerMatchProb = 0.0f;
     } else {
         // run small query sample against the index table to calibrate p-match
         kmerMatchProb = setKmerThreshold(indexTable, qdbr, kmerThr);
@@ -364,12 +364,12 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     size_t totalQueryDBSize = querySize;
 
 #ifdef OPENMP
-    int totalThreads = threads;
+    unsigned int totalThreads = threads;
 #else
-    int totalThreads = 1;
+    unsigned int totalThreads = 1;
 #endif
 
-    int localThreads = totalThreads;
+    unsigned int localThreads = totalThreads;
     if (querySize <= totalThreads) {
         localThreads = querySize;
     }
@@ -546,7 +546,7 @@ void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *
     dbWriter->writeData(prefResultsOutData, prefResultsLength, qdbr->getDbKey(id), thread_idx);
 }
 
-void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **reslens, int resLensSize, size_t empty) {
+void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **reslens, unsigned int resLensSize, size_t empty) {
     // sort and merge the result list lengths (for median calculation)
     reslens[0]->sort();
     for (unsigned int i = 1; i < resLensSize; i++) {

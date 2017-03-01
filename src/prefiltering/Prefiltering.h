@@ -110,14 +110,14 @@ private:
      * Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
      * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
      */
-    double setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, int kmerThr)
+    double setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, int kmerThr);
 
     // write prefiltering to ffindex database
     void writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,
                               const std::pair<hit_t *, size_t> &prefResults, size_t seqIdOffset,
                               bool diagonalScoring, size_t resultOffsetPos);
 
-    void printStatistics(const statistics_t &stats, std::list<int> **reslens, int resLensSize, size_t empty);
+    void printStatistics(const statistics_t &stats, std::list<int> **reslens, unsigned int resLensSize, size_t empty);
 
     int getKmerThreshold(const float sensitivity);
 
