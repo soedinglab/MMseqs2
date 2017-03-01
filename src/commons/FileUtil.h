@@ -8,8 +8,6 @@
 class FileUtil {
 
 public:
-    static void errorIfFileExist(const char * file);
-
     static bool fileExists(const char* fileName);
 
     static bool directoryExists(const char* directoryName);

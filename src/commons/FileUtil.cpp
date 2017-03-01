@@ -8,11 +8,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-void FileUtil::errorIfFileExist(const char * file){
-    struct stat st;
-    if(stat(file, &st) == 0) { errno = EEXIST; perror(file); EXIT(EXIT_FAILURE); }
-}
-
 bool FileUtil::fileExists(const char* fileName) {
     struct stat st;
     return stat(fileName, &st) == 0;
