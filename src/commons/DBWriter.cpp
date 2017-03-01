@@ -141,9 +141,6 @@ void DBWriter::open(size_t bufferSize) {
         dataFileNames[i] = makeResultFilename(dataFileName, i);
         indexFileNames[i] = makeResultFilename(indexFileName, i);
 
-        FileUtil::errorIfFileExist(dataFileNames[i]);
-        FileUtil::errorIfFileExist(indexFileNames[i]);
-
         dataFiles[i] = fopen(dataFileNames[i], datafileMode.c_str());
         dataFilesBuffer[i] = new char[bufferSize];
         this->bufferSize = bufferSize;
