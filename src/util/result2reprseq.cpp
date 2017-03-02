@@ -7,6 +7,7 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
+#include "Alignment.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -75,23 +76,23 @@ int result2reprseq(int argc, const char **argv, const Command &command) {
     size_t dbFrom = 0;
     size_t dbSize = 0;
     Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(),
-                                     resultReader.getSize(), mpiRank, mpiNumProc, &dbFrom, &dbSize);
+                                     resultReader.getSize(), MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
 
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom + dbSize << "\n";
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, "", mpiRank);
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, "", MMseqsMPI::rank);
     status = result2reprseq(par, resultReader, tmpOutput.first, dbFrom, dbSize);
 
     MPI_Barrier(MPI_COMM_WORLD);
     // master reduces results
-    if(mpiRank == 0) {
+    if(MMseqsMPI::isMaster()) {
         std::vector<std::pair<std::string, std::string> > splitFiles;
-        for(unsigned int procs = 0; procs < mpiNumProc; procs++){
+        for(unsigned int procs = 0; procs < MMseqsMPI::numProc; procs++){
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, "", procs);
             splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.first + ".index"));
 
         }
         // merge output databases
-        Alignment::mergeAndRemoveTmpDatabases(outname, outname + ".index", splitFiles);
+        Alignment::mergeAndRemoveTmpDatabases(par.db3, par.db3 + ".index", splitFiles);
     }
 #else
     size_t resultSize = resultReader.getSize();
