@@ -50,7 +50,7 @@ int prefixid(int argc, const char **argv, const Command& command) {
         }
 
         std::string result = ss.str();
-        writer.writeData(result.c_str(), result.length(), SSTR(key).c_str(), thread_idx);
+        writer.writeData(result.c_str(), result.length(), key, thread_idx);
     }
 
     writer.close();

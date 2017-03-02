@@ -45,7 +45,7 @@ int splitdb(int argc, const char **argv, const Command& command) {
         for(size_t i = startIndex; i < (startIndex + domainSize); i++){
             unsigned int outerKey = dbr.getDbKey(i);
             char * data = dbr.getData(i);
-            writer.writeData(data, sizes[i], (char *) SSTR(outerKey).c_str());
+            writer.writeData(data, sizes[i], outerKey);
         }
         writer.close();
     }

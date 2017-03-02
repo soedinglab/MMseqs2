@@ -77,13 +77,14 @@ First      T             C             A             G      Third
 
 class TranslateNucl {
 public:
-    enum GenCode{ CANONICAL,
+    enum GenCode {
+        CANONICAL = 1,
         VERT_MITOCHONDRIAL,
         YEAST_MITOCHONDRIAL,
         MOLD_MITOCHONDRIAL,
         INVERT_MITOCHONDRIAL,
         CILIATE,
-        FLATWORM_MITOCHONDRIAL,
+        FLATWORM_MITOCHONDRIAL = 9,
         EUPLOTID,
         PROKARYOTE,
         ALT_YEAST,
@@ -91,7 +92,7 @@ public:
         ALT_FLATWORM_MITOCHONDRIAL,
         BLEPHARISMA,
         CHLOROPHYCEAN_MITOCHONDRIAL,
-        TREMATODE_MITOCHONDRIAL,
+        TREMATODE_MITOCHONDRIAL = 21,
         SCENEDESMUS_MITOCHONDRIAL,
         THRAUSTOCHYTRIUM_MITOCHONDRIAL,
         PTEROBRANCHIA_MITOCHONDRIAL,
@@ -101,7 +102,8 @@ public:
         CONDYLOSTOMA,
         MESODINIUM,
         PERTRICH,
-        BLASTOCRITHIDIA};
+        BLASTOCRITHIDIA
+    };
 
     TranslateNucl(GenCode code){
         std::string ncbieaa = "";

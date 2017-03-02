@@ -280,7 +280,7 @@ void printUsage() {
 #undef str
 #undef str2
 #endif
-    usage << "Â© Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n";
+    usage << "© Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n";
 
     struct {
         const char* title;

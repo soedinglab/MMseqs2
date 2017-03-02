@@ -375,7 +375,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
                 repSequence[repSeqId] = true;
                 std::string swResultsString = swResultsSs.str();
                 const char *swResultsStringData = swResultsString.c_str();
-                dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(repSeqId)).c_str(), 0);
+                dbw.writeData(swResultsStringData, swResultsString.length(), seqDbr.getDbKey(repSeqId), 0);
             }else{
                 if(repSeqId != UINT_MAX) {
                     repSequence[repSeqId] = false;
@@ -385,7 +385,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             swResultsSs.str(std::string());
             repSeqId = hashSeqPair[kmerPos].kmer;
             queryLength = std::max(seqDbr.getSeqLens(repSeqId), 3ul) - 2;
-            swResultsSs << SSTR(seqDbr.getDbKey(repSeqId)).c_str() << "\t";
+            swResultsSs << seqDbr.getDbKey(repSeqId) << "\t";
             swResultsSs << 255 << "\t";
             swResultsSs << 0 << "\n";
         }
@@ -403,7 +403,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             lastTargetId = targetId;
             continue;
         }
-        swResultsSs << SSTR(seqDbr.getDbKey(targetId)).c_str() << "\t";
+        swResultsSs << seqDbr.getDbKey(targetId) << "\t";
         swResultsSs << 255 << "\t";
         swResultsSs << static_cast<short>(diagonal) << "\n";
         lastTargetId = targetId;
@@ -413,7 +413,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         repSequence[repSeqId] = true;
         std::string swResultsString = swResultsSs.str();
         const char *swResultsStringData = swResultsString.c_str();
-        dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(repSeqId)).c_str(), 0);
+        dbw.writeData(swResultsStringData, swResultsString.length(), seqDbr.getDbKey(repSeqId), 0);
     }else{
         if(repSeqId != UINT_MAX) {
             repSequence[repSeqId] = false;
@@ -423,12 +423,12 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     for(size_t id = 0; id < seqDbr.getSize(); id++){
         if(repSequence[id] == false){
             std::stringstream swResultsSs;
-            swResultsSs << SSTR(seqDbr.getDbKey(id)).c_str() << "\t";
+            swResultsSs << seqDbr.getDbKey(id) << "\t";
             swResultsSs << 255 << "\t";
             swResultsSs << 0 << "\n";
             std::string swResultsString = swResultsSs.str();
             const char* swResultsStringData = swResultsString.c_str();
-            dbw.writeData(swResultsStringData, swResultsString.length(), SSTR(seqDbr.getDbKey(id)).c_str(), 0);
+            dbw.writeData(swResultsStringData, swResultsString.length(), seqDbr.getDbKey(id), 0);
         }
     }
     // free memory

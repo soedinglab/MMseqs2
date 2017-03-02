@@ -80,7 +80,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
         thread_idx = omp_get_thread_num();
 #endif
         char *data = dbr.getData(id);
-        writeData(data, strlen(data), SSTR(dbr.getDbKey(id)).c_str(), thread_idx);
+        writeData(data, strlen(data), dbr.getDbKey(id), thread_idx);
     }
 
     Debug(Debug::INFO) << "Done\n";
@@ -114,7 +114,7 @@ void DBWriter::mergeFiles(DBReader<unsigned int> &qdbr,
         }
         // write result
         std::string result = ss.str();
-        writeData(result.c_str(), result.length(), SSTR(qdbr.getDbKey(id)).c_str(), 0);
+        writeData(result.c_str(), result.length(), qdbr.getDbKey(id), 0);
     }
 
     // close all reader
@@ -181,7 +181,7 @@ void DBWriter::close() {
     closed = true;
 }
 
-void DBWriter::writeData(const char *data, size_t dataSize, const char *key, unsigned int thrIdx) {
+void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx) {
     checkClosed();
     if (thrIdx >= threads) {
         Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
@@ -206,7 +206,7 @@ void DBWriter::writeData(const char *data, size_t dataSize, const char *key, uns
     offsets[thrIdx] += 1;
 
     size_t length = offsets[thrIdx] - offsetStart;
-    fprintf(indexFiles[thrIdx], "%s\t%zd\t%zd\n", key, offsetStart, length);
+    fprintf(indexFiles[thrIdx], "%u\t%zd\t%zd\n", key, offsetStart, length);
 }
 
 void DBWriter::checkClosed() {

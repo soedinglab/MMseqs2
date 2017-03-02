@@ -92,8 +92,8 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
 		}
 
         std::string fasta = fastaStream.str();
-        std::string key = SSTR(clusters.getDbKey(i));
-        msaOut.writeData(fasta.c_str(), fasta.length(), key.c_str(), thread_idx);
+        unsigned int key = clusters.getDbKey(i);
+        msaOut.writeData(fasta.c_str(), fasta.length(), key, thread_idx);
     }
 
 	msaOut.close();

@@ -513,10 +513,10 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
 
         int len;
         if(diagonalScoring == true){
-            len = snprintf(buffer, 100, "%s\t%.2e\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
+            len = snprintf(buffer, 100, "%u\t%.2e\t%d\n", tdbr->getDbKey(targetSeqId),
                            res->pScore, (short) res->diagonal);
         }else {
-            len = snprintf(buffer, 100, "%s\t%.4f\t%d\n", SSTR(tdbr->getDbKey(targetSeqId)).c_str(),
+            len = snprintf(buffer, 100, "%u\t%.4f\t%d\n", tdbr->getDbKey(targetSeqId),
                            res->pScore, res->prefScore);
         }
         prefResultsOutString.append( buffer, len );
@@ -528,7 +528,7 @@ int Prefiltering::writePrefilterOutput(DBWriter *dbWriter, int thread_idx, size_
     // write prefiltering results string to ffindex database
     const size_t prefResultsLength = prefResultsOutString.length();
     char* prefResultsOutData = (char *) prefResultsOutString.c_str();
-    dbWriter->writeData(prefResultsOutData, prefResultsLength, SSTR(qdbr->getDbKey(id)).c_str(), thread_idx);
+    dbWriter->writeData(prefResultsOutData, prefResultsLength, qdbr->getDbKey(id), thread_idx);
     return 0;
 }
 
