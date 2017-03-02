@@ -339,7 +339,7 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
 
     // create index table based on split parameter
     std::pair<short, double> calibration;
-    const int kmerScore = getKmerThreshold(this->sensitivity, this->kmerScore);
+    const int kmerScore = getKmerThreshold(this->sensitivity, this->querySeqType, this->kmerScore);
 
 
     if(splitMode == Parameters::TARGET_DB_SPLIT){
