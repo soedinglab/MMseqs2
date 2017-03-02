@@ -595,10 +595,10 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
 }
 
 int result2profile(int argc, const char **argv, const Command& command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
-
-    MMseqsMPI::init(argc, argv);
 
     // never allow deletions
     par.allowDeletion = false;
@@ -622,10 +622,10 @@ int result2profile(int argc, const char **argv, const Command& command) {
 }
 
 int result2msa(int argc, const char **argv, const Command& command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
-
-    MMseqsMPI::init(argc, argv);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);

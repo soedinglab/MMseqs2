@@ -14,10 +14,10 @@
 
 
 int align(int argc, const char **argv, const Command& command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, true, false, MMseqsParameter::COMMAND_ALIGN);
-
-    MMseqsMPI::init(argc, argv);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

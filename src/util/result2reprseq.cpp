@@ -60,10 +60,10 @@ int result2reprseq(const Parameters &par, DBReader<unsigned int> &resultReader,
 }
 
 int result2reprseq(int argc, const char **argv, const Command &command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
-
-    MMseqsMPI::init(argc, argv);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);

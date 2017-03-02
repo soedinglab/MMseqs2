@@ -551,12 +551,10 @@ int doSwap(Parameters &par) {
 
 
 int swapresults(int argc, const char **argv, const Command& command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
-
-    MMseqsMPI::init(argc, argv);
-    
-    
 
     int status = 0;
 #ifdef HAVE_MPI
