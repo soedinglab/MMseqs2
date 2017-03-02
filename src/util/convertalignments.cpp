@@ -13,7 +13,7 @@
 #include "DBReader.h"
 
 
-void printSeqBasedOnAln(FILE * out, char *seq, unsigned int offset, std::string bt, bool reverse) {
+void printSeqBasedOnAln(FILE * out, const char *seq, unsigned int offset, const std::string &bt, bool reverse) {
     unsigned int seqPos = 0;
     for (uint32_t i = 0; i < bt.size(); ++i){
         switch(bt[i]){
