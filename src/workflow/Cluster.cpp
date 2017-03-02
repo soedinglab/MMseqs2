@@ -58,7 +58,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         }
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_TARGET_COV.uniqid && par.clusteringWorkflow[i].wasSet) {
             targetCov = true;
-            par.cov = 0.0;
+            par.covThr = 0.0;
         }
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_C.uniqid && par.clusteringWorkflow[i].wasSet) {
             cov = true;

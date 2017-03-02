@@ -28,7 +28,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < par.linclustworkflow.size(); i++) {
         if (par.linclustworkflow[i].uniqid == par.PARAM_TARGET_COV.uniqid && par.linclustworkflow[i].wasSet) {
             targetCov = true;
-            par.cov = 0.0;
+            par.covThr = 0.0;
         }
         if (par.linclustworkflow[i].uniqid == par.PARAM_C.uniqid && par.linclustworkflow[i].wasSet) {
             cov = true;
