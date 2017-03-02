@@ -140,7 +140,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
         }
         if (*split == Parameters::AUTO_SPLIT_DETECTION && templateDBIsIndex == false) {
             *split = splitingSetting.second;
-            if (kmerSize == 0) {
+            if (*kmerSize == 0) {
                 // set k-mer based on aa size in database
                 // if we have less than 10Mio * 335 amino acids use 6mers
                 *kmerSize = splitingSetting.first;
