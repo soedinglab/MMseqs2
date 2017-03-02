@@ -458,9 +458,9 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             #pragma omp barrier
             if (thread_idx == 0) {
                 tmpDbw.close();
+                Debug(Debug::INFO) << "Done. Exiting early now.\n";
             }
             #pragma omp barrier
-            Debug(Debug::INFO) << "Done. Exiting early now.\n";
             EXIT(EXIT_SUCCESS);
         }
 #endif

@@ -341,10 +341,10 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             #pragma omp barrier
             if(thread_idx == 0) {
                 dbw.close();
+                Debug(Debug::INFO) << "Done. Exiting early now.\n";
             }
             #pragma omp barrier
 
-            Debug(Debug::INFO) << "Done. Exiting early now.\n";
             EXIT(EXIT_SUCCESS);
         }
 #endif
