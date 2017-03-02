@@ -72,13 +72,6 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
             EXIT(EXIT_FAILURE);
     }
 
-    if (querySeqType == Sequence::NUCLEOTIDES) {
-        m = new NucleotideMatrix();
-    } else {
-        // keep score bias at 0.0 (improved ROC)
-        m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-    }
-
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetSeqDB);
     //TODO optimize this. Dont read twice the target index. This seems to be slow
     if (indexDB != "") {
@@ -89,6 +82,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     }
     tseqdbr->open(DBReader<unsigned int>::NOSORT);
 
+    std::string scoringMatrixFile = par.scoringMatrixFile;
     bool reopenTargetDb = false;
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tseqdbr);
     if (templateDBIsIndex == true) { // exchange reader with old ffindex reader
@@ -101,6 +95,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         } else {
             tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, 0);
             tseqdbr = PrefilteringIndexReader::openNewReader(tidxdbr);
+            scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
         }
     } else {
         reopenTargetDb = true;
@@ -128,17 +123,22 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         // open the sequence, prefiltering and output databases
         qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
         qseqdbr->open(DBReader<unsigned int>::NOSORT);
-        //if (par.noPreload == false) {
         qseqdbr->readMmapedDataInMemory();
         qseqdbr->mlock();
-        //}
     }
 
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
+    if (querySeqType == Sequence::NUCLEOTIDES) {
+        m = new NucleotideMatrix();
+    } else {
+        // keep score bias at 0.0 (improved ROC)
+        m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, 0.0);
+    }
+
     if (realign == true) {
-        realign_m = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, -0.2f);
+        realign_m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, -0.2f);
     } else {
         realign_m = NULL;
     }
@@ -148,23 +148,26 @@ Alignment::~Alignment() {
     if (realign == true) {
         delete realign_m;
     }
-
     delete m;
-    delete qseqdbr;
+
+    tseqdbr->close();
+    delete tseqdbr;
 
     if (templateDBIsIndex == true) {
-        delete tSeqLookup;
-        if (sameQTDB == true) {
-            qSeqLookup = NULL;
-        }
-
         tidxdbr->close();
         delete tidxdbr;
+
+        delete tSeqLookup;
     }
 
     if (sameQTDB == false) {
-        delete tseqdbr;
+        qseqdbr->close();
+        delete qseqdbr;
+    } else {
+        qSeqLookup = NULL;
     }
+
+    prefdbr->close();
     delete prefdbr;
 }
 
@@ -178,9 +181,6 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << (dbFrom + dbSize) << "\n";
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDB, outDBIndex, mpiRank);
     run(tmpOutput.first, tmpOutput.second, dbFrom, dbSize, maxAlnNum, maxRejected);
-
-    // close reader to reduce memory
-    closeReaders();
 
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
@@ -197,17 +197,8 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
     }
 }
 
-void Alignment::closeReaders() {
-    qseqdbr->close();
-    if (sameQTDB == false) {
-        tseqdbr->close();
-    }
-    prefdbr->close();
-}
-
 void Alignment::run(const unsigned int maxAlnNum, const unsigned int maxRejected) {
-    run(outDB.c_str(), outDBIndex.c_str(), 0, prefdbr->getSize(), maxAlnNum, maxRejected);
-    closeReaders();
+    run(0, prefdbr->getSize(), maxAlnNum, maxRejected);
 }
 
 void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
