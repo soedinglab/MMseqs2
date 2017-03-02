@@ -827,16 +827,28 @@ void Prefiltering::mergeFiles(const std::vector<std::pair<std::string, std::stri
     }
 }
 
-int Prefiltering::getKmerThreshold(const float sensitivity, const int score) {
+int Prefiltering::getKmerThreshold(const float sensitivity, const int querySeqType, const int score) {
     const unsigned int sens =  sensitivity;
     int kmerThrBest = kmerScore;
     if(kmerThrBest == INT_MAX){
         if (kmerSize == 5){
-            kmerThrBest = 123.75 - (sens * 8.75);
+            float base = 123.75;
+            if(querySeqType==Sequence::HMM_PROFILE){
+                base += 20.0;
+            }
+            kmerThrBest = base - (sens * 8.75);
         } else if (kmerSize == 6){
-            kmerThrBest = 138.75 - (sens * 8.75);
+            float base = 138.75;
+            if(querySeqType==Sequence::HMM_PROFILE){
+                base += 20.0;
+            }
+            kmerThrBest = base - (sens * 8.75);
         } else if (kmerSize == 7){
-            kmerThrBest = 154.75 - (sens * 9.75);
+            float base = 154.75;
+            if(querySeqType==Sequence::HMM_PROFILE){
+                base += 20.0;
+            }
+            kmerThrBest = base - (sens * 9.75);
         }
         else{
             Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";

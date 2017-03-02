@@ -143,7 +143,7 @@ private:
                                                   unsigned int *querySeqsIds, bool reverseQuery,
                                                   const size_t kmerThrMid);
 
-    int getKmerThreshold(const float sensitivity, const int score);
+    int getKmerThreshold(const float sensitivity, const int querySeqType, const int score);
 
     std::string searchForIndex(const std::string &pathToDB);
 
