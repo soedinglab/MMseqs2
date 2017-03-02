@@ -198,7 +198,7 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
 }
 
 void Alignment::run(const unsigned int maxAlnNum, const unsigned int maxRejected) {
-    run(0, prefdbr->getSize(), maxAlnNum, maxRejected);
+    run(outDB, outDBIndex, 0, prefdbr->getSize(), maxAlnNum, maxRejected);
 }
 
 void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
