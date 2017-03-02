@@ -1010,7 +1010,7 @@ std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter
 std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par) {
     std::stringstream ss;
     for (size_t i = 0; i < par.size(); i++) {
-        if (par[i].automaticSet || par[i].wasSet) {
+        if (par[i].automaticSet) {
             if(typeid(int) == par[i].type ){
                 ss << par[i].name << " ";
                 ss << *((int *)par[i].value) << " ";
