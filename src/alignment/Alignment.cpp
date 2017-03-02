@@ -336,7 +336,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             }
             #pragma omp barrier
 
-            EXIT(EXIT_SUCCESS);
+            _Exit(EXIT_SUCCESS);
         }
 #endif
 

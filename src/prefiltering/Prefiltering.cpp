@@ -309,7 +309,7 @@ void Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
 #ifndef HAVE_MPI
     if (earlyExit) {
         Debug(Debug::INFO) << "Done. Exiting early now.\n";
-        EXIT(EXIT_SUCCESS);
+        _Exit(EXIT_SUCCESS);
     }
 #endif
 
@@ -461,7 +461,7 @@ void Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
                 Debug(Debug::INFO) << "Done. Exiting early now.\n";
             }
             #pragma omp barrier
-            EXIT(EXIT_SUCCESS);
+            _Exit(EXIT_SUCCESS);
         }
 #endif
     }
