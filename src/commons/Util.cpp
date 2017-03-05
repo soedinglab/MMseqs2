@@ -526,6 +526,10 @@ int Util::omp_thread_count() {
     return n;
 }
 
+size_t Util::getPageSize() {
+    return sysconf(_SC_PAGESIZE);
+}
+
 
 
 

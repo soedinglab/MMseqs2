@@ -30,11 +30,14 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
 
 template <typename T> void DBReader<T>::readMmapedDataInMemory(){
     size_t bytes = 0;
-    for(size_t i = 0; i < dataSize; i++){
-        bytes += data[i];
+    size_t pageSize = Util::getPageSize();
+    size_t pages =  dataSize / pageSize;
+    for(size_t i = 0; i < pages; i++){
+        bytes += data[i*pageSize];
     }
     this->magicBytes = bytes;
 }
+
 
 template <typename T>
 void DBReader<T>::printMagicNumber(){
