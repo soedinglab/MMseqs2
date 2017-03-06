@@ -828,7 +828,7 @@ void Prefiltering::mergeFiles(const std::vector<std::pair<std::string, std::stri
 }
 
 int Prefiltering::getKmerThreshold(const float sensitivity, const int querySeqType, const int score) {
-    const unsigned int sens =  sensitivity;
+    const unsigned float sens =  sensitivity;
     int kmerThrBest = kmerScore;
     if(kmerThrBest == INT_MAX){
         if (kmerSize == 5){
