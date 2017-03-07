@@ -51,7 +51,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     ScoreMatrix *s2 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
     char* serialized2mer = ScoreMatrix::serialize(*s2);
     Debug(Debug::INFO) << "Write SCOREMATRIX2MER (" << SCOREMATRIX2MER << ")\n";
-    writer.writeData(serialized3mer, ScoreMatrix::size(*s2), SCOREMATRIX2MER, 0);
+    writer.writeData(serialized2mer, ScoreMatrix::size(*s2), SCOREMATRIX2MER, 0);
     free(serialized2mer);
     ScoreMatrix::cleanup(s2);
 
