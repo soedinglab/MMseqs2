@@ -211,11 +211,11 @@ void UngappedAlignment::computeScores(const char *queryProfile,
 //            continue;
 //        }
         const unsigned short currDiag = results[i].diagonal;
-        diagonalMatches[currDiag * DIAGONALCOUNT + diagonalCounter[currDiag]] = &results[i];
+        diagonalMatches[currDiag * (VECSIZE_INT * 4) + diagonalCounter[currDiag]] = &results[i];
         diagonalCounter[currDiag]++;
         if(diagonalCounter[currDiag] >= (VECSIZE_INT * 4) ) {
             scoreDiagonalAndUpdateHits(queryProfile, queryLen, static_cast<short>(currDiag),
-                                       &diagonalMatches[currDiag * DIAGONALCOUNT], diagonalCounter[currDiag], bias);
+                                       &diagonalMatches[currDiag * (VECSIZE_INT * 4)], diagonalCounter[currDiag], bias);
             diagonalCounter[currDiag] = 0;
         }
     }
@@ -223,7 +223,7 @@ void UngappedAlignment::computeScores(const char *queryProfile,
     for(size_t i = 0; i < DIAGONALCOUNT; i++){
         if(diagonalCounter[i] > 0){
             scoreDiagonalAndUpdateHits(queryProfile, queryLen, static_cast<short>(i),
-                                       &diagonalMatches[i * DIAGONALCOUNT], diagonalCounter[i], bias);
+                                       &diagonalMatches[i * (VECSIZE_INT * 4)], diagonalCounter[i], bias);
         }
         diagonalCounter[i] = 0;
     }
