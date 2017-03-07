@@ -56,11 +56,11 @@ int prefilter(int argc, const char **argv, const Command& command) {
         // if database fits into the memory of a single node split by query.
         // each node should just compute 1 query split
         pref.split = MMseqsMPI::numProc;
-        pref.runSplits(par.db1,par.db1Index, filenamePair.first.c_str(), filenamePair.second.c_str(), MMseqsMPI::rank, 1);
+        pref.runSplits(par.db1, par.db1Index, filenamePair.first.c_str(), filenamePair.second.c_str(), MMseqsMPI::rank, 1);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    if(MMseqsMPI::rank == 0){
-        std::vector<std::pair<std::string, std::string> > splitFiles;
+    if(MMseqsMPI::isMaster()){
+        std::vector<std::pair<std::string, std::string>> splitFiles;
         for(int procs = 0; procs < MMseqsMPI::numProc; procs++){
             splitFiles.push_back(Util::createTmpFileNames(par.db3, par.db3Index, procs));
         }
