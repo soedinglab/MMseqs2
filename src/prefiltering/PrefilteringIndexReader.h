@@ -29,6 +29,7 @@ public:
     static unsigned int SEQCOUNT;
     static unsigned int META;
     static unsigned int SCOREMATRIXNAME;
+    static unsigned int SCOREMATRIX2MER;
     static unsigned int SCOREMATRIX3MER;
     static unsigned int DBRINDEX;
 
@@ -48,6 +49,8 @@ public:
     static PrefilteringIndexData getMetadata(DBReader<unsigned int> *dbr);
 
     static std::string getSubstitutionMatrixName(DBReader<unsigned int> *dbr);
+
+    static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr);
 
     static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr);
 

@@ -4,12 +4,13 @@
 #include "ExtendedSubstitutionMatrix.h"
 #include "FileUtil.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION="3.1.0";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="3.2.0";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
-unsigned int PrefilteringIndexReader::SCOREMATRIX3MER = 3;
-unsigned int PrefilteringIndexReader::DBRINDEX = 4;
+unsigned int PrefilteringIndexReader::SCOREMATRIX2MER = 3;
+unsigned int PrefilteringIndexReader::SCOREMATRIX3MER = 4;
+unsigned int PrefilteringIndexReader::DBRINDEX = 5;
 
 unsigned int PrefilteringIndexReader::ENTRIES = 91;
 unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 92;
@@ -35,7 +36,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
 
-    DBWriter writer(outIndexName.c_str(), std::string(outIndexName).append(".index").c_str(), DBWriter::BINARY_MODE);
+    DBWriter writer(outIndexName.c_str(), std::string(outIndexName).append(".index").c_str(), 1, DBWriter::BINARY_MODE);
     writer.open();
 
     ScoreMatrix *s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
@@ -44,6 +45,15 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     writer.writeData(serialized3mer, ScoreMatrix::size(*s3), SCOREMATRIX3MER, 0);
     free(serialized3mer);
     ScoreMatrix::cleanup(s3);
+
+    writer.alignToPageSize();
+
+    ScoreMatrix *s2 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+    char* serialized2mer = ScoreMatrix::serialize(*s2);
+    Debug(Debug::INFO) << "Write SCOREMATRIX2MER (" << SCOREMATRIX2MER << ")\n";
+    writer.writeData(serialized3mer, ScoreMatrix::size(*s2), SCOREMATRIX2MER, 0);
+    free(serialized2mer);
+    ScoreMatrix::cleanup(s2);
 
     Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, kmerSize, hasSpacedKmer, compBiasCorrection);
 
@@ -201,9 +211,10 @@ std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned
     return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME));
 }
 //
-//ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr) {
-//    return ScoreMatrix::unserialize(dbr->getDataByDBKey(SCOREMATRIX2MER));
-//}
+ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr) {
+    PrefilteringIndexData meta = getMetadata(dbr);
+    return ScoreMatrix::unserialize(dbr->getDataByDBKey(SCOREMATRIX2MER), meta.alphabetSize, 2);
+}
 
 ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr) {
     PrefilteringIndexData meta = getMetadata(dbr);

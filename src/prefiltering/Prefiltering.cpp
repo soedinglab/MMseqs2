@@ -240,8 +240,8 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
 ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
     if (templateDBIsIndex == true) {
         switch(kmerSize) {
-//            case 2:
-//                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr);
+            case 2:
+                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr);
             case 3:
                 return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr);
             default:

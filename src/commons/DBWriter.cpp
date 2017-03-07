@@ -207,6 +207,28 @@ void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, un
     fprintf(indexFiles[thrIdx], "%u\t%zd\t%zd\n", key, offsetStart, length);
 }
 
+void DBWriter::alignToPageSize() {
+    if (threads > 1) {
+        Debug(Debug::ERROR) << "Data file can only be aligned in single threaded mode.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    size_t currentOffset = offsets[0];
+    size_t pageSize = Util::getPageSize();
+    size_t newOffset = ((pageSize - 1) & currentOffset) ? ((currentOffset + pageSize) & ~(pageSize - 1)) : currentOffset;
+    char nullByte = '\0';
+    for (size_t i = currentOffset; i < newOffset; ++i) {
+        size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[0]);
+        if (written != 1) {
+            Debug(Debug::ERROR) << "Could not write to data file " << dataFileName[0] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    offsets[0] = newOffset;
+
+}
+
+
 void DBWriter::checkClosed() {
     if (closed == true) {
         Debug(Debug::ERROR) << "Trying to write to a closed database.\n";

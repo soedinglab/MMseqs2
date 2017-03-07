@@ -33,6 +33,8 @@ class DBWriter {
 
         void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0);
 
+        void alignToPageSize();
+
         void mergeFiles(DBReader<unsigned int>& qdbr,
                         const std::vector<std::pair<std::string, std::string> >& files,
                         const std::vector<std::string>& prefixes);
