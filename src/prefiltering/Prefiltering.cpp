@@ -73,13 +73,13 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     switch (querySeqType) {
         case Sequence::NUCLEOTIDES:
             subMat = new NucleotideMatrix();
-            _2merSubMatrix = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+            _2merSubMatrix = getScoreMatrix(*subMat, 2);
             _3merSubMatrix = getScoreMatrix(*subMat, 3);
             break;
         case Sequence::AMINO_ACIDS:
             subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
             alphabetSize = subMat->alphabetSize;
-            _2merSubMatrix = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+            _2merSubMatrix = getScoreMatrix(*subMat, 2);
             _3merSubMatrix = getScoreMatrix(*subMat, 3);
             break;
         case Sequence::HMM_PROFILE:
