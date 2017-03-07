@@ -30,6 +30,11 @@ add_executable(test_alignment ${testalignment} )
 target_link_libraries(test_alignment util)
 target_link_libraries(test_alignment workflow)
 
+set(testtan TestTanTan.cpp )
+add_executable(test_tantan ${testtan} )
+
+target_link_libraries(test_tantan tantan)
+target_link_libraries(test_tantan workflow)
 
 set(testalignmenttraceback TestAlignmentTraceback.cpp )
 add_executable(test_alignmenttraceback ${testalignmenttraceback} )

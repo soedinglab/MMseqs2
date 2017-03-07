@@ -115,7 +115,7 @@ ENDFOREACH()
 
 add_executable(mmseqs ${mmseqs_source_files} )
 
-target_link_libraries(mmseqs util workflow)
+target_link_libraries(mmseqs tantan util workflow)
 if(MPI_FOUND)
     target_link_libraries(mmseqs ${MPI_LIBRARIES})
     if(MPI_COMPILE_FLAGS)
