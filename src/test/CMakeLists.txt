@@ -23,6 +23,8 @@ add_executable(test_indextable ${testindextable} )
 
 target_link_libraries(test_indextable util)
 target_link_libraries(test_indextable workflow)
+target_link_libraries(test_indextable tantan)
+
 
 set(testalignment TestAlignment.cpp )
 add_executable(test_alignment ${testalignment} )
