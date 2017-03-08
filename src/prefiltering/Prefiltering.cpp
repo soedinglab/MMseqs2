@@ -7,11 +7,11 @@
 #include "Util.h"
 #include "FileUtil.h"
 #include "Debug.h"
+#include "tantan.h"
 #include <utility>
 
 #include <regex.h>
 #include <sys/time.h>
-#include <tantan/tantan.h>
 
 #ifdef OPENMP
 #include <omp.h>

@@ -48,8 +48,6 @@ include_directories(lib/getoptpp)
 include_directories(lib/kseq)
 include_directories(lib/simd)
 include_directories(lib/gzstream)
-include_directories(lib/tantan)
-add_subdirectory(lib/tantan)
 add_subdirectory(src)
 
 install(PROGRAMS

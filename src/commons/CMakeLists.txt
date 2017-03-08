@@ -42,6 +42,8 @@ set(commons_source_files
     MemoryMapped.h
     CpuInfo.h
     TranslateNucl.h
+    tantan.h
+    tantan.cpp
     profileStates.cpp)
 
 add_library(commons ${commons_source_files})
