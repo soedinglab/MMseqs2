@@ -639,12 +639,14 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
                     charSequence[i] = (char) s.int_sequence[i];
                 }
                 maskedResidues += tantan::maskSequences(charSequence,
-                                                        charSequence+s.L, 50 /*options.maxCycleLength*/,
+                                                        charSequence+s.L,
+                                      50 /*options.maxCycleLength*/,
                                       probMatrixPointers,
-                                      0.005 /*options.repeatProb*/, 0.05 /*options.repeatEndProb*/,
+                                      0.005 /*options.repeatProb*/,
+                                      0.05 /*options.repeatEndProb*/,
                                       0.9 /*options.repeatOffsetProbDecay*/,
                                       0, 0,
-                                      0.5 /*options.minMaskProb*/, hardMaskTable);
+                                      0.9 /*options.minMaskProb*/, hardMaskTable);
                 for(size_t i = 0; i < s.L; i++){
                     s.int_sequence[i] = charSequence[i];
                 }
