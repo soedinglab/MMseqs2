@@ -693,18 +693,7 @@ void Prefiltering::mergeFiles(const std::string &outDB, const std::string &outDB
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
         mergeOutput(outDB, outDBIndex, splitFiles);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
-        const char **datafilesNames = new const char *[splitFiles.size()];
-        const char **indexFilesNames = new const char *[splitFiles.size()];
-        for (size_t i = 0; i < splitFiles.size(); i++) {
-            datafilesNames[i] = splitFiles[i].first.c_str();
-            indexFilesNames[i] = splitFiles[i].second.c_str();
-        }
-        DBWriter::mergeResults(outDB.c_str(), outDBIndex.c_str(), datafilesNames, indexFilesNames, splitFiles.size());
-        delete[] datafilesNames;
-        delete[] indexFilesNames;
-    } else {
-        Debug(Debug::ERROR) << "Invalid split mode: " << splitMode << "\n";
-        EXIT(EXIT_FAILURE);
+        DBWriter::mergeResults(outDB, outDBIndex, splitFiles);
     }
 }
 
