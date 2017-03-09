@@ -119,7 +119,8 @@ Prefiltering::~Prefiltering() {
     }
 
     delete subMat;
-    if (_2merSubMatrix != NULL) {
+
+    if (_2merSubMatrix != NULL && templateDBIsIndex == false) {
         ScoreMatrix::cleanup(_2merSubMatrix);
     }
     if (_3merSubMatrix != NULL && templateDBIsIndex == false) {
