@@ -63,7 +63,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                                          step, split, &splitStart, &splitSize);
         IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
-        Prefiltering::fillDatabase(dbr, &seq, indexTable, subMat, splitStart, splitStart + splitSize, diagonalScoring, maskResidues, 0, threads);
+        PrefilteringIndexReader::fillDatabase(dbr, &seq, indexTable, subMat, splitStart, splitStart + splitSize, diagonalScoring, maskResidues, 0, threads);
         indexTable->printStatistics(subMat->int2aa);
 
 
@@ -157,7 +157,7 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
     return sequenceLookup;
 }
 
-IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int>*dbr, int split, bool diagonalScoring) {
+IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *dbr, int split, bool diagonalScoring) {
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
     if (data.local) {
@@ -234,4 +234,164 @@ std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB)
     }
 
     return "";
+}
+
+
+void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
+                                           BaseMatrix *subMat, size_t dbFrom, size_t dbTo,
+                                           bool diagonalScoring, bool maskResidues, int kmerThr, unsigned int threads) {
+    Debug(Debug::INFO) << "Index table: counting k-mers...\n";
+    // fill and init the index table
+    size_t aaCount = 0;
+    dbTo = std::min(dbTo, dbr->getSize());
+    size_t maskedResidues = 0;
+    size_t totalKmerCount = 0;
+    size_t tableSize = 0;
+
+    size_t dbSize = dbTo - dbFrom;
+    size_t *sequenceOffSet = new size_t[dbSize];
+    char *idScoreLookup = new char[subMat->alphabetSize];
+    for (int aa = 0; aa < subMat->alphabetSize; aa++){
+        short score = subMat->subMatrix[aa][aa];
+        if (score > CHAR_MAX || score < CHAR_MIN) {
+            Debug(Debug::WARNING) << "Truncating substitution matrix diagonal score!";
+        }
+        idScoreLookup[aa] = (char) score;
+    }
+
+    size_t aaDbSize = 0;
+    sequenceOffSet[0] = 0;
+    for (size_t id = dbFrom; id < dbTo; id++) {
+        int seqLen = std::max(static_cast<int>(dbr->getSeqLens(id)) - 2, 0);
+        aaDbSize += seqLen; // remove /n and /0
+        size_t idFromNull = (id - dbFrom);
+        if (id < dbTo - 1) {
+            sequenceOffSet[idFromNull + 1] = sequenceOffSet[idFromNull] + seqLen;
+        }
+        if (Util::overlappingKmers(seqLen, seq->getEffectiveKmerSize() > 0)) {
+            tableSize += 1;
+        }
+    }
+
+    SequenceLookup *sequenceLookup = new SequenceLookup(dbSize, aaDbSize);
+#pragma omp parallel
+    {
+        Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
+        Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
+                   seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
+        unsigned int * buffer = new unsigned int[seq->getMaxLen()];
+#pragma omp for schedule(dynamic, 100) reduction(+:aaCount, totalKmerCount, maskedResidues)
+        for (size_t id = dbFrom; id < dbTo; id++) {
+            s.resetCurrPos();
+            Debug::printProgress(id - dbFrom);
+            char *seqData = dbr->getData(id);
+            unsigned int qKey = dbr->getDbKey(id);
+            s.mapSequence(id - dbFrom, qKey, seqData);
+            if (maskResidues) {
+                maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3, indexTable->getAlphabetSize(),
+                                                          seq->aa2int[(unsigned char) 'X'], true, true, true, true);
+            }
+            aaCount += s.L;
+            totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
+            sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
+        }
+        delete [] buffer;
+    }
+    delete[] sequenceOffSet;
+    dbr->remapData();
+    Debug(Debug::INFO) << "\n";
+    Debug(Debug::INFO) << "Index table: Masked residues: " << maskedResidues << "\n";
+    if(totalKmerCount == 0) {
+        Debug(Debug::ERROR) << "No k-mer could be extracted for the database " << dbr->getDataFileName() << ".\n"
+                            << "Maybe the sequences length is less than 14 residues";
+        Debug(Debug::ERROR) << "\n";
+        if (maskedResidues == true){
+            Debug(Debug::ERROR) <<  " or contains only low complexity regions.";
+            Debug(Debug::ERROR) << "Use --do-not-mask to deactivate low complexity filter.\n";
+        }
+        EXIT(EXIT_FAILURE);
+    }
+    //TODO find smart way to remove extrem k-mers without harming huge protein families
+//    size_t lowSelectiveResidues = 0;
+//    const float dbSize = static_cast<float>(dbTo - dbFrom);
+//    for(size_t kmerIdx = 0; kmerIdx < indexTable->getTableSize(); kmerIdx++){
+//        size_t res = (size_t) indexTable->getOffset(kmerIdx);
+//        float selectivityOfKmer = (static_cast<float>(res)/dbSize);
+//        if(selectivityOfKmer > 0.005){
+//            indexTable->getOffset()[kmerIdx] = 0;
+//            lowSelectiveResidues += res;
+//        }
+//    }
+//    Debug(Debug::INFO) << "Index table: Remove "<< lowSelectiveResidues <<" none selective residues\n";
+//    Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
+    size_t tableEntriesNum = 0;
+    for (size_t i = 0; i < indexTable->getTableSize(); i++) {
+        tableEntriesNum += (size_t) indexTable->getOffset(i);
+    }
+
+#pragma omp parallel
+    {
+        Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
+                   seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
+        Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
+        unsigned int thread_idx = 0;
+        IndexEntryLocalTmp * buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+        size_t threadFrom, threadSize;
+        size_t *offsets = indexTable->getOffsets();
+        Util::decomposeDomainSize(tableEntriesNum, offsets, indexTable->getTableSize() + 1,
+                                  thread_idx, threads, &threadFrom, &threadSize);
+
+//        Debug(Debug::WARNING) << thread_idx << "\t" << threadFrom << "\t" << threadSize << "\n";
+
+#pragma omp barrier
+        if (thread_idx == 0) {
+            if (diagonalScoring == true) {
+                indexTable->initMemory(tableEntriesNum, sequenceLookup, tableSize);
+            } else {
+                indexTable->initMemory(tableEntriesNum, NULL, tableSize);
+            }
+            indexTable->init();
+            Debug(Debug::INFO) << "Index table: fill...\n";
+        }
+#pragma omp barrier
+        for (size_t id = dbFrom; id < dbTo; id++) {
+            s.resetCurrPos();
+            if (thread_idx == 0) {
+                Debug::printProgress(id - dbFrom);
+            }
+            //char *seqData = dbr->getData(id);
+            //TODO - dbFrom?!?
+            unsigned int qKey = dbr->getDbKey(id);
+            //seq->mapSequence(id - dbFrom, qKey, seqData);
+            s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
+//            Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
+//                                    indexTable->getAlphabetSize(), seq->aa2int['X']);
+            indexTable->addSequence(&s, &idxer, buffer, threadFrom, threadSize, kmerThr, idScoreLookup);
+        }
+        delete [] buffer;
+    }
+    if (diagonalScoring == false) {
+        delete sequenceLookup;
+    }
+    delete [] idScoreLookup;
+    if ((dbTo-dbFrom) > 10000) {
+        Debug(Debug::INFO) << "\n";
+    }
+    Debug(Debug::INFO) << "Index table: removing duplicate entries...\n";
+    indexTable->revertPointer();
+    Debug(Debug::INFO) << "Index table init done.\n\n";
+
+}
+
+IndexTable* PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
+                                                        int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
+                                                        bool diagonalScoring, bool maskResidues, int kmerThr,
+                                                        unsigned int threads) {
+
+    IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
+    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, maskResidues, kmerThr, threads);
+    return indexTable;
 }

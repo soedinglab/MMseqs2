@@ -55,6 +55,16 @@ public:
     static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr);
 
     static std::string searchForIndex(const std::string &pathToDB);
+
+
+    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
+                                          int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
+                                          bool diagonalScoring, bool maskResidues, int kmerThr, unsigned int threads);
+
+    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
+                             BaseMatrix *subMat, size_t dbFrom, size_t dbTo, bool diagonalScoring,
+                             bool maskResidues, int kmerThr, unsigned int threads);
+
 };
 
 #endif
