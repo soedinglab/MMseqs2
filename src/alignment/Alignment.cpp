@@ -87,6 +87,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tseqdbr);
     if (templateDBIsIndex == true) { // exchange reader with old ffindex reader
         tidxdbr = tseqdbr;
+        PrefilteringIndexReader::printSummary(tseqdbr);
         PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tseqdbr);
         if (meta.split != 1) {
             Debug(Debug::WARNING) << "Can not use split index for alignment.\n";

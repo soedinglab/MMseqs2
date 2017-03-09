@@ -182,9 +182,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
     return retTable;
 }
 
-
-PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int>*dbr) {
-    PrefilteringIndexData prefData;
+void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
     Debug(Debug::INFO) << "Index version: " << dbr->getDataByDBKey(VERSION) << "\n";
     int *metadata_tmp = (int *) dbr->getDataByDBKey(META);
 
@@ -196,6 +194,12 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
     Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[5] << "\n";
 
     Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME) << "\n";
+}
+
+PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int> *dbr) {
+    PrefilteringIndexData prefData;
+
+    int *metadata_tmp = (int *) dbr->getDataByDBKey(META);
 
     prefData.kmerSize = metadata_tmp[0];
     prefData.alphabetSize = metadata_tmp[1];

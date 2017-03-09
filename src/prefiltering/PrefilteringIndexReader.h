@@ -46,6 +46,8 @@ public:
 
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, int split, bool diagonalScoring);
 
+    static void printSummary(DBReader<unsigned int> *dbr);
+
     static PrefilteringIndexData getMetadata(DBReader<unsigned int> *dbr);
 
     static std::string getSubstitutionMatrixName(DBReader<unsigned int> *dbr);
