@@ -78,8 +78,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
-    IndexReader *queryReader = NULL;
-    IndexReader *targetReader = NULL;
+    DBReader<unsigned int> *queryReader = NULL;
+    DBReader<unsigned int> *targetReader = NULL;
 
     bool sameDB = false;
     if (par.db1.compare(par.db2) == 0) {
@@ -87,11 +87,13 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
 
     if (par.formatAlignmentMode != Parameters::FORMAT_ALIGNMENT_BLAST_TAB) {
-        targetReader = new IndexReader(par.db2.c_str(), par.db2Index.c_str(), par.noPreload);
+        targetReader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        targetReader->open(DBReader<unsigned int>::NOSORT);
         if (sameDB == true) {
             queryReader = targetReader;
         } else {
-            queryReader = new IndexReader(par.db1.c_str(), par.db1Index.c_str(), par.noPreload);
+            queryReader = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+            queryReader->open(DBReader<unsigned int>::NOSORT);
         }
     }
     std::string qHeaderName = (par.db1 + "_h");
@@ -119,7 +121,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
         std::string querySeq;
         if (par.formatAlignmentMode != Parameters::FORMAT_ALIGNMENT_BLAST_TAB) {
-            querySeq = queryReader->getSequenceString(queryKey);
+            querySeq = queryReader->getDataByDBKey(queryKey);
         }
 
 
@@ -144,7 +146,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 printSeqBasedOnAln(fastaFP, querySeq.c_str(), res.qStartPos, backtrace, false);
                 fprintf(fastaFP, "\n");
 
-                std::string targetSeq = targetReader->getSequenceString(res.dbKey);
+                std::string targetSeq = targetReader->getDataByDBKey(res.dbKey);
                 printSeqBasedOnAln(fastaFP, targetSeq.c_str(), res.dbStartPos, backtrace, true);
                 fprintf(fastaFP, "\n");
             } else if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM) { ;
@@ -167,8 +169,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
 
     if (par.formatAlignmentMode != Parameters::FORMAT_ALIGNMENT_BLAST_TAB) {
+        queryReader->close();
         delete queryReader;
         if (sameDB == false) {
+            queryReader->close();
             delete targetReader;
         }
     }
