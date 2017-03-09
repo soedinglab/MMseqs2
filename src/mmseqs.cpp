@@ -196,10 +196,12 @@ static struct Command commands[] = {
             "Milot Mirdita <milot@mirdita.de>",
             "<i:queryDB> <i:resultDB> <o:reprSeqDB>",
             CITATION_MMSEQS2},
-        {"tsv2db",               tsv2db,              &par.onlythreads,          COMMAND_DB,
+        {"tsv2db",               tsv2db,              &par.onlyverbosity,        COMMAND_DB,
+            "Turns a tsv into a mmseqs database",
             NULL,
             "Milot Mirdita <milot@mirdita.de>",
-            "<i:tsvFile> <o:sequenceDB>"
+            "<i:tsvFile> <o:sequenceDB>",
+            CITATION_MMSEQS2
         },
 // Special-purpose utilities
         {"rescorediagonal",           rescorediagonal,           &par.rescorediagonal,        COMMAND_SPECIAL,
