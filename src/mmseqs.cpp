@@ -196,6 +196,11 @@ static struct Command commands[] = {
             "Milot Mirdita <milot@mirdita.de>",
             "<i:queryDB> <i:resultDB> <o:reprSeqDB>",
             CITATION_MMSEQS2},
+        {"tsv2db",               tsv2db,              &par.onlythreads,          COMMAND_DB,
+            NULL,
+            "Milot Mirdita <milot@mirdita.de>",
+            "<i:tsvFile> <o:sequenceDB>"
+        },
 // Special-purpose utilities
         {"rescorediagonal",           rescorediagonal,           &par.rescorediagonal,        COMMAND_SPECIAL,
                 "Compute sequence identity for diagonal",

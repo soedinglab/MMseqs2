@@ -44,5 +44,6 @@ extern int kmermatcher(int argc, const char **argv, const Command &command);
 extern int rescorediagonal(int argc, const char **argv, const Command& command);
 extern int linclust(int argc, const char **argv, const Command& command);
 extern int result2reprseq(int argc, const char **argv, const Command& command);
+extern int tsv2db(int argc, const char **argv, const Command& command);
 
 #endif
