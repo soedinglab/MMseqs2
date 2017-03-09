@@ -357,6 +357,14 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     Debug(Debug::INFO) << hits_f << " hits per query sequence.\n";
 }
 
+inline size_t Alignment::getQueryDbEntries() const {
+    if (qSeqLookup != NULL) {
+        return qSeqLookup->getSequenceCount();
+    } else {
+        return qseqdbr->getSize();
+    }
+}
+
 inline size_t Alignment::getQueryDbSize() const {
     if (qSeqLookup != NULL) {
         return qSeqLookup->getDataSize();
