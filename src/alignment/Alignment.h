@@ -34,9 +34,6 @@ public:
              const size_t dbFrom, const size_t dbSize,
              const unsigned int maxAlnNum, const unsigned int maxRejected);
 
-    static void mergeAndRemoveTmpDatabases(const std::string &out, const std::string &outIndex,
-                                           const std::vector<std::pair<std::string, std::string >> &vector);
-
 private:
     // query sequence coverage threshold
     const double covThr;

@@ -839,8 +839,8 @@ double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned 
     return kmerMatchProb;
 }
 
-void Prefiltering::mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles,
-                              const std::string &outDB, const std::string &outDBIndex) {
+void Prefiltering::mergeFiles(const std::string &outDB, const std::string &outDBIndex,
+                              const std::vector<std::pair<std::string, std::string>> &splitFiles) {
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
         mergeOutput(outDB, outDBIndex, splitFiles);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {

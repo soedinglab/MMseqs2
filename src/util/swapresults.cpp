@@ -206,34 +206,6 @@ std::vector<std::pair<unsigned int, std::string*>> readSwap(const char* dataFile
     return result;
 }
 
-int doSwap(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNumProc) {
-    
-    
-    std::vector<std::pair<unsigned int, std::string*>> swap = readSwap(par.db3.c_str(), par.db3Index.c_str());
-
-    size_t dbFrom = 0;
-    size_t dbSize = 0;
-    Util::decomposeDomain(swap.size(), mpiRank, mpiNumProc, &dbFrom, &dbSize);
-
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, mpiRank);
-    int status = doSwap(par, swap, tmpOutput, dbFrom, dbSize);
-
-#ifdef HAVE_MPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
-
-    // master reduces results
-    if (mpiRank == 0) {
-        std::vector<std::pair<std::string, std::string>> splitFiles;
-        for (unsigned int proc = 0; proc < mpiNumProc; ++proc) {
-            splitFiles.push_back(Util::createTmpFileNames(par.db4, par.db4Index, proc));
-        }
-        Alignment::mergeAndRemoveTmpDatabases(par.db4, par.db4Index, splitFiles);
-    }
-
-    return status;
-}
-
 
 
 // ((TargetKey,eVal),resultLine)
@@ -527,7 +499,7 @@ int doSwapSort(Parameters &par,unsigned int procNumber = 0, unsigned int nbOfPro
             for (unsigned int proc = 0; proc < nbOfProc; ++proc) {
                 partialResFiles.push_back(Util::createTmpFileNames(par.db4, par.db4Index, proc));
             }
-            Alignment::mergeAndRemoveTmpDatabases(par.db4, par.db4Index, partialResFiles);
+            DBWriter::mergeResults(par.db4, par.db4Index, partialResFiles);
         }
     }
     

@@ -193,7 +193,7 @@ void Alignment::run(const unsigned int mpiRank, const unsigned int mpiNumProc,
             splitFiles.push_back(Util::createTmpFileNames(outDB, outDBIndex, proc));
         }
         // merge output databases
-        mergeAndRemoveTmpDatabases(outDB, outDBIndex, splitFiles);
+        DBWriter::mergeResults(outDB, outDBIndex, splitFiles);
     }
 }
 
@@ -355,27 +355,6 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     size_t hits_rest = totalPassedNum % dbSize;
     float hits_f = ((float) hits) + ((float) hits_rest) / (float) dbSize;
     Debug(Debug::INFO) << hits_f << " hits per query sequence.\n";
-}
-
-void Alignment::mergeAndRemoveTmpDatabases(const std::string &out, const std::string &outIndex,
-                                           const std::vector<std::pair<std::string, std::string >> &files) {
-    const char **datafilesNames = new const char *[files.size()];
-    const char **indexFilesNames = new const char *[files.size()];
-    for (size_t i = 0; i < files.size(); i++) {
-        datafilesNames[i] = files[i].first.c_str();
-        indexFilesNames[i] = files[i].second.c_str();
-    }
-    DBWriter::mergeResults(out.c_str(), outIndex.c_str(), datafilesNames, indexFilesNames, files.size());
-    delete[] datafilesNames;
-    delete[] indexFilesNames;
-}
-
-inline size_t Alignment::getQueryDbEntries() const {
-    if (qSeqLookup != NULL) {
-        return qSeqLookup->getSequenceCount();
-    } else {
-        return qseqdbr->getSize();
-    }
 }
 
 inline size_t Alignment::getQueryDbSize() const {

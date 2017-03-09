@@ -236,6 +236,20 @@ void DBWriter::checkClosed() {
     }
 }
 
+void DBWriter::mergeResults(const std::string &outFileName, const std::string &outFileNameIndex,
+                            const std::vector<std::pair<std::string, std::string >> &files) {
+    const char **datafilesNames = new const char *[files.size()];
+    const char **indexFilesNames = new const char *[files.size()];
+    for (size_t i = 0; i < files.size(); i++) {
+        datafilesNames[i] = files[i].first.c_str();
+        indexFilesNames[i] = files[i].second.c_str();
+    }
+    mergeResults(outFileName.c_str(), outFileNameIndex.c_str(), datafilesNames, indexFilesNames, files.size());
+    delete[] datafilesNames;
+    delete[] indexFilesNames;
+
+}
+
 void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
                             const char **dataFileNames, const char **indexFileNames, unsigned long fileCount) {
 

@@ -65,7 +65,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
             splitFiles.push_back(Util::createTmpFileNames(par.db3, par.db3Index, procs));
         }
         // merge output ffindex databases
-        pref.mergeFiles(splitFiles, par.db3, par.db3Index);
+        pref.mergeFiles(par.db3, par.db3Index, splitFiles);
     }
 #else
     pref.runAllSplits(par.db1, par.db1Index, par.db3, par.db3Index);

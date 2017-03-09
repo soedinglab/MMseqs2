@@ -31,8 +31,8 @@ public:
                    size_t fromSplit, size_t splits);
 
     // merge file
-    void mergeFiles(const std::vector<std::pair<std::string, std::string>> &splitFiles,
-                    const std::string &outDb, const std::string &outDBIndex);
+    void mergeFiles(const std::string &outDb, const std::string &outDBIndex,
+                    const std::vector<std::pair<std::string, std::string>> &splitFiles);
 
     // get substitution matrix
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool ignoreX);

@@ -5,7 +5,6 @@
 #include "DBWriter.h"
 #include "SubstitutionMatrix.h"
 #include "CompressedA3M.h"
-#include "Alignment.h"
 #include "MathUtil.h"
 #include "Domain.h"
 
@@ -342,7 +341,7 @@ int doExtract(Parameters &par, const unsigned int mpiRank, const unsigned int mp
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
             splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
-        Alignment::mergeAndRemoveTmpDatabases(par.db3, par.db3 + ".index", splitFiles);
+        DBWriter::mergeResults(par.db3, par.db3 + ".index", splitFiles);
     }
 
     return status;

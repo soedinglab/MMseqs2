@@ -6,7 +6,6 @@
 #include <sstream>
 #include <sys/time.h>
 
-#include "Alignment.h"
 #include "MsaFilter.h"
 #include "Parameters.h"
 #include "PSSMCalculator.h"
@@ -587,7 +586,7 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
 
             }
             // merge output ffindex databases
-            Alignment::mergeAndRemoveTmpDatabases(outname + ext[i], outname + ext[i] + ".index", splitFiles);
+            DBWriter::mergeResults(outname + ext[i], outname + ext[i] + ".index", splitFiles);
         }
     }
 
