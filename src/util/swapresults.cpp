@@ -6,7 +6,7 @@
 #include "Alignment.h"
 #include "Util.h"
 #include "QueryMatcher.h"
-
+#include "FileUtil.h"
 #include "omptl/omptl_algorithm"
 
 #include <fstream>
@@ -15,7 +15,7 @@
 #ifdef OPENMP
 #include <omp.h>
 #endif
-
+/*
 int doSwap(Parameters &par,
            const std::vector<std::pair<unsigned int, std::string*>> &swaps,
            const std::pair<std::string, std::string> &resultdb,
@@ -234,7 +234,7 @@ int doSwap(Parameters &par, const unsigned int mpiRank, const unsigned int mpiNu
     return status;
 }
 
-
+*/
 
 // ((TargetKey,eVal),resultLine)
 typedef std::pair <std::pair <unsigned int,double> ,std::string>  alnResultEntry;
@@ -258,6 +258,10 @@ int writeSwappedResults(Parameters &par, std::vector<alnResultEntry> *resMap,uns
 {
     std::pair<std::string, std::string> outputDB;
     
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
+
     
     if (nbOfProc > 1)
     {
@@ -350,6 +354,9 @@ void swapBt(std::string *bt)
 int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned int targetKeyMin, unsigned int targetKeyMax)
 {
     
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
 
     // evalue correction for the swapping
     double *kmnByLen = NULL;
@@ -390,7 +397,7 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned
 
 
     int thread_num = 0, num_threads = 1;
-    size_t start, end, size;
+    size_t start, end, size, count = 0;
     std::mutex lock;
     
     #pragma omp parallel private(thread_num,num_threads,start,end)
@@ -445,7 +452,8 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned
                     std::string result = Matcher::resultToString(res, addBacktrace);
                     
                     lock.lock();
-                        resMap->push_back(std::make_pair( std::make_pair(targetKey,res.eval) ,result));
+                        (*resMap)[count] = std::make_pair(std::make_pair(targetKey,res.eval) ,result); //(std::make_pair( std::make_pair(0,0) ,std::string()));//
+                        count++;
                     lock.unlock();
                 }
             }
@@ -467,7 +475,8 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned
                     
                     std::string result = prefilterHitToString(hit);
                     lock.lock();
-                        resMap->push_back(std::make_pair( std::make_pair(targetKey,eval) ,result));
+                        (*resMap)[count] = std::make_pair(std::make_pair(targetKey,eval) ,result); //(std::make_pair( std::make_pair(0,0) ,std::string()));//
+                        count++;
                     lock.unlock();
                 }
                 curData = Util::skipLine(curData);
@@ -490,10 +499,12 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned
 
 int doSwapSort(Parameters &par,unsigned int procNumber = 0, unsigned int nbOfProc = 1)
 {
+    alnResultEntry nullEntry = std::make_pair(std::make_pair(0,0),std::string());
     
-    std::vector<alnResultEntry> resMap;
     unsigned int targetKeyMin = 0, targetKeyMax = -1;
+    unsigned int numberOfEntries = 0;
     
+    numberOfEntries = FileUtil::countLines(par.db3.c_str());
     
     
     if (nbOfProc > 1)
@@ -506,6 +517,8 @@ int doSwapSort(Parameters &par,unsigned int procNumber = 0, unsigned int nbOfPro
         targetKeyMin = procNumber * (lastKey+1) / nbOfProc;
         targetKeyMax = (procNumber + 1) * (lastKey+1) / nbOfProc;
     }
+    
+    std::vector<alnResultEntry> resMap(numberOfEntries,nullEntry);
     
     swapAlnResults(par, &resMap,targetKeyMin,targetKeyMax);
     
@@ -535,7 +548,7 @@ int doSwapSort(Parameters &par,unsigned int procNumber = 0, unsigned int nbOfPro
   
 }
 
-
+/*
 
 int doSwap(Parameters &par) {
     std::vector<std::pair<unsigned int, std::string*>> swap = readSwap(par.db3.c_str(), par.db3Index.c_str());
@@ -545,7 +558,7 @@ int doSwap(Parameters &par) {
 
     return status;
 }
-
+*/
 
 
 
