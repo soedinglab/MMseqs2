@@ -10,6 +10,12 @@
 #include "omptl/omptl_algorithm"
 
 #include <fstream>
+
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h> 
+
 #include <mutex>
 
 #ifdef OPENMP
@@ -520,6 +526,16 @@ int doSwapSort(Parameters &par,unsigned int procNumber = 0, unsigned int nbOfPro
     
     std::vector<alnResultEntry> resMap(numberOfEntries,nullEntry);
     
+    struct stat sb;
+    FILE* queryDataFile = fopen(par.db3.c_str(), "r");
+    fstat(fileno(queryDataFile), &sb);
+    fclose(queryDataFile);
+    size_t lineLength = 1 + sb.st_size / numberOfEntries;
+    
+    for (size_t i = 0; i<numberOfEntries;i++)
+    {
+        resMap[i].second.reserve(lineLength);
+    }
     swapAlnResults(par, &resMap,targetKeyMin,targetKeyMax);
     
     omptl::sort(resMap.begin(),resMap.end(),compareKey()); // sort by target id
