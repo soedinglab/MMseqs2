@@ -86,13 +86,13 @@ int result2reprseq(int argc, const char **argv, const Command &command) {
     // master reduces results
     if(MMseqsMPI::isMaster()) {
         std::vector<std::pair<std::string, std::string> > splitFiles;
-        for(unsigned int procs = 0; procs < MMseqsMPI::numProc; procs++){
-            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, "", procs);
-            splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.first + ".index"));
+        for(int procs = 0; procs < MMseqsMPI::numProc; procs++){
+            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, procs);
+            splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
 
         }
         // merge output databases
-        Alignment::mergeAndRemoveTmpDatabases(par.db3, par.db3 + ".index", splitFiles);
+        DBWriter::mergeResults(par.db3, par.db3Index, splitFiles);
     }
 #else
     size_t resultSize = resultReader.getSize();
