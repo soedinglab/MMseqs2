@@ -345,8 +345,8 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 #endif
         size_t threadFrom, threadSize;
         size_t *offsets = indexTable->getOffsets();
-        Util::decomposeDomainSize(tableEntriesNum, offsets, indexTable->getTableSize() + 1,
-                                  thread_idx, threads, &threadFrom, &threadSize);
+        Util::decomposeDomainByAminoAcid(tableEntriesNum, offsets, indexTable->getTableSize() + 1,
+                                         thread_idx, threads, &threadFrom, &threadSize);
 
 //        Debug(Debug::WARNING) << thread_idx << "\t" << threadFrom << "\t" << threadSize << "\n";
 

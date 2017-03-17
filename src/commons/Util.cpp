@@ -70,45 +70,10 @@ std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
     return map;
 }
 
-void Util::decomposeDomainSize(size_t aaSize, size_t *seqSizes, size_t count,
-                               size_t worldRank, size_t worldSize, size_t *start, size_t *size){
-    if (worldSize > aaSize) {
-        // Assume the domain size is greater than the world size.
-        Debug(Debug::ERROR) << "World Size: " << worldSize << " aaSize: " << aaSize << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (worldSize == 1) {
-        *start = 0;
-        *size = count;
-        return;
-    }
-
-    size_t aaPerSplit =  aaSize / worldSize;
-    size_t currentRank = 0;
-    size_t currentSize = 0;
-    *start = 0;
-    for(size_t i = 0; i < count; i++ ){
-        if(currentSize > aaPerSplit){
-            currentSize = 0;
-            currentRank++;
-            if(currentRank > worldRank){
-                *size = (i) - *start ;
-                break;
-            }else if (currentRank == worldRank){
-                *start = i;
-                if(worldRank == worldSize-1){
-                    *size = count - *start;
-                    break;
-                }
-            }
-        }
-        currentSize += seqSizes[i];
-    }
-}
 
 
-
-void Util::decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
+template <typename T>
+void Util::decomposeDomainByAminoAcid(size_t aaSize, T seqSizes, size_t count,
                                       size_t worldRank, size_t worldSize, size_t *start, size_t *size){
     if (worldSize > aaSize) {
         // Assume the domain size is greater than the world size.
@@ -125,17 +90,18 @@ void Util::decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, siz
     size_t currentRank = 0;
     size_t currentSize = 0;
     *start = 0;
-    for(size_t i = 0; i < count; i++ ){
-        if(currentSize > aaPerSplit){
+    *size = 0;
+    for (size_t i = 0; i < count; i++) {
+        if (currentSize > aaPerSplit){
             currentSize = 0;
             currentRank++;
-            if(currentRank > worldRank){
-                *size = (i) - *start ;
+            if (currentRank > worldRank) {
+                *size = (i) - *start;
                 break;
-            }else if (currentRank == worldRank){
+            } else if (currentRank == worldRank) {
                 *start = i;
-                if(worldRank == worldSize-1){
-                    *size = count - *start;
+                *size = count - *start;
+                if (worldRank == worldSize - 1) {
                     break;
                 }
             }
@@ -144,6 +110,15 @@ void Util::decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, siz
     }
 }
 
+template
+void Util::decomposeDomainByAminoAcid<unsigned int*>(size_t aaSize, unsigned int *seqSizes,
+                                                     size_t count, size_t worldRank, size_t worldSize,
+                                                     size_t *start, size_t *size);
+
+template
+void Util::decomposeDomainByAminoAcid<size_t*>(size_t aaSize, size_t *seqSizes,
+                                               size_t count, size_t worldRank, size_t worldSize,
+                                               size_t *start, size_t *size);
 
 // http://jgamble.ripco.net/cgi-bin/nw.cgi?inputs=20&algorithm=batcher&output=svg
 // sorting networks

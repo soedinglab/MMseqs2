@@ -73,6 +73,16 @@ public:
     static const int TARGET_DB_SPLIT = 0;
     static const int QUERY_DB_SPLIT = 1;
     static const int DETECT_BEST_DB_SPLIT = 2;
+
+    static std::string getSplitModeName(int splitMode) {
+        switch (splitMode) {
+            case 0: return "Target";
+            case 1: return "Query";
+            case 2: return "Auto";
+            default: return "Error";
+        }
+    };
+
     // split
     static const int AUTO_SPLIT_DETECTION = 0;
     // includeIdentity
