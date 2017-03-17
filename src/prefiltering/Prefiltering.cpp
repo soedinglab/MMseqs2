@@ -354,7 +354,7 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
 
     std::pair<std::string, std::string> result = Util::createTmpFileNames(resultDB, resultDBIndex, MMseqsMPI::rank);
     splits = std::max(MMseqsMPI::numProc, splits);
-    bool hasResult = runSplits(queryDB, targetDB, result.first, result.second, fromSplit, splitCount);
+    bool hasResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount);
 
     int *results = NULL;
     if (MMseqsMPI::isMaster()) {
