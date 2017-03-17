@@ -385,8 +385,8 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
     DBReader<unsigned int>::Index* index1 = reader1.getIndex();
     unsigned int * seqLen1 = reader1.getSeqLens();
     unsigned int * seqLen2 = reader2.getSeqLens();
-    for(size_t id = 0; id < reader1.getSize(); id++){
-        // add length for file1 and file2 and substract -1 for one null byte
+    for (size_t id = 0; id < reader1.getSize(); id++){
+        // add length for file1 and file2 and subtract -1 for one null byte
         size_t seqLen = seqLen1[id] + seqLen2[id] - 1;
         seqLen1[id] = seqLen;
         index1[id].offset = currOffset;
