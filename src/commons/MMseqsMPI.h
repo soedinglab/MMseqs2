@@ -17,8 +17,11 @@ public:
     static inline bool isMaster() { return rank == MASTER; };
 };
 
+// if we are in an error case, do not call MPI_Finalize, it might still be in a Barrier
 #ifdef HAVE_MPI
 #define EXIT(exitCode) do {             \
+    if ((exitCode) != 0)               \
+        exit(exitCode);                 \
     if(MMseqsMPI::active == true) {     \
         MPI_Finalize();                 \
         MMseqsMPI::active = false;      \
