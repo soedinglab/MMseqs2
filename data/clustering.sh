@@ -43,7 +43,7 @@ if notExists "${TMP_PATH}/aln_redundancy"; then
 fi
 
 if notExists "${TMP_PATH}/clu_redundancy"; then
-    $MMSEQS clust $INPUT "${TMP_PATH}/aln_redundancy" "${TMP_PATH}/clu_redundancy" ${CLUSTER_PAR} \
+    $MMSEQS clust "$INPUT" "${TMP_PATH}/aln_redundancy" "${TMP_PATH}/clu_redundancy" ${CLUSTER_PAR} \
         || fail "Fast Cluster filter step $STEP died"
 fi
 
@@ -52,10 +52,11 @@ if notExists "${TMP_PATH}/order_redundancy"; then
 fi
 
 if notExists "${TMP_PATH}/input_step_redundancy"; then
-    $MMSEQS createsubdb "${TMP_PATH}/order_redundancy" $INPUT "${TMP_PATH}/input_step_redundancy" \
+    $MMSEQS createsubdb "${TMP_PATH}/order_redundancy" "$INPUT" "${TMP_PATH}/input_step_redundancy" \
         || fail "MMseqs order step $STEP died"
 fi
 
+ORIGINAL="$INPUT"
 INPUT="${TMP_PATH}/input_step_redundancy"
 # call prefilter module
 if notExists "${TMP_PATH}/pref"; then
@@ -75,14 +76,13 @@ if notExists "${TMP_PATH}/clu_step0"; then
         || fail "Clustering died"
 fi
 
-# merg clu_redundancy and clu
-if notExists "${TMP_PATH}/clu"; then
-    $MMSEQS mergeclusters "$1" "${TMP_PATH}/clu" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_step0" \
+# merge clu_redundancy and clu
+if notExists "$2"; then
+    $MMSEQS mergeclusters "$ORIGINAL" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_step0" \
         || fail "Merging of clusters has died"
 fi
 
-# post processing
-(mv -f "${TMP_PATH}/clu" "$2"; mv -f "${TMP_PATH}/clu.index" "$2.index") || fail "Could not move result to $2"
+(mv -f "${TMP_PATH}/clu" ; mv -f "${TMP_PATH}/clu.index" "$2.index") || fail "Could not move result to $2"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"

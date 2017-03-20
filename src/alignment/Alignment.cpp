@@ -322,8 +322,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 }
 
                 std::string swResultString = swResultsString.str();
-                const char *swResultsData = swResultString.c_str();
-                dbw.writeData(swResultsData, swResultString.length(), qSeq.getDbKey(), thread_idx);
+                dbw.writeData(swResultString.c_str(), swResultString.length(), qSeq.getDbKey(), thread_idx);
                 swResults.clear();
             }
 
@@ -350,7 +349,6 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             delete realigner;
         }
     }
-    Debug(Debug::INFO) << "\n";
     dbw.close();
 
     Debug(Debug::INFO) << "\nAll sequences processed.\n\n";

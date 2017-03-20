@@ -678,7 +678,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         }
     }
 
-    Debug::setDebugLevel(verbosity);
+    if (MMseqsMPI::isMaster()) {
+        Debug::setDebugLevel(verbosity);
+    }
+
 #ifdef OPENMP
     omp_set_num_threads(threads);
 #endif
