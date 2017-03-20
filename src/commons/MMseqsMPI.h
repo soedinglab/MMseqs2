@@ -14,7 +14,13 @@ public:
     static int numProc;
 
     static void init(int argc, const char **argv);
-    static inline bool isMaster() { return rank == MASTER; };
+    static inline bool isMaster() {
+#ifdef HAVE_MPI
+        return rank == MASTER;
+#else
+        return true;
+#endif
+    };
 };
 
 // if we are in an error case, do not call MPI_Finalize, it might still be in a Barrier
