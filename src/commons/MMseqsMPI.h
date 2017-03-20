@@ -19,14 +19,13 @@ public:
 
 // if we are in an error case, do not call MPI_Finalize, it might still be in a Barrier
 #ifdef HAVE_MPI
-#define EXIT(exitCode) do {             \
-    if ((exitCode) != 0)               \
-        exit(exitCode);                 \
-    if(MMseqsMPI::active == true) {     \
-        MPI_Finalize();                 \
-        MMseqsMPI::active = false;      \
-    }                                   \
-    exit(exitCode);                     \
+#define EXIT(exitCode) do {                \
+    int status = (exitCode);               \
+    if(MMseqsMPI::active && status == 0) { \
+        MPI_Finalize();                    \
+        MMseqsMPI::active = false;         \
+    }                                      \
+    exit(status);                          \
 } while(0)
 #endif
 
