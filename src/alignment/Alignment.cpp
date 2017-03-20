@@ -326,7 +326,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 dbw.writeData(swResultsData, swResultString.length(), qSeq.getDbKey(), thread_idx);
                 swResults.clear();
             }
-            prefdbr->remapData();
+
+            #pragma omp barrier
+            if (thread_idx == 0) {
+                prefdbr->remapData();
+            }
+            #pragma omp barrier
         }
 #ifndef HAVE_MPI
         if (earlyExit) {
