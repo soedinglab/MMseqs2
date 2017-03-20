@@ -324,20 +324,17 @@ void printUsage() {
 }
 
 
-int isCommand(const char *s) {
-    for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
+int getCommandIndex(const char *s) {
+    for (int i = 0; i < ARRAY_SIZE(commands); i++) {
         struct Command *p = commands + i;
         if (!strcmp(s, p->cmd))
-            return 1;
+            return i;
     }
-    return 0;
+    return -1;
 }
 
 int runCommand(const Command &p, int argc, const char **argv) {
-    int status = p.commandFunction(argc, argv, p);
-    if (status)
-        return status;
-    return 0;
+    return p.commandFunction(argc, argv, p);
 }
 
 int shellcompletion(int argc, const char** argv, const Command& command) {
@@ -379,14 +376,10 @@ int main(int argc, const char **argv) {
         EXIT(EXIT_FAILURE);
     }
     setenv("MMSEQS", argv[0], true);
-    if (isCommand(argv[1])) {
-        for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
-            const struct Command *p = commands + i;
-            if (strcmp(p->cmd, argv[1]))
-                continue;
-
-            EXIT(runCommand(*p, argc - 2, argv + 2));
-        }
+    int command;
+    if ((command = getCommandIndex(argv[1])) != -1) {
+        const struct Command *p = commands + command;
+        EXIT(runCommand(*p, argc - 2, argv + 2));
     } else {
         printUsage();
         Debug(Debug::ERROR) << "\nInvalid Command: " << argv[1] << "\n";
