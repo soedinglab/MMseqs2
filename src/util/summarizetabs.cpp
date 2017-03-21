@@ -229,8 +229,5 @@ int summarizetabs(int argc, const char **argv, const Command& command) {
     int status = doAnnotate(par);
 #endif
 
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
     return status;
 }

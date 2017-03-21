@@ -106,9 +106,5 @@ int result2reprseq(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "
                        << (sec % 60) << "s\n";
 
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
-
     return status;
 }

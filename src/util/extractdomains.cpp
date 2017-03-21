@@ -373,8 +373,5 @@ int extractdomains(int argc, const char **argv, const Command& command) {
     int status = doExtract(par);
 #endif
 
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
     return status;
 }
