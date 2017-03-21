@@ -215,7 +215,8 @@ public:
     bool compressMSA;
     bool summarizeHeader;
     std::string summaryPrefix;
-    bool onlyRepSeq;
+    bool omitConsensus;
+
 
     // result2profile
     float filterMaxSeqId;
@@ -227,9 +228,7 @@ public:
     bool wg;
     float pca;
     float pcb;
-    bool noPruning;
-    bool useConsensus;
-    
+
     // createtsv
     bool firstSeqRepr;
     
@@ -403,6 +402,7 @@ public:
     PARAMETER(PARAM_WG)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
+    PARAMETER(PARAM_OMIT_CONSENSUS)
     //PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
 //    PARAMETER(PARAM_NO_PRUNING)
 

@@ -327,24 +327,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
 
                 case CA3M: {
                     // Here the backtrace information should be present in the alnResults[i].backtrace for all i
-                    std::string consensusStr;
                     std::vector<Matcher::result_t> filteredAln; // alignment information for the sequences that passed the filtering step
-
-                    
-                    if (par.useConsensus)
-                    {
-                        std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
-                                                                                                    filterRes.filteredMsaSequence, par.wg);
-                        consensusStr = pssmRes.second;
-                    } else { // use query sequence as consensus sequence
-                        std::ostringstream centerSeqStr;
-                        // Retrieve the master sequence
-                        for (int pos = 0; pos < centerSequence->L; pos++) {
-                            centerSeqStr << subMat.int2aa[centerSequence->int_sequence[pos]];
-                        }
-                        consensusStr = centerSeqStr.str();
-
-                    }
 
                     // Put the query sequence (master sequence) first in the alignment
                     Matcher::result_t firstSequence;
@@ -363,8 +346,12 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                         }
                     }
 
-                    // Write the consensus sequence
-                    msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) << consensusStr.c_str() << "\n;";
+                    if (par.omitConsensus == false)
+                    {
+                        std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
+                                                                                                    filterRes.filteredMsaSequence, par.wg);
+                        msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) <<  pssmRes.second  << "\n;";;
+                    }
 
                     msa << CompressedA3M::fromAlignmentResult(filteredAln, *referenceDBr);
 
