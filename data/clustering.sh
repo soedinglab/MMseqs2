@@ -82,7 +82,7 @@ if notExists "$2"; then
         || fail "Merging of clusters has died"
 fi
 
-(mv -f "${TMP_PATH}/clu" ; mv -f "${TMP_PATH}/clu.index" "$2.index") || fail "Could not move result to $2"
+(mv -f "${TMP_PATH}/clu" "$2"; mv -f "${TMP_PATH}/clu.index" "$2.index") || fail "Could not move result to $2"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
