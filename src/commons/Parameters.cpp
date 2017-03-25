@@ -237,7 +237,7 @@ Parameters::Parameters():
 
     // createtsv
     createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);;
-    
+
     //result2stats
     result2stats.push_back(PARAM_STAT);
 
@@ -893,7 +893,7 @@ void Parameters::setDefaults() {
     compressMSA = false;
 
     // result2profile
-    evalProfile = 0.1;
+    evalProfile = evalThr;
     filterMaxSeqId = 0.9;
     qid = 0.0;           // default for minimum sequence identity with query
     qsc = -20.0f;        // default for minimum score per column with query

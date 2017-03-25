@@ -23,7 +23,7 @@ int search(int argc, const char **argv, const Command& command) {
     if (par.numIterations > 1) {
         for (size_t i = 0; i < par.searchworkflow.size(); i++) {
             if (par.searchworkflow[i].uniqid == par.PARAM_E_PROFILE.uniqid && par.searchworkflow[i].wasSet== false) {
-                par.evalProfile = 0.001;
+                par.evalProfile = 0.1;
             }
         }
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
