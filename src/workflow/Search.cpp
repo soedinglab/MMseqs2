@@ -29,7 +29,15 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
         cmd.addVariable("PROFILE", SSTR((par.profile) ? 1 : 0).c_str());
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        float originalEval = par.evalThr;
+        par.evalThr = par.evalProfile;
+        for(size_t i = 0; i < par.numIterations; i++){
+            std::string alnVarStr = "ALIGNMENT_PAR_"+SSTR(i);
+            if(i == par.numIterations-1){
+                par.evalThr = originalEval;
+            }
+            cmd.addVariable(alnVarStr.c_str(), par.createParameterString(par.align).c_str());
+        }
         cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.result2profile).c_str());
         cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
         FileUtil::writeFile(par.db4 + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
