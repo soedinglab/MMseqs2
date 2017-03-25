@@ -893,7 +893,7 @@ void Parameters::setDefaults() {
     compressMSA = false;
 
     // result2profile
-    evalProfile = evalThr;
+    evalProfile = 0.1;
     filterMaxSeqId = 0.9;
     qid = 0.0;           // default for minimum sequence identity with query
     qsc = -20.0f;        // default for minimum score per column with query
