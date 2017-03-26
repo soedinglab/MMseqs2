@@ -1,12 +1,14 @@
 #include <string>
 #include <cassert>
 #include <FileUtil.h>
+#include <searchtargetprofile.sh.h>
 #include <blastpgp.sh.h>
 #include <blastp.sh.h>
 #include "CommandCaller.h"
 #include "Util.h"
 #include "Debug.h"
 #include "Parameters.h"
+
 int search(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, true, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
@@ -19,8 +21,15 @@ int search(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string templateDB(par.db2);
     cmd.addVariable("TARGET_DB_PREF", templateDB.c_str());
-
-    if (par.numIterations > 1) {
+    if (par.targetProfile == true){
+        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+        par.targetProfile = false;
+        par.queryProfile = true;
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        FileUtil::writeFile(par.db4 + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
+        std::string program(par.db4 + "/searchtargetprofile.sh");
+        cmd.execProgram(program.c_str(), 4, argv);
+    }else if (par.numIterations > 1) {
         for (size_t i = 0; i < par.searchworkflow.size(); i++) {
             if (par.searchworkflow[i].uniqid == par.PARAM_E_PROFILE.uniqid && par.searchworkflow[i].wasSet== false) {
                 par.evalProfile = 0.1;
@@ -70,8 +79,6 @@ int search(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
-
-
         FileUtil::writeFile(par.db4 + "/blastp.sh", blastp_sh, blastp_sh_len);
         std::string program(par.db4 + "/blastp.sh");
         cmd.execProgram(program.c_str(), 4, argv);
