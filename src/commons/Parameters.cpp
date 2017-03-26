@@ -473,15 +473,16 @@ void Parameters::printUsageMessage(const Command& command,
     if(command.citations > 0) {
         ss << "Please cite:\n";
         if(command.citations & CITATION_MMSEQS2) {
-            ss << "Steinegger, M. & Soding, J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv 079681 (2016)\n\n";
+            ss << "Steinegger, M. & Soding, J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv 079681 (2017)\n\n";
         }
-
+        if(command.citations & CITATION_LINCLUST) {
+            ss << "Steinegger, M. & Soding, J. Linclust: clustering protein sequences in linear time. bioRxiv 104034 (2017)\n\n";
+        }
         if(command.citations & CITATION_MMSEQS1) {
             ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
         }
-
         if(command.citations & CITATION_UNICLUST) {
-            ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin M., Soding J. & Steinegger M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. In revision. \n\n";
+            ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin M., Soding J. & Steinegger M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2017).\n\n";
         }
     }
     ss << "© " << command.author << "\n\n";
