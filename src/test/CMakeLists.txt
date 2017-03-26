@@ -23,6 +23,8 @@ add_executable(test_indextable ${testindextable} )
 
 target_link_libraries(test_indextable util)
 target_link_libraries(test_indextable workflow)
+target_link_libraries(test_indextable )
+
 
 set(testalignment TestAlignment.cpp )
 add_executable(test_alignment ${testalignment} )
@@ -30,6 +32,10 @@ add_executable(test_alignment ${testalignment} )
 target_link_libraries(test_alignment util)
 target_link_libraries(test_alignment workflow)
 
+set(testtan TestTanTan.cpp )
+add_executable(test_tantan ${testtan} )
+
+target_link_libraries(test_tantan workflow)
 
 set(testalignmenttraceback TestAlignmentTraceback.cpp )
 add_executable(test_alignmenttraceback ${testalignmenttraceback} )

@@ -240,7 +240,7 @@ Parameters::Parameters():
 
     // createtsv
     createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);;
-    
+
     //result2stats
     result2stats.push_back(PARAM_STAT);
 
