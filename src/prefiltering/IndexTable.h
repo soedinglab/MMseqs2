@@ -24,6 +24,7 @@
 #include "Util.h"
 #include "SequenceLookup.h"
 #include "MathUtil.h"
+#include "KmerGenerator.h"
 
 // IndexEntryLocal is an entry with position and seqId for a kmer
 // structure needs to be packed or it will need 8 bytes instead of 6
@@ -36,6 +37,12 @@ struct __attribute__((__packed__)) IndexEntryLocalTmp {
     unsigned int kmer;
     unsigned int seqId;
     unsigned short position_j;
+    IndexEntryLocalTmp(unsigned int kmer, unsigned int seqId, unsigned short position_j)
+    :kmer(kmer),seqId(seqId), position_j(position_j)
+    {}
+
+    IndexEntryLocalTmp(){}
+
     static bool comapreByIdAndPos(IndexEntryLocalTmp first, IndexEntryLocalTmp second){
         if(first.kmer < second.kmer )
             return true;
@@ -83,6 +90,45 @@ public:
             munlock(entries, tableEntriesNum);
         }
     }
+
+
+    // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
+    size_t addSimilarKmerCount (Sequence* s, KmerGenerator * kmerGenerator, Indexer * idxer,
+                         int threshold, char * diagonalScore){
+
+        s->resetCurrPos();
+        std::vector<unsigned int> seqKmerPosBuffer;
+
+        //idxer->reset();
+        size_t countKmer = 0;
+        while(s->hasNextKmer()){
+            const int * kmer = s->nextKmer();
+            const ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
+
+            //unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
+            for(size_t i = 0; i < kmerList.elementSize; i++){
+                seqKmerPosBuffer.push_back(kmerList.index[i]);
+            }
+        }
+        if(seqKmerPosBuffer.size() > 1){
+            std::sort(seqKmerPosBuffer.begin(), seqKmerPosBuffer.end());
+        }
+        size_t countUniqKmer = 0;
+        unsigned int prevKmerIdx = UINT_MAX;
+        for(size_t i = 0; i < seqKmerPosBuffer.size(); i++){
+            unsigned int kmerIdx = seqKmerPosBuffer[i];
+            if(prevKmerIdx != kmerIdx){
+                //table[kmerIdx] += 1;
+                // size increases by one
+                __sync_fetch_and_add( (int *) &table[kmerIdx], 1 );
+                countUniqKmer++;
+            }
+            prevKmerIdx = kmerIdx;
+        }
+        return countUniqKmer;
+    }
+
+
 
     // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
     size_t addKmerCount (Sequence* s, Indexer * idxer,
@@ -245,6 +291,47 @@ public:
         Debug(Debug::WARNING) << "Empty list: " << emptyKmer << "\n";
         Debug(Debug::WARNING) << "\n";
 
+    }
+
+    // FUNCTIONS TO OVERWRITE
+    // add k-mers of the sequence to the index table
+    void addSimilarSequence (Sequence* s, KmerGenerator * kmerGenerator, Indexer * idxer,
+                      size_t aaFrom, size_t aaSize,
+                      int threshold, char * diagonalScore){
+        std::vector<IndexEntryLocalTmp> buffer;
+        // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
+        s->resetCurrPos();
+        idxer->reset();
+        size_t kmerPos = 0;
+        while(s->hasNextKmer()){
+            const int * kmer = s->nextKmer();
+            ScoreMatrix scoreMatrix = kmerGenerator->generateKmerList(kmer);
+            for(size_t i = 0; i < scoreMatrix.elementSize; i++) {
+                unsigned int kmerIdx = scoreMatrix.index[i];
+                if (kmerIdx >= aaFrom && kmerIdx < aaFrom + aaSize) {
+                    // if region got masked do not add kmer
+                    if ((table[kmerIdx + 1] - table[kmerIdx]) == 0)
+                        continue;
+                    buffer.push_back(IndexEntryLocalTmp(kmerIdx,s->getId(), s->getCurrentPosition()));
+                    kmerPos++;
+                }
+            }
+        }
+
+        if(kmerPos>1){
+            std::sort(buffer.begin(), buffer.end(), IndexEntryLocalTmp::comapreByIdAndPos);
+        }
+        unsigned int prevKmer = UINT_MAX;
+        for(size_t pos = 0; pos < buffer.size(); pos++){
+            unsigned int kmerIdx = buffer[pos].kmer;
+            if(kmerIdx != prevKmer){
+                IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
+                entry->seqId      = buffer[pos].seqId;
+                entry->position_j = buffer[pos].position_j;
+                table[kmerIdx] += sizeof(IndexEntryLocal);
+            }
+            prevKmer = kmerIdx;
+        }
     }
 
     // FUNCTIONS TO OVERWRITE

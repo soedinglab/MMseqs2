@@ -21,7 +21,9 @@ Parameters::Parameters():
         PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
         PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
-        PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "prefilter with query profiles (query DB must be a profile DB)",typeid(bool),(void *) &profile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
+        PARAM_QUERY_PROFILE(PARAM_QUERY_PROFILE_ID,"--query-profile", "Query queryProfile", "Search with query on queryProfile side (query DB must be a queryProfile DB)",typeid(bool),(void *) &queryProfile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
+        PARAM_TARGET_PROFILE(PARAM_TARGET_PROFILE_ID,"--target-profile", "Target queryProfile", "Build database with a queryProfile information (target DB must be a queryProfile DB)",typeid(bool),(void *) &targetProfile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
+
 //PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking 1: with low complexity masking", typeid(int),(void *) &maskResidues, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER),
@@ -158,7 +160,7 @@ Parameters::Parameters():
     align.push_back(PARAM_MAX_SEQS);
     align.push_back(PARAM_NO_COMP_BIAS_CORR);
     //    alignment.push_back(PARAM_NUCL);
-    align.push_back(PARAM_PROFILE);
+    align.push_back(PARAM_QUERY_PROFILE);
     align.push_back(PARAM_REALIGN);
     align.push_back(PARAM_MAX_REJECTED);
     align.push_back(PARAM_MAX_ACCEPT);
@@ -173,7 +175,8 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_K_SCORE);
     prefilter.push_back(PARAM_ALPH_SIZE);
     prefilter.push_back(PARAM_MAX_SEQ_LEN);
-    prefilter.push_back(PARAM_PROFILE);
+    prefilter.push_back(PARAM_QUERY_PROFILE);
+    prefilter.push_back(PARAM_TARGET_PROFILE);
     //    prefilter.push_back(PARAM_NUCL);
     prefilter.push_back(PARAM_MAX_SEQS);
     prefilter.push_back(PARAM_RES_LIST_OFFSET);
@@ -221,7 +224,7 @@ Parameters::Parameters():
 
     // result2profile
     result2profile.push_back(PARAM_SUB_MAT);
-    result2profile.push_back(PARAM_PROFILE);
+    result2profile.push_back(PARAM_QUERY_PROFILE);
     result2profile.push_back(PARAM_E_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
     result2profile.push_back(PARAM_WG);
@@ -247,7 +250,7 @@ Parameters::Parameters():
     convertalignments.push_back(PARAM_V);
     // result2msa
     result2msa.push_back(PARAM_SUB_MAT);
-    result2msa.push_back(PARAM_PROFILE);
+    result2msa.push_back(PARAM_QUERY_PROFILE);
     result2msa.push_back(PARAM_E_PROFILE);
     result2msa.push_back(PARAM_ALLOW_DELETION);
     result2msa.push_back(PARAM_ADD_INTERNAL_ID);
@@ -684,9 +687,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 #ifdef OPENMP
     omp_set_num_threads(threads);
 #endif
-    if (profile){
+    if (queryProfile){
         querySeqType  = Sequence::HMM_PROFILE;
         targetSeqType = Sequence::AMINO_ACIDS;
+    }
+    if (targetProfile){
+        querySeqType  = Sequence::AMINO_ACIDS;
+        targetSeqType = Sequence::HMM_PROFILE;
     }
     if (nucl){
         querySeqType  = Sequence::NUCLEOTIDES;
@@ -837,7 +844,8 @@ void Parameters::setDefaults() {
     maskResidues = 1;
     minDiagScoreThr = 15;
     spacedKmer = true;
-    profile = false;
+    queryProfile = false;
+    targetProfile = false;
     nucl = false;
     includeIdentity = false;
     alignmentMode = ALIGNMENT_MODE_FAST_AUTO;
@@ -898,7 +906,7 @@ void Parameters::setDefaults() {
     qid = 0.0;           // default for minimum sequence identity with query
     qsc = -20.0f;        // default for minimum score per column with query
     cov = 0.0;           // default for minimum coverage threshold
-    Ndiff = 100;         // pick Ndiff most different sequences from alignment
+    Ndiff = 1000;        // pick Ndiff most different sequences from alignment
     wg = false;
     pca = 1.0;
     pcb = 1.5;
