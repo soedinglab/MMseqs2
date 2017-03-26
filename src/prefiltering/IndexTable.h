@@ -100,7 +100,6 @@ public:
         std::vector<unsigned int> seqKmerPosBuffer;
 
         //idxer->reset();
-        size_t countKmer = 0;
         while(s->hasNextKmer()){
             const int * kmer = s->nextKmer();
             const ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
@@ -142,7 +141,7 @@ public:
             const int * kmer = s->nextKmer();
             if(threshold > 0){
                 int score = 0;
-                for(size_t pos = 0; pos < kmerSize; pos++){
+                for(int pos = 0; pos < kmerSize; pos++){
                     score += diagonalScore[kmer[pos]];
                 }
                 if(score < threshold){
@@ -353,7 +352,7 @@ public:
                     continue;
                 if(threshold > 0) {
                     int score = 0;
-                    for (size_t pos = 0; pos < kmerSize; pos++) {
+                    for (int pos = 0; pos < kmerSize; pos++) {
                         score += diagonalScore[kmer[pos]];
                     }
                     if (score < threshold) {

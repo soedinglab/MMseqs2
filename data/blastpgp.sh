@@ -89,9 +89,9 @@ while [ $STEP -lt $NUM_IT ]; do
     fi
 	QUERYDB="$TMP_PATH/profile_$STEP"
     if [ $STEP -eq 0 ] && [ $PROFILE -eq 0 ]; then
-        PREFILTER_PAR="$PREFILTER_PAR --profile"
-        ALN_PROFILE="--profile"
-        PROFILE_PAR="$PROFILE_PAR --profile"
+        PREFILTER_PAR="$PREFILTER_PAR --query-profile"
+        ALN_PROFILE="--query-profile"
+        PROFILE_PAR="$PROFILE_PAR --query-profile"
     fi
 	let STEP=STEP+1
 done
