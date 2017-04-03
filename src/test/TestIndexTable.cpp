@@ -9,6 +9,7 @@
 #include "SubstitutionMatrix.h"
 #include "IndexTable.h"
 #include "PrefilteringIndexReader.h"
+#include "Parameters.h"
 
 int main(int argc, const char *argv[]) {
     Parameters &par = Parameters::getInstance();
