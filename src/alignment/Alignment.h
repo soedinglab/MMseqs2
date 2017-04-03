@@ -4,7 +4,6 @@
 #include <string>
 
 #include "DBReader.h"
-#include "Matcher.h"
 #include "Parameters.h"
 #include "BaseMatrix.h"
 #include "Sequence.h"
@@ -88,17 +87,12 @@ private:
 
     const bool earlyExit;
 
+    void initSWMode(int alignmentMode);
+
     void setQuerySequence(Sequence &seq, size_t id, unsigned int key);
 
     void setTargetSequence(Sequence &seq, unsigned int key);
 
-    size_t getQueryDbSize() const;
-
-    size_t getTargetDbSize() const;
-
-    size_t getTargetDbEntries() const;
-
-    size_t getQueryDbEntries() const;
 };
 
 #endif
