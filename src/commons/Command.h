@@ -6,6 +6,8 @@
 const int CITATION_MMSEQS2  = 1 << 0;
 const int CITATION_MMSEQS1  = 1 << 1;
 const int CITATION_UNICLUST = 1 << 2;
+const int CITATION_LINCLUST = 1 << 3;
+
 
 struct MMseqsParameter;
 

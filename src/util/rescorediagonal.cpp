@@ -57,7 +57,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> *tdbr = NULL;
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
     int sequenceType = Sequence::AMINO_ACIDS;
-    if (par.profile == true) {
+    if (par.queryProfile == true) {
         sequenceType = Sequence::HMM_PROFILE;
     }
 

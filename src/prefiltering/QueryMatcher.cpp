@@ -54,11 +54,11 @@ std::string prefilterHitToString(hit_t h)
   GET_MACRO(__VA_ARGS__,FE_11,FE_10,FE_9,FE_8,FE_7,FE_6,FE_5,FE_4,FE_3,FE_2,FE_1)(action,__VA_ARGS__)
 
 QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
-                                               unsigned int *seqLens, short kmerThr,
-                                               double kmerMatchProb, int kmerSize, size_t dbSize,
-                                               unsigned int maxSeqLen, unsigned int effectiveKmerSize,
-                                               size_t maxHitsPerQuery, bool aaBiasCorrection,
-                                               bool diagonalScoring, unsigned int minDiagScoreThr)
+                           unsigned int *seqLens, short kmerThr,
+                           double kmerMatchProb, int kmerSize, size_t dbSize,
+                           unsigned int maxSeqLen, unsigned int effectiveKmerSize,
+                           size_t maxHitsPerQuery, bool aaBiasCorrection,
+                           bool diagonalScoring, unsigned int minDiagScoreThr, bool takeOnlyBestKmer)
 {
     this->m = m;
     this->indexTable = indexTable;
@@ -66,6 +66,8 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
     this->kmerThr = kmerThr;
     this->kmerGenerator = new KmerGenerator(kmerSize, m->alphabetSize, kmerThr);
     this->aaBiasCorrection = aaBiasCorrection;
+    this->takeOnlyBestKmer = takeOnlyBestKmer;
+
     this->stats = new statistics_t();
     // assure that the whole database can be matched (extreme case)
     // this array will need 500 MB for 50 Mio. sequences ( dbSize * 2 * 5byte)
@@ -140,11 +142,11 @@ QueryMatcher::~QueryMatcher(){
 }
 
 size_t QueryMatcher::evaluateBins(IndexEntryLocal **hitsByIndex,
-                                            CounterResult *output,
-                                            size_t outputSize,
-                                            unsigned short indexFrom,
-                                            unsigned short indexTo,
-                                            bool computeTotalScore) {
+                                  CounterResult *output,
+                                  size_t outputSize,
+                                  unsigned short indexFrom,
+                                  unsigned short indexTo,
+                                  bool computeTotalScore) {
     size_t localResultSize = 0;
 #define COUNT_CASE(x) case x: localResultSize += cachedOperation##x->countElements(hitsByIndex, output, outputSize, indexFrom, indexTo, computeTotalScore); break;
     switch (activeCounter){
@@ -215,10 +217,9 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     size_t seqListSize;
     unsigned short indexStart = 0;
     unsigned short indexTo = 0;
-//    Indexer idx(m->alphabetSize, kmerSize);
-
+    Indexer idx(m->alphabetSize, kmerSize);
     while(seq->hasNextKmer()){
-        const int* kmer = seq->nextKmer();
+        const int * kmer = seq->nextKmer();
         const int * pos = seq->getKmerPositons();
         float biasCorrection = 0;
         for (int i = 0; i < kmerSize; i++){
@@ -227,24 +228,46 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
         // round bias to next higher or lower value
         short bias = static_cast<short>((biasCorrection < 0.0) ? biasCorrection - 0.5: biasCorrection + 0.5);
         short kmerMatchScore = std::max(kmerThr - bias, 0);
+
         // adjust kmer threshold based on composition bias
         kmerGenerator->setThreshold(kmerMatchScore);
-        const ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
-        kmerListLen += kmerList.elementSize;
+
+
+        const unsigned int * index;
+        unsigned int exactKmer;
+        size_t kmerElementSize;
+        if(takeOnlyBestKmer){
+            kmerElementSize = 1;
+            exactKmer = idx.int2index(kmer);
+            index = &exactKmer;
+        }else{
+            ScoreMatrix kmerList = kmerGenerator->generateKmerList(kmer);
+            kmerElementSize = kmerList.elementSize;
+            index = kmerList.index;
+        }
+        //std::cout << kmer << std::endl;
         const unsigned short current_i = seq->getCurrentPosition();
         indexPointer[current_i] = sequenceHits;
         // match the index table
-        for (unsigned int kmerPos = 0; kmerPos < kmerList.elementSize; kmerPos++) {
+
+//        idx.printKmer(kmerList.index[0], kmerSize, m->int2aa);
+//        std::cout  << "\t" << kmerMatchScore << std::endl;
+        kmerListLen += kmerElementSize;
+
+        for (unsigned int kmerPos = 0; kmerPos < kmerElementSize; kmerPos++) {
             // generate k-mer list
-            const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(kmerList.index[kmerPos],
+//                        idx.printKmer(kmerList.index[kmerPos], kmerSize, m->int2aa);
+//                        std::cout << std::endl;
+
+            const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(index[kmerPos],
                                                                                        &seqListSize);
 
             /////DEBUG
 //            idx.printKmer(kmerList.index[kmerPos], kmerSize, m->int2aa);
-//            std::cout << "\t"<< kmerList.index[kmerPos] << "\t" << kmerList.score[kmerPos] << std::endl;
+//            std::cout << "\t" << current_i << "\t"<< kmerList.index[kmerPos] << "\t" << kmerList.score[kmerPos] << std::endl;
 //            for(size_t i = 0; i < seqListSize; i++){
 //                char diag = entries[i].position_j - current_i;
-//                std::cout << (int) diag << "\t";
+//                std::cout << "(" << entries[i].seqId << " " << (int) diag << ")\t";
 //            }
 //            std::cout << std::endl;
             /////DEBUG
@@ -261,7 +284,6 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
                 if(overflowHitCount != 0){ //merge lists
                     // hitCount is max. dbSize so there can be no overflow in mergeElemens
                     overflowHitCount = mergeElements(diagonalScoring, foundDiagonals, overflowHitCount +  hitCount);
-
                 } else {
                     overflowHitCount = hitCount;
                 }
@@ -291,6 +313,7 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     }
     stats->doubleMatches = 0;
     if(diagonalScoring == false) {
+        // remove double entries
         updateScoreBins(foundDiagonals, hitCount);
         stats->doubleMatches = getDoubleDiagonalMatches();
     }
@@ -316,11 +339,11 @@ void QueryMatcher::updateScoreBins(CounterResult *result, size_t elementCount) {
 }
 
 std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
-                                                              size_t resultSize, const int l,
-                                                              const unsigned int id,
-                                                              const unsigned short thr,
-                                                              const double lambda,
-                                                              const bool diagonalScoring) {
+                                                    size_t resultSize, const int l,
+                                                    const unsigned int id,
+                                                    const unsigned short thr,
+                                                    const double lambda,
+                                                    const bool diagonalScoring) {
     size_t elementCounter = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
@@ -351,7 +374,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
             //printf("%d\t%d\t%f\t%f\t%f\t%f\t%f\n", result->seqId, scoreCurr, seqLens[seqIdCurr], mu, logMatchProb, logScoreFactorial[scoreCurr]);
             if(diagonalScoring == false){
                 result->pScore =  (diagonalScoring) ? 0.0 :  -computeLogProbability(scoreCurr, seqLens[seqIdCurr],
-                                                                                mu, logMatchProb, logScoreFactorial[scoreCurr]);
+                                                                                    mu, logMatchProb, logScoreFactorial[scoreCurr]);
             }else{
                 double evalue = BlastScoreUtils::computeEvalue(scoreCurr, this->kmnByLen[l], lambda);
                 result->pScore = evalue;

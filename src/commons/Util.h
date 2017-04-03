@@ -234,5 +234,7 @@ public:
     }
 
     static int omp_thread_count();
+
+    static size_t getPageSize();
 };
 #endif

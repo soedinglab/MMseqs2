@@ -110,7 +110,7 @@ static struct Command commands[] = {
             "Detects redundant sequences based on reduced alphabet and k-mer sorting.",
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> ",
             "<i:sequenceDB> <o:clusterDB> <tmpDir>",
-            CITATION_MMSEQS2},
+             CITATION_MMSEQS2|CITATION_LINCLUST},
         {"kmermatcher",          kmermatcher,          &par.kmermatcher,            COMMAND_EXPERT,
                 "Finds exact $k$-mers matches between sequences",
                 NULL,

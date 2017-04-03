@@ -7,7 +7,6 @@
 KmerGenerator::KmerGenerator(size_t kmerSize, size_t alphabetSize, short threshold ){
     this->threshold = threshold;
     this->kmerSize = kmerSize;
-
     this->indexer = new Indexer((int) alphabetSize, (int)kmerSize);
 //    calcDivideStrategy();
 }
@@ -195,53 +194,22 @@ int KmerGenerator::calculateArrayProduct(const short        * __restrict scoreAr
                                          const short cutoff1,
                                          const short possibleRest,
                                          const unsigned int pow){
-    size_t counter=0;
-    const simd_int * scoreArray2_simd = (const simd_int *) scoreArray2;
-    const simd_int * indexArray2_simd = (const simd_int *) indexArray2;
-    const simd_int pow_simd     = simdi32_set(pow);
-
-    for(size_t i = 0 ; i < array1Size; i++){
+    int counter=0;
+    for(size_t i = 0 ; i< array1Size;i++){
         const short score_i = scoreArray1[i];
+        const unsigned int kmer_i = indexArray1[i];
         if(score_i < cutoff1 )
             break;
-        const unsigned int kmer_i = indexArray1[i];
-        const short cutoff2 = this->threshold - score_i - possibleRest;
-        const simd_int cutoff2_simd = simdi16_set(cutoff2);
-        const simd_int score_i_simd = simdi16_set(score_i);
-        const simd_int kmer_i_simd  = simdi32_set(kmer_i);
-        const size_t SIMD_SIZE = VECSIZE_INT*2; // VECSIZE_INT*2 because its short
-        const size_t array2SizeSIMD = (array2Size / SIMD_SIZE)+1;
-
-        unsigned int score_j_lt_cutoff = 0;
-        for(size_t j = 0; j < array2SizeSIMD
-                        // if(score_j < cutoff2) break;
-                        && score_j_lt_cutoff == 0
-                        && (counter + SIMD_SIZE) < MAX_KMER_RESULT_SIZE; j++){
-            const simd_int score_j_simd   = simdi_streamload((simd_int *)(scoreArray2_simd + j));
-            const simd_int kmer_j_1_simd  = simdi_streamload((simd_int *)(indexArray2_simd + (j*2)));
-            const simd_int kmer_j_2_simd  = simdi_streamload((simd_int *)(indexArray2_simd + (j*2+1)));
-
-            simd_int * scoreOutput_simd = (simd_int *) (outputScoreArray + counter);
-            simd_int * indexOutput_simd = (simd_int *) (outputIndexArray + counter);
-            // score = score_i + score_j;
-            simdi_storeu(scoreOutput_simd, simdi16_add(score_i_simd,score_j_simd));
-            // kmer = kmer_i + (kmer_j * pow)
-            // SIMD/2 because its int
-            const simd_int kmer_j_1 = simdi32_mul(kmer_j_1_simd, pow_simd);
-            const simd_int kmer_j_2 = simdi32_mul(kmer_j_2_simd, pow_simd);
-            simdi_storeu(indexOutput_simd,     simdi32_add(kmer_i_simd, kmer_j_1));
-            simdi_storeu(indexOutput_simd + 1, simdi32_add(kmer_i_simd, kmer_j_2));
-            counter += std::min(SIMD_SIZE,  array2Size - (j*SIMD_SIZE)); //protect from running to far
-
-            // reduce count of all elements under the threshold
-            // score_j < cutoff2 -> ffff, score_j > cutoff2 -> 0000
-            const simd_int cmp = simdi16_lt(score_j_simd, cutoff2_simd);
-            // extract all values that are under the threshold
-            score_j_lt_cutoff = simdi8_movemask(cmp);
-            // subsstract all elements that are under the threshold from counter
-
-            counter-= MathUtil::popCount(score_j_lt_cutoff) / 2;
-
+        const short cutoff2=this->threshold-score_i-possibleRest;
+        for(size_t j = 0; j < array2Size && (counter+1 < (int) MAX_KMER_RESULT_SIZE) && (scoreArray2[j] >= cutoff2); j++){
+            const short score_j       = scoreArray2[j];
+            const unsigned int kmer_j = indexArray2[j];
+            outputScoreArray[counter]=score_i+score_j;
+            outputIndexArray[counter]=kmer_i+(kmer_j*pow);
+            counter++;
+        }
+        if(counter+1 >= (int) MAX_KMER_RESULT_SIZE){
+            return counter;
         }
     }
     return counter;
