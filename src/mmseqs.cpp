@@ -325,7 +325,7 @@ void printUsage() {
 
 
 int getCommandIndex(const char *s) {
-    for (int i = 0; i < ARRAY_SIZE(commands); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
         struct Command *p = commands + i;
         if (!strcmp(s, p->cmd))
             return i;
