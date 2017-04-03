@@ -351,14 +351,14 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                         std::pair<const char*, std::string> pssmRes =
                                 calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
                                                               filterRes.filteredMsaSequence, par.wg);
-                        msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) << pssmRes.second << "\n";
+                        msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) << pssmRes.second << "\n;";
                     } else {
                         std::ostringstream centerSeqStr;
                         // Retrieve the master sequence
                         for (int pos = 0; pos < centerSequence->L; pos++) {
                             centerSeqStr << subMat.int2aa[centerSequence->int_sequence[pos]];
                         }
-                        msa << ">" << queryHeaderReader->getDataByDBKey(queryKey) << centerSeqStr.str() << "\n";
+                        msa << ">" << queryHeaderReader->getDataByDBKey(queryKey) << centerSeqStr.str() << "\n;";
                     }
 
                     msa << CompressedA3M::fromAlignmentResult(filteredAln, *referenceDBr);
