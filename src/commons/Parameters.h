@@ -21,7 +21,6 @@ struct MMseqsParameter {
     void * value;
     const char * regex;
     bool wasSet;
-    bool automaticSet;
     int category;
 
     static const int COMMAND_PREFILTER = 1;
@@ -34,9 +33,8 @@ struct MMseqsParameter {
 
     MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash,
-                    void * value, const char * regex, int category = COMMAND_MISC, bool automaticSet = true):
-                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex),
-                    wasSet(false), automaticSet(automaticSet), category(category) {}
+                    void * value, const char * regex, int category = COMMAND_MISC):
+                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false), category(category){}
 };
 
 
@@ -145,7 +143,8 @@ public:
     int    kmerSize;                     // kmer size for the prefilter
     int    kmerScore;                    // kmer score for the prefilter
     int    alphabetSize;                 // alphabet size for the prefilter
-    bool   profile;                      // using profile information
+    bool   queryProfile;                 // using queryProfile information
+    bool   targetProfile;                // using targetProfile information
     bool   nucl;                         // using nucl informatoin
     int    compBiasCorrection;           // Aminoacid composiont correction
     int    diagonalScoring;              // switch diagonal scoring
@@ -329,7 +328,8 @@ public:
     PARAMETER(PARAM_THREADS)
     PARAMETER(PARAM_ALPH_SIZE)
     PARAMETER(PARAM_MAX_SEQ_LEN)
-    PARAMETER(PARAM_PROFILE)
+    PARAMETER(PARAM_QUERY_PROFILE)
+    PARAMETER(PARAM_TARGET_PROFILE)
     //PARAMETER(PARAM_NUCL)
     PARAMETER(PARAM_DIAGONAL_SCORING)
     PARAMETER(PARAM_MASK_RESIDUES)

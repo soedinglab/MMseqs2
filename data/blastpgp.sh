@@ -40,6 +40,7 @@ QUERYDB="$(abspath $1)"
 TMP_PATH="$(abspath $4)"
 
 STEP=0
+ALN_PROFILE=""
 # processing
 [ -z "$NUM_IT" ] && NUM_IT=3;
 while [ $STEP -lt $NUM_IT ]; do
@@ -65,9 +66,12 @@ while [ $STEP -lt $NUM_IT ]; do
 	if [ $STEP -eq 0 ] && [ $PROFILE -eq 0 ]; then
 	    REALIGN="--realign"
 	fi
+
+
 	# call alignment module
 	if notExists "$TMP_PATH/aln_$STEP"; then
-        $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALIGNMENT_PAR $REALIGN -a \
+	    PARAM="ALIGNMENT_PAR_$STEP"
+        $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${!PARAM} $REALIGN ${ALN_PROFILE} -a \
             || fail "Alignment died"
     fi
 
@@ -92,9 +96,9 @@ while [ $STEP -lt $NUM_IT ]; do
     fi
 	QUERYDB="$TMP_PATH/profile_$STEP"
     if [ $STEP -eq 0 ] && [ $PROFILE -eq 0 ]; then
-        PREFILTER_PAR="$PREFILTER_PAR --profile"
-        ALIGNMENT_PAR="$ALIGNMENT_PAR --profile"
-        PROFILE_PAR="$PROFILE_PAR --profile"
+        PREFILTER_PAR="$PREFILTER_PAR --query-profile"
+        ALN_PROFILE="--query-profile"
+        PROFILE_PAR="$PROFILE_PAR --query-profile"
     fi
 	let STEP=STEP+1
 done

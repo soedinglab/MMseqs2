@@ -28,7 +28,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < par.linclustworkflow.size(); i++) {
         if (par.linclustworkflow[i].uniqid == par.PARAM_TARGET_COV.uniqid && par.linclustworkflow[i].wasSet) {
             targetCov = true;
-            par.cov = 0.0;
+            par.covThr = 0.0;
         }
         if (par.linclustworkflow[i].uniqid == par.PARAM_C.uniqid && par.linclustworkflow[i].wasSet) {
             cov = true;
@@ -43,10 +43,7 @@ int linclust(int argc, const char **argv, const Command& command) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
     cmd.addVariable("RUNNER", par.runner.c_str());
-    if(par.seqIdThr < 0.5){
-        Debug(Debug::ERROR) << "The paramter --min-seq-id can not be less than 0.5 please use mmseqs cluster instead.\n";
-        EXIT(EXIT_FAILURE);
-    }
+
     // save some values to restore them later
     size_t alphabetSize = par.alphabetSize;
     size_t kmerSize = par.kmerSize;
@@ -59,7 +56,23 @@ int linclust(int argc, const char **argv, const Command& command) {
     // # 2. Hamming distance pre-clustering
     par.rescoreMode = Parameters::RESCORE_MODE_HAMMING;
     par.filterHits = false;
+    float prevSeqId = par.seqIdThr;
+    // hamming distance does not work well with seq. id < 0.5 since it does not have an e-value criteria
+    par.seqIdThr = std::max(0.5f, par.seqIdThr);
+    // also coverage should not be under 0.5
+    float prevCov = par.covThr;
+    float prevTargetCov = par.targetCovThr;
+    if(cov){
+        par.covThr = std::max(0.5f, par.covThr);
+    }
+    if(targetCov){
+        par.targetCovThr = std::max(0.5f, par.targetCovThr);
+    }
     cmd.addVariable("HAMMING_PAR", par.createParameterString(par.rescorediagonal).c_str());
+    // set it back to old value
+    par.covThr = prevCov;
+    par.targetCovThr = prevTargetCov;
+    par.seqIdThr = prevSeqId;
     par.rescoreMode = Parameters::RESCORE_MODE_SUBSTITUTION;
     // # 3. Ungapped alignment filtering
     par.filterHits = true;

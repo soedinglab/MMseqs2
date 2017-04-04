@@ -3,6 +3,7 @@
 #include "Prefiltering.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "FileUtil.h"
+#include "tantan.h"
 
 const char*  PrefilteringIndexReader::CURRENT_VERSION="3.2.0";
 unsigned int PrefilteringIndexReader::VERSION = 0;
@@ -254,6 +255,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 
     size_t dbSize = dbTo - dbFrom;
     size_t *sequenceOffSet = new size_t[dbSize];
+    // identical scores for memory reduction code
     char *idScoreLookup = new char[subMat->alphabetSize];
     for (int aa = 0; aa < subMat->alphabetSize; aa++){
         short score = subMat->subMatrix[aa][aa];
@@ -262,6 +264,20 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         }
         idScoreLookup[aa] = (char) score;
     }
+    // need to prune low scoring k-mers
+    // masking code
+    SubstitutionMatrix mat("blosum62.out", 2.0, 0.0);
+    double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
+    const double *probMatrixPointers[subMat->alphabetSize];
+    char hardMaskTable[256];
+    std::fill_n(hardMaskTable, 256, subMat->aa2int['X']);
+    for (int i = 0; i < subMat->alphabetSize; ++i){
+        probMatrixPointers[i] = probMatrix[i];
+        for(int j = 0; j < subMat->alphabetSize; ++j){
+            probMatrix[i][j]  = std::exp(0.324032 * mat.subMatrix[i][j]);
+        }
+    }
+
 
     size_t aaDbSize = 0;
     sequenceOffSet[0] = 0;
@@ -283,7 +299,15 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
         Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
                    seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
+
+        KmerGenerator *generator = NULL;
+        if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+            generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
+            generator->setDivideStrategy(s.profile_matrix);
+        }
+
         unsigned int * buffer = new unsigned int[seq->getMaxLen()];
+        char * charSequence = new char[seq->getMaxLen()];
 #pragma omp for schedule(dynamic, 100) reduction(+:aaCount, totalKmerCount, maskedResidues)
         for (size_t id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
@@ -291,15 +315,42 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             char *seqData = dbr->getData(id);
             unsigned int qKey = dbr->getDbKey(id);
             s.mapSequence(id - dbFrom, qKey, seqData);
-            if (maskResidues) {
-                maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3, indexTable->getAlphabetSize(),
-                                                          seq->aa2int[(unsigned char) 'X'], true, true, true, true);
+            // count similar or exact k-mers based on sequence type
+            if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+                totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
+            } else {
+                if (maskResidues) {
+                    for(size_t i = 0; i < s.L; i++){
+                        charSequence[i] = (char) s.int_sequence[i];
+                    }
+                    maskedResidues += tantan::maskSequences(charSequence,
+                                                            charSequence+s.L,
+                                                            50 /*options.maxCycleLength*/,
+                                                            probMatrixPointers,
+                                                            0.005 /*options.repeatProb*/,
+                                                            0.05 /*options.repeatEndProb*/,
+                                                            0.9 /*options.repeatOffsetProbDecay*/,
+                                                            0, 0,
+                                                            0.9 /*options.minMaskProb*/,
+                                                            hardMaskTable);
+                    for(size_t i = 0; i < s.L; i++){
+                        s.int_sequence[i] = charSequence[i];
+                    }
+//                maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
+//                                                          indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X'], true, true, true, true);
+                }
+                totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }
-            aaCount += s.L;
-            totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
+            aaCount += s.L;
         }
+
+        delete [] charSequence;
         delete [] buffer;
+
+        if (generator) {
+            delete generator;
+        }
     }
     delete[] sequenceOffSet;
     dbr->remapData();
@@ -340,6 +391,13 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
         unsigned int thread_idx = 0;
         IndexEntryLocalTmp * buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
+
+        KmerGenerator *generator = NULL;
+        if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+            generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
+            generator->setDivideStrategy(s.profile_matrix);
+        }
+
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
@@ -369,13 +427,22 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             //char *seqData = dbr->getData(id);
             //TODO - dbFrom?!?
             unsigned int qKey = dbr->getDbKey(id);
-            //seq->mapSequence(id - dbFrom, qKey, seqData);
-            s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
 //            Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
 //                                    indexTable->getAlphabetSize(), seq->aa2int['X']);
-            indexTable->addSequence(&s, &idxer, buffer, threadFrom, threadSize, kmerThr, idScoreLookup);
+            if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+                char *seqData = dbr->getData(id);
+                s.mapSequence(id - dbFrom, qKey, seqData);
+                indexTable->addSimilarSequence(&s, generator, &idxer, threadFrom, threadSize, kmerThr, idScoreLookup);
+            } else {
+                s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
+                indexTable->addSequence(&s, &idxer, buffer, threadFrom, threadSize, kmerThr, idScoreLookup);
+            }
         }
         delete [] buffer;
+
+        if (generator) {
+            delete generator;
+        }
     }
     if (diagonalScoring == false) {
         delete sequenceLookup;

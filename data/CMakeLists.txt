@@ -5,6 +5,7 @@ set(COMPILED_RESOURCES
         clustering.sh
         cascaded_clustering.sh
         update_clustering.sh
+        searchtargetprofile.sh
         blosum30.out
         blosum35.out
         blosum40.out

@@ -69,7 +69,7 @@ public:
     // need for sorting the results
     static bool compareHits (result_t first, result_t second){ return (first.eval < second.eval); }
 
-    // map new query into memory (create profile, ...)
+    // map new query into memory (create queryProfile, ...)
     void initQuery(Sequence* query);
 
     static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
@@ -92,7 +92,7 @@ public:
 
 private:
 
-    // calculate the query profile for SIMD registers processing 8 elements
+    // calculate the query queryProfile for SIMD registers processing 8 elements
     int maxSeqLen;
 
     // holds values of the current active query

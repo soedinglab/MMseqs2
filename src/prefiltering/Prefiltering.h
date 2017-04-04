@@ -79,6 +79,7 @@ private:
     const bool diagonalScoring;
     const unsigned int minDiagScoreThr;
     const bool aaBiasCorrection;
+    const bool takeOnlyBestKmer;
     const float covThr;
     const bool includeIdentical;
     const bool earlyExit;
@@ -114,7 +115,7 @@ private:
     void printStatistics(const statistics_t &stats, std::list<int> **reslens,
                          unsigned int resLensSize, size_t empty, size_t maxResults);
 
-    int getKmerThreshold(const float sensitivity);
+    int getKmerThreshold(const float sensitivity, const int querySeqType);
 
     void mergeOutput(const std::string &outDb, const std::string &outDBIndex,
                      const std::vector<std::pair<std::string, std::string>> &filenames);

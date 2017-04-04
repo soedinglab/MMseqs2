@@ -50,6 +50,7 @@ if (HAVE_TESTS)
             TestScoreMatrixSerialization.cpp
             TestDBReaderIndexSerialization.cpp
             TestUtil.cpp
+			TestTanTan.cpp
             )
 
     FOREACH (TEST ${TESTS})

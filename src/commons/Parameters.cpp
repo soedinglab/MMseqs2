@@ -21,7 +21,9 @@ PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7] (0: set au
 PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
 PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
 PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
-PARAM_PROFILE(PARAM_PROFILE_ID,"--profile", "Profile", "prefilter with query profiles (query DB must be a profile DB)",typeid(bool),(void *) &profile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
+PARAM_QUERY_PROFILE(PARAM_QUERY_PROFILE_ID,"--query-profile", "Query queryProfile", "Search with query on queryProfile side (query DB must be a queryProfile DB)",typeid(bool),(void *) &queryProfile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
+PARAM_TARGET_PROFILE(PARAM_TARGET_PROFILE_ID,"--target-profile", "Target queryProfile", "Build database with a queryProfile information (target DB must be a queryProfile DB)",typeid(bool),(void *) &targetProfile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
+
 //PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
 PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER),
 PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking 1: with low complexity masking", typeid(int),(void *) &maskResidues, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER),
@@ -46,7 +48,7 @@ PARAM_EARLY_EXIT(PARAM_EARLY_EXIT_ID, "--early-exit", "Early exit", "Exit immedi
 PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) query and target residues",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
-PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN, false),
+PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1\\.0$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_MAX_ACCEPT(PARAM_MAX_ACCEPT_ID,"--max-accept", "Max Accept", "maximum accepted alignments before alignment calculation for a query is stopped",typeid(int),(void *) &maxAccept, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
 PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
@@ -159,7 +161,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     align.push_back(PARAM_MAX_SEQS);
     align.push_back(PARAM_NO_COMP_BIAS_CORR);
     //    alignment.push_back(PARAM_NUCL);
-    align.push_back(PARAM_PROFILE);
+    align.push_back(PARAM_QUERY_PROFILE);
     align.push_back(PARAM_REALIGN);
     align.push_back(PARAM_MAX_REJECTED);
     align.push_back(PARAM_MAX_ACCEPT);
@@ -176,7 +178,8 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     prefilter.push_back(PARAM_K_SCORE);
     prefilter.push_back(PARAM_ALPH_SIZE);
     prefilter.push_back(PARAM_MAX_SEQ_LEN);
-    prefilter.push_back(PARAM_PROFILE);
+    prefilter.push_back(PARAM_QUERY_PROFILE);
+    prefilter.push_back(PARAM_TARGET_PROFILE);
     //    prefilter.push_back(PARAM_NUCL);
     prefilter.push_back(PARAM_MAX_SEQS);
     prefilter.push_back(PARAM_RES_LIST_OFFSET);
@@ -225,7 +228,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
 
     // result2profile
     result2profile.push_back(PARAM_SUB_MAT);
-    result2profile.push_back(PARAM_PROFILE);
+    result2profile.push_back(PARAM_QUERY_PROFILE);
     result2profile.push_back(PARAM_E_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
     result2profile.push_back(PARAM_WG);
@@ -241,7 +244,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
 
     // createtsv
     createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);;
-    
+
     //result2stats
     result2stats.push_back(PARAM_STAT);
     result2stats.push_back(PARAM_THREADS);
@@ -256,7 +259,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
 
     // result2msa
     result2msa.push_back(PARAM_SUB_MAT);
-    result2msa.push_back(PARAM_PROFILE);
+    result2msa.push_back(PARAM_QUERY_PROFILE);
     result2msa.push_back(PARAM_E_PROFILE);
     result2msa.push_back(PARAM_ALLOW_DELETION);
     result2msa.push_back(PARAM_ADD_INTERNAL_ID);
@@ -470,15 +473,16 @@ void Parameters::printUsageMessage(const Command& command,
     if(command.citations > 0) {
         ss << "Please cite:\n";
         if(command.citations & CITATION_MMSEQS2) {
-            ss << "Steinegger, M. & Soding, J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv 079681 (2016)\n\n";
+            ss << "Steinegger, M. & Soding, J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv 079681 (2017)\n\n";
         }
-
+        if(command.citations & CITATION_LINCLUST) {
+            ss << "Steinegger, M. & Soding, J. Linclust: clustering protein sequences in linear time. bioRxiv 104034 (2017)\n\n";
+        }
         if(command.citations & CITATION_MMSEQS1) {
             ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
         }
-
         if(command.citations & CITATION_UNICLUST) {
-            ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin, M., Soding, J. & Steinegger, M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res. 45(D1), D170-D176 (2017). \n\n";
+            ss << "Mirdita, M., von den Driesch, L., Galiez, C., Martin M., Soding J. & Steinegger M. Uniclust databases of clustered and deeply annotated protein sequences and alignments. Nucleic Acids Res (2017), D170-D176 (2016).\n\n";
         }
     }
     ss << "© " << command.author << "\n\n";
@@ -687,9 +691,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 #ifdef OPENMP
     omp_set_num_threads(threads);
 #endif
-    if (profile){
+    if (queryProfile){
         querySeqType  = Sequence::HMM_PROFILE;
         targetSeqType = Sequence::AMINO_ACIDS;
+    }
+    if (targetProfile){
+        querySeqType  = Sequence::AMINO_ACIDS;
+        targetSeqType = Sequence::HMM_PROFILE;
     }
     if (nucl){
         querySeqType  = Sequence::NUCLEOTIDES;
@@ -844,7 +852,8 @@ void Parameters::setDefaults() {
     maskResidues = 1;
     minDiagScoreThr = 15;
     spacedKmer = true;
-    profile = false;
+    queryProfile = false;
+    targetProfile = false;
     nucl = false;
     includeIdentity = false;
     alignmentMode = ALIGNMENT_MODE_FAST_AUTO;
@@ -907,7 +916,7 @@ void Parameters::setDefaults() {
     qid = 0.0;           // default for minimum sequence identity with query
     qsc = -20.0f;        // default for minimum score per column with query
     cov = 0.0;           // default for minimum coverage threshold
-    Ndiff = 100;         // pick Ndiff most different sequences from alignment
+    Ndiff = 1000;        // pick Ndiff most different sequences from alignment
     wg = false;
     pca = 1.0;
     pcb = 1.5;
@@ -1017,28 +1026,26 @@ std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter
 std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par) {
     std::stringstream ss;
     for (size_t i = 0; i < par.size(); i++) {
-        if (par[i].automaticSet || par[i].wasSet) {
-            if(typeid(int) == par[i].type ){
+        if(typeid(int) == par[i].type ){
+            ss << par[i].name << " ";
+            ss << *((int *)par[i].value) << " ";
+        } else if(typeid(float) == par[i].type ){
+            ss << par[i].name << " ";
+            ss << *((float *)par[i].value) << " ";
+        }else if(typeid(std::string) == par[i].type ){
+            if (*((std::string *) par[i].value)  != "")
+            {
                 ss << par[i].name << " ";
-                ss << *((int *)par[i].value) << " ";
-            } else if(typeid(float) == par[i].type ){
-                ss << par[i].name << " ";
-                ss << *((float *)par[i].value) << " ";
-            }else if(typeid(std::string) == par[i].type ){
-                if (*((std::string *) par[i].value)  != "")
-                {
-                    ss << par[i].name << " ";
-                    ss << *((std::string *) par[i].value) << " ";
-                }
-            }else if (typeid(bool) == par[i].type){
-                bool val = *((bool *)(par[i].value));
-                if(val == true){
-                    ss << par[i].name << " ";
-                }
-            } else {
-                Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers\n";
-                EXIT(EXIT_FAILURE);
+                ss << *((std::string *) par[i].value) << " ";
             }
+        }else if (typeid(bool) == par[i].type){
+            bool val = *((bool *)(par[i].value));
+            if(val == true){
+                ss << par[i].name << " ";
+            }
+        } else {
+            Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers\n";
+            EXIT(EXIT_FAILURE);
         }
     }
     return ss.str();

@@ -21,11 +21,14 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         sensitivity(par.sensitivity), resListOffset(par.resListOffset), maxSeqLen(par.maxSeqLen),
         querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
         diagonalScoring(par.diagonalScoring != 0), minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
-        aaBiasCorrection(par.compBiasCorrection != 0), covThr(par.covThr), includeIdentical(par.includeIdentity),
+        aaBiasCorrection(par.compBiasCorrection != 0),
+        takeOnlyBestKmer(par.targetSeqType == Sequence::HMM_PROFILE && par.querySeqType == Sequence::AMINO_ACIDS),
+        covThr(par.covThr), includeIdentical(par.includeIdentity),
         earlyExit(par.earlyExit), noPreload(par.noPreload), threads(static_cast<unsigned int>(par.threads)) {
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
+
 
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetDB);
     if (indexDB != "") {
@@ -96,7 +99,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         // create the whole index table
-        const int kmerThr = getKmerThreshold(sensitivity);
+        const int kmerThr = getKmerThreshold(sensitivity, querySeqType);
         indexTable = getIndexTable(0, 0, tdbr->getSize(), kmerThr, threads);
     } else if (splitMode == Parameters::TARGET_DB_SPLIT) {
         indexTable = NULL;
@@ -459,7 +462,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         maxResults = (maxResListLen / splitCount) + 1;
     }
 
-    const int kmerThr = getKmerThreshold(sensitivity);
+    const int kmerThr = getKmerThreshold(sensitivity, querySeqType);
     // create index table based on split parameter
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
         Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
@@ -550,7 +553,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
         QueryMatcher matcher(subMat, indexTable, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
-                             maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr);
+                             maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
         if (querySeqType == Sequence::HMM_PROFILE) {
             matcher.setProfileMatrix(seq.profile_matrix);
         } else {
@@ -778,7 +781,7 @@ double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned 
 
         QueryMatcher matcher(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0,
                              kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
-                             LONG_MAX, aaBiasCorrection, false, minDiagScoreThr);
+                             LONG_MAX, aaBiasCorrection, false, minDiagScoreThr, false);
         if (querySeqType == Sequence::HMM_PROFILE) {
             matcher.setProfileMatrix(seq.profile_matrix);
         } else {
@@ -828,15 +831,27 @@ void Prefiltering::mergeFiles(const std::string &outDB, const std::string &outDB
     }
 }
 
-int Prefiltering::getKmerThreshold(const float sensitivity) {
+int Prefiltering::getKmerThreshold(const float sensitivity, const int querySeqType) {
     double kmerThrBest = kmerScore;
     if (kmerThrBest == INT_MAX) {
         if (kmerSize == 5) {
-            kmerThrBest = 123.75 - (sensitivity * 8.75);
+            float base = 123.75;
+            if (querySeqType == Sequence::HMM_PROFILE) {
+                base += 20.0;
+            }
+            kmerThrBest = base - (sensitivity * 8.75);
         } else if (kmerSize == 6) {
-            kmerThrBest = 138.75 - (sensitivity * 8.75);
+            float base = 138.75;
+            if (querySeqType == Sequence::HMM_PROFILE) {
+                base += 20.0;
+            }
+            kmerThrBest = base - (sensitivity * 8.75);
         } else if (kmerSize == 7) {
-            kmerThrBest = 154.75 - (sensitivity * 9.75);
+            float base = 154.75;
+            if (querySeqType == Sequence::HMM_PROFILE) {
+                base += 20.0;
+            }
+            kmerThrBest = base - (sensitivity * 9.75);
         } else {
             Debug(Debug::ERROR) << "The k-mer size " << kmerSize << " is not valid.\n";
             EXIT(EXIT_FAILURE);
