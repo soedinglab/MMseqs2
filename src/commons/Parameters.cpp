@@ -26,7 +26,7 @@ PARAM_TARGET_PROFILE(PARAM_TARGET_PROFILE_ID,"--target-profile", "Target queryPr
 
 //PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
 PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER),
-PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking 1: with low complexity masking", typeid(int),(void *) &maskResidues, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER),
+PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking, 1: with low complexity masking, (createindex only) 2: add both masked and unmasked sequences to index", typeid(int),(void *) &maskMode, "^[0-2]{1}", MMseqsParameter::COMMAND_PREFILTER),
 
 PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum Diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
 PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "k-mer threshold for generating similar-k-mer lists",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
@@ -849,7 +849,7 @@ void Parameters::setDefaults() {
 #endif
     compBiasCorrection = 1;
     diagonalScoring = 1;
-    maskResidues = 1;
+    maskMode = 1;
     minDiagScoreThr = 15;
     spacedKmer = true;
     queryProfile = false;

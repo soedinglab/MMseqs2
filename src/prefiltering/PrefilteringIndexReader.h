@@ -9,7 +9,7 @@
 struct PrefilteringIndexData {
     int kmerSize;
     int alphabetSize;
-    int maskResidues;
+    int maskMode;
     int split;
     int local;
     int spacedKmer;
@@ -23,6 +23,7 @@ public:
     static unsigned int ENTRIES;
     static unsigned int ENTRIESOFFSETS;
     static unsigned int SEQINDEXDATA;
+    static unsigned int UNMASKEDSEQINDEXDATA;
     static unsigned int SEQINDEXDATASIZE;
     static unsigned int SEQINDEXSEQOFFSET;
     static unsigned int ENTRIESNUM;
@@ -38,11 +39,13 @@ public:
     static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr,
                                 BaseMatrix * subMat, int maxSeqLen, bool spacedKmer,
                                 bool compBiasCorrection, int split, int alphabetSize, int kmerSize,
-                                bool diagonalScoring, bool maskResidues, int threads);
+                                bool diagonalScoring, int maskMode, int threads);
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr);
 
     static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr, int split);
+
+    static SequenceLookup *getUnmaskedSequenceLookup(DBReader<unsigned int> *dbr, int split);
 
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, int split, bool diagonalScoring);
 
@@ -61,11 +64,11 @@ public:
 
     static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
                                           int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
-                                          bool diagonalScoring, bool maskResidues, int kmerThr, unsigned int threads);
+                                          bool diagonalScoring, int maskMode, int kmerThr, unsigned int threads);
 
     static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
                              BaseMatrix *subMat, size_t dbFrom, size_t dbTo, bool diagonalScoring,
-                             bool maskResidues, int kmerThr, unsigned int threads);
+                             int maskMode, SequenceLookup *unmaskedLookup, int kmerThr, unsigned int threads);
 
 };
 

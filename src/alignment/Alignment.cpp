@@ -60,9 +60,19 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                 tidxdbr->close();
                 delete tidxdbr;
                 tidxdbr = NULL;
+            } else if (meta.maskMode == 1) {
+                Debug(Debug::WARNING) << "Can not use masked index for alignment.\n";
+                templateDBIsIndex = false;
+                tidxdbr->close();
+                delete tidxdbr;
+                tidxdbr = NULL;
             } else {
                 PrefilteringIndexReader::printSummary(tseqdbr);
-                tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, 0);
+                if (meta.maskMode == 0) {
+                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, 0);
+                } else if (meta.maskMode == 2) {
+                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, 0);
+                }
                 tseqdbr = PrefilteringIndexReader::openNewReader(tidxdbr);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }

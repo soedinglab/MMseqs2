@@ -65,7 +65,7 @@ private:
     bool spacedKmer;
     int alphabetSize;
     bool templateDBIsIndex;
-    bool maskResidues;
+    int maskMode;
     int splitMode;
     std::string scoringMatrixFile;
 

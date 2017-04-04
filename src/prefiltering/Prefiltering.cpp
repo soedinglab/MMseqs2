@@ -16,7 +16,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                            const Parameters &par) :
         targetDB(targetDB), targetDBIndex(targetDBIndex), splits(par.split),
         kmerSize(par.kmerSize), spacedKmer(par.spacedKmer != 0), alphabetSize(par.alphabetSize),
-        maskResidues(par.maskResidues != 0), splitMode(par.splitMode), scoringMatrixFile(par.scoringMatrixFile),
+        maskMode(par.maskMode), splitMode(par.splitMode), scoringMatrixFile(par.scoringMatrixFile),
         maxResListLen(par.maxResListLen), kmerScore(par.kmerScore),
         sensitivity(par.sensitivity), resListOffset(par.resListOffset), maxSeqLen(par.maxSeqLen),
         querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
@@ -29,6 +29,10 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
 
+    if (maskMode >= 2) {
+        Debug(Debug::ERROR) << "--mask 2 can only be used in createindex.\n";
+        EXIT(EXIT_FAILURE);
+    }
 
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetDB);
     if (indexDB != "") {
@@ -43,7 +47,13 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
             kmerSize = data.kmerSize;
             alphabetSize = data.alphabetSize;
-            maskResidues = data.maskResidues != 0;
+            maskMode = data.maskMode;
+
+            // use a index with both masked and unmasked sequence just like one with just masked sequences
+            if (maskMode == 2) {
+                maskMode = 1;
+            }
+
             splits = data.split;
             spacedKmer = data.spacedKmer != 0;
             scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
@@ -302,7 +312,7 @@ IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize,
         IndexTable* table = PrefilteringIndexReader::generateIndexTable(
                 tdbr, &tseq, subMat, alphabetSize, kmerSize,
                 dbFrom, dbFrom + dbSize,
-                diagonalScoring, maskResidues, kmerThr, threads
+                diagonalScoring, maskMode, kmerThr, threads
         );
 
         gettimeofday(&end, NULL);

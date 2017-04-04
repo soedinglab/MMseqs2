@@ -148,7 +148,7 @@ public:
     bool   nucl;                         // using nucl informatoin
     int    compBiasCorrection;           // Aminoacid composiont correction
     int    diagonalScoring;              // switch diagonal scoring
-    int    maskResidues;                 // mask low complex areas
+    int    maskMode;                     // mask low complex areas
 
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers

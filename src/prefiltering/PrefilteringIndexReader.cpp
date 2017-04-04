@@ -5,7 +5,7 @@
 #include "FileUtil.h"
 #include "tantan.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION="3.2.0";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="3.3.0";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -20,6 +20,7 @@ unsigned int PrefilteringIndexReader::SEQCOUNT = 94;
 unsigned int PrefilteringIndexReader::SEQINDEXDATA = 95;
 unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 96;
 unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 97;
+unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 98;
 
 bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     char * version = reader->getDataByDBKey(VERSION);
@@ -32,7 +33,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr,
                                               BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
                                               bool compBiasCorrection, const int split, int alphabetSize, int kmerSize,
-                                              bool diagonalScoring, bool maskResidues, int threads) {
+                                              bool diagonalScoring, int maskMode, int threads) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
@@ -64,7 +65,12 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
                                          step, split, &splitStart, &splitSize);
         IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
-        PrefilteringIndexReader::fillDatabase(dbr, &seq, indexTable, subMat, splitStart, splitStart + splitSize, diagonalScoring, maskResidues, 0, threads);
+
+        SequenceLookup *unmaskedLookup = NULL;
+        PrefilteringIndexReader::fillDatabase(dbr, &seq, indexTable, subMat,
+                                              splitStart, splitStart + splitSize, diagonalScoring,
+                                              maskMode, unmaskedLookup, 0, threads);
+
         indexTable->printStatistics(subMat->int2aa);
 
 
@@ -88,6 +94,13 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         unsigned int seqindexdata_key = MathUtil::concatenate(SEQINDEXDATA, step);
         Debug(Debug::INFO) << "Write SEQINDEXDATA (" << seqindexdata_key << ")\n";
         writer.writeData(lookup->getData(), lookup->getDataSize(), seqindexdata_key, 0);
+
+        if (maskMode == 2) {
+            unsigned int unmaskedSeqindexdata_key = MathUtil::concatenate(UNMASKEDSEQINDEXDATA, step);
+            Debug(Debug::INFO) << "Write UNMASKEDSEQINDEXDATA (" << unmaskedSeqindexdata_key << ")\n";
+            writer.writeData(unmaskedLookup->getData(), unmaskedLookup->getDataSize(), unmaskedSeqindexdata_key, 0);
+            delete unmaskedLookup;
+        }
 
         unsigned int seqindex_datasize_key = MathUtil::concatenate(SEQINDEXDATASIZE, step);
         Debug(Debug::INFO) << "Write SEQINDEXDATASIZE (" << seqindex_datasize_key << ")\n";
@@ -120,7 +133,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     Debug(Debug::INFO) << "Write META (" << META << ")\n";
     int local = 1;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
-    int metadata[] = {kmerSize, alphabetSize, maskResidues, split, local, spacedKmer};
+    int metadata[] = {kmerSize, alphabetSize, maskMode, split, local, spacedKmer};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, 6 * sizeof(int), META, 0);
 
@@ -152,6 +165,25 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
     size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
 
+    SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
+    sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
+
+    return sequenceLookup;
+}
+
+SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsigned int>*dbr, int split) {
+    unsigned int key = MathUtil::concatenate(UNMASKEDSEQINDEXDATA, split);
+    size_t id;
+    if ((id = dbr->getId(key)) == UINT_MAX) {
+        return NULL;
+    }
+
+    char * seqData = dbr->getData(id);
+    size_t seqOffsetsId = dbr->getId(MathUtil::concatenate(SEQINDEXSEQOFFSET, split));
+    char * seqOffsetsData = dbr->getData(seqOffsetsId);
+    size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
+
+    size_t sequenceCount = *((size_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQCOUNT, split)));
     SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
     sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
 
@@ -204,7 +236,7 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
 
     prefData.kmerSize = metadata_tmp[0];
     prefData.alphabetSize = metadata_tmp[1];
-    prefData.maskResidues = metadata_tmp[2];
+    prefData.maskMode = metadata_tmp[2];
     prefData.split = metadata_tmp[3];
     prefData.local = metadata_tmp[4];
     prefData.spacedKmer = metadata_tmp[5];
@@ -244,7 +276,9 @@ std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB)
 
 void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
                                            BaseMatrix *subMat, size_t dbFrom, size_t dbTo,
-                                           bool diagonalScoring, bool maskResidues, int kmerThr, unsigned int threads) {
+                                           bool diagonalScoring, int maskMode,
+                                           SequenceLookup *unmaskedLookup /* for maskMode 2 */,
+                                           int kmerThr, unsigned int threads) {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
     size_t aaCount = 0;
@@ -264,20 +298,20 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         }
         idScoreLookup[aa] = (char) score;
     }
+
     // need to prune low scoring k-mers
     // masking code
     SubstitutionMatrix mat("blosum62.out", 2.0, 0.0);
     double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
-    const double *probMatrixPointers[subMat->alphabetSize];
+    const double **probMatrixPointers = new const double*[subMat->alphabetSize];
     char hardMaskTable[256];
     std::fill_n(hardMaskTable, 256, subMat->aa2int['X']);
     for (int i = 0; i < subMat->alphabetSize; ++i){
         probMatrixPointers[i] = probMatrix[i];
-        for(int j = 0; j < subMat->alphabetSize; ++j){
+        for (int j = 0; j < subMat->alphabetSize; ++j){
             probMatrix[i][j]  = std::exp(0.324032 * mat.subMatrix[i][j]);
         }
     }
-
 
     size_t aaDbSize = 0;
     sequenceOffSet[0] = 0;
@@ -294,6 +328,11 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
     }
 
     SequenceLookup *sequenceLookup = new SequenceLookup(dbSize, aaDbSize);
+
+    if (maskMode == 2) {
+        unmaskedLookup = new SequenceLookup(dbSize, aaDbSize);;
+    }
+
 #pragma omp parallel
     {
         Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
@@ -319,12 +358,16 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             if (seq->getSeqType() == Sequence::HMM_PROFILE) {
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
             } else {
-                if (maskResidues) {
-                    for(size_t i = 0; i < s.L; i++){
+                if (maskMode == 2) {
+                    unmaskedLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
+                }
+
+                if (maskMode == 1) {
+                    for (int i = 0; i < s.L; i++) {
                         charSequence[i] = (char) s.int_sequence[i];
                     }
                     maskedResidues += tantan::maskSequences(charSequence,
-                                                            charSequence+s.L,
+                                                            charSequence + s.L,
                                                             50 /*options.maxCycleLength*/,
                                                             probMatrixPointers,
                                                             0.005 /*options.repeatProb*/,
@@ -333,7 +376,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                                                             0, 0,
                                                             0.9 /*options.minMaskProb*/,
                                                             hardMaskTable);
-                    for(size_t i = 0; i < s.L; i++){
+                    for (int i = 0; i < s.L; i++) {
                         s.int_sequence[i] = charSequence[i];
                     }
 //                maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
@@ -459,10 +502,10 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 
 IndexTable* PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
                                                         int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
-                                                        bool diagonalScoring, bool maskResidues, int kmerThr,
+                                                        bool diagonalScoring, int maskMode, int kmerThr,
                                                         unsigned int threads) {
 
     IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
-    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, maskResidues, kmerThr, threads);
+    fillDatabase(dbr, seq, indexTable, subMat, dbFrom, dbTo, diagonalScoring, maskMode, NULL, kmerThr, threads);
     return indexTable;
 }

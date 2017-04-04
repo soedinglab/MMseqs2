@@ -24,7 +24,7 @@ int main(int argc, const char *argv[]) {
 
     Sequence *s = new Sequence(32000, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 6, true, false);
     IndexTable t(subMat.alphabetSize, 6, false);
-    PrefilteringIndexReader::fillDatabase(&dbr, s, &t, &subMat, 0, dbr.getSize(), false, true, 0, 1);
+    PrefilteringIndexReader::fillDatabase(&dbr, s, &t, &subMat, 0, dbr.getSize(), false, 1, NULL, 0, 1);
     t.printStatistics(s->int2aa);
 
     delete s;
