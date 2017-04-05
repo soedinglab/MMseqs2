@@ -67,9 +67,10 @@ template <typename T> void DBReader<T>::open(int accessType){
     index = new Index[this->size];
     seqLens = new unsigned int[size];
 
-    readIndex(indexFileName, index, data, seqLens);
-
-    sortIndex();
+    bool isSortedById = readIndex(indexFileName, index, data, seqLens);
+    if((isSortedById && accessType == NOSORT) == false) {
+        sortIndex();
+    }
 
     // init seq lens array and dbKey mapping
     aaDbSize = 0;
@@ -315,7 +316,7 @@ template <typename T> void DBReader<T>::checkClosed(){
 }
 
 template<typename T>
-void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength) {
+bool DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength) {
     MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     if (!indexData.isValid()){
         Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";
@@ -327,7 +328,8 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
     size_t currPos = 0;
     char* indexDataChar = (char *) indexData.getData();
     char * cols[3];
-
+    T prevId=T(); // makes 0 or empty string
+    size_t isSorted = true;
     while (currPos < indexData.size()){
         if (i >= this->size) {
             Debug(Debug::ERROR) << "Corrupt memory, too many entries!\n";
@@ -335,6 +337,7 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
         }
         Util::getWordsOfLine(indexDataChar, cols, 3 );
         readIndexId(&index[i].id, indexDataChar, cols);
+        isSorted *= (index[i].id >= prevId);
         size_t offset = strtoull(cols[1], NULL, 10);
         size_t length = strtoull(cols[2], NULL, 10);
         index[i].offset = offset;
@@ -343,9 +346,10 @@ void DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
         currPos = indexDataChar - (char *) indexData.getData();
         lastKey = std::max(index[i].id,lastKey); 
         i++;
-
+        prevId = index[i].id;
     }
     indexData.close();
+    return isSorted;
 }
 
 template<typename T> T DBReader<T>::getLastKey()
