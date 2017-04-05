@@ -45,6 +45,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             // exchange reader with old ffindex reader
             tidxdbr = tdbr;
             tdbr = PrefilteringIndexReader::openNewReader(tdbr);
+            PrefilteringIndexReader::printSummary(tidxdbr);
             PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
             kmerSize = data.kmerSize;
             alphabetSize = data.alphabetSize;
