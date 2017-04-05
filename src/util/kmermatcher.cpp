@@ -321,7 +321,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             positionOffset++;
         }
     }
-
+    positionsOfCluster.clear();
     // sort by rep. sequence (stored in kmer) and sequence id
     Debug(Debug::WARNING) << "Sort by rep. sequence ... ";
     omptl::sort(hashSeqPair, hashSeqPair + elementCount, KmerPosition::compareRepSequenceAndId);
@@ -355,18 +355,21 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         }
         unsigned int targetId = hashSeqPair[kmerPos].id;
         unsigned short diagonal = hashSeqPair[kmerPos].pos;
-        unsigned int targetLength = std::max(seqDbr.getSeqLens(targetId), 3ul) - 2;
+        // remove double sequences
         if(targetId != repSeqId && lastTargetId != targetId ){
-            if ( (((float) queryLength) / ((float) targetLength) < par.covThr) ||
-                 (((float) targetLength) / ((float) queryLength) < par.covThr) ) {
-                //                    foundAlready[targetId] = 0;
-                lastTargetId = targetId;
-                continue;
+            if(par.covThr > 0.0) {
+                unsigned int targetLength = std::max(seqDbr.getSeqLens(targetId), 3ul) - 2;
+                if ((((float) queryLength) / ((float) targetLength) < par.covThr) ||
+                    (((float) targetLength) / ((float) queryLength) < par.covThr)) {
+                    lastTargetId = targetId;
+                    continue;
+                }
             }
         }else{
             lastTargetId = targetId;
             continue;
         }
+
         swResultsSs << seqDbr.getDbKey(targetId) << "\t";
         swResultsSs << 0 << "\t";
         swResultsSs << static_cast<short>(diagonal) << "\n";
