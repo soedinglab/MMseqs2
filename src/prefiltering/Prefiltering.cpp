@@ -109,7 +109,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         // create the whole index table
-        const int kmerThr = getKmerThreshold(sensitivity, querySeqType);
+        const int kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
         indexTable = getIndexTable(0, 0, tdbr->getSize(), kmerThr, threads);
     } else if (splitMode == Parameters::TARGET_DB_SPLIT) {
         indexTable = NULL;
@@ -472,7 +472,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         maxResults = (maxResListLen / splitCount) + 1;
     }
 
-    const int kmerThr = getKmerThreshold(sensitivity, querySeqType);
+    const int kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
     // create index table based on split parameter
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
         Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
@@ -841,9 +841,10 @@ void Prefiltering::mergeFiles(const std::string &outDB, const std::string &outDB
     }
 }
 
-int Prefiltering::getKmerThreshold(const float sensitivity, const int querySeqType) {
+int Prefiltering::getKmerThreshold(const float sensitivity, const int querySeqType,
+                                   const int kmerScore, const int kmerSize) {
     double kmerThrBest = kmerScore;
-    if (kmerThrBest == INT_MAX) {
+    if (kmerScore == INT_MAX) {
         if (kmerSize == 5) {
             float base = 123.75;
             if (querySeqType == Sequence::HMM_PROFILE) {

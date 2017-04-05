@@ -39,7 +39,7 @@ public:
     static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr,
                                 BaseMatrix * subMat, int maxSeqLen, bool spacedKmer,
                                 bool compBiasCorrection, int split, int alphabetSize, int kmerSize,
-                                bool diagonalScoring, int maskMode, int seqType, int threads);
+                                bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads);
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr);
 

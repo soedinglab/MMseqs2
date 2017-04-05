@@ -4,8 +4,14 @@
 #include "Prefiltering.h"
 #include "Parameters.h"
 
+
+void setCreateIndexDefaults(Parameters *p) {
+    p->sensitivity = 5;
+}
+
 int createindex(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
+    setCreateIndexDefaults(&par);
     par.parseParameters(argc, argv, command, 1);
 
 #ifdef OPENMP
@@ -20,12 +26,26 @@ int createindex(int argc, const char **argv, const Command &command) {
     int kmerSize = par.kmerSize;
     int split = par.split;
     int splitMode = Parameters::TARGET_DB_SPLIT;
+
     Prefiltering::setupSplit(dbr, subMat->alphabetSize, par.threads, false, &kmerSize, &split, &splitMode);
+
+    bool kScoreSet = false;
+    for (size_t i = 0; i < par.createindex.size(); i++) {
+        if (par.createindex[i].uniqid == par.PARAM_K_SCORE.uniqid && par.createindex[i].wasSet) {
+            kScoreSet = true;
+        }
+    }
+
+    if (par.targetSeqType != Sequence::HMM_PROFILE && kScoreSet == false) {
+        par.kmerScore = 0;
+    }
+
+    int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, par.querySeqType, par.kmerScore, kmerSize);
 
     PrefilteringIndexReader::createIndexFile(par.db1, &dbr, subMat, par.maxSeqLen,
                                              par.spacedKmer, par.compBiasCorrection, split,
                                              subMat->alphabetSize, kmerSize, par.diagonalScoring,
-                                             par.maskMode, par.targetSeqType, par.threads);
+                                             par.maskMode, par.targetSeqType, kmerThr, par.threads);
 
     delete subMat;
     dbr.close();

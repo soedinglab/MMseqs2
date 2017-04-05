@@ -33,7 +33,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr,
                                               BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
                                               bool compBiasCorrection, const int split, int alphabetSize, int kmerSize,
-                                              bool diagonalScoring, int maskMode, int seqType, int threads) {
+                                              bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
@@ -71,7 +71,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         SequenceLookup *unmaskedLookup = NULL;
         PrefilteringIndexReader::fillDatabase(dbr, &seq, indexTable, subMat,
                                               splitStart, splitStart + splitSize, diagonalScoring,
-                                              maskMode, &unmaskedLookup, 0, threads);
+                                              maskMode, &unmaskedLookup, kmerThr, threads);
 
         indexTable->printStatistics(subMat->int2aa);
 
