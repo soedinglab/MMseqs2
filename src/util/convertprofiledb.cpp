@@ -271,7 +271,7 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
 #endif
 
     DBReader<std::string> dataIn(par.db1.c_str(), par.db1Index.c_str());
-    dataIn.open(DBReader<std::string>::LINEAR_ACCCESS);
+    dataIn.open(DBReader<std::string>::NOSORT);
 
     DBWriter dataOut(par.db2.c_str(), par.db2Index.c_str(), par.threads);
     dataOut.open();
