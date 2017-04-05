@@ -68,7 +68,7 @@ public:
 
     static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
                              BaseMatrix *subMat, size_t dbFrom, size_t dbTo, bool diagonalScoring,
-                             int maskMode, SequenceLookup *unmaskedLookup, int kmerThr, unsigned int threads);
+                             int maskMode, SequenceLookup **unmaskedLookup, int kmerThr, unsigned int threads);
 
 };
 

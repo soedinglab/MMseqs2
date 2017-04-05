@@ -69,7 +69,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         SequenceLookup *unmaskedLookup = NULL;
         PrefilteringIndexReader::fillDatabase(dbr, &seq, indexTable, subMat,
                                               splitStart, splitStart + splitSize, diagonalScoring,
-                                              maskMode, unmaskedLookup, 0, threads);
+                                              maskMode, &unmaskedLookup, 0, threads);
 
         indexTable->printStatistics(subMat->int2aa);
 
@@ -95,7 +95,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         Debug(Debug::INFO) << "Write SEQINDEXDATA (" << seqindexdata_key << ")\n";
         writer.writeData(lookup->getData(), lookup->getDataSize(), seqindexdata_key, 0);
 
-        if (maskMode == 2) {
+        if (unmaskedLookup != NULL) {
             unsigned int unmaskedSeqindexdata_key = MathUtil::concatenate(UNMASKEDSEQINDEXDATA, step);
             Debug(Debug::INFO) << "Write UNMASKEDSEQINDEXDATA (" << unmaskedSeqindexdata_key << ")\n";
             writer.writeData(unmaskedLookup->getData(), unmaskedLookup->getDataSize(), unmaskedSeqindexdata_key, 0);
@@ -277,7 +277,7 @@ std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB)
 void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
                                            BaseMatrix *subMat, size_t dbFrom, size_t dbTo,
                                            bool diagonalScoring, int maskMode,
-                                           SequenceLookup *unmaskedLookup /* for maskMode 2 */,
+                                           SequenceLookup **unmaskedLookup /* for maskMode 2 */,
                                            int kmerThr, unsigned int threads) {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
@@ -330,7 +330,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
     SequenceLookup *sequenceLookup = new SequenceLookup(dbSize, aaDbSize);
 
     if (maskMode == 2) {
-        unmaskedLookup = new SequenceLookup(dbSize, aaDbSize);;
+        *unmaskedLookup = new SequenceLookup(dbSize, aaDbSize);
     }
 
 #pragma omp parallel
@@ -359,7 +359,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
             } else {
                 if (maskMode == 2) {
-                    unmaskedLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
+                    (*unmaskedLookup)->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
                 }
 
                 if (maskMode == 1) {
