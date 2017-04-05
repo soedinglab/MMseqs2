@@ -42,7 +42,7 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
     unsigned int* dataLengths = clusters.getSeqLens();
 
     size_t entries = clusters.getSize();
-#pragma omp for schedule(dynamic, 100)
+#pragma omp parallel for schedule(dynamic, 100)
 	for (size_t i = 0; i < entries; ++i){
         unsigned int thread_idx = 0;
 #ifdef OPENMP
