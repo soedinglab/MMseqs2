@@ -70,6 +70,7 @@ private:
     bool templateDBIsIndex;
     int maskMode;
     int splitMode;
+    int kmerThr;
     std::string scoringMatrixFile;
 
     const size_t maxResListLen;
@@ -102,13 +103,13 @@ private:
 
 
     // needed for index lookup
-    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, int kmerThr, unsigned int threads);
+    IndexTable *getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads);
 
     /*
      * Set the k-mer similarity threshold that regulates the length of k-mer lists for each k-mer in the query sequence.
      * As a result, the prefilter always has roughly the same speed for different k-mer and alphabet sizes.
      */
-    double setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, int kmerThr);
+    double setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdb);
 
     // write prefiltering to ffindex database
     void writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *dbWriter, unsigned int thread_idx, size_t id,

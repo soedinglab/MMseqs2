@@ -34,6 +34,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         EXIT(EXIT_FAILURE);
     }
 
+    int minKmerThr = INT_MIN;
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetDB);
     if (indexDB != "") {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
@@ -56,6 +57,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
             splits = data.split;
             spacedKmer = data.spacedKmer != 0;
+
+            minKmerThr = data.kmerThr;
+
             scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
         } else {
             Debug(Debug::ERROR) << "Outdated index version. Please recompute it with 'createindex'!\n";
@@ -76,8 +80,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
     int originalSplits = splits;
     setupSplit(*tdbr, alphabetSize, threads, templateDBIsIndex, &kmerSize, &splits, &splitMode);
+    kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
 
-    if (templateDBIsIndex == true && splits != originalSplits) {
+    if (templateDBIsIndex == true && (splits != originalSplits || kmerThr < minKmerThr)) {
         reopenTargetDb();
     }
 
@@ -109,8 +114,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         // create the whole index table
-        const int kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
-        indexTable = getIndexTable(0, 0, tdbr->getSize(), kmerThr, threads);
+        indexTable = getIndexTable(0, 0, tdbr->getSize(), threads);
     } else if (splitMode == Parameters::TARGET_DB_SPLIT) {
         indexTable = NULL;
     } else {
@@ -152,7 +156,7 @@ void Prefiltering::reopenTargetDb() {
     tdbr->close();
     delete tdbr;
 
-    Debug(Debug::INFO) << "Index table not compatible to new split settings. Compute index.\n";
+    Debug(Debug::INFO) << "Index table not compatible with chosen settings. Compute index.\n";
     tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader<unsigned int>::NOSORT);
 
@@ -301,7 +305,7 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
     }
 }
 
-IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize, int kmerThr, unsigned int threads) {
+IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads) {
     if (templateDBIsIndex == true) {
         return PrefilteringIndexReader::generateIndexTable(tidxdbr, split, diagonalScoring);
     } else {
@@ -472,7 +476,6 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         maxResults = (maxResListLen / splitCount) + 1;
     }
 
-    const int kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
     // create index table based on split parameter
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
         Util::decomposeDomainByAminoAcid(tdbr->getAminoAcidDBSize(), tdbr->getSeqLens(), tdbr->getSize(),
@@ -490,7 +493,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
                 qdbr = tdbr;
             }
         }
-        indexTable = getIndexTable(split, dbFrom, dbSize, kmerThr, threads);
+        indexTable = getIndexTable(split, dbFrom, dbSize, threads);
     } else if (splitMode == Parameters::QUERY_DB_SPLIT) {
         Util::decomposeDomainByAminoAcid(qdbr->getAminoAcidDBSize(), qdbr->getSeqLens(), qdbr->getSize(),
                                          split, splitCount, &queryFrom, &querySize);
@@ -504,7 +507,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         kmerMatchProb = 0.0f;
     } else {
         // run small query sample against the index table to calibrate p-match
-        kmerMatchProb = setKmerThreshold(indexTable, qdbr, kmerThr);
+        kmerMatchProb = setKmerThreshold(indexTable, qdbr);
     }
     Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
     Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
@@ -761,7 +764,7 @@ BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrix
     return subMat;
 }
 
-double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr, int kmerThr) {
+double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned int> *qdbr) {
     // generate a small random sequence set for testing
     size_t querySetSize = std::min(qdbr->getSize(), (size_t) 1000);
     unsigned int *querySeqs = new unsigned int[querySetSize];

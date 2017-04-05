@@ -13,6 +13,7 @@ struct PrefilteringIndexData {
     int split;
     int local;
     int spacedKmer;
+    int kmerThr;
 };
 
 
