@@ -313,7 +313,7 @@ public:
                 IndexEntryLocal * entry = (entries + offsets[kmerIdx]);
                 entry->seqId      = buffer[pos].seqId;
                 entry->position_j = buffer[pos].position_j;
-                offsets[kmerIdx] += sizeof(IndexEntryLocal);
+                offsets[kmerIdx] += 1;
             }
             prevKmer = kmerIdx;
         }
