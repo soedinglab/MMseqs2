@@ -118,7 +118,7 @@ void DBReader<std::string>::sortIndex() {
         delete[] sortArray;
     }else{
         if(accessType != NOSORT){
-            Debug(Debug::ERROR) << "DBReader<std::string> can not be opend in sort mode\n";
+            Debug(Debug::ERROR) << "DBReader<std::string> can not be opened in sort mode\n";
             EXIT(EXIT_FAILURE);
         }
     }
