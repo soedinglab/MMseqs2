@@ -344,9 +344,9 @@ bool DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
         entryLength[i] = length;
         indexDataChar = Util::skipLine(indexDataChar);
         currPos = indexDataChar - (char *) indexData.getData();
-        lastKey = std::max(index[i].id,lastKey); 
-        i++;
+        lastKey = std::max(index[i].id,lastKey);
         prevId = index[i].id;
+        i++;
     }
     indexData.close();
     return isSorted;
