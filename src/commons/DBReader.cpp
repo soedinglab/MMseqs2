@@ -68,9 +68,7 @@ template <typename T> void DBReader<T>::open(int accessType){
     seqLens = new unsigned int[size];
 
     bool isSortedById = readIndex(indexFileName, index, data, seqLens);
-    if((isSortedById && accessType == NOSORT) == false) {
-        sortIndex();
-    }
+    sortIndex(isSortedById);
 
     // init seq lens array and dbKey mapping
     aaDbSize = 0;
@@ -83,12 +81,12 @@ template <typename T> void DBReader<T>::open(int accessType){
 }
 
 template<typename T>
-void DBReader<T>::sortIndex() {
+void DBReader<T>::sortIndex(bool isSortedById) {
 }
 
 template<>
-void DBReader<std::string>::sortIndex() {
-    if (accessType == SORT_BY_ID){
+void DBReader<std::string>::sortIndex(bool isSortedById) {
+    if (isSortedById == false && accessType == SORT_BY_ID){
         std::pair<Index, unsigned int> *sortArray = new std::pair<Index, unsigned int>[size];
         for (size_t i = 0; i < size; i++) {
             sortArray[i] = std::make_pair(index[i], seqLens[i]);
@@ -109,25 +107,37 @@ void DBReader<std::string>::sortIndex() {
 }
 
 template<>
-void DBReader<unsigned int>::sortIndex() {
-	
-	// First, we sort the index by IDs and we keep track of the original
-	// ordering in mappingToOriginalIndex array
-	size_t* mappingToOriginalIndex = new size_t[size];
-	
-    std::pair<Index, std::pair<size_t,unsigned int> > *sortArray = new std::pair<Index, std::pair<size_t,unsigned int> >[size];
-    for (size_t i = 0; i < size; i++) {
-        sortArray[i] = std::make_pair(index[i], std::make_pair(i,seqLens[i]));
+void DBReader<unsigned int>::sortIndex(bool isSortedById) {
+    // First, we sort the index by IDs and we keep track of the original
+    // ordering in mappingToOriginalIndex array
+    size_t* mappingToOriginalIndex=NULL;
+    if(accessType==SORT_BY_LINE){
+        mappingToOriginalIndex = new size_t[size];
     }
-    omptl::sort(sortArray, sortArray + size, compareIndexLengthPairByIdKeepTrack());
-    for (size_t i = 0; i < size; ++i) {
-        index[i].id = sortArray[i].first.id;
-        index[i].offset = sortArray[i].first.offset;
-        seqLens[i] = (sortArray[i].second).second;
-		mappingToOriginalIndex[i] = (sortArray[i].second).first;
+    if(isSortedById == false){
+        std::pair<Index, std::pair<size_t,unsigned int> > *sortArray = new std::pair<Index, std::pair<size_t,unsigned int> >[size];
+        for (size_t i = 0; i < size; i++) {
+            sortArray[i] = std::make_pair(index[i], std::make_pair(i,seqLens[i]));
+        }
+        omptl::sort(sortArray, sortArray + size, compareIndexLengthPairByIdKeepTrack());
+        for (size_t i = 0; i < size; ++i) {
+            index[i].id = sortArray[i].first.id;
+            index[i].offset = sortArray[i].first.offset;
+            seqLens[i] = (sortArray[i].second).second;
+        }
+        if(accessType==SORT_BY_LINE){
+            for (size_t i = 0; i < size; ++i) {
+                mappingToOriginalIndex[i] = (sortArray[i].second).first;
+            }
+        }
+        delete[] sortArray;
+    }else {
+        if(accessType== SORT_BY_LINE){
+            for (size_t i = 0; i < size; ++i) {
+                mappingToOriginalIndex[i] = i;
+            }
+        }
     }
-	
-    delete[] sortArray;
     if (accessType == SORT_BY_LENGTH) {
         // sort the entries by the length of the sequences
         std::pair<unsigned int, unsigned int> *sortForMapping = new std::pair<unsigned int, unsigned int>[size];
@@ -168,12 +178,11 @@ void DBReader<unsigned int>::sortIndex() {
             seqLens[i] = tmpSizeArray[local2id[i]];
         }
         delete[] tmpSizeArray;
-		
+
     } else if (accessType == SORT_BY_LINE) {
         // sort the entries by the original line number in the index file
         id2local = new unsigned int[size];
         local2id = new unsigned int[size];
-		
         for (size_t i = 0; i < size; i++) {
             id2local[i] = mappingToOriginalIndex[i];
             local2id[mappingToOriginalIndex[i]] = i;
@@ -185,7 +194,9 @@ void DBReader<unsigned int>::sortIndex() {
         }
         delete[] tmpSizeArray;
     }
-    delete [] mappingToOriginalIndex;
+    if(mappingToOriginalIndex){
+        delete [] mappingToOriginalIndex;
+    }
 }
 
 template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize){

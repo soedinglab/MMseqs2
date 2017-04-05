@@ -81,7 +81,7 @@ public:
 
     void readMmapedDataInMemory();
 
-    void sortIndex();
+    void sortIndex(bool isSortedById);
 
     void unmapData();
 
