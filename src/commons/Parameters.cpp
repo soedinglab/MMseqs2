@@ -302,6 +302,8 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     createindex.push_back(PARAM_SPLIT);
     createindex.push_back(PARAM_SPACED_KMER_MODE);
     createindex.push_back(PARAM_TARGET_PROFILE);
+    createindex.push_back(PARAM_S);
+    createindex.push_back(PARAM_K_SCORE);
     createindex.push_back(PARAM_THREADS);
     createindex.push_back(PARAM_V);
 
