@@ -221,6 +221,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     // convertprofiledb
     convertprofiledb.push_back(PARAM_SUB_MAT);
     convertprofiledb.push_back(PARAM_PROFILE_TYPE);
+    convertprofiledb.push_back(PARAM_THREADS);
     convertprofiledb.push_back(PARAM_V);
 
     // create fasta

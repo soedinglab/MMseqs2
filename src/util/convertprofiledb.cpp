@@ -15,6 +15,10 @@
 #include "Util.h"
 #include "MathUtil.h"
 
+#ifdef OPENMP
+#include "omp.h"
+#endif
+
 void parsePSSM(char *data, std::string * sequence, char *profileBuffer, size_t *size, BaseMatrix *subMat) {
     // go to read in position
     for (size_t i = 0; i < 2; i++) {
@@ -262,13 +266,17 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
             return EXIT_FAILURE;
     }
 
-    DBReader<std::string> dataIn(par.db1.c_str(), par.db1Index.c_str());
-    dataIn.open(DBReader<std::string>::NOSORT);
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
 
-    DBWriter dataOut(par.db2.c_str(), par.db2Index.c_str());
+    DBReader<std::string> dataIn(par.db1.c_str(), par.db1Index.c_str());
+    dataIn.open(DBReader<std::string>::LINEAR_ACCCESS);
+
+    DBWriter dataOut(par.db2.c_str(), par.db2Index.c_str(), par.threads);
     dataOut.open();
 
-    DBWriter seqOut(std::string(par.db2 +"_seq").c_str(),std::string(par.db2 +"_seq.index").c_str());
+    DBWriter seqOut(std::string(par.db2 +"_seq").c_str(),std::string(par.db2 +"_seq.index").c_str(), par.threads);
     seqOut.open();
 
     std::string headerFileName(par.db2);
@@ -277,7 +285,7 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     std::string headerIndexFileName(par.db2);
     headerIndexFileName.append("_h.index");
 
-    DBWriter headerOut(headerFileName.c_str(), headerIndexFileName.c_str());
+    DBWriter headerOut(headerFileName.c_str(), headerIndexFileName.c_str(), par.threads);
     headerOut.open();
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
@@ -287,40 +295,54 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     for (size_t i = 0; i < dataIn.getSize(); i++) {
         maxElementSize = std::max(lengths[i], maxElementSize);
     }
-    std::string sequence;
-    std::string header;
 
     Debug(Debug::INFO) << "Start converting profile to MMseqs profile.\n";
-    char *profileBuffer = new char[maxElementSize * Sequence::PROFILE_AA_SIZE];
-    for (size_t i = 0; i < dataIn.getSize(); i++) {
-        char *data = dataIn.getData(i);
-        size_t elementSize = 0;
-        if (par.profileMode == Parameters::PROFILE_MODE_HMM) {
-            parseHMM(data, &sequence, &header, profileBuffer, &elementSize, i, &subMat);
-        } else if (par.profileMode == Parameters::PROFILE_MODE_HMM3) {
-            parseHMMer(data, &sequence, &header, profileBuffer, &elementSize, i, &subMat);
-        } else if (par.profileMode == Parameters::PROFILE_MODE_PSSM) {
-            parsePSSM(data, &sequence, profileBuffer, &elementSize, &subMat);
-            header.append(dataIn.getDbKey(i));
-            header.append(" \n");
+
+    #pragma omp parallel
+    {
+        char *profileBuffer = new char[maxElementSize * Sequence::PROFILE_AA_SIZE];
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+#endif
+
+#pragma omp for  schedule(dynamic, 100)
+        for (size_t i = 0; i < dataIn.getSize(); i++) {
+            char *data = dataIn.getData(i);
+
+            std::string sequence;
+            std::string header;
+            size_t elementSize = 0;
+
+            if (par.profileMode == Parameters::PROFILE_MODE_HMM) {
+                parseHMM(data, &sequence, &header, profileBuffer, &elementSize, i, &subMat);
+            } else if (par.profileMode == Parameters::PROFILE_MODE_HMM3) {
+                parseHMMer(data, &sequence, &header, profileBuffer, &elementSize, i, &subMat);
+            } else if (par.profileMode == Parameters::PROFILE_MODE_PSSM) {
+                parsePSSM(data, &sequence, profileBuffer, &elementSize, &subMat);
+                header.append(dataIn.getDbKey(i));
+                header.append(" \n");
+            }
+            seqOut.writeData(sequence.c_str(), sequence.size(), i, thread_idx);
+            dataOut.writeData(profileBuffer, elementSize, i, thread_idx);
+            headerOut.writeData((char *) header.c_str(), header.length(), i, thread_idx);
         }
-        seqOut.writeData(sequence.c_str(), sequence.size(), i);
-        dataOut.writeData(profileBuffer, elementSize, i);
-        headerOut.writeData((char *) header.c_str(), header.length(), i);
-        sequence.clear();
-        header.clear();
+        delete[] profileBuffer;
     }
-    delete[] profileBuffer;
-    char *absHeaderFileName = realpath(headerFileName.c_str(), NULL);
-    symlink(absHeaderFileName, std::string(par.db2 +"_seq_h").c_str());
-    free(absHeaderFileName);
-    char *absHeaderIndexFileName = realpath(headerIndexFileName.c_str(), NULL);
-    symlink(absHeaderIndexFileName, std::string(par.db2 +"_seq_h.index").c_str());
-    free(absHeaderIndexFileName);
+
     headerOut.close();
     dataOut.close();
     seqOut.close();
+
     dataIn.close();
+
+    char *absHeaderFileName = realpath(headerFileName.c_str(), NULL);
+    symlink(absHeaderFileName, std::string(par.db2 +"_seq_h").c_str());
+    free(absHeaderFileName);
+
+    char *absHeaderIndexFileName = realpath(headerIndexFileName.c_str(), NULL);
+    symlink(absHeaderIndexFileName, std::string(par.db2 +"_seq_h.index").c_str());
+    free(absHeaderIndexFileName);
 
     Debug(Debug::INFO) << "Done.\n";
 
