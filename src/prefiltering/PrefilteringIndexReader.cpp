@@ -33,7 +33,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr,
                                               BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
                                               bool compBiasCorrection, const int split, int alphabetSize, int kmerSize,
-                                              bool diagonalScoring, int maskMode, int threads) {
+                                              bool diagonalScoring, int maskMode, int seqType, int threads) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
@@ -41,23 +41,25 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     DBWriter writer(outIndexName.c_str(), std::string(outIndexName).append(".index").c_str(), 1, DBWriter::BINARY_MODE);
     writer.open();
 
-    ScoreMatrix *s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
-    char* serialized3mer = ScoreMatrix::serialize(*s3);
-    Debug(Debug::INFO) << "Write SCOREMATRIX3MER (" << SCOREMATRIX3MER << ")\n";
-    writer.writeData(serialized3mer, ScoreMatrix::size(*s3), SCOREMATRIX3MER, 0);
-    free(serialized3mer);
-    ScoreMatrix::cleanup(s3);
+    if (seqType != Sequence::HMM_PROFILE) {
+        ScoreMatrix *s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
+        char* serialized3mer = ScoreMatrix::serialize(*s3);
+        Debug(Debug::INFO) << "Write SCOREMATRIX3MER (" << SCOREMATRIX3MER << ")\n";
+        writer.writeData(serialized3mer, ScoreMatrix::size(*s3), SCOREMATRIX3MER, 0);
+        free(serialized3mer);
+        ScoreMatrix::cleanup(s3);
 
-    writer.alignToPageSize();
+        writer.alignToPageSize();
 
-    ScoreMatrix *s2 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
-    char* serialized2mer = ScoreMatrix::serialize(*s2);
-    Debug(Debug::INFO) << "Write SCOREMATRIX2MER (" << SCOREMATRIX2MER << ")\n";
-    writer.writeData(serialized2mer, ScoreMatrix::size(*s2), SCOREMATRIX2MER, 0);
-    free(serialized2mer);
-    ScoreMatrix::cleanup(s2);
+        ScoreMatrix *s2 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+        char* serialized2mer = ScoreMatrix::serialize(*s2);
+        Debug(Debug::INFO) << "Write SCOREMATRIX2MER (" << SCOREMATRIX2MER << ")\n";
+        writer.writeData(serialized2mer, ScoreMatrix::size(*s2), SCOREMATRIX2MER, 0);
+        free(serialized2mer);
+        ScoreMatrix::cleanup(s2);
+    }
 
-    Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, kmerSize, hasSpacedKmer, compBiasCorrection);
+    Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType, kmerSize, hasSpacedKmer, compBiasCorrection);
 
     for (int step = 0; step < split; step++) {
         size_t splitStart = 0;
