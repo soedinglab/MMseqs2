@@ -125,14 +125,18 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                 char *data = dbr_res.getData(id);
                 unsigned int queryId = qdbr->getId(dbr_res.getDbKey(id));
                 char *querySeq = qdbr->getData(queryId);
-                query.mapSequence(id, queryId, querySeq);
+                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING) {
+                    query.mapSequence(id, queryId, querySeq);
+                }
                 unsigned int queryLen = query.L;
                 std::vector<hit_t> results = Prefiltering::readPrefilterResults(data);
                 for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB))? true : false;
-
-                    target.mapSequence(0, targetId, tdbr->getData(targetId));
+                    char *targetSeq = tdbr->getData(targetId);
+                    if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING) {
+                        target.mapSequence(0, targetId, targetSeq);
+                    }
                     unsigned int targetLen = target.L;
                     short diagonal = results[entryIdx].diagonal;
                     unsigned short distanceToDiagonal = abs(diagonal);
@@ -143,8 +147,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     if (diagonal >= 0 && distanceToDiagonal < queryLen) {
                         diagonalLen = std::min(targetLen, queryLen - distanceToDiagonal);
                         if(par.rescoreMode == Parameters::RESCORE_MODE_HAMMING){
-                            distance = DistanceCalculator::computeHammingDistance(query.int_sequence + distanceToDiagonal,
-                                                                                  target.int_sequence, diagonalLen);
+                            distance = DistanceCalculator::computeHammingDistance(querySeq + distanceToDiagonal,
+                                                                                  targetSeq, diagonalLen);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
                             distance = DistanceCalculator::computeSubstituionDistance(query.int_sequence + distanceToDiagonal,
                                                                                       target.int_sequence,
@@ -159,7 +163,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                         diagonalLen = std::min(targetLen - distanceToDiagonal, queryLen);
                         if(par.rescoreMode == Parameters::RESCORE_MODE_HAMMING){
                             distance = DistanceCalculator::computeHammingDistance(querySeq,
-                                                                                  tdbr->getData(targetId) + distanceToDiagonal,
+                                                                                  targetSeq + distanceToDiagonal,
                                                                                   diagonalLen);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
                             distance = DistanceCalculator::computeSubstituionDistance(query.int_sequence,
