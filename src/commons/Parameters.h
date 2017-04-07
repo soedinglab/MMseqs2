@@ -83,8 +83,8 @@ public:
     static const int EXTRACT_TARGET = 2;
 
     static const int CLUST_HASH_DEFAULT_ALPH_SIZE = 3;
-    static const int CLUST_LINEAR_DEFAULT_ALPH_SIZE = 14;
-    static const int CLUST_LINEAR_DEFAULT_K = 10;
+    static const int CLUST_LINEAR_DEFAULT_ALPH_SIZE = 13;
+    static const int CLUST_LINEAR_DEFAULT_K = 0;
 
     // rescorediagonal
     static const int RESCORE_MODE_HAMMING = 0;

@@ -30,24 +30,25 @@
 struct KmerPosition {
     size_t kmer;
     unsigned int id;
-    unsigned short size;
+    unsigned short seqLen;
     unsigned short pos;
 
     static bool compareKmerPositionByKmer(KmerPosition first, KmerPosition second){
-        return (first.kmer < second.kmer) ? true : false;
-    }
-
-    static bool compareKmerPositionByKmerAndSize(KmerPosition first, KmerPosition second){
-        if(first.size > second.size )
-            return true;
-        if(second.size > first.size )
-            return false;
         if(first.kmer < second.kmer )
             return true;
         if(second.kmer < first.kmer )
             return false;
+        if(first.seqLen > second.seqLen )
+            return true;
+        if(second.seqLen > first.seqLen )
+            return false;
+        if(first.id < second.id )
+            return true;
+        if(second.id < first.id )
+            return false;
         return false;
     }
+
     static bool compareRepSequenceAndId(KmerPosition first, KmerPosition second){
         if(first.kmer < second.kmer )
             return true;
@@ -70,11 +71,13 @@ struct SequencePosition{
     }
 };
 
+void setKmerLengthAndAlphabet(Parameters &parameters);
+
 void setLinearFilterDefault(Parameters *p) {
     p->spacedKmer = false;
     p->covThr = 0.8;
-    p->kmerSize = 10;
-    p->alphabetSize = 13;
+    p->kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
+    p->alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
     p->kmersPerSequence = 20;
 }
 
@@ -176,13 +179,11 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                 std::sort(kmers, kmers+seqKmerCount, SequencePosition::compareByScore);
             }
             size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer), seqKmerCount);
-
             for(size_t topKmer = 0; topKmer < kmerConsidered; topKmer++){
                 tmpHashSeqPair->kmer  = (kmers + topKmer)->kmer;
                 tmpHashSeqPair->id    = seqId;
                 tmpHashSeqPair->pos   = (kmers + topKmer)->pos;
-                //idxer.printKmer(tmpHashSeqPair->kmer, KMER_SIZE, subMat->int2aa);
-                //std::cout << std::endl;
+                tmpHashSeqPair->seqLen  = seq.L;
                 tmpHashSeqPair++;
             }
             kmerCounter += kmerConsidered;
@@ -197,7 +198,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     Parameters& par = Parameters::getInstance();
     setLinearFilterDefault(&par);
     par.parseParameters(argc, argv, command, 2, true, false, MMseqsParameter::COMMAND_CLUSTLINEAR);
-
+    setKmerLengthAndAlphabet(par);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
@@ -212,7 +213,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 8.0, -0.2);
         subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, par.alphabetSize, 8.0);
     }
-
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());
     seqDbr.open(DBReader<unsigned int>::NOSORT);
@@ -244,87 +244,41 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         hashSeqPair[i].kmer = SIZE_T_MAX;
     }
 
-
     size_t kmerCounter = fillKmerPositionArray(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer);
+    seqDbr.unmapData();
     Debug(Debug::WARNING) << "Done." << "\n";
     Debug(Debug::WARNING) << "Sort kmer ... ";
-    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareRepSequenceAndId);
+    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareKmerPositionByKmer);
     Debug(Debug::WARNING) << "Done." << "\n";
-    // sort by hash and set up the pointer for parallel processing
+    // assign rep. sequence to same kmer members
+    // The longest sequence is the first since we sorted by kmer, seq.Len and id
     size_t prevHash = hashSeqPair[0].kmer;
+    unsigned int queryId = hashSeqPair[0].id;
+    unsigned int max_i_Pos = hashSeqPair[0].pos;
     size_t prevHashStart = 0;
     size_t prevSetSize = 0;
     for(size_t elementCount = 0; elementCount < kmerCounter + 1; elementCount++) {
-        if(prevHash !=  hashSeqPair[elementCount].kmer){
+        if(prevHash != hashSeqPair[elementCount].kmer) {
             for(size_t i = prevHashStart; i < elementCount; i++){
-                hashSeqPair[i].size = (prevSetSize < SHRT_MAX) ? prevSetSize : SHRT_MAX;
+                const unsigned int j_pos = hashSeqPair[i].pos;
+                hashSeqPair[i].kmer = (prevSetSize == 1 ) ? SIZE_T_MAX : queryId;
+                short diagonal = max_i_Pos - j_pos;
+                hashSeqPair[i].pos = diagonal;
             }
             prevSetSize = 0;
             prevHashStart = elementCount;
+            queryId = hashSeqPair[elementCount].id;
+            max_i_Pos = hashSeqPair[elementCount].pos;
         }
         prevSetSize++;
         prevHash = hashSeqPair[elementCount].kmer;
     }
-    Debug(Debug::WARNING) << "Sort again ... ";
-
-    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareKmerPositionByKmerAndSize);
-    Debug(Debug::WARNING) << "Done\n";
-
     std::vector<bool> repSequence(seqDbr.getSize());
     std::fill(repSequence.begin(), repSequence.end(), false);
 
-//    Indexer idxer(subMat->alphabetSize, KMER_SIZE);
-    std::vector<size_t> positionsOfCluster;
-    size_t elementCount;
-    for(elementCount = 0; elementCount < kmerCounter && hashSeqPair[elementCount].size > 1 /*speed up computation*/;
-        elementCount++) {
-        size_t initKmer = hashSeqPair[elementCount].kmer;
-        positionsOfCluster.push_back(elementCount);
-        while (hashSeqPair[elementCount].kmer == initKmer) {
-            elementCount++;
-        }
-        elementCount--;
-    }
-
-    // set rep. sequences for each kmer clusters
-#pragma omp parallel for
-    for(size_t i = 0; i < positionsOfCluster.size();i++) {
-        size_t positionOffset = positionsOfCluster[i];
-        size_t initKmer = hashSeqPair[positionOffset].kmer;
-//        idxer.printKmer(initKmer, KMER_SIZE, subMat->int2aa);
-//        std::cout << std::endl;
-        unsigned int queryId = UINT_MAX;
-        unsigned short max_i_Pos = 0;
-        size_t maxSeqLen = 0;
-        const size_t startPos = positionOffset;
-        while (hashSeqPair[positionOffset].kmer == initKmer) {
-            const unsigned int id = hashSeqPair[positionOffset].id;
-            const unsigned int i_pos = hashSeqPair[positionOffset].pos;
-            size_t currSeqLen = seqDbr.getSeqLens(id);
-            // if it is not yet a representative sequence and if it is the longest sequence
-            if (currSeqLen > maxSeqLen ) {
-                queryId = id;
-                maxSeqLen = currSeqLen;
-                max_i_Pos = i_pos;
-            }
-            positionOffset++;
-        }
-        //repSequence[queryId] = true;
-
-        // set rep. sequence for all kmer hits
-        positionOffset = startPos;
-        while (hashSeqPair[positionOffset].kmer == initKmer) {
-            const unsigned int j_pos = hashSeqPair[positionOffset].pos;
-            hashSeqPair[positionOffset].kmer = queryId;
-            short diagonal = max_i_Pos - j_pos;
-            hashSeqPair[positionOffset].pos = diagonal;
-            positionOffset++;
-        }
-    }
-    positionsOfCluster.clear();
     // sort by rep. sequence (stored in kmer) and sequence id
     Debug(Debug::WARNING) << "Sort by rep. sequence ... ";
-    omptl::sort(hashSeqPair, hashSeqPair + elementCount, KmerPosition::compareRepSequenceAndId);
+    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareRepSequenceAndId);
     Debug(Debug::WARNING) << "Done\n";
 
     unsigned int repSeqId = UINT_MAX;
@@ -333,7 +287,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     unsigned int queryLength = 0;
     // write result
     std::stringstream swResultsSs;
-    for(size_t kmerPos = 0; kmerPos < elementCount; kmerPos++){
+    for(size_t kmerPos = 0; kmerPos < kmerCounter && hashSeqPair[kmerPos].kmer != SIZE_T_MAX; kmerPos++){
         if(repSeqId != hashSeqPair[kmerPos].kmer) {
             if (writeSets > 0) {
                 repSequence[repSeqId] = true;
@@ -348,17 +302,17 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             lastTargetId = UINT_MAX;
             swResultsSs.str(std::string());
             repSeqId = hashSeqPair[kmerPos].kmer;
-            queryLength = std::max(seqDbr.getSeqLens(repSeqId), 3ul) - 2;
+            queryLength = hashSeqPair[kmerPos].seqLen;
             swResultsSs << seqDbr.getDbKey(repSeqId) << "\t";
             swResultsSs << 0 << "\t";
             swResultsSs << 0 << "\n";
         }
         unsigned int targetId = hashSeqPair[kmerPos].id;
+        unsigned int targetLength = hashSeqPair[kmerPos].seqLen;
         unsigned short diagonal = hashSeqPair[kmerPos].pos;
-        // remove double sequences
+        // remove similar double sequence hit
         if(targetId != repSeqId && lastTargetId != targetId ){
             if(par.covThr > 0.0) {
-                unsigned int targetLength = std::max(seqDbr.getSeqLens(targetId), 3ul) - 2;
                 if ((((float) queryLength) / ((float) targetLength) < par.covThr) ||
                     (((float) targetLength) / ((float) queryLength) < par.covThr)) {
                     lastTargetId = targetId;
@@ -369,7 +323,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             lastTargetId = targetId;
             continue;
         }
-
         swResultsSs << seqDbr.getDbKey(targetId) << "\t";
         swResultsSs << 0 << "\t";
         swResultsSs << static_cast<short>(diagonal) << "\n";
@@ -408,6 +361,21 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     return 0;
+}
+
+void setKmerLengthAndAlphabet(Parameters &parameters) {
+    if(parameters.kmerSize == 0){
+        if((parameters.seqIdThr+0.001)>=0.9){
+            parameters.kmerSize = 14;
+            parameters.alphabetSize = 13;
+        }else{
+            parameters.kmerSize = 10;
+            parameters.alphabetSize = 13;
+        }
+    }
+    Debug(Debug::WARNING) << "Alphabet size: " << parameters.alphabetSize;
+    Debug(Debug::WARNING) << " k-mer size: " << parameters.kmerSize << "\n";
+
 }
 
 #undef SIZE_T_MAX
