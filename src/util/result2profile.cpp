@@ -182,7 +182,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
         UniprotHeaderSummarizer summarizer;
 
         int sequenceType = Sequence::AMINO_ACIDS;
-        if (par.profile == true) {
+        if (par.queryProfile == true) {
             sequenceType = Sequence::HMM_PROFILE;
         }
 

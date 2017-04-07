@@ -356,7 +356,7 @@ void Sequence::mapProteinSequence(const char * sequence){
                 case '.': this->int_sequence[l] = this->aa2int[(int)'X']; break;
                 default:
                     if(static_cast<int>(curr) < 33  || static_cast<int>(curr) > 126 ){
-                        Debug(Debug::ERROR) << "ERROR: Sequence (dbKey=" << dbKey <<") conatains none printable characters. The database might contain profiles. Use the parameter --profile for a profile databases.\n";
+                        Debug(Debug::ERROR) << "ERROR: Sequence (dbKey=" << dbKey <<") conatains none printable characters. The database might contain profiles. Use the parameter --query-profile for a query profile databases.\n";
                         EXIT(EXIT_FAILURE);
                     }
                     this->int_sequence[l] = this->aa2int[(int)'X'];

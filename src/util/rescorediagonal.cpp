@@ -57,7 +57,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> *tdbr = NULL;
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
     int sequenceType = Sequence::AMINO_ACIDS;
-    if (par.profile == true) {
+    if (par.queryProfile == true) {
         sequenceType = Sequence::HMM_PROFILE;
     }
 
@@ -143,8 +143,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     if (diagonal >= 0 && distanceToDiagonal < queryLen) {
                         diagonalLen = std::min(targetLen, queryLen - distanceToDiagonal);
                         if(par.rescoreMode == Parameters::RESCORE_MODE_HAMMING){
-                            distance = DistanceCalculator::computeHammingDistance(query.int_sequence + distanceToDiagonal,
-                                                                                  target.int_sequence, diagonalLen);
+                            distance = DistanceCalculator::computeHammingDistance(querySeq + distanceToDiagonal,
+                                                                                  tdbr->getData(targetId), diagonalLen);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
                             distance = DistanceCalculator::computeSubstituionDistance(query.int_sequence + distanceToDiagonal,
                                                                                       target.int_sequence,
@@ -184,11 +184,15 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
                     //float maxSeqLen = std::max(static_cast<float>(targetLen), static_cast<float>(queryLen));
                     float currScorePerCol = static_cast<float>(distance)/static_cast<float>(diagonalLen);
-
-                    if (targetCov >= (par.targetCovThr - std::numeric_limits<float>::epsilon())  // --target-cov
-                        && queryCov >= par.covThr && targetCov >= par.covThr                     // -c parameter
-                        && seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon())       // --min-seq-id
-                        || (par.filterHits == true  && (currScorePerCol >= scorePerColThr || isIdentity)))       // --filter-hits
+                    // --target-cov
+                    bool hasTargetCov =  targetCov >= (par.targetCovThr - std::numeric_limits<float>::epsilon());
+                    // -c
+                    bool hasCov = queryCov >= par.covThr && targetCov >= par.covThr;
+                    // --min-seq-id
+                    bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
+                    // --filter-hits
+                    bool hasToFilter = (par.filterHits == true  && currScorePerCol >= scorePerColThr);
+                    if (isIdentity || hasToFilter || (hasTargetCov && hasCov && hasSeqId))
                     {
                         int len  = 0;
                         if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {

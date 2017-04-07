@@ -179,7 +179,7 @@ private:
         int8_t* composition_bias;
         int8_t* composition_bias_rev;
         int8_t* mat;
-        // Memory layout of if mat + profile is qL * AA
+        // Memory layout of if mat + queryProfile is qL * AA
         //    Query lenght
         // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
         // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
@@ -191,7 +191,7 @@ private:
         // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
         // ...
         // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        int8_t* mat_rev; // needed for profile
+        int8_t* mat_rev; // needed for queryProfile
         int32_t query_length;
         int32_t sequence_type;
         int32_t alphabetSize;

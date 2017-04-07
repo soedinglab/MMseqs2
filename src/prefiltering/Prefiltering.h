@@ -109,6 +109,7 @@ private:
     const bool maskResidues;
     const unsigned int minDiagScoreThr;
     bool aaBiasCorrection;
+    bool takeOnlyBestKmer;
     short kmerThr;
     double kmerMatchProb;
     int split;
@@ -134,7 +135,8 @@ private:
                                               double kmerMatchProb, int kmerSize,
                                               size_t effectiveKmerSize, size_t dbSize,
                                               bool aaBiasCorrection, bool diagonalScoring,
-                                              unsigned int maxSeqLen, size_t maxHitsPerQuery);
+                                              unsigned int maxSeqLen, size_t maxHitsPerQuery,
+                                              bool takeOnlyBestKmer);
 
 
     void printStatistics(const statistics_t &stats, size_t empty);

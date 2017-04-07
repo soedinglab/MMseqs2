@@ -61,7 +61,8 @@ public:
                  unsigned int *seqLens, short kmerThr,
                  double kmerMatchProb, int kmerSize, size_t dbSize,
                  unsigned int maxSeqLen, unsigned int effectiveKmerSize,
-                 size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring, unsigned int minDiagScoreThr);
+                 size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring,
+                 unsigned int minDiagScoreThr, bool takeOnlyBestKmer);
     ~QueryMatcher();
 
     // returns result for the sequence
@@ -119,7 +120,6 @@ protected:
 
     // keeps stats for run
     statistics_t * stats;
-
     // scoring matrix for local amino acid bias correction
     BaseMatrix * m;
     /* generates kmer lists */
@@ -130,7 +130,8 @@ protected:
     int kmerSize;
     // local amino acid bias correction
     bool aaBiasCorrection;
-
+    // take only best kmer
+    bool takeOnlyBestKmer;
     // kmer threshold for kmer generator
     short kmerThr;
 
