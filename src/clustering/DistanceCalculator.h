@@ -15,17 +15,30 @@ public:
     static unsigned int computeSubstituionDistance(const T *seq1,
                                                    const T *seq2,
                                                    const unsigned int length,
-                                                   short ** subMat) {
+                                                   short ** subMat, bool globalAlignment = false) {
         int max = 0;
         int score = 0;
-        for(unsigned int pos = 0; pos < length; pos++){
-            int curr = subMat[seq1[pos]][seq2[pos]];
-            score = curr  + score;
-            score = (score < 0) ? 0 : score;
-            max = (score > max)? score : max;
+        if (globalAlignment)
+        {
+            for(unsigned int pos = 0; pos < length; pos++){
+                max += subMat[seq1[pos]][seq2[pos]];
+            }
+        } else {
+            for(unsigned int pos = 0; pos < length; pos++){
+                int curr = subMat[seq1[pos]][seq2[pos]];
+                score = curr  + score;
+                score = (score < 0) ? 0 : score;
+                max = (score > max)? score : max;
+            }
         }
+        
+        if (max<0)
+            max = 0;
+            
         return max;
     }
+
+
 
     struct LocalAlignment{
         int startPos;

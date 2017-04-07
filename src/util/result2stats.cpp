@@ -135,6 +135,8 @@ int statsComputer::run(){
             return sequenceWise(&statsComputer::charges);
         case STAT_SEQLEN:
             return sequenceWise(&statsComputer::strlen);
+        //case STAT_COMPOSITION:
+        //    return sequenceWise(&statsComputer::composition);
         default:
             return 0;
         

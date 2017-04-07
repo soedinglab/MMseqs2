@@ -458,7 +458,7 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned
                     std::string result = Matcher::resultToString(res, addBacktrace);
                     
                     lock.lock();
-                        (*resMap)[count] = std::make_pair(std::make_pair(targetKey,res.eval) ,result); //(std::make_pair( std::make_pair(0,0) ,std::string()));//
+                        (*resMap)[count] = std::make_pair(std::make_pair(targetKey,res.eval) ,result);
                         count++;
                     lock.unlock();
                 }
@@ -481,7 +481,7 @@ int swapAlnResults(Parameters &par, std::vector<alnResultEntry> *resMap,unsigned
                     
                     std::string result = prefilterHitToString(hit);
                     lock.lock();
-                        (*resMap)[count] = std::make_pair(std::make_pair(targetKey,eval) ,result); //(std::make_pair( std::make_pair(0,0) ,std::string()));//
+                        (*resMap)[count] = std::make_pair(std::make_pair(targetKey,eval) ,result);
                         count++;
                     lock.unlock();
                 }

@@ -148,7 +148,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
                             distance = DistanceCalculator::computeSubstituionDistance(query.int_sequence + distanceToDiagonal,
                                                                                       target.int_sequence,
-                                                                                      diagonalLen, subMat.subMatrix);
+                                                                                      diagonalLen, subMat.subMatrix,par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                             alignment = DistanceCalculator::computeSubstituionStartEndDistance(query.int_sequence + distanceToDiagonal,
                                                                                                target.int_sequence,
@@ -164,7 +164,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
                             distance = DistanceCalculator::computeSubstituionDistance(query.int_sequence,
                                                                                       target.int_sequence + distanceToDiagonal,
-                                                                                      diagonalLen, subMat.subMatrix);
+                                                                                      diagonalLen, subMat.subMatrix,par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                             alignment = DistanceCalculator::computeSubstituionStartEndDistance(query.int_sequence,
                                                                                   target.int_sequence + distanceToDiagonal,
@@ -215,7 +215,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                             std::string alnString = Matcher::resultToString(result, false);
                             len = snprintf(buffer, 100, "%s", alnString.c_str());
                         } else   if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
-                            len = snprintf(buffer, 100, "%u\t%.3e\t%d\n", results[entryIdx].seqId, seqId, diagonal);
+                            if (par.globalAlignment) // in case of global alignemnts, eval does not make sense->write the score
+                                len = snprintf(buffer, 100, "%u\t%u\t%d\n", results[entryIdx].seqId, distance, diagonal);
+                            else
+                                len = snprintf(buffer, 100, "%u\t%.3e\t%d\n", results[entryIdx].seqId, seqId, diagonal);
+                            
                         } else {
                             len = snprintf(buffer, 100, "%u\t%.2f\t%d\n", results[entryIdx].seqId, seqId, diagonal);
                         }

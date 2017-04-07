@@ -194,6 +194,7 @@ public:
     // rescorediagonal
     int rescoreMode;
     bool filterHits;
+    bool globalAlignment;
 
     // result2msa
     bool allowDeletion;
@@ -373,6 +374,7 @@ public:
     // rescoremode
     PARAMETER(PARAM_RESCORE_MODE)
     PARAMETER(PARAM_FILTER_HITS)
+    PARAMETER(PARAM_GLOBAL_ALIGNMENT)
 
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION)
