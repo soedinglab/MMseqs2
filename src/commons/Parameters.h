@@ -216,6 +216,7 @@ public:
     bool summarizeHeader;
     std::string summaryPrefix;
     bool omitConsensus;
+    bool skipQuery;
 
 
     // result2profile
@@ -394,6 +395,7 @@ public:
     PARAMETER(PARAM_SUMMARIZE_HEADER)
     PARAMETER(PARAM_SUMMARY_PREFIX)
     PARAMETER(PARAM_OMIT_CONSENSUS)
+    PARAMETER(PARAM_SKIP_QUERY)
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)

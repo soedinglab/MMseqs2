@@ -294,7 +294,11 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     }
 
                     // TODO : the first sequence in the MSA seems to be overwritten by the query seq
-                    for (size_t i = 0; i < filterRes.setSize; i++) {
+                    size_t start = 0;
+                    if (par.skipQuery == true) {
+                        start = 1;
+                    }
+                    for (size_t i = start; i < filterRes.setSize; i++) {
                         unsigned int key;
                         char* header;
                         if (i == 0) {
