@@ -903,6 +903,7 @@ void Parameters::setDefaults() {
 
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
+    dbOut = false;
 
     // rescore diagonal
 
