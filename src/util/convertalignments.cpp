@@ -230,10 +230,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             } else if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM) { ;
                 //TODO
             }
-
-            std::string result = ss.str();
-            writer->write(result, queryKey, thread_idx);
         }
+        
+        std::string result = ss.str();
+        writer->write(result, queryKey, thread_idx);
     }
 
     delete writer;
