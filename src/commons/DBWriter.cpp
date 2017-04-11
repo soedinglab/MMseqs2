@@ -142,6 +142,11 @@ void DBWriter::open(size_t bufferSize) {
         indexFileNames[i] = makeResultFilename(indexFileName, i);
 
         dataFiles[i] = fopen(dataFileNames[i], datafileMode.c_str());
+        if (dataFiles[i] == NULL) {
+            Debug(Debug::ERROR) << "Could not open " << dataFileNames[i] << " for writing!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
         dataFilesBuffer[i] = new char[bufferSize];
         this->bufferSize = bufferSize;
         // set buffer to 64
@@ -150,6 +155,11 @@ void DBWriter::open(size_t bufferSize) {
         }
 
         indexFiles[i] = fopen(indexFileNames[i], "w");
+        if (indexFiles[i] == NULL) {
+            Debug(Debug::ERROR) << "Could not open " << indexFileNames[i] << " for writing!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
         if(setvbuf ( indexFiles[i]  , NULL , _IOFBF , bufferSize ) != 0){
             Debug(Debug::ERROR) << "Write buffer could not be allocated (bufferSize=" << bufferSize << ")\n";
         }
