@@ -59,6 +59,7 @@ public:
             index.append(".index");
 
             writer = new DBWriter(outname.c_str(), index.c_str(), threads);
+            writer->open();
         } else {
             fs = new std::ofstream(outname);
             if (fs->fail()) {
