@@ -256,6 +256,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     convertalignments.push_back(PARAM_FORMAT_MODE);
     convertalignments.push_back(PARAM_NO_PRELOAD);
     convertalignments.push_back(PARAM_EARLY_EXIT);
+    convertalignments.push_back(PARAM_DB_OUTPUT);
     convertalignments.push_back(PARAM_THREADS);
     convertalignments.push_back(PARAM_V);
 
