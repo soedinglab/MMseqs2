@@ -72,7 +72,6 @@ public:
     void write(const std::string &data, unsigned int key, unsigned int thread = 0) {
         if (db == true) {
             writer->writeData(data.c_str(), data.size(), key, thread);
-            delete writer;
         } else {
             (*fs) << data;
         }
