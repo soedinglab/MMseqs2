@@ -203,6 +203,7 @@ public:
 
     // format alignment
     int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
+    bool dbOut;
 
     // rescorediagonal
     int rescoreMode;
@@ -380,6 +381,7 @@ public:
 
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
+    PARAMETER(PARAM_DB_OUTPUT)
 
     // rescoremode
     PARAMETER(PARAM_RESCORE_MODE)
