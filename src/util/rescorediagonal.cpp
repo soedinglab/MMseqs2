@@ -183,7 +183,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION || par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                         //seqId = exp(static_cast<float>(distance) / static_cast<float>(diagonalLen));
                         if (par.globalAlignment)
-                            seqId = globalAliStat.getPvalGlobalAli(distance);
+                            seqId = globalAliStat.getPvalGlobalAli(((float)distance)/diagonalLen);
                         else
                             seqId = BlastScoreUtils::computeEvalue(distance, kmnByLen[queryLen], stats.lambda);
                     }
