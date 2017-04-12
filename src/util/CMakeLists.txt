@@ -25,6 +25,7 @@ set(util_source_files
         diffseqdbs.cpp
         summarizeheaders.cpp
         prefixid.cpp
+        summarizeresult.cpp
         summarizetabs.cpp
         extractdomains.cpp
         extractalignedregion.cpp

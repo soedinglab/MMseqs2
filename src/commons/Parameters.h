@@ -536,6 +536,7 @@ public:
     std::vector<MMseqsParameter> summarizeheaders;
     std::vector<MMseqsParameter> evaluationscores;
     std::vector<MMseqsParameter> prefixid;
+    std::vector<MMseqsParameter> summarizeresult;
     std::vector<MMseqsParameter> summarizetabs;
     std::vector<MMseqsParameter> extractdomains;
     std::vector<MMseqsParameter> extractalignedregion;

@@ -430,7 +430,15 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     prefixid.push_back(PARAM_THREADS);
     prefixid.push_back(PARAM_V);
 
-    // annoate
+    // summarizeresult
+    summarizeresult.push_back(PARAM_ADD_BACKTRACE);
+    summarizeresult.push_back(PARAM_OVERLAP);
+    summarizeresult.push_back(PARAM_E);
+    summarizeresult.push_back(PARAM_C);
+    summarizeresult.push_back(PARAM_THREADS);
+    summarizeresult.push_back(PARAM_V);
+
+    // summarizetabs
     summarizetabs.push_back(PARAM_OVERLAP);
     summarizetabs.push_back(PARAM_E);
     summarizetabs.push_back(PARAM_C);
