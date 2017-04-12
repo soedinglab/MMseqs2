@@ -36,7 +36,6 @@ public:
                 max = (score > max)? score : max;
             }
         }
-        
         if (max<0)
             max = 0;
             
@@ -182,7 +181,7 @@ public:
         return score;
     }
 
-    void prepareGlobalAliParam(BaseMatrix subMat);
+    void prepareGlobalAliParam(const BaseMatrix &subMat);
     double getPvalGlobalAli(float score);
     
 private:

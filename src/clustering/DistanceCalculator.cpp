@@ -2,7 +2,7 @@
 #include "DistanceCalculator.h"
 
 
-void DistanceCalculator::prepareGlobalAliParam(BaseMatrix subMat)
+void DistanceCalculator::prepareGlobalAliParam(const BaseMatrix &subMat)
 {
     globalAliMu = 0;
     globalAliSigma = 0;
