@@ -96,7 +96,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
                                                     tdbr->getAminoAcidDBSize(), tdbr->getSize());
     }
-
+    DistanceCalculator globalAliStat;
+    if (par.globalAlignment)
+    {
+        globalAliStat.prepareGlobalAliParam(subMat);
+    }
     Debug(Debug::WARNING) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -178,7 +182,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                 static_cast<float>(diagonalLen);
                     }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION || par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                         //seqId = exp(static_cast<float>(distance) / static_cast<float>(diagonalLen));
-                        seqId = BlastScoreUtils::computeEvalue(distance, kmnByLen[queryLen], stats.lambda);
+                        if (par.globalAlignment)
+                            seqId = globalAliStat.getPvalGlobalAli(distance);
+                        else
+                            seqId = BlastScoreUtils::computeEvalue(distance, kmnByLen[queryLen], stats.lambda);
                     }
                     float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLen);
                     float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
@@ -219,11 +226,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                             std::string alnString = Matcher::resultToString(result, false);
                             len = snprintf(buffer, 100, "%s", alnString.c_str());
                         } else   if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
-                            if (par.globalAlignment) // in case of global alignemnts, eval does not make sense->write the score
-                                len = snprintf(buffer, 100, "%u\t%u\t%d\n", results[entryIdx].seqId, distance, diagonal);
-                            else
-                                len = snprintf(buffer, 100, "%u\t%.3e\t%d\n", results[entryIdx].seqId, seqId, diagonal);
-                            
+                            len = snprintf(buffer, 100, "%u\t%.3e\t%d\n", results[entryIdx].seqId, seqId, diagonal);
                         } else {
                             len = snprintf(buffer, 100, "%u\t%.2f\t%d\n", results[entryIdx].seqId, seqId, diagonal);
                         }

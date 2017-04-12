@@ -8,6 +8,9 @@
 #include <sstream>
 #include <simd/simd.h>
 #include <MathUtil.h>
+#include <cstring>
+
+#include "BaseMatrix.h"
 
 class DistanceCalculator {
 public:
@@ -178,6 +181,14 @@ public:
 
         return score;
     }
+
+    void prepareGlobalAliParam(BaseMatrix subMat);
+    double getPvalGlobalAli(float score);
+    
+private:
+    
+    float globalAliMu,globalAliSigma;
+    
 
 };
 
