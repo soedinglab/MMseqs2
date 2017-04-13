@@ -7,6 +7,7 @@
 #include <vector>
 #include <iomanip>
 #include <algorithm>
+#include <mutex>
 #include <Indexer.h>
 #include "ReducedMatrix.h"
 #include "DBWriter.h"
@@ -261,7 +262,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         if(prevHash != hashSeqPair[elementCount].kmer) {
             for(size_t i = prevHashStart; i < elementCount; i++){
                 const unsigned int j_pos = hashSeqPair[i].pos;
-                hashSeqPair[i].kmer = (prevSetSize == 1 ) ? SIZE_T_MAX : queryId;
+                hashSeqPair[i].kmer = (hashSeqPair[i].kmer != SIZE_T_MAX) ? ((prevSetSize == 1 ) ? SIZE_T_MAX : queryId) : SIZE_T_MAX;
                 short diagonal = max_i_Pos - j_pos;
                 hashSeqPair[i].pos = diagonal;
             }
@@ -281,25 +282,26 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareRepSequenceAndId);
     Debug(Debug::WARNING) << "Done\n";
 
-    unsigned int repSeqId = UINT_MAX;
-    unsigned int lastTargetId = UINT_MAX;
+    size_t repSeqId = SIZE_T_MAX;
+    size_t lastTargetId = SIZE_T_MAX;
     unsigned int writeSets = 0;
     unsigned int queryLength = 0;
     // write result
     std::stringstream swResultsSs;
     for(size_t kmerPos = 0; kmerPos < kmerCounter && hashSeqPair[kmerPos].kmer != SIZE_T_MAX; kmerPos++){
         if(repSeqId != hashSeqPair[kmerPos].kmer) {
+            
             if (writeSets > 0) {
                 repSequence[repSeqId] = true;
                 std::string swResultsString = swResultsSs.str();
                 const char *swResultsStringData = swResultsString.c_str();
                 dbw.writeData(swResultsStringData, swResultsString.length(), seqDbr.getDbKey(repSeqId), 0);
             }else{
-                if(repSeqId != UINT_MAX) {
+                if(repSeqId != SIZE_T_MAX) {
                     repSequence[repSeqId] = false;
                 }
             }
-            lastTargetId = UINT_MAX;
+            lastTargetId = SIZE_T_MAX;
             swResultsSs.str(std::string());
             repSeqId = hashSeqPair[kmerPos].kmer;
             queryLength = hashSeqPair[kmerPos].seqLen;
@@ -323,6 +325,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             lastTargetId = targetId;
             continue;
         }
+        std::cout << "Repseq:"<<targetId<< std::endl;
         swResultsSs << seqDbr.getDbKey(targetId) << "\t";
         swResultsSs << 0 << "\t";
         swResultsSs << static_cast<short>(diagonal) << "\n";
@@ -335,7 +338,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         const char *swResultsStringData = swResultsString.c_str();
         dbw.writeData(swResultsStringData, swResultsString.length(), seqDbr.getDbKey(repSeqId), 0);
     }else{
-        if(repSeqId != UINT_MAX) {
+        if(repSeqId != SIZE_T_MAX) {
             repSequence[repSeqId] = false;
         }
     }
