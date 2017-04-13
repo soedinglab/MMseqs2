@@ -325,7 +325,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             lastTargetId = targetId;
             continue;
         }
-        std::cout << "Repseq:"<<targetId<< std::endl;
         swResultsSs << seqDbr.getDbKey(targetId) << "\t";
         swResultsSs << 0 << "\t";
         swResultsSs << static_cast<short>(diagonal) << "\n";
