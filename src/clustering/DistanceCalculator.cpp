@@ -12,7 +12,7 @@ void DistanceCalculator::prepareGlobalAliParam(const BaseMatrix &subMat)
         
         for (size_t j = 0; j<subMat.alphabetSize - 1;j++)
         {
-            globalAliMu += subMat.pBack[i] * subMat.pBack[j] * log(subMat.probMatrix[i][j] / (subMat.pBack[i] * subMat.pBack[j]) );
+            globalAliMu += subMat.pBack[i] * subMat.pBack[j] * subMat.subMatrix[i][j];
         }
     }
     
@@ -21,7 +21,7 @@ void DistanceCalculator::prepareGlobalAliParam(const BaseMatrix &subMat)
         
         for (size_t j = 0; j<subMat.alphabetSize - 1;j++)
         {
-            double distToMean = (log(subMat.probMatrix[i][j] / (subMat.pBack[i] * subMat.pBack[j]) ) - globalAliMu);
+            double distToMean = (subMat.subMatrix[i][j] - globalAliMu);
             globalAliSigma += subMat.pBack[i] * subMat.pBack[j] * distToMean*distToMean;
         }
     }
@@ -30,8 +30,7 @@ void DistanceCalculator::prepareGlobalAliParam(const BaseMatrix &subMat)
 }
 
 
-double DistanceCalculator::getPvalGlobalAli(float score)
+double DistanceCalculator::getPvalGlobalAli(float score,size_t len)
 {
-    
-    return 0.5 - 0.5*erf((score-globalAliMu)/(sqrt(2.0)*globalAliSigma));
+    return 0.5 - 0.5*erf((score/len-globalAliMu)/(sqrt(2.0/sqrt((float)len))*globalAliSigma));
 }

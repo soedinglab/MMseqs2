@@ -182,7 +182,7 @@ public:
     }
 
     void prepareGlobalAliParam(const BaseMatrix &subMat);
-    double getPvalGlobalAli(float score);
+    double getPvalGlobalAli(float score, size_t len);
     
 private:
     
