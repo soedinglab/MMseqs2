@@ -129,15 +129,25 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                 char *data = dbr_res.getData(id);
                 unsigned int queryId = qdbr->getId(dbr_res.getDbKey(id));
                 char *querySeq = qdbr->getData(queryId);
-                query.mapSequence(id, queryId, querySeq);
-                unsigned int queryLen = query.L;
+                int queryLen = 0;
+                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
+                    query.mapSequence(id, queryId, querySeq);
+                    queryLen = target.L;
+                }else{
+                    // -2 because of \n\0 in sequenceDB
+                    queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
+                }
                 std::vector<hit_t> results = Prefiltering::readPrefilterResults(data);
                 for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB))? true : false;
-
-                    target.mapSequence(0, targetId, tdbr->getData(targetId));
-                    unsigned int targetLen = target.L;
+                    int targetLen = 0;
+                    if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
+                        target.mapSequence(0, targetId, tdbr->getData(targetId));
+                        targetLen = target.L;
+                    }else{
+                        targetLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
+                    }
                     short diagonal = results[entryIdx].diagonal;
                     unsigned short distanceToDiagonal = abs(diagonal);
                     unsigned int diagonalLen = 0;
@@ -224,13 +234,15 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 
                             Matcher::result_t result(results[entryIdx].seqId, distance, queryCov, targetCov, seqId, seqId, alnLen, qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, targetLen, std::string());
                             std::string alnString = Matcher::resultToString(result, false);
-                            len = snprintf(buffer, 100, "%s", alnString.c_str());
+//                            len = snprintf(buffer, 100, "%s", alnString.c_str());
+                            prefResultsOutString.append(alnString);
                         } else   if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
                             len = snprintf(buffer, 100, "%u\t%.3e\t%d\n", results[entryIdx].seqId, seqId, diagonal);
+                            prefResultsOutString.append(buffer, len);
                         } else {
                             len = snprintf(buffer, 100, "%u\t%.2f\t%d\n", results[entryIdx].seqId, seqId, diagonal);
+                            prefResultsOutString.append(buffer, len);
                         }
-                        prefResultsOutString.append(buffer, len);
                     }
                 }
                 // write prefiltering results string to ffindex database
