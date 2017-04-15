@@ -72,6 +72,9 @@ private:
     int splitMode;
     int kmerThr;
     std::string scoringMatrixFile;
+    int targetSeqType;
+    bool takeOnlyBestKmer;
+
 
     const size_t maxResListLen;
     const int kmerScore;
@@ -79,11 +82,9 @@ private:
     const size_t resListOffset;
     const size_t maxSeqLen;
     const int querySeqType;
-    const int targetSeqType;
     const bool diagonalScoring;
     const unsigned int minDiagScoreThr;
     const bool aaBiasCorrection;
-    const bool takeOnlyBestKmer;
     const float covThr;
     const bool includeIdentical;
     const bool earlyExit;

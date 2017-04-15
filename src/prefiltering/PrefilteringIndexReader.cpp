@@ -5,7 +5,7 @@
 #include "FileUtil.h"
 #include "tantan.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION="3.3.0";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="3.3.1";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -135,9 +135,9 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     Debug(Debug::INFO) << "Write META (" << META << ")\n";
     int local = 1;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
-    int metadata[] = {kmerSize, alphabetSize, maskMode, split, local, spacedKmer, kmerThr};
+    int metadata[] = {kmerSize, alphabetSize, maskMode, split, local, spacedKmer, kmerThr, seqType};
     char *metadataptr = (char *) &metadata;
-    writer.writeData(metadataptr, 7 * sizeof(int), META, 0);
+    writer.writeData(metadataptr, sizeof(metadata), META, 0);
 
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
     writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SCOREMATRIXNAME, 0);
@@ -228,6 +228,7 @@ void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
     Debug(Debug::INFO) << "Type:         " << metadata_tmp[4] << "\n";
     Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[5] << "\n";
     Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[6] << "\n";
+    Debug(Debug::INFO) << "SequenceType: " << metadata_tmp[7] << "\n";
 
     Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME) << "\n";
 }
@@ -244,6 +245,7 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
     prefData.local = metadata_tmp[4];
     prefData.spacedKmer = metadata_tmp[5];
     prefData.kmerThr = metadata_tmp[6];
+    prefData.seqType = metadata_tmp[7];
 
     return prefData;
 }

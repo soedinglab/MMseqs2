@@ -14,17 +14,29 @@
 Prefiltering::Prefiltering(const std::string &targetDB,
                            const std::string &targetDBIndex,
                            const Parameters &par) :
-        targetDB(targetDB), targetDBIndex(targetDBIndex), splits(par.split),
-        kmerSize(par.kmerSize), spacedKmer(par.spacedKmer != 0), alphabetSize(par.alphabetSize),
-        maskMode(par.maskMode), splitMode(par.splitMode), scoringMatrixFile(par.scoringMatrixFile),
-        maxResListLen(par.maxResListLen), kmerScore(par.kmerScore),
-        sensitivity(par.sensitivity), resListOffset(par.resListOffset), maxSeqLen(par.maxSeqLen),
-        querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
-        diagonalScoring(par.diagonalScoring != 0), minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
+        targetDB(targetDB),
+        targetDBIndex(targetDBIndex),
+        splits(par.split),
+        kmerSize(par.kmerSize),
+        spacedKmer(par.spacedKmer != 0),
+        alphabetSize(par.alphabetSize),
+        maskMode(par.maskMode),
+        splitMode(par.splitMode),
+        scoringMatrixFile(par.scoringMatrixFile),
+        targetSeqType(par.targetSeqType),
+        maxResListLen(par.maxResListLen),
+        kmerScore(par.kmerScore),
+        sensitivity(par.sensitivity),
+        resListOffset(par.resListOffset),
+        maxSeqLen(par.maxSeqLen),
+        querySeqType(par.querySeqType),
+        diagonalScoring(par.diagonalScoring != 0),
+        minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
-        takeOnlyBestKmer(par.targetSeqType == Sequence::HMM_PROFILE && par.querySeqType == Sequence::AMINO_ACIDS),
         covThr(par.covThr), includeIdentical(par.includeIdentity),
-        earlyExit(par.earlyExit), noPreload(par.noPreload), threads(static_cast<unsigned int>(par.threads)) {
+        earlyExit(par.earlyExit),
+        noPreload(par.noPreload),
+        threads(static_cast<unsigned int>(par.threads)) {
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
@@ -50,6 +62,12 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             kmerSize = data.kmerSize;
             alphabetSize = data.alphabetSize;
             maskMode = data.maskMode;
+            targetSeqType = data.seqType;
+
+            if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE) {
+                Debug(Debug::ERROR) << "--query-profile cannot be used with a --target-profile database!\n";
+                EXIT(EXIT_FAILURE);
+            }
 
             // use a index with both masked and unmasked sequence just like one with just masked sequences
             if (maskMode == 2) {
@@ -78,6 +96,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         tdbr->readMmapedDataInMemory();
         tdbr->mlock();
     }
+
+    takeOnlyBestKmer = targetSeqType == Sequence::HMM_PROFILE
+                       && querySeqType == Sequence::AMINO_ACIDS;
 
     int originalSplits = splits;
     setupSplit(*tdbr, alphabetSize, threads, templateDBIsIndex, &kmerSize, &splits, &splitMode);
