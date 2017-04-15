@@ -349,8 +349,8 @@ bool DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsig
         Util::getWordsOfLine(indexDataChar, cols, 3 );
         readIndexId(&index[i].id, indexDataChar, cols);
         isSorted *= (index[i].id >= prevId);
-        size_t offset = strtoull(cols[1], NULL, 10);
-        size_t length = strtoull(cols[2], NULL, 10);
+        size_t offset = Util::fast_atoi<size_t>(cols[1]);
+        size_t length = Util::fast_atoi<size_t>(cols[2]);
         index[i].offset = offset;
         entryLength[i] = length;
         indexDataChar = Util::skipLine(indexDataChar);
@@ -375,7 +375,7 @@ void DBReader<std::string>::readIndexId(std::string* id, char * line, char** col
 }
 template<>
 void DBReader<unsigned int>::readIndexId(unsigned int* id, char * line, char** cols) {
-    *id = (unsigned int) strtoul(cols[0], NULL, 10);
+    *id = Util::fast_atoi<unsigned int>(cols[0]);
 }
 
 template <typename T> void DBReader<T>::unmapData() {
