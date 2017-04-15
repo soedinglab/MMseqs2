@@ -294,7 +294,7 @@ int ffindexFilter::runFilter(){
                       delete [] newLineBuffer;
 
 					}  else if(mode == SORT_ENTRIES) {
-                        toSort.push_back(std::make_pair(std::stod(columnValue),std::string(lineBuffer)));
+                        toSort.push_back(std::make_pair<double, std::string>(std::strtod(columnValue, NULL), lineBuffer));
                         nomatch = 1; // do not put anything in the output buffer
                   }
                     else // Unknown filtering mode, keep all entries
