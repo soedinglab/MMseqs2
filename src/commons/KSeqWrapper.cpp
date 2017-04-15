@@ -2,6 +2,8 @@
 #include "kseq.h"
 #include "FileUtil.h"
 #include "Util.h"
+#include "Debug.h"
+#include <unistd.h>
 
 namespace KSEQFILE {
     KSEQ_INIT(int, read)
