@@ -4,7 +4,6 @@ set(clustering_source_files
   Main.cpp
   SetElement.h
   DistanceCalculator.h
-  DistanceCalculator.cpp
   ClusteringAlgorithms.h
   ClusteringAlgorithms.cpp
   AlignmentSymmetry.h
