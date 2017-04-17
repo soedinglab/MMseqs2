@@ -6,6 +6,11 @@
 #define MMSEQS_DISTANCECALCULATOR_H
 
 #include <sstream>
+#include <simd/simd.h>
+#include <MathUtil.h>
+#include <cstring>
+
+#include "BaseMatrix.h"
 
 class DistanceCalculator {
 public:
@@ -15,17 +20,29 @@ public:
     static unsigned int computeSubstituionDistance(const T *seq1,
                                                    const T *seq2,
                                                    const unsigned int length,
-                                                   short ** subMat) {
+                                                   short ** subMat, bool globalAlignment = false) {
         int max = 0;
         int score = 0;
-        for(unsigned int pos = 0; pos < length; pos++){
-            int curr = subMat[seq1[pos]][seq2[pos]];
-            score = curr  + score;
-            score = (score < 0) ? 0 : score;
-            max = (score > max)? score : max;
+        if (globalAlignment)
+        {
+            for(unsigned int pos = 0; pos < length; pos++){
+                max += subMat[seq1[pos]][seq2[pos]];
+            }
+        } else {
+            for(unsigned int pos = 0; pos < length; pos++){
+                int curr = subMat[seq1[pos]][seq2[pos]];
+                score = curr  + score;
+                score = (score < 0) ? 0 : score;
+                max = (score > max)? score : max;
+            }
         }
+        if (max<0)
+            max = 0;
+            
         return max;
     }
+
+
 
     struct LocalAlignment{
         int startPos;
@@ -64,13 +81,25 @@ public:
     }
 
 
-    template<typename T>
-    static unsigned int computeHammingDistance(const T *seq1, const T *seq2, unsigned int length){
+    static unsigned int computeHammingDistance(const char *seq1, const char *seq2, unsigned int length){
         unsigned int diff = 0;
-        for (unsigned int pos = 0; pos < length; pos++ ) {
-            diff += (seq1[pos] != seq2[pos]);
+        unsigned int simdBlock = length/(VECSIZE_INT*4);
+        simd_int * simdSeq1 = (simd_int *) seq1;
+        simd_int * simdSeq2 = (simd_int *) seq2;
+        for (unsigned int pos = 0; pos < simdBlock; pos++ ) {
+            simd_int seq1vec = simdi_loadu(simdSeq1+pos);
+            simd_int seq2vec = simdi_loadu(simdSeq2+pos);
+            // int _mm_movemask_epi8(__m128i a) creates 16-bit mask from most significant bits of
+            // the 16 signed or unsigned 8-bit integers in a and zero-extends the upper bits.
+            simd_int seqComparision = simdi8_eq(seq1vec, seq2vec);
+            int res = simdi8_movemask(seqComparision);
+            diff += MathUtil::popCount(res);  // subtract positions that should not contribute to coverage
         }
-        return diff;
+         // compute missing rest
+        for (unsigned int pos = simdBlock*(VECSIZE_INT*4); pos < length; pos++ ) {
+            diff += (seq1[pos] == seq2[pos]);
+        }
+        return length-diff;
     }
 
 
@@ -151,6 +180,42 @@ public:
 
         return score;
     }
+
+    void prepareGlobalAliParam(const BaseMatrix &subMat)
+    {
+        globalAliMu = 0;
+        globalAliSigma = 0;
+
+        for (size_t i = 0; i<subMat.alphabetSize - 1;i++)
+        {
+
+            for (size_t j = 0; j<subMat.alphabetSize - 1;j++)
+            {
+                globalAliMu += subMat.pBack[i] * subMat.pBack[j] * subMat.subMatrix[i][j];
+            }
+        }
+
+        for (size_t i = 0; i<subMat.alphabetSize - 1;i++)
+        {
+
+            for (size_t j = 0; j<subMat.alphabetSize - 1;j++)
+            {
+                double distToMean = (subMat.subMatrix[i][j] - globalAliMu);
+                globalAliSigma += subMat.pBack[i] * subMat.pBack[j] * distToMean*distToMean;
+            }
+        }
+        globalAliSigma = sqrt(globalAliSigma);
+
+    }
+
+    double getPvalGlobalAli(float score,size_t len)
+    {
+        return 0.5 - 0.5*erf((score/len-globalAliMu)/(sqrt(2.0/sqrt((float)len))*globalAliSigma));
+    }
+private:
+    
+    float globalAliMu,globalAliSigma;
+    
 
 };
 

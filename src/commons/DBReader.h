@@ -75,13 +75,13 @@ public:
 
     char *mmapData(FILE *file, size_t *dataSize);
 
-    void readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
+    bool readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
 
     void readIndexId(T* id, char * line, char** cols);
 
     void readMmapedDataInMemory();
 
-    void sortIndex();
+    void sortIndex(bool isSortedById);
 
     void unmapData();
 

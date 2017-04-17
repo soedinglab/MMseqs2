@@ -96,7 +96,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
                                                     tdbr->getAminoAcidDBSize(), tdbr->getSize());
     }
-
+    DistanceCalculator globalAliStat;
+    if (par.globalAlignment)
+    {
+        globalAliStat.prepareGlobalAliParam(subMat);
+    }
     Debug(Debug::WARNING) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -125,15 +129,25 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                 char *data = dbr_res.getData(id);
                 unsigned int queryId = qdbr->getId(dbr_res.getDbKey(id));
                 char *querySeq = qdbr->getData(queryId);
-                query.mapSequence(id, queryId, querySeq);
-                unsigned int queryLen = query.L;
+                int queryLen = 0;
+                if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
+                    query.mapSequence(id, queryId, querySeq);
+                    queryLen = target.L;
+                }else{
+                    // -2 because of \n\0 in sequenceDB
+                    queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
+                }
                 std::vector<hit_t> results = Prefiltering::readPrefilterResults(data);
                 for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB))? true : false;
-
-                    target.mapSequence(0, targetId, tdbr->getData(targetId));
-                    unsigned int targetLen = target.L;
+                    int targetLen = 0;
+                    if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
+                        target.mapSequence(0, targetId, tdbr->getData(targetId));
+                        targetLen = target.L;
+                    }else{
+                        targetLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
+                    }
                     short diagonal = results[entryIdx].diagonal;
                     unsigned short distanceToDiagonal = abs(diagonal);
                     unsigned int diagonalLen = 0;
@@ -143,12 +157,12 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     if (diagonal >= 0 && distanceToDiagonal < queryLen) {
                         diagonalLen = std::min(targetLen, queryLen - distanceToDiagonal);
                         if(par.rescoreMode == Parameters::RESCORE_MODE_HAMMING){
-                            distance = DistanceCalculator::computeHammingDistance(query.int_sequence + distanceToDiagonal,
-                                                                                  target.int_sequence, diagonalLen);
+                            distance = DistanceCalculator::computeHammingDistance(querySeq + distanceToDiagonal,
+                                                                                  tdbr->getData(targetId), diagonalLen);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
                             distance = DistanceCalculator::computeSubstituionDistance(query.int_sequence + distanceToDiagonal,
                                                                                       target.int_sequence,
-                                                                                      diagonalLen, subMat.subMatrix);
+                                                                                      diagonalLen, subMat.subMatrix,par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                             alignment = DistanceCalculator::computeSubstituionStartEndDistance(query.int_sequence + distanceToDiagonal,
                                                                                                target.int_sequence,
@@ -164,7 +178,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
                             distance = DistanceCalculator::computeSubstituionDistance(query.int_sequence,
                                                                                       target.int_sequence + distanceToDiagonal,
-                                                                                      diagonalLen, subMat.subMatrix);
+                                                                                      diagonalLen, subMat.subMatrix,par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                             alignment = DistanceCalculator::computeSubstituionStartEndDistance(query.int_sequence,
                                                                                   target.int_sequence + distanceToDiagonal,
@@ -178,17 +192,24 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                 static_cast<float>(diagonalLen);
                     }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION || par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                         //seqId = exp(static_cast<float>(distance) / static_cast<float>(diagonalLen));
-                        seqId = BlastScoreUtils::computeEvalue(distance, kmnByLen[queryLen], stats.lambda);
+                        if (par.globalAlignment)
+                            seqId = globalAliStat.getPvalGlobalAli((float)distance,diagonalLen);
+                        else
+                            seqId = BlastScoreUtils::computeEvalue(distance, kmnByLen[queryLen], stats.lambda);
                     }
                     float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLen);
                     float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
                     //float maxSeqLen = std::max(static_cast<float>(targetLen), static_cast<float>(queryLen));
                     float currScorePerCol = static_cast<float>(distance)/static_cast<float>(diagonalLen);
-
-                    if (targetCov >= (par.targetCovThr - std::numeric_limits<float>::epsilon())  // --target-cov
-                        && queryCov >= par.covThr && targetCov >= par.covThr                     // -c parameter
-                        && seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon())       // --min-seq-id
-                        || (par.filterHits == true  && (currScorePerCol >= scorePerColThr || isIdentity)))       // --filter-hits
+                    // --target-cov
+                    bool hasTargetCov =  targetCov >= (par.targetCovThr - std::numeric_limits<float>::epsilon());
+                    // -c
+                    bool hasCov = queryCov >= par.covThr && targetCov >= par.covThr;
+                    // --min-seq-id
+                    bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
+                    // --filter-hits
+                    bool hasToFilter = (par.filterHits == true  && currScorePerCol >= scorePerColThr);
+                    if (isIdentity || hasToFilter || (hasTargetCov && hasCov && hasSeqId))
                     {
                         int len  = 0;
                         if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
@@ -213,13 +234,15 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 
                             Matcher::result_t result(results[entryIdx].seqId, distance, queryCov, targetCov, seqId, seqId, alnLen, qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, targetLen, std::string());
                             std::string alnString = Matcher::resultToString(result, false);
-                            len = snprintf(buffer, 100, "%s", alnString.c_str());
+//                            len = snprintf(buffer, 100, "%s", alnString.c_str());
+                            prefResultsOutString.append(alnString);
                         } else   if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
                             len = snprintf(buffer, 100, "%u\t%.3e\t%d\n", results[entryIdx].seqId, seqId, diagonal);
+                            prefResultsOutString.append(buffer, len);
                         } else {
                             len = snprintf(buffer, 100, "%u\t%.2f\t%d\n", results[entryIdx].seqId, seqId, diagonal);
+                            prefResultsOutString.append(buffer, len);
                         }
-                        prefResultsOutString.append(buffer, len);
                     }
                 }
                 // write prefiltering results string to ffindex database

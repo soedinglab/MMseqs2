@@ -53,10 +53,10 @@ public:
     static size_t getTotalSystemMemory();
     static size_t get_phys_pages();
     static size_t countLines(const char *data, size_t length);
-
-    static inline int fast_atoi( const char * str )
+    template<typename T>
+    static inline T fast_atoi( const char * str )
     {
-        int val = 0;
+        T val = 0;
         while (*str >= '0' && *str <= '9') {
             val = val*10 + (*str++ - '0');
         }
