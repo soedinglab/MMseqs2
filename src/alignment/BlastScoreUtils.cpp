@@ -580,7 +580,7 @@ BlastScoreUtils::BlastStat BlastScoreUtils::getAltschulStatsForMatrix(std::strin
                 val = BLOSUM90_VALUES_MAX;
         }
         else {
-                Debug(Debug::ERROR) << "Could not find statistics for " << matrix << " gapopen " << gapOpen << " and gapextend " << gapExtend << "\n";
+                Debug(Debug::ERROR) << "Could not find statistics for " << matrix << " gapopen " << gapOpen << " and gapextend " << gapExtend << ".\n";
                 EXIT(EXIT_FAILURE);
         }
         for (long i = 0; i < val; i++) {

@@ -26,9 +26,9 @@ hit_t parsePrefilterHit(char* data)
     size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
     if (cols>=3)
     {
-        result.seqId = std::stoul(wordCnt[0],NULL,10);
+        result.seqId = Util::fast_atoi<unsigned int>(wordCnt[0]);
         result.pScore = strtod(wordCnt[1],NULL);
-        result.diagonal = std::stol(wordCnt[2],NULL,10);
+        result.diagonal = Util::fast_atoi<unsigned short>(wordCnt[2]);
     } else { //error
         result.seqId = -1;
         result.pScore = -1;

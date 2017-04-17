@@ -70,6 +70,8 @@ int StatsComputer::run() {
             return sequenceWise<size_t>(&std::strlen);
         case STAT_FIRSTLINE:
             return sequenceWise<std::string>(&firstline, true);
+        //case STAT_COMPOSITION:
+        //    return sequenceWise(&statsComputer::composition);
         case STAT_UNKNOWN:
         default:
             Debug(Debug::ERROR) << "Unrecognized statistic: " << stat << "\n";

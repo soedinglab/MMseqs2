@@ -167,10 +167,11 @@ void swapAlnResults(Parameters &par, std::vector<AlignmentResultEntry> *resMap,
 
     int thread_num = 0, num_threads = 1;
     size_t start, end;
+    size_t count = 0;
     size_t size = resultReader.getSize();
     std::mutex lock;
 
-#pragma omp parallel private(thread_num,num_threads,start,end)
+#pragma omp parallel private(thread_num,num_threads,start,end) shared(count)
     {
 #ifdef OPENMP
         thread_num = omp_get_thread_num();
@@ -214,33 +215,35 @@ void swapAlnResults(Parameters &par, std::vector<AlignmentResultEntry> *resMap,
                             swapBt(res.backtrace);
 
                         }
+
                         std::string result = Matcher::resultToString(res, addBacktrace);
 
                         lock.lock();
-                        resMap->push_back(AlignmentResultEntry(targetKey, res.eval, result));
+                        (*resMap)[count].key = targetKey;
+                        (*resMap)[count].evalue = res.eval;
+                        (*resMap)[count].result += result;
+                        count++;
                         lock.unlock();
                     }
                 }
             } else // prefilter case
             {
-                char *curData = data;
-
-                while (*curData != '\0') {
-                    hit_t hit = parsePrefilterHit(curData);
-
-                    unsigned int targetKey = hit.seqId;
-                    if (targetKey >= targetKeyMin && targetKey < targetKeyMax) {
-                        hit.seqId = queryKey;
-
-                        float eval = exp(-hit.prefScore);
-
-                        std::string result = prefilterHitToString(hit);
-                        lock.lock();
-                        resMap->push_back(AlignmentResultEntry(targetKey, eval, result));
-                        lock.unlock();
-                    }
-
-                    curData = Util::skipLine(curData);
+                hit_t hit = parsePrefilterHit(data);
+                
+                unsigned int targetKey = hit.seqId;
+                if(targetKey >= targetKeyMin && targetKey < targetKeyMax)
+                {
+                    hit.seqId = queryKey;
+                    
+                    float eval = exp(-hit.prefScore);
+                    
+                    std::string result = prefilterHitToString(hit);
+                    lock.lock();
+                        (*resMap)[count].key = targetKey;
+                        (*resMap)[count].evalue = eval;
+                        (*resMap)[count].result += result;
+                        count++;
+                    lock.unlock();
                 }
             }
         }

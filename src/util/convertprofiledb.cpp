@@ -220,7 +220,7 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
                 float score = MathUtil::flog2(1.0f / subMat->getBackgroundProb(aa_num)) * subMat->getBitFactor();
                 profileBuffer[curr_pos] = (char) floor(score + 0.5);
             } else {
-                int entry = Util::fast_atoi(words[aa_num + 2]);
+                int entry = Util::fast_atoi<int>(words[aa_num + 2]);
                 // back scaling from hhm
                 const float p = MathUtil::fpow2(-(entry / 1000.0f));
                 const float backProb = subMat->getBackgroundProb(aa_num);

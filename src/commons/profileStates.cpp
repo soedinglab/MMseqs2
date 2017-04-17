@@ -220,7 +220,7 @@ int profileStates::readProfile(FILE* fin) {
         // Store the probabilities
         for (int k = 0 ; k < nalph ; k++)
         {
-            float score = std::stof(pos);
+            float score = strtof(pos, NULL);
             
             profile[k] = MathUtil::fpow2(-score/kScale);// /background[k];
             s+=profile[k];
