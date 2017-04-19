@@ -113,7 +113,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
         size_t kmerSize = par.kmerSize;
         par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
-        cmd.addVariable("CLUSTLINEAR_PAR", par.createParameterString(par.kmermatcher).c_str());
+        cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
         par.alphabetSize = alphabetSize;
         par.kmerSize = kmerSize;
         // 1 is lowest sens
@@ -127,7 +127,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
 
         cmd.addVariable("PREFILTER0_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT0_PAR", par.createParameterString(par.align).c_str());
-        cmd.addVariable("CLUSTER0_PAR", par.createParameterString(par.clust).c_str());
+        cmd.addVariable("CLUSTER0_PAR",   par.createParameterString(par.clust).c_str());
 
         // set parameter for first step
 //        par.clusteringMode = Parameters::SET_COVER;

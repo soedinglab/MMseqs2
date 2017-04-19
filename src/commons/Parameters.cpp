@@ -327,13 +327,21 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_RUNNER);
     searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
 
+    // linclust workflow
+    linclustworkflow = combineList(clust, align);
+    linclustworkflow = combineList(linclustworkflow, kmermatcher);
+    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
+    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    linclustworkflow.push_back(PARAM_RUNNER);
+
     clusteringWorkflow = combineList(prefilter, align);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
-    clusteringWorkflow = combineList(clusteringWorkflow, kmermatcher);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_CLUSTER_FRAGMENTS);
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
+    clusteringWorkflow = combineList(clusteringWorkflow, linclustworkflow);
+
 
     clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
@@ -454,13 +462,6 @@ Parameters::Parameters():
     // convertkb
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
-
-    // linclust workflow
-    linclustworkflow = combineList(clust, align);
-    linclustworkflow = combineList(linclustworkflow, kmermatcher);
-    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
-    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    linclustworkflow.push_back(PARAM_RUNNER);
 
     //checkSaneEnvironment();
     setDefaults();
