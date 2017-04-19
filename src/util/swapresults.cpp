@@ -6,6 +6,7 @@
 #include "Util.h"
 #include "QueryMatcher.h"
 #include "Parameters.h"
+#include "MemoryMapped.h"
 
 #include "omptl/omptl_algorithm"
 
@@ -239,10 +240,10 @@ void swapAlnResults(Parameters &par, std::vector<AlignmentResultEntry> *resMap,
                     
                     std::string result = prefilterHitToString(hit);
                     lock.lock();
-                        (*resMap)[count].key = targetKey;
-                        (*resMap)[count].evalue = eval;
-                        (*resMap)[count].result += result;
-                        count++;
+                    (*resMap)[count].key = targetKey;
+                    (*resMap)[count].evalue = eval;
+                    (*resMap)[count].result += result;
+                    count++;
                     lock.unlock();
                 }
             }
@@ -253,10 +254,74 @@ void swapAlnResults(Parameters &par, std::vector<AlignmentResultEntry> *resMap,
     resultReader.close();
 }
 
+std::pair<size_t,size_t> longestLine(const char* name, int threads = 1) {
+#ifdef OPENMP
+    omp_set_num_threads(threads);
+#endif
+
+
+    MemoryMapped file(name, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
+    char * buf = (char *) file.getData();
+
+    size_t lines = 0;
+    size_t maxLen = 0;
+
+#pragma omp parallel reduction(+:lines) reduction(max:maxLen)
+    {
+        int thread_num = 0,num_threads = 1;
+        size_t startChunk,endChunk;
+
+#ifdef OPENMP
+        thread_num = omp_get_thread_num();
+        num_threads = omp_get_num_threads();
+#endif
+        startChunk =  thread_num * file.size() / num_threads;
+        endChunk = (thread_num + 1) * file.size() / num_threads;
+
+        size_t lastPos;
+        size_t i = startChunk;
+        while(i && i<file.size() && buf[i] != '\n') // wedge on line start
+            i++;
+        if(!i)
+            i++; // jump the '\n'
+        size_t charCount = 0;
+        while(i<file.size() && i < endChunk)
+        {
+
+            if (buf[i] == '\n')
+            {
+                lines++;
+                maxLen = std::max(maxLen,charCount);
+                charCount = 0;
+            } else if (buf[i] != '\0') {
+                charCount++;
+            }
+            i++;
+        }
+
+        while(i<file.size()  && buf[i] != '\n')
+        {
+            if (buf[i] != '\0')
+                charCount++;
+            i++;
+        }
+        //lines++;
+        maxLen = std::max(maxLen,charCount);
+
+    }
+
+    file.close();
+    return std::make_pair(lines,maxLen);
+}
+
 
 int doSwapSort(Parameters &par, unsigned int procNumber = 0, unsigned int nbOfProc = 1) {
-    std::vector<AlignmentResultEntry> resMap;
-    unsigned int targetKeyMin = 0, targetKeyMax = -1;
+    AlignmentResultEntry nullEntry(0, 0, std::string());
+
+    unsigned int targetKeyMin = 0;
+    unsigned int targetKeyMax = static_cast<unsigned int>(-1);
+    std::pair<size_t, size_t> searchFileLines = longestLine(par.db3.c_str(), par.threads);
+    unsigned long numberOfEntries = searchFileLines.first;
 
     if (nbOfProc > 1) {
         DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str());
@@ -266,6 +331,15 @@ int doSwapSort(Parameters &par, unsigned int procNumber = 0, unsigned int nbOfPr
 
         targetKeyMin = procNumber * (lastKey + 1) / nbOfProc;
         targetKeyMax = (procNumber + 1) * (lastKey + 1) / nbOfProc;
+    }
+
+    std::vector<AlignmentResultEntry> resMap(numberOfEntries, nullEntry);
+
+    // the results length should be <= the maximum original length + 10
+    size_t lineLength = searchFileLines.second + 10;
+    // the length difference stems from target id field
+    for (size_t i = 0; i < numberOfEntries; i++) {
+        resMap[i].result.reserve(lineLength);
     }
 
     swapAlnResults(par, &resMap, targetKeyMin, targetKeyMax);
