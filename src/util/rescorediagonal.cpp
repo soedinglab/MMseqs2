@@ -132,7 +132,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                 int queryLen = 0;
                 if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
                     query.mapSequence(id, queryId, querySeq);
-                    queryLen = target.L;
+                    queryLen = query.L;
                 }else{
                     // -2 because of \n\0 in sequenceDB
                     queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
