@@ -375,6 +375,7 @@ void Prefiltering::runAllSplits(const std::string &queryDB, const std::string &q
 void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &queryDBIndex,
                                 const std::string &resultDB, const std::string &resultDBIndex) {
 
+    splits = std::max(MMseqsMPI::numProc, splits);
     size_t fromSplit = 0;
     size_t splitCount = 1;
     // if split size is great than nodes than we have to
@@ -392,8 +393,7 @@ void Prefiltering::runMpiSplits(const std::string &queryDB, const std::string &q
     delete[] splitCntPerProc;
 
     std::pair<std::string, std::string> result = Util::createTmpFileNames(resultDB, resultDBIndex, MMseqsMPI::rank);
-    splits = std::max(MMseqsMPI::numProc, splits);
-    bool hasResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount);
+    int hasResult = runSplits(queryDB, queryDBIndex, result.first, result.second, fromSplit, splitCount) == true ? 1 : 0;
 
     int *results = NULL;
     if (MMseqsMPI::isMaster()) {
