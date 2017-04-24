@@ -171,7 +171,7 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
     header->append(startData + 6, endData - (startData + 6));
 
     // >Consensus
-    while (data[0] != '>') {
+    while (strncmp(">Consensus", data, 10) != 0) {
         data = Util::skipLine(data);
     }
     // skip over Cons. header
