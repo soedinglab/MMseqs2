@@ -1,0 +1,98 @@
+# Ubuntu 14.04 Trusty support
+sudo: required
+dist: trusty
+
+addons:
+  apt:
+    packages:
+    - cmake
+
+#before_install:
+#- git submodule update --init --recursive
+
+script:
+- mkdir build
+- cd build
+- cmake .. && make
+#- CTEST_OUTPUT_ON_FAILURE=TRUE make test
+
+
+matrix:
+  include:
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.9
+            - mpi-default-dev
+      env: CXX=g++-4.9
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
+            - mpi-default-dev
+      env: CXX=g++-5
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+            - mpi-default-dev
+      env: CXX=g++-6
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.6
+          packages:
+            - clang-3.6
+            - mpi-default-dev
+      env: CXX=clang++-3.6
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.7
+          packages:
+            - clang-3.7
+            - mpi-default-dev
+      env: CXX=clang++-3.7
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.8
+          packages:
+            - clang-3.8
+            - mpi-default-dev
+      env: CXX=clang++-3.8
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-3.9
+          packages:
+            - clang-3.9
+            - mpi-default-dev
+      env: CXX=clang++-3.9
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-4.0
+          packages:
+            - clang-4.0
+            - mpi-default-dev
+      env: CXX=clang++-4.0
