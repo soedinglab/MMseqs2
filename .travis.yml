@@ -30,18 +30,9 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-4.9
+            - g++-4.8
             - mpi-default-dev
-      env: CXX=g++-4.9
-    - compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-5
-            - mpi-default-dev
-      env: CXX=g++-5
+      env: CXX=g++-4.8
     - compiler: gcc
       addons:
         apt:
@@ -62,39 +53,6 @@ matrix:
             - mpi-default-dev
             - libc++-dev
       env: CXX=clang++-3.6
-    - compiler: clang
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.7
-          packages:
-            - clang-3.7
-            - mpi-default-dev
-            - libc++-dev
-      env: CXX=clang++-3.7
-    - compiler: clang
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.8
-          packages:
-            - clang-3.8
-            - mpi-default-dev
-            - libc++-dev
-      env: CXX=clang++-3.8
-    - compiler: clang
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.9
-          packages:
-            - clang-3.9
-            - mpi-default-dev
-            - libc++-dev
-      env: CXX=clang++-3.9
     - compiler: clang
       addons:
         apt:
