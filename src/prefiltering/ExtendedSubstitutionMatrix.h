@@ -1,6 +1,6 @@
 #ifndef EXTENDEDSUBSTITUIONMATRIXH
 #define EXTENDEDSUBSTITUIONMATRIXH
-#include <string>
+#include <string.h>
 #include <vector>
 #include <algorithm>
 #include "ScoreMatrix.h" // ScoreMatrix
