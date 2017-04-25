@@ -6,6 +6,7 @@ addons:
   apt:
     packages:
     - cmake
+    - build-essential
 
 #before_install:
 #- git submodule update --init --recursive
