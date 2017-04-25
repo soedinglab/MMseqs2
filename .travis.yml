@@ -1,6 +1,8 @@
-# Ubuntu 14.04 Trusty support
-sudo: required
-dist: trusty
+language: c++
+
+os:
+- osx
+- linux
 
 addons:
   apt:
