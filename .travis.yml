@@ -6,7 +6,6 @@ addons:
   apt:
     packages:
     - cmake
-    - build-essential
 
 #before_install:
 #- git submodule update --init --recursive
@@ -61,6 +60,7 @@ matrix:
           packages:
             - clang-3.6
             - mpi-default-dev
+            - libc++-dev
       env: CXX=clang++-3.6
     - compiler: clang
       addons:
@@ -71,6 +71,7 @@ matrix:
           packages:
             - clang-3.7
             - mpi-default-dev
+            - libc++-dev
       env: CXX=clang++-3.7
     - compiler: clang
       addons:
@@ -81,6 +82,7 @@ matrix:
           packages:
             - clang-3.8
             - mpi-default-dev
+            - libc++-dev
       env: CXX=clang++-3.8
     - compiler: clang
       addons:
@@ -91,6 +93,7 @@ matrix:
           packages:
             - clang-3.9
             - mpi-default-dev
+            - libc++-dev
       env: CXX=clang++-3.9
     - compiler: clang
       addons:
@@ -101,4 +104,5 @@ matrix:
           packages:
             - clang-4.0
             - mpi-default-dev
+            - libc++-dev
       env: CXX=clang++-4.0
