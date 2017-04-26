@@ -8,7 +8,7 @@ environment:
 
 install:
 #- git clone -q --branch=appveyor-cygwin https://github.com/soedinglab/mmseqs2 C:\projects\mmseqs2
-#- mkdir C:\projects\mmseqs2\build
+ - mkdir C:\projects\mmseqs2\build
  - cd C:\projects\mmseqs2\build
  - cmake .. 
  - make 
