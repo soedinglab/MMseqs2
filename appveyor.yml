@@ -7,8 +7,8 @@ environment:
       VSVERSION: 140
 
 install:
- - git clone -q --branch=appveyor-cygwin https://github.com/soedinglab/mmseqs2 C:\projects\mmseqs2
- - mkdir C:\projects\mmseqs2\build
+#- git clone -q --branch=appveyor-cygwin https://github.com/soedinglab/mmseqs2 C:\projects\mmseqs2
+#- mkdir C:\projects\mmseqs2\build
  - cd C:\projects\mmseqs2\build
  - cmake .. 
  - make 
