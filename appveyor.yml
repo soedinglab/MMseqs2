@@ -1,14 +1,19 @@
 build: off  # disable msbuild
 
+
 environment:
-  matrix:
-    - SCRIPT: C:\cygwin64\bin\bash.exe .appveyor/cygwin-compile.sh
-    - SCRIPT: .appveyor/msvc-compile.bat
-      VSVERSION: 140
+    CYG_MIRROR: http://cygwin.mirror.constant.com
+    CYG_PACKAGES: make,gcc-core,clang,pkg-config,libpcre-devel,cmake,xxd,python-setuptools,ruby,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
+    MSYS_PACKAGES: cmake
+    matrix:
+        - CYG_ROOT: C:\cygwin64
+          CYG_CACHE: C:\cygwin64\var\cache\setup
+          CYG_SETUP: setup-x86_64.exe
+          BASH: C:\cygwin64\bin\bash
+          CC: gcc
 
 install:
+ - if defined CYG_ROOT (%CYG_SETUP% --quiet-mode --no-shortcuts --only-site --root "%CYG_ROOT%" --site "%CYG_MIRROR%" --local-package-dir "%CYG_CACHE%" --packages "%CYG_PACKAGES%" --upgrade-also)
+build_script:
+ - if defined BASH (%BASH% -lc "mkdir $(cygpath ${APPVEYOR_BUILD_FOLDER})/build && cd $(cygpath ${APPVEYOR_BUILD_FOLDER})/build && cmake .. && make")
 #- git clone -q --branch=appveyor-cygwin https://github.com/soedinglab/mmseqs2 C:\projects\mmseqs2
- - mkdir C:\projects\mmseqs2\build
- - cd C:\projects\mmseqs2\build
- - cmake -DCMAKE_CXX_COMPILER=/c/msys64/mingw64/bin/g++ .. 
- - make 
