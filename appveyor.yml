@@ -15,5 +15,5 @@ environment:
 install:
  - if defined CYG_ROOT (%CYG_SETUP% --quiet-mode --no-shortcuts --only-site --root "%CYG_ROOT%" --site "%CYG_MIRROR%" --local-package-dir "%CYG_CACHE%" --packages "%CYG_PACKAGES%" --upgrade-also)
 build_script:
- - if defined BASH (%BASH% -lc "mkdir $(cygpath ${APPVEYOR_BUILD_FOLDER})/build && cd $(cygpath ${APPVEYOR_BUILD_FOLDER})/build && CXX=/cygdrive/c/cygwin/bin/g++ cmake .. && make")
+ - if defined BASH (%BASH% -lc "mkdir $(cygpath ${APPVEYOR_BUILD_FOLDER})/build && cd $(cygpath ${APPVEYOR_BUILD_FOLDER})/build && CXX=g++ cmake .. && make")
 #- git clone -q --branch=appveyor-cygwin https://github.com/soedinglab/mmseqs2 C:\projects\mmseqs2
