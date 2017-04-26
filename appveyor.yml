@@ -10,5 +10,5 @@ install:
 #- git clone -q --branch=appveyor-cygwin https://github.com/soedinglab/mmseqs2 C:\projects\mmseqs2
  - mkdir C:\projects\mmseqs2\build
  - cd C:\projects\mmseqs2\build
- - CXX=g++ cmake .. 
+ - cmake -DCMAKE_CXX_COMPILER=g++ .. 
  - make 
