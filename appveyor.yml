@@ -8,7 +8,7 @@ environment:
     matrix:
         - CYG_ROOT: C:\cygwin64
           CYG_CACHE: C:\cygwin64\var\cache\setup
-          CYG_SETUP: setup-x86_64.exe
+          CYG_SETUP: C:\cygwin64\setup-x86_64.exe 
           BASH: C:\cygwin64\bin\bash
           CC: gcc
 
