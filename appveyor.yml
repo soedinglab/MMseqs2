@@ -3,7 +3,7 @@ build: off  # disable msbuild
 
 environment:
     CYG_MIRROR: http://cygwin.mirror.constant.com
-    CYG_PACKAGES: make,gcc-core,clang,pkg-config,libpcre-devel,cmake,xxd,python-setuptools,ruby,mingw64-i686-gcc-core,mingw64-x86_64-gcc-core
+    CYG_PACKAGES: make,gcc-core,clang,pkg-config,libpcre-devel,cmake,xxd,python-setuptools,ruby
     MSYS_PACKAGES: cmake
     matrix:
         - CYG_ROOT: C:\cygwin64
