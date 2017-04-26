@@ -461,13 +461,8 @@ inline F simd_hmin(const F * in, unsigned int n)
 
 inline void *mem_align(size_t boundary, size_t size)
 {
-    void *pointer = NULL;
-#ifdef __CYGWIN__
-    pointer = memalign(boundary,size);
-#else
-    posix_memalign(&pointer,boundary,size);
-#endif
-    if (pointer != NULL)
+    void *pointer;
+    if (posix_memalign(&pointer,boundary,size) != 0)
     {
         std::cerr<<"Error: Could not allocate memory by memalign. Please report this bug to developers\n";
         exit(3);
