@@ -127,6 +127,9 @@ public:
     std::string db5;
     std::string db5Index;
 
+    std::string db6;
+    std::string db6Index;
+
     std::string scoringMatrixFile;       // path to scoring matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query

@@ -51,19 +51,21 @@ hasCommand sort
 
 # pre processing
 # check number of input variables
-[ "$#" -ne 5 ] && echo "Please provide <i:oldSequenceDB> <i:newSequenceDB> <i:oldClusteringDB> <o:newClusteringDB> <o:tmpDir>" && exit 1;
+[ "$#" -ne 6 ] && echo "Please provide <i:oldSequenceDB> <i:newSequenceDB> <i:oldClusteringDB> <o:newMappedSequenceDB> <o:newClusteringDB> <o:tmpDir>" && exit 1;
 
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
 [ ! -f "$3" ] &&  echo "$3 not found!" && exit 1;
 [   -f "$4" ] &&  echo "$4 exists already!" && exit 1;
-[ ! -d "$5" ] &&  echo "tmp directory $5 not found!" && exit 1;
+[   -f "$5" ] &&  echo "$5 exists already!" && exit 1;
+[ ! -d "$6" ] &&  echo "tmp directory $5 not found!" && exit 1;
 
 OLDDB="$(abspath $1)" #"../data/DB"
 NEWDB="$(abspath $2)" #"../data/targetDB"
 OLDCLUST="$(abspath $3)" #"DBclustered"
-NEWCLUST="$(abspath $4)"
+NEWMAPDB="$(abspath $4)"
+NEWCLUST="$(abspath $5)"
 TMP="$(abspath $5)" #"tmp/"
 
 MMSEQS=${MMSEQS:-"mmseqs"}
@@ -144,24 +146,24 @@ if notExists "$TMP/newMappingSeqs"; then
 fi
 
 if notExists "$TMP/NEWDB.index"; then
-    joinAndReplace "${NEWDB}.index" "$TMP/NEWDB.index" "$TMP/newMappingSeqs" "1.2 2.2 2.3" \
+    joinAndReplace "${NEWDB}.index" "${NEWMAPDB}.index" "$TMP/newMappingSeqs" "1.2 2.2 2.3" \
         || fail "join died"
 fi
 
 
 if notExists "$TMP/NEWDB_h.index"; then
-    joinAndReplace "${NEWDB}_h.index" "$TMP/NEWDB_h.index" "$TMP/newMappingSeqs" "1.2 2.2 2.3" \
+    joinAndReplace "${NEWDB}_h.index" "${NEWMAPDB}_h.index" "$TMP/newMappingSeqs" "1.2 2.2 2.3" \
         || fail "join died"
 fi
 
 if notExists "$TMP/NEWDB.lookup"; then
-    joinAndReplace "${NEWDB}.lookup" "$TMP/NEWDB.lookup" "$TMP/newMappingSeqs" "1.2 2.2" \
+    joinAndReplace "${NEWDB}.lookup" "${NEWMAPDB}.lookup" "$TMP/newMappingSeqs" "1.2 2.2" \
         || fail "join died"
 fi
 
-ln -sf "${NEWDB}" "$TMP/NEWDB"
-ln -sf "${NEWDB}_h" "$TMP/NEWDB_h"
-NEWDB="$TMP/NEWDB"
+ln -sf "${NEWDB}" "${NEWMAPDB}"
+ln -sf "${NEWDB}_h" "${NEWMAPDB}_h"
+NEWDB="${NEWMAPDB}"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files 2/3"

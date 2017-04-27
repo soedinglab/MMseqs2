@@ -10,7 +10,7 @@
 
 int clusterupdate(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 5);
+    par.parseParameters(argc, argv, command, 6);
 
     bool targetCov = false;
     bool cov = false;
@@ -23,7 +23,7 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
         }
     }
     if (cov && targetCov) {
-        Debug(Debug::ERROR) << "The paramter -c can not be combined with --target-cov.\n";
+        Debug(Debug::ERROR) << "The parameter -c can not be combined with --target-cov.\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -51,16 +51,16 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     cmd.addVariable("SEARCH_PAR", par.createParameterString(par.clusterUpdateSearch).c_str());
     cmd.addVariable("CLUST_PAR", par.createParameterString(clustParams).c_str());
 
-    std::string scriptPath(par.db5);
-    if(!FileUtil::directoryExists(par.db5.c_str())) {
-        Debug(Debug::ERROR) << "Tmp directory " << par.db5 << " not found!\n";
+    std::string scriptPath(par.db6);
+    if(!FileUtil::directoryExists(par.db6.c_str())) {
+        Debug(Debug::ERROR) << "Tmp directory " << par.db6 << " not found!\n";
         return EXIT_FAILURE;
     }
 
     scriptPath.append("/update_clustering.sh");
     FileUtil::writeFile(scriptPath, update_clustering_sh, update_clustering_sh_len);
-    std::string program(par.db5 + "/update_clustering.sh");
-	cmd.execProgram(program.c_str(), 5, argv);
+    std::string program(par.db6 + "/update_clustering.sh");
+	cmd.execProgram(program.c_str(), 6, argv);
 
     // Should never get here
     assert(false);
