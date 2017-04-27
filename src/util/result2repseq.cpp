@@ -15,9 +15,6 @@
 
 int result2reprseq(const Parameters &par, DBReader<unsigned int> &resultReader,
                    const std::string &outDb, const size_t dbFrom, const size_t dbSize) {
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
 
     DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str());
     qDbr.open(DBReader<unsigned int>::NOSORT);
@@ -72,32 +69,9 @@ int result2reprseq(int argc, const char **argv, const Command &command) {
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     int status;
-#ifdef HAVE_MPI
-    size_t dbFrom = 0;
-    size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(),
-                                     resultReader.getSize(), MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
 
-    Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom + dbSize << "\n";
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, "", MMseqsMPI::rank);
-    status = result2reprseq(par, resultReader, tmpOutput.first, dbFrom, dbSize);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    // master reduces results
-    if(MMseqsMPI::isMaster()) {
-        std::vector<std::pair<std::string, std::string> > splitFiles;
-        for(int procs = 0; procs < MMseqsMPI::numProc; procs++){
-            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, procs);
-            splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
-
-        }
-        // merge output databases
-        DBWriter::mergeResults(par.db3, par.db3Index, splitFiles);
-    }
-#else
     size_t resultSize = resultReader.getSize();
     status = result2reprseq(par, resultReader, par.db3, 0, resultSize);
-#endif
 
     resultReader.close();
 
