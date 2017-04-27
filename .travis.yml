@@ -1,0 +1,64 @@
+language: c++
+
+addons:
+  apt:
+    packages:
+    - cmake
+
+#before_install:
+#- git submodule update --init --recursive
+
+script:
+- mkdir build
+- cd build
+- cmake .. && make
+#- CTEST_OUTPUT_ON_FAILURE=TRUE make test
+
+
+
+#after_script:
+#-   
+
+
+matrix:
+  include:
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.8
+            - mpi-default-dev
+      env: CXX=g++-4.8
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+            - mpi-default-dev
+      env: CXX=g++-6
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.6
+          packages:
+            - clang-3.6
+            - mpi-default-dev
+            - libc++-dev
+      env: CXX=clang++-3.6
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-4.0
+          packages:
+            - clang-4.0
+            - mpi-default-dev
+            - libc++-dev
+      env: CXX=clang++-4.0

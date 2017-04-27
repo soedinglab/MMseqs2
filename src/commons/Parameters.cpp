@@ -52,7 +52,6 @@ Parameters::Parameters():
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "compute more conservative, shorter alignments (scores and E-values not changed)", typeid(bool), (void *) &realign, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
-
 // clustering
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0: Setcover, 1: connected component, 2: Greedy clustering by sequence length",typeid(int), (void *) &clusteringMode, "[0-2]{1}$", MMseqsParameter::COMMAND_CLUST),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--cascaded", "Cascaded clustering", "start the cascaded instead of simple clustering workflow",typeid(bool), (void *) &cascaded, "", MMseqsParameter::COMMAND_CLUST),
@@ -75,7 +74,6 @@ Parameters::Parameters():
         PARAM_COMPRESS_MSA(PARAM_COMPRESS_MSA_ID,"--compress", "Compress MSA", "create MSA in ca3m format", typeid(bool), (void*) &compressMSA, ""),
         PARAM_SUMMARIZE_HEADER(PARAM_SUMMARIZE_HEADER_ID,"--summarize", "Summarize headers", "summarize cluster headers into a single header description", typeid(bool), (void*) &summarizeHeader, ""),
         PARAM_SUMMARY_PREFIX(PARAM_SUMMARY_PREFIX_ID, "--summary-prefix", "Summary prefix","sets the cluster summary prefix",typeid(std::string),(void *) &summaryPrefix, ""),
-        PARAM_REPSEQ(PARAM_REPSEQ_ID,"--only-rep-seq","Representative sequence", "outputs a ffindex with the representative sequences", typeid(bool), (void*) &onlyRepSeq, ""),
 // result2profile
         PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "includes sequences matches with < e-value thr. into the profile [>=0.0]", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum sequence identity threshold", "reduce redundancy of output MSA using max. pairwise sequence identity [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
@@ -127,7 +125,7 @@ Parameters::Parameters():
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
         PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID,"--comparison-operator", "Numerical comparison operator", "compare numerically (le, ge, e) each entry to a comparison value.",typeid(std::string), (void *) &compOperator, ""),
         PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID,"--comparison-value", "Numerical comparison value", "compare numerically (le, ge, e) each entry to this comparison value.",typeid(float), (void *) &compValue, ""),
-        PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID,"--sort-entries", "Sort (increasing:1, decreasing: 2, shuffle: 3) the entries by numerical value","Sort the entries by values in the given column --filter-column.",typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
+        PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID,"--sort-entries", "Sort (increasing:1, decreasing: 2, shuffle: 3) the entries by numerical value","Sorting mode 1: increasing,  2: decreasing and, 3: for column set by --filter-column.",typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
 // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
 //diff
@@ -267,7 +265,6 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_COMPRESS_MSA);
     result2msa.push_back(PARAM_SUMMARIZE_HEADER);
     result2msa.push_back(PARAM_SUMMARY_PREFIX);
-    result2msa.push_back(PARAM_REPSEQ);
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
     // extract orf
@@ -323,13 +320,21 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_RUNNER);
     searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
 
+    // linclust workflow
+    linclustworkflow = combineList(clust, align);
+    linclustworkflow = combineList(linclustworkflow, kmermatcher);
+    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
+    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    linclustworkflow.push_back(PARAM_RUNNER);
+
     clusteringWorkflow = combineList(prefilter, align);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
-    clusteringWorkflow = combineList(clusteringWorkflow, kmermatcher);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_CLUSTER_FRAGMENTS);
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
+    clusteringWorkflow = combineList(clusteringWorkflow, linclustworkflow);
+
 
     clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
@@ -450,13 +455,6 @@ Parameters::Parameters():
     // convertkb
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
-
-    // linclust workflow
-    linclustworkflow = combineList(clust, align);
-    linclustworkflow = combineList(linclustworkflow, kmermatcher);
-    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
-    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    linclustworkflow.push_back(PARAM_RUNNER);
 
     //checkSaneEnvironment();
     setDefaults();
@@ -898,7 +896,6 @@ void Parameters::setDefaults() {
     compressMSA = false;
     summarizeHeader = false;
     summaryPrefix = "cl";
-    onlyRepSeq = false;
     compressMSA = false;
 
     // result2profile

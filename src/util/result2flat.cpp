@@ -40,7 +40,17 @@ int result2flat(int argc, const char **argv, const Command &command) {
         unsigned int key = dbr_data.getDbKey(i);
         char *header_data = querydb_header.getDataByDBKey(key);
 
-        std::string headerStr = Util::parseFastaHeader(header_data);
+        std::string headerStr;
+        if (par.useHeader == true){
+            headerStr = header_data;
+            if (headerStr.length() > 0) {
+                if (headerStr[headerStr.length() - 1] == '\n') {
+                    headerStr[headerStr.length() - 1] = ' ';
+                }
+            }
+        }else{
+            headerStr=Util::parseFastaHeader(header_data);
+        }
         fwrite(headerStr.c_str(), sizeof(char), headerStr.length(), fastaFP);
         fwrite(newline, sizeof(char), 1, fastaFP);
 

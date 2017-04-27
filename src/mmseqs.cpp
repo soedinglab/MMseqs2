@@ -190,6 +190,12 @@ static struct Command commands[] = {
             "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:statsDB>",
             CITATION_MMSEQS2},
+        {"result2repseq",       result2reprseq,      &par.onlyverbosity,          COMMAND_DB,
+                "Get representative sequences for a result database",
+                NULL,
+                "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                "<i:sequenceDB> <i:resultDB> <o:reprSeqDB>",
+                CITATION_MMSEQS2},
 // Special-purpose utilities
         {"rescorediagonal",           rescorediagonal,           &par.rescorediagonal,        COMMAND_SPECIAL,
                 "Compute sequence identity for diagonal",

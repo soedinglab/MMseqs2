@@ -203,7 +203,6 @@ public:
     bool compressMSA;
     bool summarizeHeader;
     std::string summaryPrefix;
-    bool onlyRepSeq;
 
     // result2profile
     float filterMaxSeqId;
@@ -384,7 +383,6 @@ public:
     PARAMETER(PARAM_COMPRESS_MSA)
     PARAMETER(PARAM_SUMMARIZE_HEADER)
     PARAMETER(PARAM_SUMMARY_PREFIX)
-    PARAMETER(PARAM_REPSEQ)
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)

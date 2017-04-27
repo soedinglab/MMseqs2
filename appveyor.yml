@@ -1,0 +1,17 @@
+build: off  # disable msbuild
+
+environment:
+    CYG_MIRROR: http://cygwin.mirror.constant.com
+    CYG_PACKAGES: make,gcc-core,clang,pkg-config,libpcre-devel,cmake,xxd,python-setuptools,ruby
+    matrix:
+        - CYG_ROOT: C:\cygwin64
+          CYG_CACHE: C:\cygwin64\var\cache\setup
+          CYG_SETUP: C:\cygwin64\setup-x86_64.exe 
+          BASH: C:\cygwin64\bin\bash
+          CC: gcc
+
+install:
+ - if defined CYG_ROOT (%CYG_SETUP% --quiet-mode --no-shortcuts --only-site --root "%CYG_ROOT%" --site "%CYG_MIRROR%" --local-package-dir "%CYG_CACHE%" --packages "%CYG_PACKAGES%" --upgrade-also)
+build_script:
+ - if defined BASH (%BASH% -lc "mkdir $(cygpath ${APPVEYOR_BUILD_FOLDER})/build_sse  && cd $(cygpath ${APPVEYOR_BUILD_FOLDER})/build_sse  && cmake -DCMAKE_CXX_COMPILER=x86_64-pc-cygwin-g++.exe -DHAVE_SSE4_1=1 -DBUILD_SHARED_LIBS=OFF -DCMAKE_EXE_LINKER_FLAGS_RELEASE=\"-static -static-libgcc -static-libstdc++\" -DCMAKE_FIND_LIBRARY_SUFFIXES=\".a\" $(cygpath ${APPVEYOR_BUILD_FOLDER}) && make")
+ - if defined BASH (%BASH% -lc "mkdir $(cygpath ${APPVEYOR_BUILD_FOLDER})/build_avx2 && cd $(cygpath ${APPVEYOR_BUILD_FOLDER})/build_avx2 && cmake -DCMAKE_CXX_COMPILER=x86_64-pc-cygwin-g++.exe -DHAVE_AVX2=1   -DBUILD_SHARED_LIBS=OFF -DCMAKE_EXE_LINKER_FLAGS_RELEASE=\"-static -static-libgcc -static-libstdc++\" -DCMAKE_FIND_LIBRARY_SUFFIXES=\".a\" $(cygpath ${APPVEYOR_BUILD_FOLDER}) && make")

@@ -216,7 +216,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             }
 
             std::vector<Sequence *> seqSet;
-            std::string *reprSeq = NULL;
             
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
@@ -229,22 +228,20 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     evalue = strtod(entry[3], NULL);
                 }
 
-                if(reprSeq == NULL)
+
+                const size_t edgeId = tDbr->getId(key);
+                char *dbSeqData = tDbr->getData(edgeId);
+                if (firstSeqRepr)
                 {
-                    const size_t edgeId = tDbr->getId(key);
-                    char *dbSeqData = tDbr->getData(edgeId);
-                    if (firstSeqRepr)
-                    {
-                        centerSequence->mapSequence(0, key, dbSeqData);
-                        centerSequenceKey = key;
-                        centerSequenceHeader = tempateHeaderReader->getDataByDBKey(centerSequenceKey);
-                    }
-                    reprSeq = new std::string(dbSeqData);
+                    centerSequence->mapSequence(0, key, dbSeqData);
+                    centerSequenceKey = key;
+                    centerSequenceHeader = tempateHeaderReader->getDataByDBKey(centerSequenceKey);
                 }
 
 
+
                 // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
-                if (evalue <= par.evalProfile && (key != queryKey || sameDatabase == false)) {
+                if ((key != queryKey || sameDatabase == false)) {
                     if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
                         Matcher::result_t res = Matcher::parseAlignmentRecord(results);
                         alnResults.push_back(res);
@@ -332,20 +329,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     dataSize = result.length();
                 }
                     break;
-                case REPSEQ: {
-                    if (reprSeq != NULL) {
-                        msa << *reprSeq;
-                        delete reprSeq;
-                        reprSeq = NULL;
-                    } else {
-                        //msa << '\0';
-                    }
-                    result = msa.str();
-                    data = (char *) result.c_str();
-                    dataSize = result.length();
-                }
-                    break;
-
                 case CA3M: {
                     // Here the backtrace information should be present in the alnResults[i].backtrace for all i
                     std::string consensusStr;
@@ -425,10 +408,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                 delete seq;
             }
 
-            if (reprSeq != NULL) {
-                delete reprSeq;
-                reprSeq = NULL;
-            }
         }
         delete centerSequence;
     }
@@ -661,8 +640,6 @@ int result2msa(int argc, const char **argv, const Command& command) {
     outputmode mode;
     if (par.compressMSA) {
         mode = CA3M;
-    } else if(par.onlyRepSeq) {
-        mode = REPSEQ;
     } else {
         mode = MSA;
     }
