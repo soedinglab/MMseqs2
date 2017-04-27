@@ -311,9 +311,16 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
             }
         }
         fclose(index_file);
-    }else {  // fileCount < 1
-        std::rename(dataFileNames[0], outFileName);
-        std::rename(indexFileNames[0], outFileNameIndex);
+    } else {  // fileCount < 1
+        if (std::rename(dataFileNames[0], outFileName) != 0) {
+            Debug(Debug::ERROR) << "Could not move result " << dataFileNames[0] << " to final location " << outFileName << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        if (std::rename(indexFileNames[0], outFileNameIndex) != 0) {
+            Debug(Debug::ERROR) << "Could not move result index " << indexFileNames[0] << " to final location " << outFileNameIndex << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
     // sort the index
     DBReader<unsigned int> indexReader(outFileNameIndex, outFileNameIndex, DBReader<unsigned int>::USE_INDEX);
