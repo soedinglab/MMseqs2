@@ -728,7 +728,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         alphabetSize = 5;
     }
 
-    const size_t MAX_DB_PARAMETER = 5;
+    const size_t MAX_DB_PARAMETER = 6;
 
     if (requiredParameterCount > MAX_DB_PARAMETER) {
         Debug(Debug::ERROR) << "Use argv if you need more than " << MAX_DB_PARAMETER << " db parameters" << "\n";
@@ -742,6 +742,10 @@ void Parameters::parseParameters(int argc, const char* pargv[],
     }
 
     switch (std::min(getFilename.size(), MAX_DB_PARAMETER)) {
+        case 6:
+            db6 = getFilename[5];
+            db6Index = db6;
+            db6Index.append(".index");
         case 5:
             db5 = getFilename[4];
             db5Index = db5;
