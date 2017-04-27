@@ -14,7 +14,7 @@
 #endif
 
 int result2reprseq(const Parameters &par, DBReader<unsigned int> &resultReader,
-                   const std::string &outDb, const size_t dbFrom, const size_t dbSize) {
+                   const std::string &outDb, const std::string &outDbIndex, const size_t dbFrom, const size_t dbSize) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
@@ -22,10 +22,7 @@ int result2reprseq(const Parameters &par, DBReader<unsigned int> &resultReader,
     DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str());
     qDbr.open(DBReader<unsigned int>::NOSORT);
 
-    std::string outIndex(outDb);
-    outIndex.append(".index");
-
-    DBWriter resultWriter(outDb.c_str(), outIndex.c_str(), par.threads);
+    DBWriter resultWriter(outDb.c_str(), outDbIndex.c_str(), par.threads);
     resultWriter.open();
 
     Debug(Debug::INFO) << "Start computing representative sequences.\n";
@@ -79,8 +76,8 @@ int result2reprseq(int argc, const char **argv, const Command &command) {
                                      resultReader.getSize(), MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
 
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom + dbSize << "\n";
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, "", MMseqsMPI::rank);
-    status = result2reprseq(par, resultReader, tmpOutput.first, dbFrom, dbSize);
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db3, par.db3Index, MMseqsMPI::rank);
+    status = result2reprseq(par, resultReader, tmpOutput.first, tmpOutput.second, dbFrom, dbSize);
 
     MPI_Barrier(MPI_COMM_WORLD);
     // master reduces results
