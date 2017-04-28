@@ -14,7 +14,10 @@
 int clusterupdate(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 5);
-
+    if(FileUtil::directoryExists(par.db5.c_str())==false){
+        Debug(Debug::ERROR) << "Tmp " << par.db5 << " folder does not exist or is not a directory.\n";
+        EXIT(EXIT_FAILURE);
+    }
     bool targetCov = false;
     bool cov = false;
     for (size_t i = 0; i < par.clusterUpdate.size(); i++) {
