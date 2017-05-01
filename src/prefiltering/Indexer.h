@@ -17,9 +17,19 @@ public:
     ~Indexer();
     
     // get the index of the k-mer, beginning at "begin" in the int_seq and ending at "end"
-    size_t int2index( const int *int_seq,const int begin,const int end);
+    size_t int2index( const int *int_seq,const int begin,const int end){
+        this->lastKmerIndex = 0;
+        for(int i = begin; i < end; i++) {
+            this->lastKmerIndex += int_seq[i]*this->powers[i-begin];
+        }
+        return this->lastKmerIndex;
+    }
+
     // get the index of the k-mer of length maxKmerSize, beginning at position 0
-    size_t int2index( const int *int_seq);
+    size_t int2index( const int *int_seq){
+        int2index(int_seq, 0, this->maxKmerSize);
+        return this->lastKmerIndex;
+    }
     
     // get the int sequence for the k-mer with the index idx of kmerSize
     inline void index2int(size_t * int_seq, size_t idx, int kmerSize){
