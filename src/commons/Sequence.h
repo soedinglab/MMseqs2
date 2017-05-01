@@ -77,12 +77,11 @@ public:
                     int * currKmerPositons = kmerPos;
 
                     for(int i = 0; i < this->spacedPatternSize; i++) {
-                            if(spacedPattern[i]) {
-                                    currWindowPos[0] = posToRead[i];
-                                    currKmerPositons[0] = currItPos + i;
-                                    currKmerPositons++;
-                                    currWindowPos++;
-                            }
+                        bool aaPosition = spacedPattern[i];
+                        currWindowPos[0] = posToRead[i];
+                        currKmerPositons[0] = currItPos + i;
+                        currKmerPositons += aaPosition;
+                        currWindowPos    += aaPosition;
                     }
                     if(seqType == HMM_PROFILE) {
                             nextProfileKmer();
