@@ -69,21 +69,36 @@ public:
     }
 
     // returns next k-mer
-    __attribute__((optimize("unroll-loops")))
-    const int * nextKmer() {
+    inline const int * nextKmer() {
             if (hasNextKmer()) {
                     currItPos++;
                     const int * posToRead = int_sequence + currItPos;
                     int * currWindowPos = kmerWindow;
-                    int * currKmerPositons = kmerPos;
-
-                    for(int i = 0; i < this->spacedPatternSize; i++) {
-                            if(spacedPattern[i]) {
-                                    currWindowPos[0] = posToRead[i];
-                                    currKmerPositons[0] = currItPos + i;
-                                    currKmerPositons++;
-                                    currWindowPos++;
+                                        switch(this->kmerSize){
+                        case 6:
+                            kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                            kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                            kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                            kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                            kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                            kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                            break;
+                        case 7:
+                            kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                            kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                            kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                            kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                            kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                            kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                            kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                            break;
+                        default:
+                            for(int i = 0; i < this->kmerSize; i++) {
+                                unsigned char pos = aaPosInSpacedPattern[i];
+                                currWindowPos[0] = posToRead[pos];
+                                currWindowPos ++;
                             }
+                            break;
                     }
                     if(seqType == HMM_PROFILE) {
                             nextProfileKmer();
@@ -150,7 +165,7 @@ public:
 
     std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
-    const int *getKmerPositons() {     return kmerPos;  }
+    const unsigned char *getAAPosInSpacedPattern() {     return aaPosInSpacedPattern;  }
 
     void printProfile();
 
@@ -191,8 +206,8 @@ private:
     // sequence window will be filled by newxtKmer (needed for spaced patterns)
     int * kmerWindow;
 
-    // contains sequence positions for current kmer
-    int *kmerPos;
+    // stores position of residues in sequence
+    unsigned char *aaPosInSpacedPattern;
 
     // bias correction in profiles
     bool aaBiasCorrection;
@@ -201,3 +216,4 @@ private:
     bool spaced;
 };
 #endif
+

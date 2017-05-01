@@ -22,14 +22,21 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
     this->spacedPatternSize = spacedKmerInformation.second;
     this->kmerSize = kmerSize;
     this->kmerWindow = NULL;
-    this->kmerPos = NULL;
+    this->aaPosInSpacedPattern = NULL;
     if(spacedPatternSize){
        this->kmerWindow = new int[kmerSize];
-       this->kmerPos = new int[kmerSize];
+       this->aaPosInSpacedPattern = new unsigned char[kmerSize];
         if(spacedPattern == NULL ) {
             Debug(Debug::ERROR) << "Sequence does not have a kmerSize (kmerSize= " << spacedPatternSize << ") to use nextKmer.\n";
             Debug(Debug::ERROR) << "Please report this bug to the developer\n";
             EXIT(EXIT_FAILURE);
+        }
+        size_t pos = 0;
+        for(int i = 0; i < this->spacedPatternSize; i++) {
+            if(spacedPattern[i]){
+                aaPosInSpacedPattern[pos] = i;
+                pos++;
+            }
         }
     }
 
@@ -60,8 +67,8 @@ Sequence::~Sequence()
     if(kmerWindow) {
         delete[] kmerWindow;
     }
-    if(kmerPos){
-        delete [] kmerPos;
+    if(aaPosInSpacedPattern){
+        delete [] aaPosInSpacedPattern;
     }
     if (seqType == HMM_PROFILE) {
         for (size_t i = 0; i < kmerSize; i++) {
@@ -445,3 +452,4 @@ int Sequence::getSequenceType() const {
 unsigned int Sequence::getEffectiveKmerSize() {
     return spacedPatternSize;
 }
+

@@ -220,12 +220,12 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     Indexer idx(m->alphabetSize, kmerSize);
     while(seq->hasNextKmer()){
         const int * kmer = seq->nextKmer();
-        const int * pos = seq->getKmerPositons();
+        const unsigned char * pos = seq->getAAPosInSpacedPattern();
+        const unsigned short current_i = seq->getCurrentPosition();
         float biasCorrection = 0;
         for (int i = 0; i < kmerSize; i++){
-            biasCorrection += compositionBias[pos[i]];
-        }
-        // round bias to next higher or lower value
+            biasCorrection += compositionBias[current_i + static_cast<short>(pos[i])];
+        }        
         short bias = static_cast<short>((biasCorrection < 0.0) ? biasCorrection - 0.5: biasCorrection + 0.5);
         short kmerMatchScore = std::max(kmerThr - bias, 0);
 
@@ -246,7 +246,6 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
             index = kmerList.index;
         }
         //std::cout << kmer << std::endl;
-        const unsigned short current_i = seq->getCurrentPosition();
         indexPointer[current_i] = sequenceHits;
         // match the index table
 
