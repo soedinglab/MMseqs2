@@ -69,6 +69,7 @@ public:
     }
 
     // returns next k-mer
+    __attribute__((optimize("unroll-loops")))
     const int * nextKmer() {
             if (hasNextKmer()) {
                     currItPos++;
@@ -77,11 +78,12 @@ public:
                     int * currKmerPositons = kmerPos;
 
                     for(int i = 0; i < this->spacedPatternSize; i++) {
-                        bool aaPosition = spacedPattern[i];
-                        currWindowPos[0] = posToRead[i];
-                        currKmerPositons[0] = currItPos + i;
-                        currKmerPositons += aaPosition;
-                        currWindowPos    += aaPosition;
+                            if(spacedPattern[i]) {
+                                    currWindowPos[0] = posToRead[i];
+                                    currKmerPositons[0] = currItPos + i;
+                                    currKmerPositons++;
+                                    currWindowPos++;
+                            }
                     }
                     if(seqType == HMM_PROFILE) {
                             nextProfileKmer();
