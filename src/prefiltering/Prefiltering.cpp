@@ -710,6 +710,14 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
         tableEntriesNum += (size_t) indexTable->getTable(i);
     }
 
+    if(diagonalScoring == true){
+        indexTable->initMemory(tableEntriesNum, sequenceLookup, tableSize);
+    }else{
+        indexTable->initMemory(tableEntriesNum,  NULL, tableSize);
+    }
+    indexTable->init();
+    Debug(Debug::INFO) << "Index table: fill...\n";
+
 #pragma omp parallel
     {
         Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
@@ -721,47 +729,20 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
             generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
             generator->setDivideStrategy(s.profile_matrix);
         }
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-        size_t threadFrom, threadSize;
-        char **table = (indexTable->getTable());
-        Util::decomposeDomainSizet(tableEntriesNum, (size_t *) table, indexTable->getTableSize(),
-                                   thread_idx, threads, &threadFrom, &threadSize);
-//        std::stringstream stream;
-//        stream << thread_idx << "\t" << threadFrom << "\t" << threadSize;
-//        std::cout << stream.str() << std::endl;
 
-#pragma omp barrier
-        if(thread_idx == 0){
-            if(diagonalScoring == true){
-                indexTable->initMemory(tableEntriesNum, sequenceLookup, tableSize);
-            }else{
-                indexTable->initMemory(tableEntriesNum,  NULL, tableSize);
-            }
-            indexTable->init();
-            Debug(Debug::INFO) << "Index table: fill...\n";
-        }
-#pragma omp barrier
+#pragma omp for schedule(dynamic, 100)
         for (unsigned int id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
-            if(thread_idx == 0) {
-                Debug::printProgress(id - dbFrom);
-            }
-            //char *seqData = dbr->getData(id);
-            //TODO - dbFrom?!?
+            Debug::printProgress(id - dbFrom);
+
             unsigned int qKey = dbr->getDbKey(id);
-            //seq->mapSequence(id - dbFrom, qKey, seqData);
-//            Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
-//                                    indexTable->getAlphabetSize(), seq->aa2int['X']);
             if(seq->getSeqType()==Sequence::HMM_PROFILE){
                 char *seqData = dbr->getData(id);
                 s.mapSequence(id - dbFrom, qKey, seqData);
-                indexTable->addSimilarSequence(&s, generator, &idxer, threadFrom, threadSize, kmerThr, idScoreLookup);
+                indexTable->addSimilarSequence(&s, generator, &idxer, kmerThr, idScoreLookup);
             }else{
                 s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id-dbFrom));
-                indexTable->addSequence(&s, &idxer, buffer, threadFrom, threadSize, kmerThr, idScoreLookup);
+                indexTable->addSequence(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }
         }
         if(generator) delete generator;
@@ -986,3 +967,4 @@ std::vector<hit_t> Prefiltering::readPrefilterResults(char *data) {
     }
     return ret;
 }
+

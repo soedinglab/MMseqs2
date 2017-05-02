@@ -38,7 +38,7 @@ struct __attribute__((__packed__)) IndexEntryLocalTmp {
     unsigned int seqId;
     unsigned short position_j;
     IndexEntryLocalTmp(unsigned int kmer, unsigned int seqId, unsigned short position_j)
-    :kmer(kmer),seqId(seqId), position_j(position_j)
+            :kmer(kmer),seqId(seqId), position_j(position_j)
     {}
 
     IndexEntryLocalTmp(){}
@@ -94,7 +94,7 @@ public:
 
     // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
     size_t addSimilarKmerCount (Sequence* s, KmerGenerator * kmerGenerator, Indexer * idxer,
-                         int threshold, char * diagonalScore){
+                                int threshold, char * diagonalScore){
 
         s->resetCurrPos();
         std::vector<unsigned int> seqKmerPosBuffer;
@@ -207,7 +207,7 @@ public:
         // set the pointers in the index table to the start of the list for a certain k-mer
         for (size_t i = 0; i < tableSize; i++){
             const size_t entriesCount = (size_t) table[i];
-            table[i] = (char *) it;
+            table[i] = it;
             it += (entriesCount * this->sizeOfEntry);
         }
         table[tableSize] = it;
@@ -295,8 +295,7 @@ public:
     // FUNCTIONS TO OVERWRITE
     // add k-mers of the sequence to the index table
     void addSimilarSequence (Sequence* s, KmerGenerator * kmerGenerator, Indexer * idxer,
-                      size_t aaFrom, size_t aaSize,
-                      int threshold, char * diagonalScore){
+                             int threshold, char * diagonalScore){
         std::vector<IndexEntryLocalTmp> buffer;
         // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
         s->resetCurrPos();
@@ -307,13 +306,11 @@ public:
             ScoreMatrix scoreMatrix = kmerGenerator->generateKmerList(kmer);
             for(size_t i = 0; i < scoreMatrix.elementSize; i++) {
                 unsigned int kmerIdx = scoreMatrix.index[i];
-                if (kmerIdx >= aaFrom && kmerIdx < aaFrom + aaSize) {
-                    // if region got masked do not add kmer
-                    if ((table[kmerIdx + 1] - table[kmerIdx]) == 0)
-                        continue;
-                    buffer.push_back(IndexEntryLocalTmp(kmerIdx,s->getId(), s->getCurrentPosition()));
-                    kmerPos++;
-                }
+                // if region got masked do not add kmer
+                if ((table[kmerIdx + 1] - table[kmerIdx]) == 0)
+                    continue;
+                buffer.push_back(IndexEntryLocalTmp(kmerIdx,s->getId(), s->getCurrentPosition()));
+                kmerPos++;
             }
         }
 
@@ -321,13 +318,13 @@ public:
             std::sort(buffer.begin(), buffer.end(), IndexEntryLocalTmp::comapreByIdAndPos);
         }
         unsigned int prevKmer = UINT_MAX;
+        IndexEntryLocal ** entries=(IndexEntryLocal **)table;
         for(size_t pos = 0; pos < buffer.size(); pos++){
             unsigned int kmerIdx = buffer[pos].kmer;
             if(kmerIdx != prevKmer){
-                IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
+                IndexEntryLocal*  entry = __sync_fetch_and_add(&entries[kmerIdx], (IndexEntryLocal*)sizeof(IndexEntryLocal));
                 entry->seqId      = buffer[pos].seqId;
                 entry->position_j = buffer[pos].position_j;
-                table[kmerIdx] += sizeof(IndexEntryLocal);
             }
             prevKmer = kmerIdx;
         }
@@ -337,7 +334,6 @@ public:
     // add k-mers of the sequence to the index table
     void addSequence (Sequence* s, Indexer * idxer,
                       IndexEntryLocalTmp * buffer,
-                      size_t aaFrom, size_t aaSize,
                       int threshold, char * diagonalScore){
         // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
         s->resetCurrPos();
@@ -345,38 +341,39 @@ public:
         size_t kmerPos = 0;
         while(s->hasNextKmer()){
             const int * kmer = s->nextKmer();
-            unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
-            if(kmerIdx >= aaFrom  && kmerIdx < aaFrom + aaSize){
-                // if region got masked do not add kmer
-                if((table[kmerIdx+1] - table[kmerIdx]) == 0)
-                    continue;
-                if(threshold > 0) {
-                    int score = 0;
-                    for (int pos = 0; pos < kmerSize; pos++) {
-                        score += diagonalScore[kmer[pos]];
-                    }
-                    if (score < threshold) {
-                        continue;
-                    }
+
+            if(threshold > 0) {
+                int score = 0;
+                for (int pos = 0; pos < kmerSize; pos++) {
+                    score += diagonalScore[kmer[pos]];
                 }
-                buffer[kmerPos].kmer = kmerIdx;
-                buffer[kmerPos].seqId      = s->getId();
-                buffer[kmerPos].position_j = s->getCurrentPosition();
-                kmerPos++;
+                if (score < threshold) {
+                    continue;
+                }
             }
+            unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
+            // if region got masked do not add kmer
+            if((table[kmerIdx+1] - table[kmerIdx]) == 0)
+                continue;
+
+            buffer[kmerPos].kmer = kmerIdx;
+            buffer[kmerPos].seqId      = s->getId();
+            buffer[kmerPos].position_j = s->getCurrentPosition();
+            kmerPos++;
         }
 
         if(kmerPos>1){
             std::sort(buffer, buffer+kmerPos, IndexEntryLocalTmp::comapreByIdAndPos);
         }
         unsigned int prevKmer = UINT_MAX;
+        IndexEntryLocal ** entries = (IndexEntryLocal **) table;
         for(size_t pos = 0; pos < kmerPos; pos++){
             unsigned int kmerIdx = buffer[pos].kmer;
             if(kmerIdx != prevKmer){
-                IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
+                //IndexEntryLocal * entry = (IndexEntryLocal *) (table[kmerIdx]);
+                IndexEntryLocal*  entry = __sync_fetch_and_add(&entries[kmerIdx], (IndexEntryLocal*)sizeof(IndexEntryLocal));
                 entry->seqId      = buffer[pos].seqId;
                 entry->position_j = buffer[pos].position_j;
-                table[kmerIdx] += sizeof(IndexEntryLocal);
             }
             prevKmer = kmerIdx;
         }
@@ -386,7 +383,6 @@ public:
     void print(char * int2aa) {
         for (size_t i = 0; i < tableSize; i++){
             ptrdiff_t entrieSize = (table[i+1] - table[i]) / sizeof(IndexEntryLocal);
-
             if (entrieSize > 0){
                 idxer->printKmer(i, kmerSize, int2aa);
                 Debug(Debug::INFO) << "\n";
@@ -474,8 +470,4 @@ protected:
     // magic byte to avoid compiler optimisation
     size_t magicByte;
 };
-
-
-
-
 #endif
