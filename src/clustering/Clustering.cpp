@@ -15,7 +15,6 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                                                                threads(threads),
                                                                outDB(outDB),
                                                                outDBIndex(outDBIndex) {
-
     Debug(Debug::INFO) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
     seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), DBReader<unsigned int>::USE_INDEX);
@@ -23,7 +22,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
 
     Debug(Debug::INFO) << "Opening alignment database...\n";
     alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str());
-    alnDbr->open(DBReader<unsigned int>::NOSORT);
+    alnDbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "done.\n";
 }
