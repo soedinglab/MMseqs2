@@ -42,7 +42,6 @@ public:
                 res3 += int_seq[begin+6]*this->powers[6];
                 lastKmerIndex = res1 + res2 + res3 + res4;
                 break;
-            case 9:
             case 10:
                 res1 = int_seq[begin+0]*this->powers[0];
                 res2 = int_seq[begin+1]*this->powers[1];
