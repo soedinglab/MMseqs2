@@ -33,6 +33,9 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
+if(CYGWIN)
+    add_definitions("-D_GNU_SOURCE")
+endif()
 
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)

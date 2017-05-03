@@ -24,11 +24,12 @@ hasCommand () {
 
 hasCommand awk
 
-export OMP_PROC_BIND=TRUE
 
 INPUT="$1"
-notExists "$3/aln_redundancy" && $MMSEQS clusthash "$INPUT" "$3/aln_redundancy" ${DETECTREDUNDANCY_PAR} && checkReturnCode "Fast filter step $STEP died"
-notExists "$3/clu_redundancy" && $MMSEQS clust $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER1_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
+mkdir -p "$3/linclust"
+notExists "$3/aln_redundancy" && $MMSEQS linclust "$INPUT" "$3/clu_redundancy" "$3/linclust"  ${LINCLUST_PAR} && checkReturnCode "Fast filter step $STEP died"
+# OMP proc bind can not be combined with workflow calls.
+export OMP_PROC_BIND=TRUE
 awk '{ print $1 }' "$3/clu_redundancy.index" > "$3/order_redundancy"
 notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/order_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
 

@@ -25,7 +25,7 @@ public:
         for(size_t i = 0; i < dbSize; i++) {
             if(totalElementCount < elementOffset[i]){
                 Debug(Debug::ERROR) << "Error in setupPointers. totalElementCount "
-                                    << "(" << totalElementCount << ") < elementOffset[i] (" << elementOffset[i] << ")\n";
+                                    << "(" << totalElementCount << ") < elementOffset["<<i<<"] (" << elementOffset[i] << ")\n";
                 EXIT(EXIT_FAILURE);
             }
             elementLookupTable[i] = elements + elementOffset[i];

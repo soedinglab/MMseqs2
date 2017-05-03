@@ -78,7 +78,7 @@ if notExists "$TMP/removedSeqs"; then
 fi
 
 if [ ! -s "$TMP/mappingSeqs" ]; then
-    echo <<WARN
+    cat <<WARN
 WARNING: There are no common sequences between $OLDDB and $NEWDB.
 If you aim to add the sequences of $NEWDB to your previous clustering $OLDCLUST, you can run:
 
@@ -184,7 +184,7 @@ echo "==================================================="
 echo "======= Extract representative sequences =========="
 echo "==================================================="
 if notExists "$TMP/OLDDB.repSeq"; then
-    $MMSEQS result2reprseq "$OLDDB" "$OLDCLUST" "$TMP/OLDDB.repSeq" \
+    $MMSEQS result2repseq "$OLDDB" "$OLDCLUST" "$TMP/OLDDB.repSeq" \
         || fail "Result2msa died"
 fi
 

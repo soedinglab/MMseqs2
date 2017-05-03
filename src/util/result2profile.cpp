@@ -208,8 +208,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             }
 
             std::vector<Sequence *> seqSet;
-            bool reprSeq = false;
-
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
@@ -221,22 +219,19 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     evalue = strtod(entry[3], NULL);
                 }
 
-                if(reprSeq == false)
+                const size_t edgeId = tDbr->getId(key);
+                char *dbSeqData = tDbr->getData(edgeId);
+                if (firstSeqRepr)
                 {
-                    const size_t edgeId = tDbr->getId(key);
-                    char *dbSeqData = tDbr->getData(edgeId);
-                    if (firstSeqRepr)
-                    {
-                        centerSequence->mapSequence(0, key, dbSeqData);
-                        centerSequenceKey = key;
-                        centerSequenceHeader = tempateHeaderReader->getDataByDBKey(centerSequenceKey);
-                    }
-                    reprSeq = true;
+                    centerSequence->mapSequence(0, key, dbSeqData);
+                    centerSequenceKey = key;
+                    centerSequenceHeader = tempateHeaderReader->getDataByDBKey(centerSequenceKey);
                 }
 
 
+
                 // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
-                if (evalue <= par.evalProfile && (key != queryKey || sameDatabase == false)) {
+                if ((key != queryKey || sameDatabase == false)) {
                     if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
                         Matcher::result_t res = Matcher::parseAlignmentRecord(results);
                         alnResults.push_back(res);
@@ -328,7 +323,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     dataSize = result.length();
                 }
                     break;
-
                 case CA3M: {
                     // Here the backtrace information should be present in the alnResults[i].backtrace for all i
                     std::vector<Matcher::result_t> filteredAln; // alignment information for the sequences that passed the filtering step
