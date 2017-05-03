@@ -42,14 +42,6 @@ int ffindexFilter::initFiles() {
 	return 0;
 }
 
-ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column, float compValue,
-                 std::string compOperator) :
-		inDB(inDB), outDB(outDB), threads(threads), column(column), trimToOneColumn(false),compValue(compValue),compOperator(compOperator) {
-
-	initFiles();
-	mode = NUMERIC_COMPARISON;
-    
-}
 
 
 
@@ -58,88 +50,80 @@ ffindexFilter::ffindexFilter(Parameters &par) {
     outDB = std::string(par.db2);
     threads = par.threads;
     column  = static_cast<size_t>(par.filterColumn);
+    trimToOneColumn = par.trimToOneColumn;
+    positiveFiltering = par.positiveFilter;
+    shouldAddSelfMatch = par.includeIdentity;
     
+	initFiles();
+
+
     if (par.sortEntries)
     {
         mode = SORT_ENTRIES;
+        std::cout<<"Filtering by sorting entries."<<std::endl;
         sortingMode = par.sortEntries;
-    }
+    } else if (par.filteringFile != "")
+	{
+        mode = FILE_FILTERING;
+        std::cout<<"Filtering with a filter files."<<std::endl;
+        filterFile = par.filteringFile;
+        // Fill the filter with the data contained in the file
+        std::ifstream filterFileStream;
+        filterFileStream.open(filterFile);
+        std::string line;
+        while (std::getline(filterFileStream,line))
+        {
+            filter.push_back(line);
+        }
 
-	initFiles();
+        std::stable_sort(filter.begin(), filter.end(), compareString());
+    } else if(par.mappingFile != "")
+    {
 
-}
+        mode = FILE_MAPPING;
+        std::cout<<"Filtering by mapping values."<<std::endl;
+        filterFile = par.mappingFile;
+
+        // Fill the filter with the data contained in the file
+        std::ifstream filterFileStream;
+        filterFileStream.open(filterFile);
+        std::string line;
+        while (std::getline(filterFileStream,line))
+        {
+            std::string keyOld,keyNew;
+            std::istringstream lineToSplit(line);
+            std::getline(lineToSplit,keyOld,'\t');
+            std::getline(lineToSplit,keyNew,'\t');
+
+
+            mapping.push_back(std::make_pair(keyOld, keyNew));
+        }
+
+        std::stable_sort(mapping.begin(), mapping.end(), compareFirstString());
+    } else if(par.extractLines > 0){ // GET_FIRST_LINES mode
+        mode = GET_FIRST_LINES;
+        numberOfLines = par.extractLines;
+        std::cout<<"Filtering by extracting the first "<<numberOfLines<<" lines."<<std::endl;
+    } else if(par.compOperator != ""){
+    
+        mode = NUMERIC_COMPARISON;
+        std::cout<<"Filtering by numerical comparison."<<std::endl;
+        compValue = par.compValue;
+        compOperator = par.compOperator;
         
-ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column, int numberOfLines) :
-		inDB(inDB), outDB(outDB), threads(threads), column(column), trimToOneColumn(false),numberOfLines(numberOfLines) {
-
-	initFiles();
-
-    mode = GET_FIRST_LINES;
+    } else {
+        mode = REGEX_FILTERING;
+        std::cout<<"Filtering by RegEx"<<std::endl;
+        regexStr = par.filterColumnRegex;
+        int status = regcomp(&regex, regexStr.c_str(), REG_EXTENDED | REG_NEWLINE);
+        if (status != 0 ){
+            Debug(Debug::INFO) << "Error in regex " << regexStr << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
 }
-
-ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, int threads, size_t column, std::string regexStr,
-							 bool trimToOneColumn) :
-		inDB(inDB), outDB(outDB), threads(threads), column(column), regexStr(regexStr), trimToOneColumn(trimToOneColumn) {
-
-	initFiles();
-
-	mode = REGEX_FILTERING;
-
-	int status = regcomp(&regex, regexStr.c_str(), REG_EXTENDED | REG_NEWLINE);
-	if (status != 0 ){
-		Debug(Debug::INFO) << "Error in regex " << regexStr << "\n";
-		EXIT(EXIT_FAILURE);
-	}
-}
-
-ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column,
-							 bool positiveFiltering) :
-		inDB(inDB), outDB(outDB), filterFile(filterFile), threads(threads), column(column), trimToOneColumn(false),
-		positiveFiltering(positiveFiltering) {
-
-	initFiles();
-
-	mode = FILE_FILTERING;
-
-	// Fill the filter with the data contained in the file
-	std::ifstream filterFileStream;
-	filterFileStream.open(filterFile);
-	std::string line;
-	while (std::getline(filterFileStream,line))
-	{
-		filter.push_back(line);
-	}
-
-	std::stable_sort(filter.begin(), filter.end(), compareString());
-
-}
-
-ffindexFilter::ffindexFilter(std::string inDB, std::string outDB, std::string filterFile, int threads, size_t column) :
-		inDB(inDB), outDB(outDB), filterFile(filterFile), threads(threads), column(column), trimToOneColumn(false) {
-
-	initFiles();
-
-	mode = FILE_MAPPING;
-
-	// Fill the filter with the data contained in the file
-	std::ifstream filterFileStream;
-	filterFileStream.open(filterFile);
-	std::string line;
-	while (std::getline(filterFileStream,line))
-	{
-		std::string keyOld,keyNew;
-		std::istringstream lineToSplit(line);
-		std::getline(lineToSplit,keyOld,'\t');
-		std::getline(lineToSplit,keyNew,'\t');
-
-
-		mapping.push_back(std::make_pair(keyOld, keyNew));
-	}
-
-	std::stable_sort(mapping.begin(), mapping.end(), compareFirstString());
-
-}
-
+    
+        
 ffindexFilter::~ffindexFilter() {
 	if (mode == REGEX_FILTERING)
 		regfree(&regex);
@@ -169,12 +153,23 @@ int ffindexFilter::runFilter(){
 			thread_idx = omp_get_thread_num();
 #endif
 			char *data = dataDb->getData(id);
+            unsigned int queryKey = dataDb->getDbKey(id);
 			size_t dataLength = dataDb->getSeqLens(id);
 			int counter = 0;
             
            std::vector<std::pair<double, std::string>> toSort;
+           bool addSelfMatch = false;
            
 			while (*data != '\0') {
+                if (shouldAddSelfMatch)
+                {
+                    char dbKeyBuffer[255 + 1];
+                    Util::parseKey(data, dbKeyBuffer);
+                    const unsigned int curKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+                    addSelfMatch = (queryKey == curKey);
+                    
+                }
+                    
 				if(!Util::getLine(data, dataLength, lineBuffer, LINE_BUFFER_SIZE)) {
 					Debug(Debug::WARNING) << "Warning: Identifier was too long and was cut off!\n";
 					data = Util::skipLine(data);
@@ -301,7 +296,11 @@ int ffindexFilter::runFilter(){
 						nomatch = 0;
 
 				}
-
+                
+                if (addSelfMatch)
+                    nomatch = 0;
+                    
+                    
 				if(!(nomatch)){
                     if (trimToOneColumn)
                     {
@@ -357,7 +356,9 @@ int filterdb(int argc, const char **argv, const Command& command) {
 #ifdef OPENMP
 	omp_set_num_threads(par.threads);
 #endif
-
+    ffindexFilter filter(par);
+    return filter.runFilter();
+    /*
     // TODO: have only one constructor with Parameter argument, and switch the different modes there
 	if (par.filteringFile != "")
 	{
@@ -402,7 +403,7 @@ int filterdb(int argc, const char **argv, const Command& command) {
 							 static_cast<size_t>(par.filterColumn),
 							 par.filterColumnRegex,par.trimToOneColumn);
 		return filter.runFilter();
-	}
+	}*/
 
 	return -1;
 }

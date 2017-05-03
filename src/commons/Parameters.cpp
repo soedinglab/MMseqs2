@@ -40,7 +40,7 @@ Parameters::Parameters():
         PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, ""),
         PARAM_CLUSTER_FRAGMENTS(PARAM_CLUSTER_FRAGMENTS_ID, "--cluster-fragments", "Cluster fragments" , "Cluster sequence fragments with target coverage > 0.95 and sequence identity > 0.9", typeid(bool), (void *) &clusterFragments, ""),
 
-        PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add alignments of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN),
+        PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add entries of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN),
         PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
 // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
@@ -369,6 +369,8 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_COMP_OPERATOR);
     filterDb.push_back(PARAM_COMP_VALUE);
     filterDb.push_back(PARAM_SORT_ENTRIES);
+    filterDb.push_back(PARAM_INCLUDE_IDENTITY);
+    
 
 
     // swapreults
