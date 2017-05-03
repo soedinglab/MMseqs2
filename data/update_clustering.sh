@@ -58,8 +58,7 @@ hasCommand sort
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
 [ ! -f "$3" ] &&  echo "$3 not found!" && exit 1;
 [   -f "$4" ] &&  echo "$4 exists already!" && exit 1;
-[   -f "$5" ] &&  echo "$5 exists already!" && exit 1;
-[ ! -d "$6" ] &&  echo "tmp directory $5 not found!" && exit 1;
+[ ! -d "$6" ] &&  echo "tmp directory $6 not found!" && exit 1;
 
 OLDDB="$(abspath $1)" #"../data/DB"
 NEWDB="$(abspath $2)" #"../data/targetDB"
