@@ -356,54 +356,7 @@ int filterdb(int argc, const char **argv, const Command& command) {
 #ifdef OPENMP
 	omp_set_num_threads(par.threads);
 #endif
+
     ffindexFilter filter(par);
     return filter.runFilter();
-    /*
-    // TODO: have only one constructor with Parameter argument, and switch the different modes there
-	if (par.filteringFile != "")
-	{
-		std::cout<<"Filtering by file "<<par.filteringFile << std::endl;
-		ffindexFilter filter(par.db1,
-							 par.db2,
-							 par.filteringFile,
-							 par.threads,
-							 static_cast<size_t>(par.filterColumn),
-							 par.positiveFilter);
-		return filter.runFilter();
-	} else if(par.mappingFile != ""){
-		std::cout<<"Mapping keys by file "<<par.mappingFile << std::endl;
-		ffindexFilter filter(par.db1,
-							 par.db2,
-							 par.mappingFile,
-							 par.threads,
-							 static_cast<size_t>(par.filterColumn));
-		return filter.runFilter();
-	} else if(par.extractLines > 0){ // GET_FIRST_LINES mode
-		ffindexFilter filter(par.db1,
-							 par.db2,
-							 par.threads,
-							 static_cast<size_t>(par.filterColumn),
-                           par.extractLines);
-		return filter.runFilter();
-	} else if(par.compOperator != ""){ // NUMERIC_COMPARISON mode
-		ffindexFilter filter(par.db1,
-							 par.db2,
-							 par.threads,
-							 static_cast<size_t>(par.filterColumn),
-                           par.compValue,
-                           par.compOperator);
-		return filter.runFilter();
-    } else if (par.sortEntries) {
-        		ffindexFilter filter(par);
-                return filter.runFilter();
-	} else { // RegEx filter
-		ffindexFilter filter(par.db1,
-							 par.db2,
-							 par.threads,
-							 static_cast<size_t>(par.filterColumn),
-							 par.filterColumnRegex,par.trimToOneColumn);
-		return filter.runFilter();
-	}*/
-
-	return -1;
 }
