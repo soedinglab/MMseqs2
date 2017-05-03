@@ -72,7 +72,7 @@ static struct Command commands[] = {
             "Update clustering of old sequence DB to clustering of new sequence DB",
             NULL,
             "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
-            "<i:oldSequenceDB> <i:newSequenceDB> <i:oldClustResultDB> <o:newClustResultDB> <tmpDir>",
+            "<i:oldSequenceDB> <i:newSequenceDB> <i:oldClustResultDB> <o:newMappedSequenceDB> <o:newClustResultDB> <tmpDir>",
             CITATION_MMSEQS2|CITATION_MMSEQS1},
         {"createseqfiledb",      createseqfiledb,      &par.createseqfiledb,      COMMAND_CLUSTER,
             "Create DB of unaligned FASTA files (1 per cluster) from sequence DB and cluster DB",

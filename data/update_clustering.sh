@@ -66,7 +66,7 @@ NEWDB="$(abspath $2)" #"../data/targetDB"
 OLDCLUST="$(abspath $3)" #"DBclustered"
 NEWMAPDB="$(abspath $4)"
 NEWCLUST="$(abspath $5)"
-TMP="$(abspath $5)" #"tmp/"
+TMP="$(abspath $6)" #"tmp/"
 
 MMSEQS=${MMSEQS:-"mmseqs"}
 
