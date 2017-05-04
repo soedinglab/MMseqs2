@@ -167,10 +167,10 @@ float Matcher::computeCov(unsigned int startPos, unsigned int endPos, unsigned i
     return (std::min(len, endPos) - startPos + 1) / (float) len;
 }
 
-std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data) {
+std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data, bool readCompressed) {
     std::vector<Matcher::result_t> ret;
     while(*data != '\0'){
-        Matcher::result_t result = parseAlignmentRecord(data);
+        Matcher::result_t result = parseAlignmentRecord(data, readCompressed);
         ret.push_back(result);
         data = Util::skipLine(data);
     }
@@ -224,7 +224,7 @@ std::string Matcher::uncompressAlignment(std::string cbt) {
     return bt;
 }
 
-Matcher::result_t Matcher::parseAlignmentRecord(char *data) {
+Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed) {
     char * entry[255];
     size_t columns = Util::getWordsOfLine(data, entry, 255 );
     char key[255];
@@ -253,10 +253,18 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data) {
                                  dbLen, "");
     }else{
         size_t len = entry[11] - entry[10];
-        return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
-                                 alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
-                                 dbLen, uncompressAlignment(std::string(entry[10], len)));
+        if(readCompressed){
+            return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
+                                     alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
+                                     dbLen, std::string(entry[10], len));
+        }else {
+            return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
+                                     alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
+                                     dbLen, uncompressAlignment(std::string(entry[10], len)));
+        }
     }
+
+
 }
 
 std::string Matcher::resultToString(result_t &result, bool addBacktrace) {
