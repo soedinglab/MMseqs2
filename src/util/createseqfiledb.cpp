@@ -59,15 +59,11 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
         std::string entry;
         std::istringstream clusterEntries(data);
         size_t entries_num = 0;
-		while (std::getline(clusterEntries, entry)) {
+        char dbKey[255 + 1];
+        while (std::getline(clusterEntries, entry)) {
             entries_num++;
-
-            char* rest;
-            unsigned int entryId = strtoul(entry.c_str(), &rest, 10);
-            if ((rest != entry.c_str() && *rest != '\0') || errno == ERANGE) {
-                Debug(Debug::WARNING) << "Invalid entry in cluster "<< clusters.getDbKey(i) <<", line " << entries_num << "!\n";
-                continue;
-            }
+            Util::parseKey((char*)entry.c_str(), dbKey);
+            const unsigned int entryId = (unsigned int) strtoul(dbKey, NULL, 10);
 
 			char* header = headers.getDataByDBKey(entryId);
             if (header == NULL) {
