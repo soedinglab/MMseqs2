@@ -107,7 +107,8 @@ Prefiltering::Prefiltering(const std::string& queryDB,
 
     const size_t totalMemoryInByte =  Util::getTotalSystemMemory();
     size_t neededSize = estimateMemoryConsumption(1,
-                                                  tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize,
+                                                  tdbr->getSize(), tdbr->getAminoAcidDBSize(),
+                                                  maxResListLen, alphabetSize,
                                                   kmerSize == 0 ? // if auto detect kmerSize
                                                   IndexTable::computeKmerSize(tdbr->getAminoAcidDBSize()) : kmerSize,
                                                   threads);
@@ -149,7 +150,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         }
     }
     Debug(Debug::INFO) << "Use kmer size " << kmerSize << " and split " << this->split << " using split mode " << this->splitMode <<"\n";
-    neededSize = estimateMemoryConsumption((splitMode == Parameters::TARGET_DB_SPLIT) ? split : 1, tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize, kmerSize,
+    neededSize = estimateMemoryConsumption((splitMode == Parameters::TARGET_DB_SPLIT) ? split : 1, tdbr->getSize(), tdbr->getAminoAcidDBSize(), maxResListLen, alphabetSize, kmerSize,
                                                         threads);
     //Debug(Debug::INFO) << "Split target databases into " << split << " parts because of memory constraint.\n";
     Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
@@ -734,8 +735,8 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
         for (unsigned int id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
             Debug::printProgress(id - dbFrom);
-
             unsigned int qKey = dbr->getDbKey(id);
+
             if(seq->getSeqType()==Sequence::HMM_PROFILE){
                 char *seqData = dbr->getData(id);
                 s.mapSequence(id - dbFrom, qKey, seqData);
@@ -901,7 +902,9 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const int querySeqTy
     return kmerThrBest;
 }
 
-size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
+size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t resSize,
+                                               size_t maxHitsPerQuery,
+                                               int alphabetSize, int kmerSize,
                                                int threads) {
     // for each residue in the database we need 7 byte
     size_t dbSizeSplit = (dbSize) / split;
@@ -913,7 +916,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     size_t threadSize =  threads * (
                  (dbSizeSplit * 2 * sizeof(IndexEntryLocal)) // databaseHits in QueryMatcher
                + (dbSizeSplit * sizeof(CounterResult)) // databaseHits in QueryMatcher
-               + (QueryMatcher::MAX_RES_LIST_LEN * sizeof(hit_t))
+               + (maxHitsPerQuery * sizeof(hit_t))
                + (dbSizeSplit * 2 * sizeof(CounterResult) * 2) // BINS * binSize, (binSize = dbSize * 2 / BINS)
                                                                // 2 is a security factor the size can increase during run
                );
@@ -946,7 +949,7 @@ std::pair<int, int> Prefiltering::optimizeSplit(size_t totalMemoryInByte, DBRead
             if(kmerSize==externalKmerSize || externalKmerSize == 0){ // 0: set k-mer based on aa size in database
                 size_t aaUpperBoundForKmerSize = IndexTable::getUpperBoundAACountForKmerSize(kmerSize);
                 if((tdbr->getAminoAcidDBSize() / split) < aaUpperBoundForKmerSize){
-                    size_t neededSize = estimateMemoryConsumption(split, tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize,
+                    size_t neededSize = estimateMemoryConsumption(split, tdbr->getSize(), tdbr->getAminoAcidDBSize(), 0, alphabetSize,
                                                                   kmerSize, threads);
                     if(neededSize < 0.9 * totalMemoryInByte){
                         return std::make_pair(kmerSize, split);

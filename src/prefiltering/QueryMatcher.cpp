@@ -74,7 +74,7 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
     this->dbSize = dbSize;
     this->counterResultSize = std::max((size_t)1000000, dbSize);
     this->maxDbMatches = std::max((size_t)1000000, dbSize) * 2;
-    this->resList = (hit_t *) mem_align(ALIGN_INT, MAX_RES_LIST_LEN * sizeof(hit_t) );
+    this->resList = (hit_t *) mem_align(ALIGN_INT, maxHitsPerQuery * sizeof(hit_t) );
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
     memset(databaseHits, 0, sizeof(IndexEntryLocal) * maxDbMatches);
     Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryMatcher");
@@ -182,10 +182,26 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
         updateScoreBins(foundDiagonals, resultSize);
         unsigned int diagonalThr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         diagonalThr = std::max(minDiagScoreThr, diagonalThr);
-        queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, diagonalThr, lambda, true);
+        // sort to not lose highest scoring hits if > 150.000 hits are searched
+        if(resultSize < counterResultSize/2){
+            radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
+            queryResult = getResult(foundDiagonals + resultSize, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, lambda, true);
+        }else{
+            Debug(Debug::WARNING) << "Sequence " << seq->getDbKey() << " produces too many hits. Results might be truncated\n";
+            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, lambda, true);
+        }
     }else{
         unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
-        queryResult = getResult(foundDiagonals, resultSize, seq->L, identityId, thr, lambda, false);
+        if(resultSize < counterResultSize/2) {
+
+            radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
+            queryResult = getResult(foundDiagonals + resultSize, resultSize, maxHitsPerQuery, seq->L, identityId, thr,
+                                    lambda, false);
+        }else{
+            Debug(Debug::WARNING) << "Sequence " << seq->getDbKey() << " produces too many hits. Results might be truncated\n";
+            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, thr,
+                                    lambda, false);
+        }
     }
     if(queryResult.second > 1){
         if (identityId != UINT_MAX){
@@ -222,10 +238,12 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
         const int * kmer = seq->nextKmer();
         const unsigned char * pos = seq->getAAPosInSpacedPattern();
         const unsigned short current_i = seq->getCurrentPosition();
+
         float biasCorrection = 0;
         for (int i = 0; i < kmerSize; i++){
             biasCorrection += compositionBias[current_i + static_cast<short>(pos[i])];
-        }        
+        }
+        // round bias to next higher or lower value
         short bias = static_cast<short>((biasCorrection < 0.0) ? biasCorrection - 0.5: biasCorrection + 0.5);
         short kmerMatchScore = std::max(kmerThr - bias, 0);
 
@@ -338,7 +356,9 @@ void QueryMatcher::updateScoreBins(CounterResult *result, size_t elementCount) {
 }
 
 std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
-                                                    size_t resultSize, const int l,
+                                                    size_t resultSize,
+                                                    size_t maxHitPerQuery,
+                                                    const int l,
                                                     const unsigned int id,
                                                     const unsigned short thr,
                                                     const double lambda,
@@ -379,7 +399,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                 result->pScore = evalue;
             }
             elementCounter++;
-            if (elementCounter >= MAX_RES_LIST_LEN)
+            if (elementCounter >= maxHitPerQuery)
                 break;
         }
     }
@@ -448,6 +468,32 @@ size_t QueryMatcher::keepMaxScoreElementOnly(CounterResult *foundDiagonals, size
 #undef MAX_CASE
     return retSize;
 }
+
+void QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
+                                        CounterResult *writePos,
+                                        const unsigned int scoreThreshold,
+                                        const CounterResult *results,
+                                        const size_t resultSize) {
+    CounterResult * ptr[SCORE_RANGE];
+    ptr[0] = writePos+resultSize;
+    CounterResult * ptr_prev=ptr[0];
+    for(unsigned int i = 1; i < SCORE_RANGE; i++){
+        ptr[i] = ptr_prev - scoreSizes[i];
+        //std::cout << i << "\t" << scoreSizes[i] << "\t" << ptr_prev <<  "\t" << ptr[i] <<std::endl;
+        ptr_prev = ptr[i];
+    }
+    for (size_t i = 0; i < resultSize; i++) {
+        const unsigned int scoreCurr = results[i].count;
+        if(scoreCurr >= scoreThreshold) {
+            CounterResult*res = ptr[scoreCurr];
+            res->id = results[i].id;
+            res->count = results[i].count;
+            res->diagonal = results[i].diagonal;
+            ptr[scoreCurr]++;
+        }
+    }
+}
+
 #undef FOR_EACH
 #undef GET_MACRO
 #undef FE_11
