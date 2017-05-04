@@ -22,7 +22,7 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
 
     Debug(Debug::INFO) << "Opening alignment database...\n";
     alnDbr = new DBReader<unsigned int>(alnDB.c_str(), alnDBIndex.c_str());
-    alnDbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    alnDbr->open(DBReader<unsigned int>::NOSORT);
 
     Debug(Debug::INFO) << "done.\n";
 }
