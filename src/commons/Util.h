@@ -6,6 +6,7 @@
 #include <vector>
 #include <sstream>
 #include <map>
+#include <limits>
 
 #include "MMseqsMPI.h"
 #include "Sequence.h"
