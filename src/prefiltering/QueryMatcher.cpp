@@ -18,7 +18,7 @@ hit_t parsePrefilterHit(char* data)
     {
         result.seqId = Util::fast_atoi<unsigned int>(wordCnt[0]);
         result.pScore = strtod(wordCnt[1],NULL);
-        result.diagonal = Util::fast_atoi<unsigned short>(wordCnt[2]);
+        result.diagonal = static_cast<unsigned short>(Util::fast_atoi<short>(wordCnt[2]));
     } else { //error
         result.seqId = -1;
         result.pScore = -1;
