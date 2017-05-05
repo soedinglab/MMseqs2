@@ -279,6 +279,7 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);
     extractorfs.push_back(PARAM_USE_HEADER);
     extractorfs.push_back(PARAM_ID_OFFSET);
+    extractorfs.push_back(PARAM_THREADS);
 
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
