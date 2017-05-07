@@ -815,7 +815,7 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
     QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid,
                                                           1.0, kmerSize, qseq[0]->getEffectiveKmerSize(),
                                                           indexTable->getSize(), aaBiasCorrection, false, maxSeqLen,
-                                                          LONG_MAX, false);
+                                                          150000, false);
     size_t dbMatchesSum = 0;
     size_t doubleMatches = 0;
     size_t querySeqLenSum = 0;
