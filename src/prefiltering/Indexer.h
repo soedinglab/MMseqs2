@@ -70,7 +70,7 @@ public:
                 res4 += int_seq[begin+11]*this->powers[11];
                 res1 += int_seq[begin+12]*this->powers[12];
                 res2 += int_seq[begin+13]*this->powers[13];
-                lastKmerIndex = res1 + res2 + res3 + res4; + res3 + res4;
+                lastKmerIndex = res1 + res2 + res3 + res4;
                 break;
             default:
                 for(int i = begin; i < end; i++) {
