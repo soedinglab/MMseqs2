@@ -74,7 +74,7 @@ public:
                     currItPos++;
                     const int * posToRead = int_sequence + currItPos;
                     int * currWindowPos = kmerWindow;
-                                        switch(this->kmerSize){
+                    switch(this->kmerSize){
                         case 6:
                             kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
                             kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
@@ -92,14 +92,46 @@ public:
                             kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
                             kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
                             break;
+                        case 13:
+                            kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                            kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                            kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                            kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                            kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                            kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                            kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                            kmerWindow[7] = posToRead[aaPosInSpacedPattern[7]];
+                            kmerWindow[8] = posToRead[aaPosInSpacedPattern[8]];
+                            kmerWindow[9] = posToRead[aaPosInSpacedPattern[9]];
+                            kmerWindow[10] = posToRead[aaPosInSpacedPattern[10]];
+                            kmerWindow[11] = posToRead[aaPosInSpacedPattern[11]];
+                            kmerWindow[12] = posToRead[aaPosInSpacedPattern[12]];
+                            break;
+                        case 14:
+                            kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                            kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                            kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                            kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                            kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                            kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                            kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                            kmerWindow[7] = posToRead[aaPosInSpacedPattern[7]];
+                            kmerWindow[8] = posToRead[aaPosInSpacedPattern[8]];
+                            kmerWindow[9] = posToRead[aaPosInSpacedPattern[9]];
+                            kmerWindow[10] = posToRead[aaPosInSpacedPattern[10]];
+                            kmerWindow[11] = posToRead[aaPosInSpacedPattern[11]];
+                            kmerWindow[12] = posToRead[aaPosInSpacedPattern[12]];
+                            kmerWindow[13] = posToRead[aaPosInSpacedPattern[13]];
+                            break;
                         default:
-                            for(int i = 0; i < this->kmerSize; i++) {
+                            for(unsigned int i = 0; i < this->kmerSize; i++) {
                                 unsigned char pos = aaPosInSpacedPattern[i];
                                 currWindowPos[0] = posToRead[pos];
-                                currWindowPos ++;
+                                currWindowPos++;
                             }
                             break;
                     }
+
                     if(seqType == HMM_PROFILE) {
                             nextProfileKmer();
                             for(unsigned int i = 0; i < this->kmerSize; i++) {
