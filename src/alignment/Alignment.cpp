@@ -46,28 +46,21 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetSeqDB);
     if (indexDB != "") {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
-        tseqdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
-        tseqdbr->open(DBReader<unsigned int>::NOSORT);
+        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
+        tidxdbr->open(DBReader<unsigned int>::NOSORT);
 
-        templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tseqdbr);
+        templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
         if (templateDBIsIndex == true) {
             // exchange reader with old ffindex reader
-            tidxdbr = tseqdbr;
-            PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tseqdbr);
+            PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
             if (meta.split != 1) {
                 Debug(Debug::WARNING) << "Can not use split index for alignment.\n";
                 templateDBIsIndex = false;
-                tidxdbr->close();
-                delete tidxdbr;
-                tidxdbr = NULL;
             } else if (meta.maskMode == 1) {
                 Debug(Debug::WARNING) << "Can not use masked index for alignment.\n";
                 templateDBIsIndex = false;
-                tidxdbr->close();
-                delete tidxdbr;
-                tidxdbr = NULL;
             } else {
-                PrefilteringIndexReader::printSummary(tseqdbr);
+                PrefilteringIndexReader::printSummary(tidxdbr);
                 if (meta.maskMode == 0) {
                     tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, 0);
                 } else if (meta.maskMode == 2) {
@@ -79,8 +72,9 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         }
 
         if (templateDBIsIndex == false) {
-            tseqdbr->close();
-            delete tseqdbr;
+            tidxdbr->close();
+            delete tidxdbr;
+            tidxdbr = NULL;
         }
     }
 
