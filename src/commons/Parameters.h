@@ -243,6 +243,9 @@ public:
     // linearcluster
     int kmersPerSequence;
 
+    // createindex
+    bool includeHeader;
+
     // createdb
     int identifierOffset;
     bool splitSeqByLen;
@@ -441,6 +444,9 @@ public:
     PARAMETER(PARAM_ORF_EXTENDMIN)
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
+
+    // createindex
+    PARAMETER(PARAM_INCLUDE_HEADER)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs

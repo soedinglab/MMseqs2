@@ -42,10 +42,27 @@ int createindex(int argc, const char **argv, const Command &command) {
 
     int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, par.querySeqType, par.kmerScore, kmerSize);
 
-    PrefilteringIndexReader::createIndexFile(par.db1, &dbr, subMat, par.maxSeqLen,
+    DBReader<unsigned int> *hdbr = NULL;
+    if (par.includeHeader == true) {
+        std::string hdr_filename(par.db1);
+        hdr_filename.append("_h");
+
+        std::string hdr_index_filename(par.db1);
+        hdr_index_filename.append("_h.index");
+
+        hdbr = new DBReader<unsigned int>(hdr_filename.c_str(), hdr_index_filename.c_str());
+        hdbr->open(DBReader<unsigned int>::NOSORT);
+    }
+
+    PrefilteringIndexReader::createIndexFile(par.db1, &dbr, hdbr, subMat, par.maxSeqLen,
                                              par.spacedKmer, par.compBiasCorrection, split,
                                              subMat->alphabetSize, kmerSize, par.diagonalScoring,
                                              par.maskMode, par.targetSeqType, kmerThr, par.threads);
+
+    if (hdbr != NULL) {
+        hdbr->close();
+        delete hdbr;
+    }
 
     delete subMat;
     dbr.close();

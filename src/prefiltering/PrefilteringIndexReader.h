@@ -15,6 +15,7 @@ struct PrefilteringIndexData {
     int spacedKmer;
     int kmerThr;
     int seqType;
+    int headers;
 };
 
 
@@ -35,10 +36,11 @@ public:
     static unsigned int SCOREMATRIX2MER;
     static unsigned int SCOREMATRIX3MER;
     static unsigned int DBRINDEX;
+    static unsigned int HDRINDEX;
 
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
 
-    static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr,
+    static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
                                 BaseMatrix * subMat, int maxSeqLen, bool spacedKmer,
                                 bool compBiasCorrection, int split, int alphabetSize, int kmerSize,
                                 bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads);

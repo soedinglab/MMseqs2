@@ -5,13 +5,14 @@
 #include "FileUtil.h"
 #include "tantan.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION="3.3.1";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="3.3.2";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
 unsigned int PrefilteringIndexReader::SCOREMATRIX2MER = 3;
 unsigned int PrefilteringIndexReader::SCOREMATRIX3MER = 4;
 unsigned int PrefilteringIndexReader::DBRINDEX = 5;
+unsigned int PrefilteringIndexReader::HDRINDEX = 6;
 
 unsigned int PrefilteringIndexReader::ENTRIES = 91;
 unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 92;
@@ -30,7 +31,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
-void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr,
+void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
                                               BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
                                               bool compBiasCorrection, const int split, int alphabetSize, int kmerSize,
                                               bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads) {
@@ -135,7 +136,8 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     Debug(Debug::INFO) << "Write META (" << META << ")\n";
     int local = 1;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
-    int metadata[] = {kmerSize, alphabetSize, maskMode, split, local, spacedKmer, kmerThr, seqType};
+    int headers = (hdbr != NULL) ? 1 : 0;
+    int metadata[] = {kmerSize, alphabetSize, maskMode, split, local, spacedKmer, kmerThr, seqType, headers};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
 
@@ -149,6 +151,13 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     char* data = DBReader<unsigned int>::serialize(*dbr);
     writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*dbr), DBRINDEX, 0);
     free(data);
+
+    if (hdbr != NULL) {
+        Debug(Debug::INFO) << "Write HDRINDEX (" << HDRINDEX << ")\n";
+        data = DBReader<unsigned int>::serialize(*hdbr);
+        writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*hdbr), HDRINDEX, 0);
+        free(data);
+    }
 
     writer.close();
     Debug(Debug::INFO) << "Done. \n";
@@ -229,6 +238,7 @@ void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
     Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[5] << "\n";
     Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[6] << "\n";
     Debug(Debug::INFO) << "SequenceType: " << metadata_tmp[7] << "\n";
+    Debug(Debug::INFO) << "Headers:      " << metadata_tmp[8] << "\n";
 
     Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME) << "\n";
 }
@@ -246,6 +256,7 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
     prefData.spacedKmer = metadata_tmp[5];
     prefData.kmerThr = metadata_tmp[6];
     prefData.seqType = metadata_tmp[7];
+    prefData.headers = metadata_tmp[8];
 
     return prefData;
 }
