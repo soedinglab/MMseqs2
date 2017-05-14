@@ -29,45 +29,8 @@
 
 class ffindexFilter {
 public:
-	// Constructor for RegEx Filtering
-	ffindexFilter(std::string inDB,
-				  std::string outDB,
-				  int threads,
-				  size_t column,
-				  std::string regexStr,
-				  bool trimToOneColumn = false);
 
-	// Constructor for File based Filtering
-	ffindexFilter(std::string inDB,
-				  std::string outDB,
-				  std::string filterFile,
-				  int threads,
-				  size_t column,
-				  bool positiveFiltering);
 
-	// Constructor for ID mapping
-	ffindexFilter(std::string inDB,
-				  std::string outDB,
-				  std::string filterFile,
-				  int threads,
-				  size_t column);
-
-	// Constructor for extract first line
-	ffindexFilter(std::string inDB,
-				  std::string outDB,
-				  int threads,
-				  size_t column,
-                 int numberOfLines);
-                 
-	// Constructor for numeric comparison
-	ffindexFilter(std::string inDB,
-				  std::string outDB,
-				  int threads,
-				  size_t column,
-                 float compValue,
-                 std::string compOperator);
-
-    // TODO:  Should become the unique constructor
     ffindexFilter(Parameters &par); 
 	~ffindexFilter();
 	
@@ -90,6 +53,7 @@ private:
     int mode;
     float compValue;
 	std::string compOperator;
+    bool shouldAddSelfMatch;
 
     DBWriter* dbw;
 	DBReader<unsigned int>* dataDb;

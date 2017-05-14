@@ -107,7 +107,8 @@ Prefiltering::Prefiltering(const std::string& queryDB,
 
     const size_t totalMemoryInByte =  Util::getTotalSystemMemory();
     size_t neededSize = estimateMemoryConsumption(1,
-                                                  tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize,
+                                                  tdbr->getSize(), tdbr->getAminoAcidDBSize(),
+                                                  maxResListLen, alphabetSize,
                                                   kmerSize == 0 ? // if auto detect kmerSize
                                                   IndexTable::computeKmerSize(tdbr->getAminoAcidDBSize()) : kmerSize,
                                                   threads);
@@ -149,7 +150,7 @@ Prefiltering::Prefiltering(const std::string& queryDB,
         }
     }
     Debug(Debug::INFO) << "Use kmer size " << kmerSize << " and split " << this->split << " using split mode " << this->splitMode <<"\n";
-    neededSize = estimateMemoryConsumption((splitMode == Parameters::TARGET_DB_SPLIT) ? split : 1, tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize, kmerSize,
+    neededSize = estimateMemoryConsumption((splitMode == Parameters::TARGET_DB_SPLIT) ? split : 1, tdbr->getSize(), tdbr->getAminoAcidDBSize(), maxResListLen, alphabetSize, kmerSize,
                                                         threads);
     //Debug(Debug::INFO) << "Split target databases into " << split << " parts because of memory constraint.\n";
     Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte << " byte)\n";
@@ -710,6 +711,14 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
         tableEntriesNum += (size_t) indexTable->getTable(i);
     }
 
+    if(diagonalScoring == true){
+        indexTable->initMemory(tableEntriesNum, sequenceLookup, tableSize);
+    }else{
+        indexTable->initMemory(tableEntriesNum,  NULL, tableSize);
+    }
+    indexTable->init();
+    Debug(Debug::INFO) << "Index table: fill...\n";
+
 #pragma omp parallel
     {
         Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
@@ -721,47 +730,20 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
             generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
             generator->setDivideStrategy(s.profile_matrix);
         }
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-        size_t threadFrom, threadSize;
-        char **table = (indexTable->getTable());
-        Util::decomposeDomainSizet(tableEntriesNum, (size_t *) table, indexTable->getTableSize(),
-                                   thread_idx, threads, &threadFrom, &threadSize);
-//        std::stringstream stream;
-//        stream << thread_idx << "\t" << threadFrom << "\t" << threadSize;
-//        std::cout << stream.str() << std::endl;
 
-#pragma omp barrier
-        if(thread_idx == 0){
-            if(diagonalScoring == true){
-                indexTable->initMemory(tableEntriesNum, sequenceLookup, tableSize);
-            }else{
-                indexTable->initMemory(tableEntriesNum,  NULL, tableSize);
-            }
-            indexTable->init();
-            Debug(Debug::INFO) << "Index table: fill...\n";
-        }
-#pragma omp barrier
+#pragma omp for schedule(dynamic, 100)
         for (unsigned int id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
-            if(thread_idx == 0) {
-                Debug::printProgress(id - dbFrom);
-            }
-            //char *seqData = dbr->getData(id);
-            //TODO - dbFrom?!?
+            Debug::printProgress(id - dbFrom);
             unsigned int qKey = dbr->getDbKey(id);
-            //seq->mapSequence(id - dbFrom, qKey, seqData);
-//            Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
-//                                    indexTable->getAlphabetSize(), seq->aa2int['X']);
+
             if(seq->getSeqType()==Sequence::HMM_PROFILE){
                 char *seqData = dbr->getData(id);
                 s.mapSequence(id - dbFrom, qKey, seqData);
-                indexTable->addSimilarSequence(&s, generator, &idxer, threadFrom, threadSize, kmerThr, idScoreLookup);
+                indexTable->addSimilarSequence(&s, generator, &idxer, kmerThr, idScoreLookup);
             }else{
                 s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id-dbFrom));
-                indexTable->addSequence(&s, &idxer, buffer, threadFrom, threadSize, kmerThr, idScoreLookup);
+                indexTable->addSequence(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }
         }
         if(generator) delete generator;
@@ -833,7 +815,7 @@ statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTab
     QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid,
                                                           1.0, kmerSize, qseq[0]->getEffectiveKmerSize(),
                                                           indexTable->getSize(), aaBiasCorrection, false, maxSeqLen,
-                                                          LONG_MAX, false);
+                                                          150000, false);
     size_t dbMatchesSum = 0;
     size_t doubleMatches = 0;
     size_t querySeqLenSum = 0;
@@ -920,7 +902,9 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const int querySeqTy
     return kmerThrBest;
 }
 
-size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
+size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t resSize,
+                                               size_t maxHitsPerQuery,
+                                               int alphabetSize, int kmerSize,
                                                int threads) {
     // for each residue in the database we need 7 byte
     size_t dbSizeSplit = (dbSize) / split;
@@ -932,7 +916,7 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     size_t threadSize =  threads * (
                  (dbSizeSplit * 2 * sizeof(IndexEntryLocal)) // databaseHits in QueryMatcher
                + (dbSizeSplit * sizeof(CounterResult)) // databaseHits in QueryMatcher
-               + (QueryMatcher::MAX_RES_LIST_LEN * sizeof(hit_t))
+               + (maxHitsPerQuery * sizeof(hit_t))
                + (dbSizeSplit * 2 * sizeof(CounterResult) * 2) // BINS * binSize, (binSize = dbSize * 2 / BINS)
                                                                // 2 is a security factor the size can increase during run
                );
@@ -965,7 +949,7 @@ std::pair<int, int> Prefiltering::optimizeSplit(size_t totalMemoryInByte, DBRead
             if(kmerSize==externalKmerSize || externalKmerSize == 0){ // 0: set k-mer based on aa size in database
                 size_t aaUpperBoundForKmerSize = IndexTable::getUpperBoundAACountForKmerSize(kmerSize);
                 if((tdbr->getAminoAcidDBSize() / split) < aaUpperBoundForKmerSize){
-                    size_t neededSize = estimateMemoryConsumption(split, tdbr->getSize(), tdbr->getAminoAcidDBSize(), alphabetSize,
+                    size_t neededSize = estimateMemoryConsumption(split, tdbr->getSize(), tdbr->getAminoAcidDBSize(), 0, alphabetSize,
                                                                   kmerSize, threads);
                     if(neededSize < 0.9 * totalMemoryInByte){
                         return std::make_pair(kmerSize, split);
@@ -986,3 +970,4 @@ std::vector<hit_t> Prefiltering::readPrefilterResults(char *data) {
     }
     return ret;
 }
+

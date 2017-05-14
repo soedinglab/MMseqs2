@@ -6,6 +6,7 @@
 #include <vector>
 #include <sstream>
 #include <map>
+#include <limits>
 
 #include "MMseqsMPI.h"
 #include "Sequence.h"
@@ -57,10 +58,17 @@ public:
     static inline T fast_atoi( const char * str )
     {
         T val = 0;
+        int sign=1;
+        if(std::numeric_limits<T>::is_signed == true){
+            if(*str == '-') {
+                sign = -1;
+                str++;
+            }
+        }
         while (*str >= '0' && *str <= '9') {
             val = val*10 + (*str++ - '0');
         }
-        return val;
+        return sign * val;
     }
 
     static bool isNumber(const std::string& s)

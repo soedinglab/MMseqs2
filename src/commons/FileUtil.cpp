@@ -59,6 +59,10 @@ void FileUtil::deleteTempFiles(std::list<std::string> tmpFiles) {
 
 void FileUtil::writeFile(std::string pathToFile, unsigned char *data, size_t len) {
     int file = open(pathToFile.c_str(), O_RDWR|O_CREAT, 0700);
+    if(file == -1){
+        Debug(Debug::ERROR) << "Can not open " << pathToFile << "\n";
+        EXIT(EXIT_FAILURE);
+    }
     write(file, data, len);
     close(file);
 }

@@ -22,7 +22,10 @@ int linclust(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setLinclustWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, 3);
-
+    if(FileUtil::directoryExists(par.db3.c_str())==false){
+        Debug(Debug::ERROR) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
+        EXIT(EXIT_FAILURE);
+    }
     bool targetCov = false;
     bool cov = false;
     for (size_t i = 0; i < par.linclustworkflow.size(); i++) {

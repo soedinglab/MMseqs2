@@ -91,13 +91,20 @@ int convertalignments(int argc, const char **argv, const Command& command) {
         }
 
         std::string queryId = Util::parseFastaHeader(header);
-        std::vector<Matcher::result_t> results = Matcher::readAlignmentResults(data);
+        std::vector<Matcher::result_t> results = Matcher::readAlignmentResults(data, true);
         for(size_t j = 0; j < results.size(); j++){
             Matcher::result_t res = results[j];
             char *headerLine = db_header.getDataByDBKey(res.dbKey);
             std::string targetId = Util::parseFastaHeader(headerLine);
-            unsigned int missMatchCount = (unsigned int)(res.seqId * std::min(res.qLen, res.dbLen));
+            unsigned int missMatchCount = static_cast<unsigned int>((1.0f-res.seqId) * res.alnLength);
             unsigned int gapOpenCount = 0;
+
+            if(res.backtrace.size() > 0){
+                for(size_t pos = 0; pos < res.backtrace.size(); pos++){
+                    gapOpenCount += (res.backtrace[pos]=='I'||res.backtrace[pos]=='D') ;
+                }
+            }
+
             if(par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_BLAST_TAB){
                 fprintf(fastaFP, "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
                         queryId.c_str(), targetId.c_str(),  res.seqId, res.alnLength, missMatchCount, gapOpenCount,

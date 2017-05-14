@@ -56,7 +56,9 @@ public:
     static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, int threads);
 
     // estimates memory consumption while runtime
-    static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize,
+    static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize,
+                                            size_t maxHitsPerQuery,
+                                            int alphabetSize, int kmerSize,
                                             int threads);
 
     size_t getSplitMode(){
