@@ -645,16 +645,21 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         }
 #endif
     }
-    statistics_t stats(kmersPerPos / totalQueryDBSize, dbMatches / totalQueryDBSize, doubleMatches / totalQueryDBSize,
-                       querySeqLenSum, diagonalOverflow, resSize / totalQueryDBSize);
-    size_t empty = 0;
-    for (size_t id = 0; id < querySize; id++) {
-        if (notEmpty[id] == 0) {
-            empty++;
-        }
-    }
 
     if (Debug::debugLevel >= 3) {
+        statistics_t stats(kmersPerPos / totalQueryDBSize,
+                           dbMatches / totalQueryDBSize,
+                           doubleMatches / totalQueryDBSize,
+                           querySeqLenSum, diagonalOverflow,
+                           resSize / totalQueryDBSize);
+
+        size_t empty = 0;
+        for (size_t id = 0; id < querySize; id++) {
+            if (notEmpty[id] == 0) {
+                empty++;
+            }
+        }
+
         printStatistics(stats, reslens, localThreads, empty, maxResults);
     }
 
