@@ -67,7 +67,6 @@ public:
               indexer(new Indexer(alphabetSize, kmerSize)), entries(NULL), offsets(NULL), sequenceLookup(NULL) {
         if (externalData == false) {
             offsets = new(std::nothrow) size_t[tableSize + 1];
-            mmap(NULL, sizeof(size_t) * (tableSize + 1), PROT_READ, MAP_ANONYMOUS, -1, 0);
             memset(offsets, 0, (tableSize + 1) * sizeof(size_t));
             Util::checkAllocation(offsets, "Could not allocate entries memory in IndexTable::initMemory");
         }
