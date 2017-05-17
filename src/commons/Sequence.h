@@ -3,10 +3,10 @@
 #define READ_BUFFER_SIZE 20971520
 
 // Written by Martin Steinegger & Maria Hauser mhauser@genzentrum.lmu.de, Martin Steinegger martin.steinegger@mpibpc.mpg.de
-// 
+//
 // Represents a database sequence object, holds its representation in the int array form.
 //
-
+#include "Debug.h"
 #include <cstdint>
 #include <cstddef>
 #include <utility>
@@ -49,125 +49,203 @@ const int8_t seed_17_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 
 class Sequence
 {
-    public:
-        Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType,
-                 const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection);
-        ~Sequence();
+public:
+    Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType,
+             const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection);
+    ~Sequence();
 
-        // Map char -> int
-        void mapSequence(size_t id, unsigned int dbKey, const char *seq);
+    // Map char -> int
+    void mapSequence(size_t id, unsigned int dbKey, const char *seq);
 
-        // map sequence from SequenceLookup
-        void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
+    // map sequence from SequenceLookup
+    void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
 
-        // map profile HMM, *data points to start position of Profile
-        void mapProfile(const char *data);
+    // map profile HMM, *data points to start position of Profile
+    void mapProfile(const char *data);
 
-        // checks if there is still a k-mer left
-        bool hasNextKmer();
+    // checks if there is still a k-mer left
+    bool hasNextKmer() {
+            return (((currItPos + 1) + this->spacedPatternSize) <= this->L);
+    }
 
-        // returns next k-mer
-        const int* nextKmer();
+    // returns next k-mer
+    inline const int * nextKmer() {
+            if (hasNextKmer()) {
+                    currItPos++;
+                    const int * posToRead = int_sequence + currItPos;
+                    int * currWindowPos = kmerWindow;
+                    switch(this->kmerSize){
+                        case 6:
+                            kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                            kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                            kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                            kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                            kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                            kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                            break;
+                        case 7:
+                            kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                            kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                            kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                            kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                            kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                            kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                            kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                            break;
+                        case 13:
+                            kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                            kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                            kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                            kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                            kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                            kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                            kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                            kmerWindow[7] = posToRead[aaPosInSpacedPattern[7]];
+                            kmerWindow[8] = posToRead[aaPosInSpacedPattern[8]];
+                            kmerWindow[9] = posToRead[aaPosInSpacedPattern[9]];
+                            kmerWindow[10] = posToRead[aaPosInSpacedPattern[10]];
+                            kmerWindow[11] = posToRead[aaPosInSpacedPattern[11]];
+                            kmerWindow[12] = posToRead[aaPosInSpacedPattern[12]];
+                            break;
+                        case 14:
+                            kmerWindow[0] = posToRead[aaPosInSpacedPattern[0]];
+                            kmerWindow[1] = posToRead[aaPosInSpacedPattern[1]];
+                            kmerWindow[2] = posToRead[aaPosInSpacedPattern[2]];
+                            kmerWindow[3] = posToRead[aaPosInSpacedPattern[3]];
+                            kmerWindow[4] = posToRead[aaPosInSpacedPattern[4]];
+                            kmerWindow[5] = posToRead[aaPosInSpacedPattern[5]];
+                            kmerWindow[6] = posToRead[aaPosInSpacedPattern[6]];
+                            kmerWindow[7] = posToRead[aaPosInSpacedPattern[7]];
+                            kmerWindow[8] = posToRead[aaPosInSpacedPattern[8]];
+                            kmerWindow[9] = posToRead[aaPosInSpacedPattern[9]];
+                            kmerWindow[10] = posToRead[aaPosInSpacedPattern[10]];
+                            kmerWindow[11] = posToRead[aaPosInSpacedPattern[11]];
+                            kmerWindow[12] = posToRead[aaPosInSpacedPattern[12]];
+                            kmerWindow[13] = posToRead[aaPosInSpacedPattern[13]];
+                            break;
+                        default:
+                            for(unsigned int i = 0; i < this->kmerSize; i++) {
+                                unsigned char pos = aaPosInSpacedPattern[i];
+                                currWindowPos[0] = posToRead[pos];
+                                currWindowPos++;
+                            }
+                            break;
+                    }
 
-        // resets the sequence position pointer to the start of the sequence
-        void resetCurrPos() { currItPos = -1; }
+                    if(seqType == HMM_PROFILE) {
+                            nextProfileKmer();
+                            for(unsigned int i = 0; i < this->kmerSize; i++) {
+                                    kmerWindow[i] = 0;
+                            }
+                            return kmerWindow;
+                    }
 
-        void print(); // for debugging
 
-        int getId() { return id; }
-    
-        int getCurrentPosition() { return currItPos; }
+                    return (const int *) kmerWindow;
+            }
+            return 0;
+    }
 
-        unsigned int getDbKey() { return dbKey; }
-    
-        int getSeqType() { return seqType; }
+    // resets the sequence position pointer to the start of the sequence
+    void resetCurrPos() { currItPos = -1; }
 
-        size_t getMaxLen(){ return maxLen; }
-        unsigned int getKmerSize(){ return kmerSize; }
-        bool isSpaced(){ return spaced; }
+    void print(); // for debugging
 
-        // reverse the sequence for the match statistics calculation
-        void reverse();
+    int getId() { return id; }
 
-        static const int AMINO_ACIDS = 0;
-        static const int NUCLEOTIDES = 1;
-        static const int HMM_PROFILE = 2;
-    
-        // length of sequence
-        int L;
+    int getCurrentPosition() { return currItPos; }
 
-        // each amino acid coded as integer
-        int * int_sequence;  
+    unsigned int getDbKey() { return dbKey; }
 
-        // Contains profile information
-        short           * profile_score;
-        unsigned int    * profile_index;
-        size_t profile_row_size; // (PROFILE_AA_SIZE / SIMD_SIZE) + 1 * SIMD_SIZE
+    int getSeqType() { return seqType; }
 
-        static const size_t PROFILE_AA_SIZE = 20;
-        ScoreMatrix ** profile_matrix;
-        // Memory layout of this profile is qL * AA
-        //   Query lenght
-        // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
-        // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
-        // ...
-        // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+    size_t getMaxLen(){ return maxLen; }
+    unsigned int getKmerSize(){ return kmerSize; }
+    bool isSpaced(){ return spaced; }
 
-        int8_t * profile_for_alignment;
-    
-        int  * aa2int; // ref to mapping from aa -> int
-        char * int2aa; // ref mapping from int -> aa
+    // reverse the sequence for the match statistics calculation
+    void reverse();
 
-        std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
+    static const int AMINO_ACIDS = 0;
+    static const int NUCLEOTIDES = 1;
+    static const int HMM_PROFILE = 2;
 
-        const int *getKmerPositons();
+    // length of sequence
+    int L;
 
-        void printProfile();
+    // each amino acid coded as integer
+    int * int_sequence;
 
-        int8_t const * getAlignmentProfile()const;
+    // Contains profile information
+    short           * profile_score;
+    unsigned int    * profile_index;
+    size_t profile_row_size; // (PROFILE_AA_SIZE / SIMD_SIZE) + 1 * SIMD_SIZE
 
-        int getSequenceType()const;
+    static const size_t PROFILE_AA_SIZE = 20;
+    ScoreMatrix ** profile_matrix;
+    // Memory layout of this profile is qL * AA
+    //   Query lenght
+    // A  -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
+    // C  -1  -4   2   5  -3  -2   0  -3   1  -3  -2   0  -1   2   0   0  -1  -3  -4  -2
+    // ...
+    // Y -1  -3  -2  -1  -4  -2  -2  -3  -1  -3  -2  -2   7  -1  -2  -1  -1  -2  -5  -3
 
-        unsigned int getEffectiveKmerSize();
+    int8_t * profile_for_alignment;
+
+    int  * aa2int; // ref to mapping from aa -> int
+    char * int2aa; // ref mapping from int -> aa
+
+    std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
+
+    const unsigned char *getAAPosInSpacedPattern() {     return aaPosInSpacedPattern;  }
+
+    void printProfile();
+
+    int8_t const * getAlignmentProfile()const;
+
+    int getSequenceType()const;
+
+    unsigned int getEffectiveKmerSize();
 
 
 private:
-        void mapProteinSequence(const char *seq);
-        void mapNucleotideSequence(const char *seq);
-        size_t id;
-        unsigned int dbKey;
+    void mapProteinSequence(const char *seq);
+    void mapNucleotideSequence(const char *seq);
+    size_t id;
+    unsigned int dbKey;
 
-        // current iterator position
-        int currItPos;
+    // current iterator position
+    int currItPos;
 
-        // AMINO_ACIDS or NUCLEOTIDES
-        int seqType;
+    // AMINO_ACIDS or NUCLEOTIDES
+    int seqType;
 
-        // maximum possible length of sequence
-        size_t maxLen;
+    // maximum possible length of sequence
+    size_t maxLen;
 
-        // read next kmer profile in profile_matrix
-        void nextProfileKmer();
+    // read next kmer profile in profile_matrix
+    void nextProfileKmer();
 
-        // size of Pattern
-        int spacedPatternSize;
+    // size of Pattern
+    int spacedPatternSize;
 
-        // contains spaced pattern e.g. 1 1 1 1 0 1 0 1 0 1
-        const char * spacedPattern;
+    // contains spaced pattern e.g. 1 1 1 1 0 1 0 1 0 1
+    const char * spacedPattern;
 
-        // kmer Size
-        unsigned int kmerSize;
+    // kmer Size
+    unsigned int kmerSize;
 
-        // sequence window will be filled by newxtKmer (needed for spaced patterns)
-        int * kmerWindow;
+    // sequence window will be filled by newxtKmer (needed for spaced patterns)
+    int * kmerWindow;
 
-        // contains sequence positions for current kmer
-        int *kmerPos;
+    // stores position of residues in sequence
+    unsigned char *aaPosInSpacedPattern;
 
-        // bias correction in profiles
-        bool aaBiasCorrection;
+    // bias correction in profiles
+    bool aaBiasCorrection;
 
-        // spaced pattern
-        bool spaced;
+    // spaced pattern
+    bool spaced;
 };
 #endif
+

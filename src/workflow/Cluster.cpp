@@ -39,7 +39,10 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, 3);
-
+    if(FileUtil::directoryExists(par.db3.c_str())==false){
+        Debug(Debug::ERROR) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
+        EXIT(EXIT_FAILURE);
+    }
     bool parameterSet = false;
     bool compositionBiasSet = false;
     bool minDiagonalScore = false;

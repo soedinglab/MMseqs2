@@ -25,18 +25,7 @@ Indexer::~Indexer(){
     delete[] workspace;
 }
 
-size_t Indexer::int2index( const int *int_seq,const int begin,const int end){
-    this->lastKmerIndex = 0;
-    for(int i = begin; i < end; i++) {
-        this->lastKmerIndex += int_seq[i]*this->powers[i-begin];
-    }
-    return this->lastKmerIndex;
-}
 
-size_t Indexer::int2index( const int *int_seq){
-    int2index(int_seq, 0, this->maxKmerSize);
-    return this->lastKmerIndex;
-}
 
 
 void Indexer::reset(){

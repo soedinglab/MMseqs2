@@ -12,7 +12,10 @@
 int search(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, true, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
-
+    if(FileUtil::directoryExists(par.db4.c_str())==false){
+        Debug(Debug::ERROR) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
+        EXIT(EXIT_FAILURE);
+    }
     CommandCaller cmd;
 
     if(par.removeTmpFiles) {

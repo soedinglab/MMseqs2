@@ -40,7 +40,7 @@ PARAM_SPACED_KMER_MODE(PARAM_SPACED_KMER_MODE_ID,"--spaced-kmer-mode", "Spaced K
 PARAM_REMOVE_TMP_FILES(PARAM_REMOVE_TMP_FILES_ID, "--remove-tmp-files", "Remove Temporary Files" , "Delete temporary files", typeid(bool), (void *) &removeTmpFiles, ""),
 PARAM_CLUSTER_FRAGMENTS(PARAM_CLUSTER_FRAGMENTS_ID, "--cluster-fragments", "Cluster fragments" , "Cluster sequence fragments with target coverage > 0.95 and sequence identity > 0.9", typeid(bool), (void *) &clusterFragments, ""),
 
-PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add alignments of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN),
+PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add entries of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN),
 PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER),
 PARAM_NO_PRELOAD(PARAM_NO_PRELOAD_ID, "--no-preload", "No preload", "Do not preload database", typeid(bool), (void*) &noPreload, "", MMseqsParameter::COMMAND_MISC),
 PARAM_EARLY_EXIT(PARAM_EARLY_EXIT_ID, "--early-exit", "Early exit", "Exit immediately after writing the result", typeid(bool), (void*) &earlyExit, "", MMseqsParameter::COMMAND_MISC),
@@ -66,7 +66,7 @@ PARAM_V(PARAM_V_ID,"-v", "Verbosity","verbosity level: 0=nothing, 1: +errors, 2:
 // create profile (HMM, PSSM)
 PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "0: HMM (HHsuite) 1: PSSM or 3: HMMER3",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
 // convertalignments
-PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format BLAST TAB=0, PAIRWISE=1, or SAM=2 ", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
+PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format BLAST TAB=0, PAIRWISE=1", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
 PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database Output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, ""),
 // rescorediagonal
 PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "rescore diagonal by: 0 hamming distance, 1 local alignment (score only) or 2 local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
@@ -297,6 +297,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     extractorfs.push_back(PARAM_ORF_FORWARD_FRAMES);
     extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);
     extractorfs.push_back(PARAM_ID_OFFSET);
+    extractorfs.push_back(PARAM_THREADS);
 
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
@@ -391,6 +392,8 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     filterDb.push_back(PARAM_COMP_OPERATOR);
     filterDb.push_back(PARAM_COMP_VALUE);
     filterDb.push_back(PARAM_SORT_ENTRIES);
+    filterDb.push_back(PARAM_INCLUDE_IDENTITY);
+    
 
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);

@@ -22,11 +22,24 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
     this->spacedPatternSize = spacedKmerInformation.second;
     this->kmerSize = kmerSize;
     this->kmerWindow = NULL;
-    this->kmerPos = NULL;
+    this->aaPosInSpacedPattern = NULL;
     if(spacedPatternSize){
        this->kmerWindow = new int[kmerSize];
-       this->kmerPos = new int[kmerSize];
+       this->aaPosInSpacedPattern = new unsigned char[kmerSize];
+        if(spacedPattern == NULL ) {
+            Debug(Debug::ERROR) << "Sequence does not have a kmerSize (kmerSize= " << spacedPatternSize << ") to use nextKmer.\n";
+            Debug(Debug::ERROR) << "Please report this bug to the developer\n";
+            EXIT(EXIT_FAILURE);
+        }
+        size_t pos = 0;
+        for(int i = 0; i < this->spacedPatternSize; i++) {
+            if(spacedPattern[i]){
+                aaPosInSpacedPattern[pos] = i;
+                pos++;
+            }
+        }
     }
+
     // init memory for profile search
     if (seqType == HMM_PROFILE) {
         // setup memory for profiles
@@ -54,8 +67,8 @@ Sequence::~Sequence()
     if(kmerWindow) {
         delete[] kmerWindow;
     }
-    if(kmerPos){
-        delete [] kmerPos;
+    if(aaPosInSpacedPattern){
+        delete [] aaPosInSpacedPattern;
     }
     if (seqType == HMM_PROFILE) {
         for (size_t i = 0; i < kmerSize; i++) {
@@ -428,49 +441,6 @@ void Sequence::print() {
     std::cout << std::endl;
 }
 
-bool Sequence::hasNextKmer() {
-    return (((currItPos + 1) + this->spacedPatternSize) <= this->L);
-}
-
-
-const int * Sequence::nextKmer() {
-    if(spacedPattern == NULL ) {
-        Debug(Debug::ERROR) << "Sequence does not have a kmerSize (kmerSize= " << spacedPatternSize << ") to use nextKmer.\n";
-        Debug(Debug::ERROR) << "Please report this bug to the developer\n";
-        EXIT(EXIT_FAILURE);
-    }
-    if (hasNextKmer()) {
-        currItPos++;
-        const int * posToRead = int_sequence + currItPos;
-        int * currWindowPos = kmerWindow;
-        int * currKmerPositons = kmerPos;
-
-        for(int i = 0; i < this->spacedPatternSize; i++) {
-            if(spacedPattern[i]) {
-                currWindowPos[0] = posToRead[i];
-                currKmerPositons[0] = currItPos + i;
-                currKmerPositons++;
-                currWindowPos++;
-            }
-        }
-        if(seqType == HMM_PROFILE) {
-            nextProfileKmer();
-            for(unsigned int i = 0; i < this->kmerSize; i++) {
-                kmerWindow[i] = 0;
-            }
-            return kmerWindow;
-        }
-
-
-        return (const int *) kmerWindow;
-    }
-    return 0;
-}
-
-const int * Sequence::getKmerPositons(){
-    return kmerPos;
-}
-
 int8_t const * Sequence::getAlignmentProfile()const {
     return profile_for_alignment;
 }
@@ -482,3 +452,4 @@ int Sequence::getSequenceType() const {
 unsigned int Sequence::getEffectiveKmerSize() {
     return spacedPatternSize;
 }
+

@@ -322,7 +322,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
     double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
     const double **probMatrixPointers = new const double*[subMat->alphabetSize];
     char hardMaskTable[256];
-    std::fill_n(hardMaskTable, 256, subMat->aa2int['X']);
+    std::fill_n(hardMaskTable, 256, subMat->aa2int[(int) 'X']);
     for (int i = 0; i < subMat->alphabetSize; ++i){
         probMatrixPointers[i] = probMatrix[i];
         for (int j = 0; j < subMat->alphabetSize; ++j){
@@ -399,10 +399,10 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 //                maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
 //                                                          indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X'], true, true, true, true);
                 }
+                aaCount += s.L;
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }
             sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
-            aaCount += s.L;
         }
 
         delete [] charSequence;
@@ -444,6 +444,14 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         tableEntriesNum += (size_t) indexTable->getOffset(i);
     }
 
+    if (diagonalScoring == true) {
+        indexTable->initMemory(tableEntriesNum, sequenceLookup, tableSize);
+    } else {
+        indexTable->initMemory(tableEntriesNum, NULL, tableSize);
+    }
+    indexTable->init();
+    Debug(Debug::INFO) << "Index table: fill...\n";
+
 #pragma omp parallel
     {
         Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
@@ -467,23 +475,11 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                                          thread_idx, threads, &threadFrom, &threadSize);
 
 //        Debug(Debug::WARNING) << thread_idx << "\t" << threadFrom << "\t" << threadSize << "\n";
-
-#pragma omp barrier
-        if (thread_idx == 0) {
-            if (diagonalScoring == true) {
-                indexTable->initMemory(tableEntriesNum, sequenceLookup, tableSize);
-            } else {
-                indexTable->initMemory(tableEntriesNum, NULL, tableSize);
-            }
-            indexTable->init();
-            Debug(Debug::INFO) << "Index table: fill...\n";
-        }
-#pragma omp barrier
+        #pragma omp for schedule(dynamic, 100)
         for (size_t id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
-            if (thread_idx == 0) {
-                Debug::printProgress(id - dbFrom);
-            }
+            Debug::printProgress(id - dbFrom);
+
             //char *seqData = dbr->getData(id);
             //TODO - dbFrom?!?
             unsigned int qKey = dbr->getDbKey(id);
@@ -492,10 +488,10 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             if (seq->getSeqType() == Sequence::HMM_PROFILE) {
                 char *seqData = dbr->getData(id);
                 s.mapSequence(id - dbFrom, qKey, seqData);
-                indexTable->addSimilarSequence(&s, generator, &idxer, threadFrom, threadSize, kmerThr, idScoreLookup);
+                indexTable->addSimilarSequence(&s, generator, &idxer, kmerThr, idScoreLookup);
             } else {
                 s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
-                indexTable->addSequence(&s, &idxer, buffer, threadFrom, threadSize, kmerThr, idScoreLookup);
+                indexTable->addSequence(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }
         }
         delete [] buffer;

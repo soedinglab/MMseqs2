@@ -15,7 +15,6 @@ Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                                                                threads(threads),
                                                                outDB(outDB),
                                                                outDBIndex(outDBIndex) {
-
     Debug(Debug::INFO) << "Init...\n";
     Debug(Debug::INFO) << "Opening sequence database...\n";
     seqDbr = new DBReader<unsigned int>(seqDB.c_str(), seqDBIndex.c_str(), DBReader<unsigned int>::USE_INDEX);

@@ -117,7 +117,6 @@ public:
         return first_term + mid_term - logScoreFactorial;
     }
 
-    const static size_t MAX_RES_LIST_LEN = 150000;
 protected:
 
     // keeps stats for run
@@ -208,6 +207,7 @@ protected:
     // extract result from databaseHits
     std::pair<hit_t *, size_t> getResult(CounterResult * results,
                                          size_t resultSize,
+                                         size_t maxHitPerQuery,
                                          const int l, const unsigned int id,
                                          const unsigned short thr,
                                          const double lambda,
@@ -231,6 +231,9 @@ protected:
 
     size_t keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize);
 
+    void radixSortByScoreSize(const unsigned int *scoreSizes,
+                              CounterResult *writePos, const unsigned int scoreThreshold,
+                              const CounterResult *results, const size_t resultSize);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H

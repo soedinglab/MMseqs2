@@ -44,7 +44,7 @@ public:
     static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool ignoreX);
 
     static void setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const int threads,
-                           const bool templateDBIsIndex, int *kmerSize, int *split, int *splitMode);
+                           const bool templateDBIsIndex, const size_t maxResListLen, int *kmerSize, int *split, int *splitMode);
 
     static int getKmerThreshold(const float sensitivity, const int querySeqType,
                                 const int kmerScore, const int kmerSize);
@@ -98,7 +98,10 @@ private:
     static std::pair<int, int> optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr, int alphabetSize, int kmerSize, unsigned int threads);
 
     // estimates memory consumption while runtime
-    static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize, int alphabetSize, int kmerSize, unsigned int threads);
+    static size_t estimateMemoryConsumption(int split, size_t dbSize, size_t resSize,
+                                            size_t maxHitsPerQuery,
+                                            int alphabetSize, int kmerSize,
+                                            int threads);
 
     ScoreMatrix *getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize);
 
