@@ -310,7 +310,7 @@ public:
         for(size_t pos = 0; pos < buffer.size(); pos++){
             unsigned int kmerIdx = buffer[pos].kmer;
             if(kmerIdx != prevKmer){
-                size_t offset = __sync_fetch_and_add(offsets[kmerIdx], 1);
+                size_t offset = __sync_fetch_and_add(&(offsets[kmerIdx]), 1);
                 IndexEntryLocal *entry = &entries[offset];
                 entry->seqId      = buffer[pos].seqId;
                 entry->position_j = buffer[pos].position_j;
@@ -358,7 +358,7 @@ public:
         for(size_t pos = 0; pos < kmerPos; pos++){
             unsigned int kmerIdx = buffer[pos].kmer;
             if(kmerIdx != prevKmer){
-                size_t offset = __sync_fetch_and_add(offsets[kmerIdx], 1);
+                size_t offset = __sync_fetch_and_add(&(offsets[kmerIdx]), 1);
                 IndexEntryLocal *entry = &entries[offset];
                 entry->seqId      = buffer[pos].seqId;
                 entry->position_j = buffer[pos].position_j;

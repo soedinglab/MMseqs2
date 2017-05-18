@@ -27,7 +27,7 @@ int createindex(int argc, const char **argv, const Command &command) {
     int split = par.split;
     int splitMode = Parameters::TARGET_DB_SPLIT;
 
-    Prefiltering::setupSplit(dbr, subMat->alphabetSize, par.threads, false, &kmerSize, &split, &splitMode);
+    Prefiltering::setupSplit(dbr, subMat->alphabetSize, par.threads, false, par.maxResListLen, &kmerSize, &split, &splitMode);
 
     bool kScoreSet = false;
     for (size_t i = 0; i < par.createindex.size(); i++) {

@@ -307,6 +307,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     createindex.push_back(PARAM_SUB_MAT);
     createindex.push_back(PARAM_K);
     createindex.push_back(PARAM_ALPH_SIZE);
+    createindex.push_back(PARAM_MAX_SEQS);
     createindex.push_back(PARAM_MAX_SEQ_LEN);
     createindex.push_back(PARAM_MASK_RESIDUES);
     createindex.push_back(PARAM_SPLIT);
