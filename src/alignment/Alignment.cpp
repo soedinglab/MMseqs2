@@ -124,13 +124,15 @@ void Alignment::initSWMode(int alignmentMode) {
                 swMode = Matcher::SCORE_COV; // fast
             } else if((covThr > 0.0 || targetCovThr > 0.0) && seqIdThr > 0.0) { // if seq id is needed
                 swMode = Matcher::SCORE_COV_SEQID; // slowest
+            } else {
+                swMode = Matcher::SCORE_ONLY;
             }
             break;
         case Parameters::ALIGNMENT_MODE_SCORE_COV:
             swMode = Matcher::SCORE_COV; // fast
             break;
         case Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID:
-            swMode = Matcher::SCORE_COV_SEQID; // fast
+            swMode = Matcher::SCORE_COV_SEQID; // slowest
             break;
         default:
             swMode = Matcher::SCORE_ONLY;
