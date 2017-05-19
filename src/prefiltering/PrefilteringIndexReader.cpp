@@ -457,7 +457,6 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
                    seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
         Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
-        unsigned int thread_idx = 0;
         IndexEntryLocalTmp * buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
 
         KmerGenerator *generator = NULL;
@@ -466,25 +465,12 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             generator->setDivideStrategy(s.profile_matrix);
         }
 
-#ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
-#endif
-        size_t threadFrom, threadSize;
-        size_t *offsets = indexTable->getOffsets();
-        Util::decomposeDomainByAminoAcid(tableEntriesNum, offsets, indexTable->getTableSize() + 1,
-                                         thread_idx, threads, &threadFrom, &threadSize);
-
-//        Debug(Debug::WARNING) << thread_idx << "\t" << threadFrom << "\t" << threadSize << "\n";
         #pragma omp for schedule(dynamic, 100)
         for (size_t id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
             Debug::printProgress(id - dbFrom);
 
-            //char *seqData = dbr->getData(id);
-            //TODO - dbFrom?!?
             unsigned int qKey = dbr->getDbKey(id);
-//            Util::maskLowComplexity(subMat, seq, seq->L, 12, 3,
-//                                    indexTable->getAlphabetSize(), seq->aa2int['X']);
             if (seq->getSeqType() == Sequence::HMM_PROFILE) {
                 char *seqData = dbr->getData(id);
                 s.mapSequence(id - dbFrom, qKey, seqData);

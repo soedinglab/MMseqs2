@@ -68,7 +68,7 @@ public:
         if (externalData == false) {
             offsets = new(std::nothrow) size_t[tableSize + 1];
             memset(offsets, 0, (tableSize + 1) * sizeof(size_t));
-            Util::checkAllocation(offsets, "Could not allocate entries memory in IndexTable::initMemory");
+            Util::checkAllocation(offsets, "Could not allocate entries memory in IndexTable");
         }
     }
 
@@ -329,10 +329,6 @@ public:
         size_t kmerPos = 0;
         while (s->hasNextKmer()){
             const int * kmer = s->nextKmer();
-            unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
-            // if region got masked do not add kmer
-            if (offsets[kmerIdx + 1] - offsets[kmerIdx] == 0)
-                continue;
 
             if(threshold > 0) {
                 int score = 0;
@@ -343,6 +339,10 @@ public:
                     continue;
                 }
             }
+            unsigned int kmerIdx = idxer->int2index(kmer, 0, kmerSize);
+            // if region got masked do not add kmer
+            if (offsets[kmerIdx + 1] - offsets[kmerIdx] == 0)
+                continue;
 
             buffer[kmerPos].kmer = kmerIdx;
             buffer[kmerPos].seqId      = s->getId();
