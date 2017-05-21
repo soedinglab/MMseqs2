@@ -91,14 +91,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         }
     }
     double * kmnByLen = new double[par.maxSeqLen];
-    BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(), 11, 1, false);
-    const double lambdaLog2 =  stats.lambda / log(2.0);
-    const double logK = log( stats.K);
-    const double logKLog2 = logK / log(2.0);
-    for(int len = 0; len < par.maxSeqLen; len++){
-        kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
-                                                    tdbr->getAminoAcidDBSize(), tdbr->getSize());
-    }
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
     DistanceCalculator globalAliStat;
     if (par.globalAlignment)
     {
@@ -202,8 +195,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                         if (par.globalAlignment)
                             seqId = globalAliStat.getPvalGlobalAli((float)distance,diagonalLen);
                         else{
-                            evalue = BlastScoreUtils::computeEvalue(distance, kmnByLen[queryLen], stats.lambda);
-                            int bitScore =(short) (BlastScoreUtils::computeBitScore(distance, lambdaLog2, logKLog2)+0.5);
+                            evalue = evaluer.computeEvalue(distance, queryLen);
+                            int bitScore =static_cast<short>(evaluer.computeBitScore(distance)+0.5);
 
                             if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
                                 int alnLen = alignment.endPos - alignment.startPos;

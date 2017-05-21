@@ -296,8 +296,8 @@ void Prefiltering::mergeOutput(const std::string& outDB, const std::string& outD
 }
 
 QueryMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
-                                                         unsigned int *seqLens, short kmerThr,
-                                                         double kmerMatchProb, int kmerSize,
+                                                         EvalueComputation &evaluer, unsigned int *seqLens,
+                                                         short kmerThr, double kmerMatchProb, int kmerSize,
                                                          size_t effectiveKmerSize, size_t dbSize,
                                                          bool aaBiasCorrection, bool diagonalScoring,
                                                          unsigned int maxSeqLen, size_t maxHitsPerQuery,
@@ -310,7 +310,7 @@ QueryMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTab
         thread_idx = omp_get_thread_num();
 #endif
 
-        matchers[thread_idx] = new QueryMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+        matchers[thread_idx] = new QueryMatcher(m, indexTable, evaluer, seqLens, kmerThr, kmerMatchProb,
                                                 kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
                                                 maxHitsPerQuery, aaBiasCorrection, diagonalScoring,
                                                 minDiagScoreThr, takeOnlyBestKmer);
@@ -376,7 +376,8 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable,
+    EvalueComputation evaluer(indexTable->getTableEntriesNum(), subMat, 0, 0, false);
+    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, evaluer,
                                                           tdbr->getSeqLens() + dbFrom, // offset for split mode
                                                           kmerThr, kmerMatchProb, kmerSize,
                                                           qseq[0]->getEffectiveKmerSize(), dbSize,
@@ -812,7 +813,8 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
 statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,
                                                             unsigned int *querySeqsIds, bool reverseQuery, size_t kmerThrMid) {
     // determine k-mer match probability for kmerThrMid
-    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid,
+    EvalueComputation evaluer(indexTable->getTableEntriesNum(), subMat, 0, 0, false);
+    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, evaluer, tdbr->getSeqLens(), kmerThrMid,
                                                           1.0, kmerSize, qseq[0]->getEffectiveKmerSize(),
                                                           indexTable->getSize(), aaBiasCorrection, false, maxSeqLen,
                                                           150000, false);

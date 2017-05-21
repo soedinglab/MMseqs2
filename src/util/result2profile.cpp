@@ -170,10 +170,10 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             break;
     }
     Debug(Debug::INFO) << ".\n";
-
+    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 #pragma omp parallel
     {
-        Matcher matcher(maxSequenceLength, &subMat, tDbr->getAminoAcidDBSize(), tDbr->getSize(),
+        Matcher matcher(maxSequenceLength, &subMat, &evalueComputation,
                         par.compBiasCorrection);
 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);

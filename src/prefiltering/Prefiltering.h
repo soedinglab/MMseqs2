@@ -132,7 +132,7 @@ private:
                              bool diagonalScoring, size_t resultOffsetPos);
 
     // init QueryTemplateMatcher
-    QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
+    QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputation &evaluer,
                                               unsigned int *seqLens, short kmerThr,
                                               double kmerMatchProb, int kmerSize,
                                               size_t effectiveKmerSize, size_t dbSize,

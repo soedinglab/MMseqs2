@@ -9,8 +9,6 @@
 #include "SubstitutionMatrix.h"
 #include "Matcher.h"
 #include "Parameters.h"
-#include "BlastScoreUtils.h"
-
 
 class Alignment {
 
@@ -55,6 +53,9 @@ private:
     double evalThr;
 
     BaseMatrix* m;
+
+    // evaluer
+    EvalueComputation * evaluer;
 
     // 2 Sequence objects for each thread: one for the query, one for the DB sequence
     Sequence** qSeqs;

@@ -1,5 +1,4 @@
 #include "Alignment.h"
-#include "BlastScoreUtils.h"
 #include "Util.h"
 #include "Debug.h"
 
@@ -108,9 +107,10 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
     this->outDBIndex = outDBIndex;
 
     matchers = new Matcher*[threads];
+    evaluer = new EvalueComputation(tseqdbr->getAminoAcidDBSize(), this->m, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++) {
-        matchers[i] = new Matcher(par.maxSeqLen, this->m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize(),
+        matchers[i] = new Matcher(par.maxSeqLen, this->m, evaluer,
                                   par.compBiasCorrection);
     }
     if(this->realign == true){
@@ -118,8 +118,8 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
         this->realigner = new Matcher*[threads];
 # pragma omp parallel for schedule(static)
         for (int i = 0; i < threads; i++) {
-            realigner[i] = new Matcher(par.maxSeqLen, this->realign_m, tseqdbr->getAminoAcidDBSize(),
-                                       tseqdbr->getSize(), par.compBiasCorrection);
+            realigner[i] = new Matcher(par.maxSeqLen, this->realign_m,
+            evaluer, par.compBiasCorrection);
         }
     }
     dbKeys = new unsigned int[threads];
@@ -138,6 +138,7 @@ Alignment::~Alignment(){
         delete dbSeqs[i];
         delete matchers[i];
     }
+    delete evaluer;
     delete[] qSeqs;
     delete[] dbSeqs;
     delete[] matchers;
