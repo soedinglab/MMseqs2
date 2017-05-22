@@ -379,7 +379,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                     (*unmaskedLookup)->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
                 }
 
-                if (maskMode == 1) {
+                if (maskMode >= 1) {
                     for (int i = 0; i < s.L; i++) {
                         charSequence[i] = (char) s.int_sequence[i];
                     }
@@ -450,6 +450,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         indexTable->initMemory(tableEntriesNum, NULL, tableSize);
     }
     indexTable->init();
+
     Debug(Debug::INFO) << "Index table: fill...\n";
 
 #pragma omp parallel
