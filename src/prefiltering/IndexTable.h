@@ -14,7 +14,6 @@
 #include <sys/mman.h>
 #include <new>
 
-#include "omptl/omptl_algorithm"
 #include "DBReader.h"
 #include "Sequence.h"
 #include "Indexer.h"
@@ -23,10 +22,6 @@
 #include "SequenceLookup.h"
 #include "MathUtil.h"
 #include "KmerGenerator.h"
-
-#ifdef OPENMP
-#include <omp.h>
-#endif
 
 // IndexEntryLocal is an entry with position and seqId for a kmer
 // structure needs to be packed or it will need 8 bytes instead of 6
