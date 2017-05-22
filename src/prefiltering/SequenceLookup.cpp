@@ -35,7 +35,6 @@ void SequenceLookup::addSequence(Sequence *seq, size_t index, size_t offset){
         unsigned char aa = seq->int_sequence[pos];
         data[offset + pos] = aa;
     }
-    data[offset + seq->L] = 0;
 }
 
 void SequenceLookup::addSequence(Sequence *seq) {
