@@ -34,12 +34,7 @@ DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t s
 
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
-    size_t pageSize = Util::getPageSize();
-    size_t bytes = 0;
-    for(size_t i = 0; i < dataSize; i+=pageSize){
-        bytes += data[i];
-    }
-    magicBytes = bytes;
+    magicBytes = Util::touchMemory(data, dataSize);
 }
 
 template <typename T>
@@ -291,6 +286,13 @@ template <typename T> char* DBReader<T>::getData(size_t id){
     }else{
         return data + index[id].offset;
     }
+}
+
+template <typename T>
+void DBReader<T>::touchData(size_t id) {
+    char *data = getData(id);
+    size_t size = getSeqLens(id);
+    magicBytes = Util::touchMemory(data, size);
 }
 
 template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey) {

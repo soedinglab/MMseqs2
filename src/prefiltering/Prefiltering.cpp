@@ -35,7 +35,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         aaBiasCorrection(par.compBiasCorrection != 0),
         covThr(par.covThr), includeIdentical(par.includeIdentity),
         earlyExit(par.earlyExit),
-        noPreload(par.noPreload),
+        preload(par.noPreload == false),
         threads(static_cast<unsigned int>(par.threads)) {
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
@@ -56,7 +56,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         if (templateDBIsIndex == true) {
             // exchange reader with old ffindex reader
             tidxdbr = tdbr;
-            tdbr = PrefilteringIndexReader::openNewReader(tdbr);
+            tdbr = PrefilteringIndexReader::openNewReader(tdbr, preload);
             PrefilteringIndexReader::printSummary(tidxdbr);
             PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
             kmerSize = data.kmerSize;
@@ -90,12 +90,12 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
 
-        templateDBIsIndex = false;
-    }
+        if (preload) {
+            tdbr->readMmapedDataInMemory();
+            tdbr->mlock();
+        }
 
-    if (noPreload == false) {
-        tdbr->readMmapedDataInMemory();
-        tdbr->mlock();
+        templateDBIsIndex = false;
     }
 
     takeOnlyBestKmer = targetSeqType == Sequence::HMM_PROFILE
@@ -183,12 +183,12 @@ void Prefiltering::reopenTargetDb() {
     tdbr = new DBReader<unsigned int>(targetDB.c_str(), targetDBIndex.c_str());
     tdbr->open(DBReader<unsigned int>::NOSORT);
 
-    templateDBIsIndex = false;
-
-    if (noPreload == false) {
+    if (preload) {
         tdbr->readMmapedDataInMemory();
         tdbr->mlock();
     }
+
+    templateDBIsIndex = false;
 }
 
 void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const int threads,
@@ -316,9 +316,9 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
     if (templateDBIsIndex == true) {
         switch(kmerSize) {
             case 2:
-                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr);
+                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr, preload);
             case 3:
-                return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr);
+                return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr, preload);
             default:
                 Debug(Debug::ERROR) << "Invalid k-mer score matrix!\n";
                 EXIT(EXIT_FAILURE);
@@ -330,7 +330,7 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
 
 IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads) {
     if (templateDBIsIndex == true) {
-        return PrefilteringIndexReader::generateIndexTable(tidxdbr, split, diagonalScoring);
+        return PrefilteringIndexReader::generateIndexTable(tidxdbr, split, diagonalScoring, preload);
     } else {
         struct timeval start, end;
         gettimeofday(&start, NULL);

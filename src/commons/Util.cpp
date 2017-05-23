@@ -310,12 +310,22 @@ size_t Util::getTotalSystemMemory()
 {
     // check for real physical memory
     long pages = getTotalMemoryPages();
-    long page_size = sysconf(_SC_PAGE_SIZE);
+    long page_size = getPageSize();
     uint64_t sysMemory = pages * page_size;
     // check for ulimit
 //    struct rlimit limit;
 //    getrlimit(RLIMIT_MEMLOCK, &limit);
     return sysMemory;
+}
+
+char Util::touchMemory(char *memory, size_t size) {
+    size_t pageSize = getPageSize();
+    char bytes = 0;
+    for(size_t i = 0; i < size; i+=pageSize){
+        bytes ^= memory[i];
+    }
+
+    return bytes;
 }
 
 

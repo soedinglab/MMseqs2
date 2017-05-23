@@ -40,6 +40,8 @@ public:
 
     char* getData(size_t id);
 
+    void touchData(size_t id);
+
     char* getDataByDBKey(T key);
 
     size_t getSize();
@@ -172,8 +174,9 @@ private:
     bool externalData;
 
     bool didMlock;
+
     // needed to prevent the compiler from optimizing away the loop
-    size_t magicBytes;
+    char magicBytes;
 };
 
 #endif

@@ -163,18 +163,37 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     Debug(Debug::INFO) << "Done. \n";
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr) {
-    char * data = dbr->getDataByDBKey(DBRINDEX);
+DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, bool preload) {
+    size_t id = dbr->getId(DBRINDEX);
+    char *data = dbr->getData(id);
+    if (preload) {
+        dbr->touchData(id);
+    }
     return DBReader<unsigned int>::unserialize(data);
 }
 
-SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int>*dbr, int split) {
-    size_t sequenceCount    = *((size_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQCOUNT, split)));
+SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int>*dbr, int split, bool preload) {
+    unsigned int key = MathUtil::concatenate(SEQINDEXDATA, split);
+    size_t id;
+    if ((id = dbr->getId(key)) == UINT_MAX) {
+        return NULL;
+    }
 
-    char * seqData = dbr->getDataByDBKey(MathUtil::concatenate(SEQINDEXDATA, split));
+    char * seqData = dbr->getData(id);
+
     size_t seqOffsetsId = dbr->getId(MathUtil::concatenate(SEQINDEXSEQOFFSET, split));
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
     size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
+
+    size_t sequenceCountId = MathUtil::concatenate(SEQCOUNT, split);
+    size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
+
+    if (preload) {
+        dbr->touchData(id);
+        dbr->touchData(seqOffsetsId);
+        dbr->touchData(sequenceCountId);
+    }
+
 
     SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
     sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
@@ -182,7 +201,7 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
     return sequenceLookup;
 }
 
-SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsigned int>*dbr, int split) {
+SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsigned int>*dbr, int split, bool preload) {
     unsigned int key = MathUtil::concatenate(UNMASKEDSEQINDEXDATA, split);
     size_t id;
     if ((id = dbr->getId(key)) == UINT_MAX) {
@@ -191,17 +210,25 @@ SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsi
 
     char * seqData = dbr->getData(id);
     size_t seqOffsetsId = dbr->getId(MathUtil::concatenate(SEQINDEXSEQOFFSET, split));
+
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
     size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
 
-    size_t sequenceCount = *((size_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQCOUNT, split)));
+    size_t sequenceCountId = MathUtil::concatenate(SEQCOUNT, split);
+    size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
+
+    if (preload) {
+        dbr->touchData(id);
+        dbr->touchData(seqOffsetsId);
+        dbr->touchData(sequenceCountId);
+    }
     SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
     sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
 
     return sequenceLookup;
 }
 
-IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *dbr, int split, bool diagonalScoring) {
+IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *dbr, int split, bool diagonalScoring, bool preload) {
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
     if (data.local) {
@@ -213,14 +240,27 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
 
     SequenceLookup * sequenceLookup = NULL;
     if(diagonalScoring == true) {
-        sequenceLookup = getSequenceLookup(dbr, split);
+        sequenceLookup = getSequenceLookup(dbr, split, preload);
     }
 
-    int64_t entriesNum = *((int64_t *)dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESNUM, split)));
-    size_t sequenceCount = *((size_t *)dbr->getDataByDBKey(MathUtil::concatenate(SEQCOUNT, split)));
+    size_t entriesNumId = MathUtil::concatenate(ENTRIESNUM, split);
+    int64_t entriesNum = *((int64_t *)dbr->getData(entriesNumId));
+    size_t sequenceCountId = MathUtil::concatenate(SEQCOUNT, split);
+    size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
 
-    char *entriesData = dbr->getDataByDBKey(MathUtil::concatenate(ENTRIES, split));
-    char *entriesOffsetsData = dbr->getDataByDBKey(MathUtil::concatenate(ENTRIESOFFSETS, split));
+    size_t entriesDataId = MathUtil::concatenate(ENTRIES, split);
+    char *entriesData = dbr->getData(entriesDataId);
+
+    size_t entriesOffsetsDataId = MathUtil::concatenate(ENTRIESOFFSETS, split);
+    char *entriesOffsetsData = dbr->getData(entriesOffsetsDataId);
+
+    if (preload) {
+        dbr->touchData(entriesNumId);
+        dbr->touchData(sequenceCountId);
+        dbr->touchData(entriesDataId);
+        dbr->touchData(entriesOffsetsDataId);
+    }
+
     retTable->initTableByExternalData(sequenceCount, entriesNum,
                                       (IndexEntryLocal*) entriesData, (size_t *)entriesOffsetsData, sequenceLookup);
     return retTable;
@@ -265,14 +305,24 @@ std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned
     return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME));
 }
 //
-ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr) {
+ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool preload) {
     PrefilteringIndexData meta = getMetadata(dbr);
-    return ScoreMatrix::unserialize(dbr->getDataByDBKey(SCOREMATRIX2MER), meta.alphabetSize, 2);
+    size_t id = dbr->getId(SCOREMATRIX2MER);
+    char *data = dbr->getData(id);
+    if (preload) {
+        dbr->touchData(id);
+    }
+    return ScoreMatrix::unserialize(data, meta.alphabetSize, 2);
 }
 
-ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr) {
+ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool preload) {
     PrefilteringIndexData meta = getMetadata(dbr);
-    return ScoreMatrix::unserialize(dbr->getDataByDBKey(SCOREMATRIX3MER), meta.alphabetSize, 3);
+    size_t id = dbr->getId(SCOREMATRIX3MER);
+    char *data = dbr->getData(id);
+    if (preload) {
+        dbr->touchData(id);
+    }
+    return ScoreMatrix::unserialize(data, meta.alphabetSize, 3);
 }
 
 std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB) {

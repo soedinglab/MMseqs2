@@ -27,6 +27,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
 
+    bool preload = par.noPreload == false;
     int alignmentMode = par.alignmentMode;
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
@@ -62,11 +63,11 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
             } else {
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 if (meta.maskMode == 0) {
-                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, 0);
+                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, 0, preload);
                 } else if (meta.maskMode == 2) {
-                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, 0);
+                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, 0, preload);
                 }
-                tseqdbr = PrefilteringIndexReader::openNewReader(tidxdbr);
+                tseqdbr = PrefilteringIndexReader::openNewReader(tidxdbr, preload);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }
@@ -81,11 +82,10 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (templateDBIsIndex == false) {
         tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
         tseqdbr->open(DBReader<unsigned int>::NOSORT);
-    }
-
-    if (par.noPreload == false) {
-        tseqdbr->readMmapedDataInMemory();
-        tseqdbr->mlock();
+        if (preload) {
+            tseqdbr->readMmapedDataInMemory();
+            tseqdbr->mlock();
+        }
     }
 
     sameQTDB = (targetSeqDB.compare(querySeqDB) == 0);
