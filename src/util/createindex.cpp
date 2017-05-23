@@ -4,6 +4,9 @@
 #include "Prefiltering.h"
 #include "Parameters.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 void setCreateIndexDefaults(Parameters *p) {
     p->sensitivity = 5;

@@ -14,6 +14,10 @@
 #include <vector>
 #include <sys/time.h>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
 float parsePrecisionLib(std::string scoreFile, double targetSeqid, double targetCov, double targetPrecision){
     std::stringstream in(scoreFile);
     std::string line;
