@@ -185,7 +185,7 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
     size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
 
-    size_t sequenceCountId = MathUtil::concatenate(SEQCOUNT, split);
+    size_t sequenceCountId = dbr->getId(MathUtil::concatenate(SEQCOUNT, split));
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
 
     if (preload) {
@@ -214,7 +214,7 @@ SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsi
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
     size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
 
-    size_t sequenceCountId = MathUtil::concatenate(SEQCOUNT, split);
+    size_t sequenceCountId = dbr->getId(MathUtil::concatenate(SEQCOUNT, split));
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
 
     if (preload) {
@@ -243,15 +243,15 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
         sequenceLookup = getSequenceLookup(dbr, split, preload);
     }
 
-    size_t entriesNumId = MathUtil::concatenate(ENTRIESNUM, split);
+    size_t entriesNumId = dbr->getId(MathUtil::concatenate(ENTRIESNUM, split));
     int64_t entriesNum = *((int64_t *)dbr->getData(entriesNumId));
-    size_t sequenceCountId = MathUtil::concatenate(SEQCOUNT, split);
+    size_t sequenceCountId = dbr->getId(MathUtil::concatenate(SEQCOUNT, split));
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
 
-    size_t entriesDataId = MathUtil::concatenate(ENTRIES, split);
+    size_t entriesDataId = dbr->getId(MathUtil::concatenate(ENTRIES, split));
     char *entriesData = dbr->getData(entriesDataId);
 
-    size_t entriesOffsetsDataId = MathUtil::concatenate(ENTRIESOFFSETS, split);
+    size_t entriesOffsetsDataId = dbr->getId(MathUtil::concatenate(ENTRIESOFFSETS, split));
     char *entriesOffsetsData = dbr->getData(entriesOffsetsDataId);
 
     if (preload) {
