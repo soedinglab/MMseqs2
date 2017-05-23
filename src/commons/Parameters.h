@@ -552,6 +552,7 @@ public:
     std::vector<MMseqsParameter> extractdomains;
     std::vector<MMseqsParameter> extractalignedregion;
     std::vector<MMseqsParameter> convertkb;
+    std::vector<MMseqsParameter> tsv2db;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);

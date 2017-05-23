@@ -190,7 +190,7 @@ static struct Command commands[] = {
             "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:statsDB>",
             CITATION_MMSEQS2},
-        {"tsv2db",               tsv2db,              &par.onlyverbosity,        COMMAND_DB,
+        {"tsv2db",               tsv2db,               &par.tsv2db,               COMMAND_DB,
             "Turns a tsv into a mmseqs database",
             NULL,
             "Milot Mirdita <milot@mirdita.de>",

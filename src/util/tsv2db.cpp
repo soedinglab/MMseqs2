@@ -13,7 +13,7 @@ int tsv2db(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str());
     writer.open();
 
-    std::ifstream  tsv(par.db1);
+    std::ifstream tsv(par.db1);
     if (tsv.fail()) {
         Debug(Debug::ERROR) << "File " << par.db1 << " not found!\n";
         EXIT(EXIT_FAILURE);
@@ -27,10 +27,16 @@ int tsv2db(int argc, const char **argv, const Command& command) {
     while(std::getline(tsv, line)) {
         char* current = (char*) line.c_str();
         Util::parseKey(current, keyData);
-        std::string key(keyData);
+        const std::string key(keyData);
 
         if (key != lastKey && skippedFirst == true) {
-            std::string result = ss.str();
+            if (par.includeIdentity) {
+                const std::string temp = ss.str();
+                ss.seekp(0);
+                ss << lastKey << "\n";
+                ss << temp;
+            }
+            const std::string result = ss.str();
             unsigned int keyId = strtoull(lastKey.c_str(), NULL, 10);
             writer.writeData(result.c_str(), result.length(), keyId);
             ss.str("");
@@ -43,18 +49,22 @@ int tsv2db(int argc, const char **argv, const Command& command) {
         char *restEnd = restStart;
         restEnd = Util::seekToNextEntry(restEnd) - 1;
 
-        std::string rest(restStart, restEnd - restStart);
+        const std::string rest(restStart, restEnd - restStart);
 
         skippedFirst = true;
         ss << rest << "\n";
         lastKey = key;
     }
 
-    std::string result = ss.str();
-    if (result != "") {
-        unsigned int keyId = strtoull(lastKey.c_str(), NULL, 10);
-        writer.writeData(result.c_str(), result.length(), keyId);
+    if (par.includeIdentity) {
+        const std::string temp = ss.str();
+        ss.seekp(0);
+        ss << lastKey << "\n";
+        ss << temp;
     }
+    const std::string result = ss.str();
+    unsigned int keyId = strtoull(lastKey.c_str(), NULL, 10);
+    writer.writeData(result.c_str(), result.length(), keyId);
 
     writer.close();
 

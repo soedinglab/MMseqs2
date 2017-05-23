@@ -486,6 +486,10 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
 
+    // convertkb
+    tsv2db.push_back(PARAM_INCLUDE_IDENTITY);
+    tsv2db.push_back(PARAM_V);
+
     //checkSaneEnvironment();
     setDefaults();
 }
