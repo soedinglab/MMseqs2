@@ -69,6 +69,7 @@ public:
     static const int USE_INDEX    = 0;
     static const int USE_DATA     = 1;
     static const int USE_WRITABLE = 2;
+    static const int USE_MMAP     = 4;
 
     const char * getData(){
         return data;

@@ -50,13 +50,18 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetDB);
     if (indexDB != "") {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
-        tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
+
+        int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
+        if (preload == false) {
+            dataMode |= DBReader<unsigned int>::USE_MMAP;
+        }
+        tdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), dataMode);
         tdbr->open(DBReader<unsigned int>::NOSORT);
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tdbr);
         if (templateDBIsIndex == true) {
             // exchange reader with old ffindex reader
             tidxdbr = tdbr;
-            tdbr = PrefilteringIndexReader::openNewReader(tdbr, preload);
+            tdbr = PrefilteringIndexReader::openNewReader(tdbr);
             PrefilteringIndexReader::printSummary(tidxdbr);
             PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(tidxdbr);
             kmerSize = data.kmerSize;
@@ -75,7 +80,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                 maskMode = 1;
             }
 
-            splits = data.split;
+            splits = 1;
+
             spacedKmer = data.spacedKmer != 0;
 
             minKmerThr = data.kmerThr;
@@ -316,9 +322,9 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
     if (templateDBIsIndex == true) {
         switch(kmerSize) {
             case 2:
-                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr, preload);
+                return PrefilteringIndexReader::get2MerScoreMatrix(tidxdbr);
             case 3:
-                return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr, preload);
+                return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr);
             default:
                 Debug(Debug::ERROR) << "Invalid k-mer score matrix!\n";
                 EXIT(EXIT_FAILURE);
@@ -330,7 +336,7 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
 
 IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads) {
     if (templateDBIsIndex == true) {
-        return PrefilteringIndexReader::generateIndexTable(tidxdbr, split, diagonalScoring, preload);
+        return PrefilteringIndexReader::generateIndexTable(tidxdbr, diagonalScoring);
     } else {
         struct timeval start, end;
         gettimeofday(&start, NULL);

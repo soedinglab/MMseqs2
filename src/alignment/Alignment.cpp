@@ -47,27 +47,28 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetSeqDB);
     if (indexDB != "") {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
-        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
+
+        int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
+        if (preload == false) {
+            dataMode |= DBReader<unsigned int>::USE_MMAP;
+        }
+        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), dataMode);
         tidxdbr->open(DBReader<unsigned int>::NOSORT);
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
         if (templateDBIsIndex == true) {
-            // exchange reader with old ffindex reader
             PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
-            if (meta.split != 1) {
-                Debug(Debug::WARNING) << "Can not use split index for alignment.\n";
-                templateDBIsIndex = false;
-            } else if (meta.maskMode == 1) {
-                Debug(Debug::WARNING) << "Can not use masked index for alignment.\n";
+            if (meta.maskMode == 1) {
+                Debug(Debug::WARNING) << "Cannot use masked index for alignment.\n";
                 templateDBIsIndex = false;
             } else {
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 if (meta.maskMode == 0) {
-                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, 0, preload);
+                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr);
                 } else if (meta.maskMode == 2) {
-                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, 0, preload);
+                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr);
                 }
-                tseqdbr = PrefilteringIndexReader::openNewReader(tidxdbr, preload);
+                tseqdbr = PrefilteringIndexReader::openNewReader(tidxdbr);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }

@@ -27,7 +27,7 @@ int createindex(int argc, const char **argv, const Command &command) {
     BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
 
     int kmerSize = par.kmerSize;
-    int split = par.split;
+    int split = 1;
     int splitMode = Parameters::TARGET_DB_SPLIT;
 
     Prefiltering::setupSplit(dbr, subMat->alphabetSize, par.threads, false, par.maxResListLen, &kmerSize, &split, &splitMode);
@@ -58,7 +58,7 @@ int createindex(int argc, const char **argv, const Command &command) {
     }
 
     PrefilteringIndexReader::createIndexFile(par.db1, &dbr, hdbr, subMat, par.maxSeqLen,
-                                             par.spacedKmer, par.compBiasCorrection, split,
+                                             par.spacedKmer, par.compBiasCorrection,
                                              subMat->alphabetSize, kmerSize, par.diagonalScoring,
                                              par.maskMode, par.targetSeqType, kmerThr, par.threads);
 

@@ -5,7 +5,7 @@
 #include "FileUtil.h"
 #include "tantan.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION="3.3.2";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="4.0.0";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -14,14 +14,14 @@ unsigned int PrefilteringIndexReader::SCOREMATRIX3MER = 4;
 unsigned int PrefilteringIndexReader::DBRINDEX = 5;
 unsigned int PrefilteringIndexReader::HDRINDEX = 6;
 
-unsigned int PrefilteringIndexReader::ENTRIES = 91;
-unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 92;
-unsigned int PrefilteringIndexReader::ENTRIESNUM = 93;
-unsigned int PrefilteringIndexReader::SEQCOUNT = 94;
-unsigned int PrefilteringIndexReader::SEQINDEXDATA = 95;
-unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 96;
-unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 97;
-unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 98;
+unsigned int PrefilteringIndexReader::ENTRIES = 7;
+unsigned int PrefilteringIndexReader::ENTRIESOFFSETS = 8;
+unsigned int PrefilteringIndexReader::ENTRIESNUM = 9;
+unsigned int PrefilteringIndexReader::SEQCOUNT = 10;
+unsigned int PrefilteringIndexReader::SEQINDEXDATA = 11;
+unsigned int PrefilteringIndexReader::SEQINDEXDATASIZE = 12;
+unsigned int PrefilteringIndexReader::SEQINDEXSEQOFFSET = 13;
+unsigned int PrefilteringIndexReader::UNMASKEDSEQINDEXDATA = 14;
 
 bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     char * version = reader->getDataByDBKey(VERSION);
@@ -33,7 +33,7 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
 
 void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
                                               BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
-                                              bool compBiasCorrection, const int split, int alphabetSize, int kmerSize,
+                                              bool compBiasCorrection, int alphabetSize, int kmerSize,
                                               bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads) {
     std::string outIndexName(outDB); // db.sk6
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
@@ -62,82 +62,68 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
 
     Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType, kmerSize, hasSpacedKmer, compBiasCorrection);
 
-    for (int step = 0; step < split; step++) {
-        size_t splitStart = 0;
-        size_t splitSize  = 0;
-        Util::decomposeDomainByAminoAcid(dbr->getAminoAcidDBSize(), dbr->getSeqLens(), dbr->getSize(),
-                                         step, split, &splitStart, &splitSize);
-        IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
+    IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
 
-        SequenceLookup *unmaskedLookup = NULL;
-        PrefilteringIndexReader::fillDatabase(dbr, &seq, indexTable, subMat,
-                                              splitStart, splitStart + splitSize, diagonalScoring,
-                                              maskMode, &unmaskedLookup, kmerThr, threads);
+    SequenceLookup *unmaskedLookup = NULL;
+    PrefilteringIndexReader::fillDatabase(dbr, &seq, indexTable, subMat,
+                                          0, dbr->getSize(), diagonalScoring,
+                                          maskMode, &unmaskedLookup, kmerThr, threads);
 
-        indexTable->printStatistics(subMat->int2aa);
+    indexTable->printStatistics(subMat->int2aa);
 
+    // save the entries
+    Debug(Debug::INFO) << "Write ENTRIES (" << ENTRIES << ")\n";
+    char *entries = (char *) indexTable->getEntries();
+    size_t entriesSize = indexTable->getTableEntriesNum() * indexTable->getSizeOfEntry();
+    writer.writeData(entries, entriesSize, ENTRIES, 0);
 
-        // save the entries
-        unsigned int entries_key = MathUtil::concatenate(ENTRIES, step);
-        Debug(Debug::INFO) << "Write ENTRIES (" << entries_key << ")\n";
-        char *entries = (char *) indexTable->getEntries();
-        size_t entriesSize = indexTable->getTableEntriesNum() * indexTable->getSizeOfEntry();
-        writer.writeData(entries, entriesSize, entries_key, 0);
+    // save the size
+    Debug(Debug::INFO) << "Write ENTRIESOFFSETS (" << ENTRIESOFFSETS << ")\n";
 
-        // save the size
-        unsigned int entriesoffsets_key = MathUtil::concatenate(ENTRIESOFFSETS, step);
-        Debug(Debug::INFO) << "Write ENTRIESOFFSETS (" << entriesoffsets_key << ")\n";
+    char *offsets = (char*)indexTable->getOffsets();
+    size_t offsetsSize = (indexTable->getTableSize() + 1) * sizeof(size_t);
+    writer.writeData(offsets, offsetsSize, ENTRIESOFFSETS, 0);
+    indexTable->deleteEntries();
 
-        char *offsets = (char*)indexTable->getOffsets();
-        size_t offsetsSize = (indexTable->getTableSize() + 1) * sizeof(size_t);
-        writer.writeData(offsets, offsetsSize, entriesoffsets_key, 0);
-        indexTable->deleteEntries();
+    SequenceLookup *lookup = indexTable->getSequenceLookup();
+    Debug(Debug::INFO) << "Write SEQINDEXDATA (" << SEQINDEXDATA << ")\n";
+    writer.writeData(lookup->getData(), lookup->getDataSize(), SEQINDEXDATA, 0);
 
-        SequenceLookup *lookup = indexTable->getSequenceLookup();
-        unsigned int seqindexdata_key = MathUtil::concatenate(SEQINDEXDATA, step);
-        Debug(Debug::INFO) << "Write SEQINDEXDATA (" << seqindexdata_key << ")\n";
-        writer.writeData(lookup->getData(), lookup->getDataSize(), seqindexdata_key, 0);
-
-        if (unmaskedLookup != NULL) {
-            unsigned int unmaskedSeqindexdata_key = MathUtil::concatenate(UNMASKEDSEQINDEXDATA, step);
-            Debug(Debug::INFO) << "Write UNMASKEDSEQINDEXDATA (" << unmaskedSeqindexdata_key << ")\n";
-            writer.writeData(unmaskedLookup->getData(), unmaskedLookup->getDataSize(), unmaskedSeqindexdata_key, 0);
-            delete unmaskedLookup;
-        }
-
-        unsigned int seqindex_datasize_key = MathUtil::concatenate(SEQINDEXDATASIZE, step);
-        Debug(Debug::INFO) << "Write SEQINDEXDATASIZE (" << seqindex_datasize_key << ")\n";
-        int64_t seqindexDataSize = lookup->getDataSize();
-        char *seqindexDataSizePtr = (char *) &seqindexDataSize;
-        writer.writeData(seqindexDataSizePtr, 1 * sizeof(int64_t), seqindex_datasize_key, 0);
-
-        size_t *sequenceOffsets = lookup->getOffsets();
-        size_t sequenceCount = lookup->getSequenceCount();
-        unsigned int seqindex_seqoffset = MathUtil::concatenate(SEQINDEXSEQOFFSET, step);
-        Debug(Debug::INFO) << "Write SEQINDEXSEQOFFSET (" << seqindex_seqoffset << ")\n";
-        writer.writeData((char *) sequenceOffsets, (sequenceCount + 1) * sizeof(size_t), seqindex_seqoffset, 0);
-
-        // meta data
-        // ENTRIESNUM
-        unsigned int entriesnum_key = MathUtil::concatenate(ENTRIESNUM, step);
-        Debug(Debug::INFO) << "Write ENTRIESNUM (" << entriesnum_key << ")\n";
-        uint64_t entriesNum = indexTable->getTableEntriesNum();
-        char *entriesNumPtr = (char *) &entriesNum;
-        writer.writeData(entriesNumPtr, 1 * sizeof(uint64_t), entriesnum_key, 0);
-        // SEQCOUNT
-        unsigned int tablesize_key = MathUtil::concatenate(SEQCOUNT, step);
-        Debug(Debug::INFO) << "Write SEQCOUNT (" << tablesize_key << ")\n";
-        size_t tablesize = {indexTable->getSize()};
-        char *tablesizePtr = (char *) &tablesize;
-        writer.writeData(tablesizePtr, 1 * sizeof(size_t), tablesize_key, 0);
-
-        delete indexTable;
+    if (unmaskedLookup != NULL) {
+        Debug(Debug::INFO) << "Write UNMASKEDSEQINDEXDATA (" << UNMASKEDSEQINDEXDATA << ")\n";
+        writer.writeData(unmaskedLookup->getData(), unmaskedLookup->getDataSize(), UNMASKEDSEQINDEXDATA, 0);
+        delete unmaskedLookup;
     }
+
+    Debug(Debug::INFO) << "Write SEQINDEXDATASIZE (" << SEQINDEXDATASIZE << ")\n";
+    int64_t seqindexDataSize = lookup->getDataSize();
+    char *seqindexDataSizePtr = (char *) &seqindexDataSize;
+    writer.writeData(seqindexDataSizePtr, 1 * sizeof(int64_t), SEQINDEXDATASIZE, 0);
+
+    size_t *sequenceOffsets = lookup->getOffsets();
+    size_t sequenceCount = lookup->getSequenceCount();
+    Debug(Debug::INFO) << "Write SEQINDEXSEQOFFSET (" << SEQINDEXSEQOFFSET << ")\n";
+    writer.writeData((char *) sequenceOffsets, (sequenceCount + 1) * sizeof(size_t), SEQINDEXSEQOFFSET, 0);
+
+    // meta data
+    // ENTRIESNUM
+    Debug(Debug::INFO) << "Write ENTRIESNUM (" << ENTRIESNUM << ")\n";
+    uint64_t entriesNum = indexTable->getTableEntriesNum();
+    char *entriesNumPtr = (char *) &entriesNum;
+    writer.writeData(entriesNumPtr, 1 * sizeof(uint64_t), ENTRIESNUM, 0);
+    // SEQCOUNT
+    Debug(Debug::INFO) << "Write SEQCOUNT (" << SEQCOUNT << ")\n";
+    size_t tablesize = {indexTable->getSize()};
+    char *tablesizePtr = (char *) &tablesize;
+    writer.writeData(tablesizePtr, 1 * sizeof(size_t), SEQCOUNT, 0);
+
+    delete indexTable;
+
     Debug(Debug::INFO) << "Write META (" << META << ")\n";
     int local = 1;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
     int headers = (hdbr != NULL) ? 1 : 0;
-    int metadata[] = {kmerSize, alphabetSize, maskMode, split, local, spacedKmer, kmerThr, seqType, headers};
+    int metadata[] = {kmerSize, alphabetSize, maskMode, local, spacedKmer, kmerThr, seqType, headers};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
 
@@ -163,37 +149,26 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     Debug(Debug::INFO) << "Done. \n";
 }
 
-DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, bool preload) {
+DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr) {
     size_t id = dbr->getId(DBRINDEX);
     char *data = dbr->getData(id);
-    if (preload) {
-        dbr->touchData(id);
-    }
     return DBReader<unsigned int>::unserialize(data);
 }
 
-SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int>*dbr, int split, bool preload) {
-    unsigned int key = MathUtil::concatenate(SEQINDEXDATA, split);
+SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int>*dbr) {
     size_t id;
-    if ((id = dbr->getId(key)) == UINT_MAX) {
+    if ((id = dbr->getId(SEQINDEXDATA)) == UINT_MAX) {
         return NULL;
     }
 
     char * seqData = dbr->getData(id);
 
-    size_t seqOffsetsId = dbr->getId(MathUtil::concatenate(SEQINDEXSEQOFFSET, split));
+    size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
     size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
 
-    size_t sequenceCountId = dbr->getId(MathUtil::concatenate(SEQCOUNT, split));
+    size_t sequenceCountId = dbr->getId(SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
-
-    if (preload) {
-        dbr->touchData(id);
-        dbr->touchData(seqOffsetsId);
-        dbr->touchData(sequenceCountId);
-    }
-
 
     SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
     sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
@@ -201,34 +176,28 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
     return sequenceLookup;
 }
 
-SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsigned int>*dbr, int split, bool preload) {
-    unsigned int key = MathUtil::concatenate(UNMASKEDSEQINDEXDATA, split);
+SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsigned int>*dbr) {
     size_t id;
-    if ((id = dbr->getId(key)) == UINT_MAX) {
+    if ((id = dbr->getId(UNMASKEDSEQINDEXDATA)) == UINT_MAX) {
         return NULL;
     }
 
     char * seqData = dbr->getData(id);
-    size_t seqOffsetsId = dbr->getId(MathUtil::concatenate(SEQINDEXSEQOFFSET, split));
+    size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
 
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
     size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
 
-    size_t sequenceCountId = dbr->getId(MathUtil::concatenate(SEQCOUNT, split));
+    size_t sequenceCountId = dbr->getId(SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
 
-    if (preload) {
-        dbr->touchData(id);
-        dbr->touchData(seqOffsetsId);
-        dbr->touchData(sequenceCountId);
-    }
     SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
     sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
 
     return sequenceLookup;
 }
 
-IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *dbr, int split, bool diagonalScoring, bool preload) {
+IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *dbr, bool diagonalScoring) {
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
     if (data.local) {
@@ -240,26 +209,19 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
 
     SequenceLookup * sequenceLookup = NULL;
     if(diagonalScoring == true) {
-        sequenceLookup = getSequenceLookup(dbr, split, preload);
+        sequenceLookup = getSequenceLookup(dbr);
     }
 
-    size_t entriesNumId = dbr->getId(MathUtil::concatenate(ENTRIESNUM, split));
+    size_t entriesNumId = dbr->getId(ENTRIESNUM);
     int64_t entriesNum = *((int64_t *)dbr->getData(entriesNumId));
-    size_t sequenceCountId = dbr->getId(MathUtil::concatenate(SEQCOUNT, split));
+    size_t sequenceCountId = dbr->getId(SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
 
-    size_t entriesDataId = dbr->getId(MathUtil::concatenate(ENTRIES, split));
+    size_t entriesDataId = dbr->getId(ENTRIES);
     char *entriesData = dbr->getData(entriesDataId);
 
-    size_t entriesOffsetsDataId = dbr->getId(MathUtil::concatenate(ENTRIESOFFSETS, split));
+    size_t entriesOffsetsDataId = dbr->getId(ENTRIESOFFSETS);
     char *entriesOffsetsData = dbr->getData(entriesOffsetsDataId);
-
-    if (preload) {
-        dbr->touchData(entriesNumId);
-        dbr->touchData(sequenceCountId);
-        dbr->touchData(entriesDataId);
-        dbr->touchData(entriesOffsetsDataId);
-    }
 
     retTable->initTableByExternalData(sequenceCount, entriesNum,
                                       (IndexEntryLocal*) entriesData, (size_t *)entriesOffsetsData, sequenceLookup);
@@ -273,12 +235,11 @@ void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
     Debug(Debug::INFO) << "KmerSize:     " << metadata_tmp[0] << "\n";
     Debug(Debug::INFO) << "AlphabetSize: " << metadata_tmp[1] << "\n";
     Debug(Debug::INFO) << "Mask:         " << metadata_tmp[2] << "\n";
-    Debug(Debug::INFO) << "Split:        " << metadata_tmp[3] << "\n";
-    Debug(Debug::INFO) << "Type:         " << metadata_tmp[4] << "\n";
-    Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[5] << "\n";
-    Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[6] << "\n";
-    Debug(Debug::INFO) << "SequenceType: " << metadata_tmp[7] << "\n";
-    Debug(Debug::INFO) << "Headers:      " << metadata_tmp[8] << "\n";
+    Debug(Debug::INFO) << "Type:         " << metadata_tmp[3] << "\n";
+    Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[4] << "\n";
+    Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[5] << "\n";
+    Debug(Debug::INFO) << "SequenceType: " << metadata_tmp[6] << "\n";
+    Debug(Debug::INFO) << "Headers:      " << metadata_tmp[7] << "\n";
 
     Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME) << "\n";
 }
@@ -291,12 +252,11 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
     prefData.kmerSize = metadata_tmp[0];
     prefData.alphabetSize = metadata_tmp[1];
     prefData.maskMode = metadata_tmp[2];
-    prefData.split = metadata_tmp[3];
-    prefData.local = metadata_tmp[4];
-    prefData.spacedKmer = metadata_tmp[5];
-    prefData.kmerThr = metadata_tmp[6];
-    prefData.seqType = metadata_tmp[7];
-    prefData.headers = metadata_tmp[8];
+    prefData.local = metadata_tmp[3];
+    prefData.spacedKmer = metadata_tmp[4];
+    prefData.kmerThr = metadata_tmp[5];
+    prefData.seqType = metadata_tmp[6];
+    prefData.headers = metadata_tmp[7];
 
     return prefData;
 }
@@ -305,23 +265,17 @@ std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned
     return std::string(dbr->getDataByDBKey(SCOREMATRIXNAME));
 }
 //
-ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool preload) {
+ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr) {
     PrefilteringIndexData meta = getMetadata(dbr);
     size_t id = dbr->getId(SCOREMATRIX2MER);
     char *data = dbr->getData(id);
-    if (preload) {
-        dbr->touchData(id);
-    }
     return ScoreMatrix::unserialize(data, meta.alphabetSize, 2);
 }
 
-ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool preload) {
+ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr) {
     PrefilteringIndexData meta = getMetadata(dbr);
     size_t id = dbr->getId(SCOREMATRIX3MER);
     char *data = dbr->getData(id);
-    if (preload) {
-        dbr->touchData(id);
-    }
     return ScoreMatrix::unserialize(data, meta.alphabetSize, 3);
 }
 

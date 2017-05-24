@@ -34,14 +34,18 @@ DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t s
 
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
-    magicBytes = Util::touchMemory(data, dataSize);
+    if ((dataMode & USE_DATA) && (dataMode & USE_MMAP)) {
+        magicBytes = Util::touchMemory(data, dataSize);
+    }
 }
 
 template <typename T>
 void DBReader<T>::mlock(){
-    if (didMlock == false) {
-        ::mlock(data, dataSize);
-        didMlock = true;
+    if (dataMode & USE_DATA) {
+        if (didMlock == false) {
+            ::mlock(data, dataSize);
+            didMlock = true;
+        }
     }
 }
 
@@ -217,21 +221,33 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
     *dataSize = sb.st_size;
     int fd =  fileno(file);
     int mode;
-    if(dataMode & USE_WRITABLE) {
-        mode = PROT_READ | PROT_WRITE;
+
+    char *ret;
+    if(dataMode & USE_MMAP) {
+        if(dataMode & USE_WRITABLE) {
+            mode = PROT_READ | PROT_WRITE;
+        } else {
+            mode = PROT_READ;
+        }
+        ret = static_cast<char*>(mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0));
+        if(ret == MAP_FAILED){
+            Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     } else {
-        mode = PROT_READ;
+        ret = static_cast<char*>(malloc(*dataSize));
+        Util::checkAllocation(ret, "Not enough system memory to read in the whole data file.");
+        size_t result = fread(ret, 1, *dataSize, file);
+        if (result != *dataSize) {
+            Debug(Debug::ERROR) << "Failed to read in datafile (" << dataFileName << "). Error " << errno << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
-    void * ret = mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0);
-    if(ret == MAP_FAILED){
-        Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    return static_cast<char*>(ret);
+    return ret;
 }
 
 template <typename T> void DBReader<T>::remapData(){
-    if(dataMode & USE_DATA){
+    if ((dataMode & USE_DATA) && (dataMode & USE_MMAP)) {
         unmapData();
         data = mmapData(dataFile, &dataSize);
         dataMapped = true;
@@ -290,9 +306,11 @@ template <typename T> char* DBReader<T>::getData(size_t id){
 
 template <typename T>
 void DBReader<T>::touchData(size_t id) {
-    char *data = getData(id);
-    size_t size = getSeqLens(id);
-    magicBytes = Util::touchMemory(data, size);
+    if((dataMode & USE_DATA) && (dataMode & USE_MMAP)) {
+        char *data = getData(id);
+        size_t size = getSeqLens(id);
+        magicBytes = Util::touchMemory(data, size);
+    }
 }
 
 template <typename T> char* DBReader<T>::getDataByDBKey(T dbKey) {
@@ -405,9 +423,13 @@ template <typename T> void DBReader<T>::unmapData() {
             didMlock = false;
         }
 
-        if(munmap(data, dataSize) < 0){
-            Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
-            EXIT(EXIT_FAILURE);
+        if (dataMode & USE_MMAP) {
+            if(munmap(data, dataSize) < 0){
+                Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+        } else {
+            free(data);
         }
         dataMapped = false;
     }

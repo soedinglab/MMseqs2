@@ -10,7 +10,6 @@ struct PrefilteringIndexData {
     int kmerSize;
     int alphabetSize;
     int maskMode;
-    int split;
     int local;
     int spacedKmer;
     int kmerThr;
@@ -42,16 +41,16 @@ public:
 
     static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
                                 BaseMatrix * subMat, int maxSeqLen, bool spacedKmer,
-                                bool compBiasCorrection, int split, int alphabetSize, int kmerSize,
+                                bool compBiasCorrection, int alphabetSize, int kmerSize,
                                 bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads);
 
-    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool preload);
+    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr);
 
-    static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr, int split, bool preload);
+    static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr);
 
-    static SequenceLookup *getUnmaskedSequenceLookup(DBReader<unsigned int> *dbr, int split, bool preload);
+    static SequenceLookup *getUnmaskedSequenceLookup(DBReader<unsigned int> *dbr);
 
-    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, int split, bool diagonalScoring, bool preload);
+    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, bool diagonalScoring);
 
     static void printSummary(DBReader<unsigned int> *dbr);
 
@@ -59,9 +58,9 @@ public:
 
     static std::string getSubstitutionMatrixName(DBReader<unsigned int> *dbr);
 
-    static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool preload);
+    static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr);
 
-    static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool preload);
+    static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr);
 
     static std::string searchForIndex(const std::string &pathToDB);
 
