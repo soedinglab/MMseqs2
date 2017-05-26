@@ -1,3 +1,9 @@
+if(CMAKE_COMPILER_IS_ICC)
+    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ipo -no-prec-div -xHost -fno-exceptions")
+else()
+    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ffast-math -fno-exceptions -ftree-vectorize -fno-strict-aliasing")
+endif()
+
 include_directories(generatedfiles)
 add_subdirectory(alignment)
 add_subdirectory(clustering)
