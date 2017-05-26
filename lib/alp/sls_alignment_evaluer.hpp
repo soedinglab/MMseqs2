@@ -38,6 +38,7 @@ Contents: library functions of main routines
 
 #include "sls_pvalues.hpp"
 #include <math.h>
+#include <string.h>
 
 namespace Sls {
 
