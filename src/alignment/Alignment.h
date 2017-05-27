@@ -92,7 +92,8 @@ private:
 
     // realign with different score matrix
     bool realign;
-	
+
+    size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
 };
 
 #endif

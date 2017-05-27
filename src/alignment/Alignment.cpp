@@ -5,6 +5,7 @@
 #include <list>
 #include <iomanip>
 #include <memory>
+#include <FileUtil.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -89,6 +90,13 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
     // open the sequence, prefiltering and output databases
     qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
     qseqdbr->open(DBReader<unsigned int>::NOSORT);
+    size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());
+    size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qseqdbr->getSize(), std::min(par.maxAccept, par.maxResListLen));
+    if( freeSpace < estimatedHDDMemory){
+        Debug(Debug::ERROR) << "Hard disk has not enough space " << freeSpace << " to store results  ~" <<estimatedHDDMemory <<".\n"
+                "Please make space on  an start mmseqs again.\n";
+        EXIT(EXIT_FAILURE);
+    }
     qseqdbr->readMmapedDataInMemory();
     sameQTDB = (querySeqDB.compare(targetSeqDB) == 0);
     if(sameQTDB == true) {
@@ -350,4 +358,8 @@ void Alignment::mergeAndRemoveTmpDatabases(const std::string& out,const  std::st
     DBWriter::mergeResults(out.c_str(), outIndex.c_str(), datafilesNames, indexFilesNames, files.size());
     delete [] datafilesNames;
     delete [] indexFilesNames;
+}
+
+size_t Alignment::estimateHDDMemoryConsumption(int dbSize, int maxSeqs) {
+    return 2*(dbSize*maxSeqs*21*1.75);
 }

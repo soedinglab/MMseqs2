@@ -55,6 +55,13 @@ Prefiltering::Prefiltering(const std::string& queryDB,
 //    FileUtil::errorIfFileExist(outDBIndex.c_str());
     this->qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());
+    size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
+    if( freeSpace < estimatedHDDMemory){
+        Debug(Debug::ERROR) << "Hard disk has not enough space " << freeSpace << " to store results  ~" <<estimatedHDDMemory <<".\n"
+                "Please make space on  an start mmseqs again.\n";
+        EXIT(EXIT_FAILURE);
+    }
     //  check if when qdb and tdb have the same name an index extention exists
     std::string check(targetDB);
     size_t pos = check.find(queryDB);

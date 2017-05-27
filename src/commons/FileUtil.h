@@ -21,6 +21,10 @@ public:
     static void deleteTempFiles(std::list<std::string> tmpFiles);
 
     static void writeFile(std::string pathToFile, unsigned char *sh, size_t len);
+
+    static std::string dirName(const std::string fileName);
+
+    static size_t getFreeSpace(const char *dir);
 };
 
 

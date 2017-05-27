@@ -7,6 +7,7 @@
 #include <fstream>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/statvfs.h>
 
 void FileUtil::errorIfFileExist(const char * file){
     struct stat st;
@@ -70,4 +71,22 @@ void FileUtil::writeFile(std::string pathToFile, unsigned char *data, size_t len
     }
     write(file, data, len);
     close(file);
+}
+
+std::string FileUtil::dirName(const std::string fileName) {
+        size_t pos = fileName.find_last_of("\\/");
+        return (std::string::npos == pos)
+               ? ""
+               : fileName.substr(0, pos);
+}
+
+size_t FileUtil::getFreeSpace(const char *path) {
+        struct statvfs stat;
+        if (statvfs(path, &stat) != 0) {
+            // error happens, just quits here
+            return -1;
+        }
+
+        // the available size is f_bsize * f_bavail
+        return stat.f_bfree * stat.f_frsize;
 }

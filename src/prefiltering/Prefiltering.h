@@ -151,6 +151,7 @@ private:
 
     std::string searchForIndex(const std::string &pathToDB);
 
+    size_t estimateHDDMemoryConsumption(size_t dbSize, size_t maxResListLen);
 };
 
 #endif
