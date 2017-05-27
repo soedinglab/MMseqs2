@@ -980,3 +980,9 @@ std::vector<hit_t> Prefiltering::readPrefilterResults(char *data) {
     return ret;
 }
 
+size_t Prefiltering::estimateHDDMemoryConsumption(size_t dbSize, size_t maxResListLen) {
+    // 21 bytes is roughtly the size of an entry
+    // 2x because the merge doubles the hdd demand
+    return 2*(21 * dbSize * maxResListLen);
+}
+
