@@ -196,6 +196,12 @@ static struct Command commands[] = {
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:sequenceDB> <i:resultDB> <o:reprSeqDB>",
                 CITATION_MMSEQS2},
+        {"assembleresult",       assembleresult,      &par.onlyverbosity,          COMMAND_DB,
+                "Computes representative sequences by extending ungapped alignments to the left/right",
+                NULL,
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                "<i:sequenceDB> <i:alnResult> <o:reprSeqDB>",
+                CITATION_MMSEQS2},
 // Special-purpose utilities
         {"rescorediagonal",           rescorediagonal,           &par.rescorediagonal,        COMMAND_SPECIAL,
                 "Compute sequence identity for diagonal",

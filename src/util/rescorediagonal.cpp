@@ -140,6 +140,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     int targetLen = 0;
                     if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
                         target.mapSequence(0, targetId, tdbr->getData(targetId));
+//                        target.print();
                         targetLen = target.L;
                     }else{
                         targetLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
@@ -202,17 +203,16 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                 int alnLen = alignment.endPos - alignment.startPos;
                                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
                                 // -1 since diagonal is computed from sequence Len which starts by 1
-                                size_t dist = std::max(distanceToDiagonal - 1, 0);
                                 if (diagonal >= 0) {
-                                    qStartPos = alignment.startPos + dist;
-                                    qEndPos = alignment.endPos + dist;
+                                    qStartPos = alignment.startPos + distanceToDiagonal;
+                                    qEndPos = alignment.endPos + distanceToDiagonal;
                                     dbStartPos = alignment.startPos;
                                     dbEndPos = alignment.endPos;
                                 } else {
                                     qStartPos = alignment.startPos;
                                     qEndPos = alignment.endPos;
-                                    dbStartPos = alignment.startPos + dist;
-                                    dbEndPos = alignment.endPos + dist;
+                                    dbStartPos = alignment.startPos + distanceToDiagonal;
+                                    dbEndPos = alignment.endPos + distanceToDiagonal;
                                 }
                                 int qAlnLen = std::max(qEndPos - qStartPos, static_cast<int>(1));
                                 int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<int>(1));
