@@ -184,7 +184,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                         }
                     }
                     double seqId = 0;
-                    double evalue = 0;
+                    double evalue = 0.0;
                     float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLen);
                     float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
                     Matcher::result_t result;
@@ -232,9 +232,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     bool hasCov = queryCov >= par.covThr && targetCov >= par.covThr;
                     // --min-seq-id
                     bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
+                    bool hasEvalue = (evalue <= par.evalThr);
                     // --filter-hits
                     bool hasToFilter = (par.filterHits == true  && currScorePerCol >= scorePerColThr);
-                    if (isIdentity || hasToFilter || (hasTargetCov && hasCov && hasSeqId))
+                    if (isIdentity || hasToFilter || (hasTargetCov && hasCov && hasSeqId && hasEvalue))
                     {
                         int len  = 0;
                         if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {

@@ -21,7 +21,7 @@
 #endif
 
 
-Matcher::result_t selectBestExtentionFragment(DBReader<unsigned int>  * sequenceDbr,
+Matcher::result_t  selectBestExtentionFragment(DBReader<unsigned int>  * sequenceDbr,
                                               std::vector<Matcher::result_t> alignments,
                                               std::set<unsigned int> &prevFound,
                                               unsigned int queryKey) {
@@ -30,7 +30,11 @@ Matcher::result_t selectBestExtentionFragment(DBReader<unsigned int>  * sequence
         const bool foundPrev = (prevFound.find(alignments[i].dbKey) != prevFound.end());
         if(foundPrev == false){
             size_t dbKey = alignments[i].dbKey;
-            if((alignments[i].dbStartPos == 0 || alignments[i].qStartPos == 0) && dbKey != queryKey ){
+            bool notRightStartAndLeftStart = !(alignments[i].dbStartPos == 0 && alignments[i].qStartPos == 0);
+            bool rightStart = alignments[i].dbStartPos == 0 ;
+            bool leftStart = alignments[i].qStartPos == 0;
+            bool isNotIdentity = (dbKey != queryKey);
+            if((rightStart|| leftStart) && notRightStartAndLeftStart && isNotIdentity){
                 // mark label as visited
                 return alignments[i];
             }
@@ -53,21 +57,22 @@ int doassembly(Parameters &par) {
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
 
 //    unsigned char * readLabel = new unsigned char[sequenceDbr->getSize()];
-//    std::fill(readLabel, readLabel+sequenceDbr->getSize(), NOTASSIGNED);
+//    std::fill(readLabel, readLabel+sequenceDbr->getSize(), 0);
 
     // do some fancy quality control
     //labaleSequences(par, sequenceDbr, alnReader, subMat, readLabel);
 
 
-
+#pragma omp parallel
     {
         Sequence querySeq(par.maxSeqLen, subMat.aa2int, subMat.int2aa, par.querySeqType,
                           0, false, false);
         Sequence targetSeq(par.maxSeqLen, subMat.aa2int, subMat.int2aa, par.querySeqType,
                           0, false, false);
+#pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < sequenceDbr->getSize(); id++) {
             Debug::printProgress(id);
-//            std::cout << id << std::endl;
+            std::cout << id << std::endl;
             unsigned int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
@@ -117,7 +122,11 @@ int doassembly(Parameters &par) {
                     qEndPos = alignment.endPos;
                     dbStartPos = alignment.startPos + dist;
                     dbEndPos = alignment.endPos + dist;
+//                    __sync_fetch_and_add(&readLabel[id], 1);
+
                 }
+
+
 //                std::cout << "\t" << besttHitToExtend.dbKey << std::endl;
 
 //                std::cout << "Query : " << query << std::endl;
@@ -126,15 +135,27 @@ int doassembly(Parameters &par) {
                 if(dbStartPos==0){
                     size_t dbFragLen = (targetSeq.L-dbEndPos) - 1; // -1 get not aligned element
                     std::string fragment = std::string(dbSeq+dbEndPos+1, dbFragLen);
+                    if(fragment.size() + query.size() >= par.maxSeqLen){
+                        Debug(Debug::WARNING) << "Sequence too long in query id: "  << queryKey << ". "
+                                                 "Max length allowed would is " << par.maxSeqLen << "\n";
+                        break;
+                    }
 //                    std::cout << "Fargm1: "  << fragment << std::endl;
                     query += fragment;
                 }else if(qStartPos==0){
                     std::string fragment = std::string(dbSeq, dbStartPos + 1); // +1 get not aligned element
+                    if(fragment.size() + query.size() >= par.maxSeqLen){
+                        Debug(Debug::WARNING) << "Sequence too long in query id: "  << queryKey << ". "
+                                                 "Max length allowed would is " << par.maxSeqLen << "\n";
+                        break;
+                    }
 //                    std::cout << "Fargm2: "  << fragment << std::endl;
                     query = fragment + query;
-                    queryOffset += dbStartPos;
+                    queryOffset += dbStartPos + 1;
                 }
+
             }
+            query.push_back('\n');
             resultWriter.writeData(query.c_str(),query.size(), queryKey, thread_idx);
         }
 
