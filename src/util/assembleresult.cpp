@@ -6,21 +6,14 @@
 #include <sstream>
 #include <sys/time.h>
 
-#include "Alignment.h"
-#include "MsaFilter.h"
+#include "DistanceCalculator.h"
+#include "Matcher.h"
 #include "Parameters.h"
-#include "PSSMCalculator.h"
 #include "DBReader.h"
-#include "DBConcat.h"
-#include "HeaderSummarizer.h"
-#include "CompressedA3M.h"
+#include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
-#include "ProfileStates.h"
 #include "MathUtil.h"
-#include <unordered_map>
-#include <list>
-#include <DistanceCalculator.h>
 #include <set>
 
 #ifdef OPENMP
