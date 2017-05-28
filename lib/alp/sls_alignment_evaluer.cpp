@@ -1021,10 +1021,10 @@ double seqlen2_) const//length of sequence #2
 	compute_only_area);
 
     if(area_res < 0.0){
-        std::cerr << "Area computation for E-value computation failed. area_res=" << area_res << "\n";
+        //std::cerr << "Area computation for E-value computation failed. area_res=" << area_res << "\n";
         return 0.0;
     }else{
-	return area_res;
+		return area_res;
     }
 
 }
