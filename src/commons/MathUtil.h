@@ -18,9 +18,10 @@ public:
     {
         return fabs(a - b) < std::numeric_limits<float>::epsilon();
     }
-    static inline int ipow(int base, int exponent) {
-        int res = 1;
-        for (int i = 0; i < exponent; i++)
+
+    static inline size_t ipow(size_t base, size_t exponent) {
+        size_t res = 1;
+        for (size_t i = 0; i < exponent; i++)
             res = res * base;
         return res;
     }

@@ -3,8 +3,6 @@
 #include <cassert>
 #include <Util.h>
 #include "assembler.sh.h"
-
-#include "DBWriter.h"
 #include "CommandCaller.h"
 #include "Debug.h"
 #include "FileUtil.h"
@@ -59,7 +57,6 @@ int assembler(int argc, const char **argv, const Command& command) {
     par.alphabetSize = alphabetSize;
     par.kmerSize = kmerSize;
     // # 2. Hamming distance pre-clustering
-    par.rescoreMode = Parameters::RESCORE_MODE_HAMMING;
     par.filterHits = false;
     par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
     cmd.addVariable("UNGAPPED_ALN_PAR", par.createParameterString(par.rescorediagonal).c_str());
