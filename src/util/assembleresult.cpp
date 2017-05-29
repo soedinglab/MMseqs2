@@ -15,7 +15,8 @@
 #include "Util.h"
 #include "MathUtil.h"
 #include <set>
-
+#include <limits>
+#include <cstdint>
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -27,7 +28,7 @@ Matcher::result_t  selectBestExtentionFragment(DBReader<unsigned int>  * sequenc
                                               unsigned int queryKey) {
     // results are ordered by score
     double evalue = DBL_MAX;
-    size_t bestIndex = SIZE_T_MAX;
+    size_t bestIndex = SIZE_MAX;
     for(size_t i = 0; i < alignments.size(); i++){
         const bool foundPrev = (prevFound.find(alignments[i].dbKey) != prevFound.end());
         if(foundPrev == false){
@@ -44,7 +45,7 @@ Matcher::result_t  selectBestExtentionFragment(DBReader<unsigned int>  * sequenc
             }
         }
     }
-    if(bestIndex == SIZE_T_MAX) {
+    if(bestIndex == SIZE_MAX) {
         return Matcher::result_t(UINT_MAX,0,0,0,0,0,0,0,0,0,0,0,0,"");
     } else {
         return alignments[bestIndex];
