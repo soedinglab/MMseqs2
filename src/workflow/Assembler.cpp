@@ -12,7 +12,7 @@ void setAssemblerWorkflowDefaults(Parameters *p) {
     p->spacedKmer = true;
     p->covThr = 0.0;
     p->evalThr = 0.00001;
-    p->seqIdThr = 0.8;
+    p->seqIdThr = 0.89;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
 }
 
@@ -51,7 +51,7 @@ int assembler(int argc, const char **argv, const Command& command) {
     size_t alphabetSize = par.alphabetSize;
     size_t kmerSize = par.kmerSize;
     // # 1. Finding exact $k$-mer matches.
-    par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
+    par.kmerSize = 15;
     par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
     cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
     par.alphabetSize = alphabetSize;

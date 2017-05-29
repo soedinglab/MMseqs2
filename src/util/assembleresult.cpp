@@ -26,21 +26,29 @@ Matcher::result_t  selectBestExtentionFragment(DBReader<unsigned int>  * sequenc
                                               std::set<unsigned int> &prevFound,
                                               unsigned int queryKey) {
     // results are ordered by score
+    double evalue = DBL_MAX;
+    size_t bestIndex = SIZE_T_MAX;
     for(size_t i = 0; i < alignments.size(); i++){
         const bool foundPrev = (prevFound.find(alignments[i].dbKey) != prevFound.end());
         if(foundPrev == false){
             size_t dbKey = alignments[i].dbKey;
-            bool notRightStartAndLeftStart = !(alignments[i].dbStartPos == 0 && alignments[i].qStartPos == 0);
-            bool rightStart = alignments[i].dbStartPos == 0 ;
-            bool leftStart = alignments[i].qStartPos == 0;
-            bool isNotIdentity = (dbKey != queryKey);
-            if((rightStart|| leftStart) && notRightStartAndLeftStart && isNotIdentity){
+            const bool notRightStartAndLeftStart = !(alignments[i].dbStartPos == 0 && alignments[i].qStartPos == 0);
+            const bool betterEvalue = (alignments[i].eval < evalue);
+            const bool rightStart = alignments[i].dbStartPos == 0 ;
+            const bool leftStart = alignments[i].qStartPos == 0;
+            const bool isNotIdentity = (dbKey != queryKey);
+            if((rightStart|| leftStart) && betterEvalue && notRightStartAndLeftStart && isNotIdentity){
                 // mark label as visited
-                return alignments[i];
+                evalue=alignments[i].eval;
+                bestIndex = i;
             }
         }
     }
-    return Matcher::result_t(UINT_MAX,0,0,0,0,0,0,0,0,0,0,0,0,"");
+    if(bestIndex == SIZE_T_MAX) {
+        return Matcher::result_t(UINT_MAX,0,0,0,0,0,0,0,0,0,0,0,0,"");
+    } else {
+        return alignments[bestIndex];
+    }
 }
 
 
