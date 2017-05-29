@@ -123,6 +123,8 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                              Parameters & par, BaseMatrix * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer){
     size_t kmerCounter = 0;
+
+
 #pragma omp parallel reduction (+: kmerCounter)
     {
         Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, KMER_SIZE, false, false);
@@ -145,8 +147,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
         for(size_t id = dbFrom; id < (dbFrom + dbSize); id++){
             Debug::printProgress(id);
             seq.mapSequence(id, id, seqDbr.getData(id));
-            Util::maskLowComplexity(subMat, &seq, seq.L, 12, 3,
-                                    par.alphabetSize, seq.aa2int[(unsigned char) 'X'], true, false, false, true);
+
             int seqKmerCount = 0;
             unsigned int seqId = seq.getId();
             unsigned int prevHash=0;
@@ -191,6 +192,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
         }
         delete [] kmers;
     }
+
     return kmerCounter;
 }
 
