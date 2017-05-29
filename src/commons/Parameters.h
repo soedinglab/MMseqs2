@@ -505,6 +505,7 @@ public:
     std::vector<MMseqsParameter> clusthash;
     std::vector<MMseqsParameter> kmermatcher;
     std::vector<MMseqsParameter> linclustworkflow;
+    std::vector<MMseqsParameter> assemblerworkflow;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;

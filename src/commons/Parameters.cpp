@@ -333,6 +333,12 @@ Parameters::Parameters():
     linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
     linclustworkflow.push_back(PARAM_RUNNER);
 
+    // assembler workflow
+    assemblerworkflow = combineList(rescorediagonal, kmermatcher);
+    assemblerworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    assemblerworkflow.push_back(PARAM_RUNNER);
+
+    // clustering workflow
     clusteringWorkflow = combineList(prefilter, align);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
     clusteringWorkflow.push_back(PARAM_CASCADED);

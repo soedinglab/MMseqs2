@@ -110,7 +110,6 @@ int doassembly(Parameters &par) {
                     DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(querySeq.int_sequence + abs(diagonal),
                                                                                             targetSeq.int_sequence, diagonalLen, subMat.subMatrix);
                     qStartPos = alignment.startPos + dist;
-                    qEndPos = alignment.endPos + dist;
                     dbStartPos = alignment.startPos;
                     dbEndPos = alignment.endPos;
                 }else{
@@ -119,7 +118,6 @@ int doassembly(Parameters &par) {
                                                                                             targetSeq.int_sequence + abs(diagonal),
                                                                                        diagonalLen, subMat.subMatrix);
                     qStartPos = alignment.startPos;
-                    qEndPos = alignment.endPos;
                     dbStartPos = alignment.startPos + dist;
                     dbEndPos = alignment.endPos + dist;
 //                    __sync_fetch_and_add(&readLabel[id], 1);
