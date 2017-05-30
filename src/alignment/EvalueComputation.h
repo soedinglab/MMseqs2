@@ -25,13 +25,17 @@ public:
                                                   40.800977920008499211,   -860.07168204074275764,
                                                   40.800977920008499211,   -860.07168204074275764,
                                                   39.943564532821483226,   -839.49376074825431715}},
-                {"blosum62", 11, 1, false, {0.31760580016607398157,    0.13374065508394297752,
+
+
+                {"blosum62", 0, 0, false, {0.31760580016607398157,    0.13374065508394297752,
                                                   0.79161246080277813952,  0,
                                                   0.79161246080277813952,  0,
                                                   4.9646578349775483119,   0,
                                                   4.9646578349775483119,   0,
                                                   4.9646578349775483119,   0}}
         };
+
+
 
         for (size_t i = 0; i < ARRAY_SIZE(defaultParameter); i++) {
             if(defaultParameter[i].matrixName == subMat->getMatrixName()){
@@ -52,7 +56,7 @@ public:
             for(int i = 0; i < subMat->alphabetSize; i++) {
                 tmpMat[i] = &tmpMatData[i * subMat->alphabetSize];
                 for (int j = 0; j < subMat->alphabetSize; j++) {
-                    tmpMat[i][j] = subMat->subMatrix[i][j];
+                    tmpMat[i][j] = subMat->subMatrix2Bit[i][j];
                 }
             }
             if(isGapped) {
