@@ -338,6 +338,7 @@ Parameters::Parameters():
 
     // assembler workflow
     assemblerworkflow = combineList(rescorediagonal, kmermatcher);
+    assemblerworkflow.push_back(PARAM_NUM_ITERATIONS);
     assemblerworkflow.push_back(PARAM_REMOVE_TMP_FILES);
     assemblerworkflow.push_back(PARAM_RUNNER);
 
