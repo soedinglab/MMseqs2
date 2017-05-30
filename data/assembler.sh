@@ -16,16 +16,23 @@ notExists () {
 export OMP_PROC_BIND=TRUE
 
 INPUT="$1"
-# 1. Finding exact $k$-mer matches.
-notExists "$3/pref"          && $MMSEQS kmermatcher "$INPUT" "$3/pref" ${KMERMATCHER_PAR}                    && checkReturnCode "Kmer matching step died"
-# 2. Ungapped alignment
-notExists "$3/aln" && $MMSEQS rescorediagonal "$INPUT" "$INPUT" "$3/pref" "$3/aln" ${UNGAPPED_ALN_PAR} && checkReturnCode "Ungapped alignment step died"
-# 3. Assemble
-notExists "$3/assembly"         && $MMSEQS assembleresults "$INPUT" "$3/aln" "$3/assembly"  && checkReturnCode "Assembly step died"
-
+STEP=0
+[ -z "$NUM_IT" ] && NUM_IT=1;
+while [ $STEP -lt $NUM_IT ]; do
+    echo "STEP: "$STEP
+    # 1. Finding exact $k$-mer matches.
+    notExists "$3/pref_$STEP"          && $MMSEQS kmermatcher "$INPUT" "$3/pref_$STEP" ${KMERMATCHER_PAR}                    && checkReturnCode "Kmer matching step died"
+    # 2. Ungapped alignment
+    notExists "$3/aln_$STEP" && $MMSEQS rescorediagonal "$INPUT" "$INPUT" "$3/pref_$STEP" "$3/aln_$STEP" ${UNGAPPED_ALN_PAR} && checkReturnCode "Ungapped alignment step died"
+    # 3. Assemble
+    notExists "$3/assembly_$STEP"         && $MMSEQS assembleresults "$INPUT" "$3/aln_$STEP" "$3/assembly_$STEP"  && checkReturnCode "Assembly step died"
+    INPUT="$3/assembly_$STEP"
+    let STEP=STEP+1
+done
+let STEP=STEP-1
 # post processing
-mv -f "$3/assembly" "$2"
-mv -f "$3/assembly.index" "$2.index"
+mv -f "$3/assembly_$STEP" "$2"
+mv -f "$3/assembly_$STEP.index" "$2.index"
 checkReturnCode "Could not move result to $2"
 
 if [ -n "$REMOVE_TMP" ]; then

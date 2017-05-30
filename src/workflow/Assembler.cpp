@@ -46,7 +46,7 @@ int assembler(int argc, const char **argv, const Command& command) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
     cmd.addVariable("RUNNER", par.runner.c_str());
-
+    cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
     // save some values to restore them later
     size_t alphabetSize = par.alphabetSize;
     size_t kmerSize = par.kmerSize;

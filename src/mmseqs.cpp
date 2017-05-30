@@ -111,7 +111,7 @@ static struct Command commands[] = {
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> ",
             "<i:sequenceDB> <o:clusterDB> <tmpDir>",
              CITATION_MMSEQS2|CITATION_LINCLUST},
-        {"assembler",          assembler,          &par.assemblerworkflow,            COMMAND_MAIN,
+        {"assemble",          assembler,          &par.assemblerworkflow,            COMMAND_MAIN,
                 "Assemble protein sequences in linear time.",
                 "Extends sequence to the left and right using ungapped alignments.",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> ",

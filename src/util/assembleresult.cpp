@@ -81,7 +81,6 @@ int doassembly(Parameters &par) {
 #pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < sequenceDbr->getSize(); id++) {
             Debug::printProgress(id);
-//            std::cout << id << std::endl;
             unsigned int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
@@ -93,12 +92,15 @@ int doassembly(Parameters &par) {
 //            __sync_or_and_fetch(&readLabel[id], static_cast<unsigned char>(0x80));
 
             unsigned int queryKey = sequenceDbr->getDbKey(id);
+//            std::cout << queryKey <<"\t"<< id << std::endl;
+
             char * querySeqData = sequenceDbr->getData(id);
             unsigned int queryLen = sequenceDbr->getSeqLens(id);
 
             unsigned int queryOffset = 0;
             std::string query(querySeqData, queryLen-2); // no /n/0
-            std::vector<Matcher::result_t> alignments = Matcher::readAlignmentResults (  alnReader->getDataByDBKey(queryKey) );
+            char * alnData = alnReader->getDataByDBKey(queryKey);
+            std::vector<Matcher::result_t> alignments = Matcher::readAlignmentResults ( alnData  );
             std::set<unsigned int> prevFound;
             for(size_t alnIdx = 0; alnIdx < alignments.size(); alnIdx++){
                 querySeq.mapSequence(id, queryKey, query.c_str());
@@ -113,12 +115,13 @@ int doassembly(Parameters &par) {
                 targetSeq.mapSequence(besttHitToExtend.dbKey, besttHitToExtend.dbKey, dbSeq);
                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
                 int diagonal = (queryOffset+besttHitToExtend.qStartPos) - besttHitToExtend.dbStartPos;
-                size_t dist = std::max(abs(diagonal) - 1, 0);
+                size_t dist = std::max(abs(diagonal) , 0);
                 if (diagonal >= 0){
                     size_t diagonalLen = std::min(targetSeq.L, querySeq.L - abs(diagonal));
                     DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(querySeq.int_sequence + abs(diagonal),
                                                                                             targetSeq.int_sequence, diagonalLen, subMat.subMatrix);
                     qStartPos = alignment.startPos + dist;
+                    qEndPos = alignment.endPos + dist;
                     dbStartPos = alignment.startPos;
                     dbEndPos = alignment.endPos;
                 }else{
@@ -127,6 +130,7 @@ int doassembly(Parameters &par) {
                                                                                             targetSeq.int_sequence + abs(diagonal),
                                                                                        diagonalLen, subMat.subMatrix);
                     qStartPos = alignment.startPos;
+                    qEndPos = alignment.endPos;
                     dbStartPos = alignment.startPos + dist;
                     dbEndPos = alignment.endPos + dist;
 //                    __sync_fetch_and_add(&readLabel[id], 1);
@@ -150,7 +154,7 @@ int doassembly(Parameters &par) {
 //                    std::cout << "Fargm1: "  << fragment << std::endl;
                     query += fragment;
                 }else if(qStartPos==0){
-                    std::string fragment = std::string(dbSeq, dbStartPos + 1); // +1 get not aligned element
+                    std::string fragment = std::string(dbSeq, dbStartPos); // +1 get not aligned element
                     if(fragment.size() + query.size() >= par.maxSeqLen){
                         Debug(Debug::WARNING) << "Sequence too long in query id: "  << queryKey << ". "
                                                  "Max length allowed would is " << par.maxSeqLen << "\n";
@@ -158,11 +162,12 @@ int doassembly(Parameters &par) {
                     }
 //                    std::cout << "Fargm2: "  << fragment << std::endl;
                     query = fragment + query;
-                    queryOffset += dbStartPos + 1;
+                    queryOffset += dbStartPos ;
                 }
 
             }
             query.push_back('\n');
+//            std::cout << "FQuery: " << query << std::endl;
             resultWriter.writeData(query.c_str(),query.size(), queryKey, thread_idx);
         }
 
