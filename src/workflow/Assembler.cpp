@@ -9,10 +9,11 @@
 
 
 void setAssemblerWorkflowDefaults(Parameters *p) {
-    p->spacedKmer = true;
+    p->spacedKmer = false;
+    p->maskResidues = 1;
     p->covThr = 0.0;
     p->evalThr = 0.00001;
-    p->seqIdThr = 0.89;
+    p->seqIdThr = 0.95;
     p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
 }
 

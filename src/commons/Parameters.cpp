@@ -412,6 +412,7 @@ Parameters::Parameters():
     kmermatcher.push_back(PARAM_ALPH_SIZE);
     kmermatcher.push_back(PARAM_MIN_SEQ_ID);
     kmermatcher.push_back(PARAM_KMER_PER_SEQ);
+    kmermatcher.push_back(PARAM_MASK_RESIDUES);
     kmermatcher.push_back(PARAM_TARGET_COV);
     kmermatcher.push_back(PARAM_K);
     kmermatcher.push_back(PARAM_C);
