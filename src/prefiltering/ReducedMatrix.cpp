@@ -12,7 +12,6 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
     this->orig_aa2int = this->aa2int;
     this->orig_int2aa = this->int2aa;
     this->origSubMatrix = this->subMatrix;
-
     for(int i = 0; i < this->alphabetSize; i++) {
         for (int j = 0; j < this->alphabetSize; j++) {
             this->probMatrix[i][j] = probMatrix[i][j];
@@ -63,7 +62,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
         char reduced_aa=reducedAlphabet->at(reduced_index);
         char lost_aa   =reducedAlphabet->at(lost_index);
 
-        printf("%c -> %c\n",lost_aa, reduced_aa);
+        Debug(Debug::WARNING)  << lost_aa  << " -> " << reduced_aa << "\n";
         reducedAlphabet->erase(reducedAlphabet->begin()+lost_index);
 
         int reduced_int=this->orig_aa2int[(int)reduced_aa];
@@ -111,6 +110,14 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
         this->subMatrix[i] = new short[alphabetSize];
 
     generateSubMatrix(probMatrix_new, rMatrix, this->subMatrix, this->subMatrix2Bit, alphabetSize, bitFactor, 0.0);
+    // compute background
+    for(int i = 0; i < alphabetSize; i++){
+        //smat[i] = smatData+((subMat.alphabetSize-1)*i);
+        pBack[i] = 0.0;
+        for(int j = 0; j < alphabetSize; j++){
+            pBack[i]+=probMatrix[i][j];
+        }
+    }
 
     for (size_t i = 0; i < origAlphabetSize-1; i++)
     {
