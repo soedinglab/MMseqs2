@@ -321,42 +321,6 @@ Parameters::Parameters():
     gff2ffindex.push_back(PARAM_ID_OFFSET);
     gff2ffindex.push_back(PARAM_V);
 
-    searchworkflow = combineList(align, prefilter);
-    searchworkflow = combineList(searchworkflow, result2profile);
-    searchworkflow.push_back(PARAM_NUM_ITERATIONS);
-    searchworkflow.push_back(PARAM_START_SENS);
-    searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
-    searchworkflow.push_back(PARAM_RUNNER);
-    searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
-
-    // linclust workflow
-    linclustworkflow = combineList(clust, align);
-    linclustworkflow = combineList(linclustworkflow, kmermatcher);
-    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
-    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    linclustworkflow.push_back(PARAM_RUNNER);
-
-    // assembler workflow
-    assemblerworkflow = combineList(rescorediagonal, kmermatcher);
-    assemblerworkflow.push_back(PARAM_NUM_ITERATIONS);
-    assemblerworkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    assemblerworkflow.push_back(PARAM_RUNNER);
-
-    // clustering workflow
-    clusteringWorkflow = combineList(prefilter, align);
-    clusteringWorkflow = combineList(clusteringWorkflow, clust);
-    clusteringWorkflow.push_back(PARAM_CASCADED);
-    clusteringWorkflow.push_back(PARAM_CLUSTER_FRAGMENTS);
-    clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    clusteringWorkflow.push_back(PARAM_RUNNER);
-    clusteringWorkflow = combineList(clusteringWorkflow, linclustworkflow);
-
-
-    clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
-    clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
-    clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
-    clusterUpdate.push_back(PARAM_USESEQID);
-
     // translate nucleotide
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);
     translatenucs.push_back(PARAM_V);
@@ -475,6 +439,42 @@ Parameters::Parameters():
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
 
+    // WORKFLOWS
+    searchworkflow = combineList(align, prefilter);
+    searchworkflow = combineList(searchworkflow, result2profile);
+    searchworkflow.push_back(PARAM_NUM_ITERATIONS);
+    searchworkflow.push_back(PARAM_START_SENS);
+    searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
+    searchworkflow.push_back(PARAM_RUNNER);
+    searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+
+    // linclust workflow
+    linclustworkflow = combineList(clust, align);
+    linclustworkflow = combineList(linclustworkflow, kmermatcher);
+    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
+    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    linclustworkflow.push_back(PARAM_RUNNER);
+
+    // assembler workflow
+    assemblerworkflow = combineList(rescorediagonal, kmermatcher);
+    assemblerworkflow.push_back(PARAM_NUM_ITERATIONS);
+    assemblerworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    assemblerworkflow.push_back(PARAM_RUNNER);
+
+    // clustering workflow
+    clusteringWorkflow = combineList(prefilter, align);
+    clusteringWorkflow = combineList(clusteringWorkflow, clust);
+    clusteringWorkflow.push_back(PARAM_CASCADED);
+    clusteringWorkflow.push_back(PARAM_CLUSTER_FRAGMENTS);
+    clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    clusteringWorkflow.push_back(PARAM_RUNNER);
+    clusteringWorkflow = combineList(clusteringWorkflow, linclustworkflow);
+
+
+    clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
+    clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
+    clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
+    clusterUpdate.push_back(PARAM_USESEQID);
     //checkSaneEnvironment();
     setDefaults();
 }
