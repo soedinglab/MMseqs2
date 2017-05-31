@@ -115,7 +115,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
         //smat[i] = smatData+((subMat.alphabetSize-1)*i);
         pBack[i] = 0.0;
         for(int j = 0; j < alphabetSize; j++){
-            pBack[i]+=probMatrix[i][j];
+            pBack[i]+=probMatrix_new[i][j];
         }
     }
 
