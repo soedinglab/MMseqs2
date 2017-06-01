@@ -21,8 +21,7 @@
 #include <omp.h>
 #endif
 
-
-Matcher::result_t  selectBestExtentionFragment(DBReader<unsigned int>  * sequenceDbr,
+Matcher::result_t selectBestExtentionFragment(DBReader<unsigned int>  * sequenceDbr,
                                               std::vector<Matcher::result_t> alignments,
                                               std::set<unsigned int> &prevFound,
                                               unsigned int queryKey) {
@@ -65,20 +64,19 @@ int doassembly(Parameters &par) {
     resultWriter.open();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
 
-//    unsigned char * readLabel = new unsigned char[sequenceDbr->getSize()];
-//    std::fill(readLabel, readLabel+sequenceDbr->getSize(), 0);
+    unsigned char * wasExtended = new unsigned char[sequenceDbr->getSize()];
+    std::fill(wasExtended, wasExtended+sequenceDbr->getSize(), 0);
 
     // do some fancy quality control
     //labaleSequences(par, sequenceDbr, alnReader, subMat, readLabel);
-
 
 #pragma omp parallel
     {
         Sequence querySeq(par.maxSeqLen, subMat.aa2int, subMat.int2aa, par.querySeqType,
                           0, false, false);
         Sequence targetSeq(par.maxSeqLen, subMat.aa2int, subMat.int2aa, par.querySeqType,
-                          0, false, false);
-#pragma omp for schedule(dynamic, 10)
+                           0, false, false);
+#pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < sequenceDbr->getSize(); id++) {
             Debug::printProgress(id);
             unsigned int thread_idx = 0;
@@ -94,41 +92,44 @@ int doassembly(Parameters &par) {
             unsigned int queryKey = sequenceDbr->getDbKey(id);
 //            std::cout << queryKey <<"\t"<< id << std::endl;
 
-            char * querySeqData = sequenceDbr->getData(id);
+            char *querySeqData = sequenceDbr->getData(id);
             unsigned int queryLen = sequenceDbr->getSeqLens(id);
 
             unsigned int queryOffset = 0;
-            std::string query(querySeqData, queryLen-2); // no /n/0
-            char * alnData = alnReader->getDataByDBKey(queryKey);
-            std::vector<Matcher::result_t> alignments = Matcher::readAlignmentResults ( alnData  );
+            std::string query(querySeqData, queryLen - 2); // no /n/0
+            char *alnData = alnReader->getDataByDBKey(queryKey);
+            std::vector<Matcher::result_t> alignments = Matcher::readAlignmentResults(alnData);
             std::set<unsigned int> prevFound;
-            for(size_t alnIdx = 0; alnIdx < alignments.size(); alnIdx++){
+            bool couldBeExtended = false;
+            for (size_t alnIdx = 0; alnIdx < alignments.size(); alnIdx++) {
                 querySeq.mapSequence(id, queryKey, query.c_str());
                 Matcher::result_t besttHitToExtend = selectBestExtentionFragment(sequenceDbr,
                                                                                  alignments,
                                                                                  prevFound,
                                                                                  queryKey);
-                if(besttHitToExtend.dbKey == UINT_MAX)
+                if (besttHitToExtend.dbKey == UINT_MAX)
                     continue;
                 prevFound.emplace(besttHitToExtend.dbKey);
-                char * dbSeq = sequenceDbr->getDataByDBKey(besttHitToExtend.dbKey);
+                char *dbSeq = sequenceDbr->getDataByDBKey(besttHitToExtend.dbKey);
                 targetSeq.mapSequence(besttHitToExtend.dbKey, besttHitToExtend.dbKey, dbSeq);
                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
-                int diagonal = (queryOffset+besttHitToExtend.qStartPos) - besttHitToExtend.dbStartPos;
-                size_t dist = std::max(abs(diagonal) , 0);
-                if (diagonal >= 0){
+                int diagonal = (queryOffset + besttHitToExtend.qStartPos) - besttHitToExtend.dbStartPos;
+                size_t dist = std::max(abs(diagonal), 0);
+                if (diagonal >= 0) {
                     size_t diagonalLen = std::min(targetSeq.L, querySeq.L - abs(diagonal));
-                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(querySeq.int_sequence + abs(diagonal),
-                                                                                            targetSeq.int_sequence, diagonalLen, subMat.subMatrix);
+                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(
+                            querySeq.int_sequence + abs(diagonal),
+                            targetSeq.int_sequence, diagonalLen, subMat.subMatrix);
                     qStartPos = alignment.startPos + dist;
                     qEndPos = alignment.endPos + dist;
                     dbStartPos = alignment.startPos;
                     dbEndPos = alignment.endPos;
-                }else{
+                } else {
                     size_t diagonalLen = std::min(targetSeq.L - abs(diagonal), querySeq.L);
-                    DistanceCalculator::LocalAlignment alignment  = DistanceCalculator::computeSubstituionStartEndDistance(querySeq.int_sequence,
-                                                                                            targetSeq.int_sequence + abs(diagonal),
-                                                                                       diagonalLen, subMat.subMatrix);
+                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(
+                            querySeq.int_sequence,
+                            targetSeq.int_sequence + abs(diagonal),
+                            diagonalLen, subMat.subMatrix);
                     qStartPos = alignment.startPos;
                     qEndPos = alignment.endPos;
                     dbStartPos = alignment.startPos + dist;
@@ -137,46 +138,66 @@ int doassembly(Parameters &par) {
 
                 }
 
-
 //                std::cout << "\t" << besttHitToExtend.dbKey << std::endl;
-
 //                std::cout << "Query : " << query << std::endl;
 //                std::cout << "Target: " << std::string(dbSeq, targetSeq.L)  << std::endl;
 
-                if(dbStartPos==0){
-                    size_t dbFragLen = (targetSeq.L-dbEndPos) - 1; // -1 get not aligned element
-                    std::string fragment = std::string(dbSeq+dbEndPos+1, dbFragLen);
-                    if(fragment.size() + query.size() >= par.maxSeqLen){
-                        Debug(Debug::WARNING) << "Sequence too long in query id: "  << queryKey << ". "
-                                                 "Max length allowed would is " << par.maxSeqLen << "\n";
+                if (dbStartPos == 0) {
+                    size_t dbFragLen = (targetSeq.L - dbEndPos) - 1; // -1 get not aligned element
+                    std::string fragment = std::string(dbSeq + dbEndPos + 1, dbFragLen);
+                    if (fragment.size() + query.size() >= par.maxSeqLen) {
+                        Debug(Debug::WARNING) << "Sequence too long in query id: " << queryKey << ". "
+                                "Max length allowed would is " << par.maxSeqLen << "\n";
                         break;
                     }
+                    //update that dbKey was used in assembly
+                    __sync_or_and_fetch(&wasExtended[besttHitToExtend.dbKey], static_cast<unsigned char>(0x80));
+                    couldBeExtended = true;
 //                    std::cout << "Fargm1: "  << fragment << std::endl;
                     query += fragment;
-                }else if(qStartPos==0){
+                } else if (qStartPos == 0) {
                     std::string fragment = std::string(dbSeq, dbStartPos); // +1 get not aligned element
-                    if(fragment.size() + query.size() >= par.maxSeqLen){
-                        Debug(Debug::WARNING) << "Sequence too long in query id: "  << queryKey << ". "
-                                                 "Max length allowed would is " << par.maxSeqLen << "\n";
+                    if (fragment.size() + query.size() >= par.maxSeqLen) {
+                        Debug(Debug::WARNING) << "Sequence too long in query id: " << queryKey << ". "
+                                "Max length allowed would is " << par.maxSeqLen << "\n";
                         break;
                     }
+                    // update that dbKey was used in assembly
+                    __sync_or_and_fetch(&wasExtended[besttHitToExtend.dbKey], static_cast<unsigned char>(0x80));
+                    couldBeExtended = true;
 //                    std::cout << "Fargm2: "  << fragment << std::endl;
                     query = fragment + query;
-                    queryOffset += dbStartPos ;
+                    queryOffset += dbStartPos;
                 }
 
             }
             query.push_back('\n');
 //            std::cout << "FQuery: " << query << std::endl;
-            resultWriter.writeData(query.c_str(),query.size(), queryKey, thread_idx);
+            if (couldBeExtended == true) {
+                __sync_or_and_fetch(&wasExtended[queryKey], static_cast<unsigned char>(0x80));
+                resultWriter.writeData(query.c_str(), query.size(), queryKey, thread_idx);
+            }
         }
-
+    } // end parallel
+// add sequences that are not yet assembled
+#pragma omp parallel for schedule(dynamic, 10000)
+    for (size_t id = 0; id < sequenceDbr->getSize(); id++) {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+        if(wasExtended[id] == 0){
+            unsigned int queryKey = sequenceDbr->getDbKey(id);
+            char *querySeqData = sequenceDbr->getData(id);
+            unsigned int queryLen = sequenceDbr->getSeqLens(id);
+            resultWriter.writeData(querySeqData, queryLen, queryKey, thread_idx);
+        }
     }
 
 // cleanup
     resultWriter.close();
     alnReader->close();
-//    delete [] readLabel;
+    delete [] wasExtended;
     delete alnReader;
     sequenceDbr->close();
     delete sequenceDbr;
