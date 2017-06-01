@@ -117,7 +117,7 @@ int doassembly(Parameters &par) {
                     EXIT(EXIT_FAILURE);
                 }
                 char *dbSeq = sequenceDbr->getData(targetId);
-                targetSeq.mapSequence(besttHitToExtend.dbKey, besttHitToExtend.dbKey, dbSeq);
+                targetSeq.mapSequence(targetId, besttHitToExtend.dbKey, dbSeq);
                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
                 int diagonal = (queryOffset + besttHitToExtend.qStartPos) - besttHitToExtend.dbStartPos;
                 size_t dist = std::max(abs(diagonal), 0);
@@ -157,7 +157,7 @@ int doassembly(Parameters &par) {
                         break;
                     }
                     //update that dbKey was used in assembly
-                    __sync_or_and_fetch(&wasExtended[targetId], static_cast<unsigned char>(0x80));
+                    __sync_or_and_fetch(&wasExtended[targetSeq.getId()], static_cast<unsigned char>(0x80));
                     queryCouldBeExtended = true;
 //                    std::cout << "Fargm1: "  << fragment << std::endl;
                     query += fragment;
@@ -169,7 +169,7 @@ int doassembly(Parameters &par) {
                         break;
                     }
                     // update that dbKey was used in assembly
-                    __sync_or_and_fetch(&wasExtended[targetId], static_cast<unsigned char>(0x80));
+                    __sync_or_and_fetch(&wasExtended[targetSeq.getId()], static_cast<unsigned char>(0x80));
                     queryCouldBeExtended = true;
 //                    std::cout << "Fargm2: "  << fragment << std::endl;
                     query = fragment + query;
@@ -180,7 +180,7 @@ int doassembly(Parameters &par) {
 //            std::cout << "FQuery: " << query << std::endl;
             if (queryCouldBeExtended == true) {
                 query.push_back('\n');
-                __sync_or_and_fetch(&wasExtended[queryKey], static_cast<unsigned char>(0x80));
+                __sync_or_and_fetch(&wasExtended[querySeq.getId()], static_cast<unsigned char>(0x80));
                 resultWriter.writeData(query.c_str(), query.size(), queryKey, thread_idx);
             }
         }
@@ -189,16 +189,13 @@ int doassembly(Parameters &par) {
 #pragma omp parallel for schedule(dynamic, 10000)
     for (size_t id = 0; id < sequenceDbr->getSize(); id++) {
         unsigned int thread_idx = 0;
-        unsigned int queryKey = sequenceDbr->getDbKey(id);
-
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-        if(wasExtended[queryKey] == 0){
-            unsigned int queryKey = sequenceDbr->getDbKey(id);
+        if(wasExtended[id] == 0){
             char *querySeqData = sequenceDbr->getData(id);
-            unsigned int queryLen = sequenceDbr->getSeqLens(id);
-            resultWriter.writeData(querySeqData, queryLen, queryKey, thread_idx);
+            unsigned int queryLen = sequenceDbr->getSeqLens(id) - 1; //skip null byte
+            resultWriter.writeData(querySeqData, queryLen, sequenceDbr->getDbKey(id), thread_idx);
         }
     }
 
