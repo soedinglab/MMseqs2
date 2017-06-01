@@ -110,7 +110,13 @@ int doassembly(Parameters &par) {
                 if (besttHitToExtend.dbKey == UINT_MAX)
                     continue;
                 prevFound.emplace(besttHitToExtend.dbKey);
-                char *dbSeq = sequenceDbr->getDataByDBKey(besttHitToExtend.dbKey);
+                unsigned int targetId = sequenceDbr->getId(besttHitToExtend.dbKey);
+                if(targetId==UINT_MAX){
+                    Debug(Debug::ERROR) << "Could not find targetId  " << besttHitToExtend.dbKey
+                                        << " in database "<< sequenceDbr->getDataFileName() <<  "\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                char *dbSeq = sequenceDbr->getData(targetId);
                 targetSeq.mapSequence(besttHitToExtend.dbKey, besttHitToExtend.dbKey, dbSeq);
                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
                 int diagonal = (queryOffset + besttHitToExtend.qStartPos) - besttHitToExtend.dbStartPos;
@@ -151,7 +157,7 @@ int doassembly(Parameters &par) {
                         break;
                     }
                     //update that dbKey was used in assembly
-                    __sync_or_and_fetch(&wasExtended[besttHitToExtend.dbKey], static_cast<unsigned char>(0x80));
+                    __sync_or_and_fetch(&wasExtended[targetId], static_cast<unsigned char>(0x80));
                     queryCouldBeExtended = true;
 //                    std::cout << "Fargm1: "  << fragment << std::endl;
                     query += fragment;
@@ -163,7 +169,7 @@ int doassembly(Parameters &par) {
                         break;
                     }
                     // update that dbKey was used in assembly
-                    __sync_or_and_fetch(&wasExtended[besttHitToExtend.dbKey], static_cast<unsigned char>(0x80));
+                    __sync_or_and_fetch(&wasExtended[targetId], static_cast<unsigned char>(0x80));
                     queryCouldBeExtended = true;
 //                    std::cout << "Fargm2: "  << fragment << std::endl;
                     query = fragment + query;
