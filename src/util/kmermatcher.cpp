@@ -20,6 +20,7 @@
 #include "omptl/omptl_algorithm"
 #include <sys/time.h>
 #include <MathUtil.h>
+#include <tantan.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -124,11 +125,21 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                              size_t KMER_SIZE, size_t chooseTopKmer){
     size_t kmerCounter = 0;
 
-
+    double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
+    const double *probMatrixPointers[subMat->alphabetSize];
+    char hardMaskTable[256];
+    std::fill_n(hardMaskTable, 256, subMat->aa2int[(int)'X']);
+    for (int i = 0; i < subMat->alphabetSize; ++i){
+        probMatrixPointers[i] = probMatrix[i];
+        for(int j = 0; j < subMat->alphabetSize; ++j){
+            probMatrix[i][j]  = subMat->probMatrix[i][j]/(subMat->pBack[i]*subMat->pBack[j]);
+        }
+    }
 #pragma omp parallel reduction (+: kmerCounter)
     {
         Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, KMER_SIZE, false, false);
         Indexer idxer(subMat->alphabetSize, KMER_SIZE);
+        char * charSequence = new char[par.maxSeqLen];
 
         size_t dbFrom, dbSize;
         int thread_idx = 0;
@@ -147,6 +158,25 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
         for(size_t id = dbFrom; id < (dbFrom + dbSize); id++){
             Debug::printProgress(id);
             seq.mapSequence(id, id, seqDbr.getData(id));
+
+            // mask using tantan
+            if (par.maskResidues) {
+                for (int i = 0; i < seq.L; i++) {
+                    charSequence[i] = (char) seq.int_sequence[i];
+                }
+                    tantan::maskSequences(charSequence,
+                                                        charSequence + seq.L,
+                                                        50 /*options.maxCycleLength*/,
+                                                        probMatrixPointers,
+                                                        0.005 /*options.repeatProb*/,
+                                                        0.05 /*options.repeatEndProb*/,
+                                                        0.5 /*options.repeatOffsetProbDecay*/,
+                                                        0, 0,
+                                                        0.5 /*options.minMaskProb*/, hardMaskTable);
+                for (int i = 0; i < seq.L; i++) {
+                    seq.int_sequence[i] = charSequence[i];
+                }
+            }
 
             int seqKmerCount = 0;
             unsigned int seqId = seq.getId();
@@ -191,6 +221,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
             kmerCounter += kmerConsidered;
         }
         delete [] kmers;
+        delete [] charSequence;
     }
 
     return kmerCounter;
@@ -211,10 +242,10 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     BaseMatrix * subMat;
     if(par.alphabetSize == 21){
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 8.0, -0.2);
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }else{
-        SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 8.0, -0.2);
-        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, par.alphabetSize, 8.0);
+        SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, par.alphabetSize, 2.0);
     }
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());

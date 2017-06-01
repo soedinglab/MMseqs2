@@ -133,6 +133,8 @@ include_directories(lib/kseq)
 include_directories(lib/simd)
 include_directories(lib/gzstream)
 include_directories(lib/alp)
+include_directories(lib/cacode)
+add_subdirectory(lib/cacode)
 add_subdirectory(lib/alp)
 add_subdirectory(src)
 

@@ -41,7 +41,7 @@ class SubstitutionMatrixWithoutX : public BaseMatrix {
         for (int i = 0; i<alphabetSize; i++)
             this->subMatrix[i] = new short[alphabetSize];
 
-        generateSubMatrix(probMatrix, rMatrix, this->subMatrix, this->subMatrix2Bit, alphabetSize, bitFactor, 0.0);
+        generateSubMatrix(probMatrix, rMatrix, this->subMatrix, this->subMatrix2Bit, alphabetSize, false, bitFactor, 0.0);
 
     }
     ~SubstitutionMatrixWithoutX(){};

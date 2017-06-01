@@ -4,6 +4,8 @@
 #include "Util.h"
 #include "MathUtil.h"
 
+const double BaseMatrix::ANY_BACK = 1E-5;
+
 BaseMatrix::BaseMatrix(){
     this->alphabetSize = 21;
     // init [amino acid <-> int] mappings
@@ -112,17 +114,26 @@ void BaseMatrix::print(double** matrix, char* int2aa, int size){
     std::cout << (avg/(double)(size*size)) << "\n";
 }
 
+void BaseMatrix::computeBackground(double ** probMat, double * pBack, int alphabetSize, bool containsX){
+    for(int i = 0; i < alphabetSize; i++){
+        pBack[i] = 0;
+        for(int j = 0; j < alphabetSize; j++){
+            pBack[i]+=probMat[i][j];
+        }
+    }
+    if(containsX){
+        pBack[alphabetSize-1] = ANY_BACK;
+    }
+
+}
+
 void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, float ** subMatrixPseudoCounts,
-                                   int size) {
+                                   int size, bool containsX) {
 
     // calculate background distribution for the amino acids
     double *pBack = new double[size];
-    for (int i = 0; i < size; i++) {
-        pBack[i] = 0;
-        for (int j = 0; j < size; j++) {
-            pBack[i] += probMatrix[i][j];
-        }
-    }
+    computeBackground(probMatrix, pBack, size, containsX);
+
     //Precompute matrix R for amino acid pseudocounts:
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
@@ -133,23 +144,25 @@ void BaseMatrix::generateSubMatrix(double ** probMatrix, double ** subMatrix, fl
     // calculate the substitution matrix
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
-            subMatrix[i][j] = MathUtil::log2(probMatrix[i][j] / (pBack[i] * pBack[j]));
+            subMatrix[i][j] = std::log2(probMatrix[i][j] / (pBack[i] * pBack[j]));
+            //printf("%3.4f %3.4f %3.4f \n",  probMatrix[i][j], pBack[i], pBack[j] );
+
         }
     }
     delete[] pBack;
-    subMatrix[size - 1][size - 1] = 0.0;
-    for (int i = 0; i < size; i++) {
-        subMatrix[size - 1][i] = -.7;
-        subMatrix[i][size - 1] = -.7;
-    }
+//    subMatrix[size - 1][size - 1] = -.7;
+//    for (int i = 0; i < size; i++) {
+//        subMatrix[size - 1][i] = -.7;
+//        subMatrix[i][size - 1] = -.7;
+//    }
 }
 void BaseMatrix::generateSubMatrix(double ** probMatrix, float ** subMatrixPseudoCounts, short ** subMatrix,
-                                   short **subMatrix2Bit, int size, double bitFactor, double scoringBias){
+                                   short **subMatrix2Bit, int size, bool containsX, double bitFactor, double scoringBias){
     double** sm = new double* [size];
     for (int i = 0; i < size; i++)
         sm[i] = new double[size];
 
-    generateSubMatrix(probMatrix, sm, subMatrixPseudoCounts, size);
+    generateSubMatrix(probMatrix, sm, subMatrixPseudoCounts, size, containsX);
 
     // convert to short data type matrix
     for (int i = 0; i < size; i++){
@@ -174,3 +187,4 @@ double BaseMatrix::getBackgroundProb(size_t aa_index)  {
     Debug(Debug::ERROR) << "getBackground is not Impl. for this type of Matrix \n";
     EXIT(EXIT_FAILURE);
 }
+
