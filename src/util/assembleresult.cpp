@@ -100,7 +100,7 @@ int doassembly(Parameters &par) {
             char *alnData = alnReader->getDataByDBKey(queryKey);
             std::vector<Matcher::result_t> alignments = Matcher::readAlignmentResults(alnData);
             std::set<unsigned int> prevFound;
-            bool couldBeExtended = false;
+            bool queryCouldBeExtended = false;
             for (size_t alnIdx = 0; alnIdx < alignments.size(); alnIdx++) {
                 querySeq.mapSequence(id, queryKey, query.c_str());
                 Matcher::result_t besttHitToExtend = selectBestExtentionFragment(sequenceDbr,
@@ -152,7 +152,7 @@ int doassembly(Parameters &par) {
                     }
                     //update that dbKey was used in assembly
                     __sync_or_and_fetch(&wasExtended[besttHitToExtend.dbKey], static_cast<unsigned char>(0x80));
-                    couldBeExtended = true;
+                    queryCouldBeExtended = true;
 //                    std::cout << "Fargm1: "  << fragment << std::endl;
                     query += fragment;
                 } else if (qStartPos == 0) {
@@ -164,16 +164,16 @@ int doassembly(Parameters &par) {
                     }
                     // update that dbKey was used in assembly
                     __sync_or_and_fetch(&wasExtended[besttHitToExtend.dbKey], static_cast<unsigned char>(0x80));
-                    couldBeExtended = true;
+                    queryCouldBeExtended = true;
 //                    std::cout << "Fargm2: "  << fragment << std::endl;
                     query = fragment + query;
                     queryOffset += dbStartPos;
                 }
 
             }
-            query.push_back('\n');
 //            std::cout << "FQuery: " << query << std::endl;
-            if (couldBeExtended == true) {
+            if (queryCouldBeExtended == true) {
+                query.push_back('\n');
                 __sync_or_and_fetch(&wasExtended[queryKey], static_cast<unsigned char>(0x80));
                 resultWriter.writeData(query.c_str(), query.size(), queryKey, thread_idx);
             }
@@ -183,10 +183,12 @@ int doassembly(Parameters &par) {
 #pragma omp parallel for schedule(dynamic, 10000)
     for (size_t id = 0; id < sequenceDbr->getSize(); id++) {
         unsigned int thread_idx = 0;
+        unsigned int queryKey = sequenceDbr->getDbKey(id);
+
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-        if(wasExtended[id] == 0){
+        if(wasExtended[queryKey] == 0){
             unsigned int queryKey = sequenceDbr->getDbKey(id);
             char *querySeqData = sequenceDbr->getData(id);
             unsigned int queryLen = sequenceDbr->getSeqLens(id);
