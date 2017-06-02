@@ -132,37 +132,18 @@ void swapBt(std::string &bt) {
 void swapAlnResults(Parameters &par, std::vector<AlignmentResultEntry> *resMap,
                     unsigned int targetKeyMin, unsigned int targetKeyMax) {
     // evalue correction for the swapping
-    double *kmnByLen = NULL;
-    double lambda, logK, lambdaLog2, logKLog2;
+    size_t aaResSize =  0;
     {
         DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
         qdbr.open(DBReader<unsigned int>::NOSORT);
-        DBReader<unsigned int> tdbr(par.db2.c_str(), par.db2Index.c_str());
-        tdbr.open(DBReader<unsigned int>::NOSORT);
-
-        SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-        BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(),
-                                                                                      Matcher::GAP_OPEN,
-                                                                                      Matcher::GAP_EXTEND, false);
-
-        int seqLen = static_cast<int>(par.maxSeqLen);
-        kmnByLen = new double[seqLen];
-        for (int len = 0; len < seqLen; len++) {
-            kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
-                                                        qdbr.getAminoAcidDBSize(), qdbr.getSize());
-        }
-
-        lambda = stats.lambda;
-        logK = log(stats.K);
-        lambdaLog2 = lambda / log(2.0);
-        logKLog2 = logK / log(2.0);
-
-        qdbr.close();
-        tdbr.close();
+        aaResSize = qdbr.getAminoAcidDBSize();
     }
 
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+    EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 
     //std::cout<<sizeof(Matcher::result_t)<<std::endl; -> 96bytes
 
@@ -197,8 +178,8 @@ void swapAlnResults(Parameters &par, std::vector<AlignmentResultEntry> *resMap,
 
                     unsigned int targetKey = res.dbKey;
                     if (targetKey >= targetKeyMin && targetKey < targetKeyMax) {
-                        double rawScore = BlastScoreUtils::bitScoreToRawScore(res.score, lambdaLog2, logKLog2);
-                        res.eval = BlastScoreUtils::computeEvalue(rawScore, kmnByLen[res.dbLen], lambda);
+                        double rawScore = evaluer.computeBitScore (res.score);
+                        res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
                         unsigned int qstart = res.qStartPos;
                         unsigned int qend = res.qEndPos;
                         unsigned int qLen = res.qLen;
@@ -250,7 +231,6 @@ void swapAlnResults(Parameters &par, std::vector<AlignmentResultEntry> *resMap,
         }
     }
 
-    delete[] kmnByLen;
     resultReader.close();
 }
 
@@ -278,7 +258,6 @@ std::pair<size_t,size_t> longestLine(const char* name, int threads = 1) {
         startChunk =  thread_num * file.size() / num_threads;
         endChunk = (thread_num + 1) * file.size() / num_threads;
 
-        size_t lastPos;
         size_t i = startChunk;
         while(i && i<file.size() && buf[i] != '\n') // wedge on line start
             i++;

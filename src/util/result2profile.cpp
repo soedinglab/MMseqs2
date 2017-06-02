@@ -355,7 +355,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     {
                         std::pair<const char*, std::string> pssmRes =
                                 calculator.computePSSMFromMSA(res.setSize, res.centerLength,
-                                                              res.filteredMsaSequence, par.wg);
+                                                              (const char **)res.msaSequence, par.wg);
                         msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) << pssmRes.second << "\n;";
                     } else {
                         std::ostringstream centerSeqStr;

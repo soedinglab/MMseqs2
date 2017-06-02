@@ -1,4 +1,5 @@
 set(COMPILED_RESOURCES
+        assembler.sh
         blastp.sh
         blastpgp.sh
         linclust.sh

@@ -96,7 +96,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
         size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());
         size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qseqdbr->getSize(),
-                                                                 std::min(par.maxAccept, par.maxResListLen));
+                                                                 std::min(static_cast<size_t>(par.maxAccept), par.maxResListLen));
         if (freeSpace < estimatedHDDMemory){
             Debug(Debug::ERROR) << "Hard disk has not enough space (" << freeSpace << " bytes left) "
                                 << "to store " << estimatedHDDMemory << " bytes of results.\n"
