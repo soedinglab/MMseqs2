@@ -88,7 +88,7 @@ private:
     const float covThr;
     const bool includeIdentical;
     const bool earlyExit;
-    const bool preload;
+    const bool noPreload;
     const unsigned int threads;
 
     bool runSplit(DBReader<unsigned int> *qdbr, const std::string &resultDB, const std::string &resultDBIndex,

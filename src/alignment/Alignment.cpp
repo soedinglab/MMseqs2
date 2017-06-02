@@ -27,7 +27,6 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
 
-    bool preload = par.noPreload == false;
     int alignmentMode = par.alignmentMode;
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
@@ -48,11 +47,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (indexDB != "") {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
 
-        int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
-        if (preload == false) {
-            dataMode |= DBReader<unsigned int>::USE_MMAP;
-        }
-        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), dataMode);
+        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
         tidxdbr->open(DBReader<unsigned int>::NOSORT);
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
@@ -64,11 +59,11 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
             } else {
                 PrefilteringIndexReader::printSummary(tidxdbr);
                 if (meta.maskMode == 0) {
-                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr);
+                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, par.noPreload == false);
                 } else if (meta.maskMode == 2) {
-                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr);
+                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, par.noPreload == false);
                 }
-                tseqdbr = PrefilteringIndexReader::openNewReader(tidxdbr);
+                tseqdbr = PrefilteringIndexReader::openNewReader(tidxdbr, par.noPreload == false);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }
@@ -83,7 +78,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (templateDBIsIndex == false) {
         tseqdbr = new DBReader<unsigned int>(targetSeqDB.c_str(), targetSeqDBIndex.c_str());
         tseqdbr->open(DBReader<unsigned int>::NOSORT);
-        if (preload) {
+        if (par.noPreload == false) {
             tseqdbr->readMmapedDataInMemory();
             tseqdbr->mlock();
         }

@@ -44,13 +44,13 @@ public:
                                 bool compBiasCorrection, int alphabetSize, int kmerSize,
                                 bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads);
 
-    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr);
+    static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool touch);
 
-    static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr);
+    static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
 
-    static SequenceLookup *getUnmaskedSequenceLookup(DBReader<unsigned int> *dbr);
+    static SequenceLookup *getUnmaskedSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
 
-    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, bool diagonalScoring);
+    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, bool diagonalScoring, bool touch);
 
     static void printSummary(DBReader<unsigned int> *dbr);
 
@@ -58,9 +58,9 @@ public:
 
     static std::string getSubstitutionMatrixName(DBReader<unsigned int> *dbr);
 
-    static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr);
+    static ScoreMatrix *get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
 
-    static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr);
+    static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
 
     static std::string searchForIndex(const std::string &pathToDB);
 

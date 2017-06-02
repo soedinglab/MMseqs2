@@ -34,7 +34,7 @@ DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t s
 
 template <typename T>
 void DBReader<T>::readMmapedDataInMemory(){
-    if ((dataMode & USE_DATA) && (dataMode & USE_MMAP)) {
+    if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
         magicBytes = Util::touchMemory(data, dataSize);
     }
 }
@@ -223,7 +223,7 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
     int mode;
 
     char *ret;
-    if(dataMode & USE_MMAP) {
+    if ((dataMode & USE_FREAD) == 0) {
         if(dataMode & USE_WRITABLE) {
             mode = PROT_READ | PROT_WRITE;
         } else {
@@ -247,7 +247,7 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
 }
 
 template <typename T> void DBReader<T>::remapData(){
-    if ((dataMode & USE_DATA) && (dataMode & USE_MMAP)) {
+    if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
         unmapData();
         data = mmapData(dataFile, &dataSize);
         dataMapped = true;
@@ -306,7 +306,7 @@ template <typename T> char* DBReader<T>::getData(size_t id){
 
 template <typename T>
 void DBReader<T>::touchData(size_t id) {
-    if((dataMode & USE_DATA) && (dataMode & USE_MMAP)) {
+    if((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
         char *data = getData(id);
         size_t size = getSeqLens(id);
         magicBytes = Util::touchMemory(data, size);
@@ -423,7 +423,7 @@ template <typename T> void DBReader<T>::unmapData() {
             didMlock = false;
         }
 
-        if (dataMode & USE_MMAP) {
+        if ((dataMode & USE_FREAD) == 0) {
             if(munmap(data, dataSize) < 0){
                 Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
                 EXIT(EXIT_FAILURE);
