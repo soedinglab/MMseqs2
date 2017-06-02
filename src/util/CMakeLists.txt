@@ -31,6 +31,7 @@ set(util_source_files
         kmermatcher.cpp
         rescorediagonal.cpp
         result2repseq.cpp
+        assembleresult.cpp
         )
 
 add_library(util ${util_source_files} )

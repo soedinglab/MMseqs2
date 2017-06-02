@@ -1,3 +1,4 @@
+#include <cmath>
 #include "ReducedMatrix.h"
 #include "Util.h"
 
@@ -12,7 +13,6 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
     this->orig_aa2int = this->aa2int;
     this->orig_int2aa = this->int2aa;
     this->origSubMatrix = this->subMatrix;
-
     for(int i = 0; i < this->alphabetSize; i++) {
         for (int j = 0; j < this->alphabetSize; j++) {
             this->probMatrix[i][j] = probMatrix[i][j];
@@ -36,11 +36,11 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
         probMatrix_new[i]=new double[origAlphabetSize-1];
     }
 
-    generateSubMatrix(this->probMatrix, subMatrix_tmp, rMatrix,  origAlphabetSize-1);
+    generateSubMatrix(this->probMatrix, subMatrix_tmp, rMatrix,  origAlphabetSize-1, false);
 
 //    double info = calculateMutualInformation(probMatrix, subMatrix_tmp, origAlphabetSize-1);
 //    Debug(Debug::INFO) << "20 " << info << "\n";
-
+    //print(subMatrix, origAlphabetSize -1,  )
 
     size_t reduce_steps=origAlphabetSize-alphabetSize;
 
@@ -63,7 +63,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
         char reduced_aa=reducedAlphabet->at(reduced_index);
         char lost_aa   =reducedAlphabet->at(lost_index);
 
-        printf("%c -> %c\n",lost_aa, reduced_aa);
+        Debug(Debug::WARNING)  << lost_aa  << " -> " << reduced_aa << "\n";
         reducedAlphabet->erase(reducedAlphabet->begin()+lost_index);
 
         int reduced_int=this->orig_aa2int[(int)reduced_aa];
@@ -100,17 +100,38 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
     }
     Debug(Debug::INFO) << "\n";
 
-    delete[] this->int2aa;
-    delete[] this->aa2int;
 
-    this->int2aa = int2aa_new;
-    this->aa2int = aa2int_new;
 
     this->subMatrix = new short*[alphabetSize];
     for (int i = 0; i<alphabetSize; i++)
         this->subMatrix[i] = new short[alphabetSize];
 
-    generateSubMatrix(probMatrix_new, rMatrix, this->subMatrix, this->subMatrix2Bit, alphabetSize, bitFactor, 0.0);
+    // compute background
+    computeBackground(probMatrix_new, pBack, alphabetSize, true);
+
+    // compute X background
+    for (int i = 0; i < alphabetSize - 1; i++) {
+        pBack[i] = pBack[i] * (1.0 - pBack[aa2int[(int)'X']]);
+    }
+
+    double * origpBack=new double[origAlphabetSize];
+    computeBackground(probMatrix, origpBack, origAlphabetSize, true);
+    // copy old X state
+    for (int i = 0; i < this->alphabetSize; i++) {
+        int oldIndex = aa2int[int2aa_new[i]];
+        double Pab = probMatrix[oldIndex][origAlphabetSize-1] / ( origpBack[oldIndex] * origpBack[origAlphabetSize-1]);
+        probMatrix_new[alphabetSize-1][i] = Pab * pBack[i] * pBack[alphabetSize-1];
+        probMatrix_new[i][alphabetSize-1] = Pab * pBack[alphabetSize-1] * pBack[i];
+    }
+    delete [] origpBack;
+    generateSubMatrix(probMatrix_new, rMatrix, this->subMatrix, this->subMatrix2Bit, alphabetSize, true, bitFactor, 0.0);
+
+
+    delete[] this->int2aa;
+    delete[] this->aa2int;
+
+    this->int2aa = int2aa_new;
+    this->aa2int = aa2int_new;
 
     for (size_t i = 0; i < origAlphabetSize-1; i++)
     {
@@ -201,7 +222,7 @@ std::pair<size_t,size_t> ReducedMatrix::coupleWithBestInfo(double ** pinput, dou
         for (size_t j=i+1; j  < size; j++){
             coupleBases(pinput, tempp, size, i, j);
             // Generate the new substitution matrix after two bases have been coupled.
-            generateSubMatrix(tempp, tempsub, rMatrix, size-1);
+            generateSubMatrix(tempp, tempsub, rMatrix, size-1, false);
             // Storing mutual information in temp.
             temp = calculateMutualInformation(tempp, tempsub, size-1);
             if (temp > bestInfo) {bestInfo = temp; besti = i; bestj = j;}

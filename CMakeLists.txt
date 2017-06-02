@@ -41,6 +41,87 @@ include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 add_definitions("-DGIT_SHA1=${GIT_SHA1}")
 
+# openmp integration
+find_package(OpenMP)
+if(OPENMP_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOPENMP=1 ${OpenMP_CXX_FLAGS}")
+endif()
+
+# needed for concat.h
+include(CheckCXXSourceRuns)
+check_cxx_source_runs("
+        #include <stdlib.h>
+        #include <fcntl.h>
+        #include <stdio.h>
+
+        int main()
+        {
+          FILE* tmpf = tmpfile();
+          int input_desc = fileno(tmpf);
+          int test =  posix_fadvise (input_desc, 0, 0, POSIX_FADV_SEQUENTIAL);
+          fclose(tmpf);
+        }"
+        HAVE_POSIX_FADVISE)
+if(HAVE_POSIX_FADVISE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_POSIX_FADVISE=1 ")
+endif()
+
+
+#SSE
+if(${HAVE_AVX2})
+    add_definitions("-DAVX2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -Wa,-q")
+elseif(${HAVE_SSE4_1})
+    add_definitions("-DSSE")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.1")
+else()
+    include(CheckSSEFeatures)
+    add_definitions(${CXX_DFLAGS})
+    if(${HAVE_AVX2_EXTENSIONS})
+        add_definitions("-DAVX2")
+        # debugging
+        #   add_definitions("-DSSE")
+    else()
+        if(${HAVE_SSE4_1_EXTENSIONS})
+            add_definitions("-DSSE")
+        else()
+            message( FATAL_ERROR "At least SSE4.2 is needed to compile!" )
+        endif(${HAVE_SSE4_1_EXTENSIONS})
+    endif(${HAVE_AVX2_EXTENSIONS})
+endif()
+
+# set flags
+set(MMSEQS_WARNINGS "-pedantic -Wall -Wextra -Winline -Wdisabled-optimization -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -std=c++0x -m64 ${MMSEQS_WARNINGS}")
+set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
+set(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS_MINSIZEREL} -Os -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDBINFO} -O2 -g")
+
+# Compiler-specific features
+if(CMAKE_COMPILER_IS_CLANG)
+    set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++11")
+    set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif()
+
+# MPI
+if(${HAVE_MPI})
+    find_package(MPI QUIET)
+    if(MPI_FOUND)
+        set(CMAKE_CXX_COMPILE_FLAGS ${CMAKE_CXX_COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
+        set(CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS} ${MPI_LINK_FLAGS})
+        include_directories(${MPI_INCLUDE_PATH})
+        ADD_DEFINITIONS("-DHAVE_MPI")
+        message("-- Found MPI")
+    endif()
+endif()
+
+find_package(ZLIB QUIET)
+if(ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIRS})
+    ADD_DEFINITIONS("-DHAVE_ZLIB")
+endif()
+
 include_directories(src/commons)
 include_directories(src/prefiltering)
 include_directories(src/alignment)
@@ -51,6 +132,10 @@ include_directories(lib/getoptpp)
 include_directories(lib/kseq)
 include_directories(lib/simd)
 include_directories(lib/gzstream)
+include_directories(lib/alp)
+include_directories(lib/cacode)
+add_subdirectory(lib/cacode)
+add_subdirectory(lib/alp)
 add_subdirectory(src)
 
 install(PROGRAMS

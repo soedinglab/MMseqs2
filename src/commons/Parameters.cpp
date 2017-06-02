@@ -16,7 +16,7 @@
 #endif
 
 Parameters::Parameters():
-        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity: 1.0 faster; 4.0 fast; 6.1 default; 7.5 sensitive [1.0,7.5]", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
+        PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity: 1.0 faster; 4.0 fast default; 6.1; 8.5 sensitive [1.0,8.5]", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7] (0: set automatically to optimum)",typeid(int),  (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_THREADS(PARAM_THREADS_ID,"--threads", "Threads", "number of cores used for the computation (uses all cores by default)",typeid(int), (void *) &threads, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON),
         PARAM_ALPH_SIZE(PARAM_ALPH_SIZE_ID,"--alph-size", "Alphabet size", "alphabet size [2,21]",typeid(int),(void *) &alphabetSize, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
@@ -76,6 +76,7 @@ Parameters::Parameters():
         PARAM_SUMMARY_PREFIX(PARAM_SUMMARY_PREFIX_ID, "--summary-prefix", "Summary prefix","sets the cluster summary prefix",typeid(std::string),(void *) &summaryPrefix, ""),
 // result2profile
         PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "includes sequences matches with < e-value thr. into the profile [>=0.0]", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$", MMseqsParameter::COMMAND_PROFILE),
+        PARAM_FILTER_MSA(PARAM_FILTER_MSA_ID,"--filter-msa", "Filter MSA", "filter msa: 1: filter, 2: do not filter", typeid(int), (void*) &filterMsa, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum sequence identity threshold", "reduce redundancy of output MSA using max. pairwise sequence identity [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_FILTER_QSC(PARAM_FILTER_QSC_ID, "--qsc", "Minimum score per column", "reduce diversity of output MSAs using min. score per aligned residue with query sequences [-50.0,100.0]", typeid(float), (void*) &qsc, "^\\-*[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_FILTER_QID(PARAM_FILTER_QID_ID, "--qid", "Minimum seq. id.", "reduce diversity of output MSAs using min.seq. identity with query sequences [0.0,1.0]", typeid(float), (void*) &qid, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
@@ -208,6 +209,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(PARAM_FILTER_HITS);
     rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
     rescorediagonal.push_back(PARAM_C);
+    rescorediagonal.push_back(PARAM_E);
     rescorediagonal.push_back(PARAM_TARGET_COV);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
     rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
@@ -228,6 +230,7 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_E_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
     result2profile.push_back(PARAM_WG);
+    result2profile.push_back(PARAM_FILTER_MSA);
     result2profile.push_back(PARAM_FILTER_MAX_SEQ_ID);
     result2profile.push_back(PARAM_FILTER_QID);
     result2profile.push_back(PARAM_FILTER_QSC);
@@ -255,6 +258,7 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_ALLOW_DELETION);
     result2msa.push_back(PARAM_ADD_INTERNAL_ID);
     result2msa.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2msa.push_back(PARAM_FILTER_MSA);
     result2msa.push_back(PARAM_FILTER_MAX_SEQ_ID);
     result2msa.push_back(PARAM_FILTER_QID);
     result2msa.push_back(PARAM_FILTER_QSC);
@@ -313,35 +317,6 @@ Parameters::Parameters():
     gff2ffindex.push_back(PARAM_ID_OFFSET);
     gff2ffindex.push_back(PARAM_V);
 
-    searchworkflow = combineList(align, prefilter);
-    searchworkflow = combineList(searchworkflow, result2profile);
-    searchworkflow.push_back(PARAM_NUM_ITERATIONS);
-    searchworkflow.push_back(PARAM_START_SENS);
-    searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
-    searchworkflow.push_back(PARAM_RUNNER);
-    searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
-
-    // linclust workflow
-    linclustworkflow = combineList(clust, align);
-    linclustworkflow = combineList(linclustworkflow, kmermatcher);
-    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
-    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    linclustworkflow.push_back(PARAM_RUNNER);
-
-    clusteringWorkflow = combineList(prefilter, align);
-    clusteringWorkflow = combineList(clusteringWorkflow, clust);
-    clusteringWorkflow.push_back(PARAM_CASCADED);
-    clusteringWorkflow.push_back(PARAM_CLUSTER_FRAGMENTS);
-    clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
-    clusteringWorkflow.push_back(PARAM_RUNNER);
-    clusteringWorkflow = combineList(clusteringWorkflow, linclustworkflow);
-
-
-    clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
-    clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
-    clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
-    clusterUpdate.push_back(PARAM_USESEQID);
-
     // translate nucleotide
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);
     translatenucs.push_back(PARAM_V);
@@ -397,6 +372,7 @@ Parameters::Parameters():
     kmermatcher.push_back(PARAM_ALPH_SIZE);
     kmermatcher.push_back(PARAM_MIN_SEQ_ID);
     kmermatcher.push_back(PARAM_KMER_PER_SEQ);
+    kmermatcher.push_back(PARAM_MASK_RESIDUES);
     kmermatcher.push_back(PARAM_TARGET_COV);
     kmermatcher.push_back(PARAM_K);
     kmermatcher.push_back(PARAM_C);
@@ -459,6 +435,42 @@ Parameters::Parameters():
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
 
+    // WORKFLOWS
+    searchworkflow = combineList(align, prefilter);
+    searchworkflow = combineList(searchworkflow, result2profile);
+    searchworkflow.push_back(PARAM_NUM_ITERATIONS);
+    searchworkflow.push_back(PARAM_START_SENS);
+    searchworkflow.push_back(PARAM_SENS_STEP_SIZE);
+    searchworkflow.push_back(PARAM_RUNNER);
+    searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+
+    // linclust workflow
+    linclustworkflow = combineList(clust, align);
+    linclustworkflow = combineList(linclustworkflow, kmermatcher);
+    linclustworkflow = combineList(linclustworkflow, rescorediagonal);
+    linclustworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    linclustworkflow.push_back(PARAM_RUNNER);
+
+    // assembler workflow
+    assemblerworkflow = combineList(rescorediagonal, kmermatcher);
+    assemblerworkflow.push_back(PARAM_NUM_ITERATIONS);
+    assemblerworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    assemblerworkflow.push_back(PARAM_RUNNER);
+
+    // clustering workflow
+    clusteringWorkflow = combineList(prefilter, align);
+    clusteringWorkflow = combineList(clusteringWorkflow, clust);
+    clusteringWorkflow.push_back(PARAM_CASCADED);
+    clusteringWorkflow.push_back(PARAM_CLUSTER_FRAGMENTS);
+    clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
+    clusteringWorkflow.push_back(PARAM_RUNNER);
+    clusteringWorkflow = combineList(clusteringWorkflow, linclustworkflow);
+
+
+    clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
+    clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
+    clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
+    clusterUpdate.push_back(PARAM_USESEQID);
     //checkSaneEnvironment();
     setDefaults();
 }
@@ -903,6 +915,7 @@ void Parameters::setDefaults() {
 
     // result2profile
     evalProfile = evalThr;
+    filterMsa = 1;
     filterMaxSeqId = 0.9;
     qid = 0.0;           // default for minimum sequence identity with query
     qsc = -20.0f;        // default for minimum score per column with query

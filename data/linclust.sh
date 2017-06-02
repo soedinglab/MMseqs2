@@ -6,8 +6,6 @@ checkReturnCode () {
 notExists () { 
 	[ ! -f "$1" ] 
 }
-#pre processing
-#[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
 # check amount of input variables
 [ "$#" -ne 3 ] && echo "Please provide <sequenceDB> <outDB> <tmp>" && exit 1;
 # check if files exists

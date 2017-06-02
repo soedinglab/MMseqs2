@@ -3,21 +3,13 @@
 #include "Util.h"
 #include "Parameters.h"
 
-Matcher::Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize, bool aaBiasCorrection){
+Matcher::Matcher(int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection){
     this->m = m;
     this->tinySubMat = NULL;
     setSubstitutionMatrix(m);
     this->maxSeqLen = maxSeqLen;
     aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
-    kmnByLen = new double[maxSeqLen];
-    BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(m->getMatrixName(), GAP_OPEN, GAP_EXTEND, true);
-    for(int len = 0; len < maxSeqLen; len++){
-        kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta, dbLen, dbSize);
-    }
-    double logK = log( stats.K);
-    this->lambda = stats.lambda;
-    this->lambdaLog2 =  stats.lambda / log(2.0);
-    this->logKLog2 = logK / log(2.0);
+    this->evaluer = evaluer;
     //std::cout << "lambda=" << lambdaLog2 << " logKLog2=" << logKLog2 << std::endl;
 }
 
@@ -37,7 +29,6 @@ Matcher::~Matcher(){
         delete [] tinySubMat;
         tinySubMat = NULL;
     }
-    delete[] kmnByLen;
 }
 
 void Matcher::initQuery(Sequence* query){
@@ -63,11 +54,11 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
 
     // calcuate stop score
     const double qL = static_cast<double>(currentQuery->L);
-    const double dbL = static_cast<double>(dbSeq->L);
+//    const double dbL = static_cast<double>(dbSeq->L);
 
     // avoid nummerical issues -log(evalThr/(qL*dbL*seqDbSize))
-    double datapoints = -log(static_cast<double>(seqDbSize)) - log(qL) - log(dbL) + log(evalThr);
-    uint16_t scoreThr = (uint16_t) (m->getBitFactor() * -(datapoints));
+//    double datapoints = -log(static_cast<double>(seqDbSize)) - log(qL) - log(dbL) + log(evalThr);
+    uint16_t scoreThr = evaluer->minScore(evalThr,qL);
     if(evalThr == 0.0)
         scoreThr = 0;
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
@@ -146,8 +137,8 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
 
     // statistics
     //  E =  qL dL * 2^(-S)
-    double evalue = BlastScoreUtils::computeEvalue(alignment.score1, kmnByLen[currentQuery->L], this->lambda);
-    int bitScore =(short) (BlastScoreUtils::computeBitScore(alignment.score1, lambdaLog2, logKLog2)+0.5);
+    double evalue = evaluer->computeEvalue(alignment.score1, currentQuery->L);
+    int bitScore = static_cast<short>(evaluer->computeBitScore(alignment.score1)+0.5);
 //    std::cout << alignment.score1 << "\t" << evalue << "\t" << bitScore << std::endl;
 
     size_t alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);

@@ -207,6 +207,7 @@ public:
     // result2profile
     float filterMaxSeqId;
     float evalProfile;
+    int filterMsa;
     float qsc;
     float qid;
     float cov;
@@ -386,6 +387,7 @@ public:
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)
+    PARAMETER(PARAM_FILTER_MSA)
     PARAMETER(PARAM_FILTER_MAX_SEQ_ID)
     PARAMETER(PARAM_FILTER_QSC)
     PARAMETER(PARAM_FILTER_QID)
@@ -505,6 +507,7 @@ public:
     std::vector<MMseqsParameter> clusthash;
     std::vector<MMseqsParameter> kmermatcher;
     std::vector<MMseqsParameter> linclustworkflow;
+    std::vector<MMseqsParameter> assemblerworkflow;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;

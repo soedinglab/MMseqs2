@@ -1,11 +1,11 @@
 #include "Alignment.h"
-#include "BlastScoreUtils.h"
 #include "Util.h"
 #include "Debug.h"
 
 #include <list>
 #include <iomanip>
 #include <memory>
+#include <FileUtil.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -90,6 +90,13 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
     // open the sequence, prefiltering and output databases
     qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
     qseqdbr->open(DBReader<unsigned int>::NOSORT);
+    /*size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());
+    size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qseqdbr->getSize(), std::min(static_cast<size_t >(par.maxAccept), par.maxResListLen));
+    if( freeSpace < estimatedHDDMemory){
+        Debug(Debug::ERROR) << "Hard disk has not enough space " << freeSpace << " to store results  ~" <<estimatedHDDMemory <<".\n"
+                "Please make space on  an start mmseqs again.\n";
+        EXIT(EXIT_FAILURE);
+    }*/
     qseqdbr->readMmapedDataInMemory();
     sameQTDB = (querySeqDB.compare(targetSeqDB) == 0);
     if(sameQTDB == true) {
@@ -108,9 +115,10 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
     this->outDBIndex = outDBIndex;
 
     matchers = new Matcher*[threads];
+    evaluer = new EvalueComputation(tseqdbr->getAminoAcidDBSize(), this->m, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 # pragma omp parallel for schedule(static)
     for (int i = 0; i < threads; i++) {
-        matchers[i] = new Matcher(par.maxSeqLen, this->m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize(),
+        matchers[i] = new Matcher(par.maxSeqLen, this->m, evaluer,
                                   par.compBiasCorrection);
     }
     if(this->realign == true){
@@ -118,8 +126,8 @@ Alignment::Alignment(std::string& querySeqDB, std::string& querySeqDBIndex,
         this->realigner = new Matcher*[threads];
 # pragma omp parallel for schedule(static)
         for (int i = 0; i < threads; i++) {
-            realigner[i] = new Matcher(par.maxSeqLen, this->realign_m, tseqdbr->getAminoAcidDBSize(),
-                                       tseqdbr->getSize(), par.compBiasCorrection);
+            realigner[i] = new Matcher(par.maxSeqLen, this->realign_m,
+            evaluer, par.compBiasCorrection);
         }
     }
     dbKeys = new unsigned int[threads];
@@ -138,6 +146,7 @@ Alignment::~Alignment(){
         delete dbSeqs[i];
         delete matchers[i];
     }
+    delete evaluer;
     delete[] qSeqs;
     delete[] dbSeqs;
     delete[] matchers;
@@ -349,4 +358,8 @@ void Alignment::mergeAndRemoveTmpDatabases(const std::string& out,const  std::st
     DBWriter::mergeResults(out.c_str(), outIndex.c_str(), datafilesNames, indexFilesNames, files.size());
     delete [] datafilesNames;
     delete [] indexFilesNames;
+}
+
+size_t Alignment::estimateHDDMemoryConsumption(int dbSize, int maxSeqs) {
+    return 2*(dbSize*maxSeqs*21*1.75);
 }

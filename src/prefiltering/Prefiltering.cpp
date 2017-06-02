@@ -55,6 +55,13 @@ Prefiltering::Prefiltering(const std::string& queryDB,
 //    FileUtil::errorIfFileExist(outDBIndex.c_str());
     this->qdbr = new DBReader<unsigned int>(queryDB.c_str(), queryDBIndex.c_str());
     qdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());
+    size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
+    if( freeSpace < estimatedHDDMemory){
+        Debug(Debug::ERROR) << "Hard disk has not enough space " << freeSpace << " to store results  ~" <<estimatedHDDMemory <<".\n"
+                "Please make space on  an start mmseqs again.\n";
+        EXIT(EXIT_FAILURE);
+    }
     //  check if when qdb and tdb have the same name an index extention exists
     std::string check(targetDB);
     size_t pos = check.find(queryDB);
@@ -296,8 +303,8 @@ void Prefiltering::mergeOutput(const std::string& outDB, const std::string& outD
 }
 
 QueryMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
-                                                         unsigned int *seqLens, short kmerThr,
-                                                         double kmerMatchProb, int kmerSize,
+                                                         EvalueComputation &evaluer, unsigned int *seqLens,
+                                                         short kmerThr, double kmerMatchProb, int kmerSize,
                                                          size_t effectiveKmerSize, size_t dbSize,
                                                          bool aaBiasCorrection, bool diagonalScoring,
                                                          unsigned int maxSeqLen, size_t maxHitsPerQuery,
@@ -310,7 +317,7 @@ QueryMatcher ** Prefiltering::createQueryTemplateMatcher(BaseMatrix *m, IndexTab
         thread_idx = omp_get_thread_num();
 #endif
 
-        matchers[thread_idx] = new QueryMatcher(m, indexTable, seqLens, kmerThr, kmerMatchProb,
+        matchers[thread_idx] = new QueryMatcher(m, indexTable, evaluer, seqLens, kmerThr, kmerMatchProb,
                                                 kmerSize, dbSize, maxSeqLen, effectiveKmerSize,
                                                 maxHitsPerQuery, aaBiasCorrection, diagonalScoring,
                                                 minDiagScoreThr, takeOnlyBestKmer);
@@ -376,7 +383,8 @@ void Prefiltering::run(size_t split, size_t splitCount, int splitMode, const std
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable,
+    EvalueComputation evaluer(indexTable->getTableEntriesNum(), subMat, 0, 0, false);
+    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, evaluer,
                                                           tdbr->getSeqLens() + dbFrom, // offset for split mode
                                                           kmerThr, kmerMatchProb, kmerSize,
                                                           qseq[0]->getEffectiveKmerSize(), dbSize,
@@ -608,7 +616,7 @@ void Prefiltering::fillDatabase(DBReader<unsigned int>* dbr, Sequence* seq,
     for (int i = 0; i < subMat->alphabetSize; ++i){
         probMatrixPointers[i] = probMatrix[i];
         for(int j = 0; j < subMat->alphabetSize; ++j){
-            probMatrix[i][j]  = std::exp(0.324032 * mat.subMatrix[i][j]);
+            probMatrix[i][j]  = subMat->probMatrix[i][j]/(subMat->pBack[i]*subMat->pBack[j]);
         }
     }
 
@@ -812,7 +820,8 @@ std::pair<short, double> Prefiltering::setKmerThreshold(IndexTable *indexTable, 
 statistics_t Prefiltering::computeStatisticForKmerThreshold(IndexTable *indexTable, size_t querySetSize,
                                                             unsigned int *querySeqsIds, bool reverseQuery, size_t kmerThrMid) {
     // determine k-mer match probability for kmerThrMid
-    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, tdbr->getSeqLens(), kmerThrMid,
+    EvalueComputation evaluer(indexTable->getTableEntriesNum(), subMat, 0, 0, false);
+    QueryMatcher ** matchers = createQueryTemplateMatcher(subMat, indexTable, evaluer, tdbr->getSeqLens(), kmerThrMid,
                                                           1.0, kmerSize, qseq[0]->getEffectiveKmerSize(),
                                                           indexTable->getSize(), aaBiasCorrection, false, maxSeqLen,
                                                           150000, false);
@@ -969,5 +978,11 @@ std::vector<hit_t> Prefiltering::readPrefilterResults(char *data) {
         data = Util::skipLine(data);
     }
     return ret;
+}
+
+size_t Prefiltering::estimateHDDMemoryConsumption(size_t dbSize, size_t maxResListLen) {
+    // 21 bytes is roughtly the size of an entry
+    // 2x because the merge doubles the hdd demand
+    return 2*(21 * dbSize * maxResListLen);
 }
 

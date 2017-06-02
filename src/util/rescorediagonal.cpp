@@ -91,14 +91,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         }
     }
     double * kmnByLen = new double[par.maxSeqLen];
-    BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(subMat.getMatrixName(), 11, 1, false);
-    const double lambdaLog2 =  stats.lambda / log(2.0);
-    const double logK = log( stats.K);
-    const double logKLog2 = logK / log(2.0);
-    for(int len = 0; len < par.maxSeqLen; len++){
-        kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
-                                                    tdbr->getAminoAcidDBSize(), tdbr->getSize());
-    }
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
     DistanceCalculator globalAliStat;
     if (par.globalAlignment)
     {
@@ -147,6 +140,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     int targetLen = 0;
                     if(par.rescoreMode != Parameters::RESCORE_MODE_HAMMING){
                         target.mapSequence(0, targetId, tdbr->getData(targetId));
+//                        target.print();
                         targetLen = target.L;
                     }else{
                         targetLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
@@ -190,7 +184,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                         }
                     }
                     double seqId = 0;
-                    double evalue = 0;
+                    double evalue = 0.0;
                     float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLen);
                     float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
                     Matcher::result_t result;
@@ -202,24 +196,23 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                         if (par.globalAlignment)
                             seqId = globalAliStat.getPvalGlobalAli((float)distance,diagonalLen);
                         else{
-                            evalue = BlastScoreUtils::computeEvalue(distance, kmnByLen[queryLen], stats.lambda);
-                            int bitScore =(short) (BlastScoreUtils::computeBitScore(distance, lambdaLog2, logKLog2)+0.5);
+                            evalue = evaluer.computeEvalue(distance, queryLen);
+                            int bitScore =static_cast<short>(evaluer.computeBitScore(distance)+0.5);
 
                             if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
                                 int alnLen = alignment.endPos - alignment.startPos;
                                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
                                 // -1 since diagonal is computed from sequence Len which starts by 1
-                                size_t dist = std::max(distanceToDiagonal - 1, 0);
                                 if (diagonal >= 0) {
-                                    qStartPos = alignment.startPos + dist;
-                                    qEndPos = alignment.endPos + dist;
+                                    qStartPos = alignment.startPos + distanceToDiagonal;
+                                    qEndPos = alignment.endPos + distanceToDiagonal;
                                     dbStartPos = alignment.startPos;
                                     dbEndPos = alignment.endPos;
                                 } else {
                                     qStartPos = alignment.startPos;
                                     qEndPos = alignment.endPos;
-                                    dbStartPos = alignment.startPos + dist;
-                                    dbEndPos = alignment.endPos + dist;
+                                    dbStartPos = alignment.startPos + distanceToDiagonal;
+                                    dbEndPos = alignment.endPos + distanceToDiagonal;
                                 }
                                 int qAlnLen = std::max(qEndPos - qStartPos, static_cast<int>(1));
                                 int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<int>(1));
@@ -239,9 +232,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     bool hasCov = queryCov >= par.covThr && targetCov >= par.covThr;
                     // --min-seq-id
                     bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
+                    bool hasEvalue = (evalue <= par.evalThr);
                     // --filter-hits
                     bool hasToFilter = (par.filterHits == true  && currScorePerCol >= scorePerColThr);
-                    if (isIdentity || hasToFilter || (hasTargetCov && hasCov && hasSeqId))
+                    if (isIdentity || hasToFilter || (hasTargetCov && hasCov && hasSeqId && hasEvalue))
                     {
                         int len  = 0;
                         if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {

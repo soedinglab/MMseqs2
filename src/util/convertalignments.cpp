@@ -113,7 +113,8 @@ int convertalignments(int argc, const char **argv, const Command& command) {
                 fprintf(fastaFP, ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
                         queryId.c_str(), targetId.c_str(),  res.seqId, res.alnLength, missMatchCount, gapOpenCount,
                         res.qStartPos + 1,res.qEndPos + 1, res.dbStartPos + 1,res.dbEndPos + 1, res.eval, res.score);
-                std::string backtrace = res.backtrace;
+                std::string backtrace = Matcher::uncompressAlignment(res.backtrace);
+
                 printSeqBasedOnAln(fastaFP, querySeq, res.qStartPos, backtrace, false);
                 fprintf(fastaFP, "\n");
                 char * targetSeq = target->getDataByDBKey(res.dbKey);

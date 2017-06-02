@@ -84,6 +84,12 @@ add_executable(test_reduced ${test_reduced})
 target_link_libraries(test_reduced util)
 
 
+set(testalp TestAlp.cpp )
+add_executable(test_alp ${testalp} )
+target_link_libraries(test_alp alp)
+target_link_libraries(test_alp workflow)
+
+
 set(test_dbreader TestDBReader.cpp )
 add_executable(test_dbreader ${test_dbreader})
 target_link_libraries(test_dbreader util)

@@ -14,7 +14,7 @@
 #include "Sequence.h"
 #include "BaseMatrix.h"
 #include "smith_waterman_sse2.h"
-#include "BlastScoreUtils.h"
+#include "EvalueComputation.h"
 
 class Matcher{
 
@@ -59,7 +59,7 @@ public:
 		result_t(){};
     };
 
-    Matcher(int maxSeqLen, BaseMatrix *m, size_t dbLen, size_t dbSize, bool aaBiasCorrection);
+    Matcher(int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection);
 
     ~Matcher();
 
@@ -102,16 +102,12 @@ private:
     SmithWaterman * aligner;
     // substitution matrix
     BaseMatrix* m;
+    // evalue
+    EvalueComputation * evaluer;
     // byte version of substitution matrix
     int8_t * tinySubMat;
     // set substituion matrix
     void setSubstitutionMatrix(BaseMatrix *m);
-
-    // BLAST statistics
-    double *kmnByLen; // contains Kmn for
-    double logKLog2; // log(k)/log(2)
-    double lambdaLog2; //lambda/log(2)
-    double lambda;
 
     static size_t computeAlnLength(size_t anEnd, size_t start, size_t dbEnd, size_t dbStart);
 

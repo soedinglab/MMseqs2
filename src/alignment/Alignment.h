@@ -9,8 +9,6 @@
 #include "SubstitutionMatrix.h"
 #include "Matcher.h"
 #include "Parameters.h"
-#include "BlastScoreUtils.h"
-
 
 class Alignment {
 
@@ -56,6 +54,9 @@ private:
 
     BaseMatrix* m;
 
+    // evaluer
+    EvalueComputation * evaluer;
+
     // 2 Sequence objects for each thread: one for the query, one for the DB sequence
     Sequence** qSeqs;
 
@@ -91,7 +92,8 @@ private:
 
     // realign with different score matrix
     bool realign;
-	
+
+    size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
 };
 
 #endif

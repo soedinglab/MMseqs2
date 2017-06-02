@@ -132,7 +132,7 @@ private:
                              bool diagonalScoring, size_t resultOffsetPos);
 
     // init QueryTemplateMatcher
-    QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable,
+    QueryMatcher **createQueryTemplateMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputation &evaluer,
                                               unsigned int *seqLens, short kmerThr,
                                               double kmerMatchProb, int kmerSize,
                                               size_t effectiveKmerSize, size_t dbSize,
@@ -151,6 +151,7 @@ private:
 
     std::string searchForIndex(const std::string &pathToDB);
 
+    size_t estimateHDDMemoryConsumption(size_t dbSize, size_t maxResListLen);
 };
 
 #endif
