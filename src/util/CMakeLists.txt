@@ -33,6 +33,7 @@ set(util_source_files
         rescorediagonal.cpp
         tsv2db.cpp
         result2repseq.cpp
+        assembleresult.cpp
         )
 
 add_library(util ${util_source_files} )

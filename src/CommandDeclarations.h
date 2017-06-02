@@ -21,6 +21,7 @@ extern int translatenucs(int argc, const char **argv, const Command& command);
 extern int result2profile(int argc, const char **argv, const Command& command);
 extern int result2msa(int argc, const char **argv, const Command& command);
 extern int result2stats(int argc, const char **argv, const Command& command);
+extern int assembleresult(int argc, const char **argv, const Command& command);
 extern int splitdb(int argc, const char **argv, const Command& command);
 extern int convertalignments(int argc, const char **argv, const Command& command);
 extern int createtsv(int argc, const char **argv, const Command& command);
@@ -46,5 +47,6 @@ extern int rescorediagonal(int argc, const char **argv, const Command& command);
 extern int linclust(int argc, const char **argv, const Command& command);
 extern int result2repseq(int argc, const char **argv, const Command& command);
 extern int tsv2db(int argc, const char **argv, const Command& command);
+extern int assembler(int argc, const char **argv, const Command& command);
 
 #endif

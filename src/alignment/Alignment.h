@@ -93,6 +93,8 @@ private:
 
     void setTargetSequence(Sequence &seq, unsigned int key);
 
+    static size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
+
 };
 
 #endif

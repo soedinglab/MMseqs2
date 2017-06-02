@@ -362,7 +362,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
     for (int i = 0; i < subMat->alphabetSize; ++i){
         probMatrixPointers[i] = probMatrix[i];
         for (int j = 0; j < subMat->alphabetSize; ++j){
-            probMatrix[i][j]  = std::exp(0.324032 * mat.subMatrix[i][j]);
+            probMatrix[i][j]  = subMat->probMatrix[i][j] / (subMat->pBack[i] * subMat->pBack[j]);
         }
     }
 

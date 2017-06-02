@@ -6,6 +6,7 @@
 #define MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
 
 #include <cstdlib>
+#include "EvalueComputation.h"
 #include "CacheFriendlyOperations.h"
 #include "UngappedAlignment.h"
 #include "KmerGenerator.h"
@@ -59,7 +60,7 @@ std::string prefilterHitToString(hit_t h);
 
 class QueryMatcher {
 public:
-    QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
+    QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputation &evaluer,
                  unsigned int *seqLens, short kmerThr,
                  double kmerMatchProb, int kmerSize, size_t dbSize,
                  unsigned int maxSeqLen, unsigned int effectiveKmerSize,
@@ -184,12 +185,8 @@ protected:
     //log match prob (mu) of poisson distribution
     double logMatchProb;
 
-    // lenght adjusted Kmn for e-value
-    double * kmnByLen;
-
-    // lambda for e-value statistic
-    double lambda;
-
+    // evaluer
+    EvalueComputation evaluer;
 
     //pre computed score factorials
     // S_fact = score!
@@ -210,7 +207,6 @@ protected:
                                          size_t maxHitPerQuery,
                                          const int l, const unsigned int id,
                                          const unsigned short thr,
-                                         const double lambda,
                                          const bool diagonalScoring);
     // compute double hits
     size_t getDoubleDiagonalMatches();

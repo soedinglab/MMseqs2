@@ -7,6 +7,7 @@
 #include "NucleotideMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "PrefilteringIndexReader.h"
+#include "FileUtil.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -92,6 +93,17 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         // open the sequence, prefiltering and output databases
         qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
         qseqdbr->open(DBReader<unsigned int>::NOSORT);
+
+        size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());
+        size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qseqdbr->getSize(),
+                                                                 std::min(par.maxAccept, par.maxResListLen));
+        if (freeSpace < estimatedHDDMemory){
+            Debug(Debug::ERROR) << "Hard disk has not enough space (" << freeSpace << " bytes left) "
+                                << "to store " << estimatedHDDMemory << " bytes of results.\n"
+                                << "Please free disk space and start MMseqs again.\n";
+            EXIT(EXIT_FAILURE);
+        }
+
         qseqdbr->readMmapedDataInMemory();
         qseqdbr->mlock();
     }
@@ -216,7 +228,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw.open();
 
-    #pragma omp parallel
+    EvalueComputation evaluer(tseqdbr->getAminoAcidDBSize(), this->m, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
+
+#pragma omp parallel
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -225,10 +239,10 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
         Sequence qSeq(maxSeqLen, m->aa2int, m->int2aa, querySeqType, 0, false, compBiasCorrection);
         Sequence dbSeq(maxSeqLen, m->aa2int, m->int2aa, targetSeqType, 0, false, compBiasCorrection);
-        Matcher matcher(maxSeqLen, m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize(), compBiasCorrection);
+        Matcher matcher(maxSeqLen, m, &evaluer, compBiasCorrection);
         Matcher *realigner = NULL;
         if (realign ==  true) {
-            realigner = new Matcher(maxSeqLen, realign_m, tseqdbr->getAminoAcidDBSize(), tseqdbr->getSize(), compBiasCorrection);
+            realigner = new Matcher(maxSeqLen, realign_m, &evaluer, compBiasCorrection);
         }
 
         const size_t flushSize = 1000000;
@@ -413,4 +427,9 @@ inline void Alignment::setTargetSequence(Sequence &seq, unsigned int key) {
         }
         seq.mapSequence(static_cast<size_t>(-1), key, dbSeqData);
     }
+}
+
+
+size_t Alignment::estimateHDDMemoryConsumption(int dbSize, int maxSeqs) {
+    return 2 * (dbSize * maxSeqs * 21 * 1.75);
 }

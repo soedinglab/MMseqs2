@@ -162,11 +162,10 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             break;
     }
     Debug(Debug::INFO) << ".\n";
-
+    EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 #pragma omp parallel
     {
-        Matcher matcher(maxSequenceLength, &subMat, tDbr->getAminoAcidDBSize(), tDbr->getSize(),
-                        par.compBiasCorrection);
+        Matcher matcher(maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection);
 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
         PSSMCalculator calculator(&subMat, maxSequenceLength, par.pca, par.pcb);
@@ -208,6 +207,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             }
 
             std::vector<Sequence *> seqSet;
+            
             while (*results != '\0') {
                 Util::parseKey(results, dbKey);
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
@@ -218,6 +218,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                 if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
                     evalue = strtod(entry[3], NULL);
                 }
+
 
                 const size_t edgeId = tDbr->getId(key);
                 char *dbSeqData = tDbr->getData(edgeId);
@@ -260,13 +261,18 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             //MultipleAlignment::print(res, &subMat);
 
             alnResults = res.alignmentResults;
-
-            MsaFilter::MsaFilterResult filterRes = filter.filter((const char **) res.msaSequence, res.setSize,
-                                                                 res.centerLength, static_cast<int>(par.cov * 100),
-                                                                 static_cast<int>(par.qid * 100), par.qsc,
-                                                                 static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff);
-                                                                 
-                                                                 
+            if (par.filterMsa==true) {
+                MsaFilter::MsaFilterResult filterRes = filter.filter((const char **) res.msaSequence, res.setSize,
+                                                                     res.centerLength, static_cast<int>(par.cov * 100),
+                                                                     static_cast<int>(par.qid * 100), par.qsc,
+                                                                     static_cast<int>(par.filterMaxSeqId * 100),
+                                                                     par.Ndiff);
+                res.keep = (char *) filterRes.keep;
+                res.setSize=filterRes.setSize;
+                for (size_t i = 0; i < filterRes.setSize; i++) {
+                        res.msaSequence[i] = (char *)filterRes.filteredMsaSequence[i];
+                }
+            }
             char *data;
             size_t dataSize;
             std::ostringstream msa;
@@ -276,7 +282,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     if (par.summarizeHeader) {
                         // gather headers for summary
                         std::vector<std::string> headers;
-                        for (size_t i = 0; i < filterRes.setSize; i++) {
+                        for (size_t i = 0; i < res.setSize; i++) {
                             if (i == 0) {
                                 headers.push_back(centerSequenceHeader);
                             } else {
@@ -293,7 +299,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     if (par.skipQuery == true) {
                         start = 1;
                     }
-                    for (size_t i = start; i < filterRes.setSize; i++) {
+                    for (size_t i = start; i < res.setSize; i++) {
                         unsigned int key;
                         char* header;
                         if (i == 0) {
@@ -311,7 +317,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
 
                         // need to allow insertion in the centerSequence
                         for (size_t pos = 0; pos < res.centerLength; pos++) {
-                            char aa = filterRes.filteredMsaSequence[i][pos];
+                            char aa = res.msaSequence[i][pos];
                             msa << ((aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
                         }
 
@@ -327,6 +333,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     // Here the backtrace information should be present in the alnResults[i].backtrace for all i
                     std::vector<Matcher::result_t> filteredAln; // alignment information for the sequences that passed the filtering step
 
+
                     // Put the query sequence (master sequence) first in the alignment
                     Matcher::result_t firstSequence;
                     firstSequence.dbKey = centerSequenceKey;
@@ -339,7 +346,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     // defined in object filterRes (with sequence coverage, etc.).
                     for (size_t i = 0; i < alnResults.size(); i++) {
                         // +1 : index 0 corresponds to the query sequence
-                        if (filterRes.keep[i + 1]) {
+                        if (res.keep[i + 1]) {
                             filteredAln.push_back(alnResults.at(i));
                         }
                     }
@@ -347,8 +354,8 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     if (par.omitConsensus == false)
                     {
                         std::pair<const char*, std::string> pssmRes =
-                                calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
-                                                              filterRes.filteredMsaSequence, par.wg);
+                                calculator.computePSSMFromMSA(res.setSize, res.centerLength,
+                                                              res.filteredMsaSequence, par.wg);
                         msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) << pssmRes.second << "\n;";
                     } else {
                         std::ostringstream centerSeqStr;
@@ -367,8 +374,8 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                 }
                     break;
                 case PSSM: {
-                    std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(filterRes.setSize, res.centerLength,
-                                                                                                filterRes.filteredMsaSequence, par.wg);
+                    std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(res.setSize, res.centerLength,
+                                                                                                (const char **) res.msaSequence, par.wg);
                     data = (char*)pssmRes.first;
                     std::string consensusStr = pssmRes.second;
                     dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
@@ -396,6 +403,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                 Sequence *seq = *it;
                 delete seq;
             }
+
         }
         delete centerSequence;
     }
@@ -554,6 +562,7 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
 
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, "", mpiRank);
     int status = result2outputmode(par, tmpOutput.first, dbFrom, dbSize, mode, referenceDBr);
+    
 
     // close reader to reduce memory
     if(referenceDBr != NULL){
@@ -561,6 +570,7 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
         delete referenceDBr;
     }
 
+    
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -590,6 +600,8 @@ int result2profile(int argc, const char **argv, const Command& command) {
     MMseqsMPI::init(argc, argv);
 
     Parameters& par = Parameters::getInstance();
+    // default for result2profile filter MSA
+    par.filterMsa = true;
     par.parseParameters(argc, argv, command, 4);
 
     // never allow deletions
@@ -615,6 +627,8 @@ int result2msa(int argc, const char **argv, const Command& command) {
     MMseqsMPI::init(argc, argv);
 
     Parameters& par = Parameters::getInstance();
+    // do not filter as default
+    par.filterMsa = false;
     par.parseParameters(argc, argv, command, 4);
 
     struct timeval start, end;
@@ -627,6 +641,7 @@ int result2msa(int argc, const char **argv, const Command& command) {
     } else {
         mode = MSA;
     }
+
 
     /*
     // Can only use the first sequence as representative sequence with a clustering result

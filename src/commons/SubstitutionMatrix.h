@@ -27,15 +27,17 @@ class SubstitutionMatrix: public BaseMatrix {
         static void calcGlobalAaBiasCorrection( short *profileScores,
                                                const size_t profileAASize,
                                                const int N);
+        bool estimateLambdaAndBackground(const double ** mat, int alphabetSize, double * pBack, double & lambda);
 
 private:
 
         const char* scoringMatrixFileName;
 
-        void readProbMatrix(std::string matrixData);
+        int parseAlphabet(char * word, char * int2aa, int * aa2int);
+
+        int readProbMatrix(const std::string &matrixData);
 
         float bitFactor;
-
 };
 
 #endif

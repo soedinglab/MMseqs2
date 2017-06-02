@@ -4,6 +4,7 @@
 #include "SubstitutionMatrixWithoutX.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "PatternCompiler.h"
+#include "FileUtil.h"
 
 #include <sys/time.h>
 
@@ -446,6 +447,15 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
     }
     Debug(Debug::INFO) << "Query database: " << queryDB << "(size=" << qdbr->getSize() << ")\n";
 
+    size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
+    size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
+    if (freeSpace < estimatedHDDMemory){
+        Debug(Debug::ERROR) << "Hard disk has not enough space (" << freeSpace << " bytes left) "
+                            << "to store " << estimatedHDDMemory << " bytes of results.\n"
+                            << "Please free disk space and start MMseqs again.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     size_t dbSize = 0;
     if (splitMode == Parameters::TARGET_DB_SPLIT) {
         dbSize = tdbr->getSize();
@@ -584,7 +594,10 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     Debug(Debug::INFO) << "Starting prefiltering scores calculation (step " << (split + 1) << " of " << splitCount << ")\n";
     Debug(Debug::INFO) << "Query db start  " << (queryFrom + 1) << " to " << queryFrom + querySize << "\n";
     Debug(Debug::INFO) << "Target db start  " << (dbFrom + 1) << " to " << dbFrom + dbSize << "\n";
-    #pragma omp parallel num_threads(localThreads)
+
+    EvalueComputation evaluer(indexTable->getTableEntriesNum(), subMat, 0, 0, false);
+
+#pragma omp parallel num_threads(localThreads)
     {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -593,7 +606,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa,
                      querySeqType, kmerSize, spacedKmer, aaBiasCorrection);
 
-        QueryMatcher matcher(subMat, indexTable, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
+        QueryMatcher matcher(subMat, indexTable, evaluer, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
                              maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
         if (querySeqType == Sequence::HMM_PROFILE) {
@@ -826,7 +839,8 @@ double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned 
             effectiveKmerSize = seq.getEffectiveKmerSize();
         }
 
-        QueryMatcher matcher(subMat, indexTable, tdbr->getSeqLens(), kmerThr, 1.0,
+        EvalueComputation evaluer(indexTable->getTableEntriesNum(), subMat, 0, 0, false);
+        QueryMatcher matcher(subMat, indexTable, evaluer, tdbr->getSeqLens(), kmerThr, 1.0,
                              kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
                              150000, aaBiasCorrection, false, minDiagScoreThr, false);
         if (querySeqType == Sequence::HMM_PROFILE) {
@@ -933,6 +947,12 @@ size_t Prefiltering::estimateMemoryConsumption(int split, size_t dbSize, size_t 
     // some memory needed to keep the index, ....
     size_t background = dbSize * 22;
     return residueSize + indexTableSize + threadSize + background + extendedMatrix;
+}
+
+size_t Prefiltering::estimateHDDMemoryConsumption(size_t dbSize, size_t maxResListLen) {
+    // 21 bytes is roughly the size of an entry
+    // 2x because the merge doubles the hdd demand
+    return 2 * (21 * dbSize * maxResListLen);
 }
 
 std::pair<int, int> Prefiltering::optimizeSplit(size_t totalMemoryInByte, DBReader<unsigned int> *tdbr,

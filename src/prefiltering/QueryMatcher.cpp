@@ -2,9 +2,9 @@
 // Created by mad on 5/26/15.
 //
 #include <new>
-#include <SubstitutionMatrix.h>
-#include <BlastScoreUtils.h>
 #include <iomanip>
+
+#include "SubstitutionMatrix.h"
 #include "QueryMatcher.h"
 #include "Util.h"
 
@@ -63,12 +63,14 @@ std::string prefilterHitToString(hit_t h)
 #define FOR_EACH(action,...) \
   GET_MACRO(__VA_ARGS__,FE_11,FE_10,FE_9,FE_8,FE_7,FE_6,FE_5,FE_4,FE_3,FE_2,FE_1)(action,__VA_ARGS__)
 
-QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
+QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputation &evaluer,
                            unsigned int *seqLens, short kmerThr,
                            double kmerMatchProb, int kmerSize, size_t dbSize,
                            unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                            size_t maxHitsPerQuery, bool aaBiasCorrection,
-                           bool diagonalScoring, unsigned int minDiagScoreThr, bool takeOnlyBestKmer)
+                           bool diagonalScoring, unsigned int minDiagScoreThr,
+                           bool takeOnlyBestKmer)
+: evaluer(evaluer)
 {
     this->m = m;
     this->indexTable = indexTable;
@@ -123,13 +125,6 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable,
         }
     }
     compositionBias = new float[maxSeqLen];
-    kmnByLen = new double[maxSeqLen];
-    BlastScoreUtils::BlastStat stats = BlastScoreUtils::getAltschulStatsForMatrix(m->getMatrixName(), 11, 1, false);
-    for(unsigned int len = 0; len < maxSeqLen; len++){
-        kmnByLen[len] = BlastScoreUtils::computeKmn(len, stats.K, stats.lambda, stats.alpha, stats.beta,
-                                                    indexTable->getTableEntriesNum(), dbSize);
-    }
-    this->lambda = stats.lambda;
 }
 
 QueryMatcher::~QueryMatcher(){
@@ -142,7 +137,6 @@ QueryMatcher::~QueryMatcher(){
     delete [] logScoreFactorial;
     delete [] seqLens;
     delete [] compositionBias;
-    delete [] kmnByLen;
     if(ungappedAlignment != NULL){
         delete ungappedAlignment;
     }
@@ -194,10 +188,10 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
         // sort to not lose highest scoring hits if > 150.000 hits are searched
         if(resultSize < counterResultSize/2){
             radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
-            queryResult = getResult(foundDiagonals + resultSize, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, lambda, true);
+            queryResult = getResult(foundDiagonals + resultSize, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, true);
         }else{
             Debug(Debug::WARNING) << "Sequence " << seq->getDbKey() << " produces too many hits. Results might be truncated\n";
-            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, lambda, true);
+            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, true);
         }
     }else{
         unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
@@ -205,11 +199,11 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
 
             radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
             queryResult = getResult(foundDiagonals + resultSize, resultSize, maxHitsPerQuery, seq->L, identityId, thr,
-                                    lambda, false);
+                                    false);
         }else{
             Debug(Debug::WARNING) << "Sequence " << seq->getDbKey() << " produces too many hits. Results might be truncated\n";
             queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, thr,
-                                    lambda, false);
+                                    false);
         }
     }
     if(queryResult.second > 1){
@@ -369,7 +363,6 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                                                     const int l,
                                                     const unsigned int id,
                                                     const unsigned short thr,
-                                                    const double lambda,
                                                     const bool diagonalScoring) {
     size_t elementCounter = 0;
     if (id != UINT_MAX){
@@ -382,7 +375,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
         if(diagonalScoring == false){
             result->pScore =  -computeLogProbability(rawScore, seqLens[id], mu, logMatchProb, logScoreFactorial[rawScore]);
         }else{
-            double evalue = BlastScoreUtils::computeEvalue(rawScore, this->kmnByLen[l], lambda);
+            double evalue = evaluer.computeEvalue(rawScore, l);
             result->pScore = evalue;
         }
         elementCounter++;
@@ -403,7 +396,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                 result->pScore =  (diagonalScoring) ? 0.0 :  -computeLogProbability(scoreCurr, seqLens[seqIdCurr],
                                                                                     mu, logMatchProb, logScoreFactorial[scoreCurr]);
             }else{
-                double evalue = BlastScoreUtils::computeEvalue(scoreCurr, this->kmnByLen[l], lambda);
+                double evalue = evaluer.computeEvalue(scoreCurr, l);
                 result->pScore = evalue;
             }
             elementCounter++;

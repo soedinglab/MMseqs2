@@ -226,7 +226,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
                 ss << buffer;
 
-                const std::string &backtrace = res.backtrace;
+                const std::string &backtrace =  Matcher::uncompressAlignment(res.backtrace);
                 printSeqBasedOnAln(ss, querySeq.c_str(), res.qStartPos, backtrace, false);
                 ss << '\n';
 
@@ -268,5 +268,4 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
     return EXIT_SUCCESS;
 }
-
 

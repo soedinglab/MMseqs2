@@ -23,34 +23,34 @@ if (HAVE_TESTS)
         string(REGEX REPLACE "^test" "test_" BASE_NAME ${BASE_NAME})
         add_executable(${BASE_NAME} ${NAME})
 
-        target_link_libraries(${BASE_NAME} util)
-        target_link_libraries(${BASE_NAME} workflow)
+        target_link_libraries(${BASE_NAME} util workflow alp)
     endfunction(setup_mmseqs_test)
 
 
     set(TESTS
-            TestIndexTable.cpp
             TestAlignment.cpp
-            TestAlignmentTraceback.cpp
-            TestMultipleAlignment.cpp
-            TestProfileAlignment.cpp
             TestAlignmentPerformance.cpp
-            TestKmerGenerator.cpp
-            TestCounting.cpp
-            TestReduceMatrix.cpp
-            TestDBReader.cpp
-            TestKmerScore.cpp
+            TestAlignmentTraceback.cpp
+            TestAlp.cpp
             TestCompositionBias.cpp
-            TestTranslate.cpp
-            TestSequenceIndex.cpp
+            TestCounting.cpp
+            TestDBReader.cpp
+            TestDBReaderIndexSerialization.cpp
             TestDiagonalScoring.cpp
             TestDiagonalScoringPerformance.cpp
+            TestIndexTable.cpp
+            TestKmerGenerator.cpp
+            TestKmerScore.cpp
+            TestMultipleAlignment.cpp
+            TestProfileAlignment.cpp
             TestPSSM.cpp
             TestPSSMPrune.cpp
+            TestReduceMatrix.cpp
             TestScoreMatrixSerialization.cpp
-            TestDBReaderIndexSerialization.cpp
+            TestSequenceIndex.cpp
+            TestTanTan.cpp
+            TestTranslate.cpp
             TestUtil.cpp
-			TestTanTan.cpp
             )
 
     FOREACH (TEST ${TESTS})
