@@ -9,8 +9,17 @@
 #include "Debug.h"
 #include "Parameters.h"
 
+
+void setSearchDefaults(Parameters *p) {
+    p->spacedKmer = true;
+    p->sensitivity = 5.7;
+    p->evalThr = 0.001;
+}
+
+
 int search(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
+    setSearchDefaults(&par);
     par.parseParameters(argc, argv, command, 4, true, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
     if(FileUtil::directoryExists(par.db4.c_str())==false){
         Debug(Debug::ERROR) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
