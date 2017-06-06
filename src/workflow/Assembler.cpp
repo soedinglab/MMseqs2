@@ -52,11 +52,12 @@ int assembler(int argc, const char **argv, const Command& command) {
     size_t alphabetSize = par.alphabetSize;
     size_t kmerSize = par.kmerSize;
     // # 1. Finding exact $k$-mer matches.
-    par.kmerSize = 14;
+    int baseKmerSize = 14;
+    par.kmerSize = baseKmerSize;
     par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
     for(size_t i = 0; i < par.numIterations; i++){
         std::string key = "KMERMATCHER"+SSTR(i)+"_PAR";
-        par.kmerSize = par.kmerSize - i;
+        par.kmerSize = baseKmerSize - i;
         cmd.addVariable(key.c_str(), par.createParameterString(par.kmermatcher).c_str());
     }
     par.alphabetSize = alphabetSize;
