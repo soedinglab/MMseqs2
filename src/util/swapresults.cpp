@@ -39,38 +39,42 @@ struct compareEval {
     }
 };
 
-std::pair<size_t,size_t> longestLine(const char* name) {
+std::pair<size_t, size_t> longestLine(const char *name) {
     MemoryMapped file(name, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
-    char * buf = (char *) file.getData();
+    char *buf = (char *) file.getData();
 
     size_t lines = 0;
     size_t maxLen = 0;
 
 #pragma omp parallel reduction(+:lines) reduction(max:maxLen)
     {
-        int thread_num = 0,num_threads = 1;
-        size_t startChunk,endChunk;
-
+        int thread_num = 0;
+        int num_threads = 1;
 #ifdef OPENMP
         thread_num = omp_get_thread_num();
         num_threads = omp_get_num_threads();
 #endif
-        startChunk =  thread_num * file.size() / num_threads;
-        endChunk = (thread_num + 1) * file.size() / num_threads;
+
+        size_t startChunk = thread_num * file.size() / num_threads;
+        size_t endChunk = (thread_num + 1) * file.size() / num_threads;
 
         size_t i = startChunk;
-        while(i && i<file.size() && buf[i] != '\n') // wedge on line start
+        // wedge on line start
+        while (i && i < file.size() && buf[i] != '\n') {
             i++;
-        if(!i)
-            i++; // jump the '\n'
-        size_t charCount = 0;
-        while(i<file.size() && i < endChunk)
-        {
+        }
 
-            if (buf[i] == '\n')
-            {
+        if (!i) {
+            // jump the '\n'
+            i++;
+        }
+
+        size_t charCount = 0;
+        while (i < file.size() && i < endChunk) {
+
+            if (buf[i] == '\n') {
                 lines++;
-                maxLen = std::max(maxLen,charCount);
+                maxLen = std::max(maxLen, charCount);
                 charCount = 0;
             } else if (buf[i] != '\0') {
                 charCount++;
@@ -78,19 +82,19 @@ std::pair<size_t,size_t> longestLine(const char* name) {
             i++;
         }
 
-        while(i<file.size()  && buf[i] != '\n')
-        {
-            if (buf[i] != '\0')
+        while (i < file.size() && buf[i] != '\n') {
+            if (buf[i] != '\0') {
                 charCount++;
+            }
             i++;
         }
+
         //lines++;
-        maxLen = std::max(maxLen,charCount);
-
+        maxLen = std::max(maxLen, charCount);
     }
-
     file.close();
-    return std::make_pair(lines,maxLen);
+
+    return std::make_pair(lines, maxLen);
 }
 
 void writeSwappedResults(const std::string &outputDB, const std::string &outputDBIndex,
@@ -182,12 +186,12 @@ void swapBt(std::string &bt) {
     }
 }
 
-void swapResults(DBReader<unsigned int> &resultReader,
-                    std::vector<AlignmentResultEntry> *resMap,
-                    unsigned int targetKeyMin,
-                    unsigned int targetKeyMax,
-                    size_t aaResSize,
-                    const char *scoringMatrix) {
+void doSwap(DBReader<unsigned int> &resultReader,
+            std::vector<AlignmentResultEntry> *resMap,
+            unsigned int targetKeyMin,
+            unsigned int targetKeyMax,
+            size_t aaResSize,
+            const char *scoringMatrix) {
     SubstitutionMatrix subMat(scoringMatrix, 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 
@@ -278,11 +282,26 @@ void swapResults(DBReader<unsigned int> &resultReader,
             }
         }
     }
-
-    resultReader.close();
 }
 
-int doSwapSort(Parameters &par, unsigned int procNumber = 0, unsigned int nbOfProc = 1) {
+int swapresults(int argc, const char **argv, const Command &command) {
+    MMseqsMPI::init(argc, argv);
+
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 4);
+
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
+
+#ifdef HAVE_MPI
+    unsigned int procNumber = MMseqsMPI::rank;
+    unsigned int nbOfProc =  MMseqsMPI::numProc;
+#else
+    unsigned int procNumber = 0;
+    unsigned int nbOfProc = 1;
+#endif
+
     AlignmentResultEntry nullEntry(0, 0, std::string());
 
     unsigned int targetKeyMin = 0;
@@ -318,25 +337,20 @@ int doSwapSort(Parameters &par, unsigned int procNumber = 0, unsigned int nbOfPr
         qdbr.close();
     }
 
-    const char* scoringMatrix = par.scoringMatrixFile.c_str();
-
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-    swapResults(resultReader, &resMap, targetKeyMin, targetKeyMax, aaResSize, scoringMatrix);
+    const char* scoringMatrix = par.scoringMatrixFile.c_str();
+    doSwap(resultReader, &resMap, targetKeyMin, targetKeyMax, aaResSize, scoringMatrix);
     resultReader.close();
 
-    omptl::sort(resMap.begin(), resMap.end(), compareKey()); // sort by target id
+    // sort by target id
+    omptl::sort(resMap.begin(), resMap.end(), compareKey());
 
-   if (nbOfProc > 1)  {
-       std::pair<std::string, std::string> tmpDb = Util::createTmpFileNames(par.db4, par.db4Index, procNumber);
-       writeSwappedResults(tmpDb.first, tmpDb.second, &resMap);
-   } else {
-       writeSwappedResults(par.db4, par.db4Index, &resMap);
+    if (nbOfProc > 1)  {
+        std::pair<std::string, std::string> tmpDb = Util::createTmpFileNames(par.db4, par.db4Index, procNumber);
+        writeSwappedResults(tmpDb.first, tmpDb.second, &resMap);
 
-   }
-
-    // In case of MPI parallelization, merge the partial results
-    if (nbOfProc > 1) {
+        // In case of MPI parallelization, merge the partial results
 #ifdef HAVE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
@@ -348,26 +362,9 @@ int doSwapSort(Parameters &par, unsigned int procNumber = 0, unsigned int nbOfPr
 
             DBWriter::mergeResults(par.db4, par.db4Index, partialResFiles);
         }
+    } else {
+        writeSwappedResults(par.db4, par.db4Index, &resMap);
     }
 
     return EXIT_SUCCESS;
-}
-
-int swapresults(int argc, const char **argv, const Command &command) {
-    MMseqsMPI::init(argc, argv);
-
-    Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4);
-
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
-#ifdef HAVE_MPI
-    int status = doSwapSort(par, MMseqsMPI::rank, MMseqsMPI::numProc);
-#else
-    int status = doSwapSort(par);
-#endif
-
-    EXIT(status);
 }
