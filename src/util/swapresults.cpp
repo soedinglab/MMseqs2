@@ -97,24 +97,18 @@ std::pair<size_t, size_t> longestLine(const char *name) {
     return std::make_pair(lines, maxLen);
 }
 
-void writeSwappedResults(const std::string &outputDB, const std::string &outputDBIndex,
-                         std::vector<AlignmentResultEntry> *resMap) {
-    int num_threads = 1;
-#ifdef OPENMP
-    num_threads = omp_get_num_threads();
-#endif
-
-    DBWriter resultWriter(outputDB.c_str(), outputDBIndex.c_str(), num_threads);
-    resultWriter.open();
-
+void writeSwappedResults(DBWriter &resultWriter, std::vector<AlignmentResultEntry> *resMap) {
     size_t size = resMap->size();
 #pragma omp parallel
     {
         int thread_num = 0;
+        int num_threads = 1;
+
         size_t start, end, orgStart, orgEnd;
 
 #ifdef OPENMP
         thread_num = omp_get_thread_num();
+        num_threads = omp_get_num_threads();
 #endif
         orgStart = thread_num * size / num_threads;
         orgEnd = (thread_num + 1) * size / num_threads;
@@ -173,7 +167,6 @@ void writeSwappedResults(const std::string &outputDB, const std::string &outputD
             resultWriter.writeData(result.c_str(), result.size(), lastKey, thread_num);
         }
     }
-    resultWriter.close();
 }
 
 void swapBt(std::string &bt) {
@@ -195,14 +188,15 @@ void doSwap(DBReader<unsigned int> &resultReader,
     SubstitutionMatrix subMat(scoringMatrix, 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 
-    int thread_num = 0, num_threads = 1;
     size_t start, end;
     size_t count = 0;
     size_t size = resultReader.getSize();
     std::mutex lock;
 
-#pragma omp parallel private(thread_num,num_threads,start,end)
+#pragma omp parallel private(start,end)
     {
+        int thread_num = 0;
+        int num_threads = 1;
 #ifdef OPENMP
         thread_num = omp_get_thread_num();
         num_threads = omp_get_num_threads();
@@ -242,7 +236,6 @@ void doSwap(DBReader<unsigned int> &resultReader,
                         bool addBacktrace = cols >= Matcher::ALN_RES_WITH_BT_COL_CNT;
                         if (addBacktrace) {
                             swapBt(res.backtrace);
-
                         }
 
                         std::string result = Matcher::resultToString(res, addBacktrace);
@@ -294,31 +287,17 @@ int swapresults(int argc, const char **argv, const Command &command) {
     omp_set_num_threads(par.threads);
 #endif
 
-#ifdef HAVE_MPI
-    unsigned int procNumber = MMseqsMPI::rank;
-    unsigned int nbOfProc =  MMseqsMPI::numProc;
-#else
     unsigned int procNumber = 0;
     unsigned int nbOfProc = 1;
+#ifdef HAVE_MPI
+    procNumber = MMseqsMPI::rank;
+    nbOfProc =  MMseqsMPI::numProc;
 #endif
 
-    AlignmentResultEntry nullEntry(0, 0, std::string());
-
-    unsigned int targetKeyMin = 0;
-    unsigned int targetKeyMax = static_cast<unsigned int>(-1);
     std::pair<size_t, size_t> searchFileLines = longestLine(par.db3.c_str());
     unsigned long numberOfEntries = searchFileLines.first;
 
-    if (nbOfProc > 1) {
-        DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str());
-        targetReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-        unsigned int lastKey = targetReader.getLastKey();
-        targetReader.close();
-
-        targetKeyMin = procNumber * (lastKey + 1) / nbOfProc;
-        targetKeyMax = (procNumber + 1) * (lastKey + 1) / nbOfProc;
-    }
-
+    AlignmentResultEntry nullEntry(0, 0, std::string());
     std::vector<AlignmentResultEntry> resMap(numberOfEntries, nullEntry);
 
     // the results length should be <= the maximum original length + 10
@@ -328,10 +307,21 @@ int swapresults(int argc, const char **argv, const Command &command) {
         resMap[i].result.reserve(lineLength);
     }
 
+    unsigned int targetKeyMin = 0;
+    unsigned int targetKeyMax = static_cast<unsigned int>(-1);
+    if (nbOfProc > 1) {
+        DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), DBReader<unsigned int>::USE_INDEX);
+        targetReader.open(DBReader<unsigned int>::NOSORT);
+        unsigned int lastKey = targetReader.getLastKey();
+        targetReader.close();
+
+        targetKeyMin = procNumber * (lastKey + 1) / nbOfProc;
+        targetKeyMax = (procNumber + 1) * (lastKey + 1) / nbOfProc;
+    }
 
     size_t aaResSize = 0;
     {
-        DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
+        DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), DBReader<unsigned int>::USE_INDEX);
         qdbr.open(DBReader<unsigned int>::NOSORT);
         aaResSize = qdbr.getAminoAcidDBSize();
         qdbr.close();
@@ -348,13 +338,16 @@ int swapresults(int argc, const char **argv, const Command &command) {
 
     if (nbOfProc > 1)  {
         std::pair<std::string, std::string> tmpDb = Util::createTmpFileNames(par.db4, par.db4Index, procNumber);
-        writeSwappedResults(tmpDb.first, tmpDb.second, &resMap);
+        DBWriter resultWriter(tmpDb.first.c_str(), tmpDb.second.c_str(), par.threads);
+        resultWriter.open();
+        writeSwappedResults(resultWriter, &resMap);
+        resultWriter.close();
 
         // In case of MPI parallelization, merge the partial results
 #ifdef HAVE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
-        if (procNumber == 0) {
+        if (MMseqsMPI::isMaster() == 0) {
             std::vector<std::pair<std::string, std::string>> partialResFiles;
             for (unsigned int proc = 0; proc < nbOfProc; ++proc) {
                 partialResFiles.push_back(Util::createTmpFileNames(par.db4, par.db4Index, proc));
@@ -363,7 +356,10 @@ int swapresults(int argc, const char **argv, const Command &command) {
             DBWriter::mergeResults(par.db4, par.db4Index, partialResFiles);
         }
     } else {
-        writeSwappedResults(par.db4, par.db4Index, &resMap);
+        DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+        resultWriter.open();
+        writeSwappedResults(resultWriter, &resMap);
+        resultWriter.close();
     }
 
     return EXIT_SUCCESS;
