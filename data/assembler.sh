@@ -21,7 +21,9 @@ STEP=0
 while [ $STEP -lt $NUM_IT ]; do
     echo "STEP: "$STEP
     # 1. Finding exact $k$-mer matches.
-    notExists "$3/pref_$STEP"          && $MMSEQS kmermatcher "$INPUT" "$3/pref_$STEP" ${KMERMATCHER_PAR}                    && checkReturnCode "Kmer matching step died"
+
+    PARAM=KMERMATCHER${STEP}_PAR
+    notExists "$3/pref_$STEP"          && $MMSEQS kmermatcher "$INPUT" "$3/pref_$STEP" ${!PARAM}                    && checkReturnCode "Kmer matching step died"
     # 2. Ungapped alignment
     notExists "$3/aln_$STEP" && $MMSEQS rescorediagonal "$INPUT" "$INPUT" "$3/pref_$STEP" "$3/aln_$STEP" ${UNGAPPED_ALN_PAR} && checkReturnCode "Ungapped alignment step died"
     # 3. Assemble
