@@ -90,6 +90,10 @@ public:
         return evaluer.bitScore(score, logK);
     }
 
+    inline double computeRawScoreFromBitScore(double bitScore) {
+        return (logK + bitScore * std::log(2.0)) / evaluer.parameters().lambda;
+    }
+
     int minScore(double evalue, size_t qL) {
         // do log of evalue separately, to reduce the risk of overflow:
         double s = (std::log(evaluer.parameters().K * area(60, qL)) - std::log(evalue)) / evaluer.parameters().lambda;

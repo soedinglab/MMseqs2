@@ -218,8 +218,7 @@ void doSwap(DBReader<unsigned int> &resultReader,
 
                     unsigned int targetKey = res.dbKey;
                     if (targetKey >= targetKeyMin && targetKey < targetKeyMax) {
-                        double rawScore = evaluer.computeBitScore(res.score);
-//                        double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
+                        double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
                         res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
                         unsigned int qstart = res.qStartPos;
                         unsigned int qend = res.qEndPos;
