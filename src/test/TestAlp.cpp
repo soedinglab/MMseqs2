@@ -124,16 +124,18 @@ int main(int argc, char * argv[])
         for (size_t j = 0; j < subMat.alphabetSize; j++) {
             tmpMat[i][j] = subMat.subMatrix[i][j];
         }
+        letterFreqs1[i] = subMat.pBack[i];
+        letterFreqs2[i] = subMat.pBack[i];
+        std::cout << subMat.pBack[i] << std::endl;
     }
     //the function "initGapless" is called for BLOSUM62 matrix and Robinson and Robinson frequencies; the "AlignmentEvaluer" object is initialized
     evaluer.initGapped(
-            subMat.alphabetSize,
-            substitutionScoreMatrix,
+            subMat.alphabetSize-1,
+            tmpMat,
             letterFreqs1,
             letterFreqs2,
             11,1,11,1, false,lambdaTolerance,kTolerance,max_seconds,maxMegabytes,randomSeed);
-    delete [] tmpMatData;
-    delete [] tmpMat;
+
 
 std::cout << std::setprecision(20) <<
     evaluer.parameters().lambda <<"\t" <<
@@ -151,8 +153,8 @@ std::cout << std::setprecision(20) <<
 
 
     evaluer.initGapless(
-            subMat.alphabetSize,
-            substitutionScoreMatrix,
+            subMat.alphabetSize-1,
+            tmpMat,
             letterFreqs1,
             letterFreqs2,max_seconds);
 
