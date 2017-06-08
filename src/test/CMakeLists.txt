@@ -18,8 +18,8 @@ if (HAVE_TESTS)
     endif ()
 
     function(setup_mmseqs_test NAME)
-        string(TOLOWER ${NAME} NAME)
-        string(REGEX REPLACE "\\.[^.]*$" "" BASE_NAME ${NAME})
+        string(TOLOWER ${NAME} BASE_NAME)
+        string(REGEX REPLACE "\\.[^.]*$" "" BASE_NAME ${BASE_NAME})
         string(REGEX REPLACE "^test" "test_" BASE_NAME ${BASE_NAME})
         add_executable(${BASE_NAME} ${NAME})
 
