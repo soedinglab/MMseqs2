@@ -19,20 +19,18 @@ public:
         Sls::AlignmentEvaluerParameters *par = NULL;
 
         const static EvalueParameters defaultParameter[] = {
-                {"blosum62.out", 11, 1, true,  {0.26756197831825956346, 0.041901856564341262434,
-                                                       1.7858388859823619566,  -23.861434204310011609,
-                                                       1.7858388859823619566,  -23.861434204310011609,
-                                                       40.800977920008499211, -860.07168204074275764,
-                                                       40.800977920008499211, -860.07168204074275764,
-                                                       39.943564532821483226, -839.49376074825431715}},
-
-
-                {"blosum62.out", 0,  0, false, {0.31760580016607398157, 0.13374065508394297752,
-                                                       0.79161246080277813952, 0,
-                                                       0.79161246080277813952, 0,
-                                                       4.9646578349775483119, 0,
-                                                       4.9646578349775483119, 0,
-                                                       4.9646578349775483119, 0}}
+                {"blosum62.out", 11, 1, true,  {0.27359865037097330642, 0.044620920658722244834,
+                                                1.5938724404943873658, -19.959867650284412122,
+                                                1.5938724404943873658, -19.959867650284412122,
+                                                30.455610143099914211, -622.28684628915891608,
+                                                30.455610143099914211, -622.28684628915891608,
+                                                29.602444874818868215, -601.81087985041381216}},
+                {"blosum62.out", 0,  0, false, {0.3207378152604042354,  0.13904657125294345166,
+                                                0.76221128839920349041, 0,
+                                                0.76221128839920349041, 0,
+                                                4.5269915477182944841,  0,
+                                                4.5269915477182944841,  0,
+                                                4.5269915477182944841,  0}}
         };
 
 
@@ -60,15 +58,17 @@ public:
                 }
             }
             if(isGapped) {
+                //-1 to avoid X
                 evaluer.initGapped(
-                        subMat->alphabetSize, (const long *const *)tmpMat,
+                        subMat->alphabetSize-1, (const long *const *)tmpMat,
                         subMat->pBack, subMat->pBack,
                         gapOpen, gapExtend, gapOpen, gapExtend,
                         false, lambdaTolerance, kTolerance,
                         maxSeconds, maxMegabytes, randomSeed);
             }else{
+                //subMat->alphabetSize-1
                 evaluer.initGapless(
-                        subMat->alphabetSize, (const long *const *)tmpMat,
+                        subMat->alphabetSize-1, (const long *const *)tmpMat,
                         subMat->pBack, subMat->pBack,
                         maxSeconds);
             }
@@ -90,9 +90,12 @@ public:
         return evaluer.bitScore(score, logK);
     }
 
+<<<<<<< HEAD
     inline double computeRawScoreFromBitScore(double bitScore) {
         return (logK + bitScore * std::log(2.0)) / evaluer.parameters().lambda;
     }
+=======
+>>>>>>> master
 
     int minScore(double evalue, size_t qL) {
         // do log of evalue separately, to reduce the risk of overflow:
