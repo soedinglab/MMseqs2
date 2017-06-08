@@ -6,6 +6,7 @@
 #include "Util.h"
 #include "Parameters.h"
 #include "Matcher.h"
+#include "PrefilteringIndexReader.h"
 
 #include "Debug.h"
 #include "DBReader.h"
@@ -17,37 +18,63 @@
 
 class HeaderIdReader {
 public:
-    HeaderIdReader(const char* dataName, const char* indexName, bool noPreload) {
-        reader = new DBReader<unsigned int>(dataName, indexName);
-        reader->open(DBReader<unsigned int>::NOSORT);
-        if(noPreload == false) {
-            reader->readMmapedDataInMemory();
+    HeaderIdReader(const char* dataName, const char* indexName, bool noPreload)
+            : reader(NULL), index(NULL) {
+        std::string indexDB = PrefilteringIndexReader::searchForIndex(dataName);
+        if (indexDB != "") {
+            Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
+            int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
+            index = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), dataMode);
+            index->open(DBReader<unsigned int>::NOSORT);
+            bool templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(index);
+            if (templateDBIsIndex == true) {
+                PrefilteringIndexReader::printSummary(index);
+                PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(index);
+
+                if (data.headers == 1) {
+                    reader = PrefilteringIndexReader::openNewHeaderReader(index, dataName, noPreload == false);
+                } else {
+                    Debug(Debug::INFO) << "Index does not contain headers. Using normal database instead.\n";
+                }
+            } else {
+                Debug(Debug::WARNING) << "Outdated index version. Please recompute it with 'createindex'!\n";
+                index->close();
+                delete index;
+                index = NULL;
+            }
         }
 
-        isLookup = false;
-        if (Util::endsWith(".lookupdb", dataName)) {
-            isLookup = true;
+        if (reader == NULL) {
+            reader = new DBReader<unsigned int>(dataName, indexName);
+            reader->open(DBReader<unsigned int>::NOSORT);
+
+
+            if (noPreload == false) {
+                reader->readMmapedDataInMemory();
+                reader->mlock();
+            }
         }
     }
 
     std::string getId(unsigned int key) {
         size_t id = reader->getId(key);
         const char *data = reader->getData(id);
-        if(isLookup) {
-            return std::string(data, reader->getSeqLens(id) - 2);
-        }
-
         return Util::parseFastaHeader(data);
     }
 
     ~HeaderIdReader() {
         reader->close();
         delete reader;
+
+        if (index != NULL) {
+            index->close();
+            delete index;
+        }
     }
 
 private:
     DBReader<unsigned int> *reader;
-    bool isLookup;
+    DBReader<unsigned int> *index;
 };
 
 class OutputWriter {

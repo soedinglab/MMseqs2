@@ -44,6 +44,8 @@ public:
                                 bool compBiasCorrection, int alphabetSize, int kmerSize,
                                 bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads);
 
+    static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int> *dbr, const char* dataFileName, bool touch);
+
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool touch);
 
     static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr, bool touch);

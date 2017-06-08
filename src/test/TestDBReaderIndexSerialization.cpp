@@ -11,6 +11,7 @@ int main (int argc, const char * argv[])
 
     char* data = DBReader<unsigned int>::serialize(reader);
     DBReader<unsigned int>* newdbr = DBReader<unsigned int>::unserialize(data);
+    newdbr->open(DBReader<unsigned int>::NOSORT);
 
     Debug(Debug::INFO) << newdbr->getSize() << " " << newdbr->getAminoAcidDBSize() << "\n";
     Debug(Debug::INFO) << newdbr->getIndex()[0].id  << " " << newdbr->getIndex()[0].offset  << " " << newdbr->getSeqLens()[0] << "\n";
