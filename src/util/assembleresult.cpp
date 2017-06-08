@@ -130,6 +130,8 @@ int doassembly(Parameters &par) {
                     qEndPos = alignment.endPos + dist;
                     dbStartPos = alignment.startPos;
                     dbEndPos = alignment.endPos;
+                    //std::cout <<"QueryD:"<< + abs(diagonal) << "\t" << qStartPos << "\t" << qEndPos << "\t" << querySeq.L << "\t" << dbStartPos << "\t" << dbEndPos << "\t" << targetSeq.L << std::endl;
+
                 } else {
                     size_t diagonalLen = std::min(targetSeq.L - abs(diagonal), querySeq.L);
                     DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(
@@ -140,15 +142,17 @@ int doassembly(Parameters &par) {
                     qEndPos = alignment.endPos;
                     dbStartPos = alignment.startPos + dist;
                     dbEndPos = alignment.endPos + dist;
+                    //std::cout <<"TargeD:"<< + abs(diagonal) << "\t" << qStartPos << "\t" << qEndPos << "\t" << querySeq.L << "\t" << dbStartPos << "\t" << dbEndPos << "\t" << targetSeq.L << std::endl;
+
 //                    __sync_fetch_and_add(&readLabel[id], 1);
 
                 }
 
 //                std::cout << "\t" << besttHitToExtend.dbKey << std::endl;
-//                std::cout << "Query : " << query << std::endl;
-//                std::cout << "Target: " << std::string(dbSeq, targetSeq.L)  << std::endl;
+                //std::cout << "Query : " << query << std::endl;
+                //std::cout << "Target: " << std::string(dbSeq, targetSeq.L)  << std::endl;
 
-                if (dbStartPos == 0) {
+                if (dbStartPos == 0 && qEndPos == (querySeq.L -1)  ) {
                     size_t dbFragLen = (targetSeq.L - dbEndPos) - 1; // -1 get not aligned element
                     std::string fragment = std::string(dbSeq + dbEndPos + 1, dbFragLen);
                     if (fragment.size() + query.size() >= par.maxSeqLen) {
@@ -159,9 +163,9 @@ int doassembly(Parameters &par) {
                     //update that dbKey was used in assembly
                     __sync_or_and_fetch(&wasExtended[targetSeq.getId()], static_cast<unsigned char>(0x80));
                     queryCouldBeExtended = true;
-//                    std::cout << "Fargm1: "  << fragment << std::endl;
+                    //std::cout << "Fargm1: "  << fragment << std::endl;
                     query += fragment;
-                } else if (qStartPos == 0) {
+                } else if (qStartPos == 0 && dbEndPos == (targetSeq.L - 1)) {
                     std::string fragment = std::string(dbSeq, dbStartPos); // +1 get not aligned element
                     if (fragment.size() + query.size() >= par.maxSeqLen) {
                         Debug(Debug::WARNING) << "Sequence too long in query id: " << queryKey << ". "
@@ -171,13 +175,13 @@ int doassembly(Parameters &par) {
                     // update that dbKey was used in assembly
                     __sync_or_and_fetch(&wasExtended[targetSeq.getId()], static_cast<unsigned char>(0x80));
                     queryCouldBeExtended = true;
-//                    std::cout << "Fargm2: "  << fragment << std::endl;
+                    //std::cout << "Fargm2: "  << fragment << std::endl;
                     query = fragment + query;
                     queryOffset += dbStartPos;
                 }
 
             }
-//            std::cout << "FQuery: " << query << std::endl;
+            //std::cout << "FQuery: " << query << std::endl;
             if (queryCouldBeExtended == true) {
                 query.push_back('\n');
                 __sync_or_and_fetch(&wasExtended[querySeq.getId()], static_cast<unsigned char>(0x80));
