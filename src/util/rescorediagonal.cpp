@@ -218,7 +218,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                 int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<int>(1));
                                 //seqId = (alignment.score1 / static_cast<float>(std::max(qAlnLength, dbAlnLength)))  * 0.1656 + 0.1141;
                                 seqId = Matcher::estimateSeqIdByScorePerCol(distance, qAlnLen, dbAlnLen);
-                                if(evalue <= par.evalThr && seqId > (par.seqIdThr - 0.2)){
+                                // compute seq.id if hit fulfills e-value but not by seqId criteria
+                                if(evalue <= par.evalThr && seqId < par.seqIdThr){
                                     int idCnt = 0;
                                     for(size_t i = qStartPos; i < qEndPos; i++){
                                         idCnt += (query.int_sequence[i] == target.int_sequence[dbStartPos+(i-qStartPos)]);
