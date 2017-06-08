@@ -190,9 +190,8 @@ public:
         if (seqLookup != NULL) {
             sequenceLookup = seqLookup;
         }
+
         // allocate memory for the sequence id lists
-        // tablesSizes is added to put the Size of the entry infront fo the memory
-        // +1 for table[tableSize] pointer address
         entries = new(std::nothrow) IndexEntryLocal[tableEntriesNum];
         Util::checkAllocation(entries, "Could not allocate entries memory in IndexTable::initMemory");
     }
