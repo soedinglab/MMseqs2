@@ -5,31 +5,24 @@
 
 UngappedAlignment::UngappedAlignment(const unsigned int maxSeqLen,
                                  BaseMatrix * substitutionMatrix,
-                                 SequenceLookup * sequenceLookup) {
+                                 SequenceLookup * sequenceLookup) :
+        subMatrix(substitutionMatrix), sequenceLookup(sequenceLookup) {
     score_arr = new unsigned int[VECSIZE_INT*4];
     diagonalCounter = new unsigned char[DIAGONALCOUNT];
     vectorSequence = (unsigned char *) malloc_simd_int(VECSIZE_INT * 4 * maxSeqLen);
     queryProfile   = (char *) malloc_simd_int(PROFILESIZE * maxSeqLen);
     memset(queryProfile, 0, PROFILESIZE * maxSeqLen);
     aaCorrectionScore = (char *) malloc_simd_int(maxSeqLen);
-    diagonalMatches = new CounterResult**[DIAGONALCOUNT];
-    for(size_t i = 0; i < DIAGONALCOUNT; i++){
-        diagonalMatches[i] = new CounterResult *[VECSIZE_INT*4];
-    }
-    this->subMatrix = substitutionMatrix;
-    this->sequenceLookup = sequenceLookup;
+    diagonalMatches = new CounterResult*[DIAGONALCOUNT * (VECSIZE_INT * 4)];
 }
 
 UngappedAlignment::~UngappedAlignment() {
-    delete [] score_arr;
-    delete [] diagonalCounter;
-    free(vectorSequence);
-    free(queryProfile);
-    free(aaCorrectionScore);
-    for(size_t i = 0; i < DIAGONALCOUNT; i++){
-        delete [] diagonalMatches[i];
-    }
     delete [] diagonalMatches;
+    free(aaCorrectionScore);
+    free(queryProfile);
+    free(vectorSequence);
+    delete [] diagonalCounter;
+    delete [] score_arr;
 }
 
 void UngappedAlignment::processQuery(Sequence *seq,
@@ -213,16 +206,16 @@ void UngappedAlignment::computeScores(const char *queryProfile,
                                     unsigned int thr) {
     memset(diagonalCounter, 0, DIAGONALCOUNT * sizeof(unsigned char));
     for(size_t i = 0; i < resultSize; i++){
-        // skip all that count not find enough diagonals
+//        // skip all that count not find enough diagonals
 //        if(results[i].count < thr){
 //            continue;
 //        }
         const unsigned short currDiag = results[i].diagonal;
-        diagonalMatches[currDiag][diagonalCounter[currDiag]] = &results[i];
+        diagonalMatches[currDiag * (VECSIZE_INT * 4) + diagonalCounter[currDiag]] = &results[i];
         diagonalCounter[currDiag]++;
         if(diagonalCounter[currDiag] >= (VECSIZE_INT * 4) ) {
             scoreDiagonalAndUpdateHits(queryProfile, queryLen, static_cast<short>(currDiag),
-                                       diagonalMatches[currDiag], diagonalCounter[currDiag], bias);
+                                       &diagonalMatches[currDiag * (VECSIZE_INT * 4)], diagonalCounter[currDiag], bias);
             diagonalCounter[currDiag] = 0;
         }
     }
@@ -230,7 +223,7 @@ void UngappedAlignment::computeScores(const char *queryProfile,
     for(size_t i = 0; i < DIAGONALCOUNT; i++){
         if(diagonalCounter[i] > 0){
             scoreDiagonalAndUpdateHits(queryProfile, queryLen, static_cast<short>(i),
-                                       diagonalMatches[i], diagonalCounter[i], bias);
+                                       &diagonalMatches[i * (VECSIZE_INT * 4)], diagonalCounter[i], bias);
         }
         diagonalCounter[i] = 0;
     }

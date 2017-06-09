@@ -164,7 +164,7 @@ int concatdbs(int argc, const char **argv, const Command& command) {
                    par.db2.c_str(), par.db2Index.c_str(),
                    par.db3.c_str(), par.db3Index.c_str(),
                    static_cast<unsigned int>(par.threads), datamode, true, par.preserveKeysB);
-    outDB.concat();
+    outDB.concat(true);
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;

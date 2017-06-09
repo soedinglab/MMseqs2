@@ -1,14 +1,28 @@
-#!/bin/bash
+#!/bin/bash -e
 # Clustering workflow script
-checkReturnCode () {
-	if [ $? -ne 0 ]; then
-	    echo "$1"
-	    exit 1
-	fi
+function fail() {
+    echo "Error: $1"
+    exit 1
 }
-notExists () {
+
+function notExists() {
 	[ ! -f "$1" ]
 }
+
+function abspath() {
+    if [ -d "$1" ]; then
+        (cd "$1"; pwd)
+    elif [ -f "$1" ]; then
+        if [[ $1 == */* ]]; then
+            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
+        else
+            echo "$(pwd)/$1"
+        fi
+    elif [ -d $(dirname "$1") ]; then
+            echo "$(cd $(dirname "$1"); pwd)/$(basename "$1")"
+    fi
+}
+
 #pre processing
 [ -z "$MMSEQS" ] && echo "Please set the environment variable \$MMSEQS to your MMSEQS binary." && exit 1;
 # check amount of input variables
@@ -22,32 +36,25 @@ notExists () {
 
 export OMP_PROC_BIND=TRUE
 
-cd $(dirname "$1")
-QUERY_FILE="$(basename $1)"
-ABS_QUERY="$(pwd)/${QUERY_FILE}"
-cd -
-
-cd "$4"
-TMP_PATH="$(pwd)"
-cd -
+QUERYDB="$(abspath $1)"
+TMP_PATH="$(abspath $4)"
 
 STEP=0
-QUERYDB="$ABS_QUERY"
 ALN_PROFILE=""
 # processing
 [ -z "$NUM_IT" ] && NUM_IT=3;
 while [ $STEP -lt $NUM_IT ]; do
     # call prefilter module
     if notExists "$TMP_PATH/pref_$STEP"; then
-        $RUNNER $MMSEQS prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP" $PREFILTER_PAR
-        checkReturnCode "Prefilter died"
+        $RUNNER $MMSEQS prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP" $PREFILTER_PAR \
+            || fail "Prefilter died"
     fi
 
     if [ $STEP -ge 1 ]; then
         if notExists "$TMP_PATH/pref_$STEP.hasnext"; then
             # pref -aln
-            $MMSEQS subtractdbs "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR
-            checkReturnCode "Substract died"
+            $MMSEQS subtractdbs "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_0" "$TMP_PATH/pref_next_$STEP" $SUBSTRACT_PAR \
+                || fail "Substract died"
             mv -f "$TMP_PATH/pref_next_$STEP" "$TMP_PATH/pref_$STEP"
             mv -f "$TMP_PATH/pref_next_$STEP.index" "$TMP_PATH/pref_$STEP.index"
             touch "$TMP_PATH/pref_$STEP.hasnext"
@@ -63,15 +70,15 @@ while [ $STEP -lt $NUM_IT ]; do
 
 	# call alignment module
 	if notExists "$TMP_PATH/aln_$STEP"; then
-	    ALN_PAR=$(eval "echo \$ALIGNMENT_PAR_$STEP")
-        $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" $ALN_PAR $REALIGN $ALN_PROFILE -a
-        checkReturnCode "Alignment died"
+	    PARAM="ALIGNMENT_PAR_$STEP"
+        $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${!PARAM} $REALIGN ${ALN_PROFILE} -a \
+            || fail "Alignment died"
     fi
 
     if [ $STEP -gt 0 ]; then
         if notExists "$TMP_PATH/aln_$STEP.hasmerge"; then
-            $MMSEQS mergedbs "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP"
-            checkReturnCode "Merge died"
+            $MMSEQS mergedbs "$QUERYDB" "$TMP_PATH/aln_new" "$TMP_PATH/aln_0" "$TMP_PATH/aln_$STEP" \
+                || fail "Merge died"
             mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_0"
             mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_0.index"
             touch "$TMP_PATH/aln_$STEP.hasmerge"
@@ -81,8 +88,8 @@ while [ $STEP -lt $NUM_IT ]; do
 # create profiles
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
         if notExists "$TMP_PATH/profile_$STEP"; then
-            $RUNNER $MMSEQS result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR
-            checkReturnCode "Create profile died"
+            $RUNNER $MMSEQS result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" $PROFILE_PAR \
+                || fail "Create profile died"
             ln -sf "${QUERYDB}_h" "$TMP_PATH/profile_${STEP}_h"
             ln -sf "${QUERYDB}_h.index" "$TMP_PATH/profile_${STEP}_h.index"
         fi
@@ -97,9 +104,7 @@ while [ $STEP -lt $NUM_IT ]; do
 done
 # post processing
 let STEP=STEP-1
-mv -f "$TMP_PATH/aln_0" "$3"
-mv -f "$TMP_PATH/aln_0.index" "$3.index"
-checkReturnCode "Could not move result to $3"
+(mv -f "$TMP_PATH/aln_0" "$3" && mv -f "$TMP_PATH/aln_0.index" "$3.index") || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
  echo "Remove temporary files"
@@ -110,5 +115,7 @@ if [ -n "$REMOVE_TMP" ]; then
     rm -f "$TMP_PATH/profile_$STEP" "$TMP_PATH/profile_$STEP.index" "$TMP_PATH/profile_${STEP}_h" "$TMP_PATH/profile_${STEP}_h.index"
     let STEP=STEP+1
  done
+
+ rm -f "$TMP_PATH/blastpgp.sh"
 fi
 

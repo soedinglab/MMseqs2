@@ -9,11 +9,6 @@
 #include <unistd.h>
 #include <sys/statvfs.h>
 
-void FileUtil::errorIfFileExist(const char * file){
-    struct stat st;
-    if(stat(file, &st) == 0) { errno = EEXIST; perror(file); EXIT(EXIT_FAILURE); }
-}
-
 bool FileUtil::fileExists(const char* fileName) {
     struct stat st;
     return stat(fileName, &st) == 0;
@@ -63,17 +58,31 @@ void FileUtil::deleteTempFiles(std::list<std::string> tmpFiles) {
     }
 }
 
-void FileUtil::writeFile(std::string pathToFile, unsigned char *data, size_t len) {
-    int file = open(pathToFile.c_str(), O_RDWR|O_CREAT, 0700);
-    if(file == -1){
-        Debug(Debug::ERROR) << "Can not open " << pathToFile << "\n";
+void FileUtil::writeFile(std::string pathToFile, const unsigned char *data, size_t len) {
+    int fd = open(pathToFile.c_str(), O_RDWR|O_CREAT, 0700);
+    if (fd == -1) {
+        Debug(Debug::ERROR) << "Could not write file " << pathToFile << "!\n";
         EXIT(EXIT_FAILURE);
     }
-    write(file, data, len);
-    close(file);
+
+    ssize_t res = write(fd, data, len);
+    if (res == -1) {
+        Debug(Debug::ERROR) << "Error writing file " << pathToFile << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    if (fsync(fd) != 0) {
+        Debug(Debug::ERROR) << "Error syncing file " << pathToFile << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    if (close(fd) != 0) {
+        Debug(Debug::ERROR) << "Error closing file " << pathToFile << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
 
-std::string FileUtil::dirName(const std::string fileName) {
+std::string FileUtil::dirName(const std::string &fileName) {
         size_t pos = fileName.find_last_of("\\/");
         return (std::string::npos == pos)
                ? ""

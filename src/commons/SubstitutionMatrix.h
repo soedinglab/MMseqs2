@@ -35,7 +35,7 @@ private:
 
         int parseAlphabet(char * word, char * int2aa, int * aa2int);
 
-        int readProbMatrix(std::string matrixData);
+        int readProbMatrix(const std::string &matrixData);
 
         float bitFactor;
 };

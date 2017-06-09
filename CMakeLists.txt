@@ -136,6 +136,7 @@ include_directories(lib/alp)
 include_directories(lib/cacode)
 add_subdirectory(lib/cacode)
 add_subdirectory(lib/alp)
+add_subdirectory(data)
 add_subdirectory(src)
 
 install(PROGRAMS

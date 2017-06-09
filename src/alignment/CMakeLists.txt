@@ -10,7 +10,7 @@ set(alignment_source_files
   MultipleAlignment.h
   PSSMCalculator.cpp
   PSSMCalculator.h
-        MsaFilter.cpp
+  MsaFilter.cpp
   MsaFilter.h
   CompressedA3M.cpp
   CompressedA3M.h

@@ -26,10 +26,10 @@ int mergedbs(int argc, const char **argv, const Command& command) {
 
     std::vector<std::string> prefixes = Util::split(par.mergePrefixes, ",");
 
-    DBReader<unsigned int> qdbr(par.db1.c_str(), std::string(par.db1 + ".index").c_str());
+    DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str(), DBReader<unsigned int>::USE_INDEX);
     qdbr.open(DBReader<unsigned int>::NOSORT);
 
-    DBWriter writer(par.db2.c_str(), std::string(par.db2 + ".index").c_str());
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str());
     writer.open();
     writer.mergeFiles(qdbr, filenames, prefixes);
     writer.close();

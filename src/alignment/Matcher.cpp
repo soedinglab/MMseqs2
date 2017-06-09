@@ -43,12 +43,6 @@ void Matcher::initQuery(Sequence* query){
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
                                        const double evalThr, const unsigned int mode){
-    unsigned int qStartPos = 0;
-    unsigned int qEndPos = 0;
-    unsigned int dbStartPos = 0;
-    unsigned int dbEndPos = 0;
-    int aaIds = 0;
-
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
 
@@ -70,6 +64,8 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     float seqId = 0.0;
     // compute sequence identity
     std::string backtrace;
+
+    int aaIds = 0;
     if(mode == Matcher::SCORE_COV_SEQID){
         if(alignment.cigar){
             int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
@@ -101,10 +97,10 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         }
     }
 
-    qStartPos = alignment.qStartPos1;
-    dbStartPos = alignment.dbStartPos1;
-    qEndPos = alignment.qEndPos1;
-    dbEndPos = alignment.dbEndPos1;
+    const unsigned int qStartPos = alignment.qStartPos1;
+    const unsigned int dbStartPos = alignment.dbStartPos1;
+    const unsigned int qEndPos = alignment.qEndPos1;
+    const unsigned int dbEndPos = alignment.dbEndPos1;
     // normalize score
 //    alignment->score1 = alignment->score1 - log2(dbSeq->L);
     if(mode == Matcher::SCORE_COV || mode == Matcher::SCORE_COV_SEQID) {
@@ -181,7 +177,7 @@ float Matcher::estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, uns
 }
 
 
-std::string Matcher::compressAlignment(std::string bt) {
+std::string Matcher::compressAlignment(const std::string& bt) {
     std::string ret;
     char state = 'M';
     size_t counter = 0;
@@ -200,7 +196,7 @@ std::string Matcher::compressAlignment(std::string bt) {
     return ret;
 }
 
-std::string Matcher::uncompressAlignment(std::string cbt) {
+std::string Matcher::uncompressAlignment(const std::string &cbt) {
     std::string bt;
     size_t count = 0;
     for(size_t i = 0; i < cbt.size(); i++) {

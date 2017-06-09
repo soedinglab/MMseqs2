@@ -160,7 +160,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
             seq.mapSequence(id, id, seqDbr.getData(id));
 
             // mask using tantan
-            if (par.maskResidues) {
+            if (par.maskMode == 1) {
                 for (int i = 0; i < seq.L; i++) {
                     charSequence[i] = (char) seq.int_sequence[i];
                 }
@@ -232,11 +232,16 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     Parameters& par = Parameters::getInstance();
     setLinearFilterDefault(&par);
     par.parseParameters(argc, argv, command, 2, true, false, MMseqsParameter::COMMAND_CLUSTLINEAR);
+
+    if (par.maskMode == 2) {
+        Debug(Debug::ERROR) << "kmermatcher does not support mask mode 2.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     setKmerLengthAndAlphabet(par);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-
     struct timeval start, end;
     gettimeofday(&start, NULL);
 

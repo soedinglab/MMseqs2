@@ -1,13 +1,28 @@
-#!/bin/bash
+#!/bin/bash -e
 # Clustering workflow script
-checkReturnCode () { 
-	[ $? -ne 0 ] && echo "$1" && exit 1;
+function fail() {
+    echo "Error: $1"
+    exit 1
 }
-notExists () { 
-	[ ! -f "$1" ] 
+
+function notExists() {
+	[ ! -f "$1" ]
 }
-#pre processing
-#[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
+
+function abspath() {
+    if [ -d "$1" ]; then
+        (cd "$1"; pwd)
+    elif [ -f "$1" ]; then
+        if [[ $1 == */* ]]; then
+            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
+        else
+            echo "$(pwd)/$1"
+        fi
+    elif [ -d $(dirname "$1") ]; then
+            echo "$(cd $(dirname "$1"); pwd)/$(basename "$1")"
+    fi
+}
+
 # check amount of input variables
 [ "$#" -ne 3 ] && echo "Please provide <sequenceDB> <outDB> <tmp>" && exit 1;
 # check if files exists
@@ -19,31 +34,63 @@ export OMP_PROC_BIND=TRUE
 
 # processing
 
-INPUT="$1"
-notExists "$3/aln_redundancy" && $MMSEQS clusthash "$INPUT" "$3/aln_redundancy" ${DETECTREDUNDANCY_PAR}  && checkReturnCode "Fast filter step $STEP died"
-notExists "$3/clu_redundancy" && $MMSEQS clust $INPUT "$3/aln_redundancy" "$3/clu_redundancy" ${CLUSTER_PAR} && checkReturnCode "Fast Cluster filter step $STEP died"
-awk '{ print $1 }' "$3/clu_redundancy.index" > "$3/order_redundancy"
-notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/order_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
-INPUT="$3/input_step_redundancy"
+INPUT="$(abspath $1)"
+TMP_PATH="$(abspath $3)"
+
+if notExists "${TMP_PATH}/aln_redundancy"; then
+    $MMSEQS clusthash "$INPUT" "${TMP_PATH}/aln_redundancy" ${DETECTREDUNDANCY_PAR} \
+        || fail "Fast filter step $STEP died"
+fi
+
+if notExists "${TMP_PATH}/clu_redundancy"; then
+    $MMSEQS clust "$INPUT" "${TMP_PATH}/aln_redundancy" "${TMP_PATH}/clu_redundancy" ${CLUSTER_PAR} \
+        || fail "Fast Cluster filter step $STEP died"
+fi
+
+if notExists "${TMP_PATH}/order_redundancy"; then
+    awk '{ print $1 }' "${TMP_PATH}/clu_redundancy.index" > "${TMP_PATH}/order_redundancy"
+fi
+
+if notExists "${TMP_PATH}/input_step_redundancy"; then
+    $MMSEQS createsubdb "${TMP_PATH}/order_redundancy" "$INPUT" "${TMP_PATH}/input_step_redundancy" \
+        || fail "MMseqs order step $STEP died"
+fi
+
+ORIGINAL="$INPUT"
+INPUT="${TMP_PATH}/input_step_redundancy"
 # call prefilter module
-notExists "$3/pref" && $RUNNER $MMSEQS prefilter "$INPUT" "$INPUT" "$3/pref" $PREFILTER_PAR           && checkReturnCode "Prefilter died"
+if notExists "${TMP_PATH}/pref"; then
+    $RUNNER $MMSEQS prefilter "$INPUT" "$INPUT" "${TMP_PATH}/pref" $PREFILTER_PAR \
+        || fail "Prefilter died"
+fi
+
 # call alignment module
-notExists "$3/aln"  && $RUNNER $MMSEQS align "$INPUT" "$INPUT" "$3/pref" "$3/aln" $ALIGNMENT_PAR  && checkReturnCode "Alignment died"
+if notExists "${TMP_PATH}/aln"; then
+    $RUNNER $MMSEQS align "$INPUT" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/aln" $ALIGNMENT_PAR \
+        || fail "Alignment died"
+fi
+
 # call cluster module
-notExists "$3/clu_step0"  && $MMSEQS clust "$INPUT" "$3/aln" "$3/clu_step0" $CLUSTER_PAR          && checkReturnCode "Clustering died"
-# merg clu_redundancy and clu
-notExists "$3/clu" && $MMSEQS mergeclusters "$1" "$3/clu" "$3/clu_redundancy" "$3/clu_step0" && checkReturnCode "Merging of clusters has died"
-# post processing
-mv -f "$3/clu" "$2"
-mv -f "$3/clu.index" "$2.index"
-checkReturnCode "Could not move result to $2"
+if notExists "${TMP_PATH}/clu_step0"; then
+    $MMSEQS clust "$INPUT" "${TMP_PATH}/aln" "${TMP_PATH}/clu_step0" $CLUSTER_PAR \
+        || fail "Clustering died"
+fi
+
+# merge clu_redundancy and clu
+if notExists "$2"; then
+    $MMSEQS mergeclusters "$ORIGINAL" "$2" "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_step0" \
+        || fail "Merging of clusters has died"
+fi
 
 if [ -n "$REMOVE_TMP" ]; then
- echo "Remove temporary files"
- rm -f "$3/pref" "$3/pref.index"
- rm -f "$3/aln" "$3/aln.index"
- rm -f "$3/clu_step0" "$3/clu_step0.index"
- rm -f "$3/clu_redundancy" "$3/clu_redundancy.index"
- rm -f "$3/aln_redundancy" "$3/aln_redundancy.index"
- rm -f "$3/input_step_redundancy" "$3/input_step_redundancy.index"
+    echo "Remove temporary files"
+    rm -f "${TMP_PATH}/pref" "${TMP_PATH}/pref.index"
+    rm -f "${TMP_PATH}/aln" "${TMP_PATH}/aln.index"
+    rm -f "${TMP_PATH}/clu_step0" "${TMP_PATH}/clu_step0.index"
+    rm -f "${TMP_PATH}/order_redundancy"
+    rm -f "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_redundancy.index"
+    rm -f "${TMP_PATH}/aln_redundancy" "${TMP_PATH}/aln_redundancy.index"
+    rm -f "${TMP_PATH}/input_step_redundancy" "${TMP_PATH}/input_step_redundancy.index"
+
+    rm -f "${TMP_PATH}/clustering.sh"
 fi

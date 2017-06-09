@@ -1,5 +1,4 @@
 #include <string>
-#include <sstream>
 #include <sys/time.h>
 
 #include "Parameters.h"
@@ -7,13 +6,12 @@
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
-#include "Alignment.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-int result2reprseq(const Parameters &par, DBReader<unsigned int> &resultReader,
+int result2repseq(const Parameters &par, DBReader<unsigned int> &resultReader,
                    const std::string &outDb, const size_t dbFrom, const size_t dbSize) {
 
     DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str());
@@ -56,9 +54,7 @@ int result2reprseq(const Parameters &par, DBReader<unsigned int> &resultReader,
     return EXIT_SUCCESS;
 }
 
-int result2reprseq(int argc, const char **argv, const Command &command) {
-    MMseqsMPI::init(argc, argv);
-
+int result2repseq(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
@@ -71,7 +67,7 @@ int result2reprseq(int argc, const char **argv, const Command &command) {
     int status;
 
     size_t resultSize = resultReader.getSize();
-    status = result2reprseq(par, resultReader, par.db3, 0, resultSize);
+    status = result2repseq(par, resultReader, par.db3, 0, resultSize);
 
     resultReader.close();
 

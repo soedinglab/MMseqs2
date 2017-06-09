@@ -16,11 +16,8 @@
 #include "Debug.h"
 #include "Parameters.h"
 #include "Util.h"
-#include "FileUtil.h"
+#include "KSeqWrapper.h"
 
-#include "kseq.h"
-
-KSEQ_INIT(int, read)
 int createdb(int argn, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argn, argv, command, 2);
@@ -28,8 +25,6 @@ int createdb(int argn, const char **argv, const Command& command) {
     if(par.maxSeqLen == Parameters::MAX_SEQ_LEN){
         par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;
     }
-
-    FILE *fasta_file = FileUtil::openFileOrDie(par.db1.c_str(), "r", true);
 
     std::string data_filename = par.db2;
     std::string index_filename = par.db2Index;
@@ -61,24 +56,27 @@ int createdb(int argn, const char **argv, const Command& command) {
     }
 
     unsigned int entries_num = 1;
+    size_t count = 1;
 
-    kseq_t *seq = kseq_init(fileno(fasta_file));
-    while (kseq_read(seq) >= 0) {
-        if (seq->name.l == 0) {
+    KSeqWrapper* kseq = KSeqFactory(par.db1.c_str());
+    while (kseq->ReadEntry()) {
+        Debug::printProgress(count);
+        const KSeqWrapper::KSeqEntry &e = kseq->entry;
+        if (e.name.length() == 0) {
             Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
-            return EXIT_FAILURE;
+            EXIT(EXIT_FAILURE);
         }
 
         size_t splitCnt = 1;
         if(par.splitSeqByLen == true){
-            splitCnt = (size_t) ceilf(static_cast<float>(seq->seq.l) / static_cast<float>(par.maxSeqLen));
+            splitCnt = (size_t) ceilf(static_cast<float>(e.sequence.length()) / static_cast<float>(par.maxSeqLen));
         }
 
         // header
-        std::string header(seq->name.s, seq->name.l);
-        if (seq->comment.l > 0) {
+        std::string header(e.name);
+        if (e.comment.length() > 0) {
             header.append(" ", 1);
-            header.append(seq->comment.s, seq->comment.l);
+            header.append(e.comment);
         }
 
         std::string headerId = Util::parseFastaHeader(header);
@@ -103,7 +101,7 @@ int createdb(int argn, const char **argv, const Command& command) {
             if (doMapping) {
                 if (mapping.find(splitId) == mapping.end()) {
                     Debug(Debug::ERROR) << "Could not find entry: " << splitId << " in mapping file.\n";
-                    return EXIT_FAILURE;
+                    EXIT(EXIT_FAILURE);
                 }
                 id = mapping[splitId];
             } else {
@@ -135,19 +133,19 @@ int createdb(int argn, const char **argv, const Command& command) {
             out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
 
             // sequence
-            std::string sequence = seq->seq.s;
+            const std::string& sequence = e.sequence;
             size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
             std::string splitString(sequence.c_str() + split*par.maxSeqLen, len);
             splitString.append("\n");
             out_writer.writeData(splitString.c_str(), splitString.length(), id);
 
             entries_num++;
+            count++;
         }
     }
-    kseq_destroy(seq);
-
+    delete kseq;
     lookupStream.close();
-    fclose(fasta_file);
+
     out_hdr_writer.close();
     out_writer.close();
 

@@ -74,6 +74,7 @@ checkReturnCode "Could not move result to $2"
 
 if [ -n "$REMOVE_TMP" ]; then
  echo "Remove temporary files"
+ rm -f "$3/order_redundancy"
  rm -f "$3/clu_redundancy" "$3/clu_redundancy.index"
  rm -f "$3/aln_redundancy" "$3/aln_redundancy.index"
  rm -f "$3/input_step_redundancy" "$3/input_step_redundancy.index"
@@ -86,6 +87,8 @@ if [ -n "$REMOVE_TMP" ]; then
     rm -f "$3/order_step$STEP"
 	let STEP=STEP+1
  done
+
+ rm -f "$3/cascaded_clustering.sh"
 fi
 
 

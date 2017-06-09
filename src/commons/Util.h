@@ -17,12 +17,20 @@
 #endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
 #if __cplusplus <= 199711L
 #define SSTR( x ) \
 dynamic_cast< std::ostringstream& >( \
-( std::ostringstream().flush() << std::dec << x ) ).str()
+( std::ostringstream().flush() << std::dec << (x) ).str()
 #else
-#define SSTR( x ) std::to_string(x)
+#ifndef TOSTRINGIDENTITY
+#define TOSTRINGIDENTITY
+namespace tostringidentity {
+    using std::to_string;
+    const std::string& to_string(const std::string& s);
+}
+#endif
+#define SSTR(x) tostringidentity::to_string((x))
 #endif
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
@@ -47,12 +55,14 @@ public:
                                 size_t world_size, size_t *subdomain_start,
                                 size_t *subdomain_size);
     static void rankedDescSort20(short *val, unsigned int *index);
-    static void decomposeDomainByAminoAcid(size_t aaSize, unsigned int *seqSizes, size_t count,
+    template <typename T>
+    static void decomposeDomainByAminoAcid(size_t aaSize, T seqSizes, size_t count,
                                            size_t worldRank, size_t worldSize, size_t *start, size_t *end);
-    static void decomposeDomainSizet(size_t aaSize, size_t *seqSizes, size_t count,
-                                     size_t worldRank, size_t worldSize, size_t *start, size_t *size);
     static size_t getTotalSystemMemory();
-    static size_t get_phys_pages();
+    static size_t getPageSize();
+    static size_t getTotalMemoryPages();
+    static char touchMemory(char* memory, size_t size);
+
     static size_t countLines(const char *data, size_t length);
     template<typename T>
     static inline T fast_atoi( const char * str )
@@ -243,6 +253,6 @@ public:
 
     static int omp_thread_count();
 
-    static size_t getPageSize();
+    static std::string removeWhiteSpace(std::string in);
 };
 #endif

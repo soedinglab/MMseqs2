@@ -25,11 +25,13 @@ set(util_source_files
         diffseqdbs.cpp
         summarizeheaders.cpp
         prefixid.cpp
+        summarizeresult.cpp
         summarizetabs.cpp
         extractdomains.cpp
         extractalignedregion.cpp
         kmermatcher.cpp
         rescorediagonal.cpp
+        tsv2db.cpp
         result2repseq.cpp
         assembleresult.cpp
         )

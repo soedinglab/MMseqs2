@@ -10,7 +10,7 @@ int randBetween(size_t start, size_t end){
     return rand() % (end - start) + start;
 }
 const size_t ENTRYRANGE = 27000000;
-const size_t N = 1000000;
+//const size_t N = 1000000;
 
 
 void fillNumbers(unsigned int * data, size_t len) {

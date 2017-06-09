@@ -8,8 +8,6 @@
 class FileUtil {
 
 public:
-    static void errorIfFileExist(const char * file);
-
     static bool fileExists(const char* fileName);
 
     static bool directoryExists(const char* directoryName);
@@ -20,9 +18,9 @@ public:
 
     static void deleteTempFiles(std::list<std::string> tmpFiles);
 
-    static void writeFile(std::string pathToFile, unsigned char *sh, size_t len);
+    static void writeFile(std::string pathToFile, const unsigned char *sh, size_t len);
 
-    static std::string dirName(const std::string fileName);
+    static std::string dirName(const std::string &fileName);
 
     static size_t getFreeSpace(const char *dir);
 };

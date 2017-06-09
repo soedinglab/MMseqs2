@@ -20,7 +20,7 @@ static struct Command commands[] = {
             CITATION_MMSEQS2},
         {"search",               search,               &par.searchworkflow,       COMMAND_MAIN,
             "Search with query sequence or profile DB (iteratively) through target sequence DB",
-            "Searches with the sequences or profiles query DB through the target sequence DB by running the prefilter tool and the align tool for Smith-Waterman alignment. For each query a results file with sequence matches is written as entry into a database of search results (â€œalignmentDBâ€).\nIn iterative profile search mode, the detected sequences satisfying user-specified criteria are aligned to the query MSA, and the resulting query profile is used for the next search iteration. Iterative profile searches are usually much more sensitive than (and at least as sensitive as) searches with single query sequences.",
+            "Searches with the sequences or profiles query DB through the target sequence DB by running the prefilter tool and the align tool for Smith-Waterman alignment. For each query a results file with sequence matches is written as entry into a database of search results (alignmentDB).\nIn iterative profile search mode, the detected sequences satisfying user-specified criteria are aligned to the query MSA, and the resulting query profile is used for the next search iteration. Iterative profile searches are usually much more sensitive than (and at least as sensitive as) searches with single query sequences.",
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:queryDB> <i:targetDB> <o:alignmentDB> <tmpDir>",
             CITATION_MMSEQS2},
@@ -72,7 +72,7 @@ static struct Command commands[] = {
             "Update clustering of old sequence DB to clustering of new sequence DB",
             NULL,
             "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
-            "<i:oldSequenceDB> <i:newSequenceDB> <i:oldClustResultDB> <o:newClustResultDB> <tmpDir>",
+            "<i:oldSequenceDB> <i:newSequenceDB> <i:oldClustResultDB> <o:newMappedSequenceDB> <o:newClustResultDB> <tmpDir>",
             CITATION_MMSEQS2|CITATION_MMSEQS1},
         {"createseqfiledb",      createseqfiledb,      &par.createseqfiledb,      COMMAND_CLUSTER,
             "Create DB of unaligned FASTA files (1 per cluster) from sequence DB and cluster DB",
@@ -142,7 +142,7 @@ static struct Command commands[] = {
             "Milot Mirdita <milot@mirdita.de>",
             "<i:sequenceDB> <o:sequenceDB>",
             CITATION_MMSEQS2},
-        {"swapresults",          swapresults,          &par.swapresults,                COMMAND_DB,
+        {"swapresults",          swapresults,          &par.onlythreads,          COMMAND_DB,
             "Reformat prefilter/alignment/cluster DB as if target DB had been searched through query DB",
             NULL,
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Clovis Galiez",
@@ -196,7 +196,14 @@ static struct Command commands[] = {
             "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:queryDB> <i:targetDB> <i:resultDB> <o:statsDB>",
             CITATION_MMSEQS2},
-        {"result2repseq",       result2reprseq,      &par.onlyverbosity,          COMMAND_DB,
+        {"tsv2db",               tsv2db,               &par.tsv2db,               COMMAND_DB,
+            "Turns a tsv into a mmseqs database",
+            NULL,
+            "Milot Mirdita <milot@mirdita.de>",
+            "<i:tsvFile> <o:sequenceDB>",
+            CITATION_MMSEQS2
+        },
+        {"result2repseq",       result2repseq,      &par.onlythreads,          COMMAND_DB,
                 "Get representative sequences for a result database",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
@@ -221,17 +228,23 @@ static struct Command commands[] = {
             "Clovis Galiez & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
             "<i:oldSequenceDB> <i:newSequenceDB> <o:rmSeqKeysFile> <o:keptSeqKeysFile> <o:newSeqKeysFile>",
             CITATION_MMSEQS2},
-        {"concatdbs",            concatdbs,            &par.onlyverbosity,        COMMAND_SPECIAL,
+        {"concatdbs",            concatdbs,            &par.concatdbs,        COMMAND_SPECIAL,
             "Concatenate two DBs, giving new IDs to entries from second input DB",
             NULL,
             "Clovis Galiez & Martin Steinegger (martin.steinegger@mpibpc.mpg.de)",
             "<i:resultDB> <i:resultDB> <o:resultDB>",
             CITATION_MMSEQS2},
+        {"summarizeresult",      summarizeresult,      &par.summarizeresult,      COMMAND_SPECIAL,
+            "Extract annotations from result db",
+            NULL,
+            "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+            "<i:resultbDB> <o:summarizedResultDB>",
+            CITATION_MMSEQS2|CITATION_UNICLUST},
         {"summarizetabs",        summarizetabs,        &par.summarizetabs,        COMMAND_SPECIAL,
             "Extract annotations from HHblits BAST-tab-formatted results",
             NULL,
             "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
-            "<blastTabDB> <lengthFile> <outDB>",
+            "<i:blastTabDB> <i:lengthFile> <o:summarizedBlastTabDB>",
             CITATION_MMSEQS2|CITATION_UNICLUST},
         {"gff2db",               gff2db,               &par.gff2ffindex,          COMMAND_SPECIAL,
             "Turn a gff3 (generic feature format) file into a gff3 DB",
@@ -329,20 +342,17 @@ void printUsage() {
 }
 
 
-int isCommand(const char *s) {
+int getCommandIndex(const char *s) {
     for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
         struct Command *p = commands + i;
         if (!strcmp(s, p->cmd))
-            return 1;
+            return i;
     }
-    return 0;
+    return -1;
 }
 
 int runCommand(const Command &p, int argc, const char **argv) {
-    int status = p.commandFunction(argc, argv, p);
-    if (status)
-        return status;
-    return 0;
+    return p.commandFunction(argc, argv, p);
 }
 
 int shellcompletion(int argc, const char** argv, const Command& command) {
@@ -384,14 +394,10 @@ int main(int argc, const char **argv) {
         EXIT(EXIT_FAILURE);
     }
     setenv("MMSEQS", argv[0], true);
-    if (isCommand(argv[1])) {
-        for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
-            const struct Command *p = commands + i;
-            if (strcmp(p->cmd, argv[1]))
-                continue;
-
-            EXIT(runCommand(*p, argc - 2, argv + 2));
-        }
+    int command;
+    if ((command = getCommandIndex(argv[1])) != -1) {
+        const struct Command *p = commands + command;
+        EXIT(runCommand(*p, argc - 2, argv + 2));
     } else {
         printUsage();
         Debug(Debug::ERROR) << "\nInvalid Command: " << argv[1] << "\n";

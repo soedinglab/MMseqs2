@@ -17,11 +17,14 @@ public:
     struct Index {
         T id;
         size_t offset;
-        static bool compareById(Index x, Index y){
+        static bool compareById(const Index& x, const Index& y){
             return (x.id <= y.id);
         }
     };
     DBReader(const char* dataFileName, const char* indexFileName, int mode = USE_DATA|USE_INDEX);
+
+    DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize);
+
 
     virtual ~DBReader();
 
@@ -36,6 +39,8 @@ public:
     size_t getAminoAcidDBSize(){ return aaDbSize; }
 
     char* getData(size_t id);
+
+    void touchData(size_t id);
 
     char* getDataByDBKey(T key);
 
@@ -64,6 +69,7 @@ public:
     static const int USE_INDEX    = 0;
     static const int USE_DATA     = 1;
     static const int USE_WRITABLE = 2;
+    static const int USE_FREAD    = 4;
 
     const char * getData(){
         return data;
@@ -80,6 +86,8 @@ public:
     void readIndexId(T* id, char * line, char** cols);
 
     void readMmapedDataInMemory();
+
+    void mlock();
 
     void sortIndex(bool isSortedById);
 
@@ -99,6 +107,12 @@ public:
     void printMagicNumber();
     
     T getLastKey();
+
+    static size_t indexMemorySize(const DBReader<unsigned int> &idx);
+
+    static char* serialize(const DBReader<unsigned int> &idx);
+
+    static DBReader<unsigned int> *unserialize(const char* data);
 
 private:
 
@@ -128,15 +142,15 @@ private:
 
     void checkClosed();
 
+    char* data;
+
+    int dataMode;
+
     char* dataFileName;
 
     char* indexFileName;
 
     FILE* dataFile;
-
-    int dataMode;
-
-    char* data;
 
     // number of entries in the index
     size_t size;
@@ -158,8 +172,12 @@ private:
     bool dataMapped;
     int accessType;
 
-    // needed to avoid compiler to optimize away the loop
-    size_t magicBytes;
+    bool externalData;
+
+    bool didMlock;
+
+    // needed to prevent the compiler from optimizing away the loop
+    char magicBytes;
 };
 
 #endif

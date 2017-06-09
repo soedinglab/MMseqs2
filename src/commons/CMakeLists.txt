@@ -44,7 +44,9 @@ set(commons_source_files
     TranslateNucl.h
     tantan.h
     tantan.cpp
-    profileStates.cpp)
+    profileStates.cpp
+    KSeqWrapper.cpp
+)
 
 add_library(commons ${commons_source_files})
 

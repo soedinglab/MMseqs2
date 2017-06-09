@@ -6,10 +6,11 @@
 #define MMSEQS_DISTANCECALCULATOR_H
 
 #include <sstream>
-#include <simd/simd.h>
-#include <MathUtil.h>
 #include <cstring>
+#include <vector>
 
+#include "simd.h"
+#include "MathUtil.h"
 #include "BaseMatrix.h"
 
 class DistanceCalculator {

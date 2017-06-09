@@ -33,14 +33,19 @@ class DBWriter {
 
         void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0);
 
+        void alignToPageSize();
+
         void mergeFiles(DBReader<unsigned int>& qdbr,
                         const std::vector<std::pair<std::string, std::string> >& files,
                         const std::vector<std::string>& prefixes);
 
         void sortDatafileByIdOrder(DBReader<unsigned int>& qdbr);
 
-        static void mergeResults(const char *outFileName, const char *outFileNameIndex, const char **dataFileNames,
-                                        const char **indexFileNames, unsigned int fileCount);
+        static void mergeResults(const std::string &outFileName, const std::string &outFileNameIndex,
+                                 const std::vector<std::pair<std::string, std::string>> &files);
+
+        static void mergeResults(const char *outFileName, const char *outFileNameIndex,
+                                 const char **dataFileNames, const char **indexFileNames, unsigned long fileCount);
 
         void mergeFilePair(const char *inData1, const char *inIndex1, const char *inData2, const char *inIndex2);
 

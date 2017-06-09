@@ -1,24 +1,26 @@
-//
-// Created by mad on 10/21/15.
-//
-#include <string>
-#include <vector>
-#include <Prefiltering.h>
-#include <DistanceCalculator.h>
-#include <sys/time.h>
+#include "DistanceCalculator.h"
 #include "Util.h"
 #include "Parameters.h"
 #include "Matcher.h"
 #include "Debug.h"
 #include "DBReader.h"
+#include "DBWriter.h"
+#include "QueryMatcher.h"
 #include "CovSeqidQscPercMinDiag.out.h"
 #include "CovSeqidQscPercMinDiagTargetCov.out.h"
+#include "QueryMatcher.h"
 
+#include <string>
+#include <vector>
+#include <sys/time.h>
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 float parsePrecisionLib(std::string scoreFile, double targetSeqid, double targetCov, double targetPrecision){
     std::stringstream in(scoreFile);
     std::string line;
-    double qsc = 0;
     // find closest lower seq. id in a grid of size 5
     int intTargetSeqid = static_cast<int>((targetSeqid+0.0001)*100);
     int seqIdRest = (intTargetSeqid % 5);
@@ -30,10 +32,10 @@ float parsePrecisionLib(std::string scoreFile, double targetSeqid, double target
         float cov = strtod(values[0].c_str(),NULL);
         float seqid = strtod(values[1].c_str(),NULL);
         float scorePerCol = strtod(values[2].c_str(),NULL);
-        float percision = strtod(values[3].c_str(),NULL);
+        float precision = strtod(values[3].c_str(),NULL);
         if(MathUtil::AreSame(cov, targetCov)
            && MathUtil::AreSame(seqid, targetSeqid)
-           && percision >= targetPrecision){
+           && precision >= targetPrecision){
             return scorePerCol;
         }
     }
@@ -41,11 +43,11 @@ float parsePrecisionLib(std::string scoreFile, double targetSeqid, double target
                              "cov="<< targetCov << " seq.id=" << targetSeqid << "\n"
                              "No hit will be filtered.\n";
 
-    return qsc;
+    return 0;
 }
 
 int rescorediagonal(int argc, const char **argv, const Command &command) {
-    Debug(Debug::WARNING) << "Rescore diagonals.\n";
+    Debug(Debug::INFO) << "Rescore diagonals.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
     Parameters &par = Parameters::getInstance();
@@ -61,11 +63,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         sequenceType = Sequence::HMM_PROFILE;
     }
 
-    Debug(Debug::WARNING) << "Query  file: " << par.db1 << "\n";
+    Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
     qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
     qdbr->open(DBReader<unsigned int>::NOSORT);
     qdbr->readMmapedDataInMemory();
-    Debug(Debug::WARNING) << "Target  file: " << par.db2 << "\n";
+    Debug(Debug::INFO) << "Target  file: " << par.db2 << "\n";
     bool sameDB = false;
     if (par.db1.compare(par.db2) == 0) {
         sameDB = true;
@@ -77,10 +79,9 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     }
     float scorePerColThr = 0.0;
     if(par.filterHits){
-        if(par.rescoreMode==Parameters::RESCORE_MODE_HAMMING){
-            Debug(Debug::ERROR) << "HAMMING distance can not be used to filter hits. "
-                                   "Please use --rescore-mode 1\n";
-            EXIT(EXIT_FAILURE);
+        if(par.rescoreMode == Parameters::RESCORE_MODE_HAMMING){
+            Debug(Debug::WARNING) << "HAMMING distance can not be used to filter hits. Using --rescore-mode 1\n";
+            par.rescoreMode = Parameters::RESCORE_MODE_SUBSTITUTION;
         }
         if(par.targetCovThr > 0.0){
             std::string libraryString((const char*)CovSeqidQscPercMinDiagTargetCov_out,CovSeqidQscPercMinDiagTargetCov_out_len);
@@ -100,7 +101,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     Debug(Debug::WARNING) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-    Debug(Debug::WARNING) << "Result database: " << par.db4 << "\n";
+    Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
     resultWriter.open();
     const size_t flushSize = 100000000;
@@ -133,7 +134,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     // -2 because of \n\0 in sequenceDB
                     queryLen = std::max(0, static_cast<int>(qdbr->getSeqLens(queryId)) - 2);
                 }
-                std::vector<hit_t> results = Prefiltering::readPrefilterResults(data);
+                std::vector<hit_t> results = parsePrefilterHits(data);
                 for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB))? true : false;
@@ -218,6 +219,14 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                 int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<int>(1));
                                 //seqId = (alignment.score1 / static_cast<float>(std::max(qAlnLength, dbAlnLength)))  * 0.1656 + 0.1141;
                                 seqId = Matcher::estimateSeqIdByScorePerCol(distance, qAlnLen, dbAlnLen);
+                                // compute seq.id if hit fulfills e-value but not by seqId criteria
+                                if(evalue <= par.evalThr && seqId < par.seqIdThr){
+                                    int idCnt = 0;
+                                    for(size_t i = qStartPos; i < qEndPos; i++){
+                                        idCnt += (query.int_sequence[i] == target.int_sequence[dbStartPos+(i-qStartPos)]);
+                                    }
+                                    seqId = static_cast<double>(idCnt) / (static_cast<double>(qEndPos) - static_cast<double>(qStartPos));
+                                }
                                 result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov, seqId, evalue, alnLen,
                                                            qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, targetLen, std::string());
                             }
@@ -259,7 +268,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         }
         dbr_res.remapData();
     }
-    Debug(Debug::WARNING) << "Done." << "\n";
+    Debug(Debug::INFO) << "Done." << "\n";
     dbr_res.close();
     resultWriter.close();
     qdbr->close();
@@ -270,9 +279,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         delete tdbr;
     }
     gettimeofday(&end, NULL);
-    int sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for diagonal calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-    return 0;
+    time_t sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::INFO) << "Time for diagonal calculation: " << (sec / 3600) << " h "
+                       << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    return EXIT_SUCCESS;
 }
 
 

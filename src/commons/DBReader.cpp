@@ -16,26 +16,37 @@
 #include "Util.h"
 #include "FileUtil.h"
 
-template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode)
-{
-    data = NULL;
-    dataSize = 0;
-    this->dataMode = dataMode;
-    this->dataFileName = strdup(dataFileName_);
-    this->indexFileName = strdup(indexFileName_);
-    closed = 1;
-    lastKey = T();
-    accessType = 0;
+template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode) :
+        data(NULL), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
+        indexFileName(strdup(indexFileName_)), dataFile(NULL), size(0), dataSize(0), aaDbSize(0), closed(1),
+        index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
+        lastKey(T()), dataMapped(false), accessType(0), externalData(false), didMlock(false)
+{}
+
+template <typename T>
+DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize) :
+        data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL), dataFile(NULL),
+        size(size), dataSize(0), aaDbSize(aaDbSize), closed(0),
+        index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
+        lastKey(T()), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
+{}
+
+
+template <typename T>
+void DBReader<T>::readMmapedDataInMemory(){
+    if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
+        magicBytes = Util::touchMemory(data, dataSize);
+    }
 }
 
-template <typename T> void DBReader<T>::readMmapedDataInMemory(){
-    size_t bytes = 0;
-    size_t pageSize = Util::getPageSize();
-    size_t pages =  dataSize / pageSize;
-    for(size_t i = 0; i < pages; i++){
-        bytes += data[i*pageSize];
+template <typename T>
+void DBReader<T>::mlock(){
+    if (dataMode & USE_DATA) {
+        if (didMlock == false) {
+            ::mlock(data, dataSize);
+            didMlock = true;
+        }
     }
-    this->magicBytes = bytes;
 }
 
 
@@ -45,8 +56,13 @@ void DBReader<T>::printMagicNumber(){
 }
 
 template <typename T> DBReader<T>::~DBReader(){
-    free(dataFileName);
-    free(indexFileName);
+    if(dataFileName != NULL) {
+        free(dataFileName);
+    }
+
+    if(indexFileName != NULL) {
+        free(indexFileName);
+    }
 }
 
 template <typename T> void DBReader<T>::open(int accessType){
@@ -100,7 +116,7 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
         delete[] sortArray;
     }else{
         if(accessType != NOSORT){
-            Debug(Debug::ERROR) << "DBReader<std::string> can not be opend in sort mode\n";
+            Debug(Debug::ERROR) << "DBReader<std::string> can not be opened in sort mode\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -205,26 +221,36 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
     *dataSize = sb.st_size;
     int fd =  fileno(file);
     int mode;
-    if(dataMode & USE_WRITABLE) {
-        mode = PROT_READ | PROT_WRITE;
+
+    char *ret;
+    if ((dataMode & USE_FREAD) == 0) {
+        if(dataMode & USE_WRITABLE) {
+            mode = PROT_READ | PROT_WRITE;
+        } else {
+            mode = PROT_READ;
+        }
+        ret = static_cast<char*>(mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0));
+        if(ret == MAP_FAILED){
+            Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     } else {
-        mode = PROT_READ;
+        ret = static_cast<char*>(malloc(*dataSize));
+        Util::checkAllocation(ret, "Not enough system memory to read in the whole data file.");
+        size_t result = fread(ret, 1, *dataSize, file);
+        if (result != *dataSize) {
+            Debug(Debug::ERROR) << "Failed to read in datafile (" << dataFileName << "). Error " << errno << "\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
-    void * ret = mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0);
-    if(ret == MAP_FAILED){
-        Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << "\n";
-        EXIT(EXIT_FAILURE);
-    }
-    return static_cast<char*>(ret);
+    return ret;
 }
 
 template <typename T> void DBReader<T>::remapData(){
-    if(dataMode & USE_DATA){
-        if(munmap(data, dataSize) < 0){
-            Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
-            EXIT(EXIT_FAILURE);
-        }
+    if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
+        unmapData();
         data = mmapData(dataFile, &dataSize);
+        dataMapped = true;
     }
 }
 
@@ -237,8 +263,11 @@ template <typename T> void DBReader<T>::close(){
         delete [] id2local;
         delete [] local2id;
     }
-    delete [] index;
-    delete [] seqLens;
+
+    if(externalData == false) {
+        delete[] index;
+        delete[] seqLens;
+    }
     closed = 1;
 }
 
@@ -272,6 +301,15 @@ template <typename T> char* DBReader<T>::getData(size_t id){
         return data + index[local2id[id]].offset;
     }else{
         return data + index[id].offset;
+    }
+}
+
+template <typename T>
+void DBReader<T>::touchData(size_t id) {
+    if((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
+        char *data = getData(id);
+        size_t size = getSeqLens(id);
+        magicBytes = Util::touchMemory(data, size);
     }
 }
 
@@ -380,9 +418,18 @@ void DBReader<unsigned int>::readIndexId(unsigned int* id, char * line, char** c
 
 template <typename T> void DBReader<T>::unmapData() {
     if(dataMapped == true){
-        if(munmap(data, dataSize) < 0){
-            Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
-            EXIT(EXIT_FAILURE);
+        if (didMlock == true) {
+            munlock(data, dataSize);
+            didMlock = false;
+        }
+
+        if ((dataMode & USE_FREAD) == 0) {
+            if(munmap(data, dataSize) < 0){
+                Debug(Debug::ERROR) << "Failed to munmap memory dataSize=" << dataSize <<" File=" << dataFileName << "\n";
+                EXIT(EXIT_FAILURE);
+            }
+        } else {
+            free(data);
         }
         dataMapped = false;
     }
@@ -391,6 +438,44 @@ template <typename T> void DBReader<T>::unmapData() {
 template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
     size_t id = bsearch(index, size, i);
     return index[id].offset;
+}
+
+template <>
+size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
+    size_t memSize = 2 * sizeof(size_t)
+                     + idx.size * sizeof(DBReader<unsigned int>::Index)
+                     + idx.size * sizeof(unsigned int);
+
+    return memSize;
+}
+
+template <>
+char* DBReader<unsigned int>::serialize(const DBReader<unsigned int> &idx) {
+    char* data = (char*) malloc(indexMemorySize(idx));
+    char* p = data;
+    memcpy(p, &idx.size, sizeof(size_t));
+    p += sizeof(size_t);
+    memcpy(p, &idx.aaDbSize, sizeof(size_t));
+    p += sizeof(size_t);
+    memcpy(p, idx.index, idx.size * sizeof(DBReader<unsigned int>::Index));
+    p += idx.size * sizeof(DBReader<unsigned int>::Index);
+    memcpy(p, idx.seqLens, idx.size * sizeof(unsigned int));
+
+    return data;
+}
+
+template <>
+DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
+    const char* p = data;
+    size_t size = *((size_t*)p);
+    p += sizeof(size_t);
+    size_t aaDbSize = *((size_t*)p);
+    p += sizeof(size_t);
+    DBReader<unsigned int>::Index *idx = (DBReader<unsigned int>::Index *)p;
+    p += size * sizeof(DBReader<unsigned int>::Index);
+    unsigned int *seqLens = (unsigned int *)p;
+
+    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize);
 }
 
 template class DBReader<unsigned int>;

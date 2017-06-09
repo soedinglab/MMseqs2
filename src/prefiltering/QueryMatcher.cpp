@@ -9,6 +9,16 @@
 #include "Util.h"
 
 
+std::vector<hit_t> parsePrefilterHits(char *data) {
+    std::vector<hit_t> ret;
+    while (*data != '\0') {
+        hit_t result = parsePrefilterHit(data);
+        ret.push_back(result);
+        data = Util::skipLine(data);
+    }
+    return ret;
+}
+
 hit_t parsePrefilterHit(char* data)
 {
     hit_t result;
@@ -78,10 +88,8 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputat
     this->maxDbMatches = std::max((size_t)1000000, dbSize) * 2;
     this->resList = (hit_t *) mem_align(ALIGN_INT, maxHitsPerQuery * sizeof(hit_t) );
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
-    memset(databaseHits, 0, sizeof(IndexEntryLocal) * maxDbMatches);
     Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryMatcher");
     this->foundDiagonals = new(std::nothrow) CounterResult[counterResultSize];
-    memset(foundDiagonals, 0, sizeof(CounterResult) * counterResultSize);
     Util::checkAllocation(foundDiagonals, "Could not allocate foundDiagonals memory in QueryMatcher");
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new(std::nothrow) IndexEntryLocal*[maxSeqLen + 1];
@@ -101,21 +109,22 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputat
     this->logScoreFactorial = new double[SCORE_RANGE];
     MathUtil::computeFactorial(logScoreFactorial, SCORE_RANGE);
 
-    // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
-    this->seqLens = new float[dbSize];
-    memset (this->seqLens, 0, dbSize * sizeof(float));
-    for (size_t i = 0; i < dbSize; i++){
-        if (seqLens[i] > (effectiveKmerSize - 1))
-            this->seqLens[i] = static_cast<float>(seqLens[i] - effectiveKmerSize + 1);
-        else
-            this->seqLens[i] = 1.0f;
+    if (diagonalScoring == true) {
+        ungappedAlignment = new UngappedAlignment(maxSeqLen, m, indexTable->getSequenceLookup());
+        this->seqLens = NULL;
+    } else {
+        ungappedAlignment = NULL;
+        // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
+        this->seqLens = new float[dbSize];
+        for (size_t i = 0; i < dbSize; i++) {
+            if (seqLens[i] > (effectiveKmerSize - 1)) {
+                this->seqLens[i] = static_cast<float>(seqLens[i] - effectiveKmerSize + 1);
+            } else {
+                this->seqLens[i] = 1.0f;
+            }
+        }
     }
     compositionBias = new float[maxSeqLen];
-    ungappedAlignment = NULL;
-    if(this->diagonalScoring == true) {
-        ungappedAlignment = new UngappedAlignment(maxSeqLen, m, indexTable->getSequenceLookup());
-    }
-
 }
 
 QueryMatcher::~QueryMatcher(){
@@ -270,8 +279,7 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
 //                        idx.printKmer(kmerList.index[kmerPos], kmerSize, m->int2aa);
 //                        std::cout << std::endl;
 
-            const IndexEntryLocal *entries = indexTable->getDBSeqList<IndexEntryLocal>(index[kmerPos],
-                                                                                       &seqListSize);
+            const IndexEntryLocal *entries = indexTable->getDBSeqList(index[kmerPos], &seqListSize);
 
             /////DEBUG
 //            idx.printKmer(kmerList.index[kmerPos], kmerSize, m->int2aa);

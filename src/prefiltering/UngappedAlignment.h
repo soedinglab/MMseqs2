@@ -30,7 +30,7 @@ private:
     unsigned int *score_arr;
     unsigned char *vectorSequence;
     char *queryProfile;
-    CounterResult *** diagonalMatches;
+    CounterResult ** diagonalMatches;
     unsigned char * diagonalCounter;
     char * aaCorrectionScore;
     BaseMatrix *subMatrix;

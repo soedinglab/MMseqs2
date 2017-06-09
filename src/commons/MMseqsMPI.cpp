@@ -1,5 +1,6 @@
 #include "MMseqsMPI.h"
 #include "Debug.h"
+#include "Parameters.h"
 
 bool MMseqsMPI::active = false;
 int MMseqsMPI::rank = -1;
@@ -13,8 +14,9 @@ void MMseqsMPI::init(int argc, const char **argv) {
 
     active = true;
 
-    if(!isMaster())
-    {
+    if(!isMaster()) {
+        Parameters& par = Parameters::getInstance();
+        par.verbosity = Debug::ERROR;
         Debug::setDebugLevel(Debug::ERROR);
     }
 

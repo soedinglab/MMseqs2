@@ -10,16 +10,17 @@
 #include <climits>
 #include <blosum62.out.h>
 
+
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
                                        float bitFactor, float scoreBias = -0.2) :
         scoringMatrixFileName(scoringMatrixFileName_) {
 
-    if (strcmp(scoringMatrixFileName, "blosum62.out") != 0) {
+    if(strcmp(scoringMatrixFileName,"blosum62.out") != 0) {
         // read amino acid substitution matrix from file
         std::string fileName(scoringMatrixFileName);
         matrixName = Util::base_name(fileName, "/\\");
         matrixName = Util::remove_extension(matrixName);
-        if (fileName.substr(fileName.length() - 4, 4).compare(".out") == 0) {
+        if (fileName.substr(fileName.length() - 4, 4).compare(".out") == 0){
             std::ifstream in(fileName);
             if (in.fail()) {
                 Debug(Debug::ERROR) << "Cannot read " << scoringMatrixFileName << "\n";
@@ -32,19 +33,18 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
                 this->alphabetSize = alphabetSize + 1;
             }
             in.close();
-        } else {
-            Debug(Debug::ERROR)
-                    << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
+        }
+        else {
+            Debug(Debug::ERROR) << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
             EXIT(EXIT_FAILURE);
         }
-    } else {
-        std::string submat((const char *) blosum62_out, blosum62_out_len);
-        matrixName = "blosum62";
+    }else{
+        std::string submat((const char *)blosum62_out,blosum62_out_len);
+        matrixName = "blosum62.out";
         int alphabetSize = readProbMatrix(submat);
         if (alphabetSize < this->alphabetSize - 1) {
             this->alphabetSize = alphabetSize + 1;
         }
-//        readProbMatrix(submat);
     }
 
     //print(probMatrix, int2aa, alphabetSize);
@@ -139,12 +139,12 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(short *profileScores,
 
 
     for (int pos = 0; pos < N; pos++) {
-        const short *subMat = profileScores + (pos * profileAASize);
-        for (size_t aa = 0; aa < 20; aa++) {
-            pnul[aa] += subMat[aa];
+        const short * subMat = profileScores + (pos * profileAASize);
+        for(size_t aa = 0; aa < 20; aa++) {
+            pnul[aa] += subMat[aa]  ;
         }
     }
-    for (size_t aa = 0; aa < 20; aa++)
+    for(size_t aa = 0; aa < 20; aa++)
         pnul[aa] /= N;
     for (int i = 0; i < N; i++) {
         const int minPos = std::max(0, (i - windowSize / 2));
@@ -158,11 +158,11 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(short *profileScores,
             const short *subMat = profileScores + (j * profileAASize);
             if (i == j)
                 continue;
-            for (size_t aa = 0; aa < 20; aa++) {
+            for(size_t aa = 0; aa < 20; aa++){
                 aaSum[aa] += subMat[aa] - pnul[aa];
             }
         }
-        for (size_t aa = 0; aa < 20; aa++) {
+        for(size_t aa = 0; aa < 20; aa++) {
 //            printf("%d\t%d\t%2.3f\t%d\n", i, (profileScores + (i * profileAASize))[aa],
 //                   aaSum[aa]/windowLength,
 //                   static_cast<int>((profileScores + (i * profileAASize))[aa] -  aaSum[aa]/windowLength) );
@@ -174,6 +174,7 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(short *profileScores,
     }
 //    std::cout << "avg=" << avg/(N*20) << std::endl;
 }
+
 
 SubstitutionMatrix::~SubstitutionMatrix() {
 }
@@ -201,7 +202,7 @@ int SubstitutionMatrix::parseAlphabet(char *word, char *int2aa, int *aa2int) {
     return minAAInt;
 }
 
-int SubstitutionMatrix::readProbMatrix(std::string matrixData) {
+int SubstitutionMatrix::readProbMatrix(const std::string &matrixData) {
     std::stringstream in(matrixData);
     std::string line;
     bool probMatrixStart = false;
@@ -319,3 +320,4 @@ int SubstitutionMatrix::readProbMatrix(std::string matrixData) {
 
     return alphabetSize;
 }
+

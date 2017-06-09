@@ -218,7 +218,7 @@ int profileStates::readProfile(FILE* fin) {
         float s = 0.0;
         
         // Store the probabilities
-        for (size_t k = 0 ; k < nalph ; k++)
+        for (int k = 0 ; k < nalph ; k++)
         {
             float score = strtof(pos, NULL);
             
@@ -239,7 +239,7 @@ int profileStates::readProfile(FILE* fin) {
         float norm = sqrt(innerProd(profile,profile));
         float *normalizedProfile;
         normalizedProfile = new float[20]; // q/||q||
-        for (size_t k = 0 ; k < nalph ; k++)
+        for (int k = 0 ; k < nalph ; k++)
         {
             normalizedProfile[k] = profile[k]/norm;
         }
@@ -368,7 +368,7 @@ void profileStates::discretize(float* sequence, float* avgSequence, size_t lengt
         {
             curScore = score(profileCol,avgProfileCol,normalizedProfiles[k]);
             
-            if (!k||curScore > maxScore)
+            if (!k || (curScore > maxScore))
             {
                 maxScore = curScore;
                 closestState = k;

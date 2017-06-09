@@ -5,7 +5,6 @@
 #include "DBWriter.h"
 #include "SubstitutionMatrix.h"
 #include "CompressedA3M.h"
-#include "Alignment.h"
 #include "MathUtil.h"
 #include "Domain.h"
 
@@ -342,7 +341,7 @@ int doExtract(Parameters &par, const unsigned int mpiRank, const unsigned int mp
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
             splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
-        Alignment::mergeAndRemoveTmpDatabases(par.db3, par.db3 + ".index", splitFiles);
+        DBWriter::mergeResults(par.db3, par.db3 + ".index", splitFiles);
     }
 
     return status;
@@ -363,10 +362,10 @@ int doExtract(Parameters &par) {
 }
 
 int extractdomains(int argc, const char **argv, const Command& command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
-
-    MMseqsMPI::init(argc, argv);
 
 #ifdef HAVE_MPI
     int status = doExtract(par, MMseqsMPI::rank, MMseqsMPI::numProc);
@@ -374,8 +373,5 @@ int extractdomains(int argc, const char **argv, const Command& command) {
     int status = doExtract(par);
 #endif
 
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
     return status;
 }

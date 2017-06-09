@@ -6,12 +6,12 @@
 #include <sstream>
 #include <sys/time.h>
 
-#include "Alignment.h"
 #include "MsaFilter.h"
 #include "Parameters.h"
 #include "PSSMCalculator.h"
 #include "DBReader.h"
 #include "DBConcat.h"
+#include "DBWriter.h"
 #include "HeaderSummarizer.h"
 #include "CompressedA3M.h"
 #include "Debug.h"
@@ -24,8 +24,7 @@
 enum outputmode {
     MSA = 0,
     PSSM,
-    CA3M,
-    REPSEQ
+    CA3M
 };
 
 size_t findMaxSetSize(DBReader<unsigned int> *reader) {
@@ -134,10 +133,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
     DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-
-//    FileUtil::errorIfFileExist(par.db4.c_str());
-//    FileUtil::errorIfFileExist(par.db4Index.c_str());
-
     DBWriter resultWriter(referenceName.c_str(), referenceIndexName.c_str(), par.threads, DBWriter::BINARY_MODE);
     resultWriter.open();
 
@@ -161,9 +156,6 @@ int result2outputmode(Parameters &par,const std::string &outpath,
         case CA3M:
             Debug(Debug::INFO) << "compressed multiple sequence alignments";
             break;
-        case REPSEQ:
-            Debug(Debug::INFO) << "representative sequences";
-            break;
         case PSSM:
         default:
             Debug(Debug::INFO) << "profiles";
@@ -173,8 +165,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 #pragma omp parallel
     {
-        Matcher matcher(maxSequenceLength, &subMat, &evalueComputation,
-                        par.compBiasCorrection);
+        Matcher matcher(maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection);
 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
         PSSMCalculator calculator(&subMat, maxSequenceLength, par.pca, par.pcb);
@@ -270,7 +261,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
             //MultipleAlignment::print(res, &subMat);
 
             alnResults = res.alignmentResults;
-            if(par.filterMsa==true) {
+            if (par.filterMsa==true) {
                 MsaFilter::MsaFilterResult filterRes = filter.filter((const char **) res.msaSequence, res.setSize,
                                                                      res.centerLength, static_cast<int>(par.cov * 100),
                                                                      static_cast<int>(par.qid * 100), par.qsc,
@@ -304,7 +295,11 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     }
 
                     // TODO : the first sequence in the MSA seems to be overwritten by the query seq
-                    for (size_t i = 0; i < res.setSize; i++) {
+                    size_t start = 0;
+                    if (par.skipQuery == true) {
+                        start = 1;
+                    }
+                    for (size_t i = start; i < res.setSize; i++) {
                         unsigned int key;
                         char* header;
                         if (i == 0) {
@@ -336,24 +331,8 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     break;
                 case CA3M: {
                     // Here the backtrace information should be present in the alnResults[i].backtrace for all i
-                    std::string consensusStr;
                     std::vector<Matcher::result_t> filteredAln; // alignment information for the sequences that passed the filtering step
 
-                    
-                    if (par.useConsensus)
-                    {
-                        std::pair<const char*, std::string> pssmRes = calculator.computePSSMFromMSA(res.setSize, res.centerLength,
-                                                                                                    (const char **)res.msaSequence, par.wg);
-                        consensusStr = pssmRes.second;
-                    } else { // use query sequence as consensus sequence
-                        std::ostringstream centerSeqStr;
-                        // Retrieve the master sequence
-                        for (int pos = 0; pos < centerSequence->L; pos++) {
-                            centerSeqStr << subMat.int2aa[centerSequence->int_sequence[pos]];
-                        }
-                        consensusStr = centerSeqStr.str();
-
-                    }
 
                     // Put the query sequence (master sequence) first in the alignment
                     Matcher::result_t firstSequence;
@@ -372,8 +351,20 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                         }
                     }
 
-                    // Write the consensus sequence
-                    msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) << consensusStr.c_str() << "\n;";
+                    if (par.omitConsensus == false)
+                    {
+                        std::pair<const char*, std::string> pssmRes =
+                                calculator.computePSSMFromMSA(res.setSize, res.centerLength,
+                                                              (const char **)res.msaSequence, par.wg);
+                        msa << ">consensus_" << queryHeaderReader->getDataByDBKey(queryKey) << pssmRes.second << "\n;";
+                    } else {
+                        std::ostringstream centerSeqStr;
+                        // Retrieve the master sequence
+                        for (int pos = 0; pos < centerSequence->L; pos++) {
+                            centerSeqStr << subMat.int2aa[centerSequence->int_sequence[pos]];
+                        }
+                        msa << ">" << queryHeaderReader->getDataByDBKey(queryKey) << centerSeqStr.str() << "\n;";
+                    }
 
                     msa << CompressedA3M::fromAlignmentResult(filteredAln, *referenceDBr);
 
@@ -598,7 +589,7 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
 
             }
             // merge output ffindex databases
-            Alignment::mergeAndRemoveTmpDatabases(outname + ext[i], outname + ext[i] + ".index", splitFiles);
+            DBWriter::mergeResults(outname + ext[i], outname + ext[i] + ".index", splitFiles);
         }
     }
 
@@ -606,12 +597,12 @@ int result2outputmode(Parameters &par, int mode, const unsigned int mpiRank, con
 }
 
 int result2profile(int argc, const char **argv, const Command& command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters& par = Parameters::getInstance();
     // default for result2profile filter MSA
     par.filterMsa = true;
     par.parseParameters(argc, argv, command, 4);
-
-    MMseqsMPI::init(argc, argv);
 
     // never allow deletions
     par.allowDeletion = false;
@@ -628,19 +619,17 @@ int result2profile(int argc, const char **argv, const Command& command) {
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
+
     return retCode;
 }
 
 int result2msa(int argc, const char **argv, const Command& command) {
+    MMseqsMPI::init(argc, argv);
+
     Parameters& par = Parameters::getInstance();
     // do not filter as default
     par.filterMsa = false;
     par.parseParameters(argc, argv, command, 4);
-
-    MMseqsMPI::init(argc, argv);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -673,10 +662,6 @@ int result2msa(int argc, const char **argv, const Command& command) {
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
 
     return retCode;
 }

@@ -14,16 +14,17 @@
 
 class MathUtil {
 public:
+    template<typename T>
+    static inline T ipow(int base, int exponent) {
+        T res = 1;
+        for (int i = 0; i < exponent; i++)
+            res = res * base;
+        return res;
+    }
+
     static bool AreSame(float a, float b)
     {
         return fabs(a - b) < std::numeric_limits<float>::epsilon();
-    }
-
-    static inline size_t ipow(size_t base, size_t exponent) {
-        size_t res = 1;
-        for (size_t i = 0; i < exponent; i++)
-            res = res * base;
-        return res;
     }
 
     static inline short sadd16_signed(short x, short y) {

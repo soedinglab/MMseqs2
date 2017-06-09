@@ -4,7 +4,6 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "CompressedA3M.h"
-#include "Alignment.h"
 #include "MathUtil.h"
 #include "Domain.h"
 
@@ -204,7 +203,7 @@ int doAnnotate(Parameters &par, const unsigned int mpiRank, const unsigned int m
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
             splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
-        Alignment::mergeAndRemoveTmpDatabases(par.db3, par.db3 + ".index", splitFiles);
+        DBWriter::mergeResults(par.db3, par.db3 + ".index", splitFiles);
     }
     return status;
 }
@@ -230,8 +229,5 @@ int summarizetabs(int argc, const char **argv, const Command& command) {
     int status = doAnnotate(par);
 #endif
 
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
     return status;
 }

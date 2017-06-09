@@ -50,6 +50,7 @@ public:
     static const int SEARCH_GLOBAL = 0;
     static const int SEARCH_LOCAL = 1;
     static const int SEARCH_LOCAL_FAST = 2;
+
     // format alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
@@ -70,6 +71,16 @@ public:
     static const int TARGET_DB_SPLIT = 0;
     static const int QUERY_DB_SPLIT = 1;
     static const int DETECT_BEST_DB_SPLIT = 2;
+
+    static std::string getSplitModeName(int splitMode) {
+        switch (splitMode) {
+            case 0: return "Target";
+            case 1: return "Query";
+            case 2: return "Auto";
+            default: return "Error";
+        }
+    };
+
     // split
     static const int AUTO_SPLIT_DETECTION = 0;
     // includeIdentity
@@ -116,6 +127,9 @@ public:
     std::string db5;
     std::string db5Index;
 
+    std::string db6;
+    std::string db6Index;
+
     std::string scoringMatrixFile;       // path to scoring matrix
     size_t maxSeqLen;                    // sequence length
     size_t maxResListLen;                // Maximal result list length per query
@@ -126,6 +140,7 @@ public:
     bool   removeTmpFiles;               // Do not delete temp files
     bool   clusterFragments;             // cluster fragments
     bool   includeIdentity;              // include identical ids as hit
+
     // PREFILTER
     float  sensitivity;                  // target sens
     int    kmerSize;                     // kmer size for the prefilter
@@ -136,7 +151,7 @@ public:
     bool   nucl;                         // using nucl informatoin
     int    compBiasCorrection;           // Aminoacid composiont correction
     int    diagonalScoring;              // switch diagonal scoring
-    int    maskResidues;                 // mask low complex areas
+    int    maskMode;                     // mask low complex areas
 
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
@@ -144,9 +159,10 @@ public:
     int    splitMode;                    // Split by query or target DB (MPI only)
     bool   splitAA;                      // Split database by amino acid count instead
     size_t resListOffset;                // Offsets result list
+    bool   noPreload;                    // Do not preload database into memory
+    bool   earlyExit;                    // Exit immediately after writing the result
 
     // ALIGNMENT
-    std::string ffindexPrefDB;           // prefilter database (input for alignment module)
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
                                          // 1=score only, 2=score, cov, start/end pos, 3=score, cov, start/end pos, seq.id,
     float  evalThr;                      // e-value threshold for acceptance
@@ -163,7 +179,6 @@ public:
     std::string runner;
 
     // CLUSTERING
-    std::string ffindexAlnDBBase;
     int    clusteringMode;
     int    validateClustering;
     bool   cascaded;
@@ -191,6 +206,7 @@ public:
 
     // format alignment
     int formatAlignmentMode;            // BLAST_TAB, PAIRWISE or SAM
+    bool dbOut;
 
     // rescorediagonal
     int rescoreMode;
@@ -203,6 +219,9 @@ public:
     bool compressMSA;
     bool summarizeHeader;
     std::string summaryPrefix;
+    bool omitConsensus;
+    bool skipQuery;
+
 
     // result2profile
     float filterMaxSeqId;
@@ -215,9 +234,7 @@ public:
     bool wg;
     float pca;
     float pcb;
-    bool noPruning;
-    bool useConsensus;
-    
+
     // createtsv
     bool firstSeqRepr;
     
@@ -226,6 +243,9 @@ public:
 
     // linearcluster
     int kmersPerSequence;
+
+    // createindex
+    bool includeHeader;
 
     // createdb
     int identifierOffset;
@@ -275,13 +295,8 @@ public:
     // extractalignedregion
     int extractMode;
 
-
-
     // convertkb
     std::string kbColumns;
-
-    //count
-    std::string countCharacter;
     
     // concatdbs
     bool preserveKeysB;
@@ -289,9 +304,11 @@ public:
     // diff
     bool useSequenceId;
 
+    // clusterUpdate;
+    bool recoverDeleted;
+
     // summarize headers
     int headerType;
-
 
     static Parameters& getInstance()
     {
@@ -312,7 +329,7 @@ public:
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	
-	std::vector<MMseqsParameter> removeParameter(std::vector<MMseqsParameter> par,MMseqsParameter x);
+	std::vector<MMseqsParameter> removeParameter(const std::vector<MMseqsParameter>& par, const MMseqsParameter& x);
 
     ~Parameters(){};
 
@@ -340,6 +357,8 @@ public:
     PARAMETER(PARAM_CLUSTER_FRAGMENTS)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
+    PARAMETER(PARAM_NO_PRELOAD)
+    PARAMETER(PARAM_EARLY_EXIT)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
@@ -352,17 +371,16 @@ public:
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
-
     std::vector<MMseqsParameter> align;
 
     // clustering
     PARAMETER(PARAM_CLUSTER_MODE)
-
     PARAMETER(PARAM_CASCADED)
 
     // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
     PARAMETER(PARAM_SIMILARITYSCORE)
+
     // logging
     PARAMETER(PARAM_V)
     std::vector<MMseqsParameter> clust;
@@ -372,6 +390,7 @@ public:
 
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
+    PARAMETER(PARAM_DB_OUTPUT)
 
     // rescoremode
     PARAMETER(PARAM_RESCORE_MODE)
@@ -384,6 +403,8 @@ public:
     PARAMETER(PARAM_COMPRESS_MSA)
     PARAMETER(PARAM_SUMMARIZE_HEADER)
     PARAMETER(PARAM_SUMMARY_PREFIX)
+    PARAMETER(PARAM_OMIT_CONSENSUS)
+    PARAMETER(PARAM_SKIP_QUERY)
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)
@@ -407,6 +428,7 @@ public:
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
+
     // workflow
     PARAMETER(PARAM_RUNNER)
 
@@ -414,6 +436,7 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEP_SIZE)
+
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
@@ -423,6 +446,9 @@ public:
     PARAMETER(PARAM_ORF_EXTENDMIN)
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
+
+    // createindex
+    PARAMETER(PARAM_INCLUDE_HEADER)
 
     // createdb
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
@@ -457,8 +483,8 @@ public:
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
-    
-    //diff
+
+    // diff
     PARAMETER(PARAM_USESEQID)
 
     // summarize headers
@@ -484,8 +510,8 @@ public:
     // convertkb
     PARAMETER(PARAM_KB_COLUMNS)
 
-    // count
-    PARAMETER(PARAM_COUNT_CHARACTER)
+    // clusterupdate
+    PARAMETER(PARAM_RECOVER_DELETED)
 
     std::vector<MMseqsParameter> empty;
     std::vector<MMseqsParameter> rescorediagonal;
@@ -516,30 +542,30 @@ public:
     std::vector<MMseqsParameter> translatenucs;
     std::vector<MMseqsParameter> createseqfiledb;
     std::vector<MMseqsParameter> filterDb;
-    std::vector<MMseqsParameter> swapresults;
+    std::vector<MMseqsParameter> onlythreads;
     std::vector<MMseqsParameter> subtractdbs;
-    std::vector<MMseqsParameter> result2newick;
     std::vector<MMseqsParameter> diff;
-    std::vector<MMseqsParameter> dbconcat;
+    std::vector<MMseqsParameter> concatdbs;
     std::vector<MMseqsParameter> mergedbs;
     std::vector<MMseqsParameter> summarizeheaders;
     std::vector<MMseqsParameter> evaluationscores;
     std::vector<MMseqsParameter> prefixid;
+    std::vector<MMseqsParameter> summarizeresult;
     std::vector<MMseqsParameter> summarizetabs;
     std::vector<MMseqsParameter> extractdomains;
     std::vector<MMseqsParameter> extractalignedregion;
-    std::vector<MMseqsParameter> count;
     std::vector<MMseqsParameter> convertkb;
+    std::vector<MMseqsParameter> tsv2db;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);
 
-    std::string createParameterString(std::vector < MMseqsParameter > &vector);
+    std::string createParameterString(std::vector<MMseqsParameter> &vector);
+
 private:
     Parameters();
     Parameters(Parameters const&);
     void operator=(Parameters const&);
-
 };
 
 #endif

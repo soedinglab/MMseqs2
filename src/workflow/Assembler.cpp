@@ -10,7 +10,7 @@
 
 void setAssemblerWorkflowDefaults(Parameters *p) {
     p->spacedKmer = false;
-    p->maskResidues = 1;
+    p->maskMode = 1;
     p->covThr = 0.0;
     p->evalThr = 0.00001;
     p->seqIdThr = 0.95;

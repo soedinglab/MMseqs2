@@ -33,24 +33,24 @@ int main (int argc, const char * argv[])
     std::cout <<  std::endl;
     std::cout << "ExtSupMatrix:"<< std::endl;
 
-    ExtendedSubstitutionMatrix extMattwo(subMat.subMatrix, 2,subMat.alphabetSize);
-    ExtendedSubstitutionMatrix extMatthree(subMat.subMatrix, 3,subMat.alphabetSize);
+    ScoreMatrix* extMattwo = ExtendedSubstitutionMatrix::calcScoreMatrix(subMat, 2);
+    ScoreMatrix* extMatthree = ExtendedSubstitutionMatrix::calcScoreMatrix(subMat, 3);
 
     Indexer idx(subMat.alphabetSize,kmer_size);
     std::cout << "Sequence (id 0):\n";
     const char* sequence = "PATWPCLVALG";
     std::cout << sequence << "\n\n";
-    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, false, false);
+    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, kmer_size, false, false);
     s->mapSequence(0,0,sequence);
 
     KmerGenerator kmerGen(kmer_size,subMat.alphabetSize,161);
 
-    kmerGen.setDivideStrategy(extMatthree.scoreMatrix, extMattwo.scoreMatrix );
+    kmerGen.setDivideStrategy(extMatthree, extMattwo);
     size_t * testKmer = new size_t[kmer_size];
     int i = 0; 
     while(s->hasNextKmer()){
         const int * curr_pos = s->nextKmer();
-        printf("Pos1: %d\n",i++);
+        printf("Pos1: %d\n", i++);
 
         unsigned int idx_val=idx.int2index(curr_pos);
         std::cout << "Index:    " <<idx_val << "  ";
@@ -76,6 +76,9 @@ int main (int argc, const char * argv[])
             std::cout << "\n";
         }
     }
+
+    delete extMattwo;
+    delete extMatthree;
     return 0;
 }
 
