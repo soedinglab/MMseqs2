@@ -160,10 +160,12 @@ float Matcher::computeCov(unsigned int startPos, unsigned int endPos, unsigned i
 
 std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data, bool readCompressed) {
     std::vector<Matcher::result_t> ret;
-    while(*data != '\0'){
-        Matcher::result_t result = parseAlignmentRecord(data, readCompressed);
-        ret.push_back(result);
-        data = Util::skipLine(data);
+    if(data != NULL){
+        while(*data != '\0'){
+            Matcher::result_t result = parseAlignmentRecord(data, readCompressed);
+            ret.push_back(result);
+            data = Util::skipLine(data);
+        }
     }
     return ret;
 }
