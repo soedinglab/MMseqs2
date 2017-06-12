@@ -17,7 +17,7 @@ int createindex(int argc, const char **argv, const Command &command) {
     setCreateIndexDefaults(&par);
     par.parseParameters(argc, argv, command, 1);
 
-    if (par.split != 0 || par.split != 1) {
+    if (par.split > 1) {
         Debug(Debug::ERROR) << "Creating a split index is not supported anymore.\n";
         Debug(Debug::ERROR) << "Please use the prefilter without a precomputed index if you do not have enough memory.";
         EXIT(EXIT_FAILURE);
