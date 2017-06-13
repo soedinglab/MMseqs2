@@ -18,9 +18,9 @@
 
 class HeaderIdReader {
 public:
-    HeaderIdReader(const char* dataName, const char* indexName, bool noPreload)
+    HeaderIdReader(const std::string &dataName, bool noPreload)
             : reader(NULL), index(NULL) {
-        std::string indexDB = PrefilteringIndexReader::searchForIndex(dataName);
+        std::string indexDB = PrefilteringIndexReader::searchForIndex(dataName.c_str());
         if (indexDB != "") {
             Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
             int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
@@ -32,7 +32,7 @@ public:
                 PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(index);
 
                 if (data.headers == 1) {
-                    reader = PrefilteringIndexReader::openNewHeaderReader(index, dataName, noPreload == false);
+                    reader = PrefilteringIndexReader::openNewHeaderReader(index, (dataName + "_h").c_str(), noPreload == false);
                 } else {
                     Debug(Debug::INFO) << "Index does not contain headers. Using normal database instead.\n";
                 }
@@ -45,7 +45,7 @@ public:
         }
 
         if (reader == NULL) {
-            reader = new DBReader<unsigned int>(dataName, indexName);
+            reader = new DBReader<unsigned int>((dataName + "_h").c_str(), (dataName + "_h.index").c_str());
             reader->open(DBReader<unsigned int>::NOSORT);
 
 
@@ -172,17 +172,16 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             queryReader->open(DBReader<unsigned int>::NOSORT);
         }
     }
-    std::string qHeaderName = (par.db1 + "_h");
-    Debug(Debug::INFO) << "Query Header file: " << qHeaderName << "\n";
-    HeaderIdReader qHeaderDbr(qHeaderName.c_str(), (qHeaderName + ".index").c_str(), par.noPreload);
+    Debug(Debug::INFO) << "Query Header file: " << par.db1 << "_h\n";
+    HeaderIdReader qHeaderDbr(par.db1.c_str(), par.noPreload);
 
     HeaderIdReader *tHeaderDbr;
     if(sameDB){
         tHeaderDbr = &qHeaderDbr;
     } else {
         std::string tHeaderName = (par.db2 + "_h");
-        Debug(Debug::INFO) << "Target Header file: " << tHeaderName << "\n";
-        tHeaderDbr = new HeaderIdReader(tHeaderName.c_str(), (tHeaderName + ".index").c_str(), par.noPreload);
+        Debug(Debug::INFO) << "Target Header file: " << par.db2 << "_h\n";
+        tHeaderDbr = new HeaderIdReader(par.db2.c_str(), par.noPreload);
     }
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
