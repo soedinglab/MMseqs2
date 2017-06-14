@@ -320,6 +320,11 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
 }
 
 ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
+    // profile only uses the 2mer, 3mer matrix
+    if (targetSeqType == Sequence::HMM_PROFILE) {
+        return NULL;
+    }
+
     if (templateDBIsIndex == true) {
         switch(kmerSize) {
             case 2:
