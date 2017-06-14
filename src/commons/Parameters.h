@@ -304,6 +304,9 @@ public:
     // diff
     bool useSequenceId;
 
+    //prefixid
+    std::string prefix;
+
     // clusterUpdate;
     bool recoverDeleted;
 
@@ -486,6 +489,9 @@ public:
 
     // diff
     PARAMETER(PARAM_USESEQID)
+
+    // prefixid
+    PARAMETER(PARAM_PREFIX)
 
     // summarize headers
     PARAMETER(PARAM_HEADER_TYPE)

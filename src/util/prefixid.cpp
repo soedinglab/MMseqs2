@@ -26,8 +26,9 @@ int prefixid(int argc, const char **argv, const Command& command) {
 
     size_t entries = reader.getSize();
 
-    std::map<unsigned int, std::string> mapping = Util::readLookup(par.mappingFile);
+    const bool useUserPrefix = par.prefix != "";
 
+    std::map<unsigned int, std::string> mapping = Util::readLookup(par.mappingFile);
 #pragma omp parallel for schedule(dynamic, 100)
     for (size_t i = 0; i < entries; ++i) {
         unsigned int thread_idx = 0;
@@ -41,9 +42,10 @@ int prefixid(int argc, const char **argv, const Command& command) {
 
         std::string line;
         while (std::getline(data, line)) {
-            if (par.mappingFile.length() > 0) {
-                unsigned int k = key;
-                ss << mapping[k] << "\t" << line << "\n";
+            if (useUserPrefix) {
+                ss << par.prefix << "\t" << line << "\n";
+            } else if (par.mappingFile.length() > 0) {
+                ss << mapping[key] << "\t" << line << "\n";
             } else {
                 ss << key << "\t" << line << "\n";
             }
