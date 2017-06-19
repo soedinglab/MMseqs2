@@ -261,6 +261,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 ss << '\n';
 
             } else if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM) { ;
+                ;
                 //TODO
             }
         }
