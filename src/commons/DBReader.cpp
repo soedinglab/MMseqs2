@@ -26,10 +26,20 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
 template <typename T>
 DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize) :
         data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL), dataFile(NULL),
-        size(size), dataSize(0), aaDbSize(aaDbSize), closed(0),
+        size(size), dataSize(0), aaDbSize(aaDbSize), closed(1),
         index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
         lastKey(T()), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
+
+template <typename T>
+void DBReader<T>::setDataFile(const char* dataFileName_)  {
+    if (dataFileName != NULL) {
+        free(dataFileName);
+    }
+
+    dataMode = USE_INDEX | USE_DATA;
+    dataFileName = strdup(dataFileName_);
+}
 
 
 template <typename T>
@@ -67,7 +77,6 @@ template <typename T> DBReader<T>::~DBReader(){
 
 template <typename T> void DBReader<T>::open(int accessType){
     // count the number of entries
-    this->size = FileUtil::countLines(indexFileName);
     this->accessType = accessType;
 
     if (dataMode & USE_DATA) {
@@ -80,17 +89,20 @@ template <typename T> void DBReader<T>::open(int accessType){
         dataMapped = true;
     }
 
-    index = new Index[this->size];
-    seqLens = new unsigned int[size];
+    if (externalData == false) {
+        size = FileUtil::countLines(indexFileName);
+        index = new Index[this->size];
+        seqLens = new unsigned int[size];
 
-    bool isSortedById = readIndex(indexFileName, index, data, seqLens);
-    sortIndex(isSortedById);
+        bool isSortedById = readIndex(indexFileName, index, data, seqLens);
+        sortIndex(isSortedById);
 
-    // init seq lens array and dbKey mapping
-    aaDbSize = 0;
-    for (size_t i = 0; i < size; i++){
-        unsigned int size = seqLens[i];
-        aaDbSize += size;
+        // init seq lens array and dbKey mapping
+        aaDbSize = 0;
+        for (size_t i = 0; i < size; i++){
+            unsigned int size = seqLens[i];
+            aaDbSize += size;
+        }
     }
 
     closed = 0;

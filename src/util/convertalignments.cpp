@@ -6,6 +6,7 @@
 #include "Util.h"
 #include "Parameters.h"
 #include "Matcher.h"
+#include "PrefilteringIndexReader.h"
 
 #include "Debug.h"
 #include "DBReader.h"
@@ -17,37 +18,63 @@
 
 class HeaderIdReader {
 public:
-    HeaderIdReader(const char* dataName, const char* indexName, bool noPreload) {
-        reader = new DBReader<unsigned int>(dataName, indexName);
-        reader->open(DBReader<unsigned int>::NOSORT);
-        if(noPreload == false) {
-            reader->readMmapedDataInMemory();
+    HeaderIdReader(const std::string &dataName, bool noPreload)
+            : reader(NULL), index(NULL) {
+        std::string indexDB = PrefilteringIndexReader::searchForIndex(dataName.c_str());
+        if (indexDB != "") {
+            Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
+            int dataMode = DBReader<unsigned int>::USE_INDEX | DBReader<unsigned int>::USE_DATA;
+            index = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str(), dataMode);
+            index->open(DBReader<unsigned int>::NOSORT);
+            bool templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(index);
+            if (templateDBIsIndex == true) {
+                PrefilteringIndexReader::printSummary(index);
+                PrefilteringIndexData data = PrefilteringIndexReader::getMetadata(index);
+
+                if (data.headers == 1) {
+                    reader = PrefilteringIndexReader::openNewHeaderReader(index, (dataName + "_h").c_str(), noPreload == false);
+                } else {
+                    Debug(Debug::INFO) << "Index does not contain headers. Using normal database instead.\n";
+                }
+            } else {
+                Debug(Debug::WARNING) << "Outdated index version. Please recompute it with 'createindex'!\n";
+                index->close();
+                delete index;
+                index = NULL;
+            }
         }
 
-        isLookup = false;
-        if (Util::endsWith(".lookupdb", dataName)) {
-            isLookup = true;
+        if (reader == NULL) {
+            reader = new DBReader<unsigned int>((dataName + "_h").c_str(), (dataName + "_h.index").c_str());
+            reader->open(DBReader<unsigned int>::NOSORT);
+
+
+            if (noPreload == false) {
+                reader->readMmapedDataInMemory();
+                reader->mlock();
+            }
         }
     }
 
     std::string getId(unsigned int key) {
         size_t id = reader->getId(key);
         const char *data = reader->getData(id);
-        if(isLookup) {
-            return std::string(data, reader->getSeqLens(id) - 2);
-        }
-
         return Util::parseFastaHeader(data);
     }
 
     ~HeaderIdReader() {
         reader->close();
         delete reader;
+
+        if (index != NULL) {
+            index->close();
+            delete index;
+        }
     }
 
 private:
     DBReader<unsigned int> *reader;
-    bool isLookup;
+    DBReader<unsigned int> *index;
 };
 
 class OutputWriter {
@@ -145,17 +172,16 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             queryReader->open(DBReader<unsigned int>::NOSORT);
         }
     }
-    std::string qHeaderName = (par.db1 + "_h");
-    Debug(Debug::INFO) << "Query Header file: " << qHeaderName << "\n";
-    HeaderIdReader qHeaderDbr(qHeaderName.c_str(), (qHeaderName + ".index").c_str(), par.noPreload);
+    Debug(Debug::INFO) << "Query Header file: " << par.db1 << "_h\n";
+    HeaderIdReader qHeaderDbr(par.db1.c_str(), par.noPreload);
 
     HeaderIdReader *tHeaderDbr;
     if(sameDB){
         tHeaderDbr = &qHeaderDbr;
     } else {
         std::string tHeaderName = (par.db2 + "_h");
-        Debug(Debug::INFO) << "Target Header file: " << tHeaderName << "\n";
-        tHeaderDbr = new HeaderIdReader(tHeaderName.c_str(), (tHeaderName + ".index").c_str(), par.noPreload);
+        Debug(Debug::INFO) << "Target Header file: " << par.db2 << "_h\n";
+        tHeaderDbr = new HeaderIdReader(par.db2.c_str(), par.noPreload);
     }
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";

@@ -149,13 +149,31 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     Debug(Debug::INFO) << "Done. \n";
 }
 
+DBReader<unsigned int> *PrefilteringIndexReader::openNewHeaderReader(DBReader<unsigned int>*dbr, const char* dataFileName, bool touch) {
+    size_t id = dbr->getId(HDRINDEX);
+    char *data = dbr->getData(id);
+    if (touch) {
+        dbr->touchData(id);
+    }
+
+    DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data);
+    reader->setDataFile(dataFileName);
+    reader->open(DBReader<unsigned int>::NOSORT);
+
+    return reader;
+}
+
 DBReader<unsigned int> *PrefilteringIndexReader::openNewReader(DBReader<unsigned int>*dbr, bool touch) {
     size_t id = dbr->getId(DBRINDEX);
     char *data = dbr->getData(id);
     if (touch) {
         dbr->touchData(id);
     }
-    return DBReader<unsigned int>::unserialize(data);
+
+    DBReader<unsigned int> *reader = DBReader<unsigned int>::unserialize(data);
+    reader->open(DBReader<unsigned int>::NOSORT);
+
+    return reader;
 }
 
 SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int>*dbr, bool touch) {

@@ -25,6 +25,7 @@ public:
 
     DBReader(Index* index, unsigned int *seqLens, size_t size, size_t aaDbSize);
 
+    void setDataFile(const char* dataFileName);
 
     virtual ~DBReader();
 
