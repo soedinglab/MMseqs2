@@ -17,38 +17,35 @@
 #include <set>
 #include <limits>
 #include <cstdint>
+#include <queue>
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-Matcher::result_t selectBestExtentionFragment(DBReader<unsigned int>  * sequenceDbr,
-                                              std::vector<Matcher::result_t> alignments,
-                                              std::set<unsigned int> &prevFound,
+class CompareResultBySeqId {
+public:
+    bool operator() (Matcher::result_t & r1, Matcher::result_t & r2) {
+        return r1.seqId < r2.seqId;
+    }
+};
+typedef std::priority_queue<Matcher::result_t, std::vector<Matcher::result_t> , CompareResultBySeqId> SeqIdQueue;
+Matcher::result_t selectBestExtentionFragment(SeqIdQueue & alignments,
                                               unsigned int queryKey) {
     // results are ordered by score
-    double evalue = DBL_MAX;
-    size_t bestIndex = SIZE_MAX;
-    for(size_t i = 0; i < alignments.size(); i++){
-        const bool foundPrev = (prevFound.find(alignments[i].dbKey) != prevFound.end());
-        if(foundPrev == false){
-            size_t dbKey = alignments[i].dbKey;
-            const bool notRightStartAndLeftStart = !(alignments[i].dbStartPos == 0 && alignments[i].qStartPos == 0);
-            const bool betterEvalue = (alignments[i].eval < evalue);
-            const bool rightStart = alignments[i].dbStartPos == 0 ;
-            const bool leftStart = alignments[i].qStartPos == 0;
-            const bool isNotIdentity = (dbKey != queryKey);
-            if((rightStart|| leftStart) && betterEvalue && notRightStartAndLeftStart && isNotIdentity){
-                // mark label as visited
-                evalue=alignments[i].eval;
-                bestIndex = i;
-            }
+    while(alignments.empty() == false){
+        Matcher::result_t res = alignments.top();
+        alignments.pop();
+        size_t dbKey = res.dbKey;
+        const bool notRightStartAndLeftStart = !(res.dbStartPos == 0 && res.qStartPos == 0);
+        const bool rightStart = res.dbStartPos == 0 && (res.dbEndPos != res.dbLen-1);
+        const bool leftStart = res.qStartPos == 0   && (res.qEndPos != res.qLen-1);
+        const bool isNotIdentity = (dbKey != queryKey);
+        if((rightStart|| leftStart)  && notRightStartAndLeftStart && isNotIdentity){
+            return res;
         }
     }
-    if(bestIndex == SIZE_MAX) {
-        return Matcher::result_t(UINT_MAX,0,0,0,0,0,0,0,0,0,0,0,0,"");
-    } else {
-        return alignments[bestIndex];
-    }
+    return Matcher::result_t(UINT_MAX,0,0,0,0,0,0,0,0,0,0,0,0,"");
 }
 
 
@@ -95,21 +92,20 @@ int doassembly(Parameters &par) {
             char *querySeqData = sequenceDbr->getData(id);
             unsigned int queryLen = sequenceDbr->getSeqLens(id);
 
-            unsigned int queryOffset = 0;
+            unsigned int leftQueryOffset = 0;
+            unsigned int rightQueryOffset = 0;
             std::string query(querySeqData, queryLen - 2); // no /n/0
             char *alnData = alnReader->getDataByDBKey(queryKey);
             std::vector<Matcher::result_t> alignments = Matcher::readAlignmentResults(alnData);
-            std::set<unsigned int> prevFound;
-            bool queryCouldBeExtended = false;
+            SeqIdQueue alnQueue;
             for (size_t alnIdx = 0; alnIdx < alignments.size(); alnIdx++) {
+                alnQueue.push(alignments[alnIdx]);
+            }
+
+            bool queryCouldBeExtended = false;
+            Matcher::result_t besttHitToExtend;
+            while( (besttHitToExtend = selectBestExtentionFragment(alnQueue, queryKey)).dbKey != UINT_MAX) {
                 querySeq.mapSequence(id, queryKey, query.c_str());
-                Matcher::result_t besttHitToExtend = selectBestExtentionFragment(sequenceDbr,
-                                                                                 alignments,
-                                                                                 prevFound,
-                                                                                 queryKey);
-                if (besttHitToExtend.dbKey == UINT_MAX)
-                    continue;
-                prevFound.emplace(besttHitToExtend.dbKey);
                 unsigned int targetId = sequenceDbr->getId(besttHitToExtend.dbKey);
                 if(targetId==UINT_MAX){
                     Debug(Debug::ERROR) << "Could not find targetId  " << besttHitToExtend.dbKey
@@ -117,11 +113,22 @@ int doassembly(Parameters &par) {
                     EXIT(EXIT_FAILURE);
                 }
                 char *dbSeq = sequenceDbr->getData(targetId);
-                targetSeq.mapSequence(targetId, besttHitToExtend.dbKey, dbSeq);
+                unsigned int dbSeqLen = sequenceDbr->getSeqLens(targetId) - 2;
+                // check if alignment still make sense (can extend the query)
+                if (besttHitToExtend.dbStartPos == 0   ) {
+                    if((dbSeqLen - (besttHitToExtend.dbEndPos + 1)) <= rightQueryOffset){
+                        continue;
+                    }
+                }else if ( besttHitToExtend.qStartPos == 0 ){
+                    if(besttHitToExtend.dbStartPos <= leftQueryOffset){
+                        continue;
+                    }
+                }
                 int qStartPos, qEndPos, dbStartPos, dbEndPos;
-                int diagonal = (queryOffset + besttHitToExtend.qStartPos) - besttHitToExtend.dbStartPos;
+                int diagonal = (leftQueryOffset + besttHitToExtend.qStartPos) - besttHitToExtend.dbStartPos;
                 size_t dist = std::max(abs(diagonal), 0);
                 if (diagonal >= 0) {
+                    targetSeq.mapSequence(targetId, besttHitToExtend.dbKey, dbSeq);
                     size_t diagonalLen = std::min(targetSeq.L, querySeq.L - abs(diagonal));
                     DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(
                             querySeq.int_sequence + abs(diagonal),
@@ -133,6 +140,7 @@ int doassembly(Parameters &par) {
                     //std::cout <<"QueryD:"<< + abs(diagonal) << "\t" << qStartPos << "\t" << qEndPos << "\t" << querySeq.L << "\t" << dbStartPos << "\t" << dbEndPos << "\t" << targetSeq.L << std::endl;
 
                 } else {
+                    targetSeq.mapSequence(targetId, besttHitToExtend.dbKey, dbSeq);
                     size_t diagonalLen = std::min(targetSeq.L - abs(diagonal), querySeq.L);
                     DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(
                             querySeq.int_sequence,
@@ -165,6 +173,8 @@ int doassembly(Parameters &par) {
                     queryCouldBeExtended = true;
                     //std::cout << "Fargm1: "  << fragment << std::endl;
                     query += fragment;
+                    rightQueryOffset += dbFragLen;
+
                 } else if (qStartPos == 0 && dbEndPos == (targetSeq.L - 1)) {
                     std::string fragment = std::string(dbSeq, dbStartPos); // +1 get not aligned element
                     if (fragment.size() + query.size() >= par.maxSeqLen) {
@@ -177,7 +187,7 @@ int doassembly(Parameters &par) {
                     queryCouldBeExtended = true;
                     //std::cout << "Fargm2: "  << fragment << std::endl;
                     query = fragment + query;
-                    queryOffset += dbStartPos;
+                    leftQueryOffset += dbStartPos;
                 }
 
             }
