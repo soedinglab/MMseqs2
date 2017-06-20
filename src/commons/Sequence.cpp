@@ -219,47 +219,6 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
 
 
 
-void Sequence::mapNucleotideSequence(const char * sequence){
-    size_t l = 0;
-    for (size_t pos = 0; pos < strlen(sequence); pos++){
-        char curr = sequence[pos];
-        if (curr != '\n'){  
-            curr = tolower(curr);
-
-            // nucleotide is small
-            switch(curr){
-                case 'u': this->int_sequence[l] = this->aa2int[(int)'t']; break;
-                case 'b':
-                case 'y':
-                case 's': this->int_sequence[l] = this->aa2int[(int)'c']; break;
-                case 'd':
-                case 'h':
-                case 'v':
-                case 'w':
-                case 'r':
-                case 'm': this->int_sequence[l] = this->aa2int[(int)'a']; break;
-                case 'k': this->int_sequence[l] = this->aa2int[(int)'g']; break;
-                default:
-                    if (curr < 'a' || curr > 'z' || this->aa2int[(int)curr] == -1){
-                        Debug(Debug::ERROR) << "ERROR: illegal character \""
-                                            << curr << "\" in sequence "
-                                            << this->dbKey << " at position " << pos << "\n";
-
-                        EXIT(1);
-                    }
-                    this->int_sequence[l] = this->aa2int[(int)curr];
-                    break;
-            }
-            l++;
-            if (l >= maxLen){
-                Debug(Debug::ERROR) << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
-                EXIT(1);
-            }
-        }
-    }
-    this->L = l;
-}
-
 void Sequence::mapProfile(const char * sequenze){
     size_t l = 0;
     char * data = (char *) sequenze;

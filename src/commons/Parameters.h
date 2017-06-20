@@ -180,7 +180,6 @@ public:
 
     // CLUSTERING
     int    clusteringMode;
-    int    validateClustering;
     bool   cascaded;
 
     // SEARCH WORKFLOW
