@@ -8,7 +8,6 @@
 #include "Sequence.h"
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
-#include "SubstitutionMatrixWithoutX.h"
 
 #include "SubstitutionMatrix.h"
 #include "ReducedMatrix.h"
