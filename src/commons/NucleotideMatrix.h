@@ -12,6 +12,8 @@ class NucleotideMatrix : public BaseMatrix {
 
         using BaseMatrix::getBitFactor;
 
+    void setupLetterMapping();
+
 };
 
 #endif

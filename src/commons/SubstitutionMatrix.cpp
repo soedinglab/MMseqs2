@@ -14,7 +14,7 @@
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
                                        float bitFactor, float scoreBias = -0.2) :
         scoringMatrixFileName(scoringMatrixFileName_) {
-
+    setupLetterMapping();
     if(strcmp(scoringMatrixFileName,"blosum62.out") != 0) {
         // read amino acid substitution matrix from file
         std::string fileName(scoringMatrixFileName);
@@ -179,6 +179,49 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(short *profileScores,
 SubstitutionMatrix::~SubstitutionMatrix() {
 }
 
+void SubstitutionMatrix::setupLetterMapping(){
+        for(char letter = 0; letter < 'z'; letter++){
+            char upperLetter = toupper(letter);
+            switch(upperLetter){
+                case 'A':
+                case 'T':
+                case 'G':
+                case 'C':
+                case 'D':
+                case 'E':
+                case 'F':
+                case 'H':
+                case 'I':
+                case 'K':
+                case 'L':
+                case 'M':
+                case 'N':
+                case 'P':
+                case 'Q':
+                case 'R':
+                case 'S':
+                case 'V':
+                case 'W':
+                case 'Y':
+                case 'X':
+                    this->aa2int[letter] = this->aa2int[upperLetter];
+                    break;
+                case 'J':
+                    this->aa2int[letter] = this->aa2int[(int)'L'];
+                    break;
+                case 'U':
+                case 'O':
+                    this->aa2int[letter] = this->aa2int[(int)'X'];
+                    break;
+                case 'Z': this->aa2int[letter] = this->aa2int[(int)'E']; break;
+                case 'B': this->aa2int[letter] = this->aa2int[(int)'D']; break;
+                default:
+                    this->aa2int[letter] = this->aa2int[(int)'X'];
+                    break;
+            }
+        }
+}
+
 int SubstitutionMatrix::parseAlphabet(char *word, char *int2aa, int *aa2int) {
     char *charReader = word;
     int minAAInt = INT_MAX;
@@ -320,4 +363,6 @@ int SubstitutionMatrix::readProbMatrix(const std::string &matrixData) {
 
     return alphabetSize;
 }
+
+
 

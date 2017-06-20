@@ -17,7 +17,6 @@ set(prefiltering_source_files
     ReducedMatrix.h
     SequenceLookup.cpp
     SequenceLookup.h
-    SubstitutionMatrixWithoutX.h
     UngappedAlignment.cpp
     UngappedAlignment.h
     CacheFriendlyOperations.cpp

@@ -29,6 +29,7 @@ class SubstitutionMatrix: public BaseMatrix {
                                                const int N);
         bool estimateLambdaAndBackground(const double ** mat, int alphabetSize, double * pBack, double & lambda);
 
+        void setupLetterMapping();
 private:
 
         const char* scoringMatrixFileName;

@@ -11,6 +11,8 @@ class ReducedMatrix : public BaseMatrix {
     public:
         ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize, float bitFactor);
         virtual ~ReducedMatrix();
+
+        void setupLetterMapping() {};
     private:
 
         /*contains the original matrix before the alphabet reduction*/

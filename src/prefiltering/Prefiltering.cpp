@@ -1,7 +1,6 @@
 #include "Prefiltering.h"
 #include "NucleotideMatrix.h"
 #include "ReducedMatrix.h"
-#include "SubstitutionMatrixWithoutX.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "PatternCompiler.h"
 #include "FileUtil.h"
@@ -807,9 +806,6 @@ BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrix
     if (alphabetSize < 21) {
         SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
         subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, alphabetSize, bitFactor);
-    } else if (ignoreX == true) {
-        SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
-        subMat = new SubstitutionMatrixWithoutX(sMat.probMatrix, sMat.subMatrixPseudoCounts, sMat.subMatrix, bitFactor);
     } else {
         subMat = new SubstitutionMatrix(scoringMatrixFile.c_str(), bitFactor, -0.2f);
     }

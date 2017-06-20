@@ -52,6 +52,8 @@ public:
 
     virtual double getBackgroundProb(size_t aa_index);
 
+    virtual void setupLetterMapping() {};
+
     virtual float getBitFactor() {return 1.0; }
 
     std::string getMatrixName();
