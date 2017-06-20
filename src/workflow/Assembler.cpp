@@ -57,7 +57,7 @@ int assembler(int argc, const char **argv, const Command& command) {
     par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
     for(size_t i = 0; i < par.numIterations; i++){
         std::string key = "KMERMATCHER"+SSTR(i)+"_PAR";
-        par.kmerSize = baseKmerSize - i;
+    //    par.kmerSize = baseKmerSize - i;
         cmd.addVariable(key.c_str(), par.createParameterString(par.kmermatcher).c_str());
     }
     par.alphabetSize = alphabetSize;

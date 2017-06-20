@@ -94,15 +94,15 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         qseqdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
         qseqdbr->open(DBReader<unsigned int>::NOSORT);
 
-        size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());
-        size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qseqdbr->getSize(),
-                                                                 std::min(static_cast<size_t>(par.maxAccept), par.maxResListLen));
-        if (freeSpace < estimatedHDDMemory){
-            Debug(Debug::ERROR) << "Hard disk has not enough space (" << freeSpace << " bytes left) "
-                                << "to store " << estimatedHDDMemory << " bytes of results.\n"
-                                << "Please free disk space and start MMseqs again.\n";
-            EXIT(EXIT_FAILURE);
-        }
+        //size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(outDB).c_str());
+        //size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qseqdbr->getSize(),
+        //                                                         std::min(static_cast<size_t>(par.maxAccept), par.maxResListLen));
+        //if (freeSpace < estimatedHDDMemory){
+        //    Debug(Debug::ERROR) << "Hard disk has not enough space (" << freeSpace << " bytes left) "
+        //                        << "to store " << estimatedHDDMemory << " bytes of results.\n"
+        //                        << "Please free disk space and start MMseqs again.\n";
+        //    EXIT(EXIT_FAILURE);
+        //}
 
         qseqdbr->readMmapedDataInMemory();
         qseqdbr->mlock();

@@ -16,7 +16,7 @@ int clust(int argc, const char **argv, const Command& command) {
     omp_set_num_threads(par.threads);
 #endif
     Clustering* clu = new Clustering(par.db1, par.db1Index, par.db2, par.db2Index,
-                                     par.db3, par.db3Index, par.validateClustering, par.maxIteration,
+                                     par.db3, par.db3Index, par.maxIteration,
                                      par.similarityScoreType, par.threads);
 
     clu->run(par.clusteringMode);

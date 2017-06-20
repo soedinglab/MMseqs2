@@ -11,7 +11,6 @@
 #include "Sequence.h"
 #include "Indexer.h"
 #include "ExtendedSubstitutionMatrix.h"
-#include "SubstitutionMatrixWithoutX.h"
 #include "SubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
@@ -26,7 +25,7 @@ int main (int argc, const char * argv[])
 
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, -0.2);
+    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs2-bugfix/data/pfamsum60.out", 2.0, -0.0);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);

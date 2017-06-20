@@ -29,6 +29,39 @@ class SubstitutionMatrix: public BaseMatrix {
                                                const int N);
         bool estimateLambdaAndBackground(const double ** mat, int alphabetSize, double * pBack, double & lambda);
 
+
+        void setupLetterMapping();
+
+
+        struct FastMatrix{
+            const char ** matrix;
+            const char * matrixData;
+            const size_t asciiStart;
+            FastMatrix(const char ** matrix, const char * matrixData, const size_t asciiStart):
+                    matrix(matrix), matrixData(matrixData), asciiStart(asciiStart)
+            {}
+        };
+
+        // build matrix from ~ (=0) to ~(=122)
+        static FastMatrix createAsciiSubMat(SubstitutionMatrix & submat){
+            const size_t asciiStart = 0;
+            const size_t asciiEnd = 'z';
+            const size_t range = asciiEnd-asciiStart;
+            char ** matrix = new char *[range];
+            char * matrixData = new char[range*range];
+            for(char i = 0; i < range; i++) {
+                matrix[i] = matrixData+(i*range);
+                int curr_i = submat.aa2int[asciiStart+(int)i];
+                for (char j = 0; j < range; j++) {
+                    int curr_j = submat.aa2int[asciiStart+(int)j];
+                    matrix[i][j] = submat.subMatrix[curr_i][curr_j];
+                }
+            }
+            return FastMatrix((const char**) matrix,
+                              (const char*) matrixData,
+                              asciiStart);
+        }
+
 private:
 
         const char* scoringMatrixFileName;

@@ -9,6 +9,7 @@ const double BaseMatrix::ANY_BACK = 1E-5;
 BaseMatrix::BaseMatrix(){
     this->alphabetSize = 21;
     // init [amino acid <-> int] mappings
+
     int2aa = new char[alphabetSize];
     // A C D E F G	H I	K L M N P Q R S T V W Y
     int2aa[0] = 'A';
@@ -34,8 +35,8 @@ BaseMatrix::BaseMatrix(){
     int2aa[20] = 'X';
 
 
-    aa2int = new int['Z'+1];
-    for (int i = 0; i <= 'Z'; ++i) aa2int[i]=-1;
+    aa2int = new int['z'+1];
+    for (int i = 0; i <= 'z'; ++i) aa2int[i]=-1;
     for (int i = 0; i < alphabetSize; ++i){
         aa2int[(int)int2aa[i]] = i;
     }

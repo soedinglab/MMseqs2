@@ -914,7 +914,6 @@ void Parameters::setDefaults() {
     addBacktrace = false;
     realign = false;
     clusteringMode = SET_COVER;
-    validateClustering = 0;
     cascaded = false;
     resListOffset = 0;
     noPreload = false;

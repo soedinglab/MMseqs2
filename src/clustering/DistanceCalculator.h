@@ -21,7 +21,7 @@ public:
     static unsigned int computeSubstituionDistance(const T *seq1,
                                                    const T *seq2,
                                                    const unsigned int length,
-                                                   short ** subMat, bool globalAlignment = false) {
+                                                   const char ** subMat, bool globalAlignment = false) {
         int max = 0;
         int score = 0;
         if (globalAlignment)
@@ -60,7 +60,7 @@ public:
     static LocalAlignment computeSubstituionStartEndDistance(const T *seq1,
                                                            const T *seq2,
                                                            const unsigned int length,
-                                                           short ** subMat) {
+                                                           const char ** subMat) {
         int maxScore = 0;
         int maxEndPos = 0;
         int maxStartPos = 0;
@@ -139,8 +139,10 @@ public:
                     val = std::min(row[j - 1] + 1, // substitution
                                    std::min(prev + 1,       // insertion
                                             row[j] + 1));   // deletion
+
                 }
                 row[j - 1] = prev;
+
                 prev = val;
             }
             row[m] = prev;

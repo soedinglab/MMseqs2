@@ -190,10 +190,8 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
 void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence){
     this->id = id;
     this->dbKey = dbKey;
-    if (this->seqType == Sequence::AMINO_ACIDS)
-        mapProteinSequence(sequence);
-    else if (this->seqType == Sequence::NUCLEOTIDES)
-        mapNucleotideSequence(sequence);
+    if (this->seqType == Sequence::AMINO_ACIDS || this->seqType == Sequence::NUCLEOTIDES)
+        mapSequence(sequence);
     else if (this->seqType == Sequence::HMM_PROFILE)
         mapProfile(sequence);
     else  {
@@ -220,47 +218,6 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
 }
 
 
-
-void Sequence::mapNucleotideSequence(const char * sequence){
-    size_t l = 0;
-    for (size_t pos = 0; pos < strlen(sequence); pos++){
-        char curr = sequence[pos];
-        if (curr != '\n'){  
-            curr = tolower(curr);
-
-            // nucleotide is small
-            switch(curr){
-                case 'u': this->int_sequence[l] = this->aa2int[(int)'t']; break;
-                case 'b':
-                case 'y':
-                case 's': this->int_sequence[l] = this->aa2int[(int)'c']; break;
-                case 'd':
-                case 'h':
-                case 'v':
-                case 'w':
-                case 'r':
-                case 'm': this->int_sequence[l] = this->aa2int[(int)'a']; break;
-                case 'k': this->int_sequence[l] = this->aa2int[(int)'g']; break;
-                default:
-                    if (curr < 'a' || curr > 'z' || this->aa2int[(int)curr] == -1){
-                        Debug(Debug::ERROR) << "ERROR: illegal character \""
-                                            << curr << "\" in sequence "
-                                            << this->dbKey << " at position " << pos << "\n";
-
-                        EXIT(1);
-                    }
-                    this->int_sequence[l] = this->aa2int[(int)curr];
-                    break;
-            }
-            l++;
-            if (l >= maxLen){
-                Debug(Debug::ERROR) << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
-                EXIT(1);
-            }
-        }
-    }
-    this->L = l;
-}
 
 void Sequence::mapProfile(const char * sequenze){
     size_t l = 0;
@@ -324,72 +281,13 @@ void Sequence::nextProfileKmer() {
 }
 
 
-void Sequence::mapProteinSequence(const char * sequence){
+void Sequence::mapSequence(const char * sequence){
     size_t l = 0;
-    size_t atgcCnt = 0;
     char curr = sequence[l];
-    size_t pos = 0;
-    bool hasUncommonCharacters = false;
-    while (curr != '\0'){
-        if (curr != '\n'){
-            // replace non-common amino acids
-            curr = Util::toUpper(curr);
-            switch(curr){
-                case 'A':
-                case 'T':
-                case 'G':
-                case 'C':
-                    atgcCnt++;
-                case 'D':
-                case 'E':
-                case 'F':
-                case 'H':
-                case 'I':
-                case 'K':
-                case 'L':
-                case 'M':
-                case 'N':
-                case 'P':
-                case 'Q':
-                case 'R':
-                case 'S':
-                case 'V':
-                case 'W':
-                case 'Y':
-                case 'X':
-                    this->int_sequence[l] = this->aa2int[(int)curr];
-                    break;
-                case 'J': this->int_sequence[l] = this->aa2int[(int)'L']; break;
-                case 'U':
-                case 'O': this->int_sequence[l] = this->aa2int[(int)'X']; break;
-                case 'Z': this->int_sequence[l] = this->aa2int[(int)'E']; break;
-                case 'B': this->int_sequence[l] = this->aa2int[(int)'D']; break;
-                case '*':
-                case '-':
-                case '.': this->int_sequence[l] = this->aa2int[(int)'X']; break;
-                default:
-                    if(static_cast<int>(curr) < 33  || static_cast<int>(curr) > 126 ){
-                        Debug(Debug::ERROR) << "ERROR: Sequence (dbKey=" << dbKey <<") conatains none printable characters. The database might contain profiles. Use the parameter --query-profile for a query profile databases.\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    this->int_sequence[l] = this->aa2int[(int)'X'];
-                    hasUncommonCharacters = true;
-                    break;
-            }
-            l++;
-            if (l >= maxLen){
-                Debug(Debug::ERROR) << "ERROR: Sequence too long! Max length allowed would be " << maxLen << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
-        pos++;
-        curr  = sequence[pos];
-    }
-    if (atgcCnt >= l){
-        Debug(Debug::WARNING) << "WARNING: Sequence (dbKey=" << dbKey <<") contains only ATGC. It might be a nucleotide sequence.\n";
-    }
-    if (hasUncommonCharacters){
-        Debug(Debug::WARNING) << "WARNING: Sequence (dbKey=" << dbKey << ") contains uncommon characters, these where mapped to the X amino acid.\n";
+    while (curr != '\0' && curr != '\n'){
+        this->int_sequence[l] = this->aa2int[(int)curr];
+        l++;
+        curr  = sequence[l];
     }
     this->L = l;
 }

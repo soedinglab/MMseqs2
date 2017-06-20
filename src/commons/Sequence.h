@@ -209,8 +209,7 @@ public:
 
 
 private:
-    void mapProteinSequence(const char *seq);
-    void mapNucleotideSequence(const char *seq);
+    void mapSequence(const char *seq);
     size_t id;
     unsigned int dbKey;
 

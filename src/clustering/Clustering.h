@@ -14,8 +14,7 @@ public:
     Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                const std::string &alnResultsDB, const std::string &alnResultsDBIndex,
                const std::string &outDB, const std::string &outDBIndex,
-               int validateClustering, unsigned int maxIteration,
-               int similarityScoreType, int threads);
+               unsigned int maxIteration, int similarityScoreType, int threads);
 
     void run(int mode);
 
@@ -30,8 +29,6 @@ private:
 
     DBReader<unsigned int> *seqDbr;
     DBReader<unsigned int> *alnDbr;
-
-    int validate;
 
     //values for affinity clustering
     unsigned int maxIteration;
