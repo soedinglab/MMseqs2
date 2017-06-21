@@ -525,6 +525,7 @@ public:
     std::vector<MMseqsParameter> convertprofiledb;
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2msa;
+    std::vector<MMseqsParameter> msa2profile;
     std::vector<MMseqsParameter> createtsv;
     std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorfs;

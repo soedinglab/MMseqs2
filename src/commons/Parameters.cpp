@@ -293,6 +293,16 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     result2msa.push_back(PARAM_SKIP_QUERY);
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
+    //msa2profile
+    msa2profile.push_back(PARAM_SUB_MAT);
+    msa2profile.push_back(PARAM_MAX_SEQ_LEN);
+    msa2profile.push_back(PARAM_PCA);
+    msa2profile.push_back(PARAM_PCB);
+    msa2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
+    msa2profile.push_back(PARAM_WG);
+    msa2profile.push_back(PARAM_THREADS);
+    msa2profile.push_back(PARAM_V);
+
     // extract orf
     extractorfs.push_back(PARAM_ORF_MIN_LENGTH);
     extractorfs.push_back(PARAM_ORF_MAX_LENGTH);

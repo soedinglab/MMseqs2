@@ -34,6 +34,7 @@ set(util_source_files
         tsv2db.cpp
         result2repseq.cpp
         assembleresult.cpp
+        msa2profile.cpp
         )
 
 add_library(util ${util_source_files} )
