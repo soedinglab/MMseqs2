@@ -300,6 +300,12 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     msa2profile.push_back(PARAM_PCB);
     msa2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
     msa2profile.push_back(PARAM_WG);
+    msa2profile.push_back(PARAM_FILTER_MSA);
+    msa2profile.push_back(PARAM_FILTER_COV);
+    msa2profile.push_back(PARAM_FILTER_QID);
+    msa2profile.push_back(PARAM_FILTER_QSC);
+    msa2profile.push_back(PARAM_FILTER_MAX_SEQ_ID);
+    msa2profile.push_back(PARAM_FILTER_NDIFF);
     msa2profile.push_back(PARAM_THREADS);
     msa2profile.push_back(PARAM_V);
 

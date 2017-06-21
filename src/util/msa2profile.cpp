@@ -59,10 +59,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         Sequence sequence(par.maxSeqLen, subMat.aa2int, subMat.int2aa,
                           Sequence::AMINO_ACIDS, 0, false, par.compBiasCorrection != 0);
 
-        char *msaContent = new char[maxMsaSize];
+        char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * maxMsaSize);
         size_t msaPos = 0;
 
-        char *seqBuffer = new char[par.maxSeqLen];
+        char *seqBuffer = new char[par.maxSeqLen + 1];
         bool *maskedColumns = new bool[par.maxSeqLen];
 
 #pragma omp for schedule(static)
@@ -76,7 +76,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             unsigned int queryKey = qDbr.getDbKey(id);
 
             size_t setSize = 0;
-            size_t centerLength = 0;
+            size_t centerLengthWithGaps = 0;
             size_t maskedCount = 0;
 
             size_t entrySize = qDbr.getSeqLens(id);
@@ -103,13 +103,13 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                         }
                     }
 
-                    centerLength = length;
+                    centerLengthWithGaps = length;
 
-                    if (centerLength > par.maxSeqLen) {
+                    if (centerLengthWithGaps > par.maxSeqLen) {
                             Debug(Debug::WARNING)
                                     << "MSA " << id << " is too long and will be cut short!"
                                     << "Please adjust --max-seq-len.\n";
-                        centerLength = par.maxSeqLen;
+                        centerLengthWithGaps = par.maxSeqLen;
                     }
 
                     std::string header(seq->name.s);
@@ -124,7 +124,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 table.push_back(msaContent + msaPos);
 
                 size_t seqPos = 0;
-                for (size_t i = 0; i < centerLength; ++i) {
+                for (size_t i = 0; i < centerLengthWithGaps; ++i) {
                     if (maskedColumns[i] == true) {
                         continue;
                     }
@@ -140,7 +140,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                         }
                     }
                 }
-                msaContent[msaPos++] = 0;
+
+                while(msaPos % ALIGN_INT != 0) {
+                    msaContent[msaPos++] = MultipleAlignment::GAP;
+                }
 
                 if (setSize == 0) {
                     seqBuffer[seqPos++] = '\n';
@@ -156,25 +159,40 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 continue;
             }
 
-#if __cplusplus <= 199711L
-            // Before C++11 this memory might be in any order
-            // So we actually have to copy it around
-            char **msaSequences = new char *[table.size()];
+            char **msaSequences = (char**) mem_align(ALIGN_INT, sizeof(char*) * table.size());
             size_t cnt = 0;
             for (std::vector<char*>::const_iterator it = table.begin(); it != table.end(); ++it) {
                 msaSequences[cnt++] = (*it);
             }
-#else
-            // C++11 guarantees that the internal memory is continuous
-            char **msaSequences = table.data();
-#endif
+
+            size_t centerLength = centerLengthWithGaps - maskedCount;
+
+            if (par.filterMsa == true) {
+                MsaFilter filter(centerLength, setSize, &subMat);
+                MsaFilter::MsaFilterResult filterRes
+                        = filter.filter((const char **) msaSequences,
+                                        setSize,
+                                        centerLength,
+                                        static_cast<int>(par.cov * 100),
+                                        static_cast<int>(par.qid * 100),
+                                        par.qsc,
+                                        static_cast<int>(par.filterMaxSeqId * 100),
+                                        par.Ndiff);
+
+                setSize = filterRes.setSize;
+                for (size_t i = 0; i < filterRes.setSize; i++) {
+                    msaSequences[i] = (char *) filterRes.filteredMsaSequence[i];
+                }
+            }
 
             std::pair<const char *, std::string> pssmRes =
-                    calculator.computePSSMFromMSA(setSize, (centerLength - maskedCount),
+                    calculator.computePSSMFromMSA(setSize, centerLength,
                                                   (const char **) msaSequences, par.wg);
 
+            free(msaSequences);
+
             char *data = (char *) pssmRes.first;
-            size_t dataSize = (centerLength - maskedCount) * Sequence::PROFILE_AA_SIZE * sizeof(char);
+            size_t dataSize = centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
             for (size_t i = 0; i < dataSize; i++) {
                 // Avoid a null byte result
                 data[i] = data[i] ^ 0x80;
@@ -186,7 +204,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             consensusStr.push_back('\n');
             consensusWriter.writeData(consensusStr.c_str(), consensusStr.length(), queryKey, thread_idx);
         }
-        delete msaContent;
+        free(msaContent);
     }
 
     consensusWriter.close();
