@@ -63,7 +63,7 @@ std::pair<const char *, std::string> PSSMCalculator::computePSSMFromMSA(size_t s
     for (size_t pos = 0; pos < queryLength; pos++) {
         if (msaSeqs[0][pos] == MultipleAlignment::GAP) {
             Debug(Debug::ERROR) <<
-            "Error in computePSSMFromMSA. First sequence of MSA is not allowed ot contain gaps.\n";
+            "Error in computePSSMFromMSA. First sequence of MSA is not allowed to contain gaps.\n";
             EXIT(EXIT_FAILURE);
         }
     }
