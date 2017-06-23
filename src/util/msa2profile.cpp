@@ -3,6 +3,7 @@
 #include "PSSMCalculator.h"
 #include "DBReader.h"
 #include "DBWriter.h"
+#include "FileUtil.h"
 
 #include "kseq.h"
 #include "kseq_buffer_reader.h"
@@ -211,6 +212,9 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     headerWriter.close();
     sequenceWriter.close();
     resultWriter.close();
+
+    FileUtil::symlinkAlias(par.db2 + "_seq_h", par.db2 + "_h");
+    FileUtil::symlinkAlias(par.db2 + "_seq_h.index", par.db2 + "_h.index");
 
     qDbr.close();
     gettimeofday(&end, NULL);
