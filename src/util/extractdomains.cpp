@@ -278,7 +278,8 @@ int doExtract(Parameters &par, DBReader<unsigned int> &blastTabReader,
                 msa = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader);
                 break;
             }
-            case 1: {
+            case 1:
+            case 2: {
                 msa = std::string(data, entryLength);
                 break;
             }

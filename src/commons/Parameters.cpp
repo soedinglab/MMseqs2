@@ -150,7 +150,7 @@ PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Head
         PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE_ID, "-r", "random representative choice","Instead of first cluster member as representative choose a random one.",typeid(bool),(void *) &randomizedRepresentative, ""),
         PARAM_EVALUATION_USE_SEQUENCEHEADER(PARAM_EVALUATION_USE_SEQUENCEHEADER_ID, "-h", "Use sequence db to map numerical ids back to UniProt Id","use sequence db to map numerical ids back to UniProt Id, should always be set except for UniRef",typeid(bool),(void *) &use_sequenceheader, ""),
         PARAM_OVERLAP(PARAM_OVERLAP_ID, "--overlap", "Overlap", "maximum overlap", typeid(float), (void*) &overlap, "^[0-9]*(\\.[0-9]+)?$"),
-        PARAM_MSA_TYPE(PARAM_MSA_TYPE_ID,"--msa-type", "MSA type", "MSA Type: cA3M 0 or A3M 1", typeid(int), (void *) &msaType, "^[0-2]{1}$"),
+        PARAM_MSA_TYPE(PARAM_MSA_TYPE_ID,"--msa-type", "MSA type", "MSA Type: cA3M 0, A3M 1, FASTA 2", typeid(int), (void *) &msaType, "^[0-2]{1}$"),
 // extractalignedregion
         PARAM_EXTRACT_MODE(PARAM_EXTRACT_MODE_ID,"--extract-mode", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &extractMode, "^[1-2]{1}$"),
 // convertkb
@@ -294,6 +294,7 @@ PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover De
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
     //msa2profile
+    msa2profile.push_back(PARAM_MSA_TYPE);
     msa2profile.push_back(PARAM_SUB_MAT);
     msa2profile.push_back(PARAM_MAX_SEQ_LEN);
     msa2profile.push_back(PARAM_PCA);
