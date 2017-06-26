@@ -4,7 +4,7 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "FileUtil.h"
-#include "CompressedA3M.h
+#include "CompressedA3M.h"
 
 #include "kseq.h"
 #include "kseq_buffer_reader.h"
@@ -111,12 +111,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             bool fastaError = false;
             std::vector<char *> table;
 
-            char *data = qDbr.getData(id);
+            char *entryData = qDbr.getData(id);
             std::string msa;
             if (par.msaType == 0) {
-                msa = CompressedA3M::extractA3M(data, entryLength, *sequenceReader, *headerReader);
+                msa = CompressedA3M::extractA3M(entryData, entryLength, *sequenceReader, *headerReader);
             } else if (par.msaType == 1 || par.msaType == 2) {
-                msa = std::string(data, entryLength);
+                msa = std::string(entryData, entryLength);
             }
 
             kseq_buffer_t d((char*)msa.c_str(), msa.length());
