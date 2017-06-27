@@ -249,7 +249,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         queryReader->close();
         delete queryReader;
         if (sameDB == false) {
-            queryReader->close();
+            targetReader->close();
             delete targetReader;
         }
     }
