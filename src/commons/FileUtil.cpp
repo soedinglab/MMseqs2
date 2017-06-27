@@ -51,12 +51,16 @@ size_t FileUtil::countLines(const char* name) {
     return cnt;
 }
 
+void FileUtil::deleteFile(std::string tmpFiles) {
+    if (remove(tmpFiles.c_str()) != 0) {
+        Debug(Debug::WARNING) << "Error deleting file " << tmpFiles << "\n";
+    }
+}
+
 void FileUtil::deleteTempFiles(std::list<std::string> tmpFiles) {
     for (std::list<std::string>::const_iterator it = tmpFiles.begin(); it != tmpFiles.end(); it++) {
         Debug(Debug::INFO) << "Deleting " << *it << "\n";
-        if (remove((*it).c_str()) != 0) {
-            Debug(Debug::WARNING) << "Error deleting file " << *it << "\n";
-        }
+        deleteFile(*it);
     }
 }
 

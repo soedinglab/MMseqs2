@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <FileUtil.h>
 
 #include "Alignment.h"
 #include "Util.h"
@@ -77,50 +78,6 @@ private:
     DBReader<unsigned int> *index;
 };
 
-class OutputWriter {
-public:
-    OutputWriter(const std::string &outname, bool db, unsigned int threads = 1)
-            : db(db), writer(NULL), fs(NULL) {
-        if (db == true) {
-            std::string index(outname);
-            index.append(".index");
-
-            writer = new DBWriter(outname.c_str(), index.c_str(), threads);
-            writer->open();
-        } else {
-            fs = new std::ofstream(outname);
-            if (fs->fail()) {
-                Debug(Debug::ERROR) << "Cannot read " << outname << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-        }
-    }
-
-    void write(const std::string &data, unsigned int key, unsigned int thread = 0) {
-        if (db == true) {
-            writer->writeData(data.c_str(), data.size(), key, thread);
-        } else {
-            (*fs) << data;
-        }
-    }
-
-    ~OutputWriter() {
-        if (db == true) {
-            writer->close();
-            delete writer;
-        } else {
-            fs->close();
-            delete fs;
-        }
-    }
-
-private:
-    const bool db;
-    DBWriter *writer;
-    std::ofstream *fs;
-};
-
-
 void printSeqBasedOnAln(std::ostream &out, const char *seq, unsigned int offset, const std::string &bt, bool reverse) {
     unsigned int seqPos = 0;
     for (uint32_t i = 0; i < bt.size(); ++i) {
@@ -147,7 +104,6 @@ void printSeqBasedOnAln(std::ostream &out, const char *seq, unsigned int offset,
                 break;
         }
     }
-
 }
 
 int convertalignments(int argc, const char **argv, const Command &command) {
@@ -188,14 +144,10 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> alnDbr(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+    resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
-    bool isDb = par.dbOut;
-    unsigned int threads = 1;
-    if (isDb == true) {
-        threads = static_cast<unsigned int>(par.threads);
-    }
 
-    OutputWriter *writer = new OutputWriter(par.db4, isDb, threads);
 #pragma omp parallel for schedule(static) num_threads(threads)
     for (size_t i = 0; i < alnDbr.getSize(); i++) {
         unsigned int thread_idx = 0;
@@ -231,8 +183,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
             if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_BLAST_TAB) {
                 int count = snprintf(buffer, sizeof(buffer), "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                    queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength, missMatchCount, gapOpenCount,
-                    res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1, res.eval, res.score);
+                                     queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength, missMatchCount, gapOpenCount,
+                                     res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1, res.eval, res.score);
 
                 if (count < 0 || count>=sizeof(buffer)) {
                     Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
@@ -242,8 +194,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 ss << buffer;
             } else if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_PAIRWISE) {
                 int count = snprintf(buffer, sizeof(buffer), ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                        queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength, missMatchCount, gapOpenCount,
-                        res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1, res.eval, res.score);
+                                     queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength, missMatchCount, gapOpenCount,
+                                     res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1, res.eval, res.score);
 
                 if (count < 0 || count>=sizeof(buffer)) {
                     Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
@@ -265,13 +217,32 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 //TODO
             }
         }
-        
+
         std::string result = ss.str();
-        writer->write(result, queryKey, thread_idx);
+        resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
     }
+    resultWriter.close();
 
-    delete writer;
-
+    bool isDb = par.dbOut;
+    // remove NULL byte
+    // \n\0 -> ' '\n
+    if(isDb==false) {
+        int ch;
+        int prevCh = ' ';
+        FILE * resultFile = FileUtil::openFileOrDie(par.db4.c_str(), "r+", true);
+        while ((ch = getc_unlocked(resultFile)) != EOF) {
+            if (prevCh == '\n' && ch == '\0') {
+                fseek(resultFile, -1, SEEK_CUR);
+                fputc('\n', resultFile);
+                fseek(resultFile, -2, SEEK_CUR);
+                fputc(' ', resultFile);
+                fseek(resultFile, 0, SEEK_CUR);
+            }
+            prevCh=ch;
+        }
+        fclose(resultFile);
+        FileUtil::deleteFile(par.db4Index);
+    }
     if (par.earlyExit) {
         Debug(Debug::INFO) << "Done. Exiting early now.\n";
         _Exit(EXIT_SUCCESS);

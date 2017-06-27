@@ -18,6 +18,8 @@ public:
 
     static void deleteTempFiles(std::list<std::string> tmpFiles);
 
+    static void deleteFile(std::string tmpFiles);
+
     static void writeFile(std::string pathToFile, const unsigned char *sh, size_t len);
 
     static std::string dirName(const std::string &fileName);
