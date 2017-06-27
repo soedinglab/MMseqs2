@@ -23,6 +23,8 @@ public:
     static std::string dirName(const std::string &fileName);
 
     static size_t getFreeSpace(const char *dir);
+
+    static void symlinkAlias(const std::string &file, const std::string &alias);
 };
 
 

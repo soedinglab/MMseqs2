@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/statvfs.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 bool FileUtil::fileExists(const char* fileName) {
     struct stat st;
@@ -98,4 +100,31 @@ size_t FileUtil::getFreeSpace(const char *path) {
 
         // the available size is f_bsize * f_bavail
         return stat.f_bfree * stat.f_frsize;
+}
+
+void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
+    char *p = realpath(file.c_str(), NULL);
+    std::string path = dirName(p);
+    free(p);
+
+    DIR *dir = opendir(path.c_str());
+    if (dir == NULL) {
+        Debug(Debug::ERROR) << "Error opening directory " << path << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    std::string pathToAlias = (path + "/" + alias);
+    if (FileUtil::fileExists(pathToAlias.c_str())) {
+        remove(pathToAlias.c_str());
+    }
+
+    if (symlinkat(file.c_str(), dirfd(dir), alias.c_str()) != 0) {
+        Debug(Debug::ERROR) << "Could not create symlink of " << file << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    if (closedir(dir) != 0) {
+        Debug(Debug::ERROR) << "Error closing directory " << path << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
 }
