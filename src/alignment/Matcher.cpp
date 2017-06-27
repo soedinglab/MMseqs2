@@ -107,13 +107,15 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         qcov  = computeCov(qStartPos, qEndPos, currentQuery->L);
         dbcov = computeCov(dbStartPos, dbEndPos, dbSeq->L);
     }
+
+    unsigned int alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
     // try to estimate sequence id
     if(mode == Matcher::SCORE_COV_SEQID){
         // compute sequence id
         unsigned int qAlnLen = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
         unsigned int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
-        unsigned int alnLength = 1;
         if(alignment.cigar){
+            // OVERWRITE alnLength with gapped value
            alnLength = SmithWaterman::cigar_int_to_len(alignment.cigar[0]);
         }
         seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(std::max(qAlnLen, dbAlnLen), alnLength));
@@ -131,19 +133,10 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
         seqId = estimateSeqIdByScorePerCol(alignment.score1, qAlnLen, dbAlnLen);
     }
 
-    // statistics
-    //  E =  qL dL * 2^(-S)
+    //  E =  qL dL * exp^(-S/lambda)
     double evalue = evaluer->computeEvalue(alignment.score1, currentQuery->L);
     int bitScore = static_cast<short>(evaluer->computeBitScore(alignment.score1)+0.5);
-//    std::cout << alignment.score1 << "\t" << evalue << "\t" << bitScore << std::endl;
 
-    size_t alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
-
-    //blast stat
-//    double lambda= 0.267;
-//    double K= 0.041;
-//    double Kmn=(qL * seqDbSize * dbSeq->L);
-//    double evalue = Kmn * exp(-(alignment->score1 * lambda));
     result_t result(dbSeq->getDbKey(), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbStartPos, dbEndPos, dbSeq->L, backtrace);
     delete [] alignment.cigar;
     return result;
@@ -252,8 +245,6 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
                                      dbLen, uncompressAlignment(std::string(entry[10], len)));
         }
     }
-
-
 }
 
 std::string Matcher::resultToString(result_t &result, bool addBacktrace) {
