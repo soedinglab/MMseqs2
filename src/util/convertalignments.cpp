@@ -148,7 +148,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
 
-#pragma omp parallel for schedule(static) num_threads(threads)
+#pragma omp parallel for schedule(static) 
     for (size_t i = 0; i < alnDbr.getSize(); i++) {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
