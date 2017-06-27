@@ -75,10 +75,10 @@ template <typename T> DBReader<T>::~DBReader(){
     }
 }
 
-template <typename T> void DBReader<T>::open(int accessType){
+template <typename T> bool DBReader<T>::open(int accessType){
     // count the number of entries
     this->accessType = accessType;
-
+    bool isSortedById = false;
     if (dataMode & USE_DATA) {
         dataFile = fopen(dataFileName, "r");
         if (dataFile == NULL) {
@@ -94,7 +94,7 @@ template <typename T> void DBReader<T>::open(int accessType){
         index = new Index[this->size];
         seqLens = new unsigned int[size];
 
-        bool isSortedById = readIndex(indexFileName, index, data, seqLens);
+        isSortedById = readIndex(indexFileName, index, data, seqLens);
         sortIndex(isSortedById);
 
         // init seq lens array and dbKey mapping
@@ -106,6 +106,7 @@ template <typename T> void DBReader<T>::open(int accessType){
     }
 
     closed = 0;
+    return isSortedById;
 }
 
 template<typename T>
