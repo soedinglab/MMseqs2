@@ -147,8 +147,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
+    bool isDb = par.dbOut;
 
-#pragma omp parallel for schedule(static) 
+#pragma omp parallel for schedule(static)
     for (size_t i = 0; i < alnDbr.getSize(); i++) {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -219,28 +220,17 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         }
 
         std::string result = ss.str();
-        resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
+        if(isDb==false){
+            resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx, false);
+        }else{
+            resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
+        }
     }
     resultWriter.close();
 
-    bool isDb = par.dbOut;
     // remove NULL byte
     // \n\0 -> ' '\n
     if(isDb==false) {
-        int ch;
-        int prevCh = ' ';
-        FILE * resultFile = FileUtil::openFileOrDie(par.db4.c_str(), "r+", true);
-        while ((ch = getc_unlocked(resultFile)) != EOF) {
-            if (prevCh == '\n' && ch == '\0') {
-                fseek(resultFile, -1, SEEK_CUR);
-                fputc('\n', resultFile);
-                fseek(resultFile, -2, SEEK_CUR);
-                fputc(' ', resultFile);
-                fseek(resultFile, 0, SEEK_CUR);
-            }
-            prevCh=ch;
-        }
-        fclose(resultFile);
         FileUtil::deleteFile(par.db4Index);
     }
     if (par.earlyExit) {

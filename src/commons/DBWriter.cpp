@@ -189,7 +189,7 @@ void DBWriter::close() {
     closed = true;
 }
 
-void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx) {
+void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx, bool addNullByte) {
     checkClosed();
     if (thrIdx >= threads) {
         Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
@@ -205,13 +205,15 @@ void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, un
     offsets[thrIdx] += written;
 
     // entries are always separated by a null byte
-    char nullByte = '\0';
-    written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
-    if (written != 1) {
-        Debug(Debug::ERROR) << "Could not write to data file " << dataFileName[thrIdx] << "\n";
-        EXIT(EXIT_FAILURE);
+    if(addNullByte == true){
+        char nullByte = '\0';
+        written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
+        if (written != 1) {
+            Debug(Debug::ERROR) << "Could not write to data file " << dataFileName[thrIdx] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        offsets[thrIdx] += 1;
     }
-    offsets[thrIdx] += 1;
 
     size_t length = offsets[thrIdx] - offsetStart;
     fprintf(indexFiles[thrIdx], "%u\t%zd\t%zd\n", key, offsetStart, length);
