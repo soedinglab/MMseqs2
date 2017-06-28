@@ -91,8 +91,8 @@ void Util::decomposeDomainByAminoAcid(size_t aaSize, T seqSizes, size_t count,
     size_t currentSize = 0;
     *start = 0;
     *size = 0;
-    for (size_t i = 0; i < count; i++) {
-        if (currentSize > aaPerSplit){
+    for(size_t i = 0; i < count; i++ ){
+        if(currentSize > aaPerSplit){
             currentSize = 0;
             currentRank++;
             if (currentRank > worldRank) {

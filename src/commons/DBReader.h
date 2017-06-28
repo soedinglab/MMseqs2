@@ -29,7 +29,7 @@ public:
 
     virtual ~DBReader();
 
-    void open(int sort);
+    bool open(int sort);
 
     void close();
 

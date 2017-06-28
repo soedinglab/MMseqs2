@@ -189,7 +189,7 @@ void DBWriter::close() {
     closed = true;
 }
 
-void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx) {
+void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx, bool addNullByte) {
     checkClosed();
     if (thrIdx >= threads) {
         Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
@@ -205,13 +205,15 @@ void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, un
     offsets[thrIdx] += written;
 
     // entries are always separated by a null byte
-    char nullByte = '\0';
-    written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
-    if (written != 1) {
-        Debug(Debug::ERROR) << "Could not write to data file " << dataFileName[thrIdx] << "\n";
-        EXIT(EXIT_FAILURE);
+    if(addNullByte == true){
+        char nullByte = '\0';
+        written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
+        if (written != 1) {
+            Debug(Debug::ERROR) << "Could not write to data file " << dataFileName[thrIdx] << "\n";
+            EXIT(EXIT_FAILURE);
+        }
+        offsets[thrIdx] += 1;
     }
-    offsets[thrIdx] += 1;
 
     size_t length = offsets[thrIdx] - offsetStart;
     fprintf(indexFiles[thrIdx], "%u\t%zd\t%zd\n", key, offsetStart, length);
@@ -292,7 +294,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         size_t globalOffset = 0;
         for (unsigned int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
             DBReader<unsigned int> reader(indexFileNames[fileIdx], indexFileNames[fileIdx],
-                                         DBReader<unsigned int>::USE_INDEX);
+                                          DBReader<unsigned int>::USE_INDEX);
             reader.open(DBReader<unsigned int>::NOSORT);
             if (reader.getSize() > 0) {
                 size_t tmpOffset = 0;
@@ -324,11 +326,12 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     }
     // sort the index
     DBReader<unsigned int> indexReader(outFileNameIndex, outFileNameIndex, DBReader<unsigned int>::USE_INDEX);
-    indexReader.open(DBReader<unsigned int>::SORT_BY_ID);
-    DBReader<unsigned int>::Index *index = indexReader.getIndex();
-    FILE *index_file  = fopen(outFileNameIndex, "w");
-    writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
-    fclose(index_file);
+    if(indexReader.open(DBReader<unsigned int>::SORT_BY_ID) == false){
+        DBReader<unsigned int>::Index *index = indexReader.getIndex();
+        FILE *index_file  = fopen(outFileNameIndex, "w");
+        writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
+        fclose(index_file);
+    }
     indexReader.close();
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;

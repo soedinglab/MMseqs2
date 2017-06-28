@@ -31,7 +31,7 @@ class DBWriter {
     
         char* getIndexFileName() { return indexFileName; }
 
-        void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0);
+        void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0, bool addNullByte = true);
 
         void alignToPageSize();
 
