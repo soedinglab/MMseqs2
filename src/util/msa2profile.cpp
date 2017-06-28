@@ -54,38 +54,51 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     unsigned int maxSeqLength = 0;
     unsigned int maxSetSize = 0;
     unsigned int *msaSizes = qDbr.getSeqLens();
-#pragma omp parallel for schedule(static) reduction(max:maxSeqLength, maxSetSize)
-    for (size_t id = 0; id < qDbr.getSize(); id++) {
-        bool inHeader = false;
-        unsigned int setSize = 0;
-        unsigned int seqLength = 0;
+#pragma omp parallel
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
 
-        char *entryData = qDbr.getData(id);
-        for (size_t i = 0; i < msaSizes[id]; ++i) {
-            switch (entryData[i]) {
-                case '>':
-                    inHeader = true;
-                    setSize++;
-                    break;
-                case '\n':
-                    if (inHeader) {
-                        inHeader = false;
-                    }
-                    break;
-                default:
-                    if (!inHeader && setSize == 1) {
-                        seqLength++;
-                    }
-                    break;
+        size_t dbFrom, dbSize;
+        Util::decomposeDomainByAminoAcid(qDbr.getAminoAcidDBSize(),
+                                         qDbr.getSeqLens(), qDbr.getSize(),
+                                         thread_idx, par.threads, &dbFrom, &dbSize);
+
+#pragma omp for schedule(static) reduction(max:maxSeqLength, maxSetSize)
+        for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
+            bool inHeader = false;
+            unsigned int setSize = 0;
+            unsigned int seqLength = 0;
+
+            char *entryData = qDbr.getData(id);
+            for (size_t i = 0; i < msaSizes[id]; ++i) {
+                switch (entryData[i]) {
+                    case '>':
+                        inHeader = true;
+                        setSize++;
+                        break;
+                    case '\n':
+                        if (inHeader) {
+                            inHeader = false;
+                        }
+                        break;
+                    default:
+                        if (!inHeader && setSize == 1) {
+                            seqLength++;
+                        }
+                        break;
+                }
             }
-        }
 
-        if (setSize > maxSetSize) {
-            maxSetSize = setSize;
-        }
+            if (setSize > maxSetSize) {
+                maxSetSize = setSize;
+            }
 
-        if (seqLength > maxSeqLength) {
-            maxSeqLength = seqLength;
+            if (seqLength > maxSeqLength) {
+                maxSeqLength = seqLength;
+            }
         }
     }
 
@@ -111,6 +124,15 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Compute profiles from MSAs.\n";
 #pragma omp parallel
     {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+        size_t dbFrom, dbSize;
+        Util::decomposeDomainByAminoAcid(qDbr.getAminoAcidDBSize(),
+                                         qDbr.getSeqLens(), qDbr.getSize(),
+                                         thread_idx, par.threads, &dbFrom, &dbSize);
+
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
         PSSMCalculator calculator(&subMat, maxSeqLength, par.pca, par.pcb);
         Sequence sequence(maxSeqLength, subMat.aa2int, subMat.int2aa,
@@ -125,12 +147,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         bool *maskedColumns = new bool[maxSeqLength];
 
 #pragma omp for schedule(static)
-        for (size_t id = 0; id < qDbr.getSize(); id++) {
+        for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
-            unsigned int thread_idx = 0;
-#ifdef OPENMP
-            thread_idx = (unsigned int) omp_get_thread_num();
-#endif
 
             unsigned int queryKey = qDbr.getDbKey(id);
 
