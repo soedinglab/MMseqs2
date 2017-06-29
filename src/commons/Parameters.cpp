@@ -292,6 +292,7 @@ Parameters::Parameters():
     //msa2profile
     msa2profile.push_back(PARAM_MSA_TYPE);
     msa2profile.push_back(PARAM_SUB_MAT);
+    msa2profile.push_back(PARAM_MAX_SEQ_LEN);
     msa2profile.push_back(PARAM_PCA);
     msa2profile.push_back(PARAM_PCB);
     msa2profile.push_back(PARAM_NO_COMP_BIAS_CORR);

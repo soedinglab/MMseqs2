@@ -25,6 +25,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     setMsa2ProfileDefaults(&par);
     par.parseParameters(argc, argv, command, 2);
 
+    Debug(Debug::INFO) << "Compute profiles from MSAs.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
@@ -50,55 +51,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> qDbr(msaData.c_str(), msaIndex.c_str());
     qDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    Debug(Debug::INFO) << "Finding maximum sequence length and set size.\n";
-    unsigned int maxSeqLength = 0;
-    unsigned int maxSetSize = 0;
+    unsigned int maxMsaSize = 0;
     unsigned int *msaSizes = qDbr.getSeqLens();
-#pragma omp parallel
-    {
-        unsigned int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = (unsigned int) omp_get_thread_num();
-#endif
-
-        size_t dbFrom, dbSize;
-        Util::decomposeDomainByAminoAcid(qDbr.getAminoAcidDBSize(),
-                                         qDbr.getSeqLens(), qDbr.getSize(),
-                                         thread_idx, par.threads, &dbFrom, &dbSize);
-
-#pragma omp for schedule(static) reduction(max:maxSeqLength, maxSetSize)
-        for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
-            bool inHeader = false;
-            unsigned int setSize = 0;
-            unsigned int seqLength = 0;
-
-            char *entryData = qDbr.getData(id);
-            for (size_t i = 0; i < msaSizes[id]; ++i) {
-                switch (entryData[i]) {
-                    case '>':
-                        inHeader = true;
-                        setSize++;
-                        break;
-                    case '\n':
-                        if (inHeader) {
-                            inHeader = false;
-                        }
-                        break;
-                    default:
-                        if (!inHeader && setSize == 1) {
-                            seqLength++;
-                        }
-                        break;
-                }
-            }
-
-            if (setSize > maxSetSize) {
-                maxSetSize = setSize;
-            }
-
-            if (seqLength > maxSeqLength) {
-                maxSeqLength = seqLength;
-            }
+#pragma omp parallel for schedule(static) reduction(max:maxMsaSize)
+    for (size_t id = 0; id < qDbr.getSize(); id++) {
+        if (msaSizes[id] > maxMsaSize) {
+            maxMsaSize = msaSizes[id];
         }
     }
 
@@ -121,75 +79,73 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                              threads);
     consensusWriter.open();
 
-    Debug(Debug::INFO) << "Compute profiles from MSAs.\n";
 #pragma omp parallel
     {
-        unsigned int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = (unsigned int) omp_get_thread_num();
-#endif
-        size_t dbFrom, dbSize;
-        Util::decomposeDomainByAminoAcid(qDbr.getAminoAcidDBSize(),
-                                         qDbr.getSeqLens(), qDbr.getSize(),
-                                         thread_idx, par.threads, &dbFrom, &dbSize);
-
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
-        PSSMCalculator calculator(&subMat, maxSeqLength, par.pca, par.pcb);
-        Sequence sequence(maxSeqLength, subMat.aa2int, subMat.int2aa,
+        PSSMCalculator calculator(&subMat, par.maxSeqLen, par.pca, par.pcb);
+        Sequence sequence(par.maxSeqLen, subMat.aa2int, subMat.int2aa,
                           Sequence::AMINO_ACIDS, 0, false, par.compBiasCorrection != 0);
 
-        char *msaContent = (char*) mem_align(ALIGN_INT,
-                                             sizeof(char) * maxSeqLength * maxSetSize +
-                                             sizeof(char) * ALIGN_INT  * maxSetSize);
+        char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * maxMsaSize);
         size_t msaPos = 0;
 
-        char *seqBuffer = new char[maxSeqLength + 1];
-        bool *maskedColumns = new bool[maxSeqLength];
+        char *seqBuffer = new char[par.maxSeqLen + 1];
+        bool *maskedColumns = new bool[par.maxSeqLen];
 
 #pragma omp for schedule(static)
-        for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
+        for (size_t id = 0; id < qDbr.getSize(); id++) {
             Debug::printProgress(id);
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = (unsigned int) omp_get_thread_num();
+#endif
 
             unsigned int queryKey = qDbr.getDbKey(id);
 
-            unsigned int setSize = 0;
-            unsigned int centerLengthWithGaps = 0;
-            unsigned int maskedCount = 0;
+            size_t setSize = 0;
+            size_t centerLengthWithGaps = 0;
+            size_t maskedCount = 0;
+
+            size_t entryLength = qDbr.getSeqLens(id);
 
             bool fastaError = false;
             std::vector<char *> table;
 
             char *entryData = qDbr.getData(id);
-            size_t entryLength = qDbr.getSeqLens(id);
-
-            kseq_buffer_t *d;
             std::string msa;
             if (par.msaType == 0) {
                 msa = CompressedA3M::extractA3M(entryData, entryLength, *sequenceReader, *headerReader);
-                d = new kseq_buffer_t(const_cast<char*>(msa.c_str()), msa.length());
-            } else {
-                d = new kseq_buffer_t(entryData, entryLength);
+            } else if (par.msaType == 1 || par.msaType == 2) {
+                msa = std::string(entryData, entryLength);
             }
 
-            kseq_t *seq = kseq_init(d);
+            kseq_buffer_t d((char*)msa.c_str(), msa.length());
+            kseq_t *seq = kseq_init(&d);
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
-                    Debug(Debug::WARNING) << "Invalid fasta sequence "
-                                          << setSize << " in entry " << id << "!\n";
+                    Debug(Debug::WARNING) << "Invalid fasta entry " << setSize << "!\n";
                     fastaError = true;
                     break;
                 }
 
-                // first sequence is always the query
                 if (setSize == 0) {
-                    centerLengthWithGaps = static_cast<unsigned int>(strlen(seq->seq.s));
-                    for (size_t i = 0; i < centerLengthWithGaps; ++i) {
+                    size_t length = strlen(seq->seq.s);
+                    for (size_t i = 0; i < length; ++i) {
                         if (seq->seq.s[i] == '-') {
                             maskedColumns[i] = true;
                             maskedCount++;
                         } else {
                             maskedColumns[i] = false;
                         }
+                    }
+
+                    centerLengthWithGaps = length;
+
+                    if (centerLengthWithGaps > par.maxSeqLen) {
+                            Debug(Debug::WARNING)
+                                    << "MSA " << id << " is too long and will be cut short!"
+                                    << "Please adjust --max-seq-len.\n";
+                        centerLengthWithGaps = par.maxSeqLen;
                     }
 
                     std::string header(seq->name.s);
@@ -226,7 +182,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     }
                 }
 
-                // fill up the sequence buffer for the SIMD profile calculation
                 while(msaPos % ALIGN_INT != 0) {
                     msaContent[msaPos++] = MultipleAlignment::GAP;
                 }
@@ -239,15 +194,9 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 setSize++;
             }
             kseq_destroy(seq);
-            delete d;
 
-            if (fastaError == true) {
-                Debug(Debug::WARNING) << "Invalid msa " << id << "! Skipping entry.\n";
-                continue;
-            }
-
-            if (setSize == 0) {
-                Debug(Debug::WARNING) << "Empty msa " << id << "! Skipping entry.\n";
+            if (fastaError == true || setSize == 0) {
+                Debug(Debug::WARNING) << "Invalid msa " << id << "!\n";
                 continue;
             }
 
@@ -257,7 +206,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 msaSequences[cnt++] = (*it);
             }
 
-            unsigned int centerLength = centerLengthWithGaps - maskedCount;
+            size_t centerLength = centerLengthWithGaps - maskedCount;
 
             if (par.filterMsa == true) {
                 MsaFilter filter(centerLength, setSize, &subMat);
