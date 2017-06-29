@@ -307,7 +307,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     char* path = strdup((par.db2 + "_h").c_str());
     std::string base = basename(path);
     FileUtil::symlinkAlias(par.db2 + "_seq_h", base);
-    FileUtil::symlinkAlias(par.db2 + "_seq_h.index", base + "_h.index");
+    FileUtil::symlinkAlias(par.db2 + "_seq_h.index", base + ".index");
     free(path);
 
     qDbr.close();
