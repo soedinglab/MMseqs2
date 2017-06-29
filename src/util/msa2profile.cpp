@@ -73,10 +73,14 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 case '\n':
                     if (inHeader) {
                         inHeader = false;
+                        if (seqLength > maxSeqLength) {
+                            maxSeqLength = seqLength;
+                        }
+                        seqLength = 0;
                     }
                     break;
                 default:
-                    if (!inHeader && setSize == 1) {
+                    if (!inHeader) {
                         seqLength++;
                     }
                     break;
@@ -86,18 +90,11 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         if (setSize > maxSetSize) {
             maxSetSize = setSize;
         }
-
-        if (seqLength > maxSeqLength) {
-            maxSeqLength = seqLength;
-        }
     }
 
     // for SIMD memory alignment
-    Debug(Debug::INFO) << maxSeqLength << "\n";
     maxSeqLength =  maxSeqLength    / (VECSIZE_INT*4);
-    Debug(Debug::INFO) << maxSeqLength << "\n";
     maxSeqLength = (maxSeqLength+1) * (VECSIZE_INT*4);
-    Debug(Debug::INFO) << maxSeqLength << "\n";
 
     unsigned int threads = (unsigned int) par.threads;
     DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), threads, DBWriter::BINARY_MODE);
@@ -123,7 +120,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     {
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
         PSSMCalculator calculator(&subMat, maxSeqLength, maxSetSize, par.pca, par.pcb);
-        Sequence sequence(maxSeqLength, subMat.aa2int, subMat.int2aa,
+        Sequence sequence(maxSeqLength + 1, subMat.aa2int, subMat.int2aa,
                           Sequence::AMINO_ACIDS, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * maxSeqLength * maxSetSize);
@@ -174,6 +171,13 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
                     Debug(Debug::WARNING) << "Invalid fasta sequence "
                                           << setSize << " in entry " << id << "!\n";
+                    fastaError = true;
+                    break;
+                }
+
+                if (seq->seq.l > maxSeqLength) {
+                    Debug(Debug::WARNING) << "Member sequence "
+                                          << setSize << " in entry " << id << " too long!\n";
                     fastaError = true;
                     break;
                 }
