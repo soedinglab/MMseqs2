@@ -168,7 +168,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
         Matcher matcher(maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection);
 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, par.pca, par.pcb);
+        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
         UniprotHeaderSummarizer summarizer;
 

@@ -10,12 +10,12 @@
 #include "Debug.h"
 #include "MultipleAlignment.h"
 
-PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, float pca, float pcb) :
+PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb) :
         subMat(subMat)
 {
     this->profile            = new float[Sequence::PROFILE_AA_SIZE * maxSeqLength];
     this->Neff_M             = new float[maxSeqLength];
-    this->seqWeight          = new float[maxSeqLength];
+    this->seqWeight          = new float[maxSetSize];
     this->pssm = new char[Sequence::PROFILE_AA_SIZE * maxSeqLength];
     this->maxSeqLength = maxSeqLength;
     this->matchWeight        = (float *) malloc_simd_float(Sequence::PROFILE_AA_SIZE * maxSeqLength * sizeof(float));
@@ -32,7 +32,7 @@ PSSMCalculator::PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, 
     for (size_t j = 0; j < maxSeqLength; j++) {
         this->w_contrib[j] = (float *) malloc_simd_int(NAA_VECSIZE * sizeof(float));
     }
-    wi = new float[maxSeqLength];
+    wi = new float[maxSetSize];
     naa = new int[maxSeqLength];
     this->pca = pca;
     this->pcb = pcb;
