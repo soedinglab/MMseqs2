@@ -62,7 +62,7 @@ Parameters::Parameters():
         // create profile (HMM, PSSM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "0: HMM (HHsuite) 1: PSSM or 3: HMMER3",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
         // convertalignments
-        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format BLAST TAB=0, PAIRWISE=1", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
+        PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format 0: BLAST-TAB, 1: PAIRWISE, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database Output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, ""),
         // rescorediagonal
         PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "rescore diagonal by: 0 hamming distance, 1 local alignment (score only) or 2 local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),

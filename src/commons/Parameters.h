@@ -54,7 +54,10 @@ public:
     // format alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
     static const int FORMAT_ALIGNMENT_PAIRWISE  = 1;
-    static const int FORMAT_ALIGNMENT_SAM       = 2;
+    static const int FORMAT_ALIGNMENT_BLAST_WITH_LEN = 2;
+    // NOT IMPLEMENTED YET
+    static const int FORMAT_ALIGNMENT_SAM       = 99;
+
     // convertprofiledb
     static const int PROFILE_MODE_HMM = 0;
     static const int PROFILE_MODE_PSSM = 1;
