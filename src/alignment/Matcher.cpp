@@ -2,6 +2,7 @@
 #include "Matcher.h"
 #include "Util.h"
 #include "Parameters.h"
+#include "smith_waterman_sse2.h"
 
 Matcher::Matcher(int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection){
     this->m = m;
@@ -52,12 +53,9 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
 
     // avoid nummerical issues -log(evalThr/(qL*dbL*seqDbSize))
 //    double datapoints = -log(static_cast<double>(seqDbSize)) - log(qL) - log(dbL) + log(evalThr);
-    uint16_t scoreThr = evaluer->minScore(evalThr,qL);
-    if(evalThr == 0.0)
-        scoreThr = 0;
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
-    s_align alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, scoreThr, 0, maskLen);
+    s_align alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, evalThr, evaluer, maskLen);
     // calculation of the coverage and e-value
     float qcov = 0.0;
     float dbcov = 0.0;
@@ -134,7 +132,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     }
 
     //  E =  qL dL * exp^(-S/lambda)
-    double evalue = evaluer->computeEvalue(alignment.score1, currentQuery->L);
+    double evalue = alignment.evalue;
     int bitScore = static_cast<short>(evaluer->computeBitScore(alignment.score1)+0.5);
 
     result_t result(dbSeq->getDbKey(), bitScore, qcov, dbcov, seqId, evalue, alnLength, qStartPos, qEndPos, currentQuery->L, dbStartPos, dbEndPos, dbSeq->L, backtrace);
