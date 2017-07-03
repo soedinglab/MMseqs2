@@ -113,12 +113,13 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> *queryReader = NULL;
     DBReader<unsigned int> *targetReader = NULL;
 
-    bool sameDB = false;
-    if (par.db1.compare(par.db2) == 0) {
-        sameDB = true;
-    }
+    const bool sameDB = par.db1.compare(par.db2) == 0 ? true : false;
+    const int format = par.formatAlignmentMode;
+    const bool needSequenceDB =
+            format == Parameters::FORMAT_ALIGNMENT_PAIRWISE
+            || format == Parameters::FORMAT_ALIGNMENT_SAM;
 
-    if (par.formatAlignmentMode != Parameters::FORMAT_ALIGNMENT_BLAST_TAB) {
+    if (needSequenceDB) {
         targetReader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         targetReader->open(DBReader<unsigned int>::NOSORT);
         if (sameDB == true) {
@@ -160,7 +161,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         char *data = alnDbr.getData(i);
 
         std::string querySeq;
-        if (par.formatAlignmentMode != Parameters::FORMAT_ALIGNMENT_BLAST_TAB) {
+        if (needSequenceDB) {
             querySeq = queryReader->getDataByDBKey(queryKey);
         }
 
@@ -182,40 +183,70 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 }
             }
 
-            if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_BLAST_TAB) {
-                int count = snprintf(buffer, sizeof(buffer), "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                     queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength, missMatchCount, gapOpenCount,
-                                     res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1, res.eval, res.score);
+            switch (format) {
+                case Parameters::FORMAT_ALIGNMENT_BLAST_TAB: {
+                    int count = snprintf(buffer, sizeof(buffer),
+                                         "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
+                                         queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength,
+                                         missMatchCount, gapOpenCount,
+                                         res.qStartPos + 1, res.qEndPos + 1,
+                                         res.dbStartPos + 1, res.dbEndPos + 1,
+                                         res.eval, res.score);
 
-                if (count < 0 || count>=sizeof(buffer)) {
-                    Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
-                    continue;
+                    if (count < 0 || count >= sizeof(buffer)) {
+                        Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
+                        continue;
+                    }
+
+                    ss << buffer;
+                    break;
                 }
+                case Parameters::FORMAT_ALIGNMENT_BLAST_WITH_LEN: {
+                    int count = snprintf(buffer, sizeof(buffer),
+                                         "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\t%d\t%d\n",
+                                         queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength,
+                                         missMatchCount, gapOpenCount,
+                                         res.qStartPos + 1, res.qEndPos + 1,
+                                         res.dbStartPos + 1, res.dbEndPos + 1,
+                                         res.eval, res.score,
+                                         res.qLen, res.dbLen);
 
-                ss << buffer;
-            } else if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_PAIRWISE) {
-                int count = snprintf(buffer, sizeof(buffer), ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                     queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength, missMatchCount, gapOpenCount,
-                                     res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1, res.eval, res.score);
+                    if (count < 0 || count >= sizeof(buffer)) {
+                        Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
+                        continue;
+                    }
 
-                if (count < 0 || count>=sizeof(buffer)) {
-                    Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
-                    continue;
+                    ss << buffer;
+                    break;
                 }
+                case Parameters::FORMAT_ALIGNMENT_PAIRWISE: {
+                    int count = snprintf(buffer, sizeof(buffer),
+                                         ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
+                                         queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength, missMatchCount,
+                                         gapOpenCount,
+                                         res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1,
+                                         res.eval, res.score);
 
-                ss << buffer;
+                    if (count < 0 || count >= sizeof(buffer)) {
+                        Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
+                        continue;
+                    }
 
-                const std::string &backtrace =  Matcher::uncompressAlignment(res.backtrace);
-                printSeqBasedOnAln(ss, querySeq.c_str(), res.qStartPos, backtrace, false);
-                ss << '\n';
+                    ss << buffer;
 
-                std::string targetSeq = targetReader->getDataByDBKey(res.dbKey);
-                printSeqBasedOnAln(ss, targetSeq.c_str(), res.dbStartPos, backtrace, true);
-                ss << '\n';
+                    const std::string &backtrace = Matcher::uncompressAlignment(res.backtrace);
+                    printSeqBasedOnAln(ss, querySeq.c_str(), res.qStartPos, backtrace, false);
+                    ss << '\n';
 
-            } else if (par.formatAlignmentMode == Parameters::FORMAT_ALIGNMENT_SAM) { ;
-                ;
-                //TODO
+                    std::string targetSeq = targetReader->getDataByDBKey(res.dbKey);
+                    printSeqBasedOnAln(ss, targetSeq.c_str(), res.dbStartPos, backtrace, true);
+                    ss << '\n';
+                    break;
+                }
+                case Parameters::FORMAT_ALIGNMENT_SAM:
+                default:
+                    Debug(Debug::ERROR) << "Not implemented yet";
+                    EXIT(EXIT_FAILURE);
             }
         }
 
@@ -245,7 +276,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
         delete tHeaderDbr;
     }
 
-    if (par.formatAlignmentMode != Parameters::FORMAT_ALIGNMENT_BLAST_TAB) {
+    if (needSequenceDB) {
         queryReader->close();
         delete queryReader;
         if (sameDB == false) {

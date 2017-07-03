@@ -794,7 +794,8 @@ int main (int argc, const char * argv[])
     int32_t maskLen = s->L / 2;
     int gap_open = 10;
     int gap_extend = 1;
-    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 55, 0, maskLen);
+    EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend, true );
+    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, maskLen);
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 
