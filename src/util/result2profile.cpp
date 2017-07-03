@@ -168,7 +168,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
         Matcher matcher(maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection);
 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
-        PSSMCalculator calculator(&subMat, maxSequenceLength, par.pca, par.pcb);
+        PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
         UniprotHeaderSummarizer summarizer;
 
@@ -346,7 +346,7 @@ int result2outputmode(Parameters &par,const std::string &outpath,
                     // defined in object filterRes (with sequence coverage, etc.).
                     for (size_t i = 0; i < alnResults.size(); i++) {
                         // +1 : index 0 corresponds to the query sequence
-                        if (res.keep[i + 1]) {
+                        if (par.filterMsa == false || res.keep[i + 1]) {
                             filteredAln.push_back(alnResults.at(i));
                         }
                     }

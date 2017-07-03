@@ -9,7 +9,7 @@ class SubstitutionMatrix;
 class PSSMCalculator {
 public:
 
-    PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, float pca, float pcb);
+    PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb);
 
     ~PSSMCalculator();
 

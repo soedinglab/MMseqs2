@@ -5,6 +5,8 @@ set(HAVE_MPI 0 CACHE BOOL "Have MPI")
 set(HAVE_SSE4_1 0 CACHE BOOL "Have SSE4.1")
 set(HAVE_AVX2 0 CACHE BOOL "Have AVX2")
 set(HAVE_TESTS 1 CACHE BOOL "Have Tests")
+set(HAVE_SANITIZER 0 CACHE BOOL "Have Sanitizers")
+
 set(MMSEQS_DIR ${PROJECT_SOURCE_DIR})
 set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${PROJECT_SOURCE_DIR}/lib)
 message("-- Sourcedir ${CMAKE_CURRENT_SOURCE_DIR}")
@@ -35,6 +37,14 @@ endif()
 
 if(CYGWIN)
     add_definitions("-D_GNU_SOURCE")
+endif()
+
+#Sanitizers
+if(${HAVE_SANITIZER})
+    include(FindUBSan)
+    include(FindASan)
+    include(FindMSan)
+    include(FindTSan)
 endif()
 
 include(GetGitRevisionDescription)

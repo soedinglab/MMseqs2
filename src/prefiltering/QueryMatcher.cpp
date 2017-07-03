@@ -91,6 +91,7 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputat
     Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryMatcher");
     this->foundDiagonals = new(std::nothrow) CounterResult[counterResultSize];
     Util::checkAllocation(foundDiagonals, "Could not allocate foundDiagonals memory in QueryMatcher");
+    memset(foundDiagonals, 0, sizeof(CounterResult) * counterResultSize);
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new(std::nothrow) IndexEntryLocal*[maxSeqLen + 1];
     Util::checkAllocation(indexPointer, "Could not allocate indexPointer memory in QueryMatcher");

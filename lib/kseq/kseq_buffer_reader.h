@@ -29,6 +29,7 @@ typedef struct kseq_buffer {
     char* buffer;
     size_t position, length;
 
+    kseq_buffer () : buffer(NULL), position(0), length(0) {};
     kseq_buffer (char* buffer, size_t length) : buffer(buffer), position(0), length(length) {};
 } kseq_buffer_t;
 
