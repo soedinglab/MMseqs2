@@ -126,6 +126,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     int metadata[] = {kmerSize, alphabetSize, maskMode, local, spacedKmer, kmerThr, seqType, headers};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
+    printMeta(metadata);
 
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
     writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SCOREMATRIXNAME, 0);
@@ -268,10 +269,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
     return retTable;
 }
 
-void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
-    Debug(Debug::INFO) << "Index version: " << dbr->getDataByDBKey(VERSION) << "\n";
-    int *metadata_tmp = (int *) dbr->getDataByDBKey(META);
-
+void PrefilteringIndexReader::printMeta(int *metadata_tmp) {
     Debug(Debug::INFO) << "KmerSize:     " << metadata_tmp[0] << "\n";
     Debug(Debug::INFO) << "AlphabetSize: " << metadata_tmp[1] << "\n";
     Debug(Debug::INFO) << "Mask:         " << metadata_tmp[2] << "\n";
@@ -280,6 +278,13 @@ void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
     Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[5] << "\n";
     Debug(Debug::INFO) << "SequenceType: " << metadata_tmp[6] << "\n";
     Debug(Debug::INFO) << "Headers:      " << metadata_tmp[7] << "\n";
+}
+
+void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
+    Debug(Debug::INFO) << "Index version: " << dbr->getDataByDBKey(VERSION) << "\n";
+    int *metadata_tmp = (int *) dbr->getDataByDBKey(META);
+
+    printMeta(metadata_tmp);
 
     Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME) << "\n";
 }
