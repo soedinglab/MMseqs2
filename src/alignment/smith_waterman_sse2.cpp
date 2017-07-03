@@ -181,7 +181,7 @@ s_align SmithWaterman::ssw_align (
 	int32_t queryOffset = query_length - r.qEndPos1;
 	r.evalue = evaluer->computeEvalue(r.score1, query_length);
 
-	if (flag == 0 || ((flag == 2 || flag == 1) && r.evalue  > evalueThr)){
+	if (flag == 0 || ((flag == 2 || flag == 1) && r.evalue > evalueThr)){
 		goto end;
 	}
 
