@@ -60,7 +60,7 @@ std::vector<Matcher::result_t> MultipleAlignment::computeBacktrace(Sequence *cen
     aligner->initQuery(centerSeq);
     for(size_t i = 0; i < seqs.size(); i++) {
         Sequence *edgeSeq = seqs[i];
-        Matcher::result_t alignment = aligner->getSWResult(edgeSeq, dbSetSize, 0.0, Matcher::SCORE_COV_SEQID);
+        Matcher::result_t alignment = aligner->getSWResult(edgeSeq, dbSetSize, FLT_MAX, Matcher::SCORE_COV_SEQID);
         btSequences.push_back(alignment);
         if(alignment.backtrace.size() > maxMsaSeqLen){
             Debug(Debug::ERROR) << "Alignment length is > maxMsaSeqLen in MSA " << centerSeq->getDbKey() << "\n";
@@ -211,20 +211,15 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
 
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA) {
     // just center sequence is included
-	
     if(edgeSeqs.size() == 0 ){
         return singleSequenceMSA(centerSeq, edgeSeqs);
     }
-	
-	
-	
+
     size_t dbSetSize = 0;
     for(size_t i = 0; i < edgeSeqs.size(); i++) {
         dbSetSize += edgeSeqs[i]->L;
     }
-	
     std::vector<Matcher::result_t> alignmentResults = computeBacktrace(centerSeq, edgeSeqs, dbSetSize);
-
     return computeMSA(centerSeq, edgeSeqs, alignmentResults, noDeletionMSA);
 }
 

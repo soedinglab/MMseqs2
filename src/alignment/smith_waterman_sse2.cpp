@@ -131,8 +131,8 @@ s_align SmithWaterman::ssw_align (
 		const uint8_t gap_open,
 		const uint8_t gap_extend,
 		const uint8_t flag,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
-		const uint16_t filters,
-		const int32_t filterd,
+		const double  evalueThr,
+		EvalueComputation * evaluer,
 		const int32_t maskLen) {
 
 	alignment_end* bests = 0, *bests_reverse = 0;
@@ -158,12 +158,14 @@ s_align SmithWaterman::ssw_align (
 			word = 1;
 		} else if (bests[0].score == 255) {
 			fprintf(stderr, "Please set 2 to the score_size parameter of the function ssw_init, otherwise the alignment results will be incorrect.\n");
+			EXIT(EXIT_FAILURE);
 		}
 	}else if (profile->profile_word) {
 		bests = sw_sse2_word(db_sequence, 0, db_length, query_length, gap_open, gap_extend, profile->profile_word, -1, maskLen);
 		word = 1;
 	}else {
 		fprintf(stderr, "Please call the function ssw_init before ssw_align.\n");
+		EXIT(EXIT_FAILURE);
 	}
 	r.score1 = bests[0].score;
 	r.dbEndPos1 = bests[0].ref;
@@ -177,8 +179,9 @@ s_align SmithWaterman::ssw_align (
 	}
 	free(bests);
 	int32_t queryOffset = query_length - r.qEndPos1;
+	r.evalue = evaluer->computeEvalue(r.score1, query_length);
 
-	if (flag == 0 || ((flag == 2 || flag == 1) && r.score1 < filters)){
+	if (flag == 0 || ((flag == 2 || flag == 1) && r.evalue > evalueThr)){
 		goto end;
 	}
 
@@ -207,6 +210,7 @@ s_align SmithWaterman::ssw_align (
 	}
 	if(bests_reverse->score != r.score1){
 		fprintf(stderr, "Score of forward/backward SW differ. This should not happen.\n");
+		EXIT(EXIT_FAILURE);
 	}
 
 	r.dbStartPos1 = bests_reverse[0].ref;

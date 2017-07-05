@@ -47,6 +47,7 @@
 #include "BaseMatrix.h"
 
 #include "Sequence.h"
+#include "EvalueComputation.h"
 
 typedef struct {
     short qStartPos;
@@ -66,6 +67,7 @@ typedef struct {
     int32_t ref_end2;
     uint32_t* cigar;
     int32_t cigarLen;
+    double evalue;
 } s_align;
 
 class SmithWaterman{
@@ -135,8 +137,8 @@ public:
                         const uint8_t gap_open,
                         const uint8_t gap_extend,
                         const uint8_t flag,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
-                        const uint16_t filters,
-                        const int32_t filterd,
+                        const double filters,
+                        EvalueComputation * filterd,
                         const int32_t maskLen);
 
     /*!	@function	Create the query profile using the query sequence.
