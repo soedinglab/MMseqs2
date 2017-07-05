@@ -324,7 +324,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     realigner->initQuery(&qSeq);
                     for (size_t result = 0; result < swResults.size(); result++) {
                         setTargetSequence(dbSeq, swResults[result].dbKey);
-                        Matcher::result_t res = realigner->getSWResult(&dbSeq, tseqdbr->getSize(), 0.0,
+                        Matcher::result_t res = realigner->getSWResult(&dbSeq, tseqdbr->getSize(), FLT_MAX,
                                                                        Matcher::SCORE_COV_SEQID);
                         swResults[result].backtrace  = res.backtrace;
                         swResults[result].qStartPos  = res.qStartPos;
