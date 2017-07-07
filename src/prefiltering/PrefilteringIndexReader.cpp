@@ -87,11 +87,11 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
 
     SequenceLookup *lookup = indexTable->getSequenceLookup();
     Debug(Debug::INFO) << "Write SEQINDEXDATA (" << SEQINDEXDATA << ")\n";
-    writer.writeData(lookup->getData(), lookup->getDataSize(), SEQINDEXDATA, 0);
+    writer.writeData(lookup->getData(), (lookup->getDataSize() + 1) * sizeof(char), SEQINDEXDATA, 0);
 
     if (unmaskedLookup != NULL) {
         Debug(Debug::INFO) << "Write UNMASKEDSEQINDEXDATA (" << UNMASKEDSEQINDEXDATA << ")\n";
-        writer.writeData(unmaskedLookup->getData(), unmaskedLookup->getDataSize(), UNMASKEDSEQINDEXDATA, 0);
+        writer.writeData(unmaskedLookup->getData(), (unmaskedLookup->getDataSize() + 1) * sizeof(char), UNMASKEDSEQINDEXDATA, 0);
         delete unmaskedLookup;
     }
 
@@ -186,7 +186,9 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
 
     size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
-    size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
+
+    size_t seqDataSizeId = dbr->getId(SEQINDEXDATASIZE);
+    int64_t seqDataSize = *((int64_t *)dbr->getData(seqOffsetsId);
 
     size_t sequenceCountId = dbr->getId(SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
@@ -194,11 +196,10 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
     if (touch) {
         dbr->touchData(id);
         dbr->touchData(seqOffsetsId);
-        dbr->touchData(sequenceCountId);
     }
 
     SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
-    sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
+    sequenceLookup->initLookupByExternalData(seqData, seqDataSize, (size_t *) seqOffsetsData);
 
     return sequenceLookup;
 }
@@ -210,10 +211,12 @@ SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsi
     }
 
     char * seqData = dbr->getData(id);
-    size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
 
+    size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
-    size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
+
+    size_t seqDataSizeId = dbr->getId(SEQINDEXDATASIZE);
+    int64_t seqDataSize = *((int64_t *)dbr->getData(seqOffsetsId);
 
     size_t sequenceCountId = dbr->getId(SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
@@ -221,11 +224,10 @@ SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsi
     if (touch) {
         dbr->touchData(id);
         dbr->touchData(seqOffsetsId);
-        dbr->touchData(sequenceCountId);
     }
 
     SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
-    sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
+    sequenceLookup->initLookupByExternalData(seqData, seqDataSize, (size_t *) seqOffsetsData);
 
     return sequenceLookup;
 }
