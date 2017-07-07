@@ -189,7 +189,7 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
 
     size_t seqDataSizeId = dbr->getId(SEQINDEXDATASIZE);
-    int64_t seqDataSize = *((int64_t *)dbr->getData(seqOffsetsId);
+    int64_t seqDataSize = *((int64_t *)dbr->getData(seqOffsetsId));
 
     size_t sequenceCountId = dbr->getId(SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
@@ -217,7 +217,7 @@ SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsi
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
 
     size_t seqDataSizeId = dbr->getId(SEQINDEXDATASIZE);
-    int64_t seqDataSize = *((int64_t *)dbr->getData(seqOffsetsId);
+    int64_t seqDataSize = *((int64_t *)dbr->getData(seqOffsetsId));
 
     size_t sequenceCountId = dbr->getId(SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
