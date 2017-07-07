@@ -386,11 +386,19 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         }
     }
 
+    const bool isProfile = seq->getSeqType() == Sequence::HMM_PROFILE;
     size_t aaDbSize = 0;
     sequenceOffSet[0] = 0;
     for (size_t id = dbFrom; id < dbTo; id++) {
-        int seqLen = std::max(static_cast<int>(dbr->getSeqLens(id)) - 2, 0);
-        aaDbSize += seqLen; // remove /n and /0
+        int seqLen;
+        if (isProfile) {
+            // remove /0 and convert to profile length
+            seqLen = std::max(static_cast<int>(dbr->getSeqLens(id)) - 1, 0) / static_cast<int>(Sequence::PROFILE_AA_SIZE);
+        } else {
+            // remove /n and /0
+            seqLen = std::max(static_cast<int>(dbr->getSeqLens(id)) - 2, 0);
+        }
+        aaDbSize += seqLen;
         size_t idFromNull = (id - dbFrom);
         if (id < dbTo - 1) {
             sequenceOffSet[idFromNull + 1] = sequenceOffSet[idFromNull] + seqLen;
@@ -413,7 +421,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                    seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
 
         KmerGenerator *generator = NULL;
-        if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+        if (isProfile) {
             generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
             generator->setDivideStrategy(s.profile_matrix);
         }
@@ -427,15 +435,14 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             char *seqData = dbr->getData(id);
             unsigned int qKey = dbr->getDbKey(id);
             s.mapSequence(id - dbFrom, qKey, seqData);
+            if (maskMode == 2) {
+                (*unmaskedLookup)->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
+            }
             // count similar or exact k-mers based on sequence type
-            if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+            if (isProfile) {
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
             } else {
-                if (maskMode == 2) {
-                    (*unmaskedLookup)->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
-                }
-
-                if (maskMode >= 1) {
+                if (maskMode == 1) {
                     for (int i = 0; i < s.L; i++) {
                         charSequence[i] = (char) s.int_sequence[i];
                     }
@@ -458,6 +465,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                 aaCount += s.L;
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }
+
             sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
         }
 
@@ -517,7 +525,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         IndexEntryLocalTmp * buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
 
         KmerGenerator *generator = NULL;
-        if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+        if (isProfile) {
             generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
             generator->setDivideStrategy(s.profile_matrix);
         }
