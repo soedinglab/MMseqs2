@@ -75,6 +75,8 @@ public:
                              BaseMatrix *subMat, size_t dbFrom, size_t dbTo, bool diagonalScoring,
                              int maskMode, SequenceLookup **unmaskedLookup, int kmerThr, unsigned int threads);
 
+private:
+    static void printMeta(int *meta);
 };
 
 #endif

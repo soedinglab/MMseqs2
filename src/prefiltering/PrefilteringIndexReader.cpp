@@ -87,11 +87,11 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
 
     SequenceLookup *lookup = indexTable->getSequenceLookup();
     Debug(Debug::INFO) << "Write SEQINDEXDATA (" << SEQINDEXDATA << ")\n";
-    writer.writeData(lookup->getData(), lookup->getDataSize(), SEQINDEXDATA, 0);
+    writer.writeData(lookup->getData(), (lookup->getDataSize() + 1) * sizeof(char), SEQINDEXDATA, 0);
 
     if (unmaskedLookup != NULL) {
         Debug(Debug::INFO) << "Write UNMASKEDSEQINDEXDATA (" << UNMASKEDSEQINDEXDATA << ")\n";
-        writer.writeData(unmaskedLookup->getData(), unmaskedLookup->getDataSize(), UNMASKEDSEQINDEXDATA, 0);
+        writer.writeData(unmaskedLookup->getData(), (unmaskedLookup->getDataSize() + 1) * sizeof(char), UNMASKEDSEQINDEXDATA, 0);
         delete unmaskedLookup;
     }
 
@@ -126,6 +126,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     int metadata[] = {kmerSize, alphabetSize, maskMode, local, spacedKmer, kmerThr, seqType, headers};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
+    printMeta(metadata);
 
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
     writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SCOREMATRIXNAME, 0);
@@ -186,7 +187,9 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
 
     size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
-    size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
+
+    size_t seqDataSizeId = dbr->getId(SEQINDEXDATASIZE);
+    int64_t seqDataSize = *((int64_t *)dbr->getData(seqOffsetsId));
 
     size_t sequenceCountId = dbr->getId(SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
@@ -194,11 +197,10 @@ SequenceLookup *PrefilteringIndexReader::getSequenceLookup(DBReader<unsigned int
     if (touch) {
         dbr->touchData(id);
         dbr->touchData(seqOffsetsId);
-        dbr->touchData(sequenceCountId);
     }
 
     SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
-    sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
+    sequenceLookup->initLookupByExternalData(seqData, seqDataSize, (size_t *) seqOffsetsData);
 
     return sequenceLookup;
 }
@@ -210,10 +212,12 @@ SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsi
     }
 
     char * seqData = dbr->getData(id);
-    size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
 
+    size_t seqOffsetsId = dbr->getId(SEQINDEXSEQOFFSET);
     char * seqOffsetsData = dbr->getData(seqOffsetsId);
-    size_t seqOffsetLength = dbr->getSeqLens(seqOffsetsId);
+
+    size_t seqDataSizeId = dbr->getId(SEQINDEXDATASIZE);
+    int64_t seqDataSize = *((int64_t *)dbr->getData(seqOffsetsId));
 
     size_t sequenceCountId = dbr->getId(SEQCOUNT);
     size_t sequenceCount = *((size_t *)dbr->getData(sequenceCountId));
@@ -221,11 +225,10 @@ SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsi
     if (touch) {
         dbr->touchData(id);
         dbr->touchData(seqOffsetsId);
-        dbr->touchData(sequenceCountId);
     }
 
     SequenceLookup *sequenceLookup = new SequenceLookup(sequenceCount);
-    sequenceLookup->initLookupByExternalData(seqData, seqOffsetLength, (size_t *) seqOffsetsData);
+    sequenceLookup->initLookupByExternalData(seqData, seqDataSize, (size_t *) seqOffsetsData);
 
     return sequenceLookup;
 }
@@ -268,10 +271,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
     return retTable;
 }
 
-void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
-    Debug(Debug::INFO) << "Index version: " << dbr->getDataByDBKey(VERSION) << "\n";
-    int *metadata_tmp = (int *) dbr->getDataByDBKey(META);
-
+void PrefilteringIndexReader::printMeta(int *metadata_tmp) {
     Debug(Debug::INFO) << "KmerSize:     " << metadata_tmp[0] << "\n";
     Debug(Debug::INFO) << "AlphabetSize: " << metadata_tmp[1] << "\n";
     Debug(Debug::INFO) << "Mask:         " << metadata_tmp[2] << "\n";
@@ -280,6 +280,13 @@ void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
     Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[5] << "\n";
     Debug(Debug::INFO) << "SequenceType: " << metadata_tmp[6] << "\n";
     Debug(Debug::INFO) << "Headers:      " << metadata_tmp[7] << "\n";
+}
+
+void PrefilteringIndexReader::printSummary(DBReader<unsigned int> *dbr) {
+    Debug(Debug::INFO) << "Index version: " << dbr->getDataByDBKey(VERSION) << "\n";
+    int *metadata_tmp = (int *) dbr->getDataByDBKey(META);
+
+    printMeta(metadata_tmp);
 
     Debug(Debug::INFO) << "ScoreMatrix:  " << dbr->getDataByDBKey(SCOREMATRIXNAME) << "\n";
 }
@@ -384,11 +391,19 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         }
     }
 
+    const bool isProfile = seq->getSeqType() == Sequence::HMM_PROFILE;
     size_t aaDbSize = 0;
     sequenceOffSet[0] = 0;
     for (size_t id = dbFrom; id < dbTo; id++) {
-        int seqLen = std::max(static_cast<int>(dbr->getSeqLens(id)) - 2, 0);
-        aaDbSize += seqLen; // remove /n and /0
+        int seqLen;
+        if (isProfile) {
+            // remove /0 and convert to profile length
+            seqLen = std::max(static_cast<int>(dbr->getSeqLens(id)) - 1, 0) / static_cast<int>(Sequence::PROFILE_AA_SIZE);
+        } else {
+            // remove /n and /0
+            seqLen = std::max(static_cast<int>(dbr->getSeqLens(id)) - 2, 0);
+        }
+        aaDbSize += seqLen;
         size_t idFromNull = (id - dbFrom);
         if (id < dbTo - 1) {
             sequenceOffSet[idFromNull + 1] = sequenceOffSet[idFromNull] + seqLen;
@@ -411,7 +426,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                    seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
 
         KmerGenerator *generator = NULL;
-        if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+        if (isProfile) {
             generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
             generator->setDivideStrategy(s.profile_matrix);
         }
@@ -425,15 +440,14 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             char *seqData = dbr->getData(id);
             unsigned int qKey = dbr->getDbKey(id);
             s.mapSequence(id - dbFrom, qKey, seqData);
+            if (maskMode == 2) {
+                (*unmaskedLookup)->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
+            }
             // count similar or exact k-mers based on sequence type
-            if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+            if (isProfile) {
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
             } else {
-                if (maskMode == 2) {
-                    (*unmaskedLookup)->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
-                }
-
-                if (maskMode >= 1) {
+                if (maskMode == 1) {
                     for (int i = 0; i < s.L; i++) {
                         charSequence[i] = (char) s.int_sequence[i];
                     }
@@ -456,6 +470,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                 aaCount += s.L;
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
             }
+
             sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
         }
 
@@ -515,7 +530,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         IndexEntryLocalTmp * buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
 
         KmerGenerator *generator = NULL;
-        if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+        if (isProfile) {
             generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
             generator->setDivideStrategy(s.profile_matrix);
         }
