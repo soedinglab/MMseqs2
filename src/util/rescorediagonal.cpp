@@ -135,7 +135,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 //                }else{
                     // -2 because of \n\0 in sequenceDB
 //                }
-                std::vector<hit_t> results = parsePrefilterHits(data);
+                std::vector<hit_t> results = QueryMatcher::parsePrefilterHits(data);
                 for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB))? true : false;

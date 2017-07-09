@@ -110,6 +110,11 @@ public:
         return epa * a;
     }
 
+    inline double computeLogEvalue(double score, double seqLength) {
+        const double epa = evaluer.evaluePerArea( score );
+        const double a = area( score, seqLength );
+        return log(epa * a);
+    }
 private:
     Sls::AlignmentEvaluer evaluer;
     const size_t dbResCount;

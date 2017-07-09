@@ -421,13 +421,13 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
 void DBWriter::writeIndex(FILE *outFile, size_t indexSize, IndexType::int_type  *index,  unsigned int *seqLen){
     char buff1[1024];
     for(size_t id = 0; id < indexSize; id++){
-        char * tmpBuff = u32toa_sse2((uint32_t)index[id].id,buff1);
+        char * tmpBuff = Itoa::u32toa_sse2((uint32_t)index[id].id,buff1);
         *(tmpBuff-1) = '\t';
         size_t currOffset = index[id].offset;
-        tmpBuff = u64toa_sse2(currOffset, tmpBuff);
+        tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
         *(tmpBuff-1) = '\t';
         uint32_t sLen = seqLen[id];
-        tmpBuff = u32toa_sse2(sLen,tmpBuff);
+        tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
         *(tmpBuff-1) = '\n';
         *(tmpBuff) = '\0';
         fwrite(buff1, sizeof(char), strlen(buff1), outFile);

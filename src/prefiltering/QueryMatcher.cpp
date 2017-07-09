@@ -8,45 +8,6 @@
 #include "QueryMatcher.h"
 #include "Util.h"
 
-
-std::vector<hit_t> parsePrefilterHits(char *data) {
-    std::vector<hit_t> ret;
-    while (*data != '\0') {
-        hit_t result = parsePrefilterHit(data);
-        ret.push_back(result);
-        data = Util::skipLine(data);
-    }
-    return ret;
-}
-
-hit_t parsePrefilterHit(char* data)
-{
-    hit_t result;
-    char *wordCnt[255];
-    size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
-    if (cols>=3)
-    {
-        result.seqId = Util::fast_atoi<unsigned int>(wordCnt[0]);
-        result.pScore = strtod(wordCnt[1],NULL);
-        result.diagonal = static_cast<unsigned short>(Util::fast_atoi<short>(wordCnt[2]));
-    } else { //error
-        result.seqId = -1;
-        result.pScore = -1;
-        result.diagonal = -1;
-    }
-    return result;
-}
-
-
-std::string prefilterHitToString(hit_t h)
-{
-    std::ostringstream resStream;
-    resStream << h.seqId << '\t' << std::fixed << std::setprecision(3)  << std::scientific << h.pScore << '\t' << (short) h.diagonal << '\n';
-    return resStream.str();
-}
-
-
-
 #define FE_1(WHAT, X) WHAT(X)
 #define FE_2(WHAT, X, ...) WHAT(X)FE_1(WHAT, __VA_ARGS__)
 #define FE_3(WHAT, X, ...) WHAT(X)FE_2(WHAT, __VA_ARGS__)
@@ -209,17 +170,9 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
     }
     if(queryResult.second > 1){
         if (identityId != UINT_MAX){
-            if(diagonalScoring == true) {
-                std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByEvalue);
-            }else {
-                std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByPValue);
-            }
+            std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByPValue);
         } else{
-            if(diagonalScoring == true) {
-                std::sort(resList, resList + queryResult.second, hit_t::compareHitsByEvalue);
-            } else {
-                std::sort(resList, resList + queryResult.second, hit_t::compareHitsByPValue);
-            }
+            std::sort(resList, resList + queryResult.second, hit_t::compareHitsByPValue);
         }
     }
     return queryResult;
@@ -376,7 +329,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
         if(diagonalScoring == false){
             result->pScore =  -computeLogProbability(rawScore, seqLens[id], mu, logMatchProb, logScoreFactorial[rawScore]);
         }else{
-            double evalue = evaluer.computeEvalue(rawScore, l);
+            double evalue = -evaluer.computeLogEvalue(rawScore, l);
             result->pScore = evalue;
         }
         elementCounter++;
@@ -397,7 +350,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                 result->pScore =  (diagonalScoring) ? 0.0 :  -computeLogProbability(scoreCurr, seqLens[seqIdCurr],
                                                                                     mu, logMatchProb, logScoreFactorial[scoreCurr]);
             }else{
-                double evalue = evaluer.computeEvalue(scoreCurr, l);
+                double evalue = -evaluer.computeLogEvalue(scoreCurr, l);
                 result->pScore = evalue;
             }
             elementCounter++;

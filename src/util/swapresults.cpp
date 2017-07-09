@@ -251,16 +251,16 @@ void doSwap(DBReader<unsigned int> &resultReader,
             {
                 char* curData = data;
                 while (*curData != '\0') {
-                    hit_t hit = parsePrefilterHit(curData);
+                    hit_t hit = QueryMatcher::parsePrefilterHit(curData);
                 
                     unsigned int targetKey = hit.seqId;
                     if(targetKey >= targetKeyMin && targetKey < targetKeyMax)
                     {
                         hit.seqId = queryKey;
 
-                        float eval = exp(-hit.prefScore);
+                        float eval = exp(-hit.pScore);
 
-                        std::string result = prefilterHitToString(hit);
+                        std::string result = QueryMatcher::prefilterHitToString(hit);
                         lock.lock();
                         (*resMap)[count].key = targetKey;
                         (*resMap)[count].evalue = eval;

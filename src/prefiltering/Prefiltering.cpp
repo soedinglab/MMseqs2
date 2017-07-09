@@ -761,6 +761,7 @@ void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *
                            res->pScore, res->prefScore);
         }
 
+        len = QueryMatcher::prefilterHitToBuffer(buffer, *res);
         // TODO: error handling for len
         prefResultsOutString.append(buffer, len);
         l++;

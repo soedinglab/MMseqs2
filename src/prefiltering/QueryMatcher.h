@@ -6,6 +6,7 @@
 #define MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
 
 #include <cstdlib>
+#include "itoa.h"
 #include "EvalueComputation.h"
 #include "CacheFriendlyOperations.h"
 #include "UngappedAlignment.h"
@@ -48,14 +49,6 @@ struct hit_t {
     }
 };
 
-
-
-
-hit_t parsePrefilterHit(char* data);
-
-std::vector<hit_t> parsePrefilterHits(char *data);
-
-std::string prefilterHitToString(hit_t h);
 
 
 class QueryMatcher {
@@ -116,6 +109,57 @@ public:
         const double mid_term = score * (logMatchProb + log(dbSeqLenDbl));
         const double first_term = -(mu * score /(score + 1));
         return first_term + mid_term - logScoreFactorial;
+    }
+
+    static hit_t parsePrefilterHit(char* data)
+    {
+        hit_t result;
+        char *wordCnt[255];
+        size_t cols = Util::getWordsOfLine(data, wordCnt, 254);
+        if (cols>=3)
+        {
+            result.seqId = Util::fast_atoi<unsigned int>(wordCnt[0]);
+            result.pScore = static_cast<float>(Util::fast_atoi<unsigned int>(wordCnt[1]));
+            result.diagonal = static_cast<unsigned short>(Util::fast_atoi<short>(wordCnt[2]));
+        } else { //error
+            result.seqId = -1;
+            result.pScore = -1;
+            result.diagonal = -1;
+        }
+        return result;
+    }
+
+    static std::vector<hit_t> parsePrefilterHits(char *data) {
+        std::vector<hit_t> ret;
+        while (*data != '\0') {
+            hit_t result = parsePrefilterHit(data);
+            ret.push_back(result);
+            data = Util::skipLine(data);
+        }
+        return ret;
+    }
+
+
+    static std::string prefilterHitToString(hit_t h)
+    {
+        std::ostringstream resStream;
+        resStream << h.seqId << '\t' << static_cast<int>(h.pScore) << '\t' << (short) h.diagonal << '\n';
+        return resStream.str();
+    }
+
+    static size_t prefilterHitToBuffer(char *buff1, hit_t &h)
+    {
+        char * basePos = buff1;
+        char * tmpBuff = Itoa::u32toa_sse2((uint32_t) h.seqId, buff1);
+        *(tmpBuff-1) = '\t';
+        int score = static_cast<int>(h.pScore);
+        tmpBuff = Itoa::u32toa_sse2(score, tmpBuff);
+        *(tmpBuff-1) = '\t';
+        int32_t diagonal = static_cast<short>(h.diagonal);
+        tmpBuff = Itoa::i32toa_sse2(diagonal, tmpBuff);
+        *(tmpBuff-1) = '\n';
+        *(tmpBuff) = '\0';
+        return tmpBuff - basePos;
     }
 
 protected:
