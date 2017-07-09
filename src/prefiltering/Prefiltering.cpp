@@ -308,15 +308,45 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         }
     }
     const std::pair<std::string, std::string> &out = files.front();
+    // sort merged entries by evalue
+    DBReader<unsigned int> dbr(out.first.c_str(), out.second.c_str());
+    dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads);
+    dbw.open(1024 * 1024 * 1024);
+#pragma omp parallel
+    {
+        std::string prefResultsOutString;
+        prefResultsOutString.reserve(BUFFER_SIZE);
+        char buffer[100];
+#pragma omp  for schedule(dynamic, 10)
+        for (size_t id = 0; id < dbr.getSize(); id++) {
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
+            unsigned int dbKey = dbr.getDbKey(id);
+            char *data = dbr.getData(id);
+            std::vector<hit_t> hits = QueryMatcher::parsePrefilterHits(data);
+            if (hits.size() > 1) {
+                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByPValue);
+            }
+            for(size_t hit_id = 0; hit_id < hits.size(); hit_id++){
+                int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[hit_id]);
+                prefResultsOutString.append(buffer, len);
+            }
+            dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.size(), dbKey, thread_idx);
+            prefResultsOutString.clear();
+        }
+    }
     Debug(Debug::INFO) << out.first << " " << out.second << "\n";
-
-    std::rename(out.first.c_str(), outDB.c_str());
-    std::rename(out.second.c_str(), outDBIndex.c_str());
+    dbw.close();
+    dbr.close();
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "\nTime for merging results: " << (sec / 3600) << " h "
                        << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 }
+
 
 ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
     // profile only uses the 2mer, 3mer matrix
@@ -752,20 +782,10 @@ void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *
 
         }
 
-        int len;
-        if (diagonalScoring == true) {
-            len = snprintf(buffer, 100, "%u\t%.2e\t%d\n", tdbr->getDbKey(targetSeqId),
-                           res->pScore, (short) res->diagonal);
-        } else {
-            len = snprintf(buffer, 100, "%u\t%.4f\t%d\n", tdbr->getDbKey(targetSeqId),
-                           res->pScore, res->prefScore);
-        }
-
-        len = QueryMatcher::prefilterHitToBuffer(buffer, *res);
+        int len = QueryMatcher::prefilterHitToBuffer(buffer, *res);
         // TODO: error handling for len
         prefResultsOutString.append(buffer, len);
         l++;
-
         // maximum allowed result list length is reached
         if (l >= maxResults)
             break;
