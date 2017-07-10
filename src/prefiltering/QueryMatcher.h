@@ -119,7 +119,7 @@ public:
         if (cols>=3)
         {
             result.seqId = Util::fast_atoi<unsigned int>(wordCnt[0]);
-            result.pScore = static_cast<float>(Util::fast_atoi<unsigned int>(wordCnt[1]));
+            result.pScore = static_cast<float>(Util::fast_atoi<int>(wordCnt[1]));
             result.diagonal = static_cast<unsigned short>(Util::fast_atoi<short>(wordCnt[2]));
         } else { //error
             result.seqId = -1;
@@ -153,7 +153,7 @@ public:
         char * tmpBuff = Itoa::u32toa_sse2((uint32_t) h.seqId, buff1);
         *(tmpBuff-1) = '\t';
         int score = static_cast<int>(h.pScore);
-        tmpBuff = Itoa::u32toa_sse2(score, tmpBuff);
+        tmpBuff = Itoa::i32toa_sse2(score, tmpBuff);
         *(tmpBuff-1) = '\t';
         int32_t diagonal = static_cast<short>(h.diagonal);
         tmpBuff = Itoa::i32toa_sse2(diagonal, tmpBuff);
