@@ -111,10 +111,10 @@ public:
     }
 
     inline double computeLogEvalue(double score, double seqLength) {
-        const double epa = evaluer.evaluePerArea( score );
-        const double a = area( score, seqLength );
-        return log(epa * a);
+        double eval = std::max(computeEvalue(score, seqLength), std::numeric_limits<double>::min());
+        return log(eval);
     }
+
 private:
     Sls::AlignmentEvaluer evaluer;
     const size_t dbResCount;
