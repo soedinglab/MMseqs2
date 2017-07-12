@@ -142,7 +142,7 @@ static struct Command commands[] = {
             "Milot Mirdita <milot@mirdita.de>",
             "<i:sequenceDB> <o:sequenceDB>",
             CITATION_MMSEQS2},
-        {"swapresults",          swapresults,          &par.onlythreads,          COMMAND_DB,
+        {"swapresults",          swapresults,          &par.swapresult,          COMMAND_DB,
             "Reformat prefilter/alignment/cluster DB as if target DB had been searched through query DB",
             NULL,
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Clovis Galiez",

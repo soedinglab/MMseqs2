@@ -184,7 +184,7 @@ void doSwap(DBReader<unsigned int> &resultReader,
             unsigned int targetKeyMin,
             unsigned int targetKeyMax,
             size_t aaResSize,
-            const char *scoringMatrix) {
+            const char *scoringMatrix, float evalue) {
     SubstitutionMatrix subMat(scoringMatrix, 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 
@@ -220,6 +220,9 @@ void doSwap(DBReader<unsigned int> &resultReader,
                     if (targetKey >= targetKeyMin && targetKey < targetKeyMax) {
                         double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
                         res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
+                        if(res.eval > evalue){
+                            continue;
+                        }
                         unsigned int qstart = res.qStartPos;
                         unsigned int qend = res.qEndPos;
                         unsigned int qLen = res.qLen;
@@ -329,7 +332,7 @@ int swapresults(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     const char* scoringMatrix = par.scoringMatrixFile.c_str();
-    doSwap(resultReader, &resMap, targetKeyMin, targetKeyMax, aaResSize, scoringMatrix);
+    doSwap(resultReader, &resMap, targetKeyMin, targetKeyMax, aaResSize, scoringMatrix, par.evalThr);
     resultReader.close();
 
     // sort by target id

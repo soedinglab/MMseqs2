@@ -387,6 +387,11 @@ Parameters::Parameters():
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);
 
+    // swap results
+    swapresult.push_back(PARAM_SUB_MAT);
+    swapresult.push_back(PARAM_E);
+    swapresult.push_back(PARAM_THREADS);
+
     // subtractdbs
     subtractdbs.push_back(PARAM_THREADS);
     subtractdbs.push_back(PARAM_E_PROFILE);

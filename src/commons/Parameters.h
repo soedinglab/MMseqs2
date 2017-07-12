@@ -549,6 +549,7 @@ public:
     std::vector<MMseqsParameter> clusterUpdateClust;
     std::vector<MMseqsParameter> clusterUpdate;
     std::vector<MMseqsParameter> translatenucs;
+    std::vector<MMseqsParameter> swapresult;
     std::vector<MMseqsParameter> createseqfiledb;
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> onlythreads;
