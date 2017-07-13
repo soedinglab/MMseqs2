@@ -144,7 +144,10 @@ void writeSwappedResults(DBWriter &resultWriter, std::vector<AlignmentResultEntr
 
                     std::ostringstream ss;
                     for (size_t j = 0; j < curRes.size(); j++) {
-                        ss << curRes[j].result;
+                        // remove elements that are > eval threshold
+                        if(curRes[j].evalue != FLT_MAX){
+                            ss << curRes[j].result;
+                        }
                     }
 
                     std::string result = ss.str();
@@ -220,9 +223,6 @@ void doSwap(DBReader<unsigned int> &resultReader,
                     if (targetKey >= targetKeyMin && targetKey < targetKeyMax) {
                         double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
                         res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
-                        if(res.eval > evalue){
-                            continue;
-                        }
                         unsigned int qstart = res.qStartPos;
                         unsigned int qend = res.qEndPos;
                         unsigned int qLen = res.qLen;
@@ -244,7 +244,11 @@ void doSwap(DBReader<unsigned int> &resultReader,
 
                         lock.lock();
                         (*resMap)[count].key = targetKey;
-                        (*resMap)[count].evalue = res.eval;
+                        if(res.eval > evalue){
+                            (*resMap)[count].evalue = FLT_MAX;
+                        }else{
+                            (*resMap)[count].evalue = res.eval;
+                        }
                         (*resMap)[count].result += result;
                         count++;
                         lock.unlock();
