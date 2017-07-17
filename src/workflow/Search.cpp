@@ -38,6 +38,7 @@ int search(int argc, const char **argv, const Command& command) {
         par.targetProfile = false;
         par.queryProfile = true;
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         FileUtil::writeFile(par.db4 + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
         std::string program(par.db4 + "/searchtargetprofile.sh");
         cmd.execProgram(program.c_str(), 4, argv);
