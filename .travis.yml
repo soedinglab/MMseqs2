@@ -14,7 +14,7 @@ addons:
 script:
 - mkdir build
 - cd build
-- cmake .. && make
+- cmake -DHAVE_SSE4_1=1 .. && make
 #- CTEST_OUTPUT_ON_FAILURE=TRUE make test
 
 
