@@ -45,7 +45,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
     std::string scoringMatrixFile = par.scoringMatrixFile;
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetSeqDB);
-    if (indexDB != "") {
+    if (indexDB.length() > 0) {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
 
         tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());

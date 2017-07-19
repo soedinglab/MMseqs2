@@ -94,7 +94,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         index = new Index[this->size];
         seqLens = new unsigned int[size];
 
-        isSortedById = readIndex(indexFileName, index, data, seqLens);
+        isSortedById = readIndex(indexFileName, index, seqLens);
         sortIndex(isSortedById);
 
         // init seq lens array and dbKey mapping
@@ -370,6 +370,25 @@ template <typename T> size_t DBReader<T>::getSeqLens(size_t id){
     return seqLens[id];
 }
 
+template <typename T> size_t DBReader<T>::maxCount(char c) {
+    checkClosed();
+
+    size_t max = 0;
+    size_t count = 0;
+    for (size_t i = 0; i < dataSize; ++i) {
+        if (data[i] == c) {
+            count++;
+        }
+
+        if (data[i] == '\0') {
+            max = std::max(max, count);
+            count = 0;
+        }
+    }
+
+    return max;
+}
+
 template <typename T> void DBReader<T>::checkClosed(){
     if (closed == 1){
         Debug(Debug::ERROR) << "Trying to read a closed database.\n";
@@ -378,7 +397,7 @@ template <typename T> void DBReader<T>::checkClosed(){
 }
 
 template<typename T>
-bool DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength) {
+bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *entryLength) {
     MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     if (!indexData.isValid()){
         Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";

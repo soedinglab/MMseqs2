@@ -249,6 +249,9 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_FILTER_NDIFF);
     result2profile.push_back(PARAM_PCA);
     result2profile.push_back(PARAM_PCB);
+    result2profile.push_back(PARAM_OMIT_CONSENSUS);
+    result2profile.push_back(PARAM_NO_PRELOAD);
+    result2profile.push_back(PARAM_EARLY_EXIT);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
 

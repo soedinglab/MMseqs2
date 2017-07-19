@@ -257,7 +257,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             unsigned int centerLength = centerLengthWithGaps - maskedCount;
 
-            if (par.filterMsa == true) {
+            if (par.filterMsa == 1) {
                 MsaFilter::MsaFilterResult filterRes
                         = filter.filter((const char **) msaSequences,
                                         setSize,
@@ -268,10 +268,15 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                                         static_cast<int>(par.filterMaxSeqId * 100),
                                         par.Ndiff);
 
-                setSize = filterRes.setSize;
+                for (size_t i = 0; i < setSize; i++) {
+                    if (filterRes.keep[i] == 0) {
+                        free(msaSequences[i]);
+                    }
+                }
                 for (size_t i = 0; i < filterRes.setSize; i++) {
                     msaSequences[i] = (char *) filterRes.filteredMsaSequence[i];
                 }
+                setSize = filterRes.setSize;
             }
 
             std::pair<const char *, std::string> pssmRes =

@@ -77,7 +77,7 @@ private:
                                                     std::vector<Matcher::result_t> queryGaps, unsigned int *noDeletionMSA,
                                                     bool b);
 
-    MSAResult singleSequenceMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs);
+    MSAResult singleSequenceMSA(Sequence *centerSeq);
 	
 };
 
