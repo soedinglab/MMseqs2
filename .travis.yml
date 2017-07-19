@@ -5,17 +5,17 @@ dist: trusty
 
 addons:
   apt:
-    packages:
-    - cmake
-    - ninja-build
+    packages: &default
+      - cmake
+      - ninja-build
 
 before_install:
-    - eval "${MATRIX_EVAL}"
+  - eval "${MATRIX_EVAL}"
 
 script:
-- mkdir build
-- cd build
-- cmake -DHAVE_SSE4_1=1 .. && ninja
+  - mkdir build
+  - cd build
+  - cmake -DHAVE_SSE4_1=1 .. && ninja
 
 matrix:
   include:
@@ -25,6 +25,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - *default
             - g++-4.8
             - mpi-default-dev
       env:
@@ -35,6 +36,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - *default
             - g++-7
             - mpi-default-dev
       env:
@@ -46,6 +48,7 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-precise-3.6
           packages:
+            - *default
             - clang-3.6
             - mpi-default-dev
             - libc++-dev
@@ -58,6 +61,7 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-4.0
           packages:
+            - *default
             - clang-4.0
             - mpi-default-dev
             - libc++-dev
