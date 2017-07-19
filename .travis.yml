@@ -7,21 +7,15 @@ addons:
   apt:
     packages:
     - cmake
+    - ninja-build
 
-#before_install:
-#- git submodule update --init --recursive
+before_install:
+    - eval "${MATRIX_EVAL}"
 
 script:
 - mkdir build
 - cd build
-- cmake -DHAVE_SSE4_1=1 .. && make
-#- CTEST_OUTPUT_ON_FAILURE=TRUE make test
-
-
-
-#after_script:
-#-   
-
+- cmake -DHAVE_SSE4_1=1 .. && ninja
 
 matrix:
   include:
@@ -33,16 +27,18 @@ matrix:
           packages:
             - g++-4.8
             - mpi-default-dev
-      env: CXX=g++-4.8
+      env:
+        - MATRIX_EVAL="CXX=g++-4.8"
     - compiler: gcc
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6
+            - g++-7
             - mpi-default-dev
-      env: CXX=g++-6
+      env:
+        - MATRIX_EVAL="CXX=g++-7"
     - compiler: clang
       addons:
         apt:
@@ -53,7 +49,8 @@ matrix:
             - clang-3.6
             - mpi-default-dev
             - libc++-dev
-      env: CXX=clang++-3.6
+      env:
+        - MATRIX_EVAL="CXX=clang++-3.6"
     - compiler: clang
       addons:
         apt:
@@ -64,4 +61,5 @@ matrix:
             - clang-4.0
             - mpi-default-dev
             - libc++-dev
-      env: CXX=clang++-4.0
+      env:
+        - MATRIX_EVAL="CXX=clang++-4.0"
