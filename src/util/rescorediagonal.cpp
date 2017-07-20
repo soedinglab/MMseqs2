@@ -85,13 +85,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
             Debug(Debug::WARNING) << "HAMMING distance can not be used to filter hits. Using --rescore-mode 1\n";
             par.rescoreMode = Parameters::RESCORE_MODE_SUBSTITUTION;
         }
-        if(par.targetCovThr > 0.0){
-            std::string libraryString((const char*)CovSeqidQscPercMinDiagTargetCov_out,CovSeqidQscPercMinDiagTargetCov_out_len);
-            scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.targetCovThr, 0.99);
-        }else{
-            std::string libraryString((const char*)CovSeqidQscPercMinDiag_out,CovSeqidQscPercMinDiag_out_len);
-            scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
-        }
+
+        std::string libraryString = (par.covMode == 0)
+           ? std::string((const char*)CovSeqidQscPercMinDiag_out, CovSeqidQscPercMinDiag_out_len)
+           : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_out, CovSeqidQscPercMinDiagTargetCov_out_len);
+        scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
     }
     double * kmnByLen = new double[par.maxSeqLen];
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
@@ -230,16 +228,14 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 
                     //float maxSeqLen = std::max(static_cast<float>(targetLen), static_cast<float>(queryLen));
                     float currScorePerCol = static_cast<float>(distance)/static_cast<float>(diagonalLen);
-                    // --target-cov
-                    bool hasTargetCov =  targetCov >= (par.targetCovThr - std::numeric_limits<float>::epsilon());
-                    // -c
-                    bool hasCov = queryCov >= par.covThr && targetCov >= par.covThr;
+                    // query/target cov mode
+                    bool hasCov = (par.covMode == 0) ? (queryCov >= par.covThr && targetCov >= par.covThr) : (targetCov >= par.covThr);
                     // --min-seq-id
                     bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
                     bool hasEvalue = (evalue <= par.evalThr);
                     // --filter-hits
                     bool hasToFilter = (par.filterHits == true  && currScorePerCol >= scorePerColThr);
-                    if (isIdentity || hasToFilter || (hasTargetCov && hasCov && hasSeqId && hasEvalue))
+                    if (isIdentity || hasToFilter || (hasCov && hasSeqId && hasEvalue))
                     {
                         int len  = 0;
                         if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {

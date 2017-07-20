@@ -18,7 +18,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                      const std::string &prefDB, const std::string &prefDBIndex,
                      const std::string &outDB, const std::string &outDBIndex,
                      const Parameters &par) :
-        covThr(par.covThr), targetCovThr(par.targetCovThr), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
+        covThr(par.covThr), covMode(par.covMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
         includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
@@ -128,9 +128,9 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 void Alignment::initSWMode(int alignmentMode) {
     switch (alignmentMode) {
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
-            if((covThr > 0.0 || targetCovThr > 0.0) && seqIdThr == 0.0) {
+            if(covThr > 0.0 && seqIdThr == 0.0) {
                 swMode = Matcher::SCORE_COV; // fast
-            } else if((covThr > 0.0 || targetCovThr > 0.0) && seqIdThr > 0.0) { // if seq id is needed
+            } else if(covThr > 0.0  && seqIdThr > 0.0) { // if seq id is needed
                 swMode = Matcher::SCORE_COV_SEQID; // slowest
             } else {
                 swMode = Matcher::SCORE_ONLY;
@@ -295,16 +295,14 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     const bool evalOk = (res.eval <= evalThr); // -e
                     const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
-                    const bool covOK = (res.qcov >= covThr && res.dbcov >= covThr); //-c
-                    const bool targetCovOK = (res.dbcov >= targetCovThr); // --target-cov (-c = 0.0 if --targetCov)
+                    const bool covOK = (covMode == 0) ? (res.qcov >= covThr && res.dbcov >= covThr) : (res.dbcov >= covThr);
                     // check first if it is identity
                     if (isIdentity
                         ||
                         // general accaptance criteria
                         ( evalOk   &&
                           seqIdOK  &&
-                          covOK    &&
-                          targetCovOK
+                          covOK
                         ))
                     {
 

@@ -27,23 +27,6 @@ int linclust(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
         EXIT(EXIT_FAILURE);
     }
-    bool targetCov = false;
-    bool cov = false;
-    for (size_t i = 0; i < par.linclustworkflow.size(); i++) {
-        if (par.linclustworkflow[i].uniqid == par.PARAM_TARGET_COV.uniqid && par.linclustworkflow[i].wasSet) {
-            if(par.targetCovThr > 0.0 ){
-                targetCov = true;
-                par.covThr = 0.0;
-            }
-        }
-        if (par.linclustworkflow[i].uniqid == par.PARAM_C.uniqid && par.linclustworkflow[i].wasSet) {
-            cov = true;
-        }
-    }
-    if(cov && targetCov){
-        Debug(Debug::ERROR) << "The paramter -c can not be combined with --target-cov.\n";
-        EXIT(EXIT_FAILURE);
-    }
     CommandCaller cmd;
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
@@ -67,17 +50,10 @@ int linclust(int argc, const char **argv, const Command& command) {
     par.seqIdThr = std::max(0.5f, par.seqIdThr);
     // also coverage should not be under 0.5
     float prevCov = par.covThr;
-    float prevTargetCov = par.targetCovThr;
-    if(cov){
-        par.covThr = std::max(0.5f, par.covThr);
-    }
-    if(targetCov){
-        par.targetCovThr = std::max(0.5f, par.targetCovThr);
-    }
+    par.covThr = std::max(0.5f, par.covThr);
     cmd.addVariable("HAMMING_PAR", par.createParameterString(par.rescorediagonal).c_str());
     // set it back to old value
     par.covThr = prevCov;
-    par.targetCovThr = prevTargetCov;
     par.seqIdThr = prevSeqId;
     par.rescoreMode = Parameters::RESCORE_MODE_SUBSTITUTION;
     // # 3. Ungapped alignment filtering

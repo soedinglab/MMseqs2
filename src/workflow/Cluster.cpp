@@ -46,8 +46,6 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     bool parameterSet = false;
     bool compositionBiasSet = false;
     bool minDiagonalScore = false;
-    bool targetCov = false;
-    bool cov = false;
 
     for (size_t i = 0; i < par.clusteringWorkflow.size(); i++) {
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_S.uniqid && par.clusteringWorkflow[i].wasSet) {
@@ -59,26 +57,17 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_NO_COMP_BIAS_CORR.uniqid && par.clusteringWorkflow[i].wasSet) {
             compositionBiasSet = true;
         }
-        if (par.clusteringWorkflow[i].uniqid == par.PARAM_TARGET_COV.uniqid && par.clusteringWorkflow[i].wasSet) {
-            targetCov = true;
-            par.covThr = 0.0;
-        }
-        if (par.clusteringWorkflow[i].uniqid == par.PARAM_C.uniqid && par.clusteringWorkflow[i].wasSet) {
-            cov = true;
-        }
         if (par.clusteringWorkflow[i].uniqid == par.PARAM_MIN_DIAG_SCORE.uniqid && par.clusteringWorkflow[i].wasSet) {
             minDiagonalScore = true;
         }
     }
-    if(cov && targetCov){
-        Debug(Debug::ERROR) << "The paramter -c can not be combined with --target-cov.\n";
-        EXIT(EXIT_FAILURE);
-    }
+
     if (compositionBiasSet == false){
         if(par.seqIdThr > 0.7){
             par.compBiasCorrection = 0;
         }
     }
+
     if (minDiagonalScore == false){
         if(par.seqIdThr > 0.7){
             par.minDiagScoreThr = 60;

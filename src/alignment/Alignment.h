@@ -34,11 +34,11 @@ public:
              const unsigned int maxAlnNum, const unsigned int maxRejected);
 
 private:
-    // query sequence coverage threshold
+    // sequence coverage threshold
     const double covThr;
 
-    // query sequence coverage threshold
-    const double targetCovThr;
+    // query or query+target coverage mode
+    const double covMode;
 
     // e value threshold
     const double evalThr;

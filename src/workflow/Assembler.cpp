@@ -25,23 +25,6 @@ int assembler(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
         EXIT(EXIT_FAILURE);
     }
-    bool targetCov = false;
-    bool cov = false;
-    for (size_t i = 0; i < par.linclustworkflow.size(); i++) {
-        if (par.linclustworkflow[i].uniqid == par.PARAM_TARGET_COV.uniqid && par.linclustworkflow[i].wasSet) {
-            if(par.targetCovThr > 0.0 ){
-                targetCov = true;
-                par.covThr = 0.0;
-            }
-        }
-        if (par.linclustworkflow[i].uniqid == par.PARAM_C.uniqid && par.linclustworkflow[i].wasSet) {
-            cov = true;
-        }
-    }
-    if(cov && targetCov){
-        Debug(Debug::ERROR) << "The paramter -c can not be combined with --target-cov.\n";
-        EXIT(EXIT_FAILURE);
-    }
     CommandCaller cmd;
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");

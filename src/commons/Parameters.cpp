@@ -45,7 +45,7 @@ Parameters::Parameters():
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) query and target residues",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1(\\.0)?$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
-        PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1(\\.0)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_COV_MODE(PARAM_COV_MODE_ID, "--cov-mode", "Coverage Mode", "0: coverage of query and target, 1: coverage of target", typeid(int), (void *) &covMode, "^[0-1]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MAX_ACCEPT(PARAM_MAX_ACCEPT_ID,"--max-accept", "Max Accept", "maximum accepted alignments before alignment calculation for a query is stopped",typeid(int),(void *) &maxAccept, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
@@ -161,7 +161,7 @@ Parameters::Parameters():
     align.push_back(PARAM_E);
     align.push_back(PARAM_MIN_SEQ_ID);
     align.push_back(PARAM_C);
-    align.push_back(PARAM_TARGET_COV);
+    align.push_back(PARAM_COV_MODE);
     align.push_back(PARAM_MAX_SEQ_LEN);
     align.push_back(PARAM_MAX_SEQS);
     align.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -220,7 +220,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
     rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_E);
-    rescorediagonal.push_back(PARAM_TARGET_COV);
+    rescorediagonal.push_back(PARAM_COV_MODE);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
     rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(PARAM_THREADS);
@@ -416,7 +416,7 @@ Parameters::Parameters():
     kmermatcher.push_back(PARAM_MIN_SEQ_ID);
     kmermatcher.push_back(PARAM_KMER_PER_SEQ);
     kmermatcher.push_back(PARAM_MASK_RESIDUES);
-    kmermatcher.push_back(PARAM_TARGET_COV);
+    kmermatcher.push_back(PARAM_COV_MODE);
     kmermatcher.push_back(PARAM_K);
     kmermatcher.push_back(PARAM_C);
     kmermatcher.push_back(PARAM_MAX_SEQ_LEN);
@@ -924,7 +924,7 @@ void Parameters::setDefaults() {
     alignmentMode = ALIGNMENT_MODE_FAST_AUTO;
     evalThr = 0.001;
     covThr = 0.0;
-    targetCovThr = 0.0;
+    covMode = 0;
     maxRejected = INT_MAX;
     maxAccept   = INT_MAX;
     seqIdThr = 0.0;
