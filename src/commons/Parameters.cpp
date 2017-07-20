@@ -135,10 +135,10 @@ Parameters::Parameters():
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
         PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their ID", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
-        // summarize headers
-        PARAM_HEADER_TYPE(PARAM_HEADER_TYPE_ID,"--header-type", "Header type", "Header Type: 1 Uniclust, 2 Metaclust",typeid(int), (void *) &headerType, "[1-2]{1}"),
         // prefixid
         PARAM_PREFIX(PARAM_PREFIX_ID, "--prefix", "Prefix", "Use this prefix for all entries", typeid(std::string),(void *) &prefix,""),
+        // summarize headers
+        PARAM_HEADER_TYPE(PARAM_HEADER_TYPE_ID,"--header-type", "Header type", "Header Type: 1 Uniclust, 2 Metaclust",typeid(int), (void *) &headerType, "[1-2]{1}"),
         // mergedbs
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "Comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
         // evaluationscores
@@ -787,22 +787,27 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db6 = getFilename[5];
             db6Index = db6;
             db6Index.append(".index");
+            // FALLTHROUGH
         case 5:
             db5 = getFilename[4];
             db5Index = db5;
             db5Index.append(".index");
+            // FALLTHROUGH
         case 4:
             db4 = getFilename[3];
             db4Index = db4;
             db4Index.append(".index");
+            // FALLTHROUGH
         case 3:
             db3 = getFilename[2];
             db3Index = db3;
             db3Index.append(".index");
+            // FALLTHROUGH
         case 2:
             db2 = getFilename[1];
             db2Index = db2;
             db2Index.append(".index");
+            // FALLTHROUGH
         case 1:
             db1 = getFilename[0];
             db1Index = db1;
@@ -812,6 +817,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             // Do not abort execution if we expect a variable amount of parameters
             if(isVariadic)
                 break;
+            // FALLTHROUGH
         case 0:
             printUsageMessage(command, outputFlag);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";

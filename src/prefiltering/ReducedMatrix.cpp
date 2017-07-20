@@ -3,7 +3,7 @@
 #include "Util.h"
 
 ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize, float bitFactor){
-    if(reducedAlphabetSize >= alphabetSize) {
+    if(static_cast<int>(reducedAlphabetSize) >= alphabetSize) {
         Debug(Debug::ERROR) << "Reduced alphabet has to be smaller than the original one!";
         EXIT(EXIT_FAILURE);
     }
@@ -118,7 +118,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
     computeBackground(probMatrix, origpBack, origAlphabetSize, true);
     // copy old X state
     for (int i = 0; i < this->alphabetSize; i++) {
-        int oldIndex = aa2int[int2aa_new[i]];
+        int oldIndex = aa2int[(int)int2aa_new[i]];
         double Pab = probMatrix[oldIndex][origAlphabetSize-1] / ( origpBack[oldIndex] * origpBack[origAlphabetSize-1]);
         probMatrix_new[alphabetSize-1][i] = Pab * pBack[i] * pBack[alphabetSize-1];
         probMatrix_new[i][alphabetSize-1] = Pab * pBack[alphabetSize-1] * pBack[i];

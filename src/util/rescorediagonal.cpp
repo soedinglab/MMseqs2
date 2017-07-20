@@ -60,10 +60,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(subMat);
 
-    int sequenceType = Sequence::AMINO_ACIDS;
-    if (par.queryProfile == true) {
-        sequenceType = Sequence::HMM_PROFILE;
-    }
+//    int sequenceType = Sequence::AMINO_ACIDS;
+//    if (par.queryProfile == true) {
+//        sequenceType = Sequence::HMM_PROFILE;
+//    }
 
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
     qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
@@ -155,9 +155,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                                                                       targetSeq,
                                                                                       diagonalLen, fastMatrix.matrix, par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
-                            alignment = DistanceCalculator::computeSubstituionStartEndDistance(querySeq + distanceToDiagonal,
-                                                                                               targetSeq,
-                                                                                               diagonalLen, fastMatrix.matrix);
+                            alignment = DistanceCalculator::computeSubstitutionStartEndDistance(
+                                    querySeq + distanceToDiagonal,
+                                    targetSeq,
+                                    diagonalLen, fastMatrix.matrix);
                             distance = alignment.score;
                         }
                     } else if (diagonal < 0 && distanceToDiagonal < targetLen) {
@@ -171,9 +172,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                                                                       targetSeq  + distanceToDiagonal,
                                                                                       diagonalLen, fastMatrix.matrix, par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
-                            alignment = DistanceCalculator::computeSubstituionStartEndDistance(querySeq,
-                                                                                               targetSeq + distanceToDiagonal,
-                                                                                               diagonalLen, fastMatrix.matrix);
+                            alignment = DistanceCalculator::computeSubstitutionStartEndDistance(querySeq,
+                                                                                                targetSeq +
+                                                                                                distanceToDiagonal,
+                                                                                                diagonalLen,
+                                                                                                fastMatrix.matrix);
                             distance = alignment.score;
                         }
                     }
@@ -215,8 +218,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                 // compute seq.id if hit fulfills e-value but not by seqId criteria
                                 if(evalue <= par.evalThr && seqId > par.seqIdThr - 0.15){
                                     int idCnt = 0;
-                                    for(size_t i = qStartPos; i < qEndPos; i++){
-                                        idCnt += (querySeq[i] == targetSeq[dbStartPos+(i-qStartPos)]);
+                                    for(int i = qStartPos; i < qEndPos; i++){
+                                        idCnt += (querySeq[i] == targetSeq[dbStartPos+(i-qStartPos)]) ? 1 : 0;
                                     }
                                     seqId = static_cast<double>(idCnt) / (static_cast<double>(qEndPos) - static_cast<double>(qStartPos));
                                 }
@@ -242,7 +245,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                             std::string alnString = Matcher::resultToString(result, false);
 //                            len = snprintf(buffer, 100, "%s", alnString.c_str());
                             prefResultsOutString.append(alnString);
-                        } else   if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
+                        } else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
                             len = snprintf(buffer, 100, "%u\t%.3e\t%d\n", results[entryIdx].seqId, evalue, diagonal);
                             prefResultsOutString.append(buffer, len);
                         } else {

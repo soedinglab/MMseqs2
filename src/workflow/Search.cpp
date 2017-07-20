@@ -53,7 +53,7 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         float originalEval = par.evalThr;
         par.evalThr = par.evalProfile;
-        for(size_t i = 0; i < par.numIterations; i++){
+        for(int i = 0; i < par.numIterations; i++){
             std::string alnVarStr = "ALIGNMENT_PAR_"+SSTR(i);
             if(i == par.numIterations-1){
                 par.evalThr = originalEval;

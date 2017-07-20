@@ -8,7 +8,6 @@ int main (int argc, const char * argv[])
     TranslateNucl * translateNucl = new TranslateNucl(TranslateNucl::CANONICAL);
 //    translateNucl->initConversionTable();
     std::string nuclStr = "ATGGATGGTACGGTTATCACCATCAAAATGAGCAGGGGTCAGGATATGCAGCCGACC";
-    int state = 0;
     int length = nuclStr.size();
     char* aa = new char[length/3 + 1];
     translateNucl->translate(aa, (char*)nuclStr.c_str(), length);

@@ -12,7 +12,6 @@
 
 
 int main (int argc, const char * argv[]) {
-
     const size_t kmer_size = 6;
 
     Parameters& par = Parameters::getInstance();
@@ -20,8 +19,8 @@ int main (int argc, const char * argv[]) {
     std::cout << "Substitution matrix:";
     SubstitutionMatrix::print(subMat.subMatrix, subMat.int2aa, subMat.alphabetSize);
 
-    char *ref = "NTVAYADTFGSAKIKTLLEAREAATQAPGVIVRWFTKGSSEQKRVTPVMGQQRMATATNEANQEISFIGIQLYPKDLSSAPKAPPKPQPAPSAAPAATTTAAAVEAGPAPIGAAGDLAAAASAAVPDLTGETVDPAAAIMAAEDPTAAPADEAPVEERRLAIVDLNTPAGALMGLAAAADSSVQLRPGPSQRERRFLAGIVFQGNQQNRIIVREPESVEPHAVWVGGLSPRGDWLGAETAHFVDPAEIDREVSQAARSVTEGSASADDKPKLFGPMQADDCAALAAMGTLLWAARWAAGRRKSFARGMNQGM\0";
-    const int len = strlen(ref);
+    const char *ref = "NTVAYADTFGSAKIKTLLEAREAATQAPGVIVRWFTKGSSEQKRVTPVMGQQRMATATNEANQEISFIGIQLYPKDLSSAPKAPPKPQPAPSAAPAATTTAAAVEAGPAPIGAAGDLAAAASAAVPDLTGETVDPAAAIMAAEDPTAAPADEAPVEERRLAIVDLNTPAGALMGLAAAADSSVQLRPGPSQRERRFLAGIVFQGNQQNRIIVREPESVEPHAVWVGGLSPRGDWLGAETAHFVDPAEIDREVSQAARSVTEGSASADDKPKLFGPMQADDCAALAAMGTLLWAARWAAGRRKSFARGMNQGM\0";
+    const size_t len = strlen(ref);
     Sequence refSeq(10000, subMat.aa2int, subMat.int2aa, 0,kmer_size, false, true);
     refSeq.mapSequence(0, 0, ref);
 
@@ -40,7 +39,7 @@ int main (int argc, const char * argv[]) {
         //std::cout << std::endl;
     }
     char  refInt[100000];
-    for(size_t i = 0; i < refSeq.L; i++){
+    for(int i = 0; i < refSeq.L; i++){
         refInt[i] = (char) refSeq.int_sequence[i];
     }
     tantan::maskSequences(refInt, refInt+len, 50 /*options.maxCycleLength*/,
@@ -50,9 +49,9 @@ int main (int argc, const char * argv[]) {
                           0, 0,
                           0.5 /*options.minMaskProb*/, hardMaskTable);
 
-    for(size_t i = 0; i < refSeq.L; i++){
+    for(int i = 0; i < refSeq.L; i++){
 //        refInt[i] = (char) refSeq.int_sequence[i];
-        std::cout << subMat.int2aa[refInt[i]];
+        std::cout << subMat.int2aa[(int)refInt[i]];
 
     }
     std::cout << std::endl;
