@@ -113,7 +113,7 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
     // adjust score of each match state by -0.2 to trim alignment
     SubstitutionMatrix subMat(scoringMatrixFile.c_str(), 2.0f, -0.2f);
 
-    Debug(Debug::INFO) << "Start computing profiles";
+    Debug(Debug::INFO) << "Start computing profiles.\n";
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND,
                                         true);
 #pragma omp parallel
