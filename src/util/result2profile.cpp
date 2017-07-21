@@ -23,8 +23,13 @@
 
 int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::string &outpath,
                    const size_t dbFrom, const size_t dbSize) {
+    int localThreads = par.threads;
+    if (qDbr.getSize() <= par.threads) {
+        localThreads = qDbr.getSize();
+    }
+
 #ifdef OPENMP
-    omp_set_num_threads(par.threads);
+    omp_set_num_threads(localThreads);
 #endif
 
     DBReader<unsigned int> *tDbr = NULL;
@@ -97,13 +102,13 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter resultWriter(outpath.c_str(), std::string(outpath + ".index").c_str(), par.threads, DBWriter::BINARY_MODE);
+    DBWriter resultWriter(outpath.c_str(), std::string(outpath + ".index").c_str(), localThreads, DBWriter::BINARY_MODE);
     resultWriter.open();
 
     DBWriter *consensusWriter = NULL;
     if (!par.omitConsensus) {
         consensusWriter = new DBWriter(std::string(outpath + "_consensus").c_str(),
-                     std::string(outpath + "_consensus.index").c_str(), par.threads);
+                     std::string(outpath + "_consensus.index").c_str(), localThreads);
         consensusWriter->open();
     }
 
