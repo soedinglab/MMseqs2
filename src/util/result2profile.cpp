@@ -5,6 +5,8 @@
 #include <vector>
 #include <sstream>
 #include <sys/time.h>
+#include <algorithm>
+#include <utility>
 
 #include "MsaFilter.h"
 #include "Parameters.h"
@@ -196,26 +198,15 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
                                                : aligner.computeMSA(&centerSequence, seqSet, true);
             //MultipleAlignment::print(res, &subMat);
 
-            alnResults = res.alignmentResults;
+            size_t filteredSetSize = res.setSize;
             if (par.filterMsa == 1) {
-                MsaFilter::MsaFilterResult filterRes = filter.filter((const char **) res.msaSequence, res.setSize,
-                                                                     res.centerLength, static_cast<int>(par.cov * 100),
-                                                                     static_cast<int>(par.qid * 100), par.qsc,
-                                                                     static_cast<int>(par.filterMaxSeqId * 100),
-                                                                     par.Ndiff);
-                res.keep = (char *) filterRes.keep;
-                for (size_t i = 0; i < res.setSize; i++) {
-                    if (res.keep[i] == 0) {
-                        free(res.msaSequence[i]);
-                    }
-                }
-                for (size_t i = 0; i < filterRes.setSize; i++) {
-                    res.msaSequence[i] = (char *) filterRes.filteredMsaSequence[i];
-                }
-                res.setSize = filterRes.setSize;
+                filter.filter(res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
+                              static_cast<int>(par.qid * 100), par.qsc,
+                              static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
+                              (const char **) res.msaSequence, &filteredSetSize);
             }
 
-            std::pair<const char *, std::string> pssmRes = calculator.computePSSMFromMSA(res.setSize, res.centerLength,
+            std::pair<const char *, std::string> pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                                                          (const char **) res.msaSequence,
                                                                                          par.wg);
             char *data = (char *) pssmRes.first;

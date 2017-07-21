@@ -182,23 +182,12 @@ int result2msa(Parameters &par, const std::string &outpath,
             //MultipleAlignment::print(res, &subMat);
 
             alnResults = res.alignmentResults;
-            size_t originalSetSize = res.setSize;
+            size_t filteredSetSize = res.setSize;
             if (par.filterMsa == 1) {
-                MsaFilter::MsaFilterResult filterRes = filter.filter((const char **) res.msaSequence, res.setSize,
-                                                                     res.centerLength, static_cast<int>(par.cov * 100),
-                                                                     static_cast<int>(par.qid * 100), par.qsc,
-                                                                     static_cast<int>(par.filterMaxSeqId * 100),
-                                                                     par.Ndiff);
-                res.keep = (char *) filterRes.keep;
-                for (size_t i = 0; i < res.setSize; i++) {
-                    if (res.keep[i] == 0) {
-                        free(res.msaSequence[i]);
-                    }
-                }
-                for (size_t i = 0; i < filterRes.setSize; i++) {
-                    res.msaSequence[i] = (char *) filterRes.filteredMsaSequence[i];
-                }
-                res.setSize = filterRes.setSize;
+                filter.filter(res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
+                              static_cast<int>(par.qid * 100), par.qsc,
+                              static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
+                              (const char **) res.msaSequence, &filteredSetSize);
             }
             char *data;
             size_t dataSize;
@@ -208,7 +197,7 @@ int result2msa(Parameters &par, const std::string &outpath,
                 if (par.summarizeHeader) {
                     // gather headers for summary
                     std::vector<std::string> headers;
-                    for (size_t i = 0; i < res.setSize; i++) {
+                    for (size_t i = 0; i < filteredSetSize; i++) {
                         if (i == 0) {
                             headers.push_back(centerSequenceHeader);
                         } else {
@@ -225,7 +214,7 @@ int result2msa(Parameters &par, const std::string &outpath,
                 if (par.skipQuery == true) {
                     start = 1;
                 }
-                for (size_t i = start; i < res.setSize; i++) {
+                for (size_t i = start; i < filteredSetSize; i++) {
                     unsigned int key;
                     char *header;
                     if (i == 0) {
@@ -265,7 +254,7 @@ int result2msa(Parameters &par, const std::string &outpath,
 
                 if (par.omitConsensus == false) {
                     std::pair<const char *, std::string> pssmRes =
-                            calculator.computePSSMFromMSA(res.setSize, res.centerLength,
+                            calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                           (const char **) res.msaSequence, par.wg);
                     msa << ">consensus_" << queryHeaderReader.getDataByDBKey(queryKey) << pssmRes.second << "\n;";
                 } else {
@@ -286,7 +275,6 @@ int result2msa(Parameters &par, const std::string &outpath,
 
             resultWriter.writeData(data, dataSize, queryKey, thread_idx);
 
-            res.setSize = originalSetSize;
             MultipleAlignment::deleteMSA(&res);
             for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
                 Sequence *seq = *it;
