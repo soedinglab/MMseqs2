@@ -85,7 +85,8 @@ int result2msa(Parameters &par, const std::string &outpath,
     DBWriter resultWriter(outpath.c_str(), std::string(outpath + ".index").c_str(), par.threads, DBWriter::BINARY_MODE);
     resultWriter.open();
 
-    size_t maxSetSize = resultReader.maxCount('\n');
+    // + 1 for query
+    size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);

@@ -107,7 +107,8 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
         consensusWriter->open();
     }
 
-    size_t maxSetSize = resultReader.maxCount('\n');
+    // + 1 for query
+    size_t maxSetSize = resultReader.maxCount('\n') + 1;
 
     // adjust score of each match state by -0.2 to trim alignment
     SubstitutionMatrix subMat(scoringMatrixFile.c_str(), 2.0f, -0.2f);
