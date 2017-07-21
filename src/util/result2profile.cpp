@@ -258,6 +258,12 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
         delete tDbr;
     }
 
+    if (templateDBIsIndex == true) {
+        delete tSeqLookup;
+        tidxdbr->close();
+        delete tidxdbr;
+    }
+
     Debug(Debug::INFO) << "\nDone.\n";
 
     return EXIT_SUCCESS;
