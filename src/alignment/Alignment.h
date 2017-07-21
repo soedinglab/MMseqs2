@@ -59,7 +59,7 @@ private:
 
     // keeps state of the SW alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
     unsigned int swMode;
-    const unsigned int threads;
+    unsigned int threads;
 
     const std::string outDB;
     const std::string outDBIndex;

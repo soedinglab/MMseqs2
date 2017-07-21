@@ -24,10 +24,6 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         maxSeqLen(par.maxSeqLen), querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
         compBiasCorrection(par.compBiasCorrection), qseqdbr(NULL), qSeqLookup(NULL),
         tseqdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit) {
-#ifdef OPENMP
-    Debug(Debug::INFO) << "Using " << threads << " threads.\n";
-#endif
-
     int alignmentMode = par.alignmentMode;
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
@@ -107,6 +103,18 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         qseqdbr->readMmapedDataInMemory();
         qseqdbr->mlock();
     }
+
+    if (qseqdbr->getSize() <= threads) {
+        threads = qseqdbr->getSize();
+    }
+
+#ifdef OPENMP
+    omp_set_num_threads(threads);
+#endif
+
+#ifdef OPENMP
+    Debug(Debug::INFO) << "Using " << threads << " threads.\n";
+#endif
 
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
