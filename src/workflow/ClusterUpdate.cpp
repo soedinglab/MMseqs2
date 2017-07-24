@@ -23,7 +23,12 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
 	
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("DIFF_PAR", par.createParameterString(par.diff).c_str());
+
+    int maxAccept = par.maxAccept;
+    par.maxAccept = 1;
     cmd.addVariable("SEARCH_PAR", par.createParameterString(par.clusterUpdateSearch).c_str());
+    par.maxAccept = maxAccept;
+
     cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusteringWorkflow).c_str());
 
     std::string scriptPath(par.db6);
