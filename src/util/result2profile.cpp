@@ -24,8 +24,8 @@
 int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::string &outpath,
                    const size_t dbFrom, const size_t dbSize) {
     int localThreads = par.threads;
-    if (qDbr.getSize() <= par.threads) {
-        localThreads = qDbr.getSize();
+    if (static_cast<int>(qDbr.getSize()) <= par.threads) {
+        localThreads = static_cast<int>(qDbr.getSize());
     }
 
 #ifdef OPENMP

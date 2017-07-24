@@ -76,8 +76,8 @@ int main (int argc, const char * argv[])
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;
 //    }
     std::cout <<"Filtered MSA" << std::endl;
-    for(int k = 0; k < filterSetSize; k++){
-        printf("k=%.3d ", k);
+    for(size_t k = 0; k < filterSetSize; k++){
+        printf("k=%.3zu ", k);
         for (size_t pos = 0; pos < res.centerLength; pos++) {
             char aa = res.msaSequence[k][pos];
             printf("%c", (aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
