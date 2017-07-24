@@ -521,6 +521,7 @@ Parameters::Parameters():
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(PARAM_USESEQID);
+    clusterUpdate.push_back(PARAM_RECOVER_DELETED);
 
     //checkSaneEnvironment();
     setDefaults();
