@@ -20,7 +20,29 @@ void setSearchDefaults(Parameters *p) {
 int search(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setSearchDefaults(&par);
-    par.parseParameters(argc, argv, command, 4, true, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+    par.parseParameters(argc, argv, command, 4, false, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+    // validate and set parameters for iterative search
+    if (par.numIterations > 1) {
+        if (par.targetProfile == true) {
+            par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+            Debug(Debug::ERROR) << "Iterative target-profile searches are not supported.\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        par.addBacktrace = true;
+        if (par.queryProfile == true) {
+            for (size_t i = 0; i < par.searchworkflow.size(); i++) {
+                if (par.searchworkflow[i].uniqid == par.PARAM_REALIGN.uniqid && par.searchworkflow[i].wasSet) {
+                    par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+                    Debug(Debug::ERROR) << "Cannot realign query profiles.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+            }
+
+            par.realign = false;
+        }
+    }
+    par.printParameters(argc, argv, par.searchworkflow);
     if(FileUtil::directoryExists(par.db4.c_str())==false){
         Debug(Debug::ERROR) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         EXIT(EXIT_FAILURE);
@@ -42,7 +64,7 @@ int search(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(par.db4 + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
         std::string program(par.db4 + "/searchtargetprofile.sh");
         cmd.execProgram(program.c_str(), 4, argv);
-    }else if (par.numIterations > 1) {
+    } else if (par.numIterations > 1) {
         for (size_t i = 0; i < par.searchworkflow.size(); i++) {
             if (par.searchworkflow[i].uniqid == par.PARAM_E_PROFILE.uniqid && par.searchworkflow[i].wasSet== false) {
                 par.evalProfile = 0.1;
@@ -50,23 +72,33 @@ int search(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
         cmd.addVariable("PROFILE", SSTR((par.queryProfile) ? 1 : 0).c_str());
-        cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+        cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
+
         float originalEval = par.evalThr;
         par.evalThr = par.evalProfile;
-        for(int i = 0; i < par.numIterations; i++){
-            std::string alnVarStr = "ALIGNMENT_PAR_"+SSTR(i);
-            if(i == par.numIterations-1){
+        for (int i = 0; i < par.numIterations; i++){
+            if (i == 0 && par.queryProfile == false) {
+                par.realign = true;
+            }
+
+            if (i > 0) {
+                par.queryProfile = true;
+                par.realign = false;
+            }
+
+            if (i == (par.numIterations - 1)) {
                 par.evalThr = originalEval;
             }
-            cmd.addVariable(alnVarStr.c_str(), par.createParameterString(par.align).c_str());
+
+            cmd.addVariable(std::string("PREFILTER_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.prefilter).c_str());
+            cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.align).c_str());
+            cmd.addVariable(std::string("PROFILE_PAR_" + SSTR(i)).c_str(),   par.createParameterString(par.result2profile).c_str());
         }
-        cmd.addVariable("PROFILE_PAR",   par.createParameterString(par.result2profile).c_str());
-        cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
+
         FileUtil::writeFile(par.db4 + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
         std::string program(par.db4 + "/blastpgp.sh");
         cmd.execProgram(program.c_str(), 4, argv);
     } else {
-
         bool startSens  = false;
         for (size_t i = 0; i < par.searchworkflow.size(); i++) {
             if (par.searchworkflow[i].uniqid == par.PARAM_START_SENS.uniqid && par.searchworkflow[i].wasSet) {
