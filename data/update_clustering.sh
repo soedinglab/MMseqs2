@@ -293,7 +293,7 @@ if [ -n "$REMOVE_TMP" ]; then
 	rm -f "$TMP/OLDDB.repSeq" "$TMP/OLDDB.repSeq.index" \
 	      "$TMP/updatedClust" "$TMP/updatedClust.index"
 
-    rm -f "$TMP/update_clustering.sh"
-
 	rmdir "$TMP/search" "$TMP/cluster"
+
+    rm -f "$TMP/update_clustering.sh"
 fi
