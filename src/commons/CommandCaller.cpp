@@ -54,7 +54,11 @@ void CommandCaller::execProgram(const char* program, size_t argc, const char **a
 
     int res = execvp(program, (char * const *) pArgv);
 
+    if (res == -1) {
+        Debug(Debug::ERROR) << "Failed to execute " << program << " with error " << errno << ".\n";
+    }
+
     // should not be reached in the normal case
     delete[] pArgv;
-    EXIT(res);
+    EXIT(EXIT_FAILURE);
 }

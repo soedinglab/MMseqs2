@@ -39,8 +39,8 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
 
     scriptPath.append("/update_clustering.sh");
     FileUtil::writeFile(scriptPath, update_clustering_sh, update_clustering_sh_len);
-    std::string program(par.db6 + "/update_clustering.sh");
-	cmd.execProgram(program.c_str(), 6, argv);
+
+	cmd.execProgram(scriptPath.c_str(), 6, argv);
 
     // Should never get here
     assert(false);
