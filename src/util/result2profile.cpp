@@ -156,45 +156,45 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
             char *results = resultReader.getData(id);
             std::vector<Matcher::result_t> alnResults;
             std::vector<Sequence *> seqSet;
-            char dbKey[255 + 1];
             while (*results != '\0') {
+                char dbKey[255 + 1];
                 Util::parseKey(results, dbKey);
                 const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                // in the same database case, we have the query repeated
+                if ((key == queryKey && sameDatabase == true)) {
+                    results = Util::skipLine(results);
+                    continue;
+                }
+
                 char *entry[255];
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
-                // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
-                if ((key != queryKey || sameDatabase == false)) {
-                    if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
-                        Matcher::result_t res = Matcher::parseAlignmentRecord(results);
-                        if (!(res.dbKey == centerSequence.getDbKey() && sameDatabase == true)) {
-                            alnResults.push_back(res);
-                        }
-                    }
-
-                    const size_t edgeId = tDbr->getId(key);
-                    Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), subMat.aa2int, subMat.int2aa,
-                                                          Sequence::AMINO_ACIDS, 0, false, false);
-
-                    if (tSeqLookup != NULL) {
-                        std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(edgeId);
-                        edgeSequence->mapSequence(0, key, sequence);
-                    } else {
-                        char *dbSeqData = tDbr->getData(edgeId);
-                        if (dbSeqData == NULL) {
-#pragma omp critical
-                            {
-                                Debug(Debug::ERROR) << "ERROR: Sequence " << key
-                                                    << " is required in the prefiltering,"
-                                                    << "but is not contained in the target sequence database!\n"
-                                                    << "Please check your database.\n";
-                                EXIT(EXIT_FAILURE);
-                            }
-                        }
-                        edgeSequence->mapSequence(0, key, dbSeqData);
-                    }
-
-                    seqSet.push_back(edgeSequence);
+                if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                    Matcher::result_t res = Matcher::parseAlignmentRecord(results);
+                    alnResults.push_back(res);
                 }
+
+                const size_t edgeId = tDbr->getId(key);
+                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), subMat.aa2int, subMat.int2aa,
+                                                      Sequence::AMINO_ACIDS, 0, false, false);
+
+                if (tSeqLookup != NULL) {
+                    std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(edgeId);
+                    edgeSequence->mapSequence(0, key, sequence);
+                } else {
+                    char *dbSeqData = tDbr->getData(edgeId);
+                    if (dbSeqData == NULL) {
+#pragma omp critical
+                        {
+                            Debug(Debug::ERROR) << "ERROR: Sequence " << key << " is required in the prefiltering,"
+                                                << "but is not contained in the target sequence database!\n"
+                                                << "Please check your database.\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                    }
+                    edgeSequence->mapSequence(0, key, dbSeqData);
+                }
+
+                seqSet.push_back(edgeSequence);
                 results = Util::skipLine(results);
             }
 
@@ -287,7 +287,7 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par,
 #endif
 
     // master reduces results
-    if (MMseqsMPI::isMaster() == 0) {
+    if (MMseqsMPI::isMaster()) {
         const char *ext[2] = {"", "_consensus"};
         for (size_t i = 0; i < 2; i++) {
             std::vector<std::pair<std::string, std::string> > splitFiles;
