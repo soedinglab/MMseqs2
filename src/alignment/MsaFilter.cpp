@@ -258,7 +258,7 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
     // If min required seqid larger than max required seqid, return here without doing pairwise seqid filtering
     if (seqid1 > max_seqid) {
         *N_out = nn;
-        goto shufflefiltered;
+        return;
     }
 
     // Successively increment idmax[i] at positons where N[i]<Ndiff
@@ -450,9 +450,10 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
     }
 
     *N_out = n;
+}
 
-shufflefiltered:
-    for (size_t i = 0, j = 0; j < static_cast<size_t>(N_in); j++) {
+void MsaFilter::shuffleSequences(const char ** X, size_t setSize) {
+    for (size_t i = 0, j = 0; j < setSize; j++) {
         if (keep[j] != 0) {
             if (i < j) {
                 const char* temp;
@@ -462,6 +463,12 @@ shufflefiltered:
             }
             i++;
         }
+    }
+}
+
+void MsaFilter::getKept(bool *kept, size_t setSize) {
+    for (size_t i = 0; i < setSize; i++) {
+        kept[i] = keep[i] != 0;
     }
 }
 

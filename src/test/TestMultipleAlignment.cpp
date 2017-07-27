@@ -68,6 +68,7 @@ int main (int argc, const char * argv[])
     size_t filterSetSize = res.setSize;
     filter.filter(res.setSize, res.centerLength, 0, 0, -20.0, 50, 100,
                      (const char**)res.msaSequence, &filterSetSize);
+    filter.shuffleSequences((const char**)res.msaSequence, res.setSize);
     std::cout << "Filtered:" << filterSetSize << std::endl;
     MultipleAlignment::print(res, &subMat);
     PSSMCalculator pssm(&subMat, 1000, 5, 1.0, 1.5);

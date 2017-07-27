@@ -51,7 +51,7 @@ int result2msa(Parameters &par, const std::string &outpath,
     const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
     if (!sameDatabase) {
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
-        tDbr->open(DBReader<unsigned int>::SORT_BY_LINE);
+        tDbr->open(DBReader<unsigned int>::NOSORT);
 
         unsigned int *lengths = qDbr.getSeqLens();
         for (size_t i = 0; i < qDbr.getSize(); i++) {
@@ -69,7 +69,7 @@ int result2msa(Parameters &par, const std::string &outpath,
         headerIndexNameTarget.append("_h.index");
 
         tempateHeaderReader = new DBReader<unsigned int>(headerNameTarget.c_str(), headerIndexNameTarget.c_str());
-        tempateHeaderReader->open(DBReader<unsigned int>::SORT_BY_LINE);
+        tempateHeaderReader->open(DBReader<unsigned int>::NOSORT);
     } else {
         unsigned int *lengths = qDbr.getSeqLens();
         for (size_t i = 0; i < qDbr.getSize(); i++) {
@@ -93,6 +93,8 @@ int result2msa(Parameters &par, const std::string &outpath,
                        << (par.compressMSA ? "compressed" : "") << " multiple sequence alignments.\n";
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND,
                                         true);
+
+    const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
     {
         Matcher matcher(maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection);
@@ -108,6 +110,12 @@ int result2msa(Parameters &par, const std::string &outpath,
 
         Sequence centerSequence(maxSequenceLength, subMat.aa2int, subMat.int2aa,
                                 sequenceType, 0, false, par.compBiasCorrection);
+
+        // which sequences where kept after filtering
+        bool *kept = new bool[maxSetSize];
+        for (size_t i = 0; i < maxSetSize; ++i) {
+            kept[i] = 1;
+        }
 
 #pragma omp for schedule(static)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
@@ -177,11 +185,12 @@ int result2msa(Parameters &par, const std::string &outpath,
 
             alnResults = res.alignmentResults;
             size_t filteredSetSize = res.setSize;
-            if (par.filterMsa == 1) {
+            if (isFiltering) {
                 filter.filter(res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
                               (const char **) res.msaSequence, &filteredSetSize);
+                filter.getKept(kept, res.setSize);
             }
 
             if (!par.compressMSA) {
@@ -189,11 +198,11 @@ int result2msa(Parameters &par, const std::string &outpath,
                 if (par.summarizeHeader) {
                     // gather headers for summary
                     std::vector<std::string> headers;
-                    for (size_t i = 0; i < filteredSetSize; i++) {
+                    for (size_t i = 0; i < res.setSize; i++) {
                         if (i == 0) {
                             headers.push_back(std::string(centerSequenceHeader));
-                        } else {
-                            headers.push_back(tempateHeaderReader->getDataByDBKey(seqSet[i]->getDbKey()));
+                        } else if (kept[i] == true) {
+                            headers.push_back(tempateHeaderReader->getData(seqSet[i - 1]->getId()));
                         }
                     }
 
@@ -206,7 +215,11 @@ int result2msa(Parameters &par, const std::string &outpath,
                 if (par.skipQuery == true) {
                     start = 1;
                 }
-                for (size_t i = start; i < filteredSetSize; i++) {
+                for (size_t i = start; i < res.setSize; i++) {
+                    if (kept[i] == false) {
+                        continue;
+                    }
+
                     unsigned int key;
                     char *header;
                     if (i == 0) {
@@ -245,6 +258,9 @@ int result2msa(Parameters &par, const std::string &outpath,
 
                 std::ostringstream msa;
                 if (par.omitConsensus == false) {
+                    if (isFiltering) {
+                        filter.shuffleSequences((const char **) res.msaSequence, res.setSize);
+                    }
                     std::pair<const char *, std::string> pssmRes =
                             calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                           (const char **) res.msaSequence, par.wg);
@@ -270,6 +286,8 @@ int result2msa(Parameters &par, const std::string &outpath,
                 delete seq;
             }
         }
+
+        delete[] kept;
     }
 
     // cleanup

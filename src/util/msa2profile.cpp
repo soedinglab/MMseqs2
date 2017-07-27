@@ -263,6 +263,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
                               (const char **) msaSequences, &filteredSetSize);
+                filter.shuffleSequences((const char **) msaSequences, setSize);
             }
 
             std::pair<const char *, std::string> pssmRes =

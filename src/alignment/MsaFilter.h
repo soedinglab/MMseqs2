@@ -37,6 +37,12 @@ public:
     void filter(int N_in, int L, int coverage, int qid,
                 float qsc, int max_seqid, int Ndiff,
                 const char ** X, size_t *N_out);
+
+    // shuffles the filtered sequences to the back of the array, the unfiltered ones remain in the front
+    void shuffleSequences(const char ** X, size_t setSize);
+
+    void getKept(bool *offsets, size_t setSize);
+
     const int ANY=20;       //number representing an X (any amino acid) internally
     const int NAA=20;       //number of amino acids (0-19)
     const int GAP=21;       //number representing a gap internally
@@ -67,8 +73,6 @@ private:
     // maximum-sequence-identity threshold used in previous round of filtering (with lower seqid)
     int *seqid_prev;
     int *nres;
-    // X[k][i] contains column i of sequence k in alignment (first seq=0, first char=1) (0-3: ARND ..., 20:X, 21:GAP)
-    char** X;
     // first residue in sequence k
     int* first;
     // last  residue in sequence k

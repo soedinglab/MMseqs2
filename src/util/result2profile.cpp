@@ -121,6 +121,8 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
     Debug(Debug::INFO) << "Start computing profiles.\n";
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND,
                                         true);
+
+    const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
     {
         Matcher matcher(maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection);
@@ -205,11 +207,12 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
             //MultipleAlignment::print(res, &subMat);
 
             size_t filteredSetSize = res.setSize;
-            if (par.filterMsa == 1) {
+            if (isFiltering) {
                 filter.filter(res.setSize, res.centerLength, static_cast<int>(par.cov * 100),
                               static_cast<int>(par.qid * 100), par.qsc,
                               static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
                               (const char **) res.msaSequence, &filteredSetSize);
+                filter.shuffleSequences((const char **) res.msaSequence, res.setSize);
             }
 
             std::pair<const char *, std::string> pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
