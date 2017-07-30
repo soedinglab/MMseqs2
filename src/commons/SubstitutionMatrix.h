@@ -51,10 +51,10 @@ class SubstitutionMatrix: public BaseMatrix {
             char * matrixData = new char[range*range];
             for(size_t i = 0; i < range; i++) {
                 matrix[i] = matrixData+(i*range);
-                int curr_i = submat.aa2int[asciiStart+(int)i];
+                int curr_i = submat.aa2int[asciiStart+i];
                 for (size_t j = 0; j < range; j++) {
-                    int curr_j = submat.aa2int[asciiStart+(int)j];
-                    matrix[i][j] = submat.subMatrix[curr_i][curr_j];
+                    int curr_j = submat.aa2int[asciiStart+j];
+                    matrix[i][j] = static_cast<char>(submat.subMatrix[curr_i][curr_j]);
                 }
             }
             return FastMatrix((const char**) matrix,
