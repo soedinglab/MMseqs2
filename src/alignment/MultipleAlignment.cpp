@@ -212,7 +212,7 @@ void MultipleAlignment::updateGapsInSequenceSet(char **msaSequence, size_t cente
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs, bool noDeletionMSA) {
     // just center sequence is included
     if(edgeSeqs.size() == 0 ){
-        return singleSequenceMSA(centerSeq, edgeSeqs);
+        return singleSequenceMSA(centerSeq);
     }
 
     size_t dbSetSize = 0;
@@ -226,9 +226,8 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 
 MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs,
                                                            std::vector<Matcher::result_t> alignmentResults, bool noDeletionMSA) {
-
     if(edgeSeqs.size() == 0 ){
-        return singleSequenceMSA(centerSeq, edgeSeqs);
+        return singleSequenceMSA(centerSeq);
     }
 
     char ** msaSequence = new char *[edgeSeqs.size() + 1];
@@ -268,10 +267,10 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
 	
 	
     // +1 for the query
-    return MSAResult(centerSeqSize, centerSeq->L, edgeSeqs.size() + 1, msaSequence,alignmentResults);
+    return MSAResult(centerSeqSize, centerSeq->L, edgeSeqs.size() + 1, msaSequence, alignmentResults);
 }
 
-MultipleAlignment::MSAResult MultipleAlignment:: singleSequenceMSA(Sequence *centerSeq, std::vector<Sequence *> edgeSeqs) {
+MultipleAlignment::MSAResult MultipleAlignment::singleSequenceMSA(Sequence *centerSeq) {
     size_t queryMSASize = 0;
     char ** msaSequence = new char *[1];
     msaSequence[0] = initX(centerSeq->L);
@@ -283,5 +282,5 @@ MultipleAlignment::MSAResult MultipleAlignment:: singleSequenceMSA(Sequence *cen
         msaSequence[0][queryMSASize] = (char) centerSeq->int_sequence[queryPos];
         queryMSASize++;
     }
-    return MSAResult(queryMSASize, centerSeq->L, edgeSeqs.size() + 1, msaSequence);
+    return MSAResult(queryMSASize, centerSeq->L, 1, msaSequence);
 }

@@ -18,16 +18,12 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                      const std::string &prefDB, const std::string &prefDBIndex,
                      const std::string &outDB, const std::string &outDBIndex,
                      const Parameters &par) :
-        covThr(par.covThr), targetCovThr(par.targetCovThr), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
+        covThr(par.covThr), covMode(par.covMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
         includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), querySeqType(par.querySeqType), targetSeqType(par.targetSeqType),
         compBiasCorrection(par.compBiasCorrection), qseqdbr(NULL), qSeqLookup(NULL),
         tseqdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit) {
-#ifdef OPENMP
-    Debug(Debug::INFO) << "Using " << threads << " threads.\n";
-#endif
-
     int alignmentMode = par.alignmentMode;
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
@@ -45,7 +41,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
     std::string scoringMatrixFile = par.scoringMatrixFile;
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetSeqDB);
-    if (indexDB != "") {
+    if (indexDB.length() > 0) {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
 
         tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
@@ -108,6 +104,18 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         qseqdbr->mlock();
     }
 
+    if (qseqdbr->getSize() <= threads) {
+        threads = qseqdbr->getSize();
+    }
+
+#ifdef OPENMP
+    omp_set_num_threads(threads);
+#endif
+
+#ifdef OPENMP
+    Debug(Debug::INFO) << "Using " << threads << " threads.\n";
+#endif
+
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -128,9 +136,9 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 void Alignment::initSWMode(int alignmentMode) {
     switch (alignmentMode) {
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
-            if((covThr > 0.0 || targetCovThr > 0.0) && seqIdThr == 0.0) {
+            if(covThr > 0.0 && seqIdThr == 0.0) {
                 swMode = Matcher::SCORE_COV; // fast
-            } else if((covThr > 0.0 || targetCovThr > 0.0) && seqIdThr > 0.0) { // if seq id is needed
+            } else if(covThr > 0.0  && seqIdThr > 0.0) { // if seq id is needed
                 swMode = Matcher::SCORE_COV_SEQID; // slowest
             } else {
                 swMode = Matcher::SCORE_ONLY;
@@ -295,16 +303,14 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     const bool evalOk = (res.eval <= evalThr); // -e
                     const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
-                    const bool covOK = (res.qcov >= covThr && res.dbcov >= covThr); //-c
-                    const bool targetCovOK = (res.dbcov >= targetCovThr); // --target-cov (-c = 0.0 if --targetCov)
+                    const bool covOK = (covMode == 0) ? (res.qcov >= covThr && res.dbcov >= covThr) : (res.dbcov >= covThr);
                     // check first if it is identity
                     if (isIdentity
                         ||
                         // general accaptance criteria
                         ( evalOk   &&
                           seqIdOK  &&
-                          covOK    &&
-                          targetCovOK
+                          covOK
                         ))
                     {
 

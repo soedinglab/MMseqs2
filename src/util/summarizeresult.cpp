@@ -13,7 +13,7 @@
 static inline float getOverlap(const std::vector<bool> &covered, unsigned int qStart, unsigned int qEnd) {
     size_t counter = 0;
     for (size_t i = qStart; i < qEnd; ++i) {
-        counter += covered[i];
+        counter += covered[i] ? 1 : 0;
     }
     return static_cast<float>(counter) / static_cast<float>(qEnd - qStart + 1);
 }
@@ -21,7 +21,7 @@ static inline float getOverlap(const std::vector<bool> &covered, unsigned int qS
 std::vector<Matcher::result_t> mapDomains(const std::vector<Matcher::result_t> &input, float overlap, float minCoverage,
                                           double eValThreshold) {
     std::vector<Matcher::result_t> result;
-    if (input.size() == 0) {
+    if (input.empty()) {
         return result;
     }
 
@@ -47,7 +47,7 @@ std::vector<Matcher::result_t> mapDomains(const std::vector<Matcher::result_t> &
         }
         float targetCov = MathUtil::getCoverage(domain.dbStartPos, domain.dbEndPos, domain.dbLen);
         if (percentageOverlap <= overlap && targetCov > minCoverage && domain.eval < eValThreshold) {
-            for (unsigned int j = domain.qStartPos; j < domain.qEndPos; ++j) {
+            for (int j = domain.qStartPos; j < domain.qEndPos; ++j) {
                 covered[j] = true;
             }
             result.push_back(domain);

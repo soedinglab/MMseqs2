@@ -34,11 +34,11 @@ public:
              const unsigned int maxAlnNum, const unsigned int maxRejected);
 
 private:
-    // query sequence coverage threshold
+    // sequence coverage threshold
     const double covThr;
 
-    // query sequence coverage threshold
-    const double targetCovThr;
+    // query or query+target coverage mode
+    const double covMode;
 
     // e value threshold
     const double evalThr;
@@ -59,7 +59,7 @@ private:
 
     // keeps state of the SW alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
     unsigned int swMode;
-    const unsigned int threads;
+    unsigned int threads;
 
     const std::string outDB;
     const std::string outDBIndex;

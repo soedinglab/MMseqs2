@@ -53,6 +53,8 @@ public:
 
     size_t getSeqLens(size_t id);
 
+    size_t maxCount(char c);
+
     void remapData();
 
     size_t bsearch(const Index * index, size_t size, T value);
@@ -82,7 +84,7 @@ public:
 
     char *mmapData(FILE *file, size_t *dataSize);
 
-    bool readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength);
+    bool readIndex(char *indexFileName, Index *index, unsigned int *entryLength);
 
     void readIndexId(T* id, char * line, char** cols);
 

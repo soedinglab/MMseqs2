@@ -48,7 +48,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     int32_t maskLen = currentQuery->L / 2;
 
     // calcuate stop score
-    const double qL = static_cast<double>(currentQuery->L);
+//    const double qL = static_cast<double>(currentQuery->L);
 //    const double dbL = static_cast<double>(dbSeq->L);
 
     // avoid nummerical issues -log(evalThr/(qL*dbL*seqDbSize))

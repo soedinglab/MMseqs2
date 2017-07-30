@@ -49,10 +49,10 @@ class SubstitutionMatrix: public BaseMatrix {
             const size_t range = asciiEnd-asciiStart;
             char ** matrix = new char *[range];
             char * matrixData = new char[range*range];
-            for(char i = 0; i < range; i++) {
+            for(size_t i = 0; i < range; i++) {
                 matrix[i] = matrixData+(i*range);
                 int curr_i = submat.aa2int[asciiStart+(int)i];
-                for (char j = 0; j < range; j++) {
+                for (size_t j = 0; j < range; j++) {
                     int curr_j = submat.aa2int[asciiStart+(int)j];
                     matrix[i][j] = submat.subMatrix[curr_i][curr_j];
                 }

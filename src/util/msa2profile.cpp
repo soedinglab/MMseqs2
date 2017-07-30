@@ -257,25 +257,17 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             unsigned int centerLength = centerLengthWithGaps - maskedCount;
 
-            if (par.filterMsa == true) {
-                MsaFilter::MsaFilterResult filterRes
-                        = filter.filter((const char **) msaSequences,
-                                        setSize,
-                                        centerLength,
-                                        static_cast<int>(par.cov * 100),
-                                        static_cast<int>(par.qid * 100),
-                                        par.qsc,
-                                        static_cast<int>(par.filterMaxSeqId * 100),
-                                        par.Ndiff);
-
-                setSize = filterRes.setSize;
-                for (size_t i = 0; i < filterRes.setSize; i++) {
-                    msaSequences[i] = (char *) filterRes.filteredMsaSequence[i];
-                }
+            size_t filteredSetSize = setSize;
+            if (par.filterMsa == 1) {
+                filter.filter(setSize, centerLength, static_cast<int>(par.cov * 100),
+                              static_cast<int>(par.qid * 100), par.qsc,
+                              static_cast<int>(par.filterMaxSeqId * 100), par.Ndiff,
+                              (const char **) msaSequences, &filteredSetSize);
+                filter.shuffleSequences((const char **) msaSequences, setSize);
             }
 
             std::pair<const char *, std::string> pssmRes =
-                    calculator.computePSSMFromMSA(setSize, centerLength,
+                    calculator.computePSSMFromMSA(filteredSetSize, centerLength,
                                                   (const char **) msaSequences, par.wg);
 
             char *data = (char *) pssmRes.first;

@@ -5,6 +5,7 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
+#include "Util.h"
 
 int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
@@ -19,8 +20,10 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
     std::ifstream  orderFile(par.db1);
     std::string line;
+    char dbKey[255 + 1];
     while(std::getline(orderFile, line)) {
-        const unsigned int key = (unsigned int) strtoul(line.c_str(), NULL, 10);
+        Util::parseKey((char*)line.c_str(), dbKey);
+        const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
         size_t id = reader.getId(key);
         if(id >= UINT_MAX) {
             Debug(Debug::WARNING) << "Key " << line << " not found in database\n";

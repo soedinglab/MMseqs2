@@ -65,14 +65,14 @@ int main (int argc, const char * argv[])
     MultipleAlignment msaAligner(1000, 10, &subMat, aligner);
     MultipleAlignment::MSAResult res = msaAligner.computeMSA(&s1, seqSet, true);
     MsaFilter filter(1000, 10000, &subMat);
-    MsaFilter::MsaFilterResult msafilter = filter.filter((const char**)res.msaSequence, res.setSize, res.centerLength, 0, 0, -20.0f, 50, 100);
-    std::cout << msafilter.setSize << std::endl;
-    for(size_t i = 0; i < res.setSize; i++){
-        std::cout << "Included sequence=" << (int) msafilter.keep[i] << std::endl;
-    }
+    size_t filterSetSize = res.setSize;
+    filter.filter(res.setSize, res.centerLength, 0, 0, -20.0, 50, 100,
+                     (const char**)res.msaSequence, &filterSetSize);
+    filter.shuffleSequences((const char**)res.msaSequence, res.setSize);
+    std::cout << "Filtered:" << filterSetSize << std::endl;
     MultipleAlignment::print(res, &subMat);
     PSSMCalculator pssm(&subMat, 1000, 5, 1.0, 1.5);
-    pssm.computePSSMFromMSA(res.setSize, res.centerLength, (const char**)res.msaSequence, false);
+    pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char**)res.msaSequence, false);
     pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
     MultipleAlignment::deleteMSA(&res);

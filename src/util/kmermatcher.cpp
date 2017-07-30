@@ -103,7 +103,7 @@ unsigned circ_hash(const int * x, unsigned length){
     short unsigned RAND[21] = {0x4567, 0x23c6, 0x9869, 0x4873, 0xdc51, 0x5cff, 0x944a, 0x58ec, 0x1f29, 0x7ccd, 0x58ba, 0xd7ab, 0x41f2, 0x1efb, 0xa9e3, 0xe146, 0x007c, 0x62c2, 0x0854, 0x27f8, 0x231b};
     short unsigned h = 0x0;
     h = h^ RAND[x[0]];                  // XOR h and ki
-    for (int i = 1; i < length; ++i){
+    for (unsigned int i = 1; i < length; ++i){
         h = RoL(h, 5);
         h ^= RAND[x[i]];                   // XOR h and ki
     }

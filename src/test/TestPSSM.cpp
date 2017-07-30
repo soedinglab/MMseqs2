@@ -1585,25 +1585,27 @@ int main (int argc, const char * argv[])
     MultipleAlignment::print(res, &subMat);
 
     MsaFilter msaFilter(10000, counter, &subMat);
-    MsaFilter::MsaFilterResult filterResult = msaFilter.filter((const char **)res.msaSequence, res.setSize,
-                                                               res.centerLength, 0, 0,- 20.0, 90, 100);
-    std::cout << "Filtered:" << filterResult.setSize << std::endl;
+    size_t filterSetSize = res.setSize;
+    msaFilter.filter(res.setSize, res.centerLength, 0, 0, -20.0f, 90, 100,
+                     (const char**)res.msaSequence, &filterSetSize);
+    msaFilter.shuffleSequences((const char**)res.msaSequence, res.setSize);
+    std::cout << "Filtered:" << filterSetSize << std::endl;
 //    for(size_t k = 0; k < res.setSize; k++){
 //        std::cout << "k=" << k << "\t" << (int)filterResult.keep[k] << std::endl;
 //    }
-    std::cout <<"Filterted MSA" << std::endl;
-    for(size_t k = 0; k < filterResult.setSize; k++){
+    std::cout <<"Filtered MSA" << std::endl;
+    for(size_t k = 0; k < filterSetSize; k++){
         printf("k=%.3zu ", k);
-        for(size_t pos = 0; pos < res.centerLength; pos++){
-            char aa = filterResult.filteredMsaSequence[k][pos];
-            printf("%c", (aa < MultipleAlignment::NAA) ? subMat.int2aa[(int)aa] : '-' );
+        for (size_t pos = 0; pos < res.centerLength; pos++) {
+            char aa = res.msaSequence[k][pos];
+            printf("%c", (aa < MultipleAlignment::NAA) ? subMat.int2aa[(int) aa] : '-');
         }
         printf("\n");
     }
 
     //seqSet.push_back(s5);
     PSSMCalculator pssm(&subMat, 122, counter, 1.0, 1.5);
-    pssm.computePSSMFromMSA(filterResult.setSize, res.centerLength, filterResult.filteredMsaSequence, false);
+    pssm.computePSSMFromMSA(filterSetSize, res.centerLength, (const char**) res.msaSequence, false);
     //pssm.printProfile(res.centerLength);
     pssm.printPSSM(res.centerLength);
     for (int k = 0; k < counter; ++k) {
