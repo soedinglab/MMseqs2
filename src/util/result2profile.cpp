@@ -156,12 +156,12 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader.getDbKey(id);
 
-
+            size_t queryId = qDbr->getId(queryKey);
             if (qSeqLookup != NULL) {
-                std::pair<const unsigned char*, const unsigned int> sequence = qSeqLookup->getSequence(id);
+                std::pair<const unsigned char*, const unsigned int> sequence = qSeqLookup->getSequence(queryId);
                 centerSequence.mapSequence(0, queryKey, sequence);
             } else {
-                char *dbSeqData = qDbr->getData(id);
+                char *dbSeqData = qDbr->getData(queryId);
                 if (dbSeqData == NULL) {
 #pragma omp critical
                     {
