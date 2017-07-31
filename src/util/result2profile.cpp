@@ -328,7 +328,7 @@ int result2profile(int argc, const char **argv, const Command &command) {
     Util::decomposeDomainByAminoAcid(qDbr.getAminoAcidDBSize(), qDbr.getSeqLens(), qDbr.getSize(),
                                      MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
 
-    int status = result2profile(qDbr, par, MMseqsMPI::rank, MMseqsMPI::numProc);
+    int status = result2profile(qDbr, par, dbFrom, dbSize);
 #else
     int status = result2profile(qDbr, par, par.db4, 0, qDbr.getSize());
 #endif
