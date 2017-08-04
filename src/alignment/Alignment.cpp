@@ -281,8 +281,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     setTargetSequence(dbSeq, dbKey);
                     // check if the sequences could pass the coverage threshold
-                    if ((((float) qSeq.L) / ((float) dbSeq.L) < covThr) ||
-                        (((float) dbSeq.L) / ((float) qSeq.L) < covThr)) {
+                    if (covMode == 0 &&
+                        ((((float) qSeq.L) / ((float) dbSeq.L) < covThr)
+                         || (((float) dbSeq.L) / ((float) qSeq.L) < covThr))) {
                         rejected++;
                         data = Util::skipLine(data);
                         continue;
