@@ -176,7 +176,7 @@ static struct Command commands[] = {
             "Create a subset of a DB from a file of IDs of entries",
             NULL,
             "Milot Mirdita <milot@mirdita.de>",
-            "<i:subsetFile> <i:resultDB> <o:resultDB>",
+            "<i:subsetFile or DB> <i:resultDB> <o:resultDB>",
             CITATION_MMSEQS2},
         {"result2profile",       result2profile,       &par.result2profile,       COMMAND_DB,
             "Compute profile and consensus DB from a prefilter, alignment or cluster DB",

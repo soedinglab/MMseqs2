@@ -47,12 +47,8 @@ if notExists "${TMP_PATH}/clu_redundancy"; then
         || fail "Fast Cluster filter step $STEP died"
 fi
 
-if notExists "${TMP_PATH}/order_redundancy"; then
-    awk '{ print $1 }' "${TMP_PATH}/clu_redundancy.index" > "${TMP_PATH}/order_redundancy"
-fi
-
 if notExists "${TMP_PATH}/input_step_redundancy"; then
-    $MMSEQS createsubdb "${TMP_PATH}/order_redundancy" "$INPUT" "${TMP_PATH}/input_step_redundancy" \
+    $MMSEQS createsubdb "${TMP_PATH}/clu_redundancy" "$INPUT" "${TMP_PATH}/input_step_redundancy" \
         || fail "MMseqs order step $STEP died"
 fi
 
@@ -91,6 +87,5 @@ if [ -n "$REMOVE_TMP" ]; then
     rm -f "${TMP_PATH}/clu_redundancy" "${TMP_PATH}/clu_redundancy.index"
     rm -f "${TMP_PATH}/aln_redundancy" "${TMP_PATH}/aln_redundancy.index"
     rm -f "${TMP_PATH}/input_step_redundancy" "${TMP_PATH}/input_step_redundancy.index"
-
     rm -f "${TMP_PATH}/clustering.sh"
 fi

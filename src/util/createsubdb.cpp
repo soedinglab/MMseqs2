@@ -2,6 +2,7 @@
 #include <fstream>
 
 #include "Parameters.h"
+#include "FileUtil.h"
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Debug.h"
@@ -19,6 +20,9 @@ int createsubdb(int argc, const char **argv, const Command& command) {
 
     Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
     std::ifstream  orderFile(par.db1);
+    if(FileUtil::fileExists((par.db1 + ".index").c_str())){
+        orderFile = std::ifstream(par.db1 + ".index");
+    }
     std::string line;
     char dbKey[255 + 1];
     while(std::getline(orderFile, line)) {
