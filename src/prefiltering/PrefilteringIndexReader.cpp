@@ -47,15 +47,15 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         char* serialized3mer = ScoreMatrix::serialize(*s3);
         Debug(Debug::INFO) << "Write SCOREMATRIX3MER (" << SCOREMATRIX3MER << ")\n";
         writer.writeData(serialized3mer, ScoreMatrix::size(*s3), SCOREMATRIX3MER, 0);
+        writer.alignToPageSize();
         free(serialized3mer);
         ScoreMatrix::cleanup(s3);
-
-        writer.alignToPageSize();
 
         ScoreMatrix *s2 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
         char* serialized2mer = ScoreMatrix::serialize(*s2);
         Debug(Debug::INFO) << "Write SCOREMATRIX2MER (" << SCOREMATRIX2MER << ")\n";
         writer.writeData(serialized2mer, ScoreMatrix::size(*s2), SCOREMATRIX2MER, 0);
+        writer.alignToPageSize();
         free(serialized2mer);
         ScoreMatrix::cleanup(s2);
     }
@@ -76,6 +76,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     char *entries = (char *) indexTable->getEntries();
     size_t entriesSize = indexTable->getTableEntriesNum() * indexTable->getSizeOfEntry();
     writer.writeData(entries, entriesSize, ENTRIES, 0);
+    writer.alignToPageSize();
 
     // save the size
     Debug(Debug::INFO) << "Write ENTRIESOFFSETS (" << ENTRIESOFFSETS << ")\n";
@@ -83,15 +84,18 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     char *offsets = (char*)indexTable->getOffsets();
     size_t offsetsSize = (indexTable->getTableSize() + 1) * sizeof(size_t);
     writer.writeData(offsets, offsetsSize, ENTRIESOFFSETS, 0);
+    writer.alignToPageSize();
     indexTable->deleteEntries();
 
     SequenceLookup *lookup = indexTable->getSequenceLookup();
     Debug(Debug::INFO) << "Write SEQINDEXDATA (" << SEQINDEXDATA << ")\n";
     writer.writeData(lookup->getData(), (lookup->getDataSize() + 1) * sizeof(char), SEQINDEXDATA, 0);
+    writer.alignToPageSize();
 
     if (unmaskedLookup != NULL) {
         Debug(Debug::INFO) << "Write UNMASKEDSEQINDEXDATA (" << UNMASKEDSEQINDEXDATA << ")\n";
         writer.writeData(unmaskedLookup->getData(), (unmaskedLookup->getDataSize() + 1) * sizeof(char), UNMASKEDSEQINDEXDATA, 0);
+        writer.alignToPageSize();
         delete unmaskedLookup;
     }
 
@@ -99,11 +103,13 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     int64_t seqindexDataSize = lookup->getDataSize();
     char *seqindexDataSizePtr = (char *) &seqindexDataSize;
     writer.writeData(seqindexDataSizePtr, 1 * sizeof(int64_t), SEQINDEXDATASIZE, 0);
+    writer.alignToPageSize();
 
     size_t *sequenceOffsets = lookup->getOffsets();
     size_t sequenceCount = lookup->getSequenceCount();
     Debug(Debug::INFO) << "Write SEQINDEXSEQOFFSET (" << SEQINDEXSEQOFFSET << ")\n";
     writer.writeData((char *) sequenceOffsets, (sequenceCount + 1) * sizeof(size_t), SEQINDEXSEQOFFSET, 0);
+    writer.alignToPageSize();
 
     // meta data
     // ENTRIESNUM
@@ -111,11 +117,13 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     uint64_t entriesNum = indexTable->getTableEntriesNum();
     char *entriesNumPtr = (char *) &entriesNum;
     writer.writeData(entriesNumPtr, 1 * sizeof(uint64_t), ENTRIESNUM, 0);
+    writer.alignToPageSize();
     // SEQCOUNT
     Debug(Debug::INFO) << "Write SEQCOUNT (" << SEQCOUNT << ")\n";
     size_t tablesize = {indexTable->getSize()};
     char *tablesizePtr = (char *) &tablesize;
     writer.writeData(tablesizePtr, 1 * sizeof(size_t), SEQCOUNT, 0);
+    writer.alignToPageSize();
 
     delete indexTable;
 
@@ -126,23 +134,28 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     int metadata[] = {kmerSize, alphabetSize, maskMode, local, spacedKmer, kmerThr, seqType, headers};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
+    writer.alignToPageSize();
     printMeta(metadata);
 
     Debug(Debug::INFO) << "Write SCOREMATRIXNAME (" << SCOREMATRIXNAME << ")\n";
     writer.writeData(subMat->getMatrixName().c_str(), subMat->getMatrixName().length(), SCOREMATRIXNAME, 0);
+    writer.alignToPageSize();
 
     Debug(Debug::INFO) << "Write VERSION (" << VERSION << ")\n";
     writer.writeData((char *) CURRENT_VERSION, strlen(CURRENT_VERSION) * sizeof(char), VERSION, 0);
+    writer.alignToPageSize();
 
     Debug(Debug::INFO) << "Write DBRINDEX (" << DBRINDEX << ")\n";
     char* data = DBReader<unsigned int>::serialize(*dbr);
     writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*dbr), DBRINDEX, 0);
+    writer.alignToPageSize();
     free(data);
 
     if (hdbr != NULL) {
         Debug(Debug::INFO) << "Write HDRINDEX (" << HDRINDEX << ")\n";
         data = DBReader<unsigned int>::serialize(*hdbr);
         writer.writeData(data, DBReader<unsigned int>::indexMemorySize(*hdbr), HDRINDEX, 0);
+        writer.alignToPageSize();
         free(data);
     }
 

@@ -21,11 +21,11 @@
 #include <omp.h>
 #endif
 
-int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::string &outpath,
+int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const std::string &outpath,
                    const size_t dbFrom, const size_t dbSize) {
     int localThreads = par.threads;
-    if (static_cast<int>(qDbr.getSize()) <= par.threads) {
-        localThreads = static_cast<int>(qDbr.getSize());
+    if (static_cast<int>(resultReader.getSize()) <= par.threads) {
+        localThreads = static_cast<int>(resultReader.getSize());
     }
 
 #ifdef OPENMP
@@ -38,51 +38,60 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
     bool templateDBIsIndex = false;
     std::string scoringMatrixFile = par.scoringMatrixFile;
 
-    unsigned int maxSequenceLength = 0;
-    const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
-    if (!sameDatabase) {
-        std::string indexDB = PrefilteringIndexReader::searchForIndex(par.db2);
-        if (indexDB.length() > 0) {
-            Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
+    std::string indexDB = PrefilteringIndexReader::searchForIndex(par.db2);
+    if (indexDB.length() > 0) {
+        Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
 
-            tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
-            tidxdbr->open(DBReader<unsigned int>::NOSORT);
+        tidxdbr = new DBReader<unsigned int>(indexDB.c_str(), (indexDB + ".index").c_str());
+        tidxdbr->open(DBReader<unsigned int>::NOSORT);
 
-            templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
-            if (templateDBIsIndex == true) {
-                PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
-                if (meta.maskMode == 1) {
-                    Debug(Debug::WARNING) << "Cannot use masked index for profiles.\n";
-                    templateDBIsIndex = false;
-                } else {
-                    PrefilteringIndexReader::printSummary(tidxdbr);
-                    if (meta.maskMode == 0) {
-                        tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, par.noPreload == false);
-                    } else if (meta.maskMode == 2) {
-                        tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, par.noPreload == false);
-                    }
-                    tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, par.noPreload == false);
-                    scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
+        templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
+        if (templateDBIsIndex == true) {
+            PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
+            if (meta.maskMode == 1) {
+                Debug(Debug::WARNING) << "Cannot use masked index for profiles.\n";
+                templateDBIsIndex = false;
+            } else {
+                PrefilteringIndexReader::printSummary(tidxdbr);
+                if (meta.maskMode == 0) {
+                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, par.noPreload == false);
+                } else if (meta.maskMode == 2) {
+                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, par.noPreload == false);
                 }
-            }
-
-            if (templateDBIsIndex == false) {
-                tidxdbr->close();
-                delete tidxdbr;
+                tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, par.noPreload == false);
+                scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
         }
 
         if (templateDBIsIndex == false) {
-            tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
-            tDbr->open(DBReader<unsigned int>::NOSORT);
-            if (par.noPreload == false) {
-                tDbr->readMmapedDataInMemory();
-                tDbr->mlock();
-            }
+            tidxdbr->close();
+            delete tidxdbr;
+        }
+    }
+
+    if (templateDBIsIndex == false) {
+        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tDbr->open(DBReader<unsigned int>::NOSORT);
+        if (par.noPreload == false) {
+            tDbr->readMmapedDataInMemory();
+            tDbr->mlock();
+        }
+    }
+
+    DBReader<unsigned int> *qDbr = NULL;
+    SequenceLookup *qSeqLookup = NULL;
+    unsigned int maxSequenceLength = 0;
+    const bool sameDatabase = (par.db1.compare(par.db2) == 0) ? true : false;
+    if (!sameDatabase) {
+        qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+        qDbr->open(DBReader<unsigned int>::NOSORT);
+        if (par.noPreload == false) {
+            qDbr->readMmapedDataInMemory();
+            qDbr->mlock();
         }
 
-        unsigned int *lengths = qDbr.getSeqLens();
-        for (size_t i = 0; i < qDbr.getSize(); i++) {
+        unsigned int *lengths = qDbr->getSeqLens();
+        for (size_t i = 0; i < qDbr->getSize(); i++) {
             maxSequenceLength = std::max(lengths[i], maxSequenceLength);
         }
 
@@ -91,16 +100,14 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
             maxSequenceLength = std::max(lengths[i], maxSequenceLength);
         }
     } else {
-        tDbr = &qDbr;
+        qDbr = tDbr;
+        qSeqLookup = tSeqLookup;
 
-        unsigned int *lengths = qDbr.getSeqLens();
-        for (size_t i = 0; i < qDbr.getSize(); i++) {
+        unsigned int *lengths = tDbr->getSeqLens();
+        for (size_t i = 0; i < tDbr->getSize(); i++) {
             maxSequenceLength = std::max(lengths[i], maxSequenceLength);
         }
     }
-
-    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
-    resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     DBWriter resultWriter(outpath.c_str(), std::string(outpath + ".index").c_str(), localThreads, DBWriter::BINARY_MODE);
     resultWriter.open();
@@ -148,12 +155,24 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
 
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader.getDbKey(id);
-            char *seqData = qDbr.getDataByDBKey(queryKey);
-            if (seqData == NULL) {
-                Debug(Debug::WARNING) << "Empty sequence " << id << ". Skipping.\n";
-                continue;
+
+            size_t queryId = qDbr->getId(queryKey);
+            if (qSeqLookup != NULL) {
+                std::pair<const unsigned char*, const unsigned int> sequence = qSeqLookup->getSequence(queryId);
+                centerSequence.mapSequence(0, queryKey, sequence);
+            } else {
+                char *dbSeqData = qDbr->getData(queryId);
+                if (dbSeqData == NULL) {
+#pragma omp critical
+                    {
+                        Debug(Debug::ERROR) << "ERROR: Sequence " << queryKey << " is required in the database,"
+                                            << "but is not contained in the query sequence database!\n"
+                                            << "Please check your database.\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+                centerSequence.mapSequence(0, queryKey, dbSeqData);
             }
-            centerSequence.mapSequence(0, queryKey, seqData);
 
             char *results = resultReader.getData(id);
             std::vector<Matcher::result_t> alnResults;
@@ -187,7 +206,7 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
                     if (dbSeqData == NULL) {
 #pragma omp critical
                         {
-                            Debug(Debug::ERROR) << "ERROR: Sequence " << key << " is required in the prefiltering,"
+                            Debug(Debug::ERROR) << "ERROR: Sequence " << key << " is required in the database,"
                                                 << "but is not contained in the target sequence database!\n"
                                                 << "Please check your database.\n";
                             EXIT(EXIT_FAILURE);
@@ -259,12 +278,13 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
     }
 #endif
 
-    resultReader.close();
-
     if (!sameDatabase) {
-        tDbr->close();
-        delete tDbr;
+        qDbr->close();
+        delete qDbr;
     }
+
+    tDbr->close();
+    delete tDbr;
 
     if (templateDBIsIndex == true) {
         delete tSeqLookup;
@@ -277,13 +297,13 @@ int result2profile(DBReader<unsigned int> &qDbr, Parameters &par, const std::str
     return EXIT_SUCCESS;
 }
 
-int result2profile(DBReader<unsigned int> &qDbr, Parameters &par,
+int result2profile(DBReader<unsigned int> &resultReader, Parameters &par,
                    const size_t dbFrom, const size_t dbSize) {
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom + dbSize << "\n";
 
     const std::string &outname = par.db4;
     std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, "", MMseqsMPI::rank);
-    int status = result2profile(qDbr, par, tmpOutput.first, dbFrom, dbSize);
+    int status = result2profile(resultReader, par, tmpOutput.first, dbFrom, dbSize);
 
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
@@ -319,21 +339,21 @@ int result2profile(int argc, const char **argv, const Command &command) {
     gettimeofday(&start, NULL);
 
 
-    DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str());
-    qDbr.open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
+    resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
 #ifdef HAVE_MPI
     size_t dbFrom = 0;
     size_t dbSize = 0;
-    Util::decomposeDomainByAminoAcid(qDbr.getAminoAcidDBSize(), qDbr.getSeqLens(), qDbr.getSize(),
+    Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(), resultReader.getSize(),
                                      MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
 
-    int status = result2profile(qDbr, par, MMseqsMPI::rank, MMseqsMPI::numProc);
+    int status = result2profile(resultReader, par, dbFrom, dbSize);
 #else
-    int status = result2profile(qDbr, par, par.db4, 0, qDbr.getSize());
+    int status = result2profile(resultReader, par, par.db4, 0, resultReader.getSize());
 #endif
 
-    qDbr.close();
+    resultReader.close();
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;

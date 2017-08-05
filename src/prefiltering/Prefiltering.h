@@ -86,6 +86,7 @@ private:
     const unsigned int minDiagScoreThr;
     const bool aaBiasCorrection;
     const float covThr;
+    const int covMode;
     const bool includeIdentical;
     const bool earlyExit;
     const bool noPreload;

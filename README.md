@@ -10,6 +10,8 @@ Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching f
 <p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/mmseqs2_logo.png" height="256" /></p>
 
 ## News
+04/08/2017 We had a serious bug in the linclust/cluster workflow when performing target-cov based clustering since 20/07/2017. We will also add the clustering workflows to our regression tests. The bug should be fixed now. Please update your MMseqs2.
+
 05/25/2017 We updated the Linclust manuscript. Linclust is now 3x faster and we added an metagenomic protein assembly application. Happy towel day. A pre-print can be downloaded here: [Steinegger M and Soeding J. Linclust: clustering billions of protein sequences per day on a single server (2017)](http://biorxiv.org/content/early/2017/05/25/104034). 
 
 30/01/2017 We added a new clustering workflow called "Linclust". Linclust can cluster sequences in linear time down to 50% sequence identity. The Metaclust95 and Metaclust50 database can be download at [metaclust.mmseqs.com](https://metaclust.mmseqs.com/). A pre-print can be downloaded here: [Steinegger M and Soeding J. Linclust: clustering protein sequences in linear time (2017)](http://www.biorxiv.org/content/early/2017/01/29/104034.article-metrics). 
