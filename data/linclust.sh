@@ -21,7 +21,8 @@ notExists "$3/pref"          && $MMSEQS kmermatcher "$INPUT" "$3/pref" ${KMERMAT
 # 2. Hamming distance pre-clustering
 notExists "$3/pref_rescore1" && $MMSEQS rescorediagonal $INPUT $INPUT "$3/pref" "$3/pref_rescore1" ${HAMMING_PAR} && checkReturnCode "Rescore with hamming distance step died"
 notExists "$3/pre_clust"     && $MMSEQS clust  $INPUT "$3/pref_rescore1" "$3/pre_clust" ${CLUSTER_PAR}            && checkReturnCode "Pre-clustering step died"
-notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/pre_clust" $INPUT "$3/input_step_redundancy"      && checkReturnCode "Createsubdb step died"
+awk '{ print $1 }' "$3/pre_clust.index" > "$3/order_redundancy"
+notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/order_redundancy" $INPUT "$3/input_step_redundancy"     && checkReturnCode "Createsubdb step died"
 notExists "$3/pref_filter1"  && $MMSEQS createsubdb "$3/order_redundancy" "$3/pref" "$3/pref_filter1"                    && checkReturnCode "Createsubdb step died"
 notExists "$3/pref_filter2"  && $MMSEQS filterdb "$3/pref_filter1" "$3/pref_filter2" --filter-file "$3/order_redundancy" && checkReturnCode "Filterdb step died"
 INPUT="$3/input_step_redundancy"
