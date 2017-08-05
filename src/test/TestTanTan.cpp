@@ -26,9 +26,9 @@ int main (int argc, const char * argv[]) {
 
     char hardMaskTable[256];
     std::fill_n(hardMaskTable, 256, subMat.aa2int['X']);
-    float probMatrix[21][21];
+    double probMatrix[21][21];
 
-    const float *probMatrixPointers[64];
+    const double *probMatrixPointers[64];
 
     for (int i = 0; i < 21; ++i){
         probMatrixPointers[i] = probMatrix[i];
