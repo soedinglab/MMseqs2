@@ -32,7 +32,7 @@ function abspath() {
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
 [ ! -f "$TARGET_DB_PREF" ] &&  echo "$TARGET_DB_PREF not found!" && exit 1;
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
-[ ! -d "$4" ] &&  echo "tmp directory $TMP_PATH not found!" && exit 1;
+[ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p $3;
 
 export OMP_PROC_BIND=TRUE
 
