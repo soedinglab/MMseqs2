@@ -5,7 +5,8 @@ Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching f
 
 ![alt tag](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
 ![alt tag](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
-![alt tag](https://travis-ci.org/soedinglab/mmseqs2.svg?branch=master)
+![alt tag](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)
+![alt tag](https://zenodo.org/badge/63755587.svg)
 
 <p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/mmseqs2_logo.png" height="256" /></p>
 
