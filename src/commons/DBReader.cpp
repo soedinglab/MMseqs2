@@ -90,6 +90,10 @@ template <typename T> bool DBReader<T>::open(int accessType){
     }
 
     if (externalData == false) {
+        if(FileUtil::fileExists(indexFileName)==false){
+            Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
         size = FileUtil::countLines(indexFileName);
         index = new Index[this->size];
         seqLens = new unsigned int[size];
