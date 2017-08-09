@@ -28,7 +28,7 @@ function abspath() {
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
-[ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p $3;
+[ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p "$3";
 
 export OMP_PROC_BIND=TRUE
 

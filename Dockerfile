@@ -1,6 +1,6 @@
 FROM alpine:latest as mmseqs-builder
 
-RUN apk add --no-cache gcc g++ cmake musl-dev vim git ninja
+RUN apk add --no-cache gcc g++ cmake musl-dev vim git ninja zlib zlib-dev
 
 WORKDIR /opt/mmseqs
 ADD . .
@@ -15,7 +15,7 @@ RUN ninja && ninja install
 
 FROM alpine:latest
 MAINTAINER Milot Mirdita <milot@mirdita.de>
-RUN apk add --no-cache gawk bash grep libstdc++ libgomp
+RUN apk add --no-cache gawk bash grep libstdc++ libgomp zlib
 
 COPY --from=mmseqs-builder /opt/mmseqs/build_sse/bin/mmseqs /usr/local/bin/mmseqs_sse42
 COPY --from=mmseqs-builder /opt/mmseqs/build_avx/bin/mmseqs /usr/local/bin/mmseqs_avx2
