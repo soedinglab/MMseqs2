@@ -13,10 +13,10 @@ Parameters& par = Parameters::getInstance();
 static struct Command commands[] = {
 // Main tools  (for non-experts)
         {"createdb",             createdb,             &par.createdb,             COMMAND_MAIN,
-            "Convert protein sequence set in a FASTA file to MMseqsâ€™ sequence DB format",
+            "Convert protein sequence set in a FASTA file to MMseqs sequence DB format",
             "converts a protein sequence flat/gzipped FASTA or FASTQ file to the MMseqs sequence DB format. This format is needed as input to mmseqs search, cluster and many other tools.",
             "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
-            "<i:fastaFile1[.gz]> ... <i:fastaFileN[.gz]> <o:sequenceDB> [mappingFasta]",
+            "<i:fastaFile1[.gz]> ... <i:fastaFileN[.gz]> <o:sequenceDB>",
             CITATION_MMSEQS2},
         {"search",               search,               &par.searchworkflow,       COMMAND_MAIN,
             "Search with query sequence or profile DB (iteratively) through target sequence DB",

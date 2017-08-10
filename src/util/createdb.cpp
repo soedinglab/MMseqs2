@@ -59,13 +59,6 @@ int createdb(int argn, const char **argv, const Command& command) {
     out_writer.open();
     out_hdr_writer.open();
 
-    bool doMapping = par.mappingFile.length() > 0;
-    std::map<std::string, size_t> mapping;
-    if (doMapping) {
-        const char *mapping_filename = par.mappingFile.c_str();
-        mapping = Util::readMapping(mapping_filename);
-    }
-
     unsigned int entries_num = 1;
     size_t count = 1;
 
@@ -94,12 +87,8 @@ int createdb(int argn, const char **argv, const Command& command) {
             std::string headerId = Util::parseFastaHeader(header);
             if (headerId == "") {
                 // An identifier is necessary for these two cases, so we should just give up
-                if (doMapping) {
-                    Debug(Debug::ERROR) << "Could not extract identifier from entry " << entries_num << "!.\n";
-                    return EXIT_FAILURE;
-                } else {
-                    Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
-                }
+                Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
+
             }
 
             for (size_t split = 0; split < splitCnt; split++) {
@@ -109,16 +98,7 @@ int createdb(int argn, const char **argv, const Command& command) {
                     splitId.append(SSTR(split));
                 }
 
-                unsigned int id;
-                if (doMapping) {
-                    if (mapping.find(splitId) == mapping.end()) {
-                        Debug(Debug::ERROR) << "Could not find entry: " << splitId << " in mapping file.\n";
-                        EXIT(EXIT_FAILURE);
-                    }
-                    id = mapping[splitId];
-                } else {
-                    id = par.identifierOffset + entries_num;
-                }
+                unsigned int id = par.identifierOffset + entries_num;
 
                 lookupStream << id << "\t" << splitId << "\n";
 

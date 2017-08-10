@@ -345,7 +345,6 @@ Parameters::Parameters():
     createdb.push_back(PARAM_MAX_SEQ_LEN);
     createdb.push_back(PARAM_DONT_SPLIT_SEQ_BY_LEN);
     createdb.push_back(PARAM_ID_OFFSET);
-    createdb.push_back(PARAM_MAPPING_FILE);
     createdb.push_back(PARAM_V);
 
     // convert2fasta
