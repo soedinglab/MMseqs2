@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.9 FATAL_ERROR)
-project(MMseqs CXX)
+project(MMseqs CXX C )
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(HAVE_MPI 0 CACHE BOOL "Have MPI")
 set(HAVE_SSE4_1 0 CACHE BOOL "Have SSE4.1")
