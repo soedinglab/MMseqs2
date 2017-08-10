@@ -52,7 +52,6 @@ add_library(commons ${commons_source_files})
 
 target_link_libraries(commons cacode)
 
-
 if(MPI_FOUND)
     target_link_libraries(commons ${MPI_LIBRARIES})
 
@@ -63,4 +62,12 @@ if(MPI_FOUND)
     if(MPI_LINK_FLAGS)
         set_target_properties(commons PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
     endif()
+endif()
+
+if(ZLIB_FOUND)
+    target_link_libraries(commons ${ZLIB_LIBRARIES})
+endif()
+
+if(BZIP2_FOUND)
+    target_link_libraries(commons ${BZIP2_LIBRARIES})
 endif()
