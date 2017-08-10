@@ -152,7 +152,7 @@ We recommend at least 128 GB of RAM so you can compute databases up to 30.000.00
 
 You can calculate the memory requirements in bytes for L columns and N rows using the following formula:
         
-        M = (7 × N × L) byte + (8 B × a^k) byte
+        M = (7 × N × L) byte + (8 × a^k) byte
 
 MMseqs stores an index table and two auxiliary arrays, which have a total size of `M byte`.
 
