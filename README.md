@@ -152,14 +152,14 @@ We recommend at least 128 GB of RAM so you can compute databases up to 30.000.00
 
 You can calculate the memory requirements in bytes for L columns and N rows using the following formula:
         
-        M = (7 B × N × L + 8 B × a^k) byte
+        M = (7 × N × L) byte + (8 B × a^k) byte
 
-MMseqs stores an index table and two auxiliary arrays, which have a total size of M byte.
+MMseqs stores an index table and two auxiliary arrays, which have a total size of `M byte`.
 
-For a database containing N sequences with an average length L, the memory consumption of the index table is `(7B × N × L)` byte.
+For a database containing N sequences with an average length L, the memory consumption of the index table is `(7 × N × L) byte` .
 Note that the memory consumption grows linearly with the number of the sequences N in the database.
 
-The two auxiliary arrays consume `(8 B × a^k)` bytes, with a being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the  k-mer size k.
+The two auxiliary arrays consume `(8 × a^k) byte`, with `a` being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the k-mer size `k`.
 
 ### How to run MMseqs2 on multipe servers using MPI
 MMseqs2 can run on multiple cores and servers using OpenMP (OMP) and message passing interface (MPI).
