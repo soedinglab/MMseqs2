@@ -40,6 +40,20 @@ private:
 };
 #endif
 
+#ifdef HAVE_BZLIB
+#include <bzlib.h>
+
+class KSeqBzip : public KSeqWrapper {
+public:
+    KSeqBzip(const char* file);
+    bool ReadEntry();
+    ~KSeqBzip();
+private:
+    BZFILE *file;
+};
+#endif
+
+
 KSeqWrapper* KSeqFactory(const char* file);
 
 #endif //MMSEQS_KSEQWRAPPER_H

@@ -36,4 +36,10 @@ if(ZLIB_FOUND)
     target_link_libraries(mmseqs ${ZLIB_LIBRARIES})
 endif()
 
+if(BZIP2_FOUND)
+    target_link_libraries(mmseqs ${BZIP2_LIBRARIES})
+endif()
+
+
+
 install(TARGETS mmseqs DESTINATION bin)
