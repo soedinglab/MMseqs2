@@ -123,7 +123,7 @@ KSeqWrapper* KSeqFactory(const char* file) {
         kseq = new KSeqGzip(file);
     }
 #else
-    else {
+    else if(Util::endsWith(".gz", file) == true) {
         Debug(Debug::ERROR) << "MMseqs was not compiled with zlib support. Can not read compressed input!\n";
         EXIT(EXIT_FAILURE);
     }
@@ -134,7 +134,7 @@ KSeqWrapper* KSeqFactory(const char* file) {
         kseq = new KSeqBzip(file);
     }
 #else
-    else {
+    else if(Util::endsWith(".bz2", file) == true) {
         Debug(Debug::ERROR) << "MMseqs was not compiled with bz2lib support. Can not read compressed input!\n";
         EXIT(EXIT_FAILURE);
     }
