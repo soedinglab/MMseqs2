@@ -377,10 +377,11 @@ IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize,
         gettimeofday(&start, NULL);
 
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, aaBiasCorrection);
+        int localKmerThr = (querySeqType != Sequence::HMM_PROFILE) ? kmerThr : 0;
         IndexTable* table = PrefilteringIndexReader::generateIndexTable(
                 tdbr, &tseq, subMat, alphabetSize, kmerSize,
                 dbFrom, dbFrom + dbSize,
-                diagonalScoring, maskMode, kmerThr, threads
+                diagonalScoring, maskMode, localKmerThr, threads
         );
 
         gettimeofday(&end, NULL);

@@ -73,6 +73,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 case '\n':
                     if (inHeader) {
                         inHeader = false;
+                    } else {
                         if (seqLength > maxSeqLength) {
                             maxSeqLength = seqLength;
                         }
