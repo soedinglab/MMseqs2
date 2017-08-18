@@ -139,6 +139,14 @@ public:
         return ret;
     }
 
+
+    static std::string prefilterHitToString(hit_t h)
+    {
+        std::ostringstream resStream;
+        resStream << h.seqId << '\t' << static_cast<int>(h.pScore) << '\t' << (short) h.diagonal << '\n';
+        return resStream.str();
+    }
+
     static size_t prefilterHitToBuffer(char *buff1, hit_t &h)
     {
         char * basePos = buff1;

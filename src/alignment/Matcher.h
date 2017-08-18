@@ -88,7 +88,7 @@ public:
     static const unsigned short GAP_OPEN = 11;
     static const unsigned short GAP_EXTEND = 1;
 
-    static std::string resultToString(const result_t &result, bool addBacktrace, bool writeCompressed = true);
+    static std::string resultToString(result_t &result, bool addBacktrace);
 
 private:
 
