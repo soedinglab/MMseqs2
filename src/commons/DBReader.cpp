@@ -119,7 +119,11 @@ void DBReader<T>::sortIndex(bool isSortedById) {
 
 template<>
 void DBReader<std::string>::sortIndex(bool isSortedById) {
-    if (isSortedById == false && accessType == SORT_BY_ID){
+    if (accessType == SORT_BY_ID){
+        if (isSortedById) {
+            return;
+        }
+
         std::pair<Index, unsigned int> *sortArray = new std::pair<Index, unsigned int>[size];
         for (size_t i = 0; i < size; i++) {
             sortArray[i] = std::make_pair(index[i], seqLens[i]);

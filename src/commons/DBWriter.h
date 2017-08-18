@@ -18,6 +18,7 @@ class DBWriter {
     public:
         static const size_t ASCII_MODE = 0;
         static const size_t BINARY_MODE = 1;
+        static const size_t LEXICOGRAPHIC_MODE = 2;
 
         DBWriter(const char* dataFileName, const char* indexFileName, unsigned int threads = 1, size_t mode = ASCII_MODE);
 
@@ -42,21 +43,20 @@ class DBWriter {
         void sortDatafileByIdOrder(DBReader<unsigned int>& qdbr);
 
         static void mergeResults(const std::string &outFileName, const std::string &outFileNameIndex,
-                                 const std::vector<std::pair<std::string, std::string>> &files);
+                                 const std::vector<std::pair<std::string, std::string>> &files,
+                                 bool lexicographicOrder = false);
 
         static void mergeResults(const char *outFileName, const char *outFileNameIndex,
-                                 const char **dataFileNames, const char **indexFileNames, unsigned long fileCount);
+                                 const char **dataFileNames, const char **indexFileNames,
+                                 unsigned long fileCount, bool lexicographicOrder = false);
 
         void mergeFilePair(const char *inData1, const char *inIndex1, const char *inData2, const char *inIndex2);
 
 
 private:
+    template <typename T>
+    static void writeIndex(FILE *outFile, size_t indexSize, T *index, unsigned int *seqLen);
 
-    struct IndexType {
-        typedef DBReader<unsigned int>::Index int_type;
-        typedef DBReader<std::string>::Index string_type;
-    };
-    static void writeIndex(FILE *outFile, size_t indexSize, IndexType::int_type *index, unsigned int *seqLen);
     void checkClosed();
 
     char* dataFileName;
@@ -72,7 +72,8 @@ private:
 
     size_t* offsets;
 
-    unsigned int threads;
+    const unsigned int threads;
+    const size_t mode;
 
     bool closed;
 

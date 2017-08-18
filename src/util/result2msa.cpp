@@ -20,8 +20,8 @@
 #include <omp.h>
 #endif
 
-int result2msa(Parameters &par, const std::string &outpath,
-                      const size_t dbFrom, const size_t dbSize, DBConcat *referenceDBr = NULL) {
+int result2msa(Parameters &par, const std::string &resultData, const std::string &resultIndex,
+               const size_t dbFrom, const size_t dbSize, DBConcat *referenceDBr = NULL) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
@@ -80,7 +80,11 @@ int result2msa(Parameters &par, const std::string &outpath,
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter resultWriter(outpath.c_str(), std::string(outpath + ".index").c_str(), par.threads, DBWriter::BINARY_MODE);
+    size_t mode = DBWriter::BINARY_MODE;
+    if (par.compressMSA) {
+        mode |= DBWriter::LEXICOGRAPHIC_MODE;
+    }
+    DBWriter resultWriter(resultData.c_str(), resultIndex.c_str(), par.threads, mode);
     resultWriter.open();
 
     // + 1 for query
@@ -315,11 +319,12 @@ int result2msa(Parameters &par) {
     resultReader->close();
     delete resultReader;
 
-    std::string outname = par.db4;
+    std::string outDb = par.db4;
+    std::string outIndex = par.db4Index;
     DBConcat *referenceDBr = NULL;
     if (par.compressMSA) {
-        std::string referenceSeqName(outname);
-        std::string referenceSeqIndexName(outname);
+        std::string referenceSeqName(outDb);
+        std::string referenceSeqIndexName(outDb);
         referenceSeqName.append("_sequence.ffdata");
         referenceSeqIndexName.append("_sequence.ffindex");
 
@@ -341,8 +346,8 @@ int result2msa(Parameters &par) {
         headerTarget.append("_h");
         std::pair<std::string, std::string> target = Util::databaseNames(headerTarget);
 
-        std::string referenceHeadersName(outname);
-        std::string referenceHeadersIndexName(outname);
+        std::string referenceHeadersName(outDb);
+        std::string referenceHeadersIndexName(outDb);
 
         referenceHeadersName.append("_header.ffdata");
         referenceHeadersIndexName.append("_header.ffindex");
@@ -352,11 +357,12 @@ int result2msa(Parameters &par) {
                                      referenceHeadersName, referenceHeadersIndexName, 1);
         referenceHeadersDBr.concat();
 
-        outname.append("_ca3m");
+        outDb.append("_ca3m.ffdata");
+        outIndex = par.db4;
+        outIndex.append("_ca3m.ffindex");
     }
 
-    int status = result2msa(par, outname, 0, resultSize, referenceDBr);
-
+    int status = result2msa(par, outDb, outIndex, 0, resultSize, referenceDBr);
 
     if (referenceDBr != NULL) {
         referenceDBr->close();
@@ -380,10 +386,11 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
     Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom + dbSize << "\n";
 
     DBConcat *referenceDBr = NULL;
-    std::string outname = par.db4;
+    std::string outDb = par.db4;
+    std::string outIndex = par.db4Index;
     if (par.compressMSA) {
-        std::string referenceSeqName(outname);
-        std::string referenceSeqIndexName(outname);
+        std::string referenceSeqName(outDb);
+        std::string referenceSeqIndexName(outDb);
         referenceSeqName.append("_sequence.ffdata");
         referenceSeqIndexName.append("_sequence.ffindex");
 
@@ -410,8 +417,8 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
             headerTarget.append("_h");
             std::pair<std::string, std::string> target = Util::databaseNames(headerTarget);
 
-            std::string referenceHeadersName(outname);
-            std::string referenceHeadersIndexName(outname);
+            std::string referenceHeadersName(outDb);
+            std::string referenceHeadersIndexName(outDb);
 
             referenceHeadersName.append("_header.ffdata");
             referenceHeadersIndexName.append("_header.ffindex");
@@ -420,13 +427,19 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
             DBConcat referenceHeadersDBr(query.first, query.second, target.first, target.second,
                                          referenceHeadersName, referenceHeadersIndexName, 1);
             referenceHeadersDBr.concat();
+
+            if (headerQuery == headerTarget) {
+
+            }
         }
 
-        outname.append("_ca3m");
+        outDb.append("_ca3m.ffdata");
+        outIndex = par.db4;
+        outIndex.append("_ca3m.ffindex");
     }
 
-    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, "", mpiRank);
-    int status = result2msa(par, tmpOutput.first, dbFrom, dbSize, referenceDBr);
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outDb, outIndex, mpiRank);
+    int status = result2msa(par, tmpOutput.first, tmpOutput.second, dbFrom, dbSize, referenceDBr);
 
     // close reader to reduce memory
     if (referenceDBr != NULL) {
@@ -442,12 +455,12 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
     if (MMseqsMPI::isMaster()) {
         std::vector<std::pair<std::string, std::string> > splitFiles;
         for (unsigned int procs = 0; procs < mpiNumProc; procs++) {
-            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outname, "", procs);
-            splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.first + ".index"));
+            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outDb, outIndex, procs);
+            splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
 
         }
         // merge output ffindex databases
-        DBWriter::mergeResults(outname, outname + ".index", splitFiles);
+        DBWriter::mergeResults(outDb, outIndex, splitFiles, par.compressMSA);
     }
 
     return status;

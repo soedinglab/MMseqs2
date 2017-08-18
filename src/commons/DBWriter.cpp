@@ -19,11 +19,9 @@
 DBWriter::DBWriter(const char *dataFileName_,
                    const char *indexFileName_,
                    unsigned int threads,
-                   size_t mode) {
+                   size_t mode) : threads(threads), mode(mode) {
     dataFileName = strdup(dataFileName_);
     indexFileName = strdup(indexFileName_);
-
-    this->threads = threads;
 
     dataFiles = new FILE *[threads];
     dataFilesBuffer = new char *[threads];
@@ -39,13 +37,10 @@ DBWriter::DBWriter(const char *dataFileName_,
         offsets[i] = 0;
     }
 
-    if (mode == ASCII_MODE) {
-        datafileMode = "w";
-    } else if (mode == BINARY_MODE) {
+    if ((mode & BINARY_MODE) != 0) {
         datafileMode = "wb";
     } else {
-        Debug(Debug::ERROR) << "No right mode for DBWriter " << indexFileName << "\n";
-        EXIT(EXIT_FAILURE);
+        datafileMode = "w";
     }
 
     closed = true;
@@ -185,7 +180,7 @@ void DBWriter::close() {
     }
 
     mergeResults(dataFileName, indexFileName,
-                 (const char **) dataFileNames, (const char **) indexFileNames, threads);
+                 (const char **) dataFileNames, (const char **) indexFileNames, threads, ((mode & LEXICOGRAPHIC_MODE) != 0));
     closed = true;
 }
 
@@ -199,7 +194,7 @@ void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, un
     size_t offsetStart = offsets[thrIdx];
     size_t written = fwrite(data, sizeof(char), dataSize, dataFiles[thrIdx]);
     if (written != dataSize) {
-        Debug(Debug::ERROR) << "Could not write to data file " << dataFileName[thrIdx] << "\n";
+        Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
         EXIT(EXIT_FAILURE);
     }
     offsets[thrIdx] += written;
@@ -209,7 +204,7 @@ void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, un
         char nullByte = '\0';
         written = fwrite(&nullByte, sizeof(char), 1, dataFiles[thrIdx]);
         if (written != 1) {
-            Debug(Debug::ERROR) << "Could not write to data file " << dataFileName[thrIdx] << "\n";
+            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
             EXIT(EXIT_FAILURE);
         }
         offsets[thrIdx] += 1;
@@ -232,7 +227,7 @@ void DBWriter::alignToPageSize() {
     for (size_t i = currentOffset; i < newOffset; ++i) {
         size_t written = fwrite(&nullByte, sizeof(char), 1, dataFiles[0]);
         if (written != 1) {
-            Debug(Debug::ERROR) << "Could not write to data file " << dataFileName[0] << "\n";
+            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[0] << "\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -249,22 +244,60 @@ void DBWriter::checkClosed() {
 }
 
 void DBWriter::mergeResults(const std::string &outFileName, const std::string &outFileNameIndex,
-                            const std::vector<std::pair<std::string, std::string >> &files) {
+                            const std::vector<std::pair<std::string, std::string >> &files,
+                            const  bool lexicographicOrder) {
     const char **datafilesNames = new const char *[files.size()];
     const char **indexFilesNames = new const char *[files.size()];
     for (size_t i = 0; i < files.size(); i++) {
         datafilesNames[i] = files[i].first.c_str();
         indexFilesNames[i] = files[i].second.c_str();
     }
-    mergeResults(outFileName.c_str(), outFileNameIndex.c_str(), datafilesNames, indexFilesNames, files.size());
+    mergeResults(outFileName.c_str(), outFileNameIndex.c_str(), datafilesNames, indexFilesNames, files.size(), lexicographicOrder);
     delete[] datafilesNames;
     delete[] indexFilesNames;
 
 }
 
-void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
-                            const char **dataFileNames, const char **indexFileNames, unsigned long fileCount) {
+template <>
+void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<unsigned int>::Index *index,  unsigned int *seqLen){
+    char buff1[1024];
+    for(size_t id = 0; id < indexSize; id++){
+        char * tmpBuff = Itoa::u32toa_sse2((uint32_t)index[id].id,buff1);
+        *(tmpBuff-1) = '\t';
+        size_t currOffset = index[id].offset;
+        tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
+        *(tmpBuff-1) = '\t';
+        uint32_t sLen = seqLen[id];
+        tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
+        *(tmpBuff-1) = '\n';
+        *(tmpBuff) = '\0';
+        fwrite(buff1, sizeof(char), strlen(buff1), outFile);
+    }
+}
 
+template <>
+void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<std::string>::Index *index,  unsigned int *seqLen){
+    char buff1[1024];
+    for(size_t id = 0; id < indexSize; id++){
+        size_t keyLen = index[id].id.length();
+        char * tmpBuff = (char*)memcpy((void*)buff1, (void*)index[id].id.c_str(), keyLen);
+        tmpBuff+=keyLen;
+        *(tmpBuff) = '\t';
+        tmpBuff++;
+        size_t currOffset = index[id].offset;
+        tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
+        *(tmpBuff-1) = '\t';
+        uint32_t sLen = seqLen[id];
+        tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
+        *(tmpBuff-1) = '\n';
+        *(tmpBuff) = '\0';
+        fwrite(buff1, sizeof(char), strlen(buff1), outFile);
+    }
+}
+
+void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
+                            const char **dataFileNames, const char **indexFileNames,
+                            const unsigned long fileCount, const bool lexicographicOrder) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     // merge results from each thread into one result file
@@ -324,15 +357,26 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
             EXIT(EXIT_FAILURE);
         }
     }
-    // sort the index
-    DBReader<unsigned int> indexReader(outFileNameIndex, outFileNameIndex, DBReader<unsigned int>::USE_INDEX);
-    if(indexReader.open(DBReader<unsigned int>::SORT_BY_ID) == false){
-        DBReader<unsigned int>::Index *index = indexReader.getIndex();
+
+    if (lexicographicOrder == false) {
+        // sort the index
+        DBReader<unsigned int> indexReader(outFileNameIndex, outFileNameIndex, DBReader<unsigned int>::USE_INDEX);
+        if(indexReader.open(DBReader<unsigned int>::NOSORT) == false){
+            DBReader<unsigned int>::Index *index = indexReader.getIndex();
+            FILE *index_file  = fopen(outFileNameIndex, "w");
+            writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
+            fclose(index_file);
+        }
+        indexReader.close();
+    } else {
+        DBReader<std::string> indexReader(outFileNameIndex, outFileNameIndex, DBReader<std::string>::USE_INDEX);
+        indexReader.open(DBReader<std::string>::SORT_BY_ID);
+        DBReader<std::string>::Index *index = indexReader.getIndex();
         FILE *index_file  = fopen(outFileNameIndex, "w");
         writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
         fclose(index_file);
+        indexReader.close();
     }
-    indexReader.close();
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "Time for merging files: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) <<" s\n";
@@ -416,20 +460,4 @@ void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
     writeIndex(indexFiles[0], reader1.getSize(), index1, seqLen1);
     reader2.close();
     reader1.close();
-}
-
-void DBWriter::writeIndex(FILE *outFile, size_t indexSize, IndexType::int_type  *index,  unsigned int *seqLen){
-    char buff1[1024];
-    for(size_t id = 0; id < indexSize; id++){
-        char * tmpBuff = Itoa::u32toa_sse2((uint32_t)index[id].id,buff1);
-        *(tmpBuff-1) = '\t';
-        size_t currOffset = index[id].offset;
-        tmpBuff = Itoa::u64toa_sse2(currOffset, tmpBuff);
-        *(tmpBuff-1) = '\t';
-        uint32_t sLen = seqLen[id];
-        tmpBuff = Itoa::u32toa_sse2(sLen,tmpBuff);
-        *(tmpBuff-1) = '\n';
-        *(tmpBuff) = '\0';
-        fwrite(buff1, sizeof(char), strlen(buff1), outFile);
-    }
 }
