@@ -118,7 +118,7 @@ int doassembly(Parameters &par) {
                 if (diagonal >= 0) {
 //                    targetSeq.mapSequence(targetId, besttHitToExtend.dbKey, dbSeq);
                     size_t diagonalLen = std::min(targetSeqLen, querySeqLen - abs(diagonal));
-                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(
+                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstitutionStartEndDistance(
                             querySeq + abs(diagonal),
                             targetSeq, diagonalLen, fastMatrix.matrix);
                     qStartPos = alignment.startPos + dist;
@@ -127,7 +127,7 @@ int doassembly(Parameters &par) {
                     dbEndPos = alignment.endPos;
                 } else {
                     size_t diagonalLen = std::min(targetSeqLen - abs(diagonal), querySeqLen);
-                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstituionStartEndDistance(
+                    DistanceCalculator::LocalAlignment alignment = DistanceCalculator::computeSubstitutionStartEndDistance(
                             querySeq,
                             targetSeq + abs(diagonal),
                             diagonalLen, fastMatrix.matrix);

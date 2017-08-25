@@ -33,7 +33,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         diagonalScoring(par.diagonalScoring != 0),
         minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
-        covThr(par.covThr), includeIdentical(par.includeIdentity),
+        covThr(par.covThr), covMode(par.covMode), includeIdentical(par.includeIdentity),
         earlyExit(par.earlyExit),
         noPreload(par.noPreload),
         threads(static_cast<unsigned int>(par.threads)) {
@@ -377,10 +377,11 @@ IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize,
         gettimeofday(&start, NULL);
 
         Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, aaBiasCorrection);
+        int localKmerThr = (querySeqType != Sequence::HMM_PROFILE) ? kmerThr : 0;
         IndexTable* table = PrefilteringIndexReader::generateIndexTable(
                 tdbr, &tseq, subMat, alphabetSize, kmerSize,
                 dbFrom, dbFrom + dbSize,
-                diagonalScoring, maskMode, kmerThr, threads
+                diagonalScoring, maskMode, localKmerThr, threads
         );
 
         gettimeofday(&end, NULL);
@@ -773,7 +774,7 @@ void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id) << " -> " << targetSeqId
                                << "\t" << res->prefScore << "\n";
         }
-        if (covThr > 0.0) {
+        if (covThr > 0.0 && covMode == 0) {
             // check if the sequences could pass the coverage threshold
             float queryLength = static_cast<float>(qdbr->getSeqLens(id));
             float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId));

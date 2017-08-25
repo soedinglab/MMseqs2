@@ -19,10 +19,7 @@
 #include "Parameters.h"
 #include "Matcher.h"
 
-int main (int argc, const char * argv[])
-{
-    Parameters& par = Parameters::getInstance();
-
+int main (int argc, const char * argv[]) {
     const size_t kmer_size=6;
 
     SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs2-bugfix/data/pfamsum60.out", 2.0, -0.0);

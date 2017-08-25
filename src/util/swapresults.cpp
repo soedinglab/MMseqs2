@@ -163,7 +163,9 @@ void writeSwappedResults(DBWriter &resultWriter, std::vector<AlignmentResultEntr
 
             std::ostringstream ss;
             for (size_t j = 0; j < curRes.size(); j++) {
-                ss << curRes[j].result;
+                if(curRes[j].evalue != FLT_MAX){
+                    ss << curRes[j].result;
+                }
             }
 
             std::string result = ss.str();
@@ -223,6 +225,9 @@ void doSwap(DBReader<unsigned int> &resultReader,
                     if (targetKey >= targetKeyMin && targetKey < targetKeyMax) {
                         double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
                         res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
+                        if(res.eval > evalue){
+                            res.eval = FLT_MAX;
+                        }
                         unsigned int qstart = res.qStartPos;
                         unsigned int qend = res.qEndPos;
                         unsigned int qLen = res.qLen;
@@ -232,7 +237,6 @@ void doSwap(DBReader<unsigned int> &resultReader,
                         res.dbStartPos = qstart;
                         res.dbEndPos = qend;
                         res.dbLen = qLen;
-
                         res.dbKey = queryKey;
 
                         bool addBacktrace = cols >= Matcher::ALN_RES_WITH_BT_COL_CNT;
@@ -240,15 +244,14 @@ void doSwap(DBReader<unsigned int> &resultReader,
                             swapBt(res.backtrace);
                         }
 
-                        std::string result = Matcher::resultToString(res, addBacktrace);
+                        std::string result;
+                        if (res.eval <= evalue) {
+                            result = Matcher::resultToString(res, addBacktrace);
+                        }
 
                         lock.lock();
                         (*resMap)[count].key = targetKey;
-                        if(res.eval > evalue){
-                            (*resMap)[count].evalue = FLT_MAX;
-                        }else{
-                            (*resMap)[count].evalue = res.eval;
-                        }
+                        (*resMap)[count].evalue = res.eval;
                         (*resMap)[count].result += result;
                         count++;
                         lock.unlock();

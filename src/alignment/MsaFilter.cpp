@@ -25,11 +25,10 @@ MsaFilter::MsaFilter(int maxSeqLen, int maxSetSize, SubstitutionMatrix *m){
     this->ksort = new int[maxSetSize];
     this->display = new char[maxSetSize + 2];
     this->keep = new char[maxSetSize];
-    this->filteredMsaSequence = new char*[maxSetSize];
 }
 
 MsaFilter::~MsaFilter() {
-    delete [] filteredMsaSequence;
+    delete [] keep;
     delete [] Nmax;
     delete [] idmaxwin;
     delete [] N;
@@ -41,37 +40,12 @@ MsaFilter::~MsaFilter() {
     delete [] nres;
     delete [] ksort;
     delete [] display;
-    delete [] keep;
 }
 
 
-// Swaps two integer elements in array k
-inline void MsaFilter::swapi(int k[], int i, int j) {
-    int temp;
-    temp = k[i];
-    k[i] = k[j];
-    k[j] = temp;
-}
-
-MsaFilter::MsaFilterResult MsaFilter::filter(const char ** msaSequence, int N_in,
-                                             int L, int coverage, int qid, float qsc,
-                                             int max_seqid, int Ndiff){
-
-    MsaFilter::MsaFilterResult res = dofilter(msaSequence, N_in, L, coverage, qid, qsc, max_seqid, Ndiff);
-    size_t writePos = 0;
-    for(int k = 0; k < N_in; k++){
-        if(keep[k] != 0){
-            filteredMsaSequence[writePos] = (char *) msaSequence[k];
-            writePos++;
-        }
-    }
-    return res;
-}
-
-
-MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
-                                               int L, int coverage, int qid, float qsc,
-                                               int max_seqid, int Ndiff) {
+void MsaFilter::filter(const int N_in, const int L, const int coverage, const int qid,
+                       const float qsc, const int max_seqid, int Ndiff,
+                       const char ** X, size_t *N_out) {
     int seqid1 = 20;
     // X[k][i] contains column i of sequence k in alignment (first seq=0, first char=1) (0-3: ARND ..., 20:X, 21:GAP)
 //    char** X = (char **) &msaSequence;
@@ -253,9 +227,11 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
 
     // If no sequence left, issue warning and put back first real sequence into alignment
     int nn=0;
-    for (k = 0; k < N_in; ++k)
-        if (keep[k] > 0)
+    for (k = 0; k < N_in; ++k) {
+        if (keep[k] > 0) {
             nn++;
+        }
+    }
 
     if (nn == 0) {
         for (k = 0; k < N_in; k++) {
@@ -280,13 +256,15 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
     }
 
     // If min required seqid larger than max required seqid, return here without doing pairwise seqid filtering
-    if (seqid1 > max_seqid)
-        return MsaFilter::MsaFilterResult(keep, nn, (const char **)filteredMsaSequence);
+    if (seqid1 > max_seqid) {
+        *N_out = nn;
+        return;
+    }
 
     // Successively increment idmax[i] at positons where N[i]<Ndiff
     seqid = seqid1;
     while (seqid <= max_seqid) {
-        char stop = 1;
+        bool stop = true;
         // Update Nmax[i]
         diffNmax_prev = diffNmax;
         diffNmax = 0;
@@ -299,7 +277,7 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
             if (Nmax[i] < max)
                 Nmax[i] = max;
             if (Nmax[i] < Ndiff) {
-                stop = 0;
+                stop = false;
                 idmaxwin[i] = seqid;
                 if (diffNmax < Ndiff - Nmax[i])
                     diffNmax = Ndiff - Nmax[i];
@@ -307,8 +285,9 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
         }
 
 //        printf("seqid=%3i  diffNmax_prev= %-4i   diffNmax= %-4i   n=%-5i  N_in-N_ss=%-5i\n",seqid,diffNmax_prev,diffNmax,n,N_in);
-        if (stop)
+        if (stop) {
             break;
+        }
 
 //       // DEBUG
 //       printf("idmax    ");
@@ -466,9 +445,31 @@ MsaFilter::MsaFilterResult MsaFilter::dofilter(const char ** X, int N_in,
 //        Debug(Debug::WARNING) << seqid1 << "% max pairwise sequence identity)\n";
 //    }
 
-    for (k = 0; k < N_in; ++k)
+    for (k = 0; k < N_in; ++k) {
         keep[k] = in[k];
-    return MsaFilter::MsaFilterResult(keep, n, (const char **) filteredMsaSequence);
+    }
+
+    *N_out = n;
+}
+
+void MsaFilter::shuffleSequences(const char ** X, size_t setSize) {
+    for (size_t i = 0, j = 0; j < setSize; j++) {
+        if (keep[j] != 0) {
+            if (i < j) {
+                const char* temp;
+                temp = X[i];
+                X[i] = X[j];
+                X[j] = temp;
+            }
+            i++;
+        }
+    }
+}
+
+void MsaFilter::getKept(bool *kept, size_t setSize) {
+    for (size_t i = 0; i < setSize; i++) {
+        kept[i] = keep[i] != 0;
+    }
 }
 
 void MsaFilter::pruneAlignment(char ** msaSequence, int N_in, int L) {

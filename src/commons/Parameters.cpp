@@ -45,7 +45,7 @@ Parameters::Parameters():
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) query and target residues",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|1(\\.0)?$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
-        PARAM_TARGET_COV(PARAM_TARGET_COV_ID,"--target-cov", "Target Coverage threshold", "list matches above this fraction of aligned (covered) target residues",typeid(float), (void *) &targetCovThr, "^0(\\.[0-9]+)?|1(\\.0)?$", MMseqsParameter::COMMAND_ALIGN),
+        PARAM_COV_MODE(PARAM_COV_MODE_ID, "--cov-mode", "Coverage Mode", "0: coverage of query and target, 1: coverage of target", typeid(int), (void *) &covMode, "^[0-1]{1}$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MAX_REJECTED(PARAM_MAX_REJECTED_ID,"--max-rejected", "Max Reject", "maximum rejected alignments before alignment calculation for a query is aborted",typeid(int),(void *) &maxRejected, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_MAX_ACCEPT(PARAM_MAX_ACCEPT_ID,"--max-accept", "Max Accept", "maximum accepted alignments before alignment calculation for a query is stopped",typeid(int),(void *) &maxAccept, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
@@ -125,7 +125,7 @@ Parameters::Parameters():
         PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
         PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,""),
         PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),
-        PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "specify a file that translates the keys of a result DB to new keys", typeid(std::string),(void *) &mappingFile,""),
+        PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "specify a file that translates the keys of a DB to new keys", typeid(std::string),(void *) &mappingFile,""),
         PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
         PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID,"--comparison-operator", "Numerical comparison operator", "compare numerically (le, ge, e) each entry to a comparison value.",typeid(std::string), (void *) &compOperator, ""),
@@ -135,10 +135,10 @@ Parameters::Parameters():
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
         PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their ID", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
-        // summarize headers
-        PARAM_HEADER_TYPE(PARAM_HEADER_TYPE_ID,"--header-type", "Header type", "Header Type: 1 Uniclust, 2 Metaclust",typeid(int), (void *) &headerType, "[1-2]{1}"),
         // prefixid
         PARAM_PREFIX(PARAM_PREFIX_ID, "--prefix", "Prefix", "Use this prefix for all entries", typeid(std::string),(void *) &prefix,""),
+        // summarize headers
+        PARAM_HEADER_TYPE(PARAM_HEADER_TYPE_ID,"--header-type", "Header type", "Header Type: 1 Uniclust, 2 Metaclust",typeid(int), (void *) &headerType, "[1-2]{1}"),
         // mergedbs
         PARAM_MERGE_PREFIXES(PARAM_MERGE_PREFIXES_ID, "--prefixes", "Merge prefixes", "Comma separated list of prefixes for each entry", typeid(std::string),(void *) &mergePrefixes,""),
         // evaluationscores
@@ -161,7 +161,7 @@ Parameters::Parameters():
     align.push_back(PARAM_E);
     align.push_back(PARAM_MIN_SEQ_ID);
     align.push_back(PARAM_C);
-    align.push_back(PARAM_TARGET_COV);
+    align.push_back(PARAM_COV_MODE);
     align.push_back(PARAM_MAX_SEQ_LEN);
     align.push_back(PARAM_MAX_SEQS);
     align.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -191,6 +191,7 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_SPLIT);
     prefilter.push_back(PARAM_SPLIT_MODE);
     prefilter.push_back(PARAM_C);
+    prefilter.push_back(PARAM_COV_MODE);
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     prefilter.push_back(PARAM_DIAGONAL_SCORING);
     prefilter.push_back(PARAM_MASK_RESIDUES);
@@ -220,7 +221,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
     rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_E);
-    rescorediagonal.push_back(PARAM_TARGET_COV);
+    rescorediagonal.push_back(PARAM_COV_MODE);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
     rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(PARAM_THREADS);
@@ -249,6 +250,9 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_FILTER_NDIFF);
     result2profile.push_back(PARAM_PCA);
     result2profile.push_back(PARAM_PCB);
+    result2profile.push_back(PARAM_OMIT_CONSENSUS);
+    result2profile.push_back(PARAM_NO_PRELOAD);
+    result2profile.push_back(PARAM_EARLY_EXIT);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
 
@@ -416,7 +420,7 @@ Parameters::Parameters():
     kmermatcher.push_back(PARAM_MIN_SEQ_ID);
     kmermatcher.push_back(PARAM_KMER_PER_SEQ);
     kmermatcher.push_back(PARAM_MASK_RESIDUES);
-    kmermatcher.push_back(PARAM_TARGET_COV);
+    kmermatcher.push_back(PARAM_COV_MODE);
     kmermatcher.push_back(PARAM_K);
     kmermatcher.push_back(PARAM_C);
     kmermatcher.push_back(PARAM_MAX_SEQ_LEN);
@@ -518,6 +522,7 @@ Parameters::Parameters():
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(PARAM_USESEQID);
+    clusterUpdate.push_back(PARAM_RECOVER_DELETED);
 
     //checkSaneEnvironment();
     setDefaults();
@@ -787,22 +792,27 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db6 = getFilename[5];
             db6Index = db6;
             db6Index.append(".index");
+            // FALLTHROUGH
         case 5:
             db5 = getFilename[4];
             db5Index = db5;
             db5Index.append(".index");
+            // FALLTHROUGH
         case 4:
             db4 = getFilename[3];
             db4Index = db4;
             db4Index.append(".index");
+            // FALLTHROUGH
         case 3:
             db3 = getFilename[2];
             db3Index = db3;
             db3Index.append(".index");
+            // FALLTHROUGH
         case 2:
             db2 = getFilename[1];
             db2Index = db2;
             db2Index.append(".index");
+            // FALLTHROUGH
         case 1:
             db1 = getFilename[0];
             db1Index = db1;
@@ -812,6 +822,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             // Do not abort execution if we expect a variable amount of parameters
             if(isVariadic)
                 break;
+            // FALLTHROUGH
         case 0:
             printUsageMessage(command, outputFlag);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
@@ -924,7 +935,7 @@ void Parameters::setDefaults() {
     alignmentMode = ALIGNMENT_MODE_FAST_AUTO;
     evalThr = 0.001;
     covThr = 0.0;
-    targetCovThr = 0.0;
+    covMode = 0;
     maxRejected = INT_MAX;
     maxAccept   = INT_MAX;
     seqIdThr = 0.0;

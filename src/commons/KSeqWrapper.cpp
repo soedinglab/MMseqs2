@@ -71,18 +71,71 @@ KSeqGzip::~KSeqGzip() {
 }
 #endif
 
+
+#ifdef HAVE_BZLIB
+namespace KSEQBZIP {
+
+    KSEQ_INIT(BZFILE *, BZ2_bzread)
+}
+
+KSeqBzip::KSeqBzip(const char* fileName) {
+    if(FileUtil::fileExists(fileName) == false) {
+        errno = ENOENT;
+        perror(fileName);
+        EXIT(EXIT_FAILURE);
+    }
+    FILE *fp = FileUtil::openFileOrDie(fileName, "r+b", true);
+    int bzError;
+    file = BZ2_bzReadOpen(&bzError, fp, 0, 0, NULL, 0);
+    if(bzError != 0){
+        perror(fileName); EXIT(EXIT_FAILURE);
+    }
+    seq = (void*) KSEQBZIP::kseq_init(file);
+}
+
+bool KSeqBzip::ReadEntry() {
+    KSEQBZIP::kseq_t* s = (KSEQBZIP::kseq_t*) seq;
+    int result = KSEQBZIP::kseq_read(s);
+    if (result < 0)
+        return false;
+
+    entry.name = std::string(s->name.s, s->name.l);
+    entry.comment = std::string(s->comment.s, s->comment.l);
+    entry.sequence = std::string(s->seq.s, s->seq.l);
+
+    return true;
+}
+
+KSeqBzip::~KSeqBzip() {
+    kseq_destroy((KSEQGZIP::kseq_t*)seq);
+    int bzError;
+    BZ2_bzReadClose(&bzError, file);
+}
+#endif
+
 KSeqWrapper* KSeqFactory(const char* file) {
     KSeqWrapper* kseq;
-    if(Util::endsWith(".gz", file) == false) {
+    if(Util::endsWith(".gz", file) == false && Util::endsWith(".bz2", file) == false ) {
         kseq = new KSeqFile(file);
     }
 #ifdef HAVE_ZLIB
-    else {
+    else if(Util::endsWith(".gz", file) == true) {
         kseq = new KSeqGzip(file);
     }
 #else
-    else {
+    else if(Util::endsWith(".gz", file) == true) {
         Debug(Debug::ERROR) << "MMseqs was not compiled with zlib support. Can not read compressed input!\n";
+        EXIT(EXIT_FAILURE);
+    }
+#endif
+
+#ifdef HAVE_BZLIB
+    else if(Util::endsWith(".bz2", file) == true) {
+        kseq = new KSeqBzip(file);
+    }
+#else
+    else if(Util::endsWith(".bz2", file) == true) {
+        Debug(Debug::ERROR) << "MMseqs was not compiled with bz2lib support. Can not read compressed input!\n";
         EXIT(EXIT_FAILURE);
     }
 #endif

@@ -10,9 +10,7 @@ checkReturnCode () {
 notExists () { 
 	[ ! -f "$1" ] 
 }
-hasCommand () {
-    command -v $1 >/dev/null 2>&1 || { echo "Please make sure that $1 is in \$PATH."; exit 1; }
-}
+
 #pre processing
 #[ -z "$MMDIR" ] && echo "Please set the environment variable \$MMDIR to your MMSEQS installation directory." && exit 1;
 # check amount of input variables
@@ -20,9 +18,7 @@ hasCommand () {
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
-[ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && exit 1;
-
-hasCommand awk
+[ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p "$3";
 
 
 INPUT="$1"
@@ -30,8 +26,7 @@ mkdir -p "$3/linclust"
 notExists "$3/aln_redundancy" && $MMSEQS linclust "$INPUT" "$3/clu_redundancy" "$3/linclust"  ${LINCLUST_PAR} && checkReturnCode "Fast filter step $STEP died"
 # OMP proc bind can not be combined with workflow calls.
 export OMP_PROC_BIND=TRUE
-awk '{ print $1 }' "$3/clu_redundancy.index" > "$3/order_redundancy"
-notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/order_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
+notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/clu_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
 
 INPUT="$3/input_step_redundancy"
 STEP=0
@@ -55,11 +50,8 @@ while [ $STEP -lt 4 ]; do
             && $MMSEQS mergeclusters "$1" "$3/clu" "$3/clu_redundancy" "$3/clu_step0" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3" \
             && checkReturnCode "Merging of clusters has died"
     else
-        notExists "$3/order_step$STEP" \
-            && awk '{ print $1 }' "$3/clu_step$STEP.index" > "$3/order_step$STEP" \
-            && checkReturnCode "Awk step $STEP died"
         notExists "$NEXTINPUT" \
-            && $MMSEQS createsubdb "$3/order_step$STEP" "$INPUT" "$NEXTINPUT" \
+            && $MMSEQS createsubdb "$3/clu_step$STEP" "$INPUT" "$NEXTINPUT" \
             && checkReturnCode "Order step $STEP died"
     fi
 

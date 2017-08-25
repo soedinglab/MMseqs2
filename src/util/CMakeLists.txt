@@ -3,6 +3,7 @@ set(util_source_files
         convertprofiledb.cpp
         createseqfiledb.cpp
         result2profile.cpp
+        result2msa.cpp
         result2flat.cpp
         mergedbs.cpp
         splitdb.cpp

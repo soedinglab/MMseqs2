@@ -193,7 +193,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                          res.dbStartPos + 1, res.dbEndPos + 1,
                                          res.eval, res.score);
 
-                    if (count < 0 || count >= sizeof(buffer)) {
+                    if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
                         Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
                         continue;
                     }
@@ -211,7 +211,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                          res.eval, res.score,
                                          res.qLen, res.dbLen);
 
-                    if (count < 0 || count >= sizeof(buffer)) {
+                    if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
                         Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
                         continue;
                     }
@@ -227,7 +227,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                                          res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1,
                                          res.eval, res.score);
 
-                    if (count < 0 || count >= sizeof(buffer)) {
+                    if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
                         Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
                         continue;
                     }

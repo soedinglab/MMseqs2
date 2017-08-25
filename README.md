@@ -5,11 +5,17 @@ Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching f
 
 ![alt tag](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
 ![alt tag](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
-![alt tag](https://travis-ci.org/soedinglab/mmseqs2.svg?branch=master)
+![alt tag](https://travis-ci.org/soedinglab/MMseqs2.svg?branch=master)
+![alt tag](https://zenodo.org/badge/DOI/10.5281/zenodo.840208.svg)
 
 <p align="center"><img src="https://raw.githubusercontent.com/soedinglab/mmseqs2/master/mmseqs2_logo.png" height="256" /></p>
 
+
 ## News
+Keep posted about MMseqs2/Linclust updates by following Martin on [twitter](https://twitter.com/thesteinegger).
+
+04/08/2017 We had a serious bug in the linclust/cluster workflow when performing target-cov based clustering since 20/07/2017. We will also add the clustering workflows to our regression tests. The bug should be fixed now. Please update your MMseqs2.
+
 05/25/2017 We updated the Linclust manuscript. Linclust is now 3x faster and we added an metagenomic protein assembly application. Happy towel day. A pre-print can be downloaded here: [Steinegger M and Soeding J. Linclust: clustering billions of protein sequences per day on a single server (2017)](http://biorxiv.org/content/early/2017/05/25/104034). 
 
 30/01/2017 We added a new clustering workflow called "Linclust". Linclust can cluster sequences in linear time down to 50% sequence identity. The Metaclust95 and Metaclust50 database can be download at [metaclust.mmseqs.com](https://metaclust.mmseqs.com/). A pre-print can be downloaded here: [Steinegger M and Soeding J. Linclust: clustering protein sequences in linear time (2017)](http://www.biorxiv.org/content/early/2017/01/29/104034.article-metrics). 
@@ -23,7 +29,7 @@ The MMseqs2 user guide is available in our [Github Wiki](https://github.com/soed
 You can read on for a quick start guide with installation instructions and examples for searching and clustering.
 
 ## Installation
-MMseqs can be installed by compiling the binary from source, download a statically compiled version, or using [Homebrew](https://github.com/Homebrew/brew). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
+MMseqs can be installed by compiling the binary from source, download a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
 
 ### Compile from source
 Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which should improve its performance. To compile MMseqs2 `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in `build/bin/`.
@@ -71,6 +77,17 @@ You can install MMseqs2 for Mac OS through [Homebrew](https://github.com/Homebre
         brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs.rb --HEAD
 
 This will also automatically install the bash completion (you might have to execute `brew install bash-completion` first). This will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
+
+### Use the Docker image
+You can either pull the official docker image by running:
+
+        docker pull soedinglab/mmseqs2
+
+Or build the docker image from the git repository by executing:
+        
+        git clone https://github.com/soedinglab/MMseqs2.git
+        cd MMseqs2
+        docker build -t mmseqs2 .
 
 ## How to search
 You can use the query database "queryDB.fasta" and target database "targetDB.fasta" in the examples folder to test the search workflow. First, you need to convert the fasta files into mmseqs database format. 
@@ -135,21 +152,21 @@ We recommend at least 128 GB of RAM so you can compute databases up to 30.000.00
 
 You can calculate the memory requirements in bytes for L columns and N rows using the following formula:
         
-        M = (7 B × N × L + 8 B × a^k) byte
+        M = (7 × N × L) byte + (8 × a^k) byte
 
-MMseqs stores an index table and two auxiliary arrays, which have a total size of M byte.
+MMseqs stores an index table and two auxiliary arrays, which have a total size of `M byte`.
 
-For a database containing N sequences with an average length L, the memory consumption of the index table is `(7B × N × L)` byte.
+For a database containing N sequences with an average length L, the memory consumption of the index table is `(7 × N × L) byte` .
 Note that the memory consumption grows linearly with the number of the sequences N in the database.
 
-The two auxiliary arrays consume `(8 B × a^k)` bytes, with a being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the  k-mer size k.
+The two auxiliary arrays consume `(8 × a^k) byte`, with `a` being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the k-mer size `k`.
 
 ### How to run MMseqs2 on multipe servers using MPI
 MMseqs2 can run on multiple cores and servers using OpenMP (OMP) and message passing interface (MPI).
 MPI assigns database splits to each servers and each server computes them using multiple cores (OMP). 
 Currently `prefilter`, `align`, `result2profile`, `swapresults` can take advantage of MPI.
 
-To parallelize the time-consuming k-mer matching and gapless alignment stages `prefilter` among multiple servers, two different modes are available. In the first, MMseqs2 can split the target sequence set into approximately equal-sized chunks, and each server searches all queries against its chunk. Alternatively, the query sequence set is split into equal-sized chunks and each server searches its query chunk against the entire target set. Splitting the target database is less time-efficient due to the slow, IO-limited merging of results. But it reduces the memory required on each server to `7 × N L/#chunks + a^k × 8 B` and allows users to search through huge databases on servers with moderate memory sizes. If the number of chunks is larger than the number of servers, chunks will be distributed among servers and processed sequentially. By default, MMseqs2 automatically decides which mode to pick based on the available memory (assume that all machines have the same amount of memory). 
+To parallelize the time-consuming k-mer matching and gapless alignment stages `prefilter` among multiple servers, two different modes are available. In the first, MMseqs2 can split the target sequence set into approximately equal-sized chunks, and each server searches all queries against its chunk. Alternatively, the query sequence set is split into equal-sized chunks and each server searches its query chunk against the entire target set. Splitting the target database is less time-efficient due to the slow, IO-limited merging of results. But it reduces the memory required on each server to `(7 × N L/#chunks) byte + (a^k × 8) byte` and allows users to search through huge databases on servers with moderate memory sizes. If the number of chunks is larger than the number of servers, chunks will be distributed among servers and processed sequentially. By default, MMseqs2 automatically decides which mode to pick based on the available memory (assume that all machines have the same amount of memory). 
 
 Make sure that MMseqs2 was compiled with MPI by using the `-DHAVE_MPI=1` flag (`cmake -DHAVE_MPI=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..`). Our precomplied static version of MMseqs2 can not use MPI.
 

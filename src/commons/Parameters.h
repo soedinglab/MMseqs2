@@ -170,7 +170,7 @@ public:
                                          // 1=score only, 2=score, cov, start/end pos, 3=score, cov, start/end pos, seq.id,
     float  evalThr;                      // e-value threshold for acceptance
     float  covThr;                       // coverage query&target threshold for acceptance
-    float  targetCovThr;                 // coverage target threshold for acceptance
+    int    covMode;                      // coverage target threshold for acceptance
 
     int    maxRejected;                  // after n sequences that are above eval stop
     int    maxAccept;                    // after n accepted sequences stop
@@ -370,7 +370,7 @@ public:
     PARAMETER(PARAM_ALIGNMENT_MODE)
     PARAMETER(PARAM_E)
     PARAMETER(PARAM_C)
-    PARAMETER(PARAM_TARGET_COV)
+    PARAMETER(PARAM_COV_MODE)
     PARAMETER(PARAM_MAX_REJECTED)
     PARAMETER(PARAM_MAX_ACCEPT)
     PARAMETER(PARAM_ADD_BACKTRACE)

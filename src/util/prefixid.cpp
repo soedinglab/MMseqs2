@@ -28,9 +28,13 @@ int prefixid(int argc, const char **argv, const Command& command) {
 
     const bool useUserPrefix = par.prefix != "";
 
+    Debug(Debug::INFO) << "Start prefixing database.\n";
+
     std::map<unsigned int, std::string> mapping = Util::readLookup(par.mappingFile);
 #pragma omp parallel for schedule(dynamic, 100)
     for (size_t i = 0; i < entries; ++i) {
+        Debug::printProgress(i);
+
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
@@ -56,6 +60,9 @@ int prefixid(int argc, const char **argv, const Command& command) {
     }
 
     writer.close();
+
+    Debug(Debug::INFO) << "\nDone.\n";
+
     reader.close();
 
     return EXIT_SUCCESS;

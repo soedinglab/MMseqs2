@@ -90,11 +90,15 @@ template <typename T> bool DBReader<T>::open(int accessType){
     }
 
     if (externalData == false) {
+        if(FileUtil::fileExists(indexFileName)==false){
+            Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
         size = FileUtil::countLines(indexFileName);
         index = new Index[this->size];
         seqLens = new unsigned int[size];
 
-        isSortedById = readIndex(indexFileName, index, data, seqLens);
+        isSortedById = readIndex(indexFileName, index, seqLens);
         sortIndex(isSortedById);
 
         // init seq lens array and dbKey mapping
@@ -115,7 +119,11 @@ void DBReader<T>::sortIndex(bool isSortedById) {
 
 template<>
 void DBReader<std::string>::sortIndex(bool isSortedById) {
-    if (isSortedById == false && accessType == SORT_BY_ID){
+    if (accessType == SORT_BY_ID){
+        if (isSortedById) {
+            return;
+        }
+
         std::pair<Index, unsigned int> *sortArray = new std::pair<Index, unsigned int>[size];
         for (size_t i = 0; i < size; i++) {
             sortArray[i] = std::make_pair(index[i], seqLens[i]);
@@ -370,6 +378,25 @@ template <typename T> size_t DBReader<T>::getSeqLens(size_t id){
     return seqLens[id];
 }
 
+template <typename T> size_t DBReader<T>::maxCount(char c) {
+    checkClosed();
+
+    size_t max = 0;
+    size_t count = 0;
+    for (size_t i = 0; i < dataSize; ++i) {
+        if (data[i] == c) {
+            count++;
+        }
+
+        if (data[i] == '\0') {
+            max = std::max(max, count);
+            count = 0;
+        }
+    }
+
+    return max;
+}
+
 template <typename T> void DBReader<T>::checkClosed(){
     if (closed == 1){
         Debug(Debug::ERROR) << "Trying to read a closed database.\n";
@@ -378,7 +405,7 @@ template <typename T> void DBReader<T>::checkClosed(){
 }
 
 template<typename T>
-bool DBReader<T>::readIndex(char *indexFileName, Index *index, char *data, unsigned int *entryLength) {
+bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *entryLength) {
     MemoryMapped indexData(indexFileName, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     if (!indexData.isValid()){
         Debug(Debug::ERROR) << "Could not open index file " << indexFileName << "\n";

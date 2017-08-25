@@ -105,7 +105,7 @@ int main(int argc, char * argv[])
     double max_seconds=60.0;
 
     //setting better mnemonics for the scoring matrix array
-    const long ** substitutionScoreMatrix=(const long **)S;
+//    const long ** substitutionScoreMatrix=(const long **)S;
 
     //creating an object to test the functions (and store the Gumbel parameters)
     AlignmentEvaluer evaluer;
@@ -119,9 +119,9 @@ int main(int argc, char * argv[])
     long ** tmpMat = new long *[subMat.alphabetSize];
     long * tmpMatData = new long[subMat.alphabetSize*subMat.alphabetSize];
 
-    for(size_t i = 0; i < subMat.alphabetSize; i++) {
+    for(int i = 0; i < subMat.alphabetSize; i++) {
         tmpMat[i] = &tmpMatData[i * subMat.alphabetSize];
-        for (size_t j = 0; j < subMat.alphabetSize; j++) {
+        for (int j = 0; j < subMat.alphabetSize; j++) {
             tmpMat[i][j] = subMat.subMatrix[i][j];
         }
         letterFreqs1[i] = subMat.pBack[i];
