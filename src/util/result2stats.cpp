@@ -268,7 +268,7 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
         queryReader = new DBReader<unsigned int>(queryDb.c_str(), queryDbIndex.c_str());
         queryReader->open(DBReader<unsigned int>::NOSORT);
 
-        bool sameQTDB = (queryDb.compare(targetDb) == 0);
+        sameQTDB = (queryDb.compare(targetDb) == 0);
         if (sameQTDB) {
             targetReader = queryReader;
         } else {
