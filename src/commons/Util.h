@@ -13,7 +13,7 @@
 #include "BaseMatrix.h"
 
 #ifndef EXIT
-#define EXIT(exitCode) exit(exitCode)
+#define EXIT(exitCode)     std::cerr<<"\n";std::cerr.flush();std::cout.flush();exit(exitCode)
 #endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
