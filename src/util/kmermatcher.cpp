@@ -21,6 +21,7 @@
 #include <sys/time.h>
 #include <MathUtil.h>
 #include <tantan.h>
+#include <QueryMatcher.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -33,7 +34,7 @@ struct KmerPosition {
     size_t kmer;
     unsigned int id;
     unsigned short seqLen;
-    unsigned short pos;
+    short pos;
 
     static bool compareKmerPositionByKmer(KmerPosition first, KmerPosition second){
         if(first.kmer < second.kmer )
@@ -59,6 +60,22 @@ struct KmerPosition {
         if(first.id < second.id )
             return true;
         if(second.id < first.id )
+            return false;
+        return false;
+    }
+
+    static bool compareRepSequenceAndIdAndPos(KmerPosition first, KmerPosition second){
+        if(first.kmer < second.kmer )
+            return true;
+        if(second.kmer < first.kmer )
+            return false;
+        if(first.id < second.id )
+            return true;
+        if(second.id < first.id )
+            return false;
+        if(first.pos < second.pos )
+            return true;
+        if(second.pos < first.pos )
             return false;
         return false;
     }
@@ -208,7 +225,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                 seqKmerCount++;
             }
             if(seqKmerCount > 1){
-                std::sort(kmers, kmers+seqKmerCount, SequencePosition::compareByScore);
+                std::stable_sort(kmers, kmers+seqKmerCount, SequencePosition::compareByScore);
             }
             size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer), seqKmerCount);
             for(size_t topKmer = 0; topKmer < kmerConsidered; topKmer++){
@@ -287,7 +304,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     seqDbr.unmapData();
     Debug(Debug::WARNING) << "Done." << "\n";
     Debug(Debug::WARNING) << "Sort kmer ... ";
-    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareKmerPositionByKmer);
+    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareRepSequenceAndIdAndPos);
     Debug(Debug::WARNING) << "Done." << "\n";
     // assign rep. sequence to same kmer members
     // The longest sequence is the first since we sorted by kmer, seq.Len and id
@@ -317,7 +334,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     // sort by rep. sequence (stored in kmer) and sequence id
     Debug(Debug::WARNING) << "Sort by rep. sequence ... ";
-    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareRepSequenceAndId);
+    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareRepSequenceAndIdAndPos);
     Debug(Debug::WARNING) << "Done\n";
 
     size_t repSeqId = SIZE_T_MAX;
@@ -325,27 +342,31 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     unsigned int writeSets = 0;
     unsigned int queryLength = 0;
     // write result
-    std::stringstream swResultsSs;
+
+    std::string prefResultsOutString;
+    prefResultsOutString.reserve(1000000000);
+    char buffer[100];
     for(size_t kmerPos = 0; kmerPos < kmerCounter && hashSeqPair[kmerPos].kmer != SIZE_T_MAX; kmerPos++){
         if(repSeqId != hashSeqPair[kmerPos].kmer) {
-            
             if (writeSets > 0) {
                 repSequence[repSeqId] = true;
-                std::string swResultsString = swResultsSs.str();
-                const char *swResultsStringData = swResultsString.c_str();
-                dbw.writeData(swResultsStringData, swResultsString.length(), seqDbr.getDbKey(repSeqId), 0);
+                dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), seqDbr.getDbKey(repSeqId), 0);
             }else{
                 if(repSeqId != SIZE_T_MAX) {
                     repSequence[repSeqId] = false;
                 }
             }
             lastTargetId = SIZE_T_MAX;
-            swResultsSs.str(std::string());
+            prefResultsOutString.clear();
             repSeqId = hashSeqPair[kmerPos].kmer;
             queryLength = hashSeqPair[kmerPos].seqLen;
-            swResultsSs << seqDbr.getDbKey(repSeqId) << "\t";
-            swResultsSs << 0 << "\t";
-            swResultsSs << 0 << "\n";
+            hit_t h;
+            h.seqId = seqDbr.getDbKey(repSeqId);
+            h.pScore = 0;
+            h.diagonal = 0;
+            int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+            // TODO: error handling for len
+            prefResultsOutString.append(buffer, len);
         }
         unsigned int targetId = hashSeqPair[kmerPos].id;
         unsigned int targetLength = hashSeqPair[kmerPos].seqLen;
@@ -363,32 +384,32 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             lastTargetId = targetId;
             continue;
         }
-        swResultsSs << seqDbr.getDbKey(targetId) << "\t";
-        swResultsSs << 0 << "\t";
-        swResultsSs << static_cast<short>(diagonal) << "\n";
+        hit_t h;
+        h.seqId = seqDbr.getDbKey(targetId);
+        h.pScore = 0;
+        h.diagonal = diagonal;
+        int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+        prefResultsOutString.append(buffer, len);
         lastTargetId = targetId;
         writeSets++;
     }
     if (writeSets > 0) {
         repSequence[repSeqId] = true;
-        std::string swResultsString = swResultsSs.str();
-        const char *swResultsStringData = swResultsString.c_str();
-        dbw.writeData(swResultsStringData, swResultsString.length(), seqDbr.getDbKey(repSeqId), 0);
+        dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.length(), seqDbr.getDbKey(repSeqId), 0);
     }else{
         if(repSeqId != SIZE_T_MAX) {
             repSequence[repSeqId] = false;
         }
     }
     // add missing entries to the result (needed for clustering)
+    hit_t h;
+    h.pScore = 0;
+    h.diagonal = 0;
     for(size_t id = 0; id < seqDbr.getSize(); id++){
         if(repSequence[id] == false){
-            std::stringstream swResultsSs;
-            swResultsSs << seqDbr.getDbKey(id) << "\t";
-            swResultsSs << 0 << "\t";
-            swResultsSs << 0 << "\n";
-            std::string swResultsString = swResultsSs.str();
-            const char* swResultsStringData = swResultsString.c_str();
-            dbw.writeData(swResultsStringData, swResultsString.length(), seqDbr.getDbKey(id), 0);
+            h.seqId =  seqDbr.getDbKey(id);
+            int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+            dbw.writeData(buffer, len, seqDbr.getDbKey(id), 0);
         }
     }
     // free memory
