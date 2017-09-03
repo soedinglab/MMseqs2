@@ -86,7 +86,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
             par.rescoreMode = Parameters::RESCORE_MODE_SUBSTITUTION;
         }
 
-        std::string libraryString = (par.covMode == 0)
+        std::string libraryString = (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL)
            ? std::string((const char*)CovSeqidQscPercMinDiag_out, CovSeqidQscPercMinDiag_out_len)
            : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_out, CovSeqidQscPercMinDiagTargetCov_out_len);
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
@@ -232,7 +232,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     //float maxSeqLen = std::max(static_cast<float>(targetLen), static_cast<float>(queryLen));
                     float currScorePerCol = static_cast<float>(distance)/static_cast<float>(diagonalLen);
                     // query/target cov mode
-                    bool hasCov = (par.covMode == 0) ? (queryCov >= par.covThr && targetCov >= par.covThr) : (targetCov >= par.covThr);
+                    bool hasCov = (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL) ? (queryCov >= par.covThr && targetCov >= par.covThr) : (targetCov >= par.covThr);
                     // --min-seq-id
                     bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
                     bool hasEvalue = (evalue <= par.evalThr);

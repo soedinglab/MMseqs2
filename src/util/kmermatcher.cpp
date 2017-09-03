@@ -373,7 +373,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         unsigned short diagonal = hashSeqPair[kmerPos].pos;
         // remove similar double sequence hit
         if(targetId != repSeqId && lastTargetId != targetId ){
-            if(par.covThr > 0.0 && par.covMode == 0) {
+            if(par.covThr > 0.0 && par.covMode == Parameters::COV_MODE_BIDIRECTIONAL) {
                 if ((((float) queryLength) / ((float) targetLength) < par.covThr) ||
                     (((float) targetLength) / ((float) queryLength) < par.covThr)) {
                     lastTargetId = targetId;

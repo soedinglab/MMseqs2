@@ -64,15 +64,13 @@ public:
     ~Matcher();
 
     // run SSE2 parallelized Smith-Waterman alignment calculation and traceback
-    result_t getSWResult(Sequence* dbSeq,const size_t seqDbSize,const double evalThr, const unsigned int mode);
+    result_t getSWResult(Sequence* dbSeq, const int covMode, const float covThr, const double evalThr, const unsigned int mode);
 
     // need for sorting the results
     static bool compareHits (result_t first, result_t second){ return (first.eval < second.eval); }
 
     // map new query into memory (create queryProfile, ...)
     void initQuery(Sequence* query);
-
-    static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
 
     static result_t parseAlignmentRecord(char *data, bool readCompressed=false);
 

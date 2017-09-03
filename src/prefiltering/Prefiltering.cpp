@@ -774,7 +774,7 @@ void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id) << " -> " << targetSeqId
                                << "\t" << res->prefScore << "\n";
         }
-        if (covThr > 0.0 && covMode == 0) {
+        if (covThr > 0.0 && covMode == Parameters::COV_MODE_BIDIRECTIONAL) {
             // check if the sequences could pass the coverage threshold
             float queryLength = static_cast<float>(qdbr->getSeqLens(id));
             float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId));

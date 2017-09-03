@@ -92,7 +92,7 @@ int main (int argc, const char * argv[])
             dbSeq->mapSequence(2, 2, sequences[seq_j].c_str());
             int32_t maskLen = query->L / 2;
             EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend, true );
-            s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, maskLen);
+            s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, 0, 0.0, maskLen);
             if(mode == 0 ){
                 cells += query->L * dbSeq->L;
                 std::cout << alignment.qEndPos1 << " " << alignment.dbEndPos1 << "\n";

@@ -42,7 +42,7 @@ void Matcher::initQuery(Sequence* query){
 }
 
 
-Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
+Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const float covThr,
                                        const double evalThr, const unsigned int mode){
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
@@ -55,7 +55,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
 //    double datapoints = -log(static_cast<double>(seqDbSize)) - log(qL) - log(dbL) + log(evalThr);
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
-    s_align alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, evalThr, evaluer, maskLen);
+    s_align alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, evalThr, evaluer, covMode, covThr, maskLen);
     // calculation of the coverage and e-value
     float qcov = 0.0;
     float dbcov = 0.0;
@@ -102,8 +102,8 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     // normalize score
 //    alignment->score1 = alignment->score1 - log2(dbSeq->L);
     if(mode == Matcher::SCORE_COV || mode == Matcher::SCORE_COV_SEQID) {
-        qcov  = computeCov(qStartPos, qEndPos, currentQuery->L);
-        dbcov = computeCov(dbStartPos, dbEndPos, dbSeq->L);
+        qcov  = alignment.qCov;
+        dbcov = alignment.tCov;
     }
 
     unsigned int alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
@@ -140,10 +140,6 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const size_t seqDbSize,
     return result;
 }
 
-
-float Matcher::computeCov(unsigned int startPos, unsigned int endPos, unsigned int len) {
-    return (std::min(len, endPos) - startPos + 1) / (float) len;
-}
 
 std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data, bool readCompressed) {
     std::vector<Matcher::result_t> ret;
@@ -223,8 +219,8 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
     size_t dbStart = strtoull(entry[7],NULL,0);
     size_t dbEnd = strtoull(entry[8],NULL,0);
     size_t dbLen = strtoull(entry[9],NULL,0);
-    double qCov = Matcher::computeCov(qStart, qEnd, qLen);
-    double dbCov = Matcher::computeCov(dbStart, dbEnd, dbLen);
+    double qCov = SmithWaterman::computeCov(qStart, qEnd, qLen);
+    double dbCov = SmithWaterman::computeCov(dbStart, dbEnd, dbLen);
     size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
 
     if(columns < ALN_RES_WITH_BT_COL_CNT){

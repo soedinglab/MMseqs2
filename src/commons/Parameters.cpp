@@ -913,7 +913,6 @@ void Parameters::setDefaults() {
     startSens = 4;
     sensStepSize = 1;
 
-
     threads = 1;
 #ifdef OPENMP
 #ifdef _SC_NPROCESSORS_ONLN
@@ -935,7 +934,7 @@ void Parameters::setDefaults() {
     alignmentMode = ALIGNMENT_MODE_FAST_AUTO;
     evalThr = 0.001;
     covThr = 0.0;
-    covMode = 0;
+    covMode = COV_MODE_BIDIRECTIONAL;
     maxRejected = INT_MAX;
     maxAccept   = INT_MAX;
     seqIdThr = 0.0;

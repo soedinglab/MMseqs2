@@ -100,6 +100,10 @@ public:
     static const int CLUST_LINEAR_DEFAULT_ALPH_SIZE = 13;
     static const int CLUST_LINEAR_DEFAULT_K = 0;
 
+    // cov mode
+    static const int COV_MODE_BIDIRECTIONAL  = 0;
+    static const int COV_MODE_TARGET = 1;
+
     // rescorediagonal
     static const int RESCORE_MODE_HAMMING = 0;
     static const int RESCORE_MODE_SUBSTITUTION = 1;
