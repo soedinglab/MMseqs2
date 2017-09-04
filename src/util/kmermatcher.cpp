@@ -69,6 +69,10 @@ struct KmerPosition {
             return true;
         if(second.kmer < first.kmer )
             return false;
+        if(first.seqLen < second.seqLen )
+            return true;
+        if(second.seqLen < first.seqLen )
+            return false;
         if(first.id < second.id )
             return true;
         if(second.id < first.id )
