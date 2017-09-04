@@ -93,6 +93,7 @@ Parameters::Parameters():
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
+        PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, ""),
         // search workflow
@@ -424,8 +425,10 @@ Parameters::Parameters():
     kmermatcher.push_back(PARAM_K);
     kmermatcher.push_back(PARAM_C);
     kmermatcher.push_back(PARAM_MAX_SEQ_LEN);
+    kmermatcher.push_back(PARAM_HASH_SHIFT);
     kmermatcher.push_back(PARAM_THREADS);
     kmermatcher.push_back(PARAM_V);
+
 
     // mergedbs
     mergedbs.push_back(PARAM_MERGE_PREFIXES);
@@ -1073,6 +1076,7 @@ void Parameters::setDefaults() {
 
     // linearcluster
     kmersPerSequence = 20;
+    hashShift = 5;
 
     // result2stats
     stat = "";

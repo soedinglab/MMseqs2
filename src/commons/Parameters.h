@@ -249,6 +249,7 @@ public:
 
     // linearcluster
     int kmersPerSequence;
+    int hashShift;
 
     // createindex
     bool includeHeader;
@@ -437,6 +438,7 @@ public:
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
+    PARAMETER(PARAM_HASH_SHIFT)
 
     // workflow
     PARAMETER(PARAM_RUNNER)

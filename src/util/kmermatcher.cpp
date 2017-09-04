@@ -79,14 +79,45 @@ struct KmerPosition {
             return false;
         return false;
     }
+
+    static bool compareRepSequenceAndIdAndDiag(const KmerPosition &first, const KmerPosition &second){
+        if(first.kmer < second.kmer)
+            return true;
+        if(second.kmer < first.kmer)
+            return false;
+        if(first.id < second.id)
+            return true;
+        if(second.id < first.id)
+            return false;
+
+        const short firstDiag  = (first.pos < 0)  ? -first.pos : first.pos;
+        const short secondDiag = (second.pos  < 0) ? -second.pos : second.pos;
+        if(firstDiag < secondDiag)
+            return true;
+        if(secondDiag < firstDiag)
+            return false;
+        return false;
+    }
 };
 
 struct SequencePosition{
+    short score;
     size_t kmer;
     unsigned int pos;
-    float score;
-    static bool compareByScore(SequencePosition first, SequencePosition second){
-        return (first.score < second.score) ? true : false;
+    static bool compareByScore(const SequencePosition &first, const SequencePosition &second){
+        if(first.score < second.score)
+            return true;
+        if(second.score < first.score)
+            return false;
+        if(first.kmer < second.kmer)
+            return true;
+        if(second.kmer < first.kmer)
+            return false;
+        if(first.pos < second.pos)
+            return true;
+        if(second.pos < first.pos)
+            return false;
+        return false;
     }
 };
 
@@ -114,24 +145,23 @@ size_t computeMemoryNeededLinearfilter(size_t totalKmer) {
     return sizeof(KmerPosition) * totalKmer;
 }
 
-
 #define RoL(val, numbits) (val << numbits) ^ (val >> (32 - numbits))
-unsigned circ_hash(const int * x, unsigned length){
+unsigned circ_hash(const int * x, unsigned length, const unsigned rol){
     short unsigned RAND[21] = {0x4567, 0x23c6, 0x9869, 0x4873, 0xdc51, 0x5cff, 0x944a, 0x58ec, 0x1f29, 0x7ccd, 0x58ba, 0xd7ab, 0x41f2, 0x1efb, 0xa9e3, 0xe146, 0x007c, 0x62c2, 0x0854, 0x27f8, 0x231b};
     short unsigned h = 0x0;
     h = h^ RAND[x[0]];                  // XOR h and ki
     for (unsigned int i = 1; i < length; ++i){
-        h = RoL(h, 5);
+        h = RoL(h, rol);
         h ^= RAND[x[i]];                   // XOR h and ki
     }
     return h;
 }
 
 // Rolling hash for CRC variant: compute hash value for next key x[0:length-1] from previous hash value hash( x[-1:length-2] ) and x_first = x[-1]
-unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsigned h){
+unsigned circ_hash_next(const int * x, unsigned length, int x_first, short unsigned h, const unsigned rol){
     short unsigned RAND[21] = {0x4567, 0x23c6, 0x9869, 0x4873, 0xdc51, 0x5cff, 0x944a, 0x58ec, 0x1f29, 0x7ccd, 0x58ba, 0xd7ab, 0x41f2, 0x1efb, 0xa9e3, 0xe146, 0x007c, 0x62c2, 0x0854, 0x27f8, 0x231b};
     h ^= RoL(RAND[x_first], (5*(length-1)) % 16); // undo INITIAL_VALUE and first letter x[0] of old key
-    h =  RoL(h, 5); // circularly permute all letters x[1:length-1] to 5 positions to left
+    h =  RoL(h, rol); // circularly permute all letters x[1:length-1] to 5 positions to left
     h ^= RAND[x[length-1]]; // add new, last letter of new key x[1:length]
     return h;
 }
@@ -141,7 +171,6 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                              Parameters & par, BaseMatrix * subMat,
                              size_t KMER_SIZE, size_t chooseTopKmer){
     size_t kmerCounter = 0;
-
     double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
     const double *probMatrixPointers[subMat->alphabetSize];
     char hardMaskTable[256];
@@ -197,19 +226,18 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
 
             int seqKmerCount = 0;
             unsigned int seqId = seq.getId();
-            unsigned int prevHash=0;
+            unsigned short prevHash=0;
             unsigned int prevFirstRes = 0;
             if(seq.hasNextKmer()){
                 const int *kmer = seq.nextKmer();
-                prevHash = circ_hash(kmer, KMER_SIZE);
+                prevHash = circ_hash(kmer, KMER_SIZE, par.hashShift);
                 prevFirstRes = kmer[0];
             }
             while(seq.hasNextKmer()) {
                 const int *kmer = seq.nextKmer();
                 //float kmerScore = 1.0;
-                prevHash = circ_hash_next(kmer, KMER_SIZE, prevFirstRes, prevHash);
+                prevHash = circ_hash_next(kmer, KMER_SIZE, prevFirstRes, prevHash, par.hashShift);
                 prevFirstRes = kmer[0];
-                float kmerScore = prevHash;
                 size_t xCount = 0;
                 for (size_t kpos = 0; kpos < KMER_SIZE; kpos++) {
                     xCount += (kmer[kpos] == subMat->aa2int[(int)'X']);
@@ -217,15 +245,15 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                 if(xCount > 0){
                     continue;
                 }
-
-                (kmers+seqKmerCount)->score = kmerScore;
+                (kmers+seqKmerCount)->score = prevHash;
                 size_t kmerIdx = idxer.int2index(kmer, 0, KMER_SIZE);
+
                 (kmers+seqKmerCount)->kmer = kmerIdx;
                 (kmers+seqKmerCount)->pos = seq.getCurrentPosition();
                 seqKmerCount++;
             }
             if(seqKmerCount > 1){
-                std::stable_sort(kmers, kmers+seqKmerCount, SequencePosition::compareByScore);
+                std::sort(kmers, kmers+seqKmerCount, SequencePosition::compareByScore);
             }
             size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer), seqKmerCount);
             for(size_t topKmer = 0; topKmer < kmerConsidered; topKmer++){
@@ -240,7 +268,6 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
         delete [] kmers;
         delete [] charSequence;
     }
-
     return kmerCounter;
 }
 
@@ -300,11 +327,11 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         hashSeqPair[i].kmer = SIZE_T_MAX;
     }
 
-    size_t kmerCounter = fillKmerPositionArray(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer);
+    fillKmerPositionArray(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer);
     seqDbr.unmapData();
     Debug(Debug::WARNING) << "Done." << "\n";
     Debug(Debug::WARNING) << "Sort kmer ... ";
-    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareRepSequenceAndIdAndPos);
+    omptl::sort(hashSeqPair, hashSeqPair + totalKmers, KmerPosition::compareRepSequenceAndIdAndPos);
     Debug(Debug::WARNING) << "Done." << "\n";
     // assign rep. sequence to same kmer members
     // The longest sequence is the first since we sorted by kmer, seq.Len and id
@@ -313,7 +340,8 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     unsigned int max_i_Pos = hashSeqPair[0].pos;
     size_t prevHashStart = 0;
     size_t prevSetSize = 0;
-    for(size_t elementCount = 0; elementCount < kmerCounter + 1; elementCount++) {
+
+    for(size_t elementCount = 0; elementCount < totalKmers + 1; elementCount++) {
         if(prevHash != hashSeqPair[elementCount].kmer) {
             for(size_t i = prevHashStart; i < elementCount; i++){
                 const unsigned int j_pos = hashSeqPair[i].pos;
@@ -334,7 +362,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     // sort by rep. sequence (stored in kmer) and sequence id
     Debug(Debug::WARNING) << "Sort by rep. sequence ... ";
-    omptl::sort(hashSeqPair, hashSeqPair + kmerCounter, KmerPosition::compareRepSequenceAndIdAndPos);
+    omptl::sort(hashSeqPair, hashSeqPair + totalKmers, KmerPosition::compareRepSequenceAndIdAndDiag);
     Debug(Debug::WARNING) << "Done\n";
 
     size_t repSeqId = SIZE_T_MAX;
@@ -346,7 +374,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     std::string prefResultsOutString;
     prefResultsOutString.reserve(1000000000);
     char buffer[100];
-    for(size_t kmerPos = 0; kmerPos < kmerCounter && hashSeqPair[kmerPos].kmer != SIZE_T_MAX; kmerPos++){
+    for(size_t kmerPos = 0; kmerPos < totalKmers && hashSeqPair[kmerPos].kmer != SIZE_T_MAX; kmerPos++){
         if(repSeqId != hashSeqPair[kmerPos].kmer) {
             if (writeSets > 0) {
                 repSequence[repSeqId] = true;
