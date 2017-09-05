@@ -29,7 +29,7 @@ The MMseqs2 user guide is available in our [Github Wiki](https://github.com/soed
 You can read on for a quick start guide with installation instructions and examples for searching and clustering.
 
 ## Installation
-MMseqs can be installed by compiling the binary from source, download a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
+MMseqs can be installed by compiling the binary from source, download a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
 
 ### Compile from source
 Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which should improve its performance. To compile MMseqs2 `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in `build/bin/`.
@@ -161,7 +161,7 @@ Note that the memory consumption grows linearly with the number of the sequences
 
 The two auxiliary arrays consume `(8 × a^k) byte`, with `a` being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the k-mer size `k`.
 
-### How to run MMseqs2 on multipe servers using MPI
+### How to run MMseqs2 on multiple servers using MPI
 MMseqs2 can run on multiple cores and servers using OpenMP (OMP) and message passing interface (MPI).
 MPI assigns database splits to each servers and each server computes them using multiple cores (OMP). 
 Currently `prefilter`, `align`, `result2profile`, `swapresults` can take advantage of MPI.
