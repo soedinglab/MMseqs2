@@ -11,6 +11,7 @@
 #include "MMseqsMPI.h"
 #include "Sequence.h"
 #include "BaseMatrix.h"
+#include "Parameters.h"
 
 #ifndef EXIT
 #define EXIT(exitCode)     do{std::cerr<<"\n";std::cerr.flush();std::cout.flush();exit(exitCode);}while(0)
@@ -254,5 +255,30 @@ public:
     static int omp_thread_count();
 
     static std::string removeWhiteSpace(std::string in);
+
+    static bool canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength) {
+        switch(covMode){
+            case Parameters::COV_MODE_BIDIRECTIONAL:
+                return ((queryLength / targetLength >= covThr) || (targetLength / queryLength >= covThr));
+            case Parameters::COV_MODE_QUERY:
+                return ((queryLength / targetLength) >= covThr);
+        }
+        return true;
+    }
+
+    static bool hasCoverage(float covThr, int covMode, float queryCov, float targetCov){
+        switch(covMode){
+            case Parameters::COV_MODE_BIDIRECTIONAL:
+                return ((queryCov >= covThr) && (targetCov >= covThr));
+            case Parameters::COV_MODE_QUERY:
+                return (queryCov >= covThr);
+            case Parameters::COV_MODE_TARGET:
+                return (targetCov >= covThr);
+        }
+        return true;
+    }
+
+
+
 };
 #endif

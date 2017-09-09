@@ -232,7 +232,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     //float maxSeqLen = std::max(static_cast<float>(targetLen), static_cast<float>(queryLen));
                     float currScorePerCol = static_cast<float>(distance)/static_cast<float>(diagonalLen);
                     // query/target cov mode
-                    bool hasCov = (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL) ? (queryCov >= par.covThr && targetCov >= par.covThr) : (targetCov >= par.covThr);
+                    bool hasCov = Util::hasCoverage(par.covThr, par.covMode, queryCov, targetCov);
                     // --min-seq-id
                     bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
                     bool hasEvalue = (evalue <= par.evalThr);

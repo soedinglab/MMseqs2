@@ -774,14 +774,15 @@ void Prefiltering::writePrefilterOutput(DBReader<unsigned int> *qdbr, DBWriter *
             Debug(Debug::INFO) << "Wrong prefiltering result: Query: " << qdbr->getDbKey(id) << " -> " << targetSeqId
                                << "\t" << res->prefScore << "\n";
         }
-        if (covThr > 0.0 && covMode == Parameters::COV_MODE_BIDIRECTIONAL) {
-            // check if the sequences could pass the coverage threshold
+        if(covThr > 0.0 && (covMode == Parameters::COV_MODE_BIDIRECTIONAL || covMode == Parameters::COV_MODE_QUERY)){
             float queryLength = static_cast<float>(qdbr->getSeqLens(id));
             float targetLength = static_cast<float>(tdbr->getSeqLens(targetSeqId));
-            if ((queryLength / targetLength < covThr) || (targetLength / queryLength < covThr))
+            if(Util::canBeCovered(covThr, covMode, queryLength, targetLength)==false){
                 continue;
-
+            }
         }
+
+
         res->seqId = tdbr->getDbKey(targetSeqId);
         int len = QueryMatcher::prefilterHitToBuffer(buffer, *res);
         // TODO: error handling for len

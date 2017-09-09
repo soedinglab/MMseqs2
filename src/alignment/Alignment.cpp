@@ -281,9 +281,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     setTargetSequence(dbSeq, dbKey);
                     // check if the sequences could pass the coverage threshold
-                    if (covMode == Parameters::COV_MODE_BIDIRECTIONAL &&
-                        ((((float) qSeq.L) / ((float) dbSeq.L) < covThr)
-                         || (((float) dbSeq.L) / ((float) qSeq.L) < covThr))) {
+                    if(Util::canBeCovered(covThr, covMode, static_cast<float>(qSeq.L), static_cast<float>(dbSeq.L)) == false )
+                    {
                         rejected++;
                         data = Util::skipLine(data);
                         continue;
@@ -304,7 +303,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     const bool evalOk = (res.eval <= evalThr); // -e
                     const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
-                    const bool covOK = (covMode == Parameters::COV_MODE_BIDIRECTIONAL) ? (res.qcov >= covThr && res.dbcov >= covThr) : (res.dbcov >= covThr);
+                    const bool covOK = Util::hasCoverage(covThr, covMode, res.qcov, res.dbcov);
                     // check first if it is identity
                     if (isIdentity
                         ||

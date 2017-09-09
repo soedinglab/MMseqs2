@@ -185,19 +185,7 @@ s_align SmithWaterman::ssw_align (
 	bool hasLowerEvalue = r.evalue > evalueThr;
 	r.qCov = computeCov(0, r.qEndPos1, query_length);
 	r.tCov = computeCov(0, r.dbEndPos1, db_length);
-    bool hasLowerCoverage;
-    switch(covMode){
-		case Parameters::COV_MODE_BIDIRECTIONAL:
-			hasLowerCoverage = computeCov(0, std::min(r.dbEndPos1, r.qEndPos1), std::max(query_length, db_length)) < covThr;
-			break;
-		case Parameters::COV_MODE_TARGET:
-			hasLowerCoverage = r.tCov < covThr;
-			break;
-		default:
-			fprintf(stderr, "Coverage mode is not correct.\n");
-			EXIT(EXIT_FAILURE);
-			break;
-	}
+    bool hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
 
 	if (flag == 0 || ((flag == 2 || flag == 1) && hasLowerEvalue && hasLowerCoverage)){
 		goto end;
@@ -235,8 +223,9 @@ s_align SmithWaterman::ssw_align (
 	r.qStartPos1 = r.qEndPos1 - bests_reverse[0].read;
 	r.qCov = computeCov(r.qStartPos1, r.qEndPos1, query_length);
 	r.tCov = computeCov(r.dbStartPos1, r.dbEndPos1, db_length);
+	hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
 	free(bests_reverse);
-	if (flag == 1) // just start and end point are needed
+	if (flag == 1 || hasLowerCoverage) // just start and end point are needed
 		goto end;
 
 	// Generate cigar.

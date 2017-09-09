@@ -241,7 +241,7 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
     }
 }
 
-std::string Matcher::resultToString(result_t &result, bool addBacktrace) {
+std::string Matcher::resultToString(const result_t &result, bool addBacktrace, bool compress) {
     std::stringstream swResultsSs;
     swResultsSs << result.dbKey << "\t";
     swResultsSs << result.score << "\t"; //TODO fix for formats
@@ -254,7 +254,11 @@ std::string Matcher::resultToString(result_t &result, bool addBacktrace) {
     swResultsSs << result.dbEndPos  << "\t";
     if(addBacktrace == true){
         swResultsSs << result.dbLen << "\t";
-        swResultsSs << Matcher::compressAlignment(result.backtrace) << "\n";
+        if(compress){
+            swResultsSs << Matcher::compressAlignment(result.backtrace) << "\n";
+        }else{
+            swResultsSs << result.backtrace << "\n";
+        }
     }else{
         swResultsSs << result.dbLen << "\n";
     }
