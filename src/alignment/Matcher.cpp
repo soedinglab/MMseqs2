@@ -208,17 +208,17 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
     strncpy(key, data, keySize);
     key[keySize] = '\0';
 
-    unsigned int targetId = (unsigned int) strtoul(key, NULL, 10);
-    double score = strtod(entry[1],NULL);
+    unsigned int targetId = Util::fast_atoi<unsigned int>(key);
+    int score = Util::fast_atoi<int>(entry[1]);
     double seqId = strtod(entry[2],NULL);
     double eval = strtod(entry[3],NULL);
 
-    size_t qStart = strtoull(entry[4],NULL,0);
-    size_t qEnd = strtoull(entry[5],NULL,0);
-    size_t qLen = strtoull(entry[6],NULL,0);
-    size_t dbStart = strtoull(entry[7],NULL,0);
-    size_t dbEnd = strtoull(entry[8],NULL,0);
-    size_t dbLen = strtoull(entry[9],NULL,0);
+    int qStart =  Util::fast_atoi<int>(entry[4]);
+    int qEnd = Util::fast_atoi<int>(entry[5]);
+    int qLen = Util::fast_atoi<int>(entry[6]);
+    int dbStart = Util::fast_atoi<int>(entry[7]);
+    int dbEnd = Util::fast_atoi<int>(entry[8]);
+    int dbLen = Util::fast_atoi<int>(entry[9]);
     double qCov = SmithWaterman::computeCov(qStart, qEnd, qLen);
     double dbCov = SmithWaterman::computeCov(dbStart, dbEnd, dbLen);
     size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
