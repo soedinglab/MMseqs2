@@ -271,7 +271,7 @@ protected:
 
     size_t keepMaxScoreElementOnly(CounterResult *foundDiagonals, size_t resultSize);
 
-    void radixSortByScoreSize(const unsigned int *scoreSizes,
+    size_t radixSortByScoreSize(const unsigned int *scoreSizes,
                               CounterResult *writePos, const unsigned int scoreThreshold,
                               const CounterResult *results, const size_t resultSize);
 };
