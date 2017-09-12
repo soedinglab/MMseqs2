@@ -149,8 +149,8 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
         diagonalThr = std::max(minDiagScoreThr, diagonalThr);
         // sort to not lose highest scoring hits if > 150.000 hits are searched
         if(resultSize < counterResultSize/2){
-            radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
-            queryResult = getResult(foundDiagonals + resultSize, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, true);
+            int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
+            queryResult = getResult(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, seq->L, identityId, diagonalThr, true);
         }else{
             Debug(Debug::WARNING) << "Sequence " << seq->getDbKey() << " produces too many hits. Results might be truncated\n";
             queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, true);
@@ -159,8 +159,8 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
         unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         if(resultSize < counterResultSize/2) {
 
-            radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
-            queryResult = getResult(foundDiagonals + resultSize, resultSize, maxHitsPerQuery, seq->L, identityId, thr,
+            int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
+            queryResult = getResult(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, seq->L, identityId, thr,
                                     false);
         }else{
             Debug(Debug::WARNING) << "Sequence " << seq->getDbKey() << " produces too many hits. Results might be truncated\n";
@@ -424,7 +424,7 @@ size_t QueryMatcher::keepMaxScoreElementOnly(CounterResult *foundDiagonals, size
     return retSize;
 }
 
-void QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
+size_t QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
                                         CounterResult *writePos,
                                         const unsigned int scoreThreshold,
                                         const CounterResult *results,
@@ -432,14 +432,15 @@ void QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
     CounterResult * ptr[SCORE_RANGE];
     ptr[0] = writePos+resultSize;
     CounterResult * ptr_prev=ptr[0];
-    for(unsigned int i = 1; i < SCORE_RANGE; i++){
+    for(unsigned int i = 0; i < SCORE_RANGE; i++){
         ptr[i] = ptr_prev - scoreSizes[i];
-        //std::cout << i << "\t" << scoreSizes[i] << "\t" << ptr_prev <<  "\t" << ptr[i] <<std::endl;
         ptr_prev = ptr[i];
     }
+    size_t aboveThresholdCnt = 0;
     for (size_t i = 0; i < resultSize; i++) {
         const unsigned int scoreCurr = results[i].count;
         if(scoreCurr >= scoreThreshold) {
+            aboveThresholdCnt++;
             CounterResult*res = ptr[scoreCurr];
             res->id = results[i].id;
             res->count = results[i].count;
@@ -447,6 +448,7 @@ void QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
             ptr[scoreCurr]++;
         }
     }
+    return aboveThresholdCnt;
 }
 
 #undef FOR_EACH
