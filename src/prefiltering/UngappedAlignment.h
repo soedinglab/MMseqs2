@@ -23,6 +23,8 @@ public:
     void processQuery(Sequence *seq, float *compositionBias, CounterResult *results,
                       size_t resultSize, unsigned int thr);
 
+    int scoreSingelSequence(CounterResult &result);
+
 private:
     const static unsigned int DIAGONALCOUNT = 0xFFFF + 1;
     const static unsigned int PROFILESIZE = 32;
@@ -30,6 +32,8 @@ private:
     unsigned int *score_arr;
     unsigned char *vectorSequence;
     char *queryProfile;
+    unsigned int queryLen;
+    short bias;
     CounterResult ** diagonalMatches;
     unsigned char * diagonalCounter;
     char * aaCorrectionScore;
@@ -70,11 +74,13 @@ private:
 
     void extractScores(unsigned int *score_arr, simd_int score);
 
-    unsigned char normalizeScore(const unsigned char score, const unsigned int len);
-
     short createProfile(Sequence *seq, float *biasCorrection, short **subMat, int alphabetSize);
 
     unsigned int diagonalLength(const short diagonal, const unsigned int len, const unsigned int second);
+
+    int computeSingelSequenceScores(const char *queryProfile, const unsigned int queryLen,
+                                     std::pair<const unsigned char *, const unsigned int> &dbSeq,
+                                     short diagonal, unsigned short minDistToDiagonal, short bias);
 };
 
 

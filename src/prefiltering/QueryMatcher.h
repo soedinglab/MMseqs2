@@ -34,7 +34,7 @@ struct hit_t {
     unsigned int seqId;
     float pScore;
     unsigned short diagonal;
-    unsigned char prefScore;
+    unsigned short prefScore;
 
     static bool compareHitsByPValue(hit_t first, hit_t second){
         return (first.pScore > second.pScore) ? true : false;
@@ -251,6 +251,7 @@ protected:
                                          size_t maxHitPerQuery,
                                          const int l, const unsigned int id,
                                          const unsigned short thr,
+                                         UngappedAlignment *ungappedAlignment,
                                          const bool diagonalScoring);
     // compute double hits
     size_t getDoubleDiagonalMatches();

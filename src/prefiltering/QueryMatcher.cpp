@@ -150,29 +150,27 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
         // sort to not lose highest scoring hits if > 150.000 hits are searched
         if(resultSize < counterResultSize/2){
             int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
-            queryResult = getResult(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, seq->L, identityId, diagonalThr, true);
+            queryResult = getResult(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, seq->L, identityId, diagonalThr, ungappedAlignment, true);
         }else{
             Debug(Debug::WARNING) << "Sequence " << seq->getDbKey() << " produces too many hits. Results might be truncated\n";
-            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, true);
+            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, diagonalThr, ungappedAlignment, true);
         }
     }else{
         unsigned int thr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         if(resultSize < counterResultSize/2) {
 
             int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, thr, foundDiagonals, resultSize);
-            queryResult = getResult(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, seq->L, identityId, thr,
+            queryResult = getResult(foundDiagonals + resultSize, elementsCntAboveDiagonalThr, maxHitsPerQuery, seq->L, identityId, thr, ungappedAlignment,
                                     false);
         }else{
             Debug(Debug::WARNING) << "Sequence " << seq->getDbKey() << " produces too many hits. Results might be truncated\n";
-            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, thr,
+            queryResult = getResult(foundDiagonals, resultSize, maxHitsPerQuery, seq->L, identityId, thr, ungappedAlignment,
                                     false);
         }
     }
     if(queryResult.second > 1){
         if (identityId != UINT_MAX){
-            std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByPValue);
         } else{
-            std::sort(resList, resList + queryResult.second, hit_t::compareHitsByPValue);
         }
     }
     return queryResult;
@@ -317,11 +315,12 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                                                     const int l,
                                                     const unsigned int id,
                                                     const unsigned short thr,
+                                                    UngappedAlignment * align,
                                                     const bool diagonalScoring) {
     size_t elementCounter = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
-        const unsigned short rawScore  = SCORE_RANGE-1;
+        const unsigned short rawScore  = USHRT_MAX;
         result->seqId = id;
         result->prefScore = rawScore;
         result->diagonal = 0;
@@ -339,8 +338,11 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
         const unsigned int seqIdCurr = results[i].id;
         const unsigned int scoreCurr = results[i].count;
         const unsigned int diagCurr  = results[i].diagonal;
+        bool aboveThreshold = scoreCurr >= thr;
+        bool isNotQueryId = id != seqIdCurr;
         // write result to list
-        if(scoreCurr >= thr && id != seqIdCurr){
+//        std::cout << i << "\t" << results[i].id << "\t" << results[i].count << "\t" << results[i].diagonal << std::endl;
+        if(aboveThreshold && isNotQueryId){
             hit_t *result = (resList + elementCounter);
             result->seqId = seqIdCurr;
             result->prefScore = scoreCurr;
@@ -350,7 +352,15 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                 result->pScore =  (diagonalScoring) ? 0.0 :  -computeLogProbability(scoreCurr, seqLens[seqIdCurr],
                                                                                     mu, logMatchProb, logScoreFactorial[scoreCurr]);
             }else{
-                double evalue = -evaluer.computeLogEvalue(scoreCurr, l);
+                //need to get the real score
+                double evalue;
+                if(scoreCurr==255){
+                    unsigned int newScore = align->scoreSingelSequence(results[i]);
+                    result->prefScore = newScore;
+                    evalue = -evaluer.computeLogEvalue(newScore, l);
+                } else{
+                    evalue = -evaluer.computeLogEvalue(scoreCurr, l);
+                }
                 result->pScore = evalue;
             }
             elementCounter++;
