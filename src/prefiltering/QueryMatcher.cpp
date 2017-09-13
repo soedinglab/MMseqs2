@@ -170,7 +170,9 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
     }
     if(queryResult.second > 1){
         if (identityId != UINT_MAX){
+            std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByPValue);
         } else{
+            std::sort(resList, resList + queryResult.second, hit_t::compareHitsByPValue);
         }
     }
     return queryResult;
