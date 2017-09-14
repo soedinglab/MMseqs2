@@ -34,7 +34,7 @@ struct hit_t {
     unsigned int seqId;
     float pScore;
     unsigned short diagonal;
-    unsigned char prefScore;
+    unsigned short prefScore;
 
     static bool compareHitsByPValue(hit_t first, hit_t second){
         return (first.pScore > second.pScore) ? true : false;
@@ -137,14 +137,6 @@ public:
             data = Util::skipLine(data);
         }
         return ret;
-    }
-
-
-    static std::string prefilterHitToString(hit_t h)
-    {
-        std::ostringstream resStream;
-        resStream << h.seqId << '\t' << static_cast<int>(h.pScore) << '\t' << (short) h.diagonal << '\n';
-        return resStream.str();
     }
 
     static size_t prefilterHitToBuffer(char *buff1, hit_t &h)
@@ -251,6 +243,7 @@ protected:
                                          size_t maxHitPerQuery,
                                          const int l, const unsigned int id,
                                          const unsigned short thr,
+                                         UngappedAlignment *ungappedAlignment,
                                          const bool diagonalScoring);
     // compute double hits
     size_t getDoubleDiagonalMatches();
