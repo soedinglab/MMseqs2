@@ -23,6 +23,7 @@
    Written by Michael Farrar, 2006 (alignment), Mengyao Zhao (SSW Library) and Martin Steinegger (change structure add aa composition, profile and AVX2 support).
    Please send bug reports and/or suggestions to martin.steinegger@mpibpc.mpg.de.
 */
+#include <Parameters.h>
 #include "smith_waterman_sse2.h"
 
 #include "Util.h"
@@ -133,6 +134,7 @@ s_align SmithWaterman::ssw_align (
 		const uint8_t flag,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
 		const double  evalueThr,
 		EvalueComputation * evaluer,
+		const int covMode, const float covThr,
 		const int32_t maskLen) {
 
 	alignment_end* bests = 0, *bests_reverse = 0;
@@ -180,8 +182,12 @@ s_align SmithWaterman::ssw_align (
 	free(bests);
 	int32_t queryOffset = query_length - r.qEndPos1;
 	r.evalue = evaluer->computeEvalue(r.score1, query_length);
+	bool hasLowerEvalue = r.evalue > evalueThr;
+	r.qCov = computeCov(0, r.qEndPos1, query_length);
+	r.tCov = computeCov(0, r.dbEndPos1, db_length);
+    bool hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
 
-	if (flag == 0 || ((flag == 2 || flag == 1) && r.evalue > evalueThr)){
+	if (flag == 0 || ((flag == 2 || flag == 1) && hasLowerEvalue && hasLowerCoverage)){
 		goto end;
 	}
 
@@ -215,9 +221,11 @@ s_align SmithWaterman::ssw_align (
 
 	r.dbStartPos1 = bests_reverse[0].ref;
 	r.qStartPos1 = r.qEndPos1 - bests_reverse[0].read;
-
+	r.qCov = computeCov(r.qStartPos1, r.qEndPos1, query_length);
+	r.tCov = computeCov(r.dbStartPos1, r.dbEndPos1, db_length);
+	hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
 	free(bests_reverse);
-	if (flag == 1) // just start and end point are needed
+	if (flag == 1 || hasLowerCoverage) // just start and end point are needed
 		goto end;
 
 	// Generate cigar.
@@ -1054,4 +1062,8 @@ unsigned short SmithWaterman::sse2_extract_epi16(__m128i v, int pos) {
 	EXIT(1);
 	// never executed
 	return 0;
+}
+
+float SmithWaterman::computeCov(unsigned int startPos, unsigned int endPos, unsigned int len) {
+    return (std::min(len, endPos) - startPos + 1) / (float) len;
 }

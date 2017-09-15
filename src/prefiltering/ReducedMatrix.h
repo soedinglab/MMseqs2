@@ -12,7 +12,48 @@ class ReducedMatrix : public BaseMatrix {
         ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reducedAlphabetSize, float bitFactor);
         virtual ~ReducedMatrix();
 
-        void setupLetterMapping() {};
+        void setupLetterMapping() {
+                for(char letter = 0; letter < 'z'; letter++){
+                        char upperLetter = toupper(letter);
+                        switch(upperLetter){
+                                case 'A':
+                                case 'T':
+                                case 'G':
+                                case 'C':
+                                case 'D':
+                                case 'E':
+                                case 'F':
+                                case 'H':
+                                case 'I':
+                                case 'K':
+                                case 'L':
+                                case 'M':
+                                case 'N':
+                                case 'P':
+                                case 'Q':
+                                case 'R':
+                                case 'S':
+                                case 'V':
+                                case 'W':
+                                case 'Y':
+                                case 'X':
+                                        this->aa2int[letter] = this->aa2int[upperLetter];
+                                break;
+                                case 'J':
+                                        this->aa2int[letter] = this->aa2int[(int)'L'];
+                                break;
+                                case 'U':
+                                case 'O':
+                                        this->aa2int[letter] = this->aa2int[(int)'X'];
+                                break;
+                                case 'Z': this->aa2int[letter] = this->aa2int[(int)'E']; break;
+                                case 'B': this->aa2int[letter] = this->aa2int[(int)'D']; break;
+                                default:
+                                        this->aa2int[letter] = this->aa2int[(int)'X'];
+                                break;
+                        }
+                }
+        };
     private:
 
         /*contains the original matrix before the alphabet reduction*/

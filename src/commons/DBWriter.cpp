@@ -211,7 +211,27 @@ void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, un
     }
 
     size_t length = offsets[thrIdx] - offsetStart;
-    fprintf(indexFiles[thrIdx], "%u\t%zd\t%zd\n", key, offsetStart, length);
+
+    char buffer[1024];
+    size_t len = indexToBuffer(buffer, key, offsetStart, length );
+    written = fwrite(buffer, sizeof(char), len, indexFiles[thrIdx]);
+    if (written != len) {
+        Debug(Debug::ERROR) << "Could not write to data file " << indexFiles[thrIdx] << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+//    fprintf(indexFiles[thrIdx], "%u\t%zd\t%zd\n", key, offsetStart, length);
+}
+
+size_t DBWriter::indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len){
+    char * basePos = buff1;
+    char * tmpBuff = Itoa::u32toa_sse2(static_cast<uint32_t>(key), buff1);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(offsetStart), tmpBuff);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::u64toa_sse2(static_cast<uint64_t>(len), tmpBuff);
+    *(tmpBuff-1) = '\n';
+    *(tmpBuff) = '\0';
+    return tmpBuff - basePos;
 }
 
 void DBWriter::alignToPageSize() {

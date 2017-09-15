@@ -34,6 +34,8 @@ class DBWriter {
 
         void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0, bool addNullByte = true);
 
+        size_t indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len);
+
         void alignToPageSize();
 
         void mergeFiles(DBReader<unsigned int>& qdbr,

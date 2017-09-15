@@ -65,6 +65,8 @@ typedef struct {
     int32_t	qStartPos1;
     int32_t qEndPos1;
     int32_t ref_end2;
+    float qCov;
+    float tCov;
     uint32_t* cigar;
     int32_t cigarLen;
     double evalue;
@@ -139,6 +141,7 @@ public:
                         const uint8_t flag,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
                         const double filters,
                         EvalueComputation * filterd,
+                        const int covMode, const float covThr,
                         const int32_t maskLen);
 
     /*!	@function	Create the query profile using the query sequence.
@@ -168,6 +171,7 @@ public:
     static uint32_t cigar_int_to_len (uint32_t cigar_int);
 
 
+    static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
 
 private:
 

@@ -100,6 +100,12 @@ public:
     static const int CLUST_LINEAR_DEFAULT_ALPH_SIZE = 13;
     static const int CLUST_LINEAR_DEFAULT_K = 0;
 
+    // cov mode
+    static const int COV_MODE_BIDIRECTIONAL  = 0;
+    static const int COV_MODE_TARGET = 1;
+    static const int COV_MODE_QUERY = 2;
+
+
     // rescorediagonal
     static const int RESCORE_MODE_HAMMING = 0;
     static const int RESCORE_MODE_SUBSTITUTION = 1;
@@ -245,6 +251,7 @@ public:
 
     // linearcluster
     int kmersPerSequence;
+    int hashShift;
 
     // createindex
     bool includeHeader;
@@ -433,6 +440,7 @@ public:
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
+    PARAMETER(PARAM_HASH_SHIFT)
 
     // workflow
     PARAMETER(PARAM_RUNNER)
