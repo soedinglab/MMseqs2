@@ -10,6 +10,8 @@
 
 Parameters& par = Parameters::getInstance();
 
+extern const char* version;
+
 static struct Command commands[] = {
 // Main tools  (for non-experts)
         {"createdb",             createdb,             &par.createdb,             COMMAND_MAIN,
@@ -309,14 +311,7 @@ void printUsage() {
     usage << "MMseqs2 (Many against Many sequence searching) is an open-source software suite for very fast, \n"
             "parallelizable protein sequence searches and clustering of huge protein sequence data sets.\n\n";
     usage << "Please cite: M. Steinegger and J. Soding. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv 079681 (2016).\n\n";
-#ifdef GIT_SHA1
-#define str2(s) #s
-#define str(s) str2(s)
-	std::string gitHash(str(GIT_SHA1));
-	usage << "MMseqs Version: " << gitHash << "\n";
-#undef str
-#undef str2
-#endif
+	usage << "MMseqs Version: " << version << "\n";
     usage << "© Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n";
 
     struct {

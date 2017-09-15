@@ -47,10 +47,6 @@ if(${HAVE_SANITIZER})
     include(FindTSan)
 endif()
 
-include(GetGitRevisionDescription)
-get_git_head_revision(GIT_REFSPEC GIT_SHA1)
-add_definitions("-DGIT_SHA1=${GIT_SHA1}")
-
 # openmp integration
 find_package(OpenMP)
 if(OPENMP_FOUND)

@@ -15,6 +15,8 @@
 #include <omp.h>
 #endif
 
+extern const char* version;
+
 Parameters::Parameters():
         PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity: 1.0 faster; 4.0 fast default; 8.5 sensitive [1.0,8.5]", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7] (0: set automatically to optimum)",typeid(int),  (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
@@ -856,14 +858,8 @@ void Parameters::printParameters(int argc, const char* pargv[],
     std::stringstream ss;
     ss << std::boolalpha;
 
-#ifdef GIT_SHA1
-#define str2(s) #s
-#define str(s) str2(s)
-    std::string gitHash(str(GIT_SHA1));
-    ss << std::setw(maxWidth) << std::left  << "MMseqs Version:" << "\t" << gitHash << "\n";
-#undef str
-#undef str2
-#endif
+    ss << std::setw(maxWidth) << std::left  << "MMseqs Version:" << "\t" << version << "\n";
+
 
     for (size_t i = 0; i < par.size(); i++) {
         ss << std::setw(maxWidth) << std::left << par[i].display << "\t";

@@ -12,15 +12,16 @@ add_subdirectory(prefiltering)
 add_subdirectory(util)
 add_subdirectory(workflow)
 add_subdirectory(test)
+add_subdirectory(version)
 
 set(mmseqs_source_files
     CommandDeclarations.h
     mmseqs.cpp
 )
 
-add_executable(mmseqs ${mmseqs_source_files} )
+add_executable(mmseqs ${mmseqs_source_files})
 
-target_link_libraries(mmseqs util workflow)
+target_link_libraries(mmseqs util workflow version)
 if(MPI_FOUND)
     target_link_libraries(mmseqs ${MPI_LIBRARIES})
     if(MPI_COMPILE_FLAGS)
