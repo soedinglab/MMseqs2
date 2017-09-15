@@ -55,6 +55,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                 templateDBIsIndex = false;
             } else {
                 PrefilteringIndexReader::printSummary(tidxdbr);
+                targetSeqType = meta.seqType;
                 if (meta.maskMode == 0) {
                     tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, par.noPreload == false);
                 } else if (meta.maskMode == 2) {

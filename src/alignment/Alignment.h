@@ -66,7 +66,7 @@ private:
 
     const size_t maxSeqLen;
     const int querySeqType;
-    const int targetSeqType;
+    int targetSeqType;
     const bool compBiasCorrection;
 
     BaseMatrix *m;
