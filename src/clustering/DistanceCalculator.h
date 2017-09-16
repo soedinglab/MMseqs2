@@ -64,7 +64,7 @@ public:
         int maxScore = 0;
         int maxEndPos = 0;
         int maxStartPos = 0;
-        int minPos = 0;
+        int minPos = -1;
 //        int maxMinPos = 0;
         int score = 0;
         for(unsigned int pos = 0; pos < length; pos++){
@@ -80,7 +80,7 @@ public:
         }
         return LocalAlignment(maxStartPos, maxEndPos, maxScore);
     }
-    
+
     static unsigned int computeHammingDistance(const char *seq1, const char *seq2, unsigned int length){
         unsigned int diff = 0;
         unsigned int simdBlock = length/(VECSIZE_INT*4);
