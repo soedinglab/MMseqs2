@@ -70,18 +70,17 @@ public:
         for(unsigned int pos = 0; pos < length; pos++){
             int curr = subMat[seq1[pos]][seq2[pos]];
             score = curr  + score;
-            const bool isMinScore = (score < 0);
+            const bool isMinScore = (score <= 0);
             score =  (isMinScore) ? 0 : score;
             minPos = (isMinScore) ? pos : minPos;
             const bool isNewMaxScore = (score > maxScore);
             maxEndPos = (isNewMaxScore) ? pos : maxEndPos;
-            maxStartPos = (isNewMaxScore) ? minPos : maxStartPos;
+            maxStartPos = (isNewMaxScore) ? minPos + 1 : maxStartPos;
             maxScore = (isNewMaxScore)? score : maxScore;
         }
         return LocalAlignment(maxStartPos, maxEndPos, maxScore);
     }
-
-
+    
     static unsigned int computeHammingDistance(const char *seq1, const char *seq2, unsigned int length){
         unsigned int diff = 0;
         unsigned int simdBlock = length/(VECSIZE_INT*4);
