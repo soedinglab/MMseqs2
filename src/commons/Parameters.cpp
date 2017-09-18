@@ -650,9 +650,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                                  size_t requiredParameterCount,
                                  bool printPar,
                                  bool isVariadic,
-                                 int outputFlag)
-{
-    std::vector<std::string> getFilename;
+                                 int outputFlag) {
+    filenames.clear();
     std::vector<MMseqsParameter>& par = *command.params;
     size_t parametersFound = 0;
     for(int argIdx = 0; argIdx < argc; argIdx++ ){
@@ -751,7 +750,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
             parametersFound++;
         } else { // it is a filename if its not a parameter
-            getFilename.push_back(pargv[argIdx]);
+            filenames.emplace_back(pargv[argIdx]);
         }
     }
 
@@ -786,40 +785,40 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         EXIT(EXIT_FAILURE);
     }
 
-    if (getFilename.size() < requiredParameterCount){
+    if (filenames.size() < requiredParameterCount){
         printUsageMessage(command, outputFlag);
         Debug(Debug::ERROR) << requiredParameterCount << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
 
-    switch (std::min(getFilename.size(), MAX_DB_PARAMETER)) {
+    switch (std::min(filenames.size(), MAX_DB_PARAMETER)) {
         case 6:
-            db6 = getFilename[5];
+            db6 = filenames[5];
             db6Index = db6;
             db6Index.append(".index");
             // FALLTHROUGH
         case 5:
-            db5 = getFilename[4];
+            db5 = filenames[4];
             db5Index = db5;
             db5Index.append(".index");
             // FALLTHROUGH
         case 4:
-            db4 = getFilename[3];
+            db4 = filenames[3];
             db4Index = db4;
             db4Index.append(".index");
             // FALLTHROUGH
         case 3:
-            db3 = getFilename[2];
+            db3 = filenames[2];
             db3Index = db3;
             db3Index.append(".index");
             // FALLTHROUGH
         case 2:
-            db2 = getFilename[1];
+            db2 = filenames[1];
             db2Index = db2;
             db2Index.append(".index");
             // FALLTHROUGH
         case 1:
-            db1 = getFilename[0];
+            db1 = filenames[0];
             db1Index = db1;
             db1Index.append(".index");
             break;

@@ -14,14 +14,8 @@ int mergedbs(int argc, const char **argv, const Command& command) {
     struct timeval start, end;
     gettimeofday(&start, NULL);
     std::vector<std::pair<std::string, std::string>> filenames;
-    for (int i = 2; i < argc; i++) {
-        std::string arg = argv[i];
-        if(arg[0] == '-') {
-            i++;
-            continue;
-        }
-
-        filenames.emplace_back(arg, arg + ".index");
+    for (size_t i = 0; i < par.filenames.size(); ++i) {
+        filenames.emplace_back(par.filenames[i], par.filenames[i] + ".index");
     }
 
     std::vector<std::string> prefixes = Util::split(par.mergePrefixes, ",");
