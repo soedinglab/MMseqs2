@@ -1,6 +1,7 @@
 #ifndef MMSEQS_EVALUE_COMPUTATION_H
 #define MMSEQS_EVALUE_COMPUTATION_H
 
+#include "Debug.h"
 #include "SubstitutionMatrix.h"
 #include "Util.h"
 #include "sls_alignment_evaluer.hpp"
@@ -129,6 +130,5 @@ private:
     };
 
 };
-
 
 #endif //MMSEQS_EVALUE_COMPUTATION_H

@@ -8,7 +8,6 @@ const int CITATION_MMSEQS1  = 1 << 1;
 const int CITATION_UNICLUST = 1 << 2;
 const int CITATION_LINCLUST = 1 << 3;
 
-
 struct MMseqsParameter;
 
 enum CommandMode {
@@ -31,6 +30,11 @@ struct Command {
     const char *author;
     const char *usage;
     int citations;
+};
+
+struct Categories {
+    const char* title;
+    CommandMode mode;
 };
 
 #endif

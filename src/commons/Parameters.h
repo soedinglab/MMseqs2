@@ -580,8 +580,10 @@ public:
 
     std::string createParameterString(std::vector<MMseqsParameter> &vector);
 
-private:
+protected:
     Parameters();
+
+private:
     Parameters(Parameters const&);
     void operator=(Parameters const&);
 };

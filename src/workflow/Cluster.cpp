@@ -1,5 +1,4 @@
 #include "Parameters.h"
-#include <string>
 #include <cassert>
 #include <cascaded_clustering.sh.h>
 #include <clustering.sh.h>

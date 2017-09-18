@@ -1,6 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <string>
 #include <cstddef>
 #include <cstring>
 #include <vector>
@@ -9,9 +10,6 @@
 #include <limits>
 
 #include "MMseqsMPI.h"
-#include "Sequence.h"
-#include "BaseMatrix.h"
-#include "Parameters.h"
 
 #ifndef EXIT
 #define EXIT(exitCode)     do{std::cerr<<"\n";std::cerr.flush();std::cout.flush();exit(exitCode);}while(0)
@@ -236,12 +234,6 @@ public:
         return std::string(&result[0], &result[wp]);
     }
 
-    static size_t maskLowComplexity(BaseMatrix * mat, Sequence *sequence, int seqLen, int windowSize, int maxAAinWindow, int alphabetSize, int maskValue, bool repeates, bool score, bool ccoil, bool window);
-
-    static void filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM);
-
-    static void filterByBiasCorrection(Sequence *s, int seqLen, BaseMatrix *m, char *mask, int scoreThr);
-
     static std::string removeAfterFirstSpace(std::string in) {
         in.erase(in.find_first_of(" "));
         return in;
@@ -256,29 +248,8 @@ public:
 
     static std::string removeWhiteSpace(std::string in);
 
-    static bool canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength) {
-        switch(covMode){
-            case Parameters::COV_MODE_BIDIRECTIONAL:
-                return ((queryLength / targetLength >= covThr) || (targetLength / queryLength >= covThr));
-            case Parameters::COV_MODE_QUERY:
-                return ((queryLength / targetLength) >= covThr);
-        }
-        return true;
-    }
+    static bool canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength);
 
-    static bool hasCoverage(float covThr, int covMode, float queryCov, float targetCov){
-        switch(covMode){
-            case Parameters::COV_MODE_BIDIRECTIONAL:
-                return ((queryCov >= covThr) && (targetCov >= covThr));
-            case Parameters::COV_MODE_QUERY:
-                return (queryCov >= covThr);
-            case Parameters::COV_MODE_TARGET:
-                return (targetCov >= covThr);
-        }
-        return true;
-    }
-
-
-
+    static bool hasCoverage(float covThr, int covMode, float queryCov, float targetCov);
 };
 #endif

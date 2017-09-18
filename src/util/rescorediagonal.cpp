@@ -151,9 +151,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                             distance = DistanceCalculator::computeHammingDistance(querySeq + distanceToDiagonal,
                                                                                   targetSeq, diagonalLen);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
-                            distance = DistanceCalculator::computeSubstituionDistance(querySeq + distanceToDiagonal,
-                                                                                      targetSeq,
-                                                                                      diagonalLen, fastMatrix.matrix, par.globalAlignment);
+                            distance = DistanceCalculator::computeSubstitutionDistance(querySeq + distanceToDiagonal,
+                                                                                       targetSeq,
+                                                                                       diagonalLen, fastMatrix.matrix,
+                                                                                       par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                             alignment = DistanceCalculator::computeSubstitutionStartEndDistance(
                                     querySeq + distanceToDiagonal,
@@ -168,9 +169,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                                                                   targetSeq + distanceToDiagonal,
                                                                                   diagonalLen);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
-                            distance = DistanceCalculator::computeSubstituionDistance(querySeq,
-                                                                                      targetSeq  + distanceToDiagonal,
-                                                                                      diagonalLen, fastMatrix.matrix, par.globalAlignment);
+                            distance = DistanceCalculator::computeSubstitutionDistance(querySeq,
+                                                                                       targetSeq + distanceToDiagonal,
+                                                                                       diagonalLen, fastMatrix.matrix,
+                                                                                       par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                             alignment = DistanceCalculator::computeSubstitutionStartEndDistance(querySeq,
                                                                                                 targetSeq +
