@@ -877,20 +877,6 @@ void Parameters::printParameters(int argc, const char* pargv[],
     Debug(Debug::INFO) << ss.str() << "\n";
 }
 
-void Parameters::checkSaneEnvironment() {
-    bool isInsane = false;
-
-    char* mmdirStr = getenv("MMDIR");
-    if (mmdirStr == NULL){
-        Debug(Debug::ERROR) << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
-        isInsane = true;
-    }
-
-    if(isInsane) {
-        EXIT(EXIT_FAILURE);
-    }
-}
-
 void Parameters::setDefaults() {
     scoringMatrixFile = "blosum62.out";
 

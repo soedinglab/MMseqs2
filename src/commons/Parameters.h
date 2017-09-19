@@ -38,18 +38,13 @@ struct MMseqsParameter {
 };
 
 
-class Parameters          // Parameters for gap penalties and pseudocounts
-{
+class Parameters {
 public:
 
     static const unsigned int ALIGNMENT_MODE_FAST_AUTO = 0;
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
-    // prefilter search
-    static const int SEARCH_GLOBAL = 0;
-    static const int SEARCH_LOCAL = 1;
-    static const int SEARCH_LOCAL_FAST = 2;
 
     // format alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
@@ -86,9 +81,6 @@ public:
 
     // split
     static const int AUTO_SPLIT_DETECTION = 0;
-    // includeIdentity
-    static const int INCLUDE_HIT_AUTO = 0;
-    static const int FORCE_INCLUDE = 1;
 
     static const int MAX_SEQ_LEN = 32000;
 
@@ -115,11 +107,6 @@ public:
     static const int HEADER_TYPE_UNICLUST = 1;
     static const int HEADER_TYPE_METACLUST = 2;
 
-
-    // COMMON
-    const char** argv;            //command line parameters
-    char argc;              //dimension of argv
-    
     // path to databases
     std::string db1;
     std::string db1Index;
@@ -197,6 +184,7 @@ public:
     int numIterations;
     int startSens;
     int sensStepSize;
+
     //CLUSTERING
     int maxIteration;                   // Maximum depth of breadth first search in connected component
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
@@ -231,7 +219,6 @@ public:
     std::string summaryPrefix;
     bool omitConsensus;
     bool skipQuery;
-
 
     // result2profile
     float filterMaxSeqId;
@@ -330,7 +317,6 @@ public:
         return instance;
     }
     
-    void checkSaneEnvironment();
     void setDefaults();
     void parseParameters(int argc, const char* argv[],
                          const Command& command,
@@ -339,13 +325,11 @@ public:
                          bool isVariadic = false,
                          int outputFlag = 0);
     void printUsageMessage(const Command& command,
-                           const int outputFlag);
+                           int outputFlag);
     void printParameters(int argc, const char* pargv[],
                          const std::vector<MMseqsParameter> &par);
 	
 	std::vector<MMseqsParameter> removeParameter(const std::vector<MMseqsParameter>& par, const MMseqsParameter& x);
-
-    ~Parameters(){};
 
     PARAMETER(PARAM_S)
     PARAMETER(PARAM_K)
