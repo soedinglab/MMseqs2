@@ -31,11 +31,10 @@ DBWriter::DBWriter(const char *dataFileName_,
     indexFiles = new FILE *[threads];
     indexFileNames = new char *[threads];
 
+    starts = new size_t[threads];
+    std::fill(starts, starts + threads, 0);
     offsets = new size_t[threads];
-
-    for (unsigned int i = 0; i < threads; i++) {
-        offsets[i] = 0;
-    }
+    std::fill(offsets, offsets + threads, 0);
 
     if ((mode & BINARY_MODE) != 0) {
         datafileMode = "wb";
@@ -184,21 +183,33 @@ void DBWriter::close() {
     closed = true;
 }
 
-void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx, bool addNullByte) {
+void DBWriter::writeStart(unsigned int thrIdx) {
     checkClosed();
     if (thrIdx >= threads) {
         Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
         EXIT(EXIT_FAILURE);
     }
 
-    size_t offsetStart = offsets[thrIdx];
+    starts[thrIdx] = offsets[thrIdx];
+}
+
+void DBWriter::writeAdd(const char* data, size_t dataSize, unsigned int thrIdx) {
+    checkClosed();
+    if (thrIdx >= threads) {
+        Debug(Debug::ERROR) << "ERROR: Thread index " << thrIdx << " > maximum thread number " << threads << "\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     size_t written = fwrite(data, sizeof(char), dataSize, dataFiles[thrIdx]);
     if (written != dataSize) {
         Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[thrIdx] << "\n";
         EXIT(EXIT_FAILURE);
     }
     offsets[thrIdx] += written;
+}
 
+void DBWriter::writeEnd(unsigned int key, unsigned int thrIdx, bool addNullByte) {
+    size_t written;
     // entries are always separated by a null byte
     if(addNullByte == true){
         char nullByte = '\0';
@@ -210,16 +221,21 @@ void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, un
         offsets[thrIdx] += 1;
     }
 
-    size_t length = offsets[thrIdx] - offsetStart;
+    size_t length = offsets[thrIdx] - starts[thrIdx];
 
     char buffer[1024];
-    size_t len = indexToBuffer(buffer, key, offsetStart, length );
+    size_t len = indexToBuffer(buffer, key, starts[thrIdx], length );
     written = fwrite(buffer, sizeof(char), len, indexFiles[thrIdx]);
     if (written != len) {
         Debug(Debug::ERROR) << "Could not write to data file " << indexFiles[thrIdx] << "\n";
         EXIT(EXIT_FAILURE);
     }
-//    fprintf(indexFiles[thrIdx], "%u\t%zd\t%zd\n", key, offsetStart, length);
+}
+
+void DBWriter::writeData(const char *data, size_t dataSize, unsigned int key, unsigned int thrIdx, bool addNullByte) {
+    writeStart(thrIdx);
+    writeAdd(data, dataSize, thrIdx);
+    writeEnd(key, thrIdx, addNullByte);
 }
 
 size_t DBWriter::indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len){
