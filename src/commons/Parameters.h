@@ -566,6 +566,8 @@ public:
 
     std::string createParameterString(std::vector<MMseqsParameter> &vector);
 
+    void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
+
 protected:
     Parameters();
 

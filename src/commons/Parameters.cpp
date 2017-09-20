@@ -1118,10 +1118,25 @@ std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par)
 
 std::vector<MMseqsParameter> Parameters::removeParameter(const std::vector<MMseqsParameter> &par, const MMseqsParameter &x){
     std::vector<MMseqsParameter> newParamList;
-    for (std::vector<MMseqsParameter>::const_iterator i = par.begin();i!=par.end();i++)
-    {
+    for (std::vector<MMseqsParameter>::const_iterator i = par.begin();i!=par.end();i++) {
         if (i->name != x.name)
             newParamList.push_back(*i);
     }
     return newParamList;
+}
+
+void Parameters::overrideParameterDescription(Command &command, const int uid,
+                                              const char *description, const char *regex, const int category) {
+    for (std::vector<MMseqsParameter>::iterator i = command.params->begin(); i != command.params->end(); i++) {
+        if (i->uniqid == uid) {
+            i->description = description;
+            if (regex != NULL) {
+                i->regex = regex;
+            }
+            if (category != 0) {
+                i->category = category;
+            }
+            break;
+        }
+    }
 }
