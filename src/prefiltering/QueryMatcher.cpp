@@ -66,8 +66,7 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputat
     initDiagonalMatcher(dbSize, maxDbMatches);
 //    this->diagonalMatcher = new CacheFriendlyOperations(dbSize, maxDbMatches / 128 );
     // needed for p-value calc.
-
-
+    this->logScoreFactorial=NULL;
     if (diagonalScoring == true) {
         ungappedAlignment = new UngappedAlignment(maxSeqLen, m, indexTable->getSequenceLookup());
         this->seqLens = NULL;
@@ -97,7 +96,9 @@ QueryMatcher::~QueryMatcher(){
     delete [] databaseHits;
     delete [] indexPointer;
     delete [] foundDiagonals;
-    delete [] logScoreFactorial;
+    if(logScoreFactorial != NULL){
+        delete [] logScoreFactorial;
+    }
     delete [] seqLens;
     delete [] compositionBias;
     if(ungappedAlignment != NULL){
