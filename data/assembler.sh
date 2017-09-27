@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Assembler workflow script
 checkReturnCode () { 
 	[ $? -ne 0 ] && echo "$1" && exit 1;
@@ -23,7 +23,8 @@ while [ $STEP -lt $NUM_IT ]; do
     # 1. Finding exact $k$-mer matches.
 
     PARAM=KMERMATCHER${STEP}_PAR
-    notExists "$3/pref_$STEP"          && $MMSEQS kmermatcher "$INPUT" "$3/pref_$STEP" ${!PARAM}                    && checkReturnCode "Kmer matching step died"
+    eval TMP="\$$PARAM"
+    notExists "$3/pref_$STEP"          && $MMSEQS kmermatcher "$INPUT" "$3/pref_$STEP" ${TMP}                    && checkReturnCode "Kmer matching step died"
     # 2. Ungapped alignment
     notExists "$3/aln_$STEP" && $MMSEQS rescorediagonal "$INPUT" "$INPUT" "$3/pref_$STEP" "$3/aln_$STEP" ${UNGAPPED_ALN_PAR} && checkReturnCode "Ungapped alignment step died"
     # 3. Assemble

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Clustering workflow script
 # helper functions
 checkReturnCode () { 
@@ -32,16 +32,19 @@ INPUT="$3/input_step_redundancy"
 STEP=0
 while [ $STEP -lt 4 ]; do
     PARAM=PREFILTER${STEP}_PAR
+    eval TMP="\$$PARAM"
     notExists "$3/pref_step$STEP" \
-        && $RUNNER $MMSEQS prefilter "$INPUT" "$INPUT" "$3/pref_step$STEP" ${!PARAM} \
+        && $RUNNER $MMSEQS prefilter "$INPUT" "$INPUT" "$3/pref_step$STEP" ${TMP} \
         && checkReturnCode "Prefilter step $STEP died"
     PARAM=ALIGNMENT${STEP}_PAR
+    eval TMP="\$$PARAM"
     notExists "$3/aln_step$STEP" \
-        && $RUNNER $MMSEQS align "$INPUT" "$INPUT" "$3/pref_step$STEP" "$3/aln_step$STEP" ${!PARAM} \
+        && $RUNNER $MMSEQS align "$INPUT" "$INPUT" "$3/pref_step$STEP" "$3/aln_step$STEP" ${TMP} \
         && checkReturnCode "Alignment step $STEP died"
     PARAM=CLUSTER${STEP}_PAR
+    eval TMP="\$$PARAM"
     notExists "$3/clu_step$STEP" \
-        && $MMSEQS clust "$INPUT" "$3/aln_step$STEP" "$3/clu_step$STEP" ${!PARAM} \
+        && $MMSEQS clust "$INPUT" "$3/aln_step$STEP" "$3/clu_step$STEP" ${TMP} \
         && checkReturnCode "Clustering step $STEP died"
 
     NEXTINPUT="$3/input_step$((STEP+1))"

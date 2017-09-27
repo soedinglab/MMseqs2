@@ -1,15 +1,15 @@
-#!/bin/bash -e
-# Clustering workflow script
-function fail() {
+#!/bin/sh -e
+# Iterative sequence search workflow script
+fail() {
     echo "Error: $1"
     exit 1
 }
 
-function notExists() {
+notExists() {
 	[ ! -f "$1" ]
 }
 
-function abspath() {
+abspath() {
     if [ -d "$1" ]; then
         (cd "$1"; pwd)
     elif [ -f "$1" ]; then
@@ -46,7 +46,8 @@ while [ $STEP -lt $NUM_IT ]; do
     # call prefilter module
     if notExists "$TMP_PATH/pref_$STEP"; then
         PARAM="PREFILTER_PAR_$STEP"
-        $RUNNER $MMSEQS prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP" ${!PARAM} \
+        eval TMP="\$$PARAM"
+        $RUNNER $MMSEQS prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP" ${TMP} \
             || fail "Prefilter died"
     fi
 
@@ -64,7 +65,8 @@ while [ $STEP -lt $NUM_IT ]; do
 	# call alignment module
 	if notExists "$TMP_PATH/aln_$STEP"; then
 	    PARAM="ALIGNMENT_PAR_$STEP"
-        $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${!PARAM} \
+        eval TMP="\$$PARAM"
+        $RUNNER $MMSEQS align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${TMP} \
             || fail "Alignment died"
     fi
 
@@ -82,7 +84,8 @@ while [ $STEP -lt $NUM_IT ]; do
     if [ $STEP -ne $((NUM_IT  - 1)) ]; then
         if notExists "$TMP_PATH/profile_$STEP"; then
             PARAM="PROFILE_PAR_$STEP"
-            $RUNNER $MMSEQS result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" ${!PARAM} \
+            eval TMP="\$$PARAM"
+            $RUNNER $MMSEQS result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" ${TMP} \
                 || fail "Create profile died"
             ln -sf "${QUERYDB}_h" "$TMP_PATH/profile_${STEP}_h"
             ln -sf "${QUERYDB}_h.index" "$TMP_PATH/profile_${STEP}_h.index"
