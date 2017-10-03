@@ -15,7 +15,7 @@ RUN ninja && ninja install
 
 FROM alpine:latest
 MAINTAINER Milot Mirdita <milot@mirdita.de>
-RUN apk add --no-cache gawk bash grep libstdc++ libgomp zlib-dev bzip2-dev
+RUN apk add --no-cache gawk bash grep libstdc++ libgomp zlib libbz2
 
 COPY --from=mmseqs-builder /opt/mmseqs/build_sse/bin/mmseqs /usr/local/bin/mmseqs_sse42
 COPY --from=mmseqs-builder /opt/mmseqs/build_avx/bin/mmseqs /usr/local/bin/mmseqs_avx2
