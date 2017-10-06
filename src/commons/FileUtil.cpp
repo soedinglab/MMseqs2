@@ -132,3 +132,9 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
         EXIT(EXIT_FAILURE);
     }
 }
+
+size_t FileUtil::getFileSize(std::string fileName) {
+    struct stat stat_buf;
+    int rc = stat(fileName.c_str(), &stat_buf);
+    return rc == 0 ? stat_buf.st_size : -1;
+}
