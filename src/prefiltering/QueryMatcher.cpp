@@ -66,15 +66,15 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputat
     initDiagonalMatcher(dbSize, maxDbMatches);
 //    this->diagonalMatcher = new CacheFriendlyOperations(dbSize, maxDbMatches / 128 );
     // needed for p-value calc.
-    this->mu = kmerMatchProb;
-    this->logMatchProb = log(kmerMatchProb);
-    this->logScoreFactorial = new double[SCORE_RANGE];
-    MathUtil::computeFactorial(logScoreFactorial, SCORE_RANGE);
-
+    this->logScoreFactorial=NULL;
     if (diagonalScoring == true) {
         ungappedAlignment = new UngappedAlignment(maxSeqLen, m, indexTable->getSequenceLookup());
         this->seqLens = NULL;
     } else {
+        this->mu = kmerMatchProb;
+        this->logMatchProb = log(kmerMatchProb);
+        this->logScoreFactorial = new double[SCORE_RANGE];
+        MathUtil::computeFactorial(logScoreFactorial, SCORE_RANGE);
         ungappedAlignment = NULL;
         // initialize sequence lenghts with each seqLens[i] = L_i - k + 1
         this->seqLens = new float[dbSize];
@@ -96,7 +96,9 @@ QueryMatcher::~QueryMatcher(){
     delete [] databaseHits;
     delete [] indexPointer;
     delete [] foundDiagonals;
-    delete [] logScoreFactorial;
+    if(logScoreFactorial != NULL){
+        delete [] logScoreFactorial;
+    }
     delete [] seqLens;
     delete [] compositionBias;
     if(ungappedAlignment != NULL){
@@ -322,7 +324,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
     size_t elementCounter = 0;
     if (id != UINT_MAX){
         hit_t * result = (resList + 0);
-        const unsigned short rawScore  = USHRT_MAX;
+        const unsigned short rawScore  = (diagonalScoring == false) ? UCHAR_MAX : USHRT_MAX;
         result->seqId = id;
         result->prefScore = rawScore;
         result->diagonal = 0;

@@ -102,16 +102,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
                     data = Util::skipLine(data);
                 }
             }
-
-            // create merged string
-            if (minusResultsOutString.length() >= maxLineLength) {
-                Debug(Debug::ERROR) << "ERROR: Buffer overflow at id: " << leftDbr.getDbKey(id) <<
-                " during the merging.\n";
-                Debug(Debug::ERROR) << "Output buffer size < prefiltering result size! (" << maxLineLength << " < " <<
-                minusResultsOutString.length() <<
-                ")\nIncrease buffer size or reconsider your parameters - output buffer is already huge ;-)\n";
-                continue; // read next id
-            }
+            
             // write result
             char *mergeResultsOutData = (char *) minusResultsOutString.c_str();
             writer.writeData(mergeResultsOutData, minusResultsOutString.length(), leftDbKey, thread_idx);
