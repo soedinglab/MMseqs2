@@ -19,10 +19,15 @@ endif ()
 add_library(mmseqs-framework
         $<TARGET_OBJECTS:alp>
         $<TARGET_OBJECTS:cacode>
+        ${alignment_header_files}
         ${alignment_source_files}
+        ${clustering_header_files}
         ${clustering_source_files}
+        ${commons_header_files}
         ${commons_source_files}
+        ${prefiltering_header_files}
         ${prefiltering_source_files}
+        ${util_header_files}
         ${util_source_files}
         ${workflow_source_files}
         )
