@@ -252,7 +252,8 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
         }
         ret = static_cast<char*>(mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0));
         if(ret == MAP_FAILED){
-            Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << "\n";
+            int errsv = errno;
+            Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<" File=" << dataFileName << ". Error " << errsv << ".\n";
             EXIT(EXIT_FAILURE);
         }
     } else {
