@@ -461,29 +461,30 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             // count similar or exact k-mers based on sequence type
             if (isProfile) {
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
-            }
-
-            if (maskMode == 1 || maskMode == 2) {
-                for (int i = 0; i < s.L; ++i) {
-                    charSequence[i] = (char) s.int_sequence[i];
+            } else { // Find out if we should also mask profiles
+                if (maskMode == 1 || maskMode == 2) {
+                    for (int i = 0; i < s.L; ++i) {
+                        charSequence[i] = (char) s.int_sequence[i];
+                    }
+                    maskedResidues += tantan::maskSequences(charSequence,
+                                                            charSequence + s.L,
+                                                            50 /*options.maxCycleLength*/,
+                                                            probMatrixPointers,
+                                                            0.005 /*options.repeatProb*/,
+                                                            0.05 /*options.repeatEndProb*/,
+                                                            0.9 /*options.repeatOffsetProbDecay*/,
+                                                            0, 0,
+                                                            0.9 /*options.minMaskProb*/,
+                                                            hardMaskTable);
+                    for (int i = 0; i < s.L; i++) {
+                        s.int_sequence[i] = charSequence[i];
+                    }
                 }
-                maskedResidues += tantan::maskSequences(charSequence,
-                                                        charSequence + s.L,
-                                                        50 /*options.maxCycleLength*/,
-                                                        probMatrixPointers,
-                                                        0.005 /*options.repeatProb*/,
-                                                        0.05 /*options.repeatEndProb*/,
-                                                        0.9 /*options.repeatOffsetProbDecay*/,
-                                                        0, 0,
-                                                        0.9 /*options.minMaskProb*/,
-                                                        hardMaskTable);
-                for (int i = 0; i < s.L; i++) {
-                    s.int_sequence[i] = charSequence[i];
-                }
-            }
 
-            if (!isProfile) {
+
+//                if (!isProfile) {
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
+//                }
             }
 
             sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
