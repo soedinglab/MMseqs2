@@ -15,6 +15,8 @@
 #include <omp.h>
 #endif
 
+extern const char* version;
+
 Parameters::Parameters():
         PARAM_S(PARAM_S_ID,"-s", "Sensitivity","sensitivity: 1.0 faster; 4.0 fast default; 8.5 sensitive [1.0,8.5]", typeid(float), (void *) &sensitivity, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PREFILTER),
         PARAM_K(PARAM_K_ID,"-k", "K-mer size", "k-mer size in the range [6,7] (0: set automatically to optimum)",typeid(int),  (void *) &kmerSize, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_CLUSTLINEAR),
@@ -129,9 +131,9 @@ Parameters::Parameters():
         PARAM_MAPPING_FILE(PARAM_MAPPING_FILE_ID,"--mapping-file", "Mapping file", "specify a file that translates the keys of a DB to new keys", typeid(std::string),(void *) &mappingFile,""),
         PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
-        PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID,"--comparison-operator", "Numerical comparison operator", "compare numerically (le, ge, e) each entry to a comparison value.",typeid(std::string), (void *) &compOperator, ""),
-        PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID,"--comparison-value", "Numerical comparison value", "compare numerically (le, ge, e) each entry to this comparison value.",typeid(float), (void *) &compValue, ""),
-        PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID,"--sort-entries", "Sort (increasing:1, decreasing: 2, shuffle: 3) the entries by numerical value","Sorting mode 1: increasing,  2: decreasing and, 3: for column set by --filter-column.",typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
+        PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID, "--comparison-operator", "Numerical comparison operator", "Filter by comparing each entry row numerically by using the le) less-than-equal, ge) greater-than-equal or e) equal operator.", typeid(std::string), (void *) &compOperator, ""),
+        PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID, "--comparison-value", "Numerical comparison value", "Filter by comparing each entry to this value.", typeid(float), (void *) &compValue, ""),
+        PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0) no sorting, 1) increasing,  2) decreasing or 3) random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
@@ -648,9 +650,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                                  size_t requiredParameterCount,
                                  bool printPar,
                                  bool isVariadic,
-                                 int outputFlag)
-{
-    std::vector<std::string> getFilename;
+                                 int outputFlag) {
+    filenames.clear();
     std::vector<MMseqsParameter>& par = *command.params;
     size_t parametersFound = 0;
     for(int argIdx = 0; argIdx < argc; argIdx++ ){
@@ -749,7 +750,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
             parametersFound++;
         } else { // it is a filename if its not a parameter
-            getFilename.push_back(pargv[argIdx]);
+            filenames.emplace_back(pargv[argIdx]);
         }
     }
 
@@ -784,40 +785,40 @@ void Parameters::parseParameters(int argc, const char* pargv[],
         EXIT(EXIT_FAILURE);
     }
 
-    if (getFilename.size() < requiredParameterCount){
+    if (filenames.size() < requiredParameterCount){
         printUsageMessage(command, outputFlag);
         Debug(Debug::ERROR) << requiredParameterCount << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
 
-    switch (std::min(getFilename.size(), MAX_DB_PARAMETER)) {
+    switch (std::min(filenames.size(), MAX_DB_PARAMETER)) {
         case 6:
-            db6 = getFilename[5];
+            db6 = filenames[5];
             db6Index = db6;
             db6Index.append(".index");
             // FALLTHROUGH
         case 5:
-            db5 = getFilename[4];
+            db5 = filenames[4];
             db5Index = db5;
             db5Index.append(".index");
             // FALLTHROUGH
         case 4:
-            db4 = getFilename[3];
+            db4 = filenames[3];
             db4Index = db4;
             db4Index.append(".index");
             // FALLTHROUGH
         case 3:
-            db3 = getFilename[2];
+            db3 = filenames[2];
             db3Index = db3;
             db3Index.append(".index");
             // FALLTHROUGH
         case 2:
-            db2 = getFilename[1];
+            db2 = filenames[1];
             db2Index = db2;
             db2Index.append(".index");
             // FALLTHROUGH
         case 1:
-            db1 = getFilename[0];
+            db1 = filenames[0];
             db1Index = db1;
             db1Index.append(".index");
             break;
@@ -856,14 +857,8 @@ void Parameters::printParameters(int argc, const char* pargv[],
     std::stringstream ss;
     ss << std::boolalpha;
 
-#ifdef GIT_SHA1
-#define str2(s) #s
-#define str(s) str2(s)
-    std::string gitHash(str(GIT_SHA1));
-    ss << std::setw(maxWidth) << std::left  << "MMseqs Version:" << "\t" << gitHash << "\n";
-#undef str
-#undef str2
-#endif
+    ss << std::setw(maxWidth) << std::left  << "MMseqs Version:" << "\t" << version << "\n";
+
 
     for (size_t i = 0; i < par.size(); i++) {
         ss << std::setw(maxWidth) << std::left << par[i].display << "\t";
@@ -880,20 +875,6 @@ void Parameters::printParameters(int argc, const char* pargv[],
     }
 
     Debug(Debug::INFO) << ss.str() << "\n";
-}
-
-void Parameters::checkSaneEnvironment() {
-    bool isInsane = false;
-
-    char* mmdirStr = getenv("MMDIR");
-    if (mmdirStr == NULL){
-        Debug(Debug::ERROR) << "Please set the environment variable $MMDIR to your MMSEQS installation directory.\n";
-        isInsane = true;
-    }
-
-    if(isInsane) {
-        EXIT(EXIT_FAILURE);
-    }
 }
 
 void Parameters::setDefaults() {
@@ -1137,10 +1118,25 @@ std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par)
 
 std::vector<MMseqsParameter> Parameters::removeParameter(const std::vector<MMseqsParameter> &par, const MMseqsParameter &x){
     std::vector<MMseqsParameter> newParamList;
-    for (std::vector<MMseqsParameter>::const_iterator i = par.begin();i!=par.end();i++)
-    {
+    for (std::vector<MMseqsParameter>::const_iterator i = par.begin();i!=par.end();i++) {
         if (i->name != x.name)
             newParamList.push_back(*i);
     }
     return newParamList;
+}
+
+void Parameters::overrideParameterDescription(Command &command, const int uid,
+                                              const char *description, const char *regex, const int category) {
+    for (std::vector<MMseqsParameter>::iterator i = command.params->begin(); i != command.params->end(); i++) {
+        if (i->uniqid == uid) {
+            i->description = description;
+            if (regex != NULL) {
+                i->regex = regex;
+            }
+            if (category != 0) {
+                i->category = category;
+            }
+            break;
+        }
+    }
 }

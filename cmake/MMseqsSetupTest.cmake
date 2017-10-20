@@ -1,0 +1,10 @@
+function(mmseqs_setup_test NAME)
+    include(MMseqsSetupDerivedTarget)
+    string(TOLOWER ${NAME} BASE_NAME)
+    string(REGEX REPLACE "\\.[^.]*$" "" BASE_NAME ${BASE_NAME})
+    string(REGEX REPLACE "^test" "test_" BASE_NAME ${BASE_NAME})
+    add_executable(${BASE_NAME} ${NAME})
+
+    mmseqs_setup_derived_target(${BASE_NAME})
+    target_link_libraries(${BASE_NAME} version)
+endfunction()

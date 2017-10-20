@@ -26,15 +26,7 @@ int createdb(int argn, const char **argv, const Command& command) {
         par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;
     }
 
-    std::vector<std::string> filenames;
-    for (int i = 0; i < argn; i++) {
-        std::string arg = argv[i];
-        if (arg[0] == '-') {
-            i++;
-            continue;
-        }
-        filenames.emplace_back(arg);
-    }
+    std::vector<std::string> filenames(par.filenames);
 
     std::string data_filename = filenames.back();
     filenames.pop_back();

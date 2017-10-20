@@ -1,45 +1,162 @@
-if(CMAKE_COMPILER_IS_ICC)
-    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ipo -no-prec-div -xHost -fno-exceptions")
-else()
-    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -ffast-math -fno-exceptions -ftree-vectorize -fno-strict-aliasing")
-endif()
+set(HAVE_MPI 0 CACHE BOOL "Have MPI")
+set(HAVE_AVX2 0 CACHE BOOL "Have AVX2")
+set(HAVE_SSE4_1 0 CACHE BOOL "Have SSE4.1")
+set(HAVE_TESTS 1 CACHE BOOL "Have Tests")
 
-include_directories(generatedfiles)
+include(AppendTargetProperty)
+
 add_subdirectory(alignment)
 add_subdirectory(clustering)
 add_subdirectory(commons)
 add_subdirectory(prefiltering)
 add_subdirectory(util)
 add_subdirectory(workflow)
-add_subdirectory(test)
 
-set(mmseqs_source_files
-    CommandDeclarations.h
-    mmseqs.cpp
-)
+add_library(mmseqs-framework
+        $<TARGET_OBJECTS:alp>
+        $<TARGET_OBJECTS:cacode>
+        ${alignment_header_files}
+        ${alignment_source_files}
+        ${clustering_header_files}
+        ${clustering_source_files}
+        ${commons_header_files}
+        ${commons_source_files}
+        ${prefiltering_header_files}
+        ${prefiltering_source_files}
+        ${util_header_files}
+        ${util_source_files}
+        ${workflow_source_files}
+        )
 
-add_executable(mmseqs ${mmseqs_source_files} )
+target_include_directories(mmseqs-framework PUBLIC generatedfiles)
+target_include_directories(mmseqs-framework PUBLIC commons)
+target_include_directories(mmseqs-framework PUBLIC prefiltering)
+target_include_directories(mmseqs-framework PUBLIC alignment)
+target_include_directories(mmseqs-framework PUBLIC clustering)
+target_include_directories(mmseqs-framework PUBLIC util)
+target_include_directories(mmseqs-framework PUBLIC .)
 
-target_link_libraries(mmseqs util workflow)
-if(MPI_FOUND)
-    target_link_libraries(mmseqs ${MPI_LIBRARIES})
-    if(MPI_COMPILE_FLAGS)
-        set_target_properties(mmseqs PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    endif()
+add_dependencies(mmseqs-framework generated)
 
-    if(MPI_LINK_FLAGS)
-        set_target_properties(mmseqs PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
-    endif()
+if (CMAKE_BUILD_TYPE MATCHES RELEASE)
+    if (CMAKE_COMPILER_IS_ICC)
+        append_target_property(mmseqs-framework COMPILE_FLAGS -ipo -no-prec-div -xHost)
+        append_target_property(mmseqs-framework LINK_FLAGS -ipo -no-prec-div -xHost)
+    else ()
+        append_target_property(mmseqs-framework COMPILE_FLAGS -ffast-math -ftree-vectorize -fno-strict-aliasing)
+        append_target_property(mmseqs-framework LINK_FLAGS -ffast-math -ftree-vectorize -fno-strict-aliasing)
+    endif ()
+endif ()
+
+append_target_property(mmseqs-framework COMPILE_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Winline -Wdisabled-optimization -Wno-unused-parameter)
+append_target_property(mmseqs-framework LINK_FLAGS ${MMSEQS_CXX_FLAGS} -fno-exceptions -pedantic -Wall -Wextra -Winline -Wdisabled-optimization -Wno-unused-parameter)
+
+if (CYGWIN)
+    target_compile_definitions(mmseqs-framework PUBLIC -D_GNU_SOURCE=1)
+endif ()
+
+# needed for concat.h
+include(CheckCXXSourceRuns)
+check_cxx_source_runs("
+        #include <stdlib.h>
+        #include <fcntl.h>
+        #include <stdio.h>
+
+        int main()
+        {
+          FILE* tmpf = tmpfile();
+          int input_desc = fileno(tmpf);
+          int test =  posix_fadvise (input_desc, 0, 0, POSIX_FADV_SEQUENTIAL);
+          fclose(tmpf);
+        }"
+        HAVE_POSIX_FADVISE)
+if (HAVE_POSIX_FADVISE)
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_POSIX_FADVISE=1)
+endif ()
+
+#SSE
+if (${HAVE_AVX2})
+    target_compile_definitions(mmseqs-framework PUBLIC -DAVX2=1)
+    append_target_property(mmseqs-framework COMPILE_FLAGS -mavx2 -Wa,-q)
+    append_target_property(mmseqs-framework LINK_FLAGS -mavx2 -Wa,-q)
+elseif (${HAVE_SSE4_1})
+    target_compile_definitions(mmseqs-framework PUBLIC -DSSE=1)
+    append_target_property(mmseqs-framework COMPILE_FLAGS -msse4.1)
+    append_target_property(mmseqs-framework LINK_FLAGS -msse4.1)
+else ()
+    include(CheckSSEFeatures)
+    append_target_property(mmseqs-framework COMPILE_FLAGS ${SSE_FLAGS})
+    append_target_property(mmseqs-framework LINK_FLAGS ${SSE_FLAGS})
+    if (${HAVE_AVX2_EXTENSIONS})
+        target_compile_definitions(mmseqs-framework PUBLIC -DAVX2=1)
+        # debugging
+        #   list(APPEND MMSEQS_DEFINITIONS -DSSE=1)
+    else ()
+        if (${HAVE_SSE4_1_EXTENSIONS})
+            target_compile_definitions(mmseqs-framework PUBLIC -DSSE=1)
+        else ()
+            message(FATAL_ERROR "At least SSE4.2 is needed to compile!")
+        endif (${HAVE_SSE4_1_EXTENSIONS})
+    endif (${HAVE_AVX2_EXTENSIONS})
+endif ()
+
+find_package(ZLIB QUIET)
+if (ZLIB_FOUND)
+    message("-- Found ZLIB")
+    include_directories(${ZLIB_INCLUDE_DIRS})
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_ZLIB=1)
+    target_link_libraries(mmseqs-framework ${ZLIB_LIBRARIES})
+else ()
+    message("-- Could not find ZLIB")
+endif ()
+
+find_package(BZip2 QUIET)
+if (BZIP2_FOUND)
+    message("-- Found BZLIB")
+    include_directories(${BZIP_INCLUDE_DIRS})
+    target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_BZLIB=1)
+    target_link_libraries(mmseqs-framework ${BZIP2_LIBRARIES})
+else ()
+    message("-- Could not find BZLIB")
+endif ()
+
+# MPI
+if (${HAVE_MPI})
+    find_package(MPI QUIET)
+    if (MPI_FOUND)
+        message("-- Found MPI")
+        include_directories(${MPI_INCLUDE_PATH})
+        target_compile_definitions(mmseqs-framework PUBLIC -DHAVE_MPI=1)
+        target_link_libraries(mmseqs-framework ${MPI_LIBRARIES})
+        append_target_property(mmseqs-framework COMPILE_FLAGS ${MPI_COMPILE_FLAGS})
+        append_target_property(mmseqs-framework LINK_FLAGS ${MPI_LINK_FLAGS})
+    endif ()
+endif ()
+
+# openmp integration
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    message("-- Found OpenMP")
+    target_compile_definitions(mmseqs-framework PUBLIC -DOPENMP=1)
+    target_link_libraries(mmseqs-framework ${OpenMP_CXX_LIBRARIES})
+    append_target_property(mmseqs-framework COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
+    append_target_property(mmseqs-framework LINK_FLAGS ${OpenMP_CXX_FLAGS})
 endif()
 
-if(ZLIB_FOUND)
-    target_link_libraries(mmseqs ${ZLIB_LIBRARIES})
-endif()
+if (NOT FRAMEWORK_ONLY)
+    include(MMseqsSetupDerivedTarget)
+    add_subdirectory(version)
+    set(mmseqs_source_files
+            mmseqs.cpp
+            )
 
-if(BZIP2_FOUND)
-    target_link_libraries(mmseqs ${BZIP2_LIBRARIES})
-endif()
+    add_executable(mmseqs ${mmseqs_source_files})
+    mmseqs_setup_derived_target(mmseqs)
+    target_link_libraries(mmseqs version)
+    install(TARGETS mmseqs DESTINATION bin)
 
 
-
-install(TARGETS mmseqs DESTINATION bin)
+    if (HAVE_TESTS)
+        add_subdirectory(test)
+    endif ()
+endif ()

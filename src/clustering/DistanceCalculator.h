@@ -1,7 +1,3 @@
-//
-// Created by lars on 26.05.15.
-//
-
 #ifndef MMSEQS_DISTANCECALCULATOR_H
 #define MMSEQS_DISTANCECALCULATOR_H
 
@@ -15,13 +11,11 @@
 
 class DistanceCalculator {
 public:
-
-
     template<typename T>
-    static unsigned int computeSubstituionDistance(const T *seq1,
-                                                   const T *seq2,
-                                                   const unsigned int length,
-                                                   const char ** subMat, bool globalAlignment = false) {
+    static unsigned int computeSubstitutionDistance(const T *seq1,
+                                                    const T *seq2,
+                                                    const unsigned int length,
+                                                    const char **subMat, bool globalAlignment = false) {
         int max = 0;
         int score = 0;
         if (globalAlignment)
@@ -206,10 +200,9 @@ public:
     double getPvalGlobalAli(float score, size_t len) {
         return 0.5 - 0.5 * erf((score / len - globalAliMu) / (sqrt(2.0 / sqrt((float) len)) * globalAliSigma));
     }
+
 private:
-    
-    float globalAliMu,globalAliSigma;
-    
+    float globalAliMu, globalAliSigma;
 
 };
 

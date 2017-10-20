@@ -3,14 +3,14 @@
 #include "CommandDeclarations.h"
 #include "Util.h"
 #include "Parameters.h"
-#include "DistanceCalculator.h"
 
-#include <iomanip>
-#include <CpuInfo.h>
+const char* tool_name = "MMseqs2";
+const char* tool_introduction = "MMseqs2 (Many against Many sequence searching) is an open-source software suite for very fast, \nparallelized protein sequence searches and clustering of huge protein sequence data sets.\n\nPlease cite: M. Steinegger and J. Soding. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017).";
+const char* main_author = "Martin Steinegger (martin.steinegger@mpibpc.mpg.de)";
 
 Parameters& par = Parameters::getInstance();
 
-static struct Command commands[] = {
+std::vector<struct Command> commands = {
 // Main tools  (for non-experts)
         {"createdb",             createdb,             &par.createdb,             COMMAND_MAIN,
                 "Convert protein sequence set in a FASTA file to MMseqs sequence DB format",
@@ -301,159 +301,3 @@ static struct Command commands[] = {
                 "",
                 CITATION_MMSEQS2},
 };
-
-void checkCpu();
-
-void printUsage() {
-    std::stringstream usage;
-    usage << "MMseqs2 (Many against Many sequence searching) is an open-source software suite for very fast, \n"
-            "parallelizable protein sequence searches and clustering of huge protein sequence data sets.\n\n";
-    usage << "Please cite: M. Steinegger and J. Soding. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017).\n\n";
-#ifdef GIT_SHA1
-#define str2(s) #s
-#define str(s) str2(s)
-    std::string gitHash(str(GIT_SHA1));
-    usage << "MMseqs Version: " << gitHash << "\n";
-#undef str
-#undef str2
-#endif
-    usage << "© Martin Steinegger (martin.steinegger@mpibpc.mpg.de)\n";
-
-    struct {
-        const char* title;
-        CommandMode mode;
-    } categories[] = {
-            {"Main tools  (for non-experts)",  COMMAND_MAIN},
-            {"Utility tools for format conversions",   COMMAND_FORMAT_CONVERSION},
-            {"Utility tools for clustering",     COMMAND_CLUSTER},
-            {"Core tools (for advanced users)",     COMMAND_EXPERT},
-            {"Utility tools to manipulate DBs",     COMMAND_DB},
-            {"Special-purpose utilities",     COMMAND_SPECIAL},
-    };
-
-    for(size_t i = 0; i < ARRAY_SIZE(categories); ++i) {
-        usage << "\n" << std::setw(20) << categories[i].title << "\n";
-        for (size_t j = 0; j < ARRAY_SIZE(commands); j++) {
-            struct Command *p = commands + j;
-            if (p->mode == categories[i].mode) {
-                usage << std::left << std::setw(20) << "  " + std::string(p->cmd) << "\t" << p->shortDescription << "\n";
-            }
-        }
-    }
-
-    usage << "\nBash completion for tools and parameters can be installed by adding \"source path/to/mmseqs/util/bash-completion.sh\" to your \"$HOME/.bash_profile\".\n"
-            "Include the location of the MMseqs binaries is in your \"$PATH\" environment variable.";
-
-    Debug(Debug::INFO) << usage.str() << "\n";
-}
-
-
-int getCommandIndex(const char *s) {
-    for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
-        struct Command *p = commands + i;
-        if (!strcmp(s, p->cmd))
-            return i;
-    }
-    return -1;
-}
-
-int runCommand(const Command &p, int argc, const char **argv) {
-    return p.commandFunction(argc, argv, p);
-}
-
-int shellcompletion(int argc, const char** argv, const Command& command) {
-    // mmseqs programs
-    if(argc == 0) {
-        for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
-            struct Command *p = commands + i;
-            if(p->mode == COMMAND_HIDDEN)
-                continue;
-            Debug(Debug::INFO) << p->cmd << " ";
-        }
-        Debug(Debug::INFO) << "\n";
-    }
-
-    // mmseqs parameters for given program
-    if(argc == 1) {
-        for (size_t i = 0; i < ARRAY_SIZE(commands); i++) {
-            struct Command *p = commands + i;
-            if(strcmp(p->cmd, argv[0]) != 0)
-                continue;
-            if(!p->params)
-                continue;
-            for(std::vector<MMseqsParameter>::const_iterator it = p->params->begin(); it != p->params->end(); ++it) {
-                Debug(Debug::INFO) << it->name << " ";
-            }
-            Debug(Debug::INFO) << "\n";
-            break;
-        }
-        Debug(Debug::INFO) << "\n";
-    }
-
-    return EXIT_SUCCESS;
-}
-
-int main(int argc, const char **argv) {
-    checkCpu();
-    if (argc < 2) {
-        printUsage();
-        EXIT(EXIT_FAILURE);
-    }
-    setenv("MMSEQS", argv[0], true);
-    int command;
-    if ((command = getCommandIndex(argv[1])) != -1) {
-        const struct Command *p = commands + command;
-        EXIT(runCommand(*p, argc - 2, argv + 2));
-    } else {
-        printUsage();
-        Debug(Debug::ERROR) << "\nInvalid Command: " << argv[1] << "\n";
-
-        // Suggest some command that the user might have meant
-        size_t index = SIZE_MAX;
-        size_t minDistance = SIZE_MAX;
-        for (size_t i = 0; i < ARRAY_SIZE(commands); ++i) {
-            struct Command *p = commands + i;
-            if(p->mode == COMMAND_HIDDEN)
-                continue;
-
-            size_t distance = DistanceCalculator::levenshteinDistance(argv[1], p->cmd);
-            if(distance < minDistance) {
-                minDistance = distance;
-                index = i;
-            }
-        }
-
-        if(index != SIZE_MAX) {
-            Debug(Debug::ERROR) << "Did you mean \"mmseqs " << (commands + index)->cmd << "\"?\n";
-        }
-
-        EXIT(EXIT_FAILURE);
-    }
-
-    return 0;
-}
-
-void checkCpu() {
-    CpuInfo info;
-    if(info.HW_x64 == false) {
-        Debug(Debug::ERROR) << "64 bit system is required to run MMseqs.\n";
-        EXIT(EXIT_FAILURE);
-    }
-#ifdef SEE
-    if(info.HW_SSE41 == false) {
-        Debug(Debug::ERROR) << "SSE4.1 is required to run MMseqs.\n";
-        EXIT(EXIT_FAILURE);
-    }
-#endif
-#ifdef AVX2
-    if(info.HW_AVX2 == false){
-        Debug(Debug::ERROR) << "Your machine does not support AVX2.\n";
-        if(info.HW_SSE41 == true) {
-            Debug(Debug::ERROR) << "Please compile with SSE4.1 cmake -DHAVE_SSE4_1=1 \n";
-        }else{
-            Debug(Debug::ERROR) << "SSE 4.1 is the minimum requirement to run MMseqs.\n";
-        }
-        EXIT(EXIT_FAILURE);
-    }
-#endif
-}

@@ -1,73 +1,56 @@
+set(commons_header_files
+        commons/A3MReader.h
+        commons/Command.h
+        commons/CommandCaller.h
+        commons/Concat.h
+        commons/CpuInfo.h
+        commons/DBConcat.h
+        commons/DBReader.h
+        commons/DBWriter.h
+        commons/Debug.h
+        commons/Domain.h
+        commons/FileUtil.h
+        commons/HeaderSummarizer.h
+        commons/itoa.h
+        commons/MathUtil.h
+        commons/MemoryMapped.h
+        commons/MMseqsMPI.h
+        commons/NucleotideMatrix.h
+        commons/Orf.h
+        commons/Parameters.h
+        commons/ScoreMatrix.h
+        commons/Sequence.h
+        commons/SubstitutionMatrix.h
+        commons/tantan.h
+        commons/TranslateNucl.h
+        commons/UniprotKB.h
+        commons/Util.h
+        PARENT_SCOPE
+        )
+
 set(commons_source_files
-    MMseqsMPI.cpp
-    MMseqsMPI.h
-    BaseMatrix.cpp
-    DBReader.cpp
-    DBReader.h
-    DBConcat.cpp
-    DBConcat.h
-    Concat.h
-    DBWriter.cpp
-    DBWriter.h
-    Debug.cpp
-    Debug.h
-    NucleotideMatrix.cpp
-    NucleotideMatrix.h
-    Orf.cpp
-    Orf.h
-    Parameters.cpp
-    Parameters.h
-    ScoreMatrix.h
-    Sequence.cpp
-    Sequence.h
-    SubstitutionMatrix.cpp
-    SubstitutionMatrix.h
-    Util.cpp
-    Util.h
-    CommandCaller.cpp
-    CommandCaller.h
-    MathUtil.h
-    FileUtil.cpp
-    FileUtil.h
-    HeaderSummarizer.cpp
-	HeaderSummarizer.h
-    PatternCompiler.h
-    UniprotKB.cpp
-    UniprotKB.h
-    A3MReader.cpp
-    A3MReader.h
-    Domain.h
-    itoa.h
-    MemoryMapped.cpp
-    MemoryMapped.h
-    CpuInfo.h
-    TranslateNucl.h
-    tantan.h
-    tantan.cpp
-    profileStates.cpp
-    KSeqWrapper.cpp
-)
-
-add_library(commons ${commons_source_files})
-
-target_link_libraries(commons cacode)
-
-if(MPI_FOUND)
-    target_link_libraries(commons ${MPI_LIBRARIES})
-
-    if(MPI_COMPILE_FLAGS)
-        set_target_properties(commons PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    endif()
-
-    if(MPI_LINK_FLAGS)
-        set_target_properties(commons PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
-    endif()
-endif()
-
-if(ZLIB_FOUND)
-    target_link_libraries(commons ${ZLIB_LIBRARIES})
-endif()
-
-if(BZIP2_FOUND)
-    target_link_libraries(commons ${BZIP2_LIBRARIES})
-endif()
+        commons/A3MReader.cpp
+        commons/Application.cpp
+        commons/BaseMatrix.cpp
+        commons/Command.cpp
+        commons/CommandCaller.cpp
+        commons/DBConcat.cpp
+        commons/DBReader.cpp
+        commons/DBWriter.cpp
+        commons/Debug.cpp
+        commons/FileUtil.cpp
+        commons/HeaderSummarizer.cpp
+        commons/KSeqWrapper.cpp
+        commons/MemoryMapped.cpp
+        commons/MMseqsMPI.cpp
+        commons/NucleotideMatrix.cpp
+        commons/Orf.cpp
+        commons/Parameters.cpp
+        commons/profileStates.cpp
+        commons/Sequence.cpp
+        commons/SubstitutionMatrix.cpp
+        commons/tantan.cpp
+        commons/UniprotKB.cpp
+        commons/Util.cpp
+        PARENT_SCOPE
+        )

@@ -372,7 +372,6 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                                            int kmerThr, unsigned int threads) {
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
     // fill and init the index table
-    size_t aaCount = 0;
     dbTo = std::min(dbTo, dbr->getSize());
     size_t maskedResidues = 0;
     size_t totalKmerCount = 0;
@@ -446,22 +445,25 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 
         unsigned int * buffer = new unsigned int[seq->getMaxLen()];
         char * charSequence = new char[seq->getMaxLen()];
-#pragma omp for schedule(dynamic, 100) reduction(+:aaCount, totalKmerCount, maskedResidues)
+
+#pragma omp for schedule(dynamic, 100) reduction(+:totalKmerCount, maskedResidues)
         for (size_t id = dbFrom; id < dbTo; id++) {
             s.resetCurrPos();
             Debug::printProgress(id - dbFrom);
             char *seqData = dbr->getData(id);
             unsigned int qKey = dbr->getDbKey(id);
             s.mapSequence(id - dbFrom, qKey, seqData);
+
             if (maskMode == 2) {
                 (*unmaskedLookup)->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
             }
+
             // count similar or exact k-mers based on sequence type
             if (isProfile) {
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
-            } else {
-                if (maskMode == 1) {
-                    for (int i = 0; i < s.L; i++) {
+            } else { // Find out if we should also mask profiles
+                if (maskMode == 1 || maskMode == 2) {
+                    for (int i = 0; i < s.L; ++i) {
                         charSequence[i] = (char) s.int_sequence[i];
                     }
                     maskedResidues += tantan::maskSequences(charSequence,
@@ -477,11 +479,12 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                     for (int i = 0; i < s.L; i++) {
                         s.int_sequence[i] = charSequence[i];
                     }
-//                maskedResidues += Util::maskLowComplexity(subMat, &s, s.L, 12, 3,
-//                                                          indexTable->getAlphabetSize(), seq->aa2int[(unsigned char) 'X'], true, true, true, true);
                 }
-                aaCount += s.L;
+
+
+//                if (!isProfile) {
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
+//                }
             }
 
             sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
@@ -490,7 +493,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
         delete [] charSequence;
         delete [] buffer;
 
-        if (generator) {
+        if (generator != NULL) {
             delete generator;
         }
     }
