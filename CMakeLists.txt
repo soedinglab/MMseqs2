@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.9 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 project(MMseqs CXX)
 message("-- Source Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 message("-- Project Directory: ${PROJECT_SOURCE_DIR}")
