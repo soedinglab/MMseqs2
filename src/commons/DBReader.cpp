@@ -238,7 +238,13 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
 
 template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize){
     struct stat sb;
-    fstat(fileno(file), &sb);
+    if (fstat(fileno(file), &sb) < 0)
+    {
+        int errsv = errno;
+        Debug(Debug::ERROR) << "Failed to fstat File=" << dataFileName << ". Error " << errsv << ".\n";
+        EXIT(EXIT_FAILURE);
+    }
+    
     *dataSize = sb.st_size;
     int fd =  fileno(file);
     int mode;
