@@ -93,10 +93,10 @@ while [ $STEP -lt $NUM_IT ]; do
     fi
 	QUERYDB="$TMP_PATH/profile_$STEP"
 
-	let STEP=STEP+1
+	STEP=$(($STEP+1))
 done
 # post processing
-let STEP=STEP-1
+STEP=$(($STEP-1))
 (mv -f "$TMP_PATH/aln_0" "$3" && mv -f "$TMP_PATH/aln_0.index" "$3.index") || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
@@ -106,7 +106,7 @@ if [ -n "$REMOVE_TMP" ]; then
     rm -f "$TMP_PATH/pref_$STEP" "$TMP_PATH/pref_$STEP.index"
     rm -f "$TMP_PATH/aln_$STEP" "$TMP_PATH/aln_$STEP.index"
     rm -f "$TMP_PATH/profile_$STEP" "$TMP_PATH/profile_$STEP.index" "$TMP_PATH/profile_${STEP}_h" "$TMP_PATH/profile_${STEP}_h.index"
-    let STEP=STEP+1
+    STEP=$(($STEP+1))
  done
 
  rm -f "$TMP_PATH/blastpgp.sh"

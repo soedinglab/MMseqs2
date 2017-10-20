@@ -71,7 +71,7 @@ while [ $SENS -le $TARGET_SENS ]; do
                 || fail "Order step $SENS died"
         fi
     fi
-    let SENS=SENS+SENS_STEP_SIZE
+    SENS=$(($SENS+$SENS_STEP_SIZE))
 
     INPUT=$NEXTINPUT
 done
@@ -86,7 +86,7 @@ if [ -n "$REMOVE_TMP" ]; then
     while [ $SENS -le $TARGET_SENS ]; do
         rm -f "$TMP_PATH/pref_$SENS" "$TMP_PATH/pref_$SENS.index"
         rm -f "$TMP_PATH/aln_$SENS" "$TMP_PATH/aln_$SENS.index"
-        let SENS=SENS+SENS_STEP_SIZE
+        SENS=$(($SENS+$SENS_STEP_SIZE))
         NEXTINPUT="$TMP_PATH/input_step$SENS"
         rm -f "$TMP_PATH/input_step$SENS" "$TMP_PATH/input_step$SENS.index"
     done

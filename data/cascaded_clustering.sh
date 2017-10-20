@@ -59,7 +59,7 @@ while [ $STEP -lt 4 ]; do
     fi
 
 	INPUT=$NEXTINPUT
-	let STEP=STEP+1
+	STEP=$(($STEP+1))
 done
 
 # post processing
@@ -80,7 +80,7 @@ if [ -n "$REMOVE_TMP" ]; then
     rm -f "$3/clu_step$STEP" "$3/clu_step$STEP.index"
     rm -f "$3/input_step$STEP" "$3/input_step$STEP.index"
     rm -f "$3/order_step$STEP"
-	let STEP=STEP+1
+	STEP=$(($STEP+1))
  done
 
  rm -f "$3/cascaded_clustering.sh"
