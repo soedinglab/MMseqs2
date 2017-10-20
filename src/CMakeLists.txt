@@ -28,7 +28,7 @@ add_library(mmseqs-framework
         ${workflow_source_files}
         )
 
-target_include_directories(mmseqs-framework PUBLIC generatedfiles)
+target_include_directories(mmseqs-framework PUBLIC ${CMAKE_BINARY_DIR}/generated)
 target_include_directories(mmseqs-framework PUBLIC commons)
 target_include_directories(mmseqs-framework PUBLIC prefiltering)
 target_include_directories(mmseqs-framework PUBLIC alignment)
