@@ -12,10 +12,6 @@ add_subdirectory(prefiltering)
 add_subdirectory(util)
 add_subdirectory(workflow)
 
-if (HAVE_TESTS AND NOT FRAMEWORK_ONLY)
-    add_subdirectory(test)
-endif ()
-
 add_library(mmseqs-framework
         $<TARGET_OBJECTS:alp>
         $<TARGET_OBJECTS:cacode>
@@ -148,22 +144,19 @@ if (OPENMP_FOUND)
 endif()
 
 if (NOT FRAMEWORK_ONLY)
+    include(MMseqsSetupDerivedTarget)
     add_subdirectory(version)
     set(mmseqs_source_files
             mmseqs.cpp
             )
 
     add_executable(mmseqs ${mmseqs_source_files})
-    target_link_libraries(mmseqs mmseqs-framework version)
-
-    if (OPENMP_FOUND)
-        message("-- Found OpenMP")
-        target_compile_definitions(mmseqs PUBLIC -DOPENMP=1)
-        target_link_libraries(mmseqs ${OpenMP_CXX_LIBRARIES})
-        append_target_property(mmseqs COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
-        append_target_property(mmseqs LINK_FLAGS ${OpenMP_CXX_FLAGS})
-    endif()
-
+    mmseqs_setup_derived_target(mmseqs)
+    target_link_libraries(mmseqs version)
     install(TARGETS mmseqs DESTINATION bin)
-endif ()
 
+
+    if (HAVE_TESTS)
+        add_subdirectory(test)
+    endif ()
+endif ()

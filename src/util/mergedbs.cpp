@@ -13,8 +13,14 @@ int mergedbs(int argc, const char **argv, const Command& command) {
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
+
+    if (par.filenames.size() <= 2) {
+        Debug(Debug::ERROR) << "Not enough databases for merging passed!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     std::vector<std::pair<std::string, std::string>> filenames;
-    for (size_t i = 0; i < par.filenames.size(); ++i) {
+    for (size_t i = 2; i < par.filenames.size(); ++i) {
         filenames.emplace_back(par.filenames[i], par.filenames[i] + ".index");
     }
 
