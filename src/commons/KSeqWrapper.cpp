@@ -107,7 +107,7 @@ bool KSeqBzip::ReadEntry() {
 }
 
 KSeqBzip::~KSeqBzip() {
-    kseq_destroy((KSEQGZIP::kseq_t*)seq);
+    kseq_destroy((KSEQBZIP::kseq_t*)seq);
     int bzError;
     BZ2_bzReadClose(&bzError, file);
 }
