@@ -11,8 +11,9 @@
 
 #include "MMseqsMPI.h"
 
+
 #ifndef EXIT
-#define EXIT(exitCode)     do{std::cerr<<"\n";std::cerr.flush();std::cout.flush();exit(exitCode);}while(0)
+#define EXIT(exitCode) do { int __status = (exitCode); std::cerr.flush(); std::cout.flush(); exit(__status); } while(0)
 #endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
