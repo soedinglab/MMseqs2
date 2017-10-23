@@ -1,14 +1,14 @@
-#!/bin/bash -e
-function fail() {
+#!/bin/sh -e
+fail() {
     echo "Error: $1"
     exit 1
 }
 
-function notExists() {
+notExists() {
 	[ ! -f "$1" ]
 }
 
-function abspath() {
+abspath() {
     if [ -d "$1" ]; then
         (cd "$1"; pwd)
     elif [ -f "$1" ]; then
@@ -44,7 +44,7 @@ if notExists "${TMP_PATH}/pref"; then
 fi
 
 if notExists "${TMP_PATH}/pref_swapped"; then
-    $RUNNER $MMSEQS swapresults "${INPUT}" "${TARGET_DB_PREF}" "${TMP_PATH}/pref" "${TMP_PATH}/pref_swapped" ${SWAP_PAR} \
+    $MMSEQS swapresults "${INPUT}" "${TARGET_DB_PREF}" "${TMP_PATH}/pref" "${TMP_PATH}/pref_swapped" ${SWAP_PAR} \
         || fail "Swapresults pref died"
 fi
 
@@ -55,7 +55,7 @@ if notExists "$TMP_PATH/aln_swapped"; then
 fi
 
 if notExists "$TMP_PATH/aln"; then
-    $RUNNER $MMSEQS swapresults "${TARGET_DB_PREF}" "${INPUT}" "${TMP_PATH}/aln_swapped"  "${TMP_PATH}/aln" ${SWAP_PAR} \
+    $MMSEQS swapresults "${TARGET_DB_PREF}" "${INPUT}" "${TMP_PATH}/aln_swapped"  "${TMP_PATH}/aln" ${SWAP_PAR} \
         || fail "Swapresults aln died"
 fi
 

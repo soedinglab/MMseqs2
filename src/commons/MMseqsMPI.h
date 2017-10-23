@@ -31,6 +31,8 @@ public:
         MPI_Finalize();                      \
         MMseqsMPI::active = false;           \
     }                                        \
+    std::cerr.flush();                       \
+    std::cout.flush();                       \
     exit(__status);                          \
 } while(0)
 #endif

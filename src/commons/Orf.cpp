@@ -217,8 +217,8 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 
                 isInsideOrf[frame] = false;
 
-                // we do not include the stop codon here
-                size_t to = position + (!stop && isLast ? 3 : 0);
+                // we include the stop codon here
+                size_t to = position + (isLast ? 3 : 0);
 
                 // this could happen if the first codon is a stop codon
                 if(to == from[frame])

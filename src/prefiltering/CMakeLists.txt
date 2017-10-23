@@ -1,38 +1,29 @@
+set(prefiltering_header_files
+        prefiltering/CacheFriendlyOperations.h
+        prefiltering/ExtendedSubstitutionMatrix.h
+        prefiltering/Indexer.h
+        prefiltering/IndexTable.h
+        prefiltering/KmerGenerator.h
+        prefiltering/Prefiltering.h
+        prefiltering/PrefilteringIndexReader.h
+        prefiltering/QueryMatcher.h
+        prefiltering/ReducedMatrix.h
+        prefiltering/SequenceLookup.h
+        prefiltering/UngappedAlignment.h
+        PARENT_SCOPE
+        )
+
 set(prefiltering_source_files
-    ExtendedSubstitutionMatrix.cpp
-    ExtendedSubstitutionMatrix.h
-    IndexTable.h
-    Indexer.cpp
-    Indexer.h
-    KmerGenerator.cpp
-    KmerGenerator.h
-    Main.cpp
-    Prefiltering.cpp
-    Prefiltering.h
-    PrefilteringIndexReader.cpp
-    PrefilteringIndexReader.h
-    QueryMatcher.cpp
-    QueryMatcher.h
-    ReducedMatrix.cpp
-    ReducedMatrix.h
-    SequenceLookup.cpp
-    SequenceLookup.h
-    UngappedAlignment.cpp
-    UngappedAlignment.h
-    CacheFriendlyOperations.cpp
-    CacheFriendlyOperations.h
-)
-add_library(prefiltering ${prefiltering_source_files})
-target_link_libraries(prefiltering)
-
-if(MPI_FOUND)
-    target_link_libraries(prefiltering ${MPI_LIBRARIES})
-
-    if(MPI_COMPILE_FLAGS)
-        set_target_properties(prefiltering PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    endif()
-
-    if(MPI_LINK_FLAGS)
-        set_target_properties(prefiltering PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
-    endif()
-endif()
+        prefiltering/CacheFriendlyOperations.cpp
+        prefiltering/ExtendedSubstitutionMatrix.cpp
+        prefiltering/Indexer.cpp
+        prefiltering/KmerGenerator.cpp
+        prefiltering/Main.cpp
+        prefiltering/Prefiltering.cpp
+        prefiltering/PrefilteringIndexReader.cpp
+        prefiltering/QueryMatcher.cpp
+        prefiltering/ReducedMatrix.cpp
+        prefiltering/SequenceLookup.cpp
+        prefiltering/UngappedAlignment.cpp
+        PARENT_SCOPE
+        )

@@ -5,6 +5,7 @@
 #include "BaseMatrix.h"
 #include "SubstitutionMatrix.h"
 #include "Sequence.h"
+#include "Parameters.h"
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -18,10 +19,6 @@
 #include <algorithm>
 
 KSEQ_INIT(int, read)
-
-const std::string& tostringidentity::to_string(const std::string& s) {
-    return s;
-}
 
 size_t Util::countLines(const char *data, size_t length) {
     size_t newlines = 0;
@@ -368,99 +365,6 @@ const float     aasd100[20] =
                 3.77,3.64,1.71,2.62,3.00,3.63,2.83,1.32,2.18,2.92
         };
 
-void Util::filterRepeates(int *seq, int seqLen, char *mask, int p, int W, int MM){
-    char id[1000];
-    for (int j=0; j<W; j++){
-        id[j]=0;
-    }
-    int sum = 0;         // number of identities
-    int j = 0;
-    for (int i = p; i < seqLen; i++)
-    {
-        sum -= id[j];
-        id[j] = ( seq[i - p] == seq[i] ? 1 : 0 );
-        sum += id[j];
-        if (sum >= W - MM)
-            for (int k = std::max(0,i - W - p + 1); k <= i; k++){
-                mask[k] = 1;
-            }
-        if (++j >= W) {
-            j=0;
-        }
-    }
-}
-size_t Util::maskLowComplexity(BaseMatrix * m, Sequence *s,
-                               int seqLen,
-                               int windowSize,
-                               int maxAAinWindow,
-                               int alphabetSize, int maskValue,
-                               bool repeates=true, bool score =true,
-                               bool ccoil=true, bool window =true) {
-    size_t aafreq[21];
-
-    char * mask = new char[seqLen];
-    memset(mask, 0, seqLen * sizeof(char));
-
-    if(repeates){
-        // Filter runs of 4 identical residues
-        filterRepeates(s->int_sequence, seqLen, mask, 1, 4, 0);
-        //
-        //    // Filter runs of 4 doublets with a maximum of one mismatch
-        filterRepeates(s->int_sequence, seqLen, mask, 2, 8, 1);
-        //
-        //    // Filter runs of 4 triplets with a maximum of two mismatches
-        filterRepeates(s->int_sequence, seqLen, mask, 3, 9, 2);
-    }
-    if(score){
-        filterByBiasCorrection(s, seqLen, m, mask, 70);
-    }
-    if(window){
-
-        // filter low complex
-        for (int i = 0; i < seqLen - windowSize; i++)
-        {
-            for (int j = 0; j < alphabetSize; j++){
-                aafreq[j] = 0;
-            }
-            for (int j = 0; j < windowSize; j++){
-                aafreq[s->int_sequence[i + j]]++;
-            }
-            int n = 0;
-            for (int j = 0; j < alphabetSize; j++){
-                if (aafreq[j]){
-                    n++; // count # amino acids
-                }
-            }
-            if (n <= maxAAinWindow)
-            {
-                for (int j = 0; j < windowSize; j++)
-                    mask[i + j] = 1;
-            }
-        }
-    }
-    if(ccoil){
-        // filter coil
-        // look at 3 possible coils -> 21 pos (3 * 7)
-        for (int i = 0; i < seqLen - 21; i++)
-        {
-            int tot = 0;
-            for (int l = 0; l < 21; l++)
-                tot += ccoilmat[s->int_sequence[i + l]][l % 7];
-            if (tot > 10000)
-            {
-                for (int l = 0; l < 21; l++)
-                    mask[i + l] = 1;
-            }
-        }
-    }
-    size_t maskedResidues = 0;
-    for (int i = 0; i < seqLen; i++){
-        maskedResidues += (mask[i]);
-        s->int_sequence[i] = (mask[i]) ? maskValue : s->int_sequence[i];
-    }
-    delete [] mask;
-    return maskedResidues;
-}
 
 std::map<unsigned int, std::string> Util::readLookup(const std::string& file) {
     std::map<unsigned int, std::string> mapping;
@@ -482,35 +386,6 @@ std::map<unsigned int, std::string> Util::readLookup(const std::string& file) {
     return mapping;
 }
 
-void Util::filterByBiasCorrection(Sequence *s, int seqLen, BaseMatrix *m, char *mask, int scoreThr) {
-    char * compositionBias = new char[seqLen];
-    float * tmp_composition_bias = new float[seqLen];
-    SubstitutionMatrix::calcLocalAaBiasCorrection(m, s->int_sequence, seqLen, tmp_composition_bias);
-    //const int8_t seed_6_spaced[] = {1, 1, 0, 1, 0, 1, 0, 0, 1, 1}; // better than 11101101
-    const int8_t pos[] = {0, 1, 3, 5, 8, 9}; // better than 11101101
-
-    for(int i = 0; i < seqLen; i++){
-        compositionBias[i] = (int8_t) (tmp_composition_bias[i] < 0.0)
-                             ? tmp_composition_bias[i] - 0.5: tmp_composition_bias[i] + 0.5;
-    }
-    for(int i = 0; i < seqLen - 10; i++){
-        int kmerScore = 0;
-        for (unsigned int kmerPos = 0; kmerPos < 6; kmerPos++) {
-            unsigned int aa_pos = i + pos[kmerPos];
-            unsigned int aa = s->int_sequence[aa_pos];
-            kmerScore += m->subMatrix[aa][aa] + compositionBias[aa_pos];
-        }
-        if(kmerScore <= scoreThr) {
-            for (unsigned int kmerPos = 0; kmerPos < 6; kmerPos++) {
-                unsigned int aa_pos = i +  pos[kmerPos];
-                mask[aa_pos] = 1;
-            }
-        }
-    }
-    delete [] compositionBias;
-    delete [] tmp_composition_bias;
-}
-
 int Util::omp_thread_count() {
     int n = 0;
 #pragma omp parallel reduction(+:n)
@@ -523,8 +398,26 @@ std::string Util::removeWhiteSpace(std::string in) {
     return in;
 }
 
+bool Util::canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength) {
+    switch(covMode){
+        case Parameters::COV_MODE_BIDIRECTIONAL:
+            return ((queryLength / targetLength >= covThr) || (targetLength / queryLength >= covThr));
+        case Parameters::COV_MODE_QUERY:
+            return ((queryLength / targetLength) >= covThr);
+        default:
+            return true;
+    }
+}
 
-
-
-
-
+bool Util::hasCoverage(float covThr, int covMode, float queryCov, float targetCov){
+    switch(covMode){
+        case Parameters::COV_MODE_BIDIRECTIONAL:
+            return ((queryCov >= covThr) && (targetCov >= covThr));
+        case Parameters::COV_MODE_QUERY:
+            return (queryCov >= covThr);
+        case Parameters::COV_MODE_TARGET:
+            return (targetCov >= covThr);
+        default:
+            return true;
+    }
+}

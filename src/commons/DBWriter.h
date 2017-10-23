@@ -32,7 +32,13 @@ class DBWriter {
     
         char* getIndexFileName() { return indexFileName; }
 
+        void writeStart(unsigned int thrIdx = 0);
+        void writeAdd(const char* data, size_t dataSize, unsigned int thrIdx = 0);
+        void writeEnd(unsigned int key, unsigned int thrIdx = 0, bool addNullByte = true);
+
         void writeData(const char *data, size_t dataSize, unsigned int key, unsigned int threadIdx = 0, bool addNullByte = true);
+
+        size_t indexToBuffer(char *buff1, unsigned int key, size_t offsetStart, size_t len);
 
         void alignToPageSize();
 
@@ -70,6 +76,7 @@ private:
     char** dataFileNames;
     char** indexFileNames;
 
+    size_t* starts;
     size_t* offsets;
 
     const unsigned int threads;

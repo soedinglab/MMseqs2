@@ -1,14 +1,17 @@
-set(clustering_source_files
-  Clustering.cpp
-  Clustering.h
-  Main.cpp
-  SetElement.h
-  DistanceCalculator.h
-  ClusteringAlgorithms.h
-  ClusteringAlgorithms.cpp
-  AlignmentSymmetry.h
-  AlignmentSymmetry.cpp
-)
-add_library(clustering ${clustering_source_files})
+set(clustering_header_files
+        clustering/AlignmentSymmetry.h
+        clustering/Clustering.h
+        clustering/ClusteringAlgorithms.h
+        clustering/DistanceCalculator.h
+        clustering/Main.cpp
+        clustering/SetElement.h
+        PARENT_SCOPE
+        )
 
-target_link_libraries(clustering commons)
+set(clustering_source_files
+        clustering/AlignmentSymmetry.cpp
+        clustering/Clustering.cpp
+        clustering/ClusteringAlgorithms.cpp
+        clustering/Main.cpp
+        PARENT_SCOPE
+        )

@@ -1,7 +1,7 @@
 # MMseqs2.0: ultra fast and sensitive protein search and clustering suite
 MMseqs2 (Many-against-Many searching) is a software suite to search and cluster huge protein sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux and MacOS. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 can run 10000 times faster than BLAST. At 100 times its speed it achieves the same sensitivity. It can also perform profile searches with the same sensitivity as PSI-BLAST but at around 270 times its speed.
 
-Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching for the analysis of massive data sets. bioRxiv, doi: 10.1101/079681 (2017)](http://biorxiv.org/content/early/2017/03/24/079681).
+Please cite: [Steinegger M and Soeding J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi: 10.1038/nbt.3988 (2017)](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
 
 ![alt tag](https://codeship.com/projects/58db4570-5f19-0134-0f23-2e28d2b4319e/status?branch=master)
 ![alt tag](https://ci.appveyor.com/api/projects/status/lq8nxeb0j8v38d1a?svg=true)
@@ -14,7 +14,7 @@ Please cite: [Steinegger M and Soeding J. Sensitive protein sequence searching f
 ## News
 Keep posted about MMseqs2/Linclust updates by following Martin on [twitter](https://twitter.com/thesteinegger).
 
-04/08/2017 We had a serious bug in the linclust/cluster workflow when performing target-cov based clustering since 20/07/2017. We will also add the clustering workflows to our regression tests. The bug should be fixed now. Please update your MMseqs2.
+17/10/2017 We are happy to announce that MMseqs2 was just published at [Nature Biotechnology](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
 
 05/25/2017 We updated the Linclust manuscript. Linclust is now 3x faster and we added an metagenomic protein assembly application. Happy towel day. A pre-print can be downloaded here: [Steinegger M and Soeding J. Linclust: clustering billions of protein sequences per day on a single server (2017)](http://biorxiv.org/content/early/2017/05/25/104034). 
 
@@ -29,7 +29,7 @@ The MMseqs2 user guide is available in our [Github Wiki](https://github.com/soed
 You can read on for a quick start guide with installation instructions and examples for searching and clustering.
 
 ## Installation
-MMseqs can be installed by compiling the binary from source, download a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 intruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
+MMseqs can be installed by compiling the binary from source, download a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
 
 ### Compile from source
 Compiling MMseqs2 from source has the advantage that it will be optimized to the specific system, which should improve its performance. To compile MMseqs2 `git`, `g++` (4.6 or higher) and `cmake` (3.0 or higher) are needed. Afterwards, the MMseqs2 binary will be located in `build/bin/`.
@@ -161,7 +161,7 @@ Note that the memory consumption grows linearly with the number of the sequences
 
 The two auxiliary arrays consume `(8 × a^k) byte`, with `a` being the size of the amino acid alphabet (usually 21 including the unknown amino acid X) and the k-mer size `k`.
 
-### How to run MMseqs2 on multipe servers using MPI
+### How to run MMseqs2 on multiple servers using MPI
 MMseqs2 can run on multiple cores and servers using OpenMP (OMP) and message passing interface (MPI).
 MPI assigns database splits to each servers and each server computes them using multiple cores (OMP). 
 Currently `prefilter`, `align`, `result2profile`, `swapresults` can take advantage of MPI.

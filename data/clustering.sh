@@ -1,15 +1,15 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Clustering workflow script
-function fail() {
+fail() {
     echo "Error: $1"
     exit 1
 }
 
-function notExists() {
+notExists() {
 	[ ! -f "$1" ]
 }
 
-function abspath() {
+abspath() {
     if [ -d "$1" ]; then
         (cd "$1"; pwd)
     elif [ -f "$1" ]; then

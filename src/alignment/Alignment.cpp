@@ -55,6 +55,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                 templateDBIsIndex = false;
             } else {
                 PrefilteringIndexReader::printSummary(tidxdbr);
+                targetSeqType = meta.seqType;
                 if (meta.maskMode == 0) {
                     tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, par.noPreload == false);
                 } else if (meta.maskMode == 2) {
@@ -281,15 +282,14 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     setTargetSequence(dbSeq, dbKey);
                     // check if the sequences could pass the coverage threshold
-                    if (covMode == 0 &&
-                        ((((float) qSeq.L) / ((float) dbSeq.L) < covThr)
-                         || (((float) dbSeq.L) / ((float) qSeq.L) < covThr))) {
+                    if(Util::canBeCovered(covThr, covMode, static_cast<float>(qSeq.L), static_cast<float>(dbSeq.L)) == false )
+                    {
                         rejected++;
                         data = Util::skipLine(data);
                         continue;
                     }
                     // calculate Smith-Waterman alignment
-                    Matcher::result_t res = matcher.getSWResult(&dbSeq, tseqdbr->getSize(), evalThr, swMode);
+                    Matcher::result_t res = matcher.getSWResult(&dbSeq, covMode, covThr, evalThr, swMode);
                     alignmentsNum++;
 
                     // sequence are identical if qID == dbID  (needed to cluster really short sequences)
@@ -304,7 +304,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     const bool evalOk = (res.eval <= evalThr); // -e
                     const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
-                    const bool covOK = (covMode == 0) ? (res.qcov >= covThr && res.dbcov >= covThr) : (res.dbcov >= covThr);
+                    const bool covOK = Util::hasCoverage(covThr, covMode, res.qcov, res.dbcov);
                     // check first if it is identity
                     if (isIdentity
                         ||
@@ -331,7 +331,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     realigner->initQuery(&qSeq);
                     for (size_t result = 0; result < swResults.size(); result++) {
                         setTargetSequence(dbSeq, swResults[result].dbKey);
-                        Matcher::result_t res = realigner->getSWResult(&dbSeq, tseqdbr->getSize(), FLT_MAX,
+                        Matcher::result_t res = realigner->getSWResult(&dbSeq, covMode, covThr, FLT_MAX,
                                                                        Matcher::SCORE_COV_SEQID);
                         swResults[result].backtrace  = res.backtrace;
                         swResults[result].qStartPos  = res.qStartPos;

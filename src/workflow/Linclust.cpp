@@ -37,8 +37,23 @@ int linclust(int argc, const char **argv, const Command& command) {
     size_t alphabetSize = par.alphabetSize;
     size_t kmerSize = par.kmerSize;
     // # 1. Finding exact $k$-mer matches.
-    par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
-    par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
+    bool kmerSizeWasSet = false;
+    bool alphabetSizeWasSet = false;
+
+    for (size_t i = 0; i < par.linclustworkflow.size(); i++) {
+        if (par.linclustworkflow[i].uniqid == par.PARAM_K.uniqid && par.linclustworkflow[i].wasSet) {
+            kmerSizeWasSet = true;
+        }
+        if (par.linclustworkflow[i].uniqid == par.PARAM_ALPH_SIZE.uniqid && par.linclustworkflow[i].wasSet) {
+            alphabetSizeWasSet = true;
+        }
+    }
+    if(kmerSizeWasSet==false){
+        par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
+    }
+    if(alphabetSizeWasSet == false){
+        par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
+    }
     cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
     par.alphabetSize = alphabetSize;
     par.kmerSize = kmerSize;

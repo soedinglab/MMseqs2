@@ -1,7 +1,3 @@
-//
-// Created by lars on 26.05.15.
-//
-
 #ifndef MMSEQS_DISTANCECALCULATOR_H
 #define MMSEQS_DISTANCECALCULATOR_H
 
@@ -15,13 +11,11 @@
 
 class DistanceCalculator {
 public:
-
-
     template<typename T>
-    static unsigned int computeSubstituionDistance(const T *seq1,
-                                                   const T *seq2,
-                                                   const unsigned int length,
-                                                   const char ** subMat, bool globalAlignment = false) {
+    static unsigned int computeSubstitutionDistance(const T *seq1,
+                                                    const T *seq2,
+                                                    const unsigned int length,
+                                                    const char **subMat, bool globalAlignment = false) {
         int max = 0;
         int score = 0;
         if (globalAlignment)
@@ -64,23 +58,22 @@ public:
         int maxScore = 0;
         int maxEndPos = 0;
         int maxStartPos = 0;
-        int minPos = 0;
+        int minPos = -1;
 //        int maxMinPos = 0;
         int score = 0;
         for(unsigned int pos = 0; pos < length; pos++){
             int curr = subMat[seq1[pos]][seq2[pos]];
             score = curr  + score;
-            const bool isMinScore = (score < 0);
+            const bool isMinScore = (score <= 0);
             score =  (isMinScore) ? 0 : score;
             minPos = (isMinScore) ? pos : minPos;
             const bool isNewMaxScore = (score > maxScore);
             maxEndPos = (isNewMaxScore) ? pos : maxEndPos;
-            maxStartPos = (isNewMaxScore) ? minPos : maxStartPos;
+            maxStartPos = (isNewMaxScore) ? minPos + 1 : maxStartPos;
             maxScore = (isNewMaxScore)? score : maxScore;
         }
         return LocalAlignment(maxStartPos, maxEndPos, maxScore);
     }
-
 
     static unsigned int computeHammingDistance(const char *seq1, const char *seq2, unsigned int length){
         unsigned int diff = 0;
@@ -207,10 +200,9 @@ public:
     double getPvalGlobalAli(float score, size_t len) {
         return 0.5 - 0.5 * erf((score / len - globalAliMu) / (sqrt(2.0 / sqrt((float) len)) * globalAliSigma));
     }
+
 private:
-    
-    float globalAliMu,globalAliSigma;
-    
+    float globalAliMu, globalAliSigma;
 
 };
 

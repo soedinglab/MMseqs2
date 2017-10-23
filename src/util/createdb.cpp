@@ -20,25 +20,17 @@
 
 int createdb(int argn, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argn, argv, command, 2);
+    par.parseParameters(argn, argv, command, 2, true, true);
 
     if (par.maxSeqLen == Parameters::MAX_SEQ_LEN) {
         par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;
     }
 
-    std::vector<std::string> filenames;
-    for (int i = 0; i < argn; i++) {
-        std::string arg = argv[i];
-        if (arg[0] == '-') {
-            i++;
-            continue;
-        }
-        filenames.emplace_back(arg);
-    }
+    std::vector<std::string> filenames(par.filenames);
 
     std::string data_filename = filenames.back();
     filenames.pop_back();
-    std::string index_filename = (std::string(argv[argn-1])+".index");
+    std::string index_filename = data_filename + ".index";
 
     std::string data_filename_hdr(data_filename);
     data_filename_hdr.append("_h");

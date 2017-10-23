@@ -1,5 +1,4 @@
 #include "Parameters.h"
-#include <string>
 #include <cassert>
 #include <cascaded_clustering.sh.h>
 #include <clustering.sh.h>
@@ -105,26 +104,14 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
         int kmerSize = par.kmerSize;
         par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
-        int spacedKmer = par.spacedKmer;
-        par.spacedKmer = 1;
-        float covThr = par.covThr;
-        par.covThr = 0.8;
         int maskMode = par.maskMode;
         par.maskMode = 0;
-        float evalThr = par.evalThr;
-        par.evalThr = 0.001;
-        float seqIdThr = par.seqIdThr;
-        par.seqIdThr = 0.9;
         int alignmentMode = par.alignmentMode;
         par.alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
         cmd.addVariable("LINCLUST_PAR", par.createParameterString(par.linclustworkflow).c_str());
         par.alphabetSize = alphabetSize;
         par.kmerSize = kmerSize;
-        par.spacedKmer = spacedKmer;
-        par.covThr = covThr;
         par.maskMode = maskMode;
-        par.evalThr = evalThr;
-        par.seqIdThr = seqIdThr;
         par.alignmentMode = alignmentMode;
         // 1 is lowest sens
 //        par.clusteringMode = Parameters::GREEDY;

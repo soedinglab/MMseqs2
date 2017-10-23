@@ -1,10 +1,10 @@
 #ifndef PREFILTERINGINDEXREADER_H
 #define PREFILTERINGINDEXREADER_H
 
+#include "BaseMatrix.h"
 #include "IndexTable.h"
 #include "DBReader.h"
 #include <string>
-
 
 struct PrefilteringIndexData {
     int kmerSize;

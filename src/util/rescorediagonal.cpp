@@ -86,7 +86,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
             par.rescoreMode = Parameters::RESCORE_MODE_SUBSTITUTION;
         }
 
-        std::string libraryString = (par.covMode == 0)
+        std::string libraryString = (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL)
            ? std::string((const char*)CovSeqidQscPercMinDiag_out, CovSeqidQscPercMinDiag_out_len)
            : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_out, CovSeqidQscPercMinDiagTargetCov_out_len);
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
@@ -151,9 +151,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                             distance = DistanceCalculator::computeHammingDistance(querySeq + distanceToDiagonal,
                                                                                   targetSeq, diagonalLen);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION) {
-                            distance = DistanceCalculator::computeSubstituionDistance(querySeq + distanceToDiagonal,
-                                                                                      targetSeq,
-                                                                                      diagonalLen, fastMatrix.matrix, par.globalAlignment);
+                            distance = DistanceCalculator::computeSubstitutionDistance(querySeq + distanceToDiagonal,
+                                                                                       targetSeq,
+                                                                                       diagonalLen, fastMatrix.matrix,
+                                                                                       par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                             alignment = DistanceCalculator::computeSubstitutionStartEndDistance(
                                     querySeq + distanceToDiagonal,
@@ -168,9 +169,10 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                                                                   targetSeq + distanceToDiagonal,
                                                                                   diagonalLen);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
-                            distance = DistanceCalculator::computeSubstituionDistance(querySeq,
-                                                                                      targetSeq  + distanceToDiagonal,
-                                                                                      diagonalLen, fastMatrix.matrix, par.globalAlignment);
+                            distance = DistanceCalculator::computeSubstitutionDistance(querySeq,
+                                                                                       targetSeq + distanceToDiagonal,
+                                                                                       diagonalLen, fastMatrix.matrix,
+                                                                                       par.globalAlignment);
                         }else if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                             alignment = DistanceCalculator::computeSubstitutionStartEndDistance(querySeq,
                                                                                                 targetSeq +
@@ -232,7 +234,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     //float maxSeqLen = std::max(static_cast<float>(targetLen), static_cast<float>(queryLen));
                     float currScorePerCol = static_cast<float>(distance)/static_cast<float>(diagonalLen);
                     // query/target cov mode
-                    bool hasCov = (par.covMode == 0) ? (queryCov >= par.covThr && targetCov >= par.covThr) : (targetCov >= par.covThr);
+                    bool hasCov = Util::hasCoverage(par.covThr, par.covMode, queryCov, targetCov);
                     // --min-seq-id
                     bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
                     bool hasEvalue = (evalue <= par.evalThr);
