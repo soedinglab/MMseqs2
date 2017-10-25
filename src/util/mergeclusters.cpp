@@ -133,7 +133,7 @@ int mergeclusters(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 4, true, true);
 
     std::list<std::string> clusterings;
-    for(int i = 2; i < par.filenames.size(); i++){
+    for(size_t i = 2; i < par.filenames.size(); i++){
         clusterings.emplace_back(par.filenames[i]);
     }
     mergeClusteringResults(par.db1, par.db2, clusterings);
