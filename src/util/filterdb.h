@@ -18,6 +18,7 @@
 #define GET_FIRST_LINES 3
 #define NUMERIC_COMPARISON 4
 #define SORT_ENTRIES 5
+#define BEATS_FIRST 6
 
 #define GREATER_OR_EQUAL "ge"
 #define LOWER_OR_EQUAL "le"
@@ -51,7 +52,7 @@ private:
     bool positiveFiltering;
     int numberOfLines;
     int mode;
-    float compValue;
+	double compValue;
 	std::string compOperator;
     bool shouldAddSelfMatch;
 

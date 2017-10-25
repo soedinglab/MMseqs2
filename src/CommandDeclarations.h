@@ -49,6 +49,9 @@ extern int linclust(int argc, const char **argv, const Command& command);
 extern int result2repseq(int argc, const char **argv, const Command& command);
 extern int tsv2db(int argc, const char **argv, const Command& command);
 extern int assembler(int argc, const char **argv, const Command& command);
+extern int taxonomy(int argc, const char **argv, const Command& command);
+extern int lca(int argc, const char **argv, const Command& command);
+
 extern int shellcompletion(int argc, const char **argv, const Command& command);
 
 #endif

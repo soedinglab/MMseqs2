@@ -134,6 +134,7 @@ Parameters::Parameters():
         PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID, "--comparison-operator", "Numerical comparison operator", "Filter by comparing each entry row numerically by using the le) less-than-equal, ge) greater-than-equal or e) equal operator.", typeid(std::string), (void *) &compOperator, ""),
         PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID, "--comparison-value", "Numerical comparison value", "Filter by comparing each entry to this value.", typeid(float), (void *) &compValue, ""),
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0) no sorting, 1) increasing,  2) decreasing or 3) random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
+        PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
@@ -154,7 +155,9 @@ Parameters::Parameters():
         PARAM_EXTRACT_MODE(PARAM_EXTRACT_MODE_ID,"--extract-mode", "Extract mode", "Query 1, Target 2", typeid(int), (void *) &extractMode, "^[1-2]{1}$"),
         // convertkb
         PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "list of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
-        PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover Deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void*) &recoverDeleted, "")
+        PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover Deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void*) &recoverDeleted, ""),
+        PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA Ranks", "Ranks to return in LCA computation", typeid(std::string), (void*) &lcaRanks, ""),
+        PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA Mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2", typeid(int), (void*) &lcaMode, "^[0-2]{1}$")
 {
 
     // alignment
@@ -380,6 +383,7 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_FILTER_REGEX);
     filterDb.push_back(PARAM_FILTER_POS);
     filterDb.push_back(PARAM_FILTER_FILE);
+    filterDb.push_back(PARAM_BEATS_FIRST);
     filterDb.push_back(PARAM_MAPPING_FILE);
     filterDb.push_back(PARAM_THREADS);
     filterDb.push_back(PARAM_V);
@@ -487,8 +491,14 @@ Parameters::Parameters():
     extractalignedregion.push_back(PARAM_V);
 
     // convertkb
+    convertkb.push_back(PARAM_MAPPING_FILE);
     convertkb.push_back(PARAM_KB_COLUMNS);
     convertkb.push_back(PARAM_V);
+
+    // lca
+    lca.push_back(PARAM_LCA_RANKS);
+    lca.push_back(PARAM_V);
+    lca.push_back(PARAM_THREADS);
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
@@ -521,6 +531,12 @@ Parameters::Parameters():
     clusteringWorkflow.push_back(PARAM_REMOVE_TMP_FILES);
     clusteringWorkflow.push_back(PARAM_RUNNER);
     clusteringWorkflow = combineList(clusteringWorkflow, linclustworkflow);
+
+    // taxonomy
+    taxonomy = combineList(searchworkflow, lca);
+    taxonomy.push_back(PARAM_LCA_MODE);
+    taxonomy.push_back(PARAM_REMOVE_TMP_FILES);
+    taxonomy.push_back(PARAM_RUNNER);
 
 
     clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
@@ -1064,6 +1080,12 @@ void Parameters::setDefaults() {
 
     // createtsv
     firstSeqRepr = false;
+
+    // lca
+    lcaRanks = "";
+
+    // taxonomy
+    lcaMode = 2;
 }
 
 std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,

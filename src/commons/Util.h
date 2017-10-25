@@ -105,6 +105,22 @@ public:
 
     static std::vector<std::string> split(const std::string &str, const std::string &sep);
 
+    static std::string& implode(const std::vector<std::string> &splits, char sep, std::string& str) {
+        for (std::vector<std::string>::const_iterator it = splits.begin(); it != splits.end(); ++it) {
+            str += (*it);
+            if (it + 1 != splits.end()) {
+                str += sep;
+            }
+        }
+        return str;
+    }
+
+    static std::string implode(const std::vector<std::string> &splits, char sep) {
+        std::string str;
+        implode(splits, sep, str);
+        return str;
+    }
+
     static inline char * skipLine(char * data){
         while( *data !='\n' ) { data++; }
         return (data+1);
@@ -211,7 +227,11 @@ public:
 
     static std::map<std::string, size_t> readMapping(const char *fastaFile);
 
-    static std::map<unsigned int, std::string> readLookup(const std::string& fastaFile);
+    static std::map<unsigned int, std::string> readLookup(const std::string& lookupFile,
+                                                          const bool removeSplit = false);
+
+    static std::map<std::string, unsigned int> readLookupReverse(const std::string& lookupFile,
+                                                                 const bool removeSplit = false);
 
     static void checkAllocation(void *pointer, std::string message);
 

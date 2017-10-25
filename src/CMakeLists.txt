@@ -9,6 +9,7 @@ add_subdirectory(alignment)
 add_subdirectory(clustering)
 add_subdirectory(commons)
 add_subdirectory(prefiltering)
+add_subdirectory(taxonomy)
 add_subdirectory(util)
 add_subdirectory(workflow)
 
@@ -23,6 +24,8 @@ add_library(mmseqs-framework
         ${commons_source_files}
         ${prefiltering_header_files}
         ${prefiltering_source_files}
+        ${taxonomy_header_files}
+        ${taxonomy_source_files}
         ${util_header_files}
         ${util_source_files}
         ${workflow_source_files}
@@ -34,6 +37,7 @@ target_include_directories(mmseqs-framework PUBLIC prefiltering)
 target_include_directories(mmseqs-framework PUBLIC alignment)
 target_include_directories(mmseqs-framework PUBLIC clustering)
 target_include_directories(mmseqs-framework PUBLIC util)
+target_include_directories(mmseqs-framework PUBLIC taxonomy)
 target_include_directories(mmseqs-framework PUBLIC .)
 
 add_dependencies(mmseqs-framework generated)
@@ -147,6 +151,7 @@ if (NOT FRAMEWORK_ONLY)
     include(MMseqsSetupDerivedTarget)
     add_subdirectory(version)
     set(mmseqs_source_files
+            CommandDeclarations.h
             mmseqs.cpp
             )
 

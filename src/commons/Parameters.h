@@ -70,6 +70,10 @@ public:
     static const int QUERY_DB_SPLIT = 1;
     static const int DETECT_BEST_DB_SPLIT = 2;
 
+    static const int TAXONOMY_NO_LCA = 0;
+    static const int TAXONOMY_SINGLE_SEARCH = 1;
+    static const int TAXONOMY_2BLCA = 2;
+
     static std::string getSplitModeName(int splitMode) {
         switch (splitMode) {
             case 0: return "Target";
@@ -277,6 +281,7 @@ public:
     float compValue;
     std::string compOperator;
     int sortEntries;
+    bool beatsFirst;
 
     // mergedbs
     std::string mergePrefixes;
@@ -310,6 +315,12 @@ public:
 
     // summarize headers
     int headerType;
+
+    // lca
+    std::string lcaRanks;
+
+    // taxonomy
+    int lcaMode;
 
     static Parameters& getInstance()
     {
@@ -479,6 +490,7 @@ public:
     PARAMETER(PARAM_COMP_OPERATOR)
     PARAMETER(PARAM_COMP_VALUE)
     PARAMETER(PARAM_SORT_ENTRIES)
+    PARAMETER(PARAM_BEATS_FIRST)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
@@ -514,6 +526,12 @@ public:
 
     // clusterupdate
     PARAMETER(PARAM_RECOVER_DELETED)
+
+    // lca
+    PARAMETER(PARAM_LCA_RANKS)
+
+    // taxonomy
+    PARAMETER(PARAM_LCA_MODE)
 
     std::vector<MMseqsParameter> empty;
     std::vector<MMseqsParameter> rescorediagonal;
@@ -560,6 +578,8 @@ public:
     std::vector<MMseqsParameter> extractalignedregion;
     std::vector<MMseqsParameter> convertkb;
     std::vector<MMseqsParameter> tsv2db;
+    std::vector<MMseqsParameter> lca;
+    std::vector<MMseqsParameter> taxonomy;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);
