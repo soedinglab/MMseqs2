@@ -23,9 +23,11 @@ int createtsv(int argc, const char **argv, const Command &command) {
     qHeader.open(DBReader<unsigned int>::NOSORT);
     qHeader.readMmapedDataInMemory();
 
+    bool sameDatabase = false;
     DBReader<unsigned int> *tHeader = NULL;
     if (hasTargetDB) {
         if (query == target) {
+            sameDatabase = true;
             tHeader = &qHeader;
         } else {
             Debug(Debug::INFO) << "Target file is " << target << "\n";
@@ -85,7 +87,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Done.\n";
 
     fclose(file);
-    if (tHeader != NULL) {
+    if (sameDatabase == false && tHeader != NULL) {
         tHeader->close();
         delete tHeader;
     }
