@@ -72,7 +72,7 @@ if [[ -n "${SEARCH2_PAR}" ]]; then
     # We can use filterdb --beats-first to filter out all entries from second search that
     # do not reach the evalue of the top 1 hit
     if [[ ! -e "${TMP_PATH}/merged" ]]; then
-        MMSEQS mergedbs "${TMP_PATH}/top1" "${TMP_PATH}/merged" "${TMP_PATH}/top1" "${TMP_PATH}/round2" \
+        $MMSEQS mergedbs "${TMP_PATH}/top1" "${TMP_PATH}/merged" "${TMP_PATH}/top1" "${TMP_PATH}/round2" \
             || fail "Mergedbs died"
     fi
 
