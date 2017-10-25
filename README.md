@@ -107,10 +107,10 @@ You need to create a temporary directory in which MMseqs2 will store intermediat
 
 It is recommend to create this tmp on a local drive to reduce load on the NFS.
 
-The `mmseqs search` searches the `queryDB` against the `targetDB`. The sensitivity can be adjusted with `-s` and should be adapted based on your use case. If you want to use alignment backtraces in later steps add the option `-a`.  An iterative profile search (like PSI-BLAST) can be trigged with `--num-iterations`.
+The `mmseqs search` searches the `queryDB` against the `targetDB`. The sensitivity can be adjusted with `-s` and should be adapted based on your use case (see [Set sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). If you want to use alignment backtraces in later steps add the option `-a`.  An iterative profile search (like PSI-BLAST) can be trigged with `--num-iterations`.
 
 Please ensure that in case of large input databases tmp provides enough free space.
-For the disc space requirements, see the user guide.
+For the [disc space requirements](https://github.com/soedinglab/mmseqs2/wiki#prefiltering-module), see the user guide.
 To run the search type:
 
         mmseqs search queryDB targetDB resultDB tmp
