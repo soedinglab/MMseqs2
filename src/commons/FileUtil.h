@@ -16,6 +16,8 @@ public:
 
     static size_t countLines(const char* name);
 
+    static bool makeDir(const char *dirName, const int mode = 0700);
+
     static void deleteTempFiles(std::list<std::string> tmpFiles);
 
     static void deleteFile(std::string tmpFiles);
