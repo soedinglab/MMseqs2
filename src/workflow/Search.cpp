@@ -53,14 +53,7 @@ int search(int argc, const char **argv, const Command& command) {
             Debug(Debug::WARNING) << "Created dir " << par.db4 << "\n";
         }
     }
-    std::string hashString;
-    hashString.reserve(1024);
-    for(size_t i = 0; i < par.filenames.size(); i++){
-        hashString.append(par.filenames[i]);
-        hashString.append(" ");
-    }
-    hashString.append(par.createParameterString(par.searchworkflow));
-    size_t hash = Util::hash(hashString.c_str(), hashString.size());
+    size_t hash = par.hashParameter(par.filenames, par.searchworkflow);
     std::string tmpDir = par.db4+"/"+SSTR(hash);
     if(FileUtil::directoryExists(tmpDir.c_str())==false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
@@ -70,6 +63,11 @@ int search(int argc, const char **argv, const Command& command) {
     }
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
+    if(FileUtil::symlinkCreateOrRepleace(par.db4+"/latest", tmpDir) == false){
+        Debug(Debug::WARNING) << "Could not link latest folder in tmp." << tmpDir << ".\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     CommandCaller cmd;
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");

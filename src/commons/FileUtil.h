@@ -31,6 +31,10 @@ public:
     static void symlinkAlias(const std::string &file, const std::string &alias);
 
     static size_t getFileSize(std::string fileName);
+
+    static bool symlinkCreateOrRepleace(const std::string linkname, const std::string linkdest);
+
+    static bool symlinkExists(std::string path);
 };
 
 

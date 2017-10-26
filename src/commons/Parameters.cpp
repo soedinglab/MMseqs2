@@ -1110,6 +1110,17 @@ std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter
     return retVec;
 }
 
+size_t Parameters::hashParameter(std::vector<std::string> & filenames, std::vector<MMseqsParameter> &par){
+    std::string hashString;
+    hashString.reserve(1024);
+    for(size_t i = 0; i < filenames.size(); i++){
+        hashString.append(filenames[i]);
+        hashString.append(" ");
+    }
+    hashString.append(createParameterString(par));
+    return Util::hash(hashString.c_str(), hashString.size());
+}
+
 std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par) {
     std::stringstream ss;
     for (size_t i = 0; i < par.size(); i++) {

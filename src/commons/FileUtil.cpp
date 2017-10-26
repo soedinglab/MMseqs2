@@ -146,3 +146,26 @@ size_t FileUtil::getFileSize(std::string fileName) {
     int rc = stat(fileName.c_str(), &stat_buf);
     return rc == 0 ? stat_buf.st_size : -1;
 }
+
+
+bool FileUtil::symlinkExists(const std::string  path)
+{
+    struct stat buf;
+    int result;
+
+    result = lstat(path.c_str(), &buf);
+
+    return (result == 0);
+}
+
+bool FileUtil::symlinkCreateOrRepleace(const std::string linkname, const std::string linkdest) {
+    if(symlinkExists(linkname)==true){
+        if(remove(linkname.c_str()) != 0){
+            return false;
+        }
+    }
+    char *abs_in_header_filename = realpath(linkdest.c_str(), NULL);
+    symlink(abs_in_header_filename, linkname.c_str());
+    free(abs_in_header_filename);
+    return true;
+}

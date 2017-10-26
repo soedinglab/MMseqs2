@@ -584,6 +584,8 @@ public:
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);
 
+    size_t hashParameter(std::vector<std::string> & filenames, std::vector<MMseqsParameter> &par);
+
     std::string createParameterString(std::vector<MMseqsParameter> &vector);
 
     void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
