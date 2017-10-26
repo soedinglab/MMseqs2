@@ -45,7 +45,7 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     scriptPath.append("/update_clustering.sh");
     FileUtil::writeFile(scriptPath, update_clustering_sh, update_clustering_sh_len);
 
-	cmd.execProgram(scriptPath.c_str(), 6, argv);
+	cmd.execProgram(scriptPath.c_str(), par.filenames);
 
     // Should never get here
     assert(false);

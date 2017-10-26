@@ -44,14 +44,14 @@ int CommandCaller::callProgram(const char* program, size_t argc, const char **ar
     return 0;
 }
 
-void CommandCaller::execProgram(const char* program, size_t argc, const char **argv) {
+void CommandCaller::execProgram(const char* program, const std::vector<std::string> &argv) {
     // hack: our argv string does not contain a program name anymore, readd it
-    const char **pArgv = new const char*[argc + 2];
+    const char **pArgv = new const char*[argv.size() + 2];
     pArgv[0] = program;
-    for (size_t i = 0; i < argc; ++i) {
-        pArgv[i + 1] = argv[i];
+    for (size_t i = 0; i < argv.size(); ++i) {
+        pArgv[i + 1] = argv[i].c_str();
     }
-    pArgv[argc + 1] = NULL;
+    pArgv[argv.size() + 1] = NULL;
 
     int res = execvp(program, (char * const *) pArgv);
 

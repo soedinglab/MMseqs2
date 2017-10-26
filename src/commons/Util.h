@@ -259,6 +259,19 @@ public:
         return  (kmersPerSize >= 0) ? kmersPerSize + 1 :  0;
     }
 
+
+    template <typename T>
+    static size_t hash(T * x, size_t length){
+        const size_t INITIAL_VALUE = 0;
+        const size_t A = 31;
+        size_t h = INITIAL_VALUE;
+        for (size_t i = 0; i < length; ++i){
+            h = ((h*A) + x[i]);
+        }
+        return h;
+    }
+
+
     static int omp_thread_count();
 
     static std::string removeWhiteSpace(std::string in);

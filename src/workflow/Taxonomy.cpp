@@ -62,8 +62,8 @@ int taxonomy(int argc, const char **argv, const Command& command) {
         cmd.addVariable("LCA_PAR", par.createParameterString(par.lca).c_str());
     }
 
-    FileUtil::writeFile(par.db6 + "/taxonomy.sh", taxonomy_sh, taxonomy_sh_len);
-    std::string program(par.db6 + "/taxonomy.sh");
+    FileUtil::writeFile(tmpDir + "/taxonomy.sh", taxonomy_sh, taxonomy_sh_len);
+    std::string program(tmpDir + "/taxonomy.sh");
     cmd.execProgram(program.c_str(), par.filenames);
 
     return EXIT_SUCCESS;

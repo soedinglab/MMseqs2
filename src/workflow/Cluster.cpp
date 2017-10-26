@@ -85,7 +85,23 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         Debug(Debug::WARNING) << "Set cluster settings automatic to s=" << par.sensitivity << " cascaded=" <<
         par.cascaded << "\n";
     }
-
+    std::string hashString;
+    hashString.reserve(1024);
+    for(size_t i = 0; i < par.filenames.size(); i++){
+        hashString.append(par.filenames[i]);
+        hashString.append(" ");
+    }
+    hashString.append(par.createParameterString(par.clusteringWorkflow));
+    size_t hash = Util::hash(hashString.c_str(), hashString.size());
+    std::string tmpDir = par.db3+"/"+SSTR(hash);
+    if(FileUtil::directoryExists(tmpDir.c_str())==false) {
+        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
+            Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    par.filenames.pop_back();
+    par.filenames.push_back(tmpDir);
 //    FileUtil::errorIfFileExist(par.db2.c_str());
 //    FileUtil::errorIfFileExist(par.db2Index.c_str());
 
@@ -156,9 +172,9 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         cmd.addVariable("PREFILTER3_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT3_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("CLUSTER3_PAR", par.createParameterString(par.clust).c_str());
-        FileUtil::writeFile(par.db3 + "/cascaded_clustering.sh", cascaded_clustering_sh, cascaded_clustering_sh_len);
-        std::string program(par.db3 + "/cascaded_clustering.sh");
-        cmd.execProgram(program.c_str(), 3, argv);
+        FileUtil::writeFile(tmpDir + "/cascaded_clustering.sh", cascaded_clustering_sh, cascaded_clustering_sh_len);
+        std::string program(tmpDir + "/cascaded_clustering.sh");
+        cmd.execProgram(program.c_str(), par.filenames);
     } else {
         // same as above, clusthash needs a smaller alphabetsize
         size_t alphabetSize = par.alphabetSize;
@@ -171,9 +187,9 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
-        FileUtil::writeFile(par.db3 + "/clustering.sh", clustering_sh, clustering_sh_len);
-        std::string program(par.db3 + "/clustering.sh");
-        cmd.execProgram(program.c_str(), 3, argv);
+        FileUtil::writeFile(tmpDir + "/clustering.sh", clustering_sh, clustering_sh_len);
+        std::string program(tmpDir+ "/clustering.sh");
+        cmd.execProgram(program.c_str(), par.filenames);
     }
 
     // Unreachable

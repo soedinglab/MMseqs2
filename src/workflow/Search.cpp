@@ -53,8 +53,24 @@ int search(int argc, const char **argv, const Command& command) {
             Debug(Debug::WARNING) << "Created dir " << par.db4 << "\n";
         }
     }
+    std::string hashString;
+    hashString.reserve(1024);
+    for(size_t i = 0; i < par.filenames.size(); i++){
+        hashString.append(par.filenames[i]);
+        hashString.append(" ");
+    }
+    hashString.append(par.createParameterString(par.searchworkflow));
+    size_t hash = Util::hash(hashString.c_str(), hashString.size());
+    std::string tmpDir = par.db4+"/"+SSTR(hash);
+    if(FileUtil::directoryExists(tmpDir.c_str())==false) {
+        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
+            Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    par.filenames.pop_back();
+    par.filenames.push_back(tmpDir);
     CommandCaller cmd;
-
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
@@ -67,9 +83,9 @@ int search(int argc, const char **argv, const Command& command) {
         par.queryProfile = true;
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
-        FileUtil::writeFile(par.db4 + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
-        std::string program(par.db4 + "/searchtargetprofile.sh");
-        cmd.execProgram(program.c_str(), 4, argv);
+        FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
+        std::string program(tmpDir + "/searchtargetprofile.sh");
+        cmd.execProgram(program.c_str(), par.filenames);
     } else if (par.numIterations > 1) {
         for (size_t i = 0; i < par.searchworkflow.size(); i++) {
             if (par.searchworkflow[i].uniqid == par.PARAM_E_PROFILE.uniqid && par.searchworkflow[i].wasSet== false) {
@@ -101,9 +117,9 @@ int search(int argc, const char **argv, const Command& command) {
             cmd.addVariable(std::string("PROFILE_PAR_" + SSTR(i)).c_str(),   par.createParameterString(par.result2profile).c_str());
         }
 
-        FileUtil::writeFile(par.db4 + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
-        std::string program(par.db4 + "/blastpgp.sh");
-        cmd.execProgram(program.c_str(), 4, argv);
+        FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
+        std::string program(tmpDir + "/blastpgp.sh");
+        cmd.execProgram(program.c_str(), par.filenames);
     } else {
         if(par.sensSteps > 1){
             if (par.startSens > par.sensitivity) {
@@ -138,9 +154,9 @@ int search(int argc, const char **argv, const Command& command) {
         }
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
-        FileUtil::writeFile(par.db4 + "/blastp.sh", blastp_sh, blastp_sh_len);
-        std::string program(par.db4 + "/blastp.sh");
-        cmd.execProgram(program.c_str(), 4, argv);
+        FileUtil::writeFile(tmpDir + "/blastp.sh", blastp_sh, blastp_sh_len);
+        std::string program(tmpDir + "/blastp.sh");
+        cmd.execProgram(program.c_str(), par.filenames);
     }
 
     // Should never get here
