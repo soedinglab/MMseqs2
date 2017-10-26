@@ -39,8 +39,13 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     setWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, 3);
     if(FileUtil::directoryExists(par.db3.c_str())==false){
-        Debug(Debug::ERROR) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
-        EXIT(EXIT_FAILURE);
+        Debug(Debug::WARNING) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
+        if(FileUtil::makeDir(par.db3.c_str()) == false){
+            Debug(Debug::WARNING) << "Could not crate tmp folder " << par.db3 << ".\n";
+            EXIT(EXIT_FAILURE);
+        }else{
+            Debug(Debug::WARNING) << "Created dir " << par.db3 << "\n";
+        }
     }
     bool parameterSet = false;
     bool compositionBiasSet = false;

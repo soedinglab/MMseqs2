@@ -186,8 +186,8 @@ public:
 
     // SEARCH WORKFLOW
     int numIterations;
-    int startSens;
-    int sensStepSize;
+    float startSens;
+    int sensSteps;
 
     //CLUSTERING
     int maxIteration;                   // Maximum depth of breadth first search in connected component
@@ -445,7 +445,7 @@ public:
     // search workflow
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
-    PARAMETER(PARAM_SENS_STEP_SIZE)
+    PARAMETER(PARAM_SENS_STEPS)
 
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)

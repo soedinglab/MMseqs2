@@ -21,6 +21,14 @@ bool FileUtil::directoryExists(const char* directoryName) {
     return stat(directoryName, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
+bool FileUtil::makeDir(const char* directoryName, const int mode ) {
+    if(mkdir(directoryName, mode) == 0){
+        return true;
+    }else{
+        return false;
+    }
+}
+
 FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool shouldExist) {
     bool exists = FileUtil::fileExists(fileName);
     if(exists && !shouldExist) {
