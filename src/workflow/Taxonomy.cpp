@@ -13,11 +13,32 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     setTaxonomyWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, 6);
 
-    if(FileUtil::directoryExists(par.db6.c_str()) == false){
-        Debug(Debug::ERROR) << "Temporary folder " << par.db6 << " does not exist or is not a directory!\n";
-        EXIT(EXIT_FAILURE);
+    if(FileUtil::directoryExists(par.db6.c_str())==false){
+        Debug(Debug::WARNING) << "Tmp " << par.db6 << " folder does not exist or is not a directory.\n";
+        if(FileUtil::makeDir(par.db6.c_str()) == false){
+            Debug(Debug::WARNING) << "Could not crate tmp folder " << par.db6 << ".\n";
+            EXIT(EXIT_FAILURE);
+        }else{
+            Debug(Debug::WARNING) << "Created dir " << par.db6 << "\n";
+        }
     }
-
+    std::string hashString;
+    hashString.reserve(1024);
+    for(size_t i = 0; i < par.filenames.size(); i++){
+        hashString.append(par.filenames[i]);
+        hashString.append(" ");
+    }
+    hashString.append(par.createParameterString(par.clusteringWorkflow));
+    size_t hash = Util::hash(hashString.c_str(), hashString.size());
+    std::string tmpDir = par.db6+"/"+SSTR(hash);
+    if(FileUtil::directoryExists(tmpDir.c_str())==false) {
+        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
+            Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    par.filenames.pop_back();
+    par.filenames.push_back(tmpDir);
     CommandCaller cmd;
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
@@ -43,7 +64,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
 
     FileUtil::writeFile(par.db6 + "/taxonomy.sh", taxonomy_sh, taxonomy_sh_len);
     std::string program(par.db6 + "/taxonomy.sh");
-    cmd.execProgram(program.c_str(), 6, argv);
+    cmd.execProgram(program.c_str(), par.filenames);
 
     return EXIT_SUCCESS;
 }
