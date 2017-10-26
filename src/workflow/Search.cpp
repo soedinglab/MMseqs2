@@ -4,6 +4,7 @@
 #include <searchtargetprofile.sh.h>
 #include <blastpgp.sh.h>
 #include <blastp.sh.h>
+#include <iomanip>
 #include "CommandCaller.h"
 #include "Util.h"
 #include "Debug.h"
@@ -104,21 +105,29 @@ int search(int argc, const char **argv, const Command& command) {
         std::string program(par.db4 + "/blastpgp.sh");
         cmd.execProgram(program.c_str(), 4, argv);
     } else {
-        bool startSens  = false;
-        for (size_t i = 0; i < par.searchworkflow.size(); i++) {
-            if (par.searchworkflow[i].uniqid == par.PARAM_START_SENS.uniqid && par.searchworkflow[i].wasSet) {
-                startSens = true;
+        if(par.sensSteps > 1){
+            if (par.startSens > par.sensitivity) {
+                Debug(Debug::ERROR) << "--start-sens should not be greater -s.\n";
+                EXIT(EXIT_FAILURE);
             }
-        }
-
-        if(startSens){
-            cmd.addVariable("START_SENS", SSTR(par.startSens).c_str());
-            cmd.addVariable("TARGET_SENS", SSTR((int)par.sensitivity).c_str());
-            cmd.addVariable("SENS_STEP_SIZE", SSTR(par.sensStepSize).c_str());
+            cmd.addVariable("SENSE_0", SSTR(par.startSens).c_str());
+            float sensStepSize = (par.sensitivity - par.startSens)/ (static_cast<float>(par.sensSteps)-1);
+            for(size_t step = 1; step < par.sensSteps; step++){
+                std::string stepKey = "SENSE_" + SSTR(step);
+                float stepSense =  par.startSens + sensStepSize * step;
+                std::stringstream stream;
+                stream << std::fixed << std::setprecision(1) << stepSense;
+                std::string value = stream.str();
+                cmd.addVariable(stepKey.c_str(), value.c_str());
+            }
+            cmd.addVariable("STEPS", SSTR((int)par.sensSteps).c_str());
         } else {
-            cmd.addVariable("START_SENS", SSTR((int)par.sensitivity).c_str());
-            cmd.addVariable("TARGET_SENS", SSTR((int)par.sensitivity).c_str());
-            cmd.addVariable("SENS_STEP_SIZE", SSTR(1).c_str());
+            std::stringstream stream;
+            stream << std::fixed << std::setprecision(1) << par.sensitivity;
+            std::string sens = stream.str();
+            cmd.addVariable("SENSE_0", sens.c_str());
+            cmd.addVariable("STEPS", SSTR(1).c_str());
+            //cmd.addVariable("SENS_STEP_SIZE", SSTR(1).c_str());
         }
 
         std::vector<MMseqsParameter> prefilterWithoutS;
