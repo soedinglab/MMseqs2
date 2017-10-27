@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 # Iterative sequence search workflow script
 fail() {
     echo "Error: $1"

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Assembler workflow script
 checkReturnCode () { 
 	[ $? -ne 0 ] && echo "$1" && exit 1;
