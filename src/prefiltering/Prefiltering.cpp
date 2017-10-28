@@ -485,10 +485,9 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
     size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
     size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
     if (freeSpace < estimatedHDDMemory){
-        Debug(Debug::ERROR) << "Hard disk has not enough space (" << freeSpace << " bytes left) "
-                            << "to store " << estimatedHDDMemory << " bytes of results.\n"
-                            << "Please free disk space and start MMseqs again.\n";
-        EXIT(EXIT_FAILURE);
+        Debug(Debug::WARNING) << "Warning: Hard disk might not have enough free space (" << freeSpace << " bytes left)."
+                            << "The prefilter result might need maximal " << estimatedHDDMemory << " bytes.\n";
+//        EXIT(EXIT_FAILURE);
     }
 
     size_t dbSize = 0;
