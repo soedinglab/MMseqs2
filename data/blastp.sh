@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 # Sequence search workflow script
 fail() {
     echo "Error: $1"
@@ -69,7 +69,7 @@ while [ $STEP -lt $STEPS ]; do
                 || fail "Awk step $SENS died"
         fi
 
-        if [[ ! -s "$TMP_PATH/order_step$SENS" ]]; then break; fi
+        if [ ! -s "$TMP_PATH/order_step$SENS" ]; then break; fi
 
         if notExists "$NEXTINPUT"; then
             $MMSEQS createsubdb "$TMP_PATH/order_step$SENS" "$INPUT" "$NEXTINPUT" \
