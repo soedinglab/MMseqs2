@@ -42,7 +42,7 @@ target_include_directories(mmseqs-framework PUBLIC .)
 
 add_dependencies(mmseqs-framework generated)
 
-if (CMAKE_BUILD_TYPE MATCHES RELEASE)
+if (CMAKE_BUILD_TYPE MATCHES RELEASE OR CMAKE_BUILD_TYPE MATCHES RELWITHDEBINFO)
     if (CMAKE_COMPILER_IS_ICC)
         append_target_property(mmseqs-framework COMPILE_FLAGS -ipo -no-prec-div -xHost)
         append_target_property(mmseqs-framework LINK_FLAGS -ipo -no-prec-div -xHost)
