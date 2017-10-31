@@ -28,6 +28,17 @@
 struct __attribute__((__packed__)) IndexEntryLocal {
     unsigned int seqId;
     unsigned short position_j;
+    static bool comapreByIdAndPos(IndexEntryLocal first, IndexEntryLocal second){
+        if(first.seqId < second.seqId )
+            return true;
+        if(second.seqId < first.seqId )
+            return false;
+        if(first.position_j < second.position_j )
+            return true;
+        if(second.position_j < first.position_j )
+            return false;
+        return false;
+    }
 };
 
 struct __attribute__((__packed__)) IndexEntryLocalTmp {

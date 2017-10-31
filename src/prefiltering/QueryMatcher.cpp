@@ -172,9 +172,9 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
     }
     if(queryResult.second > 1){
         if (identityId != UINT_MAX){
-            std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByPValue);
+            std::sort(resList + 1, resList + queryResult.second, hit_t::compareHitsByPValueAndId);
         } else{
-            std::sort(resList, resList + queryResult.second, hit_t::compareHitsByPValue);
+            std::sort(resList, resList + queryResult.second, hit_t::compareHitsByPValueAndId);
         }
     }
     return queryResult;
@@ -209,7 +209,6 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
         // adjust kmer threshold based on composition bias
         kmerGenerator->setThreshold(kmerMatchScore);
 
-
         const unsigned int * index;
         unsigned int exactKmer;
         size_t kmerElementSize;
@@ -226,25 +225,26 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
         indexPointer[current_i] = sequenceHits;
         // match the index table
 
-//        idx.printKmer(kmerList.index[0], kmerSize, m->int2aa);
-//        std::cout  << "\t" << kmerMatchScore << std::endl;
+        //idx.printKmer(kmerList.index[0], kmerSize, m->int2aa);
+        //std::cout  << "\t" << kmerMatchScore << std::endl;
         kmerListLen += kmerElementSize;
 
         for (unsigned int kmerPos = 0; kmerPos < kmerElementSize; kmerPos++) {
             // generate k-mer list
-//                        idx.printKmer(kmerList.index[kmerPos], kmerSize, m->int2aa);
-//                        std::cout << std::endl;
+                        //idx.printKmer(kmerList.index[kmerPos], kmerSize, m->int2aa);
+                        //std::cout << std::endl;
 
             const IndexEntryLocal *entries = indexTable->getDBSeqList(index[kmerPos], &seqListSize);
 
             /////DEBUG
-//            idx.printKmer(kmerList.index[kmerPos], kmerSize, m->int2aa);
-//            std::cout << "\t" << current_i << "\t"<< kmerList.index[kmerPos] << "\t" << kmerList.score[kmerPos] << std::endl;
-//            for(size_t i = 0; i < seqListSize; i++){
-//                char diag = entries[i].position_j - current_i;
-//                std::cout << "(" << entries[i].seqId << " " << (int) diag << ")\t";
-//            }
-//            std::cout << std::endl;
+            /*idx.printKmer(index[kmerPos], kmerSize, m->int2aa);
+            std::cout << "\t" << current_i << "\t"<< index[kmerPos] << std::endl;
+            for(size_t i = 0; i < seqListSize; i++){
+                char diag = entries[i].position_j - current_i;
+                std::cout << "(" << entries[i].seqId << " " << (int) diag << ")\t";
+            }
+            std::cout << std::endl;
+            */
             /////DEBUG
             // detected overflow while matching
             if ((sequenceHits + seqListSize) >= lastSequenceHit) {
@@ -345,7 +345,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
         bool aboveThreshold = scoreCurr >= thr;
         bool isNotQueryId = id != seqIdCurr;
         // write result to list
-//        std::cout << i << "\t" << results[i].id << "\t" << results[i].count << "\t" << results[i].diagonal << std::endl;
+        //std::cout << i << "\t" << results[i].id << "\t" << (int)results[i].count << "\t" << results[i].diagonal << std::endl;
         if(aboveThreshold && isNotQueryId){
             hit_t *result = (resList + elementCounter);
             result->seqId = seqIdCurr;

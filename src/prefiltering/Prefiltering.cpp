@@ -328,7 +328,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
             char *data = dbr.getData(id);
             std::vector<hit_t> hits = QueryMatcher::parsePrefilterHits(data);
             if (hits.size() > 1) {
-                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByPValue);
+                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByPValueAndId);
             }
             for(size_t hit_id = 0; hit_id < hits.size(); hit_id++){
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[hit_id]);
