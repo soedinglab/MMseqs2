@@ -135,7 +135,7 @@ std::vector<struct Command> commands = {
                 "Finds exact $k$-mers matches between sequences",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> ",
-                "<i:sequenceDB> <tmpDir>",
+                "<i:sequenceDB> <o:prefDB>",
                 CITATION_MMSEQS2},
         {"clusthash",            clusthash,            &par.clusthash,            COMMAND_EXPERT,
                 "Cluster sequences of same length and >90% sequence identity *in linear time*",
