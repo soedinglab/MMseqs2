@@ -105,7 +105,7 @@ std::vector<std::string> splitByDelimiter(const std::string &s, const std::strin
 }
 
 void NcbiTaxonomy::loadNodes(const std::string &nodesFile) {
-    std::fstream ss(nodesFile);
+    std::ifstream ss(nodesFile);
     if (ss.fail()) {
         Debug(Debug::ERROR) << "File " << nodesFile << " not found!\n";
         EXIT(EXIT_FAILURE);
@@ -199,7 +199,7 @@ std::pair<int, std::string> parseName(const std::string &line) {
 }
 
 void NcbiTaxonomy::loadNames(const std::string &namesFile) {
-    std::fstream ss(namesFile);
+    std::ifstream ss(namesFile);
     if (ss.fail()) {
         Debug(Debug::ERROR) << "File " << namesFile << " not found!\n";
         EXIT(EXIT_FAILURE);
