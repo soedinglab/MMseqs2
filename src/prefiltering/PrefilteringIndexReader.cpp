@@ -572,6 +572,12 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             delete generator;
         }
     }
+#pragma omp parallel for
+    for (size_t i = 0; i < indexTable->getTableSize(); i++) {
+        size_t entrySize;
+        IndexEntryLocal * entries = indexTable->getDBSeqList(i, &entrySize);
+        std::sort(entries, entries + entrySize, IndexEntryLocal::comapreByIdAndPos);
+    }
     if (diagonalScoring == false) {
         delete sequenceLookup;
     }
