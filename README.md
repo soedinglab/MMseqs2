@@ -145,6 +145,13 @@ To generate a FASTA-style formatted output file from the ffindex output file, ty
 To generate a TSV-style formatted output file from the ffindex output file, type:
 
         mmseqs createtsv DB DB clu clu.tsv
+        
+To extract the representative sequences from the clustering result call:    
+    
+        mmseqs result2repseq DB DB_clu DB_clu_rep
+        mmseqs result2flat DB DB DB_clu_rep DB_clu_rep.fasta  --use-fasta-header
+
+Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format).
 
 ### Memory Requirements
 When using MMseqs the available memory limits the size of database you will be able to compute. 

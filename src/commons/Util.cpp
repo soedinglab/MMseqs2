@@ -369,7 +369,7 @@ const float     aasd100[20] =
 std::map<unsigned int, std::string> Util::readLookup(const std::string& file, const bool removeSplit) {
     std::map<unsigned int, std::string> mapping;
     if (file.length() > 0) {
-        std::fstream mappingStream(file);
+        std::ifstream mappingStream(file);
         if (mappingStream.fail()) {
             Debug(Debug::ERROR) << "File " << file << " not found!\n";
             EXIT(EXIT_FAILURE);
@@ -397,7 +397,7 @@ std::map<unsigned int, std::string> Util::readLookup(const std::string& file, co
 std::map<std::string, unsigned int> Util::readLookupReverse(const std::string& file, const bool removeSplit) {
     std::map<std::string, unsigned int> mapping;
     if (file.length() > 0) {
-        std::fstream mappingStream(file);
+        std::ifstream mappingStream(file);
         if (mappingStream.fail()) {
             Debug(Debug::ERROR) << "File " << file << " not found!\n";
             EXIT(EXIT_FAILURE);
