@@ -11,7 +11,7 @@ template<unsigned int BINSIZE> CacheFriendlyOperations<BINSIZE>::CacheFriendlyOp
     duplicateBitArraySize = size;
     duplicateBitArray = new(std::nothrow) unsigned char[size];
     Util::checkAllocation(duplicateBitArray, "Could not allocate duplicateBitArray memory in CacheFriendlyOperations");
-    memset(duplicateBitArray, 255, duplicateBitArraySize * sizeof(unsigned char));
+    memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
     // find nearest upper power of 2^(x)
     initBinSize = pow(2, ceil(log(initBinSize)/log(2)));
     binSize = initBinSize;
@@ -227,10 +227,10 @@ template<unsigned int BINSIZE> size_t CacheFriendlyOperations<BINSIZE>::findDupl
         if(currBinSize < duplicateBitArraySize/16){
             for (size_t n = 0; n < currBinSize; n++) {
                 const unsigned int byteArrayPos = binStartPos[n].id >> (MASK_0_5_BIT);
-                duplicateBitArray[byteArrayPos] = 255;
+                duplicateBitArray[byteArrayPos] = 0;
             }
         }else{
-            memset(duplicateBitArray, 255, duplicateBitArraySize * sizeof(unsigned char));
+            memset(duplicateBitArray, 0, duplicateBitArraySize * sizeof(unsigned char));
         }
     }
     return doubleElementCount;
