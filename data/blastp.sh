@@ -47,6 +47,7 @@ while [ $STEP -lt $STEPS ]; do
         $RUNNER $MMSEQS prefilter "$INPUT" "$TARGET_DB_PREF" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS \
             || fail "Prefilter died"
     fi
+
     # call alignment module
     if notExists "$TMP_PATH/aln_$SENS"; then
         $RUNNER $MMSEQS align "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  \
@@ -55,10 +56,13 @@ while [ $STEP -lt $STEPS ]; do
 
     # only merge results after first step
     if [ $STEP -gt 0 ]; then
-        $MMSEQS mergedbs "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}" "$TMP_PATH/aln_$SENS" \
-            || fail "Alignment died"
-        mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}"
-        mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_${SENSE_0}.index"
+        if notExists "$TMP_PATH/aln_${SENS}.hasmerge"; then
+            $MMSEQS mergedbs "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}" "$TMP_PATH/aln_$SENS" \
+                || fail "Alignment died"
+            mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}"
+            mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_${SENSE_0}.index"
+            touch "$TMP_PATH/aln_${SENS}.hasmerge"
+        fi
     fi
 
     NEXTINPUT="$TMP_PATH/input_step$SENS"
