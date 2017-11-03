@@ -13,7 +13,6 @@ notExists () {
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && exit 1;
 
-export OMP_PROC_BIND=TRUE
 
 INPUT="$1"
 STEP=0

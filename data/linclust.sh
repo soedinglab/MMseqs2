@@ -13,8 +13,6 @@ notExists () {
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p "$3";
 
-export OMP_PROC_BIND=TRUE
-
 INPUT="$1"
 # 1. Finding exact $k$-mer matches.
 notExists "$3/pref"          && $MMSEQS kmermatcher "$INPUT" "$3/pref" ${KMERMATCHER_PAR}                    && checkReturnCode "Kmer matching step died"

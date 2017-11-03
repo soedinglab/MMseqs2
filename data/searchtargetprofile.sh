@@ -36,8 +36,6 @@ RESULTS="$(abspath "$3")"
 TMP_PATH="$(abspath "$4")"
 
 # call prefilter module
-export OMP_PROC_BIND=TRUE
-
 if notExists "${TMP_PATH}/pref"; then
     $RUNNER $MMSEQS prefilter   "${INPUT}" "${TARGET_DB_PREF}" "${TMP_PATH}/pref" ${PREFILTER_PAR} \
         || fail "Prefilter died"

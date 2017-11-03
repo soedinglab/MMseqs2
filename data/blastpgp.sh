@@ -34,8 +34,6 @@ abspath() {
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
-export OMP_PROC_BIND=TRUE
-
 QUERYDB="$(abspath $1)"
 TMP_PATH="$(abspath $4)"
 

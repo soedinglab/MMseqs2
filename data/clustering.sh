@@ -30,8 +30,6 @@ abspath() {
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p "$3";
 
-export OMP_PROC_BIND=TRUE
-
 # processing
 
 INPUT="$(abspath $1)"
