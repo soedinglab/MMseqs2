@@ -22,12 +22,22 @@ int lca(int argc, const char **argv, const Command& command) {
 
     std::string nodesFile = par.db2 + "/nodes.dmp";
     std::string namesFile = par.db2 + "/names.dmp";
-    if (FileUtil::fileExists(nodesFile.c_str()) && FileUtil::fileExists(namesFile.c_str())) {
-    } else if (FileUtil::fileExists("nodes.dmp") && FileUtil::fileExists("names.dmp")) {
+    std::string mergedFile = par.db2 + "/merged.dmp";
+    std::string delnodesFile = par.db2 + "/delnodes.dmp";
+    if (FileUtil::fileExists(nodesFile.c_str())
+        && FileUtil::fileExists(namesFile.c_str())
+           && FileUtil::fileExists(mergedFile.c_str())
+              && FileUtil::fileExists(delnodesFile.c_str())) {
+    } else if (FileUtil::fileExists("nodes.dmp")
+               && FileUtil::fileExists("names.dmp")
+		  && FileUtil::fileExists("merged.dmp")
+                     && FileUtil::fileExists("delnodes.dmp")) {
         nodesFile = "nodes.dmp";
         namesFile = "names.dmp";
+        mergedFile = "merged.dmp";
+        delnodesFile = "delnodes.dmp";
     } else {
-        Debug(Debug::ERROR) << "names.dmp and nodes.dmp from NCBI taxdump could not be found!\n";
+        Debug(Debug::ERROR) << "names.dmp, nodes.dmp, merged.dmp or delnodes.dmp from NCBI taxdump could not be found!\n";
     }
 
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str(), par.threads);
@@ -36,7 +46,7 @@ int lca(int argc, const char **argv, const Command& command) {
     std::vector<std::string> ranks = Util::split(par.lcaRanks, ":");
 
     Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
-    NcbiTaxonomy t(namesFile, nodesFile);
+    NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
 
     Debug(Debug::INFO) << "Computing LCA...\n";
     size_t entries = reader.getSize();

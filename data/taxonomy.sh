@@ -30,7 +30,10 @@ abspath() {
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
 [ ! -f "$3" ] &&  echo "$3 not found!" && exit 1;
 if [ -n "${LCA_PAR}" ]; then
-    ([ ! -f "$4/names.dmp" ] || [ ! -f "$4/nodes.dmp" ]) &&  echo "Required NCBI Taxonomy files missing!" && exit 1;
+    if [ ! -f "$4/names.dmp" ] || [ ! -f "$4/nodes.dmp" ] || [ ! -f "$4/merged.dmp" ] || [ ! -f "$4/delnodes.dmp" ]; then
+        echo "Required NCBI Taxonomy files missing!"
+        exit 1;
+    fi
     NCBI_TAXDUMP="$(abspath "$4")"
 fi
 [   -f "$5" ] &&  echo "$5 exists already!" && exit 1;

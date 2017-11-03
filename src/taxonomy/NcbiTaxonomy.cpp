@@ -29,11 +29,8 @@ void deleteMatrix(int** M, size_t maxNodes) {
     delete[] M;
 }
 
-NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile, const std::string &nodesFile) {
-    if (FileUtil::fileExists(nodesFile.c_str()) == false) {
-        Debug(Debug::ERROR) << "Could not open nodes file " << nodesFile << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
+NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile,  const std::string &nodesFile,
+                           const std::string &mergedFile, const std::string &delnodesFile) {
     maxNodes = FileUtil::countLines(nodesFile.c_str());
 
     InitLevels();
@@ -51,6 +48,9 @@ NcbiTaxonomy::NcbiTaxonomy(const std::string &namesFile, const std::string &node
 
     M = makeMatrix(maxNodes);
     InitRangeMinimumQuery();
+
+    loadMerged(mergedFile);
+    loadDelnodes(delnodesFile);
 }
 
 NcbiTaxonomy::~NcbiTaxonomy() {
@@ -303,7 +303,18 @@ int NcbiTaxonomy::lcaHelper(int i, int j) {
 TaxonNode* NcbiTaxonomy::LCA(const std::vector<int>& taxa) {
     std::vector<int> indices;
     for (std::vector<int>::const_iterator it = taxa.begin(); it != taxa.end(); ++it) {
-        indices.emplace_back(D[*it]);
+        std::map<int, int>::iterator jt = D.find(*it);
+        if (jt == D.end()) {
+            Debug(Debug::ERROR) << "Invalid taxon tree: Could not find node " << (*it) << "!\n";
+            EXIT(EXIT_FAILURE);
+        } else {
+            int value = jt->second;
+            // -1 nodes was deleted (in delnodes)
+            if (value == -1) {
+                continue;
+            }
+            indices.emplace_back(value);
+        }
     }
 
     if (indices.empty()) {
@@ -319,7 +330,7 @@ TaxonNode* NcbiTaxonomy::LCA(const std::vector<int>& taxa) {
 
     std::map<int, TaxonNode>::iterator it2 = taxonTree.find(red);
     if (it2 == taxonTree.end()) {
-        Debug(Debug::ERROR) << "Invalid taxon tree!\n";
+        Debug(Debug::ERROR) << "Invalid taxon tree: Could not find mapping "  << red << "!\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -375,5 +386,46 @@ std::map<std::string, std::string> NcbiTaxonomy::AllRanks(TaxonNode *node) {
         }
 
         node = Parent(node->parentTaxon);
+    }
+}
+
+void NcbiTaxonomy::loadMerged(const std::string &mergedFile) {
+    std::ifstream ss(mergedFile);
+    if (ss.fail()) {
+        Debug(Debug::ERROR) << "File " << mergedFile << " not found!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    std::string line;
+    while (std::getline(ss, line)) {
+        std::vector<std::string> result = splitByDelimiter(line, "\t|\t", 2);
+        if (result.size() != 2) {
+            Debug(Debug::ERROR) << "Invalid name entry!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        unsigned int oldId = (unsigned int)strtoul(result[0].c_str(), NULL, 10);
+        unsigned int mergedId = (unsigned int)strtoul(result[1].c_str(), NULL, 10);
+        std::map<int, int>::iterator it = D.find(mergedId);
+        if (it == D.end()) {
+            Debug(Debug::ERROR) << "Invalid taxon tree: Could not map node " << mergedId << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        D.emplace(oldId, D[mergedId]);
+    }
+}
+
+void NcbiTaxonomy::loadDelnodes(const std::string &delnodesFile) {
+    std::ifstream ss(delnodesFile);
+    if (ss.fail()) {
+        Debug(Debug::ERROR) << "File " << delnodesFile << " not found!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    std::string line;
+    while (std::getline(ss, line)) {
+        unsigned int oldId = (unsigned int)strtoul(line.c_str(), NULL, 10);
+        D.emplace(oldId, -1);
     }
 }

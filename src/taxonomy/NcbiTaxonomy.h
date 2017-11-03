@@ -23,7 +23,8 @@ struct TaxonNode {
 
 class NcbiTaxonomy {
 public:
-    NcbiTaxonomy(const std::string &namesFile, const std::string &nodesFile);
+    NcbiTaxonomy(const std::string &namesFile,  const std::string &nodesFile,
+                 const std::string &mergedFile, const std::string &delnodesFile);
     ~NcbiTaxonomy();
 
     TaxonNode* LCA(const std::vector<int>& taxa);
@@ -38,6 +39,9 @@ private:
     void loadNames(const std::string &namesFile);
     void elh(int node, int level);
     void InitRangeMinimumQuery();
+    void loadMerged(const std::string &mergedFile);
+    void loadDelnodes(const std::string &delnodesFile);
+
     int RangeMinimumQuery(int i, int j);
     int lcaHelper(int i, int j);
     TaxonNode* Parent(int parentTaxon);
