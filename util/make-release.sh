@@ -17,9 +17,11 @@ hasCommand echo
 hasCommand date
 hasCommand wget
 
-# download static binaries
+# download CI builds
 wget -O "mmseqs-static_sse41.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs-static_sse41.tar.gz"
 wget -O "mmseqs-static_avx2.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs-static_avx2.tar.gz" 
+wget -O "mmseqs-win64.zip" "https://mmseqs.com/archive/${COMMIT}/mmseqs-win64.zip"
+wget -O "userguide.pdf" "https://mmseqs.com/archive/${COMMIT}/userguide.pdf"
 
 # create release tag 
 git tag  "${RELEASE_ID}" && git push --tags
@@ -48,4 +50,19 @@ github-release upload \
     --tag "${RELEASE_ID}" \
     --name "MMseqs2-Linux-AVX2.tar.gz" \
     --file mmseqs-static_avx2.tar.gz
-    
+
+# upload Windows build
+github-release upload \
+    --user soedinglab \
+    --repo mmseqs2 \
+    --tag "${RELEASE_ID}" \
+    --name "MMseqs2-Windows-Unified.tar.gz" \
+    --file mmseqs-win64.zip
+
+# upload Windows build
+github-release upload \
+    --user soedinglab \
+    --repo mmseqs2 \
+    --tag "${RELEASE_ID}" \
+    --name "MMseqs2-Userguide.pdf" \
+    --file userguide.pdf

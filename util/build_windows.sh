@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 REPO="$(readlink -f $1)"
 BUILD="$(readlink -f $2)"
 
@@ -12,9 +12,9 @@ cmake -DCMAKE_BUILD_TYPE=RelWithDebIno -DHAVE_TESTS=0 -DHAVE_MPI=0 -DHAVE_SSE4_1
 make -j 4
 mkdir -p "$BUILD/mmseqs/bin"
 objcopy src/mmseqs --compress-debug-sections
-strip --only-keep-debug src/mmseqs -o "$BUILD/mmseqs_debug_symbols_sse42"
+strip --only-keep-debug src/mmseqs -o "$BUILD/mmseqs_debug_symbols_sse41"
 strip --strip-debug src/mmseqs
-cp src/mmseqs "$BUILD/mmseqs/bin/mmseqs_sse42"
+cp src/mmseqs "$BUILD/mmseqs/bin/mmseqs_sse41"
 for i in $(ldd src/mmseqs | awk '{ print $3 }' | grep -v cygdrive | grep -v '???'); do
     cp $i "$BUILD/mmseqs/bin";
 done
@@ -40,8 +40,8 @@ CPUDOC
 cat <<'BATDOC' > "$BUILD/mmseqs/mmseqs.bat"
 for /f %%i in ('%~dp0\bin\testcpu.exe') do (
 if "%%i" == "avx2" ( %~dp0\bin\mmseqs_avx2.exe %* )
-if "%%i" == "sse4.1" ( %~dp0\bin\mmseqs_sse42.exe %* )
-if "%%i" == "fail" ( echo fail )
+if "%%i" == "sse4.1" ( %~dp0\bin\mmseqs_sse41.exe %* )
+if "%%i" == "fail" ( echo Unsupported CPU! MMseqs2 requires SSE4.1 or AVX2 instruction set support. )
 )
 BATDOC
 
