@@ -67,7 +67,18 @@ public:
     result_t getSWResult(Sequence* dbSeq, const int covMode, const float covThr, const double evalThr, const unsigned int mode);
 
     // need for sorting the results
-    static bool compareHits (result_t first, result_t second){ return (first.eval < second.eval); }
+    static bool compareHits (const result_t &first, const result_t &second){
+        //return (first.eval < second.eval);
+        if(first.eval < second.eval )
+            return true;
+        if(second.eval < first.eval )
+            return false;
+        if(first.score > second.score )
+            return true;
+        if(second.score > first.score )
+            return false;
+        return false;
+    }
 
     // map new query into memory (create queryProfile, ...)
     void initQuery(Sequence* query);
