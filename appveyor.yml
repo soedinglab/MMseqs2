@@ -22,7 +22,7 @@ install:
 build_script:
   - if defined BASH (%BASH% -lc "${APPVEYOR_BUILD_FOLDER}/util/build_windows.sh $(cygpath ${APPVEYOR_BUILD_FOLDER}) $(cygpath ${APPVEYOR_BUILD_FOLDER})/build")
   - cd %APPVEYOR_BUILD_FOLDER%\build && 7z a %APPVEYOR_BUILD_FOLDER%\mmseqs-win64.zip mmseqs
-  - cd %APPVEYOR_BUILD_FOLDER%\build && 7z a %APPVEYOR_BUILD_FOLDER%\mmseqs-win64-debug-symbols.zip mmseqs_debug_symbols_avx2 mmseqs_debug_symbols_sse42
+  - cd %APPVEYOR_BUILD_FOLDER%\build && 7z a %APPVEYOR_BUILD_FOLDER%\mmseqs-win64-debug-symbols.zip mmseqs_debug_symbols_avx2 mmseqs_debug_symbols_sse41
 
 on_success:
   - ps: $fileContent = "-----BEGIN RSA PRIVATE KEY-----`n"
