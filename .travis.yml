@@ -4,7 +4,7 @@ matrix:
   include:
   - os: linux
     dist: trusty
-    sudo: required
+    sudo: false
     addons:
       apt:
         packages:
@@ -19,7 +19,7 @@ matrix:
     - MATRIX_EVAL="CXX=clang++-3.6"
   - os: linux
     dist: trusty
-    sudo: required
+    sudo: false
     addons:
       apt:
         sources:
@@ -33,10 +33,10 @@ matrix:
         - vim-common
         - libopenmpi-dev
     env:
-    - MATRIX_EVAL="clang++-5.0"
+    - MATRIX_EVAL="CXX=clang++-5.0"
   - os: linux
     dist: trusty
-    sudo: required
+    sudo: false
     addons:
       apt:
         packages:
@@ -51,7 +51,7 @@ matrix:
     - MATRIX_EVAL="CXX=g++-4.8"
   - os: linux
     dist: trusty
-    sudo: required
+    sudo: false
     addons:
       apt:
         sources:
@@ -59,13 +59,13 @@ matrix:
         packages:
         - cmake
         - ninja-build
-        - g++-8
+        - gcc-7
         - zlib1g-dev
         - libbz2-dev
         - vim-common
         - libopenmpi-dev
     env:
-    - MATRIX_EVAL="CXX=g++-8"
+    - MATRIX_EVAL="CXX=g++-7"
   - os: osx
     env:
     - MATRIX_EVAL="CXX=g++-7"
