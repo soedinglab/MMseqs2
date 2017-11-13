@@ -11,6 +11,7 @@ matrix:
         - cmake
         - ninja-build
         - clang-3.6
+        - libc++-dev
         - zlib1g-dev
         - libbz2-dev
         - vim-common
@@ -28,6 +29,7 @@ matrix:
         - cmake
         - ninja-build
         - clang-5.0
+        - libc++-dev
         - zlib1g-dev
         - libbz2-dev
         - vim-common
