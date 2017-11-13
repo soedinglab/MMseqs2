@@ -61,7 +61,7 @@ matrix:
         packages:
         - cmake
         - ninja-build
-        - gcc-7
+        - g++-7
         - zlib1g-dev
         - libbz2-dev
         - vim-common
