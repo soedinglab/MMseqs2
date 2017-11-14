@@ -21,6 +21,8 @@ hasCommand wget
 wget -O "mmseqs-static_sse41.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs-static_sse41.tar.gz"
 wget -O "mmseqs-static_avx2.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs-static_avx2.tar.gz" 
 wget -O "mmseqs-win64.zip" "https://mmseqs.com/archive/${COMMIT}/mmseqs-win64.zip"
+wget -O "mmseqs-osx-static_sse41.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs-static_sse41.tar.gz"
+wget -O "mmseqs-osx-static_avx2.tar.gz" "https://mmseqs.com/archive/${COMMIT}/mmseqs-static_avx2.tar.gz"
 wget -O "userguide.pdf" "https://mmseqs.com/archive/${COMMIT}/userguide.pdf"
 
 # create release tag 
@@ -59,6 +61,22 @@ github-release upload \
     --name "MMseqs2-Windows-Unified.tar.gz" \
     --file mmseqs-win64.zip
 
+# upload SSE4.1 static binary
+github-release upload \
+    --user soedinglab \
+    --repo mmseqs2 \
+    --tag "${RELEASE_ID}" \
+    --name "MMseqs2-MacOS-SSE4_1.tar.gz" \
+    --file mmseqs-osx-static_sse41.tar.gz
+
+# upload AVX2 static binary
+github-release upload \
+    --user soedinglab \
+    --repo mmseqs2 \
+    --tag "${RELEASE_ID}" \
+    --name "MMseqs2-MacOS-AVX2.tar.gz" \
+    --file mmseqs-osx-static_avx2.tar.gz
+
 # upload Windows build
 github-release upload \
     --user soedinglab \
@@ -66,3 +84,4 @@ github-release upload \
     --tag "${RELEASE_ID}" \
     --name "MMseqs2-Userguide.pdf" \
     --file userguide.pdf
+
