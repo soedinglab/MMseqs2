@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <math.h>
 
+#include "FileUtil.h"
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Parameters.h"
@@ -44,6 +45,17 @@ int createdb(int argn, const char **argv, const Command& command) {
     if (lookupStream.fail()) {
         Debug(Debug::ERROR) << "Could not open " << lookupFile << " for writing.";
         EXIT(EXIT_FAILURE);
+    }
+
+    for(size_t i = 0; i < filenames.size(); i++){
+        if(FileUtil::fileExists(filenames[i].c_str())==false){
+            Debug(Debug::ERROR) << "File " << filenames[i] << " does not exist.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        if(FileUtil::directoryExists(filenames[i].c_str())==true){
+            Debug(Debug::ERROR) << "File " << filenames[i] << " is a directory.\n";
+            EXIT(EXIT_FAILURE);
+        }
     }
 
     DBWriter out_writer(data_filename.c_str(), index_filename.c_str());
