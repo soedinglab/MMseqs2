@@ -19,7 +19,6 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
 void setMsa2ProfileDefaults(Parameters *p) {
     p->msaType = 1;
-
 }
 
 int msa2profile(int argc, const char **argv, const Command &command) {
@@ -65,19 +64,19 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         char *entryData = qDbr.getData(id);
         for (size_t i = 0; i < msaSizes[id]; ++i) {
+            // state machine to get the max sequence length and set size from MSA
             switch (entryData[i]) {
                 case '>':
+                    if (seqLength > maxSeqLength) {
+                        maxSeqLength = seqLength;
+                    }
+                    seqLength = 0;
                     inHeader = true;
                     setSize++;
                     break;
                 case '\n':
                     if (inHeader) {
                         inHeader = false;
-                    } else {
-                        if (seqLength > maxSeqLength) {
-                            maxSeqLength = seqLength;
-                        }
-                        seqLength = 0;
                     }
                     break;
                 default:
@@ -86,6 +85,14 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     }
                     break;
             }
+        }
+
+        // don't forget the last entry in an MSA
+        if (!inHeader && seqLength > 0) {
+            if (seqLength > maxSeqLength) {
+                maxSeqLength = seqLength;
+            }
+            setSize++;
         }
 
         if (setSize > maxSetSize) {
