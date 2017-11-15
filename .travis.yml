@@ -1,69 +1,91 @@
 language: c++
-# Ubuntu 14.04 Trusty support
-sudo: required
-dist: trusty
-
-addons:
-  apt:
-    packages: &default
-      - cmake
-      - ninja-build
-
-before_install:
-  - eval "${MATRIX_EVAL}"
-
-script:
-  - mkdir build
-  - cd build
-  - cmake -G Ninja -DHAVE_SSE4_1=1 .. && ninja
 
 matrix:
   include:
-    - compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - *default
-            - g++-4.8
-            - mpi-default-dev
-      env:
-        - MATRIX_EVAL="CXX=g++-4.8"
-    - compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - *default
-            - g++-7
-            - mpi-default-dev
-      env:
-        - MATRIX_EVAL="CXX=g++-7"
-    - compiler: clang
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.6
-          packages:
-            - *default
-            - clang-3.6
-            - mpi-default-dev
-            - libc++-dev
-      env:
-        - MATRIX_EVAL="CXX=clang++-3.6"
-    - compiler: clang
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-4.0
-          packages:
-            - *default
-            - clang-4.0
-            - mpi-default-dev
-            - libc++-dev
-      env:
-        - MATRIX_EVAL="CXX=clang++-4.0"
+  - os: linux
+    dist: trusty
+    sudo: false
+    addons:
+      apt:
+        packages:
+        - cmake
+        - ninja-build
+        - clang-3.6
+        - libc++-dev
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+        - libopenmpi-dev
+    env:
+    - MATRIX_EVAL="CXX=clang++-3.6"
+  - os: linux
+    dist: trusty
+    sudo: false
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-trusty-5.0
+        packages:
+        - cmake
+        - ninja-build
+        - clang-5.0
+        - libc++-dev
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+        - libopenmpi-dev
+    env:
+    - MATRIX_EVAL="CXX=clang++-5.0"
+  - os: linux
+    dist: trusty
+    sudo: false
+    addons:
+      apt:
+        packages:
+        - cmake
+        - ninja-build
+        - g++-4.8
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+        - libopenmpi-dev
+    env:
+    - MATRIX_EVAL="CXX=g++-4.8"
+  - os: linux
+    dist: trusty
+    sudo: false
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - cmake
+        - ninja-build
+        - g++-7
+        - zlib1g-dev
+        - libbz2-dev
+        - vim-common
+        - libopenmpi-dev
+    env:
+    - MATRIX_EVAL="CXX=g++-7"
+  - os: osx
+    env:
+    - MATRIX_EVAL="CXX=g++-7"
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+  # coreutils and cmake dependencies are already pre-installed
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc@7 ninja zlib bzip2 vim binutils; fi
+  - eval "${MATRIX_EVAL}"
+
+script:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mkdir build; cd build; cmake -G Ninja -DHAVE_SSE4_1=1 ..; ninja; cd ..; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ./util/build_osx.sh . build; fi
+
+after_success:
+  - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then openssl aes-256-cbc -K $encrypted_4188a201d0b5_key -iv $encrypted_4188a201d0b5_iv -in ./util/.travis.enc -out $HOME/.ssh/id_rsa -d; fi
+  - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then chmod 400 $HOME/.ssh/id_rsa; fi
+  - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}"; fi
+  - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]] && [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cd build; scp -o StrictHostKeyChecking=no mmseqs-win64.zip mmseqs-osx-static_sse41.tar.gz mmseqs-osx-static_avx2.tar.gz mmseqs-osx-debug-symbols.tar.gz codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/${TRAVIS_COMMIT}; cd ..; fi
+
+

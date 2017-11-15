@@ -45,6 +45,7 @@ struct hit_t {
             return true;
         if(second.seqId < first.seqId )
             return false;
+        return false;
     }
 
     static bool compareHitsByDiagonalScore(hit_t first, hit_t second){
