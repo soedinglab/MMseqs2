@@ -580,6 +580,7 @@ public:
     std::vector<MMseqsParameter> tsv2db;
     std::vector<MMseqsParameter> lca;
     std::vector<MMseqsParameter> taxonomy;
+    std::vector<MMseqsParameter> profile2pssm;
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);

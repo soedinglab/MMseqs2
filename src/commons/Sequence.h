@@ -61,7 +61,7 @@ public:
     void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
 
     // map profile HMM, *data points to start position of Profile
-    void mapProfile(const char *data);
+    void mapProfile(const char *sequence);
 
     // checks if there is still a k-mer left
     bool hasNextKmer() {
