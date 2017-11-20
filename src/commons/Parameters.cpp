@@ -1130,30 +1130,35 @@ size_t Parameters::hashParameter(std::vector<std::string> & filenames, std::vect
 }
 
 std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par) {
-    std::stringstream ss;
-    for (size_t i = 0; i < par.size(); i++) {
-        if(typeid(int) == par[i].type ){
+    std::ostringstream ss;
+    for (size_t i = 0; i < par.size(); ++i) {
+        // Never pass the MPI parameters along, they are passed by the environment
+        if (par[i].uniqid == PARAM_RUNNER_ID) {
+            continue;
+        }
+
+        if (typeid(int) == par[i].type){
             ss << par[i].name << " ";
             ss << *((int *)par[i].value) << " ";
-        } else if(typeid(float) == par[i].type ){
+        } else if (typeid(float) == par[i].type){
             ss << par[i].name << " ";
             ss << *((float *)par[i].value) << " ";
-        }else if(typeid(std::string) == par[i].type ){
-            if (*((std::string *) par[i].value)  != "")
-            {
+        } else if (typeid(std::string) == par[i].type){
+            if (*((std::string *) par[i].value) != "") {
                 ss << par[i].name << " ";
                 ss << *((std::string *) par[i].value) << " ";
             }
-        }else if (typeid(bool) == par[i].type){
+        } else if (typeid(bool) == par[i].type){
             bool val = *((bool *)(par[i].value));
-            if(val == true){
+            if (val == true){
                 ss << par[i].name << " ";
             }
         } else {
-            Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers\n";
+            Debug(Debug::ERROR) << "Wrong parameter type. Please inform the developers!\n";
             EXIT(EXIT_FAILURE);
         }
     }
+
     return ss.str();
 }
 
