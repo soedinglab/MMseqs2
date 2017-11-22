@@ -190,11 +190,11 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
 void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence){
     this->id = id;
     this->dbKey = dbKey;
-    if (this->seqType == Sequence::AMINO_ACIDS || this->seqType == Sequence::NUCLEOTIDES)
+    if (this->seqType == Sequence::AMINO_ACIDS || this->seqType == Sequence::NUCLEOTIDES) {
         mapSequence(sequence);
-    else if (this->seqType == Sequence::HMM_PROFILE)
+    } else if (this->seqType == Sequence::HMM_PROFILE) {
         mapProfile(sequence);
-    else  {
+    } else {
         Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
         EXIT(EXIT_FAILURE);
     }
@@ -210,7 +210,7 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
         for(int aa = 0; aa < this->L; aa++){
             this->int_sequence[aa] = data.first[aa];
         }
-    }else  {
+    } else {
         Debug(Debug::ERROR) << "ERROR: Invalid sequence type!\n";
         EXIT(EXIT_FAILURE);
     }
@@ -219,46 +219,50 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
 
 
 
-void Sequence::mapProfile(const char * sequenze){
-    size_t l = 0;
-    char * data = (char *) sequenze;
-    size_t currPos = 0;
-    // if no data exists
+void Sequence::mapProfile(const char * sequence){
+    const char mask = (char)0x80;
 
-    while (data[currPos] != '\0' ){
-        for(size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
-            // shift bytes back (avoid \0 byte)
-            const char mask = (char)0x80;
+    size_t l = 0;
+    char * data = (char *) sequence;
+    size_t currPos = 0;
+
+    // if no data exists
+    while (data[currPos] != '\0'){
+        for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
+            // shift bytes back (avoids NULL byte)
             short value = static_cast<short>(data[currPos + aa_idx] ^ mask);
-            profile_score[l * profile_row_size + aa_idx] = value*4;
+            profile_score[l * profile_row_size + aa_idx] = value * 4;
         }
+
         l++;
-        if(l >= this->maxLen ){
-            Debug(Debug::ERROR) << "ERROR: Sequenze with id: " << this->dbKey << " is longer than maxRes.\n";
+        if (l >= this->maxLen ){
+            Debug(Debug::ERROR) << "ERROR: Sequence with id: " << this->dbKey << " is longer than maxRes.\n";
             break;
         }
+
         // go to begin of next entry 0, 20, 40, 60, ...
         currPos += PROFILE_AA_SIZE;
     }
     this->L = l;
 
-    if(aaBiasCorrection==true){
+    if (aaBiasCorrection == true){
         SubstitutionMatrix::calcGlobalAaBiasCorrection(profile_score, profile_row_size, this->L);
     }
+
     // sort profile scores and index for KmerGenerator (prefilter step)
-    for(int l = 0; l < this->L; l++){
+    for (int i = 0; i < this->L; i++){
         unsigned int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
-        Util::rankedDescSort20(&profile_score[l * profile_row_size], (unsigned int *) &indexArray);
-        memcpy(&profile_index[l * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
+        Util::rankedDescSort20(&profile_score[i * profile_row_size], (unsigned int *) &indexArray);
+        memcpy(&profile_index[i * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
         // create consensus sequence
-        int_sequence[l] = indexArray[0]; // index 0 is the highst scoring one
+        int_sequence[i] = indexArray[0]; // index 0 is the highst scoring one
     }
 
-    // write alignemnt profile
-    for(int l = 0; l < this->L; l++){
-        for(size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
-            unsigned int aa_idx = profile_index[l * profile_row_size + aa_num];
-            profile_for_alignment[aa_idx * this-> L + l] = profile_score[l * profile_row_size + aa_num] / 4;
+    // write alignment profile
+    for (int i = 0; i < this->L; i++){
+        for (size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
+            unsigned int aa_idx = profile_index[i * profile_row_size + aa_num];
+            profile_for_alignment[aa_idx * this-> L + i] = profile_score[i * profile_row_size + aa_num] / 4;
         }
     }
 //    printProfile();

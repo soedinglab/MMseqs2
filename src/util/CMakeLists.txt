@@ -22,6 +22,7 @@ set(util_source_files
         util/mergedbs.cpp
         util/msa2profile.cpp
         util/prefixid.cpp
+        util/profile2pssm.cpp
         util/rescorediagonal.cpp
         util/result2flat.cpp
         util/result2msa.cpp

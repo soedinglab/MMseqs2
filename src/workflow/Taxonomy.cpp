@@ -53,7 +53,14 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     par.alignmentMode = alignmentMode;
 
     if (par.lcaMode == Parameters::TAXONOMY_2BLCA) {
-        cmd.addVariable("SEARCH2_PAR", par.createParameterString(par.searchworkflow).c_str());
+        std::vector<MMseqsParameter> searchNoIterativeBest;
+        for (size_t i = 0; i < par.searchworkflow.size(); i++){
+            if (par.searchworkflow[i].uniqid != par.PARAM_START_SENS.uniqid
+             || par.searchworkflow[i].uniqid != par.PARAM_SENS_STEPS.uniqid) {
+                searchNoIterativeBest.push_back(par.searchworkflow[i]);
+            }
+        }
+        cmd.addVariable("SEARCH2_PAR", par.createParameterString(searchNoIterativeBest).c_str());
     }
 
     if (par.lcaMode != Parameters::TAXONOMY_NO_LCA) {

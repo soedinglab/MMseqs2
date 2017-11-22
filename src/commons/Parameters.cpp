@@ -263,7 +263,7 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_V);
 
     // createtsv
-    createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);;
+    createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
     //result2stats
     result2stats.push_back(PARAM_STAT);
@@ -314,6 +314,14 @@ Parameters::Parameters():
     msa2profile.push_back(PARAM_FILTER_NDIFF);
     msa2profile.push_back(PARAM_THREADS);
     msa2profile.push_back(PARAM_V);
+
+    // profile2pssm
+    profile2pssm.push_back(PARAM_SUB_MAT);
+    profile2pssm.push_back(PARAM_MAX_SEQ_LEN);
+    profile2pssm.push_back(PARAM_NO_COMP_BIAS_CORR);
+    profile2pssm.push_back(PARAM_DB_OUTPUT);
+    profile2pssm.push_back(PARAM_THREADS);
+    profile2pssm.push_back(PARAM_V);
 
     // extract orf
     extractorfs.push_back(PARAM_ORF_MIN_LENGTH);
