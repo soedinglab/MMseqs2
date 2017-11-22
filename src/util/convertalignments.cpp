@@ -174,20 +174,38 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             const Matcher::result_t &res = results[j];
 
             std::string targetId = tHeaderDbr->getId(res.dbKey);
-            unsigned int missMatchCount = static_cast<unsigned int>((1.0f-res.seqId) * res.alnLength);
             unsigned int gapOpenCount = 0;
-
-            if(res.backtrace.size() > 0){
-                for(size_t pos = 0; pos < res.backtrace.size(); pos++){
-                    gapOpenCount += (res.backtrace[pos]=='I'||res.backtrace[pos]=='D') ;
+            unsigned int alnLen = res.alnLength;
+            if(res.backtrace.size() > 0) {
+                std::string btCopy = res.backtrace;
+                for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
+                    bool foundLetter =(res.backtrace[pos] == 'I' || res.backtrace[pos] == 'D');
+                    gapOpenCount += foundLetter;
+                    if(foundLetter|| res.backtrace[pos] == 'M'){
+                        btCopy[pos] = ' ';
+                    }
+                }
+                std::vector<int> vec;
+                char * words[2048];
+                size_t elements = Util::getWordsOfLine((char*)btCopy.c_str(), words, 2048);
+                if(elements == 2048){
+                    Debug(Debug::ERROR) << "Words array is too small in converatalignments.";
+                    EXIT(EXIT_FAILURE);
+                }
+                alnLen = 0;
+                elements = (elements > 0) ? elements - 1: 0;
+                for (size_t elm = 0; elm < elements; elm++) {
+                    alnLen+= Util::fast_atoi<int>(words[elm]);
                 }
             }
+            unsigned int missMatchCount = static_cast<unsigned int>((1.0f-res.seqId) * res.alnLength);
+
 
             switch (format) {
                 case Parameters::FORMAT_ALIGNMENT_BLAST_TAB: {
                     int count = snprintf(buffer, sizeof(buffer),
                                          "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength,
+                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
                                          missMatchCount, gapOpenCount,
                                          res.qStartPos + 1, res.qEndPos + 1,
                                          res.dbStartPos + 1, res.dbEndPos + 1,
@@ -204,7 +222,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 case Parameters::FORMAT_ALIGNMENT_BLAST_WITH_LEN: {
                     int count = snprintf(buffer, sizeof(buffer),
                                          "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\t%d\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength,
+                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
                                          missMatchCount, gapOpenCount,
                                          res.qStartPos + 1, res.qEndPos + 1,
                                          res.dbStartPos + 1, res.dbEndPos + 1,
@@ -222,7 +240,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 case Parameters::FORMAT_ALIGNMENT_PAIRWISE: {
                     int count = snprintf(buffer, sizeof(buffer),
                                          ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength, missMatchCount,
+                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen, missMatchCount,
                                          gapOpenCount,
                                          res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1,
                                          res.eval, res.score);
