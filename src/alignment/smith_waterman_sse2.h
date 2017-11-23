@@ -173,6 +173,8 @@ public:
 
     static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
 
+    s_align scoreIdentical(int *dbSeq, int L, EvalueComputation * evaluer, int mode);
+
 private:
 
     struct s_profile{

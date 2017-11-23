@@ -288,12 +288,13 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         data = Util::skipLine(data);
                         continue;
                     }
+                    const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB)) ? true : false;
+
                     // calculate Smith-Waterman alignment
-                    Matcher::result_t res = matcher.getSWResult(&dbSeq, covMode, covThr, evalThr, swMode);
+                    Matcher::result_t res = matcher.getSWResult(&dbSeq, covMode, covThr, evalThr, swMode, isIdentity);
                     alignmentsNum++;
 
                     // sequence are identical if qID == dbID  (needed to cluster really short sequences)
-                    const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB)) ? true : false;
 
                     //set coverage and seqid if identity
                     if (isIdentity) {
@@ -331,8 +332,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     realigner->initQuery(&qSeq);
                     for (size_t result = 0; result < swResults.size(); result++) {
                         setTargetSequence(dbSeq, swResults[result].dbKey);
+                        const bool isIdentity = (queryDbKey == swResults[result].dbKey && (includeIdentity || sameQTDB)) ? true : false;
                         Matcher::result_t res = realigner->getSWResult(&dbSeq, covMode, covThr, FLT_MAX,
-                                                                       Matcher::SCORE_COV_SEQID);
+                                                                       Matcher::SCORE_COV_SEQID, isIdentity);
                         swResults[result].backtrace  = res.backtrace;
                         swResults[result].qStartPos  = res.qStartPos;
                         swResults[result].qEndPos    = res.qEndPos;

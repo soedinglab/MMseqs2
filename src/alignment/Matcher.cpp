@@ -43,7 +43,7 @@ void Matcher::initQuery(Sequence* query){
 
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const float covThr,
-                                       const double evalThr, const unsigned int mode){
+                                       const double evalThr, const unsigned int mode, bool isIdentity){
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
 
@@ -55,7 +55,13 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const
 //    double datapoints = -log(static_cast<double>(seqDbSize)) - log(qL) - log(dbL) + log(evalThr);
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
-    s_align alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, evalThr, evaluer, covMode, covThr, maskLen);
+    s_align alignment;
+    if(isIdentity==false){
+        alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, evalThr, evaluer, covMode, covThr, maskLen);
+    }else{
+        alignment = aligner->scoreIdentical(dbSeq->int_sequence, dbSeq->L, evaluer, mode);
+    }
+
     // calculation of the coverage and e-value
     float qcov = 0.0;
     float dbcov = 0.0;
