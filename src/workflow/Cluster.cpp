@@ -37,6 +37,14 @@ std::pair<float, bool> setAutomaticThreshold(float seqId) {
 int clusteringworkflow(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setWorkflowDefaults(&par);
+    par.overrideParameterDescription((Command &)command, par.PARAM_RESCORE_MODE.uniqid, NULL, NULL, par.PARAM_RESCORE_MODE.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_MAX_REJECTED.uniqid, NULL, NULL, par.PARAM_MAX_REJECTED.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_MAX_ACCEPT.uniqid, NULL, NULL, par.PARAM_MAX_ACCEPT.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_KMER_PER_SEQ.uniqid, NULL, NULL, par.PARAM_KMER_PER_SEQ.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_QUERY_PROFILE.uniqid, NULL, NULL, par.PARAM_QUERY_PROFILE.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_TARGET_PROFILE.uniqid, NULL, NULL, par.PARAM_TARGET_PROFILE.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_S.uniqid, "sensitivity will be automatically determined but can be adjusted", NULL,  par.PARAM_TARGET_PROFILE.category |MMseqsParameter::COMMAND_EXPERT);
+
     par.parseParameters(argc, argv, command, 3);
     if(FileUtil::directoryExists(par.db3.c_str())==false){
         Debug(Debug::WARNING) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";

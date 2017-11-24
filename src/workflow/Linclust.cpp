@@ -22,6 +22,11 @@ void setLinclustWorkflowDefaults(Parameters *p) {
 int linclust(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setLinclustWorkflowDefaults(&par);
+    par.overrideParameterDescription((Command &)command, par.PARAM_QUERY_PROFILE.uniqid, NULL, NULL, par.PARAM_QUERY_PROFILE.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_RESCORE_MODE.uniqid, NULL, NULL, par.PARAM_RESCORE_MODE.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_MAX_REJECTED.uniqid, NULL, NULL, par.PARAM_MAX_REJECTED.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_MAX_ACCEPT.uniqid, NULL, NULL, par.PARAM_MAX_ACCEPT.category |MMseqsParameter::COMMAND_EXPERT );
+
     par.parseParameters(argc, argv, command, 3);
     if(FileUtil::directoryExists(par.db3.c_str())==false){
         Debug(Debug::WARNING) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";

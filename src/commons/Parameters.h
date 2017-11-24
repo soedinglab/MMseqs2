@@ -13,15 +13,15 @@
     				 MMseqsParameter x;
 
 struct MMseqsParameter {
-    const int uniqid;
     const char *name;
     const char *display;
     const char *description;
     const std::type_info &type;
     void * value;
     const char * regex;
-    bool wasSet;
+    const int uniqid;
     int category;
+    bool wasSet;
 
     static const int COMMAND_PREFILTER = 1;
     static const int COMMAND_ALIGN = 2;
@@ -30,11 +30,14 @@ struct MMseqsParameter {
     static const int COMMAND_PROFILE = 16;
     static const int COMMAND_MISC = 32;
     static const int COMMAND_CLUSTLINEAR = 64;
+    static const int COMMAND_EXPERT = 128;
+
 
     MMseqsParameter(int uid, const char * n, const char *display,
                     const char * d, const std::type_info &hash,
                     void * value, const char * regex, int category = COMMAND_MISC):
-                    uniqid(uid), name(n), display(display), description(d), type(hash), value(value), regex(regex), wasSet(false), category(category){}
+            name(n), display(display), description(d), type(hash), value(value),
+            regex(regex), uniqid(uid), category(category), wasSet(false){}
 };
 
 
@@ -140,7 +143,6 @@ public:
     int    targetSeqType;                // Target sequence type (PROFILE, AMINOACIDE, NUCLEOTIDE)
     int    threads;                      // Amounts of threads
     bool   removeTmpFiles;               // Do not delete temp files
-    bool   clusterFragments;             // cluster fragments
     bool   includeIdentity;              // include identical ids as hit
 
     // PREFILTER
@@ -286,11 +288,6 @@ public:
     // mergedbs
     std::string mergePrefixes;
 
-    // evaluationscores
-    bool allVsAll;
-    bool randomizedRepresentative;
-    bool use_sequenceheader;
-
     // summarizetabs
     float overlap;
     int msaType;
@@ -363,7 +360,6 @@ public:
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)
     PARAMETER(PARAM_SPACED_KMER_MODE)
     PARAMETER(PARAM_REMOVE_TMP_FILES)
-    PARAMETER(PARAM_CLUSTER_FRAGMENTS)
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_NO_PRELOAD)
@@ -507,11 +503,6 @@ public:
     // mergedbs
     PARAMETER(PARAM_MERGE_PREFIXES)
 
-    // evaluationScore
-    PARAMETER(PARAM_EVALUATION_ALLVSALL)
-    PARAMETER(PARAM_EVALUATION_RANDOMIZEDREPRESENTATIVE)
-    PARAMETER(PARAM_EVALUATION_USE_SEQUENCEHEADER)
-
     // summarizetabs
     PARAMETER(PARAM_OVERLAP)
 
@@ -570,7 +561,6 @@ public:
     std::vector<MMseqsParameter> concatdbs;
     std::vector<MMseqsParameter> mergedbs;
     std::vector<MMseqsParameter> summarizeheaders;
-    std::vector<MMseqsParameter> evaluationscores;
     std::vector<MMseqsParameter> prefixid;
     std::vector<MMseqsParameter> summarizeresult;
     std::vector<MMseqsParameter> summarizetabs;

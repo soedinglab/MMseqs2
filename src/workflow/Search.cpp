@@ -21,6 +21,10 @@ void setSearchDefaults(Parameters *p) {
 int search(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setSearchDefaults(&par);
+    par.overrideParameterDescription((Command &)command, par.PARAM_COV_MODE.uniqid, NULL, NULL, par.PARAM_COV_MODE.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_C.uniqid, NULL, NULL, par.PARAM_C.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_MIN_SEQ_ID.uniqid, NULL, NULL, par.PARAM_MIN_SEQ_ID.category |MMseqsParameter::COMMAND_EXPERT );
+
     par.parseParameters(argc, argv, command, 4, false, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
