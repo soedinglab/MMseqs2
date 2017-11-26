@@ -1,6 +1,7 @@
 #include <cstring>
 #include <list>
 #include <sstream>
+#include <itoa.h>
 
 #include "Debug.h"
 #include "DBReader.h"
@@ -18,10 +19,10 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
     // init the structure for cluster merging
     // it has the size of all possible cluster (sequence amount)
-    std::list<int>** mergedClustering = new std::list<int>*[dbr.getSize()];
+    std::list<unsigned int>** mergedClustering = new std::list<unsigned int>*[dbr.getSize()];
     Debug(Debug::WARNING) << "List amount "<< dbr.getSize() << "\n";
     for (size_t i = 0; i < dbr.getSize(); i++){
-        mergedClustering[i] = new std::list<int>();
+        mergedClustering[i] = new std::list<unsigned int>();
     }
 
     // read the clustering from the first clustering step
@@ -62,17 +63,19 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         for (size_t i = 0; i < cluStepDbr->getSize(); i++){
             size_t cluId = dbr.getId(cluStepDbr->getDbKey(i));
             char* cluData = cluStepDbr->getData(i);
-            std::stringstream lineSs(cluData);
-            std::string val;
             // go through the sequences in the cluster and add them and their clusters to the cluster of cluId
             // afterwards, delete the added cluster from the clustering
-            while (std::getline(lineSs, val, '\n')){
-                unsigned int key = (unsigned  int) strtoul(val.c_str(), NULL, 10);
+            char *data =  cluData;
+            char keyBuffer[255];
+            while (*data != '\0') {
+                Util::parseKey(data, keyBuffer);
+                unsigned int key = Util::fast_atoi<unsigned int>(keyBuffer);
                 size_t seqId = dbr.getId(key);
-                if(seqId != cluId) // to avoid copies of the same cluster list
+                if(seqId != cluId) { // to avoid copies of the same cluster list
                     mergedClustering[cluId]->splice(mergedClustering[cluId]->end(), *mergedClustering[seqId]);
+                }
+                data = Util::skipLine(data);
             }
-
         }
         cluStepDbr->close();
         delete cluStepDbr;
@@ -86,38 +89,30 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str());
     dbw->open();
 
-    size_t BUFFER_SIZE = 1000000;
-    char* outBuffer = new char[BUFFER_SIZE];
+    std::string res;
+    res.reserve(1024*1024*1024);
     // go through all sequences in the database
     for (size_t i = 0; i < dbr.getSize(); i++){
-
         // no cluster for this representative
         if (mergedClustering[i]->size() == 0)
             continue;
 
         // representative
         unsigned int dbKey = dbr.getDbKey(i);
-
-        std::stringstream res;
-        for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
-            res << dbr.getDbKey(*it) << "\n";
+        char buffer[32];
+        for(std::list<unsigned int>::iterator it = mergedClustering[i]->begin();
+            it != mergedClustering[i]->end(); ++it){
+            char * tmpBuff = Itoa::u32toa_sse2(dbr.getDbKey(*it), buffer);
+            size_t length = tmpBuff - buffer - 1;
+            res.append(buffer, length);
+            res.push_back('\n');
         }
 
-        std::string cluResultsOutString = res.str();
-        const char* cluResultsOutData = cluResultsOutString.c_str();
-        if (BUFFER_SIZE < strlen(cluResultsOutData)){
-            Debug(Debug::WARNING) << "Tried to process the clustering list for the query " << dbKey << " , the length of the list = " << mergedClustering[i]->size() << "\n";
-            Debug(Debug::WARNING) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
-            BUFFER_SIZE=strlen(cluResultsOutData)+1;
-            delete[] outBuffer;
-            outBuffer = new char[BUFFER_SIZE];
-        }
-        memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->writeData(outBuffer, cluResultsOutString.length(), dbKey);
+        dbw->writeData(res.c_str(), res.length(), dbKey);
+        res.clear();
     }
     dbw->close();
     delete dbw;
-    delete[] outBuffer;
 
     // delete the clustering data structure
     for (unsigned int i = 0; i < dbr.getSize(); i++){
