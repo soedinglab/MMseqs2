@@ -69,6 +69,7 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &blastTabReader,
 #pragma omp parallel for schedule(dynamic, 100)
     for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
         unsigned int thread_idx = 0;
+        char buffer[1024+32768];
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
@@ -86,14 +87,12 @@ int doSummarize(Parameters &par, DBReader<unsigned int> &blastTabReader,
             Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
             continue;
         }
-
-        std::ostringstream oss;
+        std::string annotation;
+        annotation.reserve(1024*1024);
         for (size_t j = 0; j < result.size(); j++) {
-            Matcher::result_t d = result[j];
-            oss << Matcher::resultToString(d, par.addBacktrace);
+            size_t len = Matcher::resultToBuffer(buffer, result[j], par.addBacktrace);
+            annotation.append(buffer, len);
         }
-
-        std::string annotation = oss.str();
         writer.writeData(annotation.c_str(), annotation.length(), id, thread_idx);
     }
     writer.close();

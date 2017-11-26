@@ -1,4 +1,5 @@
 #include <iomanip>
+#include <itoa.h>
 #include "Matcher.h"
 #include "Util.h"
 #include "Parameters.h"
@@ -71,32 +72,39 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const
 
     int aaIds = 0;
     if(mode == Matcher::SCORE_COV_SEQID){
-        if(alignment.cigar){
-            int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
-            for (int32_t c = 0; c < alignment.cigarLen; ++c) {
-                char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
-                uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
-                backtrace.reserve(length);
+        if(isIdentity==false){
+            if(alignment.cigar){
+                int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
+                for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+                    char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
+                    uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
+                    backtrace.reserve(length);
 
-                for (uint32_t i = 0; i < length; ++i){
-                    if (letter == 'M') {
-                        if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
-                            aaIds++;
-                        }
-                        ++queryPos;
-                        ++targetPos;
-                        backtrace.append("M");
-                    } else {
-                        if (letter == 'I') {
+                    for (uint32_t i = 0; i < length; ++i){
+                        if (letter == 'M') {
+                            if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
+                                aaIds++;
+                            }
                             ++queryPos;
-                            backtrace.append("I");
-                        }
-                        else{
                             ++targetPos;
-                            backtrace.append("D");
+                            backtrace.append("M");
+                        } else {
+                            if (letter == 'I') {
+                                ++queryPos;
+                                backtrace.append("I");
+                            }
+                            else{
+                                ++targetPos;
+                                backtrace.append("D");
+                            }
                         }
                     }
                 }
+            }
+        } else {
+            for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+                aaIds++;
+                backtrace.append("M");
             }
         }
     }
@@ -120,7 +128,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const
         unsigned int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
         if(alignment.cigar){
             // OVERWRITE alnLength with gapped value
-           alnLength = SmithWaterman::cigar_int_to_len(alignment.cigar[0]);
+            alnLength = SmithWaterman::cigar_int_to_len(alignment.cigar[0]);
         }
         seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(std::max(qAlnLen, dbAlnLen), alnLength));
     }else if( mode == Matcher::SCORE_COV){
@@ -245,6 +253,72 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
                                      dbLen, uncompressAlignment(std::string(entry[10], len)));
         }
     }
+}
+
+
+size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBacktrace, bool compress) {
+    char * basePos = buff1;
+    char * tmpBuff = Itoa::u32toa_sse2((uint32_t) result.dbKey, buff1);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.score, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    //TODO seqid, evalue
+    if(result.seqId==1.0){
+        *(tmpBuff) = '1';
+        tmpBuff++;
+        *(tmpBuff) = '.';
+        tmpBuff++;
+        *(tmpBuff) = '0';
+        tmpBuff++;
+        *(tmpBuff) = '0';
+        tmpBuff++;
+        *(tmpBuff) = '0';
+        tmpBuff++;
+        *(tmpBuff) = '\t';
+        tmpBuff++;
+    }else{
+        *(tmpBuff) = '0';
+        tmpBuff++;
+        *(tmpBuff) = '.';
+        tmpBuff++;
+        int seqId = result.seqId*1000;
+        tmpBuff = Itoa::i32toa_sse2(seqId, tmpBuff);
+        *(tmpBuff-1) = '\t';
+    }
+
+    tmpBuff += sprintf(tmpBuff,"%.3E",result.eval);
+    tmpBuff++;
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.qStartPos, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.qEndPos, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.qLen, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.dbStartPos, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.dbEndPos, tmpBuff);
+    if(addBacktrace == true){
+        *(tmpBuff-1) = '\t';
+        tmpBuff = Itoa::i32toa_sse2(result.dbLen, tmpBuff);
+        if(compress){
+            *(tmpBuff-1) = '\t';
+            std::string compressedCigar = Matcher::compressAlignment(result.backtrace);
+            tmpBuff = strncpy(tmpBuff, compressedCigar.c_str(), compressedCigar.length());
+            tmpBuff+= compressedCigar.length()+1;
+        }else{
+            *(tmpBuff-1) = '\t';
+            tmpBuff = strncpy(tmpBuff, result.backtrace.c_str(), result.backtrace.length());
+            tmpBuff+= result.backtrace.length()+1;
+        }
+    }else{
+        *(tmpBuff-1) = '\t';
+        tmpBuff = Itoa::i32toa_sse2(result.dbLen, tmpBuff);
+    }
+
+    *(tmpBuff-1) = '\n';
+    *(tmpBuff) = '\0';
+    return tmpBuff - basePos;
 }
 
 std::string Matcher::resultToString(const result_t &result, bool addBacktrace, bool compress) {

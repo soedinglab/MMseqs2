@@ -245,7 +245,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-
+        std::string alnResultsOutString;
+        alnResultsOutString.reserve(1024*1024);
+        char buffer[1024+32768];
         Sequence qSeq(maxSeqLen, m->aa2int, m->int2aa, querySeqType, 0, false, compBiasCorrection);
         Sequence dbSeq(maxSeqLen, m->aa2int, m->int2aa, targetSeqType, 0, false, compBiasCorrection);
         Matcher matcher(maxSeqLen, m, &evaluer, compBiasCorrection);
@@ -348,13 +350,12 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 }
 
                 // put the contents of the swResults list into ffindex DB
-                std::stringstream swResultsString;
                 for (size_t result = 0; result < swResults.size(); result++) {
-                    swResultsString << Matcher::resultToString(swResults[result], addBacktrace);
+                    size_t len = Matcher::resultToBuffer(buffer, swResults[result], addBacktrace);
+                    alnResultsOutString.append(buffer, len);
                 }
-
-                std::string swResultString = swResultsString.str();
-                dbw.writeData(swResultString.c_str(), swResultString.length(), qSeq.getDbKey(), thread_idx);
+                dbw.writeData(alnResultsOutString.c_str(), alnResultsOutString.length(), qSeq.getDbKey(), thread_idx);
+                alnResultsOutString.clear();
             }
 
             #pragma omp barrier

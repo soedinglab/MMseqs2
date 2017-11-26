@@ -102,7 +102,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads, DBWriter::BINARY_MODE);
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
     resultWriter.open();
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
@@ -114,7 +114,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 Debug::printProgress(id);
-                char buffer[100];
+                char buffer[1024+32768];
                 std::string prefResultsOutString;
                 prefResultsOutString.reserve(1000000);
                 unsigned int thread_idx = 0;
@@ -244,9 +244,9 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     {
                         int len  = 0;
                         if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
-                            std::string alnString = Matcher::resultToString(result, false);
+                            size_t len = Matcher::resultToBuffer(buffer, result, false);
 //                            len = snprintf(buffer, 100, "%s", alnString.c_str());
-                            prefResultsOutString.append(alnString);
+                            prefResultsOutString.append(buffer, len);
                         } else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
                             len = snprintf(buffer, 100, "%u\t%.3e\t%d\n", results[entryIdx].seqId, evalue, diagonal);
                             prefResultsOutString.append(buffer, len);

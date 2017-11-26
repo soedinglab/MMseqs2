@@ -56,7 +56,7 @@ public:
                                           qStartPos(qStartPos), qEndPos(qEndPos), qLen(qLen),
                                           dbStartPos(dbStartPos), dbEndPos(dbEndPos), dbLen(dbLen),
                                           backtrace(backtrace) {};
-		result_t(){};
+        result_t(){};
     };
 
     Matcher(int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection);
@@ -98,6 +98,7 @@ public:
     static const unsigned short GAP_EXTEND = 1;
 
     static std::string resultToString(const result_t &result, bool addBacktrace, bool compress  = true);
+    static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true);
 
 private:
 

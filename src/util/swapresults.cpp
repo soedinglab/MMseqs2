@@ -163,7 +163,7 @@ int swapresults(int argc, const char **argv, const Command &command) {
             // qcov is used for pScore because its the first float value
             // and alnLength for diagonal because its the first int value after
             std::vector<Matcher::result_t> curRes;
-            char buffer[1024];
+            char buffer[1024+32768];
             std::string ss;
             ss.reserve(100000);
             char *data = &tmpData[targetElementSize[i] - prevBytesToWrite];
@@ -216,7 +216,8 @@ int swapresults(int argc, const char **argv, const Command &command) {
                 for (size_t j = 0; j < curRes.size(); j++) {
                     const Matcher::result_t &res = curRes[j];
                     if (isAlignmentResult) {
-                        ss.append(Matcher::resultToString(res, hasBacktrace, false));
+                        size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                        ss.append(buffer, len);
                     } else {
                         hit_t hit;
                         hit.seqId = res.dbKey;
