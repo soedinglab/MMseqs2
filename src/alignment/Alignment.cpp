@@ -124,7 +124,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         EXIT(EXIT_FAILURE);
     }
     if(querySeqType == DBReader<unsigned int>::DBTYPE_PROFILE && targetSeqType == DBReader<unsigned int>::DBTYPE_PROFILE ){
-        Debug(Debug::ERROR) << "It is not supported that both dbs are profile database.\n";
+        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
     Debug(Debug::WARNING) << "Query database type: " << querySeqType << "\n";

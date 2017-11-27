@@ -38,7 +38,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
     if(queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE ){
-        Debug(Debug::ERROR) << "It is not supported that both dbs are profile database.\n";
+        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
 

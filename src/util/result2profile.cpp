@@ -134,7 +134,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         EXIT(EXIT_FAILURE);
     }
     if(qDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE && tDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE ){
-        Debug(Debug::ERROR) << "It is not supported that both dbs are profile database.\n";
+        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
     Debug(Debug::WARNING) << "Query database type: " << qDbr->getDbtype() << "\n";
