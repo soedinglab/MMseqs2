@@ -9,6 +9,11 @@
 #include "Parameters.h"
 #include "Util.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
+
 void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std::string> cluSteps, int threads)
 {
     // open the sequence database
