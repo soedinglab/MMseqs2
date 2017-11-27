@@ -94,7 +94,7 @@ std::vector<struct Command> commands = {
                 "Milot Mirdita <milot@mirdita.de>",
                 "<i:sequenceDB> <i:clusterDB> <o:fastaDB>",
                 CITATION_MMSEQS2},
-        {"mergeclusters",        mergeclusters,        &par.onlyverbosity,        COMMAND_CLUSTER,
+        {"mergeclusters",        mergeclusters,        &par.onlythreads,        COMMAND_CLUSTER,
                 "Merge multiple cluster DBs into single cluster DB",
                 NULL,
                 "Maria Hauser & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
