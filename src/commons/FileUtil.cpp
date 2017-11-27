@@ -181,7 +181,7 @@ void FileUtil::copyFile(const char *src, const char *dst) {
         Debug(Debug::ERROR) << "Could not open file " << src << "!\n";
         EXIT(EXIT_FAILURE);
     }
-    int dest = open(dst, O_WRONLY | O_CREAT /*| O_TRUNC/**/, 0644);
+    int dest = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (dest == -1) {
         Debug(Debug::ERROR) << "Could not open file " << dst << "!\n";
         EXIT(EXIT_FAILURE);
