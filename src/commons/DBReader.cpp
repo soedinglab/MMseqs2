@@ -81,6 +81,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
     bool isSortedById = false;
     if (dataMode & USE_DATA) {
         dataFile = fopen(dataFileName, "r");
+        dbtype = parseDbType(dataFileName);
         if (dataFile == NULL) {
             Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
             EXIT(EXIT_FAILURE);
@@ -108,7 +109,6 @@ template <typename T> bool DBReader<T>::open(int accessType){
             aaDbSize += size;
         }
     }
-    dbtype = parseDbType(dataFileName);
 
     closed = 0;
     return isSortedById;
