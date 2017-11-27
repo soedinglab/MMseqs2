@@ -5,6 +5,7 @@
 #include <blastpgp.sh.h>
 #include <blastp.sh.h>
 #include <iomanip>
+#include <DBReader.h>
 #include "CommandCaller.h"
 #include "Util.h"
 #include "Debug.h"
@@ -26,16 +27,27 @@ int search(int argc, const char **argv, const Command& command) {
     par.overrideParameterDescription((Command &)command, par.PARAM_MIN_SEQ_ID.uniqid, NULL, NULL, par.PARAM_MIN_SEQ_ID.category |MMseqsParameter::COMMAND_EXPERT );
 
     par.parseParameters(argc, argv, command, 4, false, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+    int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    if(queryDbType == -1 || targetDbType == -1){
+        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if(queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE ){
+        Debug(Debug::ERROR) << "It is not supported that both dbs are profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
-        if (par.targetProfile == true) {
+        if (targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE) {
             par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
             Debug(Debug::ERROR) << "Iterative target-profile searches are not supported.\n";
             EXIT(EXIT_FAILURE);
         }
 
         par.addBacktrace = true;
-        if (par.queryProfile == true) {
+        if (queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE) {
             for (size_t i = 0; i < par.searchworkflow.size(); i++) {
                 if (par.searchworkflow[i].uniqid == par.PARAM_REALIGN.uniqid && par.searchworkflow[i].wasSet) {
                     par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
@@ -79,10 +91,10 @@ int search(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string templateDB(par.db2);
     cmd.addVariable("TARGET_DB_PREF", templateDB.c_str());
-    if (par.targetProfile == true){
+    if (targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE){
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
-        par.targetProfile = false;
-        par.queryProfile = true;
+//        par.targetProfile = false;
+//        par.queryProfile = true;
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
@@ -95,18 +107,18 @@ int search(int argc, const char **argv, const Command& command) {
             }
         }
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
-        cmd.addVariable("PROFILE", SSTR((par.queryProfile) ? 1 : 0).c_str());
+        cmd.addVariable("PROFILE", SSTR((queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE) ? 1 : 0).c_str());
         cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
 
         float originalEval = par.evalThr;
         par.evalThr = par.evalProfile;
         for (int i = 0; i < par.numIterations; i++){
-            if (i == 0 && par.queryProfile == false) {
+            if (i == 0 && queryDbType != DBReader<unsigned int>::DBTYPE_PROFILE) {
                 par.realign = true;
             }
 
             if (i > 0) {
-                par.queryProfile = true;
+//                par.queryProfile = true;
                 par.realign = false;
             }
 

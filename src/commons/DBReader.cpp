@@ -18,7 +18,7 @@
 
 template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode) :
         data(NULL), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
-        indexFileName(strdup(indexFileName_)), dataFile(NULL), size(0), dataSize(0), aaDbSize(0), closed(1),
+        indexFileName(strdup(indexFileName_)), dataFile(NULL), size(0), dataSize(0), aaDbSize(0), closed(1), dbtype(-1),
         index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
         lastKey(T()), dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
@@ -26,7 +26,7 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
 template <typename T>
 DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize) :
         data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL), dataFile(NULL),
-        size(size), dataSize(0), aaDbSize(aaDbSize), closed(1),
+        size(size), dataSize(0), aaDbSize(aaDbSize), closed(1), dbtype(-1),
         index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
         lastKey(T()), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
@@ -108,6 +108,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
             aaDbSize += size;
         }
     }
+    dbtype = parseDbType(dataFileName);
 
     closed = 0;
     return isSortedById;
@@ -523,6 +524,32 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
     unsigned int *seqLens = (unsigned int *)p;
 
     return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize);
+}
+
+template <typename T>
+int DBReader<T>::parseDbType(const char *name) {
+    std::string dbTypeFile = std::string(name) + ".dbtype";
+    int dbtype=-1;
+    if(FileUtil::fileExists(dbTypeFile.c_str())==true){
+        size_t fileSize = FileUtil::getFileSize(dbTypeFile);
+        if(fileSize != sizeof(int)){
+            Debug(Debug::ERROR) << "File size of " << dbTypeFile << " seems to be wrong!\n";
+            Debug(Debug::ERROR) << "It should have 4 bytes but it has " <<  fileSize << " bytes.";
+            EXIT(EXIT_FAILURE);
+        }
+        FILE * dbtypeDataFile = fopen(dbTypeFile.c_str(), "r");
+        if (dbtypeDataFile == NULL) {
+            Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        size_t result = fread (&dbtype,1,fileSize,dbtypeDataFile);
+        if(result != fileSize){
+            Debug(Debug::ERROR) << "Could not read " << dbTypeFile << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        fclose(dbtypeDataFile);
+    }
+    return dbtype;
 }
 
 template class DBReader<unsigned int>;

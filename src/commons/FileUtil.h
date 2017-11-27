@@ -35,6 +35,8 @@ public:
     static bool symlinkCreateOrRepleace(const std::string linkname, const std::string linkdest);
 
     static bool symlinkExists(std::string path);
+
+    static void copyFile(const char *src, const char *dst);
 };
 
 

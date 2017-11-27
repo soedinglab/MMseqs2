@@ -64,7 +64,9 @@ int createdb(int argn, const char **argv, const Command& command) {
     out_hdr_writer.open();
 
     unsigned int entries_num = 1;
-    size_t count = 1;
+    size_t count = 0;
+    const size_t testForNucSequence = 10;
+    size_t isNuclCnt = 0;
 
     for (size_t i = 0; i < filenames.size(); i++) {
         KSeqWrapper *kseq = KSeqFactory(filenames[i].c_str());
@@ -104,7 +106,7 @@ int createdb(int argn, const char **argv, const Command& command) {
 
                 unsigned int id = par.identifierOffset + entries_num;
 
-                lookupStream << id << "\t" << splitId << "\n";
+                lookupStream << id << "\t" << splitId << "\n"; //TODO remove this
 
                 // For split entries replace the found identifier by identifier_splitNumber
                 // Also add another hint that it was split to the end of the header
@@ -130,6 +132,25 @@ int createdb(int argn, const char **argv, const Command& command) {
 
                 // sequence
                 const std::string &sequence = e.sequence;
+                // check for the first 10 sequences if they are nucleotide sequences
+                if(count < testForNucSequence){
+                    size_t cnt=0;
+                    for(size_t i = 0; i < sequence.size(); i++){
+                        switch(toupper(sequence[i]))
+                        {
+                            case 'T':
+                            case 'A':
+                            case 'G':
+                            case 'C':
+                            case 'N': cnt++;
+                            break;
+                        }
+                    }
+                    if(cnt == sequence.size()){
+                        isNuclCnt += true;
+                    }
+                }
+
                 size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
                 std::string splitString(sequence.c_str() + split * par.maxSeqLen, len);
                 splitString.append("\n");
@@ -141,9 +162,14 @@ int createdb(int argn, const char **argv, const Command& command) {
         }
         delete kseq;
     }
+
+    int dbType = DBReader<unsigned int>::DBTYPE_AA;
+    if(isNuclCnt==count || isNuclCnt == testForNucSequence){
+        dbType = DBReader<unsigned int>::DBTYPE_NUC;
+    }
     lookupStream.close();
     out_hdr_writer.close();
-    out_writer.close();
+    out_writer.close(dbType);
 
     return EXIT_SUCCESS;
 }

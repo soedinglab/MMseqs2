@@ -169,3 +169,26 @@ bool FileUtil::symlinkCreateOrRepleace(const std::string linkname, const std::st
     free(abs_in_header_filename);
     return true;
 }
+
+
+void FileUtil::copyFile(const char *src, const char *dst) {
+    //https://stackoverflow.com/questions/10195343/copy-a-file-in-a-sane-safe-and-efficient-way
+    char buf[BUFSIZ];
+    size_t size;
+
+    int source = open(src, O_RDONLY, 0);
+    if (source == -1) {
+        Debug(Debug::ERROR) << "Could not open file " << src << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    int dest = open(dst, O_WRONLY | O_CREAT /*| O_TRUNC/**/, 0644);
+    if (dest == -1) {
+        Debug(Debug::ERROR) << "Could not open file " << dst << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    while ((size = read(source, buf, BUFSIZ)) > 0) {
+        write(dest, buf, size);
+    }
+    close(source);
+    close(dest);
+}

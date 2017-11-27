@@ -321,30 +321,4 @@ size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBac
     return tmpBuff - basePos;
 }
 
-std::string Matcher::resultToString(const result_t &result, bool addBacktrace, bool compress) {
-    std::stringstream swResultsSs;
-    swResultsSs << result.dbKey << "\t";
-    swResultsSs << result.score << "\t"; //TODO fix for formats
-    swResultsSs << std::fixed << std::setprecision(3) << result.seqId << "\t";
-    swResultsSs << std::scientific << result.eval << "\t";
-    swResultsSs << result.qStartPos  << "\t";
-    swResultsSs << result.qEndPos  << "\t";
-    swResultsSs << result.qLen << "\t";
-    swResultsSs << result.dbStartPos  << "\t";
-    swResultsSs << result.dbEndPos  << "\t";
-    if(addBacktrace == true){
-        swResultsSs << result.dbLen << "\t";
-        if(compress){
-            swResultsSs << Matcher::compressAlignment(result.backtrace) << "\n";
-        }else{
-            swResultsSs << result.backtrace << "\n";
-        }
-    }else{
-        swResultsSs << result.dbLen << "\n";
-    }
-    return swResultsSs.str();
-}
-
-
-
 

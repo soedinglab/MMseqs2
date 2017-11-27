@@ -130,7 +130,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     
 
     headerWriter.close();
-    sequenceWriter.close();
+    sequenceWriter.close(DBReader<unsigned int>::DBTYPE_NUC);
     headerReader.close();
     reader.close();
     

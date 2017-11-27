@@ -14,6 +14,11 @@ template <typename T>
 class DBReader {
 
 public:
+
+    static const int DBTYPE_AA = 0;
+    static const int DBTYPE_NUC = 1;
+    static const int DBTYPE_PROFILE = 2;
+
     struct Index {
         T id;
         size_t offset;
@@ -117,6 +122,12 @@ public:
 
     static DBReader<unsigned int> *unserialize(const char* data);
 
+    static int parseDbType(const char *name);
+
+    int getDbtype(){
+        return dbtype;
+    }
+
 private:
 
     struct compareIndexLengthPairById {
@@ -163,6 +174,8 @@ private:
     size_t aaDbSize;
     // flag to check if db was closed
     int closed;
+    // stores the dbtype (if dbtype file exists)
+    int dbtype;
 
     Index * index;
 
@@ -181,6 +194,7 @@ private:
 
     // needed to prevent the compiler from optimizing away the loop
     char magicBytes;
+
 };
 
 #endif

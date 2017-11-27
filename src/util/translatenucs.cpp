@@ -64,7 +64,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     }
     delete[] aa;
 
-    writer.close();
+    writer.close(DBReader<unsigned int>::DBTYPE_AA);
     reader.close();
 
     return EXIT_SUCCESS;

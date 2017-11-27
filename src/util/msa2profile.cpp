@@ -299,10 +299,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         delete[] maskedColumns;
     }
 
-    consensusWriter.close();
+    consensusWriter.close(DBReader<unsigned int>::DBTYPE_AA);
     headerWriter.close();
-    sequenceWriter.close();
-    resultWriter.close();
+    sequenceWriter.close(DBReader<unsigned int>::DBTYPE_AA);
+    resultWriter.close(DBReader<unsigned int>::DBTYPE_PROFILE);
 
     char* path = strdup((par.db2 + "_h").c_str());
     std::string base = basename(path);

@@ -129,6 +129,17 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND,
                                         true);
 
+    if(qDbr->getDbtype() == -1 || tDbr->getDbtype() == -1){
+        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if(qDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE && tDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE ){
+        Debug(Debug::ERROR) << "It is not supported that both dbs are profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    Debug(Debug::WARNING) << "Query database type: " << qDbr->getDbtype() << "\n";
+    Debug(Debug::WARNING) << "Target database type: " << tDbr->getDbtype() << "\n";
+
     const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
     {
@@ -136,14 +147,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
-
-        int sequenceType = Sequence::AMINO_ACIDS;
-        if (par.queryProfile == true) {
-            sequenceType = Sequence::HMM_PROFILE;
-        }
-
         Sequence centerSequence(maxSequenceLength, subMat.aa2int, subMat.int2aa,
-                                sequenceType, 0, false, par.compBiasCorrection);
+                                qDbr->getDbtype(), 0, false, par.compBiasCorrection);
 
 #pragma omp for schedule(static)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
@@ -266,10 +271,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
     // cleanup
     if (consensusWriter != NULL) {
-        consensusWriter->close();
+        consensusWriter->close(DBReader<unsigned int>::DBTYPE_AA);
         delete consensusWriter;
     }
-    resultWriter.close();
+    resultWriter.close(DBReader<unsigned int>::DBTYPE_PROFILE);
 
 #ifndef HAVE_MPI
     if (par.earlyExit) {

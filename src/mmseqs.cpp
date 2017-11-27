@@ -226,7 +226,7 @@ std::vector<struct Command> commands = {
                 "Turns a TSV file into a MMseqs database",
                 NULL,
                 "Milot Mirdita <milot@mirdita.de>",
-                "<i:tsvFile> <o:sequenceDB>",
+                "<i:tsvFile> <o:resultDB>",
                 CITATION_MMSEQS2
         },
         {"result2repseq",       result2repseq,      &par.onlythreads,          COMMAND_DB,

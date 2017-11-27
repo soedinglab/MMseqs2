@@ -29,7 +29,6 @@ int createindex(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
     dbr.open(DBReader<unsigned int>::NOSORT);
-
     BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
 
     int kmerSize = par.kmerSize;
@@ -45,11 +44,11 @@ int createindex(int argc, const char **argv, const Command &command) {
         }
     }
 
-    if (par.targetSeqType != Sequence::HMM_PROFILE && kScoreSet == false) {
+    if (dbr.getDbtype() != DBReader<unsigned int>::DBTYPE_PROFILE && kScoreSet == false) {
         par.kmerScore = 0;
     }
 
-    int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, par.querySeqType, par.kmerScore, kmerSize);
+    int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, dbr.getDbtype(), par.kmerScore, kmerSize);
 
     DBReader<unsigned int> *hdbr = NULL;
     if (par.includeHeader == true) {
@@ -66,7 +65,7 @@ int createindex(int argc, const char **argv, const Command &command) {
     PrefilteringIndexReader::createIndexFile(par.db1, &dbr, hdbr, subMat, par.maxSeqLen,
                                              par.spacedKmer, par.compBiasCorrection,
                                              subMat->alphabetSize, kmerSize, par.diagonalScoring,
-                                             par.maskMode, par.targetSeqType, kmerThr, par.threads);
+                                             par.maskMode, dbr.getDbtype(), kmerThr, par.threads);
 
     if (hdbr != NULL) {
         hdbr->close();

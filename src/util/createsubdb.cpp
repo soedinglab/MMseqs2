@@ -25,11 +25,10 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     }
     char * line = new char[65536];
     char dbKey[255 + 1];
-    ssize_t read;
     size_t len = 0;
-    while ((read = getline(&line, &len, orderFile)) != -1) {
+    while (getline(&line, &len, orderFile) != -1) {
         Util::parseKey(line, dbKey);
-        const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+        const unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
         size_t id = reader.getId(key);
         if(id >= UINT_MAX) {
             Debug(Debug::WARNING) << "Key " << line << " not found in database\n";
@@ -41,6 +40,11 @@ int createsubdb(int argc, const char **argv, const Command& command) {
         size_t length = reader.getSeqLens(id) - 1;
         writer.writeData(data, length, key);
     }
+
+    if(FileUtil::fileExists((par.db2 + ".dbtype").c_str())){
+        FileUtil::copyFile((par.db2 + ".dbtype").c_str(), (par.db3 + ".dbtype").c_str());
+    }
+
     delete [] line;
     fclose(orderFile);
     writer.close();
