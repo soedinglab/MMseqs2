@@ -97,8 +97,14 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     {
         std::string res;
         res.reserve(1024*1024);
-#pragma omp for schedule(dynamic, 100)
+
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
+
         // go through all sequences in the database
+#pragma omp for schedule(dynamic, 100)
         for (size_t i = 0; i < dbr.getSize(); i++){
             // no cluster for this representative
             if (mergedClustering[i]->size() == 0)
@@ -115,7 +121,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
                 res.push_back('\n');
             }
 
-            dbw->writeData(res.c_str(), res.length(), dbKey);
+            dbw->writeData(res.c_str(), res.length(), dbKey, thread_idx);
             res.clear();
         }
     }
