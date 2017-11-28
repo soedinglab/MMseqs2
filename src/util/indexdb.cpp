@@ -12,10 +12,10 @@ void setCreateIndexDefaults(Parameters *p) {
     p->sensitivity = 5;
 }
 
-int createindex(int argc, const char **argv, const Command &command) {
+int indexdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setCreateIndexDefaults(&par);
-    par.parseParameters(argc, argv, command, 1);
+    par.parseParameters(argc, argv, command, 2);
 
     if (par.split > 1) {
         Debug(Debug::ERROR) << "Creating a split index is not supported anymore.\n";
@@ -38,8 +38,8 @@ int createindex(int argc, const char **argv, const Command &command) {
     Prefiltering::setupSplit(dbr, subMat->alphabetSize, par.threads, false, par.maxResListLen, &kmerSize, &split, &splitMode);
 
     bool kScoreSet = false;
-    for (size_t i = 0; i < par.createindex.size(); i++) {
-        if (par.createindex[i].uniqid == par.PARAM_K_SCORE.uniqid && par.createindex[i].wasSet) {
+    for (size_t i = 0; i < par.indexdb.size(); i++) {
+        if (par.indexdb[i].uniqid == par.PARAM_K_SCORE.uniqid && par.indexdb[i].wasSet) {
             kScoreSet = true;
         }
     }
@@ -62,7 +62,7 @@ int createindex(int argc, const char **argv, const Command &command) {
         hdbr->open(DBReader<unsigned int>::NOSORT);
     }
 
-    PrefilteringIndexReader::createIndexFile(par.db1, &dbr, hdbr, subMat, par.maxSeqLen,
+    PrefilteringIndexReader::createIndexFile(par.db2, &dbr, hdbr, subMat, par.maxSeqLen,
                                              par.spacedKmer, par.compBiasCorrection,
                                              subMat->alphabetSize, kmerSize, par.diagonalScoring,
                                              par.maskMode, dbr.getDbtype(), kmerThr, par.threads);

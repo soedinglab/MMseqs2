@@ -247,7 +247,7 @@ public:
     int kmersPerSequence;
     int hashShift;
 
-    // createindex
+    // indexdb
     bool includeHeader;
 
     // createdb
@@ -452,7 +452,7 @@ public:
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
 
-    // createindex
+    // indexdb
     PARAMETER(PARAM_INCLUDE_HEADER)
 
     // createdb
@@ -535,6 +535,7 @@ public:
     std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorfs;
     std::vector<MMseqsParameter> splitdb;
+    std::vector<MMseqsParameter> indexdb;
     std::vector<MMseqsParameter> createindex;
     std::vector<MMseqsParameter> convertalignments;
     std::vector<MMseqsParameter> createdb;

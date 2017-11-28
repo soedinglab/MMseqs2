@@ -10,6 +10,7 @@ extern int prefilter(int argc, const char **argv, const Command& command);
 extern int createdb(int argc, const char **argv, const Command& command);
 extern int result2flat(int argc, const char **argv, const Command& command);
 extern int createindex(int argc, const char **argv, const Command& command);
+extern int indexdb(int argc, const char **argv, const Command& command);
 extern int mergedbs(int argc, const char **argv, const Command& command);
 extern int mergeclusters(int argc, const char **argv, const Command& command);
 extern int align(int argc, const char **argv, const Command& command);

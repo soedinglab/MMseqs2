@@ -110,7 +110,7 @@ Parameters::Parameters():
         PARAM_ORF_EXTENDMIN(PARAM_ORF_EXTENDMIN_ID,"--extend-min", "Extend short orfs", "if an orf would be rejected because of the min length threshold, allow it to be extended to the next stop codon",typeid(bool),(void *) &orfExtendMin, ""),
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
-        // createindex
+        // indexdb
         PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Header", "Include the header index into the index", typeid(bool), (void *) &includeHeader, ""),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
@@ -330,19 +330,19 @@ Parameters::Parameters():
     splitdb.push_back(PARAM_SPLIT_AMINOACID);
 
     // create index
-    createindex.push_back(PARAM_SUB_MAT);
-    createindex.push_back(PARAM_K);
-    createindex.push_back(PARAM_ALPH_SIZE);
-    createindex.push_back(PARAM_MAX_SEQS);
-    createindex.push_back(PARAM_MAX_SEQ_LEN);
-    createindex.push_back(PARAM_MASK_RESIDUES);
-    createindex.push_back(PARAM_SPACED_KMER_MODE);
-    createindex.push_back(PARAM_S);
-    createindex.push_back(PARAM_K_SCORE);
-    createindex.push_back(PARAM_INCLUDE_HEADER);
-    createindex.push_back(PARAM_SPLIT);
-    createindex.push_back(PARAM_THREADS);
-    createindex.push_back(PARAM_V);
+    indexdb.push_back(PARAM_SUB_MAT);
+    indexdb.push_back(PARAM_K);
+    indexdb.push_back(PARAM_ALPH_SIZE);
+    indexdb.push_back(PARAM_MAX_SEQS);
+    indexdb.push_back(PARAM_MAX_SEQ_LEN);
+    indexdb.push_back(PARAM_MASK_RESIDUES);
+    indexdb.push_back(PARAM_SPACED_KMER_MODE);
+    indexdb.push_back(PARAM_S);
+    indexdb.push_back(PARAM_K_SCORE);
+    indexdb.push_back(PARAM_INCLUDE_HEADER);
+    indexdb.push_back(PARAM_SPLIT);
+    indexdb.push_back(PARAM_THREADS);
+    indexdb.push_back(PARAM_V);
 
     // create db
     createdb.push_back(PARAM_MAX_SEQ_LEN);
@@ -500,6 +500,12 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_SENS_STEPS);
     searchworkflow.push_back(PARAM_RUNNER);
     searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+
+
+    // createindex workflow
+    createindex = combineList(indexdb, extractorfs);
+    createindex =  combineList(createindex, translatenucs);
+    createindex.push_back(PARAM_REMOVE_TMP_FILES);
 
     // linclust workflow
     linclustworkflow = combineList(clust, align);
