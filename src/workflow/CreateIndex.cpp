@@ -1,6 +1,7 @@
 #include "Parameters.h"
 #include <string>
 #include <cassert>
+#include <climits>
 #include <Util.h>
 #include <DBReader.h>
 #include "createindex.sh.h"
