@@ -1,6 +1,8 @@
 #include "NcbiTaxonomy.h"
 #include "Debug.h"
 
+const char* binary_name = "test_taxonomy";
+
 int main (int argc, const char **argv) {
     NcbiTaxonomy t("/Users/mirdita/tmp/taxonomy/names.dmp",
                    "/Users/mirdita/tmp/taxonomy/nodes.dmp",

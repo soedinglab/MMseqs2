@@ -19,6 +19,8 @@
 #include "Parameters.h"
 #include "Matcher.h"
 
+const char* binary_name = "test_alignment";
+
 int main (int argc, const char * argv[]) {
     const size_t kmer_size=6;
 

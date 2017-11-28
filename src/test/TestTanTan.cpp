@@ -10,6 +10,7 @@
 #include "Sequence.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_tantan";
 
 int main (int argc, const char * argv[]) {
     const size_t kmer_size = 6;

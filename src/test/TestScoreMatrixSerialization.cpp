@@ -4,6 +4,8 @@
 #include "Parameters.h"
 #include "Debug.h"
 
+const char* binary_name = "test_scorematrixserialization";
+
 int main (int argc, const char * argv[])
 {
     Parameters& par = Parameters::getInstance();

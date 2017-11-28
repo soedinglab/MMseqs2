@@ -3,6 +3,8 @@
 
 #include "TranslateNucl.h"
 
+const char* binary_name = "test_translate";
+
 int main (int argc, const char * argv[])
 {
     TranslateNucl * translateNucl = new TranslateNucl(TranslateNucl::CANONICAL);

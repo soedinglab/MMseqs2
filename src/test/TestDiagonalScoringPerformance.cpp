@@ -22,6 +22,7 @@ KSEQ_INIT(int, read)
 
 #include "Parameters.h"
 
+const char* binary_name = "test_diagonalscoringperformance";
 
 int main(int argc, char **argv)
 {

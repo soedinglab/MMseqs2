@@ -10,6 +10,7 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 
+const char* binary_name = "test_dbreader";
 
 int main(int argc, char **argv)
 {

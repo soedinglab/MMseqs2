@@ -14,6 +14,9 @@
 #include "SubstitutionMatrix.h"
 #include "MultipleAlignment.h"
 #include <string.h>
+
+const char* binary_name = "test_pssmprune";
+
 int main (int argc, const char * argv[])
 {
     Parameters& par = Parameters::getInstance();

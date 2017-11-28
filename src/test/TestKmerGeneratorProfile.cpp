@@ -16,6 +16,8 @@
 #include "KmerGenerator.h"
 #include "BaseMatrix.h"
 
+const char* binary_name = "test_kmergeneratorprofile";
+
 int main (int argc, const char * argv[])
 {
 

@@ -23,6 +23,8 @@
 #include "SubstitutionMatrix.h"
 #include "smith_waterman_sse2.h"
 
+const char* binary_name = "test_alignmentperformance";
+
 #define MAX_FILENAME_LIST_FILES 4096
 
 KSEQ_INIT(int, read)
