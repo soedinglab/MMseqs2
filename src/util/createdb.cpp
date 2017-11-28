@@ -11,6 +11,7 @@
 #include <fstream>
 #include <unistd.h>
 #include <math.h>
+#include <itoa.h>
 
 #include "FileUtil.h"
 #include "DBWriter.h"
@@ -39,11 +40,11 @@ int createdb(int argn, const char **argv, const Command& command) {
     std::string index_filename_hdr(data_filename);
     index_filename_hdr.append("_h.index");
 
-    std::string lookupFile(data_filename);
-    lookupFile.append(".lookup");
-    std::ofstream lookupStream(lookupFile);
-    if (lookupStream.fail()) {
-        Debug(Debug::ERROR) << "Could not open " << lookupFile << " for writing.";
+    std::string lookupFileName(data_filename);
+    lookupFileName.append(".lookup");
+    FILE* lookupFile = fopen(lookupFileName.c_str(), "w");
+    if(lookupFile == NULL) {
+        Debug(Debug::ERROR) << "Could not open " << lookupFileName << " for writing.";
         EXIT(EXIT_FAILURE);
     }
 
@@ -69,6 +70,13 @@ int createdb(int argn, const char **argv, const Command& command) {
     size_t isNuclCnt = 0;
 
     for (size_t i = 0; i < filenames.size(); i++) {
+        std::string splitHeader;
+        splitHeader.reserve(1024);
+        std::string header;
+        header.reserve(1024);
+        std::string splitId;
+        splitId.reserve(1024);
+        char lookupBuffer[32768];
         KSeqWrapper *kseq = KSeqFactory(filenames[i].c_str());
         while (kseq->ReadEntry()) {
             Debug::printProgress(count);
@@ -84,33 +92,38 @@ int createdb(int argn, const char **argv, const Command& command) {
             }
 
             // header
-            std::string header(e.name);
+            header.append(e.name);
             if (e.comment.length() > 0) {
                 header.append(" ", 1);
                 header.append(e.comment);
             }
 
             std::string headerId = Util::parseFastaHeader(header);
+            header.clear();
             if (headerId == "") {
                 // An identifier is necessary for these two cases, so we should just give up
                 Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
 
             }
-
             for (size_t split = 0; split < splitCnt; split++) {
-                std::string splitId(headerId);
+                splitId.append(headerId);
                 if (splitCnt > 1) {
                     splitId.append("_");
                     splitId.append(SSTR(split));
                 }
 
                 unsigned int id = par.identifierOffset + entries_num;
-
-                lookupStream << id << "\t" << splitId << "\n"; //TODO remove this
+                char * tmpBuff = Itoa::i32toa_sse2(id, lookupBuffer);
+                *(tmpBuff-1) = '\t';
+                fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
+                fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
+                char newline='\n';
+                fwrite(&newline, sizeof(char), 1, lookupFile);
+                splitId.clear();
 
                 // For split entries replace the found identifier by identifier_splitNumber
                 // Also add another hint that it was split to the end of the header
-                std::string splitHeader(header);
+                splitHeader.append(header);
                 if (par.splitSeqByLen == true && splitCnt > 1) {
                     if (headerId != "") {
                         size_t pos = splitHeader.find(headerId);
@@ -129,7 +142,7 @@ int createdb(int argn, const char **argv, const Command& command) {
 
                 // Finally write down the entry
                 out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
-
+                splitHeader.clear();
                 // sequence
                 const std::string &sequence = e.sequence;
                 // check for the first 10 sequences if they are nucleotide sequences
@@ -167,7 +180,7 @@ int createdb(int argn, const char **argv, const Command& command) {
     if(isNuclCnt==count || isNuclCnt == testForNucSequence){
         dbType = DBReader<unsigned int>::DBTYPE_NUC;
     }
-    lookupStream.close();
+    fclose(lookupFile);
     out_hdr_writer.close();
     out_writer.close(dbType);
 
