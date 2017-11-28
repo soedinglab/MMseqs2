@@ -27,13 +27,10 @@ Parameters::Parameters():
         // Please do not change manually, use a tool to regenerate
         // e.g.: http://gamon.webfactional.com/regexnumericrangegenerator/
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^0*([1-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|[12][0-9]{4}|3[01][0-9]{3}|32[0-6][0-9]{2}|327[0-5][0-9]|3276[0-8])$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_QUERY_PROFILE(PARAM_QUERY_PROFILE_ID,"--query-profile", "Query queryProfile", "Search with query on queryProfile side (query DB must be a queryProfile DB)",typeid(bool),(void *) &queryProfile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
-        PARAM_TARGET_PROFILE(PARAM_TARGET_PROFILE_ID,"--target-profile", "Target queryProfile", "Build database with a queryProfile information (target DB must be a queryProfile DB)",typeid(bool),(void *) &targetProfile, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE),
-        //PARAM_NUCL(PARAM_NUCL_ID,"--nucl", "Nucleotide","Nucleotide sequences input",typeid(bool),(void *) &nucl , ""),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking, 1: with low complexity masking, (createindex only) 2: add both masked and unmasked sequences to index", typeid(int),(void *) &maskMode, "^[0-2]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum Diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "k-mer threshold for generating similar-k-mer lists",typeid(int),(void *) &kmerScore,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "k-mer threshold for generating similar-k-mer lists",typeid(int),(void *) &kmerScore,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "Splits input sets into N equally distributed chunks. The default value sets the best split automatically. createindex can only be used with split 1.",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "0: split target db; 1: split query db;  2: auto, depending on main memory",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
@@ -114,7 +111,7 @@ Parameters::Parameters():
         PARAM_ORF_EXTENDMIN(PARAM_ORF_EXTENDMIN_ID,"--extend-min", "Extend short orfs", "if an orf would be rejected because of the min length threshold, allow it to be extended to the next stop codon",typeid(bool),(void *) &orfExtendMin, ""),
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
-        // createindex
+        // indexdb
         PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Header", "Include the header index into the index", typeid(bool), (void *) &includeHeader, ""),
         // createdb
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
@@ -172,8 +169,6 @@ Parameters::Parameters():
     align.push_back(PARAM_MAX_SEQ_LEN);
     align.push_back(PARAM_MAX_SEQS);
     align.push_back(PARAM_NO_COMP_BIAS_CORR);
-    //    alignment.push_back(PARAM_NUCL);
-    align.push_back(PARAM_QUERY_PROFILE);
     align.push_back(PARAM_REALIGN);
     align.push_back(PARAM_MAX_REJECTED);
     align.push_back(PARAM_MAX_ACCEPT);
@@ -190,9 +185,6 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_K_SCORE);
     prefilter.push_back(PARAM_ALPH_SIZE);
     prefilter.push_back(PARAM_MAX_SEQ_LEN);
-    prefilter.push_back(PARAM_QUERY_PROFILE);
-    prefilter.push_back(PARAM_TARGET_PROFILE);
-    //    prefilter.push_back(PARAM_NUCL);
     prefilter.push_back(PARAM_MAX_SEQS);
     prefilter.push_back(PARAM_RES_LIST_OFFSET);
     prefilter.push_back(PARAM_SPLIT);
@@ -212,7 +204,6 @@ Parameters::Parameters():
 
     // clustering
     clust.push_back(PARAM_CLUSTER_MODE);
-    clust.push_back(PARAM_MAX_SEQS);
     clust.push_back(PARAM_V);
     clust.push_back(PARAM_MAXITERATIONS);
     clust.push_back(PARAM_SIMILARITYSCORE);
@@ -245,7 +236,7 @@ Parameters::Parameters():
 
     // result2profile
     result2profile.push_back(PARAM_SUB_MAT);
-    result2profile.push_back(PARAM_QUERY_PROFILE);
+//    result2profile.push_back(PARAM_QUERY_PROFILE);
     result2profile.push_back(PARAM_E_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
     result2profile.push_back(PARAM_WG);
@@ -280,7 +271,6 @@ Parameters::Parameters():
     convertalignments.push_back(PARAM_V);
     // result2msa
     result2msa.push_back(PARAM_SUB_MAT);
-    result2msa.push_back(PARAM_QUERY_PROFILE);
     result2msa.push_back(PARAM_E_PROFILE);
     result2msa.push_back(PARAM_ALLOW_DELETION);
     result2msa.push_back(PARAM_ADD_INTERNAL_ID);
@@ -341,20 +331,19 @@ Parameters::Parameters():
     splitdb.push_back(PARAM_SPLIT_AMINOACID);
 
     // create index
-    createindex.push_back(PARAM_SUB_MAT);
-    createindex.push_back(PARAM_K);
-    createindex.push_back(PARAM_ALPH_SIZE);
-    createindex.push_back(PARAM_MAX_SEQS);
-    createindex.push_back(PARAM_MAX_SEQ_LEN);
-    createindex.push_back(PARAM_MASK_RESIDUES);
-    createindex.push_back(PARAM_SPACED_KMER_MODE);
-    createindex.push_back(PARAM_TARGET_PROFILE);
-    createindex.push_back(PARAM_S);
-    createindex.push_back(PARAM_K_SCORE);
-    createindex.push_back(PARAM_INCLUDE_HEADER);
-    createindex.push_back(PARAM_SPLIT);
-    createindex.push_back(PARAM_THREADS);
-    createindex.push_back(PARAM_V);
+    indexdb.push_back(PARAM_SUB_MAT);
+    indexdb.push_back(PARAM_K);
+    indexdb.push_back(PARAM_ALPH_SIZE);
+    indexdb.push_back(PARAM_MAX_SEQS);
+    indexdb.push_back(PARAM_MAX_SEQ_LEN);
+    indexdb.push_back(PARAM_MASK_RESIDUES);
+    indexdb.push_back(PARAM_SPACED_KMER_MODE);
+    indexdb.push_back(PARAM_S);
+    indexdb.push_back(PARAM_K_SCORE);
+    indexdb.push_back(PARAM_INCLUDE_HEADER);
+    indexdb.push_back(PARAM_SPLIT);
+    indexdb.push_back(PARAM_THREADS);
+    indexdb.push_back(PARAM_V);
 
     // create db
     createdb.push_back(PARAM_MAX_SEQ_LEN);
@@ -512,6 +501,12 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_SENS_STEPS);
     searchworkflow.push_back(PARAM_RUNNER);
     searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+
+
+    // createindex workflow
+    createindex = combineList(indexdb, extractorfs);
+    createindex =  combineList(createindex, translatenucs);
+    createindex.push_back(PARAM_REMOVE_TMP_FILES);
 
     // linclust workflow
     linclustworkflow = combineList(clust, align);
@@ -795,22 +790,6 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 #ifdef OPENMP
     omp_set_num_threads(threads);
 #endif
-    if (queryProfile){
-        querySeqType  = Sequence::HMM_PROFILE;
-        targetSeqType = Sequence::AMINO_ACIDS;
-    }
-    if (targetProfile){
-        querySeqType  = Sequence::AMINO_ACIDS;
-        targetSeqType = Sequence::HMM_PROFILE;
-    }
-    if (nucl){
-        querySeqType  = Sequence::NUCLEOTIDES;
-        targetSeqType = Sequence::NUCLEOTIDES;
-    }
-
-    if (querySeqType == Sequence::NUCLEOTIDES){
-        alphabetSize = 5;
-    }
 
     const size_t MAX_DB_PARAMETER = 6;
 
@@ -923,8 +902,6 @@ void Parameters::setDefaults() {
     split = AUTO_SPLIT_DETECTION;
     splitMode = DETECT_BEST_DB_SPLIT;
     splitAA = false;
-    querySeqType  = Sequence::AMINO_ACIDS;
-    targetSeqType = Sequence::AMINO_ACIDS;
 
     // search workflow
     numIterations = 1;
@@ -945,9 +922,6 @@ void Parameters::setDefaults() {
     maskMode = 1;
     minDiagScoreThr = 15;
     spacedKmer = true;
-    queryProfile = false;
-    targetProfile = false;
-    nucl = false;
     includeIdentity = false;
     alignmentMode = ALIGNMENT_MODE_FAST_AUTO;
     evalThr = 0.001;

@@ -97,7 +97,16 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                        << (par.compressMSA ? "compressed" : "") << " multiple sequence alignments.\n";
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND,
                                         true);
-
+    if( qDbr.getDbtype() == -1 || tDbr->getDbtype() == -1 ){
+        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if( qDbr.getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE && tDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE ){
+        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    Debug(Debug::WARNING) << "Query database type: " << qDbr.getDbtype() << "\n";
+    Debug(Debug::WARNING) << "Target database type: " << tDbr->getDbtype() << "\n";
     const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
     {
@@ -106,14 +115,8 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
         UniprotHeaderSummarizer summarizer;
-
-        int sequenceType = Sequence::AMINO_ACIDS;
-        if (par.queryProfile == true) {
-            sequenceType = Sequence::HMM_PROFILE;
-        }
-
         Sequence centerSequence(maxSequenceLength, subMat.aa2int, subMat.int2aa,
-                                sequenceType, 0, false, par.compBiasCorrection);
+                                qDbr.getDbtype(), 0, false, par.compBiasCorrection);
 
         // which sequences where kept after filtering
         bool *kept = new bool[maxSetSize];

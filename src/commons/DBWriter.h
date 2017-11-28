@@ -20,13 +20,14 @@ class DBWriter {
         static const size_t BINARY_MODE = 1;
         static const size_t LEXICOGRAPHIC_MODE = 2;
 
+
         DBWriter(const char* dataFileName, const char* indexFileName, unsigned int threads = 1, size_t mode = ASCII_MODE);
 
         ~DBWriter();
 
         void open(size_t bufferSize = 64 * 1024 * 1024);
 
-        void close();
+        void close(int dbType = -1);
     
         char* getDataFileName() { return dataFileName; }
     

@@ -8,7 +8,7 @@
 #include <set>
 #include <list>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 #include "DBReader.h"
 #include "SetElement.h"
@@ -17,7 +17,7 @@ class ClusteringAlgorithms {
 public:
     ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr, int threads,int scoretype, int maxiterations);
     ~ClusteringAlgorithms();
-    std::map<unsigned int, std::vector<unsigned int>> execute(int mode);
+    std::unordered_map<unsigned int, std::vector<unsigned int>> execute(int mode);
 private:
     DBReader<unsigned int>* seqDbr;
 

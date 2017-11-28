@@ -6,7 +6,7 @@ set(util_source_files
         util/convertkb.cpp
         util/convertprofiledb.cpp
         util/createdb.cpp
-        util/createindex.cpp
+        util/indexdb.cpp
         util/createseqfiledb.cpp
         util/createsubdb.cpp
         util/createtsv.cpp

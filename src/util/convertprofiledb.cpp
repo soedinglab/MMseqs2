@@ -331,8 +331,8 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     }
 
     headerOut.close();
-    dataOut.close();
-    seqOut.close();
+    dataOut.close(DBReader<unsigned int>::DBTYPE_PROFILE);
+    seqOut.close(DBReader<unsigned int>::DBTYPE_AA);
 
     dataIn.close();
 

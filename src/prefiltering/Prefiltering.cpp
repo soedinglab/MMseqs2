@@ -13,6 +13,7 @@
 
 Prefiltering::Prefiltering(const std::string &targetDB,
                            const std::string &targetDBIndex,
+                           int querySeqType, int targetSeqType,
                            const Parameters &par) :
         targetDB(targetDB),
         targetDBIndex(targetDBIndex),
@@ -23,13 +24,13 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         maskMode(par.maskMode),
         splitMode(par.splitMode),
         scoringMatrixFile(par.scoringMatrixFile),
-        targetSeqType(par.targetSeqType),
+        targetSeqType(targetSeqType),
         maxResListLen(par.maxResListLen),
         kmerScore(par.kmerScore),
         sensitivity(par.sensitivity),
         resListOffset(par.resListOffset),
         maxSeqLen(par.maxSeqLen),
-        querySeqType(par.querySeqType),
+        querySeqType(querySeqType),
         diagonalScoring(par.diagonalScoring != 0),
         minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
@@ -150,6 +151,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         Debug(Debug::ERROR) << "Invalid split mode: " << splitMode << "\n";
         EXIT(EXIT_FAILURE);
     }
+    Debug(Debug::WARNING) << "Query database type: " << querySeqType << "\n";
+    Debug(Debug::WARNING) << "Target database type: " << targetSeqType << "\n";
 }
 
 Prefiltering::~Prefiltering() {

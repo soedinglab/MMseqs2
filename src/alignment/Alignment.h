@@ -65,7 +65,7 @@ private:
     const std::string outDBIndex;
 
     const size_t maxSeqLen;
-    const int querySeqType;
+    int querySeqType;
     int targetSeqType;
     const bool compBiasCorrection;
 
@@ -74,10 +74,10 @@ private:
     // needed for realignment
     BaseMatrix *realign_m;
 
-    DBReader<unsigned int> *qseqdbr;
+    DBReader<unsigned int> *qdbr;
     SequenceLookup *qSeqLookup;
 
-    DBReader<unsigned int> *tseqdbr;
+    DBReader<unsigned int> *tdbr;
     DBReader<unsigned int> *tidxdbr;
     SequenceLookup *tSeqLookup;
 

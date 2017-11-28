@@ -4,6 +4,7 @@
 #include "Parameters.h"
 #include "Util.h"
 #include <sys/time.h>
+#include <itoa.h>
 
 Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                        const std::string &alnDB, const std::string &alnDBIndex,
@@ -38,7 +39,7 @@ void Clustering::run(int mode) {
     DBWriter *dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1);
     dbw->open();
 
-    std::map<unsigned int, std::vector<unsigned int>> ret;
+    std::unordered_map<unsigned int, std::vector<unsigned int>> ret;
     ClusteringAlgorithms *algorithm = new ClusteringAlgorithms(seqDbr, alnDbr,
                                                                threads, similarityScoreType,
                                                                maxIteration);
@@ -92,19 +93,23 @@ void Clustering::run(int mode) {
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";
 }
 
-void Clustering::writeData(DBWriter *dbw, const std::map<unsigned int, std::vector<unsigned int>> &ret) {
-    std::map<unsigned int, std::vector<unsigned int> >::const_iterator iterator;
+void Clustering::writeData(DBWriter *dbw, const std::unordered_map<unsigned int, std::vector<unsigned int>> &ret) {
+    std::unordered_map<unsigned int, std::vector<unsigned int> >::const_iterator iterator;
+    std::string resultStr;
+    resultStr.reserve(1024*1024*1024);
+    char buffer[32];
     for (iterator = ret.begin(); iterator != ret.end(); ++iterator) {
-        std::stringstream res;
         std::vector<unsigned int> elements = (*iterator).second;
         // first entry is the representative sequence
         for (size_t i = 0; i < elements.size(); i++) {
             unsigned int nextDbKey = seqDbr->getDbKey(elements[i]);
-            res << nextDbKey << "\n";
+            char * outpos = Itoa::i32toa_sse2(nextDbKey, buffer);
+            resultStr.append(buffer, (outpos - buffer - 1) );
+            resultStr.push_back('\n');
         }
         unsigned int dbKey = seqDbr->getDbKey((*iterator).first);
-        std::string cluResultsOutString = res.str();
-        dbw->writeData(cluResultsOutString.c_str(), cluResultsOutString.length(), dbKey);
+        dbw->writeData(resultStr.c_str(), resultStr.length(), dbKey);
+        resultStr.clear();
     }
 }
 
