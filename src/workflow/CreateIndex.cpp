@@ -14,8 +14,16 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.orfLongest = true;
     par.orfMinLength = 30;
     par.orfMaxLength = 98202; // 32734 AA (just to be sure)
+    par.kmerScore = 0; // extract all k-mers
+    par.sensitivity = 7.5;
     par.parseParameters(argc, argv, command, 2);
-
+    // only set kmerScore  to INT_MAX if -s was used
+    for (size_t i = 0; i < par.createindex.size(); i++) {
+        if (par.createindex[i].uniqid == par.PARAM_S.uniqid && par.createindex[i].wasSet) {
+            par.kmerScore = INT_MAX;
+            break;
+        }
+    }
 
     int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     if(dbType==-1){
