@@ -99,7 +99,6 @@ int createdb(int argn, const char **argv, const Command& command) {
             }
 
             std::string headerId = Util::parseFastaHeader(header);
-            header.clear();
             if (headerId == "") {
                 // An identifier is necessary for these two cases, so we should just give up
                 Debug(Debug::WARNING) << "Could not extract identifier from entry " << entries_num << ".\n";
@@ -143,6 +142,8 @@ int createdb(int argn, const char **argv, const Command& command) {
                 // Finally write down the entry
                 out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
                 splitHeader.clear();
+                header.clear();
+
                 // sequence
                 const std::string &sequence = e.sequence;
                 // check for the first 10 sequences if they are nucleotide sequences
