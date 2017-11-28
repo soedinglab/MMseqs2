@@ -18,10 +18,12 @@ int createindex(int argc, const char **argv, const Command& command) {
     par.kmerScore = 0; // extract all k-mers
     par.sensitivity = 7.5;
     par.parseParameters(argc, argv, command, 2);
+    bool sensitivity = false;
     // only set kmerScore  to INT_MAX if -s was used
     for (size_t i = 0; i < par.createindex.size(); i++) {
         if (par.createindex[i].uniqid == par.PARAM_S.uniqid && par.createindex[i].wasSet) {
             par.kmerScore = INT_MAX;
+            sensitivity=true;
             break;
         }
     }
@@ -29,6 +31,12 @@ int createindex(int argc, const char **argv, const Command& command) {
     int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     if(dbType==-1){
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    if(dbType==DBReader<unsigned int>::DBTYPE_PROFILE && sensitivity == false){
+        Debug(Debug::ERROR) << "Please adjust the sensitivity of your target profile index with -s.\n"
+                               "Be aware that this searches can take huge amount of memory. \n";
         EXIT(EXIT_FAILURE);
     }
 
