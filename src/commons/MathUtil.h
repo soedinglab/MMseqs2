@@ -126,6 +126,7 @@ public:
     }
 
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wconstant-conversion"
 #pragma GCC diagnostic ignored "-Woverflow"
     /** A single gain expressed as minifloat */
