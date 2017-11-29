@@ -112,8 +112,17 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     setupSplit(*tdbr, alphabetSize, threads, templateDBIsIndex, maxResListLen, &kmerSize, &splits, &splitMode);
     kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
 
-    if (templateDBIsIndex == true && (splits != originalSplits || kmerThr < minKmerThr)) {
-        reopenTargetDb();
+    if (templateDBIsIndex == true) {
+        if (splits != originalSplits) {
+            Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
+            reopenTargetDb();
+        } else if (kmerThr < minKmerThr) {
+            Debug(Debug::WARNING) << "Required k-mer threshold does not match index table k-mer threshold. Recomputing index table!\n";
+            reopenTargetDb();
+        } else if (querySeqType == Sequence::HMM_PROFILE && minKmerThr != 0) {
+            Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
+            reopenTargetDb();
+        }
     }
 
     Debug(Debug::INFO) << "Target database: " << targetDB << "(Size: " << tdbr->getSize() << ")\n";
