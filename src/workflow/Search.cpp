@@ -15,6 +15,7 @@
 
 void setSearchDefaults(Parameters *p) {
     p->spacedKmer = true;
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 0.001;
     p->includeHeader = true;
