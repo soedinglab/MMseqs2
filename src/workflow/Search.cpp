@@ -158,7 +158,7 @@ int search(int argc, const char **argv, const Command& command) {
             }
             cmd.addVariable("SENSE_0", SSTR(par.startSens).c_str());
             float sensStepSize = (par.sensitivity - par.startSens)/ (static_cast<float>(par.sensSteps)-1);
-            for(size_t step = 1; step < par.sensSteps; step++){
+            for(int step = 1; step < par.sensSteps; step++){
                 std::string stepKey = "SENSE_" + SSTR(step);
                 float stepSense =  par.startSens + sensStepSize * step;
                 std::stringstream stream;

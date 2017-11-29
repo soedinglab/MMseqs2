@@ -125,7 +125,8 @@ public:
         return static_cast<float>(end - start + 1) / static_cast<float>(length);
     }
 
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconstant-conversion"
     /** A single gain expressed as minifloat */
     typedef uint16_t gain_minifloat_t;
     #define EXPONENT_BITS   3
@@ -140,7 +141,6 @@ public:
     #if EXPONENT_BITS + MANTISSA_BITS != 8
     #error EXPONENT_BITS and MANTISSA_BITS must sum to 16
     #endif
-
     static char convertFloatToChar(float v)
     {
         if (std::isnan(v) || v <= 0.0f) {
@@ -167,6 +167,7 @@ public:
         unsigned char retVal = static_cast<char>((neff  - 1 )/19 * MINIFLOAT_MAX);
         return std::max(static_cast<unsigned char>(1), retVal);
     }
+#pragma GCC diagnostic pop
 
 // compute look up table based on stirling approximation
     static void computeFactorial(double *output, const size_t range) {

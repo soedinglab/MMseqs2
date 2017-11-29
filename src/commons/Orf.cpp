@@ -260,7 +260,10 @@ Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
     }
     Orf::SequenceLocation loc;
     int strand;
-    int retCode = sscanf(entry[col], "[Orf: %zu, %zu, %d, %d, %d]", &loc.from, &loc.to, &strand, &loc.hasIncompleteStart, &loc.hasIncompleteEnd);
+    int hasIncompleteStart, hasIncompleteEnd;
+    int retCode = sscanf(entry[col], "[Orf: %zu, %zu, %d, %d, %d]", &loc.from, &loc.to, &strand, &hasIncompleteStart, &hasIncompleteEnd);
+    loc.hasIncompleteStart = hasIncompleteStart;
+    loc.hasIncompleteEnd = hasIncompleteEnd;
     if(retCode < 5){
         Debug(Debug::ERROR) << "Could not parse Orf " << entry[col] << ".\n";
         EXIT(EXIT_FAILURE);

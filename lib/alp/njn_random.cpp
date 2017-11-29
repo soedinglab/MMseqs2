@@ -67,7 +67,7 @@ namespace {
 }
 void Random::seed (long x)
 {
-	register size_t i;
+	size_t i;
 
 	state [0] = x;
    
@@ -85,7 +85,7 @@ void Random::seed (long x)
 long Random::number () // uniform random x : 0 <= x <= exp2 (31) - 1
 
 {
-	register long	r;
+	long	r;
 
 	r = *rK;
 	r += *rJ--;

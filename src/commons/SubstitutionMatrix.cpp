@@ -204,19 +204,19 @@ void SubstitutionMatrix::setupLetterMapping(){
                 case 'W':
                 case 'Y':
                 case 'X':
-                    this->aa2int[letter] = this->aa2int[upperLetter];
+                    this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>(upperLetter)];
                     break;
                 case 'J':
-                    this->aa2int[letter] = this->aa2int[(int)'L'];
+                    this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'L'];
                     break;
                 case 'U':
                 case 'O':
-                    this->aa2int[letter] = this->aa2int[(int)'X'];
+                    this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
                     break;
-                case 'Z': this->aa2int[letter] = this->aa2int[(int)'E']; break;
-                case 'B': this->aa2int[letter] = this->aa2int[(int)'D']; break;
+                case 'Z': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'E']; break;
+                case 'B': this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'D']; break;
                 default:
-                    this->aa2int[letter] = this->aa2int[(int)'X'];
+                    this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
                     break;
             }
         }
@@ -346,7 +346,7 @@ int SubstitutionMatrix::readProbMatrix(const std::string &matrixData) {
             Debug(Debug::ERROR) << "Computing inverse of substitution matrix failed\n";
             EXIT(EXIT_FAILURE);
         }
-        pBack[aa2int['X']]=ANY_BACK;
+        pBack[aa2int[(int)'X']]=ANY_BACK;
     }
     if(xIsPositive == false){
         for (int i = 0; i < alphabetSize - 1; i++) {
