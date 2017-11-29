@@ -73,6 +73,8 @@ public:
         return x + e;
     }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
     static inline double fpow2(float x) {
         if (x >= FLT_MAX_EXP) return FLT_MAX;
         if (x <= FLT_MIN_EXP) return 0.0f;
@@ -98,6 +100,7 @@ public:
         *px += (lx << 23);                      // add integer power of 2 to exponent
         return x;
     }
+#pragma GCC diagnostic pop
 
     static inline unsigned int concatenate(unsigned int x, unsigned int y) {
         unsigned int pow = 10;
