@@ -45,7 +45,7 @@ while [ $STEP -lt $NUM_IT ]; do
     if notExists "$TMP_PATH/pref_$STEP"; then
         PARAM="PREFILTER_PAR_$STEP"
         eval TMP="\$$PARAM"
-        $RUNNER $MMSEQS prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP" ${TMP} \
+        $RUNNER $MMSEQS prefilter "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" ${TMP} \
             || fail "Prefilter died"
     fi
 

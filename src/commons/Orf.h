@@ -55,7 +55,9 @@ public:
                             const unsigned int frames, const unsigned int extendMode, const Strand strand);
 
     std::string view(const SequenceLocation &location);
-    
+
+    static SequenceLocation parseOrfHeader(char *data);
+
 private:
     size_t sequenceLength;
     char* sequence;

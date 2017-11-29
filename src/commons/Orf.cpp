@@ -32,6 +32,8 @@
  */
 
 #include "Orf.h"
+#include "Util.h"
+#include "Debug.h"
 #include <cstring>
 #include <cassert>
 #include <cstdlib>
@@ -239,4 +241,30 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
             }
         }
     }
+}
+
+Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
+    char * entry[255];
+    size_t columns = Util::getWordsOfLine(data, entry, 255);
+    size_t col;
+    bool found = false;
+    for(col = 0; col < columns; col++){
+        if(entry[col][0] == '[' && entry[col][1] == 'O' && entry[col][2] == 'r' && entry[col][3] == 'f' & entry[col][4] == ':'){
+            found=true;
+            break;
+        }
+    }
+    if(found==false ){
+        Debug(Debug::ERROR) << "Could not find Orf information in header.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    Orf::SequenceLocation loc;
+    int strand;
+    int retCode = sscanf(entry[col], "[Orf: %zu, %zu, %d, %d, %d]", &loc.from, &loc.to, &strand, &loc.hasIncompleteStart, &loc.hasIncompleteEnd);
+    if(retCode < 5){
+        Debug(Debug::ERROR) << "Could not parse Orf " << entry[col] << ".\n";
+        EXIT(EXIT_FAILURE);
+    }
+    loc.strand =  static_cast<Orf::Strand>(strand);
+    return loc;
 }

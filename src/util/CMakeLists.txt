@@ -7,6 +7,7 @@ set(util_source_files
         util/convertprofiledb.cpp
         util/createdb.cpp
         util/indexdb.cpp
+        util/offsetalignment.cpp
         util/createseqfiledb.cpp
         util/createsubdb.cpp
         util/createtsv.cpp

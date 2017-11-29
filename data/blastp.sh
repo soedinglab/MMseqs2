@@ -37,13 +37,15 @@ abspath() {
 INPUT="$(abspath $1)"
 TARGET="$(abspath $2)"
 TMP_PATH="$(abspath $4)"
+
+
 STEP=0
 while [ $STEP -lt $STEPS ]; do
     SENS_PARAM=SENSE_${STEP}
     eval SENS="\$$SENS_PARAM"
     # call prefilter module
     if notExists "$TMP_PATH/pref_$SENS"; then
-        $RUNNER $MMSEQS prefilter "$INPUT" "$TARGET_DB_PREF" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS \
+        $RUNNER $MMSEQS prefilter "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS \
             || fail "Prefilter died"
     fi
 
