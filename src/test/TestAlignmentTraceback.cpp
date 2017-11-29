@@ -17,6 +17,7 @@
 #include "Util.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_alignmenttraceback";
 
 struct scores{
     short H;

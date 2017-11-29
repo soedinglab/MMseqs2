@@ -18,6 +18,8 @@
 #include "smith_waterman_sse2.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_profilealignment";
+
 int main (int argc, const char * argv[])
 {
 

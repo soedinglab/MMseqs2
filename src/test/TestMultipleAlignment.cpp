@@ -12,6 +12,9 @@
 #include "SubstitutionMatrix.h"
 #include "MultipleAlignment.h"
 #include "Parameters.h"
+
+const char* binary_name = "test_multiplealignment";
+
 int main (int argc, const char * argv[])
 {
     Parameters& par = Parameters::getInstance();

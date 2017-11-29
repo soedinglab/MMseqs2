@@ -3,6 +3,8 @@
 
 #include "Util.h"
 
+const char* binary_name = "test_util";
+
 int main (int argc, const char **argv) {
     unsigned int sizes[5] = {1882, 150, 630, 929, 167};
 

@@ -11,6 +11,8 @@
 #include "PrefilteringIndexReader.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_indextable";
+
 int main(int argc, const char *argv[]) {
     Parameters &par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 8.0, -0.2f);

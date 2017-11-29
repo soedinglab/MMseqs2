@@ -6,6 +6,7 @@
 #include <CpuInfo.h>
 #include <iomanip>
 
+extern const char* binary_name;
 extern const char* tool_name;
 extern const char* tool_introduction;
 extern const char* main_author;
@@ -57,8 +58,8 @@ void printUsage(bool showExtended) {
     usage << tool_name << " Version: " << version << "\n";
     usage << "© " << main_author << "\n";
 
-    for(size_t i = 0; i < categories.size(); ++i) {
-        if(showExtended == false && categories[i].mode  != COMMAND_MAIN && categories[i].mode  != COMMAND_FORMAT_CONVERSION &&  categories[i].mode  != COMMAND_TAXONOMY ){
+    for (size_t i = 0; i < categories.size(); ++i) {
+        if (showExtended == false && categories[i].mode != COMMAND_MAIN && categories[i].mode != COMMAND_FORMAT_CONVERSION &&  categories[i].mode != COMMAND_TAXONOMY) {
             continue;
         }
         usage << "\n" << std::setw(20) << categories[i].title << "\n";
@@ -69,9 +70,14 @@ void printUsage(bool showExtended) {
             }
         }
     }
+
+    if (showExtended == false) {
+        usage << "\n\nAn extended list of all tools can be obtained by calling '" << binary_name << " -h'.\n";
+    }
+
     usage << "\nBash completion for tools and parameters can be installed by adding \"source MMSEQS_HOME/util/bash-completion.sh\" to your \"$HOME/.bash_profile\".\n"
             "Include the location of the " << tool_name << " binary is in your \"$PATH\" environment variable.";
-    usage << "\n\nAn extended list of all tools can be obtained by calling 'mmseqs -h'";
+
     Debug(Debug::INFO) << usage.str() << "\n";
 }
 
@@ -81,10 +87,12 @@ int main(int argc, const char **argv) {
         printUsage(false);
         EXIT(EXIT_SUCCESS);
     }
-    if(argv[1][0] == '-'&& argv[1][1] == 'h'){
+
+    if (argv[1][0] == '-' && argv[1][1] == 'h') {
         printUsage(true);
         EXIT(EXIT_SUCCESS);
     }
+
     setenv("MMSEQS", argv[0], true);
     int i;
     if ((i = getCommandIndex(argv[1])) != -1) {

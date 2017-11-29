@@ -1,6 +1,8 @@
 #include "Debug.h"
 #include "DBReader.h"
 
+const char* binary_name = "test_dbreaderindexserialization";
+
 int main (int argc, const char * argv[])
 {
     DBReader<unsigned int> reader("", "/Users/mirdita/tmp/db.index", DBReader<unsigned int>::USE_INDEX);

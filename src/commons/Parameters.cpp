@@ -15,6 +15,7 @@
 #include <omp.h>
 #endif
 
+extern const char* binary_name;
 extern const char* version;
 
 Parameters::Parameters():
@@ -655,8 +656,8 @@ void Parameters::printUsageMessage(const Command& command,
             ss << "\n";
         }
     }
-    if(printExpert==false){
-        ss << "An extended list of options can be obtained by calling 'mmseqs "<< command.cmd << " -h'.\n";
+    if (printExpert==false) {
+        ss << "An extended list of options can be obtained by calling '" << binary_name << " " << command.cmd << " -h'.\n";
     }
     Debug(Debug::INFO) << ss.str();
 }
@@ -685,7 +686,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             std::string parameter(pargv[argIdx]);
             bool hasUnrecognizedParameter = true;
             for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
-                if(parameter.compare("-h") == 0){
+                if (parameter.compare("-h") == 0) {
                     printUsageMessage(command, 0xFFFFFFFF);
                     EXIT(EXIT_SUCCESS);
                 }

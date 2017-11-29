@@ -8,6 +8,8 @@
 #include "Sequence.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_compositionbias";
+
 void calcLocalAaBiasCorrection(Sequence* seq, SubstitutionMatrix * m){
     const int windowSize = 40;
     short * composition = new short[seq->L];

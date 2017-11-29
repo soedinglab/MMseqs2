@@ -12,6 +12,7 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 
+const char* binary_name = "test_merge";
 
 int main(int argc, char **argv)
 {

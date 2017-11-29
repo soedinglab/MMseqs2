@@ -16,6 +16,8 @@
 
 #include "Parameters.h"
 
+const char* binary_name = "test_diagonalscoring";
+
 int main(int argc, char **argv)
 {
 

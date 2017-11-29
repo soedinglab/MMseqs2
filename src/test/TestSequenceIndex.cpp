@@ -11,6 +11,8 @@
 #include "DBWriter.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_sequenceindex";
+
 int main(int argc, char **argv) {
     size_t kmer_size = 6;
     Parameters &par = Parameters::getInstance();
