@@ -118,7 +118,6 @@ int createdb(int argn, const char **argv, const Command& command) {
                 fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
                 char newline='\n';
                 fwrite(&newline, sizeof(char), 1, lookupFile);
-                splitId.clear();
 
                 // For split entries replace the found identifier by identifier_splitNumber
                 // Also add another hint that it was split to the end of the header
@@ -142,7 +141,7 @@ int createdb(int argn, const char **argv, const Command& command) {
                 // Finally write down the entry
                 out_hdr_writer.writeData(splitHeader.c_str(), splitHeader.length(), id);
                 splitHeader.clear();
-                header.clear();
+                splitId.clear();
 
                 // sequence
                 const std::string &sequence = e.sequence;
@@ -173,6 +172,7 @@ int createdb(int argn, const char **argv, const Command& command) {
                 entries_num++;
                 count++;
             }
+            header.clear();
         }
         delete kseq;
     }
