@@ -17,7 +17,7 @@ public:
     ~SequenceLookup();
 
     // add sequence at offset
-    void addSequence(Sequence * seq, size_t index, size_t offset);
+    void addSequence(int *seq, int L, size_t index, size_t offset);
 
     // add sequence to index
     void addSequence(Sequence * seq);

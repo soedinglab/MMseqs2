@@ -125,6 +125,49 @@ public:
         return static_cast<float>(end - start + 1) / static_cast<float>(length);
     }
 
+
+    /** A single gain expressed as minifloat */
+    typedef uint16_t gain_minifloat_t;
+    #define EXPONENT_BITS   3
+    #define EXPONENT_MAX    ((1 << EXPONENT_BITS) - 1)
+    #define EXCESS          ((1 << EXPONENT_BITS) - 2)
+    #define MANTISSA_BITS   5
+    #define MANTISSA_MAX    ((1 << MANTISSA_BITS) - 1)
+    #define HIDDEN_BIT      (1 << MANTISSA_BITS)
+    #define ONE_FLOAT       ((float) (1 << (MANTISSA_BITS + 1)))
+    #define MINIFLOAT_MAX   ((EXPONENT_MAX << MANTISSA_BITS) | MANTISSA_MAX)
+    #define MINIFLOAT_MIN   1
+    #if EXPONENT_BITS + MANTISSA_BITS != 8
+    #error EXPONENT_BITS and MANTISSA_BITS must sum to 16
+    #endif
+
+    static char convertFloatToChar(float v)
+    {
+        if (std::isnan(v) || v <= 0.0f) {
+            return 0;
+        }
+        if (v >= 2.0f) {
+            return MINIFLOAT_MAX;
+        }
+        int exp;
+        float r = frexpf(v, &exp);
+        if ((exp += EXCESS) > EXPONENT_MAX) {
+            return MINIFLOAT_MAX;
+        }
+        if (-exp >= MANTISSA_BITS) {
+            return 0;
+        }
+        int mantissa = (int) (r * ONE_FLOAT);
+        return exp > 0 ? (exp << MANTISSA_BITS) | (mantissa & ~HIDDEN_BIT) :
+               (mantissa >> (1 - exp)) & MANTISSA_MAX;
+    }
+
+
+    static char convertNeffToChar(const float neff) {
+        unsigned char retVal = static_cast<char>((neff  - 1 )/19 * MINIFLOAT_MAX);
+        return std::max(static_cast<unsigned char>(1), retVal);
+    }
+
 // compute look up table based on stirling approximation
     static void computeFactorial(double *output, const size_t range) {
         output[0] = log(1.0);

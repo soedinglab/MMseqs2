@@ -11,6 +11,7 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
                    int seqType, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection)
 {
     this->int_sequence = new int[maxLen];
+    this->int_consensus_sequence = new int[maxLen];
     this->aaBiasCorrection = aaBiasCorrection;
     this->maxLen = maxLen;
     this->aa2int = aa2int;
@@ -64,6 +65,7 @@ Sequence::Sequence(size_t maxLen, int *aa2int, char *int2aa,
 Sequence::~Sequence()
 {
     delete[] int_sequence;
+    delete[] int_consensus_sequence;
     if(kmerWindow) {
         delete[] kmerWindow;
     }
@@ -233,7 +235,11 @@ void Sequence::mapProfile(const char * sequence){
             short value = static_cast<short>(data[currPos + aa_idx] ^ mask);
             profile_score[l * profile_row_size + aa_idx] = value * 4;
         }
-
+        unsigned char queryLetter = data[currPos + PROFILE_AA_SIZE];
+        // read query sequence
+        int_sequence[l] = queryLetter; // index 0 is the highst scoring one
+        unsigned char consensusLetter = data[currPos + PROFILE_AA_SIZE+1];
+        int_consensus_sequence[l] = consensusLetter;
         l++;
         if (l >= this->maxLen ){
             Debug(Debug::ERROR) << "ERROR: Sequence with id: " << this->dbKey << " is longer than maxRes.\n";
@@ -241,7 +247,7 @@ void Sequence::mapProfile(const char * sequence){
         }
 
         // go to begin of next entry 0, 20, 40, 60, ...
-        currPos += PROFILE_AA_SIZE;
+        currPos += PROFILE_READIN_SIZE;
     }
     this->L = l;
 
@@ -254,8 +260,6 @@ void Sequence::mapProfile(const char * sequence){
         unsigned int indexArray[PROFILE_AA_SIZE] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
         Util::rankedDescSort20(&profile_score[i * profile_row_size], (unsigned int *) &indexArray);
         memcpy(&profile_index[i * profile_row_size], &indexArray, PROFILE_AA_SIZE * sizeof(int) );
-        // create consensus sequence
-        int_sequence[i] = indexArray[0]; // index 0 is the highst scoring one
     }
 
     // write alignment profile

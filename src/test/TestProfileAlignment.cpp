@@ -769,8 +769,8 @@ int main (int argc, const char * argv[])
                                   21 : subMat.aa2int[(int) msaSeq[k][pos]];
         }
     }
-    std::pair<const char *, std::string> pssmRet = pssmCalculator.computePSSMFromMSA(setSize,centerSeqSize, (const char **) msaSequence, false);
-    const char * sequence = pssmRet.first;
+    PSSMCalculator::Profile pssmRet = pssmCalculator.computePSSMFromMSA(setSize,centerSeqSize, (const char **) msaSequence, false);
+    const char * sequence = pssmRet.pssm;
     char * data = new char[centerSeqSize*20+1];
     for (size_t i = 0; i < centerSeqSize*20; i++) {
         // Avoid a null byte result

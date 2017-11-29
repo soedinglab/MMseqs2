@@ -9,11 +9,20 @@ class SubstitutionMatrix;
 class PSSMCalculator {
 public:
 
+    struct Profile{
+        const char * pssm;
+        const float * prob;
+        const float * neffM;
+        std::string consensus;
+        Profile(char * pssm, float * prob, float * neffM, std::string consensus)
+                :pssm(pssm), prob(prob), neffM(neffM), consensus(consensus){}
+    };
+
     PSSMCalculator(SubstitutionMatrix *subMat, size_t maxSeqLength, size_t maxSetSize, float pca, float pcb);
 
     ~PSSMCalculator();
 
-    std::pair<const char *, std::string> computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
+    Profile computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
                                     bool wg);
 
     void printProfile(size_t queryLength);

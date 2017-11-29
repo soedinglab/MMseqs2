@@ -455,7 +455,12 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             s.mapSequence(id - dbFrom, qKey, seqData);
 
             if (maskMode == 2) {
-                (*unmaskedLookup)->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
+
+                if (isProfile) {
+                    (*unmaskedLookup)->addSequence(s.int_consensus_sequence, s.L, id - dbFrom, sequenceOffSet[id - dbFrom]);
+                }else{
+                    (*unmaskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, sequenceOffSet[id - dbFrom]);
+                }
             }
 
             // count similar or exact k-mers based on sequence type
@@ -486,8 +491,11 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
 //                }
             }
-
-            sequenceLookup->addSequence(&s, id - dbFrom, sequenceOffSet[id - dbFrom]);
+            if (isProfile) {
+                sequenceLookup->addSequence(s.int_consensus_sequence, s.L, id - dbFrom, sequenceOffSet[id - dbFrom]);
+            }else{
+                sequenceLookup->addSequence(s.int_sequence, s.L, id - dbFrom, sequenceOffSet[id - dbFrom]);
+            }
         }
 
         delete [] charSequence;

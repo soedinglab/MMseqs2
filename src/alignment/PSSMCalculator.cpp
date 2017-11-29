@@ -56,10 +56,10 @@ PSSMCalculator::~PSSMCalculator() {
     delete [] naa;
 }
 
-std::pair<const char *, std::string> PSSMCalculator::computePSSMFromMSA(size_t setSize,
-                                                size_t queryLength,
-                                                const char **msaSeqs,
-                                                bool wg) {
+PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
+                                           size_t queryLength,
+                                           const char **msaSeqs,
+                                           bool wg) {
     for (size_t pos = 0; pos < queryLength; pos++) {
         if (msaSeqs[0][pos] == MultipleAlignment::GAP) {
             Debug(Debug::ERROR) <<
@@ -87,7 +87,8 @@ std::pair<const char *, std::string> PSSMCalculator::computePSSMFromMSA(size_t s
     computePseudoCounts(profile, matchWeight, pseudocountsWeight, queryLength, pca, pcb);
     // create final Matrix
     computeLogPSSM(pssm, profile, queryLength, 0.0);
-    return std::make_pair(static_cast<const char*>(pssm), consensusSequence);
+
+    return Profile(pssm, profile, Neff_M, consensusSequence);
 }
 
 void PSSMCalculator::printProfile(size_t queryLength){

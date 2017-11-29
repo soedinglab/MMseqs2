@@ -16,6 +16,7 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 #endif
 
 #include <libgen.h>
+#include <MathUtil.h>
 
 void setMsa2ProfileDefaults(Parameters *p) {
     p->msaType = 1;
@@ -135,6 +136,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         char *seqBuffer = new char[maxSeqLength + 1];
         bool *maskedColumns = new bool[maxSeqLength];
+        std::string result;
+        result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
         kseq_buffer_t d;
         kseq_t *seq = kseq_init(&d);
@@ -274,20 +277,22 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 filter.shuffleSequences((const char **) msaSequences, setSize);
             }
 
-            std::pair<const char *, std::string> pssmRes =
+            PSSMCalculator::Profile pssmRes =
                     calculator.computePSSMFromMSA(filteredSetSize, centerLength,
                                                   (const char **) msaSequences, par.wg);
-
-            char *data = (char *) pssmRes.first;
-            size_t dataSize = centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
-            for (size_t i = 0; i < dataSize; i++) {
-                // Avoid a null byte result
-                data[i] = data[i] ^ 0x80;
+            for(size_t pos = 0; pos < centerLength; pos++){
+                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+                    result.push_back(pssmRes.pssm[pos*Sequence::PROFILE_AA_SIZE + aa] ^ 0x80);
+                }
+                // write query, consensus sequence and neffM
+                result.push_back(static_cast<unsigned char>(msaSequences[0][pos]));
+                result.push_back(static_cast<unsigned char>(subMat.aa2int[pssmRes.consensus[pos]]));
+                result += MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
             }
 
-            resultWriter.writeData(data, dataSize, queryKey, thread_idx);
-
-            std::string consensusStr = pssmRes.second;
+            resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx);
+            result.clear();
+            std::string consensusStr = pssmRes.consensus;
             consensusStr.push_back('\n');
             consensusWriter.writeData(consensusStr.c_str(), consensusStr.length(), queryKey, thread_idx);
         }

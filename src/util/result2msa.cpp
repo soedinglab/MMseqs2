@@ -268,10 +268,10 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     if (isFiltering) {
                         filter.shuffleSequences((const char **) res.msaSequence, res.setSize);
                     }
-                    std::pair<const char *, std::string> pssmRes =
+                    PSSMCalculator::Profile pssmRes =
                             calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                           (const char **) res.msaSequence, par.wg);
-                    msa << ">consensus_" << queryHeaderReader.getDataByDBKey(queryKey) << pssmRes.second << "\n;";
+                    msa << ">consensus_" << queryHeaderReader.getDataByDBKey(queryKey) << pssmRes.consensus << "\n;";
                 } else {
                     std::ostringstream centerSeqStr;
                     // Retrieve the master sequence
