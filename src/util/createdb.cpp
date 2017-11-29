@@ -164,10 +164,15 @@ int createdb(int argn, const char **argv, const Command& command) {
                     }
                 }
 
-                size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
-                std::string splitString(sequence.c_str() + split * par.maxSeqLen, len);
-                splitString.append("\n");
-                out_writer.writeData(splitString.c_str(), splitString.length(), id);
+
+                if(par.splitSeqByLen){
+                    size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
+                    std::string splitString(sequence.c_str() + split * par.maxSeqLen, len);
+                    splitString.append("\n");
+                    out_writer.writeData(splitString.c_str(), splitString.length(), id);
+                }else{
+                    out_writer.writeData(sequence.c_str(), sequence.length(), id);
+                }
 
                 entries_num++;
                 count++;

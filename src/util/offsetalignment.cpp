@@ -71,10 +71,13 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
         size_t queryId = qHeaderDbr.getId(queryKey);
         Orf::SequenceLocation loc;
+        unsigned int writeKey = queryKey;
         if(queryDbType == DBReader<unsigned int>::DBTYPE_NUC){
             char * qheader = qHeaderDbr.getData(queryId);
             loc = Orf::parseOrfHeader(qheader);
+            writeKey = loc.id;
         }
+
         std::string ss;
         ss.reserve(1024);
 
@@ -86,6 +89,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             if(targetDbType == DBReader<unsigned int>::DBTYPE_NUC){
                 char * theader = tHeaderDbr.getData(targetId);
                 loc = Orf::parseOrfHeader(theader);
+                res.dbKey = loc.id;
                 res.dbStartPos = loc.from + res.dbStartPos*3;
                 res.dbEndPos   = loc.from + res.dbEndPos*3;
                 res.dbLen      = res.dbLen*3;
@@ -98,7 +102,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             ss.append(buffer, len);
         }
 
-        resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
+        resultWriter.writeData(ss.c_str(), ss.length(), writeKey, thread_idx);
         ss.clear();
     }
     qHeaderDbr.close();
