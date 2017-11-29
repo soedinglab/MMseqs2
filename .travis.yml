@@ -74,6 +74,8 @@ matrix:
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+  # workaround for GCC install issue, remove package that installed links to /usr/local/include/c++
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew cask list && brew cask uninstall --force oclint; fi
   # coreutils and cmake dependencies are already pre-installed
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc@7 ninja zlib bzip2 vim binutils; fi
   - eval "${MATRIX_EVAL}"
