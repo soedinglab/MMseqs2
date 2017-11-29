@@ -239,6 +239,8 @@ int swapresults(int argc, const char **argv, const Command &command) {
         delete[] tmpData;
     } // end split
 
+    Debug(Debug::INFO) << "\n";
+
     DBWriter::mergeResults(par.db4, par.db4Index, splitFileNames);
 
     resultDbr.close();
