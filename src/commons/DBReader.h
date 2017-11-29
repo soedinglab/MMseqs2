@@ -128,6 +128,15 @@ public:
         return dbtype;
     }
 
+    const char* getDbTypeName() {
+        switch(dbtype) {
+            case DBTYPE_AA: return "Aminoacid";
+            case DBTYPE_NUC: return "Nucleotide";
+            case DBTYPE_PROFILE: return "Profile";
+            default: return "Unknown";
+        }
+    }
+
 private:
 
     struct compareIndexLengthPairById {

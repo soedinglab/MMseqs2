@@ -127,8 +127,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    Debug(Debug::WARNING) << "Query database type: " << querySeqType << "\n";
-    Debug(Debug::WARNING) << "Target database type: " << targetSeqType << "\n";
+    Debug(Debug::INFO) << "Query database type: " << qdbr->getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Target database type: " << tdbr->getDbTypeName() << "\n";
 
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
