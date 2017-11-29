@@ -127,6 +127,7 @@ public:
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconstant-conversion"
+#pragma GCC diagnostic ignored "-Woverflow"
     /** A single gain expressed as minifloat */
     typedef uint16_t gain_minifloat_t;
     #define EXPONENT_BITS   3
