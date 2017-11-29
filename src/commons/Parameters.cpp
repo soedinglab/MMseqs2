@@ -496,6 +496,8 @@ Parameters::Parameters():
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
     searchworkflow = combineList(searchworkflow, result2profile);
+    searchworkflow = combineList(searchworkflow, extractorfs);
+    searchworkflow = combineList(searchworkflow, translatenucs);
     searchworkflow.push_back(PARAM_NUM_ITERATIONS);
     searchworkflow.push_back(PARAM_START_SENS);
     searchworkflow.push_back(PARAM_SENS_STEPS);

@@ -30,7 +30,6 @@ abspath() {
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [ ! -f "$2" ] &&  echo "$2 not found!" && exit 1;
-[ ! -f "$TARGET_DB_PREF" ] &&  echo "$TARGET_DB_PREF not found!" && exit 1;
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
@@ -45,7 +44,7 @@ while [ $STEP -lt $NUM_IT ]; do
     if notExists "$TMP_PATH/pref_$STEP"; then
         PARAM="PREFILTER_PAR_$STEP"
         eval TMP="\$$PARAM"
-        $RUNNER $MMSEQS prefilter "$QUERYDB" "$TARGET_DB_PREF" "$TMP_PATH/pref_$STEP" ${TMP} \
+        $RUNNER $MMSEQS prefilter "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" ${TMP} \
             || fail "Prefilter died"
     fi
 

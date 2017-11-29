@@ -10,6 +10,7 @@ set(COMPILED_RESOURCES
         update_clustering.sh
         searchtargetprofile.sh
         createindex.sh
+        translated_search.sh
         taxonomy.sh
         blosum30.out
         blosum35.out

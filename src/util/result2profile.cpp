@@ -149,6 +149,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
         Sequence centerSequence(maxSequenceLength, subMat.aa2int, subMat.int2aa,
                                 qDbr->getDbtype(), 0, false, par.compBiasCorrection);
+        std::string result;
+        result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
 #pragma omp for schedule(static)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
@@ -239,24 +241,24 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 filter.shuffleSequences((const char **) res.msaSequence, res.setSize);
             }
 
-            std::pair<const char *, std::string> pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
+            PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                                                          (const char **) res.msaSequence,
-                                                                                         par.wg);
-            char *data = (char *) pssmRes.first;
-            size_t dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
-
-            for (size_t i = 0; i < dataSize; i++) {
-                // Avoid a null byte result
-                data[i] = data[i] ^ 0x80;
+                                                                                          par.wg);
+            for(size_t pos = 0; pos <  res.centerLength; pos++){
+                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+                    result.push_back(pssmRes.pssm[pos*Sequence::PROFILE_AA_SIZE + aa] ^ 0x80);
+                }
+                // write query, consensus sequence and neffM
+                result.push_back(static_cast<unsigned char>(centerSequence.int_sequence[pos]));
+                result.push_back(static_cast<unsigned char>(subMat.aa2int[pssmRes.consensus[pos]]));
+                result += MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
             }
 
-            //pssm.printProfile(res.centerLength);
-            //calculator.printPSSM(res.centerLength);
 
-            resultWriter.writeData(data, dataSize, queryKey, thread_idx);
-
+            resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
+            result.clear();
             if (consensusWriter != NULL) {
-                std::string consensusStr = pssmRes.second;
+                std::string consensusStr = pssmRes.consensus;
                 consensusStr.push_back('\n');
                 consensusWriter->writeData(consensusStr.c_str(), consensusStr.length(), queryKey, thread_idx);
             }

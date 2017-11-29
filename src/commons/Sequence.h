@@ -176,12 +176,16 @@ public:
     // each amino acid coded as integer
     int * int_sequence;
 
+    // each consensus amino acid as integer (PROFILE ONLY)
+    int * int_consensus_sequence;
+
     // Contains profile information
     short           * profile_score;
     unsigned int    * profile_index;
     size_t profile_row_size; // (PROFILE_AA_SIZE / SIMD_SIZE) + 1 * SIMD_SIZE
 
     static const size_t PROFILE_AA_SIZE = 20;
+    static const size_t PROFILE_READIN_SIZE = 23; // 20 AA, 1 for Neff M, 1 consensus, 1 query
     ScoreMatrix ** profile_matrix;
     // Memory layout of this profile is qL * AA
     //   Query lenght

@@ -3,6 +3,7 @@
 #include <FileUtil.h>
 #include <searchtargetprofile.sh.h>
 #include <blastpgp.sh.h>
+#include <translated_search.sh.h>
 #include <blastp.sh.h>
 #include <iomanip>
 #include <DBReader.h>
@@ -14,8 +15,13 @@
 
 void setSearchDefaults(Parameters *p) {
     p->spacedKmer = true;
+    p->alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV;
     p->sensitivity = 5.7;
     p->evalThr = 0.001;
+    p->includeHeader = true;
+    p->orfLongest = true;
+    p->orfMinLength = 30;
+    p->orfMaxLength = 98202; // 32734 AA (just to be sure)
 }
 
 
@@ -25,8 +31,15 @@ int search(int argc, const char **argv, const Command& command) {
     par.overrideParameterDescription((Command &)command, par.PARAM_COV_MODE.uniqid, NULL, NULL, par.PARAM_COV_MODE.category |MMseqsParameter::COMMAND_EXPERT );
     par.overrideParameterDescription((Command &)command, par.PARAM_C.uniqid, NULL, NULL, par.PARAM_C.category |MMseqsParameter::COMMAND_EXPERT );
     par.overrideParameterDescription((Command &)command, par.PARAM_MIN_SEQ_ID.uniqid, NULL, NULL, par.PARAM_MIN_SEQ_ID.category |MMseqsParameter::COMMAND_EXPERT );
+    for(size_t i = 0; i < par.extractorfs.size(); i++){
+        par.overrideParameterDescription((Command &)command, par.extractorfs[i].uniqid, NULL, NULL, par.extractorfs[i].category |MMseqsParameter::COMMAND_EXPERT );
+    }
+    for(size_t i = 0; i < par.translatenucs.size(); i++){
+        par.overrideParameterDescription((Command &)command, par.translatenucs[i].uniqid, NULL, NULL, par.translatenucs[i].category |MMseqsParameter::COMMAND_EXPERT );
+    }
 
     par.parseParameters(argc, argv, command, 4, false, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+
     int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
     if(queryDbType == -1 || targetDbType == -1){
@@ -34,9 +47,15 @@ int search(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
     if(queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE ){
-        Debug(Debug::ERROR) << "It is not supported that both dbs are profile database.\n";
+        Debug(Debug::ERROR) << "It is not supported that both dbs are profile databases.\n";
         EXIT(EXIT_FAILURE);
     }
+
+    if(queryDbType == DBReader<unsigned int>::DBTYPE_NUC && targetDbType == DBReader<unsigned int>::DBTYPE_NUC ){
+        Debug(Debug::ERROR) << "It is not supported that both dbs are nucleotide databases.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    bool isNuclSearch=queryDbType== DBReader<unsigned int>::DBTYPE_NUC || targetDbType== DBReader<unsigned int>::DBTYPE_NUC;
 
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
@@ -88,9 +107,8 @@ int search(int argc, const char **argv, const Command& command) {
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
+    std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());
-    std::string templateDB(par.db2);
-    cmd.addVariable("TARGET_DB_PREF", templateDB.c_str());
     if (targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE){
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
 //        par.targetProfile = false;
@@ -98,8 +116,7 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
-        std::string program(tmpDir + "/searchtargetprofile.sh");
-        cmd.execProgram(program.c_str(), par.filenames);
+        program=std::string(tmpDir + "/searchtargetprofile.sh");
     } else if (par.numIterations > 1) {
         for (size_t i = 0; i < par.searchworkflow.size(); i++) {
             if (par.searchworkflow[i].uniqid == par.PARAM_E_PROFILE.uniqid && par.searchworkflow[i].wasSet== false) {
@@ -132,8 +149,7 @@ int search(int argc, const char **argv, const Command& command) {
         }
 
         FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
-        std::string program(tmpDir + "/blastpgp.sh");
-        cmd.execProgram(program.c_str(), par.filenames);
+        program = std::string(tmpDir + "/blastpgp.sh");
     } else {
         if(par.sensSteps > 1){
             if (par.startSens > par.sensitivity) {
@@ -142,7 +158,7 @@ int search(int argc, const char **argv, const Command& command) {
             }
             cmd.addVariable("SENSE_0", SSTR(par.startSens).c_str());
             float sensStepSize = (par.sensitivity - par.startSens)/ (static_cast<float>(par.sensSteps)-1);
-            for(size_t step = 1; step < par.sensSteps; step++){
+            for(int step = 1; step < par.sensSteps; step++){
                 std::string stepKey = "SENSE_" + SSTR(step);
                 float stepSense =  par.startSens + sensStepSize * step;
                 std::stringstream stream;
@@ -169,9 +185,22 @@ int search(int argc, const char **argv, const Command& command) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         FileUtil::writeFile(tmpDir + "/blastp.sh", blastp_sh, blastp_sh_len);
-        std::string program(tmpDir + "/blastp.sh");
-        cmd.execProgram(program.c_str(), par.filenames);
+        program = std::string(tmpDir + "/blastp.sh");
     }
+
+    if(isNuclSearch==true){
+        FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
+        if(queryDbType==DBReader<unsigned int>::DBTYPE_NUC){
+            cmd.addVariable("QUERY_NUCL", "TRUE");
+        }else{
+            cmd.addVariable("TARGET_NUCL", "TRUE");
+        }
+        cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
+        cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
+        cmd.addVariable("SEARCH", program.c_str());
+        program = std::string(tmpDir + "/translated_search.sh");
+    }
+    cmd.execProgram(program.c_str(), par.filenames);
 
     // Should never get here
     assert(false);

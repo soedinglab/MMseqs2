@@ -37,23 +37,23 @@ TMP_PATH="$(abspath "$4")"
 
 # call prefilter module
 if notExists "${TMP_PATH}/pref"; then
-    $RUNNER $MMSEQS prefilter   "${INPUT}" "${TARGET_DB_PREF}" "${TMP_PATH}/pref" ${PREFILTER_PAR} \
+    $RUNNER $MMSEQS prefilter   "${INPUT}" "${2}" "${TMP_PATH}/pref" ${PREFILTER_PAR} \
         || fail "Prefilter died"
 fi
 
 if notExists "${TMP_PATH}/pref_swapped"; then
-    $MMSEQS swapresults "${INPUT}" "${TARGET_DB_PREF}" "${TMP_PATH}/pref" "${TMP_PATH}/pref_swapped" ${SWAP_PAR} \
+    $MMSEQS swapresults "${INPUT}" "${2}" "${TMP_PATH}/pref" "${TMP_PATH}/pref_swapped" ${SWAP_PAR} \
         || fail "Swapresults pref died"
 fi
 
 # call alignment module
 if notExists "$TMP_PATH/aln_swapped"; then
-    $RUNNER $MMSEQS align       "${TARGET_DB_PREF}" "${INPUT}" "${TMP_PATH}/pref_swapped" "${TMP_PATH}/aln_swapped" ${ALIGNMENT_PAR} \
+    $RUNNER $MMSEQS align       "${2}" "${INPUT}" "${TMP_PATH}/pref_swapped" "${TMP_PATH}/aln_swapped" ${ALIGNMENT_PAR} \
         || fail "Alignment died"
 fi
 
 if notExists "$TMP_PATH/aln"; then
-    $MMSEQS swapresults "${TARGET_DB_PREF}" "${INPUT}" "${TMP_PATH}/aln_swapped"  "${TMP_PATH}/aln" ${SWAP_PAR} \
+    $MMSEQS swapresults "${2}" "${INPUT}" "${TMP_PATH}/aln_swapped"  "${TMP_PATH}/aln" ${SWAP_PAR} \
         || fail "Swapresults aln died"
 fi
 

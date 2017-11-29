@@ -24,7 +24,14 @@ const char* binary_name = "test_alignment";
 int main (int argc, const char * argv[]) {
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs2-bugfix/data/pfamsum60.out", 2.0, -0.0);
+
+    char buffer[1024];
+    const Matcher::result_t result(1351, 232, 1.0, 1.0, 0.99, 0.000000001, 20,
+                                   3, 15, 22, 4, 18, 354, "MMMMMIIMMMMDDMMMMMM");
+    size_t len = Matcher::resultToBuffer(buffer, result, true, false);
+    std::cout << std::string(buffer, len) << std::endl;
+
+    SubstitutionMatrix subMat("blosum62.out", 2.0, -0.0);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
@@ -44,18 +51,19 @@ int main (int argc, const char * argv[]) {
 //	std::string tim = "APRKFFVGGNWKMNGKRKSLGELIHTLDGAKLSADTEVVCGAPSIYLDFARQKLDAKIGVAAQNCYKVPKGAFTGEISPAMIKDIGAAWVILGH"
 //                      "SERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFQETKAIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLR"
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
-    std::string tim1 = "MNQDFNKAVLRYIFTLFLITQISADYGRKSPSSGPGPGGGRAVPLTGPVSPLLPVRTPLP";
-    std::string tim2 = "MNQDFNKAVLRYIFTLFLITQISADYGRKSPSSGPGPGGGRAVPLTGPVSPLLPVRTPLP";
+    std::string tim1 = "DLPQSLDTSLFFGTYQQSPLDMDDVSGG";
+    std::string tim2 = "DLPQSLDTSLFFGTTASGFQQSPLDMDD";
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
     const char* sequence = tim1.c_str();
     std::cout << sequence << "\n\n";
+
     Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
     s->mapSequence(0,0,sequence);
     Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     dbSeq->mapSequence(1,1,tim2.c_str());
-    SmithWaterman aligner(15000, subMat.alphabetSize, true);
+    SmithWaterman aligner(15000, subMat.alphabetSize, false);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (int i = 0; i < subMat.alphabetSize; i++) {
         for (int j = 0; j < subMat.alphabetSize; j++) {
