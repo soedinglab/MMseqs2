@@ -17,6 +17,11 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
+
 int offsetalignment(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
