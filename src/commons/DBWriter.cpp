@@ -60,7 +60,7 @@ DBWriter::~DBWriter() {
     delete[] dataFilesBuffer;
     delete[] dataFileNames;
     delete[] indexFileNames;
-
+    delete[] starts;
     delete[] offsets;
 }
 

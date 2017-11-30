@@ -73,6 +73,14 @@ template <typename T> DBReader<T>::~DBReader(){
     if(indexFileName != NULL) {
         free(indexFileName);
     }
+
+    if(id2local != NULL) {
+        delete[] id2local;
+    }
+
+    if(local2id != NULL) {
+        delete[] local2id;
+    }
 }
 
 template <typename T> bool DBReader<T>::open(int accessType){
