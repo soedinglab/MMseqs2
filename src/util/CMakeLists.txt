@@ -1,4 +1,5 @@
 set(util_source_files
+        util/apply.cpp
         util/assembleresult.cpp
         util/clusthash.cpp
         util/convert2fasta.cpp

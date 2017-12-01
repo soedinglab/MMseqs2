@@ -151,6 +151,12 @@ std::vector<struct Command> commands = {
                 "<i:sequenceDB> <o:alignmentDB>",
                 CITATION_MMSEQS2},
 // Utility tools to manipulate DBs
+        {"apply",                apply,               &par.onlythreads,          COMMAND_DB,
+                "Passes each input database entry to stdin of the specified program, executes it and writes the its stdout to the output database.",
+                NULL,
+                "Milot Mirdita <milot@mirdita.de>",
+                "<i:DB> <o:DB> -- program [args...]",
+                CITATION_MMSEQS2},
         {"extractorfs",          extractorfs,          &par.extractorfs,          COMMAND_DB,
                 "Extract open reading frames from all six frames from nucleotide sequence DB",
                 NULL,
