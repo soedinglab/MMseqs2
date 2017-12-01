@@ -13,7 +13,7 @@
 
 int profile2pssm(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2,  true, false, MMseqsParameter::COMMAND_PROFILE);
+    par.parseParameters(argc, argv, command, 2,  true, 0, MMseqsParameter::COMMAND_PROFILE);
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);

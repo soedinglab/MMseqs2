@@ -675,14 +675,20 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                                  const Command& command,
                                  size_t requiredParameterCount,
                                  bool printPar,
-                                 bool isVariadic,
-                                 int outputFlag) {
+                                 int parseFlags,
+                                 int outputFlags) {
     filenames.clear();
     std::vector<MMseqsParameter>& par = *command.params;
     size_t parametersFound = 0;
     for(int argIdx = 0; argIdx < argc; argIdx++ ){
         // it is a parameter if it starts with - or --
-        if ((pargv[argIdx][0] == '-' && pargv[argIdx][1] == '-') || (pargv[argIdx][0] == '-')) {
+        const bool longParameter = (pargv[argIdx][0] == '-' && pargv[argIdx][1] == '-');
+        if (longParameter || (pargv[argIdx][0] == '-')) {
+            if ((parseFlags & PARSE_REST) && longParameter && pargv[argIdx][2] == '\0') {
+                restArgv = pargv + argIdx + 1;
+                restArgc = argc - (argIdx + 1);
+                break;
+            }
             std::string parameter(pargv[argIdx]);
             bool hasUnrecognizedParameter = true;
             for(size_t parIdx = 0; parIdx < par.size(); parIdx++){
@@ -693,13 +699,13 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
                 if(parameter.compare(par[parIdx].name) == 0) {
                     if (typeid(bool) != par[parIdx].type && argIdx + 1 == argc) {
-                        printUsageMessage(command, outputFlag);
+                        printUsageMessage(command, outputFlags);
                         Debug(Debug::ERROR) << "Missing argument " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
 
                     if (par[parIdx].wasSet) {
-                        printUsageMessage(command, outputFlag);
+                        printUsageMessage(command, outputFlags);
                         Debug(Debug::ERROR) << "Duplicate parameter " << par[parIdx].name << "\n";
                         EXIT(EXIT_FAILURE);
                     }
@@ -711,7 +717,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         regfree(&regex);
                         // if no match found or two matches found (we want exactly one match)
                         if (nomatch){
-                            printUsageMessage(command, outputFlag);
+                            printUsageMessage(command, outputFlags);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -725,7 +731,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
                         regfree(&regex);
                         if (nomatch){
-                            printUsageMessage(command, outputFlag);
+                            printUsageMessage(command, outputFlags);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
                             EXIT(EXIT_FAILURE);
                         }else{
@@ -758,7 +764,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             }
 
             if (hasUnrecognizedParameter) {
-                printUsageMessage(command, outputFlag);
+                printUsageMessage(command, outputFlags);
                 Debug(Debug::ERROR) << "Unrecognized parameter " << parameter << "\n";
 
                 // Suggest some parameter that the user might have meant
@@ -801,7 +807,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
     }
 
     if (filenames.size() < requiredParameterCount){
-        printUsageMessage(command, outputFlag);
+        printUsageMessage(command, outputFlags);
         Debug(Debug::ERROR) << requiredParameterCount << " Database paths are required" << "\n";
         EXIT(EXIT_FAILURE);
     }
@@ -839,11 +845,11 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             break;
         default:
             // Do not abort execution if we expect a variable amount of parameters
-            if(isVariadic)
+            if (parseFlags & PARSE_VARIADIC)
                 break;
             // FALLTHROUGH
         case 0:
-            printUsageMessage(command, outputFlag);
+            printUsageMessage(command, outputFlags);
             Debug(Debug::ERROR) << "Unrecognized parameters!" << "\n";
             printParameters(argc, pargv, par);
             EXIT(EXIT_FAILURE);
@@ -893,6 +899,9 @@ void Parameters::printParameters(int argc, const char* pargv[],
 }
 
 void Parameters::setDefaults() {
+    restArgv = NULL;
+    restArgc = 0;
+
     scoringMatrixFile = "blosum62.out";
 
     kmerSize =  0;

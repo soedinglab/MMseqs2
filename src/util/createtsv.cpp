@@ -7,7 +7,7 @@
 
 int createtsv(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 3, true, true);
+    par.parseParameters(argc, argv, command, 3, true, Parameters::PARSE_VARIADIC);
 
     const bool hasTargetDB = par.filenames.size() > 3;
     size_t i = 0;

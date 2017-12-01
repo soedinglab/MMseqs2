@@ -321,7 +321,7 @@ struct SequenceComparision {
 int kmermatcher(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, 2, true, false, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, 2, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
     if (par.maskMode == 2) {
         Debug(Debug::ERROR) << "kmermatcher does not support mask mode 2.\n";

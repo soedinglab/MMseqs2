@@ -22,7 +22,7 @@
 
 int createdb(int argn, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argn, argv, command, 2, true, true);
+    par.parseParameters(argn, argv, command, 2, true, Parameters::PARSE_VARIADIC);
 
     if (par.maxSeqLen == Parameters::MAX_SEQ_LEN) {
         par.maxSeqLen = Parameters::MAX_SEQ_LEN - 1;

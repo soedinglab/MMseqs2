@@ -9,7 +9,7 @@
 
 int mergedbs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2, true, true);
+    par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_VARIADIC);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);

@@ -77,6 +77,9 @@ public:
     static const int TAXONOMY_SINGLE_SEARCH = 1;
     static const int TAXONOMY_2BLCA = 2;
 
+    static const int PARSE_VARIADIC = 1;
+    static const int PARSE_REST = 2;
+
     static std::string getSplitModeName(int splitMode) {
         switch (splitMode) {
             case 0: return "Target";
@@ -134,6 +137,9 @@ public:
     std::string db6Index;
 
     std::vector<std::string> filenames;
+
+    const char** restArgv;
+    int restArgc;
 
     std::string scoringMatrixFile;       // path to scoring matrix
     size_t maxSeqLen;                    // sequence length
@@ -329,8 +335,8 @@ public:
                          const Command& command,
                          size_t requiredParameterCount,
                          bool printParameters = true,
-                         bool isVariadic = false,
-                         int outputFlag = 0);
+                         int parseFlags = 0,
+                         int outputFlags = 0);
     void printUsageMessage(const Command& command,
                            int outputFlag);
     void printParameters(int argc, const char* pargv[],

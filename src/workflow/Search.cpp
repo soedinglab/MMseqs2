@@ -38,7 +38,7 @@ int search(int argc, const char **argv, const Command& command) {
         par.overrideParameterDescription((Command &)command, par.translatenucs[i].uniqid, NULL, NULL, par.translatenucs[i].category |MMseqsParameter::COMMAND_EXPERT );
     }
 
-    par.parseParameters(argc, argv, command, 4, false, false, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+    par.parseParameters(argc, argv, command, 4, false, 0, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
 
     int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
