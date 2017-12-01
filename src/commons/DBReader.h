@@ -71,8 +71,9 @@ public:
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
     static const int LINEAR_ACCCESS = 2;
-    static const int SORT_BY_ID = 3;
-    static const int SORT_BY_LINE = 4; // the local IDs correspond to the line number in the original index file
+    static const int SORT_BY_ID     = 3;
+    static const int SORT_BY_LINE   = 4; // the local IDs correspond to the line number in the original index file
+    static const int SHUFFLE        = 5;
 
     static const int USE_INDEX    = 0;
     static const int USE_DATA     = 1;

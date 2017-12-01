@@ -6,6 +6,7 @@
 #include <climits>
 #include <cstring>
 #include <cstddef>
+#include <random>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -202,6 +203,29 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             seqLens[i] = sortForMapping[i].second;
         }
         delete[] sortForMapping;
+    } else if (accessType == SHUFFLE) {
+        size_t *tmpIndex = new size_t[size];
+        for (size_t i = 0; i < size; i++) {
+            tmpIndex[i] = i;
+        }
+
+        std::mt19937 rnd(0);
+        std::shuffle(tmpIndex, tmpIndex + size, rnd);
+
+        id2local = new unsigned int[size];
+        local2id = new unsigned int[size];
+        for (size_t i = 0; i < size; i++) {
+            id2local[tmpIndex[i]] = i;
+            local2id[i] = tmpIndex[i];
+        }
+        delete[] tmpIndex;
+
+        unsigned int *tmpSize = new unsigned int[size];
+        memcpy(tmpSize, seqLens, size * sizeof(unsigned int));
+        for (size_t i = 0; i < size; i++) {
+            seqLens[i] = tmpSize[local2id[i]];
+        }
+        delete[] tmpSize;
     } else if (accessType == LINEAR_ACCCESS) {
         // sort the entries by the offset of the sequences
         std::pair<unsigned int, size_t> *sortForMapping = new std::pair<unsigned int, size_t>[size];
@@ -224,7 +248,6 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             seqLens[i] = tmpSizeArray[local2id[i]];
         }
         delete[] tmpSizeArray;
-
     } else if (accessType == SORT_BY_LINE) {
         // sort the entries by the original line number in the index file
         id2local = new unsigned int[size];
