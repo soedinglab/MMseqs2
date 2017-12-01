@@ -114,7 +114,7 @@ KSeqBzip::~KSeqBzip() {
 #endif
 
 KSeqWrapper* KSeqFactory(const char* file) {
-    KSeqWrapper* kseq;
+    KSeqWrapper* kseq = NULL;
     if(Util::endsWith(".gz", file) == false && Util::endsWith(".bz2", file) == false ) {
         kseq = new KSeqFile(file);
     }
