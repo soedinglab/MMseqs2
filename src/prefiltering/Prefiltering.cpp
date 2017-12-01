@@ -712,7 +712,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 #endif
     }
 
-    if (Debug::debugLevel >= 3) {
+    if (Debug::debugLevel >= Debug::INFO) {
         statistics_t stats(kmersPerPos / totalQueryDBSize,
                            dbMatches / totalQueryDBSize,
                            doubleMatches / totalQueryDBSize,
