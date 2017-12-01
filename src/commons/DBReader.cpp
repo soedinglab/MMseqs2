@@ -74,14 +74,6 @@ template <typename T> DBReader<T>::~DBReader(){
     if(indexFileName != NULL) {
         free(indexFileName);
     }
-
-    if(id2local != NULL) {
-        delete[] id2local;
-    }
-
-    if(local2id != NULL) {
-        delete[] local2id;
-    }
 }
 
 template <typename T> bool DBReader<T>::open(int accessType){
@@ -319,7 +311,7 @@ template <typename T> void DBReader<T>::close(){
         fclose(dataFile);
         unmapData();
     }
-    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE){
+    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
         delete [] id2local;
         delete [] local2id;
     }
