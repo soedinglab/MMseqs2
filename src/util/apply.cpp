@@ -4,6 +4,9 @@
 #include "Util.h"
 #include "Debug.h"
 
+#include <algorithm>
+#include <climits>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
