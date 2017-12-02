@@ -186,9 +186,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                     }
                 }
                 std::vector<int> vec;
-                char * words[2048];
-                size_t elements = Util::getWordsOfLine((char*)btCopy.c_str(), words, 2048);
-                if(elements == 2048){
+                char * words[32768];
+                size_t elements = Util::getWordsOfLine((char*)btCopy.c_str(), words, 32768);
+                if(elements == 32768){
                     Debug(Debug::ERROR) << "Words array is too small in converatalignments.";
                     EXIT(EXIT_FAILURE);
                 }
