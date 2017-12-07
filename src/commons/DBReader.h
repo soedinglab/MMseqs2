@@ -130,7 +130,7 @@ public:
     }
 
     const char* getDbTypeName() {
-        return getDbTypeName(dbType);
+        return getDbTypeName(dbtype);
     }
 
     static const char* getDbTypeName(int dbtype) {
