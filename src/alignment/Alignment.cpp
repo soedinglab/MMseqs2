@@ -141,7 +141,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     }
 
     if (realign == true) {
-        realign_m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, -0.4f);
+        realign_m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, -0.2f);
     } else {
         realign_m = NULL;
     }
