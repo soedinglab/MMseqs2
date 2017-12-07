@@ -63,7 +63,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         ScoreMatrix::cleanup(s2);
     }
 
-    Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa, seqType, kmerSize, hasSpacedKmer, compBiasCorrection);
+    Sequence seq(maxSeqLen, seqType, subMat, kmerSize, hasSpacedKmer, compBiasCorrection);
 
     IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
 
@@ -447,8 +447,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 #pragma omp parallel
     {
         Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
-        Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
-                   seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
+        Sequence s(seq->getMaxLen(), seq->getSeqType(), subMat, seq->getKmerSize(), seq->isSpaced(), false);
 
         KmerGenerator *generator = NULL;
         if (isProfile) {
@@ -561,8 +560,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 
 #pragma omp parallel
     {
-        Sequence s(seq->getMaxLen(), seq->aa2int, seq->int2aa,
-                   seq->getSeqType(), seq->getKmerSize(), seq->isSpaced(), false);
+        Sequence s(seq->getMaxLen(), seq->getSeqType(), subMat, seq->getKmerSize(), seq->isSpaced(), false);
         Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
         IndexEntryLocalTmp * buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
 

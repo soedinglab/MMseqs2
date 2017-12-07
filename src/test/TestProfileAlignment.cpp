@@ -769,7 +769,7 @@ int main (int argc, const char * argv[])
                                   21 : subMat.aa2int[(int) msaSeq[k][pos]];
         }
     }
-    PSSMCalculator::Profile pssmRet = pssmCalculator.computePSSMFromMSA(setSize,centerSeqSize, (const char **) msaSequence, false);
+    PSSMCalculator::Profile pssmRet = pssmCalculator.computePSSMFromMSA(setSize,centerSeqSize, (const char **) msaSequence, false, 2.0);
     const char * sequence = pssmRet.pssm;
     char * data = new char[centerSeqSize*20+1];
     for (size_t i = 0; i < centerSeqSize*20; i++) {
@@ -781,10 +781,10 @@ int main (int argc, const char * argv[])
 
     //const char* sequence = profile.c_str();
 //    std::cout << sequence << "";
-    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, kmer_size, true, true);
+    Sequence* s = new Sequence(10000, Sequence::HMM_PROFILE, &subMat, kmer_size, true, true);
     s->mapSequence(0,0,data);
     s->printProfile();
-    Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, kmer_size, true, true);
+    Sequence* dbSeq = new Sequence(10000, Sequence::AMINO_ACIDS, &subMat, kmer_size, true, true);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     const char* sequence2 = "LFILNIISMNKQTKVKGYLLLLLVISSLFISLVGHGYTANKVSAPNPAKEYPQDNLSVIDMKNLPGTQIKSMVKDELQQFLEEQGFRRLKNKSLVDLRRIWLGFMYEDFFYTMHKKTDLPISVIYAFFIIEATNAGIESKLMAKALNPGGIKYRGTGKKMKAMDDCY";
 

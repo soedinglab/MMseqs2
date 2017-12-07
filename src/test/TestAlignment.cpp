@@ -31,7 +31,7 @@ int main (int argc, const char * argv[]) {
     size_t len = Matcher::resultToBuffer(buffer, result, true, false);
     std::cout << std::string(buffer, len) << std::endl;
 
-    SubstitutionMatrix subMat("blosum62.out", 2.0, -0.0);
+    SubstitutionMatrix subMat("blosum62.out", 2.0, -0.0f);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
@@ -51,19 +51,22 @@ int main (int argc, const char * argv[]) {
 //	std::string tim = "APRKFFVGGNWKMNGKRKSLGELIHTLDGAKLSADTEVVCGAPSIYLDFARQKLDAKIGVAAQNCYKVPKGAFTGEISPAMIKDIGAAWVILGH"
 //                      "SERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFQETKAIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLR"
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
-    std::string tim1 = "DLPQSLDTSLFFGTYQQSPLDMDDVSGG";
-    std::string tim2 = "DLPQSLDTSLFFGTTASGFQQSPLDMDD";
+//    std::string tim1 = "LAEVGDARSLLEDDLVDLPDARFFKAMGREFVKLMLQGEASEAIKAPRAAAAVLPKQYTRDEDGDGVNLVLLVERVLEVPDECRLYIIGVAARVAGATVVYATGSRKKDAALPIANDETHLTAVLAKGESLPPPPENPMSADRVRWEHIQRIYEMCDRNVSETARRLNMHRRTLQRILAKRSPR";
+//    std::string tim2 = "EMDLAFVELGADRSLLLVDDDEPFLKRLAKAMEKRGFVLETAQSVAEGKAIAQARPPAYAVVDLRLEDGNGLDVVEVLRERRPDCRIVVLTGYGAIATAVAAVKIGATDYLSKPADANEVTHALLAKGESLPPPPENPMSADRVRWEHIQRIYEMCDRNVSETARRLNMHRRTLQRILAKRSPR";
+    std::string tim1 = "'GLTVDCVVFGLDEQIDLKVLLIQRQIPPFQHQWALPGGFVQMDESLEDAARRELREETGVQGIFLEQLYTFGDLGRDPRDRIISVAYYALINLIEYPLQASTDAEDAAWYSIENLPSLAFDHAQILKQAI";
+    std::string tim2 = "'GLTADVVILYNGGIVLIKRKHEPFKDHYALPGGFVEYGETVEEAALREAKEETGLDVRLIRLVGVYSDPNRDPRGHTVTTAFLAIGTGKLKAGDDAEEVHVVPVEEALKLPLAFDHAKILRDAL";
+
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
     const char* sequence = tim1.c_str();
     std::cout << sequence << "\n\n";
 
-    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+    Sequence* s = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     s->mapSequence(0,0,sequence);
-    Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+    Sequence* dbSeq = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     dbSeq->mapSequence(1,1,tim2.c_str());
-    SmithWaterman aligner(15000, subMat.alphabetSize, false);
+    SmithWaterman aligner(15000, subMat.alphabetSize, true);
     int8_t * tinySubMat = new int8_t[subMat.alphabetSize*subMat.alphabetSize];
     for (int i = 0; i < subMat.alphabetSize; i++) {
         for (int j = 0; j < subMat.alphabetSize; j++) {
@@ -80,12 +83,12 @@ int main (int argc, const char * argv[]) {
     std::cout << "Test: " << sum/ subMat.alphabetSize << std::endl;
     aligner.ssw_init(s, tinySubMat, &subMat, subMat.alphabetSize, 2);
     int32_t maskLen = s->L / 2;
-    int gap_open = 10;
+    int gap_open = 11;
     int gap_extend = 1;
     float seqId = 1.0;
     int aaIds = 0;
     EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend, true );
-    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, 0, 0.0, maskLen);
+    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 10000, &evalueComputation, 0, 0.0, maskLen);
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 
