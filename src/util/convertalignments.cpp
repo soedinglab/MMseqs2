@@ -170,35 +170,46 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
         std::string queryId = qHeaderDbr.getId(queryKey);
         std::vector<Matcher::result_t> results = Matcher::readAlignmentResults(data, true);
+        unsigned int missMatchCount;
         for (size_t j = 0; j < results.size(); j++) {
             const Matcher::result_t &res = results[j];
-
             std::string targetId = tHeaderDbr->getId(res.dbKey);
             unsigned int gapOpenCount = 0;
             unsigned int alnLen = res.alnLength;
             if(res.backtrace.size() > 0) {
-                std::string btCopy = res.backtrace;
+                size_t matchCount = 0;
+
+                std::vector<int> vec;
+                alnLen = 0;
                 for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
-                    bool foundLetter =(res.backtrace[pos] == 'I' || res.backtrace[pos] == 'D');
-                    gapOpenCount += foundLetter;
-                    if(foundLetter|| res.backtrace[pos] == 'M'){
-                        btCopy[pos] = ' ';
+                    int cnt=0;
+                    if(isdigit(res.backtrace[pos])){
+                        cnt += Util::fast_atoi<int>(res.backtrace.c_str()+pos);
+                        while(isdigit(res.backtrace[pos])){
+                            pos++;
+                        }
+                    }
+                    alnLen+=cnt;
+
+                    switch(res.backtrace[pos]){
+                        case 'M':
+                            matchCount+= cnt;
+                            break;
+                        case 'D':
+                        case 'I':
+                            gapOpenCount+=1;
+                            break;
                     }
                 }
-                std::vector<int> vec;
-                char * words[2048];
-                size_t elements = Util::getWordsOfLine((char*)btCopy.c_str(), words, 2048);
-                if(elements == 2048){
-                    Debug(Debug::ERROR) << "Words array is too small in converatalignments.";
-                    EXIT(EXIT_FAILURE);
-                }
-                alnLen = 0;
-                elements = (elements > 0) ? elements - 1: 0;
-                for (size_t elm = 0; elm < elements; elm++) {
-                    alnLen+= Util::fast_atoi<int>(words[elm]);
-                }
+//                res.seqId = X / alnLen;
+                unsigned int identical = static_cast<unsigned int>( res.seqId * static_cast<float>(alnLen)  + 0.5 );
+                missMatchCount = static_cast<unsigned int>( matchCount - identical);
+            }else{
+                int adjustQstart = (res.qStartPos==-1)? 0 : res.qStartPos;
+                int adjustDBstart = (res.dbStartPos==-1)? 0 : res.dbStartPos;
+                float bestMatchEstimate = static_cast<float>(std::min(res.qEndPos - adjustQstart,  res.dbEndPos-  adjustDBstart));
+                missMatchCount = static_cast<unsigned int>( bestMatchEstimate *  (1.0f - res.seqId) + 0.5 );
             }
-            unsigned int missMatchCount = static_cast<unsigned int>((1.0f-res.seqId) * res.alnLength);
 
 
             switch (format) {

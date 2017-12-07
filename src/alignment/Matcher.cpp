@@ -128,7 +128,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const
         unsigned int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
         if(alignment.cigar){
             // OVERWRITE alnLength with gapped value
-            alnLength = SmithWaterman::cigar_int_to_len(alignment.cigar[0]);
+            alnLength = backtrace.size();
         }
         seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(std::max(qAlnLen, dbAlnLen), alnLength));
     }else if( mode == Matcher::SCORE_COV){
@@ -233,9 +233,11 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
     int dbStart = Util::fast_atoi<int>(entry[7]);
     int dbEnd = Util::fast_atoi<int>(entry[8]);
     int dbLen = Util::fast_atoi<int>(entry[9]);
-    double qCov = SmithWaterman::computeCov(qStart, qEnd, qLen);
-    double dbCov = SmithWaterman::computeCov(dbStart, dbEnd, dbLen);
-    size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
+    int adjustQstart = (qStart==-1)? 0 : qStart;
+    int adjustDBstart = (dbStart==-1)? 0 : dbStart;
+    double qCov = SmithWaterman::computeCov(adjustQstart, qEnd, qLen);
+    double dbCov = SmithWaterman::computeCov(adjustDBstart, dbEnd, dbLen);
+    size_t alnLength = Matcher::computeAlnLength(adjustQstart, qEnd, adjustDBstart, dbEnd);
 
     if(columns < ALN_RES_WITH_BT_COL_CNT){
         return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,

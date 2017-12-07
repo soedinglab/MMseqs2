@@ -166,13 +166,18 @@ public:
         return exp > 0 ? (exp << MANTISSA_BITS) | (mantissa & ~HIDDEN_BIT) :
                (mantissa >> (1 - exp)) & MANTISSA_MAX;
     }
+#pragma GCC diagnostic pop
 
 
     static char convertNeffToChar(const float neff) {
-        unsigned char retVal = static_cast<char>((neff  - 1 )/19 * MINIFLOAT_MAX);
-        return std::max(static_cast<unsigned char>(1), retVal);
+        float retVal = std::min(255.0f, 1.0f+64.0f*flog2(neff) );
+        return std::max(static_cast<unsigned char>(1), static_cast<unsigned char>(retVal + 0.5) );
     }
-#pragma GCC diagnostic pop
+
+    static float convertNeffToFloat(unsigned char neffToScale) {
+        float retNeff = fpow2((static_cast<float>(neffToScale)-1.0f)/64.0f);;
+        return retNeff;
+    }
 
 // compute look up table based on stirling approximation
     static void computeFactorial(double *output, const size_t range) {
@@ -185,6 +190,29 @@ public:
             output[score] = log(S_fact);
         }
     }
+
+
+    // Normalize a float array such that it sums to one
+    // If it sums to 0 then assign def_array elements to array (optional)
+    static inline float NormalizeTo1(float* array, int length, const double* def_array = NULL) {
+        float sum = 0.0f;
+        for (int k = 0; k < length; k++){
+            sum += array[k];
+        }
+        if (sum != 0.0f) {
+            float fac = 1.0 / sum;
+            for (int i = 0; i < length; i++) {
+                array[i] *= fac;
+            }
+        } else if (def_array) {
+            for (int i = 0; i < length; i++) {
+                array[i] = def_array[i];
+            }
+        }
+        return sum;
+    }
+
+
 };
 
 #endif

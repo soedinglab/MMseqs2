@@ -49,7 +49,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
     hashSeqPair[seqDbr.getSize()] = std::make_pair(UINT_MAX, 0); // needed later to check if one of array
 #pragma omp parallel
     {
-        Sequence seq(par.maxSeqLen, redSubMat.aa2int, redSubMat.int2aa, Sequence::AMINO_ACIDS, 0, false, false);
+        Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, &redSubMat, 0, false, false);
 #pragma omp for schedule(dynamic, 10000)
         for(size_t id = 0; id < seqDbr.getSize(); id++){
             Debug::printProgress(id);

@@ -115,8 +115,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
         UniprotHeaderSummarizer summarizer;
-        Sequence centerSequence(maxSequenceLength, subMat.aa2int, subMat.int2aa,
-                                qDbr.getDbtype(), 0, false, par.compBiasCorrection);
+        Sequence centerSequence(maxSequenceLength, qDbr.getDbtype(), &subMat, 0, false, par.compBiasCorrection);
 
         // which sequences where kept after filtering
         bool *kept = new bool[maxSetSize];
@@ -164,8 +163,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                 }
 
                 const size_t edgeId = tDbr->getId(key);
-                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), subMat.aa2int, subMat.int2aa,
-                                                      Sequence::AMINO_ACIDS, 0, false, false);
+                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), Sequence::AMINO_ACIDS, &subMat, 0, false, false);
 
 
                 char *dbSeqData = tDbr->getData(edgeId);
@@ -270,7 +268,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     }
                     PSSMCalculator::Profile pssmRes =
                             calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
-                                                          (const char **) res.msaSequence, par.wg);
+                                                          (const char **) res.msaSequence, par.wg, Sequence::PROFILE_SCALING);
                     msa << ">consensus_" << queryHeaderReader.getDataByDBKey(queryKey) << pssmRes.consensus << "\n;";
                 } else {
                     std::ostringstream centerSeqStr;
@@ -475,6 +473,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     // do not filter as default
     par.filterMsa = 0;
+    par.pca = 0.0;
     par.parseParameters(argc, argv, command, 4);
 
     struct timeval start, end;

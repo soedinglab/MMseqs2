@@ -261,8 +261,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         std::string alnResultsOutString;
         alnResultsOutString.reserve(1024*1024);
         char buffer[1024+32768];
-        Sequence qSeq(maxSeqLen, m->aa2int, m->int2aa, querySeqType, 0, false, compBiasCorrection);
-        Sequence dbSeq(maxSeqLen, m->aa2int, m->int2aa, targetSeqType, 0, false, compBiasCorrection);
+        Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
+        Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
         Matcher matcher(maxSeqLen, m, &evaluer, compBiasCorrection);
         Matcher *realigner = NULL;
         if (realign ==  true) {

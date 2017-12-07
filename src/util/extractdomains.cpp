@@ -59,12 +59,10 @@ int scoreSubAlignment(std::string query, std::string target, unsigned int qStart
     unsigned int tPos = tStart;
     unsigned int qPos = qStart;
 
-    Sequence qSeq(query.length() + 1, matrix.aa2int, matrix.int2aa,
-                  Sequence::AMINO_ACIDS, 0, false, false);
+    Sequence qSeq(query.length() + 1, Sequence::AMINO_ACIDS, &matrix, 0, false, false);
     qSeq.mapSequence(0, 0, query.c_str());
 
-    Sequence tSeq(target.length() + 1, matrix.aa2int, matrix.int2aa,
-                  Sequence::AMINO_ACIDS, 0, false, false);
+    Sequence tSeq(target.length() + 1, Sequence::AMINO_ACIDS, &matrix, 0, false, false);
 
     tSeq.mapSequence(0, 0, target.c_str());
 
