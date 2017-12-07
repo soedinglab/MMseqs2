@@ -130,6 +130,10 @@ public:
     }
 
     const char* getDbTypeName() {
+        return getDbTypeName(dbType);
+    }
+
+    static const char* getDbTypeName(int dbtype) {
         switch(dbtype) {
             case DBTYPE_AA: return "Aminoacid";
             case DBTYPE_NUC: return "Nucleotide";

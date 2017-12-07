@@ -160,8 +160,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         Debug(Debug::ERROR) << "Invalid split mode: " << splitMode << "\n";
         EXIT(EXIT_FAILURE);
     }
-    Debug(Debug::WARNING) << "Query database type: " << querySeqType << "\n";
-    Debug(Debug::WARNING) << "Target database type: " << targetSeqType << "\n";
+
+    Debug(Debug::INFO) << "Query database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
+    Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 }
 
 Prefiltering::~Prefiltering() {

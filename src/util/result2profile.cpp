@@ -270,6 +270,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             }
         }
     }
+    Debug(Debug::INFO) << "\n";
 
     // cleanup
     if (consensusWriter != NULL) {

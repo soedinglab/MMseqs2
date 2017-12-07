@@ -578,7 +578,7 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
             Debug::printProgress(id - dbFrom);
 
             unsigned int qKey = dbr->getDbKey(id);
-            if (seq->getSeqType() == Sequence::HMM_PROFILE) {
+            if (isProfile) {
                 char *seqData = dbr->getData(id);
                 s.mapSequence(id - dbFrom, qKey, seqData);
                 indexTable->addSimilarSequence(&s, generator, &idxer, kmerThr, idScoreLookup);
