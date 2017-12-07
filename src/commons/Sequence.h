@@ -7,8 +7,6 @@
 // Represents a database sequence object, holds its representation in the int array form.
 //
 #include "Debug.h"
-#include "MathUtil.h"
-#include "BaseMatrix.h"
 #include <cstdint>
 #include <cstddef>
 #include <utility>
@@ -52,7 +50,7 @@ const int8_t seed_17_spaced[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 class Sequence
 {
 public:
-    Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat,
+    Sequence(size_t maxLen, int *aa2int, char *int2aa, int seqType,
              const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection);
     ~Sequence();
 
@@ -172,9 +170,6 @@ public:
     static const int NUCLEOTIDES = 1;
     static const int HMM_PROFILE = 2;
 
-    // submat
-    const BaseMatrix * subMat;
-
     // length of sequence
     int L;
 
@@ -187,14 +182,10 @@ public:
     // Contains profile information
     short           * profile_score;
     unsigned int    * profile_index;
-    float           * profile;
-    float           * neffM;
-    float           * pseudocountsWeight;
     size_t profile_row_size; // (PROFILE_AA_SIZE / SIMD_SIZE) + 1 * SIMD_SIZE
 
     static const size_t PROFILE_AA_SIZE = 20;
     static const size_t PROFILE_READIN_SIZE = 23; // 20 AA, 1 for Neff M, 1 consensus, 1 query
-    static const int PROFILE_SCALING = 16;
     ScoreMatrix ** profile_matrix;
     // Memory layout of this profile is qL * AA
     //   Query lenght
@@ -205,11 +196,12 @@ public:
 
     int8_t * profile_for_alignment;
 
+    int  * aa2int; // ref to mapping from aa -> int
+    char * int2aa; // ref mapping from int -> aa
+
     std::pair<const char *, unsigned int> getSpacedPattern(bool spaced, unsigned int kmerSize);
 
     const unsigned char *getAAPosInSpacedPattern() {     return aaPosInSpacedPattern;  }
-
-    void printPSSM();
 
     void printProfile();
 
@@ -218,38 +210,6 @@ public:
     int getSequenceType()const;
 
     unsigned int getEffectiveKmerSize();
-
-    static char scoreMask(char unscaledScore)
-    {
-        unscaledScore = (unscaledScore == (char)0x80) ? 0x81 : unscaledScore;
-        unscaledScore ^= 0x80;
-        return unscaledScore;
-    }
-
-    static short scoreUnmask(char score)
-    {
-        score ^= 0x80;
-        short scoreShort = static_cast<short>(score);
-        return scoreShort; //;
-    }
-
-    static float probaToBitScore(double proba, double pBack)
-    {
-        // No score bias when profile proba stored in file
-        return MathUtil::flog2(proba / pBack);
-    }
-
-
-    static float scoreToProba(short score, double pBack, double bitFactor, double scoreBias)
-    {
-        if (score == -127)
-            return 0.0;
-        double dblScore = static_cast<double>(score);
-        // No score bias when profile proba stored in file
-        float prob = MathUtil::fpow2( (float) (dblScore - scoreBias) / bitFactor )*pBack;
-        return prob;
-    }
-
 
 
 private:

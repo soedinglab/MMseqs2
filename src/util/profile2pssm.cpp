@@ -33,7 +33,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Start converting profiles.\n";
 #pragma omp parallel
     {
-        Sequence seq(par.maxSeqLen, Sequence::HMM_PROFILE, &subMat, 0, false, par.compBiasCorrection);
+        Sequence seq(par.maxSeqLen, subMat.aa2int, subMat.int2aa, Sequence::HMM_PROFILE, 0, false, par.compBiasCorrection);
 
         unsigned int thread_idx = 0;
 #ifdef OPENMP

@@ -1,10 +1,8 @@
-#include <simd/simd.h>
 #include "BaseMatrix.h"
 
 #include "Debug.h"
 #include "Util.h"
 #include "MathUtil.h"
-#include "Sequence.h"
 
 const double BaseMatrix::ANY_BACK = 1E-5;
 
@@ -55,7 +53,7 @@ BaseMatrix::BaseMatrix(){
         probMatrix[i] = new double[alphabetSize];
         subMatrix[i] = new short[alphabetSize];
         subMatrix2Bit[i] = new short[alphabetSize];
-        subMatrixPseudoCounts[i] =  (float *) malloc_simd_float(alphabetSize * sizeof(float));
+        subMatrixPseudoCounts[i] = new float[alphabetSize];
         for (int j = 0; j < alphabetSize; j++){
             probMatrix[i][j] = 0.0;
             subMatrix2Bit[i][j] = 0.0;
@@ -73,7 +71,7 @@ BaseMatrix::~BaseMatrix(){
         delete[] probMatrix[i];
         delete[] subMatrix[i];
         delete[] subMatrix2Bit[i];
-        free(subMatrixPseudoCounts[i]);
+        delete[] subMatrixPseudoCounts[i];
     }
     delete[] probMatrix;
     delete[] subMatrix2Bit;

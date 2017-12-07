@@ -188,7 +188,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
 
 #pragma omp parallel
     {
-        Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, subMat, KMER_SIZE, false, false);
+        Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, KMER_SIZE, false, false);
         Indexer idxer(subMat->alphabetSize, KMER_SIZE);
         char * charSequence = new char[par.maxSeqLen];
         const unsigned int BUFFER_SIZE = 1024;

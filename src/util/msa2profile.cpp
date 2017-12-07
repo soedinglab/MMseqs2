@@ -20,7 +20,6 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 
 void setMsa2ProfileDefaults(Parameters *p) {
     p->msaType = 1;
-    p->pca = 0.0;
 }
 
 int msa2profile(int argc, const char **argv, const Command &command) {
@@ -130,7 +129,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     {
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
         PSSMCalculator calculator(&subMat, maxSeqLength, maxSetSize, par.pca, par.pcb);
-        Sequence sequence(maxSeqLength + 1, Sequence::AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
+        Sequence sequence(maxSeqLength + 1, subMat.aa2int, subMat.int2aa,
+                          Sequence::AMINO_ACIDS, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * maxSeqLength * maxSetSize);
 
@@ -279,7 +279,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             PSSMCalculator::Profile pssmRes =
                     calculator.computePSSMFromMSA(filteredSetSize, centerLength,
-                                                  (const char **) msaSequences, par.wg, Sequence::PROFILE_SCALING);
+                                                  (const char **) msaSequences, par.wg);
             for(size_t pos = 0; pos < centerLength; pos++){
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
                     result.push_back(pssmRes.pssm[pos*Sequence::PROFILE_AA_SIZE + aa] ^ 0x80);

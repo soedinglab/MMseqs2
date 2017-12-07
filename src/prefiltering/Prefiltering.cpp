@@ -389,7 +389,7 @@ IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize,
         struct timeval start, end;
         gettimeofday(&start, NULL);
 
-        Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
+        Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, aaBiasCorrection);
         int localKmerThr = (querySeqType != Sequence::HMM_PROFILE) ? kmerThr : 0;
         IndexTable* table = PrefilteringIndexReader::generateIndexTable(
                 tdbr, &tseq, subMat, alphabetSize, kmerSize,
@@ -398,7 +398,7 @@ IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize,
         );
 
         gettimeofday(&end, NULL);
-        table->printStatistics(subMat->int2aa);
+        table->printStatistics(tseq.int2aa);
         time_t sec = end.tv_sec - start.tv_sec;
         tdbr->remapData();
         Debug(Debug::INFO) << "Time for index table init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "
@@ -650,7 +650,8 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
+        Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa,
+                     querySeqType, kmerSize, spacedKmer, aaBiasCorrection);
 
         QueryMatcher matcher(subMat, indexTable, evaluer, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
@@ -664,6 +665,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 #pragma omp for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
         for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
             Debug::printProgress(id);
+
             // get query sequence
             char *seqData = qdbr->getData(id);
             unsigned int qKey = qdbr->getDbKey(id);
@@ -866,7 +868,8 @@ double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned 
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
+        Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa,
+                     querySeqType, kmerSize, spacedKmer, aaBiasCorrection);
 
         if (thread_idx == 0) {
             effectiveKmerSize = seq.getEffectiveKmerSize();

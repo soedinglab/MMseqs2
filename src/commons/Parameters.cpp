@@ -175,8 +175,6 @@ Parameters::Parameters():
     align.push_back(PARAM_INCLUDE_IDENTITY);
     align.push_back(PARAM_NO_PRELOAD);
     align.push_back(PARAM_EARLY_EXIT);
-    align.push_back(PARAM_PCA);
-    align.push_back(PARAM_PCB);
     align.push_back(PARAM_THREADS);
     align.push_back(PARAM_V);
 
@@ -201,8 +199,6 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
     prefilter.push_back(PARAM_NO_PRELOAD);
     prefilter.push_back(PARAM_EARLY_EXIT);
-    prefilter.push_back(PARAM_PCA);
-    prefilter.push_back(PARAM_PCB);
     prefilter.push_back(PARAM_THREADS);
     prefilter.push_back(PARAM_V);
 
