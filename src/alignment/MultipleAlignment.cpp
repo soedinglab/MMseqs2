@@ -60,7 +60,7 @@ std::vector<Matcher::result_t> MultipleAlignment::computeBacktrace(Sequence *cen
     aligner->initQuery(centerSeq);
     for(size_t i = 0; i < seqs.size(); i++) {
         Sequence *edgeSeq = seqs[i];
-        Matcher::result_t alignment = aligner->getSWResult(edgeSeq, 0, 0.0, FLT_MAX, Matcher::SCORE_COV_SEQID);
+        Matcher::result_t alignment = aligner->getSWResult(edgeSeq, 0, 0.0, FLT_MAX, Matcher::SCORE_COV_SEQID, false);
         btSequences.push_back(alignment);
         if(alignment.backtrace.size() > maxMsaSeqLen){
             Debug(Debug::ERROR) << "Alignment length is > maxMsaSeqLen in MSA " << centerSeq->getDbKey() << "\n";

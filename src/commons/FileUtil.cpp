@@ -21,6 +21,14 @@ bool FileUtil::directoryExists(const char* directoryName) {
     return stat(directoryName, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
+bool FileUtil::makeDir(const char* directoryName, const int mode ) {
+    if(mkdir(directoryName, mode) == 0){
+        return true;
+    }else{
+        return false;
+    }
+}
+
 FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool shouldExist) {
     bool exists = FileUtil::fileExists(fileName);
     if(exists && !shouldExist) {
@@ -137,4 +145,50 @@ size_t FileUtil::getFileSize(std::string fileName) {
     struct stat stat_buf;
     int rc = stat(fileName.c_str(), &stat_buf);
     return rc == 0 ? stat_buf.st_size : -1;
+}
+
+
+bool FileUtil::symlinkExists(const std::string  path)
+{
+    struct stat buf;
+    int result;
+
+    result = lstat(path.c_str(), &buf);
+
+    return (result == 0);
+}
+
+bool FileUtil::symlinkCreateOrRepleace(const std::string linkname, const std::string linkdest) {
+    if(symlinkExists(linkname)==true){
+        if(remove(linkname.c_str()) != 0){
+            return false;
+        }
+    }
+    char *abs_in_header_filename = realpath(linkdest.c_str(), NULL);
+    symlink(abs_in_header_filename, linkname.c_str());
+    free(abs_in_header_filename);
+    return true;
+}
+
+
+void FileUtil::copyFile(const char *src, const char *dst) {
+    //https://stackoverflow.com/questions/10195343/copy-a-file-in-a-sane-safe-and-efficient-way
+    char buf[BUFSIZ];
+    size_t size;
+
+    int source = open(src, O_RDONLY, 0);
+    if (source == -1) {
+        Debug(Debug::ERROR) << "Could not open file " << src << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    int dest = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (dest == -1) {
+        Debug(Debug::ERROR) << "Could not open file " << dst << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    while ((size = read(source, buf, BUFSIZ)) > 0) {
+        write(dest, buf, size);
+    }
+    close(source);
+    close(dest);
 }

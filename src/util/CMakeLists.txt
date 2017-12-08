@@ -1,4 +1,5 @@
 set(util_source_files
+        util/apply.cpp
         util/assembleresult.cpp
         util/clusthash.cpp
         util/convert2fasta.cpp
@@ -6,7 +7,8 @@ set(util_source_files
         util/convertkb.cpp
         util/convertprofiledb.cpp
         util/createdb.cpp
-        util/createindex.cpp
+        util/indexdb.cpp
+        util/offsetalignment.cpp
         util/createseqfiledb.cpp
         util/createsubdb.cpp
         util/createtsv.cpp
@@ -22,6 +24,7 @@ set(util_source_files
         util/mergedbs.cpp
         util/msa2profile.cpp
         util/prefixid.cpp
+        util/profile2pssm.cpp
         util/rescorediagonal.cpp
         util/result2flat.cpp
         util/result2msa.cpp

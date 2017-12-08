@@ -21,6 +21,7 @@ public:
     Debug& operator<<( T t)
     {
         if (level <= ERROR && level <= debugLevel){
+            std::cout << std::flush;
             std::cerr << t;
             std::cerr << std::flush;
             return *this;

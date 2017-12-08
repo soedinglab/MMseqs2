@@ -114,9 +114,9 @@ size_t mergeFilePair(KmerEntry *entry1, size_t entrySize1,
                      KmerEntry * out);
 
 void writeMergedKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
-                            KmerEntry *hashSeqPair, size_t totalKmers,
-                            std::vector<bool> &repSequence, int covMode, float covThr,
-                            size_t threads);
+                                  KmerEntry *hashSeqPair, size_t totalKmers,
+                                  std::vector<bool> &repSequence, int covMode, float covThr,
+                                  size_t threads);
 
 void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                             KmerPosition *hashSeqPair, size_t totalKmers,
@@ -188,7 +188,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
 
 #pragma omp parallel
     {
-        Sequence seq(par.maxSeqLen, subMat->aa2int, subMat->int2aa, Sequence::AMINO_ACIDS, KMER_SIZE, false, false);
+        Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, subMat, KMER_SIZE, false, false);
         Indexer idxer(subMat->alphabetSize, KMER_SIZE);
         char * charSequence = new char[par.maxSeqLen];
         const unsigned int BUFFER_SIZE = 1024;
@@ -321,7 +321,7 @@ struct SequenceComparision {
 int kmermatcher(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, 2, true, false, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, 2, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
     if (par.maskMode == 2) {
         Debug(Debug::ERROR) << "kmermatcher does not support mask mode 2.\n";
@@ -374,7 +374,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
                 continue;
             }
         }
-        hashSeqPair = new KmerPosition[splitKmerCount + 1];
+        hashSeqPair = new(std::nothrow) KmerPosition[splitKmerCount + 1];
         Util::checkAllocation(hashSeqPair, "Could not allocat memory");
 #pragma omp parallel for
         for (size_t i = 0; i < splitKmerCount + 1; i++) {
@@ -413,7 +413,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
                 if (prevHash != hashSeqPair[elementIdx].kmer) {
                     for (size_t i = prevHashStart; i < elementIdx; i++) {
                         size_t rId =  (hashSeqPair[i].kmer != SIZE_T_MAX) ? ((prevSetSize == 1) ? SIZE_T_MAX
-                                                                                                        : repSeqId) : SIZE_T_MAX;
+                                                                                                : repSeqId) : SIZE_T_MAX;
 
                         hashSeqPair[i].kmer = SIZE_T_MAX;
                         // remove singletones from set
@@ -423,11 +423,11 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
                             // par.includeOnlyExtendable
 //                            bool canBeExtended =  diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
 //                            if(par.includeOnlyExtendable == false || (canBeExtended && par.includeOnlyExtendable ==true )){
-                                hashSeqPair[writePos].kmer = rId;
-                                hashSeqPair[writePos].pos = diagonal;
-                                hashSeqPair[writePos].seqLen = hashSeqPair[i].seqLen;
-                                hashSeqPair[writePos].id = hashSeqPair[i].id;
-                                writePos++;
+                            hashSeqPair[writePos].kmer = rId;
+                            hashSeqPair[writePos].pos = diagonal;
+                            hashSeqPair[writePos].seqLen = hashSeqPair[i].seqLen;
+                            hashSeqPair[writePos].id = hashSeqPair[i].id;
+                            writePos++;
 //                            }
                         }
                     }
@@ -602,9 +602,9 @@ void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
 }
 
 void writeMergedKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
-                            KmerEntry *hashSeqPair, size_t totalKmers,
-                            std::vector<bool> &repSequence, int covMode, float covThr,
-                            size_t threads) {
+                                  KmerEntry *hashSeqPair, size_t totalKmers,
+                                  std::vector<bool> &repSequence, int covMode, float covThr,
+                                  size_t threads) {
     std::vector<size_t> threadOffsets;
     size_t splitSize = totalKmers/threads;
     threadOffsets.push_back(0);
@@ -710,7 +710,8 @@ public:
 std::pair<KmerEntry *, size_t> mergeKmerFiles(std::vector<std::string> tmpFiles) {
     size_t entrySize1 = FileUtil::getFileSize(tmpFiles[0])/sizeof(KmerEntry);
     FILE * file1   = FileUtil::openFileOrDie(tmpFiles[0].c_str(), "rb",true);
-    KmerEntry * entry1 = new KmerEntry[entrySize1];
+    KmerEntry * entry1 = new(std::nothrow) KmerEntry[entrySize1];
+    Util::checkAllocation(entry1, "Could not allocate " + SSTR(entrySize1*sizeof(KmerPosition)) + " byte for entry1");
     size_t readSize1 = fread(entry1, sizeof(KmerEntry), entrySize1, file1);
     if(readSize1 != entrySize1){
         Debug(Debug::ERROR) << "Error reading " << tmpFiles[0] << " readSize1 "
@@ -722,9 +723,9 @@ std::pair<KmerEntry *, size_t> mergeKmerFiles(std::vector<std::string> tmpFiles)
         FILE * file2   = FileUtil::openFileOrDie(tmpFiles[fileIdx].c_str(), "rb",true);
         Debug(Debug::WARNING) << "Merge split: " << tmpFiles[fileIdx].c_str() << " ... ";
         size_t entrySize2 = FileUtil::getFileSize(tmpFiles[fileIdx])/sizeof(KmerEntry);
-        KmerEntry * entry2 = new KmerEntry[entrySize2];
+        KmerEntry * entry2 = new(std::nothrow) KmerEntry[entrySize2];
         Util::checkAllocation(entry2, "Could not allocate " + SSTR(entrySize2*sizeof(KmerPosition)) + " byte for entry2");
-        outData = new KmerEntry[entrySize1+entrySize2+1];
+        outData = new(std::nothrow) KmerEntry[entrySize1+entrySize2+1];
         Util::checkAllocation(outData, "Could not allocate " + SSTR((entrySize1+entrySize2+1)*sizeof(KmerPosition)) + " byte for outData");
         size_t readSize2 = fread(entry2, sizeof(KmerEntry), entrySize2, file2);
         if(readSize2 != entrySize2){
@@ -916,6 +917,5 @@ void setKmerLengthAndAlphabet(Parameters &parameters) {
 }
 
 #undef SIZE_T_MAX
-
 
 

@@ -14,6 +14,11 @@ template <typename T>
 class DBReader {
 
 public:
+
+    static const int DBTYPE_AA = 0;
+    static const int DBTYPE_NUC = 1;
+    static const int DBTYPE_PROFILE = 2;
+
     struct Index {
         T id;
         size_t offset;
@@ -66,8 +71,9 @@ public:
     static const int NOSORT = 0;
     static const int SORT_BY_LENGTH = 1;
     static const int LINEAR_ACCCESS = 2;
-    static const int SORT_BY_ID = 3;
-    static const int SORT_BY_LINE = 4; // the local IDs correspond to the line number in the original index file
+    static const int SORT_BY_ID     = 3;
+    static const int SORT_BY_LINE   = 4; // the local IDs correspond to the line number in the original index file
+    static const int SHUFFLE        = 5;
 
     static const int USE_INDEX    = 0;
     static const int USE_DATA     = 1;
@@ -117,7 +123,24 @@ public:
 
     static DBReader<unsigned int> *unserialize(const char* data);
 
-private:
+    static int parseDbType(const char *name);
+
+    int getDbtype(){
+        return dbtype;
+    }
+
+    const char* getDbTypeName() {
+        return getDbTypeName(dbtype);
+    }
+
+    static const char* getDbTypeName(int dbtype) {
+        switch(dbtype) {
+            case DBTYPE_AA: return "Aminoacid";
+            case DBTYPE_NUC: return "Nucleotide";
+            case DBTYPE_PROFILE: return "Profile";
+            default: return "Unknown";
+        }
+    }
 
     struct compareIndexLengthPairById {
         bool operator() (const std::pair<Index, unsigned  int>& lhs, const std::pair<Index, unsigned  int>& rhs) const{
@@ -143,6 +166,8 @@ private:
         }
     };
 
+private:
+
     void checkClosed();
 
     char* data;
@@ -163,6 +188,8 @@ private:
     size_t aaDbSize;
     // flag to check if db was closed
     int closed;
+    // stores the dbtype (if dbtype file exists)
+    int dbtype;
 
     Index * index;
 
@@ -181,6 +208,7 @@ private:
 
     // needed to prevent the compiler from optimizing away the loop
     char magicBytes;
+
 };
 
 #endif

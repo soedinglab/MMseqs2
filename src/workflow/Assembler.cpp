@@ -51,6 +51,6 @@ int assembler(int argc, const char **argv, const Command& command) {
     cmd.addVariable("UNGAPPED_ALN_PAR", par.createParameterString(par.rescorediagonal).c_str());
     FileUtil::writeFile(par.db3 + "/assembler.sh", assembler_sh, assembler_sh_len);
     std::string program(par.db3 + "/assembler.sh");
-    cmd.execProgram(program.c_str(), 3, argv);
+    cmd.execProgram(program.c_str(), par.filenames);
     return 0;
 }

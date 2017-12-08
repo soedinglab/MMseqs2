@@ -366,10 +366,10 @@ const float     aasd100[20] =
         };
 
 
-std::map<unsigned int, std::string> Util::readLookup(const std::string& file) {
+std::map<unsigned int, std::string> Util::readLookup(const std::string& file, const bool removeSplit) {
     std::map<unsigned int, std::string> mapping;
     if (file.length() > 0) {
-        std::fstream mappingStream(file);
+        std::ifstream mappingStream(file);
         if (mappingStream.fail()) {
             Debug(Debug::ERROR) << "File " << file << " not found!\n";
             EXIT(EXIT_FAILURE);
@@ -379,7 +379,42 @@ std::map<unsigned int, std::string> Util::readLookup(const std::string& file) {
         while (std::getline(mappingStream, line)) {
             std::vector<std::string> split = Util::split(line, "\t");
             unsigned int id = strtoul(split[0].c_str(), NULL, 10);
-            mapping.emplace(id, split[1]);
+
+            std::string& name = split[1];
+
+            size_t pos;
+            if (removeSplit && (pos = name.find_last_of('_')) != std::string::npos) {
+                name = name.substr(0, pos);
+            }
+
+            mapping.emplace(id, name);
+        }
+    }
+
+    return mapping;
+}
+
+std::map<std::string, unsigned int> Util::readLookupReverse(const std::string& file, const bool removeSplit) {
+    std::map<std::string, unsigned int> mapping;
+    if (file.length() > 0) {
+        std::ifstream mappingStream(file);
+        if (mappingStream.fail()) {
+            Debug(Debug::ERROR) << "File " << file << " not found!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        std::string line;
+        while (std::getline(mappingStream, line)) {
+            std::vector<std::string> split = Util::split(line, "\t");
+            unsigned int id = strtoul(split[0].c_str(), NULL, 10);
+            std::string& name = split[1];
+
+            size_t pos;
+            if (removeSplit && (pos = name.find_last_of('_')) != std::string::npos) {
+                name = name.substr(0, pos);
+            }
+
+            mapping.emplace(name, id);
         }
     }
 

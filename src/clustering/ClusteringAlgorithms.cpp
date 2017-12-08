@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <new>
 #include <climits>
+#include <unordered_map>
 
 ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBReader<unsigned int>* alnDbr,
                                            int threads, int scoretype, int maxiterations){
@@ -34,7 +35,7 @@ ClusteringAlgorithms::~ClusteringAlgorithms(){
     delete [] sets;
 }
 
-std::map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute(int mode) {
+std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute(int mode) {
     memset(sets, 0, sizeof(set)*(dbSize));
     const char * data = alnDbr->getData();
     const size_t dataSize = alnDbr->getDataSize();
@@ -110,7 +111,7 @@ std::map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute
     delete [] bestscore;
     delete [] score;
 
-    std::map<unsigned int, std::vector<unsigned int>> retMap;
+    std::unordered_map<unsigned int, std::vector<unsigned int>> retMap;
     for(size_t i = 0; i < dbSize; i++) {
         if(assignedcluster[i] == UINT_MAX){
             Debug(Debug::ERROR) << "there must be an error: " << seqDbr->getDbKey(i) <<

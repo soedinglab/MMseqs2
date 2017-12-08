@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Clustering workflow script
 checkReturnCode () { 
 	[ $? -ne 0 ] && echo "$1" && exit 1;
@@ -12,8 +12,6 @@ notExists () {
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p "$3";
-
-export OMP_PROC_BIND=TRUE
 
 INPUT="$1"
 # 1. Finding exact $k$-mer matches.

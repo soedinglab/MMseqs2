@@ -19,16 +19,25 @@
 #include "Parameters.h"
 #include "Matcher.h"
 
+const char* binary_name = "test_alignment";
+
 int main (int argc, const char * argv[]) {
     const size_t kmer_size=6;
 
-    SubstitutionMatrix subMat("/Users/mad/Documents/workspace/mmseqs2-bugfix/data/pfamsum60.out", 2.0, -0.0);
+
+    char buffer[1024];
+    const Matcher::result_t result(1351, 232, 1.0, 1.0, 0.99, 0.000000001, 20,
+                                   3, 15, 22, 4, 18, 354, "MMMMMIIMMMMDDMMMMMM");
+    size_t len = Matcher::resultToBuffer(buffer, result, true, false);
+    std::cout << std::string(buffer, len) << std::endl;
+
+    SubstitutionMatrix subMat("blosum62.out", 2.0, -0.0f);
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
-    for(int i = 0; i < subMat.alphabetSize; i++){
-        std::cout << subMat.pBack[i] << std::endl;
-    }
+//    for(int i = 0; i < 255; i++){
+//        std::cout << i << "\t" << MathUtil::convertCharToFloat(i) << std::endl;
+//    }
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
 
@@ -42,15 +51,19 @@ int main (int argc, const char * argv[]) {
 //	std::string tim = "APRKFFVGGNWKMNGKRKSLGELIHTLDGAKLSADTEVVCGAPSIYLDFARQKLDAKIGVAAQNCYKVPKGAFTGEISPAMIKDIGAAWVILGH"
 //                      "SERRHVFGESDELIGQKVAHALAEGLGVIACIGEKLDEREAGITEKVVFQETKAIADNVKDWSKVVLAYEPVWAIGTGKTATPQQAQEVHEKLR"
 //			          "GWLKTHVSDAVAVQSRIIYGGSVTGGNCKELASQHDVDGFLVGGASLKPEFVDIINAKH";
-    std::string tim1 = "MNQDFNKAVLRYIFTLFLITQISADYGRKSPSSGPGPGGGRAVPLTGPVSPLLPVRTPLP";
-    std::string tim2 = "MNQDFNKAVLRYIFTLFLITQISADYGRKSPSSGPGPGGGRAVPLTGPVSPLLPVRTPLP";
+//    std::string tim1 = "LAEVGDARSLLEDDLVDLPDARFFKAMGREFVKLMLQGEASEAIKAPRAAAAVLPKQYTRDEDGDGVNLVLLVERVLEVPDECRLYIIGVAARVAGATVVYATGSRKKDAALPIANDETHLTAVLAKGESLPPPPENPMSADRVRWEHIQRIYEMCDRNVSETARRLNMHRRTLQRILAKRSPR";
+//    std::string tim2 = "EMDLAFVELGADRSLLLVDDDEPFLKRLAKAMEKRGFVLETAQSVAEGKAIAQARPPAYAVVDLRLEDGNGLDVVEVLRERRPDCRIVVLTGYGAIATAVAAVKIGATDYLSKPADANEVTHALLAKGESLPPPPENPMSADRVRWEHIQRIYEMCDRNVSETARRLNMHRRTLQRILAKRSPR";
+    std::string tim1 = "'GLTVDCVVFGLDEQIDLKVLLIQRQIPPFQHQWALPGGFVQMDESLEDAARRELREETGVQGIFLEQLYTFGDLGRDPRDRIISVAYYALINLIEYPLQASTDAEDAAWYSIENLPSLAFDHAQILKQAI";
+    std::string tim2 = "'GLTADVVILYNGGIVLIKRKHEPFKDHYALPGGFVEYGETVEEAALREAKEETGLDVRLIRLVGVYSDPNRDPRGHTVTTAFLAIGTGKLKAGDDAEEVHVVPVEEALKLPLAFDHAKILRDAL";
+
     std::cout << "Sequence (id 0):\n";
     //const char* sequence = read_seq;
     const char* sequence = tim1.c_str();
     std::cout << sequence << "\n\n";
-    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+
+    Sequence* s = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     s->mapSequence(0,0,sequence);
-    Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+    Sequence* dbSeq = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     dbSeq->mapSequence(1,1,tim2.c_str());
     SmithWaterman aligner(15000, subMat.alphabetSize, true);
@@ -70,12 +83,12 @@ int main (int argc, const char * argv[]) {
     std::cout << "Test: " << sum/ subMat.alphabetSize << std::endl;
     aligner.ssw_init(s, tinySubMat, &subMat, subMat.alphabetSize, 2);
     int32_t maskLen = s->L / 2;
-    int gap_open = 10;
+    int gap_open = 11;
     int gap_extend = 1;
     float seqId = 1.0;
     int aaIds = 0;
     EvalueComputation evalueComputation(100000, &subMat, gap_open, gap_extend, true );
-    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 0, 10000, &evalueComputation, 0, 0.0, maskLen);
+    s_align alignment = aligner.ssw_align(dbSeq->int_sequence, dbSeq->L, gap_open, gap_extend, 2, 10000, &evalueComputation, 0, 0.0, maskLen);
     if(alignment.cigar){
         std::cout << "Cigar" << std::endl;
 

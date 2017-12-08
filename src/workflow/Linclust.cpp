@@ -22,11 +22,35 @@ void setLinclustWorkflowDefaults(Parameters *p) {
 int linclust(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setLinclustWorkflowDefaults(&par);
+    par.overrideParameterDescription((Command &)command, par.PARAM_RESCORE_MODE.uniqid, NULL, NULL, par.PARAM_RESCORE_MODE.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_MAX_REJECTED.uniqid, NULL, NULL, par.PARAM_MAX_REJECTED.category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_MAX_ACCEPT.uniqid, NULL, NULL, par.PARAM_MAX_ACCEPT.category |MMseqsParameter::COMMAND_EXPERT );
+
     par.parseParameters(argc, argv, command, 3);
     if(FileUtil::directoryExists(par.db3.c_str())==false){
-        Debug(Debug::ERROR) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
+        Debug(Debug::WARNING) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
+        if(FileUtil::makeDir(par.db3.c_str()) == false){
+            Debug(Debug::WARNING) << "Could not crate tmp folder " << par.db3 << ".\n";
+            EXIT(EXIT_FAILURE);
+        }else{
+            Debug(Debug::WARNING) << "Created dir " << par.db3 << "\n";
+        }
+    }
+    size_t hash = par.hashParameter(par.filenames, par.linclustworkflow);
+    std::string tmpDir = par.db3+"/"+SSTR(hash);
+    if(FileUtil::directoryExists(tmpDir.c_str())==false) {
+        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
+            Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+    par.filenames.pop_back();
+    par.filenames.push_back(tmpDir);
+    if(FileUtil::symlinkCreateOrRepleace(par.db3+"/latest", tmpDir) == false){
+        Debug(Debug::WARNING) << "Could not link latest folder in tmp." << tmpDir << ".\n";
         EXIT(EXIT_FAILURE);
     }
+
     CommandCaller cmd;
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
@@ -78,8 +102,8 @@ int linclust(int argc, const char **argv, const Command& command) {
     cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
     // # 5. Clustering using greedy set cover.
     cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
-    FileUtil::writeFile(par.db3 + "/linclust.sh", linclust_sh, linclust_sh_len);
-    std::string program(par.db3 + "/linclust.sh");
-    cmd.execProgram(program.c_str(), 3, argv);
+    FileUtil::writeFile(tmpDir + "/linclust.sh", linclust_sh, linclust_sh_len);
+    std::string program(tmpDir + "/linclust.sh");
+    cmd.execProgram(program.c_str(), par.filenames);
     return 0;
 }

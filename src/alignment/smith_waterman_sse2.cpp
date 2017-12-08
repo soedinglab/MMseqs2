@@ -1067,3 +1067,39 @@ unsigned short SmithWaterman::sse2_extract_epi16(__m128i v, int pos) {
 float SmithWaterman::computeCov(unsigned int startPos, unsigned int endPos, unsigned int len) {
     return (std::min(len, endPos) - startPos + 1) / (float) len;
 }
+
+s_align SmithWaterman::scoreIdentical(int *dbSeq, int L, EvalueComputation * evaluer, int mode) {
+	if(profile->query_length != L){
+		std::cerr << "scoreIdentical has different length L: "
+				  << L << " query_length: " << profile->query_length
+				  << "\n";
+		EXIT(1);
+	}
+
+	s_align r;
+	// to be compatible with --alignment-mode 1 (score only)
+	if(mode == 0){
+		r.dbStartPos1 = -1;
+		r.qStartPos1 = -1;
+	}else{
+		r.qStartPos1 = 0;
+		r.dbStartPos1 = 0;
+	}
+
+	r.qEndPos1 = L -1;
+	r.dbEndPos1 = L -1;
+	r.cigarLen = L;
+	r.qCov =  1.0;
+	r.tCov = 1.0;
+	r.cigar = new uint32_t[L];
+	short score = 0;
+	for(int pos = 0; pos < L; pos++){
+		int currScore = profile->profile_word_linear[dbSeq[pos]][pos];
+		score += currScore;
+		r.cigar[pos] = 'M';
+	}
+	r.score1=score;
+	r.evalue = evaluer->computeEvalue(r.score1, profile->query_length);
+
+	return r;
+}

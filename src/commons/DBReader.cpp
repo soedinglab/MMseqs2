@@ -6,6 +6,7 @@
 #include <climits>
 #include <cstring>
 #include <cstddef>
+#include <random>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -18,7 +19,7 @@
 
 template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode) :
         data(NULL), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
-        indexFileName(strdup(indexFileName_)), dataFile(NULL), size(0), dataSize(0), aaDbSize(0), closed(1),
+        indexFileName(strdup(indexFileName_)), dataFile(NULL), size(0), dataSize(0), aaDbSize(0), closed(1), dbtype(-1),
         index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
         lastKey(T()), dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
@@ -26,7 +27,7 @@ template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const cha
 template <typename T>
 DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize) :
         data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL), dataFile(NULL),
-        size(size), dataSize(0), aaDbSize(aaDbSize), closed(1),
+        size(size), dataSize(0), aaDbSize(aaDbSize), closed(1), dbtype(-1),
         index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
         lastKey(T()), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
@@ -81,6 +82,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
     bool isSortedById = false;
     if (dataMode & USE_DATA) {
         dataFile = fopen(dataFileName, "r");
+        dbtype = parseDbType(dataFileName);
         if (dataFile == NULL) {
             Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
             EXIT(EXIT_FAILURE);
@@ -193,6 +195,29 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             seqLens[i] = sortForMapping[i].second;
         }
         delete[] sortForMapping;
+    } else if (accessType == SHUFFLE) {
+        size_t *tmpIndex = new size_t[size];
+        for (size_t i = 0; i < size; i++) {
+            tmpIndex[i] = i;
+        }
+
+        std::mt19937 rnd(0);
+        std::shuffle(tmpIndex, tmpIndex + size, rnd);
+
+        id2local = new unsigned int[size];
+        local2id = new unsigned int[size];
+        for (size_t i = 0; i < size; i++) {
+            id2local[tmpIndex[i]] = i;
+            local2id[i] = tmpIndex[i];
+        }
+        delete[] tmpIndex;
+
+        unsigned int *tmpSize = new unsigned int[size];
+        memcpy(tmpSize, seqLens, size * sizeof(unsigned int));
+        for (size_t i = 0; i < size; i++) {
+            seqLens[i] = tmpSize[local2id[i]];
+        }
+        delete[] tmpSize;
     } else if (accessType == LINEAR_ACCCESS) {
         // sort the entries by the offset of the sequences
         std::pair<unsigned int, size_t> *sortForMapping = new std::pair<unsigned int, size_t>[size];
@@ -215,7 +240,6 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             seqLens[i] = tmpSizeArray[local2id[i]];
         }
         delete[] tmpSizeArray;
-
     } else if (accessType == SORT_BY_LINE) {
         // sort the entries by the original line number in the index file
         id2local = new unsigned int[size];
@@ -287,7 +311,7 @@ template <typename T> void DBReader<T>::close(){
         fclose(dataFile);
         unmapData();
     }
-    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE){
+    if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){
         delete [] id2local;
         delete [] local2id;
     }
@@ -523,6 +547,32 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
     unsigned int *seqLens = (unsigned int *)p;
 
     return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize);
+}
+
+template <typename T>
+int DBReader<T>::parseDbType(const char *name) {
+    std::string dbTypeFile = std::string(name) + ".dbtype";
+    int dbtype=-1;
+    if(FileUtil::fileExists(dbTypeFile.c_str())==true){
+        size_t fileSize = FileUtil::getFileSize(dbTypeFile);
+        if(fileSize != sizeof(int)){
+            Debug(Debug::ERROR) << "File size of " << dbTypeFile << " seems to be wrong!\n";
+            Debug(Debug::ERROR) << "It should have 4 bytes but it has " <<  fileSize << " bytes.";
+            EXIT(EXIT_FAILURE);
+        }
+        FILE * dbtypeDataFile = fopen(dbTypeFile.c_str(), "r");
+        if (dbtypeDataFile == NULL) {
+            Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        size_t result = fread (&dbtype,1,fileSize,dbtypeDataFile);
+        if(result != fileSize){
+            Debug(Debug::ERROR) << "Could not read " << dbTypeFile << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        fclose(dbtypeDataFile);
+    }
+    return dbtype;
 }
 
 template class DBReader<unsigned int>;

@@ -32,15 +32,20 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     cmd.addVariable("CLUST_PAR", par.createParameterString(par.clusteringWorkflow).c_str());
 
     std::string scriptPath(par.db6);
-    if(!FileUtil::directoryExists(par.db6.c_str())) {
-        Debug(Debug::ERROR) << "Tmp directory " << par.db6 << " not found!\n";
-        return EXIT_FAILURE;
+    if(FileUtil::directoryExists(par.db6.c_str())==false){
+        Debug(Debug::WARNING) << "Tmp " << par.db6 << " folder does not exist or is not a directory.\n";
+        if(FileUtil::makeDir(par.db6.c_str()) == false){
+            Debug(Debug::WARNING) << "Could not crate tmp folder " << par.db6 << ".\n";
+            EXIT(EXIT_FAILURE);
+        }else{
+            Debug(Debug::WARNING) << "Created dir " << par.db6 << "\n";
+        }
     }
 
     scriptPath.append("/update_clustering.sh");
     FileUtil::writeFile(scriptPath, update_clustering_sh, update_clustering_sh_len);
 
-	cmd.execProgram(scriptPath.c_str(), 6, argv);
+	cmd.execProgram(scriptPath.c_str(), par.filenames);
 
     // Should never get here
     assert(false);

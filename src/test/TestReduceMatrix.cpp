@@ -11,6 +11,8 @@
 #include "SubstitutionMatrix.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_reducematrix";
+
 int main (int argc, const char * argv[])
 {
     const int reductionAlphabetSize = 5;

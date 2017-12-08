@@ -11,6 +11,8 @@
 #include "PrefilteringIndexReader.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_indextable";
+
 int main(int argc, const char *argv[]) {
     Parameters &par = Parameters::getInstance();
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 8.0, -0.2f);
@@ -22,10 +24,10 @@ int main(int argc, const char *argv[]) {
                                );
     dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    Sequence *s = new Sequence(32000, subMat.aa2int, subMat.int2aa, Sequence::AMINO_ACIDS, 6, true, false);
+    Sequence *s = new Sequence(32000, Sequence::AMINO_ACIDS, &subMat, 6, true, false);
     IndexTable t(subMat.alphabetSize, 6, false);
     PrefilteringIndexReader::fillDatabase(&dbr, s, &t, &subMat, 0, dbr.getSize(), false, 1, NULL, 0, 1);
-    t.printStatistics(s->int2aa);
+    t.printStatistics(subMat.int2aa);
 
     delete s;
     dbr.close();

@@ -10,6 +10,7 @@ extern int prefilter(int argc, const char **argv, const Command& command);
 extern int createdb(int argc, const char **argv, const Command& command);
 extern int result2flat(int argc, const char **argv, const Command& command);
 extern int createindex(int argc, const char **argv, const Command& command);
+extern int indexdb(int argc, const char **argv, const Command& command);
 extern int mergedbs(int argc, const char **argv, const Command& command);
 extern int mergeclusters(int argc, const char **argv, const Command& command);
 extern int align(int argc, const char **argv, const Command& command);
@@ -49,6 +50,11 @@ extern int linclust(int argc, const char **argv, const Command& command);
 extern int result2repseq(int argc, const char **argv, const Command& command);
 extern int tsv2db(int argc, const char **argv, const Command& command);
 extern int assembler(int argc, const char **argv, const Command& command);
+extern int taxonomy(int argc, const char **argv, const Command& command);
+extern int lca(int argc, const char **argv, const Command& command);
+extern int profile2pssm(int argc, const char **argv, const Command& command);
+extern int offsetalignment(int argc, const char **argv, const Command& command);
+extern int apply(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);
 
 #endif

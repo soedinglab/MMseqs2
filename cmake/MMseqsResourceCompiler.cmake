@@ -1,6 +1,15 @@
 find_program(XXD_EXECUTABLE xxd)
 if(NOT XXD_EXECUTABLE)
-    message(FATAL_ERROR "xxd not found in path. It is usually contained in your distributions vim-common package!")
+    find_program(PERL_EXECUTABLE perl)
+    if(NOT PERL_EXECUTABLE)
+        message(FATAL_ERROR "Neither xxd nor perl found in PATH. xxd is usually contained in your distributions vim-common package!")
+    else()
+        message("-- xxd not found, using xxdi.pl instead")
+        set(XXD_EXECUTABLE "${CMAKE_MODULE_PATH}/xxdi.pl")
+        set(XXD_PARAMS "")
+    endif()
+else()
+    set(XXD_PARAMS -i)
 endif()
 
 find_program(SED_EXECUTABLE sed)
@@ -13,7 +22,7 @@ function(compile_resource INPUT_FILE OUTPUT_FILE)
     set(OUTPUT_FILE ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h PARENT_SCOPE)
     add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h
             COMMAND mkdir -p ${PROJECT_BINARY_DIR}/generated
-            COMMAND ${XXD_EXECUTABLE} -i ${INPUT_FILE} ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h
+            COMMAND ${XXD_EXECUTABLE} ${XXD_PARAMS} ${INPUT_FILE} > ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h
             COMMAND ${SED_EXECUTABLE} 's!unsigned char!static const unsigned char!' < ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h > ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h.tmp
             COMMAND mv -f ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h.tmp ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h
             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/data/

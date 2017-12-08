@@ -22,17 +22,6 @@
 #include <omp.h>
 #endif
 
-
-size_t hash(int * x, size_t length){
-    const size_t INITIAL_VALUE = 0;
-    const size_t A = 31;
-    size_t h = INITIAL_VALUE;
-    for (size_t i = 0; i < length; ++i){
-        h = ((h*A) + x[i]);
-    }
-    return h;
-}
-
 void setClustHashDefaults(Parameters *p) {
     p->alphabetSize = Parameters::CLUST_HASH_DEFAULT_ALPH_SIZE;
 
@@ -60,14 +49,14 @@ int clusthash(int argc, const char **argv, const Command& command) {
     hashSeqPair[seqDbr.getSize()] = std::make_pair(UINT_MAX, 0); // needed later to check if one of array
 #pragma omp parallel
     {
-        Sequence seq(par.maxSeqLen, redSubMat.aa2int, redSubMat.int2aa, Sequence::AMINO_ACIDS, 0, false, false);
+        Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, &redSubMat, 0, false, false);
 #pragma omp for schedule(dynamic, 10000)
         for(size_t id = 0; id < seqDbr.getSize(); id++){
             Debug::printProgress(id);
             unsigned int queryKey = seqDbr.getDbKey(id);
             char * data = seqDbr.getData(id);
             seq.mapSequence(id, queryKey, data);
-            size_t seqHash = hash(seq.int_sequence, seq.L);
+            size_t seqHash = Util::hash(seq.int_sequence, seq.L);
             hashSeqPair[id] = std::make_pair(seqHash, id);
         }
     }

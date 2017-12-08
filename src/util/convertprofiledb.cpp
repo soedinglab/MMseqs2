@@ -19,143 +19,6 @@
 #include "omp.h"
 #endif
 
-void parsePSSM(char *data, std::string * sequence, char *profileBuffer, size_t *size, BaseMatrix *subMat) {
-    // go to read in position
-    for (size_t i = 0; i < 2; i++) {
-        data = Util::skipLine(data);
-    }
-
-    // read aa_index
-    char *words[22];
-    Util::getWordsOfLine(data, words, 22);
-
-    // A   R   N   D   C   Q   E   G   H   I   L   K   M   F   P   S   T   W   Y   V
-    // header line
-    int aa_index[20];
-    for (size_t i = 0; i < 20; i++) {
-        aa_index[i] = subMat->aa2int[(int) words[i][0]];
-    }
-
-    data = Util::skipLine(data);
-    size_t curr_pos = 0;
-    while (data[0] != '\n') {
-        Util::getWordsOfLine(data, words, 22);
-        sequence->push_back(words[1][0]);
-        for (size_t i = 0; i < 20; i++) {
-            size_t writePos = curr_pos + aa_index[i];
-            profileBuffer[writePos] = atoi(words[2 + i]);
-            // shifted score by -128 to avoid \0
-            profileBuffer[writePos] = (profileBuffer[writePos] ^ 0x80);
-        }
-
-        data = Util::skipLine(data);
-        curr_pos += 20;
-    }
-    sequence->push_back('\n');
-
-    *size = curr_pos;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////
-void parseHMMer(char *data, std::string *sequence, std::string *header, char *profileBuffer, size_t *size, unsigned int id, BaseMatrix *subMat) {
-    size_t l = 0;
-    // find name tag
-    while (data[0] != 'N' || data[1] != 'A' || data[2] != 'M' || data[3] != 'E') {
-        data = Util::skipLine(data);
-    }
-    float pb[20];
-    pb[0] = 0.0787945;             /* A */
-    pb[1] = 0.0151600;             /* C */
-    pb[2] = 0.0535222;             /* D */
-    pb[3] = 0.0668298;             /* E */
-    pb[4] = 0.0397062;             /* F */
-    pb[5] = 0.0695071;             /* G */
-    pb[6] = 0.0229198;             /* H */
-    pb[7] = 0.0590092;             /* I */
-    pb[8] = 0.0594422;             /* K */
-    pb[9] = 0.0963728;             /* L */
-    pb[10]= 0.0237718;             /* M */
-    pb[11]= 0.0414386;             /* N */
-    pb[12]= 0.0482904;             /* P */
-    pb[13]= 0.0395639;             /* Q */
-    pb[14]= 0.0540978;             /* R */
-    pb[15]= 0.0683364;             /* S */
-    pb[16]= 0.0540687;             /* T */
-    pb[17]= 0.0673417;             /* V */
-    pb[18]= 0.0114135;             /* W */
-    pb[19]= 0.0304133;             /* Y */
-
-    // parse NAME entry
-    const char *startData = data;
-    data = Util::skipLine(data);
-    const char *endData = data;
-    header->append(startData + 6, endData - (startData + 6));
-
-
-
-    // find beginning of profile information
-    while (data[0] != 'H' || data[1] != 'M' || data[2] != 'M') {
-        data = Util::skipLine(data);
-    }
-    // go to readin position
-    for (int i = 0; i < 5; i++)
-        data = Util::skipLine(data);
-
-    //ammino acids are ordered in HMM
-    char *words[23];
-    size_t curr_pos = 0;
-    while (data[0] != '/' && data[1] != '/') {
-        Util::getWordsOfLine(data, words, 23);
-        char aa = std::toupper(words[22][0]);
-        sequence->push_back(aa);
-        for (size_t aa_num = 0; aa_num < 20; aa_num++) {
-            // entry: 0.0 probability
-            if (words[aa_num + 1][0] == '*') {
-                Debug(Debug::ERROR) << "ERROR: 0 PROBABILITY FOR " << id << ".hhm AT " << l << "," << aa_num << "\n";
-                profileBuffer[curr_pos] = (char) -1;
-            }
-                // 0 entry: 1.0 probability
-            else if (words[aa_num + 1][0] == '0') {
-                // integer number entry: 0.0 < probability < 1.0
-                float score = MathUtil::flog2(1.0f / subMat->getBackgroundProb(aa_num)) * subMat->getBitFactor();
-                profileBuffer[curr_pos] = (char) floor(score + 0.5);
-            } else {
-                float entry = strtof(words[aa_num + 1],NULL);
-                // back scaling from hhm
-                // fprintf(fp, " %*.5f", fieldwidth, -logf(p)
-                const float p =  (float) exp(-1.0 * entry);
-                const float backProb = pb[aa_num];
-                //TODO solve somehow this?!?
-                const float bitFactor = subMat->getBitFactor();
-
-                double score = MathUtil::flog2(p / backProb) * bitFactor;
-                // rounding
-                profileBuffer[curr_pos]  = static_cast<char>((score < 0.0) ? score - 0.5 : score + 0.5);
-//                Debug(Debug::INFO) << aa_num << " " << subMat->int2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
-            }
-            // shifted score by -128 to avoid \0
-            profileBuffer[curr_pos] = (profileBuffer[curr_pos] ^ 0x80);
-            if (profileBuffer[curr_pos] == 0) {
-                Debug(Debug::ERROR) << "ERROR: 0 PSSM score is too large at id: " << id << ".hhm, pos: " << curr_pos <<
-                ", score:" <<
-                (char) (profileBuffer[curr_pos] ^ 0x80) << "\n";
-                EXIT(EXIT_FAILURE);
-            }
-            curr_pos++;
-        }
-
-        // go to next entry start and skip transitions
-        for (int i = 0; i < 3; i++)
-            data = Util::skipLine(data);
-    }
-
-    sequence->push_back('\n');
-
-    // return size of buffer
-    *size = curr_pos;
-}
-
-
 
 void parseHMM(char *data, std::string *sequence, std::string *header, char *profileBuffer, size_t *size, unsigned int id, BaseMatrix *subMat) {
     size_t l = 0;
@@ -205,35 +68,36 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
 
     //ammino acids are ordered in HMM
     char *words[22];
+    float probs[20];
+    int seq_pos = 0;
     size_t curr_pos = 0;
     while (data[0] != '/' && data[1] != '/') {
         Util::getWordsOfLine(data, words, 22);
         for (size_t aa_num = 0; aa_num < 20; aa_num++) {
             // entry: 0.0 probability
             if (words[aa_num + 2][0] == '*') {
-                Debug(Debug::ERROR) << "ERROR: 0 PROBABILITY FOR " << id << ".hhm AT " << l << "," << aa_num << "\n";
-                profileBuffer[curr_pos] = (char) -1;
+                probs[aa_num] = 0.0;
             }
             // 0 entry: 1.0 probability
             else if (words[aa_num + 2][0] == '0') {
                 // integer number entry: 0.0 < probability < 1.0
-                float score = MathUtil::flog2(1.0f / subMat->getBackgroundProb(aa_num)) * subMat->getBitFactor();
-                profileBuffer[curr_pos] = (char) floor(score + 0.5);
+                probs[aa_num] = 1.0;
             } else {
                 int entry = Util::fast_atoi<int>(words[aa_num + 2]);
                 // back scaling from hhm
                 const float p = MathUtil::fpow2(-(entry / 1000.0f));
-                const float backProb = subMat->getBackgroundProb(aa_num);
-                //TODO solve somehow this?!?
-                const float bitFactor = subMat->getBitFactor();
-
-                double score = MathUtil::flog2(p / backProb) * bitFactor;
+                probs[aa_num] = p;
+//                const float backProb = subMat->getBackgroundProb(aa_num);
+//                float score = MathUtil::flog2(p / backProb) * Sequence::PROFILE_SCALING;
+//                float truncPssmVal =  std::min(score, 127.0f);
+//                truncPssmVal       =  std::max(-128.0f, truncPssmVal);
                 // rounding
-                profileBuffer[curr_pos]  = static_cast<char>((score < 0.0) ? score - 0.5 : score + 0.5);
+//                profileBuffer[curr_pos]  = static_cast<char>((truncPssmVal < 0.0) ? truncPssmVal - 0.5 : truncPssmVal + 0.5);
 //                Debug(Debug::INFO) << aa_num << " " << subMat->int2aa[aa_num] << " " << profile_score[pos_in_profile] << " " << score << " " << entry << " " << p << " " << backProb << " " << bitFactor << std::endl;
             }
             // shifted score by -128 to avoid \0
-            profileBuffer[curr_pos] = (profileBuffer[curr_pos] ^ 0x80);
+            profileBuffer[curr_pos] = Sequence::scoreMask(probs[aa_num]);
+
             if (profileBuffer[curr_pos] == 0) {
                 Debug(Debug::ERROR) << "ERROR: 0 PSSM score is too large at id: " << id << ".hhm, pos: " << curr_pos <<
                 ", score:" <<
@@ -243,6 +107,27 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
             curr_pos++;
         }
 
+        float maxw = 0.0;
+        int maxa = 21;
+        for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
+            float prob = probs[aa];
+            const float backProb = subMat->getBackgroundProb(aa);
+            if (prob - backProb > maxw) {
+                maxw = prob - backProb;
+                maxa = aa;
+            }
+        }
+        // write query, consensus and neff
+        profileBuffer[curr_pos] = static_cast<char>(subMat->aa2int[sequence->at(seq_pos)]);
+        curr_pos++;
+        profileBuffer[curr_pos] = maxa;
+        curr_pos++;
+        Util::getWordsOfLine(data, words, 22);
+        int entry = Util::fast_atoi<int>(words[7]); // NEFF value
+        const float neff = static_cast<float>(entry) / 1000.0f;
+        profileBuffer[curr_pos] = MathUtil::convertNeffToChar(neff);
+        curr_pos++;
+        seq_pos++;
         // go to next entry start and skip transitions
         for (int i = 0; i < 3; i++)
             data = Util::skipLine(data);
@@ -255,16 +140,6 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
 int convertprofiledb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
-
-    switch (par.profileMode) {
-        case Parameters::PROFILE_MODE_HMM:
-        case Parameters::PROFILE_MODE_PSSM:
-        case Parameters::PROFILE_MODE_HMM3:
-            break;
-        default:
-            Debug(Debug::ERROR) << "Unsupported profile mode " << par.profileMode << "\n";
-            return EXIT_FAILURE;
-    }
 
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
@@ -300,7 +175,7 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
 
     #pragma omp parallel
     {
-        char *profileBuffer = new char[maxElementSize * Sequence::PROFILE_AA_SIZE];
+        char *profileBuffer = new char[maxElementSize * Sequence::PROFILE_READIN_SIZE];
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
@@ -314,15 +189,8 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
             std::string header;
             size_t elementSize = 0;
 
-            if (par.profileMode == Parameters::PROFILE_MODE_HMM) {
-                parseHMM(data, &sequence, &header, profileBuffer, &elementSize, i, &subMat);
-            } else if (par.profileMode == Parameters::PROFILE_MODE_HMM3) {
-                parseHMMer(data, &sequence, &header, profileBuffer, &elementSize, i, &subMat);
-            } else if (par.profileMode == Parameters::PROFILE_MODE_PSSM) {
-                parsePSSM(data, &sequence, profileBuffer, &elementSize, &subMat);
-                header.append(dataIn.getDbKey(i));
-                header.append(" \n");
-            }
+            parseHMM(data, &sequence, &header, profileBuffer, &elementSize, i, &subMat);
+
             seqOut.writeData(sequence.c_str(), sequence.size(), i, thread_idx);
             dataOut.writeData(profileBuffer, elementSize, i, thread_idx);
             headerOut.writeData((char *) header.c_str(), header.length(), i, thread_idx);
@@ -331,8 +199,8 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     }
 
     headerOut.close();
-    dataOut.close();
-    seqOut.close();
+    dataOut.close(DBReader<unsigned int>::DBTYPE_PROFILE);
+    seqOut.close(DBReader<unsigned int>::DBTYPE_AA);
 
     dataIn.close();
 

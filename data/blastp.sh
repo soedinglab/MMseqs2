@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash -e
 # Sequence search workflow script
 fail() {
     echo "Error: $1"
@@ -33,62 +33,74 @@ abspath() {
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
-export OMP_PROC_BIND=TRUE
 
 INPUT="$(abspath $1)"
 TARGET="$(abspath $2)"
 TMP_PATH="$(abspath $4)"
 
-SENS="$START_SENS"
-while [ $SENS -le $TARGET_SENS ]; do
+
+STEP=0
+while [ $STEP -lt $STEPS ]; do
+    SENS_PARAM=SENSE_${STEP}
+    eval SENS="\$$SENS_PARAM"
     # call prefilter module
     if notExists "$TMP_PATH/pref_$SENS"; then
-        $RUNNER $MMSEQS prefilter "$INPUT" "$TARGET_DB_PREF" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS \
+        $RUNNER $MMSEQS prefilter "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS \
             || fail "Prefilter died"
     fi
+
     # call alignment module
     if notExists "$TMP_PATH/aln_$SENS"; then
         $RUNNER $MMSEQS align "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  \
             || fail "Alignment died"
     fi
 
-    if [ $SENS -gt $START_SENS ]; then
-        $MMSEQS mergedbs "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${START_SENS}" "$TMP_PATH/aln_$SENS" \
-            || fail "Alignment died"
-        mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_${START_SENS}"
-        mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_${START_SENS}.index"
+    # only merge results after first step
+    if [ $STEP -gt 0 ]; then
+        if notExists "$TMP_PATH/aln_${SENS}.hasmerge"; then
+            $MMSEQS mergedbs "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}" "$TMP_PATH/aln_$SENS" \
+                || fail "Alignment died"
+            mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}"
+            mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_${SENSE_0}.index"
+            touch "$TMP_PATH/aln_${SENS}.hasmerge"
+        fi
     fi
 
     NEXTINPUT="$TMP_PATH/input_step$SENS"
-    if [  $SENS -lt $TARGET_SENS ]; then
+    #do not create subdb at last step
+    if [ $STEP -lt $(($STEPS-1)) ]; then
         if notExists "$TMP_PATH/order_step$SENS"; then
             awk '$3 < 2 { print $1 }' "$TMP_PATH/aln_$SENS.index" > "$TMP_PATH/order_step$SENS" \
                 || fail "Awk step $SENS died"
         fi
+
+        if [ ! -s "$TMP_PATH/order_step$SENS" ]; then break; fi
 
         if notExists "$NEXTINPUT"; then
             $MMSEQS createsubdb "$TMP_PATH/order_step$SENS" "$INPUT" "$NEXTINPUT" \
                 || fail "Order step $SENS died"
         fi
     fi
-    SENS=$(($SENS+$SENS_STEP_SIZE))
-
     INPUT=$NEXTINPUT
+    STEP=$(($STEP+1))
 done
 
 # post processing
-(mv -f "$TMP_PATH/aln_${START_SENS}" "$3" && mv -f "$TMP_PATH/aln_${START_SENS}.index" "$3.index" ) \
+(mv -f "$TMP_PATH/aln_${SENSE_0}" "$3" && mv -f "$TMP_PATH/aln_${SENSE_0}.index" "$3.index" ) \
     || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
-    SENS=$START_SENS
-    while [ $SENS -le $TARGET_SENS ]; do
+    STEP=0
+    while [ $STEP -lt $STEPS ]; do
+        SENS_PARAM=SENSE_${STEP}
+        eval SENS="\$$SENS_PARAM"
         rm -f "$TMP_PATH/pref_$SENS" "$TMP_PATH/pref_$SENS.index"
         rm -f "$TMP_PATH/aln_$SENS" "$TMP_PATH/aln_$SENS.index"
         SENS=$(($SENS+$SENS_STEP_SIZE))
         NEXTINPUT="$TMP_PATH/input_step$SENS"
         rm -f "$TMP_PATH/input_step$SENS" "$TMP_PATH/input_step$SENS.index"
+        STEP=$(($STEP+1))
     done
 
     rm -f "$TMP_PATH/blastp.sh"

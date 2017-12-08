@@ -97,7 +97,16 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                        << (par.compressMSA ? "compressed" : "") << " multiple sequence alignments.\n";
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND,
                                         true);
-
+    if( qDbr.getDbtype() == -1 || tDbr->getDbtype() == -1 ){
+        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if( qDbr.getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE && tDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE ){
+        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    Debug(Debug::INFO) << "Query database type: " << qDbr.getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Target database type: " << tDbr->getDbTypeName() << "\n";
     const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
     {
@@ -106,14 +115,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
         UniprotHeaderSummarizer summarizer;
-
-        int sequenceType = Sequence::AMINO_ACIDS;
-        if (par.queryProfile == true) {
-            sequenceType = Sequence::HMM_PROFILE;
-        }
-
-        Sequence centerSequence(maxSequenceLength, subMat.aa2int, subMat.int2aa,
-                                sequenceType, 0, false, par.compBiasCorrection);
+        Sequence centerSequence(maxSequenceLength, qDbr.getDbtype(), &subMat, 0, false, par.compBiasCorrection);
 
         // which sequences where kept after filtering
         bool *kept = new bool[maxSetSize];
@@ -161,8 +163,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                 }
 
                 const size_t edgeId = tDbr->getId(key);
-                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), subMat.aa2int, subMat.int2aa,
-                                                      Sequence::AMINO_ACIDS, 0, false, false);
+                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), Sequence::AMINO_ACIDS, &subMat, 0, false, false);
 
 
                 char *dbSeqData = tDbr->getData(edgeId);
@@ -265,10 +266,10 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     if (isFiltering) {
                         filter.shuffleSequences((const char **) res.msaSequence, res.setSize);
                     }
-                    std::pair<const char *, std::string> pssmRes =
+                    PSSMCalculator::Profile pssmRes =
                             calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                           (const char **) res.msaSequence, par.wg);
-                    msa << ">consensus_" << queryHeaderReader.getDataByDBKey(queryKey) << pssmRes.second << "\n;";
+                    msa << ">consensus_" << queryHeaderReader.getDataByDBKey(queryKey) << pssmRes.consensus << "\n;";
                 } else {
                     std::ostringstream centerSeqStr;
                     // Retrieve the master sequence
@@ -472,6 +473,7 @@ int result2msa(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     // do not filter as default
     par.filterMsa = 0;
+    par.pca = 0.0;
     par.parseParameters(argc, argv, command, 4);
 
     struct timeval start, end;

@@ -1,6 +1,7 @@
 #include <cstring>
 #include <list>
 #include <sstream>
+#include <itoa.h>
 
 #include "Debug.h"
 #include "DBReader.h"
@@ -8,7 +9,12 @@
 #include "Parameters.h"
 #include "Util.h"
 
-void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std::string> cluSteps)
+#ifdef OPENMP
+#include <omp.h>
+#endif
+
+
+void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std::string> cluSteps, int threads)
 {
     // open the sequence database
     // it will serve as the reference for sequence indexes
@@ -18,10 +24,11 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
     // init the structure for cluster merging
     // it has the size of all possible cluster (sequence amount)
-    std::list<int>** mergedClustering = new std::list<int>*[dbr.getSize()];
+    std::list<unsigned int>** mergedClustering = new std::list<unsigned int>*[dbr.getSize()];
     Debug(Debug::WARNING) << "List amount "<< dbr.getSize() << "\n";
+#pragma omp parallel for
     for (size_t i = 0; i < dbr.getSize(); i++){
-        mergedClustering[i] = new std::list<int>();
+        mergedClustering[i] = new std::list<unsigned int>();
     }
 
     // read the clustering from the first clustering step
@@ -30,17 +37,19 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     std::string firstCluStepIndex = firstCluStep + ".index";
     DBReader<unsigned int>* cluStepDbr = new DBReader<unsigned int>(firstCluStep.c_str(), firstCluStepIndex.c_str());
     cluStepDbr->open(DBReader<unsigned int>::NOSORT);
-
+#pragma omp parallel for
     for (size_t i = 0; i < cluStepDbr->getSize(); i++){
         unsigned int clusterId = cluStepDbr->getDbKey(i);
         size_t cluId = dbr.getId(clusterId);
-        std::stringstream lineSs (cluStepDbr->getData(i));
-        std::string val;
+        char * data = cluStepDbr->getData(i);
         // go through the sequences in the cluster and add them to the initial clustering
-        while (std::getline(lineSs, val)){
-            unsigned int key = (unsigned  int) strtoul(val.c_str(), NULL, 10);
+        char keyBuffer[255];
+        while (*data != '\0'){
+            Util::parseKey(data, keyBuffer);
+            unsigned int key = Util::fast_atoi<unsigned int>(keyBuffer);
             size_t seqId = dbr.getId(key);
             mergedClustering[cluId]->push_back(seqId);
+            data = Util::skipLine(data);
         }
     }
     cluStepDbr->close();
@@ -59,20 +68,23 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         cluStepDbr->open(DBReader<unsigned int>::NOSORT);
 
         // go through the clusters and merge them into the clusters from the previous clustering step
+#pragma omp parallel for
         for (size_t i = 0; i < cluStepDbr->getSize(); i++){
             size_t cluId = dbr.getId(cluStepDbr->getDbKey(i));
             char* cluData = cluStepDbr->getData(i);
-            std::stringstream lineSs(cluData);
-            std::string val;
             // go through the sequences in the cluster and add them and their clusters to the cluster of cluId
             // afterwards, delete the added cluster from the clustering
-            while (std::getline(lineSs, val, '\n')){
-                unsigned int key = (unsigned  int) strtoul(val.c_str(), NULL, 10);
+            char * data = cluData;
+            char keyBuffer[255];
+            while (*data != '\0') {
+                Util::parseKey(data, keyBuffer);
+                unsigned int key = Util::fast_atoi<unsigned int>(keyBuffer);
                 size_t seqId = dbr.getId(key);
-                if(seqId != cluId) // to avoid copies of the same cluster list
+                if(seqId != cluId) { // to avoid copies of the same cluster list
                     mergedClustering[cluId]->splice(mergedClustering[cluId]->end(), *mergedClustering[seqId]);
+                }
+                data = Util::skipLine(data);
             }
-
         }
         cluStepDbr->close();
         delete cluStepDbr;
@@ -83,41 +95,43 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     Debug(Debug::WARNING) << "Writing the results...\n";
 
     std::string outDBIndex = outDB + ".index";
-    DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str());
+    DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw->open();
 
-    size_t BUFFER_SIZE = 1000000;
-    char* outBuffer = new char[BUFFER_SIZE];
-    // go through all sequences in the database
-    for (size_t i = 0; i < dbr.getSize(); i++){
+#pragma omp parallel
+    {
+        std::string res;
+        res.reserve(1024*1024);
 
-        // no cluster for this representative
-        if (mergedClustering[i]->size() == 0)
-            continue;
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
 
-        // representative
-        unsigned int dbKey = dbr.getDbKey(i);
+        // go through all sequences in the database
+#pragma omp for schedule(dynamic, 100)
+        for (size_t i = 0; i < dbr.getSize(); i++){
+            // no cluster for this representative
+            if (mergedClustering[i]->size() == 0)
+                continue;
 
-        std::stringstream res;
-        for(std::list<int>::iterator it = mergedClustering[i]->begin(); it != mergedClustering[i]->end(); ++it){
-            res << dbr.getDbKey(*it) << "\n";
+            // representative
+            unsigned int dbKey = dbr.getDbKey(i);
+            char buffer[32];
+            for(std::list<unsigned int>::iterator it = mergedClustering[i]->begin();
+                it != mergedClustering[i]->end(); ++it){
+                char * tmpBuff = Itoa::u32toa_sse2(dbr.getDbKey(*it), buffer);
+                size_t length = tmpBuff - buffer - 1;
+                res.append(buffer, length);
+                res.push_back('\n');
+            }
+
+            dbw->writeData(res.c_str(), res.length(), dbKey, thread_idx);
+            res.clear();
         }
-
-        std::string cluResultsOutString = res.str();
-        const char* cluResultsOutData = cluResultsOutString.c_str();
-        if (BUFFER_SIZE < strlen(cluResultsOutData)){
-            Debug(Debug::WARNING) << "Tried to process the clustering list for the query " << dbKey << " , the length of the list = " << mergedClustering[i]->size() << "\n";
-            Debug(Debug::WARNING) << "Output buffer size < clustering result size! (" << BUFFER_SIZE << " < " << cluResultsOutString.length() << ")\nIncrease buffer size or reconsider your parameters -> output buffer is already huge ;-)\n";
-            BUFFER_SIZE=strlen(cluResultsOutData)+1;
-            delete[] outBuffer;
-            outBuffer = new char[BUFFER_SIZE];
-        }
-        memcpy(outBuffer, cluResultsOutData, cluResultsOutString.length()*sizeof(char));
-        dbw->writeData(outBuffer, cluResultsOutString.length(), dbKey);
     }
     dbw->close();
     delete dbw;
-    delete[] outBuffer;
 
     // delete the clustering data structure
     for (unsigned int i = 0; i < dbr.getSize(); i++){
@@ -130,13 +144,13 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
 
 int mergeclusters(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4, true, true);
+    par.parseParameters(argc, argv, command, 4, true, Parameters::PARSE_VARIADIC);
 
     std::list<std::string> clusterings;
-    for(int i = 2; i < par.filenames.size(); i++){
+    for(size_t i = 2; i < par.filenames.size(); i++){
         clusterings.emplace_back(par.filenames[i]);
     }
-    mergeClusteringResults(par.db1, par.db2, clusterings);
+    mergeClusteringResults(par.db1, par.db2, clusterings, par.threads);
 
     return 0;
 }

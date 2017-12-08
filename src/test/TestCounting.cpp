@@ -5,6 +5,7 @@
 #include <CacheFriendlyOperations.h>
 #include <map>
 
+const char* binary_name = "test_counting";
 
 int randBetween(size_t start, size_t end){
     return rand() % (end - start) + start;

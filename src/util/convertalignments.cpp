@@ -170,24 +170,53 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
         std::string queryId = qHeaderDbr.getId(queryKey);
         std::vector<Matcher::result_t> results = Matcher::readAlignmentResults(data, true);
+        unsigned int missMatchCount;
         for (size_t j = 0; j < results.size(); j++) {
             const Matcher::result_t &res = results[j];
-
             std::string targetId = tHeaderDbr->getId(res.dbKey);
-            unsigned int missMatchCount = static_cast<unsigned int>((1.0f-res.seqId) * res.alnLength);
             unsigned int gapOpenCount = 0;
+            unsigned int alnLen = res.alnLength;
+            if(res.backtrace.size() > 0) {
+                size_t matchCount = 0;
 
-            if(res.backtrace.size() > 0){
-                for(size_t pos = 0; pos < res.backtrace.size(); pos++){
-                    gapOpenCount += (res.backtrace[pos]=='I'||res.backtrace[pos]=='D') ;
+                std::vector<int> vec;
+                alnLen = 0;
+                for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
+                    int cnt=0;
+                    if(isdigit(res.backtrace[pos])){
+                        cnt += Util::fast_atoi<int>(res.backtrace.c_str()+pos);
+                        while(isdigit(res.backtrace[pos])){
+                            pos++;
+                        }
+                    }
+                    alnLen+=cnt;
+
+                    switch(res.backtrace[pos]){
+                        case 'M':
+                            matchCount+= cnt;
+                            break;
+                        case 'D':
+                        case 'I':
+                            gapOpenCount+=1;
+                            break;
+                    }
                 }
+//                res.seqId = X / alnLen;
+                unsigned int identical = static_cast<unsigned int>( res.seqId * static_cast<float>(alnLen)  + 0.5 );
+                missMatchCount = static_cast<unsigned int>( matchCount - identical);
+            }else{
+                int adjustQstart = (res.qStartPos==-1)? 0 : res.qStartPos;
+                int adjustDBstart = (res.dbStartPos==-1)? 0 : res.dbStartPos;
+                float bestMatchEstimate = static_cast<float>(std::min(res.qEndPos - adjustQstart,  res.dbEndPos-  adjustDBstart));
+                missMatchCount = static_cast<unsigned int>( bestMatchEstimate *  (1.0f - res.seqId) + 0.5 );
             }
+
 
             switch (format) {
                 case Parameters::FORMAT_ALIGNMENT_BLAST_TAB: {
                     int count = snprintf(buffer, sizeof(buffer),
                                          "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength,
+                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
                                          missMatchCount, gapOpenCount,
                                          res.qStartPos + 1, res.qEndPos + 1,
                                          res.dbStartPos + 1, res.dbEndPos + 1,
@@ -204,7 +233,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 case Parameters::FORMAT_ALIGNMENT_BLAST_WITH_LEN: {
                     int count = snprintf(buffer, sizeof(buffer),
                                          "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\t%d\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength,
+                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
                                          missMatchCount, gapOpenCount,
                                          res.qStartPos + 1, res.qEndPos + 1,
                                          res.dbStartPos + 1, res.dbEndPos + 1,
@@ -222,7 +251,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 case Parameters::FORMAT_ALIGNMENT_PAIRWISE: {
                     int count = snprintf(buffer, sizeof(buffer),
                                          ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, res.alnLength, missMatchCount,
+                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen, missMatchCount,
                                          gapOpenCount,
                                          res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1,
                                          res.eval, res.score);

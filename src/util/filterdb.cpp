@@ -103,17 +103,19 @@ ffindexFilter::ffindexFilter(Parameters &par) {
     } else if(par.extractLines > 0){ // GET_FIRST_LINES mode
         mode = GET_FIRST_LINES;
         numberOfLines = par.extractLines;
-        std::cout<<"Filtering by extracting the first "<<numberOfLines<<" lines."<<std::endl;
-    } else if(par.compOperator != ""){
-    
+        std::cout << "Filtering by extracting the first " << numberOfLines << " lines.\n";
+    } else if (par.beatsFirst){
+        mode = BEATS_FIRST;
+        std::cout << "Filter by numerical comparison to first row.\n";
+        compOperator = par.compOperator;
+    } else if(par.compOperator != "") {
         mode = NUMERIC_COMPARISON;
-        std::cout<<"Filtering by numerical comparison."<<std::endl;
+        std::cout << "Filtering by numerical comparison.\n";
         compValue = par.compValue;
         compOperator = par.compOperator;
-        
     } else {
         mode = REGEX_FILTERING;
-        std::cout<<"Filtering by RegEx"<<std::endl;
+        std::cout << "Filtering by RegEx.\n";
         regexStr = par.filterColumnRegex;
         int status = regcomp(&regex, regexStr.c_str(), REG_EXTENDED | REG_NEWLINE);
         if (status != 0 ){
@@ -157,9 +159,9 @@ int ffindexFilter::runFilter(){
 			size_t dataLength = dataDb->getSeqLens(id);
 			int counter = 0;
             
-           std::vector<std::pair<double, std::string>> toSort;
-           bool addSelfMatch = false;
-           
+            std::vector<std::pair<double, std::string>> toSort;
+            bool addSelfMatch = false;
+
 			while (*data != '\0') {
                 if (shouldAddSelfMatch)
                 {
@@ -175,37 +177,41 @@ int ffindexFilter::runFilter(){
 					data = Util::skipLine(data);
 					continue;
 				}
-				size_t foundElements = Util::getWordsOfLine(lineBuffer, columnPointer, column + 1);
-				if(foundElements < column  ){
-					Debug(Debug::ERROR) << "Column=" << column << " does not exist in line " << lineBuffer << "\n";
-					EXIT(EXIT_FAILURE);
-				}
-                
-				counter++;
-				size_t colStrLen;
-				// if column is last column
-				if(column == foundElements){
-					const size_t entrySize = Util::skipNoneWhitespace(columnPointer[(column - 1)]); //Util::skipLine(data)
-					memcpy(columnValue, columnPointer[column - 1], entrySize);
-					columnValue[entrySize] = '\0';
-					colStrLen = entrySize;
-				}else{
-					const ptrdiff_t entrySize = columnPointer[column] - columnPointer[(column - 1)];
-					memcpy(columnValue, columnPointer[column - 1], entrySize);
-					columnValue[entrySize] = '\0';
-					colStrLen = entrySize;
-				}
-                
-				columnValue[Util::getLastNonWhitespace(columnValue,colStrLen)] = '\0'; // remove the whitespaces at the end
-                
-				int nomatch;
+
+                counter++;
+                size_t foundElements = 1;
+                if (mode != GET_FIRST_LINES) {
+                    foundElements = Util::getWordsOfLine(lineBuffer, columnPointer, column + 1);
+                    if(foundElements < column  ){
+                        Debug(Debug::ERROR) << "Column=" << column << " does not exist in line " << lineBuffer << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+
+                    size_t colStrLen;
+                    // if column is last column
+                    if(column == foundElements){
+                        const size_t entrySize = Util::skipNoneWhitespace(columnPointer[(column - 1)]); //Util::skipLine(data)
+                        memcpy(columnValue, columnPointer[column - 1], entrySize);
+                        columnValue[entrySize] = '\0';
+                        colStrLen = entrySize;
+                    }else{
+                        const ptrdiff_t entrySize = columnPointer[column] - columnPointer[(column - 1)];
+                        memcpy(columnValue, columnPointer[column - 1], entrySize);
+                        columnValue[entrySize] = '\0';
+                        colStrLen = entrySize;
+                    }
+
+                    columnValue[Util::getLastNonWhitespace(columnValue,colStrLen)] = '\0'; // remove the whitespaces at the end
+                }
+
+				int nomatch = 0;
 				if(mode == GET_FIRST_LINES){
 					nomatch = 0; // output the line
 					if(counter > numberOfLines){
 						nomatch = 1; // hide the line in the output
 					}
 				} else if (mode == NUMERIC_COMPARISON) {
-                    float toCompare = atof(columnValue);
+                    double toCompare = strtod(columnValue, NULL);
                     if (compOperator == GREATER_OR_EQUAL) {
                         nomatch = !(toCompare >= compValue); // keep if the comparison is true
                     } else if(compOperator == LOWER_OR_EQUAL) {
@@ -218,9 +224,23 @@ int ffindexFilter::runFilter(){
 
                 } else if (mode == REGEX_FILTERING){
 					nomatch = regexec(&regex, columnValue, 0, NULL, 0);
-				}
-				else // i.e. (mode == FILE_FILTERING || mode == FILE_MAPPING)
-				{
+				} else if (mode == BEATS_FIRST) {
+                    if (counter == 1) {
+                        compValue = strtod(columnValue, NULL);
+                    } else {
+                        double toCompare = strtod(columnValue, NULL);
+                        if (compOperator == GREATER_OR_EQUAL) {
+                            nomatch = !(toCompare >= compValue); // keep if the comparison is true
+                        } else if(compOperator == LOWER_OR_EQUAL) {
+                            nomatch = !(toCompare <= compValue); // keep if the comparison is true
+                        } else if(compOperator == EQUAL) {
+                            nomatch = !(toCompare == compValue); // keep if the comparison is true
+                        } else {
+                            nomatch = 0;
+                        }
+                    }
+                } else {
+                    // i.e. (mode == FILE_FILTERING || mode == FILE_MAPPING)
 					std::string toSearch(columnValue);
 
 					if (mode == FILE_FILTERING)

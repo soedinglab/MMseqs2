@@ -17,6 +17,7 @@
 #include "Util.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_alignmenttraceback";
 
 struct scores{
     short H;
@@ -163,9 +164,9 @@ int main (int argc, const char * argv[])
     //const char* sequence = read_seq;
     const char* sequence = tim1.c_str();
     std::cout << sequence << "\n\n";
-    Sequence* s = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+    Sequence* s = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     s->mapSequence(0,0,sequence);
-    Sequence* dbSeq = new Sequence(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+    Sequence* dbSeq = new Sequence(10000, 0, &subMat, kmer_size, true, false);
     //dbSeq->mapSequence(1,"lala2",ref_seq);
     dbSeq->mapSequence(1,1,tim2.c_str());
     SmithWaterman aligner(15000, subMat.alphabetSize, false);

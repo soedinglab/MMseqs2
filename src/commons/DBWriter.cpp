@@ -60,7 +60,7 @@ DBWriter::~DBWriter() {
     delete[] dataFilesBuffer;
     delete[] dataFileNames;
     delete[] indexFileNames;
-
+    delete[] starts;
     delete[] offsets;
 }
 
@@ -171,11 +171,23 @@ void DBWriter::open(size_t bufferSize) {
     closed = false;
 }
 
-void DBWriter::close() {
+void DBWriter::close(int dbType) {
     // close all datafiles
     for (unsigned int i = 0; i < threads; i++) {
         fclose(dataFiles[i]);
         fclose(indexFiles[i]);
+    }
+
+    if(dbType > -1){
+        std::string dataFile = dataFileName;
+        std::string dbTypeFile = (dataFile+".dbtype").c_str();
+        FILE * dbtypeDataFile = fopen(dbTypeFile.c_str(), "wb");
+        if (dbtypeDataFile == NULL) {
+            Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+        fwrite(&dbType, sizeof(int), 1, dbtypeDataFile);
+        fclose(dbtypeDataFile);
     }
 
     mergeResults(dataFileName, indexFileName,

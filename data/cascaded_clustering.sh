@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Clustering workflow script
 # helper functions
 checkReturnCode () { 
@@ -24,8 +24,6 @@ notExists () {
 INPUT="$1"
 mkdir -p "$3/linclust"
 notExists "$3/aln_redundancy" && $MMSEQS linclust "$INPUT" "$3/clu_redundancy" "$3/linclust"  ${LINCLUST_PAR} && checkReturnCode "Fast filter step $STEP died"
-# OMP proc bind can not be combined with workflow calls.
-export OMP_PROC_BIND=TRUE
 notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/clu_redundancy" $INPUT "$3/input_step_redundancy" && checkReturnCode "MMseqs order step $STEP died"
 
 INPUT="$3/input_step_redundancy"

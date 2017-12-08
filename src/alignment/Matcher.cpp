@@ -1,4 +1,5 @@
 #include <iomanip>
+#include <itoa.h>
 #include "Matcher.h"
 #include "Util.h"
 #include "Parameters.h"
@@ -43,7 +44,7 @@ void Matcher::initQuery(Sequence* query){
 
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const float covThr,
-                                       const double evalThr, const unsigned int mode){
+                                       const double evalThr, const unsigned int mode, bool isIdentity){
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
 
@@ -55,7 +56,13 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const
 //    double datapoints = -log(static_cast<double>(seqDbSize)) - log(qL) - log(dbL) + log(evalThr);
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
-    s_align alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, evalThr, evaluer, covMode, covThr, maskLen);
+    s_align alignment;
+    if(isIdentity==false){
+        alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, evalThr, evaluer, covMode, covThr, maskLen);
+    }else{
+        alignment = aligner->scoreIdentical(dbSeq->int_sequence, dbSeq->L, evaluer, mode);
+    }
+
     // calculation of the coverage and e-value
     float qcov = 0.0;
     float dbcov = 0.0;
@@ -65,32 +72,39 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const
 
     int aaIds = 0;
     if(mode == Matcher::SCORE_COV_SEQID){
-        if(alignment.cigar){
-            int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
-            for (int32_t c = 0; c < alignment.cigarLen; ++c) {
-                char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
-                uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
-                backtrace.reserve(length);
+        if(isIdentity==false){
+            if(alignment.cigar){
+                int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
+                for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+                    char letter = SmithWaterman::cigar_int_to_op(alignment.cigar[c]);
+                    uint32_t length = SmithWaterman::cigar_int_to_len(alignment.cigar[c]);
+                    backtrace.reserve(length);
 
-                for (uint32_t i = 0; i < length; ++i){
-                    if (letter == 'M') {
-                        if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
-                            aaIds++;
-                        }
-                        ++queryPos;
-                        ++targetPos;
-                        backtrace.append("M");
-                    } else {
-                        if (letter == 'I') {
+                    for (uint32_t i = 0; i < length; ++i){
+                        if (letter == 'M') {
+                            if (dbSeq->int_sequence[targetPos] == currentQuery->int_sequence[queryPos]){
+                                aaIds++;
+                            }
                             ++queryPos;
-                            backtrace.append("I");
-                        }
-                        else{
                             ++targetPos;
-                            backtrace.append("D");
+                            backtrace.append("M");
+                        } else {
+                            if (letter == 'I') {
+                                ++queryPos;
+                                backtrace.append("I");
+                            }
+                            else{
+                                ++targetPos;
+                                backtrace.append("D");
+                            }
                         }
                     }
                 }
+            }
+        } else {
+            for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+                aaIds++;
+                backtrace.append("M");
             }
         }
     }
@@ -114,7 +128,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const
         unsigned int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
         if(alignment.cigar){
             // OVERWRITE alnLength with gapped value
-           alnLength = SmithWaterman::cigar_int_to_len(alignment.cigar[0]);
+            alnLength = backtrace.size();
         }
         seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(std::max(qAlnLen, dbAlnLen), alnLength));
     }else if( mode == Matcher::SCORE_COV){
@@ -219,9 +233,11 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
     int dbStart = Util::fast_atoi<int>(entry[7]);
     int dbEnd = Util::fast_atoi<int>(entry[8]);
     int dbLen = Util::fast_atoi<int>(entry[9]);
-    double qCov = SmithWaterman::computeCov(qStart, qEnd, qLen);
-    double dbCov = SmithWaterman::computeCov(dbStart, dbEnd, dbLen);
-    size_t alnLength = Matcher::computeAlnLength(qStart, qEnd, dbStart, dbEnd);
+    int adjustQstart = (qStart==-1)? 0 : qStart;
+    int adjustDBstart = (dbStart==-1)? 0 : dbStart;
+    double qCov = SmithWaterman::computeCov(adjustQstart, qEnd, qLen);
+    double dbCov = SmithWaterman::computeCov(adjustDBstart, dbEnd, dbLen);
+    size_t alnLength = Matcher::computeAlnLength(adjustQstart, qEnd, adjustDBstart, dbEnd);
 
     if(columns < ALN_RES_WITH_BT_COL_CNT){
         return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
@@ -241,30 +257,70 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
     }
 }
 
-std::string Matcher::resultToString(const result_t &result, bool addBacktrace, bool compress) {
-    std::stringstream swResultsSs;
-    swResultsSs << result.dbKey << "\t";
-    swResultsSs << result.score << "\t"; //TODO fix for formats
-    swResultsSs << std::fixed << std::setprecision(3) << result.seqId << "\t";
-    swResultsSs << std::scientific << result.eval << "\t";
-    swResultsSs << result.qStartPos  << "\t";
-    swResultsSs << result.qEndPos  << "\t";
-    swResultsSs << result.qLen << "\t";
-    swResultsSs << result.dbStartPos  << "\t";
-    swResultsSs << result.dbEndPos  << "\t";
+
+size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBacktrace, bool compress) {
+    char * basePos = buff1;
+    char * tmpBuff = Itoa::u32toa_sse2((uint32_t) result.dbKey, buff1);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.score, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    //TODO seqid, evalue
+    if(result.seqId==1.0){
+        *(tmpBuff) = '1';
+        tmpBuff++;
+        *(tmpBuff) = '.';
+        tmpBuff++;
+        *(tmpBuff) = '0';
+        tmpBuff++;
+        *(tmpBuff) = '0';
+        tmpBuff++;
+        *(tmpBuff) = '0';
+        tmpBuff++;
+        *(tmpBuff) = '\t';
+        tmpBuff++;
+    }else{
+        *(tmpBuff) = '0';
+        tmpBuff++;
+        *(tmpBuff) = '.';
+        tmpBuff++;
+        int seqId = result.seqId*1000;
+        tmpBuff = Itoa::i32toa_sse2(seqId, tmpBuff);
+        *(tmpBuff-1) = '\t';
+    }
+
+    tmpBuff += sprintf(tmpBuff,"%.3E",result.eval);
+    tmpBuff++;
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.qStartPos, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.qEndPos, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.qLen, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.dbStartPos, tmpBuff);
+    *(tmpBuff-1) = '\t';
+    tmpBuff = Itoa::i32toa_sse2(result.dbEndPos, tmpBuff);
     if(addBacktrace == true){
-        swResultsSs << result.dbLen << "\t";
+        *(tmpBuff-1) = '\t';
+        tmpBuff = Itoa::i32toa_sse2(result.dbLen, tmpBuff);
         if(compress){
-            swResultsSs << Matcher::compressAlignment(result.backtrace) << "\n";
+            *(tmpBuff-1) = '\t';
+            std::string compressedCigar = Matcher::compressAlignment(result.backtrace);
+            tmpBuff = strncpy(tmpBuff, compressedCigar.c_str(), compressedCigar.length());
+            tmpBuff+= compressedCigar.length()+1;
         }else{
-            swResultsSs << result.backtrace << "\n";
+            *(tmpBuff-1) = '\t';
+            tmpBuff = strncpy(tmpBuff, result.backtrace.c_str(), result.backtrace.length());
+            tmpBuff+= result.backtrace.length()+1;
         }
     }else{
-        swResultsSs << result.dbLen << "\n";
+        *(tmpBuff-1) = '\t';
+        tmpBuff = Itoa::i32toa_sse2(result.dbLen, tmpBuff);
     }
-    return swResultsSs.str();
+
+    *(tmpBuff-1) = '\n';
+    *(tmpBuff) = '\0';
+    return tmpBuff - basePos;
 }
-
-
 
 

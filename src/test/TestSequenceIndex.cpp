@@ -11,6 +11,8 @@
 #include "DBWriter.h"
 #include "Parameters.h"
 
+const char* binary_name = "test_sequenceindex";
+
 int main(int argc, char **argv) {
     size_t kmer_size = 6;
     Parameters &par = Parameters::getInstance();
@@ -18,22 +20,22 @@ int main(int argc, char **argv) {
     std::string S1 = "PQITLWQRPLVTIKIGGQLKEALLDTGADDTVLEEMSLPGRWKPKMIGGIGGFIKVRQYDQILIEICGHKAIGTVLVGPTPVNIIGRNLLTQIGCTLNF";
     const char *S1char = S1.c_str();
     std::cout << S1char << "\n\n";
-    Sequence s1(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+    Sequence s1(10000, 0, &subMat, kmer_size, true, false);
     s1.mapSequence(0, 0, S1char);
     std::string S2 = "PQFSLWKRPVVTAYIEGQPVEVLLDTGADDSIVAGIELGNNIVGGIGGFINTLEYKNVEIEVLNKKVRATIMTGDTPINIFGRNILTALGMSLNL";
     const char *S2char = S2.c_str();
     std::cout << S2char << "\n\n";
-    Sequence s2(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+    Sequence s2(10000,  0, &subMat, kmer_size, true, false);
     s2.mapSequence(1, 1, S2char);
     std::string S3 = "PQFHLWKRPVVTAGQPVEVLLDTGADDSIVTGIELGPHYTPKIVGGIGGFINTKEYKNVEVEVLGKRIKGTIMTGDTPINIFGRNLLTALGMSLNF";
     const char *S3char = S3.c_str();
     std::cout << S3char << "\n\n";
-    Sequence s3(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+    Sequence s3(10000,  0, &subMat, kmer_size, true, false);
     s3.mapSequence(2, 2, S3char);
     std::string S4 = "LAMTMEHKDRPLVRVILTNTGSHPVKQRSVYITALLDTGADDTVISEEDWPTDWPVMEAANPQIHGIGGGIPVRKSRDMIELGVINRDGSLERPLLLFPLVAMTPVNILGRDCLQGLGLRLTNL";
     const char *S4char = S4.c_str();
     std::cout << S4char << "\n\n";
-    Sequence s4(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, false);
+    Sequence s4(10000,  0, &subMat, kmer_size, true, false);
     s4.mapSequence(3, 3, S4char);
 
     SequenceLookup lookup(4, s1.L + s2.L + s3.L + s4.L);

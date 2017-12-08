@@ -36,8 +36,16 @@ struct hit_t {
     unsigned short diagonal;
     unsigned short prefScore;
 
-    static bool compareHitsByPValue(hit_t first, hit_t second){
-        return (first.pScore > second.pScore) ? true : false;
+    static bool compareHitsByPValueAndId(hit_t first, hit_t second){
+        if(first.pScore > second.pScore )
+            return true;
+        if(second.pScore > first.pScore )
+            return false;
+        if(first.seqId < second.seqId )
+            return true;
+        if(second.seqId < first.seqId )
+            return false;
+        return false;
     }
 
     static bool compareHitsByDiagonalScore(hit_t first, hit_t second){

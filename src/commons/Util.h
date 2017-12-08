@@ -100,6 +100,22 @@ public:
 
     static std::vector<std::string> split(const std::string &str, const std::string &sep);
 
+    static std::string& implode(const std::vector<std::string> &splits, char sep, std::string& str) {
+        for (std::vector<std::string>::const_iterator it = splits.begin(); it != splits.end(); ++it) {
+            str += (*it);
+            if (it + 1 != splits.end()) {
+                str += sep;
+            }
+        }
+        return str;
+    }
+
+    static std::string implode(const std::vector<std::string> &splits, char sep) {
+        std::string str;
+        implode(splits, sep, str);
+        return str;
+    }
+
     static inline char * skipLine(char * data){
         while( *data !='\n' ) { data++; }
         return (data+1);
@@ -206,7 +222,11 @@ public:
 
     static std::map<std::string, size_t> readMapping(const char *fastaFile);
 
-    static std::map<unsigned int, std::string> readLookup(const std::string& fastaFile);
+    static std::map<unsigned int, std::string> readLookup(const std::string& lookupFile,
+                                                          const bool removeSplit = false);
+
+    static std::map<std::string, unsigned int> readLookupReverse(const std::string& lookupFile,
+                                                                 const bool removeSplit = false);
 
     static void checkAllocation(void *pointer, std::string message);
 
@@ -238,6 +258,19 @@ public:
         int kmersPerSize = seqLen - static_cast<int>(kmerSize);
         return  (kmersPerSize >= 0) ? kmersPerSize + 1 :  0;
     }
+
+
+    template <typename T>
+    static size_t hash(T * x, size_t length){
+        const size_t INITIAL_VALUE = 0;
+        const size_t A = 31;
+        size_t h = INITIAL_VALUE;
+        for (size_t i = 0; i < length; ++i){
+            h = ((h*A) + x[i]);
+        }
+        return h;
+    }
+
 
     static int omp_thread_count();
 

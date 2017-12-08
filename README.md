@@ -74,7 +74,7 @@ by pressing tab. The bash completion for subcommands and parameters can be insta
 ### Install with Homebrew
 You can install MMseqs2 for Mac OS through [Homebrew](https://github.com/Homebrew/brew) by executing the following:
 
-        brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs.rb --HEAD
+        brew install https://raw.githubusercontent.com/soedinglab/mmseqs2/master/Formula/mmseqs2.rb --HEAD
 
 This will also automatically install the bash completion (you might have to execute `brew install bash-completion` first). This will also work for [Linuxbrew](https://github.com/Linuxbrew/brew).
 
@@ -107,10 +107,10 @@ You need to create a temporary directory in which MMseqs2 will store intermediat
 
 It is recommend to create this tmp on a local drive to reduce load on the NFS.
 
-The `mmseqs search` searches the `queryDB` against the `targetDB`. The sensitivity can be adjusted with `-s` and should be adapted based on your use case. If you want to use alignment backtraces in later steps add the option `-a`.  An iterative profile search (like PSI-BLAST) can be trigged with `--num-iterations`.
+The `mmseqs search` searches the `queryDB` against the `targetDB`. The sensitivity can be adjusted with `-s` and should be adapted based on your use case (see [Set sensitivity -s parameter](https://github.com/soedinglab/mmseqs2/wiki#set-sensitivity--s-parameter)). If you want to use alignment backtraces in later steps add the option `-a`.  An iterative profile search (like PSI-BLAST) can be trigged with `--num-iterations`.
 
 Please ensure that in case of large input databases tmp provides enough free space.
-For the disc space requirements, see the user guide.
+For the [disc space requirements](https://github.com/soedinglab/mmseqs2/wiki#prefiltering-module), see the user guide.
 To run the search type:
 
         mmseqs search queryDB targetDB resultDB tmp
@@ -145,6 +145,13 @@ To generate a FASTA-style formatted output file from the ffindex output file, ty
 To generate a TSV-style formatted output file from the ffindex output file, type:
 
         mmseqs createtsv DB DB clu clu.tsv
+        
+To extract the representative sequences from the clustering result call:    
+    
+        mmseqs result2repseq DB DB_clu DB_clu_rep
+        mmseqs result2flat DB DB DB_clu_rep DB_clu_rep.fasta  --use-fasta-header
+
+Read more about the format [here](https://github.com/soedinglab/mmseqs2/wiki#clustering-format).
 
 ### Memory Requirements
 When using MMseqs the available memory limits the size of database you will be able to compute. 

@@ -129,6 +129,17 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND,
                                         true);
 
+    if(qDbr->getDbtype() == -1 || tDbr->getDbtype() == -1){
+        Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    if(qDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE && tDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE ){
+        Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
+        EXIT(EXIT_FAILURE);
+    }
+    Debug(Debug::INFO) << "Query database type: " << qDbr->getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Target database type: " << tDbr->getDbTypeName() << "\n";
+
     const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
     {
@@ -136,14 +147,9 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);
-
-        int sequenceType = Sequence::AMINO_ACIDS;
-        if (par.queryProfile == true) {
-            sequenceType = Sequence::HMM_PROFILE;
-        }
-
-        Sequence centerSequence(maxSequenceLength, subMat.aa2int, subMat.int2aa,
-                                sequenceType, 0, false, par.compBiasCorrection);
+        Sequence centerSequence(maxSequenceLength, qDbr->getDbtype(), &subMat, 0, false, par.compBiasCorrection);
+        std::string result;
+        result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
 #pragma omp for schedule(static)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
@@ -195,8 +201,8 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 }
 
                 const size_t edgeId = tDbr->getId(key);
-                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId), subMat.aa2int, subMat.int2aa,
-                                                      Sequence::AMINO_ACIDS, 0, false, false);
+                Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId),
+                                                      Sequence::AMINO_ACIDS, &subMat, 0, false, false);
 
                 if (tSeqLookup != NULL) {
                     std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(edgeId);
@@ -234,28 +240,28 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 filter.shuffleSequences((const char **) res.msaSequence, res.setSize);
             }
 
-            std::pair<const char *, std::string> pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
+            PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                                                          (const char **) res.msaSequence,
-                                                                                         par.wg);
-            char *data = (char *) pssmRes.first;
-            size_t dataSize = res.centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
-
-            for (size_t i = 0; i < dataSize; i++) {
-                // Avoid a null byte result
-                data[i] = data[i] ^ 0x80;
+                                                                                          par.wg);
+            for(size_t pos = 0; pos <  res.centerLength; pos++){
+                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+                    result.push_back(Sequence::scoreMask(pssmRes.prob[pos*Sequence::PROFILE_AA_SIZE + aa]));
+                }
+                // write query, consensus sequence and neffM
+                result.push_back(static_cast<unsigned char>(centerSequence.int_sequence[pos]));
+                result.push_back(static_cast<unsigned char>(subMat.aa2int[pssmRes.consensus[pos]]));
+                unsigned char neff = MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
+                result.push_back(neff);
             }
 
-            //pssm.printProfile(res.centerLength);
-            //calculator.printPSSM(res.centerLength);
 
-            resultWriter.writeData(data, dataSize, queryKey, thread_idx);
-
+            resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
+            result.clear();
             if (consensusWriter != NULL) {
-                std::string consensusStr = pssmRes.second;
+                std::string consensusStr = pssmRes.consensus;
                 consensusStr.push_back('\n');
                 consensusWriter->writeData(consensusStr.c_str(), consensusStr.length(), queryKey, thread_idx);
             }
-
             MultipleAlignment::deleteMSA(&res);
             for (std::vector<Sequence *>::iterator it = seqSet.begin(); it != seqSet.end(); ++it) {
                 Sequence *seq = *it;
@@ -266,10 +272,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
     // cleanup
     if (consensusWriter != NULL) {
-        consensusWriter->close();
+        consensusWriter->close(DBReader<unsigned int>::DBTYPE_AA);
         delete consensusWriter;
     }
-    resultWriter.close();
+    resultWriter.close(DBReader<unsigned int>::DBTYPE_PROFILE);
 
 #ifndef HAVE_MPI
     if (par.earlyExit) {
@@ -333,6 +339,8 @@ int result2profile(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     // default for result2profile filter MSA
     par.filterMsa = 1;
+    // no pseudo counts
+    par.pca = 0.0;
     par.parseParameters(argc, argv, command, 4);
 
     struct timeval start, end;

@@ -13,6 +13,7 @@
 
 Prefiltering::Prefiltering(const std::string &targetDB,
                            const std::string &targetDBIndex,
+                           int querySeqType, int targetSeqType,
                            const Parameters &par) :
         targetDB(targetDB),
         targetDBIndex(targetDBIndex),
@@ -23,13 +24,13 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         maskMode(par.maskMode),
         splitMode(par.splitMode),
         scoringMatrixFile(par.scoringMatrixFile),
-        targetSeqType(par.targetSeqType),
+        targetSeqType(targetSeqType),
         maxResListLen(par.maxResListLen),
         kmerScore(par.kmerScore),
         sensitivity(par.sensitivity),
         resListOffset(par.resListOffset),
         maxSeqLen(par.maxSeqLen),
-        querySeqType(par.querySeqType),
+        querySeqType(querySeqType),
         diagonalScoring(par.diagonalScoring != 0),
         minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
@@ -111,8 +112,17 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     setupSplit(*tdbr, alphabetSize, threads, templateDBIsIndex, maxResListLen, &kmerSize, &splits, &splitMode);
     kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
 
-    if (templateDBIsIndex == true && (splits != originalSplits || kmerThr < minKmerThr)) {
-        reopenTargetDb();
+    if (templateDBIsIndex == true) {
+        if (splits != originalSplits) {
+            Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
+            reopenTargetDb();
+        } else if (kmerThr < minKmerThr) {
+            Debug(Debug::WARNING) << "Required k-mer threshold does not match index table k-mer threshold. Recomputing index table!\n";
+            reopenTargetDb();
+        } else if (querySeqType == Sequence::HMM_PROFILE && minKmerThr != 0) {
+            Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
+            reopenTargetDb();
+        }
     }
 
     Debug(Debug::INFO) << "Target database: " << targetDB << "(Size: " << tdbr->getSize() << ")\n";
@@ -150,6 +160,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         Debug(Debug::ERROR) << "Invalid split mode: " << splitMode << "\n";
         EXIT(EXIT_FAILURE);
     }
+
+    Debug(Debug::INFO) << "Query database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
+    Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 }
 
 Prefiltering::~Prefiltering() {
@@ -328,7 +341,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
             char *data = dbr.getData(id);
             std::vector<hit_t> hits = QueryMatcher::parsePrefilterHits(data);
             if (hits.size() > 1) {
-                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByPValue);
+                std::sort(hits.begin(), hits.end(), hit_t::compareHitsByPValueAndId);
             }
             for(size_t hit_id = 0; hit_id < hits.size(); hit_id++){
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[hit_id]);
@@ -376,7 +389,7 @@ IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize,
         struct timeval start, end;
         gettimeofday(&start, NULL);
 
-        Sequence tseq(maxSeqLen, subMat->aa2int, subMat->int2aa, targetSeqType, kmerSize, spacedKmer, aaBiasCorrection);
+        Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
         int localKmerThr = (querySeqType != Sequence::HMM_PROFILE) ? kmerThr : 0;
         IndexTable* table = PrefilteringIndexReader::generateIndexTable(
                 tdbr, &tseq, subMat, alphabetSize, kmerSize,
@@ -385,7 +398,7 @@ IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize,
         );
 
         gettimeofday(&end, NULL);
-        table->printStatistics(tseq.int2aa);
+        table->printStatistics(subMat->int2aa);
         time_t sec = end.tv_sec - start.tv_sec;
         tdbr->remapData();
         Debug(Debug::INFO) << "Time for index table init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "
@@ -485,10 +498,9 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
     size_t freeSpace =  FileUtil::getFreeSpace(FileUtil::dirName(resultDB).c_str());
     size_t estimatedHDDMemory = estimateHDDMemoryConsumption(qdbr->getSize(), maxResListLen);
     if (freeSpace < estimatedHDDMemory){
-        Debug(Debug::ERROR) << "Hard disk has not enough space (" << freeSpace << " bytes left) "
-                            << "to store " << estimatedHDDMemory << " bytes of results.\n"
-                            << "Please free disk space and start MMseqs again.\n";
-        EXIT(EXIT_FAILURE);
+        Debug(Debug::WARNING) << "Warning: Hard disk might not have enough free space (" << freeSpace << " bytes left)."
+                            << "The prefilter result might need maximal " << estimatedHDDMemory << " bytes.\n";
+//        EXIT(EXIT_FAILURE);
     }
 
     size_t dbSize = 0;
@@ -638,8 +650,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
-        Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa,
-                     querySeqType, kmerSize, spacedKmer, aaBiasCorrection);
+        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
 
         QueryMatcher matcher(subMat, indexTable, evaluer, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
@@ -653,7 +664,6 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 #pragma omp for schedule(dynamic, 10) reduction (+: kmersPerPos, resSize, dbMatches, doubleMatches, querySeqLenSum, diagonalOverflow)
         for (size_t id = queryFrom; id < queryFrom + querySize; id++) {
             Debug::printProgress(id);
-
             // get query sequence
             char *seqData = qdbr->getData(id);
             unsigned int qKey = qdbr->getDbKey(id);
@@ -701,7 +711,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 #endif
     }
 
-    if (Debug::debugLevel >= 3) {
+    if (Debug::debugLevel >= Debug::INFO) {
         statistics_t stats(kmersPerPos / totalQueryDBSize,
                            dbMatches / totalQueryDBSize,
                            doubleMatches / totalQueryDBSize,
@@ -856,8 +866,7 @@ double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned 
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
-        Sequence seq(maxSeqLen, subMat->aa2int, subMat->int2aa,
-                     querySeqType, kmerSize, spacedKmer, aaBiasCorrection);
+        Sequence seq(maxSeqLen, querySeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
 
         if (thread_idx == 0) {
             effectiveKmerSize = seq.getEffectiveKmerSize();

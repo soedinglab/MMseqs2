@@ -20,7 +20,8 @@ CommandCaller::CommandCaller() {
     char* procBind = getenv("OMP_PROC_BIND");
     if(procBind != NULL && strcasecmp(procBind, "false") != 0  && strcasecmp(procBind, "0") != 0) {
 #endif
-        Debug(Debug::WARNING) << "Warning: Calling program has OMP_PROC_BIND set in its environment. Performance may be degraded!\n";
+        Debug(Debug::WARNING) << "Error: Calling program has OMP_PROC_BIND set in its environment. Please unset OMP_PROC_BIND.\n";
+        EXIT(EXIT_FAILURE);
     }
 #endif
 }
@@ -43,14 +44,14 @@ int CommandCaller::callProgram(const char* program, size_t argc, const char **ar
     return 0;
 }
 
-void CommandCaller::execProgram(const char* program, size_t argc, const char **argv) {
+void CommandCaller::execProgram(const char* program, const std::vector<std::string> &argv) {
     // hack: our argv string does not contain a program name anymore, readd it
-    const char **pArgv = new const char*[argc + 2];
+    const char **pArgv = new const char*[argv.size() + 2];
     pArgv[0] = program;
-    for (size_t i = 0; i < argc; ++i) {
-        pArgv[i + 1] = argv[i];
+    for (size_t i = 0; i < argv.size(); ++i) {
+        pArgv[i + 1] = argv[i].c_str();
     }
-    pArgv[argc + 1] = NULL;
+    pArgv[argv.size() + 1] = NULL;
 
     int res = execvp(program, (char * const *) pArgv);
 

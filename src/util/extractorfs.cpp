@@ -89,7 +89,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         #ifdef OPENMP
         thread_idx = omp_get_thread_num();
         #endif
-
+        unsigned int key = reader.getDbKey(i);
         std::string data(reader.getData(i));
         // remove newline in sequence
         data.erase(std::remove(data.begin(), data.end(), '\n'), data.end());
@@ -118,7 +118,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 continue;
 
             char buffer[LINE_MAX];
-            snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", header.c_str(), loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+            snprintf(buffer, LINE_MAX, "%s [Orf: %u, %zu, %zu, %d, %d, %d]\n", header.c_str(), key, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
             headerWriter.writeData(buffer, strlen(buffer), id, thread_idx);
 
@@ -130,7 +130,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     
 
     headerWriter.close();
-    sequenceWriter.close();
+    sequenceWriter.close(DBReader<unsigned int>::DBTYPE_NUC);
     headerReader.close();
     reader.close();
     

@@ -15,4 +15,4 @@ _mmseqs() {
 	fi
 
 }
-complete -F _mmseqs mmseqs
+complete -o plusdirs -F _mmseqs mmseqs

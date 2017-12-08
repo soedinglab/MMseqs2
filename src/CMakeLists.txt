@@ -9,6 +9,7 @@ add_subdirectory(alignment)
 add_subdirectory(clustering)
 add_subdirectory(commons)
 add_subdirectory(prefiltering)
+add_subdirectory(taxonomy)
 add_subdirectory(util)
 add_subdirectory(workflow)
 
@@ -23,22 +24,25 @@ add_library(mmseqs-framework
         ${commons_source_files}
         ${prefiltering_header_files}
         ${prefiltering_source_files}
+        ${taxonomy_header_files}
+        ${taxonomy_source_files}
         ${util_header_files}
         ${util_source_files}
         ${workflow_source_files}
         )
 
-target_include_directories(mmseqs-framework PUBLIC ${CMAKE_BINARY_DIR}/generated)
+target_include_directories(mmseqs-framework PUBLIC ${PROJECT_BINARY_DIR}/generated)
 target_include_directories(mmseqs-framework PUBLIC commons)
 target_include_directories(mmseqs-framework PUBLIC prefiltering)
 target_include_directories(mmseqs-framework PUBLIC alignment)
 target_include_directories(mmseqs-framework PUBLIC clustering)
 target_include_directories(mmseqs-framework PUBLIC util)
+target_include_directories(mmseqs-framework PUBLIC taxonomy)
 target_include_directories(mmseqs-framework PUBLIC .)
 
 add_dependencies(mmseqs-framework generated)
 
-if (CMAKE_BUILD_TYPE MATCHES RELEASE)
+if (CMAKE_BUILD_TYPE MATCHES RELEASE OR CMAKE_BUILD_TYPE MATCHES RELWITHDEBINFO)
     if (CMAKE_COMPILER_IS_ICC)
         append_target_property(mmseqs-framework COMPILE_FLAGS -ipo -no-prec-div -xHost)
         append_target_property(mmseqs-framework LINK_FLAGS -ipo -no-prec-div -xHost)
@@ -183,6 +187,7 @@ if (NOT FRAMEWORK_ONLY)
     include(MMseqsSetupDerivedTarget)
     add_subdirectory(version)
     set(mmseqs_source_files
+            CommandDeclarations.h
             mmseqs.cpp
             )
 

@@ -18,6 +18,8 @@
 #include "KmerGenerator.h"
 #include "BaseMatrix.h"
 
+const char* binary_name = "test_kmergeneratorperf";
+
 int main (int argc, const char * argv[])
 {
     const size_t kmer_size=7;

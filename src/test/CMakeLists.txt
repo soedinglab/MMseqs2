@@ -22,6 +22,7 @@ set(TESTS
         TestScoreMatrixSerialization.cpp
         TestSequenceIndex.cpp
         TestTanTan.cpp
+        TestTaxonomy.cpp
         TestTranslate.cpp
         TestUtil.cpp
         )

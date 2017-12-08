@@ -42,6 +42,8 @@ Contents: pairwise alignment algorithms
 
 #include "sls_alignment_evaluer.hpp"
 
+const char* binary_name = "test_alp";
+
 using namespace Sls;
 using namespace std;
 

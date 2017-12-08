@@ -24,9 +24,17 @@ public:
     };
 
     struct SequenceLocation {
+        unsigned int id;
         size_t from, to;
         bool hasIncompleteStart, hasIncompleteEnd;
         Strand strand;
+        SequenceLocation(size_t from, size_t to, bool hasIncompleteStart, bool hasIncompleteEnd, Strand strand ):
+                id(0), from(from), to(to),
+                hasIncompleteStart(hasIncompleteStart),
+                hasIncompleteEnd(hasIncompleteEnd),
+                strand(strand){}
+
+        SequenceLocation(){}
     };
 
     Orf();
@@ -55,7 +63,9 @@ public:
                             const unsigned int frames, const unsigned int extendMode, const Strand strand);
 
     std::string view(const SequenceLocation &location);
-    
+
+    static SequenceLocation parseOrfHeader(char *data);
+
 private:
     size_t sequenceLength;
     char* sequence;

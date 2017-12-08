@@ -16,16 +16,17 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 #endif
 
 #include <libgen.h>
+#include <MathUtil.h>
 
 void setMsa2ProfileDefaults(Parameters *p) {
     p->msaType = 1;
-
+    p->pca = 0.0;
 }
 
 int msa2profile(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setMsa2ProfileDefaults(&par);
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, 2, true, 0, MMseqsParameter::COMMAND_PROFILE);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -65,19 +66,19 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         char *entryData = qDbr.getData(id);
         for (size_t i = 0; i < msaSizes[id]; ++i) {
+            // state machine to get the max sequence length and set size from MSA
             switch (entryData[i]) {
                 case '>':
+                    if (seqLength > maxSeqLength) {
+                        maxSeqLength = seqLength;
+                    }
+                    seqLength = 0;
                     inHeader = true;
                     setSize++;
                     break;
                 case '\n':
                     if (inHeader) {
                         inHeader = false;
-                    } else {
-                        if (seqLength > maxSeqLength) {
-                            maxSeqLength = seqLength;
-                        }
-                        seqLength = 0;
                     }
                     break;
                 default:
@@ -86,6 +87,14 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     }
                     break;
             }
+        }
+
+        // don't forget the last entry in an MSA
+        if (!inHeader && seqLength > 0) {
+            if (seqLength > maxSeqLength) {
+                maxSeqLength = seqLength;
+            }
+            setSize++;
         }
 
         if (setSize > maxSetSize) {
@@ -121,13 +130,14 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     {
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
         PSSMCalculator calculator(&subMat, maxSeqLength, maxSetSize, par.pca, par.pcb);
-        Sequence sequence(maxSeqLength + 1, subMat.aa2int, subMat.int2aa,
-                          Sequence::AMINO_ACIDS, 0, false, par.compBiasCorrection != 0);
+        Sequence sequence(maxSeqLength + 1, Sequence::AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * maxSeqLength * maxSetSize);
 
         char *seqBuffer = new char[maxSeqLength + 1];
         bool *maskedColumns = new bool[maxSeqLength];
+        std::string result;
+        result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
         kseq_buffer_t d;
         kseq_t *seq = kseq_init(&d);
@@ -267,20 +277,22 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 filter.shuffleSequences((const char **) msaSequences, setSize);
             }
 
-            std::pair<const char *, std::string> pssmRes =
+            PSSMCalculator::Profile pssmRes =
                     calculator.computePSSMFromMSA(filteredSetSize, centerLength,
                                                   (const char **) msaSequences, par.wg);
-
-            char *data = (char *) pssmRes.first;
-            size_t dataSize = centerLength * Sequence::PROFILE_AA_SIZE * sizeof(char);
-            for (size_t i = 0; i < dataSize; i++) {
-                // Avoid a null byte result
-                data[i] = data[i] ^ 0x80;
+            for(size_t pos = 0; pos < centerLength; pos++){
+                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+                    result.push_back(Sequence::scoreMask(pssmRes.prob[pos*Sequence::PROFILE_AA_SIZE + aa]));
+                }
+                // write query, consensus sequence and neffM
+                result.push_back(static_cast<unsigned char>(msaSequences[0][pos]));
+                result.push_back(static_cast<unsigned char>(subMat.aa2int[pssmRes.consensus[pos]]));
+                result += MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
             }
 
-            resultWriter.writeData(data, dataSize, queryKey, thread_idx);
-
-            std::string consensusStr = pssmRes.second;
+            resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx);
+            result.clear();
+            std::string consensusStr = pssmRes.consensus;
             consensusStr.push_back('\n');
             consensusWriter.writeData(consensusStr.c_str(), consensusStr.length(), queryKey, thread_idx);
         }
@@ -292,10 +304,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         delete[] maskedColumns;
     }
 
-    consensusWriter.close();
+    consensusWriter.close(DBReader<unsigned int>::DBTYPE_AA);
     headerWriter.close();
-    sequenceWriter.close();
-    resultWriter.close();
+    sequenceWriter.close(DBReader<unsigned int>::DBTYPE_AA);
+    resultWriter.close(DBReader<unsigned int>::DBTYPE_PROFILE);
 
     char* path = strdup((par.db2 + "_h").c_str());
     std::string base = basename(path);

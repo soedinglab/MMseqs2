@@ -4,5 +4,7 @@ set(workflow_source_files
         workflow/ClusterUpdate.cpp
         workflow/Linclust.cpp
         workflow/Search.cpp
+        workflow/Taxonomy.cpp
+        workflow/CreateIndex.cpp
         PARENT_SCOPE
         )

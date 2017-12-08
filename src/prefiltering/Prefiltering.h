@@ -20,6 +20,7 @@ public:
     Prefiltering(
             const std::string &targetDB,
             const std::string &targetDBIndex,
+            int querySeqType, int targetSeqType,
             const Parameters &par);
 
     ~Prefiltering();
@@ -81,7 +82,7 @@ private:
     const float sensitivity;
     const size_t resListOffset;
     const size_t maxSeqLen;
-    const int querySeqType;
+    int querySeqType;
     const bool diagonalScoring;
     const unsigned int minDiagScoreThr;
     const bool aaBiasCorrection;

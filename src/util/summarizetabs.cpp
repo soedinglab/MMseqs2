@@ -66,7 +66,7 @@ std::vector<Domain> mapDomains(const std::vector<Domain> &input, float overlap, 
 }
 
 std::map<std::string, unsigned int> readLength(const std::string &file) {
-    std::fstream mappingStream(file);
+    std::ifstream mappingStream(file);
     if (mappingStream.fail()) {
         Debug(Debug::ERROR) << "File " << file << " not found!\n";
         EXIT(EXIT_FAILURE);

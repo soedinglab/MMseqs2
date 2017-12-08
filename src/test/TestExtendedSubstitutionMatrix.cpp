@@ -13,6 +13,8 @@
 #include "SubstitutionMatrix.h"
 #include "ReducedMatrix.h"
 
+const char* binary_name = "test_extendedsubstitutionmatrix";
+
 int main (int argc, const char * argv[])
 {
     

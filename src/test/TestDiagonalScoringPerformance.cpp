@@ -22,6 +22,7 @@ KSEQ_INIT(int, read)
 
 #include "Parameters.h"
 
+const char* binary_name = "test_diagonalscoringperformance";
 
 int main(int argc, char **argv)
 {
@@ -35,13 +36,13 @@ int main(int argc, char **argv)
     std::string S1 = "AYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKRQTLGQHDFSAGEGLYTHMKALRPDEDRLSPLHSVYVDQWDWERVMGDGERQFSTLKSTVEAIWAGIKATEAAVSEEFGLAPFLPDQIHFVHSQELLSRYPDLDAKGRERAIAKDLGAVFLVGIGGKLSDGHRHDVRAPDYDDWSTPSELGHAGLNGDILVWNPVLEDAFELSSMGIRVDADTLKHQLALTGDEDRLELEWHQALLRGEMPQTIGGGIGQSRLTMLLLQLPHIGQVQAGVWPAAVRESVPSLL";
     const char* S1char = S1.c_str();
 //    std::cout << S1char << "\n\n";
-    Sequence s1(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, true);
+    Sequence s1(10000,  0, &subMat, kmer_size, true, false);
     s1.mapSequence(0,0,S1char);
 
     std::string S2 = "MLKIRYSSAFKKDLKPFQHDKSAISVINTVLKLLATGKPLPREYKEHSLKGDYIGYLECHGKPDLLLIYKRTEQEVFLYRVGSHAKLF";
     const char* S2char = S2.c_str();
 //    std::cout << S2char << "\n\n";
-    Sequence s2(10000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, true);
+    Sequence s2(10000,  0, &subMat, kmer_size, true, false);
     s2.mapSequence(0,0,S2char);
 
     FILE *fasta_file = FileUtil::openFileOrDie("/Users/mad/Documents/databases/mmseqs_benchmark/benchmarks/clustering_benchmark/db/db_full.fas", "r", true);
@@ -54,7 +55,7 @@ int main(int argc, char **argv)
     }
     SequenceLookup lookup(dbCnt*10, dbEntrySize*10);
     //kseq_destroy(seq);
-    Sequence dbSeq(40000, subMat.aa2int, subMat.int2aa, 0, kmer_size, true, true);
+    Sequence dbSeq(40000,  0, &subMat, kmer_size, true, false);
     size_t id = 0;
     size_t maxLen = 0;
     for(size_t i = 0; i < 10; i++){

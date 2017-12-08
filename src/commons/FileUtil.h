@@ -16,6 +16,8 @@ public:
 
     static size_t countLines(const char* name);
 
+    static bool makeDir(const char *dirName, const int mode = 0700);
+
     static void deleteTempFiles(std::list<std::string> tmpFiles);
 
     static void deleteFile(std::string tmpFiles);
@@ -29,6 +31,12 @@ public:
     static void symlinkAlias(const std::string &file, const std::string &alias);
 
     static size_t getFileSize(std::string fileName);
+
+    static bool symlinkCreateOrRepleace(const std::string linkname, const std::string linkdest);
+
+    static bool symlinkExists(std::string path);
+
+    static void copyFile(const char *src, const char *dst);
 };
 
 
