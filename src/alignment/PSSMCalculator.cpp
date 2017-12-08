@@ -52,7 +52,7 @@ PSSMCalculator::~PSSMCalculator() {
 PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
                                            size_t queryLength,
                                            const char **msaSeqs,
-                                           bool wg, float bitFactor) {
+                                           bool wg) {
     for (size_t pos = 0; pos < queryLength; pos++) {
         if (msaSeqs[0][pos] == MultipleAlignment::GAP) {
             Debug(Debug::ERROR) <<
@@ -78,10 +78,11 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
     preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
 //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->int2aa, 20 );
     computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca, pcb);
-//    PSSMCalculator::printProfile(queryLength);
 
     // create final Matrix
-    computeLogPSSM(pssm, profile, bitFactor, queryLength, 0.0);
+    computeLogPSSM(pssm, profile, 2.0, queryLength, 0.0);
+//    PSSMCalculator::printProfile(queryLength);
+
 //    PSSMCalculator::printPSSM(queryLength);
     return Profile(pssm, profile, Neff_M, consensusSequence);
 }
@@ -111,7 +112,7 @@ void PSSMCalculator::printPSSM(size_t queryLength){
         printf("%3zu ", i);
         for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
 //            char pssmVal = (pssm[i * Sequence::PROFILE_AA_SIZE + aa] == -128) ? 0 : pssm[i * Sequence::PROFILE_AA_SIZE + aa]  ;
-            char pssmVal = pssm[i * Sequence::PROFILE_AA_SIZE + aa];
+            char pssmVal = pssm[i * Sequence::PROFILE_AA_SIZE + aa]/4;
 
             printf("%3d ",  pssmVal);
         }
@@ -119,7 +120,7 @@ void PSSMCalculator::printPSSM(size_t queryLength){
     }
 }
 
-void PSSMCalculator::computeLogPSSM(char *pssm, float *profile, float bitFactor,
+void PSSMCalculator::computeLogPSSM(char *pssm, const float *profile, float bitFactor,
                                     size_t queryLength, float scoreBias) {
     for(size_t pos = 0; pos < queryLength; pos++) {
 
@@ -250,7 +251,7 @@ void PSSMCalculator::computePseudoCounts(float *profile, float *frequency,
         //float tau = fmin(1.0, pca * (1.0 + pcb)/ (Neff_M[pos] + pcb));
 
         //std::cout<< "Tau: "<< tau << ", Neff: " << Neff_M[pos] <<std::endl;
-
+//        printf("%.6f\n", tau);
 
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
             // compute proportion of pseudo counts and signal
@@ -282,7 +283,7 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
                                                    const char **X) {
     //For weighting: include only columns into subalignment i that have a max fraction of seqs with endgap
     const float MAXENDGAPFRAC=0.1;
-    const int NCOLMIN=10;   //min number of cols in subalignment for calculating pos-specific weights w[k][i]
+    const int NCOLMIN=20;   //min number of cols in subalignment for calculating pos-specific weights w[k][i]
     const int ENDGAP=22;    //Important to distinguish because end gaps do not contribute to tansition counts
 
     int nseqi = 0;

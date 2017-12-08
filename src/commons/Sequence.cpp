@@ -231,24 +231,36 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
 
 
 void Sequence::mapProfile(const char * sequence){
-    size_t l = 0;
     char * data = (char *) sequence;
     size_t currPos = 0;
     float scoreBias = 0.0;
     // if no data exists
+    {
+    size_t l = 0;
     while (data[currPos] != '\0'){
+
+        int nullCnt = 0;
         for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
             // shift bytes back (avoids NULL byte)
 //            short value = static_cast<short>( ^ mask);
-            profile_score[l * profile_row_size + aa_idx] = scoreUnmask(data[currPos + aa_idx]);
+            profile[l * profile_row_size + aa_idx] = scoreUnmask(data[currPos + aa_idx]);
             //value * 4;
+            nullCnt += (profile[l * profile_row_size + aa_idx]==0.0);
         }
+
+        MathUtil::NormalizeTo1(&profile[l * profile_row_size], PROFILE_AA_SIZE);
+        if(nullCnt==PROFILE_AA_SIZE) {
+            for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
+                profile[l * profile_row_size + aa_idx] = 0.0;
+            }
+        }
+
         unsigned char queryLetter = data[currPos + PROFILE_AA_SIZE];
         // read query sequence
         int_sequence[l] = queryLetter; // index 0 is the highst scoring one
         unsigned char consensusLetter = data[currPos + PROFILE_AA_SIZE+1];
         int_consensus_sequence[l] = consensusLetter;
-        unsigned char neff = data[currPos + PROFILE_AA_SIZE+2];
+        unsigned short neff = data[currPos + PROFILE_AA_SIZE+2];
         neffM[l] = MathUtil::convertNeffToFloat(neff);
         l++;
         if (l >= this->maxLen ){
@@ -260,23 +272,23 @@ void Sequence::mapProfile(const char * sequence){
         currPos += PROFILE_READIN_SIZE;
     }
     this->L = l;
-
-    for(int l = 0; l < this->L; l++) {
-        int nullCnt = 0;
-        for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
-            // we use 10.0 and 0.0 since we used this as result2profile and msa2profile
-            nullCnt += (profile_score[l * profile_row_size + aa_idx]==0);
-            profile[l * profile_row_size + aa_idx] = scoreToProba(profile_score[l * profile_row_size + aa_idx],subMat->pBack[aa_idx], PROFILE_SCALING, scoreBias);
-        }
-        //X state
-        //TODO how to handle this?
-        if(nullCnt==PROFILE_AA_SIZE) {
-            for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
-                profile[l * profile_row_size + aa_idx] = 0.0;
-            }
-        }
-        MathUtil::NormalizeTo1(&profile[l * profile_row_size], PROFILE_AA_SIZE);
     }
+//    for(int l = 0; l < this->L; l++) {
+//        int nullCnt = 0;
+//        for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
+//            // we use 10.0 and 0.0 since we used this as result2profile and msa2profile
+//            nullCnt += (profile_score[l * profile_row_size + aa_idx]==0);
+//            profile[l * profile_row_size + aa_idx] = scoreToProba(profile_score[l * profile_row_size + aa_idx],subMat->pBack[aa_idx], PROFILE_SCALING, scoreBias);
+//        }
+//        //X state
+//        //TODO how to handle this?
+//        if(nullCnt==PROFILE_AA_SIZE) {
+//            for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
+//                profile[l * profile_row_size + aa_idx] = 0.0;
+//            }
+//        }
+//    }
+
 //    printProfile();
 
 //
@@ -285,19 +297,19 @@ void Sequence::mapProfile(const char * sequence){
     float pca = Parameters::getInstance().pca;
     float pcb = Parameters::getInstance().pcb;
     PSSMCalculator::computePseudoCounts(profile, profile, pseudocountsWeight, profile_row_size, neffM, L, pca, pcb);
+//    printProfile();
 
 
     for(int l = 0; l < this->L; l++) {
 //        MathUtil::NormalizeTo1(&profile[l * profile_row_size], PROFILE_AA_SIZE);
         for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
             float bitScore = probaToBitScore(profile[l * profile_row_size + aa_idx], subMat->pBack[aa_idx]);
-            if(bitScore<=-128){ //X state
+                if(bitScore<=-128){ //X state
                 bitScore = -1;
             }
-            const float bitScore8 =  bitScore * 8.0 + scoreBias ;
+            const float bitScore8 =  bitScore * 2.0 + scoreBias ;
             profile_score[l * profile_row_size + aa_idx] =static_cast<short>( ((bitScore8 < 0.0) ? bitScore8 - 0.5 : bitScore8+0.5) );
-            const float bitScore2 =  bitScore * 2.0 + scoreBias;
-            profile_for_alignment[aa_idx * this-> L + l] = static_cast<short>( ((bitScore2 < 0.0) ? bitScore2 - 0.5 : bitScore2+0.5) );
+            profile_score[l * profile_row_size + aa_idx] = profile_score[l * profile_row_size + aa_idx] * 4;
         }
     }
 //    printPSSM();
@@ -314,12 +326,12 @@ void Sequence::mapProfile(const char * sequence){
     }
 
     // write alignment profile
-//    for (int i = 0; i < this->L; i++){
-//        for (size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
-//            unsigned int aa_idx = profile_index[i * profile_row_size + aa_num];
-//            profile_for_alignment[aa_idx * this-> L + i] = profile_score[i * profile_row_size + aa_num] / 4;
-//        }
-//    }
+    for (int i = 0; i < this->L; i++){
+        for (size_t aa_num = 0; aa_num < PROFILE_AA_SIZE; aa_num++) {
+            unsigned int aa_idx = profile_index[i * profile_row_size + aa_num];
+            profile_for_alignment[aa_idx * this-> L + i] = profile_score[i * profile_row_size + aa_num] / 4;
+        }
+    }
 //    printProfile();
 }
 

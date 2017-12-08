@@ -35,9 +35,9 @@ int main (int argc, const char * argv[]) {
     std::cout << "Subustitution matrix:\n";
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
     SubstitutionMatrix::print(subMat.subMatrix,subMat.int2aa,subMat.alphabetSize);
-    for(int i = 0; i < subMat.alphabetSize; i++){
-        std::cout << subMat.pBack[i] << std::endl;
-    }
+//    for(int i = 0; i < 255; i++){
+//        std::cout << i << "\t" << MathUtil::convertCharToFloat(i) << std::endl;
+//    }
     //   BaseMatrix::print(subMat.subMatrix, subMat.alphabetSize);
     std::cout << "\n";
 

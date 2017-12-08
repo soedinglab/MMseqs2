@@ -242,10 +242,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
             PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                                                          (const char **) res.msaSequence,
-                                                                                          par.wg, Sequence::PROFILE_SCALING);
+                                                                                          par.wg);
             for(size_t pos = 0; pos <  res.centerLength; pos++){
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                    result.push_back(Sequence::scoreMask(pssmRes.pssm[pos*Sequence::PROFILE_AA_SIZE + aa]));
+                    result.push_back(Sequence::scoreMask(pssmRes.prob[pos*Sequence::PROFILE_AA_SIZE + aa]));
                 }
                 // write query, consensus sequence and neffM
                 result.push_back(static_cast<unsigned char>(centerSequence.int_sequence[pos]));
@@ -269,7 +269,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             }
         }
     }
-    Debug(Debug::INFO) << "\n";
 
     // cleanup
     if (consensusWriter != NULL) {

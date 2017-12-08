@@ -268,7 +268,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     }
                     PSSMCalculator::Profile pssmRes =
                             calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
-                                                          (const char **) res.msaSequence, par.wg, Sequence::PROFILE_SCALING);
+                                                          (const char **) res.msaSequence, par.wg);
                     msa << ">consensus_" << queryHeaderReader.getDataByDBKey(queryKey) << pssmRes.consensus << "\n;";
                 } else {
                     std::ostringstream centerSeqStr;

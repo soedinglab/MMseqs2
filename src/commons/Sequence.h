@@ -193,8 +193,7 @@ public:
     size_t profile_row_size; // (PROFILE_AA_SIZE / SIMD_SIZE) + 1 * SIMD_SIZE
 
     static const size_t PROFILE_AA_SIZE = 20;
-    static const size_t PROFILE_READIN_SIZE = 23; // 20 AA, 1 for Neff M, 1 consensus, 1 query
-    static const int PROFILE_SCALING = 16;
+    static const size_t PROFILE_READIN_SIZE = 23; // 20 AA, 1 query, 1 consensus, 2 for Neff M,
     ScoreMatrix ** profile_matrix;
     // Memory layout of this profile is qL * AA
     //   Query lenght
@@ -219,18 +218,17 @@ public:
 
     unsigned int getEffectiveKmerSize();
 
-    static char scoreMask(char unscaledScore)
+    static unsigned char scoreMask(float prob)
     {
-        unscaledScore = (unscaledScore == (char)0x80) ? 0x81 : unscaledScore;
-        unscaledScore ^= 0x80;
-        return unscaledScore;
+        unsigned char charProb = MathUtil::convertFloatToChar(prob);
+        // avoid 0
+        return charProb + 1;
     }
 
-    static short scoreUnmask(char score)
+    static float scoreUnmask(unsigned char score)
     {
-        score ^= 0x80;
-        short scoreShort = static_cast<short>(score);
-        return scoreShort; //;
+        float prob = MathUtil::convertCharToFloat(score-1);
+        return prob;
     }
 
     static float probaToBitScore(double proba, double pBack)

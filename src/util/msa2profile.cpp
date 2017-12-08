@@ -279,7 +279,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
             PSSMCalculator::Profile pssmRes =
                     calculator.computePSSMFromMSA(filteredSetSize, centerLength,
-                                                  (const char **) msaSequences, par.wg, Sequence::PROFILE_SCALING);
+                                                  (const char **) msaSequences, par.wg);
             for(size_t pos = 0; pos < centerLength; pos++){
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
                     result.push_back(pssmRes.pssm[pos*Sequence::PROFILE_AA_SIZE + aa] ^ 0x80);

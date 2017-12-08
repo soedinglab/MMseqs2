@@ -146,6 +146,7 @@ public:
     #if EXPONENT_BITS + MANTISSA_BITS != 8
     #error EXPONENT_BITS and MANTISSA_BITS must sum to 16
     #endif
+
     static char convertFloatToChar(float v)
     {
         if (std::isnan(v) || v <= 0.0f) {
@@ -165,6 +166,16 @@ public:
         int mantissa = (int) (r * ONE_FLOAT);
         return exp > 0 ? (exp << MANTISSA_BITS) | (mantissa & ~HIDDEN_BIT) :
                (mantissa >> (1 - exp)) & MANTISSA_MAX;
+    }
+
+
+
+    static float convertCharToFloat(char a)
+    {
+        int mantissa = a & MANTISSA_MAX;
+        int exponent = (a >> MANTISSA_BITS) & EXPONENT_MAX;
+        return ldexpf((exponent > 0 ? HIDDEN_BIT | mantissa : mantissa << 1) / ONE_FLOAT,
+                      exponent - EXCESS);
     }
 #pragma GCC diagnostic pop
 

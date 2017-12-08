@@ -23,7 +23,7 @@ public:
     ~PSSMCalculator();
 
     Profile computePSSMFromMSA(size_t setSize, size_t queryLength, const char **msaSeqs,
-                                    bool wg, float bitFactor);
+                                    bool wg);
 
     void printProfile(size_t queryLength);
     void printPSSM(size_t queryLength);
@@ -74,7 +74,7 @@ private:
     //     Both PPMs assume statistical independence between positions in the pattern
     // 2.) PSSM Log odds score
     //     M_{aa,pos}={log(M_{aa,pos} / b_{aa}).
-    void computeLogPSSM(char *pssm, float *profile, float bitFactor, size_t queryLength, float scoreBias);
+    void computeLogPSSM(char *pssm, const float *profile, float bitFactor, size_t queryLength, float scoreBias);
 
 
     // normalize a fector to 1.0
