@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ ! "$#" -ge 5 ]; then
-	echo "Usage : $0 <SeqDB> <ProfileDB> <OutDB> <tmpDir> <eValThs> "
+if [ ! "$#" -ge 6 ]; then
+	echo "Usage : $0 <SeqDB> <ProfileDB> <OutDB> <tmpDir> <eValThs> <maxHitPerQuery>"
 	exit -1;
 fi
 
@@ -14,6 +14,8 @@ sort -k1,1 $2.index > $TMP/profileDB.index
 PROFILEDB=$TMP/profileDB
 #THREADS=24
 eval=$5
+maxHitPerQuery=$6
+
 
 offset=0 #start with the first result
 
@@ -31,7 +33,7 @@ do
 
     # compute the max number of sequence that are reasonable to swap
     # according to the number of profiles
-    let MAX_SEQS=$MEMORY_FOR_SWAPPING*1024/$nProfiles/90/2 # 90 bytes/query-result line max. and 2 is a safety guard
+    let MAX_SEQS=$MEMORY_FOR_SWAPPING*1024/$nProfiles/90 # 90 bytes/query-result line max.
 
     echo "Memory for swapping: $MEMORY_FOR_SWAPPING" >> $TMP/log.txt
     echo "Current iteration: searching for $MAX_SEQS sequences using $nProfiles profiles with an offset of $offset in the results" >> $TMP/log.txt
@@ -50,8 +52,12 @@ do
         if [ $(wc -l $TMP/searchOut|cut -f1 -d ' ') -ge 1 ]; then
             echo "Merging with older results..." >> $TMP/log.txt
             mmseqs mergedbs $SEQDB $TMP/searchOut.new $TMP/searchOut.current.$nProfiles $TMP/searchOut
-            mv -f $TMP/searchOut.new $TMP/searchOut
-            mv -f $TMP/searchOut.new.index $TMP/searchOut.index
+	    mmseqs filterdb $TMP/searchOut.new $TMP/searchOut.new.ordered --sort-entries 1 --filter-column 4
+            rm -f $TMP/searchOut.new{,.index}
+            mmseqs filterdb $TMP/searchOut.new.ordered $TMP/searchOut.new.ordered.trunc --extract-lines $maxHitPerQuery
+            rm -f $TMP/searchOut.new.ordered{,.index}
+            mv -f $TMP/searchOut.new.ordered.trunc $TMP/searchOut
+            mv -f $TMP/searchOut.new.ordered.trunc.index $TMP/searchOut.index
         fi
     else
         echo "First iteration : Creating searchOut..." >> $TMP/log.txt
