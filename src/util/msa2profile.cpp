@@ -282,7 +282,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                                                   (const char **) msaSequences, par.wg);
             for(size_t pos = 0; pos < centerLength; pos++){
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                    result.push_back(pssmRes.pssm[pos*Sequence::PROFILE_AA_SIZE + aa] ^ 0x80);
+                    result.push_back(Sequence::scoreMask(pssmRes.prob[pos*Sequence::PROFILE_AA_SIZE + aa]));
                 }
                 // write query, consensus sequence and neffM
                 result.push_back(static_cast<unsigned char>(msaSequences[0][pos]));
