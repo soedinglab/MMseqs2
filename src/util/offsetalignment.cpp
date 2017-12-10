@@ -92,10 +92,22 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 res.dbKey = loc.id;
                 res.dbStartPos = loc.from + res.dbStartPos*3;
                 res.dbEndPos   = loc.from + res.dbEndPos*3;
+
+                if(loc.strand == Orf::STRAND_MINUS){
+                    int start = res.dbStartPos;
+                    res.dbStartPos = res.dbEndPos;
+                    res.dbEndPos = start;
+                }
                 res.dbLen      = res.dbLen*3;
             }else{
                 res.qStartPos = loc.from + res.qStartPos*3;
                 res.qEndPos = loc.from + res.qEndPos*3;
+
+                if(loc.strand == Orf::STRAND_MINUS){
+                    int start = res.qStartPos;
+                    res.qStartPos = res.qEndPos;
+                    res.qEndPos = start;
+                }
                 res.qLen = res.qLen*3;
             }
             size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
