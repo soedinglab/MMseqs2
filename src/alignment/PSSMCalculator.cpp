@@ -79,6 +79,12 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
         preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
         //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->int2aa, 20 );
         computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca, pcb);
+    }else{
+        for (size_t pos = 0; pos < queryLength; pos++) {
+            for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
+                profile[pos * Sequence::PROFILE_AA_SIZE + aa] = matchWeight[pos * Sequence::PROFILE_AA_SIZE + aa];;
+            }
+        }
     }
     // create final Matrix
     computeLogPSSM(pssm, profile, 2.0, queryLength, 0.0);
