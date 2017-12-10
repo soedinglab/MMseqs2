@@ -74,11 +74,12 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
     }
     // compute consensus sequence
     std::string consensusSequence = computeConsensusSequence(matchWeight, queryLength, subMat->pBack, subMat->int2aa);
-    // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
-    preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
-//    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->int2aa, 20 );
-    computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca, pcb);
-
+    if(pca > 0.0){
+        // add pseudocounts (compute the scalar product between matchWeight and substitution matrix with pseudo counts)
+        preparePseudoCounts(matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, queryLength, (const float **) subMat->subMatrixPseudoCounts);
+        //    SubstitutionMatrix::print(subMat->subMatrixPseudoCounts, subMat->int2aa, 20 );
+        computePseudoCounts(profile, matchWeight, pseudocountsWeight, Sequence::PROFILE_AA_SIZE, Neff_M, queryLength, pca, pcb);
+    }
     // create final Matrix
     computeLogPSSM(pssm, profile, 2.0, queryLength, 0.0);
 //    PSSMCalculator::printProfile(queryLength);
