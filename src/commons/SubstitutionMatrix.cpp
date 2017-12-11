@@ -180,7 +180,7 @@ SubstitutionMatrix::~SubstitutionMatrix() {
 }
 
 void SubstitutionMatrix::setupLetterMapping(){
-        for(char letter = 0; letter < 'z'; letter++){
+        for(char letter = 0; letter <= 'z'; letter++){
             char upperLetter = toupper(letter);
             switch(upperLetter){
                 case 'A':
