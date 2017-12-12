@@ -3,7 +3,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
-
+#include <climits> 
 #include "BaseMatrix.h"
 #include "Debug.h"
 

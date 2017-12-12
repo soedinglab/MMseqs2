@@ -1,4 +1,5 @@
 #include <simd/simd.h>
+#include <climits> 
 #include "BaseMatrix.h"
 
 #include "Debug.h"
