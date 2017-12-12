@@ -119,7 +119,7 @@ void PSSMCalculator::printPSSM(size_t queryLength){
         printf("%3zu ", i);
         for(size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++){
 //            char pssmVal = (pssm[i * Sequence::PROFILE_AA_SIZE + aa] == -128) ? 0 : pssm[i * Sequence::PROFILE_AA_SIZE + aa]  ;
-            char pssmVal = pssm[i * Sequence::PROFILE_AA_SIZE + aa]/4;
+            char pssmVal = pssm[i * Sequence::PROFILE_AA_SIZE + aa];
 
             printf("%3d ",  pssmVal);
         }

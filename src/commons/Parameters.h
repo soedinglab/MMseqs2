@@ -243,6 +243,10 @@ public:
     float pca;
     float pcb;
 
+    // sequence2profile
+    float neff;
+    float tau;
+
     // createtsv
     bool firstSeqRepr;
     
@@ -398,6 +402,10 @@ public:
     // create profile (HMM, PSSM)
     PARAMETER(PARAM_PROFILE_TYPE)
 
+    // sequence2profile
+    PARAMETER(PARAM_NEFF)
+    PARAMETER(PARAM_TAU)
+
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
     PARAMETER(PARAM_DB_OUTPUT)
@@ -534,6 +542,8 @@ public:
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createFasta;
     std::vector<MMseqsParameter> convertprofiledb;
+    std::vector<MMseqsParameter> sequence2profile;
+
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2msa;
     std::vector<MMseqsParameter> msa2profile;
@@ -577,6 +587,8 @@ public:
     std::vector<MMseqsParameter> lca;
     std::vector<MMseqsParameter> taxonomy;
     std::vector<MMseqsParameter> profile2pssm;
+    std::vector<MMseqsParameter> profile2cs;
+
 
     std::vector<MMseqsParameter> combineList(std::vector<MMseqsParameter> &par1,
                                               std::vector<MMseqsParameter> &par2);

@@ -45,7 +45,7 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     DBWriter writer(outIndexName.c_str(), std::string(outIndexName).append(".index").c_str(), 1, DBWriter::BINARY_MODE);
     writer.open();
 
-    if (seqType != Sequence::HMM_PROFILE) {
+    if (seqType != Sequence::HMM_PROFILE||seqType != Sequence::PROFILE_STATE_SEQ ) {
         ScoreMatrix *s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
         char* serialized3mer = ScoreMatrix::serialize(*s3);
         Debug(Debug::INFO) << "Write SCOREMATRIX3MER (" << SCOREMATRIX3MER << ")\n";
@@ -392,27 +392,32 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 
     size_t dbSize = dbTo - dbFrom;
     size_t *sequenceOffSet = new size_t[dbSize];
+
+    const bool isProfileStateSeq = seq->getSeqType() == Sequence::PROFILE_STATE_SEQ;
+
     // identical scores for memory reduction code
     char *idScoreLookup = new char[subMat->alphabetSize];
-    for (int aa = 0; aa < subMat->alphabetSize; aa++){
-        short score = subMat->subMatrix[aa][aa];
-        if (score > CHAR_MAX || score < CHAR_MIN) {
-            Debug(Debug::WARNING) << "Truncating substitution matrix diagonal score!";
+    if(isProfileStateSeq == false){
+        for (int aa = 0; aa < subMat->alphabetSize; aa++){
+            short score = subMat->subMatrix[aa][aa];
+            if (score > CHAR_MAX || score < CHAR_MIN) {
+                Debug(Debug::WARNING) << "Truncating substitution matrix diagonal score!";
+            }
+            idScoreLookup[aa] = (char) score;
         }
-        idScoreLookup[aa] = (char) score;
     }
-
     // need to prune low scoring k-mers
     // masking code
-    SubstitutionMatrix mat("blosum62.out", 2.0, 0.0);
     double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
     const double **probMatrixPointers = new const double*[subMat->alphabetSize];
     char hardMaskTable[256];
-    std::fill_n(hardMaskTable, 256, subMat->aa2int[(int) 'X']);
-    for (int i = 0; i < subMat->alphabetSize; ++i){
-        probMatrixPointers[i] = probMatrix[i];
-        for (int j = 0; j < subMat->alphabetSize; ++j){
-            probMatrix[i][j]  = subMat->probMatrix[i][j] / (subMat->pBack[i] * subMat->pBack[j]);
+    if(isProfileStateSeq == false) {
+        std::fill_n(hardMaskTable, 256, subMat->aa2int[(int) 'X']);
+        for (int i = 0; i < subMat->alphabetSize; ++i) {
+            probMatrixPointers[i] = probMatrix[i];
+            for (int j = 0; j < subMat->alphabetSize; ++j) {
+                probMatrix[i][j] = subMat->probMatrix[i][j] / (subMat->pBack[i] * subMat->pBack[j]);
+            }
         }
     }
 
@@ -480,21 +485,26 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
             } else { // Find out if we should also mask profiles
                 if (maskMode == 1 || maskMode == 2) {
-                    for (int i = 0; i < s.L; ++i) {
-                        charSequence[i] = (char) s.int_sequence[i];
-                    }
-                    maskedResidues += tantan::maskSequences(charSequence,
-                                                            charSequence + s.L,
-                                                            50 /*options.maxCycleLength*/,
-                                                            probMatrixPointers,
-                                                            0.005 /*options.repeatProb*/,
-                                                            0.05 /*options.repeatEndProb*/,
-                                                            0.9 /*options.repeatOffsetProbDecay*/,
-                                                            0, 0,
-                                                            0.9 /*options.minMaskProb*/,
-                                                            hardMaskTable);
-                    for (int i = 0; i < s.L; i++) {
-                        s.int_sequence[i] = charSequence[i];
+                    // Do not mask if column state sequences are used
+                    if(isProfileStateSeq == false) {
+                        for (int i = 0; i < s.L; ++i) {
+                            charSequence[i] = (char) s.int_sequence[i];
+                        }
+//                        s.print();
+                        maskedResidues += tantan::maskSequences(charSequence,
+                                                                charSequence + s.L,
+                                                                50 /*options.maxCycleLength*/,
+                                                                probMatrixPointers,
+                                                                0.005 /*options.repeatProb*/,
+                                                                0.05 /*options.repeatEndProb*/,
+                                                                0.9 /*options.repeatOffsetProbDecay*/,
+                                                                0, 0,
+                                                                0.9 /*options.minMaskProb*/,
+                                                                hardMaskTable);
+
+                        for (int i = 0; i < s.L; i++) {
+                            s.int_sequence[i] = charSequence[i];
+                        }
                     }
                 }
 

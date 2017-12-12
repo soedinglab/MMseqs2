@@ -42,7 +42,8 @@ public:
                     const std::vector<std::pair<std::string, std::string>> &splitFiles);
 
     // get substitution matrix
-    static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool ignoreX);
+    static BaseMatrix *getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize,
+                                             float bitFactor, bool ignoreX, bool profileState);
 
     static void setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const int threads,
                            const bool templateDBIsIndex, const size_t maxResListLen, int *kmerSize, int *split, int *splitMode);

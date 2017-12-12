@@ -1,502 +1,304 @@
 
-#include "profileStates.h"
+#include "ProfileStates.h"
 #include "Util.h"
 #include "MathUtil.h"
 #include <sstream>
-
-
-// Returns pointer to first non-white-space character in str OR to NULL if none
-// found
-const char* libraryReader::strscn(const char* str) {
-  if (!str) return NULL;
-  const char* ptr = str;
-  while (*ptr != '\0' && isspace(*ptr)) ++ptr;
-  return (*ptr == '\0') ? NULL : ptr;
-}
-
-// Returns true iff next non-blank line in file 'fp' contains string 'id'.
-bool libraryReader::StreamStartsWith(FILE* fp, const char* id) {
-  char buffer[KB];
-  while (fgetline(buffer, KB, fp)) if (strscn(buffer)) break;
-  return strstr(buffer, id) == buffer;
-}
-
-
-
-// Parse serialization record and return integer value following label 'str' in
-// line read from file pointer 'fp'.
-int libraryReader::ReadInt(const char* line,
-                   const char* label,
-                   const char* errmsg = NULL) {
-  int rv = 0;
-  if (strstr(line, label)) {
-    const char* ptr = line + strlen(label);
-    rv = atoi(ptr);
-  } else if (errmsg) {
-        Debug(Debug::WARNING) << errmsg;
-  }
-  return rv;
-}
-
-// Parse serialization record and return double value following label 'label' in
-// line read from file pointer 'fp'.
-double libraryReader::ReadDouble(const char* line,
-                         const char* label,
-                         const char* errmsg = NULL) {
-  double rv = 0;
-  if (strstr(line, label)) {
-    rv = atof(line + strlen(label));
-  } else if (errmsg) {
-    Debug(Debug::WARNING) << errmsg;
-  }
-  return rv;
-}
-
-
-// Parse serialization record and return string following label 'label' in
-// line read from file pointer 'fp'.
-std::string  libraryReader::ReadString(const char* line,
-                              const char* label,
-                              const char* errmsg = NULL) {
-  std::string rv;
-  if (strstr(line, label)) {
-    const char* ptr = strscn(line + strlen(label));
-    rv = ptr;
-  } else if (errmsg) {
-    Debug(Debug::WARNING) << errmsg;
-  }
-  return rv;
-}
-
-
-// Removes the newline and other control characters at the end of a string (if
-//  present) and returns the new length of the string (-1 if str is NULL)
-int libraryReader::chomp(char* str) {
-  if (!str) return -1;
-  int l = 0;
-  for (l = strlen(str) - 1; l >= 0 && str[l] < 32; --l)
-    /* do nothing */;
-  str[++l] = '\0';
-  return l;
-}
-
-char* libraryReader::fgetline(char* str, int maxlen, FILE* file) {
-  if (!fgets(str, maxlen, file)) return NULL;
-  if (chomp(str) + 1 >= maxlen)  // if line is cut after maxlen characters...
-    while (fgetc(file) != '\n')  // ... read in rest of line
-      /* do nothing */;
-  return(str);
-}
-
-
-
-// Parse serialization record and return bool value following label 'str' in
-// line read from file pointer 'fp'.
-bool libraryReader::ReadBool(const char* line,
-                     const char* label,
-                     const char* errmsg = NULL) {
-  bool rv = false;
-  if (strstr(line, label)) {
-    const char* ptr = line + strlen(label);
-    if (strchr(ptr, 'T') != NULL || strchr(ptr, '1') != NULL)
-      rv = true;
-    else if (strchr(ptr, 'F') != NULL || strchr(ptr, '0') != NULL)
-      rv = false;
-    else if (errmsg)
-        Debug(Debug::WARNING) << errmsg;
-  } else if (errmsg) {
-    Debug(Debug::WARNING) << errmsg;
-  }
-  return rv;
-}
-
-
-std::vector<std::string> libraryReader::tokenize(const char* str, char sep = ' ') {
-    
-    std::stringstream tok;
-    std::vector<std::string> tokens;
-    size_t pos=0;
-    
-    while (str[pos] != '\0')
-    {
-        if (str[pos] == sep)
-        {
-            tokens.push_back(tok.str());
-            tok.str("");
-        }
-        
-        // go to the next non-empty field
-        while (str[pos] != '\0' && str[pos] == sep)
-            pos++;
-            
-        tok << str[pos];
-        pos++;
-    }
-    tokens.push_back(tok.str()); 
-    return tokens;
-}
-
+#include <simd/simd.h>
+//#include <LibraryPure.lib.h>
+//#include <LibraryPureMMorder.lib.h>
+//#include <Library_Training2_run17.lib.h>
+//#include <LibraryExpOpt.lib.h>
+//#include <LibraryExpOpt7_10_polished.lib.h>
+//#include <LibraryMix.lib.h>
+#include <ExpOpt3_8_polished.cs32.lib.h>
+//#include <LibraryExpOpt3_8_polished2.lib.h>
 
 // **********************************************
-// ********** profileStates *********************
+// ********** ProfileStates *********************
 // **********************************************
-
-profileStates::profileStates(std::string filename, std::string substitutionMatrixFile)
+ProfileStates::ProfileStates( double * pBack)
 {
-    subMat = new SubstitutionMatrix(substitutionMatrixFile.c_str(), 8.0, -0.2);
+    //std::string libraryString((const char *)LibraryExpOpt_lib, LibraryExpOpt_lib_len);
+    //std::string libraryString((const char *) LibraryPureMMorder_lib, LibraryPureMMorder_lib_len);
+    //std::string libraryString((const char *) LibraryExpOpt7_10_polished_lib, LibraryExpOpt7_10_polished_lib_len);
+    //std::string libraryString((const char *) Library_Training2_run17_lib, Library_Training2_run17_lib_len);
+    std::string libraryString((const char *)ExpOpt3_8_polished_cs32_lib, ExpOpt3_8_polished_cs32_lib_len);
+    //std::string libraryString((const char *)LibraryExpOpt3_8_polished2_lib, LibraryExpOpt3_8_polished2_lib_len);
+    //std::string libraryString((const char *)LibraryMix_lib, LibraryMix_lib_len);
+
     background = new float[20];
-    
-    for (size_t k = 0; k< 20 ; k++)
-        background[k] = sqrt((float) subMat->pBack[k]);
-        
+    for (size_t k = 0; k< 20 ; k++){
+        background[k] = (float) pBack[k];
+    }
     alphSize = 0;
-    read(filename);
+    read(libraryString);
 }
 
-int profileStates::readProfile(FILE* fin) {
+ProfileStates::~ProfileStates()
+{
+    for (size_t k = 0; k< alphSize ; k++){
+        free(normalizedProfiles[k]);
+    }
+    delete [] normalizedProfiles;
+    for (size_t k = 0; k< alphSize; k++){
+        free(profiles[k]);
+        free(discProfScores[k]);
+    }
+    delete [] discProfScores;
+    delete [] profiles;
+    delete [] background;
+    delete prior;
+}
+
+int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * normalizedProfile) {
     // Parse and check header information
-    if (!reader.StreamStartsWith(fin, "ContextProfile"))
+    if (!reader.StreamStartsWith(in, "ContextProfile"))
     {
         Debug(Debug::WARNING) << "Stream does not start with class id 'ContextProfile'!\n";
         return -1;
     }
-        
-    
-    char buffer[KB];
-    reader.fgetline(buffer, KB, fin);
-    if (strstr(buffer, "NAME")) {
-        std::string name = reader.ReadString(buffer, "NAME", "Unable to parse context profile 'NAME'!");
+
+    std::string line;
+    line = reader.getline(in);
+    if (strstr(line.c_str(), "NAME")) {
+        std::string name = reader.ReadString(line.c_str(), "NAME", "Unable to parse context profile 'NAME'!");
         names.push_back(name);
-        reader.fgetline(buffer, KB, fin);
+        line = reader.getline(in);
     }
     else{
         names.push_back("0"); // default name
     }
-    
-    
-    reader.ReadDouble(buffer, "PRIOR", "Unable to parse context profile 'PRIOR'!");
-    reader.fgetline(buffer, KB, fin);
-    if (strstr(buffer, "COLOR")) {
+
+    reader.ReadDouble(line.c_str(), "PRIOR", "Unable to parse context profile 'PRIOR'!");
+    line = reader.getline(in);
+    if (strstr(line.c_str(), "COLOR")) {
         std::string coldef;
-        coldef = reader.ReadString(buffer, "COLOR", "Unable to parse context profile 'COLOR'!");
+        coldef = reader.ReadString(line.c_str(), "COLOR", "Unable to parse context profile 'COLOR'!");
         colors.push_back(Color(coldef));
-        reader.fgetline(buffer, KB, fin);
+        line = reader.getline(in);
     } else {
         colors.push_back(Color(0.0,0.0,0.0));
     }
-    
+    reader.ReadBool(line.c_str(), "ISLOG", "Unable to parse context profile 'ISLOG'!");
+    line = reader.getline(in);
+    reader.ReadInt(line.c_str(), "LENG", "Unable to parse context profile 'LENG'!");
+    line = reader.getline(in);
+    int nalph = reader.ReadInt(line.c_str(), "ALPH", "Unable to parse context profile 'ALPH'!");
 
-
-
-    reader.ReadBool(buffer, "ISLOG", "Unable to parse context profile 'ISLOG'!");
-    reader.fgetline(buffer, KB, fin);
-    reader.ReadInt(buffer, "LENG", "Unable to parse context profile 'LENG'!");
-    reader.fgetline(buffer, KB, fin);
-    int nalph = reader.ReadInt(buffer, "ALPH", "Unable to parse context profile 'ALPH'!");
-    
     //if (is_log) prior = log(prior);
     //assert(len == 1); // no context
-    
+
     if (nalph != 20)
     {
         Debug(Debug::WARNING) << "Alphabet size of serialized context profile should be " << 20 << " but is acutally "<< nalph <<"!\n";
-        return -1;      
+        return -1;
     }
 
-    reader.fgetline(buffer, KB, fin);
-    if (strstr(buffer, "PROBS"))
+    line = reader.getline(in);
+    if (strstr(line.c_str(), "PROBS"))
     {
-        reader.fgetline(buffer, KB, fin);
-        float *profile;
-        profile = new float[20];
-        char *pos = buffer;
-        
+        line = reader.getline(in);
+        //float *profile = (float *)mem_align(16, 20);
+        char *pos = (char *) line.c_str();
+
         // Skip the first fied that is equal to 1
         pos += Util::skipWhitespace(pos);
         pos += Util::skipNoneWhitespace(pos);
         pos += Util::skipWhitespace(pos);
         float s = 0.0;
-        
+
         // Store the probabilities
-        for (int k = 0 ; k < nalph ; k++)
+        for (size_t k = 0 ; k < nalph ; k++)
         {
-            float score = strtof(pos, NULL);
-            
-            profile[k] = MathUtil::fpow2(-score/kScale);// /background[k];
-            s+=profile[k];
+            float score = std::strtod(pos, NULL);
+            float prob = MathUtil::fpow2(-score/kScale);
+            profile[ProfileStates::hh2mmseqsAAorder(k)] = prob;// /background[k];
+            s+=prob;
             char* oldPos = pos;
             pos += Util::skipNoneWhitespace(pos);
             pos += Util::skipWhitespace(pos);
-            
+
             if (pos == oldPos) // we reached the end of the line
             {
                 Debug(Debug::WARNING) << "Context profile should have " << nalph << " columns but actually has " << k+1 <<"!\n";
-                return -1;      
+                return -1;
             }
         }
-        profiles.push_back(profile);
-        
-        float norm = sqrt(innerProd(profile,profile));
-        float *normalizedProfile;
-        normalizedProfile = new float[20]; // q/||q||
-        for (int k = 0 ; k < nalph ; k++)
+
+        float norm = sqrt(ScalarProd20(profile,profile));
+        for (size_t k = 0 ; k < nalph ; k++)
         {
-            normalizedProfile[k] = profile[k]/norm;
+            normalizedProfile[k] = profile[k] / norm;
         }
-        normalizedProfiles.push_back(normalizedProfile);
-        
     } else {
         Debug(Debug::WARNING) << "Cannot find the probabilities of the state in the file !\n";
-        return -1;   
+        return -1;
     }
 
-    if (!reader.StreamStartsWith(fin, "//"))
+    if (!reader.StreamStartsWith(in, "//"))
     {
         Debug(Debug::WARNING) << "Expected end of profile description!\n";
         return -1;
     }
-    
     return 0;
-
-
 }
 
+int ProfileStates::read(std::string libraryData) {
 
-
-int profileStates::read(std::string stateFileName) {
-    FILE* fin;
-    fin = fopen(stateFileName.c_str(),"r");
-    
-    
-    
+    std::stringstream in(libraryData);
     // Parse and check header information
-    if (!reader.StreamStartsWith(fin, "ContextLibrary"))
+    if (!reader.StreamStartsWith(in, "ContextLibrary"))
     {
-        Debug(Debug::WARNING) << "File " << stateFileName << " does not start with ContextLibrary" << "!\n";
-        fclose(fin);
+        Debug(Debug::WARNING) << "LibraryData does not start with ContextLibrary" << "!\n";
         return -1;
     }
 
-    char buffer[KB];
-    
-    if (reader.fgetline(buffer, KB, fin))
-        alphSize = reader.ReadInt(buffer, "SIZE", "Unable to parse context library 'SIZE'!");
-    if (reader.fgetline(buffer, KB, fin))
-        reader.ReadInt(buffer, "LENG", "Unable to parse context library 'LENG'!");
+    std::string line;
 
-    
+    if ((line = reader.getline(in)) != "")
+        alphSize = reader.ReadInt(line.c_str(), "SIZE", "Unable to parse context library 'SIZE'!");
+    if ((line = reader.getline(in)) != "")
+        reader.ReadInt(line.c_str(), "LENG", "Unable to parse context library 'LENG'!");
+
+
+    profiles = new float*[alphSize];
+    normalizedProfiles = new float*[alphSize];
+    prior = new float[alphSize];
+
     // Read profiles
     size_t k;
-    for (k = 0; k < alphSize && !feof(fin); ++k)
+    float zPrior = 0.0;
+    for (k = 0; k < alphSize && in.good(); ++k)
     {
-        readProfile(fin);
+        profiles[k]           = (float *)mem_align(16, 20 * sizeof(float));
+        normalizedProfiles[k] = (float *)mem_align(16, 20 * sizeof(float));
+        readProfile(in, profiles[k], normalizedProfiles[k]);
+        prior[k] = 0.0;
+        for (size_t a = 0 ; a < 20 ; a++)
+            prior[k] += profiles[k][a] * background[a];
+        zPrior += prior[k];
     }
-    
+
     if (k != alphSize)
     {
         Debug(Debug::WARNING) << "Serialized context library should have "<< alphSize << " profiles but actually has " << (unsigned int)k << "\n";
-        fclose(fin);
         return -1;
     }
-    
-    fclose(fin);
+
+    for (k = 0; k < alphSize; ++k)
+        prior[k] /= zPrior;
+
+
+    discProfScores = new float*[alphSize];
+    for (k = 0; k< alphSize ; k++)
+    {
+        discProfScores[k] = new float[alphSize];
+        for (size_t l = 0; l< alphSize ; l++)
+            discProfScores[k][l] = score(k,l);
+    }
+
+
     return 0;
 }
 
-float profileStates::score(float* profileA, float* profileB)
+float ProfileStates::entropy(float *distribution)
 {
-    return MathUtil::flog2(innerProd(profileA,profileB));
-        
+    float entropy = 0.0;
+    for (size_t a = 0 ; a < 20 ; a++)
+    {
+        entropy -= distribution[a] * MathUtil::flog2(distribution[a]);
+    }
+    return entropy;
 }
 
-float profileStates::innerProd(float* profileA, float* profileB)
-{
-    float s = 0.0;
-    
-    for (size_t k = 0 ; k<20;k++)
-        s += profileA[k]*profileB[k]; // profiles already normalized by the background
-    return s;
-        
-}
+float ProfileStates::getScoreNormalization() {
+    float *maxScore;
+    maxScore = new float[alphSize];
 
-
-
-
-size_t profileStates::discretize(float* profile)
-{
-    // There is no need to compute everything in the distance
-    // we only seek the state s that maximize p.s/||s|| (where everything
-    // is background-normalized)
-    
-    float maxScore = 0.0;
-    size_t closestState = 0;
-    float curScore;
-    /*
-    float profileBck[20];
-    for (size_t i=0;i<20;i++)
+    for (size_t k = 0; k<alphSize; k++)
     {
-        profileBck[i] = profile[i] / background[i];
-    }*/
-    
-    for (size_t k=0;k<alphSize;k++)
-    {
-        curScore = score(profile,normalizedProfiles[k]);
-        if (curScore > maxScore)
+        maxScore[k] = FLT_MIN;
+        for (size_t a = 0; a < Sequence::PROFILE_AA_SIZE; a++)
         {
-            maxScore = curScore;
-            closestState = k;
+            maxScore[k] = std::max(maxScore[k], profiles[k][a] / background[a]);
         }
     }
-    return closestState;
+    float exp = 0.0;
+    for (size_t k = 0; k<alphSize; k++) {
+        exp += MathUtil::flog2(maxScore[k]) * prior[k];
+    }
+    exp /= entropy(background);
+
+    exp = 1.0 + (exp - 1.0)/2;
+
+    //std::cout << "Score normalization : " << 1.0/exp << std::endl;
+
+    return 1.0/exp;
 }
 
-
-void profileStates::discretize(float* sequence, float* avgSequence, size_t length, size_t* result)
+void ProfileStates::discretize(const float* sequence, size_t length, std::string &result)
 {
-    float maxScore;
-    size_t closestState;
-    float curScore;
+    float minDiffScore;
+    char closestState;
+    float curDiffScore;
     float* profileCol;
-    float* avgProfileCol;
+    float* repScore;
+    repScore = new float[alphSize];
 
     for (size_t i = 0 ; i<length ; i++)
     {
-        profileCol = sequence + i*20;
-        avgProfileCol = avgSequence + i*20;
-        
+        profileCol = (float *)sequence + i*Sequence::PROFILE_AA_SIZE;
+
+
+        // S(profile, c_k)
         for (size_t k=0;k<alphSize;k++)
         {
-            curScore = score(profileCol,avgProfileCol,normalizedProfiles[k]);
-            
-            if (!k || (curScore > maxScore))
+            repScore[k] = score(profileCol,profiles[k]);
+        }
+
+        // FInd the k that minimizes sum_l (S(profile, c_l) - S(c_k,c_l))^2
+        for (size_t k=0;k<alphSize;k++)
+        {
+            curDiffScore = 0.0;
+            for (size_t l=0;l<alphSize;l++)
             {
-                maxScore = curScore;
+                float diff = repScore[l] - discProfScores[k][l];
+                curDiffScore += diff*diff;
+            }
+
+            if (!k||(curDiffScore < minDiffScore))
+            {
+                minDiffScore = curDiffScore;
                 closestState = k;
             }
         }
-        result[i] = closestState;
+
+        result.push_back(closestState);
     }
+    delete [] repScore;
 }
 
-
-void profileStates::slidingAverage(float* sequence, size_t length, float* avgSequence)
+float ProfileStates::score(float* profileCol, size_t state)
 {
-    float windowSize = 2*HALF_LOCAL_WINDOW + 1;
-    
-    if (!length)
-    {
-        return;
-    }
-    
-    for (size_t p = 0 ; p<20 ; p++)
-    {
-        avgSequence[p] = background[p] * HALF_LOCAL_WINDOW;
-    }
-    for (size_t p = 0 ; p<(HALF_LOCAL_WINDOW + 1)*20 ; p++)
-    {
-        avgSequence[p%20] += sequence[p];
-    }
-    
-    for (size_t aa = 0 ; aa<20 ; aa++)
-    {
-        avgSequence[aa] /= windowSize;
-    }
-    
-    for (size_t i = 1 ; i<length ; i++)
-    {
-        if (i>HALF_LOCAL_WINDOW)
-            for (size_t aa = 0 ; aa<20 ; aa++)
-            {
-                avgSequence[i*20 + aa] = avgSequence[(i-1)*20 + aa] - sequence[(i - HALF_LOCAL_WINDOW - 1)*20 + aa] / windowSize;
-                if (avgSequence[i*20 + aa]<0)
-                    avgSequence[i*20 + aa] = 0.0;
-            }
-        else {
-            for (size_t aa = 0 ; aa<20 ; aa++)
-            {
-                avgSequence[i*20 + aa] = avgSequence[(i-1)*20 + aa] - background[aa] / windowSize;
-                if (avgSequence[i*20 + aa]<0)
-                    avgSequence[i*20 + aa] = 0.0;
-            }
-            
-        }
-            
-        if (i<length - HALF_LOCAL_WINDOW)
-        {
-            for (size_t aa = 0 ; aa<20 ; aa++)
-            {
-                avgSequence[i*20 + aa] += sequence[(i + HALF_LOCAL_WINDOW) *20 + aa ] / windowSize;
-            }
-        }
-        else {
-            for (size_t aa = 0 ; aa<20 ; aa++)
-            {
-                avgSequence[i*20 + aa] += background[aa] / windowSize;
-            }
-        }
-        
-    }
-}
-
-float profileStates::score(float* profileCol, float* avgProfCol, size_t state)
-{
-    return score(profileCol,avgProfCol,profiles[state]);
-}
-
-
-
-float profileStates::score(float* profileColA, float* avgProfColA, float* profileColB)
-{
-    float result = 0.0;
-    for (size_t aa = 0 ; aa < 20 ; aa++)
-    {
-        result += profileColA[aa] * profileColB[aa] / avgProfColA[aa];
-    }
-    return MathUtil::flog2(result);
-}
-
-
-float profileStates::score(float* profileCol, size_t state)
-{
-    float result = 0.0;
     float *stateProfile = profiles[state];
-    
-    for (size_t aa = 0 ; aa < 20 ; aa++)
-        result += profileCol[aa] * stateProfile[aa]; // profileCol already background corrected
-        
-    return MathUtil::flog2(result);
+    return score(profileCol,stateProfile);
 }
 
-
-float profileStates::score(size_t stateA, size_t stateB)
+float ProfileStates::score(size_t stateA, size_t stateB)
 {
-    float result = 0.0;
     float *stateProfileA = profiles[stateA];
     float *stateProfileB = profiles[stateB];
-    
-    for (size_t aa = 0 ; aa < 20 ; aa++)
-        result += stateProfileA[aa] * stateProfileB[aa] / background[aa]; 
-        
-    return MathUtil::flog2(result);
+    return score(stateProfileA,stateProfileB);
 }
 
-float profileStates::distance(float* profileA, float* profileB)
+float ProfileStates::score(float* profileA, float* profileB)
 {
-    float ip = innerProd(profileA,profileB);
-    return MathUtil::flog2(innerProd(profileA,profileA) * innerProd(profileB,profileB) / (ip*ip));
+    return score(profileA,background,profileB);
 }
 
-float* profileStates::getProfile(size_t state)
+float ProfileStates::distance(float* profileA, float* profileB)
 {
-    return profiles[state];
+    return score(profileA,profileA) + score(profileB,profileB) -2*score(profileA,profileB);
 }
 
-
-profileStates::~profileStates()
-{
-    for (size_t k = 0; k<profiles.size() ; k++)
-        delete profiles[k];
-    delete background;
-    delete subMat;
-}
 

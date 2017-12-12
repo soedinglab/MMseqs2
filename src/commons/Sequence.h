@@ -63,7 +63,13 @@ public:
     void mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *, const unsigned int> data);
 
     // map profile HMM, *data points to start position of Profile
-    void mapProfile(const char *sequence);
+    void mapProfile(const char *sequence, bool mapScores);
+
+    // mixture of library and profile prob
+    void mapProfileState(const char *sequence);
+
+    // map the profile state sequence
+    void mapProfileStateSequence(const char *sequence);
 
     // checks if there is still a k-mer left
     bool hasNextKmer() {
@@ -134,7 +140,7 @@ public:
                             break;
                     }
 
-                    if(seqType == HMM_PROFILE) {
+                    if(seqType == HMM_PROFILE||seqType==PROFILE_STATE_PROFILE) {
                             nextProfileKmer();
                             for(unsigned int i = 0; i < this->kmerSize; i++) {
                                     kmerWindow[i] = 0;
@@ -171,9 +177,12 @@ public:
     static const int AMINO_ACIDS = 0;
     static const int NUCLEOTIDES = 1;
     static const int HMM_PROFILE = 2;
+    static const int PROFILE_STATE_SEQ = 3;
+    static const int PROFILE_STATE_PROFILE = 4;
+
 
     // submat
-    const BaseMatrix * subMat;
+    BaseMatrix * subMat;
 
     // length of sequence
     int L;
@@ -209,6 +218,8 @@ public:
     const unsigned char *getAAPosInSpacedPattern() {     return aaPosInSpacedPattern;  }
 
     void printPSSM();
+
+    void printProfileStatePSSM();
 
     void printProfile();
 
@@ -249,6 +260,7 @@ public:
     }
 
 
+    const float *getProfile();
 
 private:
     void mapSequence(const char *seq);

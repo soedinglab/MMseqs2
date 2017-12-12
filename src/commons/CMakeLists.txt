@@ -17,10 +17,14 @@ set(commons_header_files
         commons/MMseqsMPI.h
         commons/NucleotideMatrix.h
         commons/Orf.h
+        commons/ProfileStates.h
+        commons/CSProfile.h
+        commons/LibraryReader.h
         commons/Parameters.h
         commons/ScoreMatrix.h
         commons/Sequence.h
         commons/SubstitutionMatrix.h
+        commons/SubstitutionMatrixProfileStates.h
         commons/tantan.h
         commons/TranslateNucl.h
         commons/UniprotKB.h
@@ -46,7 +50,9 @@ set(commons_source_files
         commons/NucleotideMatrix.cpp
         commons/Orf.cpp
         commons/Parameters.cpp
-        commons/profileStates.cpp
+        commons/ProfileStates.cpp
+        commons/CSProfile.cpp
+        commons/LibraryReader.cpp
         commons/Sequence.cpp
         commons/SubstitutionMatrix.cpp
         commons/tantan.cpp

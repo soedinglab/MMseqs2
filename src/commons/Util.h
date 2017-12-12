@@ -48,6 +48,9 @@ public:
     static void decomposeDomain(size_t domain_size, size_t world_rank,
                                 size_t world_size, size_t *subdomain_start,
                                 size_t *subdomain_size);
+
+    static void rankedDescSort32(short *val, unsigned int *index);
+
     static void rankedDescSort20(short *val, unsigned int *index);
     template <typename T>
     static void decomposeDomainByAminoAcid(size_t aaSize, T seqSizes, size_t count,

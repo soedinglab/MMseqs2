@@ -5,10 +5,12 @@
 #include "Parameters.h"
 #include "smith_waterman_sse2.h"
 
-Matcher::Matcher(int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection){
+Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection){
     this->m = m;
     this->tinySubMat = NULL;
-    setSubstitutionMatrix(m);
+    if(querySeqType != Sequence::PROFILE_STATE_PROFILE ) {
+        setSubstitutionMatrix(m);
+    }
     this->maxSeqLen = maxSeqLen;
     aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
     this->evaluer = evaluer;
@@ -35,7 +37,7 @@ Matcher::~Matcher(){
 
 void Matcher::initQuery(Sequence* query){
     currentQuery = query;
-    if(query->getSeqType() == Sequence::HMM_PROFILE){
+    if(query->getSeqType() == Sequence::HMM_PROFILE || query->getSeqType() == Sequence::PROFILE_STATE_PROFILE){
         aligner->ssw_init(query, query->getAlignmentProfile(), this->m, this->m->alphabetSize, 2);
     }else{
         aligner->ssw_init(query, this->tinySubMat, this->m, this->m->alphabetSize, 2);

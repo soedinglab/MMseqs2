@@ -133,11 +133,10 @@ public:
 #pragma GCC diagnostic ignored "-Wconstant-conversion"
 #pragma GCC diagnostic ignored "-Woverflow"
     /** A single gain expressed as minifloat */
-    typedef uint16_t gain_minifloat_t;
     #define EXPONENT_BITS   3
+    #define MANTISSA_BITS   5
     #define EXPONENT_MAX    ((1 << EXPONENT_BITS) - 1)
     #define EXCESS          ((1 << EXPONENT_BITS) - 2)
-    #define MANTISSA_BITS   5
     #define MANTISSA_MAX    ((1 << MANTISSA_BITS) - 1)
     #define HIDDEN_BIT      (1 << MANTISSA_BITS)
     #define ONE_FLOAT       ((float) (1 << (MANTISSA_BITS + 1)))
@@ -167,8 +166,6 @@ public:
         return exp > 0 ? (exp << MANTISSA_BITS) | (mantissa & ~HIDDEN_BIT) :
                (mantissa >> (1 - exp)) & MANTISSA_MAX;
     }
-
-
 
     static float convertCharToFloat(char a)
     {

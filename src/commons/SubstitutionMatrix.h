@@ -23,7 +23,9 @@ class SubstitutionMatrix: public BaseMatrix {
         virtual double getBackgroundProb(size_t aa_index) { return pBack[aa_index]; }
 
         static void calcLocalAaBiasCorrection(const BaseMatrix *m ,const int *int_sequence, const int N, float *compositionBias);
-
+        static void calcProfileProfileLocalAaBiasCorrection(short *profileScores,
+                                                const size_t profileAASize,
+                                                const int N);
         static void calcGlobalAaBiasCorrection( short *profileScores,
                                                const size_t profileAASize,
                                                const int N);

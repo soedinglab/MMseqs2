@@ -30,6 +30,8 @@ set(COMPILED_RESOURCES
         blosum100.out
         CovSeqidQscPercMinDiag.out
         CovSeqidQscPercMinDiagTargetCov.out
+        ExpOpt3_8_polished.cs32.lib
+        K4000.crf
         )
 
 set(GENERATED_OUTPUT_HEADERS "")

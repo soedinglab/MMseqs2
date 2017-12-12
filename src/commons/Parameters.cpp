@@ -61,7 +61,7 @@ Parameters::Parameters():
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "type of score used for clustering [1:2]. 1=alignment score. 2=sequence identity ",typeid(int),(void *) &similarityScoreType,  "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","verbosity level: 0=nothing, 1: +errors, 2: +warnings, 3: +info",typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
-        // create profile (HMM, PSSM)
+        // create profile (HMM)
         PARAM_PROFILE_TYPE(PARAM_PROFILE_TYPE_ID,"--profile-type", "Profile type", "0: HMM (HHsuite) 1: PSSM or 2: HMMER3",typeid(int),(void *) &profileMode,  "^[0-2]{1}$"),
         // convertalignments
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format 0: BLAST-TAB, 1: PAIRWISE, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
@@ -89,6 +89,9 @@ Parameters::Parameters():
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (0.0,infinity)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
+        // sequence2profile
+        PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void*) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
+        PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void*) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         //createtesv
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
         // result2stats
@@ -235,6 +238,16 @@ Parameters::Parameters():
     convertprofiledb.push_back(PARAM_THREADS);
     convertprofiledb.push_back(PARAM_V);
 
+
+    // sequence2profile
+    sequence2profile.push_back(PARAM_PCA);
+    sequence2profile.push_back(PARAM_PCB);
+    sequence2profile.push_back(PARAM_NEFF);
+    sequence2profile.push_back(PARAM_TAU);
+    sequence2profile.push_back(PARAM_THREADS);
+    sequence2profile.push_back(PARAM_SUB_MAT);
+    sequence2profile.push_back(PARAM_V);
+
     // create fasta
     createFasta.push_back(PARAM_V);
 
@@ -317,6 +330,11 @@ Parameters::Parameters():
     profile2pssm.push_back(PARAM_DB_OUTPUT);
     profile2pssm.push_back(PARAM_THREADS);
     profile2pssm.push_back(PARAM_V);
+
+    // profile2cs
+    profile2cs.push_back(PARAM_SUB_MAT);
+    profile2cs.push_back(PARAM_THREADS);
+    profile2cs.push_back(PARAM_V);
 
     // extract orf
     extractorfs.push_back(PARAM_ORF_MIN_LENGTH);
@@ -1003,6 +1021,10 @@ void Parameters::setDefaults() {
     wg = false;
     pca = 1.0;
     pcb = 1.5;
+
+    // sequence2profile
+    neff = 1.0;
+    tau = 0.9;
 
     // logging
     verbosity = Debug::INFO;

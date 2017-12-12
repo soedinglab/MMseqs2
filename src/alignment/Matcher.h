@@ -59,7 +59,7 @@ public:
         result_t(){};
     };
 
-    Matcher(int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection);
+    Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection);
 
     ~Matcher();
 

@@ -41,6 +41,12 @@ int prefilter(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
+    if(queryDbType != DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE_STATE ){
+        Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
+        EXIT(EXIT_FAILURE);
+    }else if (queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE_STATE){
+        queryDbType = Sequence::PROFILE_STATE_PROFILE;
+    }
 
     Prefiltering pref(par.db2, par.db2Index, queryDbType, targetDbType, par);
     gettimeofday(&end, NULL);

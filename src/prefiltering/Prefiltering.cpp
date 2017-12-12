@@ -6,6 +6,7 @@
 #include "FileUtil.h"
 
 #include <sys/time.h>
+#include <SubstitutionMatrixProfileStates.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -119,7 +120,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         } else if (kmerThr < minKmerThr) {
             Debug(Debug::WARNING) << "Required k-mer threshold does not match index table k-mer threshold. Recomputing index table!\n";
             reopenTargetDb();
-        } else if (querySeqType == Sequence::HMM_PROFILE && minKmerThr != 0) {
+        } else if ((querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE) && minKmerThr != 0) {
             Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
             reopenTargetDb();
         }
@@ -135,14 +136,20 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             _3merSubMatrix = getScoreMatrix(*subMat, 3);
             break;
         case Sequence::AMINO_ACIDS:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false, false);
             alphabetSize = subMat->alphabetSize;
             _2merSubMatrix = getScoreMatrix(*subMat, 2);
             _3merSubMatrix = getScoreMatrix(*subMat, 3);
             break;
         case Sequence::HMM_PROFILE:
             // needed for Background distributions
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false, false);
+            _2merSubMatrix = NULL;
+            _3merSubMatrix = NULL;
+            break;
+        case Sequence::PROFILE_STATE_PROFILE:
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true, true);
+            this->alphabetSize = subMat->alphabetSize;
             _2merSubMatrix = NULL;
             _3merSubMatrix = NULL;
             break;
@@ -220,6 +227,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
                                                   threads);
 
     if (neededSize > 0.9 * totalMemoryInByte) { // memory is not enough to compute everything at once
+        //TODO add PROFILE_STATE (just 6-mers)
         std::pair<int, int> splitingSetting = Prefiltering::optimizeSplit(totalMemoryInByte, &dbr,
                                                                           alphabetSize, *kmerSize, threads);
         if (splitingSetting.second == -1) {
@@ -363,7 +371,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
 
 ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
     // profile only uses the 2mer, 3mer matrix
-    if (targetSeqType == Sequence::HMM_PROFILE) {
+    if (targetSeqType == Sequence::HMM_PROFILE||targetSeqType==Sequence::PROFILE_STATE_SEQ) {
         return NULL;
     }
 
@@ -390,7 +398,8 @@ IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize,
         gettimeofday(&start, NULL);
 
         Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
-        int localKmerThr = (querySeqType != Sequence::HMM_PROFILE) ? kmerThr : 0;
+        int localKmerThr = (querySeqType != Sequence::HMM_PROFILE &&
+                            querySeqType != Sequence::PROFILE_STATE_PROFILE) ? kmerThr : 0;
         IndexTable* table = PrefilteringIndexReader::generateIndexTable(
                 tdbr, &tseq, subMat, alphabetSize, kmerSize,
                 dbFrom, dbFrom + dbSize,
@@ -655,7 +664,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         QueryMatcher matcher(subMat, indexTable, evaluer, tdbr->getSeqLens() + dbFrom, kmerThr, kmerMatchProb,
                              kmerSize, dbSize, maxSeqLen, seq.getEffectiveKmerSize(),
                              maxResults, aaBiasCorrection, diagonalScoring, minDiagScoreThr, takeOnlyBestKmer);
-        if (querySeqType == Sequence::HMM_PROFILE) {
+        if (querySeqType == Sequence::HMM_PROFILE||querySeqType == Sequence::PROFILE_STATE_PROFILE) {
             matcher.setProfileMatrix(seq.profile_matrix);
         } else {
             matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);
@@ -833,12 +842,15 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
 }
 
 BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize,
-                                                float bitFactor, bool ignoreX) {
+                                                float bitFactor, bool ignoreX, bool profileState) {
     Debug(Debug::INFO) << "Substitution matrices...\n";
     BaseMatrix *subMat;
     if (alphabetSize < 21) {
         SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
         subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, alphabetSize, bitFactor);
+    }else if(profileState == true){
+        SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
+        subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack, sMat.subMatrixPseudoCounts, sMat.subMatrix, bitFactor, 0.0, 1);
     } else {
         subMat = new SubstitutionMatrix(scoringMatrixFile.c_str(), bitFactor, -0.2f);
     }
@@ -876,7 +888,7 @@ double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned 
         QueryMatcher matcher(subMat, indexTable, evaluer, tdbr->getSeqLens(), kmerThr, 1.0,
                              kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
                              150000, aaBiasCorrection, false, minDiagScoreThr, false);
-        if (querySeqType == Sequence::HMM_PROFILE) {
+        if(querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE ){
             matcher.setProfileMatrix(seq.profile_matrix);
         } else {
             matcher.setSubstitutionMatrix(_3merSubMatrix, _2merSubMatrix);

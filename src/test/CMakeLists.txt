@@ -24,6 +24,8 @@ set(TESTS
         TestTanTan.cpp
         TestTaxonomy.cpp
         TestTranslate.cpp
+        TestProfileStates.cpp
+        TestCSProfile.cpp
         TestUtil.cpp
         )
 

@@ -13,8 +13,8 @@ class ReducedMatrix : public BaseMatrix {
         virtual ~ReducedMatrix();
 
         void setupLetterMapping() {
-                for(char letter = 0; letter <= 'z'; letter++){
-                        char upperLetter = toupper(letter);
+                for(int letter = 0; letter < UCHAR_MAX; letter++){
+                        char upperLetter = toupper(static_cast<char>(letter));
                         switch(upperLetter){
                                 case 'A':
                                 case 'T':

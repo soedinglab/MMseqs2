@@ -18,6 +18,9 @@ public:
     static const int DBTYPE_AA = 0;
     static const int DBTYPE_NUC = 1;
     static const int DBTYPE_PROFILE = 2;
+    static const int DBTYPE_PROFILE_STATE = 3;
+    static const int PROFILE_STATE_PROFILE = 4; // it is not used but it matches the Sequence definition
+
 
     struct Index {
         T id;
@@ -138,6 +141,8 @@ public:
             case DBTYPE_AA: return "Aminoacid";
             case DBTYPE_NUC: return "Nucleotide";
             case DBTYPE_PROFILE: return "Profile";
+            case DBTYPE_PROFILE_STATE: return "Profile state";
+
             default: return "Unknown";
         }
     }

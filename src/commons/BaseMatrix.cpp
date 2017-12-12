@@ -12,7 +12,7 @@ BaseMatrix::BaseMatrix(){
     this->alphabetSize = 21;
     // init [amino acid <-> int] mappings
 
-    int2aa = new char[alphabetSize];
+    int2aa = new char[32];
     // A C D E F G	H I	K L M N P Q R S T V W Y
     int2aa[0] = 'A';
     int2aa[1] = 'C';
@@ -35,10 +35,22 @@ BaseMatrix::BaseMatrix(){
     int2aa[18] = 'W';
     int2aa[19] = 'Y';
     int2aa[20] = 'X';
+    // needed for profile states
+    int2aa[21] = 'Z';
+    int2aa[22] = '[';
+    int2aa[23] = '\\';
+    int2aa[24] = ']';
+    int2aa[25] = '^';
+    int2aa[26] = '_';
+    int2aa[27] = '`';
+    int2aa[28] = 'a';
+    int2aa[29] = 'b';
+    int2aa[30] = 'c';
+    int2aa[31] = 'd';
 
 
-    aa2int = new int['z'+1];
-    for (int i = 0; i <= 'z'; ++i) aa2int[i]=-1;
+    aa2int = new int[UCHAR_MAX];
+    for (int i = 0; i < UCHAR_MAX; ++i) aa2int[i]=-1;
     for (int i = 0; i < alphabetSize; ++i){
         aa2int[(int)int2aa[i]] = i;
     }

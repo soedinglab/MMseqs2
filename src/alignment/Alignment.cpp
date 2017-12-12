@@ -1,3 +1,4 @@
+#include <SubstitutionMatrixProfileStates.h>
 #include "Alignment.h"
 #include "Util.h"
 #include "Debug.h"
@@ -127,6 +128,12 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
+    if(querySeqType != DBReader<unsigned int>::DBTYPE_PROFILE && targetSeqType == DBReader<unsigned int>::DBTYPE_PROFILE_STATE ){
+        Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
+        EXIT(EXIT_FAILURE);
+    }else if(querySeqType == DBReader<unsigned int>::DBTYPE_PROFILE && targetSeqType == DBReader<unsigned int>::DBTYPE_PROFILE_STATE){
+        querySeqType = Sequence::PROFILE_STATE_PROFILE;
+    }
     Debug(Debug::INFO) << "Query database type: " << qdbr->getDbTypeName() << "\n";
     Debug(Debug::INFO) << "Target database type: " << tdbr->getDbTypeName() << "\n";
 
@@ -135,6 +142,9 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
     if (querySeqType == Sequence::NUCLEOTIDES) {
         m = new NucleotideMatrix();
+    } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
+        SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, 0.0, par.maxSeqLen);
     } else {
         // keep score bias at 0.0 (improved ROC)
         m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, 0.0);
@@ -263,10 +273,10 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         char buffer[1024+32768];
         Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
         Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
-        Matcher matcher(maxSeqLen, m, &evaluer, compBiasCorrection);
+        Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection);
         Matcher *realigner = NULL;
         if (realign ==  true) {
-            realigner = new Matcher(maxSeqLen, realign_m, &evaluer, compBiasCorrection);
+            realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection);
         }
 
         const size_t flushSize = 1000000;
