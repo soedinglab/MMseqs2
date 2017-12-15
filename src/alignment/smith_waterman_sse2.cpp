@@ -59,7 +59,7 @@ SmithWaterman::SmithWaterman(size_t maxSequenceLength, int aaSize, bool aaBiasCo
 
 	memset(profile->query_sequence, 0, maxSequenceLength * sizeof(int8_t));
 	memset(profile->query_rev_sequence, 0, maxSequenceLength * sizeof(int8_t));
-	memset(profile->mat_rev, 0, maxSequenceLength * Sequence::PROFILE_AA_SIZE);
+	memset(profile->mat_rev, 0, maxSequenceLength * aaSize);
 	memset(profile->composition_bias, 0, maxSequenceLength * sizeof(int8_t));
 	memset(profile->composition_bias_rev, 0, maxSequenceLength * sizeof(int8_t));
 }

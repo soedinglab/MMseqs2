@@ -141,13 +141,19 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     if (querySeqType == Sequence::NUCLEOTIDES) {
-        m = new NucleotideMatrix();
+        m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        gapOpen = 7;
+        gapExtend = 1;
     } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, 0.0);
         this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, 0.0, par.maxSeqLen);
+        gapOpen = Matcher::GAP_OPEN;
+        gapExtend = Matcher::GAP_EXTEND;
     } else {
         // keep score bias at 0.0 (improved ROC)
         m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, 0.0);
+        gapOpen = Matcher::GAP_OPEN;
+        gapExtend = Matcher::GAP_EXTEND;
     }
 
     if (realign == true) {
@@ -260,7 +266,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     DBWriter dbw(outDB.c_str(), outDBIndex.c_str(), threads);
     dbw.open();
 
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), this->m, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), this->m, gapOpen, gapExtend, true);
 
 #pragma omp parallel
     {
@@ -273,10 +279,10 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
         char buffer[1024+32768];
         Sequence qSeq(maxSeqLen, querySeqType, m, 0, false, compBiasCorrection);
         Sequence dbSeq(maxSeqLen, targetSeqType, m, 0, false, compBiasCorrection);
-        Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection);
+        Matcher matcher(querySeqType, maxSeqLen, m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
         Matcher *realigner = NULL;
         if (realign ==  true) {
-            realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection);
+            realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
         }
 
         const size_t flushSize = 1000000;

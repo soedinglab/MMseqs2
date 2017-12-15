@@ -12,6 +12,7 @@ set(COMPILED_RESOURCES
         createindex.sh
         translated_search.sh
         taxonomy.sh
+        nucleotide.out
         blosum30.out
         blosum35.out
         blosum40.out

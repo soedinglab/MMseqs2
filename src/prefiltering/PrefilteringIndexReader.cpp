@@ -5,7 +5,7 @@
 #include "FileUtil.h"
 #include "tantan.h"
 
-const char*  PrefilteringIndexReader::CURRENT_VERSION="4.0.0";
+const char*  PrefilteringIndexReader::CURRENT_VERSION="5.0.0";
 unsigned int PrefilteringIndexReader::VERSION = 0;
 unsigned int PrefilteringIndexReader::META = 1;
 unsigned int PrefilteringIndexReader::SCOREMATRIXNAME = 2;
@@ -46,7 +46,11 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     writer.open();
 
     if (seqType != Sequence::HMM_PROFILE||seqType != Sequence::PROFILE_STATE_SEQ ) {
+        int alphabetSize = subMat->alphabetSize;
+        subMat->alphabetSize = subMat->alphabetSize-1;
         ScoreMatrix *s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
+        ScoreMatrix *s2 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
+        subMat->alphabetSize = alphabetSize;
         char* serialized3mer = ScoreMatrix::serialize(*s3);
         Debug(Debug::INFO) << "Write SCOREMATRIX3MER (" << SCOREMATRIX3MER << ")\n";
         writer.writeData(serialized3mer, ScoreMatrix::size(*s3), SCOREMATRIX3MER, 0);
@@ -54,7 +58,6 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
         free(serialized3mer);
         ScoreMatrix::cleanup(s3);
 
-        ScoreMatrix *s2 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
         char* serialized2mer = ScoreMatrix::serialize(*s2);
         Debug(Debug::INFO) << "Write SCOREMATRIX2MER (" << SCOREMATRIX2MER << ")\n";
         writer.writeData(serialized2mer, ScoreMatrix::size(*s2), SCOREMATRIX2MER, 0);
@@ -64,8 +67,10 @@ void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsign
     }
 
     Sequence seq(maxSeqLen, seqType, subMat, kmerSize, hasSpacedKmer, compBiasCorrection);
-
-    IndexTable *indexTable = new IndexTable(alphabetSize, kmerSize, false);
+    // remove x (not needed in index)
+    int adjustAlphabetSize = (seqType == Sequence::NUCLEOTIDES || seqType == Sequence::AMINO_ACIDS)
+                             ? alphabetSize -1: alphabetSize;
+    IndexTable *indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
 
     SequenceLookup *unmaskedLookup = NULL;
     PrefilteringIndexReader::fillDatabase(dbr, &seq, indexTable, subMat,
@@ -257,7 +262,9 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
     if (data.local) {
-        retTable = new IndexTable(data.alphabetSize, data.kmerSize, true);
+        int adjustAlphabetSize = (data.seqType != Sequence::NUCLEOTIDES || data.seqType  != Sequence::AMINO_ACIDS)
+                                 ? data.alphabetSize -1: data.alphabetSize;
+        retTable = new IndexTable(adjustAlphabetSize, data.kmerSize, true);
     }else {
         Debug(Debug::ERROR) << "Search mode is not valid.\n";
         EXIT(EXIT_FAILURE);
@@ -347,7 +354,7 @@ ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> 
         dbr->touchData(id);
     }
 
-    return ScoreMatrix::unserialize(data, meta.alphabetSize, 2);
+    return ScoreMatrix::unserialize(data, meta.alphabetSize-1, 2);
 }
 
 ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
@@ -358,8 +365,8 @@ ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> 
     if (touch) {
         dbr->touchData(id);
     }
-
-    return ScoreMatrix::unserialize(data, meta.alphabetSize, 3);
+    // remove x (not needed in index)
+    return ScoreMatrix::unserialize(data, meta.alphabetSize-1, 3);
 }
 
 std::string PrefilteringIndexReader::searchForIndex(const std::string &pathToDB) {
@@ -451,12 +458,12 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 
 #pragma omp parallel
     {
-        Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
+        Indexer idxer(static_cast<unsigned int>(indexTable->getAlphabetSize()), seq->getKmerSize());
         Sequence s(seq->getMaxLen(), seq->getSeqType(), subMat, seq->getKmerSize(), seq->isSpaced(), false);
 
         KmerGenerator *generator = NULL;
         if (isProfile) {
-            generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
+            generator = new KmerGenerator(seq->getKmerSize(), indexTable->getAlphabetSize(), kmerThr);
             generator->setDivideStrategy(s.profile_matrix);
         }
 
@@ -571,12 +578,12 @@ void PrefilteringIndexReader::fillDatabase(DBReader<unsigned int> *dbr, Sequence
 #pragma omp parallel
     {
         Sequence s(seq->getMaxLen(), seq->getSeqType(), subMat, seq->getKmerSize(), seq->isSpaced(), false);
-        Indexer idxer(static_cast<unsigned int>(subMat->alphabetSize), seq->getKmerSize());
+        Indexer idxer(static_cast<unsigned int>(indexTable->getAlphabetSize()), seq->getKmerSize());
         IndexEntryLocalTmp * buffer = new IndexEntryLocalTmp[seq->getMaxLen()];
 
         KmerGenerator *generator = NULL;
         if (isProfile) {
-            generator = new KmerGenerator(seq->getKmerSize(), subMat->alphabetSize, kmerThr);
+            generator = new KmerGenerator(seq->getKmerSize(), indexTable->getAlphabetSize(), kmerThr);
             generator->setDivideStrategy(s.profile_matrix);
         }
 

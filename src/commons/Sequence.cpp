@@ -57,9 +57,9 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
         this->profile_index         = (unsigned int *)     mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(int));
         this->profile               = (float *)        mem_align(ALIGN_INT, maxLen * PROFILE_AA_SIZE * sizeof(float));
         this->pseudocountsWeight    = (float *)        mem_align(ALIGN_INT, maxLen * profile_row_size * sizeof(float));
-        this->profile_for_alignment = (int8_t *)   mem_align(ALIGN_INT, maxLen * PROFILE_AA_SIZE * sizeof(int8_t));
+        this->profile_for_alignment = (int8_t *)   mem_align(ALIGN_INT, maxLen * subMat->alphabetSize * sizeof(int8_t));
         // init profile
-        memset(this->profile_for_alignment, 0, maxLen * PROFILE_AA_SIZE * sizeof(int8_t));
+        memset(this->profile_for_alignment, 0, maxLen * subMat->alphabetSize * sizeof(int8_t));
         memset(this->profile, 0, maxLen * PROFILE_AA_SIZE * sizeof(float));
         for(size_t i = 0; i < maxLen * profile_row_size; i++){
             profile_score[i] = -SHRT_MAX;
@@ -221,7 +221,7 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence) 
 void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsigned char *,const unsigned int> data){
     this->id = id;
     this->dbKey = dbKey;
-    if (this->seqType == Sequence::AMINO_ACIDS || this->seqType == Sequence::PROFILE_STATE_SEQ ){
+    if (this->seqType == Sequence::AMINO_ACIDS || this->seqType == Sequence::NUCLEOTIDES || this->seqType == Sequence::PROFILE_STATE_SEQ ){
         this->L = data.second;
         for(int aa = 0; aa < this->L; aa++){
             this->int_sequence[aa] = data.first[aa];
@@ -236,7 +236,7 @@ void Sequence::mapSequence(size_t id, unsigned int dbKey, std::pair<const unsign
 void Sequence::mapProfileStateSequence(const char * sequence){
     size_t l = 0;
     size_t pos = 0;
-    char curr = sequence[pos];
+    unsigned char curr = sequence[pos];
     while (curr != '\0'){
 
         this->int_sequence[l]  = curr - 1;
@@ -370,43 +370,53 @@ void Sequence::mapProfileState(const char * sequenze){
     MathUtil::NormalizeTo1(pav, Sequence::PROFILE_AA_SIZE);
 
     // log (S(i,k)) = log ( SUM_a p(i,a) * p(k,a) / f(a) )   k: column state, i: pos in ali, a: amino acid
-    for (int i = 0; i < L; i++){
-        for (int k = 0; k < profileStateMat->alphabetSize; k++) {
-            // compute log score for all 32 profile states
-            float sum = profileStateMat->scoreState(&profile[i * Sequence::PROFILE_AA_SIZE], pav, k);
-            float pssmVal = (sum) * 8.0*profileStateMat->getScoreNormalization();
-            profile_score[i * profile_row_size + k] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
+    if(profileStateMat->alphabetSize == 32){
+        for (int i = 0; i < L; i++){
+            for (int k = 0; k < profileStateMat->alphabetSize; k++) {
+                // compute log score for all 32 profile states
+                float sum = profileStateMat->scoreState(&profile[i * Sequence::PROFILE_AA_SIZE], pav, k);
+                float pssmVal = (sum) * 8.0*profileStateMat->getScoreNormalization();
+                profile_score[i * profile_row_size + k] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
+            }
+        }
+    //    printProfileStatePSSM();
+
+        if(aaBiasCorrection==true){
+            //TODO use new formular
+            SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(profile_score, profile_row_size, this->L);
+        }
+    //    printProfileStatePSSM();
+
+        // sort profile scores and index for KmerGenerator (prefilter step)
+        for(int l = 0; l < this->L; l++){
+            unsigned int indexArray[32] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                            20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+            Util::rankedDescSort32(&profile_score[l * profile_row_size], (unsigned int *) &indexArray);
+            memcpy(&profile_index[l * profile_row_size], &indexArray, 32 * sizeof(int) );
+            // create consensus sequence
+    //        int_sequence[l] = indexArray[0]; // index 0 is the highst scoring one
+        }
+
+        // write alignment profile
+        for(int l = 0; l < this->L; l++){
+            for(size_t aa_num = 0; aa_num < 32; aa_num++) {
+                unsigned int aa_idx = profile_index[l * profile_row_size + aa_num];
+                float scale = 4.0*profileStateMat->getScoreNormalization();
+                float score = static_cast<float>(profile_score[l * profile_row_size + aa_num]);
+                float pssmVal = score/scale;
+                profile_for_alignment[aa_idx * this->L + l] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
+            }
+        }
+    }else{
+        // write alignment profile
+        for(int l = 0; l < this->L; l++){
+            for(size_t aa_num = 0; aa_num < subMat->alphabetSize; aa_num++) {
+                float sum = profileStateMat->scoreState(&profile[l * Sequence::PROFILE_AA_SIZE], pav, aa_num);
+                float pssmVal = (sum) * 2.0*profileStateMat->getScoreNormalization();
+                profile_for_alignment[aa_num * this->L + l] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
+            }
         }
     }
-//    printProfileStatePSSM();
-
-    if(aaBiasCorrection==true){
-        //TODO use new formular
-        SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(profile_score, profile_row_size, this->L);
-    }
-//    printProfileStatePSSM();
-
-    // sort profile scores and index for KmerGenerator (prefilter step)
-    for(int l = 0; l < this->L; l++){
-        unsigned int indexArray[32] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-                                        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
-        Util::rankedDescSort32(&profile_score[l * profile_row_size], (unsigned int *) &indexArray);
-        memcpy(&profile_index[l * profile_row_size], &indexArray, 32 * sizeof(int) );
-        // create consensus sequence
-//        int_sequence[l] = indexArray[0]; // index 0 is the highst scoring one
-    }
-
-    // write alignment profile
-    for(int l = 0; l < this->L; l++){
-        for(size_t aa_num = 0; aa_num < 32; aa_num++) {
-            unsigned int aa_idx = profile_index[l * profile_row_size + aa_num];
-            float scale = 4.0*profileStateMat->getScoreNormalization();
-            float score = static_cast<float>(profile_score[l * profile_row_size + aa_num]);
-            float pssmVal = score/scale;
-            profile_for_alignment[aa_idx * this->L + l] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
-        }
-    }
-
 }
 
 void Sequence::nextProfileKmer() {

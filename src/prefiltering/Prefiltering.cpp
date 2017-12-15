@@ -4,7 +4,9 @@
 #include "ExtendedSubstitutionMatrix.h"
 #include "PatternCompiler.h"
 #include "FileUtil.h"
-
+namespace prefilter{
+#include "ExpOpt3_8_polished.cs32.lib.h"
+}
 #include <sys/time.h>
 #include <SubstitutionMatrixProfileStates.h>
 
@@ -106,40 +108,24 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         templateDBIsIndex = false;
     }
 
-    takeOnlyBestKmer = targetSeqType == Sequence::HMM_PROFILE
-                       && querySeqType == Sequence::AMINO_ACIDS;
-
-    int originalSplits = splits;
-    setupSplit(*tdbr, alphabetSize, threads, templateDBIsIndex, maxResListLen, &kmerSize, &splits, &splitMode);
-    kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
-
-    if (templateDBIsIndex == true) {
-        if (splits != originalSplits) {
-            Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
-            reopenTargetDb();
-        } else if (kmerThr < minKmerThr) {
-            Debug(Debug::WARNING) << "Required k-mer threshold does not match index table k-mer threshold. Recomputing index table!\n";
-            reopenTargetDb();
-        } else if ((querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE) && minKmerThr != 0) {
-            Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
-            reopenTargetDb();
-        }
-    }
-
-    Debug(Debug::INFO) << "Target database: " << targetDB << "(Size: " << tdbr->getSize() << ")\n";
-
+    takeOnlyBestKmer = (targetSeqType == Sequence::HMM_PROFILE && querySeqType == Sequence::AMINO_ACIDS) ||
+                       (targetSeqType == Sequence::NUCLEOTIDES && querySeqType == Sequence::NUCLEOTIDES);
     // init the substitution matrices
     switch (querySeqType) {
         case Sequence::NUCLEOTIDES:
-            subMat = new NucleotideMatrix();
-            _2merSubMatrix = getScoreMatrix(*subMat, 2);
-            _3merSubMatrix = getScoreMatrix(*subMat, 3);
+            subMat = new NucleotideMatrix(scoringMatrixFile.c_str(), 1.0, 0.0);
+            alphabetSize = subMat->alphabetSize;
+            _2merSubMatrix = NULL;
+            _3merSubMatrix = NULL;
             break;
         case Sequence::AMINO_ACIDS:
             subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false, false);
             alphabetSize = subMat->alphabetSize;
+            // Do not add X
+            subMat->alphabetSize=subMat->alphabetSize-1;
             _2merSubMatrix = getScoreMatrix(*subMat, 2);
             _3merSubMatrix = getScoreMatrix(*subMat, 3);
+            subMat->alphabetSize=alphabetSize;
             break;
         case Sequence::HMM_PROFILE:
             // needed for Background distributions
@@ -157,6 +143,27 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
             EXIT(EXIT_FAILURE);
     }
+
+    int originalSplits = splits;
+    setupSplit(*tdbr, alphabetSize, threads, templateDBIsIndex, maxResListLen, &kmerSize, &splits, &splitMode);
+    if(targetSeqType != Sequence::NUCLEOTIDES){
+        kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
+    }
+    if (templateDBIsIndex == true) {
+        if (splits != originalSplits) {
+            Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
+            reopenTargetDb();
+        } else if (kmerThr < minKmerThr) {
+            Debug(Debug::WARNING) << "Required k-mer threshold does not match index table k-mer threshold. Recomputing index table!\n";
+            reopenTargetDb();
+        } else if ((querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE) && minKmerThr != 0) {
+            Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
+            reopenTargetDb();
+        }
+    }
+
+    Debug(Debug::INFO) << "Target database: " << targetDB << "(Size: " << tdbr->getSize() << ")\n";
+
 
     if (splitMode == Parameters::QUERY_DB_SPLIT) {
         // create the whole index table
@@ -218,7 +225,8 @@ void Prefiltering::reopenTargetDb() {
 }
 
 void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const int threads,
-                              const bool templateDBIsIndex, const size_t maxResListLen, int *kmerSize, int *split, int *splitMode) {
+                              const bool templateDBIsIndex, const size_t maxResListLen, int *kmerSize,
+                              int *split, int *splitMode) {
     const size_t totalMemoryInByte = Util::getTotalSystemMemory();
     size_t neededSize = estimateMemoryConsumption(1,
                                                   dbr.getSize(), dbr.getAminoAcidDBSize(),  maxResListLen, alphabetSize,
@@ -399,9 +407,13 @@ IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize,
 
         Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
         int localKmerThr = (querySeqType != Sequence::HMM_PROFILE &&
-                            querySeqType != Sequence::PROFILE_STATE_PROFILE) ? kmerThr : 0;
+                            querySeqType != Sequence::PROFILE_STATE_PROFILE &&
+                            querySeqType != Sequence::NUCLEOTIDES ) ? kmerThr : 0;
+        // remove X or N for seeding
+        int adjustAlphabetSize = (targetSeqType == Sequence::NUCLEOTIDES || targetSeqType == Sequence::AMINO_ACIDS)
+                           ? alphabetSize -1: alphabetSize;
         IndexTable* table = PrefilteringIndexReader::generateIndexTable(
-                tdbr, &tseq, subMat, alphabetSize, kmerSize,
+                tdbr, &tseq, subMat, adjustAlphabetSize, kmerSize,
                 dbFrom, dbFrom + dbSize,
                 diagonalScoring, maskMode, localKmerThr, threads
         );

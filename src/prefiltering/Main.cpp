@@ -33,10 +33,10 @@ int prefilter(int argc, const char **argv, const Command& command) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if(queryDbType == DBReader<unsigned int>::DBTYPE_NUC || targetDbType == DBReader<unsigned int>::DBTYPE_NUC){
-        Debug(Debug::ERROR) << "The prefilter does not support nucleotide sequences.\n";
-        EXIT(EXIT_FAILURE);
-    }
+//    if(queryDbType == DBReader<unsigned int>::DBTYPE_NUC || targetDbType == DBReader<unsigned int>::DBTYPE_NUC){
+//        Debug(Debug::ERROR) << "The prefilter does not support nucleotide sequences.\n";
+//        EXIT(EXIT_FAILURE);
+//    }
     if(queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE ){
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);

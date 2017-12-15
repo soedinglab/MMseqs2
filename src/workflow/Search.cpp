@@ -51,11 +51,8 @@ int search(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    if(queryDbType == DBReader<unsigned int>::DBTYPE_NUC && targetDbType == DBReader<unsigned int>::DBTYPE_NUC ){
-        Debug(Debug::ERROR) << "It is not supported that both dbs are nucleotide databases.\n";
-        EXIT(EXIT_FAILURE);
-    }
-    bool isNuclSearch=queryDbType== DBReader<unsigned int>::DBTYPE_NUC || targetDbType== DBReader<unsigned int>::DBTYPE_NUC;
+    bool isTranslatedNuclSearch= (queryDbType== DBReader<unsigned int>::DBTYPE_NUC || targetDbType== DBReader<unsigned int>::DBTYPE_NUC) &&
+                       (queryDbType != DBReader<unsigned int>::DBTYPE_NUC && targetDbType != DBReader<unsigned int>::DBTYPE_NUC);
 
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
@@ -191,7 +188,7 @@ int search(int argc, const char **argv, const Command& command) {
         program = std::string(tmpDir + "/blastp.sh");
     }
 
-    if(isNuclSearch==true){
+    if(isTranslatedNuclSearch==true){
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
         if(queryDbType==DBReader<unsigned int>::DBTYPE_NUC){
             cmd.addVariable("QUERY_NUCL", "TRUE");

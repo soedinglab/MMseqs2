@@ -37,7 +37,7 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputat
     this->indexTable = indexTable;
     this->kmerSize = kmerSize;
     this->kmerThr = kmerThr;
-    this->kmerGenerator = new KmerGenerator(kmerSize, m->alphabetSize, kmerThr);
+    this->kmerGenerator = new KmerGenerator(kmerSize, indexTable->getAlphabetSize(), kmerThr);
     this->aaBiasCorrection = aaBiasCorrection;
     this->takeOnlyBestKmer = takeOnlyBestKmer;
 
@@ -192,15 +192,24 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
     size_t seqListSize;
     unsigned short indexStart = 0;
     unsigned short indexTo = 0;
-    Indexer idx(m->alphabetSize, kmerSize);
+    Indexer idx(indexTable->getAlphabetSize(), kmerSize);
+    const int xIndex = m->aa2int[(int)'X'];
+
     while(seq->hasNextKmer()){
         const int * kmer = seq->nextKmer();
         const unsigned char * pos = seq->getAAPosInSpacedPattern();
         const unsigned short current_i = seq->getCurrentPosition();
 
         float biasCorrection = 0;
+        int xCount = 0;
         for (int i = 0; i < kmerSize; i++){
+            xCount += (kmer[i] == xIndex);
             biasCorrection += compositionBias[current_i + static_cast<short>(pos[i])];
+        }
+        if(xCount > 0){
+            indexTo = current_i;
+            indexPointer[current_i] = sequenceHits;
+            continue;
         }
         // round bias to next higher or lower value
         short bias = static_cast<short>((biasCorrection < 0.0) ? biasCorrection - 0.5: biasCorrection + 0.5);
@@ -231,8 +240,8 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
 
         for (unsigned int kmerPos = 0; kmerPos < kmerElementSize; kmerPos++) {
             // generate k-mer list
-                        //idx.printKmer(kmerList.index[kmerPos], kmerSize, m->int2aa);
-                        //std::cout << std::endl;
+//                        idx.printKmer(index[kmerPos], kmerSize, m->int2aa);
+//                        std::cout << std::endl;
 
             const IndexEntryLocal *entries = indexTable->getDBSeqList(index[kmerPos], &seqListSize);
 

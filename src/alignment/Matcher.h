@@ -59,7 +59,9 @@ public:
         result_t(){};
     };
 
-    Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection);
+    Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m,
+            EvalueComputation * evaluer, bool aaBiasCorrection,
+            int gapOpen, int gapExtend);
 
     ~Matcher();
 
@@ -100,6 +102,11 @@ public:
     static size_t resultToBuffer(char * buffer, const result_t &result, bool addBacktrace, bool compress  = true);
 
 private:
+
+    // costs to open a gap
+    int gapOpen;
+    // costs to extend a gap
+    int gapExtend;
 
     // calculate the query queryProfile for SIMD registers processing 8 elements
     int maxSeqLen;

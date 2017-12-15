@@ -1,30 +1,28 @@
 #include "NucleotideMatrix.h"
-
-NucleotideMatrix::NucleotideMatrix(){
-    this->alphabetSize = 5;
-
+#include <climits>
+NucleotideMatrix::NucleotideMatrix(const char *scoringMatrixFileName_, float bitFactor, float scoreBias)
+        : SubstitutionMatrix("nucleotide.out", bitFactor, scoreBias) {
+//    this->alphabetSize = 5;
     setupLetterMapping();
-    matrixName = "NUCL";
-
-
-    for (int i = 0; i < alphabetSize-1; i++){
-        for (int j = 0; j < alphabetSize-1; j++){
-            if (i == j)
-                subMatrix[i][j] = 3;
-            else
-                subMatrix[i][j] = -2;
-        }
-    }
-
-    for (int i = 0; i < alphabetSize; i++){
-        subMatrix[alphabetSize-1][i] = -1;
-        subMatrix[i][alphabetSize-1] = -1;
-    }
+    matrixName = "nucleotide.out";
 }
 
 
 void NucleotideMatrix::setupLetterMapping(){
-
+    for(int letter = 0; letter < UCHAR_MAX; letter++){
+        char upperLetter = toupper(static_cast<char>(letter));
+        switch(upperLetter){
+            case 'A':
+            case 'T':
+            case 'G':
+            case 'C':
+                this->aa2int[static_cast<int>(letter)] = this->aa2int[static_cast<int>(upperLetter)];
+                break;
+            default:
+                this->aa2int[static_cast<int>(letter)] = this->aa2int[(int)'X'];
+                break;
+        }
+    }
 }
 
 

@@ -8,14 +8,16 @@
 #include <fstream>
 #include <cmath>
 #include <climits>
-#include <blosum62.out.h>
+#include "blosum62.out.h"
+#include "nucleotide.out.h"
+
 
 
 SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
                                        float bitFactor, float scoreBias = -0.2) :
         scoringMatrixFileName(scoringMatrixFileName_) {
     setupLetterMapping();
-    if(strcmp(scoringMatrixFileName,"blosum62.out") != 0) {
+    if(strcmp(scoringMatrixFileName,"blosum62.out") != 0 && strcmp(scoringMatrixFileName,"nucleotide.out")!=0 ) {
         // read amino acid substitution matrix from file
         std::string fileName(scoringMatrixFileName);
         matrixName = Util::base_name(fileName, "/\\");
@@ -30,7 +32,7 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
                             std::istreambuf_iterator<char>());
             int alphabetSize = readProbMatrix(str);
             if (alphabetSize < this->alphabetSize - 1) {
-                this->alphabetSize = alphabetSize + 1;
+                this->alphabetSize = alphabetSize;
             }
             in.close();
         }
@@ -38,12 +40,19 @@ SubstitutionMatrix::SubstitutionMatrix(const char *scoringMatrixFileName_,
             Debug(Debug::ERROR) << "Invalid format of the substitution matrix input file! Only .out files are accepted.\n";
             EXIT(EXIT_FAILURE);
         }
-    }else{
+    } else if(strcmp(scoringMatrixFileName,"nucleotide.out") == 0){
+        std::string submat((const char *)nucleotide_out,nucleotide_out_len);
+        matrixName = "nucleotide.out";
+        int alphabetSize = readProbMatrix(submat);
+        if (alphabetSize < this->alphabetSize - 1) {
+            this->alphabetSize = alphabetSize;
+        }
+    } else{
         std::string submat((const char *)blosum62_out,blosum62_out_len);
         matrixName = "blosum62.out";
         int alphabetSize = readProbMatrix(submat);
         if (alphabetSize < this->alphabetSize - 1) {
-            this->alphabetSize = alphabetSize + 1;
+            this->alphabetSize = alphabetSize;
         }
     }
 

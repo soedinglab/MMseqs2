@@ -143,7 +143,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
     {
-        Matcher matcher(qDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection);
+        Matcher matcher(qDbr->getDbtype(), maxSequenceLength, &subMat, &evalueComputation, par.compBiasCorrection, Matcher::GAP_OPEN, Matcher::GAP_EXTEND);
         MultipleAlignment aligner(maxSequenceLength, maxSetSize, &subMat, &matcher);
         PSSMCalculator calculator(&subMat, maxSequenceLength, maxSetSize, par.pca, par.pcb);
         MsaFilter filter(maxSequenceLength, maxSetSize, &subMat);

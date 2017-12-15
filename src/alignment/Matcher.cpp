@@ -5,12 +5,16 @@
 #include "Parameters.h"
 #include "smith_waterman_sse2.h"
 
-Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer, bool aaBiasCorrection){
+Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
+                 bool aaBiasCorrection, int gapOpen, int gapExtend){
     this->m = m;
     this->tinySubMat = NULL;
+    this->gapOpen = gapOpen;
+    this->gapExtend = gapExtend;
     if(querySeqType != Sequence::PROFILE_STATE_PROFILE ) {
         setSubstitutionMatrix(m);
     }
+
     this->maxSeqLen = maxSeqLen;
     aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
     this->evaluer = evaluer;
@@ -60,7 +64,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
     s_align alignment;
     if(isIdentity==false){
-        alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, GAP_OPEN, GAP_EXTEND, mode, evalThr, evaluer, covMode, covThr, maskLen);
+        alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, gapOpen, gapExtend, mode, evalThr, evaluer, covMode, covThr, maskLen);
     }else{
         alignment = aligner->scoreIdentical(dbSeq->int_sequence, dbSeq->L, evaluer, mode);
     }

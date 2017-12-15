@@ -70,6 +70,11 @@ private:
     const bool compBiasCorrection;
 
     BaseMatrix *m;
+    // costs to open a gap
+    int gapOpen;
+    // costs to extend a gap
+    int gapExtend;
+
 
     // needed for realignment
     BaseMatrix *realign_m;

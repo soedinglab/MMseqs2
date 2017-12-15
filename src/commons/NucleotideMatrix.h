@@ -1,12 +1,12 @@
 #ifndef NUCLEOTIDE_MATRIX_H
 #define NUCLEOTIDE_MATRIX_H
 
-#include "BaseMatrix.h"
+#include "SubstitutionMatrix.h"
 
-class NucleotideMatrix : public BaseMatrix {
+class NucleotideMatrix : public SubstitutionMatrix {
 
     public:
-        NucleotideMatrix();
+        NucleotideMatrix(const char *scoringMatrixFileName_, float bitFactor, float scoreBias);
 
         virtual ~NucleotideMatrix();
 
