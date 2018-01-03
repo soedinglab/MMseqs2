@@ -6,6 +6,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(FRAMEWORK_ONLY 0 CACHE BOOL "Framework Mode")
 set(HAVE_SANITIZER 0 CACHE BOOL "Have Sanitizers")
+set(VERSION_OVERRIDE "" CACHE STRNG "Override version string in help and usage messages")
 
 #Sanitizers
 if (${HAVE_SANITIZER})
