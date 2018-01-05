@@ -174,7 +174,7 @@ std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data, bool re
 }
 
 size_t Matcher::computeAlnLength(size_t qStart, size_t qEnd, size_t dbStart, size_t dbEnd) {
-    return std::max(qEnd - qStart, dbEnd - dbStart);
+    return std::max(qEnd - qStart, dbEnd - dbStart) + 1;
 }
 
 float Matcher::estimateSeqIdByScorePerCol(uint16_t score, unsigned int qLen, unsigned int tLen) {
