@@ -16,11 +16,13 @@ Please cite: [Steinegger M and Soeding J. MMseqs2 enables sensitive protein sequ
 ## News
 Keep posted about MMseqs2/Linclust updates by following Martin on [twitter](https://twitter.com/thesteinegger).
 
-17/10/2017 We are happy to announce that MMseqs2 was just published at [Nature Biotechnology](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
+05/01/2018 New version of Linclust manuscript uploadd to bioRxiv: [Steinegger M and Soeding J. Clustering huge protein sequence sets in linear time. bioRxiv (2018)](https://doi.org/10.1101/104034). The combined MMseqs2/Linclust workflow (now the default when calling "mmseqs cluster" combines extreme speed and linear time complexity with BLAST-like sensitivity.
 
-05/25/2017 We updated the Linclust manuscript. Linclust is now 3x faster and we added an metagenomic protein assembly application. Happy towel day. A pre-print can be downloaded here: [Steinegger M and Soeding J. Linclust: clustering billions of protein sequences per day on a single server (2017)](http://biorxiv.org/content/early/2017/05/25/104034). 
+17/10/2017 MMseqs2 has just been published at [Nature Biotechnology](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
 
-30/01/2017 We added a new clustering workflow called "Linclust". Linclust can cluster sequences in linear time down to 50% sequence identity. The Metaclust95 and Metaclust50 database can be download at [metaclust.mmseqs.com](https://metaclust.mmseqs.com/). A pre-print can be downloaded here: [Steinegger M and Soeding J. Linclust: clustering protein sequences in linear time (2017)](http://www.biorxiv.org/content/early/2017/01/29/104034.article-metrics). 
+05/25/2017 We updated the Linclust manuscript. Linclust is now 3x faster and we added a metagenomic protein assembly application. Happy towel day. A pre-print can be downloaded here: [Steinegger M and Soeding J. Linclust: clustering billions of protein sequences per day on a single server (2017)](http://biorxiv.org/content/early/2017/05/25/104034). 
+
+30/01/2017 We added a new clustering workflow called "Linclust". Linclust can cluster sequences in linear time down to 50% sequence identity. The Metaclust95 and Metaclust50 database can be download at [metaclust.mmseqs.com](https://metaclust.mmseqs.com/). A preprint can be downloaded here: [Steinegger M and Soeding J. Linclust: clustering protein sequences in linear time (2017)](http://www.biorxiv.org/content/early/2017/01/29/104034.article-metrics). 
 
 19/12/2016 MMseqs2 has a mascot now. It is the "little Marv" and was lovingly crafted by Yuna Kwon. Thank you so much.
 
