@@ -1,7 +1,7 @@
 # MMseqs2.0: ultra fast and sensitive protein search and clustering suite
 MMseqs2 (Many-against-Many sequence searching) is a software suite to search and cluster huge protein sequence sets. MMseqs2 is open source GPL-licensed software implemented in C++ for Linux, MacOS, and (as beta version, via cygwin) Windows. The software is designed to run on multiple cores and servers and exhibits very good scalability. MMseqs2 can run 10000 times faster than BLAST. At 100 times its speed it achieves almost the same sensitivity. It can perform profile searches with the same sensitivity as PSI-BLAST at over 400 times its speed.
 
-The MMseqs2 user guide is available as [Github Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as [PDF file](https://mmseqs.com/latest/userguide.pdf) 
+The MMseqs2 user guide is available as [Github Wiki](https://github.com/soedinglab/mmseqs2/wiki) or as [PDF file](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!)
 
 Please cite: [Steinegger M and Soeding J. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi: 10.1038/nbt.3988 (2017)](https://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3988.html).
 
@@ -25,10 +25,6 @@ Keep posted about MMseqs2/Linclust updates by following Martin on [twitter](http
 19/12/2016 MMseqs2 has a mascot now. It is the "little Marv" and was lovingly crafted by Yuna Kwon. Thank you so much.
 
 07/12/2016 We added a new parameter called --max-accept. This parameter limits the amount of alignments that get accepted. Please do not use --max-seqs to limit your result size since it decreases the sensitivity of MMseqs2.
-
-## Documentation
-The MMseqs2 user guide is available in our [Github Wiki](https://github.com/soedinglab/mmseqs2/wiki). A PDF version of the user guide is also [available](https://mmseqs.com/latest/userguide.pdf) (Thanks to [pandoc](https://github.com/jgm/pandoc)!).
-You can read on for a quick start guide with installation instructions and examples for searching and clustering.
 
 ## Installation
 MMseqs can be installed by compiling the binary from source, download a statically compiled version, using [Homebrew](https://github.com/Homebrew/brew) or [Docker](https://github.com/moby/moby). MMseqs2 requires a 64-bit system (check with `uname -a | grep x86_64`) with at least the SSE4.1 instruction set (check by executing `cat /proc/cpuinfo | grep sse4_1` on Linux and `sysctl -a | grep machdep.cpu.features | grep SSE4.1` on MacOS).
