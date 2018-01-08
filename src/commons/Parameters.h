@@ -189,6 +189,7 @@ public:
 
     // CLUSTERING
     int    clusteringMode;
+    int    clusterSteps;
     bool   cascaded;
 
     // SEARCH WORKFLOW
@@ -389,6 +390,7 @@ public:
 
     // clustering
     PARAMETER(PARAM_CLUSTER_MODE)
+    PARAMETER(PARAM_CLUSTER_STEPS)
     PARAMETER(PARAM_CASCADED)
 
     // affinity clustering
