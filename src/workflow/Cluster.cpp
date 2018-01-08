@@ -98,7 +98,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
         par.sensitivity = setAutomaticThreshold(par.seqIdThr);
         Debug(Debug::WARNING) << "Set cluster settings automatic to s=" << par.sensitivity << "\n";
     }
-    bool noneSymetric = (par.covMode =- Parameters::COV_MODE_TARGET ||par.covMode == Parameters::COV_MODE_QUERY);
+    bool noneSymetric = (par.covMode == Parameters::COV_MODE_TARGET ||par.covMode == Parameters::COV_MODE_QUERY);
     if(clusterModeSet == false){
         if(noneSymetric){
             par.clusteringMode = Parameters::GREEDY;
