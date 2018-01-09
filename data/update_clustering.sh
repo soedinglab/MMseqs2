@@ -174,7 +174,8 @@ echo "==================================================="
 echo "====== Filter out the new from old sequences ======"
 echo "==================================================="
 if notExists "$TMP/NEWDB.newSeqs"; then
-    $MMSEQS createsubdb "$TMP/newSeqs" "$NEWDB" "$TMP/NEWDB.newSeqs" \
+    $MMSEQS createsubdb "$TMP/newSeqs" "$NEWDB" "$TMP/NEWDB.newSeqs" && \
+    ln -sf "$NEWDB".dbtype "$TMP/NEWDB.newSeqs".dbtype \
         || fail "Order died"
 fi
 
@@ -184,7 +185,8 @@ echo "======= Extract representative sequences =========="
 echo "==================================================="
 if notExists "$TMP/OLDDB.repSeq"; then
     $MMSEQS result2repseq "$OLDDB" "$OLDCLUST" "$TMP/OLDDB.repSeq" \
-        || fail "Result2msa died"
+    && ln -sf "$OLDDB".dbtype "$TMP/OLDDB.repSeq".dbtype \
+    || fail "Result2msa died"
 fi
 
 debugWait
@@ -240,6 +242,7 @@ if notExists "$TMP/noHitSeqList"; then
 fi
 if notExists "$TMP/toBeClusteredSeparately"; then
     $MMSEQS createsubdb "$TMP/noHitSeqList" "$NEWDB" "$TMP/toBeClusteredSeparately" \
+    && ln -sf "$NEWDB".dbtype "$TMP/toBeClusteredSeparately".dbtype \
         || fail "Order of no hit seq. died"
 fi
 
@@ -250,8 +253,10 @@ echo "==================================================="
 
 mkdir -p "$TMP/cluster"
 if notExists "$TMP/newClusters"; then
-    $MMSEQS cluster "$TMP/toBeClusteredSeparately" "$TMP/newClusters" "$TMP/cluster" ${CLUST_PAR} \
-        || fail "Clustering of new seq. died"
+    if  [ -s "$TMP/toBeClusteredSeparately" ]; then
+        $MMSEQS cluster "$TMP/toBeClusteredSeparately" "$TMP/newClusters" "$TMP/cluster" ${CLUST_PAR} \
+            || fail "Clustering of new seq. died"
+    fi
 fi
 
 debugWait
