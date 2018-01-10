@@ -162,6 +162,7 @@ fi
 
 ln -sf "${NEWDB}" "${NEWMAPDB}"
 ln -sf "${NEWDB}_h" "${NEWMAPDB}_h"
+ln -sf "${NEWDB}".dbtype "${NEWMAPDB}".dbtype
 NEWDB="${NEWMAPDB}"
 
 if [ -n "$REMOVE_TMP" ]; then
