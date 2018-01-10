@@ -132,7 +132,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
                         const char * targetSeq = seqDbr.getData(setIds[j]);
                         unsigned int distance = DistanceCalculator::computeHammingDistance(querySeq, targetSeq, queryLength);
                         float seqId = (static_cast<float>(queryLength) - static_cast<float>(distance))/static_cast<float>(queryLength);
-                        if(seqId > par.seqIdThr) {
+                        if(seqId >= par.seqIdThr) {
                             swResultsSs << seqDbr.getDbKey(setIds[j]) << "\t";
                             swResultsSs << 255 << "\t";
                             swResultsSs << std::fixed << std::setprecision(3) << seqId << "\t";
