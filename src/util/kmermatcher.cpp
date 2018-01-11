@@ -337,8 +337,8 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << totalMemoryInByte
                        << " byte)\n";
     // compute splits
-    //size_t splits = static_cast<int>(std::ceil(static_cast<float>(totalSizeNeeded)/ (static_cast<float>(totalMemoryInByte)*0.9)));
-    size_t splits = 2;
+    size_t splits = static_cast<int>(std::ceil(static_cast<float>(totalSizeNeeded)/ (static_cast<float>(totalMemoryInByte)*0.9)));
+//    size_t splits = 2;
 
     if(splits > 1){
         splits += 1; //security buffer
