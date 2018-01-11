@@ -14,6 +14,7 @@ set(TESTS
         TestIndexTable.cpp
         TestKmerGenerator.cpp
         TestKmerScore.cpp
+        TestKwayMerge.cpp
         TestMultipleAlignment.cpp
         TestProfileAlignment.cpp
         TestPSSM.cpp

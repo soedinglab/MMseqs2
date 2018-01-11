@@ -20,6 +20,8 @@ public:
 
     static void deleteTempFiles(std::list<std::string> tmpFiles);
 
+    static void* mmapFile(FILE * file, size_t *dataSize);
+
     static void deleteFile(std::string tmpFiles);
 
     static void writeFile(std::string pathToFile, const unsigned char *sh, size_t len);
