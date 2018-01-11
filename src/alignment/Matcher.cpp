@@ -270,8 +270,9 @@ size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBac
     *(tmpBuff-1) = '\t';
     tmpBuff = Itoa::i32toa_sse2(result.score, tmpBuff);
     *(tmpBuff-1) = '\t';
+    float seqIdFlt = result.seqId;
     //TODO seqid, evalue
-    if(result.seqId==1.0){
+    if(seqIdFlt==1.0){
         *(tmpBuff) = '1';
         tmpBuff++;
         *(tmpBuff) = '.';
@@ -289,7 +290,15 @@ size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBac
         tmpBuff++;
         *(tmpBuff) = '.';
         tmpBuff++;
-        int seqId = result.seqId*1000;
+        if(seqIdFlt<0.10){
+            *(tmpBuff) = '0';
+            tmpBuff++;
+        }
+        if(seqIdFlt<0.01){
+            *(tmpBuff) = '0';
+            tmpBuff++;
+        }
+        int seqId = seqIdFlt*1000;
         tmpBuff = Itoa::i32toa_sse2(seqId, tmpBuff);
         *(tmpBuff-1) = '\t';
     }
