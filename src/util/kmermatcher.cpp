@@ -391,7 +391,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             size_t repSeqId = hashSeqPair[0].id;
             size_t prevHashStart = 0;
             size_t prevSetSize = 0;
-            size_t queryLen;
             unsigned int repSeq_i_pos = hashSeqPair[0].pos;
             for (size_t elementIdx = 0; elementIdx < splitKmerCount+1; elementIdx++) {
                 if (prevHash != hashSeqPair[elementIdx].kmer) {
@@ -418,8 +417,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
                     prevSetSize = 0;
                     prevHashStart = elementIdx;
                     repSeqId = hashSeqPair[elementIdx].id;
-                    queryLen = hashSeqPair[elementIdx].seqLen;
-
                     repSeq_i_pos = hashSeqPair[elementIdx].pos;
                 }
                 if (hashSeqPair[elementIdx].kmer == SIZE_T_MAX) {
@@ -444,6 +441,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             splitFiles.push_back(splitFile);
             writeKmersToDisk(splitFile, hashSeqPair, writePos + 1);
             delete [] hashSeqPair;
+            hashSeqPair = NULL;
         }
     }
     std::vector<bool> repSequence(seqDbr.getSize());
