@@ -316,10 +316,11 @@ int apply(int argc, const char **argv, const Command& command) {
         std::stable_sort(lengthSorted, lengthSorted + dbSize, DBReader<unsigned int>::comparePairBySeqLength());
 
 #pragma omp for schedule(dynamic, 1)
-        for (size_t i = dbFrom; i < (dbFrom + dbSize); ++i) {
+        for (size_t i = 0; i < dbSize; ++i) {
             Debug::printProgress(i);
 
-            size_t index = lengthSorted[i - dbFrom].first;
+            size_t index = lengthSorted[i].first;
+            size_t size = lengthSorted[i].second - 1;
 
             char *data = reader.getData(index);
             if (data == NULL) {
@@ -327,7 +328,7 @@ int apply(int argc, const char **argv, const Command& command) {
             }
 
             unsigned int key = reader.getDbKey(index);
-            int status = apply_by_entry(data, sizes[index] - 1, key, writer, par.restArgv[0], const_cast<char**>(par.restArgv), local_environ, thread_idx);
+            int status = apply_by_entry(data, size, key, writer, par.restArgv[0], const_cast<char**>(par.restArgv), local_environ, thread_idx);
             if (status == -1) {
                 Debug(Debug::WARNING) << "Entry " << index << " system error " << errno << "!\n";
                 continue;
