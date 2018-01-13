@@ -32,10 +32,6 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if(queryDbType == DBReader<unsigned int>::DBTYPE_NUC && targetDbType == DBReader<unsigned int>::DBTYPE_NUC ){
-        Debug(Debug::ERROR) << "It is not supported that both dbs are nucleotide databases.\n";
-        EXIT(EXIT_FAILURE);
-    }
 
     Debug(Debug::INFO) << "Query Header file: " << par.db1 << "_h\n";
     std::string qHeaderName = (par.db1 + "_h");
@@ -70,12 +66,12 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         char buffer[1024];
 
         size_t queryId = qHeaderDbr.getId(queryKey);
-        Orf::SequenceLocation loc;
+        Orf::SequenceLocation qloc;
         unsigned int writeKey = queryKey;
         if(queryDbType == DBReader<unsigned int>::DBTYPE_NUC){
             char * qheader = qHeaderDbr.getData(queryId);
-            loc = Orf::parseOrfHeader(qheader);
-            writeKey = loc.id;
+            qloc = Orf::parseOrfHeader(qheader);
+            writeKey = qloc.id;
         }
 
         std::string ss;
@@ -86,24 +82,26 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             Matcher::result_t &res = results[j];
             size_t targetId = tHeaderDbr.getId(res.dbKey);
             bool hasBacktrace = (res.backtrace.size() > 0);
-            if(targetDbType == DBReader<unsigned int>::DBTYPE_NUC){
+            if (targetDbType == DBReader<unsigned int>::DBTYPE_NUC) {
                 char * theader = tHeaderDbr.getData(targetId);
-                loc = Orf::parseOrfHeader(theader);
-                res.dbKey = loc.id;
-                res.dbStartPos = loc.from + res.dbStartPos*3;
-                res.dbEndPos   = loc.from + res.dbEndPos*3;
+                Orf::SequenceLocation tloc = Orf::parseOrfHeader(theader);
+                res.dbKey = tloc.id;
+                res.dbStartPos = tloc.from + res.dbStartPos*3;
+                res.dbEndPos   = tloc.from + res.dbEndPos*3;
 
-                if(loc.strand == Orf::STRAND_MINUS){
+                if(tloc.strand == Orf::STRAND_MINUS){
                     int start = res.dbStartPos;
                     res.dbStartPos = res.dbEndPos;
                     res.dbEndPos = start;
                 }
                 res.dbLen      = res.dbLen*3;
-            }else{
-                res.qStartPos = loc.from + res.qStartPos*3;
-                res.qEndPos = loc.from + res.qEndPos*3;
+            }
 
-                if(loc.strand == Orf::STRAND_MINUS){
+            if (queryDbType == DBReader<unsigned int>::DBTYPE_NUC) {
+                res.qStartPos = qloc.from + res.qStartPos*3;
+                res.qEndPos = qloc.from + res.qEndPos*3;
+
+                if(qloc.strand == Orf::STRAND_MINUS){
                     int start = res.qStartPos;
                     res.qStartPos = res.qEndPos;
                     res.qEndPos = start;

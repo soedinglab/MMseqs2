@@ -28,31 +28,37 @@ void setSearchDefaults(Parameters *p) {
 int search(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setSearchDefaults(&par);
-    par.overrideParameterDescription((Command &)command, par.PARAM_COV_MODE.uniqid, NULL, NULL, par.PARAM_COV_MODE.category |MMseqsParameter::COMMAND_EXPERT );
-    par.overrideParameterDescription((Command &)command, par.PARAM_C.uniqid, NULL, NULL, par.PARAM_C.category |MMseqsParameter::COMMAND_EXPERT );
-    par.overrideParameterDescription((Command &)command, par.PARAM_MIN_SEQ_ID.uniqid, NULL, NULL, par.PARAM_MIN_SEQ_ID.category |MMseqsParameter::COMMAND_EXPERT );
-    for(size_t i = 0; i < par.extractorfs.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.extractorfs[i].uniqid, NULL, NULL, par.extractorfs[i].category |MMseqsParameter::COMMAND_EXPERT );
+    par.overrideParameterDescription((Command &)command, par.PARAM_COV_MODE.uniqid, NULL, NULL, par.PARAM_COV_MODE.category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &)command, par.PARAM_C.uniqid, NULL, NULL, par.PARAM_C.category | MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &)command, par.PARAM_MIN_SEQ_ID.uniqid, NULL, NULL, par.PARAM_MIN_SEQ_ID.category | MMseqsParameter::COMMAND_EXPERT);
+    for (size_t i = 0; i < par.extractorfs.size(); i++){
+        par.overrideParameterDescription((Command &)command, par.extractorfs[i].uniqid, NULL, NULL, par.extractorfs[i].category | MMseqsParameter::COMMAND_EXPERT);
     }
-    for(size_t i = 0; i < par.translatenucs.size(); i++){
-        par.overrideParameterDescription((Command &)command, par.translatenucs[i].uniqid, NULL, NULL, par.translatenucs[i].category |MMseqsParameter::COMMAND_EXPERT );
+    for (size_t i = 0; i < par.translatenucs.size(); i++){
+        par.overrideParameterDescription((Command &)command, par.translatenucs[i].uniqid, NULL, NULL, par.translatenucs[i].category | MMseqsParameter::COMMAND_EXPERT);
     }
 
     par.parseParameters(argc, argv, command, 4, false, 0, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
 
-    int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
-    int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
-    if(queryDbType == -1 || targetDbType == -1){
+    const int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+    const int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
+    if (queryDbType == -1 || targetDbType == -1){
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if(queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE ){
-        Debug(Debug::ERROR) << "It is not supported that both dbs are profile databases.\n";
+
+    if (queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE ){
+        Debug(Debug::ERROR) << "Profile-Profile searches are not supported.\n";
         EXIT(EXIT_FAILURE);
     }
 
-    bool isTranslatedNuclSearch= (queryDbType== DBReader<unsigned int>::DBTYPE_NUC || targetDbType== DBReader<unsigned int>::DBTYPE_NUC) &&
-                       (queryDbType != DBReader<unsigned int>::DBTYPE_NUC && targetDbType != DBReader<unsigned int>::DBTYPE_NUC);
+    if (queryDbType == DBReader<unsigned int>::DBTYPE_NUC && targetDbType == DBReader<unsigned int>::DBTYPE_NUC) {
+        Debug(Debug::ERROR) << "Nucleotide-Nucleotide searches are not supported.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    const bool isTranslatedNuclSearch =
+               (queryDbType == DBReader<unsigned int>::DBTYPE_NUC || targetDbType == DBReader<unsigned int>::DBTYPE_NUC);
 
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
@@ -76,18 +82,18 @@ int search(int argc, const char **argv, const Command& command) {
         }
     }
     par.printParameters(argc, argv, par.searchworkflow);
-    if(FileUtil::directoryExists(par.db4.c_str())==false){
+    if (FileUtil::directoryExists(par.db4.c_str())==false){
         Debug(Debug::WARNING) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
-        if(FileUtil::makeDir(par.db4.c_str()) == false){
+        if (FileUtil::makeDir(par.db4.c_str()) == false){
             Debug(Debug::WARNING) << "Could not crate tmp folder " << par.db4 << ".\n";
             EXIT(EXIT_FAILURE);
-        }else{
+        } else {
             Debug(Debug::WARNING) << "Created dir " << par.db4 << "\n";
         }
     }
     size_t hash = par.hashParameter(par.filenames, par.searchworkflow);
     std::string tmpDir = par.db4+"/"+SSTR(hash);
-    if(FileUtil::directoryExists(tmpDir.c_str())==false) {
+    if (FileUtil::directoryExists(tmpDir.c_str())==false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
             EXIT(EXIT_FAILURE);
@@ -95,21 +101,19 @@ int search(int argc, const char **argv, const Command& command) {
     }
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    if(FileUtil::symlinkCreateOrRepleace(par.db4+"/latest", tmpDir) == false){
+    if (FileUtil::symlinkCreateOrRepleace(par.db4+"/latest", tmpDir) == false){
         Debug(Debug::WARNING) << "Could not link latest folder in tmp." << tmpDir << ".\n";
         EXIT(EXIT_FAILURE);
     }
 
     CommandCaller cmd;
-    if(par.removeTmpFiles) {
+    if (par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }
     std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());
     if (targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE){
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
-//        par.targetProfile = false;
-//        par.queryProfile = true;
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
@@ -151,14 +155,14 @@ int search(int argc, const char **argv, const Command& command) {
         FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
         program = std::string(tmpDir + "/blastpgp.sh");
     } else {
-        if(par.sensSteps > 1){
+        if (par.sensSteps > 1){
             if (par.startSens > par.sensitivity) {
                 Debug(Debug::ERROR) << "--start-sens should not be greater -s.\n";
                 EXIT(EXIT_FAILURE);
             }
             cmd.addVariable("SENSE_0", SSTR(par.startSens).c_str());
             float sensStepSize = (par.sensitivity - par.startSens)/ (static_cast<float>(par.sensSteps)-1);
-            for(int step = 1; step < par.sensSteps; step++){
+            for (int step = 1; step < par.sensSteps; step++){
                 std::string stepKey = "SENSE_" + SSTR(step);
                 float stepSense =  par.startSens + sensStepSize * step;
                 std::stringstream stream;
@@ -173,12 +177,11 @@ int search(int argc, const char **argv, const Command& command) {
             std::string sens = stream.str();
             cmd.addVariable("SENSE_0", sens.c_str());
             cmd.addVariable("STEPS", SSTR(1).c_str());
-            //cmd.addVariable("SENS_STEP_SIZE", SSTR(1).c_str());
         }
 
         std::vector<MMseqsParameter> prefilterWithoutS;
-        for(size_t i = 0; i < par.prefilter.size(); i++){
-            if(par.prefilter[i].uniqid != par.PARAM_S.uniqid ){
+        for (size_t i = 0; i < par.prefilter.size(); i++){
+            if (par.prefilter[i].uniqid != par.PARAM_S.uniqid ){
                 prefilterWithoutS.push_back(par.prefilter[i]);
             }
         }
@@ -188,11 +191,12 @@ int search(int argc, const char **argv, const Command& command) {
         program = std::string(tmpDir + "/blastp.sh");
     }
 
-    if(isTranslatedNuclSearch==true){
+    if (isTranslatedNuclSearch==true){
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
-        if(queryDbType==DBReader<unsigned int>::DBTYPE_NUC){
+        if (queryDbType == DBReader<unsigned int>::DBTYPE_NUC) {
             cmd.addVariable("QUERY_NUCL", "TRUE");
-        }else{
+        }
+        if (targetDbType == DBReader<unsigned int>::DBTYPE_NUC) {
             cmd.addVariable("TARGET_NUCL", "TRUE");
         }
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());

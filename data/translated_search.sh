@@ -1,17 +1,14 @@
 #!/bin/bash
 # Translated search workflow
-# Helper functions
-checkReturnCode () { 
-	if [ $? -ne 0 ]; then
-	    echo "$1"
-	    exit 1
-    fi
-}
-notExists () { 
-	[ ! -f "$1" ] 
+fail() {
+    echo "Error: $1"
+    exit 1
 }
 
-#pre processing
+notExists() {
+	[ ! -f "$1" ]
+}
+
 # check amount of input variables
 [ "$#" -ne 4 ] && echo "Please provide <sequenceDB> <sequenceDB> <outDB> <tmp>" && exit 1;
 # check if files exists
@@ -20,41 +17,56 @@ notExists () {
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
+QUERY="$1"
+QUERY_ORF="$1"
 
 if [ -n "$QUERY_NUCL" ]; then
-    INPUT=$1
-elif [ -n "$TARGET_NUCL" ]; then
-    INPUT=$2
+    if notExists "$4/q_orfs"; then
+        $MMSEQS extractorfs "$1" "$4/q_orfs" ${ORF_PAR} \
+            || fail  "extract orfs step died"
+    fi
+    if notExists "$4/q_orfs_aa"; then
+        $MMSEQS translatenucs "$4/q_orfs" "$4/q_orfs_aa" ${TRANSLATE_PAR} \
+            || fail  "translate step died"
+    fi
+    QUERY="$4/q_orfs_aa"
+    QUERY_ORF="$4/q_orfs"
 fi
 
-notExists "$3/orfs"    && $MMSEQS extractorfs   "$INPUT" "$4/orfs"     ${ORF_PAR}       && checkReturnCode "extract orfs step died"
-notExists "$3/orfs_aa" && $MMSEQS translatenucs "$4/orfs" "$4/orfs_aa" ${TRANSLATE_PAR} && checkReturnCode "translate step died"
-# overwrite inpute database
-QUERY=$1
-QUERY_ORF=$1
-TARGET=$2
-TARGET_ORF=$2
-if [ -n "$QUERY_NUCL" ]; then
-    QUERY="$4/orfs_aa"
-    QUERY_ORF="$4/orfs"
-elif [ -n "$TARGET_NUCL" ]; then
-    TARGET="$4/orfs_aa"
-    TARGET_ORF="$4/orfs"
+TARGET="$2"
+TARGET_ORF="$2"
+if [ -n "$TARGET_NUCL" ]; then
+    if notExists "$4/t_orfs"; then
+        $MMSEQS extractorfs "$2" "$4/t_orfs" ${ORF_PAR} \
+            || fail  "extract target orfs step died"
+    fi
+    if notExists "$4/t_orfs_aa"; then
+        $MMSEQS translatenucs "$4/t_orfs" "$4/t_orfs_aa" ${TRANSLATE_PAR} \
+            || fail  "translate target step died"
+    fi
+    TARGET="$4/t_orfs_aa"
+    TARGET_ORF="$4/t_orfs"
 fi
+
 
 mkdir -p "$4/search"
-notExists "$4/aln" && ${SEARCH} ${QUERY} ${TARGET} $4/aln $4/search  && checkReturnCode "Search step died"
-notExists "$4/aln_offset" && $MMSEQS offsetalignment "$QUERY_ORF" "$TARGET_ORF" "$4/aln"  "$4/aln_offset"  && checkReturnCode "Offset step died"
-
-# post processing
-mv -f "$4/aln_offset" "$3"
-mv -f "$4/aln_offset.index" "$3.index"
-checkReturnCode "Could not move result to $3"
+if notExists "$4/aln"; then
+    $SEARCH "${QUERY}" "${TARGET}" "$4/aln" "$4/search" \
+        || fail "Search step died"
+fi
+if notExists "$4/aln_offset"; then
+    $MMSEQS offsetalignment "$QUERY_ORF" "$TARGET_ORF" "$4/aln"  "$4/aln_offset" \
+        || fail "Offset step died"
+fi
+(mv -f "$4/aln_offset" "$3" && mv -f "$4/aln_offset.index" "$3.index") \
+    || fail "Could not move result to $3"
 
 if [ -n "$REMOVE_TMP" ]; then
   echo "Remove temporary files"
-  rm -f "$4/orfs" "$4/orfs.index" "$4/orfs.dbtype"
-  rm -f "$4/orfs_aa" "$4/orfs_aa.index" "$4/orfs_aa.dbtype"
+  rm -f "$4/q_orfs"    "$4/q_orfs.index"    "$4/q_orfs.dbtype"
+  rm -f "$4/q_orfs_aa" "$4/q_orfs_aa.index" "$4/q_orfs_aa.dbtype"
+  rm -f "$4/t_orfs"    "$4/t_orfs.index"    "$4/t_orfs.dbtype"
+  rm -f "$4/t_orfs_aa" "$4/t_orfs_aa.index" "$4/t_orfs_aa.dbtype"
 fi
 
 
