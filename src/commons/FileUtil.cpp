@@ -10,6 +10,7 @@
 #include <sys/statvfs.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <sys/mman.h>
 
 bool FileUtil::fileExists(const char* fileName) {
     struct stat st;
@@ -27,6 +28,27 @@ bool FileUtil::makeDir(const char* directoryName, const int mode ) {
     }else{
         return false;
     }
+}
+
+void* FileUtil::mmapFile(FILE * file, size_t *dataSize){
+    struct stat sb;
+    if (fstat(fileno(file), &sb) < 0)
+    {
+        int errsv = errno;
+        Debug(Debug::ERROR) << "Failed to fstat." << ". Error " << errsv << ".\n";
+        EXIT(EXIT_FAILURE);
+    }
+    *dataSize = sb.st_size;
+    int mode = PROT_READ;
+    int fd =  fileno(file);
+
+    void * ret = mmap(NULL, *dataSize, mode, MAP_PRIVATE, fd, 0);
+    if(ret == MAP_FAILED){
+        int errsv = errno;
+        Debug(Debug::ERROR) << "Failed to mmap memory dataSize=" << *dataSize <<". Error " << errsv << ".\n";
+        EXIT(EXIT_FAILURE);
+    }
+    return ret;
 }
 
 FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool shouldExist) {

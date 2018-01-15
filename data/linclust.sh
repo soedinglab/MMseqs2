@@ -25,9 +25,13 @@ notExists "$3/pref_filter1"  && $MMSEQS createsubdb "$3/order_redundancy" "$3/pr
 notExists "$3/pref_filter2"  && $MMSEQS filterdb "$3/pref_filter1" "$3/pref_filter2" --filter-file "$3/order_redundancy" && checkReturnCode "Filterdb step died"
 INPUT="$3/input_step_redundancy"
 # 3. Ungapped alignment filtering
+RESULTDB="$3/pref_filter2"
+if [ -n "$FILTER" ]; then
 notExists "$3/pref_rescore2" && $MMSEQS rescorediagonal "$INPUT" "$INPUT" "$3/pref_filter2" "$3/pref_rescore2" ${UNGAPPED_ALN_PAR} && checkReturnCode "Ungapped alignment step died"
+RESULTDB="$3/pref_rescore2"
+fi
 # 4. Local gapped sequence alignment.
-notExists "$3/aln"           && $RUNNER $MMSEQS align "$INPUT" "$INPUT" "$3/pref_rescore2" "$3/aln"  ${ALIGNMENT_PAR}            && checkReturnCode "Alignment step died"
+notExists "$3/aln"           && $RUNNER $MMSEQS align "$INPUT" "$INPUT" $RESULTDB "$3/aln"  ${ALIGNMENT_PAR}            && checkReturnCode "Alignment step died"
 # 5. Clustering using greedy set cover.
 notExists "$3/clust"         && $MMSEQS clust "$INPUT" "$3/aln" "$3/clust" ${CLUSTER_PAR}  && checkReturnCode "Clustering step died"
 notExists "$3/clu"           && $MMSEQS mergeclusters "$1" "$3/clu" "$3/pre_clust" "$3/clust"

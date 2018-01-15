@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <sys/time.h>
+#include <NucleotideMatrix.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -55,19 +56,32 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
+
     DBReader<unsigned int> *qdbr = NULL;
+
+    Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
+    qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
+    qdbr->open(DBReader<unsigned int>::NOSORT);
+    int querySeqType  =  qdbr->getDbtype();
+
     DBReader<unsigned int> *tdbr = NULL;
-    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
-    SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(subMat);
+    BaseMatrix *subMat;
+    if (querySeqType == Sequence::NUCLEOTIDES) {
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+    } else {
+        // keep score bias at 0.0 (improved ROC)
+        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+    }
+
+
+    SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
 
 //    int sequenceType = Sequence::AMINO_ACIDS;
 //    if (par.queryProfile == true) {
 //        sequenceType = Sequence::HMM_PROFILE;
 //    }
 
-    Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
-    qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
-    qdbr->open(DBReader<unsigned int>::NOSORT);
+
     qdbr->readMmapedDataInMemory();
     Debug(Debug::INFO) << "Target  file: " << par.db2 << "\n";
     bool sameDB = false;
@@ -92,11 +106,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
     }
     double * kmnByLen = new double[par.maxSeqLen];
-    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
     DistanceCalculator globalAliStat;
     if (par.globalAlignment)
     {
-        globalAliStat.prepareGlobalAliParam(subMat);
+        globalAliStat.prepareGlobalAliParam(*subMat);
     }
     Debug(Debug::WARNING) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
@@ -269,6 +283,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     resultWriter.close();
     qdbr->close();
     delete qdbr;
+    delete subMat;
     delete [] kmnByLen;
     delete [] fastMatrix.matrix;
     delete [] fastMatrix.matrixData;

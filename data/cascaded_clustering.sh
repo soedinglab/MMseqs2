@@ -1,14 +1,14 @@
 #!/bin/bash
 # Clustering workflow script
 # helper functions
-checkReturnCode () { 
+checkReturnCode () {
 	if [ $? -ne 0 ]; then
 	    echo "$1"
 	    exit 1
     fi
 }
-notExists () { 
-	[ ! -f "$1" ] 
+notExists () {
+	[ ! -f "$1" ]
 }
 
 #pre processing
@@ -28,7 +28,8 @@ notExists "$3/input_step_redundancy" && $MMSEQS createsubdb "$3/clu_redundancy" 
 
 INPUT="$3/input_step_redundancy"
 STEP=0
-while [ $STEP -lt 4 ]; do
+CLUSTER_STR=""
+while [ $STEP -lt $STEPS ]; do
     PARAM=PREFILTER${STEP}_PAR
     eval TMP="\$$PARAM"
     notExists "$3/pref_step$STEP" \
@@ -44,11 +45,11 @@ while [ $STEP -lt 4 ]; do
     notExists "$3/clu_step$STEP" \
         && $MMSEQS clust "$INPUT" "$3/aln_step$STEP" "$3/clu_step$STEP" ${TMP} \
         && checkReturnCode "Clustering step $STEP died"
-
+    CLUSTER_STR="${CLUSTER_STR} $3/clu_step$STEP"
     NEXTINPUT="$3/input_step$((STEP+1))"
-    if [ $STEP -eq 3 ]; then
+    if [ $STEP -eq $(($STEPS-1)) ]; then
         notExists "$3/clu" \
-            && $MMSEQS mergeclusters "$1" "$3/clu" "$3/clu_redundancy" "$3/clu_step0" "$3/clu_step1" "$3/clu_step2" "$3/clu_step3" \
+            && $MMSEQS mergeclusters "$1" "$3/clu" "$3/clu_redundancy" ${CLUSTER_STR} \
             && checkReturnCode "Merging of clusters has died"
     else
         notExists "$NEXTINPUT" \
@@ -72,7 +73,7 @@ if [ -n "$REMOVE_TMP" ]; then
  rm -f "$3/aln_redundancy" "$3/aln_redundancy.index"
  rm -f "$3/input_step_redundancy" "$3/input_step_redundancy.index"
  STEP=0
- while [ $STEP -lt 4 ]; do
+ while [ $STEP -lt $STEPS ]; do
     rm -f "$3/pref_step$STEP" "$3/pref_step$STEP.index"
     rm -f "$3/aln_step$STEP" "$3/aln_step$STEP.index"
     rm -f "$3/clu_step$STEP" "$3/clu_step$STEP.index"
@@ -83,5 +84,3 @@ if [ -n "$REMOVE_TMP" ]; then
 
  rm -f "$3/cascaded_clustering.sh"
 fi
-
-

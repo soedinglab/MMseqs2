@@ -2,6 +2,7 @@
 #include <string>
 #include <cassert>
 #include <Util.h>
+#include <Sequence.h>
 #include "linclust.sh.h"
 
 #include "DBWriter.h"
@@ -27,6 +28,9 @@ int linclust(int argc, const char **argv, const Command& command) {
     par.overrideParameterDescription((Command &)command, par.PARAM_MAX_ACCEPT.uniqid, NULL, NULL, par.PARAM_MAX_ACCEPT.category |MMseqsParameter::COMMAND_EXPERT );
 
     par.parseParameters(argc, argv, command, 3);
+
+    int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
+
     if(FileUtil::directoryExists(par.db3.c_str())==false){
         Debug(Debug::WARNING) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
         if(FileUtil::makeDir(par.db3.c_str()) == false){
@@ -63,7 +67,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     // # 1. Finding exact $k$-mer matches.
     bool kmerSizeWasSet = false;
     bool alphabetSizeWasSet = false;
-
+    bool clusterModeSet = false;
     for (size_t i = 0; i < par.linclustworkflow.size(); i++) {
         if (par.linclustworkflow[i].uniqid == par.PARAM_K.uniqid && par.linclustworkflow[i].wasSet) {
             kmerSizeWasSet = true;
@@ -71,12 +75,32 @@ int linclust(int argc, const char **argv, const Command& command) {
         if (par.linclustworkflow[i].uniqid == par.PARAM_ALPH_SIZE.uniqid && par.linclustworkflow[i].wasSet) {
             alphabetSizeWasSet = true;
         }
+        if (par.linclustworkflow[i].uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.linclustworkflow[i].wasSet) {
+            clusterModeSet = true;
+        }
     }
+
+    bool noneSymetric = (par.covMode == Parameters::COV_MODE_TARGET ||par.covMode == Parameters::COV_MODE_QUERY);
+    if(clusterModeSet == false){
+        if(noneSymetric){
+            par.clusteringMode = Parameters::GREEDY;
+        }else{
+            par.clusteringMode = Parameters::SET_COVER;
+        }
+        std::string cluMode = (par.clusteringMode==Parameters::GREEDY) ? "GREEDY" : "SET COVER";
+        Debug(Debug::WARNING) << "Set cluster mode " << cluMode << ".\n";
+    }
+
     if(kmerSizeWasSet==false){
         par.kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
     }
     if(alphabetSizeWasSet == false){
         par.alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
+    }
+
+    // filter by diagonal in case of AA (do not filter for nucl, profiles, ...)
+    if(queryDbType == Sequence::AMINO_ACIDS){
+        cmd.addVariable("FILTER","1");
     }
     cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
     par.alphabetSize = alphabetSize;
