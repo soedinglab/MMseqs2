@@ -324,6 +324,7 @@ public:
 
     // lca
     std::string lcaRanks;
+    std::string blacklist;
 
     // taxonomy
     int lcaMode;
@@ -533,6 +534,7 @@ public:
 
     // lca
     PARAMETER(PARAM_LCA_RANKS)
+    PARAMETER(PARAM_BLACKLIST)
 
     // taxonomy
     PARAMETER(PARAM_LCA_MODE)

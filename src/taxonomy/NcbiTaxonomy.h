@@ -30,6 +30,7 @@ public:
     TaxonNode* LCA(const std::vector<int>& taxa);
     std::vector<std::string> AtRanks(TaxonNode *node, const std::vector<std::string> &levels);
     std::map<std::string, std::string> AllRanks(TaxonNode *node);
+    bool IsAncestor(int ancestor, int child);
 
 private:
     void InitLevels();

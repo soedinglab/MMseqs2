@@ -45,6 +45,15 @@ int lca(int argc, const char **argv, const Command& command) {
 
     std::vector<std::string> ranks = Util::split(par.lcaRanks, ":");
 
+    // a few NCBI taxa are blacklisted by default, they contain unclassified sequences (e.g. metagenomes) or other sequences (e.g. plasmids)
+    // if we do not remove those, a lot of sequences would be classified as Root, even though they have a sensible LCA
+    std::vector<std::string> blacklist = Util::split(par.blacklist, ",");
+    const size_t taxaBlacklistSize = blacklist.size();
+    int* taxaBlacklist = new int[taxaBlacklistSize];
+    for (size_t i = 0; i < taxaBlacklistSize; ++i) {
+        taxaBlacklist[i] = (int)strtol(blacklist[i].c_str(), NULL, 100);
+    }
+
     Debug(Debug::INFO) << "Loading NCBI taxonomy...\n";
     NcbiTaxonomy t(namesFile, nodesFile, mergedFile, delnodesFile);
 
@@ -54,13 +63,14 @@ int lca(int argc, const char **argv, const Command& command) {
     {
         char *entry[255];
         char buffer[1024];
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+
         #pragma omp for schedule(static)
         for (size_t i = 0; i < entries; ++i) {
             Debug::printProgress(i);
-            unsigned int thread_idx = 0;
-#ifdef OPENMP
-            thread_idx = (unsigned int) omp_get_thread_num();
-#endif
 
             unsigned int key = reader.getDbKey(i);
             char *data = reader.getData(i);
@@ -72,19 +82,29 @@ int lca(int argc, const char **argv, const Command& command) {
 
             std::vector<int> taxa;
             while (*data != '\0') {
+                int taxon;
                 const size_t columns = Util::getWordsOfLine(data, entry, 255);
                 if (columns == 0) {
                     Debug(Debug::WARNING) << "Empty entry: " << i << "!";
-                    data = Util::skipLine(data);
-                    continue;
+                    goto next;
                 }
-                int taxon = (int)strtol(entry[0], NULL, 10);
+
+                taxon = (int)strtol(entry[0], NULL, 10);
+
+                // remove blacklisted taxa
+                for (size_t j = 0; j < taxaBlacklistSize; ++j) {
+                    if (t.IsAncestor(taxaBlacklist[j], taxon)) {
+                        goto next;
+                    }
+                }
+
                 taxa.emplace_back(taxon);
+
+                next:
                 data = Util::skipLine(data);
             }
 
             TaxonNode* node = t.LCA(taxa);
-
             if (node == NULL) {
                 continue;
             }
@@ -106,6 +126,8 @@ int lca(int argc, const char **argv, const Command& command) {
 
     writer.close();
     reader.close();
+
+    delete[] taxaBlacklist;
 
     return EXIT_SUCCESS;
 }

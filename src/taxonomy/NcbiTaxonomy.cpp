@@ -300,6 +300,35 @@ int NcbiTaxonomy::lcaHelper(int i, int j) {
     return E[rmq];
 }
 
+bool NcbiTaxonomy::IsAncestor(int ancestor, int child) {
+    std::map<int, int>::iterator jt = D.find(ancestor);
+    if (jt == D.end()) {
+        Debug(Debug::ERROR) << "Invalid taxon tree: Could not find node " << ancestor << "!\n";
+        EXIT(EXIT_FAILURE);
+    } else {
+        int value = jt->second;
+        // -1 nodes was deleted (in delnodes)
+        if (value == -1) {
+            return false;
+        }
+        ancestor = value;
+    }
+
+    jt = D.find(child);
+    if (jt == D.end()) {
+        Debug(Debug::ERROR) << "Invalid taxon tree: Could not find node " << ancestor << "!\n";
+        EXIT(EXIT_FAILURE);
+    } else {
+        int value = jt->second;
+        if (value == -1) {
+            return false;
+        }
+        child = value;
+    }
+
+    return lcaHelper(child, ancestor) == ancestor;
+}
+
 TaxonNode* NcbiTaxonomy::LCA(const std::vector<int>& taxa) {
     std::vector<int> indices;
     for (std::vector<int>::const_iterator it = taxa.begin(); it != taxa.end(); ++it) {

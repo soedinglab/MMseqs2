@@ -158,6 +158,7 @@ Parameters::Parameters():
         PARAM_KB_COLUMNS(PARAM_KB_COLUMNS_ID, "--kb-columns", "UniprotKB Columns", "list of indices of UniprotKB columns to be extracted", typeid(std::string), (void *) &kbColumns, ""),
         PARAM_RECOVER_DELETED(PARAM_RECOVER_DELETED_ID, "--recover-deleted", "Recover Deleted", "Indicates if sequences are allowed to be be removed during updating", typeid(bool), (void*) &recoverDeleted, ""),
         PARAM_LCA_RANKS(PARAM_LCA_RANKS_ID, "--lca-ranks", "LCA Ranks", "Ranks to return in LCA computation", typeid(std::string), (void*) &lcaRanks, ""),
+        PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted Taxa", "Comma separted list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA Mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2", typeid(int), (void*) &lcaMode, "^[0-2]{1}$")
 {
 
@@ -512,6 +513,7 @@ Parameters::Parameters():
 
     // lca
     lca.push_back(PARAM_LCA_RANKS);
+    lca.push_back(PARAM_BLACKLIST);
     lca.push_back(PARAM_V);
     lca.push_back(PARAM_THREADS);
 
@@ -1107,6 +1109,11 @@ void Parameters::setDefaults() {
 
     // lca
     lcaRanks = "";
+    // bin for all unclassified sequences
+    // https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=12908
+    // other sequences (plasmids, etc)
+    // https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=28384
+    blacklist = "12908,28384";
 
     // taxonomy
     lcaMode = 2;
