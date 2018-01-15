@@ -45,7 +45,7 @@ class SubstitutionMatrix: public BaseMatrix {
         };
 
         // build matrix from ~ (=0) to ~(=122)
-        static FastMatrix createAsciiSubMat(SubstitutionMatrix & submat){
+        static FastMatrix createAsciiSubMat(BaseMatrix & submat){
             const size_t asciiStart = 0;
             const size_t asciiEnd = 'z';
             const size_t range = asciiEnd-asciiStart;

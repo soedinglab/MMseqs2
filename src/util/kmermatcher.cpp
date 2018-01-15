@@ -22,6 +22,7 @@
 #include "FileUtil.h"
 #include <tantan.h>
 #include <queue>
+#include <NucleotideMatrix.h>
 #include "QueryMatcher.h"
 #include "FileUtil.h"
 
@@ -89,7 +90,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                              std::vector<std::string> tmpFiles, std::vector<bool> &repSequence,
                              int covMode, float covThr) ;
 
-void setKmerLengthAndAlphabet(Parameters &parameters);
+void setKmerLengthAndAlphabet(Parameters &parameters, int seqType);
 
 void writeKmersToDisk(std::string tmpFile, KmerPosition *kmers, size_t totalKmers);
 
@@ -147,6 +148,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                              size_t KMER_SIZE, size_t chooseTopKmer,
                              size_t splits, size_t split){
     size_t offset = 0;
+    int querySeqType  =  seqDbr.getDbtype();
     double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
     const double *probMatrixPointers[subMat->alphabetSize];
     char hardMaskTable[256];
@@ -180,7 +182,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
 
 #pragma omp parallel
     {
-        Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, subMat, KMER_SIZE, false, false);
+        Sequence seq(par.maxSeqLen, querySeqType, subMat, KMER_SIZE, false, false);
         Indexer idxer(subMat->alphabetSize, KMER_SIZE);
         char * charSequence = new char[par.maxSeqLen];
         const unsigned int BUFFER_SIZE = 1024;
@@ -309,23 +311,31 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         EXIT(EXIT_FAILURE);
     }
 
-    setKmerLengthAndAlphabet(par);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
-    BaseMatrix *subMat;
-    if (par.alphabetSize == 21) {
-        subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-    } else {
-        SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-        subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, par.alphabetSize, 2.0);
-    }
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());
     seqDbr.open(DBReader<unsigned int>::NOSORT);
+    int querySeqType  =  seqDbr.getDbtype();
+
+    setKmerLengthAndAlphabet(par, querySeqType);
+
+    BaseMatrix *subMat;
+    if (querySeqType == Sequence::NUCLEOTIDES) {
+        subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+    }else {
+        if (par.alphabetSize == 21) {
+            subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+        } else {
+            SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
+            subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, par.alphabetSize, 2.0);
+        }
+    }
+
     //seqDbr.readMmapedDataInMemory();
     const size_t KMER_SIZE = par.kmerSize;
     size_t chooseTopKmer = par.kmersPerSequence;
@@ -770,14 +780,22 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
     fclose(filePtr);
 }
 
-void setKmerLengthAndAlphabet(Parameters &parameters) {
-    if(parameters.kmerSize == 0){
-        if((parameters.seqIdThr+0.001)>=0.9){
-            parameters.kmerSize = 14;
-            parameters.alphabetSize = 13;
-        }else{
-            parameters.kmerSize = 10;
-            parameters.alphabetSize = 13;
+void setKmerLengthAndAlphabet(Parameters &parameters, int seqTyp) {
+    if(seqTyp == Sequence::NUCLEOTIDES){
+        if(parameters.kmerSize == 0) {
+            parameters.kmerSize = 21;
+            parameters.alphabetSize = 5;
+        }
+    }else{
+
+        if(parameters.kmerSize == 0){
+            if((parameters.seqIdThr+0.001)>=0.9){
+                parameters.kmerSize = 14;
+                parameters.alphabetSize = 13;
+            }else{
+                parameters.kmerSize = 10;
+                parameters.alphabetSize = 13;
+            }
         }
     }
     Debug(Debug::WARNING) << "Alphabet size: " << parameters.alphabetSize;

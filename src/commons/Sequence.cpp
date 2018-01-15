@@ -71,6 +71,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
 
 Sequence::~Sequence()
 {
+    delete[] this->spacedPattern;
     delete[] int_sequence;
     delete[] int_consensus_sequence;
     if(kmerWindow) {
@@ -94,29 +95,30 @@ Sequence::~Sequence()
 }
 
 std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, unsigned int kmerSize){
+    std::pair<const char *, unsigned int> pair;
     switch (kmerSize) {
         case 0: // if no kmer iterator support
-            return std::make_pair<const char *, unsigned int>(NULL, 0);
+            pair = std::make_pair<const char *, unsigned int>(NULL, 0);
             break;
         case 4:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_4_spaced, ARRAY_SIZE(seed_4_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_4_spaced, ARRAY_SIZE(seed_4_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_4, ARRAY_SIZE(seed_4));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_4, ARRAY_SIZE(seed_4));
             }
             break;
         case 5:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_5_spaced, ARRAY_SIZE(seed_5_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_5_spaced, ARRAY_SIZE(seed_5_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_5, ARRAY_SIZE(seed_5));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_5, ARRAY_SIZE(seed_5));
             }
             break;
         case 6:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_6_spaced, ARRAY_SIZE(seed_6_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_6_spaced, ARRAY_SIZE(seed_6_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_6, ARRAY_SIZE(seed_6));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_6, ARRAY_SIZE(seed_6));
             }
             break;
         case 7:
@@ -128,74 +130,82 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
             break;
         case 9:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_9_spaced, ARRAY_SIZE(seed_9_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_9_spaced, ARRAY_SIZE(seed_9_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_9, ARRAY_SIZE(seed_9));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_9, ARRAY_SIZE(seed_9));
             }
             break;
         case 10:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_10_spaced, ARRAY_SIZE(seed_10_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_10_spaced, ARRAY_SIZE(seed_10_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_10, ARRAY_SIZE(seed_10));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_10, ARRAY_SIZE(seed_10));
             }
             break;
         case 11:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_11_spaced, ARRAY_SIZE(seed_11_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_11_spaced, ARRAY_SIZE(seed_11_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_11, ARRAY_SIZE(seed_11));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_11, ARRAY_SIZE(seed_11));
             }
             break;
         case 12:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_12_spaced, ARRAY_SIZE(seed_12_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_12_spaced, ARRAY_SIZE(seed_12_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_12, ARRAY_SIZE(seed_12));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_12, ARRAY_SIZE(seed_12));
             }
             break;
         case 13:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_13_spaced, ARRAY_SIZE(seed_13_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_13_spaced, ARRAY_SIZE(seed_13_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_13, ARRAY_SIZE(seed_13));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_13, ARRAY_SIZE(seed_13));
             }
             break;
         case 14:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_14_spaced, ARRAY_SIZE(seed_14_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_14_spaced, ARRAY_SIZE(seed_14_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_14, ARRAY_SIZE(seed_14));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_14, ARRAY_SIZE(seed_14));
             }
             break;
         case 15:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_15_spaced, ARRAY_SIZE(seed_15_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_15_spaced, ARRAY_SIZE(seed_15_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_15, ARRAY_SIZE(seed_15));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_15, ARRAY_SIZE(seed_15));
             }
             break;
         case 16:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_16_spaced, ARRAY_SIZE(seed_16_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_16_spaced, ARRAY_SIZE(seed_16_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_16, ARRAY_SIZE(seed_16));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_16, ARRAY_SIZE(seed_16));
             }
             break;
         case 17:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_17_spaced, ARRAY_SIZE(seed_17_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_17_spaced, ARRAY_SIZE(seed_17_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_17, ARRAY_SIZE(seed_17));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_17, ARRAY_SIZE(seed_17));
             }
             break;
         default:
-            Debug(Debug::ERROR) << "Did not find spaced pattern for kmerSize: " << kmerSize << ". \n";
-            Debug(Debug::ERROR) << "Please report this bug to the developer\n";
-            EXIT(EXIT_FAILURE);
+            char * pattern = new char[kmerSize];
+            for(size_t i = 0; i < kmerSize; i++){
+                pattern[i]=1;
+            }
+            return std::make_pair<const char *, unsigned int>((const char *) pattern, static_cast<unsigned int> (kmerSize));
+
+//            Debug(Debug::ERROR) << "Did not find spaced pattern for kmerSize: " << kmerSize << ". \n";
+//            Debug(Debug::ERROR) << "Please report this bug to the developer\n";
+//            EXIT(EXIT_FAILURE);
             break;
     }
-    return std::make_pair<const char *, unsigned int>(NULL, 0);
+    char * pattern = new char[pair.second];
+    memcpy(pattern, pair.first, pair.second* sizeof(char));
+    return std::make_pair<const char *, unsigned int>(pattern, static_cast<unsigned int>(pair.second));
 }
 
 
