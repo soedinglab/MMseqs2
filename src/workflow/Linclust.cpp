@@ -75,7 +75,7 @@ int linclust(int argc, const char **argv, const Command& command) {
         if (par.linclustworkflow[i].uniqid == par.PARAM_ALPH_SIZE.uniqid && par.linclustworkflow[i].wasSet) {
             alphabetSizeWasSet = true;
         }
-        if (par.clusteringWorkflow[i].uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.clusteringWorkflow[i].wasSet) {
+        if (par.linclustworkflow[i].uniqid == par.PARAM_CLUSTER_MODE.uniqid && par.linclustworkflow[i].wasSet) {
             clusterModeSet = true;
         }
     }
