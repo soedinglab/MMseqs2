@@ -1122,8 +1122,8 @@ void Parameters::setDefaults() {
     lcaMode = 2;
 }
 
-std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter> &par1,
-                                                     std::vector<MMseqsParameter> &par2) {
+std::vector<MMseqsParameter> Parameters::combineList(const std::vector<MMseqsParameter> &par1,
+                                                     const std::vector<MMseqsParameter> &par2) {
     std::vector<MMseqsParameter> retVec;
     std::vector< std::vector<MMseqsParameter>> tmp;
     tmp.push_back(par1);
@@ -1144,7 +1144,7 @@ std::vector<MMseqsParameter> Parameters::combineList(std::vector<MMseqsParameter
     return retVec;
 }
 
-size_t Parameters::hashParameter(std::vector<std::string> & filenames, std::vector<MMseqsParameter> &par){
+size_t Parameters::hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter> &par){
     std::string hashString;
     hashString.reserve(1024);
     for(size_t i = 0; i < filenames.size(); i++){
@@ -1155,7 +1155,7 @@ size_t Parameters::hashParameter(std::vector<std::string> & filenames, std::vect
     return Util::hash(hashString.c_str(), hashString.size());
 }
 
-std::string Parameters::createParameterString(std::vector<MMseqsParameter> &par) {
+std::string Parameters::createParameterString(const std::vector<MMseqsParameter> &par) {
     std::ostringstream ss;
     for (size_t i = 0; i < par.size(); ++i) {
         // Never pass the MPI parameters along, they are passed by the environment
