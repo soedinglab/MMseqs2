@@ -1147,11 +1147,15 @@ std::vector<MMseqsParameter> Parameters::combineList(const std::vector<MMseqsPar
 size_t Parameters::hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter> &par){
     std::string hashString;
     hashString.reserve(1024);
-    for(size_t i = 0; i < filenames.size(); i++){
+    for (size_t i = 0; i < filenames.size(); ++i){
         hashString.append(filenames[i]);
         hashString.append(" ");
     }
     hashString.append(createParameterString(par));
+    hashString.append(version);
+    for (int i = 0; i < restArgc; ++i) {
+        hashString.append(restArgv[i]);
+    }
     return Util::hash(hashString.c_str(), hashString.size());
 }
 
