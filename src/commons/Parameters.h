@@ -405,10 +405,6 @@ public:
     // create profile (HMM, PSSM)
     PARAMETER(PARAM_PROFILE_TYPE)
 
-    // sequence2profile
-    PARAMETER(PARAM_NEFF)
-    PARAMETER(PARAM_TAU)
-
     // format alignment
     PARAMETER(PARAM_FORMAT_MODE)
     PARAMETER(PARAM_DB_OUTPUT)
@@ -438,8 +434,10 @@ public:
     PARAMETER(PARAM_WG)
     PARAMETER(PARAM_PCA)
     PARAMETER(PARAM_PCB)
-    //PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
-//    PARAMETER(PARAM_NO_PRUNING)
+
+    // sequence2profile
+    PARAMETER(PARAM_NEFF)
+    PARAMETER(PARAM_TAU)
 
     // createtsv
     PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
