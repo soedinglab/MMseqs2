@@ -475,7 +475,7 @@ bool Util::canBeCovered(const float covThr, const int covMode, float queryLength
         case Parameters::COV_MODE_BIDIRECTIONAL:
             return ((queryLength / targetLength >= covThr) || (targetLength / queryLength >= covThr));
         case Parameters::COV_MODE_QUERY:
-            return ((queryLength / targetLength) >= covThr);
+            return ((targetLength / queryLength) >= covThr);
         default:
             return true;
     }
