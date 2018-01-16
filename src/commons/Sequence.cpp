@@ -69,9 +69,8 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     currItPos = -1;
 }
 
-Sequence::~Sequence()
-{
-    delete[] this->spacedPattern;
+Sequence::~Sequence() {
+    delete[] spacedPattern;
     delete[] int_sequence;
     delete[] int_consensus_sequence;
     if(kmerWindow) {
@@ -123,9 +122,9 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
             break;
         case 7:
             if(spaced){
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_7_spaced, ARRAY_SIZE(seed_7_spaced));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_7_spaced, ARRAY_SIZE(seed_7_spaced));
             }else{
-                return std::make_pair<const char *, unsigned int>((const char *) &seed_7, ARRAY_SIZE(seed_7));
+                pair =  std::make_pair<const char *, unsigned int>((const char *) &seed_7, ARRAY_SIZE(seed_7));
             }
             break;
         case 9:
@@ -196,7 +195,7 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
             for(size_t i = 0; i < kmerSize; i++){
                 pattern[i]=1;
             }
-            return std::make_pair<const char *, unsigned int>((const char *) pattern, static_cast<unsigned int> (kmerSize));
+            return std::make_pair<const char *, unsigned int>((const char *) pattern, static_cast<unsigned int>(kmerSize));
 
 //            Debug(Debug::ERROR) << "Did not find spaced pattern for kmerSize: " << kmerSize << ". \n";
 //            Debug(Debug::ERROR) << "Please report this bug to the developer\n";
@@ -204,7 +203,7 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
             break;
     }
     char * pattern = new char[pair.second];
-    memcpy(pattern, pair.first, pair.second* sizeof(char));
+    memcpy(pattern, pair.first, pair.second * sizeof(char));
     return std::make_pair<const char *, unsigned int>(pattern, static_cast<unsigned int>(pair.second));
 }
 
