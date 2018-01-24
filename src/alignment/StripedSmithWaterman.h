@@ -175,6 +175,18 @@ public:
 
     s_align scoreIdentical(int *dbSeq, int L, EvalueComputation * evaluer, int mode);
 
+    static void seq_reverse(int8_t * reverse, const int8_t* seq, int32_t end)	/* end is 0-based alignment ending position */
+    {
+        int32_t start = 0;
+        while (LIKELY(start <= end)) {
+            reverse[start] = seq[end];
+            reverse[end] = seq[start];
+            ++start;
+            --end;
+        }
+    }
+
+
 private:
 
     struct s_profile{

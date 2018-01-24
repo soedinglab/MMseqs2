@@ -24,7 +24,7 @@
    Please send bug reports and/or suggestions to martin.steinegger@mpibpc.mpg.de.
 */
 #include <Parameters.h>
-#include "smith_waterman_sse2.h"
+#include "StripedSmithWaterman.h"
 
 #include "Util.h"
 #include "SubstitutionMatrix.h"
@@ -259,17 +259,6 @@ s_align SmithWaterman::ssw_align (
 	return r;
 }
 
-
-static void seq_reverse(int8_t * reverse, const int8_t* seq, int32_t end)	/* end is 0-based alignment ending position */
-{
-	int32_t start = 0;
-	while (LIKELY(start <= end)) {
-		reverse[start] = seq[end];
-		reverse[end] = seq[start];
-		++start;
-		--end;
-	}
-}
 
 
 char SmithWaterman::cigar_int_to_op (uint32_t cigar_int)

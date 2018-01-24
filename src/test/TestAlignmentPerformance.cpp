@@ -21,7 +21,7 @@
 #include "Sequence.h"
 #include "ExtendedSubstitutionMatrix.h"
 #include "SubstitutionMatrix.h"
-#include "smith_waterman_sse2.h"
+#include "StripedSmithWaterman.h"
 
 const char* binary_name = "test_alignmentperformance";
 

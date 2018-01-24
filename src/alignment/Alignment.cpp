@@ -1,4 +1,5 @@
 #include <SubstitutionMatrixProfileStates.h>
+#include <QueryMatcher.h>
 #include "Alignment.h"
 #include "Util.h"
 #include "Debug.h"
@@ -308,8 +309,17 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 while (*data != '\0' && passedNum < maxAlnNum && rejected < maxRejected) {
                     // DB key of the db sequence
                     char dbKeyBuffer[255 + 1];
+                    char * words[10];
                     Util::parseKey(data, dbKeyBuffer);
                     const unsigned int dbKey = (unsigned int) strtoul(dbKeyBuffer, NULL, 10);
+
+                    size_t elements = Util::getWordsOfLine(data, words, 10);
+                    int diagonal = INT_MAX;
+                    // Prefilter result (need to make this better)
+                    if(elements == 3){
+                        hit_t hit = QueryMatcher::parsePrefilterHit(data);
+                        diagonal = hit.diagonal;
+                    }
 
                     setTargetSequence(dbSeq, dbKey);
                     // check if the sequences could pass the coverage threshold
@@ -322,7 +332,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB)) ? true : false;
 
                     // calculate Smith-Waterman alignment
-                    Matcher::result_t res = matcher.getSWResult(&dbSeq, covMode, covThr, evalThr, swMode, isIdentity);
+                    Matcher::result_t res = matcher.getSWResult(&dbSeq, diagonal, covMode, covThr, evalThr, swMode, isIdentity);
                     alignmentsNum++;
 
                     // sequence are identical if qID == dbID  (needed to cluster really short sequences)
@@ -364,7 +374,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     for (size_t result = 0; result < swResults.size(); result++) {
                         setTargetSequence(dbSeq, swResults[result].dbKey);
                         const bool isIdentity = (queryDbKey == swResults[result].dbKey && (includeIdentity || sameQTDB)) ? true : false;
-                        Matcher::result_t res = realigner->getSWResult(&dbSeq, covMode, covThr, FLT_MAX,
+                        Matcher::result_t res = realigner->getSWResult(&dbSeq, INT_MAX, covMode, covThr, FLT_MAX,
                                                                        Matcher::SCORE_COV_SEQID, isIdentity);
                         swResults[result].backtrace  = res.backtrace;
                         swResults[result].qStartPos  = res.qStartPos;

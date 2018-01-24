@@ -260,10 +260,15 @@ public:
 
     const float *getProfile();
 
+    const char * getSeqData(){
+        return seqData;
+    }
+
 private:
     void mapSequence(const char *seq);
     size_t id;
     unsigned int dbKey;
+    const char * seqData;
 
     // current iterator position
     int currItPos;

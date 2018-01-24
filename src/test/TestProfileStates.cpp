@@ -9,7 +9,7 @@
 #include <fstream>
 #include <ProfileStates.h>
 #include "Parameters.h"
-#include "smith_waterman_sse2.h"
+#include "StripedSmithWaterman.h"
 #include "MsaFilter.h"
 #include "PSSMCalculator.h"
 #include "Sequence.h"

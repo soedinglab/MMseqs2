@@ -3,7 +3,7 @@
 #include "Matcher.h"
 #include "Util.h"
 #include "Parameters.h"
-#include "smith_waterman_sse2.h"
+#include "StripedSmithWaterman.h"
 
 Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputation * evaluer,
                  bool aaBiasCorrection, int gapOpen, int gapExtend){
@@ -16,7 +16,11 @@ Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputati
     }
 
     this->maxSeqLen = maxSeqLen;
-    aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
+    if(querySeqType==Sequence::NUCLEOTIDES){
+        nuclaligner = new  BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend);
+    }else{
+        aligner = new SmithWaterman(maxSeqLen, m->alphabetSize, aaBiasCorrection);
+    }
     this->evaluer = evaluer;
     //std::cout << "lambda=" << lambdaLog2 << " logKLog2=" << logKLog2 << std::endl;
 }
@@ -41,7 +45,9 @@ Matcher::~Matcher(){
 
 void Matcher::initQuery(Sequence* query){
     currentQuery = query;
-    if(query->getSeqType() == Sequence::HMM_PROFILE || query->getSeqType() == Sequence::PROFILE_STATE_PROFILE){
+    if(query->getSequenceType()==Sequence::NUCLEOTIDES){
+        nuclaligner->initQuery(query);
+    }else if(query->getSeqType() == Sequence::HMM_PROFILE || query->getSeqType() == Sequence::PROFILE_STATE_PROFILE){
         aligner->ssw_init(query, query->getAlignmentProfile(), this->m, this->m->alphabetSize, 2);
     }else{
         aligner->ssw_init(query, this->tinySubMat, this->m, this->m->alphabetSize, 2);
@@ -49,7 +55,7 @@ void Matcher::initQuery(Sequence* query){
 }
 
 
-Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const float covThr,
+Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, const int covMode, const float covThr,
                                        const double evalThr, const unsigned int mode, bool isIdentity){
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
@@ -63,7 +69,15 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int covMode, const
     //std::cout << seqDbSize << " " << 100 << " " << scoreThr << std::endl;
     //std::cout <<datapoints << " " << m->getBitFactor() <<" "<< evalThr << " " << seqDbSize << " " << currentQuery->L << " " << dbSeq->L<< " " << scoreThr << " " << std::endl;
     s_align alignment;
-    if(isIdentity==false){
+    if(dbSeq->getSequenceType()==Sequence::NUCLEOTIDES){
+        if(diagonal==INT_MAX){
+            Debug(Debug::ERROR) << "ERROR: Query sequence " << currentQuery->getDbKey()
+                                << " has a result with no proper diagonal information , "
+                                << "Please check your database.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        alignment = nuclaligner->align(dbSeq,diagonal,evaluer);
+    }else if(isIdentity==false){
         alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, gapOpen, gapExtend, mode, evalThr, evaluer, covMode, covThr, maskLen);
     }else{
         alignment = aligner->scoreIdentical(dbSeq->int_sequence, dbSeq->L, evaluer, mode);

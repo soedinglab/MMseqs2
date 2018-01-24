@@ -5,7 +5,7 @@
 //  Copyright (c) 2012 -. All rights reserved.
 //
 #include <iostream>
-#include <smith_waterman_sse2.h>
+#include <StripedSmithWaterman.h>
 #include <MsaFilter.h>
 #include "PSSMCalculator.h"
 #include "Sequence.h"

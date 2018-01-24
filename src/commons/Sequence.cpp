@@ -211,6 +211,7 @@ std::pair<const char *, unsigned int> Sequence::getSpacedPattern(bool spaced, un
 void Sequence::mapSequence(size_t id, unsigned int dbKey, const char *sequence) {
     this->id = id;
     this->dbKey = dbKey;
+    this->seqData = sequence;
     if (this->seqType == Sequence::AMINO_ACIDS || this->seqType == Sequence::NUCLEOTIDES) {
         mapSequence(sequence);
     } else if (this->seqType == Sequence::HMM_PROFILE) {

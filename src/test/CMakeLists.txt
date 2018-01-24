@@ -28,6 +28,7 @@ set(TESTS
         TestProfileStates.cpp
         TestCSProfile.cpp
         TestUtil.cpp
+        TestKsw2.cpp
         )
 
 FOREACH (TEST ${TESTS})

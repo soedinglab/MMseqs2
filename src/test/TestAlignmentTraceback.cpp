@@ -13,7 +13,7 @@
 #include "ReducedMatrix.h"
 #include "KmerGenerator.h"
 #include "BaseMatrix.h"
-#include "smith_waterman_sse2.h"
+#include "StripedSmithWaterman.h"
 #include "Util.h"
 #include "Parameters.h"
 

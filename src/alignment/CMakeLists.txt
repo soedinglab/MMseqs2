@@ -6,7 +6,9 @@ set(alignment_header_files
         alignment/MsaFilter.h
         alignment/MultipleAlignment.h
         alignment/PSSMCalculator.h
-        alignment/smith_waterman_sse2.h
+        alignment/StripedSmithWaterman.h
+        alignment/BandedNucleotideAligner.h
+
         PARENT_SCOPE
         )
 
@@ -18,6 +20,7 @@ set(alignment_source_files
         alignment/MsaFilter.cpp
         alignment/MultipleAlignment.cpp
         alignment/PSSMCalculator.cpp
-        alignment/smith_waterman_sse2.cpp
+        alignment/StripedSmithWaterman.cpp
+        alignment/BandedNucleotideAligner.cpp
         PARENT_SCOPE
         )
