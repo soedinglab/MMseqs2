@@ -145,7 +145,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     }
 
     int originalSplits = splits;
-    setupSplit(*tdbr, alphabetSize, threads, templateDBIsIndex, maxResListLen, &kmerSize, &splits, &splitMode);
+    setupSplit(*tdbr, alphabetSize-1, threads, templateDBIsIndex, maxResListLen, &kmerSize, &splits, &splitMode);
     if(targetSeqType != Sequence::NUCLEOTIDES){
         kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
     }
@@ -899,7 +899,7 @@ double Prefiltering::setKmerThreshold(IndexTable *indexTable, DBReader<unsigned 
         EvalueComputation evaluer(indexTable->getTableEntriesNum(), subMat, 0, 0, false);
         QueryMatcher matcher(subMat, indexTable, evaluer, tdbr->getSeqLens(), kmerThr, 1.0,
                              kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
-                             150000, aaBiasCorrection, false, minDiagScoreThr, false);
+                             150000, aaBiasCorrection, false, minDiagScoreThr, takeOnlyBestKmer);
         if(querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE ){
             matcher.setProfileMatrix(seq.profile_matrix);
         } else {
