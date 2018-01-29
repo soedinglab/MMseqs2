@@ -115,7 +115,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj, short diagonal,
     int flag = 0;
     flag |= KSW_EZ_SCORE_ONLY;
     flag |= KSW_EZ_EXTZ_ONLY;
-    ksw_extz2_sse(0, querySeqObj->L - qStartRev, querySeqRev + qStartRev, targetSeqObj->L - tStartRev, targetSeqRev + tStartRev, 5, mat, gapo, gape, 32, 40, flag, &ez);
+    ksw_extz2_sse(0, querySeqObj->L - qStartRev, querySeqRev + qStartRev, targetSeqObj->L - tStartRev, targetSeqRev + tStartRev, 5, mat, gapo, gape, 64, 40, flag, &ez);
 
     int qStartPos = querySeqObj->L  - ( qStartRev + ez.max_q ) -1 ;
     int tStartPos = targetSeqObj->L - ( tStartRev + ez.max_t ) -1;
@@ -128,7 +128,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj, short diagonal,
 //    printf("%d %d\n", qStartPos, tStartPos);
     memset(&ezAlign, 0, sizeof(ksw_extz_t));
     ksw_extz2_sse(0, querySeqObj->L-qStartPos, querySeq+qStartPos, targetSeqObj->L-tStartPos, targetSeq+tStartPos, 5,
-                  mat, gapo, gape, 32, 40, alignFlag, &ezAlign);
+                  mat, gapo, gape, 64, 40, alignFlag, &ezAlign);
 
     std::string letterCode = "MID";
     uint32_t * retCigar = new uint32_t[ezAlign.n_cigar];
@@ -146,7 +146,7 @@ s_align BandedNucleotideAligner::align(Sequence * targetSeqObj, short diagonal,
     result.qCov = SmithWaterman::computeCov(result.qStartPos1, result.qEndPos1, querySeqObj->L);
     result.tCov = SmithWaterman::computeCov(result.dbStartPos1, result.dbEndPos1, targetSeqObj->L);
     result.evalue = evaluer->computeEvalue(result.score1, querySeqObj->L);
-
+    free(ezAlign.cigar);
     return result;
 //        std::cout << static_cast<float>(aaIds)/ static_cast<float>(alignment.len) << std::endl;
 
