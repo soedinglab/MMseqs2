@@ -34,6 +34,7 @@ Parameters::Parameters():
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "Splits input sets into N equally distributed chunks. The default value sets the best split automatically. createindex can only be used with split 1.",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "0: split target db; 1: split query db;  2: auto, depending on main memory",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split Memory Limit", "Maximum system memory in megabyte that one split may use. Defaults (-1) to all available system memory.", typeid(int), (void*) &splitMemoryLimit, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
@@ -196,6 +197,7 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_RES_LIST_OFFSET);
     prefilter.push_back(PARAM_SPLIT);
     prefilter.push_back(PARAM_SPLIT_MODE);
+    prefilter.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     prefilter.push_back(PARAM_C);
     prefilter.push_back(PARAM_COV_MODE);
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -366,6 +368,7 @@ Parameters::Parameters():
     indexdb.push_back(PARAM_K_SCORE);
     indexdb.push_back(PARAM_INCLUDE_HEADER);
     indexdb.push_back(PARAM_SPLIT);
+    indexdb.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     indexdb.push_back(PARAM_THREADS);
     indexdb.push_back(PARAM_V);
 
@@ -423,6 +426,7 @@ Parameters::Parameters():
     // swap results
     swapresult.push_back(PARAM_SUB_MAT);
     swapresult.push_back(PARAM_E);
+    swapresult.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     swapresult.push_back(PARAM_THREADS);
 
     // subtractdbs
@@ -449,6 +453,7 @@ Parameters::Parameters():
     kmermatcher.push_back(PARAM_C);
     kmermatcher.push_back(PARAM_MAX_SEQ_LEN);
     kmermatcher.push_back(PARAM_HASH_SHIFT);
+    kmermatcher.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     kmermatcher.push_back(PARAM_THREADS);
     kmermatcher.push_back(PARAM_V);
 
@@ -938,6 +943,7 @@ void Parameters::setDefaults() {
     sensitivity = 4;
     split = AUTO_SPLIT_DETECTION;
     splitMode = DETECT_BEST_DB_SPLIT;
+    splitMemoryLimit = -1;
     splitAA = false;
 
     // search workflow

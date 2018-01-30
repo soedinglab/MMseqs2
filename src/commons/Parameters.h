@@ -165,7 +165,8 @@ public:
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks
-    int    splitMode;                    // Split by query or target DB (MPI only)
+    int    splitMode;                    // Split by query or target DB
+    int    splitMemoryLimit;             // Maximum amount of memory a split can use
     bool   splitAA;                      // Split database by amino acid count instead
     size_t resListOffset;                // Offsets result list
     bool   noPreload;                    // Do not preload database into memory
@@ -366,6 +367,7 @@ public:
     PARAMETER(PARAM_MAX_SEQS)
     PARAMETER(PARAM_SPLIT)
     PARAMETER(PARAM_SPLIT_MODE)
+    PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)

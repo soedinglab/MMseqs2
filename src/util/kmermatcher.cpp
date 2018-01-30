@@ -340,25 +340,29 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     const size_t KMER_SIZE = par.kmerSize;
     size_t chooseTopKmer = par.kmersPerSequence;
 
-    size_t totalMemoryInByte = Util::getTotalSystemMemory();
-    Debug(Debug::WARNING) << "Check requirements\n";
+    size_t memoryLimit;
+    if (par.splitMemoryLimit > 0) {
+        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+    } else {
+        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+    }
+    Debug(Debug::INFO) << "Checking requirements\n";
     size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
-    Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << totalMemoryInByte
-                       << " byte)\n";
+    Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << memoryLimit << " byte)\n";
     // compute splits
-    size_t splits = static_cast<int>(std::ceil(static_cast<float>(totalSizeNeeded)/ (static_cast<float>(totalMemoryInByte)*0.9)));
-//    size_t splits = 2;
+    size_t splits = static_cast<size_t>(std::ceil(static_cast<float>(totalSizeNeeded) / memoryLimit));
 
-    if(splits > 1){
-        splits += 1; //security buffer
+    if (splits > 1) {
+        // security buffer
+        splits += 1;
     }
-    Debug(Debug::WARNING) << "Process file into " << splits << " parts\n";
+    Debug(Debug::INFO) << "Process file into " << splits << " parts\n";
     std::vector<std::string> splitFiles;
-    KmerPosition *hashSeqPair=NULL;
+    KmerPosition *hashSeqPair = NULL;
 
     for(size_t split = 0; split < splits; split++){
-        Debug(Debug::WARNING) << "Generate k-mers list " << split <<"\n";
+        Debug(Debug::INFO) << "Generate k-mers list " << split <<"\n";
 
         size_t splitKmerCount = (splits > 1) ? static_cast<size_t >(static_cast<double>(totalKmers/splits) * 1.2) : totalKmers;
         if(splits > 1){
@@ -369,7 +373,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             }
         }
         hashSeqPair = new(std::nothrow) KmerPosition[splitKmerCount + 1];
-        Util::checkAllocation(hashSeqPair, "Could not allocat memory");
+        Util::checkAllocation(hashSeqPair, "Could not allocate memory");
 #pragma omp parallel for
         for (size_t i = 0; i < splitKmerCount + 1; i++) {
             hashSeqPair[i].kmer = SIZE_T_MAX;
