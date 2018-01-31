@@ -8,3 +8,6 @@ else()
     target_compile_definitions(version PRIVATE -DGIT_SHA1=${GIT_SHA1})
 endif()
 
+if (${HAVE_MPI})
+    target_compile_definitions(version PRIVATE -DHAVE_MPI=${HAVE_MPI})
+endif()
