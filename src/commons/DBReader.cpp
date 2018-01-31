@@ -88,6 +88,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
             EXIT(EXIT_FAILURE);
         }
         data = mmapData(dataFile, &dataSize);
+        fclose(dataFile);
         dataMapped = true;
     }
 
@@ -308,7 +309,6 @@ template <typename T> void DBReader<T>::remapData(){
 
 template <typename T> void DBReader<T>::close(){
     if(dataMode & USE_DATA){
-        fclose(dataFile);
         unmapData();
     }
     if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){

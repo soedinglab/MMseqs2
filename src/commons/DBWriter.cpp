@@ -141,10 +141,18 @@ void DBWriter::open(size_t bufferSize) {
             EXIT(EXIT_FAILURE);
         }
 
+        int fd = fileno(dataFiles[i]);
+        int flags;
+        if ((flags = fcntl(fd, F_GETFL, 0)) < 0 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+            Debug(Debug::ERROR) << "Could not set mode for " << dataFileNames[i] << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
         dataFilesBuffer[i] = new char[bufferSize];
         this->bufferSize = bufferSize;
+
         // set buffer to 64
-        if(setvbuf (dataFiles[i], dataFilesBuffer[i] , _IOFBF , bufferSize ) != 0){
+        if (setvbuf (dataFiles[i], dataFilesBuffer[i] , _IOFBF , bufferSize) != 0){
             Debug(Debug::ERROR) << "Write buffer could not be allocated (bufferSize=" << bufferSize << ")\n";
         }
 
@@ -154,9 +162,16 @@ void DBWriter::open(size_t bufferSize) {
             EXIT(EXIT_FAILURE);
         }
 
-        if(setvbuf ( indexFiles[i]  , NULL , _IOFBF , bufferSize ) != 0){
+        fd = fileno(indexFiles[i]);
+        if ((flags = fcntl(fd, F_GETFL, 0)) < 0 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+            Debug(Debug::ERROR) << "Could not set mode for " << indexFileNames[i] << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+
+        if (setvbuf ( indexFiles[i]  , NULL , _IOFBF , bufferSize) != 0){
             Debug(Debug::ERROR) << "Write buffer could not be allocated (bufferSize=" << bufferSize << ")\n";
         }
+
         if (dataFiles[i] == NULL) {
             perror(dataFileNames[i]);
             EXIT(EXIT_FAILURE);
