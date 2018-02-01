@@ -105,10 +105,6 @@ public:
 
     void unmapData();
 
-    FILE* getDatafile(){
-        return dataFile;
-    }
-
     size_t getDataOffset(T i);
 
 
@@ -182,8 +178,6 @@ private:
     char* dataFileName;
 
     char* indexFileName;
-
-    FILE* dataFile;
 
     // number of entries in the index
     size_t size;
