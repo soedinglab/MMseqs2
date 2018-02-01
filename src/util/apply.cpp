@@ -4,7 +4,6 @@
 #include "Util.h"
 #include "Debug.h"
 
-#include <algorithm>
 #include <climits>
 #include <unistd.h>
 #include <fcntl.h>
@@ -277,13 +276,7 @@ int apply(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_REST);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
-
-    // to make processing time as equal as possible over the different MPI processes and threads,
-    // we shuffle the input database and later sort by entry length per thread
-    // with the assumption that longer input will take longer to process and
-    // that, if the most time consuming entries are processed first, no long stragglers in the end will
-    // force the other processes / threads to stall
-    reader.open(DBReader<unsigned int>::SHUFFLE);
+    reader.open(DBReader<unsigned int>::SORT_BY_LENGTH);
 
     const unsigned int *sizes = reader.getSeqLens();
 
@@ -307,23 +300,18 @@ int apply(int argc, const char **argv, const Command& command) {
                 Debug(Debug::ERROR) << "Could not fork worker process!\n";
                 EXIT(EXIT_FAILURE);
             case 0: {
-                size_t dbFrom = 0;
-                size_t dbSize = 0;
+                int rank = 1;
+                int procs = 1;
 #ifdef HAVE_MPI
                 while (shared_memory->ready == 0) {
                     usleep(10);
                 }
 
-                Util::decomposeDomainByAminoAcid(reader.getAminoAcidDBSize(), reader.getSeqLens(), reader.getSize(),
-                                                 shared_memory->mpiRank, shared_memory->mpiProc, &dbFrom, &dbSize);
-
+                rank = shared_memory->mpiRank;
+                procs = shared_memory->mpiProc;
                 std::pair<std::string, std::string> mpiDb = Util::createTmpFileNames(par.db2, par.db2Index, shared_memory->mpiRank);
-                Util::decomposeDomain(dbSize, proc_idx, par.threads, &dbFrom, &dbSize);
                 std::pair<std::string, std::string> outDb = Util::createTmpFileNames(mpiDb.first, mpiDb.second, proc_idx);
 #else
-                Util::decomposeDomainByAminoAcid(reader.getAminoAcidDBSize(), reader.getSeqLens(), reader.getSize(),
-                                                 proc_idx, par.threads, &dbFrom, &dbSize);
-
                 std::pair<std::string, std::string> outDb = Util::createTmpFileNames(par.db2, par.db2Index, proc_idx);
 #endif
 
@@ -332,19 +320,17 @@ int apply(int argc, const char **argv, const Command& command) {
 
                 char **local_environ = local_environment();
 
-                std::pair<unsigned int, unsigned int> *lengthSorted = new std::pair<unsigned int, unsigned int>[dbSize];
-                for (size_t i = dbFrom; i < (dbFrom + dbSize); i++) {
-                    lengthSorted[i - dbFrom] = std::make_pair(i, sizes[i]);
-                }
-                std::stable_sort(lengthSorted, lengthSorted + dbSize, DBReader<unsigned int>::comparePairBySeqLength());
-
                 ignore_signal(SIGPIPE);
 
-                for (size_t i = 0; i < dbSize; ++i) {
+                for (size_t i = 0; i < reader.getSize(); ++i) {
+                    if (i % (procs * par.threads) != (rank * procs + proc_idx)) {
+                        continue;
+                    }
+
                     Debug::printProgress(i);
 
-                    size_t index = lengthSorted[i].first;
-                    size_t size = lengthSorted[i].second - 1;
+                    size_t index = i;
+                    size_t size = sizes[i] - 1;
 
                     char *data = reader.getData(index);
                     if (data == NULL) {
@@ -356,14 +342,14 @@ int apply(int argc, const char **argv, const Command& command) {
                     if (status == -1) {
                         Debug(Debug::WARNING) << "Entry " << index << " system error " << errno << "!\n";
                         continue;
-                    } else if (status > 0) {
+                    }
+                    if (status > 0) {
                         Debug(Debug::WARNING) << "Entry " << index << " exited with error code " << status << "!\n";
                         continue;
                     }
                 }
 
-                delete[] lengthSorted;
-
+                Debug::setDebugLevel(0);
                 writer.close();
                 reader.close();
                 free_local_environment(local_environ);
