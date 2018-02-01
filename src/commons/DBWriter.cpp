@@ -356,6 +356,10 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         FILE **infiles = new FILE *[fileCount];
         for (unsigned int i = 0; i < fileCount; i++) {
             infiles[i] = fopen(dataFileNames[i], "r");
+            if (infiles[i] == NULL) {
+                Debug(Debug::ERROR) << "Could not open result file " << dataFileNames[i] << "!\n";
+                EXIT(EXIT_FAILURE);
+            }
         }
         Concat::concatFiles(infiles, fileCount, outFile);
         for (unsigned int i = 0; i < fileCount; i++) {
