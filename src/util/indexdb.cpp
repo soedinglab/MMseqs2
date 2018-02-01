@@ -55,7 +55,8 @@ int indexdb(int argc, const char **argv, const Command &command) {
         par.kmerScore = 0;
     }
 
-    int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, dbr.getDbtype(), par.kmerScore, kmerSize);
+    // query seq type is actually unknown here, but if we pass HMM_PROFILE then its +20 k-score
+    int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, Sequence::AMINO_ACIDS, par.kmerScore, kmerSize);
 
     DBReader<unsigned int> *hdbr = NULL;
     if (par.includeHeader == true) {

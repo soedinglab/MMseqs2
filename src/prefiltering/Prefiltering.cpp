@@ -161,7 +161,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
             reopenTargetDb();
         } else if (kmerThr < minKmerThr) {
-            Debug(Debug::WARNING) << "Required k-mer threshold does not match index table k-mer threshold. Recomputing index table!\n";
+            Debug(Debug::WARNING) << "Required k-mer threshold ( " << kmerThr
+                                  << ") does not match index table k-mer threshold (" << minKmerThr << "). "
+                                  << "Recomputing index table!\n";
             reopenTargetDb();
         } else if ((querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE) && minKmerThr != 0) {
             Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
