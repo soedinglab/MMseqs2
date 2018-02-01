@@ -4,12 +4,14 @@
 #include "Util.h"
 #include "Debug.h"
 
+#include <algorithm>
 #include <climits>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <spawn.h>
 #include <poll.h>
+#include <sys/wait.h>
 #include <sys/mman.h>
 
 
