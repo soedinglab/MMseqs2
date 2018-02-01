@@ -50,12 +50,12 @@ pid_t create_pipe(const char *prog_path, char **prog_argv, char **environ, int f
     int ofd[2];
 
     int err;
-    if ((err = pipe2_wrap(ifd, O_CLOEXEC | O_NONBLOCK)) != 0) {
+    if ((err = pipe2_wrap(ifd, O_CLOEXEC)) != 0) {
         perror("pipe ifd");
         errno = err;
         return -1;
     }
-    if ((err = pipe2_wrap(ofd, O_CLOEXEC | O_NONBLOCK)) != 0) {
+    if ((err = pipe2_wrap(ofd, O_CLOEXEC)) != 0) {
         perror("pipe ofd");
         errno = err;
         return -1;
