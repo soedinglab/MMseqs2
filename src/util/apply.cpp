@@ -300,7 +300,7 @@ int apply(int argc, const char **argv, const Command& command) {
                 Debug(Debug::ERROR) << "Could not fork worker process!\n";
                 EXIT(EXIT_FAILURE);
             case 0: {
-                int rank = 1;
+                int rank = 0;
                 int procs = 1;
 #ifdef HAVE_MPI
                 while (shared_memory->ready == 0) {
@@ -323,7 +323,7 @@ int apply(int argc, const char **argv, const Command& command) {
                 ignore_signal(SIGPIPE);
 
                 for (size_t i = 0; i < reader.getSize(); ++i) {
-                    if (i % (procs * par.threads) != (rank * procs + proc_idx)) {
+                    if (static_cast<ssize_t>(i) % (procs * par.threads) != (rank * procs + proc_idx)) {
                         continue;
                     }
 
