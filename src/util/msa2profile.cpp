@@ -103,8 +103,8 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     }
 
     // for SIMD memory alignment
-    maxSeqLength =  maxSeqLength    / (VECSIZE_INT*4);
-    maxSeqLength = (maxSeqLength+1) * (VECSIZE_INT*4);
+    maxSeqLength = (maxSeqLength) / (VECSIZE_INT * 4) + 2;
+    maxSeqLength *= (VECSIZE_INT * 4);
 
     unsigned int threads = (unsigned int) par.threads;
     DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), threads, DBWriter::BINARY_MODE);
@@ -128,12 +128,18 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Compute profiles from MSAs.\n";
 #pragma omp parallel
     {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
         PSSMCalculator calculator(&subMat, maxSeqLength, maxSetSize, par.pca, par.pcb);
         Sequence sequence(maxSeqLength + 1, Sequence::AMINO_ACIDS, &subMat, 0, false, par.compBiasCorrection != 0);
 
         char *msaContent = (char*) mem_align(ALIGN_INT, sizeof(char) * maxSeqLength * maxSetSize);
 
+        float *seqWeight = new float[maxSetSize];
         char *seqBuffer = new char[maxSeqLength + 1];
         bool *maskedColumns = new bool[maxSeqLength];
         std::string result;
@@ -144,15 +150,13 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         char **msaSequences = (char**) mem_align(ALIGN_INT, sizeof(char*) * maxSetSize);
 
+        const bool maskByFirst = par.matchMode == 0;
+        const float matchRatio = par.matchRatio;
+
         MsaFilter filter(maxSeqLength, maxSetSize, &subMat);
 #pragma omp for schedule(dynamic, 1)
         for (size_t id = 0; id < qDbr.getSize(); ++id) {
             Debug::printProgress(id);
-
-            unsigned int thread_idx = 0;
-#ifdef OPENMP
-            thread_idx = (unsigned int) omp_get_thread_num();
-#endif
 
             unsigned int queryKey = qDbr.getDbKey(id);
 
@@ -196,12 +200,15 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 // first sequence is always the query
                 if (setSize == 0) {
                     centerLengthWithGaps = static_cast<unsigned int>(strlen(seq->seq.s));
-                    for (size_t i = 0; i < centerLengthWithGaps; ++i) {
-                        if (seq->seq.s[i] == '-') {
-                            maskedColumns[i] = true;
-                            maskedCount++;
-                        } else {
-                            maskedColumns[i] = false;
+
+                    if (maskByFirst == true) {
+                        for (size_t i = 0; i < centerLengthWithGaps; ++i) {
+                            if (seq->seq.s[i] == '-') {
+                                maskedColumns[i] = true;
+                                maskedCount++;
+                            } else {
+                                maskedColumns[i] = false;
+                            }
                         }
                     }
 
@@ -218,7 +225,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
                 size_t seqPos = 0;
                 for (size_t i = 0; i < centerLengthWithGaps; ++i) {
-                    if (maskedColumns[i] == true) {
+                    if (maskByFirst == true && maskedColumns[i] == true) {
                         continue;
                     }
 
@@ -255,7 +262,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
             }
             kseq_rewind(seq);
 
-
             if (fastaError == true) {
                 Debug(Debug::WARNING) << "Invalid msa " << id << "! Skipping entry.\n";
                 continue;
@@ -266,6 +272,50 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 continue;
             }
 
+            if (maskByFirst == false) {
+                PSSMCalculator::computeSequenceWeights(seqWeight, centerLengthWithGaps,
+                                                       setSize, const_cast<const char**>(msaSequences));
+
+                // Replace GAP with ENDGAP for all end gaps
+                // ENDGAPs are ignored for counting percentage (multi-domain proteins)
+                for (unsigned int k = 0; k < setSize; ++k) {
+                    for (unsigned int i = 0; i < centerLengthWithGaps && msaSequences[k][i] == MultipleAlignment::GAP; ++i)
+                        msaSequences[k][i] = MultipleAlignment::ENDGAP;
+                    for (unsigned int i = centerLengthWithGaps - 1; i >= 0 && msaSequences[k][i] == MultipleAlignment::GAP; i--)
+                        msaSequences[k][i] = MultipleAlignment::ENDGAP;
+                }
+
+                for (unsigned int l = 0; l < centerLengthWithGaps; l++) {
+                    float res = 0;
+                    float gap = 0;
+                    // Add up percentage of gaps
+                    for (unsigned int k = 0; k < setSize; ++k) {
+                        if (msaSequences[k][l] < MultipleAlignment::GAP) {
+                            res += seqWeight[k];
+                        } else if (msaSequences[k][l] != MultipleAlignment::ENDGAP) {
+                            gap += seqWeight[k];
+                        } else if (msaSequences[k][l] == MultipleAlignment::ENDGAP) {
+                            msaSequences[k][l] = MultipleAlignment::GAP;
+                        }
+                    }
+
+                    maskedColumns[l] =  (gap / (res + gap)) > matchRatio;
+                    maskedCount += maskedColumns[l] ? 1 : 0;
+                }
+
+                for (unsigned int k = 0; k < setSize; ++k) {
+                    unsigned int currentCol = 0;
+                    for (unsigned int l = 0; l < centerLengthWithGaps; ++l) {
+                        if (maskedColumns[l] == false) {
+                            msaSequences[k][currentCol++] = msaSequences[k][l];
+                        }
+                    }
+
+                    for (unsigned int l = currentCol; l < centerLengthWithGaps; ++l) {
+                        msaSequences[k][l] = MultipleAlignment::GAP;
+                    }
+                }
+            }
             unsigned int centerLength = centerLengthWithGaps - maskedCount;
 
             size_t filteredSetSize = setSize;
@@ -302,6 +352,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
         delete[] seqBuffer;
         delete[] maskedColumns;
+        delete[] seqWeight;
     }
 
     consensusWriter.close(DBReader<unsigned int>::DBTYPE_AA);

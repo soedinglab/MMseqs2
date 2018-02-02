@@ -53,16 +53,9 @@ PSSMCalculator::Profile PSSMCalculator::computePSSMFromMSA(size_t setSize,
                                            size_t queryLength,
                                            const char **msaSeqs,
                                            bool wg) {
-    for (size_t pos = 0; pos < queryLength; pos++) {
-        if (msaSeqs[0][pos] == MultipleAlignment::GAP) {
-            Debug(Debug::ERROR) <<
-            "Error in computePSSMFromMSA. First sequence of MSA is not allowed to contain gaps.\n";
-            EXIT(EXIT_FAILURE);
-        }
-    }
-
     // Quick and dirty calculation of the weight per sequence wg[k]
     computeSequenceWeights(seqWeight, queryLength, setSize, msaSeqs);
+    MathUtil::NormalizeTo1(seqWeight, setSize);
     if (wg == false) {
         // compute context specific counts and Neff
         computeContextSpecificWeights(matchWeight, seqWeight, Neff_M, queryLength, setSize, msaSeqs);
@@ -241,7 +234,6 @@ void PSSMCalculator::computeSequenceWeights(float *seqWeight, size_t queryLength
         }
     }
 //    std::cout << setSize << std::endl;
-    MathUtil::NormalizeTo1(seqWeight, setSize);
 //    std::cout << " Seq. Weight: " << std::endl;
 //    for (size_t k = 0; k < setSize; ++k) {
 //        std::cout << " k="<< k << "\t" << seqWeight[k] << std::endl;
@@ -471,8 +463,8 @@ void PSSMCalculator::computeContextSpecificWeights(float * matchWeight, float *w
 std::string PSSMCalculator::computeConsensusSequence(float *frequency, size_t queryLength, double *pBack, char *int2aa) {
     std::string consens;
     for (size_t pos = 0; pos < queryLength; pos++) {
-        float maxw = 0.0;
-        int maxa = 21;
+        float maxw = 1E-8;
+        int maxa = MultipleAlignment::ANY;
         for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; ++aa) {
             float prob = frequency[pos * Sequence::PROFILE_AA_SIZE + aa];
             if (prob - pBack[aa] > maxw) {

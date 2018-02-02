@@ -91,6 +91,9 @@ Parameters::Parameters():
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (0.0,infinity)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
+        // msa2profile
+        PARAM_MATCH_MODE(PARAM_MATCH_MODE_ID, "--match-mode", "Match mode", "0: Columns that have a residue in the first sequence are kept, 1: columns that have a residue in --match-ratio of all sequences are kept.", typeid(int), (void*)&matchMode, "^(0|1)$", MMseqsParameter::COMMAND_PROFILE),
+        PARAM_MATCH_RATIO(PARAM_MATCH_RATIO_ID, "--match-ratio", "Match ratio", "columns that have a residue in this ratio of all sequences are kept", typeid(float), (void*)&matchRatio, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE),
         // sequence2profile
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void*) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void*) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
@@ -290,6 +293,7 @@ Parameters::Parameters():
     convertalignments.push_back(PARAM_DB_OUTPUT);
     convertalignments.push_back(PARAM_THREADS);
     convertalignments.push_back(PARAM_V);
+
     // result2msa
     result2msa.push_back(PARAM_SUB_MAT);
     result2msa.push_back(PARAM_E_PROFILE);
@@ -311,9 +315,11 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_SKIP_QUERY);
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
-    //msa2profile
+    // msa2profile
     msa2profile.push_back(PARAM_MSA_TYPE);
     msa2profile.push_back(PARAM_SUB_MAT);
+    msa2profile.push_back(PARAM_MATCH_MODE);
+    msa2profile.push_back(PARAM_MATCH_RATIO);
     msa2profile.push_back(PARAM_PCA);
     msa2profile.push_back(PARAM_PCB);
     msa2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -1020,6 +1026,10 @@ void Parameters::setDefaults() {
     compressMSA = false;
     omitConsensus = false;
     skipQuery = false;
+
+    // msa2profile
+    matchMode = 0;
+    matchRatio = 0.5;
 
     // result2profile
     evalProfile = evalThr;

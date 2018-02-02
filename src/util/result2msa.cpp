@@ -266,6 +266,14 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
                     if (isFiltering) {
                         filter.shuffleSequences((const char **) res.msaSequence, res.setSize);
                     }
+
+                    for (size_t pos = 0; pos < res.centerLength; pos++) {
+                        if (res.msaSequence[0][pos] == MultipleAlignment::GAP) {
+                            Debug(Debug::ERROR) <<  "Error in computePSSMFromMSA. First sequence of MSA is not allowed to contain gaps.\n";
+                            EXIT(EXIT_FAILURE);
+                        }
+                    }
+
                     PSSMCalculator::Profile pssmRes =
                             calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                           (const char **) res.msaSequence, par.wg);

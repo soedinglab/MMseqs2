@@ -233,6 +233,10 @@ public:
     bool omitConsensus;
     bool skipQuery;
 
+    // msa2profile
+    int matchMode;
+    float matchRatio;
+
     // result2profile
     float filterMaxSeqId;
     float evalProfile;
@@ -424,6 +428,10 @@ public:
     PARAMETER(PARAM_SUMMARY_PREFIX)
     PARAMETER(PARAM_OMIT_CONSENSUS)
     PARAMETER(PARAM_SKIP_QUERY)
+
+    // msa2profile
+    PARAMETER(PARAM_MATCH_MODE)
+    PARAMETER(PARAM_MATCH_RATIO)
 
     // result2profile
     PARAMETER(PARAM_E_PROFILE)
