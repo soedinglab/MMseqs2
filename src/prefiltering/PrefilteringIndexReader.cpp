@@ -262,8 +262,8 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
     if (data.local) {
-        int adjustAlphabetSize = (data.seqType != Sequence::NUCLEOTIDES || data.seqType  != Sequence::AMINO_ACIDS)
-                                 ? data.alphabetSize : data.alphabetSize - 1;
+        int adjustAlphabetSize = (data.seqType == Sequence::NUCLEOTIDES || data.seqType == Sequence::AMINO_ACIDS)
+                                 ? (data.alphabetSize - 1) : data.alphabetSize;
         retTable = new IndexTable(adjustAlphabetSize, data.kmerSize, true);
     }else {
         Debug(Debug::ERROR) << "Search mode is not valid.\n";
