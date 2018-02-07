@@ -75,7 +75,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             spacedKmer   = (data.spacedKmer == 1) ? true : false;
 
             if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE) {
-                Debug(Debug::ERROR) << "--query-profile cannot be used with a --target-profile database!\n";
+                Debug(Debug::ERROR) << "Query-profiles cannot be searched against a target-profile database!\n";
                 EXIT(EXIT_FAILURE);
             }
 
