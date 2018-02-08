@@ -97,7 +97,6 @@ if [ -n "$REMOVE_TMP" ]; then
         eval SENS="\$$SENS_PARAM"
         rm -f "$TMP_PATH/pref_$SENS" "$TMP_PATH/pref_$SENS.index"
         rm -f "$TMP_PATH/aln_$SENS" "$TMP_PATH/aln_$SENS.index"
-        SENS=$(($SENS+$SENS_STEP_SIZE))
         NEXTINPUT="$TMP_PATH/input_step$SENS"
         rm -f "$TMP_PATH/input_step$SENS" "$TMP_PATH/input_step$SENS.index"
         STEP=$(($STEP+1))
