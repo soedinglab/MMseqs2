@@ -89,6 +89,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (sameQTDB == true) {
         qdbr = tdbr;
         qSeqLookup = tSeqLookup;
+        querySeqType = targetSeqType;
     } else {
         // open the sequence, prefiltering and output databases
         qdbr = new DBReader<unsigned int>(querySeqDB.c_str(), querySeqDBIndex.c_str());
@@ -106,6 +107,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
         qdbr->readMmapedDataInMemory();
         qdbr->mlock();
+        querySeqType = qdbr->getDbtype();
     }
 
     if (qdbr->getSize() <= threads) {
@@ -119,8 +121,11 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 #ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
-    querySeqType  =  qdbr->getDbtype();
-    targetSeqType =  tdbr->getDbtype();
+
+    if (templateDBIsIndex == false) {
+        querySeqType = qdbr->getDbtype();
+        targetSeqType = tdbr->getDbtype();
+    }
     if(querySeqType == -1 || targetSeqType == -1){
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
