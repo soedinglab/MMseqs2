@@ -15,6 +15,8 @@
 #include <omp.h>
 #endif
 
+Parameters* Parameters::instance = NULL;
+
 extern const char* binary_name;
 extern const char* version;
 
@@ -169,6 +171,11 @@ Parameters::Parameters():
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted Taxa", "Comma separted list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA Mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2", typeid(int), (void*) &lcaMode, "^[0-2]{1}$")
 {
+    if (instance) {
+        Debug(Debug::ERROR) << "Parameter instance already exists!\n";
+        abort();
+    }
+    instance = this;
 
     // alignment
     align.push_back(PARAM_SUB_MAT);

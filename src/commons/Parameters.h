@@ -340,8 +340,13 @@ public:
 
     static Parameters& getInstance()
     {
-        static Parameters instance;
-        return instance;
+        if (instance == NULL) {
+            initInstance();
+        }
+        return *instance;
+    }
+    static void initInstance() {
+        new Parameters;
     }
     
     void setDefaults();
@@ -619,6 +624,8 @@ public:
 
 protected:
     Parameters();
+    static Parameters* instance;
+    virtual ~Parameters() {};
 
 private:
     Parameters(Parameters const&);
