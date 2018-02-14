@@ -206,7 +206,8 @@ public:
     int orfMinLength;
     int orfMaxLength;
     int orfMaxGaps;
-    bool orfSkipIncomplete;
+    int orfStartState;
+    int orfEndState;
     bool orfLongest;
     bool orfExtendMin;
     std::string forwardFrames;
@@ -261,6 +262,7 @@ public:
 
     // linearcluster
     int kmersPerSequence;
+    bool includeOnlyExtendable;
     int hashShift;
 
     // indexdb
@@ -281,6 +283,7 @@ public:
 
     // translate nucleotide
     int translationTable;
+    bool addOrfStop;
 
     // createseqfiledb
     int minSequences;
@@ -457,6 +460,7 @@ public:
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
+    PARAMETER(PARAM_INCLUDE_ONLY_EXTENDABLE)
     PARAMETER(PARAM_HASH_SHIFT)
 
     // workflow
@@ -471,7 +475,8 @@ public:
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
     PARAMETER(PARAM_ORF_MAX_GAP)
-    PARAMETER(PARAM_ORF_SKIP_INCOMPLETE)
+    PARAMETER(PARAM_ORF_START_STATE)
+    PARAMETER(PARAM_ORF_END_STATE)
     PARAMETER(PARAM_ORF_LONGEST)
     PARAMETER(PARAM_ORF_EXTENDMIN)
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
@@ -493,6 +498,7 @@ public:
 
     // translate_nucleotide
     PARAMETER(PARAM_TRANSLATION_TABLE)
+    PARAMETER(PARAM_ADD_ORF_STOP)
 
     // createseqfiledb
     PARAMETER(PARAM_MIN_SEQUENCES)

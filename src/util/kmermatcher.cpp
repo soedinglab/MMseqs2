@@ -405,6 +405,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             size_t repSeqId = hashSeqPair[0].id;
             size_t prevHashStart = 0;
             size_t prevSetSize = 0;
+            size_t queryLen;
             unsigned int repSeq_i_pos = hashSeqPair[0].pos;
             for (size_t elementIdx = 0; elementIdx < splitKmerCount+1; elementIdx++) {
                 if (prevHash != hashSeqPair[elementIdx].kmer) {
@@ -420,17 +421,27 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
                             // par.includeOnlyExtendable
 //                            bool canBeExtended =  diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
 //                            if(par.includeOnlyExtendable == false || (canBeExtended && par.includeOnlyExtendable ==true )){
-                            hashSeqPair[writePos].kmer = rId;
-                            hashSeqPair[writePos].pos = diagonal;
-                            hashSeqPair[writePos].seqLen = hashSeqPair[i].seqLen;
-                            hashSeqPair[writePos].id = hashSeqPair[i].id;
-                            writePos++;
+//                            hashSeqPair[writePos].kmer = rId;
+//                            hashSeqPair[writePos].pos = diagonal;
+//                            hashSeqPair[writePos].seqLen = hashSeqPair[i].seqLen;
+//                            hashSeqPair[writePos].id = hashSeqPair[i].id;
+//                            writePos++;
+
+                            bool canBeExtended =  diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
+                            if(par.includeOnlyExtendable == false || (canBeExtended && par.includeOnlyExtendable ==true )){
+                                hashSeqPair[writePos].kmer = rId;
+                                hashSeqPair[writePos].pos = diagonal;
+                                hashSeqPair[writePos].seqLen = hashSeqPair[i].seqLen;
+                                hashSeqPair[writePos].id = hashSeqPair[i].id;
+                                writePos++;
+                            }
 //                            }
                         }
                     }
                     prevSetSize = 0;
                     prevHashStart = elementIdx;
                     repSeqId = hashSeqPair[elementIdx].id;
+                    queryLen = hashSeqPair[elementIdx].seqLen;
                     repSeq_i_pos = hashSeqPair[elementIdx].pos;
                 }
                 if (hashSeqPair[elementIdx].kmer == SIZE_T_MAX) {

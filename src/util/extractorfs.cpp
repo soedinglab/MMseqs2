@@ -79,17 +79,17 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         extendMode |= Orf::EXTEND_END;
 
     unsigned int total = 0;
-    #pragma omp parallel for schedule(static) shared(total) 
+#pragma omp parallel for schedule(dynamic, 10) shared(total)
 
     for (unsigned int i = 0; i < reader.getSize(); ++i){
         unsigned int id;
         Orf orf;
         Debug::printProgress(i);
         int thread_idx = 0;
-        #ifdef OPENMP
+#ifdef OPENMP
         thread_idx = omp_get_thread_num();
-        #endif
-        unsigned int key = reader.getDbKey(i);
+#endif
+
         std::string data(reader.getData(i));
         // remove newline in sequence
         data.erase(std::remove(data.begin(), data.end(), '\n'), data.end());
@@ -108,31 +108,36 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
             Orf::SequenceLocation loc = *it;
 
-            #pragma omp critical
-            {
-                total++;
-                id = total + par.identifierOffset;
+
+            size_t offset = __sync_fetch_and_add(&total, 1);
+            id = offset + par.identifierOffset;
+            if (par.orfStartState < 2 && (loc.hasIncompleteStart == par.orfStartState)) {
+                continue;
+            }
+            if (par.orfEndState   < 2 && (loc.hasIncompleteEnd   == par.orfEndState)) {
+                continue;
             }
 
-            if (par.orfSkipIncomplete && (loc.hasIncompleteStart || loc.hasIncompleteEnd))
-                continue;
-
             char buffer[LINE_MAX];
-            snprintf(buffer, LINE_MAX, "%s [Orf: %u, %zu, %zu, %d, %d, %d]\n", header.c_str(), key, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+            snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", header.c_str(), loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
             headerWriter.writeData(buffer, strlen(buffer), id, thread_idx);
 
             std::string sequence = orf.view(loc);
             sequence.append("\n");
+//            if(loc.hasIncompleteStart == false){
+//                sequence.insert (0, "TAG");
+//            }
             sequenceWriter.writeData(sequence.c_str(), sequence.length(), id, thread_idx);
         }
     }
-    
+
 
     headerWriter.close();
     sequenceWriter.close(DBReader<unsigned int>::DBTYPE_NUC);
     headerReader.close();
     reader.close();
-    
+
     return EXIT_SUCCESS;
 }
+
