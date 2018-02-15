@@ -37,6 +37,7 @@
 #include <cstring>
 #include <cassert>
 #include <cstdlib>
+#include "TranslateNucl.h"
 
 //note: N->N, S->S, W->W, U->A, T->A
 static const char* iupacReverseComplementTable =
@@ -50,7 +51,10 @@ inline char complement(const char c)
     return iupacReverseComplementTable[static_cast<unsigned char>(c)];
 }
 
-Orf::Orf() : sequence(NULL), reverseComplement(NULL) {}
+Orf::Orf() : sequence(NULL), reverseComplement(NULL) {
+    TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(1)); // standard
+    stopCodons = translateNucl.getStopCodons();
+}
 
 bool Orf::setSequence(const char* seq, size_t length) {
     cleanup();
@@ -134,14 +138,53 @@ inline bool isStart(const char* codon) {
         || (codon[0] == 'A' && codon[1] == 'T' && codon[2] == 'G');
 }
 
-inline bool isStop(const char* codon) {
+bool Orf::isStop(const char* codon) {
+    
+    char nuc0 = codon[0];
+    char nuc1 = codon[1];
+    char nuc2 = codon[2];
+
+    // replace U with T before checking stop codons:
+    if (nuc0 == 'U') {
+        nuc0 = 'T';
+    }
+    if (nuc1 == 'U') {
+        nuc1 = 'T';
+    }
+    if (nuc2 == 'U') {
+        nuc2 = 'T';
+    }
+
+    for (size_t stopCodInd = 0; stopCodInd < stopCodons.size(); ++stopCodInd) {
+        if (nuc0 == stopCodons[stopCodInd][0] && nuc1 == stopCodons[stopCodInd][1] && nuc2 == stopCodons[stopCodInd][2]) {
+            return true;
+        }
+    }
+
+    return false;
+    /*
     return (codon[0] == 'U' && codon[1] == 'A' && codon[2] == 'G')
         || (codon[0] == 'U' && codon[1] == 'A' && codon[2] == 'A')
         || (codon[0] == 'U' && codon[1] == 'G' && codon[2] == 'A')
         || (codon[0] == 'T' && codon[1] == 'A' && codon[2] == 'G')
         || (codon[0] == 'T' && codon[1] == 'A' && codon[2] == 'A')
         || (codon[0] == 'T' && codon[1] == 'G' && codon[2] == 'A');
+    */
+     
+    // Eli change:
+    //TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(1)); // standard
+    //char aa[2]; // exactly one aa
+    //translateNucl.translate(aa, codon, 1);
+    //if (aa[0] == '*')
+    //{
+    //    return true;
+    //}
+    //else
+    //{
+    //    return false;
+    //}
 }
+
 
 void Orf::findForward(const char *sequence, const size_t sequenceLength, std::vector<SequenceLocation> &result,
                       const size_t minLength, const size_t maxLength, const size_t maxGaps, const unsigned int frames,
@@ -184,12 +227,19 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 
             // if we have the start extend mode the returned orf should return the longest
             // possible orf with possibly multiple start codons
+            
+            bool eli_mode = true;
+
             bool shouldStart;
             if((extendMode & EXTEND_START)) {
                 shouldStart = isInsideOrf[frame] == false && isStart(codon);
-            } else {
+            } else if (eli_mode) {
+                shouldStart = isInsideOrf[frame] == false;
+            } 
+            else {
                 shouldStart = isStart(codon);
             }
+            
 
             // do not start a new orf on the last codon
             if(shouldStart && isLast == false) {

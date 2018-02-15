@@ -36,7 +36,7 @@ public:
 
         SequenceLocation(){}
     };
-
+    
     Orf();
 
     bool setSequence(const char* sequence, size_t sequenceLength);
@@ -57,7 +57,9 @@ public:
                  const unsigned int reverseFrames = FRAME_1 | FRAME_2 | FRAME_3,
                  const unsigned int extendMode = 0);
 
-    static void findForward(const char *sequence, const size_t sequenceLength,
+    bool isStop(const char* codon);
+
+    void findForward(const char *sequence, const size_t sequenceLength,
                             std::vector<Orf::SequenceLocation> &result,
                             const size_t minLength, const size_t maxLength, const size_t maxGaps,
                             const unsigned int frames, const unsigned int extendMode, const Strand strand);
@@ -70,6 +72,8 @@ private:
     size_t sequenceLength;
     char* sequence;
     char* reverseComplement;
+
+    std::vector<std::string> stopCodons;
 
     void cleanup();
 };

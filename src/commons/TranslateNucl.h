@@ -29,6 +29,8 @@
 #include <string>
 #include "Debug.h"
 #include "Util.h"
+#include <set>
+#include <cmath>
 
 // standard genetic code
 //
@@ -270,6 +272,45 @@ public:
         eBase_N       /* ACGT */
     };
 
+    // set because we want unique keys. several states map to the same stop codon
+    std::set<int> stopCodons;
+    
+    std::vector<std::string> getStopCodons() {
+        std::vector<std::string> stopCodonsVec;
+
+        for (std::set<int>::const_iterator it=stopCodons.begin(); it!=stopCodons.end(); ++it) {
+            int currStopCode = *it;
+            //char currStopChr[3];
+            std::string currStopStr;
+            for (size_t nucInd = 0; nucInd < 3; ++nucInd) {
+                int currPower = (int) std::pow(4,(2 - nucInd));
+                int currQ = currStopCode / currPower;
+
+                // T = 0, C = 1, A = 2, G = 3
+                char currNuc = 'T';
+                if (currQ == 1) {
+                    currNuc = 'C';
+                }
+                else if (currQ == 2) {
+                    currNuc = 'A';
+                }
+                else if (currQ == 3) {
+                    currNuc = 'G';
+                }
+                //currStopChr[nucInd] = currNuc;
+                currStopStr.push_back(currNuc);
+
+
+                int currR = currStopCode % currPower;
+                currStopCode = currR;
+            }
+            //stopCodonsVec.push_back(currStopChr);
+            stopCodonsVec.push_back(currStopStr);
+        }
+
+        return (stopCodonsVec);
+    }
+
     // static instances of single copy translation tables common to all genetic codes
     int sm_NextState  [4097];
     int sm_RvCmpState [4097];
@@ -385,8 +426,13 @@ public:
 
                                             // lookup amino acid for codon XYZ
                                             ch = ncbieaa->at(cd);
+                                            
                                             if (aa == '\0') {
                                                 aa = ch;
+                                                // here is a stop codon
+                                                if (aa == '*') {
+                                                    stopCodons.insert(cd);
+                                                }
                                             } else if (aa != ch) {
                                                 // allow Asx (Asp or Asn) and Glx (Glu or Gln)
                                                 if ((aa == 'B' || aa == 'D' || aa == 'N') &&
