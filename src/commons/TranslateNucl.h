@@ -434,7 +434,7 @@ public:
         }
     };
 
-    void translate(char *aa, char *nucl, int L) {
+    void translate(char *aa, const char *nucl, int L) {
         int state = 0;
         for (int i = 0;  i < L;  i += 3) {
             // loop through one codon at a time
