@@ -50,7 +50,7 @@ matrix:
         - vim-common
         - libopenmpi-dev
     env:
-    - MATRIX_EVAL="CXX=g++-4.8"
+    - MATRIX_EVAL="CXX=g++-4.6"
   - os: linux
     dist: trusty
     sudo: false
