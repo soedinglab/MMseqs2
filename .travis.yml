@@ -44,7 +44,7 @@ matrix:
         packages:
         - cmake
         - ninja-build
-        - g++-4.8
+        - g++-4.6
         - zlib1g-dev
         - libbz2-dev
         - vim-common
