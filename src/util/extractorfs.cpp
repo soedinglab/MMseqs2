@@ -103,8 +103,9 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         // remove newline in header
         header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
 
+
         std::vector<Orf::SequenceLocation> res;
-        orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
+        orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode, par.orfFragments);
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
             Orf::SequenceLocation loc = *it;
 

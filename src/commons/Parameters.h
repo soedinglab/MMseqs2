@@ -212,6 +212,7 @@ public:
     bool orfExtendMin;
     std::string forwardFrames;
     std::string reverseFrames;
+    bool orfFragments;
 
     // convertprofiledb
     int profileMode;
@@ -486,6 +487,7 @@ public:
     PARAMETER(PARAM_ORF_EXTENDMIN)
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
+    PARAMETER(PARAM_ORF_FRAGMENTS)
 
     // indexdb
     PARAMETER(PARAM_INCLUDE_HEADER)

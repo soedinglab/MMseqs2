@@ -123,6 +123,7 @@ Parameters::Parameters():
         PARAM_ORF_EXTENDMIN(PARAM_ORF_EXTENDMIN_ID,"--extend-min", "Extend short orfs", "if an orf would be rejected because of the min length threshold, allow it to be extended to the next stop codon",typeid(bool),(void *) &orfExtendMin, ""),
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
+        PARAM_ORF_FRAGMENTS(PARAM_ORF_FRAGMENTS_ID, "--orf-fragments", "Orf Fragments", "generate putative ORFs between stop codons (not conditioned on start, useful for Eukaryotes)", typeid(bool), (void *) &orfFragments, ""),
         // indexdb
         PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Header", "Include the header index into the index", typeid(bool), (void *) &includeHeader, ""),
         // createdb
@@ -366,6 +367,7 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_ORF_EXTENDMIN);
     extractorfs.push_back(PARAM_ORF_FORWARD_FRAMES);
     extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);
+    extractorfs.push_back(PARAM_ORF_FRAGMENTS);    
     extractorfs.push_back(PARAM_ID_OFFSET);
     extractorfs.push_back(PARAM_THREADS);
 
@@ -1072,6 +1074,7 @@ void Parameters::setDefaults() {
     orfExtendMin = false;
     forwardFrames = "1,2,3";
     reverseFrames = "1,2,3";
+    orfFragments = false;
 
     // createdb
     identifierOffset = 0;

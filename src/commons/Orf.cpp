@@ -108,18 +108,19 @@ void Orf::findAll(std::vector<Orf::SequenceLocation> &result,
                   const size_t maxGaps,
                   const unsigned int forwardFrames,
                   const unsigned int reverseFrames,
-                  const unsigned int extendMode)
+                  const unsigned int extendMode,
+                  bool fragmentMode)
 {
     if (forwardFrames != 0) {
         // find ORFs on the forward sequence
         findForward(sequence, sequenceLength, result,
-                    minLength, maxLength, maxGaps, forwardFrames, extendMode, STRAND_PLUS);
+                    minLength, maxLength, maxGaps, forwardFrames, extendMode, STRAND_PLUS, fragmentMode);
     }
 
     if (reverseFrames != 0) {
         // find ORFs on the reverse complement
         findForward(reverseComplement, sequenceLength, result,
-                    minLength, maxLength, maxGaps, reverseFrames, extendMode, STRAND_MINUS);
+                    minLength, maxLength, maxGaps, reverseFrames, extendMode, STRAND_MINUS, fragmentMode);
     }
 }
 
@@ -139,7 +140,6 @@ inline bool isStart(const char* codon) {
 }
 
 bool Orf::isStop(const char* codon) {
-    
     char nuc0 = codon[0];
     char nuc1 = codon[1];
     char nuc2 = codon[2];
@@ -162,33 +162,12 @@ bool Orf::isStop(const char* codon) {
     }
 
     return false;
-    /*
-    return (codon[0] == 'U' && codon[1] == 'A' && codon[2] == 'G')
-        || (codon[0] == 'U' && codon[1] == 'A' && codon[2] == 'A')
-        || (codon[0] == 'U' && codon[1] == 'G' && codon[2] == 'A')
-        || (codon[0] == 'T' && codon[1] == 'A' && codon[2] == 'G')
-        || (codon[0] == 'T' && codon[1] == 'A' && codon[2] == 'A')
-        || (codon[0] == 'T' && codon[1] == 'G' && codon[2] == 'A');
-    */
-     
-    // Eli change:
-    //TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(1)); // standard
-    //char aa[2]; // exactly one aa
-    //translateNucl.translate(aa, codon, 1);
-    //if (aa[0] == '*')
-    //{
-    //    return true;
-    //}
-    //else
-    //{
-    //    return false;
-    //}
 }
 
 
 void Orf::findForward(const char *sequence, const size_t sequenceLength, std::vector<SequenceLocation> &result,
                       const size_t minLength, const size_t maxLength, const size_t maxGaps, const unsigned int frames,
-                      const unsigned int extendMode, const Strand strand) {
+                      const unsigned int extendMode, const Strand strand, bool fragmentMode) {
     // An open reading frame can beginning in any of the three codon start position
     // Frame 0:  AGA ATT GCC TGA ATA AAA GGA TTA CCT TGA TAG GGT AAA
     // Frame 1: A GAA TTG CCT GAA TAA AAG GAT TAC CTT GAT AGG GTA AA
@@ -227,19 +206,15 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 
             // if we have the start extend mode the returned orf should return the longest
             // possible orf with possibly multiple start codons
-            
-            bool eli_mode = true;
-
+           
             bool shouldStart;
             if((extendMode & EXTEND_START)) {
                 shouldStart = isInsideOrf[frame] == false && isStart(codon);
-            } else if (eli_mode) {
+            } else if (fragmentMode) {
                 shouldStart = isInsideOrf[frame] == false;
-            } 
-            else {
+            } else {
                 shouldStart = isStart(codon);
             }
-            
 
             // do not start a new orf on the last codon
             if(shouldStart && isLast == false) {
