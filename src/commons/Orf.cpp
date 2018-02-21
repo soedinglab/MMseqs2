@@ -37,6 +37,7 @@
 #include <cstring>
 #include <cassert>
 #include <cstdlib>
+#include <algorithm>
 #include "TranslateNucl.h"
 
 //note: N->N, S->S, W->W, U->A, T->A
@@ -51,10 +52,28 @@ inline char complement(const char c)
     return iupacReverseComplementTable[static_cast<unsigned char>(c)];
 }
 
+inline void TtoU(std::vector<std::string> & codonsVec) {
+    std::vector<std::string> tempVec;
+    for (size_t i = 0; i < codonsVec.size(); ++i) {
+        std::string currCodon = codonsVec[i];
+        // replace each 'T' with 'U'
+        std::replace(currCodon.begin(), currCodon.end(), 'T', 'U');
+        tempVec.push_back(currCodon);
+    }
+    for (size_t i = 0; i < tempVec.size(); ++i) {
+        codonsVec.push_back(tempVec[i]);
+    }
+}
+
 Orf::Orf() : sequence(NULL), reverseComplement(NULL) {
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(1)); // standard
-    stopCodons = translateNucl.getStopCodons();
+    stopCodons = translateNucl.getStopCodons("stop");
+    TtoU(stopCodons);
+
+    startCodons.push_back("ATG");
+    TtoU(startCodons);
 }
+
 
 bool Orf::setSequence(const char* seq, size_t length) {
     cleanup();
@@ -143,25 +162,36 @@ bool Orf::isStop(const char* codon) {
     char nuc1 = codon[1];
     char nuc2 = codon[2];
 
-    // replace U with T before checking stop codons:
-    if (nuc0 == 'U') {
-        nuc0 = 'T';
-    }
-    if (nuc1 == 'U') {
-        nuc1 = 'T';
-    }
-    if (nuc2 == 'U') {
-        nuc2 = 'T';
-    }
-
     for (size_t stopCodInd = 0; stopCodInd < stopCodons.size(); ++stopCodInd) {
         if (nuc0 == stopCodons[stopCodInd][0] && nuc1 == stopCodons[stopCodInd][1] && nuc2 == stopCodons[stopCodInd][2]) {
             return true;
         }
     }
-
     return false;
 }
+
+bool Orf::isStopOrStart(const char* codon, const std::string type) {
+    std::vector<std::string> codonsVec;
+    if (type == "stop") {
+        codonsVec = stopCodons;
+    }
+    else if (type == "start") {
+        codonsVec = startCodons;
+    }
+    
+    char nuc0 = codon[0];
+    char nuc1 = codon[1];
+    char nuc2 = codon[2];
+
+    for (size_t codInd = 0; codInd < codonsVec.size(); ++codInd) {
+        if (nuc0 == codonsVec[codInd][0] && nuc1 == codonsVec[codInd][1] && nuc2 == codonsVec[codInd][2]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 
 
 void Orf::findForward(const char *sequence, const size_t sequenceLength, std::vector<SequenceLocation> &result,
@@ -210,11 +240,11 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
            
             bool shouldStart;
             if((extendMode & EXTEND_START)) {
-                shouldStart = isInsideOrf[frame] == false && isStart(codon);
+                shouldStart = isInsideOrf[frame] == false && isStopOrStart(codon, "start");
             } else if (extendMode & EXTEND_FRAGMENTS) {
                 shouldStart = isInsideOrf[frame] == false;
             } else {
-                shouldStart = isStart(codon);
+                shouldStart = isStopOrStart(codon, "start");
             }
 
             // do not start a new orf on the last codon
@@ -235,7 +265,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
                 }
             }
 
-            bool stop = isStop(codon);
+            bool stop = isStopOrStart(codon, "stop");
             if(isInsideOrf[frame] && (stop || isLast)) {
                 // possibly bail early if we have an orf shorter than minLength
                 // so we can find another longer one

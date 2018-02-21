@@ -59,6 +59,7 @@ public:
                  const unsigned int extendMode = 0);
 
     bool isStop(const char* codon);
+    bool isStopOrStart(const char* codon, const std::string type);
 
     void findForward(const char *sequence, const size_t sequenceLength,
                             std::vector<Orf::SequenceLocation> &result,
@@ -75,6 +76,7 @@ private:
     char* reverseComplement;
 
     std::vector<std::string> stopCodons;
+    std::vector<std::string> startCodons;
 
     void cleanup();
 };

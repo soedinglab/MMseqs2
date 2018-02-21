@@ -272,19 +272,26 @@ public:
         eBase_N       /* ACGT */
     };
 
-    // set because we want unique keys. several states map to the same stop codon
+    // set because we want unique keys. several states map to the same start/stop codon
     std::set<int> stopCodons;
+    std::set<int> startCodons;
     
-    std::vector<std::string> getStopCodons() {
-        std::vector<std::string> stopCodonsVec;
-
-        for (std::set<int>::const_iterator it=stopCodons.begin(); it!=stopCodons.end(); ++it) {
-            int currStopCode = *it;
-            //char currStopChr[3];
-            std::string currStopStr;
+    std::vector<std::string> getStopCodons(std::string typeCodons) {
+        std::set<int> codonsSet;
+        if (typeCodons == "stop") {
+            codonsSet = stopCodons;
+        }
+        else if (typeCodons == "start") {
+            codonsSet = startCodons;
+        }
+        
+        std::vector<std::string> codonsVec;
+        for (std::set<int>::const_iterator it=codonsSet.begin(); it!=codonsSet.end(); ++it) {
+            int currCode = *it;
+            std::string currStr;
             for (size_t nucInd = 0; nucInd < 3; ++nucInd) {
                 int currPower = (int) std::pow(4,(2 - nucInd));
-                int currQ = currStopCode / currPower;
+                int currQ = currCode / currPower;
 
                 // T = 0, C = 1, A = 2, G = 3
                 char currNuc = 'T';
@@ -297,18 +304,14 @@ public:
                 else if (currQ == 3) {
                     currNuc = 'G';
                 }
-                //currStopChr[nucInd] = currNuc;
-                currStopStr.push_back(currNuc);
+                currStr.push_back(currNuc);
 
-
-                int currR = currStopCode % currPower;
-                currStopCode = currR;
+                int currR = currCode % currPower;
+                currCode = currR;
             }
-            //stopCodonsVec.push_back(currStopChr);
-            stopCodonsVec.push_back(currStopStr);
+            codonsVec.push_back(currStr);
         }
-
-        return (stopCodonsVec);
+        return (codonsVec);
     }
 
     // static instances of single copy translation tables common to all genetic codes
@@ -455,6 +458,10 @@ public:
                                                 orf = ch;
                                             } else if (orf != ch) {
                                                 orf = 'X';
+                                            }
+                                            // here is a start codon
+                                            if (ch == 'M') {
+                                                startCodons.insert(cd);
                                             }
 
                                             // drop out of loop as soon as answer is known
