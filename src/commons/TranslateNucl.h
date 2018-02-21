@@ -275,16 +275,16 @@ public:
     // set because we want unique keys. several states map to the same start/stop codon
     std::set<int> stopCodons;
     std::set<int> startCodons;
+
+    std::vector<std::string> getStartCodons() {
+        return getCodons(startCodons);
+    }
+
+    std::vector<std::string> getStopCodons() {
+        return getCodons(stopCodons);
+    }
     
-    std::vector<std::string> getStopCodons(std::string typeCodons) {
-        std::set<int> codonsSet;
-        if (typeCodons == "stop") {
-            codonsSet = stopCodons;
-        }
-        else if (typeCodons == "start") {
-            codonsSet = startCodons;
-        }
-        
+    std::vector<std::string> getCodons(const std::set<int> &codonsSet) {        
         std::vector<std::string> codonsVec;
         for (std::set<int>::const_iterator it=codonsSet.begin(); it!=codonsSet.end(); ++it) {
             int currCode = *it;

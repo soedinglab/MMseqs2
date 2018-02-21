@@ -71,16 +71,6 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     unsigned int forwardFrames = getFrames(par.forwardFrames);
     unsigned int reverseFrames = getFrames(par.reverseFrames);
 
-    unsigned int extendMode = 0;
-    if(par.orfLongest)
-        extendMode |= Orf::EXTEND_START;
-
-    if(par.orfExtendMin)
-        extendMode |= Orf::EXTEND_END;
-
-    if(par.orfFragments == 1)
-        extendMode |= Orf::EXTEND_FRAGMENTS;
-
     unsigned int total = 0;
 #pragma omp parallel for schedule(dynamic, 10) shared(total)
 
@@ -107,7 +97,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
 
         std::vector<Orf::SequenceLocation> res;
-        orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
+        orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, par.orfStartMode);
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
             Orf::SequenceLocation loc = *it;
 

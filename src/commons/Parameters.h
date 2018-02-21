@@ -208,11 +208,9 @@ public:
     int orfMaxGaps;
     int orfStartState;
     int orfEndState;
-    bool orfLongest;
-    bool orfExtendMin;
+    int orfStartMode;
     std::string forwardFrames;
     std::string reverseFrames;
-    int orfFragments;
 
     // convertprofiledb
     int profileMode;
@@ -483,11 +481,9 @@ public:
     PARAMETER(PARAM_ORF_MAX_GAP)
     PARAMETER(PARAM_ORF_START_STATE)
     PARAMETER(PARAM_ORF_END_STATE)
-    PARAMETER(PARAM_ORF_LONGEST)
-    PARAMETER(PARAM_ORF_EXTENDMIN)
+    PARAMETER(PARAM_ORF_START_MODE)
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
-    PARAMETER(PARAM_ORF_FRAGMENTS)
 
     // indexdb
     PARAMETER(PARAM_INCLUDE_HEADER)

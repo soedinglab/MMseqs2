@@ -67,7 +67,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
                 size_t col;
                 bool found = false;
                 for(col = 0; col < columns; col++){
-                    if(entry[col][0] == '[' && entry[col][1] == 'O' && entry[col][2] == 'r' && entry[col][3] == 'f' & entry[col][4] == ':'){
+                    if(entry[col][0] == '[' && entry[col][1] == 'O' && entry[col][2] == 'r' && entry[col][3] == 'f' && entry[col][4] == ':'){
                         found=true;
                         break;
                     }

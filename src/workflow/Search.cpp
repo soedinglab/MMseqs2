@@ -19,7 +19,8 @@ void setSearchDefaults(Parameters *p) {
     p->sensitivity = 5.7;
     p->evalThr = 0.001;
     p->includeHeader = true;
-    p->orfLongest = true;
+    //p->orfLongest = true;
+    p->orfStartMode = 0;
     p->orfMinLength = 30;
     p->orfMaxLength = 98202; // 32734 AA (just to be sure)
 }

@@ -18,10 +18,10 @@ public:
         FRAME_3 = (1u << 2)
     };
 
-    enum ExtendMode {
-        EXTEND_START = (1u << 0),
-        EXTEND_END = (1u << 1),
-        EXTEND_FRAGMENTS = (1u << 2)
+    enum StartMode {
+        START_TO_STOP = 0,
+        ANY_TO_STOP = 1,
+        START_TO_START = 2
     };
 
     struct SequenceLocation {
@@ -56,15 +56,15 @@ public:
                  const size_t maxGaps = 30,
                  const unsigned int forwardFrames = FRAME_1 | FRAME_2 | FRAME_3,
                  const unsigned int reverseFrames = FRAME_1 | FRAME_2 | FRAME_3,
-                 const unsigned int extendMode = 0);
+                 const unsigned int startMode = 0);
 
     bool isStop(const char* codon);
-    bool isStopOrStart(const char* codon, const std::string type);
+    bool isStart(const char* codon);
 
     void findForward(const char *sequence, const size_t sequenceLength,
                             std::vector<Orf::SequenceLocation> &result,
                             const size_t minLength, const size_t maxLength, const size_t maxGaps,
-                            const unsigned int frames, const unsigned int extendMode, const Strand strand);
+                            const unsigned int frames, const unsigned int startMode, const Strand strand);
 
     std::string view(const SequenceLocation &location);
 
@@ -77,6 +77,7 @@ private:
 
     std::vector<std::string> stopCodons;
     std::vector<std::string> startCodons;
+    bool isInCodonList(const char* codon, const std::vector<std::string> &codons);
 
     void cleanup();
 };
