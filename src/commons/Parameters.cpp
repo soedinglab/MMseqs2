@@ -117,8 +117,8 @@ Parameters::Parameters():
         PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min codons in orf", "minimum codon number in open reading frames",typeid(int),(void *) &orfMinLength, "^[1-9]{1}[0-9]*$"),
         PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max codons in length", "maximum codon number in open reading frames",typeid(int),(void *) &orfMaxLength, "^[1-9]{1}[0-9]*$"),
         PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "maximum number of codons with gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
-        PARAM_ORF_START_STATE(PARAM_ORF_START_STATE_ID,"--orf-start-state", "Orf start state", "Orf start can be 0: incomplete, 1: complete, 2: both",typeid(int),(void *) &orfStartState, "^[0-2]{1}"),
-        PARAM_ORF_END_STATE(PARAM_ORF_END_STATE_ID,"--orf-end-state", "Orf end state", "Orf end can be 0: incomplete, 1: complete, 2: both ",typeid(int),(void *) &orfEndState, "^[0-2]{1}"),
+        PARAM_CONTIG_START_MODE(PARAM_CONTIG_START_MODE_ID,"--contig-start-mode", "Contig start mode", "Contig start can be 0: incomplete, 1: complete, 2: both",typeid(int),(void *) &contigStartMode, "^[0-2]{1}"),
+        PARAM_CONTIG_END_MODE(PARAM_CONTIG_END_MODE_ID,"--contig-end-mode", "Contig end mode", "Contig end can be 0: incomplete, 1: complete, 2: both ",typeid(int),(void *) &contigEndMode, "^[0-2]{1}"),
         PARAM_ORF_START_MODE(PARAM_ORF_START_MODE_ID,"--orf-start-mode", "Orf start mode", "Orf fragment can be 0: from start to stop, 1: from any to stop, 2: from start to start/stop (first of the two)",typeid(int),(void *) &orfStartMode, "^[0-2]{1}"),
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
@@ -359,8 +359,8 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_ORF_MIN_LENGTH);
     extractorfs.push_back(PARAM_ORF_MAX_LENGTH);
     extractorfs.push_back(PARAM_ORF_MAX_GAP);
-    extractorfs.push_back(PARAM_ORF_START_STATE);
-    extractorfs.push_back(PARAM_ORF_END_STATE);
+    extractorfs.push_back(PARAM_CONTIG_START_MODE);
+    extractorfs.push_back(PARAM_CONTIG_END_MODE);
     extractorfs.push_back(PARAM_ORF_START_MODE);
     extractorfs.push_back(PARAM_ORF_FORWARD_FRAMES);
     extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);    
@@ -1064,8 +1064,8 @@ void Parameters::setDefaults() {
     orfMinLength = 1;
     orfMaxLength = INT_MAX;
     orfMaxGaps = INT_MAX;
-    orfStartState = 2;
-    orfEndState = 2;
+    contigStartMode = 2;
+    contigEndMode = 2;
     orfStartMode = 0;
     forwardFrames = "1,2,3";
     reverseFrames = "1,2,3";

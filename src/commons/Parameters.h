@@ -206,8 +206,8 @@ public:
     int orfMinLength;
     int orfMaxLength;
     int orfMaxGaps;
-    int orfStartState;
-    int orfEndState;
+    int contigStartMode;
+    int contigEndMode;
     int orfStartMode;
     std::string forwardFrames;
     std::string reverseFrames;
@@ -479,8 +479,8 @@ public:
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
     PARAMETER(PARAM_ORF_MAX_GAP)
-    PARAMETER(PARAM_ORF_START_STATE)
-    PARAMETER(PARAM_ORF_END_STATE)
+    PARAMETER(PARAM_CONTIG_START_MODE)
+    PARAMETER(PARAM_CONTIG_END_MODE)
     PARAMETER(PARAM_ORF_START_MODE)
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)

@@ -104,10 +104,10 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 
             size_t offset = __sync_fetch_and_add(&total, 1);
             id = offset + par.identifierOffset;
-            if (par.orfStartState < 2 && (loc.hasIncompleteStart == par.orfStartState)) {
+            if (par.contigStartMode < 2 && (loc.hasIncompleteStart == par.contigStartMode)) {
                 continue;
             }
-            if (par.orfEndState   < 2 && (loc.hasIncompleteEnd   == par.orfEndState)) {
+            if (par.contigEndMode   < 2 && (loc.hasIncompleteEnd   == par.contigEndMode)) {
                 continue;
             }
 
