@@ -119,11 +119,11 @@ Parameters::Parameters():
         PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "maximum number of codons with gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_ORF_START_STATE(PARAM_ORF_START_STATE_ID,"--orf-start-state", "Orf start state", "Orf start can be 0: incomplete, 1: complete, 2: both",typeid(int),(void *) &orfStartState, "^[0-2]{1}"),
         PARAM_ORF_END_STATE(PARAM_ORF_END_STATE_ID,"--orf-end-state", "Orf end state", "Orf end can be 0: incomplete, 1: complete, 2: both ",typeid(int),(void *) &orfEndState, "^[0-2]{1}"),
-        PARAM_ORF_LONGEST(PARAM_ORF_LONGEST_ID,"--longest-orf", "Find longest orf", "does the first found start codon start an orf (results in the longst possible orf)",typeid(bool),(void *) &orfLongest, ""),
+        PARAM_ORF_LONGEST(PARAM_ORF_LONGEST_ID,"--longest-orf", "Find longest orf", "does the first found start codon start an orf (results in the longest possible orf)",typeid(bool),(void *) &orfLongest, ""),
         PARAM_ORF_EXTENDMIN(PARAM_ORF_EXTENDMIN_ID,"--extend-min", "Extend short orfs", "if an orf would be rejected because of the min length threshold, allow it to be extended to the next stop codon",typeid(bool),(void *) &orfExtendMin, ""),
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
-        PARAM_ORF_FRAGMENTS(PARAM_ORF_FRAGMENTS_ID, "--orf-fragments", "Orf Fragments", "generate putative ORFs between stop codons (not conditioned on start, useful for Eukaryotes)", typeid(bool), (void *) &orfFragments, ""),
+        PARAM_ORF_FRAGMENTS(PARAM_ORF_FRAGMENTS_ID,"--orf-fragments", "Orf Fragments", "Orf fragments can be 0: conditioned on start, 1: fragment of codons between two stop codons (useful for Eukaryotes)",typeid(int),(void *) &orfFragments, "^[0-1]{1}"),
         // indexdb
         PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Header", "Include the header index into the index", typeid(bool), (void *) &includeHeader, ""),
         // createdb
@@ -1074,7 +1074,7 @@ void Parameters::setDefaults() {
     orfExtendMin = false;
     forwardFrames = "1,2,3";
     reverseFrames = "1,2,3";
-    orfFragments = false;
+    orfFragments = 0;
 
     // createdb
     identifierOffset = 0;

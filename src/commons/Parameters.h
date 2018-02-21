@@ -212,7 +212,7 @@ public:
     bool orfExtendMin;
     std::string forwardFrames;
     std::string reverseFrames;
-    bool orfFragments;
+    int orfFragments;
 
     // convertprofiledb
     int profileMode;

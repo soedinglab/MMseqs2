@@ -21,6 +21,7 @@ public:
     enum ExtendMode {
         EXTEND_START = (1u << 0),
         EXTEND_END = (1u << 1),
+        EXTEND_FRAGMENTS = (1u << 2)
     };
 
     struct SequenceLocation {
@@ -55,15 +56,14 @@ public:
                  const size_t maxGaps = 30,
                  const unsigned int forwardFrames = FRAME_1 | FRAME_2 | FRAME_3,
                  const unsigned int reverseFrames = FRAME_1 | FRAME_2 | FRAME_3,
-                 const unsigned int extendMode = 0,
-                 bool fragmentMode = false);
+                 const unsigned int extendMode = 0);
 
     bool isStop(const char* codon);
 
     void findForward(const char *sequence, const size_t sequenceLength,
                             std::vector<Orf::SequenceLocation> &result,
                             const size_t minLength, const size_t maxLength, const size_t maxGaps,
-                            const unsigned int frames, const unsigned int extendMode, const Strand strand, bool fragmentMode);
+                            const unsigned int frames, const unsigned int extendMode, const Strand strand);
 
     std::string view(const SequenceLocation &location);
 

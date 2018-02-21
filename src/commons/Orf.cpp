@@ -108,19 +108,18 @@ void Orf::findAll(std::vector<Orf::SequenceLocation> &result,
                   const size_t maxGaps,
                   const unsigned int forwardFrames,
                   const unsigned int reverseFrames,
-                  const unsigned int extendMode,
-                  bool fragmentMode)
+                  const unsigned int extendMode)
 {
     if (forwardFrames != 0) {
         // find ORFs on the forward sequence
         findForward(sequence, sequenceLength, result,
-                    minLength, maxLength, maxGaps, forwardFrames, extendMode, STRAND_PLUS, fragmentMode);
+                    minLength, maxLength, maxGaps, forwardFrames, extendMode, STRAND_PLUS);
     }
 
     if (reverseFrames != 0) {
         // find ORFs on the reverse complement
         findForward(reverseComplement, sequenceLength, result,
-                    minLength, maxLength, maxGaps, reverseFrames, extendMode, STRAND_MINUS, fragmentMode);
+                    minLength, maxLength, maxGaps, reverseFrames, extendMode, STRAND_MINUS);
     }
 }
 
@@ -167,7 +166,7 @@ bool Orf::isStop(const char* codon) {
 
 void Orf::findForward(const char *sequence, const size_t sequenceLength, std::vector<SequenceLocation> &result,
                       const size_t minLength, const size_t maxLength, const size_t maxGaps, const unsigned int frames,
-                      const unsigned int extendMode, const Strand strand, bool fragmentMode) {
+                      const unsigned int extendMode, const Strand strand) {
     // An open reading frame can beginning in any of the three codon start position
     // Frame 0:  AGA ATT GCC TGA ATA AAA GGA TTA CCT TGA TAG GGT AAA
     // Frame 1: A GAA TTG CCT GAA TAA AAG GAT TAC CTT GAT AGG GTA AA
@@ -205,12 +204,14 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
             bool isLast = !thisIncomplete && isIncomplete(codon + FRAMES);
 
             // if we have the start extend mode the returned orf should return the longest
-            // possible orf with possibly multiple start codons
+            // possible orf with possibly multiple start codons.
+            // if we have the extend fragments mode, we extract the fragment of codons between two stops
+            // in the frame. It is not conditioned on a start codon.
            
             bool shouldStart;
             if((extendMode & EXTEND_START)) {
                 shouldStart = isInsideOrf[frame] == false && isStart(codon);
-            } else if (fragmentMode) {
+            } else if (extendMode & EXTEND_FRAGMENTS) {
                 shouldStart = isInsideOrf[frame] == false;
             } else {
                 shouldStart = isStart(codon);
