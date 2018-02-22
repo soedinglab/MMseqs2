@@ -21,7 +21,7 @@ public:
     enum StartMode {
         START_TO_STOP = 0,
         ANY_TO_STOP = 1,
-        START_TO_START = 2
+        LAST_START_TO_STOP = 2
     };
 
     struct SequenceLocation {

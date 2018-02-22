@@ -218,7 +218,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
 
             // START_TO_STOP returns the longest fragment such that the first codon is a start
             // ANY_TO_STOP returns the longest fragment
-            // START_TO_START retruns start to next start or stop (the first of the two),
+            // LAST_START_TO_STOP retruns last encountered start to stop,
             // no start codons in the middle
            
             bool shouldStart;
@@ -227,7 +227,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
             } else if (startMode == ANY_TO_STOP) {
                 shouldStart = isInsideOrf[frame] == false;
             } else {
-                // START_TO_START:
+                // LAST_START_TO_STOP:
                 shouldStart = isStart(codon);
             }
 
