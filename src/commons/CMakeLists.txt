@@ -21,6 +21,7 @@ set(commons_header_files
         commons/CSProfile.h
         commons/LibraryReader.h
         commons/Parameters.h
+        commons/PatternCompiler.h
         commons/ScoreMatrix.h
         commons/Sequence.h
         commons/SubstitutionMatrix.h
@@ -51,6 +52,7 @@ set(commons_source_files
         commons/Orf.cpp
         commons/Parameters.cpp
         commons/ProfileStates.cpp
+        commons/ScoreMatrix.cpp
         commons/CSProfile.cpp
         commons/LibraryReader.cpp
         commons/Sequence.cpp
