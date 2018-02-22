@@ -70,7 +70,7 @@ Orf::Orf(const unsigned int requestedGenCode, bool useAllTableStarts) : sequence
 }
 
 Orf::Orf() : sequence(NULL), reverseComplement(NULL) {
-    // initialize with the standard genetic code
+    // initialize with the standard genetic code and use only ATG as start
     initCodonVectors(1, false);
 }
 
