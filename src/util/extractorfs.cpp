@@ -76,7 +76,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 
     for (unsigned int i = 0; i < reader.getSize(); ++i){
         unsigned int id;
-        Orf orf(par.translationTable);
+        Orf orf(par.translationTable, par.useAllTableStarts);
         Debug::printProgress(i);
         int thread_idx = 0;
 #ifdef OPENMP

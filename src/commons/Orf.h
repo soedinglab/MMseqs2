@@ -39,9 +39,9 @@ public:
     };
     
     Orf();
-    Orf(const unsigned int requestedGenCode);
+    Orf(const unsigned int requestedGenCode, bool useAllTableStarts);
     
-    void initCodonVectors(const unsigned int requestedGenCode);
+    void initCodonVectors(const unsigned int requestedGenCode, bool useAllTableStarts);
 
     bool setSequence(const char* sequence, size_t sequenceLength);
     

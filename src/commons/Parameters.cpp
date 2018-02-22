@@ -122,6 +122,7 @@ Parameters::Parameters():
         PARAM_ORF_START_MODE(PARAM_ORF_START_MODE_ID,"--orf-start-mode", "Orf start mode", "Orf fragment can be 0: from start to stop, 1: from any to stop, 2: from start to start/stop (first of the two)",typeid(int),(void *) &orfStartMode, "^[0-2]{1}"),
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
+        PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         // indexdb
         PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Header", "Include the header index into the index", typeid(bool), (void *) &includeHeader, ""),
         // createdb
@@ -367,6 +368,7 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_ID_OFFSET);
     extractorfs.push_back(PARAM_THREADS);
     extractorfs.push_back(PARAM_TRANSLATION_TABLE);
+    extractorfs.push_back(PARAM_USE_ALL_TABLE_STARTS);
 
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
@@ -1070,6 +1072,7 @@ void Parameters::setDefaults() {
     orfStartMode = 0;
     forwardFrames = "1,2,3";
     reverseFrames = "1,2,3";
+    useAllTableStarts = false;
 
     // createdb
     identifierOffset = 0;

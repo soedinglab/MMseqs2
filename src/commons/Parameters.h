@@ -211,6 +211,7 @@ public:
     int orfStartMode;
     std::string forwardFrames;
     std::string reverseFrames;
+    bool useAllTableStarts;
 
     // convertprofiledb
     int profileMode;
@@ -484,6 +485,7 @@ public:
     PARAMETER(PARAM_ORF_START_MODE)
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
+    PARAMETER(PARAM_USE_ALL_TABLE_STARTS)
 
     // indexdb
     PARAMETER(PARAM_INCLUDE_HEADER)
