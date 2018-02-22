@@ -66,15 +66,6 @@ inline void TtoU(std::vector<std::string> & codonsVec) {
 }
 
 Orf::Orf(const unsigned int requestedGenCode, bool useAllTableStarts) : sequence(NULL), reverseComplement(NULL) {
-    initCodonVectors(requestedGenCode, useAllTableStarts);
-}
-
-Orf::Orf() : sequence(NULL), reverseComplement(NULL) {
-    // initialize with the standard genetic code and use only ATG as start
-    initCodonVectors(1, false);
-}
-
-void Orf::initCodonVectors(const unsigned int requestedGenCode, bool useAllTableStarts) {
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(requestedGenCode));
     stopCodons = translateNucl.getStopCodons();
     TtoU(stopCodons);

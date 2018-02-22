@@ -101,7 +101,6 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
             Orf::SequenceLocation loc = *it;
 
-
             size_t offset = __sync_fetch_and_add(&total, 1);
             id = offset + par.identifierOffset;
             if (par.contigStartMode < 2 && (loc.hasIncompleteStart == par.contigStartMode)) {
