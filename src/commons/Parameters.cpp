@@ -366,6 +366,7 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);    
     extractorfs.push_back(PARAM_ID_OFFSET);
     extractorfs.push_back(PARAM_THREADS);
+    extractorfs.push_back(PARAM_TRANSLATION_TABLE);
 
     // splitdb
     splitdb.push_back(PARAM_SPLIT);

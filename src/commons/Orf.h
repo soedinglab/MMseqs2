@@ -39,6 +39,9 @@ public:
     };
     
     Orf();
+    Orf(const unsigned int requestedGenCode);
+    
+    void initCodonVectors(const unsigned int requestedGenCode);
 
     bool setSequence(const char* sequence, size_t sequenceLength);
     
