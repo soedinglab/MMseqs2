@@ -365,10 +365,10 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_ORF_START_MODE);
     extractorfs.push_back(PARAM_ORF_FORWARD_FRAMES);
     extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);    
-    extractorfs.push_back(PARAM_ID_OFFSET);
-    extractorfs.push_back(PARAM_THREADS);
     extractorfs.push_back(PARAM_TRANSLATION_TABLE);
     extractorfs.push_back(PARAM_USE_ALL_TABLE_STARTS);
+    extractorfs.push_back(PARAM_ID_OFFSET);    
+    extractorfs.push_back(PARAM_THREADS);    
 
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
