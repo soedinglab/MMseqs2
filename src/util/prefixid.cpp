@@ -23,6 +23,7 @@ int prefixid(int argc, const char **argv, const Command& command) {
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads);
     writer.open();
+    bool shouldWriteNullByte = !par.shouldTsv;
 
     size_t entries = reader.getSize();
 
@@ -59,7 +60,7 @@ int prefixid(int argc, const char **argv, const Command& command) {
             }
 
             std::string result = ss.str();
-            writer.writeData(result.c_str(), result.length(), key, thread_idx);
+            writer.writeData(result.c_str(), result.length(), key, thread_idx, shouldWriteNullByte);
         }
     }
     writer.close();

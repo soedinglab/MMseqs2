@@ -154,6 +154,7 @@ Parameters::Parameters():
         PARAM_USESEQID(PARAM_USESEQID_ID,"--use-seq-id", "Match sequences by their ID", "Sequence ID (Uniprot, GenBank, ...) is used for identifying matches between the old and the new DB.",typeid(bool), (void *) &useSequenceId, ""),
         // prefixid
         PARAM_PREFIX(PARAM_PREFIX_ID, "--prefix", "Prefix", "Use this prefix for all entries", typeid(std::string),(void *) &prefix,""),
+        PARAM_TSV(PARAM_TSV_ID,"--tsv", "Tsv", "should output be in TSV format",typeid(bool),(void *) &shouldTsv, ""),        
         // summarize headers
         PARAM_HEADER_TYPE(PARAM_HEADER_TYPE_ID,"--header-type", "Header type", "Header Type: 1 Uniclust, 2 Metaclust",typeid(int), (void *) &headerType, "[1-2]{1}"),
         // mergedbs
@@ -495,6 +496,7 @@ Parameters::Parameters():
     // prefixid
     prefixid.push_back(PARAM_PREFIX);
     prefixid.push_back(PARAM_MAPPING_FILE);
+    prefixid.push_back(PARAM_TSV);
     prefixid.push_back(PARAM_THREADS);
     prefixid.push_back(PARAM_V);
 
@@ -1114,6 +1116,7 @@ void Parameters::setDefaults() {
 
     // prefixid
     prefix = "";
+    shouldTsv = false;
 
     // mergedbs
     mergePrefixes = "";
