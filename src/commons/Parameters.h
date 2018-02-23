@@ -165,7 +165,8 @@ public:
     int    minDiagScoreThr;              // min diagonal score
     int    spacedKmer;                   // Spaced Kmers
     int    split;                        // Split database in n equal chunks
-    int    splitMode;                    // Split by query or target DB (MPI only)
+    int    splitMode;                    // Split by query or target DB
+    int    splitMemoryLimit;             // Maximum amount of memory a split can use
     bool   splitAA;                      // Split database by amino acid count instead
     size_t resListOffset;                // Offsets result list
     bool   noPreload;                    // Do not preload database into memory
@@ -205,11 +206,12 @@ public:
     int orfMinLength;
     int orfMaxLength;
     int orfMaxGaps;
-    bool orfSkipIncomplete;
-    bool orfLongest;
-    bool orfExtendMin;
+    int contigStartMode;
+    int contigEndMode;
+    int orfStartMode;
     std::string forwardFrames;
     std::string reverseFrames;
+    bool useAllTableStarts;
 
     // convertprofiledb
     int profileMode;
@@ -231,6 +233,10 @@ public:
     std::string summaryPrefix;
     bool omitConsensus;
     bool skipQuery;
+
+    // msa2profile
+    int matchMode;
+    float matchRatio;
 
     // result2profile
     float filterMaxSeqId;
@@ -256,6 +262,7 @@ public:
 
     // linearcluster
     int kmersPerSequence;
+    bool includeOnlyExtendable;
     int hashShift;
 
     // indexdb
@@ -276,6 +283,7 @@ public:
 
     // translate nucleotide
     int translationTable;
+    bool addOrfStop;
 
     // createseqfiledb
     int minSequences;
@@ -332,8 +340,13 @@ public:
 
     static Parameters& getInstance()
     {
-        static Parameters instance;
-        return instance;
+        if (instance == NULL) {
+            initInstance();
+        }
+        return *instance;
+    }
+    static void initInstance() {
+        new Parameters;
     }
     
     void setDefaults();
@@ -366,6 +379,7 @@ public:
     PARAMETER(PARAM_MAX_SEQS)
     PARAMETER(PARAM_SPLIT)
     PARAMETER(PARAM_SPLIT_MODE)
+    PARAMETER(PARAM_SPLIT_MEMORY_LIMIT)
     PARAMETER(PARAM_SPLIT_AMINOACID)
     PARAMETER(PARAM_SUB_MAT)
     PARAMETER(PARAM_NO_COMP_BIAS_CORR)
@@ -423,6 +437,10 @@ public:
     PARAMETER(PARAM_OMIT_CONSENSUS)
     PARAMETER(PARAM_SKIP_QUERY)
 
+    // msa2profile
+    PARAMETER(PARAM_MATCH_MODE)
+    PARAMETER(PARAM_MATCH_RATIO)
+
     // result2profile
     PARAMETER(PARAM_E_PROFILE)
     PARAMETER(PARAM_FILTER_MSA)
@@ -447,6 +465,7 @@ public:
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
+    PARAMETER(PARAM_INCLUDE_ONLY_EXTENDABLE)
     PARAMETER(PARAM_HASH_SHIFT)
 
     // workflow
@@ -461,11 +480,12 @@ public:
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
     PARAMETER(PARAM_ORF_MAX_GAP)
-    PARAMETER(PARAM_ORF_SKIP_INCOMPLETE)
-    PARAMETER(PARAM_ORF_LONGEST)
-    PARAMETER(PARAM_ORF_EXTENDMIN)
+    PARAMETER(PARAM_CONTIG_START_MODE)
+    PARAMETER(PARAM_CONTIG_END_MODE)
+    PARAMETER(PARAM_ORF_START_MODE)
     PARAMETER(PARAM_ORF_FORWARD_FRAMES)
     PARAMETER(PARAM_ORF_REVERSE_FRAMES)
+    PARAMETER(PARAM_USE_ALL_TABLE_STARTS)
 
     // indexdb
     PARAMETER(PARAM_INCLUDE_HEADER)
@@ -483,6 +503,7 @@ public:
 
     // translate_nucleotide
     PARAMETER(PARAM_TRANSLATION_TABLE)
+    PARAMETER(PARAM_ADD_ORF_STOP)
 
     // createseqfiledb
     PARAMETER(PARAM_MIN_SEQUENCES)
@@ -603,6 +624,8 @@ public:
 
 protected:
     Parameters();
+    static Parameters* instance;
+    virtual ~Parameters() {};
 
 private:
     Parameters(Parameters const&);

@@ -29,6 +29,8 @@
 #include <string>
 #include "Debug.h"
 #include "Util.h"
+#include <set>
+#include <cmath>
 
 // standard genetic code
 //
@@ -270,6 +272,48 @@ public:
         eBase_N       /* ACGT */
     };
 
+    // set because we want unique keys. several states map to the same start/stop codon
+    std::set<int> stopCodons;
+    std::set<int> startCodons;
+
+    std::vector<std::string> getStartCodons() {
+        return getCodons(startCodons);
+    }
+
+    std::vector<std::string> getStopCodons() {
+        return getCodons(stopCodons);
+    }
+    
+    std::vector<std::string> getCodons(const std::set<int> &codonsSet) {        
+        std::vector<std::string> codonsVec;
+        for (std::set<int>::const_iterator it=codonsSet.begin(); it!=codonsSet.end(); ++it) {
+            int currCode = *it;
+            std::string currStr;
+            for (size_t nucInd = 0; nucInd < 3; ++nucInd) {
+                int currPower = (int) std::pow(4,(2 - nucInd));
+                int currQ = currCode / currPower;
+
+                // T = 0, C = 1, A = 2, G = 3
+                char currNuc = 'T';
+                if (currQ == 1) {
+                    currNuc = 'C';
+                }
+                else if (currQ == 2) {
+                    currNuc = 'A';
+                }
+                else if (currQ == 3) {
+                    currNuc = 'G';
+                }
+                currStr.push_back(currNuc);
+
+                int currR = currCode % currPower;
+                currCode = currR;
+            }
+            codonsVec.push_back(currStr);
+        }
+        return (codonsVec);
+    }
+
     // static instances of single copy translation tables common to all genetic codes
     int sm_NextState  [4097];
     int sm_RvCmpState [4097];
@@ -385,8 +429,13 @@ public:
 
                                             // lookup amino acid for codon XYZ
                                             ch = ncbieaa->at(cd);
+                                            
                                             if (aa == '\0') {
                                                 aa = ch;
+                                                // here is a stop codon
+                                                if (aa == '*') {
+                                                    stopCodons.insert(cd);
+                                                }
                                             } else if (aa != ch) {
                                                 // allow Asx (Asp or Asn) and Glx (Glu or Gln)
                                                 if ((aa == 'B' || aa == 'D' || aa == 'N') &&
@@ -409,6 +458,10 @@ public:
                                                 orf = ch;
                                             } else if (orf != ch) {
                                                 orf = 'X';
+                                            }
+                                            // here is a start codon
+                                            if (ch == 'M') {
+                                                startCodons.insert(cd);
                                             }
 
                                             // drop out of loop as soon as answer is known
@@ -434,7 +487,7 @@ public:
         }
     };
 
-    void translate(char *aa, char *nucl, int L) {
+    void translate(char *aa, const char *nucl, int L) {
         int state = 0;
         for (int i = 0;  i < L;  i += 3) {
             // loop through one codon at a time

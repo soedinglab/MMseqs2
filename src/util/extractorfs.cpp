@@ -82,24 +82,17 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     unsigned int forwardFrames = getFrames(par.forwardFrames);
     unsigned int reverseFrames = getFrames(par.reverseFrames);
 
-    unsigned int extendMode = 0;
-    if(par.orfLongest)
-        extendMode |= Orf::EXTEND_START;
-
-    if(par.orfExtendMin)
-        extendMode |= Orf::EXTEND_END;
-
     unsigned int total = 0;
-    #pragma omp parallel for schedule(static) shared(total) 
+#pragma omp parallel for schedule(dynamic, 10) shared(total)
 
     for (unsigned int i = 0; i < reader.getSize(); ++i){
         unsigned int id;
-        Orf orf;
+        Orf orf(par.translationTable, par.useAllTableStarts);
         Debug::printProgress(i);
         int thread_idx = 0;
-        #ifdef OPENMP
+#ifdef OPENMP
         thread_idx = omp_get_thread_num();
-        #endif
+#endif
 
         std::string orfsBuffer;
         orfsBuffer.reserve(10000);
@@ -119,26 +112,29 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
 
         std::vector<Orf::SequenceLocation> res;
-        orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, extendMode);
+        orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, par.orfStartMode);
         for (std::vector<Orf::SequenceLocation>::const_iterator it = res.begin(); it != res.end(); ++it) {
             Orf::SequenceLocation loc = *it;
 
-            #pragma omp critical
-            {
-                total++;
-                id = total + par.identifierOffset;
+            size_t offset = __sync_fetch_and_add(&total, 1);
+            id = offset + par.identifierOffset;
+            if (par.contigStartMode < 2 && (loc.hasIncompleteStart == par.contigStartMode)) {
+                continue;
+            }
+            if (par.contigEndMode   < 2 && (loc.hasIncompleteEnd   == par.contigEndMode)) {
+                continue;
             }
 
-            if (par.orfSkipIncomplete && (loc.hasIncompleteStart || loc.hasIncompleteEnd))
-                continue;
-
             char buffer[LINE_MAX];
-            snprintf(buffer, LINE_MAX, "%s [Orf: %u, %zu, %zu, %d, %d, %d]\n", header.c_str(), key, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+            snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", header.c_str(), loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
             headerWriter.writeData(buffer, strlen(buffer), id, thread_idx);
 
             std::string sequence = orf.view(loc);
             sequence.append("\n");
+//            if(loc.hasIncompleteStart == false){
+//                sequence.insert (0, "TAG");
+//            }
             sequenceWriter.writeData(sequence.c_str(), sequence.length(), id, thread_idx);
 
             Itoa::u32toa_sse2(static_cast<uint32_t>(key), buffer);
@@ -160,6 +156,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     sequenceWriter.close(DBReader<unsigned int>::DBTYPE_NUC);
     headerReader.close();
     reader.close();
-    
+
     return EXIT_SUCCESS;
 }
+

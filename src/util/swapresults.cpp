@@ -78,15 +78,20 @@ int swapresults(int argc, const char **argv, const Command &command) {
             data = nextLine;
         }
     }
-    //const size_t totalMemoryInByte = 700;
-    const size_t totalMemoryInByte = static_cast<size_t>(static_cast<double>(Util::getTotalSystemMemory()) * 0.9);
+
+    size_t memoryLimit;
+    if (par.splitMemoryLimit > 0) {
+        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+    } else {
+        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+    }
     // compute splits
     std::vector<std::pair<unsigned int, size_t > > splits;
     std::vector<std::pair<std::string , std::string > > splitFileNames;
     size_t bytesToWrite = 0;
     for (size_t i = 0; i <= maxTargetId; i++) {
         bytesToWrite += targetElementSize[i];
-        if(bytesToWrite > totalMemoryInByte){
+        if (bytesToWrite > memoryLimit){
             splits.push_back(std::make_pair(i-1, bytesToWrite-targetElementSize[i]));
             bytesToWrite = targetElementSize[i];
         }

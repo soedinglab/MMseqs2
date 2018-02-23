@@ -46,7 +46,8 @@ public:
                                              float bitFactor, bool ignoreX, bool profileState);
 
     static void setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const int threads,
-                           const bool templateDBIsIndex, const size_t maxResListLen, int *kmerSize, int *split, int *splitMode);
+                           const bool templateDBIsIndex, const size_t maxResListLen, const size_t memoryLimit,
+                           int *kmerSize, int *split, int *splitMode);
 
     static int getKmerThreshold(const float sensitivity, const int querySeqType,
                                 const int kmerScore, const int kmerSize);

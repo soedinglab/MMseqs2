@@ -58,14 +58,31 @@ void printUsage(bool showExtended) {
     usage << tool_name << " Version: " << version << "\n";
     usage << "© " << main_author << "\n";
 
+    std::vector<int> showCategoryHeader(categories.size(), 0);
+    for (size_t i = 0; i < categories.size(); ++i) {
+        for (size_t j = 0; j < commands.size(); j++) {
+            struct Command &p = commands[j];
+            if (p.mode == categories[i].mode) {
+                showCategoryHeader[i] = 1;
+                break;
+            }
+        }
+    }
+
+
     for (size_t i = 0; i < categories.size(); ++i) {
         if (showExtended == false && categories[i].mode != COMMAND_MAIN && categories[i].mode != COMMAND_FORMAT_CONVERSION &&  categories[i].mode != COMMAND_TAXONOMY) {
             continue;
         }
+
+        if (showCategoryHeader[i] == 0) {
+            continue;
+        }
+
         usage << "\n" << std::setw(20) << categories[i].title << "\n";
         for (size_t j = 0; j < commands.size(); j++) {
             struct Command &p = commands[j];
-            if (p.mode == categories[i].mode ) {
+            if (p.mode == categories[i].mode) {
                 usage << std::left << std::setw(20) << "  " + std::string(p.cmd) << "\t" << p.shortDescription << "\n";
             }
         }

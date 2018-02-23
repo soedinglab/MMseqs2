@@ -75,7 +75,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             spacedKmer   = (data.spacedKmer == 1) ? true : false;
 
             if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE) {
-                Debug(Debug::ERROR) << "--query-profile cannot be used with a --target-profile database!\n";
+                Debug(Debug::ERROR) << "Query-profiles cannot be searched against a target-profile database!\n";
                 EXIT(EXIT_FAILURE);
             }
 
@@ -145,7 +145,14 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     }
 
     int originalSplits = splits;
-    setupSplit(*tdbr, alphabetSize-1, threads, templateDBIsIndex, maxResListLen, &kmerSize, &splits, &splitMode);
+    size_t memoryLimit;
+    if (par.splitMemoryLimit > 0) {
+        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+    } else {
+        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+    }
+    setupSplit(*tdbr, alphabetSize - 1, threads, templateDBIsIndex, maxResListLen, memoryLimit, &kmerSize, &splits, &splitMode);
+
     if(targetSeqType != Sequence::NUCLEOTIDES){
         kmerThr = getKmerThreshold(sensitivity, querySeqType, kmerScore, kmerSize);
     }
@@ -154,7 +161,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             Debug(Debug::WARNING) << "Required split count does not match index table split count. Recomputing index table!\n";
             reopenTargetDb();
         } else if (kmerThr < minKmerThr) {
-            Debug(Debug::WARNING) << "Required k-mer threshold does not match index table k-mer threshold. Recomputing index table!\n";
+            Debug(Debug::WARNING) << "Required k-mer threshold ( " << kmerThr
+                                  << ") does not match index table k-mer threshold (" << minKmerThr << "). "
+                                  << "Recomputing index table!\n";
             reopenTargetDb();
         } else if ((querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE) && minKmerThr != 0) {
             Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
@@ -225,32 +234,31 @@ void Prefiltering::reopenTargetDb() {
 }
 
 void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSize, const int threads,
-                              const bool templateDBIsIndex, const size_t maxResListLen, int *kmerSize,
-                              int *split, int *splitMode) {
-    const size_t totalMemoryInByte = Util::getTotalSystemMemory();
+                              const bool templateDBIsIndex, const size_t maxResListLen, const size_t memoryLimit,
+                              int *kmerSize, int *split, int *splitMode) {
     size_t neededSize = estimateMemoryConsumption(1,
                                                   dbr.getSize(), dbr.getAminoAcidDBSize(),  maxResListLen, alphabetSize,
                                                   *kmerSize == 0 ? // if auto detect kmerSize
                                                   IndexTable::computeKmerSize(dbr.getAminoAcidDBSize()) : *kmerSize,
                                                   threads);
-
-    if (neededSize > 0.9 * totalMemoryInByte) { // memory is not enough to compute everything at once
+    if (neededSize > 0.9 * memoryLimit) {
+        // memory is not enough to compute everything at once
         //TODO add PROFILE_STATE (just 6-mers)
-        std::pair<int, int> splitingSetting = Prefiltering::optimizeSplit(totalMemoryInByte, &dbr,
-                                                                          alphabetSize, *kmerSize, threads);
-        if (splitingSetting.second == -1) {
-            Debug(Debug::ERROR) << "Can not fit databased into " << totalMemoryInByte
+        std::pair<int, int> splitSettings = Prefiltering::optimizeSplit(memoryLimit, &dbr,
+                                                                        alphabetSize, *kmerSize, threads);
+        if (splitSettings.second == -1) {
+            Debug(Debug::ERROR) << "Can not fit databased into " << memoryLimit
                                 << " byte. Please use a computer with more main memory.\n";
             EXIT(EXIT_FAILURE);
         }
         if (*kmerSize == 0) {
             // set k-mer based on aa size in database
             // if we have less than 10Mio * 335 amino acids use 6mers
-            *kmerSize = splitingSetting.first;
+            *kmerSize = splitSettings.first;
         }
 
         if (*split == Parameters::AUTO_SPLIT_DETECTION) {
-            *split = splitingSetting.second;
+            *split = splitSettings.second;
         }
 
         if (*splitMode == Parameters::DETECT_BEST_DB_SPLIT) {
@@ -284,11 +292,11 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
                        << *split << " using " << Parameters::getSplitModeName(*splitMode) << " split mode.\n";
     neededSize = estimateMemoryConsumption((*splitMode == Parameters::TARGET_DB_SPLIT) ? *split : 1, dbr.getSize(),
                                            dbr.getAminoAcidDBSize(), maxResListLen, alphabetSize, *kmerSize, threads);
-    Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << totalMemoryInByte
+    Debug(Debug::INFO) << "Needed memory (" << neededSize << " byte) of total memory (" << memoryLimit
                        << " byte)\n";
-    if (neededSize > 0.9 * totalMemoryInByte) {
+    if (neededSize > 0.9 * memoryLimit) {
         Debug(Debug::WARNING) << "WARNING: MMseqs processes needs more main memory than available."
-                "Increase the size of --split or set it to 0 to automatic optimize target database split.\n";
+                "Increase the size of --split or set it to 0 to automatically optimize target database split.\n";
         if (templateDBIsIndex == true) {
             Debug(Debug::WARNING) << "WARNING: Split has to be computed by createindex if precomputed index is used.\n";
         }

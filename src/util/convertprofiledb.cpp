@@ -171,8 +171,7 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
         maxElementSize = std::max(lengths[i], maxElementSize);
     }
 
-    Debug(Debug::INFO) << "Start converting profile to MMseqs profile.\n";
-
+    Debug(Debug::INFO) << "Start converting profiles to MMseqs2 profiles.\n";
     #pragma omp parallel
     {
         char *profileBuffer = new char[maxElementSize * Sequence::PROFILE_READIN_SIZE];

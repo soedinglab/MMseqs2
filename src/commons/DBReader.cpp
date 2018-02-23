@@ -19,14 +19,14 @@
 
 template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode) :
         data(NULL), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
-        indexFileName(strdup(indexFileName_)), dataFile(NULL), size(0), dataSize(0), aaDbSize(0), closed(1), dbtype(-1),
+        indexFileName(strdup(indexFileName_)), size(0), dataSize(0), aaDbSize(0), closed(1), dbtype(-1),
         index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
         lastKey(T()), dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
 
 template <typename T>
 DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize) :
-        data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL), dataFile(NULL),
+        data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
         size(size), dataSize(0), aaDbSize(aaDbSize), closed(1), dbtype(-1),
         index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
         lastKey(T()), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
@@ -81,13 +81,14 @@ template <typename T> bool DBReader<T>::open(int accessType){
     this->accessType = accessType;
     bool isSortedById = false;
     if (dataMode & USE_DATA) {
-        dataFile = fopen(dataFileName, "r");
+        FILE* dataFile = fopen(dataFileName, "r");
         dbtype = parseDbType(dataFileName);
         if (dataFile == NULL) {
             Debug(Debug::ERROR) << "Could not open data file " << dataFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }
         data = mmapData(dataFile, &dataSize);
+        fclose(dataFile);
         dataMapped = true;
     }
 
@@ -301,14 +302,15 @@ template <typename T> char* DBReader<T>::mmapData(FILE * file, size_t *dataSize)
 template <typename T> void DBReader<T>::remapData(){
     if ((dataMode & USE_DATA) && (dataMode & USE_FREAD) == 0) {
         unmapData();
+        FILE* dataFile = fopen(dataFileName, "r");
         data = mmapData(dataFile, &dataSize);
+        fclose(dataFile);
         dataMapped = true;
     }
 }
 
 template <typename T> void DBReader<T>::close(){
     if(dataMode & USE_DATA){
-        fclose(dataFile);
         unmapData();
     }
     if(accessType == SORT_BY_LENGTH || accessType == LINEAR_ACCCESS || accessType == SORT_BY_LINE || accessType == SHUFFLE){

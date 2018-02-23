@@ -166,6 +166,10 @@ int concatdbs(int argc, const char **argv, const Command& command) {
                    static_cast<unsigned int>(par.threads), datamode, true, par.preserveKeysB);
     outDB.concat(true);
 
+    if(FileUtil::fileExists((par.db2 + ".dbtype").c_str())){
+        FileUtil::copyFile((par.db2 + ".dbtype").c_str(), (par.db3 + ".dbtype").c_str());
+    }
+
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::WARNING) << "Time for concatenating DBs: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";

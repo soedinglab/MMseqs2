@@ -35,7 +35,14 @@ int indexdb(int argc, const char **argv, const Command &command) {
     int split = 1;
     int splitMode = Parameters::TARGET_DB_SPLIT;
 
-    Prefiltering::setupSplit(dbr, subMat->alphabetSize, par.threads, false, par.maxResListLen, &kmerSize, &split, &splitMode);
+    size_t memoryLimit;
+    if (par.splitMemoryLimit > 0) {
+        memoryLimit = static_cast<size_t>(par.splitMemoryLimit) * 1024;
+    } else {
+        memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
+    }
+    Prefiltering::setupSplit(dbr, subMat->alphabetSize, par.threads, false, par.maxResListLen, memoryLimit,
+                             &kmerSize, &split, &splitMode);
 
     bool kScoreSet = false;
     for (size_t i = 0; i < par.indexdb.size(); i++) {
@@ -48,7 +55,8 @@ int indexdb(int argc, const char **argv, const Command &command) {
         par.kmerScore = 0;
     }
 
-    int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, dbr.getDbtype(), par.kmerScore, kmerSize);
+    // query seq type is actually unknown here, but if we pass HMM_PROFILE then its +20 k-score
+    int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, Sequence::AMINO_ACIDS, par.kmerScore, kmerSize);
 
     DBReader<unsigned int> *hdbr = NULL;
     if (par.includeHeader == true) {

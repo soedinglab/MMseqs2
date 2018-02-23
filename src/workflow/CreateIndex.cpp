@@ -12,7 +12,8 @@
 int createindex(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.includeHeader = true;
-    par.orfLongest = true;
+    //par.orfLongest = true;
+    par.orfStartMode = 0;
     par.orfMinLength = 30;
     par.orfMaxLength = 98202; // 32734 AA (just to be sure)
     par.kmerScore = 0; // extract all k-mers

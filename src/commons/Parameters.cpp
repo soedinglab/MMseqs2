@@ -15,6 +15,8 @@
 #include <omp.h>
 #endif
 
+Parameters* Parameters::instance = NULL;
+
 extern const char* binary_name;
 extern const char* version;
 
@@ -34,6 +36,7 @@ Parameters::Parameters():
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "Splits input sets into N equally distributed chunks. The default value sets the best split automatically. createindex can only be used with split 1.",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "0: split target db; 1: split query db;  2: auto, depending on main memory",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split Memory Limit", "Maximum system memory in megabyte that one split may use. Defaults (0) to all available system memory.", typeid(int), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
@@ -90,6 +93,9 @@ Parameters::Parameters():
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (0.0,infinity)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
+        // msa2profile
+        PARAM_MATCH_MODE(PARAM_MATCH_MODE_ID, "--match-mode", "Match mode", "0: Columns that have a residue in the first sequence are kept, 1: columns that have a residue in --match-ratio of all sequences are kept.", typeid(int), (void*)&matchMode, "^(0|1)$", MMseqsParameter::COMMAND_PROFILE),
+        PARAM_MATCH_RATIO(PARAM_MATCH_RATIO_ID, "--match-ratio", "Match ratio", "columns that have a residue in this ratio of all sequences are kept", typeid(float), (void*)&matchRatio, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE),
         // sequence2profile
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void*) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void*) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
@@ -99,6 +105,7 @@ Parameters::Parameters():
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
+        PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--inlude-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void*) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_HASH_SHIFT(PARAM_HASH_SHIFT_ID, "--hash-shift", "Shift hash", "Shift k-mer hash", typeid(int), (void*) &hashShift, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR|MMseqsParameter::COMMAND_EXPERT),
         // workflow
         PARAM_RUNNER(PARAM_RUNNER_ID, "--mpi-runner", "Sets the MPI runner","use MPI on compute grid with this MPI command (e.g. \"mpirun -np 42\")",typeid(std::string),(void *) &runner, "", MMseqsParameter::COMMAND_EXPERT),
@@ -110,11 +117,12 @@ Parameters::Parameters():
         PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min codons in orf", "minimum codon number in open reading frames",typeid(int),(void *) &orfMinLength, "^[1-9]{1}[0-9]*$"),
         PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max codons in length", "maximum codon number in open reading frames",typeid(int),(void *) &orfMaxLength, "^[1-9]{1}[0-9]*$"),
         PARAM_ORF_MAX_GAP(PARAM_ORF_MAX_GAP_ID, "--max-gaps", "Max orf gaps", "maximum number of codons with gaps or unknown residues before an open reading frame is rejected",typeid(int),(void *) &orfMaxGaps, "^(0|[1-9]{1}[0-9]*)$"),
-        PARAM_ORF_SKIP_INCOMPLETE(PARAM_ORF_SKIP_INCOMPLETE_ID,"--skip-incomplete", "Skip incomplete orfs", "Skip orfs that have only an end or only a start codon or neither of those",typeid(bool),(void *) &orfSkipIncomplete, ""),
-        PARAM_ORF_LONGEST(PARAM_ORF_LONGEST_ID,"--longest-orf", "Find longest orf", "does the first found start codon start an orf (results in the longst possible orf)",typeid(bool),(void *) &orfLongest, ""),
-        PARAM_ORF_EXTENDMIN(PARAM_ORF_EXTENDMIN_ID,"--extend-min", "Extend short orfs", "if an orf would be rejected because of the min length threshold, allow it to be extended to the next stop codon",typeid(bool),(void *) &orfExtendMin, ""),
+        PARAM_CONTIG_START_MODE(PARAM_CONTIG_START_MODE_ID,"--contig-start-mode", "Contig start mode", "Contig start can be 0: incomplete, 1: complete, 2: both",typeid(int),(void *) &contigStartMode, "^[0-2]{1}"),
+        PARAM_CONTIG_END_MODE(PARAM_CONTIG_END_MODE_ID,"--contig-end-mode", "Contig end mode", "Contig end can be 0: incomplete, 1: complete, 2: both ",typeid(int),(void *) &contigEndMode, "^[0-2]{1}"),
+        PARAM_ORF_START_MODE(PARAM_ORF_START_MODE_ID,"--orf-start-mode", "Orf start mode", "Orf fragment can be 0: from start to stop, 1: from any to stop, 2: from last encountered start to stop (no start in the middle)",typeid(int),(void *) &orfStartMode, "^[0-2]{1}"),
         PARAM_ORF_FORWARD_FRAMES(PARAM_ORF_FORWARD_FRAMES_ID, "--forward-frames", "Forward Frames", "comma-seperated list of ORF frames on the forward strand to be extracted", typeid(std::string), (void *) &forwardFrames, ""),
         PARAM_ORF_REVERSE_FRAMES(PARAM_ORF_REVERSE_FRAMES_ID, "--reverse-frames", "Reverse Frames", "comma-seperated list of ORF frames on the reverse strand to be extracted", typeid(std::string), (void *) &reverseFrames, ""),
+        PARAM_USE_ALL_TABLE_STARTS(PARAM_USE_ALL_TABLE_STARTS_ID,"--use-all-table-starts", "Use all table starts", "use all alteratives for a start codon in the genetic table, if false - only ATG (AUG)",typeid(bool),(void *) &useAllTableStarts, ""),
         // indexdb
         PARAM_INCLUDE_HEADER(PARAM_INCLUDE_HEADER_ID, "--include-headers", "Include Header", "Include the header index into the index", typeid(bool), (void *) &includeHeader, ""),
         // createdb
@@ -124,6 +132,7 @@ Parameters::Parameters():
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1) CANONICAL, 2) VERT_MITOCHONDRIAL, 3) YEAST_MITOCHONDRIAL, 4) MOLD_MITOCHONDRIAL, 5) INVERT_MITOCHONDRIAL, 6) CILIATE, 9) FLATWORM_MITOCHONDRIAL, 10) EUPLOTID, 11) PROKARYOTE, 12) ALT_YEAST, 13) ASCIDIAN_MITOCHONDRIAL, 14) ALT_FLATWORM_MITOCHONDRIAL, 15) BLEPHARISMA, 16) CHLOROPHYCEAN_MITOCHONDRIAL, 21) TREMATODE_MITOCHONDRIAL, 22) SCENEDESMUS_MITOCHONDRIAL, 23) THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24) PTEROBRANCHIA_MITOCHONDRIAL, 25) GRACILIBACTERIA, 26) PACHYSOLEN, 27) KARYORELICT, 28) CONDYLOSTOMA, 29) MESODINIUM, 30) PERTRICH, 31) BLASTOCRITHIDIA", typeid(int),(void *) &translationTable, "^[1-9]{1}[0-9]*$"),
+        PARAM_ADD_ORF_STOP(PARAM_ADD_ORF_STOP_ID,"--add-orf-stop", "Add Orf Stop", "add * at complete start and end", typeid(bool),(void *) &addOrfStop, ""),
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_MAX_SEQUENCES(PARAM_MAX_SEQUENCES_ID,"--max-sequences", "Max Sequences", "maximum number of sequences a cluster may contain", typeid(int),(void *) &maxSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_HH_FORMAT(PARAM_HH_FORMAT_ID,"--hh-format", "HH format", "format entries to use with hhsuite (for singleton clusters)", typeid(bool), (void *) &hhFormat, ""),
@@ -162,6 +171,11 @@ Parameters::Parameters():
         PARAM_BLACKLIST(PARAM_BLACKLIST_ID, "--blacklist", "Blacklisted Taxa", "Comma separted list of ignored taxa in LCA computation", typeid(std::string), (void*)&blacklist, "([0-9]+,)?[0-9]+"),
         PARAM_LCA_MODE(PARAM_LCA_MODE_ID, "--lca-mode", "LCA Mode", "LCA Mode: No LCA 0, Single Search LCA 1, 2bLCA 2", typeid(int), (void*) &lcaMode, "^[0-2]{1}$")
 {
+    if (instance) {
+        Debug(Debug::ERROR) << "Parameter instance already exists!\n";
+        abort();
+    }
+    instance = this;
 
     // alignment
     align.push_back(PARAM_SUB_MAT);
@@ -196,6 +210,7 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_RES_LIST_OFFSET);
     prefilter.push_back(PARAM_SPLIT);
     prefilter.push_back(PARAM_SPLIT_MODE);
+    prefilter.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     prefilter.push_back(PARAM_C);
     prefilter.push_back(PARAM_COV_MODE);
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -288,6 +303,7 @@ Parameters::Parameters():
     convertalignments.push_back(PARAM_DB_OUTPUT);
     convertalignments.push_back(PARAM_THREADS);
     convertalignments.push_back(PARAM_V);
+
     // result2msa
     result2msa.push_back(PARAM_SUB_MAT);
     result2msa.push_back(PARAM_E_PROFILE);
@@ -309,9 +325,11 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_SKIP_QUERY);
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
-    //msa2profile
+    // msa2profile
     msa2profile.push_back(PARAM_MSA_TYPE);
     msa2profile.push_back(PARAM_SUB_MAT);
+    msa2profile.push_back(PARAM_MATCH_MODE);
+    msa2profile.push_back(PARAM_MATCH_RATIO);
     msa2profile.push_back(PARAM_PCA);
     msa2profile.push_back(PARAM_PCB);
     msa2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
@@ -342,13 +360,15 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_ORF_MIN_LENGTH);
     extractorfs.push_back(PARAM_ORF_MAX_LENGTH);
     extractorfs.push_back(PARAM_ORF_MAX_GAP);
-    extractorfs.push_back(PARAM_ORF_SKIP_INCOMPLETE);
-    extractorfs.push_back(PARAM_ORF_LONGEST);
-    extractorfs.push_back(PARAM_ORF_EXTENDMIN);
+    extractorfs.push_back(PARAM_CONTIG_START_MODE);
+    extractorfs.push_back(PARAM_CONTIG_END_MODE);
+    extractorfs.push_back(PARAM_ORF_START_MODE);
     extractorfs.push_back(PARAM_ORF_FORWARD_FRAMES);
-    extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);
-    extractorfs.push_back(PARAM_ID_OFFSET);
-    extractorfs.push_back(PARAM_THREADS);
+    extractorfs.push_back(PARAM_ORF_REVERSE_FRAMES);    
+    extractorfs.push_back(PARAM_TRANSLATION_TABLE);
+    extractorfs.push_back(PARAM_USE_ALL_TABLE_STARTS);
+    extractorfs.push_back(PARAM_ID_OFFSET);    
+    extractorfs.push_back(PARAM_THREADS);    
 
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
@@ -366,6 +386,7 @@ Parameters::Parameters():
     indexdb.push_back(PARAM_K_SCORE);
     indexdb.push_back(PARAM_INCLUDE_HEADER);
     indexdb.push_back(PARAM_SPLIT);
+    indexdb.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     indexdb.push_back(PARAM_THREADS);
     indexdb.push_back(PARAM_V);
 
@@ -391,6 +412,7 @@ Parameters::Parameters():
 
     // translate nucleotide
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);
+    translatenucs.push_back(PARAM_ADD_ORF_STOP);
     translatenucs.push_back(PARAM_V);
 
     // createseqfiledb
@@ -423,6 +445,7 @@ Parameters::Parameters():
     // swap results
     swapresult.push_back(PARAM_SUB_MAT);
     swapresult.push_back(PARAM_E);
+    swapresult.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     swapresult.push_back(PARAM_THREADS);
 
     // subtractdbs
@@ -449,6 +472,7 @@ Parameters::Parameters():
     kmermatcher.push_back(PARAM_C);
     kmermatcher.push_back(PARAM_MAX_SEQ_LEN);
     kmermatcher.push_back(PARAM_HASH_SHIFT);
+    kmermatcher.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     kmermatcher.push_back(PARAM_THREADS);
     kmermatcher.push_back(PARAM_V);
 
@@ -938,6 +962,7 @@ void Parameters::setDefaults() {
     sensitivity = 4;
     split = AUTO_SPLIT_DETECTION;
     splitMode = DETECT_BEST_DB_SPLIT;
+    splitMemoryLimit = 0;
     splitAA = false;
 
     // search workflow
@@ -1015,6 +1040,10 @@ void Parameters::setDefaults() {
     omitConsensus = false;
     skipQuery = false;
 
+    // msa2profile
+    matchMode = 0;
+    matchRatio = 0.5;
+
     // result2profile
     evalProfile = evalThr;
     filterMsa = 1;
@@ -1038,11 +1067,12 @@ void Parameters::setDefaults() {
     orfMinLength = 1;
     orfMaxLength = INT_MAX;
     orfMaxGaps = INT_MAX;
-    orfSkipIncomplete = false;
-    orfLongest = false;
-    orfExtendMin = false;
+    contigStartMode = 2;
+    contigEndMode = 2;
+    orfStartMode = 0;
     forwardFrames = "1,2,3";
     reverseFrames = "1,2,3";
+    useAllTableStarts = false;
 
     // createdb
     identifierOffset = 0;
@@ -1054,6 +1084,7 @@ void Parameters::setDefaults() {
     useHeader = false;
 
     // translate nucleotide
+    addOrfStop = false;
     translationTable = 1;
 
     // createseqfiledb
@@ -1102,6 +1133,7 @@ void Parameters::setDefaults() {
 
     // linearcluster
     kmersPerSequence = 20;
+    includeOnlyExtendable = false;
     hashShift = 5;
 
     // result2stats
