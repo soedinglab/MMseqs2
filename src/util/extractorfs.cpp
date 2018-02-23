@@ -1,13 +1,13 @@
 #include <unistd.h>
 #include <climits>
 #include <algorithm>
-#include <vector>
 
 #include "Debug.h"
 #include "Parameters.h"
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Util.h"
+#include "itoa.h"
 
 #include "Orf.h"
 
@@ -68,6 +68,17 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     DBWriter headerWriter(headerOut.c_str(), headerIndexOut.c_str(), par.threads);
     headerWriter.open();
 
+
+    std::string dbSetToOrf = par.db2 + "_set_lookup";
+    std::string dbIndexSetToOrf = par.db2 + "_set_lookup.index";
+    DBWriter writerSetToOrf(dbSetToOrf.c_str(), dbIndexSetToOrf.c_str(), par.threads);
+    writerSetToOrf.open();
+
+    std::string dbOrfToSet = par.db2 + "_orf_lookup";
+    std::string dbIndexOrfToSet = par.db2 + "_orf_lookup.index";
+    DBWriter writerOrfToSet(dbOrfToSet.c_str(), dbIndexOrfToSet.c_str(), par.threads);
+    writerOrfToSet.open();
+
     unsigned int forwardFrames = getFrames(par.forwardFrames);
     unsigned int reverseFrames = getFrames(par.reverseFrames);
 
@@ -89,6 +100,10 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         #ifdef OPENMP
         thread_idx = omp_get_thread_num();
         #endif
+
+        std::string orfsBuffer;
+        orfsBuffer.reserve(10000);
+
         unsigned int key = reader.getDbKey(i);
         std::string data(reader.getData(i));
         // remove newline in sequence
@@ -125,9 +140,21 @@ int extractorfs(int argc, const char **argv, const Command& command) {
             std::string sequence = orf.view(loc);
             sequence.append("\n");
             sequenceWriter.writeData(sequence.c_str(), sequence.length(), id, thread_idx);
+
+            Itoa::u32toa_sse2(static_cast<uint32_t>(key), buffer);
+            std::string setBuffer(buffer);
+            setBuffer.append("\n");
+            writerOrfToSet.writeData(setBuffer.c_str(), setBuffer.length(), id, thread_idx);
+
+            Itoa::u32toa_sse2(static_cast<uint32_t>(id), buffer);
+            orfsBuffer.append(buffer);
+            orfsBuffer.append("\n");
         }
+        writerSetToOrf.writeData(orfsBuffer.c_str(), orfsBuffer.length(), key, thread_idx);
     }
-    
+
+    writerSetToOrf.close();
+    writerOrfToSet.close();
 
     headerWriter.close();
     sequenceWriter.close(DBReader<unsigned int>::DBTYPE_NUC);
