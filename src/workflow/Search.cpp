@@ -1,4 +1,5 @@
 #include <string>
+#include <limits.h>
 #include <cassert>
 #include <FileUtil.h>
 #include <searchtargetprofile.sh.h>
