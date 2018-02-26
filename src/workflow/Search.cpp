@@ -22,7 +22,7 @@ void setSearchDefaults(Parameters *p) {
     //p->orfLongest = true;
     p->orfStartMode = 0;
     p->orfMinLength = 30;
-    p->orfMaxLength = 98202; // 32734 AA (just to be sure)
+    p->orfMaxLength = 32734;
 }
 
 
