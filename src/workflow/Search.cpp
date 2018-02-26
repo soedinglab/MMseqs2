@@ -115,7 +115,11 @@ int search(int argc, const char **argv, const Command& command) {
     cmd.addVariable("RUNNER", par.runner.c_str());
     if (targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE){
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
+        // we need to align all hits in case of target Profile hits
+        size_t maxResListLen = par.maxResListLen;
+        par.maxResListLen = INT_MAX;
         cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        par.maxResListLen = maxResListLen;
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
         program=std::string(tmpDir + "/searchtargetprofile.sh");
