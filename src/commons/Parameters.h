@@ -324,7 +324,7 @@ public:
 
     //prefixid
     std::string prefix;
-    bool shouldTsv;
+    bool tsvOut;
 
     // clusterUpdate;
     bool recoverDeleted;

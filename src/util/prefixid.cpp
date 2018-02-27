@@ -10,28 +10,25 @@
 #include <omp.h>
 #endif
 
-int prefixid(int argc, const char **argv, const Command& command) {
-    Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2);
 
+int addid(const std::string &db1, const std::string &db1Index, const std::string &db2, const std::string &db2Index, 
+const bool tsvOut, const std::string &mappingFile, const std::string &userStrToAdd, const bool isPrefix, const int threads) {
 #ifdef OPENMP
-    omp_set_num_threads(par.threads);
+    omp_set_num_threads(threads);
 #endif
 
-    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    DBReader<unsigned int> reader(db1.c_str(), db1Index.c_str());
     reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter writer(db2.c_str(), db2Index.c_str(), threads);
     writer.open();
-    bool shouldWriteNullByte = !par.shouldTsv;
+    bool shouldWriteNullByte = !tsvOut;
 
     size_t entries = reader.getSize();
 
-    const bool useUserPrefix = par.prefix != "";
+    Debug(Debug::INFO) << "Start adding to database.\n";
 
-    Debug(Debug::INFO) << "Start prefixing database.\n";
-
-    std::map<unsigned int, std::string> mapping = Util::readLookup(par.mappingFile);
+    std::map<unsigned int, std::string> mapping = Util::readLookup(mappingFile);
 
 #pragma omp parallel
     {
@@ -50,12 +47,21 @@ int prefixid(int argc, const char **argv, const Command& command) {
 
             std::string line;
             while (std::getline(data, line)) {
-                if (useUserPrefix) {
-                    ss << par.prefix << "\t" << line << "\n";
-                } else if (par.mappingFile.length() > 0) {
-                    ss << mapping[key] << "\t" << line << "\n";
+                std::string strToAdd = "";
+                if (userStrToAdd != "") {
+                    strToAdd = userStrToAdd;
+                } else if (mappingFile.length() > 0) {
+                    strToAdd = mapping[key];
                 } else {
-                    ss << key << "\t" << line << "\n";
+                    std::ostringstream sstmp;
+                    sstmp << key;
+                    strToAdd = sstmp.str();
+                }
+
+                if (isPrefix) {
+                    ss << strToAdd << "\t" << line << "\n";
+                } else {
+                    ss << line << "\t" << strToAdd << "\n";
                 }
             }
 
@@ -70,5 +76,17 @@ int prefixid(int argc, const char **argv, const Command& command) {
     reader.close();
 
     return EXIT_SUCCESS;
+}
+
+int prefixid(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 2);
+    return(addid(par.db1, par.db1Index, par.db2, par.db2Index, par.tsvOut, par.mappingFile, par.prefix, true, par.threads));
+}
+
+int suffixid(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 2);
+    return(addid(par.db1, par.db1Index, par.db2, par.db2Index, par.tsvOut, par.mappingFile, par.prefix, false, par.threads));
 }
 
