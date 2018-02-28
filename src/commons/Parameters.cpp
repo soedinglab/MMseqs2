@@ -148,6 +148,7 @@ Parameters::Parameters():
         PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID, "--comparison-value", "Numerical comparison value", "Filter by comparing each entry to this value.", typeid(float), (void *) &compValue, ""),
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0) no sorting, 1) increasing,  2) decreasing or 3) random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
+        PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
@@ -437,6 +438,7 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_COMP_VALUE);
     filterDb.push_back(PARAM_SORT_ENTRIES);
     filterDb.push_back(PARAM_INCLUDE_IDENTITY);
+    filterDb.push_back(PARAM_JOIN_DB);
 
 
     onlythreads.push_back(PARAM_THREADS);
@@ -1105,6 +1107,7 @@ void Parameters::setDefaults() {
     compOperator = "";
     compValue = 0;
     sortEntries = 0;
+    linkDB = std::string();
 
     // concatdbs
     preserveKeysB = false;

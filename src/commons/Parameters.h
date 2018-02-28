@@ -302,6 +302,7 @@ public:
     std::string compOperator;
     int sortEntries;
     bool beatsFirst;
+    std::string joinDB;
 
     // mergedbs
     std::string mergePrefixes;
@@ -522,6 +523,7 @@ public:
     PARAMETER(PARAM_COMP_VALUE)
     PARAMETER(PARAM_SORT_ENTRIES)
     PARAMETER(PARAM_BEATS_FIRST)
+    PARAMETER(PARAM_JOIN_DB)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)

@@ -98,12 +98,18 @@ ffindexFilter::ffindexFilter(Parameters &par) {
 
             mapping.push_back(std::make_pair(keyOld, keyNew));
         }
-
         std::stable_sort(mapping.begin(), mapping.end(), compareFirstString());
     } else if(par.extractLines > 0){ // GET_FIRST_LINES mode
         mode = GET_FIRST_LINES;
         numberOfLines = par.extractLines;
         std::cout << "Filtering by extracting the first " << numberOfLines << " lines.\n";
+    } else if(!par.joinDB.empty()){
+        mode = JOIN_DB;
+        std::string joinIndex(par.joinDB);
+        joinIndex.append(".index");
+        joinDB = new DBReader<unsigned int>(par.joinDB.c_str(), joinIndex.c_str());
+        joinDB->open(DBReader<unsigned int>::NOSORT);
+        std::cout << "Joining targets to query database.\n";
     } else if (par.beatsFirst){
         mode = BEATS_FIRST;
         std::cout << "Filter by numerical comparison to first row.\n";
@@ -224,7 +230,17 @@ int ffindexFilter::runFilter(){
 
                 } else if (mode == REGEX_FILTERING){
 					nomatch = regexec(&regex, columnValue, 0, NULL, 0);
-				} else if (mode == BEATS_FIRST) {
+                } else if (mode == JOIN_DB){
+                    size_t newId = joinDB->getId(static_cast<unsigned int>(strtoul(columnValue, NULL, 10)));
+                    size_t originalLength = strlen(lineBuffer);
+                    // Replace the last \n
+                    lineBuffer[originalLength - 1] = '\t';
+                    char *newValue = joinDB->getData(newId);
+                    size_t valueLength = joinDB->getSeqLens(newId);
+                    // Appending join database entry to query database entry
+                    memcpy(lineBuffer + originalLength, newValue, valueLength);
+                }
+                else if (mode == BEATS_FIRST){
                     if (counter == 1) {
                         compValue = strtod(columnValue, NULL);
                     } else {
