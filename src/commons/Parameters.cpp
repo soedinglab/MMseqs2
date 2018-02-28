@@ -1109,7 +1109,7 @@ void Parameters::setDefaults() {
     compOperator = "";
     compValue = 0;
     sortEntries = 0;
-    linkDB = std::string();
+    joinDB = std::string();
 
     // concatdbs
     preserveKeysB = false;
