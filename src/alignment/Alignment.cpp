@@ -297,7 +297,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             size_t start = dbFrom + (i * flushSize);
             size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
 
-            #pragma omp for schedule(dynamic, 100) reduction(+: alignmentsNum, totalPassedNum)
+            #pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 Debug::printProgress(id);
 

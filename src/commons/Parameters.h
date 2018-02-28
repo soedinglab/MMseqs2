@@ -325,6 +325,7 @@ public:
 
     //prefixid
     std::string prefix;
+    bool tsvOut;
 
     // clusterUpdate;
     bool recoverDeleted;
@@ -533,6 +534,7 @@ public:
 
     // prefixid
     PARAMETER(PARAM_PREFIX)
+    PARAMETER(PARAM_TSV)
 
     // summarize headers
     PARAMETER(PARAM_HEADER_TYPE)
