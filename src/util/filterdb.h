@@ -19,6 +19,7 @@
 #define NUMERIC_COMPARISON 4
 #define SORT_ENTRIES 5
 #define BEATS_FIRST 6
+#define JOIN_DB 7
 
 #define GREATER_OR_EQUAL "ge"
 #define LOWER_OR_EQUAL "le"
@@ -58,6 +59,7 @@ private:
 
     DBWriter* dbw;
 	DBReader<unsigned int>* dataDb;
+	DBReader<unsigned int>* joinDB;
 	
 	regex_t regex;
 	std::vector<std::string> filter;

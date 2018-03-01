@@ -41,6 +41,7 @@ extern int summarizeheaders(int argc, const char **argv, const Command& command)
 extern int diffseqdbs(int argc, const char **argv, const Command& command);
 extern int concatdbs(int argc, const char **argv, const Command& command);
 extern int prefixid(int argc, const char **argv, const Command& command);
+extern int suffixid(int argc, const char **argv, const Command& command);
 extern int summarizeresult(int argc, const char **argv, const Command& command);
 extern int summarizetabs(int argc, const char **argv, const Command& command);
 extern int extractalignedregion(int argc, const char **argv, const Command& command);

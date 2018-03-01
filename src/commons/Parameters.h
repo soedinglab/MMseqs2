@@ -302,6 +302,7 @@ public:
     std::string compOperator;
     int sortEntries;
     bool beatsFirst;
+    std::string joinDB;
 
     // mergedbs
     std::string mergePrefixes;
@@ -324,6 +325,7 @@ public:
 
     //prefixid
     std::string prefix;
+    bool tsvOut;
 
     // clusterUpdate;
     bool recoverDeleted;
@@ -522,6 +524,7 @@ public:
     PARAMETER(PARAM_COMP_VALUE)
     PARAMETER(PARAM_SORT_ENTRIES)
     PARAMETER(PARAM_BEATS_FIRST)
+    PARAMETER(PARAM_JOIN_DB)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
@@ -531,6 +534,7 @@ public:
 
     // prefixid
     PARAMETER(PARAM_PREFIX)
+    PARAMETER(PARAM_TSV)
 
     // summarize headers
     PARAMETER(PARAM_HEADER_TYPE)
