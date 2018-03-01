@@ -568,6 +568,7 @@ public:
     std::vector<MMseqsParameter> sequence2profile;
 
     std::vector<MMseqsParameter> result2profile;
+    std::vector<MMseqsParameter> result2pp;
     std::vector<MMseqsParameter> result2msa;
     std::vector<MMseqsParameter> msa2profile;
     std::vector<MMseqsParameter> createtsv;

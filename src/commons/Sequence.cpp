@@ -11,7 +11,7 @@
 #include <PSSMCalculator.h>
 
 
-Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection)
+Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection,bool shouldAddPC)
 {
     this->int_sequence = new int[maxLen];
     this->int_consensus_sequence = new int[maxLen];
@@ -26,6 +26,7 @@ Sequence::Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat, const u
     this->kmerSize = kmerSize;
     this->kmerWindow = NULL;
     this->aaPosInSpacedPattern = NULL;
+    this->shouldAddPC = shouldAddPC;
     if(spacedPatternSize){
         this->kmerWindow = new int[kmerSize];
         this->aaPosInSpacedPattern = new unsigned char[kmerSize];
@@ -311,7 +312,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
 //
     float pca = Parameters::getInstance().pca;
 
-    if(pca  > 0.0){
+    if(shouldAddPC && pca  > 0.0){
         PSSMCalculator::preparePseudoCounts(profile, pseudocountsWeight, PROFILE_AA_SIZE, L,
                                             (const float **) subMat->subMatrixPseudoCounts);
         float pcb = Parameters::getInstance().pcb;

@@ -20,6 +20,7 @@ extern int extractorfs(int argc, const char **argv, const Command& command);
 extern int convertprofiledb(int argc, const char **argv, const Command& command);
 extern int translatenucs(int argc, const char **argv, const Command& command);
 extern int result2profile(int argc, const char **argv, const Command& command);
+extern int result2pp(int argc, const char **argv, const Command& command);
 extern int sequence2profile(int argc, const char **argv, const Command& command);
 extern int result2msa(int argc, const char **argv, const Command& command);
 extern int msa2profile(int argc, const char **argv, const Command& command);

@@ -29,6 +29,7 @@ set(util_source_files
         util/result2flat.cpp
         util/result2msa.cpp
         util/result2profile.cpp
+        util/result2pp.cpp
         util/result2repseq.cpp
         util/result2stats.cpp
         util/sequence2profile.cpp

@@ -1,0 +1,333 @@
+// Computes either a PSSM or a MSA from clustering or alignment result
+// For PSSMs: MMseqs just stores the position specific score in 1 byte
+
+#include <string>
+#include <vector>
+#include <sstream>
+#include <sys/time.h>
+
+#include "Alignment.h"
+#include "MsaFilter.h"
+#include "Parameters.h"
+#include "PSSMCalculator.h"
+#include "DBWriter.h"
+#include "DBReader.h"
+#include "DBConcat.h"
+#include "HeaderSummarizer.h"
+#include "CompressedA3M.h"
+#include "Debug.h"
+#include "Util.h"
+#include "ProfileStates.h"
+#include "MathUtil.h"
+#include <SubstitutionMatrixProfileStates.h>
+
+#ifdef OPENMP
+#include <omp.h>
+
+#endif
+
+
+float computeNeff(float neffA, float maxNeffA, float neffB, float maxNeffB, float avgNewNeff) {
+    
+    float w = (neffA + neffB) / (maxNeffA + maxNeffB);
+    return avgNewNeff + 1 - exp(log(avgNewNeff) * (1-w));
+     
+}
+
+
+int computeProfileProfile(Parameters &par,const std::string &outpath,
+                          const size_t dbFrom, const size_t dbSize) {
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
+    qDbr->open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> *tDbr = qDbr;
+    bool sameDatabase = true;
+    if (par.db1.compare(par.db2) != 0) {
+        sameDatabase = false;
+        tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+        tDbr->open(DBReader<unsigned int>::NOSORT);
+    }
+
+    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBWriter resultWriter(outpath.c_str(), (outpath + ".index").c_str(), par.threads, DBWriter::BINARY_MODE);
+    resultWriter.open();
+    SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
+    BaseMatrix * subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
+                                                              sMat.subMatrixPseudoCounts, sMat.subMatrix,
+                                                              2.0f, 0.0f, par.maxSeqLen);
+
+//#pragma omp parallel
+    {
+        int sequenceType = Sequence::PROFILE_STATE_PROFILE;
+        Sequence queryProfile(par.maxSeqLen, sequenceType, subMat, 0, false,
+                              par.compBiasCorrection,false);
+        Sequence targetProfile(par.maxSeqLen, sequenceType, subMat, 0, false,
+                               par.compBiasCorrection,false);
+        float * outProfile=new float[par.maxSeqLen * Sequence::PROFILE_AA_SIZE];
+        float * neffM=new float[par.maxSeqLen];
+        std::string result;
+        result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
+
+
+//#pragma omp for schedule(static)
+        for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
+            Debug::printProgress(id);
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+            char *results = resultReader->getData(id);
+            char dbKey[255 + 1];
+            // Get the sequence from the queryDB
+            unsigned int queryKey = resultReader->getDbKey(id);
+            char *queryData = qDbr->getDataByDBKey(queryKey);
+            queryProfile.mapSequence(id, queryKey, queryData);
+            const float * qProfile =  queryProfile.getProfile();
+            const size_t profile_row_size = queryProfile.profile_row_size;
+            const float neffQ = 1.0;
+            // init outProfile with query Probs
+            for(int l = 0; l < queryProfile.L; l++) {
+                for (size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                    outProfile[l*Sequence::PROFILE_AA_SIZE + aa_num] = qProfile[l * profile_row_size + aa_num];
+                }
+            }
+            
+            float maxNeffQ = 0;
+            for (size_t pos = 0; pos<queryProfile.L;pos++)
+            {
+                maxNeffQ = std::max(maxNeffQ,queryProfile.neffM[pos]);
+            }
+            
+            memset(outProfile, 0, queryProfile.L * Sequence::PROFILE_AA_SIZE * sizeof(float));
+            while (*results != '\0') {
+                Util::parseKey(results, dbKey);
+                const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+                double evalue = 0.0;
+                char *entry[255];
+                const size_t columns = Util::getWordsOfLine(results, entry, 255);
+                // its an aln result
+                if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                    evalue = strtod(entry[3], NULL);
+                }else{
+                    Debug(Debug::ERROR) << "Alignment must contain the alignment information. Compute the alignment with option -a.\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
+                if (evalue <= par.evalProfile && (key != queryKey || sameDatabase == false)) {
+                    Matcher::result_t res = Matcher::parseAlignmentRecord(results);
+                    const size_t edgeId = tDbr->getId(key);
+                    char *dbSeqData = tDbr->getData(edgeId);
+                    targetProfile.mapSequence(0, key, dbSeqData);
+                    const float * tProfile = targetProfile.getProfile();
+                    size_t qPos = res.qStartPos;
+                    size_t tPos = res.dbStartPos;
+                    size_t aliLength = 0;
+                    float avgEntropy = 0.0f;
+                    float maxNeffT = 0;
+                    for (size_t pos = 0; pos<targetProfile.L;pos++)
+                    {
+                        maxNeffT = std::max(maxNeffT,targetProfile.neffM[pos]);
+                    } 
+                    
+                    
+                    for(int btPos = 0; btPos < res.backtrace.size(); btPos++){
+                        aliLength++;
+                        const float neffT = 1.0;
+                        char letter = res.backtrace[btPos];
+//                        std::cout << letter;
+
+                        float qNeff = queryProfile.neffM[qPos];
+                        float tNeff = targetProfile.neffM[tPos];
+                        float maxNeff = std::max(qNeff, tNeff);
+                        float minNeff = std::min(qNeff, tNeff);
+                        
+                        for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                            //TODO do all alignment states contribute?
+                            if(letter == 'M') {
+                                float qProb = qProfile[qPos * profile_row_size + aa_num] * queryProfile.neffM[qPos];
+                                float tProb = tProfile[tPos * profile_row_size + aa_num] * targetProfile.neffM[tPos];
+                                float mixedProb = qProb + tProb;
+                                outProfile[qPos * Sequence::PROFILE_AA_SIZE + aa_num] += mixedProb;
+                                mixedProb /= queryProfile.neffM[qPos] + targetProfile.neffM[tPos];
+                                avgEntropy += -mixedProb * log(mixedProb);
+                            }
+
+                        }
+                        
+                        if(letter == 'M'){
+                            qPos++;
+                            tPos++;
+                        } else if (letter == 'I') {
+                            ++qPos;
+                            //backtrace.append("I");
+                        } else if (letter == 'D'){
+                            ++tPos;
+                            //backtrace.append("D");
+                        }
+
+                    }
+                    
+                    
+                    
+                    
+                    avgEntropy /= aliLength;
+                    float avgNewNeff = exp(avgEntropy);
+                    // update the Neff of the merge between the target prof and the query prof
+                    for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                        neffM[qPos] += computeNeff(queryProfile.neffM[qPos], maxNeffQ, targetProfile.neffM[tPos],maxNeffT,avgNewNeff);
+                    }
+                    
+                    // Normalize probability
+                    for(int l = res.qStartPos; l < res.qEndPos; l++) {
+                        MathUtil::NormalizeTo1(&outProfile[l * Sequence::PROFILE_AA_SIZE], Sequence::PROFILE_AA_SIZE);
+                    }
+                }
+                results = Util::skipLine(results);
+            }
+            
+            float maxNewNeff = 0.0;
+            float avgEntropy = 0.0;
+            for(int l = 0; l < queryProfile.L; l++) {
+                maxNewNeff = std::max(maxNewNeff,neffM[l]);
+                for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                    float mixedProb = outProfile[l * Sequence::PROFILE_AA_SIZE + aa_num];
+                    avgEntropy += -mixedProb * log(mixedProb);
+                }
+            }
+            avgEntropy /= queryProfile.L;
+            
+            float avgNewNeff = exp(avgEntropy);
+            
+            // update the Neff of the merges of all target prof and the query prof
+            for(int l = 0; l < queryProfile.L; l++) {
+                for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                    neffM[l] = computeNeff(queryProfile.neffM[l], maxNeffQ, neffM[l],maxNewNeff,avgNewNeff);
+                }
+            }
+                    
+            size_t pos = 0;
+            std::string consensus(queryProfile.L,'X');
+            for(int l = 0; l < queryProfile.L; l++) {
+                float maxProb = 0.0f;
+                for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                    result.push_back(Sequence::scoreMask(outProfile[l * Sequence::PROFILE_AA_SIZE + aa_num]));
+                    if (outProfile[l * Sequence::PROFILE_AA_SIZE + aa_num] > maxProb)
+                    {
+                        consensus[l] = aa_num;
+                        maxProb = outProfile[l * Sequence::PROFILE_AA_SIZE + aa_num];
+                    }
+                }
+                // write query, consensus sequence and neffM
+                result.push_back(static_cast<unsigned char>(queryProfile.int_sequence[l]));
+                result.push_back(consensus[l]);
+                unsigned char neff = MathUtil::convertNeffToChar(neffM[l]);
+                result.push_back(neff);
+            }
+            
+            resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
+        }
+        delete [] outProfile;
+        delete [] neffM;
+    }
+
+    // cleanup
+    resultWriter.close();
+
+    resultReader->close();
+    delete resultReader;
+
+    if (!sameDatabase) {
+        tDbr->close();
+        delete tDbr;
+    }
+
+    qDbr->close();
+    delete qDbr;
+    delete subMat;
+    Debug(Debug::INFO) << "\nDone.\n";
+
+    return EXIT_SUCCESS;
+}
+
+int computeProfileProfile(Parameters &par) {
+
+
+    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    resultReader->open(DBReader<unsigned int>::NOSORT);
+    size_t resultSize = resultReader->getSize();
+    resultReader->close();
+    delete resultReader;
+
+    std::string outname = par.db4;
+
+    return computeProfileProfile(par, outname, 0, resultSize);
+
+}
+
+int computeProfileProfile(Parameters &par,const unsigned int mpiRank, const unsigned int mpiNumProc) {
+    DBReader<unsigned int> *qDbr = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    qDbr->open(DBReader<unsigned int>::NOSORT);
+
+    size_t dbFrom = 0;
+    size_t dbSize = 0;
+    Util::decomposeDomainByAminoAcid(qDbr->getAminoAcidDBSize(), qDbr->getSeqLens(), qDbr->getSize(),
+                                     mpiRank, mpiNumProc, &dbFrom, &dbSize);
+    qDbr->close();
+    delete qDbr;
+
+
+    Debug(Debug::INFO) << "Compute split from " << dbFrom << " to " << dbFrom+dbSize << "\n";
+
+    std::string outname = par.db4;
+
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(outname, "", mpiRank);
+    int status = computeProfileProfile(par, tmpOutput.first, dbFrom, dbSize );
+
+
+#ifdef HAVE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+    // master reduces results
+    if(mpiRank == 0) {
+        std::vector<std::pair<std::string, std::string> > splitFiles;
+        for(unsigned int procs = 0; procs < mpiNumProc; procs++){
+            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(outname, "", procs);
+            splitFiles.push_back(std::make_pair(tmpFile.first ,  tmpFile.first + ".index"));
+
+        }
+        // merge output ffindex databases
+        DBWriter::mergeResults(outname , outname + ".index", splitFiles);
+    }
+
+    return status;
+}
+
+int result2pp(int argc, const char **argv, const Command& command) {
+    Parameters& par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 4);
+
+    MMseqsMPI::init(argc, argv);
+
+    // never allow deletions
+    par.allowDeletion = false;
+    Debug(Debug::WARNING) << "Compute profile.\n";
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
+#ifdef HAVE_MPI
+    int retCode = computeProfileProfile(par, MMseqsMPI::rank, MMseqsMPI::numProc);
+#else
+    int retCode = computeProfileProfile(par);
+#endif
+
+    gettimeofday(&end, NULL);
+    time_t sec = end.tv_sec - start.tv_sec;
+    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
+    return retCode;
+}

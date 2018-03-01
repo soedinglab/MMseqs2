@@ -288,6 +288,26 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
 
+    // result2pp
+    result2pp.push_back(PARAM_SUB_MAT);
+    result2pp.push_back(PARAM_E_PROFILE);
+    result2pp.push_back(PARAM_NO_COMP_BIAS_CORR);
+    result2pp.push_back(PARAM_WG);
+    result2pp.push_back(PARAM_FILTER_MSA);
+    result2pp.push_back(PARAM_FILTER_MAX_SEQ_ID);
+    result2pp.push_back(PARAM_FILTER_QID);
+    result2pp.push_back(PARAM_FILTER_QSC);
+    result2pp.push_back(PARAM_FILTER_COV);
+    result2pp.push_back(PARAM_FILTER_NDIFF);
+    result2pp.push_back(PARAM_PCA);
+    result2pp.push_back(PARAM_PCB);
+    result2pp.push_back(PARAM_OMIT_CONSENSUS);
+    result2pp.push_back(PARAM_NO_PRELOAD);
+    result2pp.push_back(PARAM_EARLY_EXIT);
+    result2pp.push_back(PARAM_THREADS);
+    result2pp.push_back(PARAM_V);
+    
+    
     // createtsv
     createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 

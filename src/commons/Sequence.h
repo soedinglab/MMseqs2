@@ -51,7 +51,7 @@ class Sequence
 {
 public:
     Sequence(size_t maxLen, int seqType, const BaseMatrix *subMat,
-             const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection);
+             const unsigned int kmerSize, const bool spaced, const bool aaBiasCorrection, bool shouldAddPC = true);
     ~Sequence();
 
     // Map char -> int
@@ -302,6 +302,9 @@ private:
 
     // spaced pattern
     bool spaced;
+    
+    // should add pseudo-counts when loading the profile?
+    bool shouldAddPC;
 };
 #endif
 
