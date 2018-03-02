@@ -6,6 +6,7 @@
 #include "Parameters.h"
 #include "DBReader.h"
 #include "DBWriter.h"
+#include "Matcher.h"
 #include "Util.h"
 #include "itoa.h"
 
@@ -137,10 +138,23 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 //            }
             sequenceWriter.writeData(sequence.c_str(), sequence.length(), id, thread_idx);
 
-            Itoa::u32toa_sse2(static_cast<uint32_t>(key), buffer);
-            std::string setBuffer(buffer);
-            setBuffer.append("\n");
-            writerOrfToSet.writeData(setBuffer.c_str(), setBuffer.length(), id, thread_idx);
+            
+            // write an alignemnt-like record
+            // Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval, alnLength, qStart, qEnd, qLen, dbStart, dbEnd, dbLen, "");
+            
+            // the orf length is like its string minus 1 ('\n'):
+            size_t orfLen = sequence.length() - 1;
+            size_t setLen = data.length();
+
+            // orf search returns the position right after the orf, this keeps consitency with alignemnt format
+            // if strand == -1 (reverse), we need to recompute the coordinates with respect to the positive strand and swap them
+            size_t setFromWithStrand = (loc.strand > 0) ? loc.from : (setLen - loc.from - 1); 
+            size_t setToWithStrand = (loc.strand > 0) ? (loc.to - 1) : (setLen - loc.to);
+
+            Matcher::result_t orfToSetResult(key, 1, 1, 0, 1, 0, orfLen, 0, (orfLen - 1), orfLen, setFromWithStrand, setToWithStrand, setLen, "");
+            char orfToSetBuffer[LINE_MAX];
+            size_t len = Matcher::resultToBuffer(orfToSetBuffer, orfToSetResult, true);
+            writerOrfToSet.writeData(orfToSetBuffer, len, id, thread_idx);
 
             Itoa::u32toa_sse2(static_cast<uint32_t>(id), buffer);
             orfsBuffer.append(buffer);
