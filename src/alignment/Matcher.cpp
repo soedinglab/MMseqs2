@@ -17,6 +17,7 @@ Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputati
 
     this->maxSeqLen = maxSeqLen;
     nuclaligner=NULL;
+    aligner=NULL;
     if(querySeqType==Sequence::NUCLEOTIDES){
         nuclaligner = new  BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend);
     }else{
@@ -37,7 +38,9 @@ void Matcher::setSubstitutionMatrix(BaseMatrix *m){
 }
 
 Matcher::~Matcher(){
-    delete aligner;
+    if(aligner != NULL){
+        delete aligner;
+    }
     if(nuclaligner != NULL){
         delete nuclaligner;
     }
