@@ -273,7 +273,11 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
     dbw.open();
 
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), this->m, gapOpen, gapExtend, true);
-
+    size_t totalMemory = Util::getTotalSystemMemory();
+    size_t flushSize = 1000000;
+    if(totalMemory > prefdbr->getDataSize()){
+        flushSize = dbSize;
+    }
 #pragma omp parallel
     {
         unsigned int thread_idx = 0;
@@ -291,7 +295,6 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             realigner = new Matcher(querySeqType, maxSeqLen, realign_m, &evaluer, compBiasCorrection, gapOpen, gapExtend);
         }
 
-        const size_t flushSize = 1000000;
         size_t iterations = static_cast<size_t>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
         for (size_t i = 0; i < iterations; i++) {
             size_t start = dbFrom + (i * flushSize);
