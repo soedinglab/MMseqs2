@@ -56,6 +56,7 @@ extern int lca(int argc, const char **argv, const Command& command);
 extern int profile2pssm(int argc, const char **argv, const Command& command);
 extern int profile2cs(int argc, const char **argv, const Command& command);
 extern int offsetalignment(int argc, const char **argv, const Command& command);
+extern int proteinaln2nucl(int argc, const char **argv, const Command& command);
 extern int apply(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);
 

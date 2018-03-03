@@ -42,5 +42,6 @@ set(util_source_files
         util/swapresults.cpp
         util/translatenucs.cpp
         util/tsv2db.cpp
+        util/proteinaln2nucl.cpp
         PARENT_SCOPE
         )
