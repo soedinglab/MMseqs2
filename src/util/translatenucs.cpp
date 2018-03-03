@@ -35,7 +35,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     free(abs_in_header_index_filename);
 
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
-    reader.open(DBReader<unsigned int>::NOSORT);
+    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     bool addOrfStop = par.addOrfStop;
     DBReader<unsigned int> * header;
@@ -50,7 +50,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
 #pragma omp parallel
     {
         char* aa = new char[par.maxSeqLen/3 + 3 + 1];
-#pragma omp  for schedule(static)
+#pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < entries; ++i) {
             int thread_idx = 0;
 #ifdef OPENMP
