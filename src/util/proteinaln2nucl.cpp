@@ -6,6 +6,7 @@
 #include <fstream>
 #include <FileUtil.h>
 #include <Orf.h>
+#include <itoa.h>
 
 #include "Alignment.h"
 #include "Util.h"
@@ -75,7 +76,10 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
                     case 'M':
                     case 'D':
                     case 'I':
-                        newBacktrace.append(std::string(cnt*3, res.backtrace[pos]));
+                        char *buffNext = Itoa::i32toa_sse2(cnt*3, buffer);
+                        size_t len = buffNext - buffer;
+                        newBacktrace.append(buffer, len-1);
+                        newBacktrace.push_back(res.backtrace[pos]);
                         break;
 
                 }
@@ -83,7 +87,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
             }
             res.backtrace = newBacktrace;
 
-            size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, true);
+            size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
             ss.append(buffer, len);
         }
 
