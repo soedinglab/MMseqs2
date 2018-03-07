@@ -63,8 +63,8 @@ int createindex(int argc, const char **argv, const Command& command) {
     cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
     cmd.addVariable("INDEX_PAR", par.createParameterString(par.indexdb).c_str());
 
-    FileUtil::writeFile(par.db2 + "/indexdb.sh", createindex_sh, createindex_sh_len);
-    std::string program(par.db2 + "/indexdb.sh");
+    FileUtil::writeFile(par.db2 + "/createindex.sh", createindex_sh, createindex_sh_len);
+    std::string program(par.db2 + "/createindex.sh");
     cmd.execProgram(program.c_str(), par.filenames);
     return 0;
 }
