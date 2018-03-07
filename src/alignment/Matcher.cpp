@@ -63,7 +63,7 @@ void Matcher::initQuery(Sequence* query){
 
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, const int covMode, const float covThr,
-                                       const double evalThr, const unsigned int mode, bool isIdentity){
+                                       const double evalThr, unsigned int mode, bool isIdentity){
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
 
@@ -84,6 +84,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
             EXIT(EXIT_FAILURE);
         }
         alignment = nuclaligner->align(dbSeq,diagonal,evaluer);
+        mode = Matcher::SCORE_COV_SEQID;
     }else if(isIdentity==false){
         alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, gapOpen, gapExtend, mode, evalThr, evaluer, covMode, covThr, maskLen);
     }else{
@@ -129,7 +130,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
                 }
             }
         } else {
-            for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+            for (int32_t c = 0; c < currentQuery->L; ++c) {
                 aaIds++;
                 backtrace.append("M");
             }

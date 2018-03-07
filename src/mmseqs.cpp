@@ -263,7 +263,7 @@ std::vector<struct Command> commands = {
                 "Map protein alignment to nucleotide alignment",
                 NULL,
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> ",
-                "<i:alnDB> <o:alnDB>",
+                "<i:queryDB> <i:targetDB> <i:alnDB> <o:alnDB>",
                 CITATION_MMSEQS2},
         {"tsv2db",               tsv2db,               &par.tsv2db,               COMMAND_DB,
                 "Turns a TSV file into a MMseqs database",

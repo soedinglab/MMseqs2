@@ -7,6 +7,7 @@
 #include <FileUtil.h>
 #include <Orf.h>
 #include <itoa.h>
+#include <NucleotideMatrix.h>
 
 #include "Alignment.h"
 #include "Util.h"
@@ -25,13 +26,34 @@
 
 int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 2);
+    par.parseParameters(argc, argv, command, 4);
 
-    Debug(Debug::INFO) << "Alignment database: " << par.db1 << "\n";
-    DBReader<unsigned int> alnDbr(par.db1.c_str(), par.db1Index.c_str());
+
+    Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
+    DBReader<unsigned int> * qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
+    qdbr->open(DBReader<unsigned int>::NOSORT);
+    qdbr->readMmapedDataInMemory();
+
+    DBReader<unsigned int> *tdbr = NULL;
+    BaseMatrix * subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+
+    Debug(Debug::INFO) << "Target  file: " << par.db2 << "\n";
+    bool sameDB = false;
+    if (par.db1.compare(par.db2) == 0) {
+        sameDB = true;
+        tdbr = qdbr;
+    } else {
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), (par.db2 + ".index").c_str());
+        tdbr->open(DBReader<unsigned int>::NOSORT);
+        tdbr->readMmapedDataInMemory();
+    }
+
+
+    Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
+    DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str());
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter resultWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db2 << "\n";
 
@@ -45,17 +67,20 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
         unsigned int alnKey = alnDbr.getDbKey(i);
         char *data = alnDbr.getData(i);
 
-        std::string querySeq;
-
         char buffer[1024];
         std::string ss;
         ss.reserve(1024);
 
+        unsigned int queryId = qdbr->getId(alnKey);
+        char *querySeq = qdbr->getData(queryId);
 
         std::vector<Matcher::result_t> results = Matcher::readAlignmentResults(data, true);
         for (size_t j = 0; j < results.size(); j++) {
             Matcher::result_t &res = results[j];
             bool hasBacktrace = (res.backtrace.size() > 0);
+            unsigned int targetId = tdbr->getId(results[j].dbKey);
+            char * targetSeq = tdbr->getData(targetId);
+
             std::string newBacktrace;
             newBacktrace.reserve(1024);
             res.dbStartPos = res.dbStartPos*3;
@@ -64,6 +89,12 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
             res.qStartPos  = res.qStartPos*3;
             res.qEndPos    = res.qEndPos*3;
             res.qLen       = res.qLen*3;
+            size_t idCnt = 0;
+            size_t alnLen = 0;
+
+            int qPos=res.qStartPos;
+            int tPos=res.dbStartPos;
+
             for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
                 int cnt=0;
                 if(isdigit(res.backtrace[pos])){
@@ -72,21 +103,42 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
                         pos++;
                     }
                 }
+                bool update = false;
                 switch(res.backtrace[pos]){
                     case 'M':
+                        for(size_t bt = 0; bt < cnt*3; bt++) {
+                            idCnt += (querySeq[qPos] == targetSeq[tPos]);
+                            tPos++;
+                            qPos++;
+                        }
+                        update = true;
+                        break;
                     case 'D':
+                        for(size_t bt = 0; bt < cnt*3; bt++) {
+                            tPos++;
+                        }
+                        update = true;
+                        break;
                     case 'I':
-                        char *buffNext = Itoa::i32toa_sse2(cnt*3, buffer);
-                        size_t len = buffNext - buffer;
-                        newBacktrace.append(buffer, len-1);
-                        newBacktrace.push_back(res.backtrace[pos]);
+                        for(size_t bt = 0; bt < cnt*3; bt++) {
+                            qPos++;
+                        }
+                        update = true;
                         break;
 
+                }
+                if(update){
+                    char *buffNext = Itoa::i32toa_sse2(cnt*3, buffer);
+                    size_t len = buffNext - buffer;
+                    alnLen += cnt*3;
+                    newBacktrace.append(buffer, len-1);
+                    newBacktrace.push_back(res.backtrace[pos]);
                 }
 
             }
             res.backtrace = newBacktrace;
-
+            res.seqId = static_cast<float>(idCnt)/ static_cast<float>(alnLen);
+            // recompute alignment
             size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
             ss.append(buffer, len);
         }
@@ -96,6 +148,10 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     }
     alnDbr.close();
     resultWriter.close();
+    if (sameDB == false) {
+        tdbr->close();
+        delete tdbr;
+    }
     Debug(Debug::INFO) << "Done." << "\n";
 
     return EXIT_SUCCESS;
