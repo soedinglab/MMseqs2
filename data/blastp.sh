@@ -34,9 +34,9 @@ abspath() {
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
 
-INPUT="$(abspath $1)"
-TARGET="$(abspath $2)"
-TMP_PATH="$(abspath $4)"
+INPUT="$(abspath "$1")"
+TARGET="$(abspath "$2")"
+TMP_PATH="$(abspath "$4")"
 
 
 STEP=0
