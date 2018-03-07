@@ -130,7 +130,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
                 }
             }
         } else {
-            for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+            for (int32_t c = 0; c < currentQuery->L; ++c) {
                 aaIds++;
                 backtrace.append("M");
             }
