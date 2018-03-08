@@ -496,6 +496,7 @@ Parameters::Parameters():
     kmermatcher.push_back(PARAM_MAX_SEQ_LEN);
     kmermatcher.push_back(PARAM_HASH_SHIFT);
     kmermatcher.push_back(PARAM_SPLIT_MEMORY_LIMIT);
+    kmermatcher.push_back(PARAM_INCLUDE_ONLY_EXTENDABLE);
     kmermatcher.push_back(PARAM_THREADS);
     kmermatcher.push_back(PARAM_V);
 
