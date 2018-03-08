@@ -23,9 +23,10 @@ if [ -n "$NUCL" ]; then
         echo "Remove temporary files"
         rm -f "$2/orfs" "$2/orfs.index" "$2/orfs.dbtype"
         rm -f "$2/orfs_aa" "$2/orfs_aa.index" "$2/orfs_aa.dbtype"
+        rm -f "$2/createindex.sh"
+
     fi
 else
     $MMSEQS indexdb "$1" "$1" $INDEX_PAR
 fi
-
 

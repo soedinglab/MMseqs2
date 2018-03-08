@@ -32,8 +32,8 @@ abspath() {
 
 # processing
 
-INPUT="$(abspath $1)"
-TMP_PATH="$(abspath $3)"
+INPUT="$(abspath "$1")"
+TMP_PATH="$(abspath "$3")"
 
 if notExists "${TMP_PATH}/aln_redundancy"; then
     $MMSEQS clusthash "$INPUT" "${TMP_PATH}/aln_redundancy" ${DETECTREDUNDANCY_PAR} \

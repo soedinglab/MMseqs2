@@ -60,12 +60,12 @@ hasCommand sort
 [   -f "$5" ] &&  echo "$5 exists already!" && exit 1;
 [ ! -d "$6" ] &&  echo "tmp directory $6 not found!" && exit 1;
 
-OLDDB="$(abspath $1)" #"../data/DB"
-NEWDB="$(abspath $2)" #"../data/targetDB"
-OLDCLUST="$(abspath $3)" #"DBclustered"
-NEWMAPDB="$(abspath $4)"
-NEWCLUST="$(abspath $5)"
-TMP="$(abspath $6)" #"tmp/"
+OLDDB="$(abspath "$1")" #"../data/DB"
+NEWDB="$(abspath "$2")" #"../data/targetDB"
+OLDCLUST="$(abspath "$3")" #"DBclustered"
+NEWMAPDB="$(abspath "$4")"
+NEWCLUST="$(abspath "$5")"
+TMP="$(abspath "$6")" #"tmp/"
 
 MMSEQS=${MMSEQS:-"mmseqs"}
 
