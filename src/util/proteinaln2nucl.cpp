@@ -55,7 +55,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
 
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
     resultWriter.open();
-    Debug(Debug::INFO) << "Start writing file to " << par.db2 << "\n";
+    Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
 
 #pragma omp parallel for schedule(dynamic, 10)
     for (size_t i = 0; i < alnDbr.getSize(); i++) {
