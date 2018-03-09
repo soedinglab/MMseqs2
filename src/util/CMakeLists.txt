@@ -44,5 +44,6 @@ set(util_source_files
         util/translateaa.cpp
         util/tsv2db.cpp
         util/proteinaln2nucl.cpp
+        util/versionstring.cpp
         PARENT_SCOPE
         )
