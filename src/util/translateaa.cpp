@@ -73,7 +73,6 @@ int translateaa(int argc, const char **argv, const Command& command) {
 
             //190344_chr1_1_129837240_129837389_3126_JFOA01000125.1 Prochlorococcus sp. scB245a_521M10 contig_244, whole genome shotgun sequence  [Orf: 1, 202, -1, 1, 0]
             // ignore null char at the end
-            int length = reader.getSeqLens(i) - 2;
             for(size_t pos = 0; pos < centerSequence.L; pos++){
                 nucSeq.append(lookupAA[centerSequence.int_sequence[pos]],3);
             }
