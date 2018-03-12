@@ -61,7 +61,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
             bool addStopAtStart = false;
             bool addStopAtEnd = false;
             if(addOrfStop == true){
-                char* headData = header->getData(i);
+                char* headData = header->getDataByDBKey(key);
                 char * entry[255];
                 size_t columns = Util::getWordsOfLine(headData, entry, 255);
                 size_t col;
