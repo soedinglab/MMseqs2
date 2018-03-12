@@ -41,8 +41,8 @@ float parsePrecisionLib(std::string scoreFile, double targetSeqid, double target
         }
     }
     Debug(Debug::WARNING) << "Could not find any score per column for "
-                             "cov="<< targetCov << " seq.id=" << targetSeqid << "\n"
-                             "No hit will be filtered.\n";
+            "cov="<< targetCov << " seq.id=" << targetSeqid << "\n"
+                                  "No hit will be filtered.\n";
 
     return 0;
 }
@@ -101,8 +101,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         }
 
         std::string libraryString = (par.covMode == Parameters::COV_MODE_BIDIRECTIONAL)
-           ? std::string((const char*)CovSeqidQscPercMinDiag_out, CovSeqidQscPercMinDiag_out_len)
-           : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_out, CovSeqidQscPercMinDiagTargetCov_out_len);
+                                    ? std::string((const char*)CovSeqidQscPercMinDiag_out, CovSeqidQscPercMinDiag_out_len)
+                                    : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_out, CovSeqidQscPercMinDiagTargetCov_out_len);
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
     }
     double * kmnByLen = new double[par.maxSeqLen];
@@ -145,7 +145,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
 //                    query.mapSequence(id, queryId, querySeq);
 //                    queryLen = query.L;
 //                }else{
-                    // -2 because of \n\0 in sequenceDB
+                // -2 because of \n\0 in sequenceDB
 //                }
                 std::vector<hit_t> results = QueryMatcher::parsePrefilterHits(data);
                 for (size_t entryIdx = 0; entryIdx < results.size(); entryIdx++) {
@@ -238,8 +238,15 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                     }
                                     seqId = static_cast<double>(idCnt) / (static_cast<double>(qEndPos) - static_cast<double>(qStartPos));
                                 }
+                                std::string backtrace;
+
+                                char *buffNext = Itoa::i32toa_sse2(qEndPos-qStartPos, buffer);
+                                size_t len = buffNext - buffer;
+                                backtrace.append(buffer, len-1);
+                                backtrace.push_back('M');
+
                                 result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov, seqId, evalue, alnLen,
-                                                           qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, targetLen, std::string());
+                                                           qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, targetLen, backtrace);
                             }
                         }
                     }
@@ -257,7 +264,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     {
                         int len  = 0;
                         if(par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT) {
-                            size_t len = Matcher::resultToBuffer(buffer, result, false);
+                            size_t len = Matcher::resultToBuffer(buffer, result, true, false);
 //                            len = snprintf(buffer, 100, "%s", alnString.c_str());
                             prefResultsOutString.append(buffer, len);
                         } else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION){
