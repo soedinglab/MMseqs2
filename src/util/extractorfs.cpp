@@ -84,11 +84,11 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     unsigned int reverseFrames = getFrames(par.reverseFrames);
 
     unsigned int total = 0;
-#pragma omp parallel
+#pragma omp parallel shared(total)
     {
         Orf orf(par.translationTable, par.useAllTableStarts);
 
-#pragma omp for schedule(dynamic, 10) shared(total)
+#pragma omp for schedule(dynamic, 10)
         for (unsigned int i = 0; i < reader.getSize(); ++i){
             unsigned int id;
             Debug::printProgress(i);
