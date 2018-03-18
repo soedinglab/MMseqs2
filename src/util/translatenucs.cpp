@@ -112,7 +112,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
             }
             translateNucl.translate(writeAA, data, length);
 
-            if(addStopAtEnd){
+            if(addStopAtEnd && writeAA[(length/3)-1]!='*'){
                 writeAA[length/3] = '*';
                 writeAA[length/3+1] = '\n';
             }else{
