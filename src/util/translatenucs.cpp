@@ -116,6 +116,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
                 writeAA[length/3] = '*';
                 writeAA[length/3+1] = '\n';
             }else{
+                addStopAtEnd =false;
                 writeAA[length/3] = '\n';
             }
 
@@ -132,5 +133,6 @@ int translatenucs(int argc, const char **argv, const Command& command) {
 
     return EXIT_SUCCESS;
 }
+
 
 
