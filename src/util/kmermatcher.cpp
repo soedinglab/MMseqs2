@@ -708,7 +708,10 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
             prefResultsOutString.clear();
             // skipe UINT MAX entries
             while(queue.empty() == false && queue.top().id==UINT_MAX){
+                res = queue.top();
                 queue.pop();
+                offsetPos[res.file] = queueNextEntry(queue, res.file, offsetPos[res.file],
+                               entries[res.file], entrySizes[res.file]);
             }
             if(queue.empty() == false){
                 res = queue.top();
