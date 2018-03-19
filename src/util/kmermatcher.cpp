@@ -689,6 +689,12 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
     size_t queryLength;
     if(queue.empty() == false){
         res = queue.top();
+        hit_t h;
+        h.seqId = seqDbr.getDbKey(res.repSeq);
+        h.pScore = 0;
+        h.diagonal = 0;
+        int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+        prefResultsOutString.append(buffer, len);
         queryLength = seqDbr.getSeqLens(res.repSeq);
     }
     while(queue.empty() == false) {
@@ -706,11 +712,17 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
             }
             if(queue.empty() == false){
                 res = queue.top();
+                hit_t h;
+                h.seqId = seqDbr.getDbKey(res.repSeq);
+                h.pScore = 0;
+                h.diagonal = 0;
+                int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+                prefResultsOutString.append(buffer, len);
                 queryLength = seqDbr.getSeqLens(res.repSeq);
             }
         }
         // if its not a duplicate
-        if(filePrevsKmerPos.id != res.id && res.id!=UINT_MAX){
+        if(filePrevsKmerPos.id != res.id && res.repSeq != res.id && res.id!=UINT_MAX){
             unsigned int targetLength = seqDbr.getSeqLens(res.id);
             if(Util::canBeCovered(covThr, covMode,
                                   static_cast<float>(queryLength),
