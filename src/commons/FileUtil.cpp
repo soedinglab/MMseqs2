@@ -180,7 +180,7 @@ bool FileUtil::symlinkExists(const std::string  path)
     return (result == 0);
 }
 
-bool FileUtil::symlinkCreateOrRepleace(const std::string linkname, const std::string linkdest) {
+bool FileUtil::symlinkCreateOrReplace(const std::string linkname, const std::string linkdest) {
     if(symlinkExists(linkname)==true){
         if(remove(linkname.c_str()) != 0){
             return false;

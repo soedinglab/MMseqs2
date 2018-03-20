@@ -103,7 +103,7 @@ int search(int argc, const char **argv, const Command& command) {
     }
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    if (FileUtil::symlinkCreateOrRepleace(par.db4+"/latest", tmpDir) == false){
+    if (FileUtil::symlinkCreateOrReplace(par.db4 + "/latest", tmpDir) == false){
         Debug(Debug::WARNING) << "Could not link latest folder in tmp." << tmpDir << ".\n";
         EXIT(EXIT_FAILURE);
     }

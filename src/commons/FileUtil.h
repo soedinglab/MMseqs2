@@ -34,7 +34,7 @@ public:
 
     static size_t getFileSize(std::string fileName);
 
-    static bool symlinkCreateOrRepleace(const std::string linkname, const std::string linkdest);
+    static bool symlinkCreateOrReplace(const std::string linkname, const std::string linkdest);
 
     static bool symlinkExists(std::string path);
 
