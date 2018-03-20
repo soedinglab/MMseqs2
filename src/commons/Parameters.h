@@ -200,6 +200,9 @@ public:
     float startSens;
     int sensSteps;
 
+    // easysearch
+    bool greedyBestHits;
+
     //CLUSTERING
     int maxIteration;                   // Maximum depth of breadth first search in connected component
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
@@ -480,6 +483,9 @@ public:
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEPS)
 
+    // easysearch
+    PARAMETER(PARAM_GREEDY_BEST_HITS)
+
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
     PARAMETER(PARAM_ORF_MAX_LENGTH)
@@ -592,6 +598,7 @@ public:
     std::vector<MMseqsParameter> kmermatcher;
     std::vector<MMseqsParameter> linclustworkflow;
     std::vector<MMseqsParameter> assemblerworkflow;
+    std::vector<MMseqsParameter> easysearchworkflow;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;

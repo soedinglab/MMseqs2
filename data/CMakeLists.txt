@@ -1,6 +1,7 @@
 include(MMseqsResourceCompiler)
 
 set(COMPILED_RESOURCES
+        easysearch.sh
         blastp.sh
         blastpgp.sh
         linclust.sh

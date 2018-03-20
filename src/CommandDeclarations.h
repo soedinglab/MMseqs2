@@ -3,6 +3,7 @@
 #include "Command.h"
 
 extern int clust(int argc, const char **argv, const Command& command);
+extern int easysearch(int argc, const char **argv, const Command& command);
 extern int search(int argc, const char **argv, const Command& command);
 extern int clusteringworkflow(int argc, const char **argv, const Command& command);
 extern int clusterupdate(int argc, const char **argv, const Command& command);
