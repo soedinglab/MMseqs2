@@ -1,32 +1,59 @@
-#!/bin/bash
-# Clustering workflow script
-checkReturnCode () { 
-	[ $? -ne 0 ] && echo "$1" && exit 1;
+#!/bin/sh -e
+fail() {
+    echo "Error: $1"
+    exit 1
 }
-notExists () { 
-	[ ! -f "$1" ] 
+
+notExists() {
+	[ ! -f "$1" ]
 }
+
+abspath() {
+    if [ -d "$1" ]; then
+        echo "$(cd "$1"; pwd)"
+    elif [ -f "$1" ]; then
+        if [ -z "${1##*/*}" ]; then
+            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
+        else
+            echo "$(pwd)/$1"
+        fi
+    elif [ -d "$(dirname "$1")" ]; then
+        echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
+    fi
+}
+
 # check amount of input variables
 [ "$#" -ne 2 ] && echo "Please provide <sequenceDB> <tmp>" && exit 1;
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [ ! -d "$2" ] &&  echo "tmp directory $2 not found!" && mkdir -p "$2";
 
-INPUT="$1"
-# 1. extract orf
+INPUT="$(abspath "$1")"
 if [ -n "$NUCL" ]; then
-    $MMSEQS extractorfs   "$1" "$2/orfs" $ORF_PAR
-    $MMSEQS translatenucs "$2/orfs" "$2/orfs_aa" $TRANSLATE_PAR
-    $MMSEQS indexdb "$2/orfs_aa" "$1" $INDEX_PAR
+    # 1. extract orf
+    if notExists "$2/orfs"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" extractorfs "$INPUT" "$2/orfs" $ORF_PAR \
+            || fail "extractorfs died"
+    fi
+
+    if notExists "$2/orfs_aa"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" translatenucs "$2/orfs" "$2/orfs_aa" $TRANSLATE_PAR \
+            || fail "translatenucs died"
+    fi
+
+    # shellcheck disable=SC2086
+    "$MMSEQS" indexdb "$2/orfs_aa" "$INPUT" $INDEX_PAR
 
     if [ -n "$REMOVE_TMP" ]; then
         echo "Remove temporary files"
         rm -f "$2/orfs" "$2/orfs.index" "$2/orfs.dbtype"
         rm -f "$2/orfs_aa" "$2/orfs_aa.index" "$2/orfs_aa.dbtype"
         rm -f "$2/createindex.sh"
-
     fi
 else
-    $MMSEQS indexdb "$1" "$1" $INDEX_PAR
+    # shellcheck disable=SC2086
+    "$MMSEQS" indexdb "$INPUT" "$INPUT" $INDEX_PAR
 fi
 

@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 # Sequence search workflow script
 fail() {
     echo "Error: $1"
@@ -11,15 +11,15 @@ notExists() {
 
 abspath() {
     if [ -d "$1" ]; then
-        (cd "$1"; pwd)
+        echo "$(cd "$1"; pwd)"
     elif [ -f "$1" ]; then
-        if [[ $1 == */* ]]; then
+        if [ -z "${1##*/*}" ]; then
             echo "$(cd "${1%/*}"; pwd)/${1##*/}"
         else
             echo "$(pwd)/$1"
         fi
-    elif [ -d $(dirname "$1") ]; then
-            echo "$(cd $(dirname "$1"); pwd)/$(basename "$1")"
+    elif [ -d "$(dirname "$1")" ]; then
+        echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
     fi
 }
 
@@ -40,25 +40,28 @@ TMP_PATH="$(abspath "$4")"
 
 
 STEP=0
-while [ $STEP -lt $STEPS ]; do
+STEPS=${STEPS:-1}
+while [ "$STEP" -lt "$STEPS" ]; do
     SENS_PARAM=SENSE_${STEP}
     eval SENS="\$$SENS_PARAM"
     # call prefilter module
     if notExists "$TMP_PATH/pref_$SENS"; then
-        $RUNNER $MMSEQS prefilter "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s $SENS \
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" prefilter "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" $PREFILTER_PAR -s "$SENS" \
             || fail "Prefilter died"
     fi
 
     # call alignment module
     if notExists "$TMP_PATH/aln_$SENS"; then
-        $RUNNER $MMSEQS align "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  \
+        # shellcheck disable=SC2086
+        $RUNNER "$MMSEQS" align "$INPUT" "$TARGET" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  \
             || fail "Alignment died"
     fi
 
     # only merge results after first step
     if [ $STEP -gt 0 ]; then
         if notExists "$TMP_PATH/aln_${SENS}.hasmerge"; then
-            $MMSEQS mergedbs "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}" "$TMP_PATH/aln_$SENS" \
+            "$MMSEQS" mergedbs "$1" "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}" "$TMP_PATH/aln_$SENS" \
                 || fail "Alignment died"
             mv -f "$TMP_PATH/aln_new" "$TMP_PATH/aln_${SENSE_0}"
             mv -f "$TMP_PATH/aln_new.index" "$TMP_PATH/aln_${SENSE_0}.index"
@@ -68,7 +71,7 @@ while [ $STEP -lt $STEPS ]; do
 
     NEXTINPUT="$TMP_PATH/input_step$SENS"
     #do not create subdb at last step
-    if [ $STEP -lt $(($STEPS-1)) ]; then
+    if [ $STEP -lt $((STEPS-1)) ]; then
         if notExists "$TMP_PATH/order_step$SENS"; then
             awk '$3 < 2 { print $1 }' "$TMP_PATH/aln_$SENS.index" > "$TMP_PATH/order_step$SENS" \
                 || fail "Awk step $SENS died"
@@ -77,12 +80,12 @@ while [ $STEP -lt $STEPS ]; do
         if [ ! -s "$TMP_PATH/order_step$SENS" ]; then break; fi
 
         if notExists "$NEXTINPUT"; then
-            $MMSEQS createsubdb "$TMP_PATH/order_step$SENS" "$INPUT" "$NEXTINPUT" \
+            "$MMSEQS" createsubdb "$TMP_PATH/order_step$SENS" "$INPUT" "$NEXTINPUT" \
                 || fail "Order step $SENS died"
         fi
     fi
-    INPUT=$NEXTINPUT
-    STEP=$(($STEP+1))
+    INPUT="$NEXTINPUT"
+    STEP=$((STEP+1))
 done
 
 # post processing
@@ -92,14 +95,14 @@ done
 if [ -n "$REMOVE_TMP" ]; then
     echo "Remove temporary files"
     STEP=0
-    while [ $STEP -lt $STEPS ]; do
+    while [ "$STEP" -lt "$STEPS" ]; do
         SENS_PARAM=SENSE_${STEP}
         eval SENS="\$$SENS_PARAM"
         rm -f "$TMP_PATH/pref_$SENS" "$TMP_PATH/pref_$SENS.index"
         rm -f "$TMP_PATH/aln_$SENS" "$TMP_PATH/aln_$SENS.index"
         NEXTINPUT="$TMP_PATH/input_step$SENS"
         rm -f "$TMP_PATH/input_step$SENS" "$TMP_PATH/input_step$SENS.index"
-        STEP=$(($STEP+1))
+        STEP=$((STEP+1))
     done
 
     rm -f "$TMP_PATH/blastp.sh"

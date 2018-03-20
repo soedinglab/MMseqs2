@@ -2,6 +2,7 @@ set(HAVE_MPI 0 CACHE BOOL "Have MPI")
 set(HAVE_AVX2 0 CACHE BOOL "Have AVX2")
 set(HAVE_SSE4_1 0 CACHE BOOL "Have SSE4.1")
 set(HAVE_TESTS 1 CACHE BOOL "Have Tests")
+set(HAVE_SHELLCHECK 1 CACHE BOOL "Have ShellCheck")
 
 include(AppendTargetProperty)
 
