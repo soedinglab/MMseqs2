@@ -171,7 +171,9 @@ int createdb(int argn, const char **argv, const Command& command) {
                     splitString.append("\n");
                     out_writer.writeData(splitString.c_str(), splitString.length(), id);
                 }else{
-                    out_writer.writeData(sequence.c_str(), sequence.length(), id);
+		    std::string seqWithLineRet(sequence);
+		    seqWithLineRet.append("\n");
+                    out_writer.writeData(seqWithLineRet.c_str(), seqWithLineRet.length(), id);
                 }
 
                 entries_num++;
