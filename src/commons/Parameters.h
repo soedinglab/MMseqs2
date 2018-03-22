@@ -632,7 +632,7 @@ public:
 
     size_t hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter> &par);
 
-    std::string createParameterString(const std::vector<MMseqsParameter> &vector);
+    std::string createParameterString(const std::vector<MMseqsParameter> &vector, bool wasSet = false);
 
     void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
 

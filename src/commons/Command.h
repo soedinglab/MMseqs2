@@ -18,7 +18,8 @@ enum CommandMode {
     COMMAND_DB,
     COMMAND_EXPERT,
     COMMAND_SPECIAL,
-    COMMAND_HIDDEN
+    COMMAND_HIDDEN,
+    COMMAND_EASY
 };
 
 struct Command {
