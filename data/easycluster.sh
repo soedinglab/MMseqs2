@@ -47,7 +47,6 @@ fi
 
 
 if notExists "${TMP_PATH}/cluster.tsv"; then
-    # shellcheck disable=SC2086
     "$MMSEQS" createtsv "${TMP_PATH}/input" "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/cluster.tsv"  \
         || fail "Convert Alignments died"
 fi
