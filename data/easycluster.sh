@@ -38,7 +38,6 @@ if notExists "${TMP_PATH}/query"; then
         || fail "query createdb died"
 fi
 
-INTERMEDIATE="${TMP_PATH}/clu"
 if notExists "${TMP_PATH}/clu"; then
     # shellcheck disable=SC2086
     "$MMSEQS" cluster "${TMP_PATH}/input" "${TMP_PATH}/clu" "${TMP_PATH}/clu_tmp" ${CLUSTER_PAR} \
