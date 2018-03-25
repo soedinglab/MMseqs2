@@ -37,6 +37,5 @@ cat <<'CPUDOC' | gcc -Os -std=gnu99 -o "$BUILD/mmseqs/bin/testcpu.exe" -xc -
 int main(){puts(D("avx2"):D("sse4.1"):"fail");}
 CPUDOC
 
-cp "$REPO/util/mmseqs_wrapper.bat" > "$BUILD/mmseqs/mmseqs.bat"
-
+cp "$REPO/util/mmseqs_wrapper.bat" "$BUILD/mmseqs/mmseqs.bat"
 chmod +x "$BUILD/mmseqs/mmseqs.bat"
