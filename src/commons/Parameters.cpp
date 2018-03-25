@@ -11,6 +11,10 @@
 #include <sstream>
 #include <climits>
 
+#ifdef __CYGWIN__
+#include <sys/cygwin.h>
+#endif
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -867,8 +871,27 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             }
 
             parametersFound++;
-        } else { // it is a filename if its not a parameter
+        } else {
+            // parameter is actually a filename
+#ifdef __CYGWIN__
+            // normalize windows paths to cygwin unix paths
+            const char *path = pargv[argIdx];
+            ssize_t size = cygwin_conv_path(CCP_WIN_A_TO_POSIX | CCP_RELATIVE, path, NULL, 0);
+            if (size < 0) {
+                Debug(Debug::ERROR) << "Could not convert cygwin path!\n";
+                EXIT(EXIT_FAILURE);
+            } else {
+                char *posix = new char[size];
+                if (cygwin_conv_path(CCP_WIN_A_TO_POSIX | CCP_RELATIVE, path, posix, size)) {
+                    Debug(Debug::ERROR) << "Could not convert cygwin path!\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                filenames.emplace_back(posix);
+                delete posix;
+            }
+#else
             filenames.emplace_back(pargv[argIdx]);
+#endif
         }
     }
 

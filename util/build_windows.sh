@@ -37,12 +37,6 @@ cat <<'CPUDOC' | gcc -Os -std=gnu99 -o "$BUILD/mmseqs/bin/testcpu.exe" -xc -
 int main(){puts(D("avx2"):D("sse4.1"):"fail");}
 CPUDOC
 
-cat <<'BATDOC' > "$BUILD/mmseqs/mmseqs.bat"
-for /f %%i in ('%~dp0\bin\testcpu.exe') do (
-if "%%i" == "avx2" ( %~dp0\bin\mmseqs_avx2.exe %* )
-if "%%i" == "sse4.1" ( %~dp0\bin\mmseqs_sse41.exe %* )
-if "%%i" == "fail" ( echo Unsupported CPU! MMseqs2 requires SSE4.1 or AVX2 instruction set support. )
-)
-BATDOC
+cp "$REPO/util/mmseqs_wrapper.bat" > "$BUILD/mmseqs/mmseqs.bat"
 
 chmod +x "$BUILD/mmseqs/mmseqs.bat"
