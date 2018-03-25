@@ -30,7 +30,8 @@ if [ -n "$NUCL" ]; then
     fi
 
     # shellcheck disable=SC2086
-    "$MMSEQS" indexdb "$2/orfs_aa" "$INPUT" $INDEX_PAR
+    "$MMSEQS" indexdb "$2/orfs_aa" "$INPUT" $INDEX_PAR \
+        || fail "indexdb died"
 
     if [ -n "$REMOVE_TMP" ]; then
         echo "Remove temporary files"
@@ -40,6 +41,7 @@ if [ -n "$NUCL" ]; then
     fi
 else
     # shellcheck disable=SC2086
-    "$MMSEQS" indexdb "$INPUT" "$INPUT" $INDEX_PAR
+    "$MMSEQS" indexdb "$INPUT" "$INPUT" $INDEX_PAR \
+        || fail "indexdb died"
 fi
 
