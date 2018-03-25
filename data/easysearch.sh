@@ -8,20 +8,6 @@ notExists() {
 	[ ! -f "$1" ]
 }
 
-abspath() {
-    if [ -d "$1" ]; then
-        echo "$(cd "$1"; pwd)"
-    elif [ -f "$1" ]; then
-        if [ -z "${1##*/*}" ]; then
-            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
-        else
-            echo "$(pwd)/$1"
-        fi
-    elif [ -d "$(dirname "$1")" ]; then
-        echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
-    fi
-}
-
 # check number of input variables
 [ "$#" -ne 4 ] && echo "Please provide <queryFASTA> <targetFASTA>|<targetDB> <outFile> <tmp>" && exit 1;
 # check paths
@@ -30,10 +16,10 @@ abspath() {
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
-INPUT="$(abspath "$1")"
-TARGET="$(abspath "$2")"
-RESULTS="$(abspath "$3")"
-TMP_PATH="$(abspath "$4")"
+INPUT="$1"
+TARGET="$2"
+RESULTS="$3"
+TMP_PATH="$4"
 
 if notExists "${TMP_PATH}/query"; then
    "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/query" \

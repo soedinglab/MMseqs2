@@ -9,20 +9,6 @@ notExists() {
 	[ ! -f "$1" ]
 }
 
-abspath() {
-    if [ -d "$1" ]; then
-        echo "$(cd "$1"; pwd)"
-    elif [ -f "$1" ]; then
-        if [ -z "${1##*/*}" ]; then
-            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
-        else
-            echo "$(pwd)/$1"
-        fi
-    elif [ -d "$(dirname "$1")" ]; then
-        echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
-    fi
-}
-
 #pre processing
 [ -z "$MMSEQS" ] && echo "Please set the environment variable \$MMSEQS to your MMSEQS binary." && exit 1;
 # check amount of input variables
@@ -34,9 +20,9 @@ abspath() {
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
 
-INPUT="$(abspath "$1")"
-TARGET="$(abspath "$2")"
-TMP_PATH="$(abspath "$4")"
+INPUT="$1"
+TARGET="$2"
+TMP_PATH="$4"
 
 
 STEP=0

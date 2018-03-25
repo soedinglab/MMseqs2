@@ -8,20 +8,6 @@ notExists() {
    [ ! -f "$1" ]
 }
 
-abspath() {
-    if [ -d "$1" ]; then
-        echo "$(cd "$1"; pwd)"
-    elif [ -f "$1" ]; then
-        if [ -z "${1##*/*}" ]; then
-            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
-        else
-            echo "$(pwd)/$1"
-        fi
-    elif [ -d "$(dirname "$1")" ]; then
-        echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
-    fi
-}
-
 # check number of input variables
 [ "$#" -ne 3 ] && echo "Please provide <sequenceFASTA> <outFile> <tmp>" && exit 1;
 # check paths
@@ -29,9 +15,9 @@ abspath() {
 [   -f "$2" ] &&  echo "$2 exists already!" && exit 1;
 [ ! -d "$3" ] &&  echo "tmp directory $3 not found!" && mkdir -p "$3";
 
-INPUT="$(abspath "$1")"
-RESULTS="$(abspath "$2")"
-TMP_PATH="$(abspath "$3")"
+INPUT="$1"
+RESULTS="$2"
+TMP_PATH="$3"
 
 if notExists "${TMP_PATH}/query"; then
    "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/input" \

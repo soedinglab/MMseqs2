@@ -9,20 +9,6 @@ notExists() {
 	[ ! -f "$1" ]
 }
 
-abspath() {
-    if [ -d "$1" ]; then
-        echo "$(cd "$1"; pwd)"
-    elif [ -f "$1" ]; then
-        if [ -z "${1##*/*}" ]; then
-            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
-        else
-            echo "$(pwd)/$1"
-        fi
-    elif [ -d "$(dirname "$1")" ]; then
-        echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
-    fi
-}
-
 #pre processing
 [ -z "$MMSEQS" ] && echo "Please set the environment variable \$MMSEQS to your MMSEQS binary." && exit 1;
 # check amount of input variables
@@ -33,8 +19,8 @@ abspath() {
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
-QUERYDB="$(abspath "$1")"
-TMP_PATH="$(abspath "$4")"
+QUERYDB="$1"
+TMP_PATH="$4"
 
 STEP=0
 # processing
@@ -87,8 +73,6 @@ while [ $STEP -lt $NUM_IT ]; do
             # shellcheck disable=SC2086
             $RUNNER "$MMSEQS" result2profile "$QUERYDB" "$2" "$TMP_PATH/aln_0" "$TMP_PATH/profile_$STEP" ${TMP} \
                 || fail "Create profile died"
-            ln -sf "${QUERYDB}_h" "$TMP_PATH/profile_${STEP}_h"
-            ln -sf "${QUERYDB}_h.index" "$TMP_PATH/profile_${STEP}_h.index"
         fi
     fi
 	QUERYDB="$TMP_PATH/profile_$STEP"

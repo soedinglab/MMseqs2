@@ -8,27 +8,13 @@ notExists() {
 	[ ! -f "$1" ]
 }
 
-abspath() {
-    if [ -d "$1" ]; then
-        echo "$(cd "$1"; pwd)"
-    elif [ -f "$1" ]; then
-        if [ -z "${1##*/*}" ]; then
-            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
-        else
-            echo "$(pwd)/$1"
-        fi
-    elif [ -d "$(dirname "$1")" ]; then
-        echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
-    fi
-}
-
 # check amount of input variables
 [ "$#" -ne 2 ] && echo "Please provide <sequenceDB> <tmp>" && exit 1;
 # check if files exists
 [ ! -f "$1" ] &&  echo "$1 not found!" && exit 1;
 [ ! -d "$2" ] &&  echo "tmp directory $2 not found!" && mkdir -p "$2";
 
-INPUT="$(abspath "$1")"
+INPUT="$1"
 if [ -n "$NUCL" ]; then
     # 1. extract orf
     if notExists "$2/orfs"; then

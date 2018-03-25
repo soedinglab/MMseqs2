@@ -9,20 +9,6 @@ notExists() {
 	[ ! -f "$1" ]
 }
 
-abspath() {
-    if [ -d "$1" ]; then
-        echo "$(cd "$1"; pwd)"
-    elif [ -f "$1" ]; then
-        if [ -z "${1##*/*}" ]; then
-            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
-        else
-            echo "$(pwd)/$1"
-        fi
-    elif [ -d "$(dirname "$1")" ]; then
-        echo "$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
-    fi
-}
-
 # check amount of input variables
 [ "$#" -ne 6 ] && echo "Please provide <queryDB> <targetDB> <targetTaxMap> <ncbiTaxdumpDir> <outDB> <tmpDir>" && exit 1;
 # check if files exists
@@ -39,11 +25,11 @@ fi
 [   -f "$5" ] &&  echo "$5 exists already!" && exit 1;
 [ ! -d "$6" ] &&  echo "tmp directory $6 not found!" && mkdir -p "$6";
 
-INPUT="$(abspath "$1")"
-TARGET="$(abspath "$2")"
-TAXON_MAPPING="$(abspath "$3")"
-RESULTS="$(abspath "$5")"
-TMP_PATH="$(abspath "$6")"
+INPUT="$1"
+TARGET="$2"
+TAXON_MAPPING="$3"
+RESULTS="$5"
+TMP_PATH="$6"
 
 if [ ! -e "${TMP_PATH}/first" ]; then
     mkdir -p "${TMP_PATH}/tmp_hsp1"
