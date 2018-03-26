@@ -65,10 +65,7 @@ int easysearch(int argc, const char **argv, const Command &command) {
     }
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    if (FileUtil::symlinkCreateOrReplace(par.db4 + "/latest", tmpDir) == false) {
-        Debug(Debug::WARNING) << "Could not link latest folder in tmp." << tmpDir << ".\n";
-        EXIT(EXIT_FAILURE);
-    }
+    FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
     if (par.removeTmpFiles) {

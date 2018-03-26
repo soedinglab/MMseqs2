@@ -1,19 +1,16 @@
-//
-// Created by mad on 6/10/16.
-//
 #include "DBWriter.h"
 #include "Debug.h"
 #include "Parameters.h"
 #include "DBReader.h"
 #include "Util.h"
 #include "Matcher.h"
+#include "FileUtil.h"
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
 #include <sys/time.h>
-#include <unistd.h>
 
 int doExtractAlignedRegion(Parameters &par) {
     DBReader<unsigned int> *qdbr = NULL;
@@ -34,10 +31,6 @@ int doExtractAlignedRegion(Parameters &par) {
         tdbr->open(DBReader<unsigned int>::NOSORT);
         tdbr->readMmapedDataInMemory();
     }
-    std::string qffindexHeaderDB = (par.db1 + "_h");
-    std::string qffindexHeaderDBIndex = (par.db1 + "_h.index");
-    std::string outffindexHeaderDB = (par.db4 + "_h");
-    std::string outffindexHeaderDBIndex = (par.db4 + "_h.index");
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
     DBReader<unsigned int> alndbr(par.db3.c_str(), par.db3Index.c_str());
@@ -83,19 +76,14 @@ int doExtractAlignedRegion(Parameters &par) {
             }
         }
     }
+    dbw.close();
 
-    Debug(Debug::INFO) << "Set sym link from " << qffindexHeaderDB << " to " << outffindexHeaderDB << "\n";
-    char *abs_in_header_filename = realpath(qffindexHeaderDB.c_str(), NULL);
-    symlink(abs_in_header_filename, outffindexHeaderDB.c_str());
-    free(abs_in_header_filename);
-    char *abs_in_header_index_filename = realpath(qffindexHeaderDBIndex.c_str(), NULL);
-    Debug(Debug::INFO) << "Set sym link from " << qffindexHeaderDBIndex << " to " << outffindexHeaderDBIndex << "\n";
-    symlink(abs_in_header_index_filename, outffindexHeaderDBIndex.c_str());
-    free(abs_in_header_index_filename);
-
+    std::string base = FileUtil::baseName(par.db4 + "_h");
+    FileUtil::symlinkAlias(par.db1 + "_h", base);
+    FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
 
     Debug(Debug::INFO) << "Done." << "\n";
-    dbw.close();
+
     alndbr.close();
     qdbr->close();
     delete qdbr;

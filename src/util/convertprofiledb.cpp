@@ -2,7 +2,7 @@
 //
 // Converts PSSM or HHM to MMseqs profile format.
 // MMseqs just stores the position specific score in 1 byte
-//
+
 #include <unistd.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -14,6 +14,7 @@
 #include "Debug.h"
 #include "Util.h"
 #include "MathUtil.h"
+#include "FileUtil.h"
 
 #ifdef OPENMP
 #include "omp.h"
@@ -203,13 +204,9 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
 
     dataIn.close();
 
-    char *absHeaderFileName = realpath(headerFileName.c_str(), NULL);
-    symlink(absHeaderFileName, std::string(par.db2 +"_seq_h").c_str());
-    free(absHeaderFileName);
-
-    char *absHeaderIndexFileName = realpath(headerIndexFileName.c_str(), NULL);
-    symlink(absHeaderIndexFileName, std::string(par.db2 +"_seq_h.index").c_str());
-    free(absHeaderIndexFileName);
+    std::string base = FileUtil::baseName(par.db2 + "_seq_h");
+    FileUtil::symlinkAlias(headerFileName, base);
+    FileUtil::symlinkAlias(headerFileName + ".index", base + ".index");
 
     Debug(Debug::INFO) << "Done.\n";
 
