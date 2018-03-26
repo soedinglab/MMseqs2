@@ -22,8 +22,6 @@ make -j 4
 cp src/mmseqs "$BUILD/mmseqs/bin/mmseqs_avx2"
 
 cp -f /usr/libexec/busybox-standalone/bin/busybox.exe "$BUILD/mmseqs/bin"
-cd "$BUILD/mmseqs/bin"
-cmd /c ""busybox.exe" "--install" "-s" ".""
 
 cat <<'CPUDOC' | gcc -Os -std=gnu99 -o "$BUILD/mmseqs/bin/testcpu.exe" -xc -
 #include <stdio.h>
