@@ -239,6 +239,9 @@ public:
     bool omitConsensus;
     bool skipQuery;
 
+    // convertmsa
+    int identifierField;
+
     // msa2profile
     int matchMode;
     float matchRatio;
@@ -444,6 +447,9 @@ public:
     PARAMETER(PARAM_OMIT_CONSENSUS)
     PARAMETER(PARAM_SKIP_QUERY)
 
+    // convertmsa
+    PARAMETER(PARAM_IDENTIFIER_FIELD)
+
     // msa2profile
     PARAMETER(PARAM_MATCH_MODE)
     PARAMETER(PARAM_MATCH_RATIO)
@@ -582,6 +588,7 @@ public:
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2pp;
     std::vector<MMseqsParameter> result2msa;
+    std::vector<MMseqsParameter> convertmsa;
     std::vector<MMseqsParameter> msa2profile;
     std::vector<MMseqsParameter> createtsv;
     std::vector<MMseqsParameter> result2stats;
