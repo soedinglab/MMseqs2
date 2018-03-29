@@ -67,7 +67,8 @@ public:
     ~Matcher();
 
     // run SSE2 parallelized Smith-Waterman alignment calculation and traceback
-    result_t getSWResult(Sequence* dbSeq, const int diagonal, const int covMode, const float covThr, const double evalThr, const unsigned int mode, bool isIdentical);
+    result_t getSWResult(Sequence* dbSeq, const int diagonal, const int covMode, const float covThr, const double evalThr,
+                         unsigned int mode, bool isIdentical);
 
     // need for sorting the results
     static bool compareHits (const result_t &first, const result_t &second){

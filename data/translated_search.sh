@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh -e
 # Translated search workflow
 fail() {
     echo "Error: $1"
@@ -22,11 +22,13 @@ QUERY_ORF="$1"
 
 if [ -n "$QUERY_NUCL" ]; then
     if notExists "$4/q_orfs"; then
-        $MMSEQS extractorfs "$1" "$4/q_orfs" ${ORF_PAR} \
+        # shellcheck disable=SC2086
+        "$MMSEQS" extractorfs "$1" "$4/q_orfs" ${ORF_PAR} \
             || fail  "extract orfs step died"
     fi
     if notExists "$4/q_orfs_aa"; then
-        $MMSEQS translatenucs "$4/q_orfs" "$4/q_orfs_aa" ${TRANSLATE_PAR} \
+        # shellcheck disable=SC2086
+        "$MMSEQS" translatenucs "$4/q_orfs" "$4/q_orfs_aa" ${TRANSLATE_PAR} \
             || fail  "translate step died"
     fi
     QUERY="$4/q_orfs_aa"
@@ -37,11 +39,13 @@ TARGET="$2"
 TARGET_ORF="$2"
 if [ -n "$TARGET_NUCL" ]; then
     if notExists "$4/t_orfs"; then
-        $MMSEQS extractorfs "$2" "$4/t_orfs" ${ORF_PAR} \
+        # shellcheck disable=SC2086
+        "$MMSEQS" extractorfs "$2" "$4/t_orfs" ${ORF_PAR} \
             || fail  "extract target orfs step died"
     fi
     if notExists "$4/t_orfs_aa"; then
-        $MMSEQS translatenucs "$4/t_orfs" "$4/t_orfs_aa" ${TRANSLATE_PAR} \
+        # shellcheck disable=SC2086
+        "$MMSEQS" translatenucs "$4/t_orfs" "$4/t_orfs_aa" ${TRANSLATE_PAR} \
             || fail  "translate target step died"
     fi
     TARGET="$4/t_orfs_aa"
@@ -51,11 +55,11 @@ fi
 
 mkdir -p "$4/search"
 if notExists "$4/aln"; then
-    $SEARCH "${QUERY}" "${TARGET}" "$4/aln" "$4/search" \
+    "$SEARCH" "${QUERY}" "${TARGET}" "$4/aln" "$4/search" \
         || fail "Search step died"
 fi
 if notExists "$4/aln_offset"; then
-    $MMSEQS offsetalignment "$QUERY_ORF" "$TARGET_ORF" "$4/aln"  "$4/aln_offset" \
+    "$MMSEQS" offsetalignment "$QUERY_ORF" "$TARGET_ORF" "$4/aln"  "$4/aln_offset" \
         || fail "Offset step died"
 fi
 (mv -f "$4/aln_offset" "$3" && mv -f "$4/aln_offset.index" "$3.index") \

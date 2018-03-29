@@ -17,6 +17,7 @@ Matcher::Matcher(int querySeqType, int maxSeqLen, BaseMatrix *m, EvalueComputati
 
     this->maxSeqLen = maxSeqLen;
     nuclaligner=NULL;
+    aligner=NULL;
     if(querySeqType==Sequence::NUCLEOTIDES){
         nuclaligner = new  BandedNucleotideAligner(m, maxSeqLen, gapOpen, gapExtend);
     }else{
@@ -37,7 +38,9 @@ void Matcher::setSubstitutionMatrix(BaseMatrix *m){
 }
 
 Matcher::~Matcher(){
-    delete aligner;
+    if(aligner != NULL){
+        delete aligner;
+    }
     if(nuclaligner != NULL){
         delete nuclaligner;
     }
@@ -60,7 +63,7 @@ void Matcher::initQuery(Sequence* query){
 
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, const int covMode, const float covThr,
-                                       const double evalThr, const unsigned int mode, bool isIdentity){
+                                       const double evalThr, unsigned int mode, bool isIdentity){
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
 
@@ -81,6 +84,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
             EXIT(EXIT_FAILURE);
         }
         alignment = nuclaligner->align(dbSeq,diagonal,evaluer);
+        mode = Matcher::SCORE_COV_SEQID;
     }else if(isIdentity==false){
         alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, gapOpen, gapExtend, mode, evalThr, evaluer, covMode, covThr, maskLen);
     }else{
@@ -126,7 +130,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
                 }
             }
         } else {
-            for (int32_t c = 0; c < alignment.cigarLen; ++c) {
+            for (int32_t c = 0; c < currentQuery->L; ++c) {
                 aaIds++;
                 backtrace.append("M");
             }
@@ -267,6 +271,7 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
         return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
                                  alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
                                  dbLen, "");
+
     }else{
         size_t len = entry[11] - entry[10];
         if(readCompressed){
@@ -290,6 +295,8 @@ size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBac
     *(tmpBuff-1) = '\t';
     float seqIdFlt = result.seqId;
     //TODO seqid, evalue
+
+
     if(seqIdFlt==1.0){
         *(tmpBuff) = '1';
         tmpBuff++;

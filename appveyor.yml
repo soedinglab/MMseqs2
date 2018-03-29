@@ -22,7 +22,6 @@ install:
 build_script:
   - if defined BASH (%BASH% -lc "${APPVEYOR_BUILD_FOLDER}/util/build_windows.sh $(cygpath ${APPVEYOR_BUILD_FOLDER}) $(cygpath ${APPVEYOR_BUILD_FOLDER})/build")
   - cd %APPVEYOR_BUILD_FOLDER%\build && 7z a %APPVEYOR_BUILD_FOLDER%\mmseqs-win64.zip mmseqs
-  - cd %APPVEYOR_BUILD_FOLDER%\build && 7z a %APPVEYOR_BUILD_FOLDER%\mmseqs-win64-debug-symbols.zip mmseqs_debug_symbols_avx2 mmseqs_debug_symbols_sse41
 
 on_success:
   - ps: $fileContent = "-----BEGIN RSA PRIVATE KEY-----`n"
@@ -30,4 +29,4 @@ on_success:
   - ps: $fileContent += "`n-----END RSA PRIVATE KEY-----`n"
   - ps: Set-Content C:\Users\appveyor\.ssh\id_rsa $fileContent
   - ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/%APPVEYOR_REPO_COMMIT%"
-  - cd %APPVEYOR_BUILD_FOLDER% && scp -o StrictHostKeyChecking=no mmseqs-win64.zip mmseqs-win64-debug-symbols.zip codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/%APPVEYOR_REPO_COMMIT%
+  - cd %APPVEYOR_BUILD_FOLDER% && scp -o StrictHostKeyChecking=no mmseqs-win64.zip codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/%APPVEYOR_REPO_COMMIT%

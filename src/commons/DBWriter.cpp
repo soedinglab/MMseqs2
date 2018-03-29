@@ -201,7 +201,11 @@ void DBWriter::close(int dbType) {
             Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
             EXIT(EXIT_FAILURE);
         }
-        fwrite(&dbType, sizeof(int), 1, dbtypeDataFile);
+        size_t written = fwrite(&dbType, sizeof(int), 1, dbtypeDataFile);
+        if (written != 1) {
+            Debug(Debug::ERROR) << "Could not write to data file " << dbTypeFile << "\n";
+            EXIT(EXIT_FAILURE);
+        }
         fclose(dbtypeDataFile);
     }
 

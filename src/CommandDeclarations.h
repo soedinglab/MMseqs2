@@ -3,6 +3,8 @@
 #include "Command.h"
 
 extern int clust(int argc, const char **argv, const Command& command);
+extern int easysearch(int argc, const char **argv, const Command& command);
+extern int easycluster(int argc, const char **argv, const Command& command);
 extern int search(int argc, const char **argv, const Command& command);
 extern int clusteringworkflow(int argc, const char **argv, const Command& command);
 extern int clusterupdate(int argc, const char **argv, const Command& command);
@@ -19,10 +21,12 @@ extern int swapresults(int argc, const char **argv, const Command& command);
 extern int extractorfs(int argc, const char **argv, const Command& command);
 extern int convertprofiledb(int argc, const char **argv, const Command& command);
 extern int translatenucs(int argc, const char **argv, const Command& command);
+extern int translateaa(int argc, const char **argv, const Command& command);
 extern int result2profile(int argc, const char **argv, const Command& command);
 extern int result2pp(int argc, const char **argv, const Command& command);
 extern int sequence2profile(int argc, const char **argv, const Command& command);
 extern int result2msa(int argc, const char **argv, const Command& command);
+extern int convertmsa(int argc, const char **argv, const Command& command);
 extern int msa2profile(int argc, const char **argv, const Command& command);
 extern int result2stats(int argc, const char **argv, const Command& command);
 extern int splitdb(int argc, const char **argv, const Command& command);
@@ -56,7 +60,9 @@ extern int lca(int argc, const char **argv, const Command& command);
 extern int profile2pssm(int argc, const char **argv, const Command& command);
 extern int profile2cs(int argc, const char **argv, const Command& command);
 extern int offsetalignment(int argc, const char **argv, const Command& command);
+extern int proteinaln2nucl(int argc, const char **argv, const Command& command);
 extern int apply(int argc, const char **argv, const Command& command);
+extern int versionstring(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);
 
 #endif

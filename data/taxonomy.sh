@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 
 fail() {
     echo "Error: $1"
@@ -7,20 +7,6 @@ fail() {
 
 notExists() {
 	[ ! -f "$1" ]
-}
-
-abspath() {
-    if [ -d "$1" ]; then
-        (cd "$1"; pwd)
-    elif [ -f "$1" ]; then
-        if [[ $1 == */* ]]; then
-            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
-        else
-            echo "$(pwd)/$1"
-        fi
-    elif [ -d "$(dirname "$1")" ]; then
-            echo "$(cd $(dirname "$1"); pwd)/$(basename "$1")"
-    fi
 }
 
 # check amount of input variables
@@ -39,15 +25,16 @@ fi
 [   -f "$5" ] &&  echo "$5 exists already!" && exit 1;
 [ ! -d "$6" ] &&  echo "tmp directory $6 not found!" && mkdir -p "$6";
 
-INPUT="$(abspath "$1")"
-TARGET="$(abspath "$2")"
-TAXON_MAPPING="$(abspath "$3")"
-RESULTS="$(abspath "$5")"
-TMP_PATH="$(abspath "$6")"
+INPUT="$1"
+TARGET="$2"
+TAXON_MAPPING="$3"
+RESULTS="$5"
+TMP_PATH="$6"
 
 if [ ! -e "${TMP_PATH}/first" ]; then
     mkdir -p "${TMP_PATH}/tmp_hsp1"
-    $MMSEQS search "${INPUT}" "${TARGET}" "${TMP_PATH}/first" "${TMP_PATH}/tmp_hsp1" ${SEARCH1_PAR} \
+    # shellcheck disable=SC2086
+    "$MMSEQS" search "${INPUT}" "${TARGET}" "${TMP_PATH}/first" "${TMP_PATH}/tmp_hsp1" ${SEARCH1_PAR} \
         || fail "First search died"
 
 fi
@@ -56,18 +43,19 @@ LCA_SOURCE="${TMP_PATH}/first"
 # 2bLCA mode
 if [ -n "${SEARCH2_PAR}" ]; then
     if [ ! -e "${TMP_PATH}/top1" ]; then
-        $MMSEQS filterdb "${TMP_PATH}/first" "${TMP_PATH}/top1" --extract-lines 1 \
+        "$MMSEQS" filterdb "${TMP_PATH}/first" "${TMP_PATH}/top1" --extract-lines 1 \
             || fail "Filterdb died"
     fi
 
     if [ ! -e "${TMP_PATH}/aligned" ]; then
-        $MMSEQS extractalignedregion "${TMP_PATH}/top1" "${TARGET}" "${TMP_PATH}/top1" "${TMP_PATH}/aligned" --extract-mode 2 \
+        "$MMSEQS" extractalignedregion "${TMP_PATH}/top1" "${TARGET}" "${TMP_PATH}/top1" "${TMP_PATH}/aligned" --extract-mode 2 \
             || fail "Extractalignedregion failed"
     fi
 
     if [ ! -e "${TMP_PATH}/round2" ]; then
         mkdir -p "${TMP_PATH}/tmp_hsp2"
-        $MMSEQS search "${TMP_PATH}/aligned" "${TARGET}" "${TMP_PATH}/round2" "${TMP_PATH}/tmp_hsp2" ${SEARCH2_PAR} \
+        # shellcheck disable=SC2086
+        "$MMSEQS" search "${TMP_PATH}/aligned" "${TARGET}" "${TMP_PATH}/round2" "${TMP_PATH}/tmp_hsp2" ${SEARCH2_PAR} \
             || fail "Second search died"
     fi
 
@@ -75,12 +63,12 @@ if [ -n "${SEARCH2_PAR}" ]; then
     # We can use filterdb --beats-first to filter out all entries from second search that
     # do not reach the evalue of the top 1 hit
     if [ ! -e "${TMP_PATH}/merged" ]; then
-        $MMSEQS mergedbs "${TMP_PATH}/top1" "${TMP_PATH}/merged" "${TMP_PATH}/top1" "${TMP_PATH}/round2" \
+        "$MMSEQS" mergedbs "${TMP_PATH}/top1" "${TMP_PATH}/merged" "${TMP_PATH}/top1" "${TMP_PATH}/round2" \
             || fail "Mergedbs died"
     fi
 
     if [ ! -e "${TMP_PATH}/2b_ali" ]; then
-        $MMSEQS filterdb "${TMP_PATH}/merged" "${TMP_PATH}/2b_ali" --beats-first --filter-column 4 --comparison-operator le \
+        "$MMSEQS" filterdb "${TMP_PATH}/merged" "${TMP_PATH}/2b_ali" --beats-first --filter-column 4 --comparison-operator le \
             || fail "First filterdb died"
     fi
 
@@ -88,17 +76,18 @@ if [ -n "${SEARCH2_PAR}" ]; then
 fi
 
 if [ ! -e "${TMP_PATH}/mapping" ]; then
-    $MMSEQS filterdb "${LCA_SOURCE}" "${TMP_PATH}/mapping" --filter-column 1 --mapping-file "${TAXON_MAPPING}" \
+    "$MMSEQS" filterdb "${LCA_SOURCE}" "${TMP_PATH}/mapping" --filter-column 1 --mapping-file "${TAXON_MAPPING}" \
         || fail "Second filterdb died"
 fi
 
 if [ ! -e "${TMP_PATH}/taxa" ]; then
-    $MMSEQS filterdb "${TMP_PATH}/mapping" "${TMP_PATH}/taxa" --filter-column 1 --trim-to-one-column \
+    "$MMSEQS" filterdb "${TMP_PATH}/mapping" "${TMP_PATH}/taxa" --filter-column 1 --trim-to-one-column \
         || fail "Third filterdb died"
 fi
 
 if [ -n "${LCA_PAR}" ]; then
-    $MMSEQS lca "${TMP_PATH}/taxa" "${NCBI_TAXDUMP}" "${RESULTS}" ${LCA_PAR} \
+    # shellcheck disable=SC2086
+    "$MMSEQS" lca "${TMP_PATH}/taxa" "${NCBI_TAXDUMP}" "${RESULTS}" ${LCA_PAR} \
         || fail "Lca died"
 else
     mv -f "${TMP_PATH}/taxa" "${RESULTS}"

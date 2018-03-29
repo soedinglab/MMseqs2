@@ -16,6 +16,7 @@
 #include "Debug.h"
 #include "Util.h"
 #include "PrefilteringIndexReader.h"
+#include "FileUtil.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -368,11 +369,21 @@ int result2profile(int argc, const char **argv, const Command &command) {
     int status = result2profile(resultReader, par, par.db4, 0, resultReader.getSize());
 #endif
 
+    std::string base = FileUtil::baseName(par.db4 + "_h");
+    FileUtil::symlinkAlias(par.db1 + "_h", base);
+    FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
+
+    if (par.omitConsensus == false) {
+        std::string base = FileUtil::baseName(par.db4 + "_consensus_h");
+        FileUtil::symlinkAlias(par.db1 + "_h", base);
+        FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
+    }
+
     resultReader.close();
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "
+    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "
                           << (sec % 60) << "s\n";
 
     return status;

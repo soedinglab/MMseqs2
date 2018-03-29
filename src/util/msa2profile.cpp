@@ -360,11 +360,9 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     sequenceWriter.close(DBReader<unsigned int>::DBTYPE_AA);
     resultWriter.close(DBReader<unsigned int>::DBTYPE_PROFILE);
 
-    char* path = strdup((par.db2 + "_h").c_str());
-    std::string base = basename(path);
+    std::string base = FileUtil::baseName(par.db2 + "_h");
     FileUtil::symlinkAlias(par.db2 + "_seq_h", base);
     FileUtil::symlinkAlias(par.db2 + "_seq_h.index", base + ".index");
-    free(path);
 
     qDbr.close();
     if (sequenceReader != NULL) {

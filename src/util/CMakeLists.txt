@@ -4,6 +4,7 @@ set(util_source_files
         util/convert2fasta.cpp
         util/convertalignments.cpp
         util/convertkb.cpp
+        util/convertmsa.cpp
         util/convertprofiledb.cpp
         util/createdb.cpp
         util/indexdb.cpp
@@ -41,6 +42,9 @@ set(util_source_files
         util/summarizetabs.cpp
         util/swapresults.cpp
         util/translatenucs.cpp
+        util/translateaa.cpp
         util/tsv2db.cpp
+        util/proteinaln2nucl.cpp
+        util/versionstring.cpp
         PARENT_SCOPE
         )

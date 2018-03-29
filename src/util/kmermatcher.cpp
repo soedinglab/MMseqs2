@@ -90,7 +90,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                              std::vector<std::string> tmpFiles, std::vector<bool> &repSequence,
                              int covMode, float covThr) ;
 
-void setKmerLengthAndAlphabet(Parameters &parameters, int seqType);
+void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqType);
 
 void writeKmersToDisk(std::string tmpFile, KmerPosition *kmers, size_t totalKmers);
 
@@ -102,9 +102,10 @@ void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
 void setLinearFilterDefault(Parameters *p) {
     p->spacedKmer = false;
     p->covThr = 0.8;
+    p->maskMode = 0;
     p->kmerSize = Parameters::CLUST_LINEAR_DEFAULT_K;
     p->alphabetSize = Parameters::CLUST_LINEAR_DEFAULT_ALPH_SIZE;
-    p->kmersPerSequence = 20;
+    p->kmersPerSequence = Parameters::CLUST_LINEAR_KMER_PER_SEQ;
 }
 
 
@@ -152,7 +153,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
     double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
     const double *probMatrixPointers[subMat->alphabetSize];
     char hardMaskTable[256];
-    if (par.maskMode == 0) {
+    if (par.maskMode == 1) {
         std::fill_n(hardMaskTable, 256, subMat->aa2int[(int) 'X']);
         for (int i = 0; i < subMat->alphabetSize; ++i) {
             probMatrixPointers[i] = probMatrix[i];
@@ -304,7 +305,7 @@ struct KmerComparision {
 int kmermatcher(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setLinearFilterDefault(&par);
-    par.parseParameters(argc, argv, command, 2, true, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
+    par.parseParameters(argc, argv, command, 2, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
     if (par.maskMode == 2) {
         Debug(Debug::ERROR) << "kmermatcher does not support mask mode 2.\n";
@@ -322,7 +323,10 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     seqDbr.open(DBReader<unsigned int>::NOSORT);
     int querySeqType  =  seqDbr.getDbtype();
 
-    setKmerLengthAndAlphabet(par, querySeqType);
+    setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
+    std::vector<MMseqsParameter>* params = command.params;
+    par.printParameters(argc, argv, *params);
+    Debug(Debug::INFO) << "Database type: " << seqDbr.getDbTypeName() << "\n";
 
     BaseMatrix *subMat;
     if (querySeqType == Sequence::NUCLEOTIDES) {
@@ -346,7 +350,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
-    Debug(Debug::INFO) << "Checking requirements\n";
+    Debug(Debug::INFO) << "\n";
     size_t totalKmers = computeKmerCount(seqDbr, KMER_SIZE, chooseTopKmer);
     size_t totalSizeNeeded = computeMemoryNeededLinearfilter(totalKmers);
     Debug(Debug::INFO) << "Needed memory (" << totalSizeNeeded << " byte) of total memory (" << memoryLimit << " byte)\n";
@@ -685,6 +689,12 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
     size_t queryLength;
     if(queue.empty() == false){
         res = queue.top();
+        hit_t h;
+        h.seqId = seqDbr.getDbKey(res.repSeq);
+        h.pScore = 0;
+        h.diagonal = 0;
+        int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+        prefResultsOutString.append(buffer, len);
         queryLength = seqDbr.getSeqLens(res.repSeq);
     }
     while(queue.empty() == false) {
@@ -698,15 +708,24 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
             prefResultsOutString.clear();
             // skipe UINT MAX entries
             while(queue.empty() == false && queue.top().id==UINT_MAX){
+                res = queue.top();
                 queue.pop();
+                offsetPos[res.file] = queueNextEntry(queue, res.file, offsetPos[res.file],
+                               entries[res.file], entrySizes[res.file]);
             }
             if(queue.empty() == false){
                 res = queue.top();
+                hit_t h;
+                h.seqId = seqDbr.getDbKey(res.repSeq);
+                h.pScore = 0;
+                h.diagonal = 0;
+                int len = QueryMatcher::prefilterHitToBuffer(buffer, h);
+                prefResultsOutString.append(buffer, len);
                 queryLength = seqDbr.getSeqLens(res.repSeq);
             }
         }
         // if its not a duplicate
-        if(filePrevsKmerPos.id != res.id && res.id!=UINT_MAX){
+        if(filePrevsKmerPos.id != res.id && res.repSeq != res.id && res.id!=UINT_MAX){
             unsigned int targetLength = seqDbr.getSeqLens(res.id);
             if(Util::canBeCovered(covThr, covMode,
                                   static_cast<float>(queryLength),
@@ -795,11 +814,15 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
     fclose(filePtr);
 }
 
-void setKmerLengthAndAlphabet(Parameters &parameters, int seqTyp) {
+void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTyp) {
     if(seqTyp == Sequence::NUCLEOTIDES){
         if(parameters.kmerSize == 0) {
-            parameters.kmerSize = 21;
+            parameters.kmerSize = 22;
             parameters.alphabetSize = 5;
+
+        }
+        if(parameters.kmersPerSequence == 0){
+            parameters.kmersPerSequence = 60;
         }
     }else{
 
@@ -808,13 +831,15 @@ void setKmerLengthAndAlphabet(Parameters &parameters, int seqTyp) {
                 parameters.kmerSize = 14;
                 parameters.alphabetSize = 13;
             }else{
-                parameters.kmerSize = 10;
+                parameters.kmerSize = std::max(10, static_cast<int>(log(static_cast<float>(aaDbSize))/log(8.7)));
                 parameters.alphabetSize = 13;
             }
         }
+
+        if(parameters.kmersPerSequence == 0){
+            parameters.kmersPerSequence = 20;
+        }
     }
-    Debug(Debug::WARNING) << "Alphabet size: " << parameters.alphabetSize;
-    Debug(Debug::WARNING) << " k-mer size: " << parameters.kmerSize << "\n";
 }
 
 #undef SIZE_T_MAX

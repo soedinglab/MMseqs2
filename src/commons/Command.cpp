@@ -1,6 +1,7 @@
 #include "Command.h"
 
 std::vector<Categories> categories = {
+        {"Easy workflows (for non-experts)",     COMMAND_EASY},
         {"Main tools  (for non-experts)",        COMMAND_MAIN},
         {"Utility tools for format conversions", COMMAND_FORMAT_CONVERSION},
         {"Taxonomy tools",                       COMMAND_TAXONOMY},

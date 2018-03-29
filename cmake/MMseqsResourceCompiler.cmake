@@ -17,10 +17,24 @@ if(NOT SED_EXECUTABLE)
     message(FATAL_ERROR "sed not found in path!")
 endif()
 
+if(${HAVE_SHELLCHECK})
+    find_program(SHELLCHECK_EXECUTABLE shellcheck)
+    if(SHELLCHECK_EXECUTABLE)
+        message("-- ShellCheck enabled")
+    else()
+        message("-- ShellCheck not found")
+        set(SHELLCHECK_EXECUTABLE true)
+    endif()
+else()
+    message("-- ShellCheck disabled")
+    set(SHELLCHECK_EXECUTABLE true)
+endif()
+
 function(compile_resource INPUT_FILE OUTPUT_FILE)
     get_filename_component(INPUT_FILE_NAME ${PROJECT_SOURCE_DIR}/data/${INPUT_FILE} NAME)
     set(OUTPUT_FILE ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h PARENT_SCOPE)
     add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h
+            COMMAND ${CMAKE_MODULE_PATH}/checkshell.sh ${SHELLCHECK_EXECUTABLE} ${INPUT_FILE}
             COMMAND mkdir -p ${PROJECT_BINARY_DIR}/generated
             COMMAND ${XXD_EXECUTABLE} ${XXD_PARAMS} ${INPUT_FILE} > ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h
             COMMAND ${SED_EXECUTABLE} 's!unsigned char!static const unsigned char!' < ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h > ${PROJECT_BINARY_DIR}/generated/${INPUT_FILE_NAME}.h.tmp
