@@ -23,17 +23,12 @@ bool FileUtil::directoryExists(const char* directoryName) {
 }
 
 bool FileUtil::makeDir(const char* directoryName, const int mode ) {
-    if(mkdir(directoryName, mode) == 0){
-        return true;
-    }else{
-        return false;
-    }
+    return mkdir(directoryName, mode) == 0;
 }
 
 void* FileUtil::mmapFile(FILE * file, size_t *dataSize){
     struct stat sb;
-    if (fstat(fileno(file), &sb) < 0)
-    {
+    if (fstat(fileno(file), &sb) < 0) {
         int errsv = errno;
         Debug(Debug::ERROR) << "Failed to fstat." << ". Error " << errsv << ".\n";
         EXIT(EXIT_FAILURE);
@@ -53,12 +48,12 @@ void* FileUtil::mmapFile(FILE * file, size_t *dataSize){
 
 FILE* FileUtil::openFileOrDie(const char * fileName, const char * mode, bool shouldExist) {
     bool exists = FileUtil::fileExists(fileName);
-    if(exists && !shouldExist) {
+    if (exists && !shouldExist) {
         errno = EEXIST;
         perror(fileName);
         EXIT(EXIT_FAILURE);
     }
-    if(!exists && shouldExist) {
+    if (!exists && shouldExist) {
         errno = ENOENT;
         perror(fileName);
         EXIT(EXIT_FAILURE);
@@ -74,27 +69,27 @@ size_t FileUtil::countLines(const char* name) {
     MemoryMapped indexData(name, MemoryMapped::WholeFile, MemoryMapped::SequentialScan);
     size_t cnt = 0;
     char* indexDataChar = (char *) indexData.getData();
-    for(size_t pos = 0; pos < indexData.size(); pos++) {
+    for (size_t pos = 0; pos < indexData.size(); pos++) {
         cnt += (indexDataChar[pos] == '\n') ? 1 : 0;
     }
     indexData.close();
     return cnt;
 }
 
-void FileUtil::deleteFile(std::string tmpFiles) {
-    if (remove(tmpFiles.c_str()) != 0) {
-        Debug(Debug::WARNING) << "Error deleting file " << tmpFiles << "\n";
+void FileUtil::deleteFile(const std::string &file) {
+    if (remove(file.c_str()) != 0) {
+        Debug(Debug::WARNING) << "Error deleting file " << file << "\n";
     }
 }
 
-void FileUtil::deleteTempFiles(std::list<std::string> tmpFiles) {
+void FileUtil::deleteTempFiles(const std::list<std::string> &tmpFiles) {
     for (std::list<std::string>::const_iterator it = tmpFiles.begin(); it != tmpFiles.end(); it++) {
         Debug(Debug::INFO) << "Deleting " << *it << "\n";
         deleteFile(*it);
     }
 }
 
-void FileUtil::writeFile(std::string pathToFile, const unsigned char *data, size_t len) {
+void FileUtil::writeFile(const std::string &pathToFile, const unsigned char *data, size_t len) {
     int fd = open(pathToFile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IXUSR);
     if (fd == -1) {
         Debug(Debug::ERROR) << "Could not write file " << pathToFile << "!\n";
@@ -118,11 +113,18 @@ void FileUtil::writeFile(std::string pathToFile, const unsigned char *data, size
     }
 }
 
-std::string FileUtil::dirName(const std::string &fileName) {
-        size_t pos = fileName.find_last_of("\\/");
+std::string FileUtil::dirName(const std::string &file) {
+        size_t pos = file.find_last_of("\\/");
         return (std::string::npos == pos)
-               ? ""
-               : fileName.substr(0, pos);
+               ? "."
+               : file.substr(0, pos);
+}
+
+std::string FileUtil::baseName(const std::string &file) {
+    size_t pos = file.find_last_of("\\/");
+    return (std::string::npos == pos)
+           ? file
+           : file.substr(pos+1, file.length());
 }
 
 size_t FileUtil::getFreeSpace(const char *path) {
@@ -139,6 +141,7 @@ size_t FileUtil::getFreeSpace(const char *path) {
 void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
     char *p = realpath(file.c_str(), NULL);
     std::string path = dirName(p);
+    std::string base = baseName(p);
     free(p);
 
     DIR *dir = opendir(path.c_str());
@@ -148,11 +151,12 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
     }
 
     std::string pathToAlias = (path + "/" + alias);
-    if (FileUtil::fileExists(pathToAlias.c_str())) {
-        remove(pathToAlias.c_str());
+    if (symlinkExists(pathToAlias) == true && remove(pathToAlias.c_str()) != 0){
+        Debug(Debug::ERROR) << "Could not remove old symlink " << pathToAlias << "!\n";
+        EXIT(EXIT_FAILURE);
     }
 
-    if (symlinkat(file.c_str(), dirfd(dir), alias.c_str()) != 0) {
+    if (symlinkat(base.c_str(), dirfd(dir), alias.c_str()) != 0) {
         Debug(Debug::ERROR) << "Could not create symlink of " << file << "!\n";
         EXIT(EXIT_FAILURE);
     }
@@ -163,35 +167,18 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
     }
 }
 
-size_t FileUtil::getFileSize(std::string fileName) {
+size_t FileUtil::getFileSize(const std::string &fileName) {
     struct stat stat_buf;
     int rc = stat(fileName.c_str(), &stat_buf);
     return rc == 0 ? stat_buf.st_size : -1;
 }
 
 
-bool FileUtil::symlinkExists(const std::string  path)
-{
+bool FileUtil::symlinkExists(const std::string &path)  {
     struct stat buf;
-    int result;
-
-    result = lstat(path.c_str(), &buf);
-
+    int result = lstat(path.c_str(), &buf);
     return (result == 0);
 }
-
-bool FileUtil::symlinkCreateOrRepleace(const std::string linkname, const std::string linkdest) {
-    if(symlinkExists(linkname)==true){
-        if(remove(linkname.c_str()) != 0){
-            return false;
-        }
-    }
-    char *abs_in_header_filename = realpath(linkdest.c_str(), NULL);
-    symlink(abs_in_header_filename, linkname.c_str());
-    free(abs_in_header_filename);
-    return true;
-}
-
 
 void FileUtil::copyFile(const char *src, const char *dst) {
     //https://stackoverflow.com/questions/10195343/copy-a-file-in-a-sane-safe-and-efficient-way

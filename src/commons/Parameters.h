@@ -200,6 +200,9 @@ public:
     float startSens;
     int sensSteps;
 
+    // easysearch
+    bool greedyBestHits;
+
     //CLUSTERING
     int maxIteration;                   // Maximum depth of breadth first search in connected component
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
@@ -235,6 +238,9 @@ public:
     std::string summaryPrefix;
     bool omitConsensus;
     bool skipQuery;
+
+    // convertmsa
+    int identifierField;
 
     // msa2profile
     int matchMode;
@@ -441,6 +447,9 @@ public:
     PARAMETER(PARAM_OMIT_CONSENSUS)
     PARAMETER(PARAM_SKIP_QUERY)
 
+    // convertmsa
+    PARAMETER(PARAM_IDENTIFIER_FIELD)
+
     // msa2profile
     PARAMETER(PARAM_MATCH_MODE)
     PARAMETER(PARAM_MATCH_RATIO)
@@ -479,6 +488,9 @@ public:
     PARAMETER(PARAM_NUM_ITERATIONS)
     PARAMETER(PARAM_START_SENS)
     PARAMETER(PARAM_SENS_STEPS)
+
+    // easysearch
+    PARAMETER(PARAM_GREEDY_BEST_HITS)
 
     // extractorfs
     PARAMETER(PARAM_ORF_MIN_LENGTH)
@@ -576,6 +588,7 @@ public:
     std::vector<MMseqsParameter> result2profile;
     std::vector<MMseqsParameter> result2pp;
     std::vector<MMseqsParameter> result2msa;
+    std::vector<MMseqsParameter> convertmsa;
     std::vector<MMseqsParameter> msa2profile;
     std::vector<MMseqsParameter> createtsv;
     std::vector<MMseqsParameter> result2stats;
@@ -592,6 +605,7 @@ public:
     std::vector<MMseqsParameter> kmermatcher;
     std::vector<MMseqsParameter> linclustworkflow;
     std::vector<MMseqsParameter> assemblerworkflow;
+    std::vector<MMseqsParameter> easysearchworkflow;
     std::vector<MMseqsParameter> searchworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;
@@ -625,7 +639,7 @@ public:
 
     size_t hashParameter(const std::vector<std::string> &filenames, const std::vector<MMseqsParameter> &par);
 
-    std::string createParameterString(const std::vector<MMseqsParameter> &vector);
+    std::string createParameterString(const std::vector<MMseqsParameter> &vector, bool wasSet = false);
 
     void overrideParameterDescription(Command& command, int uid, const char* description, const char* regex = NULL, int category = 0);
 

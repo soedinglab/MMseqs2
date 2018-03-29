@@ -46,6 +46,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     par.overrideParameterDescription((Command &)command, par.PARAM_MAX_ACCEPT.uniqid, NULL, NULL, par.PARAM_MAX_ACCEPT.category |MMseqsParameter::COMMAND_EXPERT );
     par.overrideParameterDescription((Command &)command, par.PARAM_KMER_PER_SEQ.uniqid, NULL, NULL, par.PARAM_KMER_PER_SEQ.category |MMseqsParameter::COMMAND_EXPERT );
     par.overrideParameterDescription((Command &)command, par.PARAM_S.uniqid, "sensitivity will be automatically determined but can be adjusted", NULL,  par.PARAM_S.category |MMseqsParameter::COMMAND_EXPERT);
+    par.overrideParameterDescription((Command &)command, par.PARAM_INCLUDE_ONLY_EXTENDABLE.uniqid, NULL, NULL, par.PARAM_INCLUDE_ONLY_EXTENDABLE.category |MMseqsParameter::COMMAND_EXPERT);
 
     par.parseParameters(argc, argv, command, 3);
     if(FileUtil::directoryExists(par.db3.c_str())==false){
@@ -131,15 +132,11 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     }
     par.filenames.pop_back();
     par.filenames.push_back(tmpDir);
-    if(FileUtil::symlinkCreateOrRepleace(par.db3+"/latest", tmpDir) == false){
-        Debug(Debug::WARNING) << "Could not link latest folder in tmp." << tmpDir << ".\n";
-        EXIT(EXIT_FAILURE);
-    }
+    FileUtil::symlinkAlias(tmpDir, "latest");
 //    FileUtil::errorIfFileExist(par.db2.c_str());
 //    FileUtil::errorIfFileExist(par.db2Index.c_str());
 
     CommandCaller cmd;
-//    FileUtil::writeFile(clustering_sh, clustering_sh_len);
     if(par.removeTmpFiles) {
         cmd.addVariable("REMOVE_TMP", "TRUE");
     }

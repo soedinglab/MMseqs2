@@ -2,6 +2,8 @@ set(workflow_source_files
         workflow/Cluster.cpp
         workflow/ClusterUpdate.cpp
         workflow/Linclust.cpp
+        workflow/EasySearch.cpp
+        workflow/EasyCluster.cpp
         workflow/Search.cpp
         workflow/Taxonomy.cpp
         workflow/CreateIndex.cpp

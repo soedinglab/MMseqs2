@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 fail() {
     echo "Error: $1"
     exit 1
@@ -6,20 +6,6 @@ fail() {
 
 notExists() {
 	[ ! -f "$1" ]
-}
-
-abspath() {
-    if [ -d "$1" ]; then
-        (cd "$1"; pwd)
-    elif [ -f "$1" ]; then
-        if [[ $1 == */* ]]; then
-            echo "$(cd "${1%/*}"; pwd)/${1##*/}"
-        else
-            echo "$(pwd)/$1"
-        fi
-    elif [ -d "$(dirname "$1")" ]; then
-            echo "$(cd $(dirname "$1"); pwd)/$(basename "$1")"
-    fi
 }
 
 # check amount of input variables
@@ -30,30 +16,33 @@ abspath() {
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
-INPUT="$(abspath "$1")"
-TARGET="$(abspath "$2")"
-RESULTS="$(abspath "$3")"
-TMP_PATH="$(abspath "$4")"
+INPUT="$1"
+RESULTS="$3"
+TMP_PATH="$4"
 
 # call prefilter module
 if notExists "${TMP_PATH}/pref"; then
-    $RUNNER $MMSEQS prefilter   "${INPUT}" "${2}" "${TMP_PATH}/pref" ${PREFILTER_PAR} \
+     # shellcheck disable=SC2086
+    $RUNNER "$MMSEQS" prefilter "${INPUT}" "${2}" "${TMP_PATH}/pref" ${PREFILTER_PAR} \
         || fail "Prefilter died"
 fi
 
 if notExists "${TMP_PATH}/pref_swapped"; then
-    $MMSEQS swapresults "${INPUT}" "${2}" "${TMP_PATH}/pref" "${TMP_PATH}/pref_swapped" ${SWAP_PAR} \
+     # shellcheck disable=SC2086
+    "$MMSEQS" swapresults "${INPUT}" "${2}" "${TMP_PATH}/pref" "${TMP_PATH}/pref_swapped" ${SWAP_PAR} \
         || fail "Swapresults pref died"
 fi
 
 # call alignment module
 if notExists "$TMP_PATH/aln_swapped"; then
-    $RUNNER $MMSEQS align       "${2}" "${INPUT}" "${TMP_PATH}/pref_swapped" "${TMP_PATH}/aln_swapped" ${ALIGNMENT_PAR} \
+    # shellcheck disable=SC2086
+    $RUNNER "$MMSEQS" align "${2}" "${INPUT}" "${TMP_PATH}/pref_swapped" "${TMP_PATH}/aln_swapped" ${ALIGNMENT_PAR} \
         || fail "Alignment died"
 fi
 
 if notExists "$TMP_PATH/aln"; then
-    $MMSEQS swapresults "${2}" "${INPUT}" "${TMP_PATH}/aln_swapped"  "${TMP_PATH}/aln" ${SWAP_PAR} \
+    # shellcheck disable=SC2086
+    "$MMSEQS" swapresults "${2}" "${INPUT}" "${TMP_PATH}/aln_swapped"  "${TMP_PATH}/aln" ${SWAP_PAR} \
         || fail "Swapresults aln died"
 fi
 

@@ -66,7 +66,9 @@ int createdb(int argn, const char **argv, const Command& command) {
 
     unsigned int entries_num = 1;
     size_t count = 0;
-    const size_t testForNucSequence = 10;
+    size_t sampleCount = 0;
+
+    const size_t testForNucSequence = 100;
     size_t isNuclCnt = 0;
 
     for (size_t i = 0; i < filenames.size(); i++) {
@@ -146,22 +148,25 @@ int createdb(int argn, const char **argv, const Command& command) {
                 // sequence
                 const std::string &sequence = e.sequence;
                 // check for the first 10 sequences if they are nucleotide sequences
-                if(count < testForNucSequence){
-                    size_t cnt=0;
-                    for(size_t i = 0; i < sequence.size(); i++){
-                        switch(toupper(sequence[i]))
-                        {
-                            case 'T':
-                            case 'A':
-                            case 'G':
-                            case 'C':
-                            case 'N': cnt++;
-                            break;
+                if((count % 100) == 0){
+                    if(sampleCount < testForNucSequence){
+                        size_t cnt=0;
+                        for(size_t i = 0; i < sequence.size(); i++){
+                            switch(toupper(sequence[i]))
+                            {
+                                case 'T':
+                                case 'A':
+                                case 'G':
+                                case 'C':
+                                case 'N': cnt++;
+                                break;
+                            }
+                        }
+                        if(cnt == sequence.size()){
+                            isNuclCnt += true;
                         }
                     }
-                    if(cnt == sequence.size()){
-                        isNuclCnt += true;
-                    }
+                    sampleCount++;
                 }
 
 
@@ -185,7 +190,7 @@ int createdb(int argn, const char **argv, const Command& command) {
     }
 
     int dbType = DBReader<unsigned int>::DBTYPE_AA;
-    if(isNuclCnt==count || isNuclCnt == testForNucSequence){
+    if(isNuclCnt==sampleCount || isNuclCnt == testForNucSequence){
         dbType = DBReader<unsigned int>::DBTYPE_NUC;
     }
     fclose(lookupFile);

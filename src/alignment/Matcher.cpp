@@ -271,6 +271,7 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
         return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
                                  alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
                                  dbLen, "");
+
     }else{
         size_t len = entry[11] - entry[10];
         if(readCompressed){
@@ -294,6 +295,8 @@ size_t Matcher::resultToBuffer(char * buff1, const result_t &result, bool addBac
     *(tmpBuff-1) = '\t';
     float seqIdFlt = result.seqId;
     //TODO seqid, evalue
+
+
     if(seqIdFlt==1.0){
         *(tmpBuff) = '1';
         tmpBuff++;

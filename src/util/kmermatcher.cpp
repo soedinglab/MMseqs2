@@ -90,7 +90,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                              std::vector<std::string> tmpFiles, std::vector<bool> &repSequence,
                              int covMode, float covThr) ;
 
-void setKmerLengthAndAlphabet(Parameters &parameters, int seqType);
+void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqType);
 
 void writeKmersToDisk(std::string tmpFile, KmerPosition *kmers, size_t totalKmers);
 
@@ -323,7 +323,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     seqDbr.open(DBReader<unsigned int>::NOSORT);
     int querySeqType  =  seqDbr.getDbtype();
 
-    setKmerLengthAndAlphabet(par, querySeqType);
+    setKmerLengthAndAlphabet(par, seqDbr.getAminoAcidDBSize(), querySeqType);
     std::vector<MMseqsParameter>* params = command.params;
     par.printParameters(argc, argv, *params);
     Debug(Debug::INFO) << "Database type: " << seqDbr.getDbTypeName() << "\n";
@@ -814,7 +814,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *hashSeqPair, size_t tot
     fclose(filePtr);
 }
 
-void setKmerLengthAndAlphabet(Parameters &parameters, int seqTyp) {
+void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqTyp) {
     if(seqTyp == Sequence::NUCLEOTIDES){
         if(parameters.kmerSize == 0) {
             parameters.kmerSize = 22;
@@ -831,7 +831,7 @@ void setKmerLengthAndAlphabet(Parameters &parameters, int seqTyp) {
                 parameters.kmerSize = 14;
                 parameters.alphabetSize = 13;
             }else{
-                parameters.kmerSize = 10;
+                parameters.kmerSize = std::max(10, static_cast<int>(log(static_cast<float>(aaDbSize))/log(8.7)));
                 parameters.alphabetSize = 13;
             }
         }

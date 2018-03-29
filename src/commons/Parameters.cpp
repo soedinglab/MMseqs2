@@ -11,6 +11,10 @@
 #include <sstream>
 #include <climits>
 
+#ifdef __CYGWIN__
+#include <sys/cygwin.h>
+#endif
+
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -36,7 +40,7 @@ Parameters::Parameters():
         PARAM_MAX_SEQS(PARAM_MAX_SEQS_ID,"--max-seqs", "Max. results per query", "maximum result sequences per query (this parameter affects the sensitivity)",typeid(int),(void *) &maxResListLen, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT(PARAM_SPLIT_ID,"--split", "Split DB", "Splits input sets into N equally distributed chunks. The default value sets the best split automatically. createindex can only be used with split 1.",typeid(int),(void *) &split,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_MODE(PARAM_SPLIT_MODE_ID,"--split-mode", "Split mode", "0: split target db; 1: split query db;  2: auto, depending on main memory",typeid(int),(void *) &splitMode,  "^[0-2]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split Memory Limit", "Maximum system memory in megabyte that one split may use. Defaults (0) to all available system memory.", typeid(int), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SPLIT_MEMORY_LIMIT(PARAM_SPLIT_MEMORY_LIMIT_ID, "--split-memory-limit", "Split Memory Limit", "Maximum system memory in megabyte that one split may use. Defaults (0) to all available system memory.", typeid(int), (void*) &splitMemoryLimit, "^(0|[1-9]{1}[0-9]*)$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SPLIT_AMINOACID(PARAM_SPLIT_AMINOACID_ID,"--split-aa", "Split by amino acid","Try to find the best split for the target database by amino acid count instead",typeid(bool), (void *) &splitAA, "$", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SUB_MAT(PARAM_SUB_MAT_ID,"--sub-mat", "Sub Matrix", "amino acid substitution matrix file",typeid(std::string),(void *) &scoringMatrixFile, "", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_COMP_BIAS_CORR(PARAM_NO_COMP_BIAS_CORR_ID,"--comp-bias-corr", "Compositional bias","correct for locally biased amino acid composition [0,1]",typeid(int), (void *) &compBiasCorrection, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
@@ -82,6 +86,11 @@ Parameters::Parameters():
         PARAM_SUMMARY_PREFIX(PARAM_SUMMARY_PREFIX_ID, "--summary-prefix", "Summary prefix","sets the cluster summary prefix",typeid(std::string),(void *) &summaryPrefix, ""),
         PARAM_OMIT_CONSENSUS(PARAM_OMIT_CONSENSUS_ID, "--omit-consensus", "Omit Consensus", "Omit consensus sequence in alignment", typeid(bool), (void*) &omitConsensus, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_SKIP_QUERY(PARAM_SKIP_QUERY_ID, "--skip-query", "Skip Query", "Skip the query sequence", typeid(bool), (void*) &skipQuery, ""),
+        // convertmsa
+        PARAM_IDENTIFIER_FIELD(PARAM_IDENTIFIER_FIELD_ID, "--identifier-field", "Identifier Field", "Feature field to select the MSA identifier: 0: ID, 1: AC", typeid(int), (void*) &identifierField, "^[0-1]{1}$", MMseqsParameter::COMMAND_COMMON),
+        // msa2profile
+        PARAM_MATCH_MODE(PARAM_MATCH_MODE_ID, "--match-mode", "Match mode", "0: Columns that have a residue in the first sequence are kept, 1: columns that have a residue in --match-ratio of all sequences are kept.", typeid(int), (void*)&matchMode, "^(0|1)$", MMseqsParameter::COMMAND_PROFILE),
+        PARAM_MATCH_RATIO(PARAM_MATCH_RATIO_ID, "--match-ratio", "Match ratio", "columns that have a residue in this ratio of all sequences are kept", typeid(float), (void*)&matchRatio, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE),
         // result2profile
         PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "includes sequences matches with < e-value thr. into the profile [>=0.0]", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_FILTER_MSA(PARAM_FILTER_MSA_ID,"--filter-msa", "Filter MSA", "filter msa: 0: do not filter, 1: filter", typeid(int), (void*) &filterMsa, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
@@ -93,9 +102,6 @@ Parameters::Parameters():
         PARAM_WG(PARAM_WG_ID, "--wg", "Use global sequence weighting", "use global sequence weighting for profile calculation", typeid(bool), (void*) &wg, "", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCA(PARAM_PCA_ID, "--pca", "Pseudo count a", "pseudo count admixture strength", typeid(float), (void*) &pca, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_PCB(PARAM_PCB_ID, "--pcb", "Pseudo count b", "pseudo counts: Neff at half of maximum admixture (0.0,infinity)", typeid(float), (void*) &pcb, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
-        // msa2profile
-        PARAM_MATCH_MODE(PARAM_MATCH_MODE_ID, "--match-mode", "Match mode", "0: Columns that have a residue in the first sequence are kept, 1: columns that have a residue in --match-ratio of all sequences are kept.", typeid(int), (void*)&matchMode, "^(0|1)$", MMseqsParameter::COMMAND_PROFILE),
-        PARAM_MATCH_RATIO(PARAM_MATCH_RATIO_ID, "--match-ratio", "Match ratio", "columns that have a residue in this ratio of all sequences are kept", typeid(float), (void*)&matchRatio, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE),
         // sequence2profile
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void*) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void*) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
@@ -113,6 +119,8 @@ Parameters::Parameters():
         PARAM_NUM_ITERATIONS(PARAM_NUM_ITERATIONS_ID, "--num-iterations", "Number search iterations","Search iterations",typeid(int),(void *) &numIterations, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_START_SENS(PARAM_START_SENS_ID, "--start-sens", "Start sensitivity","start sensitivity",typeid(float),(void *) &startSens, "^[0-9]*(\\.[0-9]+)?$"),
         PARAM_SENS_STEPS(PARAM_SENS_STEPS_ID, "--sens-steps", "Search steps","Search steps performed from --start-sense and -s.",typeid(int),(void *) &sensSteps, "^[1-9]{1}$"),
+        // easysearch
+        PARAM_GREEDY_BEST_HITS(PARAM_GREEDY_BEST_HITS_ID, "--greedy-best-hits", "Greedy best hits", "Choose the best hits greedily to cover the query.", typeid(bool), (void*)&greedyBestHits, ""),
         // Orfs
         PARAM_ORF_MIN_LENGTH(PARAM_ORF_MIN_LENGTH_ID, "--min-length", "Min codons in orf", "minimum codon number in open reading frames",typeid(int),(void *) &orfMinLength, "^[1-9]{1}[0-9]*$"),
         PARAM_ORF_MAX_LENGTH(PARAM_ORF_MAX_LENGTH_ID, "--max-length", "Max codons in length", "maximum codon number in open reading frames",typeid(int),(void *) &orfMaxLength, "^[1-9]{1}[0-9]*$"),
@@ -347,6 +355,11 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_SKIP_QUERY);
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
 
+
+    // convertmsa
+    convertmsa.push_back(PARAM_IDENTIFIER_FIELD);
+    convertmsa.push_back(PARAM_V);
+
     // msa2profile
     msa2profile.push_back(PARAM_MSA_TYPE);
     msa2profile.push_back(PARAM_SUB_MAT);
@@ -578,6 +591,10 @@ Parameters::Parameters():
     searchworkflow.push_back(PARAM_RUNNER);
     searchworkflow.push_back(PARAM_REMOVE_TMP_FILES);
 
+    // easysearch
+    easysearchworkflow = combineList(searchworkflow, convertalignments);
+    easysearchworkflow = combineList(easysearchworkflow, summarizeresult);
+    easysearchworkflow.push_back(PARAM_GREEDY_BEST_HITS);
 
     // createindex workflow
     createindex = combineList(indexdb, extractorfs);
@@ -861,8 +878,27 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             }
 
             parametersFound++;
-        } else { // it is a filename if its not a parameter
+        } else {
+            // parameter is actually a filename
+#ifdef __CYGWIN__
+            // normalize windows paths to cygwin unix paths
+            const char *path = pargv[argIdx];
+            ssize_t size = cygwin_conv_path(CCP_WIN_A_TO_POSIX | CCP_RELATIVE, path, NULL, 0);
+            if (size < 0) {
+                Debug(Debug::ERROR) << "Could not convert cygwin path!\n";
+                EXIT(EXIT_FAILURE);
+            } else {
+                char *posix = new char[size];
+                if (cygwin_conv_path(CCP_WIN_A_TO_POSIX | CCP_RELATIVE, path, posix, size)) {
+                    Debug(Debug::ERROR) << "Could not convert cygwin path!\n";
+                    EXIT(EXIT_FAILURE);
+                }
+                filenames.emplace_back(posix);
+                delete posix;
+            }
+#else
             filenames.emplace_back(pargv[argIdx]);
+#endif
         }
     }
 
@@ -995,6 +1031,8 @@ void Parameters::setDefaults() {
     startSens = 4;
     sensSteps = 1;
 
+    greedyBestHits = false;
+
     threads = 1;
 #ifdef OPENMP
     #ifdef _SC_NPROCESSORS_ONLN
@@ -1064,6 +1102,9 @@ void Parameters::setDefaults() {
     compressMSA = false;
     omitConsensus = false;
     skipQuery = false;
+
+    // convertmsa
+    identifierField = 1;
 
     // msa2profile
     matchMode = 0;
@@ -1218,12 +1259,17 @@ size_t Parameters::hashParameter(const std::vector<std::string> &filenames, cons
     return Util::hash(hashString.c_str(), hashString.size());
 }
 
-std::string Parameters::createParameterString(const std::vector<MMseqsParameter> &par) {
+std::string Parameters::createParameterString(const std::vector<MMseqsParameter> &par, bool wasSet) {
     std::ostringstream ss;
     for (size_t i = 0; i < par.size(); ++i) {
         // Never pass the MPI parameters along, they are passed by the environment
         if (par[i].uniqid == PARAM_RUNNER_ID) {
             continue;
+        }
+        if(wasSet == true){
+            if(par[i].wasSet==false){
+                continue;
+            }
         }
 
         if (typeid(int) == par[i].type){
