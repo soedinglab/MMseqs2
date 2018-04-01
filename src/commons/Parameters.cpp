@@ -698,8 +698,8 @@ void Parameters::printUsageMessage(const Command& command,
             bool alreadyPrint = alreadyPrintMap[par.uniqid];
             if (par.category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ) {
                 int others = (par.category ^ categories[i].category);
-                if(others & outputFlag  )
-                    continue;
+//                if(others & outputFlag  )
+//                    continue;
                 categoryFound = true;
                 break;
             }
