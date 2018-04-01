@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/bash -ex
 
-if [ ! "$#" -ge 6 ]; then
-	echo "Usage : $0 <SeqDB> <ProfileDB> <OutDB> <tmpDir> <eValThs> <maxHitPerQuery>"
+if [ ! "$#" -ge 7 ]; then
+	echo "Usage : $0 <SeqDB> <ProfileDB> <OutDB> <tmpDir> <eValThs> <maxHitPerQuery> <threads>"
 	exit -1;
 fi
 
@@ -17,7 +17,7 @@ FULLPROFILEDB=$TMP/fullProfileDB
 ln -s $(realpath $2) $FULLPROFILEDB
 ln -s $(realpath $2.index) $FULLPROFILEDB.index
 ln -s $(realpath $2.dbtype) $FULLPROFILEDB.dbtype
-THREADS=12
+THREADS=$7
 eval=$5
 maxHitPerQuery=$6
 
@@ -40,6 +40,10 @@ do
     # according to the number of profiles
     let MAX_SEQS=$MEMORY_FOR_SWAPPING*1024/$nProfiles/90 # 90 bytes/query-result line max.
 
+    if [[ $MAX_SEQS < 2000 ]]; then
+	MAX_SEQS=2000;
+    fi
+
     #let MAX_SEQS=200 # For debugging purposes
     let SEARCH_LIM=$offset+$MAX_SEQS
 
@@ -47,14 +51,14 @@ do
     echo "Current iteration: searching for $MAX_SEQS sequences using $nProfiles profiles with an offset of $offset in the results" >> $TMP/log.txt
 
     rm -f $TMP/aln_.* $TMP/pref_* $TMP/searchOut.notSwapped.$nProfiles* #$TMP/searchOut.current*
-    SEARCHCOMMAND="mmseqs prefilter $PROFILEDB $SEQDB $TMP/searchOut.notSwapped.$nProfiles.pref --max-seqs $SEARCH_LIM --offset-result $offset"
+    SEARCHCOMMAND="mmseqs prefilter $PROFILEDB $SEQDB $TMP/searchOut.notSwapped.$nProfiles.pref --max-seqs $SEARCH_LIM --offset-result $offset --threads $THREADS"
     echo $SEARCHCOMMAND >> $TMP/log.txt
     $SEARCHCOMMAND
     echo "Swapping results:" >> $TMP/log.txt
     echo $(ls -lh $TMP/searchOut.notSwapped.$nProfiles.pref $TMP/searchOut.notSwapped.$nProfiles.pref.index) >> $TMP/log.txt
     mmseqs swapresults $PROFILEDB $SEQDB $TMP/searchOut.notSwapped.$nProfiles.pref $TMP/searchOut.current.$nProfiles.pref --threads $THREADS
-    mmseqs align $SEQDB  $FULLPROFILEDB $TMP/searchOut.current.$nProfiles.pref $TMP/searchOut.current.$nProfiles -e $eval ${@:7}
-    echo "mmseqs align $SEQDB  $FULLPROFILEDB $TMP/searchOut.current.$nProfiles.pref $TMP/searchOut.current.$nProfiles -e $eval ${@:7}"
+    mmseqs align $SEQDB  $FULLPROFILEDB $TMP/searchOut.current.$nProfiles.pref $TMP/searchOut.current.$nProfiles -e $eval --threads $THREADS ${@:7}
+    echo "mmseqs align $SEQDB  $FULLPROFILEDB $TMP/searchOut.current.$nProfiles.pref $TMP/searchOut.current.$nProfiles -e $eval --threads $THREADS ${@:7}"
     # note here : we recover the right evalue, since it is computed according to the target db which is the full profiledb 
     echo $(ls -lh $TMP/searchOut.current.$nProfiles $TMP/searchOut.current.$nProfiles.index) >> $TMP/log.txt 
 
@@ -62,18 +66,18 @@ do
         if [ $(wc -l $TMP/searchOut|cut -f1 -d ' ') -ge 1 ]; then
             echo "Merging with older results..." >> $TMP/log.txt
             mmseqs mergedbs $SEQDB $TMP/searchOut.new $TMP/searchOut.current.$nProfiles $TMP/searchOut
-	    mmseqs filterdb $TMP/searchOut.new $TMP/searchOut.new.ordered --sort-entries 1 --filter-column 4
+	    mmseqs filterdb $TMP/searchOut.new $TMP/searchOut.new.ordered --sort-entries 1 --filter-column 4 --threads $THREADS
             rm -f $TMP/searchOut.new{,.index}
-            mmseqs filterdb $TMP/searchOut.new.ordered $TMP/searchOut.new.ordered.trunc --extract-lines $maxHitPerQuery
+            mmseqs filterdb $TMP/searchOut.new.ordered $TMP/searchOut.new.ordered.trunc --extract-lines $maxHitPerQuery --threads $THREADS
             rm -f $TMP/searchOut.new.ordered{,.index}
             mv -f $TMP/searchOut.new.ordered.trunc $TMP/searchOut
             mv -f $TMP/searchOut.new.ordered.trunc.index $TMP/searchOut.index
         fi
     else
         echo "First iteration : Creating searchOut..." >> $TMP/log.txt
-	mmseqs filterdb $TMP/searchOut.current.$nProfiles $TMP/searchOut.new.ordered --sort-entries 1 --filter-column 4
+	mmseqs filterdb $TMP/searchOut.current.$nProfiles $TMP/searchOut.new.ordered --sort-entries 1 --filter-column 4 --threads $THREADS
         rm -f $TMP/searchOut.new{,.index}
-        mmseqs filterdb $TMP/searchOut.new.ordered $TMP/searchOut.new.ordered.trunc --extract-lines $maxHitPerQuery
+        mmseqs filterdb $TMP/searchOut.new.ordered $TMP/searchOut.new.ordered.trunc --extract-lines $maxHitPerQuery --threads $THREADS
         rm -f $TMP/searchOut.new.ordered{,.index}
         mv -f $TMP/searchOut.new.ordered.trunc $TMP/searchOut
         mv -f $TMP/searchOut.new.ordered.trunc.index $TMP/searchOut.index
@@ -82,7 +86,7 @@ do
     let offset=$SEARCH_LIM # keep for the prefilter only the next hits
     
     # now remove the profiles that reached their eval threshold
-    mmseqs result2stats $PROFILEDB $SEQDB $TMP/searchOut.notSwapped.$nProfiles.pref $TMP/searchOut.count  --stat linecount
+    mmseqs result2stats $PROFILEDB $SEQDB $TMP/searchOut.notSwapped.$nProfiles.pref $TMP/searchOut.count  --stat linecount --threads $THREADS
     mmseqs filterdb $TMP/searchOut.count $TMP/searchOut.toKeep --filter-column 1 --comparison-operator ge --comparison-value $MAX_SEQS --threads $THREADS
 
     join <(awk '$3>1{print $1}' $TMP/searchOut.toKeep.index|sort)  $PROFILEDB.index >  $PROFILEDB.index.tmp 
