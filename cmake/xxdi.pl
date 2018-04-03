@@ -14,8 +14,14 @@
 
 use strict;
 use warnings;
-use File::Slurp qw(slurp);
-
+sub slurp {
+    my $file = shift;
+    open my $fh, '<', $file or die;
+    local $/ = undef;
+    my $cont = <$fh>;
+    close $fh;
+    return $cont;
+}
 my $indata = slurp(@ARGV ? $ARGV[0] : \*STDIN);
 my $len_data = length($indata);
 my $num_digits_per_line = 12;

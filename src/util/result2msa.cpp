@@ -140,6 +140,13 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
             }
 
             centerSequence.mapSequence(0, queryKey, seqData);
+            if (centerSequence.L)
+            {
+                if(centerSequence.int_sequence[centerSequence.L-1] == 20) // remove last in it is a *
+                {
+                    centerSequence.L--;
+                }
+            }
             char *centerSequenceHeader = queryHeaderReader.getDataByDBKey(queryKey);
 
             char *results = resultReader.getData(id);

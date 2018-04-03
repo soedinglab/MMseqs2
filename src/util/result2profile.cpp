@@ -203,7 +203,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
                 const size_t edgeId = tDbr->getId(key);
                 Sequence *edgeSequence = new Sequence(tDbr->getSeqLens(edgeId),
-                                                      Sequence::AMINO_ACIDS, &subMat, 0, false, false);
+                                                      tDbr->getDbtype(), &subMat, 0, false, false);
 
                 if (tSeqLookup != NULL) {
                     std::pair<const unsigned char*, const unsigned int> sequence = tSeqLookup->getSequence(edgeId);
