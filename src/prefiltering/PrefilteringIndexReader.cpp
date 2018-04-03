@@ -34,18 +34,18 @@ bool PrefilteringIndexReader::checkIfIndexFile(DBReader<unsigned int>* reader) {
     return (strncmp(version, CURRENT_VERSION, strlen(CURRENT_VERSION)) == 0 ) ? true : false;
 }
 
-void PrefilteringIndexReader::createIndexFile(std::string outDB, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
+void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
                                               BaseMatrix * subMat, int maxSeqLen, bool hasSpacedKmer,
                                               bool compBiasCorrection, int alphabetSize, int kmerSize,
                                               bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads) {
-    std::string outIndexName(outDB); // db.sk6
+    std::string outIndexName(outDB);
     std::string spaced = (hasSpacedKmer == true) ? "s" : "";
     outIndexName.append(".").append(spaced).append("k").append(SSTR(kmerSize));
 
     DBWriter writer(outIndexName.c_str(), std::string(outIndexName).append(".index").c_str(), 1, DBWriter::BINARY_MODE);
     writer.open();
 
-    if (seqType != Sequence::HMM_PROFILE||seqType != Sequence::PROFILE_STATE_SEQ ) {
+    if (seqType != Sequence::HMM_PROFILE && seqType != Sequence::PROFILE_STATE_SEQ) {
         int alphabetSize = subMat->alphabetSize;
         subMat->alphabetSize = subMat->alphabetSize-1;
         ScoreMatrix *s3 = ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 3);
@@ -348,6 +348,10 @@ std::string PrefilteringIndexReader::getSubstitutionMatrixName(DBReader<unsigned
 ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
     PrefilteringIndexData meta = getMetadata(dbr);
     size_t id = dbr->getId(SCOREMATRIX2MER);
+    if (id == UINT_MAX) {
+        return NULL;
+    }
+
     char *data = dbr->getData(id);
 
     if (touch) {
@@ -360,6 +364,10 @@ ScoreMatrix *PrefilteringIndexReader::get2MerScoreMatrix(DBReader<unsigned int> 
 ScoreMatrix *PrefilteringIndexReader::get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch) {
     PrefilteringIndexData meta = getMetadata(dbr);
     size_t id = dbr->getId(SCOREMATRIX3MER);
+    if (id == UINT_MAX) {
+        return NULL;
+    }
+
     char *data = dbr->getData(id);
 
     if (touch) {

@@ -11,8 +11,6 @@
 
 int createindex(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    par.includeHeader = true;
-    //par.orfLongest = true;
     par.orfStartMode = 0;
     par.orfMinLength = 30;
     par.orfMaxLength = 98202; // 32734 AA (just to be sure)
@@ -41,18 +39,19 @@ int createindex(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    if(FileUtil::directoryExists(par.db2.c_str())==false){
-        Debug(Debug::WARNING) << "Tmp " << par.db2 << " folder does not exist or is not a directory.\n";
-        if(FileUtil::makeDir(par.db2.c_str()) == false){
-            Debug(Debug::WARNING) << "Could not crate tmp folder " << par.db2 << ".\n";
+    size_t hash = par.hashParameter(par.filenames, par.createindex);
+    std::string tmpDir = par.db2 + "/" + SSTR(hash);
+    if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
+        if (FileUtil::makeDir(tmpDir.c_str()) == false) {
+            Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
             EXIT(EXIT_FAILURE);
-        }else{
-            Debug(Debug::WARNING) << "Created dir " << par.db2 << "\n";
         }
     }
+    par.filenames.pop_back();
+    par.filenames.push_back(tmpDir);
+    FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-
     if(dbType==DBReader<unsigned int>::DBTYPE_NUC){
         cmd.addVariable("NUCL", "TRUE");
     }

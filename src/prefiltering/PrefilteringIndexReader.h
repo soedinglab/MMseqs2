@@ -40,7 +40,7 @@ public:
 
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
 
-    static void createIndexFile(std::string outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
+    static void createIndexFile(const std::string &outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
                                 BaseMatrix * subMat, int maxSeqLen, bool spacedKmer,
                                 bool compBiasCorrection, int alphabetSize, int kmerSize,
                                 bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads);

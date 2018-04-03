@@ -387,7 +387,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
 
 ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t kmerSize) {
     // profile only uses the 2mer, 3mer matrix
-    if (targetSeqType == Sequence::HMM_PROFILE||targetSeqType==Sequence::PROFILE_STATE_SEQ) {
+    if (targetSeqType == Sequence::HMM_PROFILE || targetSeqType == Sequence::PROFILE_STATE_SEQ) {
         return NULL;
     }
 
@@ -398,12 +398,12 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
             case 3:
                 return PrefilteringIndexReader::get3MerScoreMatrix(tidxdbr, false);
             default:
-                Debug(Debug::ERROR) << "Invalid k-mer score matrix!\n";
-                EXIT(EXIT_FAILURE);
+                break;
         }
-    } else {
-        return ExtendedSubstitutionMatrix::calcScoreMatrix(matrix, kmerSize);
     }
+
+    return ExtendedSubstitutionMatrix::calcScoreMatrix(matrix, kmerSize);
+
 }
 
 IndexTable *Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize, unsigned int threads) {
