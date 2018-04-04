@@ -479,7 +479,7 @@ void Sequence::printPSSM(){
 void Sequence::printProfileStatePSSM(){
     printf("Query profile of sequence %d\n", dbKey);
     printf("Pos ");
-    for(size_t aa = 0; aa < 32; aa++) {
+    for(int aa = 0; aa < 32; aa++) {
         printf("%3d ", aa);
     }
     printf("\n");
@@ -502,7 +502,7 @@ void Sequence::printProfile(){
     }
     printf("\n");
     for(int i = 0; i < this->L; i++){
-        printf("%3zu ", i);
+        printf("%3d ", i);
         for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
             printf("%03.4f ", profile[i * PROFILE_AA_SIZE + aa] );
         }

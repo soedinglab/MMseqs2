@@ -281,7 +281,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 for (unsigned int k = 0; k < setSize; ++k) {
                     for (unsigned int i = 0; i < centerLengthWithGaps && msaSequences[k][i] == MultipleAlignment::GAP; ++i)
                         msaSequences[k][i] = MultipleAlignment::ENDGAP;
-                    for (unsigned int i = centerLengthWithGaps - 1; i >= 0 && msaSequences[k][i] == MultipleAlignment::GAP; i--)
+                    for (unsigned int i = centerLengthWithGaps - 1; msaSequences[k][i] == MultipleAlignment::GAP; i--)
                         msaSequences[k][i] = MultipleAlignment::ENDGAP;
                 }
 

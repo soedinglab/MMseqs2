@@ -28,14 +28,13 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 
-
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
     DBReader<unsigned int> * qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
     qdbr->open(DBReader<unsigned int>::NOSORT);
     qdbr->readMmapedDataInMemory();
 
     DBReader<unsigned int> *tdbr = NULL;
-    BaseMatrix * subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+//    BaseMatrix * subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
 
     Debug(Debug::INFO) << "Target  file: " << par.db2 << "\n";
     bool sameDB = false;
@@ -106,7 +105,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
                 bool update = false;
                 switch(res.backtrace[pos]){
                     case 'M':
-                        for(size_t bt = 0; bt < cnt*3; bt++) {
+                        for(int bt = 0; bt < cnt*3; bt++) {
                             idCnt += (querySeq[qPos] == targetSeq[tPos]);
                             tPos++;
                             qPos++;
@@ -114,13 +113,13 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
                         update = true;
                         break;
                     case 'D':
-                        for(size_t bt = 0; bt < cnt*3; bt++) {
+                        for(int bt = 0; bt < cnt*3; bt++) {
                             tPos++;
                         }
                         update = true;
                         break;
                     case 'I':
-                        for(size_t bt = 0; bt < cnt*3; bt++) {
+                        for(int bt = 0; bt < cnt*3; bt++) {
                             qPos++;
                         }
                         update = true;

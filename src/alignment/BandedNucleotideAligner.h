@@ -32,7 +32,7 @@ private:
     uint8_t * querySeqRev;
     Sequence * querySeqObj;
     int8_t * mat;
-    uint32_t * cigar;
+//    uint32_t * cigar;
     int gapo;
     int gape;
 };

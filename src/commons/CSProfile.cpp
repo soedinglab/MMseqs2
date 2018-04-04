@@ -62,8 +62,8 @@ int ContextLibrary::read(std::string &libStr){
         //            }
     }
     if (k != libSize){
-        Debug(Debug::WARNING) << ("Serialized context library should have %i profiles but"
-                "actually has %i!", libSize, k);
+        Debug(Debug::WARNING) << "Serialized context library should have "
+                              << libSize << " profiles but actually has " << k << "!\n";
         EXIT(EXIT_FAILURE);
     }
 }
@@ -355,9 +355,10 @@ float * CSProfile::computeProfile(Sequence * seq, float neff, float pTau){
     //AdmixTo(seq, p, admix);
     double tau = pTau; //TODO
     double t = 1 - tau;
-    for (size_t i = 0; i < seq->L; ++i) {
-        for (size_t a = 0; a < 20; ++a)
+    for (int i = 0; i < seq->L; ++i) {
+        for (int a = 0; a < 20; ++a) {
             profile[i*Sequence::PROFILE_READIN_SIZE + a] *= tau;
+        }
         profile[i * Sequence::PROFILE_READIN_SIZE + seq->int_sequence[i]] += t;
         // set neff
         profile[i*Sequence::PROFILE_READIN_SIZE + Sequence::PROFILE_AA_SIZE] = neff;

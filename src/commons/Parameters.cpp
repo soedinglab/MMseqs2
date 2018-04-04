@@ -697,7 +697,7 @@ void Parameters::printUsageMessage(const Command& command,
             bool isExpert =  (par.category & MMseqsParameter::COMMAND_EXPERT);
             bool alreadyPrint = alreadyPrintMap[par.uniqid];
             if (par.category & categories[i].category && (printExpert || isExpert == false ) && alreadyPrint == false ) {
-                int others = (par.category ^ categories[i].category);
+//                int others = (par.category ^ categories[i].category);
 //                if(others & outputFlag  )
 //                    continue;
                 categoryFound = true;

@@ -22,7 +22,6 @@
 
 
 void parseHMM(char *data, std::string *sequence, std::string *header, char *profileBuffer, size_t *size, unsigned int id, BaseMatrix *subMat) {
-    size_t l = 0;
     // find name tag
     while (data[0] != 'N' || data[1] != 'A' || data[2] != 'M' || data[3] != 'E') {
         data = Util::skipLine(data);
