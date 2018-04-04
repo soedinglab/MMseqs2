@@ -170,14 +170,14 @@ int createdb(int argn, const char **argv, const Command& command) {
                 }
 
 
-                if(par.splitSeqByLen){
+                if (par.splitSeqByLen) {
                     size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
                     std::string splitString(sequence.c_str() + split * par.maxSeqLen, len);
                     splitString.append("\n");
                     out_writer.writeData(splitString.c_str(), splitString.length(), id);
-                }else{
-		    std::string seqWithLineRet(sequence);
-		    seqWithLineRet.append("\n");
+                } else {
+                    std::string seqWithLineRet(sequence);
+                    seqWithLineRet.append("\n");
                     out_writer.writeData(seqWithLineRet.c_str(), seqWithLineRet.length(), id);
                 }
 
@@ -189,13 +189,14 @@ int createdb(int argn, const char **argv, const Command& command) {
         delete kseq;
     }
 
-    int dbType = DBReader<unsigned int>::DBTYPE_AA;
-    if(isNuclCnt==sampleCount || isNuclCnt == testForNucSequence){
-        dbType = DBReader<unsigned int>::DBTYPE_NUC;
+    int dbType = Sequence::AMINO_ACIDS;
+    if (isNuclCnt == sampleCount || isNuclCnt == testForNucSequence) {
+        dbType = Sequence::NUCLEOTIDES;
     }
-    fclose(lookupFile);
     out_hdr_writer.close();
     out_writer.close(dbType);
+
+    fclose(lookupFile);
 
     return EXIT_SUCCESS;
 }

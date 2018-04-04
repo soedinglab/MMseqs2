@@ -29,22 +29,18 @@ int prefilter(int argc, const char **argv, const Command& command) {
 
     int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
-    if(queryDbType == -1 || targetDbType == -1){
+    if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-//    if(queryDbType == DBReader<unsigned int>::DBTYPE_NUC || targetDbType == DBReader<unsigned int>::DBTYPE_NUC){
-//        Debug(Debug::ERROR) << "The prefilter does not support nucleotide sequences.\n";
-//        EXIT(EXIT_FAILURE);
-//    }
-    if(queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE ){
+    if (queryDbType == Sequence::HMM_PROFILE && targetDbType == Sequence::HMM_PROFILE) {
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if(queryDbType != DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE_STATE ){
+    if (queryDbType != Sequence::HMM_PROFILE && targetDbType == Sequence::PROFILE_STATE_SEQ) {
         Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
         EXIT(EXIT_FAILURE);
-    }else if (queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE_STATE){
+    } else if (queryDbType == Sequence::HMM_PROFILE && targetDbType == Sequence::PROFILE_STATE_PROFILE) {
         queryDbType = Sequence::PROFILE_STATE_PROFILE;
     }
 

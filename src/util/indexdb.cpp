@@ -51,7 +51,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
         }
     }
 
-    if (dbr.getDbtype() != DBReader<unsigned int>::DBTYPE_PROFILE && kScoreSet == false) {
+    if (dbr.getDbtype() != Sequence::HMM_PROFILE && kScoreSet == false) {
         par.kmerScore = 0;
     }
 

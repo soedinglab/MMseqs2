@@ -116,9 +116,6 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
 #ifdef OPENMP
     omp_set_num_threads(threads);
-#endif
-
-#ifdef OPENMP
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
 
@@ -126,18 +123,18 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         querySeqType = qdbr->getDbtype();
         targetSeqType = tdbr->getDbtype();
     }
-    if(querySeqType == -1 || targetSeqType == -1){
+    if (querySeqType == -1 || targetSeqType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if(querySeqType == DBReader<unsigned int>::DBTYPE_PROFILE && targetSeqType == DBReader<unsigned int>::DBTYPE_PROFILE ){
+    if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE) {
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if(querySeqType != DBReader<unsigned int>::DBTYPE_PROFILE && targetSeqType == DBReader<unsigned int>::DBTYPE_PROFILE_STATE ){
+    if (querySeqType != Sequence::HMM_PROFILE && targetSeqType == Sequence::PROFILE_STATE_SEQ) {
         Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
         EXIT(EXIT_FAILURE);
-    }else if(querySeqType == DBReader<unsigned int>::DBTYPE_PROFILE && targetSeqType == DBReader<unsigned int>::DBTYPE_PROFILE_STATE){
+    } else if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::PROFILE_STATE_PROFILE) {
         querySeqType = Sequence::PROFILE_STATE_PROFILE;
     }
     Debug(Debug::INFO) << "Query database type: " << qdbr->getDbTypeName() << "\n";

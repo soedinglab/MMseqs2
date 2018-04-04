@@ -130,11 +130,11 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND,
                                         true);
 
-    if(qDbr->getDbtype() == -1 || tDbr->getDbtype() == -1){
+    if (qDbr->getDbtype() == -1 || tDbr->getDbtype() == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if(qDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE && tDbr->getDbtype() == DBReader<unsigned int>::DBTYPE_PROFILE ){
+    if (qDbr->getDbtype() == Sequence::HMM_PROFILE && tDbr->getDbtype() == Sequence::HMM_PROFILE){
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
@@ -280,10 +280,10 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
     // cleanup
     if (consensusWriter != NULL) {
-        consensusWriter->close(DBReader<unsigned int>::DBTYPE_AA);
+        consensusWriter->close(Sequence::AMINO_ACIDS);
         delete consensusWriter;
     }
-    resultWriter.close(DBReader<unsigned int>::DBTYPE_PROFILE);
+    resultWriter.close(Sequence::HMM_PROFILE);
 
 #ifndef HAVE_MPI
     if (par.earlyExit) {

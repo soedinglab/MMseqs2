@@ -111,7 +111,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         }
         delete[] aa;
     }
-    writer.close(DBReader<unsigned int>::DBTYPE_AA);
+    writer.close(Sequence::AMINO_ACIDS);
 
     std::string base = FileUtil::baseName(par.db2 + "_h");
     FileUtil::symlinkAlias(par.db1 + "_h", base);

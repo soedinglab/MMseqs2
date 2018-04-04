@@ -44,34 +44,34 @@ int search(int argc, const char **argv, const Command& command) {
 
     const int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     const int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
-    if (queryDbType == -1 || targetDbType == -1){
+    if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
 
-    if (queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE && targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE ){
+    if (queryDbType == Sequence::HMM_PROFILE && targetDbType == Sequence::HMM_PROFILE) {
         Debug(Debug::ERROR) << "Profile-Profile searches are not supported.\n";
         EXIT(EXIT_FAILURE);
     }
 
-    if (queryDbType == DBReader<unsigned int>::DBTYPE_NUC && targetDbType == DBReader<unsigned int>::DBTYPE_NUC) {
+    if (queryDbType == Sequence::NUCLEOTIDES && targetDbType == Sequence::NUCLEOTIDES) {
         Debug(Debug::ERROR) << "Nucleotide-Nucleotide searches are not supported.\n";
         EXIT(EXIT_FAILURE);
     }
 
     const bool isTranslatedNuclSearch =
-               (queryDbType == DBReader<unsigned int>::DBTYPE_NUC || targetDbType == DBReader<unsigned int>::DBTYPE_NUC);
+               (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
 
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
-        if (targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE) {
+        if (targetDbType == Sequence::HMM_PROFILE) {
             par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
             Debug(Debug::ERROR) << "Iterative target-profile searches are not supported.\n";
             EXIT(EXIT_FAILURE);
         }
 
         par.addBacktrace = true;
-        if (queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE) {
+        if (queryDbType == Sequence::HMM_PROFILE) {
             for (size_t i = 0; i < par.searchworkflow.size(); i++) {
                 if (par.searchworkflow[i].uniqid == par.PARAM_REALIGN.uniqid && par.searchworkflow[i].wasSet) {
                     par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
@@ -111,7 +111,7 @@ int search(int argc, const char **argv, const Command& command) {
     }
     std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());
-    if (targetDbType == DBReader<unsigned int>::DBTYPE_PROFILE){
+    if (targetDbType == Sequence::HMM_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         // we need to align all hits in case of target Profile hits
         size_t maxResListLen = par.maxResListLen;
@@ -128,13 +128,13 @@ int search(int argc, const char **argv, const Command& command) {
             }
         }
         cmd.addVariable("NUM_IT", SSTR(par.numIterations).c_str());
-        cmd.addVariable("PROFILE", SSTR((queryDbType == DBReader<unsigned int>::DBTYPE_PROFILE) ? 1 : 0).c_str());
+        cmd.addVariable("PROFILE", SSTR((queryDbType == Sequence::HMM_PROFILE) ? 1 : 0).c_str());
         cmd.addVariable("SUBSTRACT_PAR", par.createParameterString(par.subtractdbs).c_str());
 
         float originalEval = par.evalThr;
         par.evalThr = par.evalProfile;
         for (int i = 0; i < par.numIterations; i++){
-            if (i == 0 && queryDbType != DBReader<unsigned int>::DBTYPE_PROFILE) {
+            if (i == 0 && queryDbType != Sequence::HMM_PROFILE) {
                 par.realign = true;
             }
 
@@ -196,10 +196,10 @@ int search(int argc, const char **argv, const Command& command) {
 
     if (isTranslatedNuclSearch==true){
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
-        if (queryDbType == DBReader<unsigned int>::DBTYPE_NUC) {
+        if (queryDbType == Sequence::NUCLEOTIDES) {
             cmd.addVariable("QUERY_NUCL", "TRUE");
         }
-        if (targetDbType == DBReader<unsigned int>::DBTYPE_NUC) {
+        if (targetDbType == Sequence::NUCLEOTIDES) {
             cmd.addVariable("TARGET_NUCL", "TRUE");
         }
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());

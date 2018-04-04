@@ -84,7 +84,7 @@ int translateaa(int argc, const char **argv, const Command& command) {
         }
         delete[] aa;
     }
-    writer.close(DBReader<unsigned int>::DBTYPE_AA);
+    writer.close(Sequence::AMINO_ACIDS);
 
     reader.close();
 

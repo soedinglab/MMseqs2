@@ -355,10 +355,10 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         delete[] seqWeight;
     }
 
-    consensusWriter.close(DBReader<unsigned int>::DBTYPE_AA);
+    consensusWriter.close(Sequence::AMINO_ACIDS);
     headerWriter.close();
-    sequenceWriter.close(DBReader<unsigned int>::DBTYPE_AA);
-    resultWriter.close(DBReader<unsigned int>::DBTYPE_PROFILE);
+    sequenceWriter.close(Sequence::AMINO_ACIDS);
+    resultWriter.close(Sequence::HMM_PROFILE);
 
     std::string base = FileUtil::baseName(par.db2 + "_h");
     FileUtil::symlinkAlias(par.db2 + "_seq_h", base);

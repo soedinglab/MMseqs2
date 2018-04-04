@@ -17,7 +17,8 @@
 #include "Util.h"
 #include "FileUtil.h"
 
-template <typename T> DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode) :
+template <typename T>
+DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode) :
         data(NULL), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
         indexFileName(strdup(indexFileName_)), size(0), dataSize(0), aaDbSize(0), closed(1), dbtype(-1),
         index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),

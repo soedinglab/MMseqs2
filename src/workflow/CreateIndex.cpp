@@ -33,7 +33,7 @@ int createindex(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    if(dbType==DBReader<unsigned int>::DBTYPE_PROFILE && sensitivity == false){
+    if (dbType == Sequence::HMM_PROFILE && sensitivity == false){
         Debug(Debug::ERROR) << "Please adjust the sensitivity of your target profile index with -s.\n"
                                "Be aware that this searches can take huge amount of memory. \n";
         EXIT(EXIT_FAILURE);
@@ -52,7 +52,7 @@ int createindex(int argc, const char **argv, const Command& command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    if(dbType==DBReader<unsigned int>::DBTYPE_NUC){
+    if (dbType == Sequence::NUCLEOTIDES) {
         cmd.addVariable("NUCL", "TRUE");
     }
     if(par.removeTmpFiles) {

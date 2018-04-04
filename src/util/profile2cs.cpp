@@ -63,7 +63,7 @@ int profile2cs(int argc, const char **argv, const Command &command) {
         }
         delete[] buffer;
     }
-    writer.close(DBReader<unsigned int>::DBTYPE_PROFILE_STATE);
+    writer.close(Sequence::PROFILE_STATE_SEQ);
     Debug(Debug::INFO) << "\nDone.\n";
     profileReader.close();
     return EXIT_SUCCESS;

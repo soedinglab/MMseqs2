@@ -4,7 +4,7 @@
 #include "ExtendedSubstitutionMatrix.h"
 #include "PatternCompiler.h"
 #include "FileUtil.h"
-namespace prefilter{
+namespace prefilter {
 #include "ExpOpt3_8_polished.cs32.lib.h"
 }
 #include <sys/time.h>

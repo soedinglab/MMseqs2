@@ -52,7 +52,6 @@ set(commons_source_files
         commons/Orf.cpp
         commons/Parameters.cpp
         commons/ProfileStates.cpp
-        commons/ScoreMatrix.cpp
         commons/CSProfile.cpp
         commons/LibraryReader.cpp
         commons/Sequence.cpp

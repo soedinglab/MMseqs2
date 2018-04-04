@@ -9,19 +9,12 @@
 #include <cstddef>
 #include <utility>
 #include <string>
+#include "Sequence.h"
 
 template <typename T>
 class DBReader {
 
 public:
-
-    static const int DBTYPE_AA = 0;
-    static const int DBTYPE_NUC = 1;
-    static const int DBTYPE_PROFILE = 2;
-    static const int DBTYPE_PROFILE_STATE = 3;
-    static const int PROFILE_STATE_PROFILE = 4; // it is not used but it matches the Sequence definition
-
-
     struct Index {
         T id;
         size_t offset;
@@ -134,11 +127,11 @@ public:
 
     static const char* getDbTypeName(int dbtype) {
         switch(dbtype) {
-            case DBTYPE_AA: return "Aminoacid";
-            case DBTYPE_NUC: return "Nucleotide";
-            case DBTYPE_PROFILE: return "Profile";
-            case DBTYPE_PROFILE_STATE: return "Profile state";
-
+            case Sequence::AMINO_ACIDS: return "Aminoacid";
+            case Sequence::NUCLEOTIDES: return "Nucleotide";
+            case Sequence::HMM_PROFILE: return "Profile";
+            case Sequence::PROFILE_STATE_SEQ: return "Profile state";
+            case Sequence::PROFILE_STATE_PROFILE: return "Profile profile";
             default: return "Unknown";
         }
     }

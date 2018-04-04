@@ -68,7 +68,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         size_t queryId = qHeaderDbr.getId(queryKey);
         Orf::SequenceLocation qloc;
         unsigned int writeKey = queryKey;
-        if(queryDbType == DBReader<unsigned int>::DBTYPE_NUC){
+        if(queryDbType == Sequence::NUCLEOTIDES){
             char * qheader = qHeaderDbr.getData(queryId);
             qloc = Orf::parseOrfHeader(qheader);
             writeKey = qloc.id;
@@ -82,7 +82,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             Matcher::result_t &res = results[j];
             size_t targetId = tHeaderDbr.getId(res.dbKey);
             bool hasBacktrace = (res.backtrace.size() > 0);
-            if (targetDbType == DBReader<unsigned int>::DBTYPE_NUC) {
+            if (targetDbType == Sequence::NUCLEOTIDES) {
                 char * theader = tHeaderDbr.getData(targetId);
                 Orf::SequenceLocation tloc = Orf::parseOrfHeader(theader);
                 res.dbKey = tloc.id;
@@ -97,7 +97,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                 res.dbLen      = res.dbLen*3;
             }
 
-            if (queryDbType == DBReader<unsigned int>::DBTYPE_NUC) {
+            if (queryDbType == Sequence::NUCLEOTIDES) {
                 res.qStartPos = qloc.from + res.qStartPos*3;
                 res.qEndPos = qloc.from + res.qEndPos*3;
 
@@ -115,10 +115,11 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
         resultWriter.writeData(ss.c_str(), ss.length(), writeKey, thread_idx);
         ss.clear();
     }
+    resultWriter.close();
+
     qHeaderDbr.close();
     tHeaderDbr.close();
     alnDbr.close();
-    resultWriter.close();
     Debug(Debug::INFO) << "Done." << "\n";
 
     return EXIT_SUCCESS;
