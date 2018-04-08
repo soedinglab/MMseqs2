@@ -189,7 +189,7 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             sortForMapping[i] = std::make_pair(i, seqLens[i]);
         }
         //this sort has to be stable to assure same clustering results
-        std::stable_sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
+        omptl::sort(sortForMapping, sortForMapping + size, comparePairBySeqLength());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;

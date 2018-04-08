@@ -22,8 +22,6 @@ public:
     ~Clustering();
 
 private:
-    // check if every element is member in only one cluster
-    bool validate_result(std::list<set *> *ret, unsigned int uniqu_element_count);
 
     void writeData(DBWriter *dbw, const std::unordered_map<unsigned int, std::vector<unsigned int>> &ret);
 

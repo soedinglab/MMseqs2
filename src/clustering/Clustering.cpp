@@ -70,13 +70,6 @@ void Clustering::run(int mode) {
 
     delete algorithm;
 
-//    if (validate == 1){
-//        Debug(Debug::INFO) << "Validating results...\n";
-//        if(validate_result(&ret,ret.size()))
-//            Debug(Debug::INFO) << " VALID\n";
-//        else
-//            Debug(Debug::INFO) << " NOT VALID\n";
-//    }
 
     size_t dbSize = alnDbr->getSize();
     size_t seqDbSize = seqDbr->getSize();
@@ -115,52 +108,3 @@ void Clustering::writeData(DBWriter *dbw, const std::unordered_map<unsigned int,
         resultStr.clear();
     }
 }
-
-
-bool Clustering::validate_result(std::list<set *> *ret, unsigned int uniqu_element_count) {
-    std::list<set *>::const_iterator iterator;
-    unsigned int result_element_count = 0;
-    int *control = new int[uniqu_element_count + 1];
-    memset(control, 0, sizeof(int) * (uniqu_element_count + 1));
-    for (iterator = ret->begin(); iterator != ret->end(); ++iterator) {
-        set::element *element = (*iterator)->elements;
-        do {
-            control[element->element_id]++;
-            result_element_count++;
-        } while ((element = element->next) != NULL);
-    }
-
-    int notin = 0;
-    int toomuch = 0;
-    for (unsigned int i = 0; i < uniqu_element_count; i++) {
-        if (control[i] == 0) {
-            Debug(Debug::INFO) << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is missing in the clustering!\n";
-            Debug(Debug::INFO) << "len = " << seqDbr->getSeqLens()[i] << "\n";
-            Debug(Debug::INFO) << "alignment results len = " << strlen(alnDbr->getDataByDBKey(seqDbr->getDbKey(i)))  << "\n";
-            notin++;
-        } else if (control[i] > 1) {
-            Debug(Debug::INFO) << "id " << i << " (key " << seqDbr->getDbKey(i) << ") is " << control[i]
-                               << " times in the clustering!\n";
-            toomuch = toomuch + control[i];
-        }
-    }
-    if (notin > 0) {
-        Debug(Debug::INFO) << "not in the clustering: " << notin << "\n";
-    }
-
-    if (toomuch > 0) {
-        Debug(Debug::INFO) << "multiple times in the clustering: " << toomuch << "\n";
-    }
-
-    delete[] control;
-
-    if (uniqu_element_count == result_element_count) {
-        return true;
-    } else {
-        Debug(Debug::ERROR) << "unique_element_count: " << uniqu_element_count
-                            << ", result_element_count: " << result_element_count << "\n";
-        return false;
-    }
-}
-
-

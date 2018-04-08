@@ -26,17 +26,14 @@ ClusteringAlgorithms::ClusteringAlgorithms(DBReader<unsigned int>* seqDbr, DBRea
     this->maxiterations=maxiterations;
     ///time
     this->clustersizes=new int[dbSize];
-    this->sets = new set[dbSize];
     std::fill_n(clustersizes, dbSize, 0);
 }
 
 ClusteringAlgorithms::~ClusteringAlgorithms(){
     delete [] clustersizes;
-    delete [] sets;
 }
 
 std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithms::execute(int mode) {
-    memset(sets, 0, sizeof(set)*(dbSize));
     const char * data = alnDbr->getData();
     const size_t dataSize = alnDbr->getDataSize();
     // init data
