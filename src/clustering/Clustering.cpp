@@ -47,6 +47,9 @@ void Clustering::run(int mode) {
     if (mode == Parameters::GREEDY) {
         Debug(Debug::INFO) << "Clustering mode: Greedy\n";
         ret = algorithm->execute(2);
+    } else if (mode == Parameters::GREEDY_MEM) {
+        Debug(Debug::INFO) << "Clustering mode: Greedy Low Mem\n";
+        ret = algorithm->execute(4);
     } else if (mode == Parameters::SET_COVER) {
         Debug(Debug::INFO) << "Clustering mode: Set Cover\n";
         ret = algorithm->execute(1);

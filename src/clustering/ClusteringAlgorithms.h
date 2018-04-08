@@ -52,6 +52,10 @@ private:
     void greedyIncremental(unsigned int **elementLookupTable, size_t *elementOffsets,
                            size_t n, unsigned int *assignedcluster) ;
 
+
+    void greedyIncrementalLowMem(unsigned int *assignedcluster) ;
+
+
     void readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
                            unsigned short **scoreLookupTable, unsigned short *&scores,
                            size_t *elementOffsets, size_t totalElementCount)  ;
