@@ -150,7 +150,15 @@ public:
 
     struct comparePairBySeqLength {
         bool operator() (const std::pair<unsigned int, unsigned  int>& lhs, const std::pair<unsigned int, unsigned  int>& rhs) const{
-            return (lhs.second > rhs.second);
+            if(lhs.second > rhs.second)
+                return true;
+            if(rhs.second > lhs.second)
+                return false;
+            if(lhs.first < rhs.first  )
+                return true;
+            if(rhs.first < lhs.first )
+                return false;
+            return false;
         }
     };
 

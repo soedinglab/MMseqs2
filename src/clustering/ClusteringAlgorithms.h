@@ -43,14 +43,17 @@ private:
     void decreaseClustersize(int clusterid);
 //for connected component
     int maxiterations;
-    // all results sets
-    set *sets;
+
 
     void setCover(unsigned int **elementLookup, unsigned short ** elementScoreLookupTable,
                   unsigned int *assignedcluster, short *bestscore, size_t *offsets);
 
     void greedyIncremental(unsigned int **elementLookupTable, size_t *elementOffsets,
                            size_t n, unsigned int *assignedcluster) ;
+
+
+    void greedyIncrementalLowMem(unsigned int *assignedcluster) ;
+
 
     void readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
                            unsigned short **scoreLookupTable, unsigned short *&scores,
