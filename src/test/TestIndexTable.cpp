@@ -8,7 +8,7 @@
 #include <iostream>
 #include "SubstitutionMatrix.h"
 #include "IndexTable.h"
-#include "PrefilteringIndexReader.h"
+#include "IndexBuilder.h"
 #include "Parameters.h"
 
 const char* binary_name = "test_indextable";
@@ -26,7 +26,7 @@ int main(int argc, const char *argv[]) {
 
     Sequence *s = new Sequence(32000, Sequence::AMINO_ACIDS, &subMat, 6, true, false);
     IndexTable t(subMat.alphabetSize, 6, false);
-    PrefilteringIndexReader::fillDatabase(&dbr, s, &t, &subMat, 0, dbr.getSize(), false, 1, NULL, 0, 1);
+    IndexBuilder::fillDatabase(&t, NULL, NULL, subMat, s, &dbr, 0, dbr.getSize(), 0);
     t.printStatistics(subMat.int2aa);
 
     delete s;
