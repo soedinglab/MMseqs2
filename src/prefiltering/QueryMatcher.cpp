@@ -24,8 +24,8 @@
 #define FOR_EACH(action,...) \
   GET_MACRO(__VA_ARGS__,FE_11,FE_10,FE_9,FE_8,FE_7,FE_6,FE_5,FE_4,FE_3,FE_2,FE_1)(action,__VA_ARGS__)
 
-QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputation &evaluer,
-                           unsigned int *seqLens, short kmerThr,
+QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
+                           BaseMatrix *m, EvalueComputation &evaluer, unsigned int *seqLens, short kmerThr,
                            double kmerMatchProb, int kmerSize, size_t dbSize,
                            unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                            size_t maxHitsPerQuery, bool aaBiasCorrection,
@@ -68,7 +68,7 @@ QueryMatcher::QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputat
     // needed for p-value calc.
     this->logScoreFactorial=NULL;
     if (diagonalScoring == true) {
-        ungappedAlignment = new UngappedAlignment(maxSeqLen, m, indexTable->getSequenceLookup());
+        ungappedAlignment = new UngappedAlignment(maxSeqLen, m, sequenceLookup);
         this->seqLens = NULL;
     } else {
         this->mu = kmerMatchProb;

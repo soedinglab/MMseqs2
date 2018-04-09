@@ -52,18 +52,14 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
         if (templateDBIsIndex == true) {
-            PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
-            if (meta.maskMode == 1) {
-                Debug(Debug::WARNING) << "Cannot use masked index for alignment.\n";
+            tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, par.noPreload == false);
+            if (tSeqLookup == NULL) {
+                Debug(Debug::WARNING) << "No unmasked index available. Falling back to sequence database.\n";
                 templateDBIsIndex = false;
             } else {
                 PrefilteringIndexReader::printSummary(tidxdbr);
+                PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
                 targetSeqType = meta.seqType;
-                if (meta.maskMode == 0) {
-                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, par.noPreload == false);
-                } else if (meta.maskMode == 2) {
-                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, par.noPreload == false);
-                }
                 tdbr = PrefilteringIndexReader::openNewReader(tidxdbr, par.noPreload == false);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
@@ -137,8 +133,8 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     } else if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::PROFILE_STATE_PROFILE) {
         querySeqType = Sequence::PROFILE_STATE_PROFILE;
     }
-    Debug(Debug::INFO) << "Query database type: " << qdbr->getDbTypeName() << "\n";
-    Debug(Debug::INFO) << "Target database type: " << tdbr->getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Query database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
+    Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 
     prefdbr = new DBReader<unsigned int>(prefDB.c_str(), prefDBIndex.c_str());
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);

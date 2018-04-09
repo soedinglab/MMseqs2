@@ -2,6 +2,7 @@ set(prefiltering_header_files
         prefiltering/CacheFriendlyOperations.h
         prefiltering/ExtendedSubstitutionMatrix.h
         prefiltering/Indexer.h
+        prefiltering/IndexBuilder.h
         prefiltering/IndexTable.h
         prefiltering/KmerGenerator.h
         prefiltering/Prefiltering.h
@@ -17,6 +18,7 @@ set(prefiltering_source_files
         prefiltering/CacheFriendlyOperations.cpp
         prefiltering/ExtendedSubstitutionMatrix.cpp
         prefiltering/Indexer.cpp
+        prefiltering/IndexBuilder.cpp
         prefiltering/KmerGenerator.cpp
         prefiltering/Main.cpp
         prefiltering/Prefiltering.cpp

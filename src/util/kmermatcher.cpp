@@ -307,11 +307,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     setLinearFilterDefault(&par);
     par.parseParameters(argc, argv, command, 2, false, 0, MMseqsParameter::COMMAND_CLUSTLINEAR);
 
-    if (par.maskMode == 2) {
-        Debug(Debug::ERROR) << "kmermatcher does not support mask mode 2.\n";
-        EXIT(EXIT_FAILURE);
-    }
-
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif

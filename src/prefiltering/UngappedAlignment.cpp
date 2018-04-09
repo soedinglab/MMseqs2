@@ -4,9 +4,8 @@
 #include "UngappedAlignment.h"
 
 UngappedAlignment::UngappedAlignment(const unsigned int maxSeqLen,
-                                 BaseMatrix * substitutionMatrix,
-                                 SequenceLookup * sequenceLookup) :
-        subMatrix(substitutionMatrix), sequenceLookup(sequenceLookup) {
+                                     BaseMatrix *substitutionMatrix, SequenceLookup *sequenceLookup)
+        : subMatrix(substitutionMatrix), sequenceLookup(sequenceLookup) {
     score_arr = new unsigned int[VECSIZE_INT*4];
     diagonalCounter = new unsigned char[DIAGONALCOUNT];
     vectorSequence = (unsigned char *) malloc_simd_int(VECSIZE_INT * 4 * maxSeqLen);

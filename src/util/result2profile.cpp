@@ -39,6 +39,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     bool templateDBIsIndex = false;
     std::string scoringMatrixFile = par.scoringMatrixFile;
 
+    int targetSeqType = -1;
     std::string indexDB = PrefilteringIndexReader::searchForIndex(par.db2);
     if (indexDB.length() > 0) {
         Debug(Debug::INFO) << "Use index  " << indexDB << "\n";
@@ -48,17 +49,14 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
         templateDBIsIndex = PrefilteringIndexReader::checkIfIndexFile(tidxdbr);
         if (templateDBIsIndex == true) {
-            PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
-            if (meta.maskMode == 1) {
-                Debug(Debug::WARNING) << "Cannot use masked index for profiles.\n";
+            tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, par.noPreload == false);
+            if (tSeqLookup == NULL) {
+                Debug(Debug::WARNING) << "No unmasked index available. Falling back to sequence database.\n";
                 templateDBIsIndex = false;
             } else {
                 PrefilteringIndexReader::printSummary(tidxdbr);
-                if (meta.maskMode == 0) {
-                    tSeqLookup = PrefilteringIndexReader::getSequenceLookup(tidxdbr, par.noPreload == false);
-                } else if (meta.maskMode == 2) {
-                    tSeqLookup = PrefilteringIndexReader::getUnmaskedSequenceLookup(tidxdbr, par.noPreload == false);
-                }
+                PrefilteringIndexData meta = PrefilteringIndexReader::getMetadata(tidxdbr);
+                targetSeqType = meta.seqType;
                 tDbr = PrefilteringIndexReader::openNewReader(tidxdbr, par.noPreload == false);
                 scoringMatrixFile = PrefilteringIndexReader::getSubstitutionMatrixName(tidxdbr);
             }
@@ -73,6 +71,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     if (templateDBIsIndex == false) {
         tDbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tDbr->open(DBReader<unsigned int>::NOSORT);
+        targetSeqType = tDbr->getDbtype();
         if (par.noPreload == false) {
             tDbr->readMmapedDataInMemory();
             tDbr->mlock();
@@ -130,16 +129,16 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     EvalueComputation evalueComputation(tDbr->getAminoAcidDBSize(), &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND,
                                         true);
 
-    if (qDbr->getDbtype() == -1 || tDbr->getDbtype() == -1) {
+    if (qDbr->getDbtype() == -1 || targetSeqType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         EXIT(EXIT_FAILURE);
     }
-    if (qDbr->getDbtype() == Sequence::HMM_PROFILE && tDbr->getDbtype() == Sequence::HMM_PROFILE){
+    if (qDbr->getDbtype() == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE){
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
         EXIT(EXIT_FAILURE);
     }
     Debug(Debug::INFO) << "Query database type: " << qDbr->getDbTypeName() << "\n";
-    Debug(Debug::INFO) << "Target database type: " << tDbr->getDbTypeName() << "\n";
+    Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
 
     const bool isFiltering = par.filterMsa != 0;
 #pragma omp parallel
@@ -152,13 +151,14 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         std::string result;
         result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+
 #pragma omp for schedule(static)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
-            unsigned int thread_idx = 0;
-#ifdef OPENMP
-            thread_idx = (unsigned int) omp_get_thread_num();
-#endif
 
             // Get the sequence from the queryDB
             unsigned int queryKey = resultReader.getDbKey(id);

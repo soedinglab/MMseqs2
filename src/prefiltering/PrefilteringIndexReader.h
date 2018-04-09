@@ -9,7 +9,6 @@
 struct PrefilteringIndexData {
     int kmerSize;
     int alphabetSize;
-    int maskMode;
     int local;
     int spacedKmer;
     int kmerThr;
@@ -24,7 +23,7 @@ public:
     static unsigned int VERSION;
     static unsigned int ENTRIES;
     static unsigned int ENTRIESOFFSETS;
-    static unsigned int SEQINDEXDATA;
+    static unsigned int MASKEDSEQINDEXDATA;
     static unsigned int UNMASKEDSEQINDEXDATA;
     static unsigned int SEQINDEXDATASIZE;
     static unsigned int SEQINDEXSEQOFFSET;
@@ -41,19 +40,18 @@ public:
     static bool checkIfIndexFile(DBReader<unsigned int> *reader);
 
     static void createIndexFile(const std::string &outDb, DBReader<unsigned int> *dbr, DBReader<unsigned int> *hdbr,
-                                BaseMatrix * subMat, int maxSeqLen, bool spacedKmer,
-                                bool compBiasCorrection, int alphabetSize, int kmerSize,
-                                bool diagonalScoring, int maskMode, int seqType, int kmerThr, int threads);
+                                BaseMatrix *subMat, int maxSeqLen, bool spacedKmer, bool compBiasCorrection,
+                                int alphabetSize, int kmerSize, int maskMode, int kmerThr);
 
     static DBReader<unsigned int> *openNewHeaderReader(DBReader<unsigned int> *dbr, const char* dataFileName, bool touch);
 
     static DBReader<unsigned int> *openNewReader(DBReader<unsigned int> *dbr, bool touch);
 
-    static SequenceLookup *getSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
+    static SequenceLookup *getMaskedSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
 
     static SequenceLookup *getUnmaskedSequenceLookup(DBReader<unsigned int> *dbr, bool touch);
 
-    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, bool diagonalScoring, bool touch);
+    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, bool touch);
 
     static void printSummary(DBReader<unsigned int> *dbr);
 
@@ -66,15 +64,6 @@ public:
     static ScoreMatrix *get3MerScoreMatrix(DBReader<unsigned int> *dbr, bool touch);
 
     static std::string searchForIndex(const std::string &pathToDB);
-
-
-    static IndexTable *generateIndexTable(DBReader<unsigned int> *dbr, Sequence *seq, BaseMatrix *subMat,
-                                          int alphabetSize, int kmerSize, size_t dbFrom, size_t dbTo,
-                                          bool diagonalScoring, int maskMode, int kmerThr, unsigned int threads);
-
-    static void fillDatabase(DBReader<unsigned int> *dbr, Sequence *seq, IndexTable *indexTable,
-                             BaseMatrix *subMat, size_t dbFrom, size_t dbTo, bool diagonalScoring,
-                             int maskMode, SequenceLookup **unmaskedLookup, int kmerThr, unsigned int threads);
 
 private:
     static void printMeta(int *meta);

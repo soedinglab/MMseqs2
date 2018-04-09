@@ -70,7 +70,7 @@ public:
     IndexTable(int alphabetSize, int kmerSize, bool externalData)
             : tableSize(MathUtil::ipow<size_t>(alphabetSize, kmerSize)), alphabetSize(alphabetSize),
               kmerSize(kmerSize), externalData(externalData), tableEntriesNum(0), size(0),
-              indexer(new Indexer(alphabetSize, kmerSize)), entries(NULL), offsets(NULL), sequenceLookup(NULL) {
+              indexer(new Indexer(alphabetSize, kmerSize)), entries(NULL), offsets(NULL) {
         if (externalData == false) {
             offsets = new(std::nothrow) size_t[tableSize + 1];
             memset(offsets, 0, (tableSize + 1) * sizeof(size_t));
@@ -82,9 +82,6 @@ public:
         deleteEntries();
 
         delete indexer;
-        if (sequenceLookup != NULL) {
-            delete sequenceLookup;
-        }
     }
 
     void deleteEntries() {
@@ -192,6 +189,15 @@ public:
         return (entries + offsets[kmer]);
     }
 
+    void sortDBSeqLists() {
+        #pragma omp parallel for
+        for (size_t i = 0; i < getTableSize(); i++) {
+            size_t entrySize;
+            IndexEntryLocal *entries = getDBSeqList(i, &entrySize);
+            std::sort(entries, entries + entrySize, IndexEntryLocal::comapreByIdAndPos);
+        }
+    }
+
     // get pointer to entries array
     IndexEntryLocal *getEntries() {
         return entries;
@@ -206,13 +212,14 @@ public:
     }
 
     // init the arrays for the sequence lists
-    void initMemory(size_t tableEntriesNum, SequenceLookup *seqLookup, size_t dbSize) {
+    void initMemory(size_t dbSize) {
+        size_t tableEntriesNum = 0;
+        for (size_t i = 0; i < getTableSize(); i++) {
+            tableEntriesNum += getOffset(i);
+        }
+
         this->tableEntriesNum = tableEntriesNum;
         this->size = dbSize; // amount of sequences added
-
-        if (seqLookup != NULL) {
-            sequenceLookup = seqLookup;
-        }
 
         // allocate memory for the sequence id lists
         entries = new(std::nothrow) IndexEntryLocal[tableEntriesNum];
@@ -233,13 +240,9 @@ public:
 
     // init index table with external data (needed for index readin)
     void initTableByExternalData(size_t sequenceCount, size_t tableEntriesNum,
-                                 IndexEntryLocal *entries, size_t *entryOffsets, SequenceLookup *lookup) {
+                                 IndexEntryLocal *entries, size_t *entryOffsets) {
         this->tableEntriesNum = tableEntriesNum;
         this->size = sequenceCount;
-
-        if (lookup != NULL) {
-            sequenceLookup = lookup;
-        }
 
         this->entries = entries;
         this->offsets = entryOffsets;
@@ -422,8 +425,6 @@ public:
 
     // returns the size of the entry (int for global) (IndexEntryLocal for local)
     size_t getSizeOfEntry() { return sizeof(IndexEntryLocal); }
-
-    SequenceLookup *getSequenceLookup() { return sequenceLookup; }
 
     int getKmerSize() {
         return kmerSize;

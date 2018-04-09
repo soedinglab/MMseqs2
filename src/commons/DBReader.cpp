@@ -555,21 +555,21 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
 template <typename T>
 int DBReader<T>::parseDbType(const char *name) {
     std::string dbTypeFile = std::string(name) + ".dbtype";
-    int dbtype=-1;
-    if(FileUtil::fileExists(dbTypeFile.c_str())==true){
+    int dbtype = -1;
+    if (FileUtil::fileExists(dbTypeFile.c_str()) == true) {
         size_t fileSize = FileUtil::getFileSize(dbTypeFile);
-        if(fileSize != sizeof(int)){
+        if (fileSize != sizeof(int)) {
             Debug(Debug::ERROR) << "File size of " << dbTypeFile << " seems to be wrong!\n";
             Debug(Debug::ERROR) << "It should have 4 bytes but it has " <<  fileSize << " bytes.";
             EXIT(EXIT_FAILURE);
         }
-        FILE * dbtypeDataFile = fopen(dbTypeFile.c_str(), "r");
+        FILE *dbtypeDataFile = fopen(dbTypeFile.c_str(), "r");
         if (dbtypeDataFile == NULL) {
             Debug(Debug::ERROR) << "Could not open data file " << dbTypeFile << "!\n";
             EXIT(EXIT_FAILURE);
         }
-        size_t result = fread (&dbtype,1,fileSize,dbtypeDataFile);
-        if(result != fileSize){
+        size_t result = fread(&dbtype, 1, fileSize, dbtypeDataFile);
+        if (result != fileSize) {
             Debug(Debug::ERROR) << "Could not read " << dbTypeFile << "!\n";
             EXIT(EXIT_FAILURE);
         }

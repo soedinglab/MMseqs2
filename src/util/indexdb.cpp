@@ -15,6 +15,7 @@ void setCreateIndexDefaults(Parameters *p) {
 int indexdb(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setCreateIndexDefaults(&par);
+    par.overrideParameterDescription((Command &) command, par.PARAM_MASK_RESIDUES.uniqid, "0: w/o low complexity masking, 1: with low complexity masking, 2: add both masked and unmasked sequences to index", "^[0-2]{1}", par.PARAM_MASK_RESIDUES.category);
     par.parseParameters(argc, argv, command, 2);
 
     if (par.split > 1) {
@@ -55,6 +56,11 @@ int indexdb(int argc, const char **argv, const Command &command) {
         par.kmerScore = 0;
     }
 
+    // investigate if it makes sense to mask the profile consensus sequence
+    if (dbr.getDbtype() == Sequence::HMM_PROFILE) {
+        par.maskMode = 0;
+    }
+
     // query seq type is actually unknown here, but if we pass HMM_PROFILE then its +20 k-score
     int kmerThr = Prefiltering::getKmerThreshold(par.sensitivity, Sequence::AMINO_ACIDS, par.kmerScore, kmerSize);
 
@@ -71,9 +77,8 @@ int indexdb(int argc, const char **argv, const Command &command) {
     }
 
     PrefilteringIndexReader::createIndexFile(par.db2, &dbr, hdbr, subMat, par.maxSeqLen,
-                                             par.spacedKmer, par.compBiasCorrection,
-                                             subMat->alphabetSize, kmerSize, par.diagonalScoring,
-                                             par.maskMode, dbr.getDbtype(), kmerThr, par.threads);
+                                             par.spacedKmer, par.compBiasCorrection, subMat->alphabetSize,
+                                             kmerSize, par.maskMode, kmerThr);
 
     if (hdbr != NULL) {
         hdbr->close();

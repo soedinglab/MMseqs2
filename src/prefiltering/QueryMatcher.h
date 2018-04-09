@@ -61,8 +61,8 @@ struct hit_t {
 
 class QueryMatcher {
 public:
-    QueryMatcher(BaseMatrix *m, IndexTable *indexTable, EvalueComputation &evaluer,
-                 unsigned int *seqLens, short kmerThr,
+    QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLookup,
+                 BaseMatrix *m, EvalueComputation &evaluer, unsigned int *seqLens, short kmerThr,
                  double kmerMatchProb, int kmerSize, size_t dbSize,
                  unsigned int maxSeqLen, unsigned int effectiveKmerSize,
                  size_t maxHitsPerQuery, bool aaBiasCorrection, bool diagonalScoring,
