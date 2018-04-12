@@ -141,7 +141,7 @@ size_t FileUtil::getFreeSpace(const char *path) {
 void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
     char *p = realpath(file.c_str(), NULL);
     if (p == NULL) {
-        Debug(Debug::ERROR) << "Could not get realpath of " << file << "!\n";
+        Debug(Debug::ERROR) << "Could not get path of " << file << "!\n";
         EXIT(EXIT_FAILURE);
     }
 
@@ -182,8 +182,8 @@ void FileUtil::symlinkAbs(const std::string &target, const std::string &link) {
     std::string realLink;
     char *l = realpath(link.c_str(), NULL);
     if (l == NULL) {
-        std::string path = dirName(l);
-        std::string base = baseName(l);
+        std::string path = dirName(link);
+        std::string base = baseName(link);
         l = realpath(path.c_str(), NULL);
         if (l == NULL) {
             Debug(Debug::ERROR) << "Could not get realpath of " << link << "!\n";

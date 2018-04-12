@@ -369,24 +369,12 @@ int result2profile(int argc, const char **argv, const Command &command) {
     int status = result2profile(resultReader, par, par.db4, 0, resultReader.getSize());
 #endif
 
-    if (FileUtil::dirName(par.db1).compare(FileUtil::dirName(par.db4)) == 0) {
-        std::string base = FileUtil::baseName(par.db4 + "_h");
-        FileUtil::symlinkAlias(par.db1 + "_h", base);
-        FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
-    } else {
-        FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_h");
-        FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_h.index");
-    }
+    FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_h");
+    FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_h.index");
 
     if (par.omitConsensus == false) {
-        if (FileUtil::dirName(par.db1).compare(FileUtil::dirName(par.db4)) == 0) {
-            std::string base = FileUtil::baseName(par.db4 + "_consensus_h");
-            FileUtil::symlinkAlias(par.db1 + "_h", base);
-            FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
-        } else {
-            FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_consensus_h");
-            FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_consensus_h.index");
-        }
+        FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_consensus_h");
+        FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_consensus_h.index");
     }
 
     resultReader.close();

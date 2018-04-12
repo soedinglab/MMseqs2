@@ -113,14 +113,8 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     }
     writer.close(Sequence::AMINO_ACIDS);
 
-    if (FileUtil::dirName(par.db1).compare(FileUtil::dirName(par.db2)) == 0) {
-        std::string base = FileUtil::baseName(par.db2 + "_h");
-        FileUtil::symlinkAlias(par.db1 + "_h", base);
-        FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
-    } else {
-        FileUtil::symlinkAbs(par.db1 + "_h", par.db2 + "_h");
-        FileUtil::symlinkAbs(par.db1 + "_h.index", par.db2 + "_h.index");
-    }
+    FileUtil::symlinkAbs(par.db1 + "_h", par.db2 + "_h");
+    FileUtil::symlinkAbs(par.db1 + "_h.index", par.db2 + "_h.index");
 
     if (addOrfStop == true) {
         header->close();
