@@ -48,7 +48,7 @@ if [ -n "${SEARCH2_PAR}" ]; then
     fi
 
     if [ ! -e "${TMP_PATH}/aligned" ]; then
-        "$MMSEQS" extractalignedregion "${TMP_PATH}/top1" "${TARGET}" "${TMP_PATH}/top1" "${TMP_PATH}/aligned" --extract-mode 2 \
+        "$MMSEQS" extractalignedregion "${INPUT}" "${TARGET}" "${TMP_PATH}/top1" "${TMP_PATH}/aligned" --extract-mode 2 \
             || fail "Extractalignedregion failed"
     fi
 
