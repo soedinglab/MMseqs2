@@ -41,11 +41,8 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         for (size_t i = 0; i < entries; ++i) {
             int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = omp_get_thread_num();
+            thread_idx = omp_get_thread_num();
 #endif
-
-#pragma omp for schedule(dynamic, 5)
-        for (size_t i = 0; i < entries; ++i) {
             unsigned int key = reader.getDbKey(i);
             char* data = reader.getData(i);
             bool addStopAtStart = false;
