@@ -32,3 +32,11 @@ src/workflow/time_test
 build/
 .idea/
 cmake-build-*/
+BenchmarkingDatas/
+examples/
+TestPhages/
+temp/
+BacteriaBench/
+EliTestFiles/
+NCBI_Bacteria_Orfs/
+build.old/

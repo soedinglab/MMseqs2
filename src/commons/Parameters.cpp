@@ -1,15 +1,11 @@
 #include "Parameters.h"
 #include "Sequence.h"
-#include "Debug.h"
 #include "Util.h"
 #include <unistd.h>
 #include "DistanceCalculator.h"
 
 #include <iomanip>
 #include <regex.h>
-#include <string>
-#include <sstream>
-#include <climits>
 
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
@@ -64,9 +60,11 @@ Parameters::Parameters():
         PARAM_CLUSTER_MODE(PARAM_CLUSTER_MODE_ID,"--cluster-mode", "Cluster mode", "0: Setcover, 1: connected component, 2: Greedy clustering by sequence length  3: Greedy clustering by sequence length (low mem)",typeid(int), (void *) &clusteringMode, "[0-3]{1}$", MMseqsParameter::COMMAND_CLUST),
         PARAM_CLUSTER_STEPS(PARAM_CLUSTER_STEPS_ID,"--cluster-steps", "Cascaded clustering steps", "cascaded clustering steps from 1 to -s",typeid(int), (void *) &clusterSteps, "^[1-9]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         PARAM_CASCADED(PARAM_CASCADED_ID,"--single-step-clustering", "Single step clustering", "switches from cascaded to simple clustering workflow",typeid(bool), (void *) &cascaded, "", MMseqsParameter::COMMAND_CLUST),
-        //affinity clustering
+        // affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "maximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "type of score used for clustering [1:2]. 1=alignment score. 2=sequence identity ",typeid(int),(void *) &similarityScoreType,  "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
+        // merge Clusters
+        PARAM_BY_DB(PARAM_BY_DB_ID, "--by-db", "Merge by DB", "Merge results by key column in DB", typeid(std::string), (void *) &DBfile, ""),
         // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","verbosity level: 0=nothing, 1: +errors, 2: +warnings, 3: +info",typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // create profile (HMM)
@@ -157,6 +155,8 @@ Parameters::Parameters():
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0) no sorting, 1) increasing,  2) decreasing or 3) random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
+        //aggregate
+        PARAM_MODE(PARAM_MODE_ID, "--mode", "Aggregation Mode", "Choose wich of aggregation to launch : bestHit/pval", typeid(std::string), (void*) &mode, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
@@ -242,6 +242,10 @@ Parameters::Parameters():
     clust.push_back(PARAM_MAXITERATIONS);
     clust.push_back(PARAM_SIMILARITYSCORE);
     clust.push_back(PARAM_THREADS);
+
+    //mergeClusters
+    mergeclusters.push_back(PARAM_THREADS) ;
+    mergeclusters.push_back(PARAM_BY_DB) ;
 
     // find orf
     onlyverbosity.push_back(PARAM_V);
@@ -378,6 +382,8 @@ Parameters::Parameters():
     msa2profile.push_back(PARAM_THREADS);
     msa2profile.push_back(PARAM_V);
 
+    //mergeclusters
+
     // profile2pssm
     profile2pssm.push_back(PARAM_SUB_MAT);
     profile2pssm.push_back(PARAM_MAX_SEQ_LEN);
@@ -474,6 +480,9 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_INCLUDE_IDENTITY);
     filterDb.push_back(PARAM_JOIN_DB);
 
+    //aggregate
+    aggregate.push_back(PARAM_MODE) ;
+    aggregate.push_back(PARAM_THREADS) ;
 
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);
@@ -515,6 +524,7 @@ Parameters::Parameters():
 
 
     // mergedbs
+    mergedbs.push_back(PARAM_BY_DB) ;
     mergedbs.push_back(PARAM_MERGE_PREFIXES);
     mergedbs.push_back(PARAM_V);
 
@@ -1079,6 +1089,9 @@ void Parameters::setDefaults() {
     // Clustering workflow
     removeTmpFiles = false;
 
+    //mergeclusters
+    DBfile="" ;
+
     // convertprofiledb
     profileMode = PROFILE_MODE_HMM;
 
@@ -1163,6 +1176,7 @@ void Parameters::setDefaults() {
     // rescorediagonal
     rescoreMode = Parameters::RESCORE_MODE_HAMMING;
     filterHits = false;
+
     // filterDb
     filterColumn = 1;
     filterColumnRegex = "^.*$";
