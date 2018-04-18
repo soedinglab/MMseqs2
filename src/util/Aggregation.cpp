@@ -153,19 +153,19 @@ pvalAggregator::pvalAggregator(std::string arg_inputDBname, std::string arg_outp
         Aggregation(std::move(arg_inputDBname), std::move(arg_outputDBname), arg_nbrThread, arg_targetColumn), pValColumn(arg_scoreColumn),
         querySetSizeDBname(std::move(arg_querySetSizeDBname)), targetSetSizeDBname(std::move(arg_targetSetSizeDBname)){
 
-    /*std::string sizeDBIndex = querySetSizeDBname + ".index";
+    std::string sizeDBIndex = querySetSizeDBname + ".index";
     this->querySetSizeDB = new DBReader<unsigned int> (querySetSizeDBname.c_str(), sizeDBIndex.c_str()) ;
-    this->querySetSizeDB->open(DBReader<unsigned int>::NOSORT);
+    this->querySetSizeDB->open(DBReader<unsigned int>::NOSORT);/*
 
     sizeDBIndex = targetSetSizeDBname + ".index";
     this->targetSetSizeDB = new DBReader<unsigned int> (targetSetSizeDBname.c_str(), sizeDBIndex.c_str()) ;
     this->targetSetSizeDB->open(DBReader<unsigned int>::NOSORT);*/
 
-    targetGlobalSize = 0;
+    /*targetGlobalSize = 0;
     for (size_t i = 0; i<this->targetSetSizeDB->getSize(); i++) {
         size_t curGenomeSize = std::stoul(this->targetSetSizeDB->getData(i));
         targetGlobalSize += curGenomeSize;
-    }
+    }*/
 }
 
 /*double kthOrderProba(size_t k, size_t N, double p) {
@@ -173,8 +173,9 @@ pvalAggregator::pvalAggregator(std::string arg_inputDBname, std::string arg_outp
 }*/
 
 double BinCoeff (int M, int k) {
-    double result = 0 ;
+    double result;
     result = exp(lgamma(M+1)-lgamma(M-k+1)-lgamma(k+1)) ;
+    return result;
 }
 
 double factorial (size_t i) {
@@ -182,52 +183,58 @@ double factorial (size_t i) {
     for (int j = 1; j < i+1; j++) {
         fac *= j;
     }
-    return fac ;
+    return fac;
 }
 std::string pvalAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, aggregParams* params){
     std::stringstream Buffer ;
-
     unsigned int M = (unsigned int)std::stoul(querySetSizeDB->getDataByDBKey(params->querySetKey)) ;
     //unsigned int nbrTargetSetElements = (unsigned int)std::stoul(targetSetSizeDB->getDataByDBKey(params->targetSetKey)) ;
     //unsigned int crossLinks = nbrTargetSetElements*nbrQuerySetElements;
     double P0 = 0.001 ;
     double updatedPval;
-    unsigned int k =0 ;
     double r = 0 ;
-
+    double pValInDouble ;
+    size_t K =0 ;
     std::vector<double> pvals;
     for (auto &i : dataToAggregate) {
-        if (std::stod(i[pValColumn]) > P0){k++;}
-       // pvals.push_back(std::stod(i[pValColumn]) / targetGlobalSize);
-        pvals.push_back(std::stod(i[pValColumn]));
-        std::cout << " pVal ; " << std::stod(i[pValColumn]) << "\n" ;
-        r-=(log(std::stod(i[pValColumn])/P0)) ;
-        //std::cout << "r ; " << r << "\n" ;
+        pValInDouble = std::strtod(i[pValColumn].c_str(), nullptr) ;
+        //std::cout << "i[pValColumn] : " << pValInDouble << "\n" ;
+        if (pValInDouble < P0){// pvals.push_back(std::stod(i[pValColumn]) / targetGlobalSize);
+            K++ ;
+            std::cout << " pVal : " << pValInDouble << "\n" ;
+            r-=log(pValInDouble/P0);
+        }
     }
 
-    size_t  K = pvals.size();
-    //std::cout << "k : " << K << "\n" ;
+    //size_t  K = pvals.size();
+    //std::cout << " nbr Pval < P0 : " << K << "\n" ;
     //std::sort(pvals.begin(),pvals.end());
     double leftSum = 0 ;
     double rightSum = 0 ;
-    for(size_t i =0 ; i < K ; i++) {
-        std::cout << "Hi \n \n" ;
-        for(size_t j = i+1 ; j < K+1 ; j++) {
-            rightSum += BinCoeff(M, j) * pow(P0, k) * pow((1 - P0), (M - k));
+    for(size_t i =0 ; i < K ; i++) { // LeftSum
+        for(size_t j = i+1 ; j < K+1 ; j++) { // RightSum
+            rightSum += BinCoeff(M, j) * pow(P0, j) * pow((1.0 - P0), (M - j));
+            //std::cout << rightSum << "\n" ;
         }
-        leftSum += rightSum*(pow(r, i) / factorial(i));
+        leftSum += (pow(r, i) / factorial(i))*rightSum;
+        std::cout << i << "^" << r << "/" << factorial(i) << "*" << rightSum << "=" <<  (pow(r, i) / factorial(i))*rightSum << "\n" ;
     }
-    std::cout << "leftSum : " << leftSum << "\n" ;
+
+    //std::cout  << "LeftSum : " << leftSum << "\tRightSum : " << rightSum << "\n" ;
+
     std::vector<double> ppvals;
     /*for (size_t i=0; i<pvals.size(); i++) {
         //ppvals.push_back(kthOrderProba(i,crossLinks,pvals[i]));
     }*/
     //double pMin = *(std::min_element(ppvals.begin(),ppvals.end()));
-    int I=0 ;
+    double I=0 ;
     if(r==0){I=1;}
-    updatedPval = pow((1-P0), K)*I+exp(-r)*leftSum ;
+    updatedPval = (1.0-pow((1.0-P0), M))*I + exp(-r)*leftSum ;
+    std::cout << "rest equal : " << pow((1.0-P0), K)*I << "\n" ;
+    std::cout << "updatedPval = " << "(1-(1-"<<P0<<")^"<< M <<")*"<<I<<"+e"<<-r<<"*"<<leftSum << " = " << updatedPval <<"\n" ;
+    std::cout << ".\n.\n" ;
     //updatedPval = kthOrderProba(0,pvals.size(),pMin);
-    std::cout << updatedPval << "\n" ;
+    //std::cout << updatedPval << "\n" ;
     Buffer << params->targetSetKey << "\t" << updatedPval ;//* targetSetSizeDB->getSize() ;
     return Buffer.str() ;
 }
