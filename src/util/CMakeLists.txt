@@ -1,4 +1,5 @@
 set(util_source_files
+        util/aggregate.cpp
         util/apply.cpp
         util/clusthash.cpp
         util/convert2fasta.cpp

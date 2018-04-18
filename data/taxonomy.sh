@@ -20,7 +20,7 @@ if [ -n "${LCA_PAR}" ]; then
         echo "Required NCBI Taxonomy files missing!"
         exit 1;
     fi
-    NCBI_TAXDUMP="$(abspath "$4")"
+    NCBI_TAXDUMP="$4"
 fi
 [   -f "$5" ] &&  echo "$5 exists already!" && exit 1;
 [ ! -d "$6" ] &&  echo "tmp directory $6 not found!" && mkdir -p "$6";
@@ -48,7 +48,7 @@ if [ -n "${SEARCH2_PAR}" ]; then
     fi
 
     if [ ! -e "${TMP_PATH}/aligned" ]; then
-        "$MMSEQS" extractalignedregion "${TMP_PATH}/top1" "${TARGET}" "${TMP_PATH}/top1" "${TMP_PATH}/aligned" --extract-mode 2 \
+        "$MMSEQS" extractalignedregion "${INPUT}" "${TARGET}" "${TMP_PATH}/top1" "${TMP_PATH}/aligned" --extract-mode 2 \
             || fail "Extractalignedregion failed"
     fi
 

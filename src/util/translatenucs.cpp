@@ -35,19 +35,19 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
 #pragma omp parallel
     {
-        char* aa = new char[par.maxSeqLen/3 + 3 + 1];
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
 
+        char* aa = new char[par.maxSeqLen + 3 + 1];
 #pragma omp for schedule(dynamic, 5)
         for (size_t i = 0; i < entries; ++i) {
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
             unsigned int key = reader.getDbKey(i);
             char* data = reader.getData(i);
             bool addStopAtStart = false;
             bool addStopAtEnd = false;
-            if (addOrfStop == true) {
+            if(addOrfStop == true){
                 char* headData = header->getDataByDBKey(key);
                 char * entry[255];
                 size_t columns = Util::getWordsOfLine(headData, entry, 255);
@@ -89,6 +89,13 @@ int translatenucs(int argc, const char **argv, const Command& command) {
                 Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is too short. Skipping entry.\n";
                 continue;
             }
+
+            if(length > 3*par.maxSeqLen)  {
+                Debug(Debug::WARNING) << "Nucleotide sequence entry " << key << " length (" << length << ") is too long. Trimming entry.\n";
+                length = 3*par.maxSeqLen;
+            }
+
+
 //        std::cout << data << std::endl;
             char * writeAA;
             if (addStopAtStart) {
@@ -113,9 +120,8 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     }
     writer.close(Sequence::AMINO_ACIDS);
 
-    std::string base = FileUtil::baseName(par.db2 + "_h");
-    FileUtil::symlinkAlias(par.db1 + "_h", base);
-    FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
+    FileUtil::symlinkAbs(par.db1 + "_h", par.db2 + "_h");
+    FileUtil::symlinkAbs(par.db1 + "_h.index", par.db2 + "_h.index");
 
     if (addOrfStop == true) {
         header->close();

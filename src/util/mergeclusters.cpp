@@ -2,6 +2,9 @@
 #include <list>
 #include <sstream>
 #include <itoa.h>
+#include <algorithm>
+#include <mutex>
+#include "omptl/omptl_algorithm"
 
 #include "Debug.h"
 #include "DBReader.h"
@@ -14,8 +17,7 @@
 #endif
 
 
-void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std::string> cluSteps, int threads)
-{
+void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std::string> cluSteps, int threads){
     // open the sequence database
     // it will serve as the reference for sequence indexes
     std::string seqDBIndex = seqDB + ".index";
@@ -139,18 +141,71 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     }
     delete[] mergedClustering;
     Debug(Debug::WARNING) << "...done.\n";
+}
+
+void mergeSearchWithClustersResults(const std::string &searchResults, const std::string &outDB,
+                                    const std::string &geneToQuerySetLink, int threads){
+    std::string searchResultsIndex = searchResults + ".index";
+    DBReader<unsigned int> searchResultsDB(searchResults.c_str(), searchResultsIndex.c_str());
+    searchResultsDB.open(DBReader<unsigned int>::NOSORT);
+
+    std::string geneToQuerySetLinkIndex = geneToQuerySetLink + ".index";
+    DBReader<unsigned int> geneToQuerySetLinkDB(geneToQuerySetLink.c_str(), geneToQuerySetLinkIndex.c_str());
+    geneToQuerySetLinkDB.open(DBReader<unsigned int>::NOSORT);
+
+    std::string outDBIndex = outDB + ".index";
+    auto* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), static_cast<unsigned int>(threads));
+    dbw->open();
+
+    #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < geneToQuerySetLinkDB.getSize(); i++){
+        std::string buffer;
+        std::stringstream querySetGeneList(geneToQuerySetLinkDB.getData(i));
+        std::string Gene;
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
+        // go through the sequences in the cluster and add them to the initial clustering
+        while (std::getline(querySetGeneList, Gene)){
+            auto key = (unsigned  int) strtoul(Gene.c_str(), nullptr, 10);
+
+            char *data = searchResultsDB.getDataByDBKey(key);
+            buffer.append(data);
+        }
+        dbw->writeData(buffer.c_str(), buffer.length(), geneToQuerySetLinkDB.getDbKey(i),
+                       static_cast<unsigned int>(thread_idx));
+    }
+
+    dbw->close();
+    delete dbw;
+
+
+    searchResultsDB.close();
+    geneToQuerySetLinkDB.close();
+
+
+    Debug(Debug::WARNING) << "...done.\n";
 
 }
 
 int mergeclusters(int argc, const char **argv, const Command& command) {
-    Parameters& par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4, true, Parameters::PARSE_VARIADIC);
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 3, true, true);
+
+#ifdef OPENMP
+    omp_set_num_threads(par.threads);
+#endif
 
     std::list<std::string> clusterings;
-    for(size_t i = 2; i < par.filenames.size(); i++){
-        clusterings.emplace_back(par.filenames[i]);
+    for (int i = 2; i < argc; i++) {
+        clusterings.push_back(std::string(argv[i]));
     }
-    mergeClusteringResults(par.db1, par.db2, clusterings, par.threads);
+    if (!par.DBfile.empty()){
+    mergeSearchWithClustersResults(par.db1, par.db2, par.DBfile, par.threads);
+    }
+    else
+        mergeClusteringResults(par.db1, par.db2, clusterings, par.threads);
 
     return 0;
 }

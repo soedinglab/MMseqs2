@@ -473,7 +473,7 @@ std::string Util::removeWhiteSpace(std::string in) {
 bool Util::canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength) {
     switch(covMode){
         case Parameters::COV_MODE_BIDIRECTIONAL:
-            return ((queryLength / targetLength >= covThr) || (targetLength / queryLength >= covThr));
+            return ((queryLength / targetLength >= covThr) && (targetLength / queryLength >= covThr));
         case Parameters::COV_MODE_QUERY:
             return ((targetLength / queryLength) >= covThr);
         default:

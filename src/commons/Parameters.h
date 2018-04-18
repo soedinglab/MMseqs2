@@ -209,6 +209,9 @@ public:
     int maxIteration;                   // Maximum depth of breadth first search in connected component
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
 
+    //mergecluster
+    std::string DBfile ;
+
     //extractorfs
     int orfMinLength;
     int orfMaxLength;
@@ -313,6 +316,9 @@ public:
     int sortEntries;
     bool beatsFirst;
     std::string joinDB;
+
+    //aggregate
+    std::string mode ;
 
     // mergedbs
     std::string mergePrefixes;
@@ -423,6 +429,9 @@ public:
     // affinity clustering
     PARAMETER(PARAM_MAXITERATIONS)
     PARAMETER(PARAM_SIMILARITYSCORE)
+
+    //Merge Clusters
+    PARAMETER(PARAM_BY_DB)
 
     // logging
     PARAMETER(PARAM_V)
@@ -542,6 +551,9 @@ public:
     PARAMETER(PARAM_BEATS_FIRST)
     PARAMETER(PARAM_JOIN_DB)
 
+    //aggregate
+    PARAMETER(PARAM_MODE)
+
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)
 
@@ -612,6 +624,7 @@ public:
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;
     std::vector<MMseqsParameter> clusterUpdateClust;
+    std::vector<MMseqsParameter> mergeclusters ;
     std::vector<MMseqsParameter> clusterUpdate;
     std::vector<MMseqsParameter> translatenucs;
     std::vector<MMseqsParameter> swapresult;
@@ -634,7 +647,7 @@ public:
     std::vector<MMseqsParameter> taxonomy;
     std::vector<MMseqsParameter> profile2pssm;
     std::vector<MMseqsParameter> profile2cs;
-
+    std::vector<MMseqsParameter> aggregate ;
 
     std::vector<MMseqsParameter> combineList(const std::vector<MMseqsParameter> &par1,
                                              const std::vector<MMseqsParameter> &par2);
