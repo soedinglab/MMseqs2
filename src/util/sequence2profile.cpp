@@ -28,7 +28,7 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
     {
         Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, &subMat, 0, false, false);
         CSProfile ps(par.maxSeqLen);
-        char * data = new char[par.maxSeqLen * Sequence::PROFILE_AA_SIZE];
+        char * data = new char[par.maxSeqLen * Sequence::PROFILE_READIN_SIZE];
 #pragma omp for schedule(static)
         for (size_t id = 0; id < sequenceDb.getSize(); id++) {
             Debug::printProgress(id);
@@ -40,20 +40,21 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
             unsigned int queryKey = sequenceDb.getDbKey(id);
             seq.mapSequence(id, queryKey, seqData);
             float * prob =  ps.computeProfile(&seq, par.neff, par.tau);
-            // a bit hacky. I reuse the pssm data as storage
+
             size_t dataSize = seq.L * Sequence::PROFILE_READIN_SIZE * sizeof(char);
-            for (size_t i = 0; i < dataSize; i++) {
-                // Avoid a null byte result
-                if((i+1) % Sequence::PROFILE_READIN_SIZE == 0){
-                    data[i] =  MathUtil::convertNeffToChar(prob[i]); // avoid \0 by setting 0 values to MINIFLOAT_MIN
-                }else{
-                    // Set to MINIFLOAT_MAX to have a 0 value. MAX is 1.96875 (probs range is 0.0-1.0)
-                    // We map this value to 0 in Sequence::mapProfile/mapProfileState
-                    char val = MathUtil::convertFloatToChar(prob[i]);
-                    data[i] = (val == 0) ? MINIFLOAT_MAX : val; // avoid \0 by setting 0 values to MINIFLOAT_MIN
+            size_t idx = 0;
+            for (size_t i = 0; i < seq.L; i++) {
+                for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE;aa++)
+                {
+                    data[idx++] = Sequence::scoreMask(prob[i*Sequence::PROFILE_READIN_SIZE + aa]);
+                    //std::cout<<"\t"<<(int)data[idx-1];
                 }
+                //std::cout<<std::endl;
+                data[idx++] = static_cast<unsigned char>(seq.int_sequence[i]); // query
+                data[idx++] = static_cast<unsigned char>(seq.int_sequence[i]); // consensus
+                data[idx++] = MathUtil::convertNeffToChar(prob[i*Sequence::PROFILE_READIN_SIZE + Sequence::PROFILE_AA_SIZE]);
             }
-            resultDbw.writeData(data, dataSize, queryKey, thread_idx);
+            resultDbw.writeData(data, idx, queryKey, thread_idx);
         }
         delete [] data;
     }

@@ -140,6 +140,11 @@ size_t FileUtil::getFreeSpace(const char *path) {
 
 void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
     char *p = realpath(file.c_str(), NULL);
+    if (p == NULL) {
+        Debug(Debug::ERROR) << "Could not get path of " << file << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     std::string path = dirName(p);
     std::string base = baseName(p);
     free(p);
@@ -165,6 +170,42 @@ void FileUtil::symlinkAlias(const std::string &file, const std::string &alias) {
         Debug(Debug::ERROR) << "Error closing directory " << path << "!\n";
         EXIT(EXIT_FAILURE);
     }
+}
+
+void FileUtil::symlinkAbs(const std::string &target, const std::string &link) {
+    char *t = realpath(target.c_str(), NULL);
+    if (t == NULL) {
+        Debug(Debug::ERROR) << "Could not get realpath of " << target << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    std::string realLink;
+    char *l = realpath(link.c_str(), NULL);
+    if (l == NULL) {
+        std::string path = dirName(link);
+        std::string base = baseName(link);
+        l = realpath(path.c_str(), NULL);
+        if (l == NULL) {
+            Debug(Debug::ERROR) << "Could not get realpath of " << link << "!\n";
+            EXIT(EXIT_FAILURE);
+        } else {
+            realLink = (std::string(l) + "/" + base);
+        }
+    } else {
+        realLink = l;
+        if (symlinkExists(realLink) == true && remove(realLink.c_str()) != 0){
+            Debug(Debug::ERROR) << "Could not remove old symlink " << link << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
+    }
+
+    if (symlink(t, realLink.c_str()) != 0) {
+        Debug(Debug::ERROR) << "Could not create symlink of " << target << "!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    free(t);
+    free(l);
 }
 
 size_t FileUtil::getFileSize(const std::string &fileName) {

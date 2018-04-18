@@ -17,12 +17,12 @@ int doExtractAlignedRegion(Parameters &par) {
     DBReader<unsigned int> *tdbr = NULL;
 
     bool sameDB = false;
-    Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
+    Debug(Debug::INFO) << "Query file: " << par.db1 << "\n";
     qdbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qdbr->open(DBReader<unsigned int>::NOSORT);
     qdbr->readMmapedDataInMemory();
 
-    Debug(Debug::INFO) << "Target  file: " << par.db2 << "\n";
+    Debug(Debug::INFO) << "Target file: " << par.db2 << "\n";
     if (par.db1.compare(par.db2) == 0) {
         sameDB = true;
         tdbr = qdbr;
@@ -76,11 +76,10 @@ int doExtractAlignedRegion(Parameters &par) {
             }
         }
     }
-    dbw.close();
+    dbw.close(qdbr->getDbtype());
 
-    std::string base = FileUtil::baseName(par.db4 + "_h");
-    FileUtil::symlinkAlias(par.db1 + "_h", base);
-    FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
+    FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_h");
+    FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_h.index");
 
     Debug(Debug::INFO) << "Done." << "\n";
 

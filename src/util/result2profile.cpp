@@ -369,15 +369,13 @@ int result2profile(int argc, const char **argv, const Command &command) {
     int status = result2profile(resultReader, par, par.db4, 0, resultReader.getSize());
 #endif
 
-//    std::string base = FileUtil::baseName(par.db4 + "_h");
-//    FileUtil::symlinkAlias(par.db1 + "_h", base);
-//    FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
-//
-//    if (par.omitConsensus == false) {
-//        std::string base = FileUtil::baseName(par.db4 + "_consensus_h");
-//        FileUtil::symlinkAlias(par.db1 + "_h", base);
-//        FileUtil::symlinkAlias(par.db1 + "_h.index", base + ".index");
-//    }
+    FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_h");
+    FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_h.index");
+
+    if (par.omitConsensus == false) {
+        FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_consensus_h");
+        FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_consensus_h.index");
+    }
 
     resultReader.close();
 
