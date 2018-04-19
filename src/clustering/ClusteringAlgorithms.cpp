@@ -102,11 +102,12 @@ std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithm
                     }
                 }
             }
+            //delete unnecessary datastructures
+            delete [] sorted_clustersizes;
+            delete [] clusterid_to_arrayposition;
+            delete [] borders_of_set;
         }
-        //delete unnecessary datastructures
-        delete [] sorted_clustersizes;
-        delete [] clusterid_to_arrayposition;
-        delete [] borders_of_set;
+
         delete [] elementLookupTable;
         delete [] elements;
         delete [] elementOffsets;
