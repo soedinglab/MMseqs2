@@ -30,6 +30,7 @@
 float computeNeff(float neffA, float maxNeffA, float neffB, float maxNeffB, float avgNewNeff) {
     
     float w = (neffA + neffB) / (maxNeffA + maxNeffB);
+    //std::cout<<"COmputing new neff:"<<neffA<<","<<maxNeffA<<","<<neffB<<","<<maxNeffB<<","<<avgNewNeff<<","<<w<<","<<std::endl;
     return avgNewNeff + 1 - exp(log(avgNewNeff) * (1-w));
      
 }
@@ -62,17 +63,16 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
 //#pragma omp parallel
     {
         int sequenceType = Sequence::PROFILE_STATE_PROFILE;
-        Sequence queryProfile(par.maxSeqLen, sequenceType, subMat, 0, false,
+        Sequence queryProfile(par.maxSeqLen, qDbr->getDbtype(), subMat, 0, false,
                               par.compBiasCorrection,false);
-        Sequence targetProfile(par.maxSeqLen, sequenceType, subMat, 0, false,
+        Sequence targetProfile(par.maxSeqLen, tDbr->getDbtype(), subMat, 0, false,
                                par.compBiasCorrection,false);
         float * outProfile=new float[par.maxSeqLen * Sequence::PROFILE_AA_SIZE];
         float * neffM=new float[par.maxSeqLen];
         std::string result;
         result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
-
-//#pragma omp for schedule(static)
+#pragma omp for schedule(static)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
             unsigned int thread_idx = 0;
@@ -85,21 +85,31 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
             unsigned int queryKey = resultReader->getDbKey(id);
             char *queryData = qDbr->getDataByDBKey(queryKey);
             queryProfile.mapSequence(id, queryKey, queryData);
+            
+
             const float * qProfile =  queryProfile.getProfile();
+
+            queryProfile.printProfile();
+
             const size_t profile_row_size = queryProfile.profile_row_size;
             const float neffQ = 1.0;
+            /*
             // init outProfile with query Probs
             for(int l = 0; l < queryProfile.L; l++) {
                 for (size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
                     outProfile[l*Sequence::PROFILE_AA_SIZE + aa_num] = qProfile[l * profile_row_size + aa_num];
                 }
             }
-            
+            */
+
             float maxNeffQ = 0;
             for (size_t pos = 0; pos<queryProfile.L;pos++)
             {
                 maxNeffQ = std::max(maxNeffQ,queryProfile.neffM[pos]);
+                neffM[pos] = queryProfile.neffM[pos];
             }
+            
+            
             
             memset(outProfile, 0, queryProfile.L * Sequence::PROFILE_AA_SIZE * sizeof(float));
             while (*results != '\0') {
@@ -109,12 +119,13 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                 char *entry[255];
                 const size_t columns = Util::getWordsOfLine(results, entry, 255);
                 // its an aln result
-                if (columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
+                if (columns > Matcher::ALN_RES_WITH_OUT_BT_COL_CNT) {
                     evalue = strtod(entry[3], NULL);
                 }else{
                     Debug(Debug::ERROR) << "Alignment must contain the alignment information. Compute the alignment with option -a.\n";
                     EXIT(EXIT_FAILURE);
                 }
+                
                 // just add sequences if eval < thr. and if key is not the same as the query in case of sameDatabase
                 if (evalue <= par.evalProfile && (key != queryKey || sameDatabase == false)) {
                     Matcher::result_t res = Matcher::parseAlignmentRecord(results);
@@ -132,7 +143,6 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                         maxNeffT = std::max(maxNeffT,targetProfile.neffM[pos]);
                     } 
                     
-                    
                     for(int btPos = 0; btPos < res.backtrace.size(); btPos++){
                         aliLength++;
                         const float neffT = 1.0;
@@ -147,16 +157,17 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                         for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
                             //TODO do all alignment states contribute?
                             if(letter == 'M') {
-                                float qProb = qProfile[qPos * profile_row_size + aa_num] * queryProfile.neffM[qPos];
-                                float tProb = tProfile[tPos * profile_row_size + aa_num] * targetProfile.neffM[tPos];
+                                float qProb = qProfile[qPos * Sequence::PROFILE_AA_SIZE + aa_num] * queryProfile.neffM[qPos];
+                                float tProb = tProfile[tPos * Sequence::PROFILE_AA_SIZE + aa_num] * targetProfile.neffM[tPos];
                                 float mixedProb = qProb + tProb;
                                 outProfile[qPos * Sequence::PROFILE_AA_SIZE + aa_num] += mixedProb;
                                 mixedProb /= queryProfile.neffM[qPos] + targetProfile.neffM[tPos];
-                                avgEntropy += -mixedProb * log(mixedProb);
-                            }
+                                avgEntropy += (mixedProb>0.0) ? -mixedProb * log(mixedProb):0.0;
 
+                            }
                         }
-                        
+      
+              
                         if(letter == 'M'){
                             qPos++;
                             tPos++;
@@ -171,23 +182,46 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                     }
                     
                     
-                    
-                    
-                    avgEntropy /= aliLength;
-                    float avgNewNeff = exp(avgEntropy);
-                    // update the Neff of the merge between the target prof and the query prof
-                    for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
-                        neffM[qPos] += computeNeff(queryProfile.neffM[qPos], maxNeffQ, targetProfile.neffM[tPos],maxNeffT,avgNewNeff);
-                    }
-                    
+
+                   
                     // Normalize probability
                     for(int l = res.qStartPos; l < res.qEndPos; l++) {
                         MathUtil::NormalizeTo1(&outProfile[l * Sequence::PROFILE_AA_SIZE], Sequence::PROFILE_AA_SIZE);
                     }
+                    
+                    avgEntropy /= aliLength;
+                    float avgNewNeff = exp(avgEntropy);
+                    
+                    // update the Neff of the merge between the target prof and the query prof
+                    qPos = res.qStartPos;
+                    tPos = res.dbStartPos;
+                    for(int btPos = 0; btPos < res.backtrace.size(); btPos++){
+                        char letter = res.backtrace[btPos];
+
+                        float qNeff = queryProfile.neffM[qPos];
+                        float tNeff = targetProfile.neffM[tPos];
+                        float maxNeff = std::max(qNeff, tNeff);
+                        float minNeff = std::min(qNeff, tNeff);
+                        
+                        neffM[qPos] = computeNeff(queryProfile.neffM[qPos], maxNeffQ, targetProfile.neffM[tPos],maxNeffT,avgNewNeff);
+                        
+                        if(letter == 'M'){
+                            qPos++;
+                            tPos++;
+                        } else if (letter == 'I') {
+                            ++qPos;
+                            //backtrace.append("I");
+                        } else if (letter == 'D'){
+                            ++tPos;
+                            //backtrace.append("D");
+                        }
+
+                    }
+                   
                 }
                 results = Util::skipLine(results);
             }
-            
+            /*
             float maxNewNeff = 0.0;
             float avgEntropy = 0.0;
             for(int l = 0; l < queryProfile.L; l++) {
@@ -203,30 +237,34 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
             
             // update the Neff of the merges of all target prof and the query prof
             for(int l = 0; l < queryProfile.L; l++) {
-                for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
+                //for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
                     neffM[l] = computeNeff(queryProfile.neffM[l], maxNeffQ, neffM[l],maxNewNeff,avgNewNeff);
-                }
+                //}
             }
-                    
+                    */
             size_t pos = 0;
             std::string consensus(queryProfile.L,'X');
+            result.clear();
             for(int l = 0; l < queryProfile.L; l++) {
                 float maxProb = 0.0f;
                 for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
                     result.push_back(Sequence::scoreMask(outProfile[l * Sequence::PROFILE_AA_SIZE + aa_num]));
+                    //std::cout<< outProfile[l * Sequence::PROFILE_AA_SIZE + aa_num]<<"\t";
                     if (outProfile[l * Sequence::PROFILE_AA_SIZE + aa_num] > maxProb)
                     {
                         consensus[l] = aa_num;
                         maxProb = outProfile[l * Sequence::PROFILE_AA_SIZE + aa_num];
                     }
                 }
+                //std::cout<<std::endl;
+                
                 // write query, consensus sequence and neffM
                 result.push_back(static_cast<unsigned char>(queryProfile.int_sequence[l]));
                 result.push_back(consensus[l]);
                 unsigned char neff = MathUtil::convertNeffToChar(neffM[l]);
                 result.push_back(neff);
             }
-            
+            //std::cout<<"Query length:"<<queryProfile.L<<", res length:"<<result.size()<<", should be:"<<queryProfile.L*23<<std::endl;
             resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
         }
         delete [] outProfile;
