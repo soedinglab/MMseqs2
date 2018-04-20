@@ -105,7 +105,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                     : std::string((const char*)CovSeqidQscPercMinDiagTargetCov_out, CovSeqidQscPercMinDiagTargetCov_out_len);
         scorePerColThr = parsePrecisionLib(libraryString, par.seqIdThr, par.covThr, 0.99);
     }
-    double * kmnByLen = new double[par.maxSeqLen];
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
     DistanceCalculator globalAliStat;
     if (par.globalAlignment)
@@ -290,7 +289,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     qdbr->close();
     delete qdbr;
     delete subMat;
-    delete [] kmnByLen;
     delete [] fastMatrix.matrix;
     delete [] fastMatrix.matrixData;
     if (sameDB == false) {

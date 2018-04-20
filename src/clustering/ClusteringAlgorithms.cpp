@@ -102,11 +102,12 @@ std::unordered_map<unsigned int, std::vector<unsigned int>>  ClusteringAlgorithm
                     }
                 }
             }
+            //delete unnecessary datastructures
+            delete [] sorted_clustersizes;
+            delete [] clusterid_to_arrayposition;
+            delete [] borders_of_set;
         }
-        //delete unnecessary datastructures
-        delete [] sorted_clustersizes;
-        delete [] clusterid_to_arrayposition;
-        delete [] borders_of_set;
+
         delete [] elementLookupTable;
         delete [] elements;
         delete [] elementOffsets;
@@ -264,6 +265,10 @@ void ClusteringAlgorithms::setCover(unsigned int **elementLookupTable, unsigned 
 }
 
 void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluster) {
+    // two step clustering
+    // 1.) we define the rep. sequences by minimizing the ids (smaller ID = longer sequence)
+    // 2.) we correct maybe wrong assigned sequence by checking if the assigned sequence is really a rep. seq.
+    //     if they are not make them rep. seq.
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         unsigned int clusterKey = seqDbr->getDbKey(i);
@@ -299,6 +304,44 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
                 EXIT(EXIT_FAILURE);
             }
             data = Util::skipLine(data);
+        }
+    }
+
+#pragma omp parallel for schedule(dynamic, 1000)
+    for(size_t id = 0; id < dbSize; id++) {
+        unsigned int clusterKey = seqDbr->getDbKey(id);
+        unsigned int clusterId = id;
+
+        const size_t alnId = alnDbr->getId(clusterKey);
+        char *data = alnDbr->getData(alnId);
+
+        while (*data != '\0') {
+            char dbKey[255 + 1];
+            Util::parseKey(data, dbKey);
+            const unsigned int key = (unsigned int) strtoul(dbKey, NULL, 10);
+            unsigned int currElement = seqDbr->getId(key);
+            unsigned int targetId;
+
+            __atomic_load(&assignedcluster[currElement], &targetId ,__ATOMIC_RELAXED);
+            do {
+                if (targetId <= clusterId) break;
+            } while (!__atomic_compare_exchange(&assignedcluster[currElement],  &targetId,  &clusterId , false,  __ATOMIC_RELAXED, __ATOMIC_RELAXED));
+
+            if (currElement == UINT_MAX || currElement > seqDbr->getSize()) {
+                Debug(Debug::ERROR) << "ERROR: Element " << dbKey
+                                    << " contained in some alignment list, but not contained in the sequence database!\n";
+                EXIT(EXIT_FAILURE);
+            }
+            data = Util::skipLine(data);
+        }
+    }
+    size_t counter = 0;
+    size_t counter2 = 0;
+    // correct edges that are not assigned properly
+    for(size_t id = 0; id < dbSize; id++) {
+        unsigned int assignedClusterId = assignedcluster[id];
+        if(assignedcluster[assignedClusterId]!=assignedClusterId){
+            assignedcluster[assignedClusterId] = assignedClusterId;
         }
     }
 
