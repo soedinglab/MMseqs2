@@ -367,11 +367,11 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
             }else{
                 //need to get the real score
                 double evalue;
-                if(scoreCurr==255){
+                if (scoreCurr >= (UCHAR_MAX - align->getQueryBias())) {
                     unsigned int newScore = align->scoreSingelSequence(results[i]);
                     result->prefScore = newScore;
                     evalue = -evaluer.computeLogEvalue(newScore, l);
-                } else{
+                } else {
                     evalue = -evaluer.computeLogEvalue(scoreCurr, l);
                 }
                 result->pScore = evalue;

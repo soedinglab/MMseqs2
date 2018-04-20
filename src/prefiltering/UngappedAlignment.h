@@ -25,6 +25,10 @@ public:
 
     int scoreSingelSequence(CounterResult &result);
 
+    inline short getQueryBias() {
+        return bias;
+    }
+
 private:
     const static unsigned int DIAGONALCOUNT = 0xFFFF + 1;
     const static unsigned int PROFILESIZE = 32;
