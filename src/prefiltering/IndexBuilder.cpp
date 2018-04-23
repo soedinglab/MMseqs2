@@ -89,6 +89,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     Debug(Debug::INFO) << "Index table: counting k-mers...\n";
 
     const bool isProfile = seq->getSeqType() == Sequence::HMM_PROFILE;
+    const bool isProfileStateSeq = seq->getSeqType() == Sequence::PROFILE_STATE_SEQ;
 
     dbTo = std::min(dbTo, dbr->getSize());
     size_t dbSize = dbTo - dbFrom;
@@ -152,23 +153,25 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                     (*unmaskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info.sequenceOffsets[id - dbFrom]);
                 }
                 if (maskedLookup != NULL) {
-                    for (int i = 0; i < s.L; ++i) {
-                        charSequence[i] = (char) s.int_sequence[i];
-                    }
-                    // s.print();
-                    maskedResidues += tantan::maskSequences(charSequence,
-                                                            charSequence + s.L,
-                                                            50 /*options.maxCycleLength*/,
-                                                            probMatrix->probMatrixPointers,
-                                                            0.005 /*options.repeatProb*/,
-                                                            0.05 /*options.repeatEndProb*/,
-                                                            0.9 /*options.repeatOffsetProbDecay*/,
-                                                            0, 0,
-                                                            0.9 /*options.minMaskProb*/,
-                                                            probMatrix->hardMaskTable);
+                    if(isProfileStateSeq == false) {
+                        for (int i = 0; i < s.L; ++i) {
+                            charSequence[i] = (char) s.int_sequence[i];
+                        }
+                        // s.print();
+                        maskedResidues += tantan::maskSequences(charSequence,
+                                                                charSequence + s.L,
+                                                                50 /*options.maxCycleLength*/,
+                                                                probMatrix->probMatrixPointers,
+                                                                0.005 /*options.repeatProb*/,
+                                                                0.05 /*options.repeatEndProb*/,
+                                                                0.9 /*options.repeatOffsetProbDecay*/,
+                                                                0, 0,
+                                                                0.9 /*options.minMaskProb*/,
+                                                                probMatrix->hardMaskTable);
 
-                    for (int i = 0; i < s.L; i++) {
-                        s.int_sequence[i] = charSequence[i];
+                        for (int i = 0; i < s.L; i++) {
+                            s.int_sequence[i] = charSequence[i];
+                        }
                     }
                     (*maskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info.sequenceOffsets[id - dbFrom]);
                 }
