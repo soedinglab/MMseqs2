@@ -205,7 +205,9 @@ int ProfileStates::read(std::string libraryData) {
     discProfScores = new float*[alphSize];
     for (k = 0; k< alphSize ; k++)
     {
-        discProfScores[k] = new float[alphSize];
+        unsigned int ceilAlphSize = MathUtil::ceilIntDivision(alphSize,VECSIZE_FLOAT);
+        discProfScores[k] = (float*) mem_align(ALIGN_FLOAT, sizeof(float)*VECSIZE_FLOAT*ceilAlphSize);
+        memset(discProfScores[k], 0,ceilAlphSize*VECSIZE_FLOAT* sizeof(float) );
         for (size_t l = 0; l< alphSize ; l++)
             discProfScores[k][l] = score(k,l);
     }
@@ -255,9 +257,8 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
     char closestState;
     float curDiffScore;
     float* profileCol;
-    float* repScore;
-    repScore = new float[alphSize];
-
+    float* repScore = (float*)mem_align(ALIGN_FLOAT, 256);
+    memset(repScore, 0, sizeof(float)*256);
     for (size_t i = 0 ; i<length ; i++)
     {
         profileCol = (float *)sequence + i*Sequence::PROFILE_AA_SIZE;
@@ -273,10 +274,23 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
         for (size_t k=0;k<alphSize;k++)
         {
             curDiffScore = 0.0;
-            for (size_t l=0;l<alphSize;l++)
+            simd_float curDiffScoreSimd=simdf32_setzero(0);
+            unsigned int ceilAlphSize = MathUtil::ceilIntDivision(alphSize,VECSIZE_FLOAT);
+//            for (size_t l=0;l<alphSize;l++)
+//            {
+//                float diff = repScore[l] - discProfScores[k][l];
+//                tmp += diff*diff;
+//            }
+            for (size_t l=0;l<ceilAlphSize*VECSIZE_FLOAT;l+=VECSIZE_FLOAT)
             {
-                float diff = repScore[l] - discProfScores[k][l];
-                curDiffScore += diff*diff;
+                simd_float repScoreLSimd = simdf32_load(&repScore[l]);
+                simd_float discProfScoresLSimd = simdf32_load(&discProfScores[k][l]);
+                simd_float diff = simdf32_sub(repScoreLSimd, discProfScoresLSimd);
+                curDiffScoreSimd = simdf32_add(curDiffScoreSimd, simdf32_mul(diff, diff));
+            }
+            float * curDiffScoreSimdFlt = (float*) &curDiffScoreSimd;
+            for (size_t l=0;l<VECSIZE_FLOAT;l++){
+                curDiffScore+= curDiffScoreSimdFlt[l];
             }
 
             if (!k||(curDiffScore < minDiffScore))
@@ -288,7 +302,7 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
 
         result.push_back(closestState);
     }
-    delete [] repScore;
+    free(repScore);
 }
 
 float ProfileStates::score(float* profileCol, size_t state)
