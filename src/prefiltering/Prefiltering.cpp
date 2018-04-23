@@ -432,10 +432,12 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     // remove X or N for seeding
     int adjustAlphabetSize = (targetSeqType == Sequence::NUCLEOTIDES || targetSeqType == Sequence::AMINO_ACIDS)
                        ? alphabetSize -1 : alphabetSize;
-
     indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
-    SequenceLookup **maskedLookup = maskMode == 1 ? &sequenceLookup : NULL;
+    SequenceLookup **maskedLookup   = maskMode == 1 ? &sequenceLookup : NULL;
+    maskedLookup = (targetSeqType == Sequence::PROFILE_STATE_SEQ) ? NULL : maskedLookup;
     SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
+
+
     IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *subMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr);
 
     if (diagonalScoring == false) {
