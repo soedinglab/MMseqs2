@@ -257,7 +257,7 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
     char closestState;
     float curDiffScore;
     float* profileCol;
-    float* repScore = (float*)mem_align(ALIGN_FLOAT, 256);
+    float* repScore = (float*)mem_align(ALIGN_FLOAT, 256*sizeof(float));
     memset(repScore, 0, sizeof(float)*256);
     for (size_t i = 0 ; i<length ; i++)
     {
