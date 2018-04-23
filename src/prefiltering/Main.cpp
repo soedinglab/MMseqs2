@@ -40,7 +40,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
     if (queryDbType != Sequence::HMM_PROFILE && targetDbType == Sequence::PROFILE_STATE_SEQ) {
         Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
         EXIT(EXIT_FAILURE);
-    } else if (queryDbType == Sequence::HMM_PROFILE && targetDbType == Sequence::PROFILE_STATE_PROFILE) {
+    } else if (queryDbType == Sequence::HMM_PROFILE && targetDbType == Sequence::PROFILE_STATE_SEQ) {
         queryDbType = Sequence::PROFILE_STATE_PROFILE;
     }
 

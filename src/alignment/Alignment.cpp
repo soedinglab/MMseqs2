@@ -130,7 +130,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (querySeqType != Sequence::HMM_PROFILE && targetSeqType == Sequence::PROFILE_STATE_SEQ) {
         Debug(Debug::ERROR) << "The query has to be a profile when using a target profile state database.\n";
         EXIT(EXIT_FAILURE);
-    } else if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::PROFILE_STATE_PROFILE) {
+    } else if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::PROFILE_STATE_SEQ) {
         querySeqType = Sequence::PROFILE_STATE_PROFILE;
     }
     Debug(Debug::INFO) << "Query database type: " << DBReader<unsigned int>::getDbTypeName(querySeqType) << "\n";
@@ -145,7 +145,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         gapExtend = 1;
     } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, 0.0, par.maxSeqLen);
+        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, 0.0, par.maxSeqLen, 255);
         gapOpen = Matcher::GAP_OPEN;
         gapExtend = Matcher::GAP_EXTEND;
     } else {

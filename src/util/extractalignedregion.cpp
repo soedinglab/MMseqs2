@@ -76,7 +76,12 @@ int doExtractAlignedRegion(Parameters &par) {
             }
         }
     }
-    dbw.close(qdbr->getDbtype());
+
+    if (par.extractMode == Parameters::EXTRACT_QUERY) {
+        dbw.close(qdbr->getDbtype());
+    } else {
+        dbw.close(tdbr->getDbtype());
+    }
 
     FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_h");
     FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_h.index");
