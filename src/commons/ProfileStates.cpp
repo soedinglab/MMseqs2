@@ -11,18 +11,31 @@
 //#include <LibraryExpOpt7_10_polished.lib.h>
 //#include <LibraryMix.lib.h>
 #include <ExpOpt3_8_polished.cs32.lib.h>
+#include <Library255_may17.lib.h>
+
 //#include <LibraryExpOpt3_8_polished2.lib.h>
 
 // **********************************************
 // ********** ProfileStates *********************
 // **********************************************
-ProfileStates::ProfileStates( double * pBack)
+ProfileStates::ProfileStates( int pAlphSize, double * pBack)
 {
     //std::string libraryString((const char *)LibraryExpOpt_lib, LibraryExpOpt_lib_len);
     //std::string libraryString((const char *) LibraryPureMMorder_lib, LibraryPureMMorder_lib_len);
     //std::string libraryString((const char *) LibraryExpOpt7_10_polished_lib, LibraryExpOpt7_10_polished_lib_len);
     //std::string libraryString((const char *) Library_Training2_run17_lib, Library_Training2_run17_lib_len);
-    std::string libraryString((const char *)ExpOpt3_8_polished_cs32_lib, ExpOpt3_8_polished_cs32_lib_len);
+    std::string libraryString;
+    switch (pAlphSize){
+        case 32:
+            libraryString=std::string((const char *)ExpOpt3_8_polished_cs32_lib, ExpOpt3_8_polished_cs32_lib_len);
+            break;
+        case 255:
+            libraryString=std::string((const char *)Library255_may17_lib, Library255_may17_lib_len);
+            break;
+        default:
+            Debug(Debug::ERROR) << "Could not load library for alphabet size " << alphSize << "\n";
+            EXIT(EXIT_FAILURE);
+    }
     //std::string libraryString((const char *)LibraryExpOpt3_8_polished2_lib, LibraryExpOpt3_8_polished2_lib_len);
     //std::string libraryString((const char *)LibraryMix_lib, LibraryMix_lib_len);
 

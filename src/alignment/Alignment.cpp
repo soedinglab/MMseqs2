@@ -145,7 +145,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         gapExtend = 1;
     } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, 0.0, par.maxSeqLen);
+        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, 0.0, par.maxSeqLen, 255);
         gapOpen = Matcher::GAP_OPEN;
         gapExtend = Matcher::GAP_EXTEND;
     } else {

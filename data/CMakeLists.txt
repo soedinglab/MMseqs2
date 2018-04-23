@@ -33,6 +33,7 @@ set(COMPILED_RESOURCES
         CovSeqidQscPercMinDiag.out
         CovSeqidQscPercMinDiagTargetCov.out
         ExpOpt3_8_polished.cs32.lib
+        Library255_may17.lib
         K4000.crf
         )
 

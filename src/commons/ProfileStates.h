@@ -35,7 +35,7 @@ struct Color {
 class ProfileStates {
 public:
 
-    ProfileStates(double * pBack);
+    ProfileStates(int alphSize, double * pBack);
     ~ProfileStates();
     int read(std::string libraryData);
     int readProfile(std::stringstream &in, float * profile, float * normalizedProfile);
