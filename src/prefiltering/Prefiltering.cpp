@@ -100,7 +100,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         maskMode = 0;
     }
 
-    takeOnlyBestKmer = (targetSeqType == Sequence::HMM_PROFILE && querySeqType == Sequence::AMINO_ACIDS) ||
+    takeOnlyBestKmer = (par.exactKmerMatching==1)||
+                       (targetSeqType == Sequence::HMM_PROFILE && querySeqType == Sequence::AMINO_ACIDS) ||
                        (targetSeqType == Sequence::NUCLEOTIDES && querySeqType == Sequence::NUCLEOTIDES);
     // init the substitution matrices
     switch (querySeqType) {

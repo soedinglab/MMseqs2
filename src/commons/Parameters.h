@@ -164,6 +164,7 @@ public:
     //bool   targetProfile;                // using targetProfile information
     int    compBiasCorrection;           // Aminoacid composiont correction
     int    diagonalScoring;              // switch diagonal scoring
+    int    exactKmerMatching;            // only exact k-mer matching
     int    maskMode;                     // mask low complex areas
 
     int    minDiagScoreThr;              // min diagonal score
@@ -390,6 +391,7 @@ public:
 //    PARAMETER(PARAM_TARGET_PROFILE)
     //PARAMETER(PARAM_NUCL)
     PARAMETER(PARAM_DIAGONAL_SCORING)
+    PARAMETER(PARAM_EXACT_KMER_MATCHING)
     PARAMETER(PARAM_MASK_RESIDUES)
 
     PARAMETER(PARAM_MIN_DIAG_SCORE)
