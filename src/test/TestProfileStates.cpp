@@ -616,7 +616,7 @@ int main (int argc, const char * argv[])
     PSSMCalculator pssm(&subMat, par.maxSeqLen, filteredSetSize, 1.0, 1.5);
     PSSMCalculator::Profile profile = pssm.computePSSMFromMSA(filteredSetSize, res.centerLength,  (const char **) res.msaSequence, false);
     //std::string libraryString((const char *)Library1_lib, Library1_lib_len);
-    ProfileStates ps(subMat.pBack);
+    ProfileStates ps(32, subMat.pBack);
 
     char mmOrder[] = {'A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y','\0'};
     for (size_t i=0 ; i<20;i++)
