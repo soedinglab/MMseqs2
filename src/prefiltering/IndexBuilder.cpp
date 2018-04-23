@@ -114,7 +114,10 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
     }
 
     // identical scores for memory reduction code
-    char *idScoreLookup = getScoreLookup(subMat);
+    char *idScoreLookup = NULL;
+    if (seq->getSeqType() != Sequence::PROFILE_STATE_SEQ) {
+        idScoreLookup = getScoreLookup(subMat);
+    }
 
     size_t maskedResidues = 0;
     size_t totalKmerCount = 0;
@@ -253,7 +256,9 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
         delete [] buffer;
     }
-    delete[] idScoreLookup;
+    if(idScoreLookup!=NULL){
+        delete[] idScoreLookup;
+    }
 
     indexTable->sortDBSeqLists();
     Debug(Debug::INFO) << "\nIndex table: removing duplicate entries...\n";

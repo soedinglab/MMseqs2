@@ -96,7 +96,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     }
 
     // investigate if it makes sense to mask the profile consensus sequence
-    if (targetSeqType == Sequence::HMM_PROFILE) {
+    if (targetSeqType == Sequence::HMM_PROFILE || targetSeqType == Sequence::PROFILE_STATE_SEQ) {
         maskMode = 0;
     }
 
@@ -434,7 +434,6 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
                        ? alphabetSize -1 : alphabetSize;
     indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
     SequenceLookup **maskedLookup   = maskMode == 1 ? &sequenceLookup : NULL;
-    maskedLookup = (targetSeqType == Sequence::PROFILE_STATE_SEQ) ? NULL : maskedLookup;
     SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
 
 
