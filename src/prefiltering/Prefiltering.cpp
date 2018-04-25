@@ -698,8 +698,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     Debug(Debug::INFO) << "Starting prefiltering scores calculation (step " << (split + 1) << " of " << splitCount << ")\n";
     Debug(Debug::INFO) << "Query db start  " << (queryFrom + 1) << " to " << queryFrom + querySize << "\n";
     Debug(Debug::INFO) << "Target db start  " << (dbFrom + 1) << " to " << dbFrom + dbSize << "\n";
-
-    EvalueComputation evaluer(indexTable->getTableEntriesNum(), subMat, 0, 0, false);
+    EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, 0, 0, false);
 
 #pragma omp parallel num_threads(localThreads)
     {
@@ -932,7 +931,7 @@ double Prefiltering::setKmerThreshold(DBReader<unsigned int> *qdbr) {
             effectiveKmerSize = seq.getEffectiveKmerSize();
         }
 
-        EvalueComputation evaluer(indexTable->getTableEntriesNum(), subMat, 0, 0, false);
+        EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, 0, 0, false);
         QueryMatcher matcher(indexTable, sequenceLookup, subMat, evaluer, tdbr->getSeqLens(), kmerThr, 1.0,
                              kmerSize, indexTable->getSize(), maxSeqLen, seq.getEffectiveKmerSize(),
                              150000, aaBiasCorrection, false, minDiagScoreThr, takeOnlyBestKmer);
