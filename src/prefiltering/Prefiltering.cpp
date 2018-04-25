@@ -313,37 +313,28 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         return;
     }
     std::list<std::pair<std::string, std::string>> files(filenames.begin(), filenames.end());
-    size_t mergeStep = 0;
-    while (true) {
-        std::pair<std::string, std::string> file1 = files.front();
-        files.pop_front();
 
-        std::pair<std::string, std::string> file2 = files.front();
-        files.pop_front();
+    const std::pair<std::string, std::string> out = std::make_pair((outDB + "_merged" ),
+                                                                   (outDBIndex + "_merged"));
 
-        std::pair<std::string, std::string> out = std::make_pair((outDB + "_merge_" + SSTR(mergeStep)),
-                                                                 (outDBIndex + "_merge_" + SSTR(mergeStep)));
-        DBWriter writer(out.first.c_str(), out.second.c_str(), 1);
-        writer.open(1024 * 1024 * 1024); // 1 GB buffer
-        writer.mergeFilePair(file1.first.c_str(), file1.second.c_str(), file2.first.c_str(), file2.second.c_str());
-        writer.close();
 
+    DBWriter writer(out.first.c_str(), out.second.c_str(), 1);
+    writer.open(1024 * 1024 * 1024); // 1 GB buffer
+    writer.mergeFilePair(filenames);
+    writer.close();
+    for(size_t i = 0; i < filenames.size(); i++){
         // remove split
-        int error = 0;
-        error += remove(file1.first.c_str()); error += remove(file1.second.c_str());
-        error += remove(file2.first.c_str()); error += remove(file2.second.c_str());
+        int error = remove(filenames[i].first.c_str());
         if(error != 0){
-            Debug(Debug::ERROR) << "Error while deleting files in mergeOutput!\n";
+            Debug(Debug::ERROR) << "Error while deleting " << filenames[i].first << " in mergeOutput!\n";
             EXIT(EXIT_FAILURE);
         }
-        // push back the current merge to result to the end
-        files.push_back(out);
-        mergeStep++;
-        if (files.size() == 1) {
-            break;
+        error = remove(filenames[i].second.c_str());
+        if(error != 0){
+            Debug(Debug::ERROR) << "Error while deleting " << filenames[i].second << " in mergeOutput!\n";
+            EXIT(EXIT_FAILURE);
         }
     }
-    const std::pair<std::string, std::string> &out = files.front();
     // sort merged entries by evalue
     DBReader<unsigned int> dbr(out.first.c_str(), out.second.c_str());
     dbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
@@ -377,6 +368,17 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
     Debug(Debug::INFO) << out.first << " " << out.second << "\n";
     dbw.close();
     dbr.close();
+    int error = remove(out.first.c_str());
+    if(error != 0){
+        Debug(Debug::ERROR) << "Error while deleting " << out.first << " in mergeOutput!\n";
+        EXIT(EXIT_FAILURE);
+    }
+    error = remove(out.second.c_str());
+    if(error != 0){
+        Debug(Debug::ERROR) << "Error while deleting " << out.second << " in mergeOutput!\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "\nTime for merging results: " << (sec / 3600) << " h "

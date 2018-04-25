@@ -453,82 +453,87 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     Debug(Debug::INFO) << "Time for merging files: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) <<" s\n";
 }
 
-void DBWriter::mergeFilePair(const char *inData1, const char *inIndex1,
-                             const char *inData2, const char *inIndex2) {
-    FILE *file1 = fopen(inData1, "r");
-    FILE *file2 = fopen(inData2, "r");
-
-    if (file1 == NULL || file2 == NULL) {
-        Debug(Debug::ERROR) << "Could not read merge input files!\n";
-        EXIT(EXIT_FAILURE);
-    }
-
+void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::string>> fileNames) {
+    FILE ** files= new FILE*[fileNames.size()];
+    for(size_t i = 0; i < fileNames.size();i++){
+        files[i]=FileUtil::openFileOrDie(fileNames[i].first.c_str(), "r", true);
 #if HAVE_POSIX_FADVISE
-    int status;
-    if ((status = posix_fadvise (fileno(file1), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
-       Debug(Debug::ERROR) << "posix_fadvise returned an error: " << strerror(status) << "\n";
-    }
-    if ((status = posix_fadvise (fileno(file2), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
-       Debug(Debug::ERROR) << "posix_fadvise returned an error: " << strerror(status) << "\n";;
-    }
+        int status;
+        if ((status = posix_fadvise (fileno(files[i]), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
+           Debug(Debug::ERROR) << "posix_fadvise returned an error: " << strerror(status) << "\n";
+        }
 #endif
+    }
 
-    int c1, c2;
+    int c1;
     char * buffer = dataFilesBuffer[0];
     size_t writePos = 0;
     int dataFilefd =  fileno(dataFiles[0]);
-    while ((c1=getc_unlocked(file1)) != EOF) {
-        if (c1 == '\0'){
-            while((c2=getc_unlocked(file2)) != EOF && c2 != '\0') {
-                buffer[writePos] = (char) c2;
+    do{
+        for(size_t i = 0; i < fileNames.size();i++) {
+            while ((c1 = getc_unlocked(files[i])) != EOF) {
+                if (c1 == '\0') {
+                    break;
+                }
+                buffer[writePos] = (char) c1;;
                 writePos++;
-                if(writePos == bufferSize){
-                    write(dataFilefd, buffer, bufferSize);
+                if (writePos == bufferSize) {
+                    size_t written = write(dataFilefd, buffer, bufferSize);
+                    if (written != bufferSize) {
+                        Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[0] << "\n";
+                        EXIT(EXIT_FAILURE);
+                    }
                     writePos = 0;
                 }
             }
-            buffer[writePos] = '\0';
-            writePos++;
-            if (writePos == bufferSize){
-                write(dataFilefd, buffer, bufferSize);
-                writePos = 0;
+        }
+        buffer[writePos] = '\0';
+        writePos++;
+        if(writePos == bufferSize){
+            size_t written = write(dataFilefd, buffer, bufferSize);
+            if (written != bufferSize) {
+                Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[0] << "\n";
+                EXIT(EXIT_FAILURE);
             }
-        } else {
-            buffer[writePos] = (char) c1;;
-            writePos++;
-            if(writePos == bufferSize){
-                write(dataFilefd, buffer, bufferSize);
-                writePos = 0;
-            }
+            writePos = 0;
+        }
+    }while(c1!=EOF);
+    if(writePos != 0) { // if there are data in the buffer that are not yet written
+        size_t written = write(dataFilefd, (const void *) dataFilesBuffer[0], writePos);
+        if (written != writePos) {
+            Debug(Debug::ERROR) << "Could not write to data file " << dataFileNames[0] << "\n";
+            EXIT(EXIT_FAILURE);
         }
     }
 
-    if(writePos != 0) { // if there are data in the buffer that are not yet written
-        write(dataFilefd, (const void *) dataFilesBuffer[0], writePos);
+    for(size_t i = 0; i < fileNames.size();i++) {
+        fclose(files[i]);
     }
-    fclose(file2);
-    fclose(file1);
 
-    Debug(Debug::WARNING) << "Merge file " << inData1 << " and " << inData2 << "\n";
-    DBReader<unsigned int> reader1(inIndex1, inIndex1,
+    Debug(Debug::WARNING) << "Merge file " << fileNames[0].first << " and " << fileNames[0].second << "\n";
+    DBReader<unsigned int> reader1(fileNames[0].first.c_str(), fileNames[0].second.c_str(),
                                    DBReader<unsigned int>::USE_INDEX);
     reader1.open(DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int> reader2(inIndex2, inIndex2,
-                                   DBReader<unsigned int>::USE_INDEX);
-    reader2.open(DBReader<unsigned int>::NOSORT);
-    size_t currOffset = 0;
-    DBReader<unsigned int>::Index* index1 = reader1.getIndex();
-    unsigned int * seqLen1 = reader1.getSeqLens();
-    unsigned int * seqLen2 = reader2.getSeqLens();
-    for (size_t id = 0; id < reader1.getSize(); id++){
-        // add length for file1 and file2 and subtract -1 for one null byte
-        size_t seqLen = seqLen1[id] + seqLen2[id] - 1;
-        seqLen1[id] = seqLen;
-        index1[id].offset = currOffset;
-        currOffset += seqLen;
+    unsigned int *seqLen1 = reader1.getSeqLens();
+    DBReader<unsigned int>::Index *index1 = reader1.getIndex();
+
+    for(size_t i = 1; i < fileNames.size(); i++) {
+        DBReader<unsigned int> reader2(fileNames[i].first.c_str(), fileNames[i].second.c_str(),
+                                       DBReader<unsigned int>::USE_INDEX);
+        reader2.open(DBReader<unsigned int>::NOSORT);
+        unsigned int *seqLen2 = reader2.getSeqLens();
+        size_t currOffset = 0;
+
+        for (size_t id = 0; id < reader1.getSize(); id++) {
+            // add length for file1 and file2 and subtract -1 for one null byte
+            size_t seqLen = seqLen1[id] + seqLen2[id] - 1;
+            seqLen1[id] = seqLen;
+            index1[id].offset = currOffset;
+            currOffset += seqLen;
+        }
+        reader2.close();
     }
 
     writeIndex(indexFiles[0], reader1.getSize(), index1, seqLen1);
-    reader2.close();
     reader1.close();
 }
