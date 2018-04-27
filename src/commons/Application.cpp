@@ -116,8 +116,8 @@ int main(int argc, const char **argv) {
         const struct Command &p = commands[i];
         EXIT(runCommand(p, argc - 2, argv + 2));
     } else {
-        printUsage(false);
-        Debug(Debug::ERROR) << "\nInvalid Command: " << argv[1] << "\n";
+        printUsage(true);
+        Debug(Debug::INFO) << "\nInvalid Command: " << argv[1] << "\n";
 
         // Suggest some command that the user might have meant
         size_t index = SIZE_MAX;
@@ -135,7 +135,7 @@ int main(int argc, const char **argv) {
         }
 
         if(index != SIZE_MAX) {
-            Debug(Debug::ERROR) << "Did you mean \"" <<  argv[0] << " " << commands[index].cmd << "\"?\n";
+            Debug(Debug::INFO) << "Did you mean \"" <<  argv[0] << " " << commands[index].cmd << "\"?\n";
         }
 
         EXIT(EXIT_FAILURE);

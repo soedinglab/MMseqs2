@@ -869,8 +869,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             }
 
             if (hasUnrecognizedParameter) {
-                printUsageMessage(command, outputFlags);
-                Debug(Debug::ERROR) << "Unrecognized parameter " << parameter << "\n";
+                printUsageMessage(command, 0xFFFFFFFF);
+                Debug(Debug::INFO) << "Unrecognized parameter " << parameter << "\n";
 
                 // Suggest some parameter that the user might have meant
                 std::vector<MMseqsParameter>::const_iterator index = par.end();
@@ -884,7 +884,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                 }
 
                 if(index != par.end()) {
-                    Debug(Debug::ERROR) << "Did you mean \"" << (*index).name << "\"?\n";
+                    Debug(Debug::INFO) << "Did you mean \"" << (*index).name << "\"?\n";
                 }
 
                 EXIT(EXIT_FAILURE);
