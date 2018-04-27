@@ -317,8 +317,6 @@ public:
     int sortEntries;
     bool beatsFirst;
     std::string joinDB;
-    std::string swapFields ;
-    std::string clusterFile ;
 
     //aggregate
     std::string mode ;
@@ -554,8 +552,6 @@ public:
     PARAMETER(PARAM_SORT_ENTRIES)
     PARAMETER(PARAM_BEATS_FIRST)
     PARAMETER(PARAM_JOIN_DB)
-    PARAMETER(PARAM_SWAP_SEARCH_FIELDS)
-    PARAMETER(PARAM_TRANSITIVE_REPLACE)
 
     //aggregate
     PARAMETER(PARAM_MODE)
