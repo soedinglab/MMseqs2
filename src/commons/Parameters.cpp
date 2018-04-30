@@ -156,6 +156,8 @@ Parameters::Parameters():
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0) no sorting, 1) increasing,  2) decreasing or 3) random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
+        PARAM_SWAP_SEARCH_FIELDS(PARAM_SWAP_SEARCH_FIELDS_ID, "--swap-fields", "Swap fields of search results", "Replace positions of hits of the query on the target by its position on the target genome", typeid(std::string), (void*) &swapFields, ""),
+        PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
         //aggregate
         PARAM_MODE(PARAM_MODE_ID, "--mode", "Aggregation Mode", "Choose wich of aggregation to launch : bestHit/pval", typeid(std::string), (void*) &mode, ""),
         // concatdb
@@ -482,6 +484,8 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_SORT_ENTRIES);
     filterDb.push_back(PARAM_INCLUDE_IDENTITY);
     filterDb.push_back(PARAM_JOIN_DB);
+    filterDb.push_back(PARAM_SWAP_SEARCH_FIELDS) ;
+    filterDb.push_back(PARAM_TRANSITIVE_REPLACE) ;
 
     //aggregate
     aggregate.push_back(PARAM_MODE) ;
@@ -1191,7 +1195,6 @@ void Parameters::setDefaults() {
     compOperator = "";
     compValue = 0;
     sortEntries = 0;
-    joinDB = std::string();
 
     // concatdbs
     preserveKeysB = false;

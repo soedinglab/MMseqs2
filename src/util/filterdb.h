@@ -20,6 +20,8 @@
 #define SORT_ENTRIES 5
 #define BEATS_FIRST 6
 #define JOIN_DB 7
+#define SWAP_SEARCH_FIELDS 8
+#define TRANSITIVE_REPLACE 9
 
 #define GREATER_OR_EQUAL "ge"
 #define LOWER_OR_EQUAL "le"
@@ -60,6 +62,8 @@ private:
     DBWriter* dbw;
 	DBReader<unsigned int>* dataDb;
 	DBReader<unsigned int>* joinDB;
+    DBReader<unsigned int>* swapDB;
+    DBReader<unsigned int>* clusterDB;
 	
 	regex_t regex;
 	std::vector<std::string> filter;
