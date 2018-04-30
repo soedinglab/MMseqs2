@@ -160,6 +160,7 @@ Parameters::Parameters():
         PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
         //aggregate
         PARAM_MODE(PARAM_MODE_ID, "--mode", "Aggregation Mode", "Choose wich of aggregation to launch : bestHit/pval", typeid(std::string), (void*) &mode, ""),
+        PARAM_SET_COLUMN(PARAM_SET_COLUMN_ID, "--set-column", "Set Column", "Change default Set Column", typeid(int), (void*) &setColumn, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
@@ -490,7 +491,7 @@ Parameters::Parameters():
     //aggregate
     aggregate.push_back(PARAM_MODE) ;
     aggregate.push_back(PARAM_THREADS) ;
-
+    aggregate.push_back(PARAM_SET_COLUMN) ;
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);
 

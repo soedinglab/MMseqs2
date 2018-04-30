@@ -322,6 +322,7 @@ public:
 
     //aggregate
     std::string mode ;
+    int setColumn ;
 
     // mergedbs
     std::string mergePrefixes;
@@ -559,6 +560,7 @@ public:
 
     //aggregate
     PARAMETER(PARAM_MODE)
+    PARAMETER(PARAM_SET_COLUMN)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)

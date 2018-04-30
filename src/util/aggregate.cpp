@@ -10,11 +10,16 @@ int aggregate(int argc, const char **argv, const Command& command) {
     Aggregation *aggregFunction = nullptr;
 
     if(par.mode=="bestHit"){
-        aggregFunction = new bestHitAggregator(par.db1, par.db2, par.db3, (unsigned int)par.threads) ;
+        Debug(Debug::INFO) << "Aggregation by Best Hit" << "\n";
+        aggregFunction = new bestHitAggregator(par.db1, par.db2, par.db3, par.setColumn, (unsigned int)par.threads) ;
     }
     else if (par.mode=="pval"){
         Debug(Debug::INFO) << "Aggregation of p-values" << "\n";
-        aggregFunction = new pvalAggregator(par.db1, par.db2, (unsigned int)par.threads, par.db3, par.db4) ;
+        aggregFunction = new pvalAggregator(par.db1, par.db2, (unsigned int)par.threads, par.db3, par.setColumn) ;
+    }
+    else if (par.mode=="clustering-index") {
+        Debug(Debug::INFO) << "Calculation of clusterig index" << "\n";
+        aggregFunction = new clusteringAggregator(par.db1, par.db2, (unsigned int)par.threads) ;
     }
     else {
         Debug(Debug::ERROR) << "Unknown aggregation mode " << par.mode << "\n";
