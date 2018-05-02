@@ -339,8 +339,8 @@ int ffindexFilter::runFilter(){
                         splittedOriginalLine.insert(splittedOriginalLine.begin() + 10, std::to_string(endPosHitOnGenome) + "\t");
                     }
                     std::string tempBuffer = "" ;
-                    for (auto &i : splittedOriginalLine) {
-                        tempBuffer.append(i);
+                    for (std::vector<std::string>::iterator i=splittedOriginalLine.begin() ; i!=splittedOriginalLine.end() ; ++i) {
+                        tempBuffer.append(*i);
                         tempBuffer.append("\t");
                     }
                     tempBuffer.append("\n") ;

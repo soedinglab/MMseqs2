@@ -3,7 +3,6 @@
 #include "Aggregation.h"
 #include "Util.h"
 #include "Parameters.h"
-#include <iostream>
 #include <algorithm>
 
 #ifdef OPENMP
@@ -16,7 +15,7 @@ Aggregation::Aggregation(std::string arg_inputDBname, std::string arg_outputDBna
                          size_t arg_targetColumn) : inputDBname(std::move(arg_inputDBname)), outputDBname(std::move(arg_outputDBname)),
                                                     nbrThread(arg_nbrThread), targetColumn(arg_targetColumn){}
 
-
+// build a map with the value in [target column] field as a key and the rest of the line, cut in fields, as values
 bool Aggregation::buildMap(std::stringstream& dataStream, std::map<unsigned int, std::vector<std::vector<std::string> > > &dataToAggregate){
     dataToAggregate.clear() ;
     std::string singleLine;
@@ -29,15 +28,15 @@ bool Aggregation::buildMap(std::stringstream& dataStream, std::map<unsigned int,
     return true;
 }
 
-
+// General workflow for search Result processing
 void Aggregation::runAggregate(){
 
     std::string inputDBIndex = inputDBname + ".index";
-    auto inputDB = new DBReader<unsigned int> (inputDBname.c_str(), inputDBIndex.c_str()) ;
+    DBReader<unsigned int>* inputDB = new DBReader<unsigned int> (inputDBname.c_str(), inputDBIndex.c_str()) ;
     inputDB->open(DBReader<unsigned int>::NOSORT);
 
     std::string outputDBIndex = outputDBname + ".index";
-    auto outputDB = new DBWriter (outputDBname.c_str(), outputDBIndex.c_str(), nbrThread) ;
+    DBWriter* outputDB = new DBWriter (outputDBname.c_str(), outputDBIndex.c_str(), nbrThread) ;
     outputDB->open();
 
 #ifdef OPENMP
@@ -60,9 +59,9 @@ void Aggregation::runAggregate(){
 
         if (this->buildMap(geneResultsStream,dataToMerge)){
             std::string outputBuffer;
-            for( auto &it : dataToMerge) {
-                aggregParams params = {.querySetKey = key, .targetSetKey = it.first};
-                outputBuffer.append(this->aggregateEntry(it.second, &params));
+            for( std::map<unsigned int, std::vector<std::vector<std::string>>>::iterator it=dataToMerge.begin() ; it!= dataToMerge.end() ; ++it) {
+                aggregParams params = {.querySetKey = key, .targetSetKey = it->first};
+                outputBuffer.append(this->aggregateEntry(it->second, &params));
                 outputBuffer.append("\n");
             }
 
@@ -71,17 +70,16 @@ void Aggregation::runAggregate(){
 
 
         } else {
-            std::cout << "buildMap Failed \n";
+            Debug(Debug::ERROR) << "buildMap failed \n";
+            EXIT(EXIT_FAILURE);
         }
     }
-    std::cout << "Non\n" ;
-
     outputDB->close();
     delete outputDB;
 }
 
 
-bestHitAggregator::bestHitAggregator(std::string arg_inputDBname, std::string arg_outputDBname,std::string arg_targetSetSizeName,
+BestHitAggregator::BestHitAggregator(std::string arg_inputDBname, std::string arg_outputDBname,std::string arg_targetSetSizeName,
                                      size_t arg_targetColumn, unsigned int arg_nbrThread,  size_t arg_scoreColumn) :
                                      Aggregation(std::move(arg_inputDBname), std::move(arg_outputDBname), arg_nbrThread,
                                      arg_targetColumn), pValColumn(arg_scoreColumn), targetSetSizeName(std::move(arg_targetSetSizeName)){
@@ -90,11 +88,11 @@ bestHitAggregator::bestHitAggregator(std::string arg_inputDBname, std::string ar
     this->targetSetSizeDB->open(DBReader<unsigned int>::NOSORT);
 }
 
-// Process a single Search Entry (1 gene) and only keep the best Hit
-std::string bestHitAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, aggregParams* vparams) {
+// Only Keep the best hits of a protein against each Target Set
+std::string BestHitAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, aggregParams* vparams) {
 
     std::string buffer ;
-    auto bestEval = DBL_MAX;
+    double bestEval = DBL_MAX;
     size_t maxId = 0;
     double secondBestEval = 0 ;
     double correctedPval = 0 ;
@@ -131,13 +129,14 @@ std::string bestHitAggregator::aggregateEntry(std::vector<std::vector<std::strin
     dataToAggregate[maxId][this->pValColumn] = std::string(tmpBuf);
 
     // Aggregate the full line in one string
-    for(auto &it : dataToAggregate[maxId]){
-        buffer.append(it + "\t");
+    for( std::vector<std::string>::iterator it=dataToAggregate[maxId].begin() ; it!= dataToAggregate[maxId].end() ; ++it){
+        buffer.append(*it + "\t");
     }
     return buffer ;
 }
 
-pvalAggregator::pvalAggregator(std::string arg_inputDBname, std::string arg_outputDBname, unsigned int arg_nbrThread,
+
+PvalAggregator::PvalAggregator(std::string arg_inputDBname, std::string arg_outputDBname, unsigned int arg_nbrThread,
                                std::string arg_querySetSizeDBname, size_t arg_targetColumn, size_t arg_scoreColumn) :
         Aggregation(std::move(arg_inputDBname), std::move(arg_outputDBname), arg_nbrThread, arg_targetColumn), pValColumn(arg_scoreColumn),
         querySetSizeDBname(std::move(arg_querySetSizeDBname)){
@@ -164,7 +163,9 @@ double factorial (size_t i) {
     }
     return fac;
 }
-std::string pvalAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, aggregParams* params){
+
+//Get all result of a single Query Set VS a Single Target Set and return the multiple-match p-value for it
+std::string PvalAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, aggregParams* params){
     std::stringstream Buffer ;
     unsigned int M = (unsigned int)std::stoul(querySetSizeDB->getDataByDBKey(params->querySetKey)) ;
     double P0 = 0.001 ;
@@ -198,11 +199,11 @@ std::string pvalAggregator::aggregateEntry(std::vector<std::vector<std::string> 
     return Buffer.str() ;
 }
 
-clusteringAggregator::clusteringAggregator(std::string arg_inputDBname, std::string arg_outputDBname,
+ClusteringAggregator::ClusteringAggregator(std::string arg_inputDBname, std::string arg_outputDBname,
                                            unsigned int arg_nbrThread, size_t arg_targetColumn)
         : Aggregation(std::move(arg_inputDBname), std::move(arg_outputDBname), arg_nbrThread, arg_targetColumn) {}
 
-std::string clusteringAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate,
+std::string ClusteringAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate,
                                                  aggregParams *params) {
     size_t i = 0 ;
     size_t indexOfInterSpaceToReturn =0 ;

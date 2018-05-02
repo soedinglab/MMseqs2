@@ -1197,6 +1197,9 @@ void Parameters::setDefaults() {
     compValue = 0;
     sortEntries = 0;
 
+    //aggregate
+    setColumn = 9 ;
+
     // concatdbs
     preserveKeysB = false;
 
