@@ -253,6 +253,7 @@ public:
     float matchRatio;
 
     // result2profile
+    int maskProfile;
     float filterMaxSeqId;
     float evalProfile;
     int filterMsa;
@@ -471,6 +472,7 @@ public:
     PARAMETER(PARAM_MATCH_RATIO)
 
     // result2profile
+    PARAMETER(PARAM_MASK_PROFILE)
     PARAMETER(PARAM_E_PROFILE)
     PARAMETER(PARAM_FILTER_MSA)
     PARAMETER(PARAM_FILTER_MAX_SEQ_ID)

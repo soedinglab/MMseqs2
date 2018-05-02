@@ -14,36 +14,6 @@ char* getScoreLookup(BaseMatrix &matrix) {
     return idScoreLookup;
 }
 
-class ProbabilityMatrix {
-public:
-    ProbabilityMatrix(BaseMatrix &matrix) : alphabetSize(matrix.alphabetSize) {
-        probMatrix = new double*[matrix.alphabetSize];
-        probMatrixPointers = new const double*[matrix.alphabetSize];
-        std::fill_n(hardMaskTable, 256, matrix.aa2int[(int) 'X']);
-        for (int i = 0; i < matrix.alphabetSize; ++i) {
-            probMatrix[i] = new double[matrix.alphabetSize];
-            probMatrixPointers[i] = probMatrix[i];
-            for (int j = 0; j < matrix.alphabetSize; ++j) {
-                probMatrix[i][j] = matrix.probMatrix[i][j] / (matrix.pBack[i] * matrix.pBack[j]);
-            }
-        }
-    }
-    ~ProbabilityMatrix() {
-        for (int i = 0; i < alphabetSize; ++i) {
-            delete[] probMatrix[i];
-        }
-        delete[] probMatrix;
-        delete[] probMatrixPointers;
-    }
-
-    char hardMaskTable[256];
-    const double **probMatrixPointers;
-
-private:
-    const int alphabetSize;
-    double **probMatrix;
-
-};
 
 class DbInfo {
 public:
