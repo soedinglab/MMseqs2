@@ -155,7 +155,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         std::string result;
         result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
         char *charSequence = new char[maxSequenceLength];
-        int *sequenceNotMasked = new int[maxSequenceLength];
 
         unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -231,40 +230,12 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 seqSet.push_back(edgeSequence);
                 results = Util::skipLine(results);
             }
-            if(par.maskProfile == true){
-                for (int i = 0; i < centerSequence.L; ++i) {
-                    charSequence[i] = (char) centerSequence.int_sequence[i];
-                }
 
-                tantan::maskSequences(charSequence, charSequence + centerSequence.L,
-                                    50 /*options.maxCycleLength*/,
-                                    probMatrix.probMatrixPointers,
-                                    0.005 /*options.repeatProb*/,
-                                    0.05 /*options.repeatEndProb*/,
-                                    0.9 /*options.repeatOffsetProbDecay*/,
-                                    0, 0,
-                                    0.9 /*options.minMaskProb*/,
-                                    probMatrix.hardMaskTable);
-                for (int i = 0; i < centerSequence.L; i++) {
-                    sequenceNotMasked[i]=centerSequence.int_sequence[i];
-                    centerSequence.int_sequence[i] = charSequence[i];
-                }
-//                centerSequence.print();
-            }
             // Recompute if not all the backtraces are present
             MultipleAlignment::MSAResult res = (alnResults.size() == seqSet.size())
                                                ? aligner.computeMSA(&centerSequence, seqSet, alnResults, true)
                                                : aligner.computeMSA(&centerSequence, seqSet, true);
 
-            if(par.maskProfile == true) {
-                for (size_t seqIdx = 0; seqIdx < res.setSize; seqIdx++) {
-                    for (size_t pos = 0; pos < res.centerLength; pos++) {
-                        if (centerSequence.int_sequence[pos] == xAmioAcid) {
-                            res.msaSequence[seqIdx][pos] = MultipleAlignment::ANY;
-                        }
-                    }
-                }
-            }
 
 //            MultipleAlignment::print(res, &subMat);
 
@@ -290,19 +261,33 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             PSSMCalculator::Profile pssmRes = calculator.computePSSMFromMSA(filteredSetSize, res.centerLength,
                                                                                          (const char **) res.msaSequence,
                                                                                           par.wg);
-            for(size_t pos = 0; pos < res.centerLength; pos++) {
-                if(centerSequence.int_sequence[pos] == xAmioAcid) {
-                    for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
-                        pssmRes.prob[pos*Sequence::PROFILE_AA_SIZE + aa] *= 0.5;
+
+            if(par.maskProfile == true){
+                for (int i = 0; i < centerSequence.L; ++i) {
+                    charSequence[i] = (char) centerSequence.int_sequence[i];
+                }
+
+                tantan::maskSequences(charSequence, charSequence + centerSequence.L,
+                                      50 /*options.maxCycleLength*/,
+                                      probMatrix.probMatrixPointers,
+                                      0.005 /*options.repeatProb*/,
+                                      0.05 /*options.repeatEndProb*/,
+                                      0.9 /*options.repeatOffsetProbDecay*/,
+                                      0, 0,
+                                      0.9 /*options.minMaskProb*/,
+                                      probMatrix.hardMaskTable);
+
+                for(size_t pos = 0; pos < res.centerLength; pos++) {
+                    if(charSequence[pos] == xAmioAcid) {
+                        for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
+                            pssmRes.prob[pos*Sequence::PROFILE_AA_SIZE + aa] = subMat.pBack[aa]*0.5;
+                        }
+                        pssmRes.consensus[pos]='X';
                     }
                 }
             }
 
-            if(par.maskProfile == true){
-                for (int i = 0; i < centerSequence.L; i++) {
-                    centerSequence.int_sequence[i]=sequenceNotMasked[i];
-                }
-            }
+
 
             for(size_t pos = 0; pos <  res.centerLength; pos++){
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE; aa++) {
@@ -330,7 +315,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
             }
         }
         delete [] charSequence;
-        delete [] sequenceNotMasked;
     }
 
     // cleanup
