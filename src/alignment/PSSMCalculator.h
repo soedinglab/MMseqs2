@@ -11,7 +11,7 @@ public:
 
     struct Profile{
         const char * pssm;
-        const float * prob;
+        float * prob;
         const float * neffM;
         std::string consensus;
         Profile(char * pssm, float * prob, float * neffM, std::string consensus)
