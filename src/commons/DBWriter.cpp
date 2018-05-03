@@ -410,9 +410,11 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         size_t globalOffset = 0;
         for (unsigned int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
             DBReader<unsigned int> reader(indexFileNames[fileIdx], indexFileNames[fileIdx]);
-
-
+            DBReader<unsigned int> readerNoSort(indexFileNames[fileIdx], indexFileNames[fileIdx]);
             reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+            readerNoSort.open(DBReader<unsigned int>::NOSORT);
+            
+            
             if (reader.getSize() > 0) {
                 size_t tmpOffset = 0;
                 DBReader<unsigned int>::Index * index = reader.getIndex();
@@ -420,16 +422,18 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
                 for (size_t i = 0; i < reader.getSize()-1; i++) {
                     size_t currOffset = reader.getIndex(i)->offset;
                     reader.getIndex(i)->offset = globalOffset + currOffset;
-                    tmpOffset += reader.getIndex(i+1)->offset - currOffset; // thread specific files are linearly written
+                    tmpOffset += reader.getIndex(i+1)->offset - currOffset;
                 }
 
                 size_t currOffset = reader.getIndex(reader.getSize()-1)->offset;
                 reader.getIndex(reader.getSize()-1)->offset = globalOffset + currOffset;
                 tmpOffset += threadDataFileSizes[fileIdx] - currOffset;
-                writeIndex(index_file, reader.getSize(), index, reader.getSeqLens());
+                writeIndex(index_file, reader.getSize(), index, readerNoSort.getSeqLens());
                 globalOffset += tmpOffset;
             }
             reader.close();
+            readerNoSort.close();
+            
             if (std::remove(indexFileNames[fileIdx]) != 0) {
                 Debug(Debug::WARNING) << "Could not remove file " << indexFileNames[fileIdx] << "\n";
             }
