@@ -362,6 +362,7 @@ void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<std::string>
     }
 }
 
+
 void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
                             const char **dataFileNames, const char **indexFileNames,
                             const unsigned long fileCount, const bool lexicographicOrder) {
@@ -370,15 +371,26 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     // merge results from each thread into one result file
     // merge each data file
 
-    if(fileCount > 1 ) {
+    if(fileCount > 1) {
         FILE *outFile = fopen(outFileName, "w");
         FILE **infiles = new FILE *[fileCount];
+        std::vector<size_t> threadDataFileSizes;
+        
         for (unsigned int i = 0; i < fileCount; i++) {
             infiles[i] = fopen(dataFileNames[i], "r");
             if (infiles[i] == NULL) {
                 Debug(Debug::ERROR) << "Could not open result file " << dataFileNames[i] << "!\n";
                 EXIT(EXIT_FAILURE);
             }
+            
+            struct stat sb;                
+            if (fstat(fileno(infiles[i]), &sb) < 0)
+            {
+                int errsv = errno;
+                Debug(Debug::ERROR) << "Failed to fstat File=" << dataFileNames[i] << ". Error " << errsv << ".\n";
+                EXIT(EXIT_FAILURE);
+            }
+            threadDataFileSizes.push_back(sb.st_size);
         }
         Concat::concatFiles(infiles, fileCount, outFile);
         for (unsigned int i = 0; i < fileCount; i++) {
@@ -397,17 +409,23 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         // merge index
         size_t globalOffset = 0;
         for (unsigned int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
-            DBReader<unsigned int> reader(indexFileNames[fileIdx], indexFileNames[fileIdx],
-                                          DBReader<unsigned int>::USE_INDEX);
-            reader.open(DBReader<unsigned int>::NOSORT);
+            DBReader<unsigned int> reader(indexFileNames[fileIdx], indexFileNames[fileIdx]);
+
+
+            reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
             if (reader.getSize() > 0) {
                 size_t tmpOffset = 0;
                 DBReader<unsigned int>::Index * index = reader.getIndex();
-                for (size_t i = 0; i < reader.getSize(); i++) {
-                    size_t currOffset = reader.getIndex()[i].offset;
-                    index[i].offset = globalOffset + currOffset;
-                    tmpOffset += reader.getSeqLens(i);
+
+                for (size_t i = 0; i < reader.getSize()-1; i++) {
+                    size_t currOffset = reader.getIndex(i)->offset;
+                    reader.getIndex(i)->offset = globalOffset + currOffset;
+                    tmpOffset += reader.getIndex(i+1)->offset - currOffset; // thread specific files are linearly written
                 }
+
+                size_t currOffset = reader.getIndex(reader.getSize()-1)->offset;
+                reader.getIndex(reader.getSize()-1)->offset = globalOffset + currOffset;
+                tmpOffset += threadDataFileSizes[fileIdx] - currOffset;
                 writeIndex(index_file, reader.getSize(), index, reader.getSeqLens());
                 globalOffset += tmpOffset;
             }
@@ -452,6 +470,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "Time for merging files: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) <<" s\n";
 }
+
 
 void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::string>> fileNames) {
     FILE ** files= new FILE*[fileNames.size()];

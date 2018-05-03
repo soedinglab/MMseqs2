@@ -105,6 +105,11 @@ public:
         return index;
     }
 
+    Index* getIndex(size_t id) {
+        return index + local2id[id];
+    }
+    
+
     void printMagicNumber();
     
     T getLastKey();
