@@ -463,6 +463,7 @@ Parameters::Parameters():
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);
     translatenucs.push_back(PARAM_ADD_ORF_STOP);
     translatenucs.push_back(PARAM_V);
+    translatenucs.push_back(PARAM_THREADS);
 
     // createseqfiledb
     createseqfiledb.push_back(PARAM_MIN_SEQUENCES);
