@@ -70,6 +70,7 @@ public:
     static const int SORT_BY_ID     = 3;
     static const int SORT_BY_LINE   = 4; // the local IDs correspond to the line number in the original index file
     static const int SHUFFLE        = 5;
+    static const int HARDNOSORT = 6; // do not even sort by ids.
 
     static const int USE_INDEX    = 0;
     static const int USE_DATA     = 1;
