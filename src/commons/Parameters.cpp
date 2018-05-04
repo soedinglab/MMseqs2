@@ -65,7 +65,7 @@ Parameters::Parameters():
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "maximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "type of score used for clustering [1:2]. 1=alignment score. 2=sequence identity ",typeid(int),(void *) &similarityScoreType,  "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         // merge Clusters
-        PARAM_BY_DB(PARAM_BY_DB_ID, "--by-db", "Merge by DB", "Merge results by key column in DB", typeid(std::string), (void *) &DBfile, ""),
+        PARAM_BY_DB(PARAM_BY_DB_ID, "--by-db", "Merge by DB", "Merge results by key column in DB", typeid(bool), (void *) &byDB, ""),
         // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","verbosity level: 0=nothing, 1: +errors, 2: +warnings, 3: +info",typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // create profile (HMM)
@@ -1102,7 +1102,7 @@ void Parameters::setDefaults() {
     removeTmpFiles = false;
 
     //mergeclusters
-    DBfile="" ;
+    byDB = 0 ;
 
     // convertprofiledb
     profileMode = PROFILE_MODE_HMM;

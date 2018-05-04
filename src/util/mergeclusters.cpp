@@ -201,8 +201,8 @@ int mergeclusters(int argc, const char **argv, const Command& command) {
     for (int i = 2; i < argc; i++) {
         clusterings.push_back(std::string(argv[i]));
     }
-    if (!par.DBfile.empty()){
-    mergeSearchWithClustersResults(par.db1, par.db2, par.DBfile, par.threads);
+    if (par.byDB){
+    mergeSearchWithClustersResults(par.db1, par.db2, par.db3, par.threads);
     }
     else
         mergeClusteringResults(par.db1, par.db2, clusterings, par.threads);
