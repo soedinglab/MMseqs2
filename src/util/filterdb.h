@@ -49,6 +49,7 @@ private:
     
 	int threads;
 	size_t column;
+	int columnToTake;
     std::string regexStr;
     bool trimToOneColumn;
     // positiveFilter = true => outDB = inDB \intersect filter ; othw : outDB = inDB - filter

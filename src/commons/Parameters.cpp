@@ -146,6 +146,7 @@ Parameters::Parameters():
         PARAM_HH_FORMAT(PARAM_HH_FORMAT_ID,"--hh-format", "HH format", "format entries to use with hhsuite (for singleton clusters)", typeid(bool), (void *) &hhFormat, ""),
         // filterdb
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
+        PARAM_COLUMN_TO_TAKE(PARAM_COLUMN_TO_TAKE_ID,"--column-to-take", "Column to take", "column to take in join mode. If -1, the whole line is taken", typeid(int),(void *) &columnToTake,"^-1|[1-9]{1}[0-9]*$"),
         PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
         PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,""),
         PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),
@@ -474,6 +475,7 @@ Parameters::Parameters():
 
     // filterDb
     filterDb.push_back(PARAM_FILTER_COL);
+    filterDb.push_back(PARAM_COLUMN_TO_TAKE);
     filterDb.push_back(PARAM_FILTER_REGEX);
     filterDb.push_back(PARAM_FILTER_POS);
     filterDb.push_back(PARAM_FILTER_FILE);
@@ -1192,6 +1194,7 @@ void Parameters::setDefaults() {
 
     // filterDb
     filterColumn = 1;
+    columnToTake = -1;
     filterColumnRegex = "^.*$";
     positiveFilter = true;
     filteringFile = "";
