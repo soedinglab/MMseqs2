@@ -11,6 +11,8 @@
 
 #endif
 
+
+// TO DO : Get rid of stringStreams
 Aggregation::Aggregation(std::string arg_inputDBname, std::string arg_outputDBname, unsigned int arg_nbrThread,
                          size_t arg_targetColumn) : inputDBname(std::move(arg_inputDBname)), outputDBname(std::move(arg_outputDBname)),
                                                     nbrThread(arg_nbrThread), targetColumn(arg_targetColumn){}
@@ -40,7 +42,7 @@ void Aggregation::runAggregate(){
     outputDB->open();
 
 #ifdef OPENMP
-    omp_set_num_threads(1);
+    omp_set_num_threads(this->nbrThread);
 #endif
 
     unsigned int thread_idx = 0;
@@ -203,6 +205,7 @@ ClusteringAggregator::ClusteringAggregator(std::string arg_inputDBname, std::str
                                            unsigned int arg_nbrThread, size_t arg_targetColumn)
         : Aggregation(std::move(arg_inputDBname), std::move(arg_outputDBname), arg_nbrThread, arg_targetColumn) {}
 
+// return the median of the distance between genes of dataToAggregate
 std::string ClusteringAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate,
                                                  aggregParams *params) {
     size_t i = 0 ;
@@ -210,15 +213,15 @@ std::string ClusteringAggregator::aggregateEntry(std::vector<std::vector<std::st
     std::vector<unsigned int> genesPositions;
     std::vector<unsigned int> interGeneSpaces;
     int currentInterGenePosition = 0;
-    std::stringstream Buffer ;
+    std::stringstream buffer ;
     for (auto &it : dataToAggregate) {
-        genesPositions[i]= static_cast<unsigned int>(stoul(it[8], nullptr, 10));
-        i++ ;
-        genesPositions[i]= static_cast<unsigned int>(stoul(it[10], nullptr, 10));
-        i++ ;
+        genesPositions.push_back(static_cast<unsigned int &&>(std::stoi(it[8]))) ;
+        genesPositions.push_back(static_cast<unsigned int &&>(std::stoi(it[10]))) ;
+        i+=2 ;
     };
     if(i>2) {
         for (size_t pos = 1; pos < i; pos++) {
+            //std::cout << std::to_string(genesPositions[pos + 1])<< "-" << std::to_string(genesPositions[pos]) << "\n" ;
             currentInterGenePosition = genesPositions[pos + 1] - genesPositions[pos];
             interGeneSpaces.push_back(static_cast<unsigned int &&>(currentInterGenePosition));
         }
@@ -230,11 +233,13 @@ std::string ClusteringAggregator::aggregateEntry(std::vector<std::vector<std::st
         else{
             indexOfInterSpaceToReturn = i/2;
         }
-        Buffer << params->targetSetKey << "\t" << interGeneSpaces[indexOfInterSpaceToReturn] ;
+        buffer << params->targetSetKey << "\t" << interGeneSpaces[indexOfInterSpaceToReturn] ;
     }
     else {
-        Buffer << params->targetSetKey << "\t0\n"; //NaMM
+        buffer << params->targetSetKey << "\t0"; //NaMM
     }
+    std::string bufferString= buffer.str() ;
+    return bufferString ;
 }
 
 

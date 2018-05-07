@@ -103,7 +103,10 @@ template <typename T> bool DBReader<T>::open(int accessType){
         seqLens = new unsigned int[size];
 
         isSortedById = readIndex(indexFileName, index, seqLens);
-        sortIndex(isSortedById);
+        if (accessType != HARDNOSORT) 
+        {
+            sortIndex(isSortedById);
+        }
 
         // init seq lens array and dbKey mapping
         aaDbSize = 0;
@@ -140,7 +143,7 @@ void DBReader<std::string>::sortIndex(bool isSortedById) {
         }
         delete[] sortArray;
     }else{
-        if(accessType != NOSORT){
+        if(accessType != NOSORT && accessType != HARDNOSORT){
             Debug(Debug::ERROR) << "DBReader<std::string> can not be opened in sort mode\n";
             EXIT(EXIT_FAILURE);
         }

@@ -62,18 +62,18 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 
     dbTo = std::min(dbTo, dbr->getSize());
     size_t dbSize = dbTo - dbFrom;
-    DbInfo info(dbFrom, dbTo, seq->getEffectiveKmerSize(), isProfile, dbr->getSeqLens());
+    DbInfo* info = new DbInfo(dbFrom, dbTo, seq->getEffectiveKmerSize(), isProfile, dbr->getSeqLens());
 
     SequenceLookup *sequenceLookup;
     if (unmaskedLookup != NULL && maskedLookup == NULL) {
-        *unmaskedLookup = new SequenceLookup(dbSize, info.aaDbSize);
+        *unmaskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
         sequenceLookup = *unmaskedLookup;
     } else if (unmaskedLookup == NULL && maskedLookup != NULL) {
-        *maskedLookup = new SequenceLookup(dbSize, info.aaDbSize);
+        *maskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
         sequenceLookup = *maskedLookup;
     } else if (unmaskedLookup != NULL && maskedLookup != NULL) {
-        *unmaskedLookup = new SequenceLookup(dbSize, info.aaDbSize);
-        *maskedLookup = new SequenceLookup(dbSize, info.aaDbSize);
+        *unmaskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
+        *maskedLookup = new SequenceLookup(dbSize, info->aaDbSize);
         sequenceLookup = *maskedLookup;
     }
 
@@ -118,11 +118,11 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
             if (isProfile) {
                 // Find out if we should also mask profiles
                 totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
-                (*unmaskedLookup)->addSequence(s.int_consensus_sequence, s.L, id - dbFrom, info.sequenceOffsets[id - dbFrom]);
+                (*unmaskedLookup)->addSequence(s.int_consensus_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
             } else {
                 // Do not mask if column state sequences are used
                 if (unmaskedLookup != NULL) {
-                    (*unmaskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info.sequenceOffsets[id - dbFrom]);
+                    (*unmaskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
                 }
                 if (maskedLookup != NULL) {
                     for (int i = 0; i < s.L; ++i) {
@@ -143,7 +143,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
                     for (int i = 0; i < s.L; i++) {
                         s.int_sequence[i] = charSequence[i];
                     }
-                    (*maskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info.sequenceOffsets[id - dbFrom]);
+                    (*maskedLookup)->addSequence(s.int_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
                 }
 
                 totalKmerCount += indexTable->addKmerCount(&s, &idxer, buffer, kmerThr, idScoreLookup);
@@ -189,8 +189,11 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
 //    Debug(Debug::INFO) << "Index table: Remove "<< lowSelectiveResidues <<" none selective residues\n";
 //    Debug(Debug::INFO) << "Index table: init... from "<< dbFrom << " to "<< dbTo << "\n";
 
-    indexTable->initMemory(info.tableSize);
+    indexTable->initMemory(info->tableSize);
     indexTable->init();
+
+    delete info;
+    info = NULL;
 
     Debug(Debug::INFO) << "Index table: fill...\n";
     #pragma omp parallel
