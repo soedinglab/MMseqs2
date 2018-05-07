@@ -211,7 +211,7 @@ public:
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
 
     //mergecluster
-    std::string DBfile ;
+    bool byDB ;
 
     //extractorfs
     int orfMinLength;
