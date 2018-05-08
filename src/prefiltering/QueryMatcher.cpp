@@ -145,10 +145,15 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * seq, unsigned in
         // write diagonal scores in count value
         ungappedAlignment->processQuery(seq, compositionBias, foundDiagonals, resultSize, 0);
         memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
+
+
         resultSize = keepMaxScoreElementOnly(foundDiagonals, resultSize);
+
         updateScoreBins(foundDiagonals, resultSize);
         unsigned int diagonalThr = computeScoreThreshold(scoreSizes, this->maxHitsPerQuery);
         diagonalThr = std::max(minDiagScoreThr, diagonalThr);
+
+
         // sort to not lose highest scoring hits if > 150.000 hits are searched
         if(resultSize < counterResultSize/2){
             int elementsCntAboveDiagonalThr = radixSortByScoreSize(scoreSizes, foundDiagonals + resultSize, diagonalThr, foundDiagonals, resultSize);
@@ -246,7 +251,8 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
             const IndexEntryLocal *entries = indexTable->getDBSeqList(index[kmerPos], &seqListSize);
 
             /////DEBUG
-            /*idx.printKmer(index[kmerPos], kmerSize, m->int2aa);
+            /*
+            idx.printKmer(index[kmerPos], kmerSize, m->int2aa);
             std::cout << "\t" << current_i << "\t"<< index[kmerPos] << std::endl;
             for(size_t i = 0; i < seqListSize; i++){
                 char diag = entries[i].position_j - current_i;
@@ -351,6 +357,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
         const unsigned int seqIdCurr = results[i].id;
         const unsigned int scoreCurr = results[i].count;
         const unsigned int diagCurr  = results[i].diagonal;
+
         bool aboveThreshold = scoreCurr >= thr;
         bool isNotQueryId = id != seqIdCurr;
         // write result to list

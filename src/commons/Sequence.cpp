@@ -318,7 +318,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
         float pcb = Parameters::getInstance().pcb;
         PSSMCalculator::computePseudoCounts(profile, profile, pseudocountsWeight, PROFILE_AA_SIZE, neffM, L, pca, pcb);
     }
-//    printProfile();
+    //printProfile();
 
     if(mapScores){
         for(int l = 0; l < this->L; l++) {
@@ -333,7 +333,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
                 profile_score[l * profile_row_size + aa_idx] = profile_score[l * profile_row_size + aa_idx] * 4;
             }
         }
-    //    printPSSM();
+        //printPSSM();
 
         if (aaBiasCorrection == true){
             SubstitutionMatrix::calcGlobalAaBiasCorrection(profile_score, profile_row_size, this->L);
@@ -354,7 +354,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
             }
         }
     }
-//    printPSSM();
+    //printPSSM();
 
 //    printProfile();
 }
@@ -465,14 +465,14 @@ void Sequence::printPSSM(){
     for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++) {
         printf("%3c ", subMat->int2aa[aa]);
     }
-    printf("\n");
+    printf("Neff \n");
     for(int i = 0; i < this->L; i++){
         printf("%3d ", i);
         for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
             printf("%3d ", profile_for_alignment[aa * L + i] );
 //            printf("%3d ", profile_score[i * profile_row_size + aa] );
         }
-        printf("\n");
+        printf("%.1f\n",neffM[i]);
     }
 }
 

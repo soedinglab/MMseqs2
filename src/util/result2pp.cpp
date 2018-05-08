@@ -62,7 +62,6 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
 
 //#pragma omp parallel
     {
-        int sequenceType = Sequence::PROFILE_STATE_PROFILE;
         Sequence queryProfile(par.maxSeqLen, qDbr->getDbtype(), subMat, 0, false,
                               par.compBiasCorrection,false);
         Sequence targetProfile(par.maxSeqLen, tDbr->getDbtype(), subMat, 0, false,
