@@ -251,7 +251,7 @@ size_t QueryMatcher::match(Sequence *seq, float *compositionBias) {
             const IndexEntryLocal *entries = indexTable->getDBSeqList(index[kmerPos], &seqListSize);
 
             /////DEBUG
-            /*
+           /* 
             idx.printKmer(index[kmerPos], kmerSize, m->int2aa);
             std::cout << "\t" << current_i << "\t"<< index[kmerPos] << std::endl;
             for(size_t i = 0; i < seqListSize; i++){

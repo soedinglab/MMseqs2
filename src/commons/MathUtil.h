@@ -14,6 +14,11 @@
 
 class MathUtil {
 public:
+
+    static unsigned int ceilIntDivision(unsigned int x, unsigned int y){
+        return 1 + ((x - 1) / y);
+    }
+
     template<typename T>
     static inline T ipow(int base, int exponent) {
         T res = 1;

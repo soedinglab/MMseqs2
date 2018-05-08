@@ -283,7 +283,13 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
                 nullCnt += (profile[l * PROFILE_AA_SIZE + aa_idx]==0.0);
             }
 
-            MathUtil::NormalizeTo1(&profile[l * PROFILE_AA_SIZE], PROFILE_AA_SIZE);
+            float sumProb = 0.0;
+            for(size_t aa = 0; aa < PROFILE_AA_SIZE; aa++){
+                sumProb += profile[l * PROFILE_AA_SIZE + aa];
+            }
+            if(sumProb > 0.9){
+                MathUtil::NormalizeTo1(&profile[l * PROFILE_AA_SIZE], PROFILE_AA_SIZE);
+            }
             if(nullCnt==PROFILE_AA_SIZE) {
                 for (size_t aa_idx = 0; aa_idx < PROFILE_AA_SIZE; aa_idx++) {
                     profile[l * PROFILE_AA_SIZE + aa_idx] = 0.0;

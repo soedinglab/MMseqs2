@@ -111,6 +111,12 @@ int search(int argc, const char **argv, const Command& command) {
     }
     std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());
+    if(targetDbType == Sequence::PROFILE_STATE_SEQ){
+        cmd.addVariable("ALIGNMENT_DB_EXT", ".255");
+    }else{
+        cmd.addVariable("ALIGNMENT_DB_EXT", "");
+    }
+
     if (targetDbType == Sequence::HMM_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         // we need to align all hits in case of target Profile hits

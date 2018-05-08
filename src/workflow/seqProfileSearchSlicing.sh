@@ -40,7 +40,7 @@ do
     # according to the number of profiles
     let MAX_SEQS=$MEMORY_FOR_SWAPPING*1024/$nProfiles/90 # 90 bytes/query-result line max.
 
-    if [[ $MAX_SEQS < 2000 ]]; then
+    if (( $MAX_SEQS < 2000 )); then
 	MAX_SEQS=2000;
     fi
 
@@ -51,7 +51,7 @@ do
     echo "Current iteration: searching for $MAX_SEQS sequences using $nProfiles profiles with an offset of $offset in the results" >> $TMP/log.txt
 
     rm -f $TMP/aln_.* $TMP/pref_* $TMP/searchOut.notSwapped.$nProfiles* #$TMP/searchOut.current*
-    SEARCHCOMMAND="mmseqs prefilter $PROFILEDB $SEQDB $TMP/searchOut.notSwapped.$nProfiles.pref --max-seqs $SEARCH_LIM --offset-result $offset --threads $THREADS -s 5.7"
+    SEARCHCOMMAND="mmseqs prefilter $PROFILEDB $SEQDB $TMP/searchOut.notSwapped.$nProfiles.pref --max-seqs $SEARCH_LIM --offset-result $offset --threads $THREADS -s 4.5"
     echo $SEARCHCOMMAND >> $TMP/log.txt
     $SEARCHCOMMAND
     echo "Swapping results:" >> $TMP/log.txt

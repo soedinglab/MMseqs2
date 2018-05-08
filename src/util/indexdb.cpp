@@ -42,7 +42,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
-    Prefiltering::setupSplit(dbr, subMat->alphabetSize, par.threads, false, par.maxResListLen, memoryLimit,
+    Prefiltering::setupSplit(dbr, subMat->alphabetSize, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit,
                              &kmerSize, &split, &splitMode);
 
     bool kScoreSet = false;

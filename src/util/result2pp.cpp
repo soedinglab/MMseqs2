@@ -55,16 +55,13 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     DBWriter resultWriter(outpath.c_str(), (outpath + ".index").c_str(), par.threads, DBWriter::BINARY_MODE);
     resultWriter.open();
-    SubstitutionMatrix sMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
-    BaseMatrix * subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack,
-                                                              sMat.subMatrixPseudoCounts, sMat.subMatrix,
-                                                              2.0f, 0.0f, par.maxSeqLen);
+    BaseMatrix  subMat = SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
 
 //#pragma omp parallel
     {
-        Sequence queryProfile(par.maxSeqLen, qDbr->getDbtype(), subMat, 0, false,
+        Sequence queryProfile(par.maxSeqLen, qDbr->getDbtype(), &subMat, 0, false,
                               par.compBiasCorrection,false);
-        Sequence targetProfile(par.maxSeqLen, tDbr->getDbtype(), subMat, 0, false,
+        Sequence targetProfile(par.maxSeqLen, tDbr->getDbtype(), &subMat, 0, false,
                                par.compBiasCorrection,false);
         float * outProfile=new float[par.maxSeqLen * Sequence::PROFILE_AA_SIZE];
         float * neffM=new float[par.maxSeqLen];
@@ -283,7 +280,6 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
 
     qDbr->close();
     delete qDbr;
-    delete subMat;
     Debug(Debug::INFO) << "\nDone.\n";
 
     return EXIT_SUCCESS;

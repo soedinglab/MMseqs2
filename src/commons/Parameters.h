@@ -164,6 +164,7 @@ public:
     //bool   targetProfile;                // using targetProfile information
     int    compBiasCorrection;           // Aminoacid composiont correction
     int    diagonalScoring;              // switch diagonal scoring
+    int    exactKmerMatching;            // only exact k-mer matching
     int    maskMode;                     // mask low complex areas
 
     int    minDiagScoreThr;              // min diagonal score
@@ -210,7 +211,7 @@ public:
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
 
     //mergecluster
-    std::string DBfile ;
+    bool byDB ;
 
     //extractorfs
     int orfMinLength;
@@ -252,6 +253,7 @@ public:
     float matchRatio;
 
     // result2profile
+    int maskProfile;
     float filterMaxSeqId;
     float evalProfile;
     int filterMsa;
@@ -305,6 +307,7 @@ public:
 
     // filterDb
     int filterColumn;
+    int columnToTake;
     std::string filterColumnRegex;
 	std::string filteringFile;
 	std::string mappingFile;
@@ -316,9 +319,12 @@ public:
     int sortEntries;
     bool beatsFirst;
     std::string joinDB;
+    std::string swapFields ;
+    std::string clusterFile ;
 
     //aggregate
     std::string mode ;
+    int setColumn ;
 
     // mergedbs
     std::string mergePrefixes;
@@ -390,6 +396,7 @@ public:
 //    PARAMETER(PARAM_TARGET_PROFILE)
     //PARAMETER(PARAM_NUCL)
     PARAMETER(PARAM_DIAGONAL_SCORING)
+    PARAMETER(PARAM_EXACT_KMER_MATCHING)
     PARAMETER(PARAM_MASK_RESIDUES)
 
     PARAMETER(PARAM_MIN_DIAG_SCORE)
@@ -466,6 +473,7 @@ public:
     PARAMETER(PARAM_MATCH_RATIO)
 
     // result2profile
+    PARAMETER(PARAM_MASK_PROFILE)
     PARAMETER(PARAM_E_PROFILE)
     PARAMETER(PARAM_FILTER_MSA)
     PARAMETER(PARAM_FILTER_MAX_SEQ_ID)
@@ -539,6 +547,7 @@ public:
 
     // filterDb
     PARAMETER(PARAM_FILTER_COL)
+    PARAMETER(PARAM_COLUMN_TO_TAKE)
     PARAMETER(PARAM_FILTER_REGEX)
     PARAMETER(PARAM_FILTER_POS)
     PARAMETER(PARAM_FILTER_FILE)
@@ -550,9 +559,12 @@ public:
     PARAMETER(PARAM_SORT_ENTRIES)
     PARAMETER(PARAM_BEATS_FIRST)
     PARAMETER(PARAM_JOIN_DB)
+    PARAMETER(PARAM_SWAP_SEARCH_FIELDS)
+    PARAMETER(PARAM_TRANSITIVE_REPLACE)
 
     //aggregate
     PARAMETER(PARAM_MODE)
+    PARAMETER(PARAM_SET_COLUMN)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)

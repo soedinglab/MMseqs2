@@ -35,7 +35,7 @@ struct Color {
 class ProfileStates {
 public:
 
-    ProfileStates(double * pBack);
+    ProfileStates(int alphSize, double * pBack);
     ~ProfileStates();
     int read(std::string libraryData);
     int readProfile(std::stringstream &in, float * profile, float * normalizedProfile);
@@ -60,8 +60,9 @@ public:
     float score(float* profileColA, float* avgProfColA, float* profileColB)
     {
         float result = 0.0;
-        for (size_t aa = 0 ; aa < Sequence::PROFILE_AA_SIZE; aa++)
+        for (size_t aa = 0 ; aa < Sequence::PROFILE_AA_SIZE; aa++){
             result += profileColB[aa] * profileColA[aa] / avgProfColA[aa];
+        }
         result  = MathUtil::flog2(result);
         return result;
     }

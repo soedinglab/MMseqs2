@@ -13,7 +13,8 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
     SubstitutionMatrixProfileStates(std::string matrixName,
                                     double **probMatrix, double * pBack,
                                     float **rMatrix, short **subMat,
-                                    float bitFactor, float scoreBias, size_t maxSeqLen) {
+                                    float bitFactor, float scoreBias,
+                                    size_t maxSeqLen, int libAlphabetSize) {
 
         this->matrixName = matrixName;
         this->origAlphabetSize = alphabetSize;
@@ -37,7 +38,7 @@ class SubstitutionMatrixProfileStates : public BaseMatrix {
 
 
         
-        ps = new ProfileStates(this->pBack);
+        ps = new ProfileStates(libAlphabetSize,this->pBack);
         this->scoreNormalization = ps->getScoreNormalization();
         this->bitFactor = bitFactor * scoreNormalization;
         //this->int2aa[toIndex] = this->int2aa[fromIndex];

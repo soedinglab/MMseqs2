@@ -30,6 +30,7 @@ Parameters::Parameters():
         // e.g.: http://gamon.webfactional.com/regexnumericrangegenerator/
         PARAM_MAX_SEQ_LEN(PARAM_MAX_SEQ_LEN_ID,"--max-seq-len","Max. sequence length", "Maximum sequence length [1,32768]",typeid(int), (void *) &maxSeqLen, "^0*([1-9]|[1-8][0-9]|9[0-9]|[1-8][0-9]{2}|9[0-8][0-9]|99[0-9]|[1-8][0-9]{3}|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9]|[12][0-9]{4}|3[01][0-9]{3}|32[0-6][0-9]{2}|327[0-5][0-9]|3276[0-8])$", MMseqsParameter::COMMAND_COMMON|MMseqsParameter::COMMAND_EXPERT),
         PARAM_DIAGONAL_SCORING(PARAM_DIAGONAL_SCORING_ID,"--diag-score", "Diagonal Scoring", "use diagonal score for sorting the prefilter results [0,1]", typeid(int),(void *) &diagonalScoring, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_EXACT_KMER_MATCHING(PARAM_EXACT_KMER_MATCHING_ID,"--exact-kmer-matching", "Exact k-mer matching", "only exact k-mer matching [0,1]", typeid(int),(void *) &exactKmerMatching, "^[0-1]{1}$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MASK_RESIDUES(PARAM_MASK_RESIDUES_ID,"--mask", "Mask Residues", "0: w/o low complexity masking, 1: with low complexity masking", typeid(int),(void *) &maskMode, "^[0-1]{1}", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_DIAG_SCORE(PARAM_MIN_DIAG_SCORE_ID,"--min-ungapped-score", "Minimum Diagonal score", "accept only matches with ungapped alignment score above this threshold", typeid(int),(void *) &minDiagScoreThr, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_K_SCORE(PARAM_K_SCORE_ID,"--k-score", "K-score", "k-mer threshold for generating similar-k-mer lists",typeid(int),(void *) &kmerScore,  "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
@@ -64,7 +65,7 @@ Parameters::Parameters():
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "maximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "type of score used for clustering [1:2]. 1=alignment score. 2=sequence identity ",typeid(int),(void *) &similarityScoreType,  "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         // merge Clusters
-        PARAM_BY_DB(PARAM_BY_DB_ID, "--by-db", "Merge by DB", "Merge results by key column in DB", typeid(std::string), (void *) &DBfile, ""),
+        PARAM_BY_DB(PARAM_BY_DB_ID, "--by-db", "Merge by DB", "Merge results by key column in DB", typeid(bool), (void *) &byDB, ""),
         // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","verbosity level: 0=nothing, 1: +errors, 2: +warnings, 3: +info",typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // create profile (HMM)
@@ -90,6 +91,7 @@ Parameters::Parameters():
         PARAM_MATCH_MODE(PARAM_MATCH_MODE_ID, "--match-mode", "Match mode", "0: Columns that have a residue in the first sequence are kept, 1: columns that have a residue in --match-ratio of all sequences are kept.", typeid(int), (void*)&matchMode, "^(0|1)$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_MATCH_RATIO(PARAM_MATCH_RATIO_ID, "--match-ratio", "Match ratio", "columns that have a residue in this ratio of all sequences are kept", typeid(float), (void*)&matchRatio, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE),
         // result2profile
+        PARAM_MASK_PROFILE(PARAM_MASK_PROFILE_ID,"--mask-profile", "Mask profile", "mask query sequence of profile using tantan [0,1]", typeid(int),(void *) &maskProfile, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE |MMseqsParameter::COMMAND_EXPERT),
         PARAM_E_PROFILE(PARAM_E_PROFILE_ID,"--e-profile", "Profile e-value threshold", "includes sequences matches with < e-value thr. into the profile [>=0.0]", typeid(float), (void *) &evalProfile, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|([0-9]*(\\.[0-9]+)?)$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_FILTER_MSA(PARAM_FILTER_MSA_ID,"--filter-msa", "Filter MSA", "filter msa: 0: do not filter, 1: filter", typeid(int), (void*) &filterMsa, "^[0-1]{1}$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
         PARAM_FILTER_MAX_SEQ_ID(PARAM_FILTER_MAX_SEQ_ID_ID,"--max-seq-id", "Maximum sequence identity threshold", "reduce redundancy of output MSA using max. pairwise sequence identity [0.0,1.0]", typeid(float), (void*) &filterMaxSeqId, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_PROFILE|MMseqsParameter::COMMAND_EXPERT),
@@ -144,6 +146,7 @@ Parameters::Parameters():
         PARAM_HH_FORMAT(PARAM_HH_FORMAT_ID,"--hh-format", "HH format", "format entries to use with hhsuite (for singleton clusters)", typeid(bool), (void *) &hhFormat, ""),
         // filterdb
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
+        PARAM_COLUMN_TO_TAKE(PARAM_COLUMN_TO_TAKE_ID,"--column-to-take", "Column to take", "column to take in join mode. If -1, the whole line is taken", typeid(int),(void *) &columnToTake,"^(-1|0|[1-9]{1}[0-9]*)$"),
         PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
         PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,""),
         PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),
@@ -155,8 +158,11 @@ Parameters::Parameters():
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0) no sorting, 1) increasing,  2) decreasing or 3) random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
+        PARAM_SWAP_SEARCH_FIELDS(PARAM_SWAP_SEARCH_FIELDS_ID, "--swap-fields", "Swap fields of search results", "Replace positions of hits of the query on the target by its position on the target genome", typeid(std::string), (void*) &swapFields, ""),
+        PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
         //aggregate
         PARAM_MODE(PARAM_MODE_ID, "--mode", "Aggregation Mode", "Choose wich of aggregation to launch : bestHit/pval", typeid(std::string), (void*) &mode, ""),
+        PARAM_SET_COLUMN(PARAM_SET_COLUMN_ID, "--set-column", "Set Column", "Change default Set Column", typeid(int), (void*) &setColumn, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
@@ -225,6 +231,7 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_COV_MODE);
     prefilter.push_back(PARAM_NO_COMP_BIAS_CORR);
     prefilter.push_back(PARAM_DIAGONAL_SCORING);
+    prefilter.push_back(PARAM_EXACT_KMER_MATCHING);
     prefilter.push_back(PARAM_MASK_RESIDUES);
     prefilter.push_back(PARAM_MIN_DIAG_SCORE);
     prefilter.push_back(PARAM_INCLUDE_IDENTITY);
@@ -285,6 +292,7 @@ Parameters::Parameters():
     // result2profile
     result2profile.push_back(PARAM_SUB_MAT);
 //    result2profile.push_back(PARAM_QUERY_PROFILE);
+    result2profile.push_back(PARAM_MASK_PROFILE);
     result2profile.push_back(PARAM_E_PROFILE);
     result2profile.push_back(PARAM_NO_COMP_BIAS_CORR);
     result2profile.push_back(PARAM_WG);
@@ -394,6 +402,7 @@ Parameters::Parameters():
 
     // profile2cs
     profile2cs.push_back(PARAM_SUB_MAT);
+//    profile2cs.push_back(PARAM_ALPH_SIZE);
     profile2cs.push_back(PARAM_THREADS);
     profile2cs.push_back(PARAM_V);
 
@@ -455,6 +464,7 @@ Parameters::Parameters():
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);
     translatenucs.push_back(PARAM_ADD_ORF_STOP);
     translatenucs.push_back(PARAM_V);
+    translatenucs.push_back(PARAM_THREADS);
 
     // createseqfiledb
     createseqfiledb.push_back(PARAM_MIN_SEQUENCES);
@@ -465,6 +475,7 @@ Parameters::Parameters():
 
     // filterDb
     filterDb.push_back(PARAM_FILTER_COL);
+    filterDb.push_back(PARAM_COLUMN_TO_TAKE);
     filterDb.push_back(PARAM_FILTER_REGEX);
     filterDb.push_back(PARAM_FILTER_POS);
     filterDb.push_back(PARAM_FILTER_FILE);
@@ -479,11 +490,13 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_SORT_ENTRIES);
     filterDb.push_back(PARAM_INCLUDE_IDENTITY);
     filterDb.push_back(PARAM_JOIN_DB);
+    filterDb.push_back(PARAM_SWAP_SEARCH_FIELDS) ;
+    filterDb.push_back(PARAM_TRANSITIVE_REPLACE) ;
 
     //aggregate
     aggregate.push_back(PARAM_MODE) ;
     aggregate.push_back(PARAM_THREADS) ;
-
+    aggregate.push_back(PARAM_SET_COLUMN) ;
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);
 
@@ -866,8 +879,8 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             }
 
             if (hasUnrecognizedParameter) {
-                printUsageMessage(command, outputFlags);
-                Debug(Debug::ERROR) << "Unrecognized parameter " << parameter << "\n";
+                printUsageMessage(command, 0xFFFFFFFF);
+                Debug(Debug::INFO) << "Unrecognized parameter " << parameter << "\n";
 
                 // Suggest some parameter that the user might have meant
                 std::vector<MMseqsParameter>::const_iterator index = par.end();
@@ -881,7 +894,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                 }
 
                 if(index != par.end()) {
-                    Debug(Debug::ERROR) << "Did you mean \"" << (*index).name << "\"?\n";
+                    Debug(Debug::INFO) << "Did you mean \"" << (*index).name << "\"?\n";
                 }
 
                 EXIT(EXIT_FAILURE);
@@ -1054,6 +1067,7 @@ void Parameters::setDefaults() {
 #endif
     compBiasCorrection = 1;
     diagonalScoring = 1;
+    exactKmerMatching = 0;
     maskMode = 1;
     minDiagScoreThr = 15;
     spacedKmer = true;
@@ -1090,7 +1104,7 @@ void Parameters::setDefaults() {
     removeTmpFiles = false;
 
     //mergeclusters
-    DBfile="" ;
+    byDB = 0 ;
 
     // convertprofiledb
     profileMode = PROFILE_MODE_HMM;
@@ -1127,6 +1141,7 @@ void Parameters::setDefaults() {
 
     // result2profile
     evalProfile = evalThr;
+    maskProfile = 1;
     filterMsa = 1;
     filterMaxSeqId = 0.9;
     qid = 0.0;           // default for minimum sequence identity with query
@@ -1179,6 +1194,7 @@ void Parameters::setDefaults() {
 
     // filterDb
     filterColumn = 1;
+    columnToTake = -1;
     filterColumnRegex = "^.*$";
     positiveFilter = true;
     filteringFile = "";
@@ -1187,7 +1203,9 @@ void Parameters::setDefaults() {
     compOperator = "";
     compValue = 0;
     sortEntries = 0;
-    joinDB = std::string();
+
+    //aggregate
+    setColumn = 9 ;
 
     // concatdbs
     preserveKeysB = false;

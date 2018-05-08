@@ -80,11 +80,11 @@ int linclust(int argc, const char **argv, const Command& command) {
     bool noneSymetric = (par.covMode == Parameters::COV_MODE_TARGET ||par.covMode == Parameters::COV_MODE_QUERY);
     if(clusterModeSet == false){
         if(noneSymetric){
-            par.clusteringMode = Parameters::GREEDY;
+            par.clusteringMode = Parameters::GREEDY_MEM;
         }else{
             par.clusteringMode = Parameters::SET_COVER;
         }
-        std::string cluMode = (par.clusteringMode==Parameters::GREEDY) ? "GREEDY" : "SET COVER";
+        std::string cluMode = (par.clusteringMode==Parameters::GREEDY_MEM) ? "GREEDY MEM" : "SET COVER";
         Debug(Debug::WARNING) << "Set cluster mode " << cluMode << ".\n";
     }
 

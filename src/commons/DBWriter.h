@@ -57,7 +57,7 @@ class DBWriter {
                                  const char **dataFileNames, const char **indexFileNames,
                                  unsigned long fileCount, bool lexicographicOrder = false);
 
-        void mergeFilePair(const char *inData1, const char *inIndex1, const char *inData2, const char *inIndex2);
+        void mergeFilePair(const std::vector<std::pair<std::string, std::string>> fileNames);
 
 
 private:
