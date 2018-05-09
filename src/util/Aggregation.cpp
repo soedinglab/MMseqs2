@@ -157,6 +157,11 @@ double BinCoeff (int M, int k) {
     result = exp(lgamma(M+1)-lgamma(M-k+1)-lgamma(k+1)) ;
     return result;
 }
+double LBinCoeff (int M, int k) {
+    double result;
+    result = lgamma(M+1)-lgamma(M-k+1)-lgamma(k+1);
+    return result;
+}
 
 double factorial (size_t i) {
     double fac = 1;
@@ -174,21 +179,21 @@ std::string PvalAggregator::aggregateEntry(std::vector<std::vector<std::string> 
     double updatedPval;
     double r = 0 ;
     double pValInDouble ;
-    size_t K =0 ;
+    size_t k =0 ;
     std::vector<double> pvals;
     for (auto &i : dataToAggregate) {
         pValInDouble = std::strtod(i[pValColumn].c_str(), nullptr) ;
-        if (pValInDouble < P0){// pvals.push_back(std::stod(i[pValColumn]) / targetGlobalSize);
-            K++ ;
+        if (pValInDouble < P0){
+            k++ ;
             r-=log(pValInDouble/P0);
         }
     }
 
     double leftSum = 0 ;
     double rightSum = 0 ;
-    for(size_t i =0 ; i < K ; i++) { // LeftSum
-        for(size_t j = i+1 ; j < K+1 ; j++) { // RightSum
-            rightSum += BinCoeff(M, j) * pow(P0, j) * pow((1.0 - P0), (M - j));
+    for(size_t i =0 ; i < k ; i++) { // LeftSum
+        for(size_t j = i+1 ; j < k+1 ; j++) { // RightSum
+            rightSum += exp(LBinCoeff(M, j) + j*log(P0) + (M - j)*log(1.0 - P0));//BinCoeff(M, j) * pow(P0, j) * pow((1.0 - P0), (M - j));
         }
         leftSum += (pow(r, i) / factorial(i))*rightSum;
     }
@@ -217,15 +222,15 @@ std::string ClusteringAggregator::aggregateEntry(std::vector<std::vector<std::st
     for (auto &it : dataToAggregate) {
         genesPositions.push_back(static_cast<unsigned int &&>(std::stoi(it[8]))) ;
         genesPositions.push_back(static_cast<unsigned int &&>(std::stoi(it[10]))) ;
-        i+=2 ;
+        i++ ;
     };
     if(i>2) {
-        for (size_t pos = 1; pos < i; pos++) {
+        for (size_t pos = 1; pos < i; pos+=2) {
             //std::cout << std::to_string(genesPositions[pos + 1])<< "-" << std::to_string(genesPositions[pos]) << "\n" ;
-            currentInterGenePosition = genesPositions[pos + 1] - genesPositions[pos];
+            currentInterGenePosition = genesPositions[pos] - genesPositions[pos+1];
             interGeneSpaces.push_back(static_cast<unsigned int &&>(currentInterGenePosition));
-        }
         std::sort(begin(interGeneSpaces), end(interGeneSpaces)) ;
+        }
         //if odd number
         if(i % 2) {
             indexOfInterSpaceToReturn = (i + 1) / 2;

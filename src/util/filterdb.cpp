@@ -260,7 +260,7 @@ int ffindexFilter::runFilter(){
                     else {
                         std::vector<std::string> splittedLine = Util::split(fullLine, "\t") ;
                         char* newValue = const_cast<char *>(splittedLine[columnToTake].c_str());
-                        size_t valueLength = strlen(newValue);;
+                        size_t valueLength = joinDB->getSeqLens(newId);
                         // Appending join database entry to query database entry
                         memcpy(lineBuffer + originalLength, newValue, valueLength);
                     }
