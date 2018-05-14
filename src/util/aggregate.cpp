@@ -18,7 +18,7 @@ int aggregate(int argc, const char **argv, const Command& command) {
         aggregFunction = new PvalAggregator(par.db1, par.db2, (unsigned int)par.threads, par.db3, par.setColumn, 3) ;
     }
     else if (par.mode=="clustering-index") {
-        Debug(Debug::INFO) << "Calculation of clusterig index" << "\n";
+        Debug(Debug::INFO) << "Calculation of median intergene length" << "\n";
         aggregFunction = new ClusteringAggregator(par.db1, par.db2, (unsigned int)par.threads, par.setColumn) ;
     }
     else {
