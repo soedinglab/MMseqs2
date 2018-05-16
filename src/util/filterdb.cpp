@@ -50,6 +50,7 @@ ffindexFilter::ffindexFilter(Parameters &par) {
     outDB = std::string(par.db2);
     threads = par.threads;
     column  = static_cast<size_t>(par.filterColumn);
+    columnToTake = par.columnToTake;
     trimToOneColumn = par.trimToOneColumn;
     positiveFiltering = par.positiveFilter;
     shouldAddSelfMatch = par.includeIdentity;
@@ -249,11 +250,20 @@ int ffindexFilter::runFilter(){
                     // Replace the last \n
                     lineBuffer[originalLength - 1] = '\t';
                     char* fullLine = joinDB->getData(newId);
-                    std::vector<std::string> splittedLine = Util::split(fullLine, "\t") ;
-                    char* newValue = const_cast<char *>(splittedLine[0].c_str());
-                    size_t valueLength = joinDB->getSeqLens(newId);
-                    // Appending join database entry to query database entry
-                    memcpy(lineBuffer + originalLength, newValue, valueLength);
+                    // either append the full line (default mode):
+                    if (columnToTake == -1) {
+                        size_t fullLineLength = joinDB->getSeqLens(newId);
+                        // Appending join database entry to query database entry
+                        memcpy(lineBuffer + originalLength, fullLine, fullLineLength);
+                    }
+                    // or a specified column:
+                    else {
+                        std::vector<std::string> splittedLine = Util::split(fullLine, "\t") ;
+                        char* newValue = const_cast<char *>(splittedLine[columnToTake].c_str());
+                        size_t valueLength = joinDB->getSeqLens(newId);
+                        // Appending join database entry to query database entry
+                        memcpy(lineBuffer + originalLength, newValue, valueLength);
+                    }
                 }
                 else if (mode == TRANSITIVE_REPLACE) {
                     std::string singleGene;
@@ -439,22 +449,21 @@ int ffindexFilter::runFilter(){
 
 				}
                 
-                if (addSelfMatch)
+                if (addSelfMatch) {
                     nomatch = 0;
+                }  
                     
-                    
-				if(!(nomatch)){
-                    if (trimToOneColumn)
-                    {
+				if(!(nomatch)) {
+                    if (trimToOneColumn) {
                         buffer.append(columnValue);
                     }
-                    else
-                    {
+                    else {
 						buffer.append(lineBuffer);
                     }
                     
-                    if (buffer.back() != '\n')
+                    if (buffer.back() != '\n') {
                         buffer.append("\n");
+                    }
 				}
 				data = Util::skipLine(data);
 			}
