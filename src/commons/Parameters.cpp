@@ -109,6 +109,8 @@ Parameters::Parameters():
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
         // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
+        PARAM_PRINTKEY(PARAM_PRINTKEY_ID, "--print-key", "Prefix the key to the stat", "For every stat line, prefix the key in the result file.", typeid(bool), (void*) &printKey, ""),
+        
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--inlude-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void*) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
@@ -334,6 +336,7 @@ Parameters::Parameters():
 
     //result2stats
     result2stats.push_back(PARAM_STAT);
+    result2stats.push_back(PARAM_PRINTKEY);
     result2stats.push_back(PARAM_THREADS);
     result2stats.push_back(PARAM_V);
 
@@ -1200,6 +1203,8 @@ void Parameters::setDefaults() {
     compOperator = "";
     compValue = 0;
     sortEntries = 0;
+    beatsFirst = false;
+    
 
     //aggregate
     setColumn = 9 ;
@@ -1237,6 +1242,7 @@ void Parameters::setDefaults() {
 
     // result2stats
     stat = "";
+    printKey = false;
 
     // createtsv
     firstSeqRepr = false;
