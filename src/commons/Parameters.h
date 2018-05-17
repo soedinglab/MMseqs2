@@ -211,7 +211,7 @@ public:
     int similarityScoreType;            // Type of score to use for reassignment 1=alignment score. 2=coverage 3=sequence identity 4=E-value 5= Score per Column
 
     //mergecluster
-    std::string DBfile ;
+    bool byDB ;
 
     //extractorfs
     int orfMinLength;
@@ -274,7 +274,9 @@ public:
     
     //result2stats
     std::string stat;
-
+    bool printKey;
+    
+    
     // linearcluster
     int kmersPerSequence;
     bool includeOnlyExtendable;
@@ -307,6 +309,7 @@ public:
 
     // filterDb
     int filterColumn;
+    int columnToTake;
     std::string filterColumnRegex;
 	std::string filteringFile;
 	std::string mappingFile;
@@ -493,6 +496,7 @@ public:
     
     // result2stat
     PARAMETER(PARAM_STAT)
+    PARAMETER(PARAM_PRINTKEY)
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
@@ -546,6 +550,7 @@ public:
 
     // filterDb
     PARAMETER(PARAM_FILTER_COL)
+    PARAMETER(PARAM_COLUMN_TO_TAKE)
     PARAMETER(PARAM_FILTER_REGEX)
     PARAMETER(PARAM_FILTER_POS)
     PARAMETER(PARAM_FILTER_FILE)

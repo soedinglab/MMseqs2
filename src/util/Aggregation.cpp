@@ -11,6 +11,16 @@
 
 #endif
 
+
+
+struct compareByStart {
+    bool operator()(const std::pair <long,long> &lhs,
+                    const std::pair <long,long> &rhs) const {
+        return (lhs.first < rhs.first);
+    }
+};
+
+// TO DO : Get rid of stringStreams
 Aggregation::Aggregation(std::string arg_inputDBname, std::string arg_outputDBname, unsigned int arg_nbrThread,
                          size_t arg_targetColumn) : inputDBname(std::move(arg_inputDBname)), outputDBname(std::move(arg_outputDBname)),
                                                     nbrThread(arg_nbrThread), targetColumn(arg_targetColumn){}
@@ -40,7 +50,7 @@ void Aggregation::runAggregate(){
     outputDB->open();
 
 #ifdef OPENMP
-    omp_set_num_threads(1);
+    omp_set_num_threads(this->nbrThread);
 #endif
 
     unsigned int thread_idx = 0;
@@ -64,7 +74,6 @@ void Aggregation::runAggregate(){
                 outputBuffer.append(this->aggregateEntry(it->second, &params));
                 outputBuffer.append("\n");
             }
-
 
             outputDB->writeData(outputBuffer.c_str(), outputBuffer.length(), key, thread_idx);
 
@@ -155,6 +164,11 @@ double BinCoeff (int M, int k) {
     result = exp(lgamma(M+1)-lgamma(M-k+1)-lgamma(k+1)) ;
     return result;
 }
+double LBinCoeff (int M, int k) {
+    double result;
+    result = lgamma(M+1)-lgamma(M-k+1)-lgamma(k+1);
+    return result;
+}
 
 double factorial (size_t i) {
     double fac = 1;
@@ -172,21 +186,21 @@ std::string PvalAggregator::aggregateEntry(std::vector<std::vector<std::string> 
     double updatedPval;
     double r = 0 ;
     double pValInDouble ;
-    size_t K =0 ;
+    size_t k =0 ;
     std::vector<double> pvals;
     for (auto &i : dataToAggregate) {
         pValInDouble = std::strtod(i[pValColumn].c_str(), nullptr) ;
-        if (pValInDouble < P0){// pvals.push_back(std::stod(i[pValColumn]) / targetGlobalSize);
-            K++ ;
+        if (pValInDouble < P0){
+            k++ ;
             r-=log(pValInDouble/P0);
         }
     }
 
     double leftSum = 0 ;
     double rightSum = 0 ;
-    for(size_t i =0 ; i < K ; i++) { // LeftSum
-        for(size_t j = i+1 ; j < K+1 ; j++) { // RightSum
-            rightSum += BinCoeff(M, j) * pow(P0, j) * pow((1.0 - P0), (M - j));
+    for(size_t i =0 ; i < k ; i++) { // LeftSum
+        for(size_t j = i+1 ; j < k+1 ; j++) { // RightSum
+            rightSum += exp(LBinCoeff(M, j) + j*log(P0) + (M - j)*log(1.0 - P0));//BinCoeff(M, j) * pow(P0, j) * pow((1.0 - P0), (M - j));
         }
         leftSum += (pow(r, i) / factorial(i))*rightSum;
     }
@@ -203,38 +217,44 @@ ClusteringAggregator::ClusteringAggregator(std::string arg_inputDBname, std::str
                                            unsigned int arg_nbrThread, size_t arg_targetColumn)
         : Aggregation(std::move(arg_inputDBname), std::move(arg_outputDBname), arg_nbrThread, arg_targetColumn) {}
 
+// return the median of the distance between genes of dataToAggregate
 std::string ClusteringAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate,
                                                  aggregParams *params) {
-    size_t i = 0 ;
-    size_t indexOfInterSpaceToReturn =0 ;
-    std::vector<unsigned int> genesPositions;
-    std::vector<unsigned int> interGeneSpaces;
-    int currentInterGenePosition = 0;
-    std::stringstream Buffer ;
+    int i = 0 ;
+    unsigned int indexOfInterSpaceToReturn =0 ;
+    std::vector<std::pair<long,long> > genesPositions;
+    std::vector<long> interGeneSpaces;
+    long currentInterGenePosition = 0;
+    std::stringstream buffer ;
     for (auto &it : dataToAggregate) {
-        genesPositions[i]= static_cast<unsigned int>(stoul(it[8], nullptr, 10));
-        i++ ;
-        genesPositions[i]= static_cast<unsigned int>(stoul(it[10], nullptr, 10));
+        genesPositions.emplace_back(std::make_pair(std::stol(it[8]),std::stol(it[10]))) ;
         i++ ;
     };
+    std::sort(begin(genesPositions), end(genesPositions), compareByStart()) ;
     if(i>2) {
-        for (size_t pos = 1; pos < i; pos++) {
-            currentInterGenePosition = genesPositions[pos + 1] - genesPositions[pos];
-            interGeneSpaces.push_back(static_cast<unsigned int &&>(currentInterGenePosition));
+        for (size_t pos = 0; pos < i-1; pos++) {
+            currentInterGenePosition = genesPositions[pos+1].second - genesPositions[pos].first;
+            interGeneSpaces.push_back(currentInterGenePosition);
         }
         std::sort(begin(interGeneSpaces), end(interGeneSpaces)) ;
         //if odd number
-        if(i % 2) {
-            indexOfInterSpaceToReturn = (i + 1) / 2;
+        if(interGeneSpaces.size() % 2) {
+            indexOfInterSpaceToReturn = static_cast<unsigned int>((interGeneSpaces.size() + 1) / 2);
         }
         else{
-            indexOfInterSpaceToReturn = i/2;
+            indexOfInterSpaceToReturn = static_cast<unsigned int>(interGeneSpaces.size() / 2);
         }
-        Buffer << params->targetSetKey << "\t" << interGeneSpaces[indexOfInterSpaceToReturn] ;
+        if(interGeneSpaces[indexOfInterSpaceToReturn] > 1e9) {
+            std::cout << indexOfInterSpaceToReturn << " : " << interGeneSpaces[indexOfInterSpaceToReturn] << "\n";
+            for (auto it : interGeneSpaces) { std::cout << it << "\n"; }
+        }
+        buffer << params->targetSetKey << "\t" << interGeneSpaces[indexOfInterSpaceToReturn] << "\t" << dataToAggregate.size()  ;
     }
     else {
-        Buffer << params->targetSetKey << "\t0\n"; //NaMM
+        buffer << params->targetSetKey << "\t0" << "\t" << dataToAggregate.size(); //NaMM
     }
+    std::string bufferString= buffer.str() ;
+    return bufferString ;
 }
 
 

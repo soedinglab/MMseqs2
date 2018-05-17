@@ -65,7 +65,7 @@ Parameters::Parameters():
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "maximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "type of score used for clustering [1:2]. 1=alignment score. 2=sequence identity ",typeid(int),(void *) &similarityScoreType,  "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         // merge Clusters
-        PARAM_BY_DB(PARAM_BY_DB_ID, "--by-db", "Merge by DB", "Merge results by key column in DB", typeid(std::string), (void *) &DBfile, ""),
+        PARAM_BY_DB(PARAM_BY_DB_ID, "--by-db", "Merge by DB", "Merge results by key column in DB", typeid(bool), (void *) &byDB, ""),
         // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","verbosity level: 0=nothing, 1: +errors, 2: +warnings, 3: +info",typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // create profile (HMM)
@@ -109,6 +109,8 @@ Parameters::Parameters():
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
         // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
+        PARAM_PRINTKEY(PARAM_PRINTKEY_ID, "--print-key", "Prefix the key to the stat", "For every stat line, prefix the key in the result file.", typeid(bool), (void*) &printKey, ""),
+        
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--inlude-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void*) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
@@ -146,6 +148,7 @@ Parameters::Parameters():
         PARAM_HH_FORMAT(PARAM_HH_FORMAT_ID,"--hh-format", "HH format", "format entries to use with hhsuite (for singleton clusters)", typeid(bool), (void *) &hhFormat, ""),
         // filterdb
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
+        PARAM_COLUMN_TO_TAKE(PARAM_COLUMN_TO_TAKE_ID,"--column-to-take", "Column to take", "column to take in join mode. If -1, the whole line is taken", typeid(int),(void *) &columnToTake,"^(-1|0|[1-9]{1}[0-9]*)$"),
         PARAM_FILTER_REGEX(PARAM_FILTER_REGEX_ID,"--filter-regex", "Filter regex", "regex to select column (example float: [0-9]*(.[0-9]+)? int:[1-9]{1}[0-9])", typeid(std::string),(void *) &filterColumnRegex,"^.*$"),
         PARAM_FILTER_POS(PARAM_FILTER_POS_ID,"--positive-filter", "Positive filter", "used in conjunction with --filter-file. If true, out  = in \\intersect filter ; if false, out = in - filter", typeid(bool),(void *) &positiveFilter,""),
         PARAM_FILTER_FILE(PARAM_FILTER_FILE_ID,"--filter-file", "Filter file", "specify a file that contains the filtering elements", typeid(std::string),(void *) &filteringFile,""),
@@ -334,6 +337,7 @@ Parameters::Parameters():
 
     //result2stats
     result2stats.push_back(PARAM_STAT);
+    result2stats.push_back(PARAM_PRINTKEY);
     result2stats.push_back(PARAM_THREADS);
     result2stats.push_back(PARAM_V);
 
@@ -463,6 +467,7 @@ Parameters::Parameters():
     translatenucs.push_back(PARAM_TRANSLATION_TABLE);
     translatenucs.push_back(PARAM_ADD_ORF_STOP);
     translatenucs.push_back(PARAM_V);
+    translatenucs.push_back(PARAM_THREADS);
 
     // createseqfiledb
     createseqfiledb.push_back(PARAM_MIN_SEQUENCES);
@@ -473,6 +478,7 @@ Parameters::Parameters():
 
     // filterDb
     filterDb.push_back(PARAM_FILTER_COL);
+    filterDb.push_back(PARAM_COLUMN_TO_TAKE);
     filterDb.push_back(PARAM_FILTER_REGEX);
     filterDb.push_back(PARAM_FILTER_POS);
     filterDb.push_back(PARAM_FILTER_FILE);
@@ -1101,7 +1107,7 @@ void Parameters::setDefaults() {
     removeTmpFiles = false;
 
     //mergeclusters
-    DBfile="" ;
+    byDB = 0 ;
 
     // convertprofiledb
     profileMode = PROFILE_MODE_HMM;
@@ -1191,6 +1197,7 @@ void Parameters::setDefaults() {
 
     // filterDb
     filterColumn = 1;
+    columnToTake = -1;
     filterColumnRegex = "^.*$";
     positiveFilter = true;
     filteringFile = "";
@@ -1199,6 +1206,8 @@ void Parameters::setDefaults() {
     compOperator = "";
     compValue = 0;
     sortEntries = 0;
+    beatsFirst = false;
+    
 
     //aggregate
     setColumn = 9 ;
@@ -1236,6 +1245,7 @@ void Parameters::setDefaults() {
 
     // result2stats
     stat = "";
+    printKey = false;
 
     // createtsv
     firstSeqRepr = false;
