@@ -342,7 +342,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
     //    printPSSM();
 
         if (aaBiasCorrection == true){
-            SubstitutionMatrix::calcGlobalAaBiasCorrection(profile_score, profile_row_size, this->L);
+            SubstitutionMatrix::calcGlobalAaBiasCorrection(subMat, profile_score, profile_row_size, this->L);
         }
 
         // sort profile scores and index for KmerGenerator (prefilter step)
@@ -359,6 +359,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
                 profile_for_alignment[aa_idx * this-> L + i] = profile_score[i * profile_row_size + aa_num] / 4;
             }
         }
+        //TODO what is with the X
     }
 //    printPSSM();
 

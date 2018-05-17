@@ -991,19 +991,19 @@ int Prefiltering::getKmerThreshold(const float sensitivity, const int querySeqTy
         if (kmerSize == 5) {
             float base = 123.75;
             if (querySeqType == Sequence::HMM_PROFILE) {
-                base += 20.0;
+                base += 17.0;
             }
             kmerThrBest = base - (sensitivity * 8.75);
         } else if (kmerSize == 6) {
             float base = 138.75;
             if (querySeqType == Sequence::HMM_PROFILE) {
-                base += 20.0;
+                base += 17.0;
             }
             kmerThrBest = base - (sensitivity * 8.75);
         } else if (kmerSize == 7) {
             float base = 154.75;
             if (querySeqType == Sequence::HMM_PROFILE) {
-                base += 20.0;
+                base += 17.0;
             }
             kmerThrBest = base - (sensitivity * 9.75);
         } else {
