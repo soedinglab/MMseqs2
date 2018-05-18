@@ -129,7 +129,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 }
 
                 char buffer[LINE_MAX];
-                snprintf(buffer, LINE_MAX, "%s [Orf: %zu, %zu, %d, %d, %d]\n", header.c_str(), loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+                snprintf(buffer, LINE_MAX, "%s [Orf: %d, %zu, %zu, %d, %d, %d]\n", header.c_str(), key, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
                 headerWriter.writeData(buffer, strlen(buffer), id, thread_idx);
 
