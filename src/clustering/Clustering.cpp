@@ -99,7 +99,7 @@ void Clustering::writeData(DBWriter *dbw, const std::unordered_map<unsigned int,
         // first entry is the representative sequence
         for (size_t i = 0; i < elements.size(); i++) {
             unsigned int nextDbKey = seqDbr->getDbKey(elements[i]);
-            char * outpos = Itoa::i32toa_sse2(nextDbKey, buffer);
+            char * outpos = Itoa::u32toa_sse2(nextDbKey, buffer);
             resultStr.append(buffer, (outpos - buffer - 1) );
             resultStr.push_back('\n');
         }

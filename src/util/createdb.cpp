@@ -114,7 +114,7 @@ int createdb(int argn, const char **argv, const Command& command) {
                 }
 
                 unsigned int id = par.identifierOffset + entries_num;
-                char * tmpBuff = Itoa::i32toa_sse2(id, lookupBuffer);
+                char * tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
                 *(tmpBuff-1) = '\t';
                 fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
                 fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
