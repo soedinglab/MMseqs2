@@ -64,14 +64,8 @@ int translatenucs(int argc, const char **argv, const Command& command) {
                     EXIT(EXIT_FAILURE);
                 }
 
-                Orf::SequenceLocation loc;
-                int strand;
-                int retCode = sscanf(entry[col], "[Orf: %zu, %zu, %d, %d, %d]", &loc.from, &loc.to, &strand, &loc.hasIncompleteStart, &loc.hasIncompleteEnd);
-                if (retCode < 5) {
-                    Debug(Debug::ERROR) << "Could not parse Orf " << entry[col] << ".\n";
-                    EXIT(EXIT_FAILURE);
-                }
-                loc.strand =  static_cast<Orf::Strand>(strand);
+                Orf::SequenceLocation loc=Orf::parseOrfHeader(entry[col]);
+
                 addStopAtStart=!(loc.hasIncompleteStart);
                 addStopAtEnd=!(loc.hasIncompleteEnd);
             }
