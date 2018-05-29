@@ -120,6 +120,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     par.filterHits = true;
     cmd.addVariable("UNGAPPED_ALN_PAR", par.createParameterString(par.rescorediagonal).c_str());
     // # 4. Local gapped sequence alignment.
+    par.maxResListLen = INT_MAX;
     cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
     // # 5. Clustering using greedy set cover.
     cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
