@@ -150,7 +150,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
     //    unsigned char minDistToDiagonal = distanceFromDiagonal(diagonal);
     //    unsigned char maxDistToDiagonal = (minDistToDiagonal == 0) ? 0 : (DIAGONALCOUNT - minDistToDiagonal);
     //    unsigned int i_splits = computeSplit(queryLen, minDistToDiagonal);
-    const char * dummy = {0};
+    const unsigned char * dummy = {0};
     unsigned short minDistToDiagonal = distanceFromDiagonal(diagonal);
 
     if(queryLen >= 32768){
@@ -168,7 +168,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
             std::pair<const unsigned char *, const unsigned int> tmp = sequenceLookup->getSequence(
                     hits[seqIdx]->id);
             if(tmp.second >= 32768){
-                seqs[seqIdx] = std::make_pair(dummy, 1);
+                seqs[seqIdx] = std::make_pair((unsigned char *) dummy, static_cast<const unsigned int>(1));
             }else{
                 seqs[seqIdx] = std::make_pair((unsigned char *) tmp.first, (unsigned int) tmp.second);
             }
@@ -193,7 +193,8 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
         for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
             hits[hitIdx]->count = score_arr[hitIdx];
             if(seqs[hitIdx].second >= 32768){
-                hits[hitIdx]->count = computeLongScore(queryProfile, queryLen, seqs[hitIdx], diagonal, bias);
+                std::pair<const unsigned char *, const unsigned int> dbseq = std::make_pair(seqs[hitIdx].first, seqs[hitIdx].second);
+                hits[hitIdx]->count = computeLongScore(queryProfile, queryLen, dbseq, diagonal, bias);
             }
         }
     }else {
@@ -202,7 +203,7 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
             std::pair<const unsigned char *, const unsigned int> dbSeq =  sequenceLookup->getSequence(seqId);
             int max;
             if(dbSeq.second > 32768){
-                max = computeLongScore(queryProfile, queryLen, dbSeq,diagonal, bias);
+                max = computeLongScore(queryProfile, queryLen, dbSeq, diagonal, bias);
             }else{
                 max = computeSingelSequenceScores(queryProfile, queryLen, dbSeq, diagonal, minDistToDiagonal, bias);
             }
