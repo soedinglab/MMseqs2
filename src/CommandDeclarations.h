@@ -19,6 +19,7 @@ extern int align(int argc, const char **argv, const Command& command);
 extern int alignall(int argc, const char **argv, const Command& command);
 extern int createseqfiledb(int argc, const char **argv, const Command& command);
 extern int swapresults(int argc, const char **argv, const Command& command);
+extern int swapdb(int argc, const char **argv, const Command& command);
 extern int extractorfs(int argc, const char **argv, const Command& command);
 extern int convertprofiledb(int argc, const char **argv, const Command& command);
 extern int translatenucs(int argc, const char **argv, const Command& command);

@@ -23,16 +23,55 @@ struct compareEval {
     }
 };
 
-int swapresults(int argc, const char **argv, const Command &command) {
-    Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4);
+int doswap(Parameters& par, bool isGeneralMode) {
+    const char * parResultDb;
+    const char * parResultDbIndex;
+    const char * parOutDb;
+    const char * parOutDbIndex;
+
+    if (isGeneralMode) {
+        parResultDb = par.db1.c_str();
+        parResultDbIndex = par.db1Index.c_str();
+        parOutDb = par.db2.c_str();
+        parOutDbIndex = par.db2Index.c_str();
+
+    } else {
+        parResultDb = par.db3.c_str();
+        parResultDbIndex = par.db3Index.c_str();
+        parOutDb = par.db4.c_str();
+        parOutDbIndex = par.db4Index.c_str();
+    }
+    std::string parResultDbStr(parResultDb);
+    std::string parResultDbIndexStr(parResultDbIndex);
+
+    std::string parOutDbStr(parOutDb);
+    std::string parOutDbIndexStr(parOutDbIndex);
 
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
     size_t aaResSize = 0;
-    unsigned int maxTargetId;
-    {
+    unsigned int maxTargetId = 0;
+
+    if (isGeneralMode) {
+        Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
+        DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex);
+        resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+        //search for the maxTargetId (value of first column) in parallel 
+        char *resultDbEntry[1000];
+#pragma omp parallel for schedule(dynamic, 100) reduction(max:maxTargetId)
+        for (size_t id = 0; id < resultReader.getSize(); id++) {
+            Debug::printProgress(id);
+            char *resultDbRecord = resultReader.getData(id);
+            while (*resultDbRecord != '\0') {
+                const size_t resultDbColumns = Util::getWordsOfLine(resultDbRecord, resultDbEntry, 255);
+                unsigned int currTargetId = Util::fast_atoi<int>(resultDbEntry[0]);
+                maxTargetId = std::max(maxTargetId, currTargetId);
+                resultDbRecord = Util::skipLine(resultDbRecord);
+            }
+        }
+        resultReader.close();
+    } else {
         Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
         DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), DBReader<unsigned int>::USE_INDEX);
         queryReader.open(DBReader<unsigned int>::NOSORT);
@@ -45,12 +84,12 @@ int swapresults(int argc, const char **argv, const Command &command) {
         maxTargetId = targetReader.getLastKey();
         targetReader.close();
     }
-
-    Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
-    DBReader<unsigned int> resultDbr(par.db3.c_str(), par.db3Index.c_str());
-    resultDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
+
+    Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
+    DBReader<unsigned int> resultDbr(parResultDb, parResultDbIndex);
+    resultDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     const size_t resultSize = resultDbr.getSize();
     Debug(Debug::INFO) << "Computing offsets.\n";
@@ -100,11 +139,11 @@ int swapresults(int argc, const char **argv, const Command &command) {
     AlignmentSymmetry::computeOffsetFromCounts(targetElementSize, maxTargetId + 1);
     unsigned int prevDbKeyToWrite = 0;
     size_t prevBytesToWrite = 0;
-    for(size_t split = 0; split < splits.size(); split++){
+    for(size_t split = 0; split < splits.size(); split++) {
         unsigned int dbKeyToWrite = splits[split].first;
         size_t bytesToWrite = splits[split].second;
         char *tmpData = new char[bytesToWrite];
-        Util::checkAllocation(tmpData, "Could not allocate tmpData memory in swapresults");
+        Util::checkAllocation(tmpData, "Could not allocate tmpData memory in doswap");
         Debug(Debug::INFO) << "\nReading results.\n";
 #pragma omp parallel for schedule(dynamic, 10)
         for (size_t i = 0; i < resultSize; ++i) {
@@ -140,7 +179,7 @@ int swapresults(int argc, const char **argv, const Command &command) {
         }
         targetElementSize[0] = 0;
 
-        Debug(Debug::INFO) << "\nOutput database: " << par.db4 << "\n";
+        Debug(Debug::INFO) << "\nOutput database: " << parOutDbStr << "\n";
         char *entry[255];
         bool isAlignmentResult = false;
         bool hasBacktrace = false;
@@ -152,7 +191,8 @@ int swapresults(int argc, const char **argv, const Command &command) {
                 break;
             }
         }
-        std::string splitDbw = par.db4 + "_" + SSTR(split);
+
+        std::string splitDbw = parOutDbStr + "_" + SSTR(split);
         std::pair<std::string, std::string> splitNamePair = std::make_pair(splitDbw, splitDbw+".index");
         splitFileNames.push_back(splitNamePair);
         DBWriter resultWriter(splitNamePair.first.c_str(), splitNamePair.second.c_str(), par.threads);
@@ -163,16 +203,23 @@ int swapresults(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
+            Debug::printProgress(i);
+            char *data = &tmpData[targetElementSize[i] - prevBytesToWrite];
+            size_t dataSize = targetElementSize[i + 1] - targetElementSize[i];
+            
+            if (isGeneralMode) {
+                resultWriter.writeData(data, dataSize, i, thread_idx);
+                continue;
+            }
 
             // we are reusing this vector also for the prefiltering results
             // qcov is used for pScore because its the first float value
-            // and alnLength for diagonal because its the first int value after
+            // and alnLength for diagonal because its the first int value after            
             std::vector<Matcher::result_t> curRes;
             char buffer[1024+32768];
             std::string ss;
             ss.reserve(100000);
-            char *data = &tmpData[targetElementSize[i] - prevBytesToWrite];
-            size_t dataSize = targetElementSize[i + 1] - targetElementSize[i];
+
             while (dataSize > 0) {
                 if (isAlignmentResult) {
                     Matcher::result_t res = Matcher::parseAlignmentRecord(data, true);
@@ -212,7 +259,6 @@ int swapresults(int argc, const char **argv, const Command &command) {
                 data = nextLine;
             }
 
-            Debug::printProgress(i);
             if (curRes.empty() == false) {
                 if (curRes.size() > 1) {
                     std::sort(curRes.begin(), curRes.end(), compareEval());
@@ -246,7 +292,7 @@ int swapresults(int argc, const char **argv, const Command &command) {
 
     Debug(Debug::INFO) << "\n";
 
-    DBWriter::mergeResults(par.db4, par.db4Index, splitFileNames);
+    DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);
 
     resultDbr.close();
     delete[] targetElementSize;
@@ -257,3 +303,14 @@ int swapresults(int argc, const char **argv, const Command &command) {
     return EXIT_SUCCESS;
 }
 
+int swapdb(int argc, const char **argv, const Command &command) {
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 2);
+    return doswap(par, true);
+}
+
+int swapresults(int argc, const char **argv, const Command &command) {
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 4);
+    return doswap(par, false);
+}
