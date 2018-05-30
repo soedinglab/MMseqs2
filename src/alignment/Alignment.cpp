@@ -23,7 +23,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         covThr(par.covThr), covMode(par.covMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
         includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
-        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), qdbr(NULL), qSeqLookup(NULL),
+        maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qSeqLookup(NULL),
         tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit) {
 
 
@@ -35,9 +35,21 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     if (realign == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_ONLY;
         if (addBacktrace == false) {
-            Debug(Debug::ERROR) << "Realign can only be used in combination with -a.\n";
+            Debug(Debug::WARNING) << "Turn on backtrace for realign.\n";
+            addBacktrace = true;
+        }
+    }
+
+    if (altAlignment > 0) {
+        if(querySeqType==Sequence::NUCLEOTIDES){
+            Debug(Debug::ERROR) << "Alternative alignments are not supported for nucleotides.\n";
             EXIT(EXIT_FAILURE);
         }
+        if(realign==true){
+            Debug(Debug::ERROR) << "Alternative alignments do not supported realignment.\n";
+            EXIT(EXIT_FAILURE);
+        }
+        alignmentMode = (alignmentMode > Parameters::ALIGNMENT_MODE_SCORE_COV) ? alignmentMode : Parameters::ALIGNMENT_MODE_SCORE_COV;
     }
 
     initSWMode(alignmentMode);
@@ -293,7 +305,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             size_t start = dbFrom + (i * flushSize);
             size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
 
-            #pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
+#pragma omp for schedule(dynamic, 5) reduction(+: alignmentsNum, totalPassedNum)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 Debug::printProgress(id);
 
@@ -307,6 +319,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 std::vector<Matcher::result_t> swResults;
                 size_t passedNum = 0;
                 unsigned int rejected = 0;
+
                 while (*data != '\0' && passedNum < maxAlnNum && rejected < maxRejected) {
                     // DB key of the db sequence
                     char dbKeyBuffer[255 + 1];
@@ -336,36 +349,47 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     Matcher::result_t res = matcher.getSWResult(&dbSeq, diagonal, covMode, covThr, evalThr, swMode, isIdentity);
                     alignmentsNum++;
 
-                    // sequence are identical if qID == dbID  (needed to cluster really short sequences)
-
                     //set coverage and seqid if identity
                     if (isIdentity) {
                         res.qcov = 1.0f;
                         res.dbcov = 1.0f;
                         res.seqId = 1.0f;
                     }
-
-                    const bool evalOk = (res.eval <= evalThr); // -e
-                    const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
-                    const bool covOK = Util::hasCoverage(covThr, covMode, res.qcov, res.dbcov);
-                    // check first if it is identity
-                    if (isIdentity
-                        ||
-                        // general accaptance criteria
-                        ( evalOk   &&
-                          seqIdOK  &&
-                          covOK
-                        ))
-                    {
-
-                        swResults.push_back(res);
+                    if(checkCriteriaAndAddHitToList(res, isIdentity, swResults)){
                         passedNum++;
                         totalPassedNum++;
                         rejected = 0;
-                    } else {
+                    }else{
                         rejected++;
                     }
+
                     data = Util::skipLine(data);
+                }
+                if(altAlignment> 0){
+                    int xIndex = m->aa2int['X'];
+                    size_t firstItResSize = swResults.size();
+                    for(size_t i = 0; i < firstItResSize; i++) {
+                        const bool isIdentity = (queryDbKey == swResults[i].dbKey && (includeIdentity || sameQTDB))
+                                                ? true : false;
+                        if (isIdentity == true) {
+                            continue;
+                        }
+                        setTargetSequence(dbSeq, swResults[i].dbKey);
+                        for (size_t pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; pos++) {
+                            dbSeq.int_sequence[pos] = xIndex;
+                        }
+                        bool nextAlignment = true;
+                        for (size_t altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
+                            Matcher::result_t res = matcher.getSWResult(&dbSeq, 0, covMode, covThr, evalThr, swMode,
+                                                                        isIdentity);
+                            nextAlignment = checkCriteriaAndAddHitToList(res, isIdentity, swResults);
+                            if (nextAlignment == true) {
+                                for (size_t pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
+                                    dbSeq.int_sequence[pos] = xIndex;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // write the results
@@ -398,21 +422,21 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                 alnResultsOutString.clear();
             }
 
-            #pragma omp barrier
+#pragma omp barrier
             if (thread_idx == 0) {
                 prefdbr->remapData();
             }
-            #pragma omp barrier
+#pragma omp barrier
         }
 
 #ifndef HAVE_MPI
         if (earlyExit) {
-            #pragma omp barrier
+#pragma omp barrier
             if(thread_idx == 0) {
                 dbw.close();
                 Debug(Debug::INFO) << "Done. Exiting early now.\n";
             }
-            #pragma omp barrier
+#pragma omp barrier
 
             _Exit(EXIT_SUCCESS);
         }
@@ -482,4 +506,25 @@ inline void Alignment::setTargetSequence(Sequence &seq, unsigned int key) {
 
 size_t Alignment::estimateHDDMemoryConsumption(int dbSize, int maxSeqs) {
     return 2 * (dbSize * maxSeqs * 21 * 1.75);
+}
+
+
+bool Alignment::checkCriteriaAndAddHitToList(Matcher::result_t &res, bool isIdentity, std::vector<Matcher::result_t> &swHits){
+    const bool evalOk = (res.eval <= evalThr); // -e
+    const bool seqIdOK = (res.seqId >= seqIdThr); // --min-seq-id
+    const bool covOK = Util::hasCoverage(covThr, covMode, res.qcov, res.dbcov);
+    // check first if it is identity
+    if (isIdentity
+        ||
+        // general accaptance criteria
+        ( evalOk   &&
+          seqIdOK  &&
+          covOK
+        ))
+    {
+        swHits.push_back(res);
+        return true;
+    } else {
+        return false;
+    }
 }

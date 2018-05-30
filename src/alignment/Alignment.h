@@ -8,6 +8,7 @@
 #include "BaseMatrix.h"
 #include "Sequence.h"
 #include "SequenceLookup.h"
+#include "Matcher.h"
 
 class Alignment {
 
@@ -50,7 +51,7 @@ private:
     const bool includeIdentity;
 
     // includes backtrace to alignment
-    const bool addBacktrace;
+    bool addBacktrace;
 
     // realign with different score matrix
     const bool realign;
@@ -68,6 +69,8 @@ private:
     int querySeqType;
     int targetSeqType;
     const bool compBiasCorrection;
+
+    int altAlignment;
 
     BaseMatrix *m;
     // costs to open a gap
@@ -100,6 +103,7 @@ private:
 
     static size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
 
+    bool checkCriteriaAndAddHitToList(Matcher::result_t &result, bool isIdentity, std::vector<Matcher::result_t> &swHits);
 };
 
 #endif

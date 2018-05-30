@@ -186,6 +186,7 @@ public:
 
     int    maxRejected;                  // after n sequences that are above eval stop
     int    maxAccept;                    // after n accepted sequences stop
+    int    altAlignment;                 // show up to this many alternative alignments
     float  seqIdThr;                     // sequence identity threshold for acceptance
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
@@ -429,6 +430,7 @@ public:
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
+    PARAMETER(PARAM_ALT_ALIGNMENT)
     std::vector<MMseqsParameter> align;
 
     // clustering
