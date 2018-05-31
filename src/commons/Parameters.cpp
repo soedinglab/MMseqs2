@@ -513,6 +513,10 @@ Parameters::Parameters():
     swapresult.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     swapresult.push_back(PARAM_THREADS);
 
+    // swap results
+    swapdb.push_back(PARAM_SPLIT_MEMORY_LIMIT);
+    swapdb.push_back(PARAM_THREADS);
+
     // subtractdbs
     subtractdbs.push_back(PARAM_THREADS);
     subtractdbs.push_back(PARAM_E_PROFILE);
