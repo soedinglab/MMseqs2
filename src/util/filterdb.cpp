@@ -471,9 +471,9 @@ int ffindexFilter::runFilter(){
             if(mode == SORT_ENTRIES)
             {
                 if (sortingMode ==INCREASING)
-                    omptl::sort(toSort.begin(),toSort.end(),compareFirstEntry());
+                    std::stable_sort(toSort.begin(),toSort.end(),compareFirstEntry());
                 else if (sortingMode == DECREASING)
-                    omptl::sort(toSort.begin(),toSort.end(),compareFirstEntryDecreasing());
+                    std::stable_sort(toSort.begin(),toSort.end(),compareFirstEntryDecreasing());
                 else if (sortingMode == SHUFFLE)
                 {
                     srand ( unsigned ( time(0) ) );
