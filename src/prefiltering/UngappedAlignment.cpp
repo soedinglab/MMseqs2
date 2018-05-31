@@ -222,14 +222,14 @@ int UngappedAlignment::computeLongScore(const char * queryProfile, int queryLen,
         int minDistToDiagonal = abs(realDiagonal);
         int max = computeSingelSequenceScores(queryProfile, queryLen, dbSeq, realDiagonal, minDistToDiagonal, bias);
         max = static_cast<unsigned char>(std::min(255, max));
-        totalMax = std::min(totalMax, max);
+        totalMax = std::max(totalMax, max);
     }
     for(size_t devisions = 0; devisions <= queryLen/65536; devisions++ ) {
         int realDiagonal = (devisions*65536+diagonal);
         int minDistToDiagonal = abs(realDiagonal);
         int max = computeSingelSequenceScores(queryProfile, queryLen, dbSeq, realDiagonal, minDistToDiagonal, bias);
         max = static_cast<unsigned char>(std::min(255, max));
-        totalMax = std::min(totalMax, max);
+        totalMax = std::max(totalMax, max);
     }
     return totalMax;
 }
