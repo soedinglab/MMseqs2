@@ -150,7 +150,6 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
     //    unsigned char minDistToDiagonal = distanceFromDiagonal(diagonal);
     //    unsigned char maxDistToDiagonal = (minDistToDiagonal == 0) ? 0 : (DIAGONALCOUNT - minDistToDiagonal);
     //    unsigned int i_splits = computeSplit(queryLen, minDistToDiagonal);
-    const unsigned char * dummy = {0};
     unsigned short minDistToDiagonal = distanceFromDiagonal(diagonal);
 
     if(queryLen >= 32768){
@@ -168,7 +167,9 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
             std::pair<const unsigned char *, const unsigned int> tmp = sequenceLookup->getSequence(
                     hits[seqIdx]->id);
             if(tmp.second >= 32768){
-                seqs[seqIdx] = std::make_pair((unsigned char *) dummy, static_cast<const unsigned int>(1));
+                // hack to avoid too long sequences
+                // this sequences will be processed by computeLongScore later
+                seqs[seqIdx] = std::make_pair((unsigned char *) tmp.first, (unsigned int) 1);
             }else{
                 seqs[seqIdx] = std::make_pair((unsigned char *) tmp.first, (unsigned int) tmp.second);
             }
@@ -192,10 +193,12 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
         // update score
         for(size_t hitIdx = 0; hitIdx < hitSize; hitIdx++){
             hits[hitIdx]->count = score_arr[hitIdx];
-            if(seqs[hitIdx].second >= 32768){
-                std::pair<const unsigned char *, const unsigned int> dbseq = std::make_pair(seqs[hitIdx].first, seqs[hitIdx].second);
-                int max = computeLongScore(queryProfile, queryLen, dbseq, diagonal, bias);
-                hits[hitIdx]->count = static_cast<unsigned char>(std::min(255, max));
+            if(seqs[hitIdx].second == 1){
+                std::pair<const unsigned char *, const unsigned int> dbSeq =  sequenceLookup->getSequence(hits[hitIdx]->id);
+                if(dbSeq.second >= 32768){
+                    int max = computeLongScore(queryProfile, queryLen, dbSeq, diagonal, bias);
+                    hits[hitIdx]->count = static_cast<unsigned char>(std::min(255, max));
+                }
             }
         }
     }else {
