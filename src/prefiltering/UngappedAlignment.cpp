@@ -194,7 +194,8 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
             hits[hitIdx]->count = score_arr[hitIdx];
             if(seqs[hitIdx].second >= 32768){
                 std::pair<const unsigned char *, const unsigned int> dbseq = std::make_pair(seqs[hitIdx].first, seqs[hitIdx].second);
-                hits[hitIdx]->count = computeLongScore(queryProfile, queryLen, dbseq, diagonal, bias);
+                int max = computeLongScore(queryProfile, queryLen, dbseq, diagonal, bias);
+                hits[hitIdx]->count = static_cast<unsigned char>(std::min(255, max));
             }
         }
     }else {
@@ -221,14 +222,12 @@ int UngappedAlignment::computeLongScore(const char * queryProfile, int queryLen,
         int realDiagonal = (-devisions * 65536  + diagonal);
         int minDistToDiagonal = abs(realDiagonal);
         int max = computeSingelSequenceScores(queryProfile, queryLen, dbSeq, realDiagonal, minDistToDiagonal, bias);
-        max = static_cast<unsigned char>(std::min(255, max));
         totalMax = std::max(totalMax, max);
     }
     for(size_t devisions = 0; devisions <= queryLen/65536; devisions++ ) {
         int realDiagonal = (devisions*65536+diagonal);
         int minDistToDiagonal = abs(realDiagonal);
         int max = computeSingelSequenceScores(queryProfile, queryLen, dbSeq, realDiagonal, minDistToDiagonal, bias);
-        max = static_cast<unsigned char>(std::min(255, max));
         totalMax = std::max(totalMax, max);
     }
     return totalMax;
