@@ -94,7 +94,7 @@ public:
     // split
     static const int AUTO_SPLIT_DETECTION = 0;
 
-    static const int MAX_SEQ_LEN = 32000;
+    static const int MAX_SEQ_LEN = 65535;
 
     // extractalignedregion
     static const int EXTRACT_QUERY  = 1;
