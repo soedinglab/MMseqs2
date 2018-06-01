@@ -192,7 +192,7 @@ std::vector<struct Command> commands = {
         {"swapresults",          swapresults,          &par.swapresult,          COMMAND_DB,
                 "Reformat prefilter/alignment/cluster DB as if target DB had been searched through query DB",
                 NULL,
-                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>, Clovis Galiez & Eli Levy Kari",
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>, Clovis Galiez & Eli Levy Karin",
                 "<i:queryDB> <i:targetDB> <i:resultDB> <o:resultDB>",
                 CITATION_MMSEQS2},
         {"swapdb",          swapdb,          &par.swapdb,          COMMAND_DB,
