@@ -194,6 +194,7 @@ int createdb(int argn, const char **argv, const Command& command) {
     // shuffle data
     DBReader<unsigned int> readerSequence(out_writer.getDataFileName(), out_writer.getIndexFileName());
     readerSequence.open( DBReader<unsigned int>::NOSORT);
+    readerSequence.readMmapedDataInMemory();
     DBReader<unsigned int>::Index * indexSequence  = readerSequence.getIndex();
     unsigned int * lengthSequence  = readerSequence.getSeqLens();
 
@@ -223,10 +224,12 @@ int createdb(int argn, const char **argv, const Command& command) {
         const char * data = readerSequence.getData() + indexSequence[n].offset;
         out_writer_shuffeled.writeData(data, lengthSequence[n]-1, id);
     }
+    readerSequence.close();
     out_writer_shuffeled.close(dbType);
 
     DBWriter out_hdr_writer_shuffeled(data_filename_hdr.c_str(), index_filename_hdr.c_str());
     out_hdr_writer_shuffeled.open();
+    readerHeader.readMmapedDataInMemory();
     char lookupBuffer[32768];
     for (unsigned int n = 0; n < readerHeader.getSize(); n++) {
         unsigned int id = par.identifierOffset + n;
@@ -241,6 +244,7 @@ int createdb(int argn, const char **argv, const Command& command) {
         out_hdr_writer_shuffeled.writeData(data, lengthHeader[n]-1, id);
     }
     out_hdr_writer_shuffeled.close();
+    readerHeader.close();
     fclose(lookupFile);
 
     return EXIT_SUCCESS;
