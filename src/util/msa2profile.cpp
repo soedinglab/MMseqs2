@@ -233,6 +233,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
 
                     std::string header(seq->name.s);
                     if (seq->comment.l > 0) {
+                        header.append(" ");
                         header.append(seq->comment.s);
                     }
                     header.append("\n");
