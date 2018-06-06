@@ -23,7 +23,11 @@ public:
     void processQuery(Sequence *seq, float *compositionBias, CounterResult *results,
                       size_t resultSize, unsigned int thr);
 
-    int scoreSingelSequence(CounterResult &result);
+    int scoreSingelSequenceByCounterResult(CounterResult &result);
+
+    int scoreSingleSequence(std::pair<const unsigned char *, const unsigned int> dbSeq,
+                            unsigned short diagonal,
+                            unsigned short minDistToDiagonal);
 
     inline short getQueryBias() {
         return bias;
@@ -89,6 +93,8 @@ private:
     int computeLongScore(const char * queryProfile, int queryLen,
                          std::pair<const unsigned char *, const unsigned int> &dbSeq,
                          unsigned short diagonal, short bias);
+
+
 };
 
 

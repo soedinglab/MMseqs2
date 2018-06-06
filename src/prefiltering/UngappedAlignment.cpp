@@ -386,13 +386,20 @@ int UngappedAlignment::computeSingelSequenceScores(const char *queryProfile, con
     return max;
 }
 
-int UngappedAlignment::scoreSingelSequence(CounterResult &result) {
+
+int UngappedAlignment::scoreSingelSequenceByCounterResult(CounterResult &result) {
     std::pair<const unsigned char *, const unsigned int> dbSeq =  sequenceLookup->getSequence(result.id);
     unsigned short minDistToDiagonal = distanceFromDiagonal(result.diagonal);
+    return scoreSingleSequence(dbSeq, result.diagonal, minDistToDiagonal);
+}
+
+int UngappedAlignment::scoreSingleSequence(std::pair<const unsigned char *, const unsigned int> dbSeq,
+                                            unsigned short diagonal,
+                                            unsigned short minDistToDiagonal) {
     if(queryLen >= 32768 || dbSeq.second >= 32768) {
-        return computeLongScore(queryProfile, queryLen, dbSeq, result.diagonal, bias);
+        return computeLongScore(queryProfile, queryLen, dbSeq, diagonal, bias);
     } else {
-        return computeSingelSequenceScores(queryProfile,queryLen ,dbSeq, static_cast<short>(result.diagonal), minDistToDiagonal, bias);
+        return computeSingelSequenceScores(queryProfile,queryLen ,dbSeq, static_cast<short>(diagonal), minDistToDiagonal, bias);
     }
 }
 
