@@ -83,8 +83,12 @@ private:
     unsigned int diagonalLength(const short diagonal, const unsigned int len, const unsigned int second);
 
     int computeSingelSequenceScores(const char *queryProfile, const unsigned int queryLen,
-                                     std::pair<const unsigned char *, const unsigned int> &dbSeq,
-                                     short diagonal, unsigned short minDistToDiagonal, short bias);
+                                    std::pair<const unsigned char *, const unsigned int> &dbSeq,
+                                    int diagonal, unsigned int minDistToDiagonal, short bias);
+
+    int computeLongScore(const char * queryProfile, int queryLen,
+                         std::pair<const unsigned char *, const unsigned int> &dbSeq,
+                         unsigned short diagonal, short bias);
 };
 
 

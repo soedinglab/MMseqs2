@@ -94,7 +94,7 @@ public:
     // split
     static const int AUTO_SPLIT_DETECTION = 0;
 
-    static const int MAX_SEQ_LEN = 32000;
+    static const int MAX_SEQ_LEN = 65535;
 
     // extractalignedregion
     static const int EXTRACT_QUERY  = 1;
@@ -186,6 +186,7 @@ public:
 
     int    maxRejected;                  // after n sequences that are above eval stop
     int    maxAccept;                    // after n accepted sequences stop
+    int    altAlignment;                 // show up to this many alternative alignments
     float  seqIdThr;                     // sequence identity threshold for acceptance
     bool   addBacktrace;                 // store backtrace string (M=Match, D=deletion, I=insertion)
     bool   realign;                      // realign hit with more conservative score
@@ -274,10 +275,13 @@ public:
     
     //result2stats
     std::string stat;
-
+    bool printKey;
+    
+    
     // linearcluster
     int kmersPerSequence;
     bool includeOnlyExtendable;
+    int skipNRepeatKmer;
     int hashShift;
 
     // indexdb
@@ -426,6 +430,7 @@ public:
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
+    PARAMETER(PARAM_ALT_ALIGNMENT)
     std::vector<MMseqsParameter> align;
 
     // clustering
@@ -494,10 +499,12 @@ public:
     
     // result2stat
     PARAMETER(PARAM_STAT)
+    PARAMETER(PARAM_PRINTKEY)
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
     PARAMETER(PARAM_INCLUDE_ONLY_EXTENDABLE)
+    PARAMETER(PARAM_SKIP_N_REPEAT_KMER)
     PARAMETER(PARAM_HASH_SHIFT)
 
     // workflow
@@ -640,6 +647,7 @@ public:
     std::vector<MMseqsParameter> clusterUpdate;
     std::vector<MMseqsParameter> translatenucs;
     std::vector<MMseqsParameter> swapresult;
+    std::vector<MMseqsParameter> swapdb;
     std::vector<MMseqsParameter> createseqfiledb;
     std::vector<MMseqsParameter> filterDb;
     std::vector<MMseqsParameter> onlythreads;

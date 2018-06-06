@@ -15,11 +15,11 @@ int aggregate(int argc, const char **argv, const Command& command) {
     }
     else if (par.mode=="pval"){
         Debug(Debug::INFO) << "Aggregation of p-values" << "\n";
-        aggregFunction = new PvalAggregator(par.db1, par.db2, (unsigned int)par.threads, par.db3, par.setColumn) ;
+        aggregFunction = new PvalAggregator(par.db1, par.db2, (unsigned int)par.threads, par.db3, par.setColumn, 3) ;
     }
     else if (par.mode=="clustering-index") {
-        Debug(Debug::INFO) << "Calculation of clusterig index" << "\n";
-        aggregFunction = new ClusteringAggregator(par.db1, par.db2, (unsigned int)par.threads) ;
+        Debug(Debug::INFO) << "Calculation of median intergene length" << "\n";
+        aggregFunction = new ClusteringAggregator(par.db1, par.db2, (unsigned int)par.threads, par.setColumn) ;
     }
     else {
         Debug(Debug::ERROR) << "Unknown aggregation mode " << par.mode << "\n";

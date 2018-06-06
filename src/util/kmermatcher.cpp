@@ -189,7 +189,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
         const unsigned int BUFFER_SIZE = 1024;
         size_t bufferPos = 0;
         KmerPosition * threadKmerBuffer = new KmerPosition[BUFFER_SIZE];
-        SequencePosition * kmers = new SequencePosition[par.maxSeqLen];
+        SequencePosition * kmers = new SequencePosition[par.maxSeqLen+1];
 
         const size_t flushSize = 100000000;
         size_t iterations = static_cast<size_t>(ceil(static_cast<double>(seqDbr.getSize()) / static_cast<double>(flushSize)));
@@ -252,11 +252,26 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                     std::stable_sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
                 }
                 size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer), seqKmerCount);
+                if(par.skipNRepeatKmer > 0 ){
+                    size_t prevKmer = SIZE_T_MAX;
+                    kmers[seqKmerCount].kmer=SIZE_T_MAX;
+                    size_t repeatKmerCnt = 0;
+                    for (size_t topKmer = 0; topKmer < seqKmerCount; topKmer++) {
+                        repeatKmerCnt += (
+                                (kmers + topKmer)->kmer == (kmers + topKmer + 1)->kmer ||
+                                (kmers + topKmer)->kmer == prevKmer);
+                        prevKmer = threadKmerBuffer[bufferPos].kmer;
+                    }
+                    if(repeatKmerCnt >= par.skipNRepeatKmer){
+                        kmerConsidered = 0;
+                    }
+                }
                 for (size_t topKmer = 0; topKmer < kmerConsidered; topKmer++) {
                     size_t splitIdx = (kmers + topKmer)->kmer % splits;
                     if (splitIdx != split) {
                         continue;
                     }
+
                     threadKmerBuffer[bufferPos].kmer = (kmers + topKmer)->kmer;
                     threadKmerBuffer[bufferPos].id = seqId;
                     threadKmerBuffer[bufferPos].pos = (kmers + topKmer)->pos;
