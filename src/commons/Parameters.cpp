@@ -1237,7 +1237,7 @@ void Parameters::setDefaults() {
 
     // summarizetabs
     overlap = 0.0f;
-    msaType = 0;
+    msaType = 2;
 
     // summarize header
     headerType = Parameters::HEADER_TYPE_UNICLUST;

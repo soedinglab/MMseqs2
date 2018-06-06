@@ -19,7 +19,7 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 #include <MathUtil.h>
 
 void setMsa2ProfileDefaults(Parameters *p) {
-    p->msaType = 1;
+    p->msaType = 2;
     p->pca = 0.0;
 }
 
