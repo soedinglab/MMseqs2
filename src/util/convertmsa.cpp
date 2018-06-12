@@ -60,7 +60,6 @@ int convertmsa(int argc, const char **argv, const Command &command) {
                 result.append(">");
                 if (j == 0) {
                     result.append(identifier);
-                    result.append(" ");
                 }
                 result.append(accession);
                 result.append("\n");
