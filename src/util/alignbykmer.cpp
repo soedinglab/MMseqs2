@@ -225,9 +225,9 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
                     std::sort(kmerPosVec.begin(), kmerPosVec.end(), KmerPos::compareKmerPos);
                     unsigned int kmerCnt = 0;
-                    unsigned short min_i = UINT_MAX;
+                    unsigned short min_i = USHRT_MAX;
                     unsigned short max_i = 0;
-                    unsigned short min_j = UINT_MAX;
+                    unsigned short min_j = USHRT_MAX;
                     unsigned short max_j = 0;
 
                     if(kmerPosVec.size() > 1){
@@ -268,9 +268,15 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                         }
                     }
 
-                    const float queryCov = SmithWaterman::computeCov(min_i, max_i,  query.L);
-                    const float targetCov = SmithWaterman::computeCov(min_j, max_j, target.L);
-                    const int alnLen = std::min(max_i - min_i, max_j - min_j);
+                    float queryCov = SmithWaterman::computeCov(min_i, max_i,  query.L);
+                    float targetCov = SmithWaterman::computeCov(min_j, max_j, target.L);
+                    int alnLen = std::min(max_i - min_i, max_j - min_j);
+                    if(min_i == USHRT_MAX || min_j == USHRT_MAX){
+                        queryCov = 0.0f;
+                        targetCov = 0.0f;
+                        alnLen = 0;
+                    }
+
                     const float seqId = 1.0;
                     const float evalue = 0.0;
                     // query/target cov mode
