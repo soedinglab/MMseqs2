@@ -276,6 +276,19 @@ Parameters::Parameters():
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
 
+    // alignbykmer
+    alignbykmer.push_back(PARAM_K);
+    alignbykmer.push_back(PARAM_ALPH_SIZE);
+    alignbykmer.push_back(PARAM_SUB_MAT);
+    alignbykmer.push_back(PARAM_FILTER_HITS);
+    alignbykmer.push_back(PARAM_C);
+    alignbykmer.push_back(PARAM_E);
+    alignbykmer.push_back(PARAM_COV_MODE);
+    alignbykmer.push_back(PARAM_MIN_SEQ_ID);
+    alignbykmer.push_back(PARAM_INCLUDE_IDENTITY);
+    alignbykmer.push_back(PARAM_THREADS);
+    alignbykmer.push_back(PARAM_V);
+
     // convertprofiledb
     convertprofiledb.push_back(PARAM_SUB_MAT);
     convertprofiledb.push_back(PARAM_PROFILE_TYPE);
