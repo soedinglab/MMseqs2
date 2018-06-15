@@ -175,6 +175,7 @@ int ProfileStates::read(std::string libraryData) {
         reader.ReadInt(line.c_str(), "LENG", "Unable to parse context library 'LENG'!");
 
 
+
     profiles = new float*[alphSize];
     normalizedProfiles = new float*[alphSize];
     prior = new float[alphSize];
@@ -200,8 +201,11 @@ int ProfileStates::read(std::string libraryData) {
     }
 
     for (k = 0; k < alphSize; ++k)
+    {
         prior[k] /= zPrior;
-
+        //DEBUG: std::cout<<"Prior["<<k<<"] = "<<prior[k]<<std::endl;
+    }
+    
 
     discProfScores = new float*[alphSize];
     for (k = 0; k< alphSize ; k++)
@@ -261,7 +265,7 @@ float ProfileStates::getScoreNormalization() {
 
 void ProfileStates::discretize(const float* sequence, size_t length, std::string &result)
 {
-    float minDiffScore;
+    
     char closestState;
     float curDiffScore;
     float* profileCol;
@@ -269,6 +273,7 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
     memset(repScore, 0, sizeof(float)*256);
     for (size_t i = 0 ; i<length ; i++)
     {
+        float minDiffScore = FLT_MAX;
         profileCol = (float *)sequence + i*Sequence::PROFILE_AA_SIZE;
 
         float maxScore = -FLT_MIN;
@@ -277,6 +282,11 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
         for (size_t k=0;k<alphSize;k++)
         {
             repScore[k] = score(profileCol,profiles[k]);
+/*if(i==9)
+{
+    std::cout<<"|"<<repScore[k]<<"|";
+    
+}*/
             if (repScore[k]>maxScore)
             {
                 maxScore = repScore[k];
@@ -285,10 +295,9 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
         }
 
         // FInd the k that minimizes sum_l (S(profile, c_l) - S(c_k,c_l))^2
-        for (size_t k=0;k<20;k++)
+        for (size_t k=0;k<alphSize;k++)
         {
             curDiffScore = 0.0;
-            simd_float priorLSimd = simdf32_load(&prior[k]);
             simd_float curDiffScoreSimd=simdf32_setzero(0);
             unsigned int ceilAlphSize = MathUtil::ceilIntDivision(alphSize,VECSIZE_FLOAT);
 //            for (size_t l=0;l<alphSize;l++)
@@ -296,29 +305,38 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
 //                float diff = repScore[l] - discProfScores[k][l];
 //                tmp += diff*diff;
 //            }
+
+
             for (size_t l=0;l<ceilAlphSize*VECSIZE_FLOAT;l+=VECSIZE_FLOAT)
             {
+                simd_float priorLSimd = simdf32_load(&prior[l]);
                 simd_float repScoreLSimd = simdf32_load(&repScore[l]);
                 simd_float discProfScoresLSimd = simdf32_load(&discProfScores[k][l]);
                 simd_float diff = simdf32_sub(repScoreLSimd, discProfScoresLSimd);
-                simd_float postDiff = simdf32_mul(priorLSimd, diff);
-                curDiffScoreSimd = simdf32_add(curDiffScoreSimd, simdf32_mul(postDiff, postDiff));
+                simd_float diffSquared = simdf32_mul(diff, diff);
+                simd_float postDiff = simdf32_mul(priorLSimd, diffSquared);
+                curDiffScoreSimd = simdf32_add(curDiffScoreSimd, postDiff);
             }
             float * curDiffScoreSimdFlt = (float*) &curDiffScoreSimd;
             for (size_t l=0;l<VECSIZE_FLOAT;l++){
                 curDiffScore+= curDiffScoreSimdFlt[l];
             }
-            //std::cout<<curDiffScore<<" ";
-            if (!k||(curDiffScore < minDiffScore))
+/*if(i==9)
+{
+    std::cout<<curDiffScore<<"("<<profileCol[k]<<")"<<" ";
+    
+}*/
+            
+            if (curDiffScore < minDiffScore)
             {
                 minDiffScore = curDiffScore;
                 closestState = k;
             }
         }
-        //std::cout<<"Pos "<<i<<", closest state: "<<(int)closestState<<", max score index: "<<maxScoreIndex<<"\n";
+//std::cout<<"Pos "<<i<<", closest state: "<<(int)closestState<<", max score index: "<<maxScoreIndex<<"\n";
         result.push_back(closestState);//(maxScoreIndex);//
     }
-    //std::cout<<"\n";
+    std::cout<<"\n";
     free(repScore);
 }
 
