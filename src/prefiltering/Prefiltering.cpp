@@ -608,7 +608,8 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
     size_t maxResults = maxResListLen;
     if (splitCount > 1) {
-        maxResults = (maxResListLen / splitCount) + 1;
+        size_t fourTimesStdDeviation = 4*sqrt(static_cast<double>(maxResListLen) / static_cast<double>(splitCount));
+        maxResults = (maxResListLen / splitCount) + std::max(static_cast<size_t >(1), fourTimesStdDeviation);
     }
 
     // create index table based on split parameter

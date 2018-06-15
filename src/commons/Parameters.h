@@ -613,6 +613,7 @@ public:
 
     std::vector<MMseqsParameter> empty;
     std::vector<MMseqsParameter> rescorediagonal;
+    std::vector<MMseqsParameter> alignbykmer;
     std::vector<MMseqsParameter> onlyverbosity;
     std::vector<MMseqsParameter> createFasta;
     std::vector<MMseqsParameter> convertprofiledb;

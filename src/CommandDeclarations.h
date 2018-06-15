@@ -54,6 +54,7 @@ extern int extractalignedregion(int argc, const char **argv, const Command& comm
 extern int extractdomains(int argc, const char **argv, const Command& command);
 extern int kmermatcher(int argc, const char **argv, const Command &command);
 extern int rescorediagonal(int argc, const char **argv, const Command& command);
+extern int alignbykmer(int argc, const char **argv, const Command& command);
 extern int linclust(int argc, const char **argv, const Command& command);
 extern int result2repseq(int argc, const char **argv, const Command& command);
 extern int tsv2db(int argc, const char **argv, const Command& command);

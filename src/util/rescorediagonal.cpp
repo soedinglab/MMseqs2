@@ -117,7 +117,11 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
     resultWriter.open();
-    const size_t flushSize = 100000000;
+    size_t totalMemory = Util::getTotalSystemMemory();
+    size_t flushSize = 100000000;
+    if(totalMemory > dbr_res.getDataSize()){
+        flushSize = dbr_res.getSize();
+    }
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);

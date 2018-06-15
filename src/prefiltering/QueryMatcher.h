@@ -71,7 +71,7 @@ public:
 
     // returns result for the sequence
     // identityId is the id of the identitical sequence in the target database if there is any, UINT_MAX otherwise
-    std::pair<hit_t *, size_t>  matchQuery(Sequence * seq, unsigned int identityId);
+    std::pair<hit_t *, size_t>  matchQuery(Sequence * querySeq, unsigned int identityId);
 
     // find duplicates in the diagonal bins
     size_t evaluateBins(IndexEntryLocal **hitsByIndex, CounterResult *output,
@@ -249,10 +249,10 @@ protected:
     std::pair<hit_t *, size_t> getResult(CounterResult * results,
                                          size_t resultSize,
                                          size_t maxHitPerQuery,
-                                         const int l, const unsigned int id,
+                                         const int queryLen, const unsigned int id,
                                          const unsigned short thr,
                                          UngappedAlignment *ungappedAlignment,
-                                         const bool diagonalScoring);
+                                         const bool diagonalScoring, const int rescale);
     // compute double hits
     size_t getDoubleDiagonalMatches();
 
@@ -275,6 +275,9 @@ protected:
     size_t radixSortByScoreSize(const unsigned int *scoreSizes,
                               CounterResult *writePos, const unsigned int scoreThreshold,
                               const CounterResult *results, const size_t resultSize);
+
+    std::pair<size_t, unsigned int> rescoreHits(Sequence * querySeq, unsigned int *scoreSizes, CounterResult *results,
+                                                int resultSize, UngappedAlignment *align, int lowerBoundScore);
 };
 
 #endif //MMSEQS_QUERYTEMPLATEMATCHEREXACTMATCH_H
