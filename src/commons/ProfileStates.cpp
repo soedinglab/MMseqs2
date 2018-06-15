@@ -12,7 +12,8 @@
 //#include <LibraryMix.lib.h>
 #include <ExpOpt3_8_polished.cs32.lib.h>
 #include <Library255_may17.lib.h>
-
+#include <libPure_blosum62_255.lib.h>
+#include <libPure_blosum62_32.lib.h>
 //#include <LibraryExpOpt3_8_polished2.lib.h>
 
 // **********************************************
@@ -27,10 +28,10 @@ ProfileStates::ProfileStates( int pAlphSize, double * pBack)
     std::string libraryString;
     switch (pAlphSize){
         case 32:
-            libraryString=std::string((const char *)ExpOpt3_8_polished_cs32_lib, ExpOpt3_8_polished_cs32_lib_len);
+            libraryString=std::string((const char *)libPure_blosum62_32_lib, libPure_blosum62_32_lib_len);
             break;
         case 255:
-            libraryString=std::string((const char *)Library255_may17_lib, Library255_may17_lib_len);
+            libraryString=std::string((const char *)libPure_blosum62_255_lib, libPure_blosum62_255_lib_len);
             break;
         default:
             Debug(Debug::ERROR) << "Could not load library for alphabet size " << alphSize << "\n";
@@ -208,8 +209,15 @@ int ProfileStates::read(std::string libraryData) {
         unsigned int ceilAlphSize = MathUtil::ceilIntDivision(alphSize,VECSIZE_FLOAT);
         discProfScores[k] = (float*) mem_align(ALIGN_FLOAT, sizeof(float)*VECSIZE_FLOAT*ceilAlphSize);
         memset(discProfScores[k], 0,ceilAlphSize*VECSIZE_FLOAT* sizeof(float) );
+        
+        
         for (size_t l = 0; l< alphSize ; l++)
+        {
             discProfScores[k][l] = score(k,l);
+            // DEBUG: print the disc sub mat
+            //std::cout<<discProfScores[k][l]<<"\t";
+        }
+        //std::cout<<"\n";
     }
 
 
@@ -263,17 +271,24 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
     {
         profileCol = (float *)sequence + i*Sequence::PROFILE_AA_SIZE;
 
-
+        float maxScore = -FLT_MIN;
+        size_t maxScoreIndex = 0;
         // S(profile, c_k)
         for (size_t k=0;k<alphSize;k++)
         {
             repScore[k] = score(profileCol,profiles[k]);
+            if (repScore[k]>maxScore)
+            {
+                maxScore = repScore[k];
+                maxScoreIndex = k;
+            }
         }
 
         // FInd the k that minimizes sum_l (S(profile, c_l) - S(c_k,c_l))^2
-        for (size_t k=0;k<alphSize;k++)
+        for (size_t k=0;k<20;k++)
         {
             curDiffScore = 0.0;
+            simd_float priorLSimd = simdf32_load(&prior[k]);
             simd_float curDiffScoreSimd=simdf32_setzero(0);
             unsigned int ceilAlphSize = MathUtil::ceilIntDivision(alphSize,VECSIZE_FLOAT);
 //            for (size_t l=0;l<alphSize;l++)
@@ -286,22 +301,24 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
                 simd_float repScoreLSimd = simdf32_load(&repScore[l]);
                 simd_float discProfScoresLSimd = simdf32_load(&discProfScores[k][l]);
                 simd_float diff = simdf32_sub(repScoreLSimd, discProfScoresLSimd);
-                curDiffScoreSimd = simdf32_add(curDiffScoreSimd, simdf32_mul(diff, diff));
+                simd_float postDiff = simdf32_mul(priorLSimd, diff);
+                curDiffScoreSimd = simdf32_add(curDiffScoreSimd, simdf32_mul(postDiff, postDiff));
             }
             float * curDiffScoreSimdFlt = (float*) &curDiffScoreSimd;
             for (size_t l=0;l<VECSIZE_FLOAT;l++){
                 curDiffScore+= curDiffScoreSimdFlt[l];
             }
-
+            //std::cout<<curDiffScore<<" ";
             if (!k||(curDiffScore < minDiffScore))
             {
                 minDiffScore = curDiffScore;
                 closestState = k;
             }
         }
-
-        result.push_back(closestState);
+        //std::cout<<"Pos "<<i<<", closest state: "<<(int)closestState<<", max score index: "<<maxScoreIndex<<"\n";
+        result.push_back(closestState);//(maxScoreIndex);//
     }
+    //std::cout<<"\n";
     free(repScore);
 }
 
