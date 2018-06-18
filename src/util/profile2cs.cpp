@@ -62,6 +62,31 @@ int profile2cs(int argc, const char **argv, const Command &command) {
                 unsigned int key = profileReader.getDbKey(i);
                 seq.mapSequence(i, key, profileReader.getData(i));
                 ps.discretize(seq.getProfile(), seq.L, result);
+                
+                //std::cout<<result.size()<<" vs "<<seq.L<<std::endl;
+                
+                // DEBUG: in case of pure state library, check when the wrong pure state has been chosen
+                /*for (size_t k = 0; k<result.size();k++)
+                {
+                    if (subMat.subMatrix[ProfileStates::hh2mmseqsAAorder((int)result[k])][seq.int_consensus_sequence[k]]<0)
+                    {
+                        std::cout<<"Pos: "<<k<<", "<<subMat.int2aa[ProfileStates::hh2mmseqsAAorder((int)result[k])]<<"-"<<subMat.int2aa[seq.int_consensus_sequence[k]]<<"("<<subMat.subMatrix[ProfileStates::hh2mmseqsAAorder((int)result[k])][seq.int_consensus_sequence[k]]<<") \n";
+                        for (size_t aa = 0; aa<20;aa++)
+                        {
+                            std::cout<<subMat.int2aa[aa]<<"\t";
+                        }
+                        std::cout<<"\n";
+                        for (size_t aa = 0; aa<20;aa++)
+                        {
+                            std::cout<<(float)seq.profile[k * Sequence::PROFILE_AA_SIZE + aa]<<"\t";
+                        }
+                        std::cout<<"\n";std::cout<<"\n";
+                        
+                    }
+                }
+                std::cout<<std::endl;*/
+                
+                    
                 result.push_back('\0'); // needed to avoid seq. len calculation problems (aa sequence has \n\0, PS \0\0)
                 for(size_t i = 0; i < result.size() - 1; i++){ // do not overwrite last \0
 //                std::cout << (int)result[i] << std::endl;

@@ -181,13 +181,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 d.length = entryLength;
             }
             d.position = 0;
-            
             // remove the comment line that can make kseq_read failing
             if (d.length)
             {
                 if (d.buffer[0]=='#')
                 {
-                    size_t pos = 0;
+		    size_t pos = 0;
                     while(pos<d.length && d.buffer[pos] != '\n')pos++;
                     if (pos<d.length)
                     {
@@ -200,12 +199,12 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                     }
                 }
             }
-            
             while (kseq_read(seq) >= 0) {
                 if (seq->name.l == 0 || seq->seq.l == 0) {
                     Debug(Debug::WARNING) << "Invalid fasta sequence "
-                                          << setSize << " in entry " << id << "!\n";
+                                          << setSize << " in entry " << queryKey << "!\n";
                     fastaError = true;
+		   
                     break;
                 }
 
