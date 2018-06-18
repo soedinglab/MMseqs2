@@ -31,6 +31,7 @@ set(TESTS
         TestKsw2.cpp
         )
 
+
 FOREACH (TEST ${TESTS})
     mmseqs_setup_test(${TEST})
 ENDFOREACH ()
