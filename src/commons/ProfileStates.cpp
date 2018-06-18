@@ -28,10 +28,12 @@ ProfileStates::ProfileStates( int pAlphSize, double * pBack)
     std::string libraryString;
     switch (pAlphSize){
         case 32:
-            libraryString=std::string((const char *)libPure_blosum62_32_lib, libPure_blosum62_32_lib_len);
+            //libraryString=std::string((const char *)libPure_blosum62_32_lib, libPure_blosum62_32_lib_len);
+            libraryString=std::string((const char *)ExpOpt3_8_polished_cs32_lib, ExpOpt3_8_polished_cs32_lib_len);
             break;
         case 255:
-            libraryString=std::string((const char *)libPure_blosum62_255_lib, libPure_blosum62_255_lib_len);
+            //libraryString=std::string((const char *)libPure_blosum62_255_lib, libPure_blosum62_255_lib_len);
+            libraryString=std::string((const char *)Library255_may17_lib, Library255_may17_lib_len);
             break;
         default:
             Debug(Debug::ERROR) << "Could not load library for alphabet size " << alphSize << "\n";
@@ -282,11 +284,6 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
         for (size_t k=0;k<alphSize;k++)
         {
             repScore[k] = score(profileCol,profiles[k]);
-/*if(i==9)
-{
-    std::cout<<"|"<<repScore[k]<<"|";
-    
-}*/
             if (repScore[k]>maxScore)
             {
                 maxScore = repScore[k];
@@ -294,7 +291,7 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
             }
         }
 
-        // FInd the k that minimizes sum_l (S(profile, c_l) - S(c_k,c_l))^2
+        // FInd the k that minimizes sum_l prior_l*(S(profile, c_l) - S(c_k,c_l))^2
         for (size_t k=0;k<alphSize;k++)
         {
             curDiffScore = 0.0;
@@ -321,11 +318,6 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
             for (size_t l=0;l<VECSIZE_FLOAT;l++){
                 curDiffScore+= curDiffScoreSimdFlt[l];
             }
-/*if(i==9)
-{
-    std::cout<<curDiffScore<<"("<<profileCol[k]<<")"<<" ";
-    
-}*/
             
             if (curDiffScore < minDiffScore)
             {
@@ -333,10 +325,9 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
                 closestState = k;
             }
         }
-//std::cout<<"Pos "<<i<<", closest state: "<<(int)closestState<<", max score index: "<<maxScoreIndex<<"\n";
+	//std::cout<<"Pos "<<i<<", closest state: "<<(int)closestState<<", max score index: "<<maxScoreIndex<<"\n";
         result.push_back(closestState);//(maxScoreIndex);//
     }
-    std::cout<<"\n";
     free(repScore);
 }
 
