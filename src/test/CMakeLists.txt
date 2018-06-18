@@ -1,8 +1,6 @@
 include(MMseqsSetupTest)
 
 set(TESTS
-	TestGetNeff.cpp
-	TestScrambleProfile.cpp
         TestAlignment.cpp
         TestAlignmentPerformance.cpp
         TestAlignmentTraceback.cpp
