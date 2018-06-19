@@ -33,7 +33,7 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Start converting profiles.\n";
 #pragma omp parallel
     {
-        Sequence seq(par.maxSeqLen, Sequence::HMM_PROFILE, &subMat, 0, false, par.compBiasCorrection);
+        Sequence seq(par.maxSeqLen, Sequence::HMM_PROFILE, &subMat, 0, false, par.compBiasCorrection,false);
 
         unsigned int thread_idx = 0;
 #ifdef OPENMP
@@ -75,6 +75,8 @@ int profile2pssm(int argc, const char **argv, const Command &command) {
                     result.push_back('\t');
                     Itoa::i32toa_sse2(seq.profile_for_alignment[aa * seq.L + j], buffer);
                     result.append(buffer);
+                    //probas: result.append(std::to_string(seq.profile[j * Sequence::PROFILE_AA_SIZE + aa]));
+
                 }
                 result.push_back('\n');
             }
