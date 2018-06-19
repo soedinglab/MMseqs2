@@ -113,10 +113,11 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         unsigned short i_end;
         unsigned short j_start;
         unsigned short j_end;
+        unsigned short kmerCnt;
 
         Stretche(unsigned short i_start, unsigned short i_end,
-                 unsigned short j_start, unsigned short j_end):
-                i_start(i_start), i_end(i_end), j_start(j_start), j_end(j_end) {}
+                 unsigned short j_start, unsigned short j_end, unsigned short kmerCnt):
+                i_start(i_start), i_end(i_end), j_start(j_start), j_end(j_end), kmerCnt(kmerCnt) {}
         Stretche(){};
         // need for sorting the results
         static bool compareStretche (const Stretche &first, const Stretche &second){
@@ -224,15 +225,11 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
 
                     std::sort(kmerPosVec, kmerPosVec + kmerPosSize, KmerPos::compareKmerPos);
-                    unsigned int kmerCnt = 0;
-                    unsigned short min_i = USHRT_MAX;
-                    unsigned short max_i = 0;
-                    unsigned short min_j = USHRT_MAX;
-                    unsigned short max_j = 0;
                     unsigned short region_min_i = UINT_MAX;
                     unsigned short region_max_i = 0;
                     unsigned short region_min_j = UINT_MAX;
                     unsigned short region_max_j = 0;
+                    unsigned short region_max_kmer_cnt = 0;
                     size_t stretcheSize = 0;
                     if(kmerPosSize > 1){
                         unsigned int prevDiagonal = UINT_MAX;
@@ -257,16 +254,12 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                                && prev_i <= curr_i && prev_j <= curr_j  ){
 //                std::cout << "ij: " << kmerPosVec[kmerIdx].ij << " i: " << kmerPosVec[kmerIdx].i
 //                      << " j:" << kmerPosVec[kmerIdx].j << " Diag: " <<  kmerPosVec[kmerIdx].i - kmerPosVec[kmerIdx].j << std::endl;
-                                min_i = std::min(min_i, curr_i);
-                                max_i = std::max(max_i, curr_i);
-                                min_j = std::min(min_j, curr_j);
-                                max_j = std::max(max_j, curr_j);
 
                                 region_min_i = std::min(region_min_i, curr_i);
                                 region_max_i = std::max(region_max_i, curr_i);
                                 region_min_j = std::min(region_min_j, curr_j);
                                 region_max_j = std::max(region_max_j, curr_j);
-                                kmerCnt++;
+                                region_max_kmer_cnt++;
                             }
                             prevDiagonal = currDiagonal;
                             prev_i=curr_i;
@@ -277,11 +270,14 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                                 stretcheVec[stretcheSize].i_end = region_max_i;
                                 stretcheVec[stretcheSize].j_start = region_min_j;
                                 stretcheVec[stretcheSize].j_end = region_max_j;
+                                stretcheVec[stretcheSize].kmerCnt = region_max_kmer_cnt;
+
                                 stretcheSize++;
                                 region_min_i = UINT_MAX;
                                 region_max_i = 0;
                                 region_min_j = UINT_MAX;
                                 region_max_j = 0;
+                                region_max_kmer_cnt = 0;
                                 prev_i=0;
                                 prev_j=0;
                             }
@@ -292,7 +288,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     std::sort(stretcheVec, stretcheVec + stretcheSize, Stretche::compareStretche);
                     for (size_t id = 0; id < stretcheSize; ++id) {
                         dpMatrixRow[id].prevPotentialId = id;
-                        dpMatrixRow[id].pathScore = stretcheVec[id].i_end - stretcheVec[id].i_start;
+                        dpMatrixRow[id].pathScore = stretcheVec[id].kmerCnt;
                     }
                     int bestPathScore = 0;
                     size_t lastPotentialExonInBestPath = 0;
@@ -302,8 +298,9 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                             if (stretcheVec[currStretche].i_start > stretcheVec[prevPotentialStretche].i_end &&
                                     stretcheVec[currStretche].j_start > stretcheVec[prevPotentialStretche].i_end) {
                                 int bestScorePathPrevIsLast = dpMatrixRow[prevPotentialStretche].pathScore;
-                                int costOfPrevToCurrTransition = 0;
-                                int currScore = stretcheVec[currStretche].i_end-stretcheVec[currStretche].i_start;
+                                int distance =  -1;
+                                int costOfPrevToCurrTransition = distance;
+                                int currScore = stretcheVec[currStretche].kmerCnt;
                                 int currScoreWithPrev = bestScorePathPrevIsLast + costOfPrevToCurrTransition + currScore;
 
                                 // update row of currPotentialExon in case of improvement:
@@ -380,6 +377,31 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                         strechtPath[stretch].j_end = strechtPath[stretch].j_end + maxPos;
                     }
 
+                    // find correct start and end
+                    {
+                        int maxScore = 0;
+                        int score = 0;
+                        for (int i = strechtPath[strechtPath.size()-1].i_start, j = strechtPath[strechtPath.size()-1].j_start; i > -1 && j > -1; i--, j--) {
+                            int curr = subMat->subMatrix[query.int_sequence[i]][target.int_sequence[j]];
+                            score = curr + score;
+                            //                            score = (score < 0) ? 0 : score;
+                            if (score > maxScore) {
+                                strechtPath[strechtPath.size()-1].i_start = i;
+                                strechtPath[strechtPath.size()-1].j_start = j;
+                            }
+                        }
+                        score = 0;
+
+                        for (int i = strechtPath[0].i_end, j = strechtPath[0].j_end; i < query.L && j < target.L; i++, j++) {
+                            int curr = subMat->subMatrix[query.int_sequence[i]][target.int_sequence[j]];
+                            score = curr + score;
+                            //                            score = (score < 0) ? 0 : score;
+                            if (score > maxScore) {
+                                strechtPath[0].i_end = i;
+                                strechtPath[0].j_end = j;
+                            }
+                        }
+                    }
 //                    for(size_t stretch = 0; stretch < strechtPath.size() ; stretch++) {
 //                        std::cout << stretcheVec[stretch].i_start << "\t" << stretcheVec[stretch].i_end << "\t";
 //                    }
@@ -418,16 +440,12 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                             }
                         }
                     }
+
 //                    std::cout << querystr << std::endl;
 //                    std::cout << targetstr << std::endl;
-                    float queryCov = SmithWaterman::computeCov(min_i, max_i,  query.L);
-                    float targetCov = SmithWaterman::computeCov(min_j, max_j, target.L);
+                    float queryCov = SmithWaterman::computeCov(strechtPath[strechtPath.size()-1].i_start , strechtPath[0].i_end,  query.L);
+                    float targetCov = SmithWaterman::computeCov(strechtPath[strechtPath.size()-1].j_start , strechtPath[0].j_end, target.L);
                     int alnLen = bt.size();
-                    if(min_i == USHRT_MAX || min_j == USHRT_MAX){
-                        queryCov = 0.0f;
-                        targetCov = 0.0f;
-                        alnLen = 0;
-                    }
 
                     const float seqId = static_cast<float>(ids)/static_cast<float>(alnLen);
 
@@ -442,7 +460,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     if (isIdentity || (hasCov && hasSeqId && hasEvalue)) {
                         Matcher::result_t result = Matcher::result_t(dbKey, bitScore, queryCov, targetCov, seqId, evalue,
                                                                      alnLen,
-                                                                     min_i, max_i, query.L, min_j, max_j,
+                                                                     strechtPath[strechtPath.size()-1].i_start , strechtPath[0].i_end, query.L, strechtPath[strechtPath.size()-1].j_start, strechtPath[0].j_end,
                                                                      target.L, bt);
                         size_t len = Matcher::resultToBuffer(buffer, result, true, true);
                         resultWriter.writeAdd(buffer, len, thread_idx);
