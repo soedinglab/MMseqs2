@@ -24,9 +24,15 @@ build_script:
   - cd %APPVEYOR_BUILD_FOLDER%\build && 7z a %APPVEYOR_BUILD_FOLDER%\mmseqs-win64.zip mmseqs
 
 on_success:
-  - ps: $fileContent = "-----BEGIN RSA PRIVATE KEY-----`n"
-  - ps: $fileContent += $env:PKEY.Replace(' ', "`n")
-  - ps: $fileContent += "`n-----END RSA PRIVATE KEY-----`n"
-  - ps: Set-Content C:\Users\appveyor\.ssh\id_rsa $fileContent
-  - ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/%APPVEYOR_REPO_COMMIT%"
-  - cd %APPVEYOR_BUILD_FOLDER% && scp -o StrictHostKeyChecking=no mmseqs-win64.zip codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/%APPVEYOR_REPO_COMMIT%
+  - ps: >-
+      if (Test-Path "C:\Users\appveyor\.ssh\id_rs") {
+          Remove-Item "C:\Users\appveyor\.ssh\id_rsa"
+      }
+      if($env:appveyor_repo_branch -eq 'master') {
+          $fileContent = "-----BEGIN RSA PRIVATE KEY-----`n"
+          $fileContent += $env:PKEY.Replace(' ', "`n")
+          $fileContent += "`n-----END RSA PRIVATE KEY-----`n"
+          Set-Content "C:\Users\appveyor\.ssh\id_rsa" $fileContent
+      }
+  - if exist C:\Users\appveyor\.ssh\id_rsa ( ssh -o StrictHostKeyChecking=no codeship@uniclust.mmseqs.com "mkdir -p /home/mirdita/repositories/mmseqs-webserver/archive/%APPVEYOR_REPO_COMMIT%" )
+  - if exist C:\Users\appveyor\.ssh\id_rsa ( cd %APPVEYOR_BUILD_FOLDER% && scp -o StrictHostKeyChecking=no mmseqs-win64.zip codeship@uniclust.mmseqs.com:/home/mirdita/repositories/mmseqs-webserver/archive/%APPVEYOR_REPO_COMMIT% )
