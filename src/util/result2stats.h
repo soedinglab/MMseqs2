@@ -9,25 +9,10 @@
 
 class StatsComputer {
 public:
-    enum {
-        STAT_LINECOUNT,
-        STAT_MEAN,
-        STAT_DOOLITTLE,
-        STAT_CHARGES,
-        STAT_SEQLEN,
-        STAT_FIRSTLINE,
-        STAT_UNKNOWN
-    };
-
-
     StatsComputer(const Parameters &par);
-
     ~StatsComputer();
 
     int run();
-
-    static float averageValueOnAminoAcids(const std::unordered_map<char, float> &values, const char *seq);
-
 private:
     int stat;
 
@@ -49,8 +34,8 @@ private:
     int sequenceWise(typename PerSequence<T>::type call, bool onlyResultDb = false);
 
     int countNumberOfLines();
-
     int meanValue();
+    int sumValue();
 };
 
 
