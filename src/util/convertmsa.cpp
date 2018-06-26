@@ -58,7 +58,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
                 const std::string &accession = *it;
                 const std::string &sequence = sequences[*it];
                 result.append(">");
-                if (j == 0) {
+                if (j == 0 && identifier.length() > 0) {
                     result.append(identifier);
                     result.append(" ");
                 }
@@ -73,6 +73,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
 
             seqOrder.clear();
             sequences.clear();
+            identifier = "";
             continue;
         }
 
