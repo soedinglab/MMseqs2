@@ -153,8 +153,12 @@ int convertalignments(int argc, const char **argv, const Command &command) {
 
 #pragma omp parallel
     {
-        Sequence querySeq(par.maxSeqLen, queryReader->getDbtype(), &subMat, 0, false, false, false);
-        Sequence targetSeq(par.maxSeqLen, queryReader->getDbtype(), &subMat, 0, false, false, false);
+        Sequence *querySeq;
+        Sequence *targetSeq;
+        if (needSequenceDB) {
+            querySeq = new Sequence(par.maxSeqLen, queryReader->getDbtype(), &subMat, 0, false, false, false);
+            targetSeq = new Sequence(par.maxSeqLen, targetReader->getDbtype(), &subMat, 0, false, false, false);
+        }
 #pragma omp  for schedule(static)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
             unsigned int thread_idx = 0;
@@ -166,7 +170,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             char *data = alnDbr.getData(i);
 
             if (needSequenceDB) {
-                querySeq.mapSequence(i,queryKey, queryReader->getDataByDBKey(queryKey) );
+                querySeq->mapSequence(i, queryKey, queryReader->getDataByDBKey(queryKey));
             }
 
             char buffer[1024];
@@ -180,39 +184,40 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 std::string targetId = tHeaderDbr->getId(res.dbKey);
                 unsigned int gapOpenCount = 0;
                 unsigned int alnLen = res.alnLength;
-                if(res.backtrace.size() > 0) {
+                if (res.backtrace.size() > 0) {
                     size_t matchCount = 0;
 
                     std::vector<int> vec;
                     alnLen = 0;
                     for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
-                        int cnt=0;
-                        if(isdigit(res.backtrace[pos])){
-                            cnt += Util::fast_atoi<int>(res.backtrace.c_str()+pos);
-                            while(isdigit(res.backtrace[pos])){
+                        int cnt = 0;
+                        if (isdigit(res.backtrace[pos])) {
+                            cnt += Util::fast_atoi<int>(res.backtrace.c_str() + pos);
+                            while (isdigit(res.backtrace[pos])) {
                                 pos++;
                             }
                         }
-                        alnLen+=cnt;
+                        alnLen += cnt;
 
-                        switch(res.backtrace[pos]){
+                        switch (res.backtrace[pos]) {
                             case 'M':
-                                matchCount+= cnt;
+                                matchCount += cnt;
                                 break;
                             case 'D':
                             case 'I':
-                                gapOpenCount+=1;
+                                gapOpenCount += 1;
                                 break;
                         }
                     }
 //                res.seqId = X / alnLen;
-                    unsigned int identical = static_cast<unsigned int>( res.seqId * static_cast<float>(alnLen)  + 0.5 );
+                    unsigned int identical = static_cast<unsigned int>( res.seqId * static_cast<float>(alnLen) + 0.5 );
                     missMatchCount = static_cast<unsigned int>( matchCount - identical);
-                }else{
-                    int adjustQstart = (res.qStartPos==-1)? 0 : res.qStartPos;
-                    int adjustDBstart = (res.dbStartPos==-1)? 0 : res.dbStartPos;
-                    float bestMatchEstimate = static_cast<float>(std::min(res.qEndPos - adjustQstart,  res.dbEndPos-  adjustDBstart));
-                    missMatchCount = static_cast<unsigned int>( bestMatchEstimate *  (1.0f - res.seqId) + 0.5 );
+                } else {
+                    int adjustQstart = (res.qStartPos == -1) ? 0 : res.qStartPos;
+                    int adjustDBstart = (res.dbStartPos == -1) ? 0 : res.dbStartPos;
+                    float bestMatchEstimate = static_cast<float>(std::min(res.qEndPos - adjustQstart,
+                                                                          res.dbEndPos - adjustDBstart));
+                    missMatchCount = static_cast<unsigned int>( bestMatchEstimate * (1.0f - res.seqId) + 0.5 );
                 }
 
 
@@ -268,12 +273,12 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                         ss << buffer;
 
                         const std::string &backtrace = Matcher::uncompressAlignment(res.backtrace);
-                        printSeqBasedOnAln(ss, &querySeq, res.qStartPos, backtrace, false);
+                        printSeqBasedOnAln(ss, querySeq, res.qStartPos, backtrace, false);
                         ss << '\n';
 
-                        targetSeq.mapSequence(i,res.dbKey, targetReader->getDataByDBKey(res.dbKey) );
+                        targetSeq->mapSequence(i, res.dbKey, targetReader->getDataByDBKey(res.dbKey));
 
-                        printSeqBasedOnAln(ss, &targetSeq, res.dbStartPos, backtrace, true);
+                        printSeqBasedOnAln(ss, targetSeq, res.dbStartPos, backtrace, true);
                         ss << '\n';
                         break;
                     }
@@ -285,11 +290,15 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             }
 
             std::string result = ss.str();
-            if(isDb==false){
+            if (isDb == false) {
                 resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx, false);
-            }else{
+            } else {
                 resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
             }
+        }
+        if (needSequenceDB) {
+            delete querySeq;
+            delete targetSeq;
         }
     }
     resultWriter.close();
