@@ -78,25 +78,25 @@ private:
     DBReader<unsigned int> *index;
 };
 
-void printSeqBasedOnAln(std::ostream &out, const char *seq, unsigned int offset, const std::string &bt, bool reverse) {
+void printSeqBasedOnAln(std::ostream &out, const Sequence *seq, unsigned int offset, const std::string &bt, bool reverse) {
     unsigned int seqPos = 0;
     for (uint32_t i = 0; i < bt.size(); ++i) {
         switch (bt[i]) {
             case 'M':
-                out << seq[offset + seqPos];
+                out << seq->subMat->int2aa[seq->int_sequence[offset + seqPos]];
                 seqPos++;
                 break;
             case 'I':
                 if (reverse == true) {
                     out << '-';
                 } else {
-                    out << seq[offset + seqPos];
+                    out << seq->subMat->int2aa[seq->int_sequence[offset + seqPos]];
                     seqPos++;
                 }
                 break;
             case 'D':
                 if (reverse == true) {
-                    out << seq[offset + seqPos];
+                    out << seq->subMat->int2aa[seq->int_sequence[offset + seqPos]];
                     seqPos++;
                 } else {
                     out << '-';
@@ -149,141 +149,147 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
     bool isDb = par.dbOut;
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
 
-#pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < alnDbr.getSize(); i++) {
-        unsigned int thread_idx = 0;
+#pragma omp parallel
+    {
+        Sequence querySeq(par.maxSeqLen, queryReader->getDbtype(), &subMat, 0, false, false, false);
+        Sequence targetSeq(par.maxSeqLen, queryReader->getDbtype(), &subMat, 0, false, false, false);
+#pragma omp  for schedule(static)
+        for (size_t i = 0; i < alnDbr.getSize(); i++) {
+            unsigned int thread_idx = 0;
 #ifdef OPENMP
-        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
 
-        unsigned int queryKey = alnDbr.getDbKey(i);
-        char *data = alnDbr.getData(i);
+            unsigned int queryKey = alnDbr.getDbKey(i);
+            char *data = alnDbr.getData(i);
 
-        std::string querySeq;
-        if (needSequenceDB) {
-            querySeq = queryReader->getDataByDBKey(queryKey);
-        }
+            if (needSequenceDB) {
+                querySeq.mapSequence(i,queryKey, queryReader->getDataByDBKey(queryKey) );
+            }
 
-        char buffer[1024];
-        std::ostringstream ss;
+            char buffer[1024];
+            std::ostringstream ss;
 
-        std::string queryId = qHeaderDbr.getId(queryKey);
-        std::vector<Matcher::result_t> results = Matcher::readAlignmentResults(data, true);
-        unsigned int missMatchCount;
-        for (size_t j = 0; j < results.size(); j++) {
-            const Matcher::result_t &res = results[j];
-            std::string targetId = tHeaderDbr->getId(res.dbKey);
-            unsigned int gapOpenCount = 0;
-            unsigned int alnLen = res.alnLength;
-            if(res.backtrace.size() > 0) {
-                size_t matchCount = 0;
+            std::string queryId = qHeaderDbr.getId(queryKey);
+            std::vector<Matcher::result_t> results = Matcher::readAlignmentResults(data, true);
+            unsigned int missMatchCount;
+            for (size_t j = 0; j < results.size(); j++) {
+                const Matcher::result_t &res = results[j];
+                std::string targetId = tHeaderDbr->getId(res.dbKey);
+                unsigned int gapOpenCount = 0;
+                unsigned int alnLen = res.alnLength;
+                if(res.backtrace.size() > 0) {
+                    size_t matchCount = 0;
 
-                std::vector<int> vec;
-                alnLen = 0;
-                for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
-                    int cnt=0;
-                    if(isdigit(res.backtrace[pos])){
-                        cnt += Util::fast_atoi<int>(res.backtrace.c_str()+pos);
-                        while(isdigit(res.backtrace[pos])){
-                            pos++;
+                    std::vector<int> vec;
+                    alnLen = 0;
+                    for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
+                        int cnt=0;
+                        if(isdigit(res.backtrace[pos])){
+                            cnt += Util::fast_atoi<int>(res.backtrace.c_str()+pos);
+                            while(isdigit(res.backtrace[pos])){
+                                pos++;
+                            }
+                        }
+                        alnLen+=cnt;
+
+                        switch(res.backtrace[pos]){
+                            case 'M':
+                                matchCount+= cnt;
+                                break;
+                            case 'D':
+                            case 'I':
+                                gapOpenCount+=1;
+                                break;
                         }
                     }
-                    alnLen+=cnt;
-
-                    switch(res.backtrace[pos]){
-                        case 'M':
-                            matchCount+= cnt;
-                            break;
-                        case 'D':
-                        case 'I':
-                            gapOpenCount+=1;
-                            break;
-                    }
-                }
 //                res.seqId = X / alnLen;
-                unsigned int identical = static_cast<unsigned int>( res.seqId * static_cast<float>(alnLen)  + 0.5 );
-                missMatchCount = static_cast<unsigned int>( matchCount - identical);
+                    unsigned int identical = static_cast<unsigned int>( res.seqId * static_cast<float>(alnLen)  + 0.5 );
+                    missMatchCount = static_cast<unsigned int>( matchCount - identical);
+                }else{
+                    int adjustQstart = (res.qStartPos==-1)? 0 : res.qStartPos;
+                    int adjustDBstart = (res.dbStartPos==-1)? 0 : res.dbStartPos;
+                    float bestMatchEstimate = static_cast<float>(std::min(res.qEndPos - adjustQstart,  res.dbEndPos-  adjustDBstart));
+                    missMatchCount = static_cast<unsigned int>( bestMatchEstimate *  (1.0f - res.seqId) + 0.5 );
+                }
+
+
+                switch (format) {
+                    case Parameters::FORMAT_ALIGNMENT_BLAST_TAB: {
+                        int count = snprintf(buffer, sizeof(buffer),
+                                             "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
+                                             queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
+                                             missMatchCount, gapOpenCount,
+                                             res.qStartPos + 1, res.qEndPos + 1,
+                                             res.dbStartPos + 1, res.dbEndPos + 1,
+                                             res.eval, res.score);
+
+                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                            Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
+                            continue;
+                        }
+
+                        ss << buffer;
+                        break;
+                    }
+                    case Parameters::FORMAT_ALIGNMENT_BLAST_WITH_LEN: {
+                        int count = snprintf(buffer, sizeof(buffer),
+                                             "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\t%d\t%d\n",
+                                             queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
+                                             missMatchCount, gapOpenCount,
+                                             res.qStartPos + 1, res.qEndPos + 1,
+                                             res.dbStartPos + 1, res.dbEndPos + 1,
+                                             res.eval, res.score,
+                                             res.qLen, res.dbLen);
+
+                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                            Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
+                            continue;
+                        }
+
+                        ss << buffer;
+                        break;
+                    }
+                    case Parameters::FORMAT_ALIGNMENT_PAIRWISE: {
+                        int count = snprintf(buffer, sizeof(buffer),
+                                             ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
+                                             queryId.c_str(), targetId.c_str(), res.seqId, alnLen, missMatchCount,
+                                             gapOpenCount,
+                                             res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1,
+                                             res.eval, res.score);
+
+                        if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
+                            Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
+                            continue;
+                        }
+
+                        ss << buffer;
+
+                        const std::string &backtrace = Matcher::uncompressAlignment(res.backtrace);
+                        printSeqBasedOnAln(ss, &querySeq, res.qStartPos, backtrace, false);
+                        ss << '\n';
+
+                        targetSeq.mapSequence(i,res.dbKey, targetReader->getDataByDBKey(res.dbKey) );
+
+                        printSeqBasedOnAln(ss, &targetSeq, res.dbStartPos, backtrace, true);
+                        ss << '\n';
+                        break;
+                    }
+                    case Parameters::FORMAT_ALIGNMENT_SAM:
+                    default:
+                        Debug(Debug::ERROR) << "Not implemented yet";
+                        EXIT(EXIT_FAILURE);
+                }
+            }
+
+            std::string result = ss.str();
+            if(isDb==false){
+                resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx, false);
             }else{
-                int adjustQstart = (res.qStartPos==-1)? 0 : res.qStartPos;
-                int adjustDBstart = (res.dbStartPos==-1)? 0 : res.dbStartPos;
-                float bestMatchEstimate = static_cast<float>(std::min(res.qEndPos - adjustQstart,  res.dbEndPos-  adjustDBstart));
-                missMatchCount = static_cast<unsigned int>( bestMatchEstimate *  (1.0f - res.seqId) + 0.5 );
+                resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
             }
-
-
-            switch (format) {
-                case Parameters::FORMAT_ALIGNMENT_BLAST_TAB: {
-                    int count = snprintf(buffer, sizeof(buffer),
-                                         "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
-                                         missMatchCount, gapOpenCount,
-                                         res.qStartPos + 1, res.qEndPos + 1,
-                                         res.dbStartPos + 1, res.dbEndPos + 1,
-                                         res.eval, res.score);
-
-                    if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                        Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
-                        continue;
-                    }
-
-                    ss << buffer;
-                    break;
-                }
-                case Parameters::FORMAT_ALIGNMENT_BLAST_WITH_LEN: {
-                    int count = snprintf(buffer, sizeof(buffer),
-                                         "%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\t%d\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen,
-                                         missMatchCount, gapOpenCount,
-                                         res.qStartPos + 1, res.qEndPos + 1,
-                                         res.dbStartPos + 1, res.dbEndPos + 1,
-                                         res.eval, res.score,
-                                         res.qLen, res.dbLen);
-
-                    if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                        Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
-                        continue;
-                    }
-
-                    ss << buffer;
-                    break;
-                }
-                case Parameters::FORMAT_ALIGNMENT_PAIRWISE: {
-                    int count = snprintf(buffer, sizeof(buffer),
-                                         ">%s\t%s\t%1.3f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2E\t%d\n",
-                                         queryId.c_str(), targetId.c_str(), res.seqId, alnLen, missMatchCount,
-                                         gapOpenCount,
-                                         res.qStartPos + 1, res.qEndPos + 1, res.dbStartPos + 1, res.dbEndPos + 1,
-                                         res.eval, res.score);
-
-                    if (count < 0 || static_cast<size_t>(count) >= sizeof(buffer)) {
-                        Debug(Debug::WARNING) << "Truncated line in entry" << j << "!\n";
-                        continue;
-                    }
-
-                    ss << buffer;
-
-                    const std::string &backtrace = Matcher::uncompressAlignment(res.backtrace);
-                    printSeqBasedOnAln(ss, querySeq.c_str(), res.qStartPos, backtrace, false);
-                    ss << '\n';
-
-                    std::string targetSeq = targetReader->getDataByDBKey(res.dbKey);
-                    printSeqBasedOnAln(ss, targetSeq.c_str(), res.dbStartPos, backtrace, true);
-                    ss << '\n';
-                    break;
-                }
-                case Parameters::FORMAT_ALIGNMENT_SAM:
-                default:
-                    Debug(Debug::ERROR) << "Not implemented yet";
-                    EXIT(EXIT_FAILURE);
-            }
-        }
-
-        std::string result = ss.str();
-        if(isDb==false){
-            resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx, false);
-        }else{
-            resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
         }
     }
     resultWriter.close();
