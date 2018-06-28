@@ -8,12 +8,8 @@
 #include "Parameters.h"
 #include "AlignmentSymmetry.h"
 
-#include "omptl/omptl_algorithm"
-
 #ifdef OPENMP
-
 #include <omp.h>
-
 #endif
 
 struct compareEval {
@@ -64,7 +60,6 @@ int doswap(Parameters& par, bool isGeneralMode) {
             Debug::printProgress(id);
             char *resultDbRecord = resultReader.getData(id);
             while (*resultDbRecord != '\0') {
-                const size_t resultDbColumns = Util::getWordsOfLine(resultDbRecord, resultDbEntry, 255);
                 unsigned int currTargetId = Util::fast_atoi<int>(resultDbEntry[0]);
                 maxTargetId = std::max(maxTargetId, currTargetId);
                 resultDbRecord = Util::skipLine(resultDbRecord);
@@ -137,9 +132,10 @@ int doswap(Parameters& par, bool isGeneralMode) {
     }
     splits.push_back(std::make_pair(maxTargetId, bytesToWrite));
     AlignmentSymmetry::computeOffsetFromCounts(targetElementSize, maxTargetId + 1);
+
     unsigned int prevDbKeyToWrite = 0;
     size_t prevBytesToWrite = 0;
-    for(size_t split = 0; split < splits.size(); split++) {
+    for (size_t split = 0; split < splits.size(); split++) {
         unsigned int dbKeyToWrite = splits[split].first;
         size_t bytesToWrite = splits[split].second;
         char *tmpData = new char[bytesToWrite];
@@ -183,18 +179,19 @@ int doswap(Parameters& par, bool isGeneralMode) {
         char *entry[255];
         bool isAlignmentResult = false;
         bool hasBacktrace = false;
-        for(size_t i = 0; i < resultDbr.getSize(); i++){
+        for (size_t i = 0; i < resultDbr.getSize(); i++){
             const size_t columns = Util::getWordsOfLine(resultDbr.getData(i), entry, 255);
             isAlignmentResult = columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT;
             hasBacktrace = columns >= Matcher::ALN_RES_WITH_BT_COL_CNT;
-            if(resultDbr.getSeqLens(i) > 1 ){
+            if (resultDbr.getSeqLens(i) > 1){
                 break;
             }
         }
 
         std::string splitDbw = parOutDbStr + "_" + SSTR(split);
-        std::pair<std::string, std::string> splitNamePair = std::make_pair(splitDbw, splitDbw+".index");
+        std::pair<std::string, std::string> splitNamePair = std::make_pair(splitDbw, splitDbw + ".index");
         splitFileNames.push_back(splitNamePair);
+
         DBWriter resultWriter(splitNamePair.first.c_str(), splitNamePair.second.c_str(), par.threads);
         resultWriter.open();
 #pragma omp parallel for schedule(dynamic, 100)

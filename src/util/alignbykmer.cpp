@@ -6,13 +6,13 @@
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "QueryMatcher.h"
+#include "NucleotideMatrix.h"
+#include "ReducedMatrix.h"
+#include "ExtendedSubstitutionMatrix.h"
 
 #include <string>
 #include <vector>
 #include <sys/time.h>
-#include <NucleotideMatrix.h>
-#include <ReducedMatrix.h>
-#include <ExtendedSubstitutionMatrix.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -22,9 +22,6 @@ void setAlignByKmerDefaults(Parameters *p) {
     p->kmerSize = 4;
     p->alphabetSize = 21;
 }
-
-
-
 
 int alignbykmer(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
@@ -37,18 +34,17 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     omp_set_num_threads(par.threads);
 #endif
 
-    DBReader<unsigned int> *qdbr = NULL;
 
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
-    qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
+    DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
     qdbr->open(DBReader<unsigned int>::NOSORT);
-    int querySeqType  =  qdbr->getDbtype();
+    const int querySeqType = qdbr->getDbtype();
+    qdbr->readMmapedDataInMemory();
 
-    DBReader<unsigned int> *tdbr = NULL;
     BaseMatrix *subMat;
     if (querySeqType == Sequence::NUCLEOTIDES) {
         subMat = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
-    }else {
+    } else {
         if (par.alphabetSize == 21) {
             subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
         } else {
@@ -57,12 +53,10 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
             SubstitutionMatrix::print(subMat->subMatrix, subMat->int2aa, subMat->alphabetSize );
         }
     }
-
     ScoreMatrix * _2merSubMatrix =  ExtendedSubstitutionMatrix::calcScoreMatrix(*subMat, 2);
 
-
-    qdbr->readMmapedDataInMemory();
     Debug(Debug::INFO) << "Target  file: " << par.db2 << "\n";
+    DBReader<unsigned int> *tdbr = NULL;
     bool sameDB = false;
     if (par.db1.compare(par.db2) == 0) {
         sameDB = true;
@@ -72,43 +66,45 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         tdbr->open(DBReader<unsigned int>::NOSORT);
         tdbr->readMmapedDataInMemory();
     }
+
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 
-    Debug(Debug::WARNING) << "Prefilter database: " << par.db3 << "\n";
+    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
     resultWriter.open();
 
-    struct KmerPos{
+    struct KmerPos {
         unsigned short ij;
         unsigned short i;
         unsigned short j;
         KmerPos(unsigned int ij, unsigned short i, unsigned short j):
                 ij(ij), i(i), j(j) {}
-        KmerPos(){};
+        KmerPos() {};
         // need for sorting the results
-        static bool compareKmerPos (const KmerPos &first, const KmerPos &second){
+        static bool compareKmerPos(const KmerPos &first, const KmerPos &second) {
             //return (first.eval < second.eval);
-            if(first.ij < second.ij )
+            if (first.ij  < second.ij)
                 return true;
-            if(second.ij < first.ij )
+            if (second.ij < first.ij)
                 return false;
-            if(first.i < second.i )
+            if (first.i   < second.i)
                 return true;
-            if(second.i < first.i )
+            if (second.i  < first.i)
                 return false;
-            if(first.j <  second.j )
+            if (first.j   < second.j)
                 return true;
-            if(second.j < first.j )
+            if (second.j  < first.j)
                 return false;
             return false;
         }
     };
 
 
-    struct Stretche{
+    struct Stretche {
         unsigned short i_start;
         unsigned short i_end;
         unsigned short j_start;
@@ -118,24 +114,24 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         Stretche(unsigned short i_start, unsigned short i_end,
                  unsigned short j_start, unsigned short j_end, unsigned short kmerCnt):
                 i_start(i_start), i_end(i_end), j_start(j_start), j_end(j_end), kmerCnt(kmerCnt) {}
-        Stretche(){};
+        Stretche() {};
         // need for sorting the results
-        static bool compareStretche (const Stretche &first, const Stretche &second){
+        static bool compareStretche(const Stretche &first, const Stretche &second) {
             //return (first.eval < second.eval);
-            if(first.i_start < second.i_start )
+            if (first.i_start < second.i_start)
                 return true;
-            if(first.i_start > second.i_start )
+            if (first.i_start > second.i_start)
                 return false;
-            if(first.i_end > second.i_end )
+            if (first.i_end > second.i_end)
                 return true;
-            if(first.i_end < second.i_end )
+            if (first.i_end < second.i_end)
                 return false;
             return false;
         }
     };
 
     struct DpMatrixRow {
-        DpMatrixRow(){}
+        DpMatrixRow() {}
         DpMatrixRow(size_t prevPotentialId, int pathScore)
                 : prevPotentialId(prevPotentialId), pathScore(pathScore) {}
         size_t prevPotentialId;
@@ -145,7 +141,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
-    if(totalMemory > dbr_res.getDataSize()){
+    if (totalMemory > dbr_res.getDataSize()) {
         flushSize = dbr_res.getSize();
     }
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
@@ -168,31 +164,34 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
             DpMatrixRow * dpMatrixRow = new DpMatrixRow[par.maxSeqLen];
             int * scores = new int[par.maxSeqLen];
             std::string bt;
+
+            unsigned int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = (unsigned int) omp_get_thread_num();
+#endif
+            char buffer[1024 + 32768];
+
 #pragma omp for schedule(dynamic, 1)
             for (size_t id = start; id < (start + bucketSize); id++) {
                 Debug::printProgress(id);
-                char buffer[1024 + 32768];
                 std::string prefResultsOutString;
                 prefResultsOutString.reserve(1000000);
-                unsigned int thread_idx = 0;
-#ifdef OPENMP
-                thread_idx = (unsigned int) omp_get_thread_num();
-#endif
+
                 char *data = dbr_res.getData(id);
                 unsigned int queryId = qdbr->getId(dbr_res.getDbKey(id));
                 char *querySeq = qdbr->getData(queryId);
                 query.mapSequence(id, queryId, querySeq);
 
-                while(query.hasNextKmer()) {
+                while (query.hasNextKmer()) {
                     const int *kmer = query.nextKmer();
                     unsigned short pos = query.getCurrentPosition();
                     unsigned short kmerIdx = idxer.int2index(kmer);
-                    if(queryPosLookup[kmerIdx] == USHRT_MAX){
+                    if (queryPosLookup[kmerIdx] == USHRT_MAX) {
                         queryPosLookup[kmerIdx] = pos;
                     }
 //                    ScoreMatrix scoreMat = kmerGenerator.generateKmerList(kmer);
-//                    for(size_t pos = 0; pos <  scoreMat.elementSize; pos++){
-//                        if(queryPosLookup[scoreMat.index[pos]] == USHRT_MAX){
+//                    for (size_t pos = 0; pos <  scoreMat.elementSize; pos++) {
+//                        if (queryPosLookup[scoreMat.index[pos]] == USHRT_MAX) {
 //                            queryPosLookup[scoreMat.index[pos]] = pos;
 //                        }
 //                    }
@@ -209,10 +208,10 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB)) ? true : false;
                     target.mapSequence(targetId, dbKey, targetSeq);
                     size_t kmerPosSize = 0;
-                    while(target.hasNextKmer()) {
+                    while (target.hasNextKmer()) {
                         const int *kmer = target.nextKmer();
                         unsigned short kmerIdx = idxer.int2index(kmer);
-                        if(queryPosLookup[kmerIdx]!=USHRT_MAX){
+                        if (queryPosLookup[kmerIdx] != USHRT_MAX) {
                             unsigned short pos_j = target.getCurrentPosition();
                             unsigned short pos_i = queryPosLookup[kmerIdx];
                             unsigned short ij = pos_i - pos_j;
@@ -231,27 +230,27 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     unsigned short region_max_j = 0;
                     unsigned short region_max_kmer_cnt = 0;
                     size_t stretcheSize = 0;
-                    if(kmerPosSize > 1){
+                    if (kmerPosSize > 1) {
                         unsigned int prevDiagonal = UINT_MAX;
                         unsigned short prev_i = 0;
                         unsigned short prev_j = 0;
 
-                        for(size_t kmerIdx = 0; kmerIdx < kmerPosSize; kmerIdx++){
-                            unsigned int currDiagonal = static_cast<unsigned int>(kmerPosVec[kmerIdx].i)- static_cast<unsigned int>(kmerPosVec[kmerIdx].j);
+                        for (size_t kmerIdx = 0; kmerIdx < kmerPosSize; kmerIdx++) {
+                            unsigned int currDiagonal = static_cast<unsigned int>(kmerPosVec[kmerIdx].i) - static_cast<unsigned int>(kmerPosVec[kmerIdx].j);
                             unsigned short curr_i = kmerPosVec[kmerIdx].i;
                             unsigned short curr_j = kmerPosVec[kmerIdx].j;
                             unsigned int nextDiagonal = UINT_MAX;
-                            if(kmerIdx <  kmerPosSize-1 ) {
-                                nextDiagonal= static_cast<unsigned int>(kmerPosVec[kmerIdx+1].i)- static_cast<unsigned int>(kmerPosVec[kmerIdx+1].j);
+                            if (kmerIdx < (kmerPosSize - 1)) {
+                                nextDiagonal = static_cast<unsigned int>(kmerPosVec[kmerIdx+1].i) - static_cast<unsigned int>(kmerPosVec[kmerIdx+1].j);
                             }
                             // skip single hits
-                            if(currDiagonal!=nextDiagonal && currDiagonal != prevDiagonal){
+                            if (currDiagonal != nextDiagonal && currDiagonal != prevDiagonal) {
                                 continue;
                             }
 
 
-                            if((nextDiagonal == currDiagonal || prevDiagonal == currDiagonal)
-                               && prev_i <= curr_i && prev_j <= curr_j  ){
+                            if ((nextDiagonal == currDiagonal || prevDiagonal == currDiagonal)
+                               && prev_i <= curr_i && prev_j <= curr_j) {
 //                std::cout << "ij: " << kmerPosVec[kmerIdx].ij << " i: " << kmerPosVec[kmerIdx].i
 //                      << " j:" << kmerPosVec[kmerIdx].j << " Diag: " <<  kmerPosVec[kmerIdx].i - kmerPosVec[kmerIdx].j << std::endl;
 
@@ -264,7 +263,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                             prevDiagonal = currDiagonal;
                             prev_i=curr_i;
                             prev_j=curr_j;
-                            if( nextDiagonal != currDiagonal || kmerIdx == kmerPosSize-1){
+                            if (nextDiagonal != currDiagonal || kmerIdx == (kmerPosSize - 1)) {
 //                                std::cout << region_min_i << "\t" << region_max_i << "\t" << region_min_j << "\t"  << region_max_j << "\t" << region_min_i - region_min_j << std::endl;
                                 stretcheVec[stretcheSize].i_start = region_min_i;
                                 stretcheVec[stretcheSize].i_end = region_max_i;
@@ -281,7 +280,6 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                                 prev_i=0;
                                 prev_j=0;
                             }
-
                         }
                     }
                     // Do dynamic programming
@@ -326,26 +324,26 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     }
                     strechtPath.emplace_back(stretcheVec[currId]);
                     // do 1d dp to find optimal transition point
-                    for(size_t stretch = strechtPath.size()-1; stretch > 0 ; stretch--) {
+                    for (size_t stretch = (strechtPath.size() - 1); stretch > 0; stretch--) {
                         int score = 0;
                         int pos = 0;
 //                        query.print();
 //                        target.print();
 
 //                        for (int i = strechtPath[stretch].i_end, j = strechtPath[stretch].j_end;
-//                             i < strechtPath[stretch - 1].i_start; i++, j++){
+//                             i < strechtPath[stretch - 1].i_start; i++, j++) {
 //                            std::cout << subMat->int2aa[query.int_sequence[i]];
 //                        }
 //                        std::cout << std::endl;
 //
 //                        for (int i = strechtPath[stretch].i_end, j = strechtPath[stretch].j_end;
-//                             i < strechtPath[stretch - 1].i_start; i++, j++){
+//                             i < strechtPath[stretch - 1].i_start; i++, j++) {
 //                            std::cout << subMat->int2aa[target.int_sequence[j]];
 //                        }
 //                        std::cout << std::endl;
 
                         for (int i = strechtPath[stretch].i_end, j = strechtPath[stretch].j_end;
-                             i < strechtPath[stretch - 1].i_start && j < strechtPath[stretch - 1].j_start ; i++, j++) {
+                             i < strechtPath[stretch - 1].i_start && j < strechtPath[stretch - 1].j_start; i++, j++) {
                             int curr = subMat->subMatrix[query.int_sequence[i]][target.int_sequence[j]];
                             score = curr + score;
 //                            score = (score < 0) ? 0 : score;
@@ -359,11 +357,11 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                         scores[pos] = 0;
                         score = 0;
                         for (int i = strechtPath[stretch - 1].i_start, j = strechtPath[stretch - 1].j_start;
-                             i > strechtPath[stretch].i_end && j > strechtPath[stretch].j_end;  i--, j--) {
+                             i > strechtPath[stretch].i_end && j > strechtPath[stretch].j_end; i--, j--) {
                             int curr = subMat->subMatrix[query.int_sequence[i]][target.int_sequence[j]];
                             score = curr + score;
 //                            score = (score < 0) ? 0 : score;
-                            if(scores[pos] + score > maxScore){
+                            if (scores[pos] + score > maxScore) {
                                 maxScore = scores[pos] + score;
                                 maxPos = pos;
                                 maxRevPos = revPos;
@@ -412,26 +410,26 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     int ids = 0;
                     int score = 0;
 
-                    for(int stretch = strechtPath.size()-1; stretch > -1 ; stretch--) {
-                        for(size_t i = strechtPath[stretch].i_start, j = strechtPath[stretch].j_start;
-                               i < strechtPath[stretch].i_end; i++, j++ ){
+                    for (int stretch = strechtPath.size()-1; stretch > -1 ; stretch--) {
+                        for (size_t i = strechtPath[stretch].i_start, j = strechtPath[stretch].j_start;
+                               i < strechtPath[stretch].i_end; i++, j++) {
 //                            querystr.push_back(subMat->int2aa[query.int_sequence[i]]);
 //                            targetstr.push_back(subMat->int2aa[target.int_sequence[j]]);
                             bt.push_back('M');
                             ids += (query.int_sequence[i] == target.int_sequence[j]);
                             score += subMat->subMatrix[query.int_sequence[i]][target.int_sequence[j]];
                         }
-                        if(stretch > 0){
+                        if (stretch > 0) {
                             score -= Matcher::GAP_OPEN;
-                            if(strechtPath[stretch-1].i_start==strechtPath[stretch].i_end){
-                                for(size_t pos = strechtPath[stretch].j_end; pos < strechtPath[stretch-1].j_start; pos++ ){
+                            if (strechtPath[stretch-1].i_start==strechtPath[stretch].i_end) {
+                                for (size_t pos = strechtPath[stretch].j_end; pos < strechtPath[stretch-1].j_start; pos++) {
 //                                    querystr.push_back('-');
 //                                    targetstr.push_back(subMat->int2aa[target.int_sequence[pos]]);
                                     bt.push_back('I');
                                     score -= Matcher::GAP_EXTEND;
                                 }
-                            }else{
-                                for(size_t pos = strechtPath[stretch].i_end; pos < strechtPath[stretch-1].i_start; pos++ ){
+                            } else {
+                                for (size_t pos = strechtPath[stretch].i_end; pos < strechtPath[stretch-1].i_start; pos++) {
 //                                    querystr.push_back(subMat->int2aa[query.int_sequence[pos]]);
 //                                    targetstr.push_back('-');
                                     bt.push_back('D');
@@ -468,7 +466,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                     data = Util::skipLine(data);
                     bt.clear();
                 }
-                memset(queryPosLookup, 255, lookupSize * sizeof(unsigned short) );
+                memset(queryPosLookup, 255, lookupSize * sizeof(unsigned short));
                 resultWriter.writeEnd(qdbr->getDbKey(queryId), thread_idx, true);
             }
             delete [] kmerPosVec;
@@ -479,9 +477,10 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         dbr_res.remapData();
     }
     Debug(Debug::INFO) << "Done." << "\n";
-    dbr_res.close();
     resultWriter.close();
+    dbr_res.close();
     qdbr->close();
+
     delete qdbr;
     delete subMat;
     ScoreMatrix::cleanup(_2merSubMatrix);

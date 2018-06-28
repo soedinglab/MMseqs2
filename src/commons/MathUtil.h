@@ -2,6 +2,7 @@
 #define MATH_H
 
 #include <cmath>
+#include <cstddef>
 #include <climits>
 #include <cfloat>
 #include <vector>
@@ -14,7 +15,6 @@
 
 class MathUtil {
 public:
-
     static unsigned int ceilIntDivision(unsigned int x, unsigned int y){
         return 1 + ((x - 1) / y);
     }

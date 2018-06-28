@@ -89,8 +89,6 @@ int translatenucs(int argc, const char **argv, const Command& command) {
                 length = 3*par.maxSeqLen;
             }
 
-
-//        std::cout << data << std::endl;
             char * writeAA;
             if (addStopAtStart) {
                 aa[0]='*';

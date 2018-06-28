@@ -27,7 +27,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit) {
 
 
-    int alignmentMode = par.alignmentMode;
+    unsigned int alignmentMode = par.alignmentMode;
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     }
@@ -174,7 +174,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     }
 }
 
-void Alignment::initSWMode(int alignmentMode) {
+void Alignment::initSWMode(unsigned int alignmentMode) {
     switch (alignmentMode) {
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
             if(covThr > 0.0 && seqIdThr == 0.0) {
