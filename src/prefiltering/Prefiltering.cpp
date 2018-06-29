@@ -430,9 +430,10 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     gettimeofday(&start, NULL);
 
     Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
-    int localKmerThr = (querySeqType != Sequence::HMM_PROFILE &&
-                        querySeqType != Sequence::PROFILE_STATE_PROFILE &&
-                        querySeqType != Sequence::NUCLEOTIDES ) ? kmerThr : 0;
+    int localKmerThr = (querySeqType == Sequence::HMM_PROFILE ||
+                        querySeqType == Sequence::PROFILE_STATE_PROFILE ||
+                        querySeqType == Sequence::NUCLEOTIDES ||
+                        takeOnlyBestKmer == true) ? 0 : kmerThr;
 
     // remove X or N for seeding
     int adjustAlphabetSize = (targetSeqType == Sequence::NUCLEOTIDES || targetSeqType == Sequence::AMINO_ACIDS)
