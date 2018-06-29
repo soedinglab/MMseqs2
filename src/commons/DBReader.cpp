@@ -103,8 +103,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         seqLens = new unsigned int[size];
 
         isSortedById = readIndex(indexFileName, index, seqLens);
-        if (accessType != HARDNOSORT) 
-        {
+        if (accessType != HARDNOSORT) {
             sortIndex(isSortedById);
         }
 
