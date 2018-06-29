@@ -130,7 +130,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                         bool hasSeqId = seqId >= (par.seqIdThr - std::numeric_limits<float>::epsilon());
                         bool hasEvalue = (evalue <= par.evalThr);
                         // --filter-hits
-                        if (isIdentity || hasCov && hasSeqId && hasEvalue) {
+                        if (isIdentity || (hasCov && hasSeqId && hasEvalue)) {
                             size_t len = Matcher::resultToBuffer(tmpBuff, result, true, false);
                             resultWriter.writeAdd(buffer, queryIdLen + len, thread_idx);
                         }
