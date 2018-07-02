@@ -12,9 +12,9 @@
 //#include <LibraryMix.lib.h>
 #include <ExpOpt3_8_polished.cs32.lib.h>
 #include <Library255_may17.lib.h>
-#include <libPure_blosum62_255.lib.h>
-#include <libPure_blosum62_32.lib.h>
-#include <libPureMMorder20_blosum62_255.lib.h>
+//#include <libPure_blosum62_255.lib.h>
+//#include <libPure_blosum62_32.lib.h>
+//#include <libPureMMorder20_blosum62_255.lib.h>
 //#include <LibraryExpOpt3_8_polished2.lib.h>
 
 // **********************************************
