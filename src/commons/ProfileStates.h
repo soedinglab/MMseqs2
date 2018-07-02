@@ -61,6 +61,12 @@ public:
     {
         float result = 0.0;
         for (size_t aa = 0 ; aa < Sequence::PROFILE_AA_SIZE; aa++){
+            /*float la = MathUtil::flog2(profileColA[aa]);
+            float lna = MathUtil::flog2(1-profileColA[aa]);
+	    float lb = MathUtil::flog2(profileColB[aa]);
+            float lnb = MathUtil::flog2(1-profileColB[aa]);
+	    result += (profileColB[aa] - avgProfColA[aa])*(la-lna) + (profileColA[aa] - avgProfColA[aa])*(lb-lnb);
+		*/	
             result += profileColB[aa] * profileColA[aa] / avgProfColA[aa];
         }
         result  = MathUtil::flog2(result);

@@ -14,6 +14,7 @@
 #include <Library255_may17.lib.h>
 #include <libPure_blosum62_255.lib.h>
 #include <libPure_blosum62_32.lib.h>
+#include <libPureMMorder20_blosum62_255.lib.h>
 //#include <LibraryExpOpt3_8_polished2.lib.h>
 
 // **********************************************
@@ -33,6 +34,7 @@ ProfileStates::ProfileStates( int pAlphSize, double * pBack)
             break;
         case 255:
             //libraryString=std::string((const char *)libPure_blosum62_255_lib, libPure_blosum62_255_lib_len);
+            //libraryString=std::string((const char *)libPureMMorder20_blosum62_255_lib, libPureMMorder20_blosum62_255_lib_len);
             libraryString=std::string((const char *)Library255_may17_lib, Library255_may17_lib_len);
             break;
         default:
@@ -194,6 +196,7 @@ int ProfileStates::read(std::string libraryData) {
         for (size_t a = 0 ; a < 20 ; a++)
             prior[k] += profiles[k][a] * background[a];
         zPrior += prior[k];
+	
     }
 
     if (k != alphSize)
@@ -209,6 +212,22 @@ int ProfileStates::read(std::string libraryData) {
     }
     
 
+ /*   zPrior = 0;
+    for (k = 0; k < 20; ++k)
+    {
+        zPrior += prior[k];
+    }
+    
+    for (k = 0; k < alphSize; ++k)
+    {
+        prior[k] /= zPrior;
+	//DEBUG: std::cout<<"Prior["<<k<<"] = "<<prior[k]<<std::endl;
+    }
+    
+    for (k = 20; k < alphSize; ++k)
+    {
+        prior[k] = 0;
+    }*/
     discProfScores = new float*[alphSize];
     for (k = 0; k< alphSize ; k++)
     {
@@ -241,6 +260,9 @@ float ProfileStates::entropy(float *distribution)
 }
 
 float ProfileStates::getScoreNormalization() {
+
+    
+
     float *maxScore;
     maxScore = new float[alphSize];
 
@@ -260,7 +282,11 @@ float ProfileStates::getScoreNormalization() {
 
     exp = 1.0 + (exp - 1.0)/2;
 
-    //std::cout << "Score normalization : " << 1.0/exp << std::endl;
+    std::cout << "Score normalization : " << 1.0/exp << std::endl;
+
+    exp = 1.0;
+    std::cout << "TEST: set it to " <<  exp << std::endl;
+    return exp;
 
     return 1.0/exp;
 }
@@ -280,6 +306,12 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
 
         float maxScore = -FLT_MIN;
         size_t maxScoreIndex = 0;
+	
+	/*for (size_t a = 0 ; a < 20 ; a++)
+        {
+                std::cout<<profileCol[a]<<"\t";
+        }*/
+
         // S(profile, c_k)
         for (size_t k=0;k<alphSize;k++)
         {
@@ -315,6 +347,15 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
                 curDiffScoreSimd = simdf32_add(curDiffScoreSimd, postDiff);
             }
             float * curDiffScoreSimdFlt = (float*) &curDiffScoreSimd;
+            //std::cout<<k<<":"<<*curDiffScoreSimdFlt<<"\n";
+            /*if (alphSize==255)
+		{
+
+		    for (size_t y = 0; y<21;y++)
+			{
+			std::cout<<k<<" "<<prior[y]<<" "<<repScore[y]<<" "<<discProfScores[k][y]<<" "<<std::endl;
+			}
+		}*/
             for (size_t l=0;l<VECSIZE_FLOAT;l++){
                 curDiffScore+= curDiffScoreSimdFlt[l];
             }
