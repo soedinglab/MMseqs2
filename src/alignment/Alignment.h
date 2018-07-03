@@ -58,6 +58,9 @@ private:
 
     bool sameQTDB;
 
+    //to increase/decrease the threshold for finishing the alignment 
+    float scoreBias;
+
     // keeps state of the SW alignment mode (ALIGNMENT_MODE_SCORE_ONLY, ALIGNMENT_MODE_SCORE_COV or ALIGNMENT_MODE_SCORE_COV_SEQID)
     unsigned int swMode;
     unsigned int threads;

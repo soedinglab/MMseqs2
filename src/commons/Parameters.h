@@ -176,6 +176,7 @@ public:
     size_t resListOffset;                // Offsets result list
     bool   noPreload;                    // Do not preload database into memory
     bool   earlyExit;                    // Exit immediately after writing the result
+    float  scoreBias;			 // Add this bias to the score when computing the alignements
 
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
@@ -418,6 +419,7 @@ public:
     PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_NO_PRELOAD)
     PARAMETER(PARAM_EARLY_EXIT)
+    PARAMETER(PARAM_SCORE_BIAS)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
