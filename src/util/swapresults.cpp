@@ -133,6 +133,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
     splits.push_back(std::make_pair(maxTargetId, bytesToWrite));
     AlignmentSymmetry::computeOffsetFromCounts(targetElementSize, maxTargetId + 1);
 
+    const char empty = '\0';
+
     unsigned int prevDbKeyToWrite = 0;
     size_t prevBytesToWrite = 0;
     for (size_t split = 0; split < splits.size(); split++) {
@@ -180,12 +182,13 @@ int doswap(Parameters& par, bool isGeneralMode) {
         bool isAlignmentResult = false;
         bool hasBacktrace = false;
         for (size_t i = 0; i < resultDbr.getSize(); i++){
+            if (resultDbr.getSeqLens(i) <= 1){
+                continue;
+            }
             const size_t columns = Util::getWordsOfLine(resultDbr.getData(i), entry, 255);
             isAlignmentResult = columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT;
             hasBacktrace = columns >= Matcher::ALN_RES_WITH_BT_COL_CNT;
-            if (resultDbr.getSeqLens(i) > 1){
-                break;
-            }
+            break;
         }
 
         std::string splitDbw = parOutDbStr + "_" + SSTR(split);
@@ -209,7 +212,9 @@ int doswap(Parameters& par, bool isGeneralMode) {
                 size_t dataSize = targetElementSize[i + 1] - targetElementSize[i];
 
                 if (isGeneralMode) {
-                    resultWriter.writeData(data, dataSize, i, thread_idx);
+                    if (dataSize > 0) {
+                        resultWriter.writeData(data, dataSize, i, thread_idx);
+                    }
                     continue;
                 }
 
@@ -221,12 +226,14 @@ int doswap(Parameters& par, bool isGeneralMode) {
                 std::string ss;
                 ss.reserve(100000);
 
+                bool evalBreak = false;
                 while (dataSize > 0) {
                     if (isAlignmentResult) {
                         Matcher::result_t res = Matcher::parseAlignmentRecord(data, true);
                         double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
                         res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
                         if (res.eval > par.evalThr) {
+                            evalBreak = true;
                             goto outer;
                         }
                         unsigned int qstart = res.qStartPos;
@@ -284,16 +291,18 @@ int doswap(Parameters& par, bool isGeneralMode) {
                     ss = "";
 
                     curRes.clear();
+                } else if (evalBreak == true) {
+                    resultWriter.writeData(&empty, 0, i, thread_idx);
                 }
             }
         };
+        Debug(Debug::INFO) << "\n";
         resultWriter.close();
 
         prevDbKeyToWrite = dbKeyToWrite + 1;
         prevBytesToWrite += bytesToWrite;
         delete[] tmpData;
     }
-    Debug(Debug::INFO) << "\n";
     resultDbr.close();
 
     // add missing target entries
@@ -303,8 +312,6 @@ int doswap(Parameters& par, bool isGeneralMode) {
     std::string writerDb = parOutDbStr + "_" + SSTR(splits.size());
     std::pair<std::string, std::string> writerName = std::make_pair(writerDb, writerDb + ".index");
     splitFileNames.push_back(writerName);
-
-    const char empty = '\0';
 
     DBWriter resultWriter(writerName.first.c_str(), writerName.second.c_str(), par.threads);
     resultWriter.open();
