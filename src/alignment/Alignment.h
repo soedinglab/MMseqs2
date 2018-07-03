@@ -98,7 +98,7 @@ private:
 
     const bool earlyExit;
 
-    void initSWMode(int alignmentMode);
+    void initSWMode(unsigned int alignmentMode);
 
     void setQuerySequence(Sequence &seq, size_t id, unsigned int key);
 

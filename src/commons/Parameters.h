@@ -276,9 +276,7 @@ public:
     
     //result2stats
     std::string stat;
-    bool printKey;
-    
-    
+
     // linearcluster
     int kmersPerSequence;
     bool includeOnlyExtendable;
@@ -501,7 +499,6 @@ public:
     
     // result2stat
     PARAMETER(PARAM_STAT)
-    PARAMETER(PARAM_PRINTKEY)
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)

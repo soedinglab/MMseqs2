@@ -805,8 +805,8 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), localThreads);
         resultWriter.open();
         resultWriter.sortDatafileByIdOrder(resultReader);
-        resultReader.close();
         resultWriter.close();
+        resultReader.close();
         remove(resultDB.c_str());
         remove(resultDBIndex.c_str());
         std::rename((resultDB + "_tmp").c_str(), resultDB.c_str());

@@ -182,23 +182,19 @@ void SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(short *profileS
 
 void SubstitutionMatrix::calcGlobalAaBiasCorrection(const BaseMatrix *m,
                                                     short *profileScores,
+                                                    float *pNullBuffer,
                                                     const size_t profileAASize,
                                                     const int N) {
-
+    memset(pNullBuffer, 0, sizeof(float) * N);
     const int windowSize = 40;
-
-    float pnul[N];
-    memset(pnul, 0, sizeof(float) * N);
-
-
     for (int pos = 0; pos < N; pos++) {
         const short * subMat = profileScores + (pos * profileAASize);
         for(size_t aa = 0; aa < 20; aa++) {
-            pnul[pos] += m->pBack[aa] *  static_cast<float>(subMat[aa]) ;
+            pNullBuffer[pos] += m->pBack[aa] * static_cast<float>(subMat[aa]);
         }
     }
 //    for(size_t aa = 0; aa < 20; aa++)
-//        pnul[aa] /= N;
+//        pNullBuffer[aa] /= N;
     for (int i = 0; i < N; i++) {
         const int minPos = std::max(0, (i - windowSize / 2));
         const int maxPos = std::min(N, (i + windowSize / 2));
@@ -209,13 +205,14 @@ void SubstitutionMatrix::calcGlobalAaBiasCorrection(const BaseMatrix *m,
 
         for (int j = minPos; j < maxPos; j++) {
             const short *subMat = profileScores + (j * profileAASize);
-            if (i == j)
+            if (i == j) {
                 continue;
-            for(size_t aa = 0; aa < 20; aa++){
-                aaSum[aa] += subMat[aa] - pnul[j];
+            }
+            for (size_t aa = 0; aa < 20; aa++) {
+                aaSum[aa] += subMat[aa] - pNullBuffer[j];
             }
         }
-        for(size_t aa = 0; aa < 20; aa++) {
+        for (size_t aa = 0; aa < 20; aa++) {
 //            printf("%d\t%d\t%2.3f\t%d\n", i, (profileScores + (i * profileAASize))[aa],
 //                   aaSum[aa]/windowLength,
 //                   static_cast<int>((profileScores + (i * profileAASize))[aa] -  aaSum[aa]/windowLength) );

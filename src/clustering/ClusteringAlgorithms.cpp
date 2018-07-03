@@ -335,17 +335,14 @@ void ClusteringAlgorithms::greedyIncrementalLowMem( unsigned int *assignedcluste
             data = Util::skipLine(data);
         }
     }
-    size_t counter = 0;
-    size_t counter2 = 0;
+
     // correct edges that are not assigned properly
-    for(size_t id = 0; id < dbSize; id++) {
+    for (size_t id = 0; id < dbSize; ++id) {
         unsigned int assignedClusterId = assignedcluster[id];
-        if(assignedcluster[assignedClusterId]!=assignedClusterId){
+        if (assignedcluster[assignedClusterId] != assignedClusterId){
             assignedcluster[assignedClusterId] = assignedClusterId;
         }
     }
-
-
 }
 
 void ClusteringAlgorithms::greedyIncremental(unsigned int **elementLookupTable, size_t *elementOffsets,
