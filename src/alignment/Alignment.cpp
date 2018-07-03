@@ -375,16 +375,16 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                             continue;
                         }
                         setTargetSequence(dbSeq, swResults[i].dbKey);
-                        for (size_t pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; pos++) {
+                        for (int pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; ++pos) {
                             dbSeq.int_sequence[pos] = xIndex;
                         }
                         bool nextAlignment = true;
-                        for (size_t altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
+                        for (int altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
                             Matcher::result_t res = matcher.getSWResult(&dbSeq, 0, covMode, covThr, evalThr, swMode,
                                                                         isIdentity);
                             nextAlignment = checkCriteriaAndAddHitToList(res, isIdentity, swResults);
                             if (nextAlignment == true) {
-                                for (size_t pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
+                                for (int pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
                                     dbSeq.int_sequence[pos] = xIndex;
                                 }
                             }
