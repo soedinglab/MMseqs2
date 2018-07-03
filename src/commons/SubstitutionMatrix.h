@@ -28,6 +28,7 @@ class SubstitutionMatrix: public BaseMatrix {
                                                 const int N);
         static void calcGlobalAaBiasCorrection(const BaseMatrix * m,
                                                short *profileScores,
+                                               float *pNullBuffer,
                                                const size_t profileAASize,
                                                const int N);
         bool estimateLambdaAndBackground(const double ** mat, int alphabetSize, double * pBack, double & lambda);

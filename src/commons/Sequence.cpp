@@ -343,7 +343,7 @@ void Sequence::mapProfile(const char * sequence, bool mapScores){
         //printPSSM();
 
         if (aaBiasCorrection == true){
-            SubstitutionMatrix::calcGlobalAaBiasCorrection(subMat, profile_score, profile_row_size, this->L);
+            SubstitutionMatrix::calcGlobalAaBiasCorrection(subMat, profile_score, pNullBuffer, profile_row_size, this->L);
         }
 
         // sort profile scores and index for KmerGenerator (prefilter step)

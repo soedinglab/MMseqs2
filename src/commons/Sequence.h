@@ -290,6 +290,9 @@ private:
     // stores position of residues in sequence
     unsigned char *aaPosInSpacedPattern;
 
+    // buffer for background null probability for global aa bias correction
+    float *pNullBuffer;
+
     // bias correction in profiles
     bool aaBiasCorrection;
 
