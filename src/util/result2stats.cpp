@@ -414,9 +414,9 @@ int result2stats(int argc, const char **argv, const Command &command) {
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h "
-                          << (sec % 3600 / 60) << " m "
-                          << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h "
+                       << (sec % 3600 / 60) << " m "
+                       << (sec % 60) << "s\n";
 
     return retCode;
 }

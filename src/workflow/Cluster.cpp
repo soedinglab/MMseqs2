@@ -50,12 +50,12 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
 
     par.parseParameters(argc, argv, command, 3);
     if(FileUtil::directoryExists(par.db3.c_str())==false){
-        Debug(Debug::WARNING) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
+        Debug(Debug::INFO) << "Tmp " << par.db3 << " folder does not exist or is not a directory.\n";
         if(FileUtil::makeDir(par.db3.c_str()) == false){
-            Debug(Debug::WARNING) << "Could not crate tmp folder " << par.db3 << ".\n";
+            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db3 << ".\n";
             EXIT(EXIT_FAILURE);
         }else{
-            Debug(Debug::WARNING) << "Created dir " << par.db3 << "\n";
+            Debug(Debug::INFO) << "Created dir " << par.db3 << "\n";
         }
     }
 
@@ -97,7 +97,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
 
     if (sensitivitySet == false) {
         par.sensitivity = setAutomaticThreshold(par.seqIdThr);
-        Debug(Debug::WARNING) << "Set cluster settings automatic to s=" << par.sensitivity << "\n";
+        Debug(Debug::INFO) << "Set cluster settings automatically to s=" << par.sensitivity << "\n";
     }
     bool noneSymetric = (par.covMode == Parameters::COV_MODE_TARGET ||par.covMode == Parameters::COV_MODE_QUERY);
     if(clusterModeSet == false){
@@ -107,7 +107,7 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
             par.clusteringMode = Parameters::SET_COVER;
         }
         std::string cluMode = (par.clusteringMode==Parameters::GREEDY_MEM) ? "GREEDY MEM" : "SET COVER";
-        Debug(Debug::WARNING) << "Set cluster mode " << cluMode << ".\n";
+        Debug(Debug::INFO) << "Set cluster mode " << cluMode << ".\n";
     }
     if(noneSymetric && par.clusteringMode != Parameters::GREEDY &&  par.clusteringMode != Parameters::GREEDY_MEM ){
         Debug(Debug::WARNING) << "WARNING: combining cluster mode " << par.clusteringMode
@@ -120,13 +120,13 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
     }
     if(clusterStepsSet == false){
         par.clusterSteps = setAutomaticIterations(par.sensitivity);
-        Debug(Debug::WARNING) << "Set cluster iterations to " << par.clusterSteps << "\n";
+        Debug(Debug::INFO) << "Set cluster iterations to " << par.clusterSteps << "\n";
     }
     size_t hash = par.hashParameter(par.filenames, par.clusteringWorkflow);
     std::string tmpDir = par.db3+"/"+SSTR(hash);
     if(FileUtil::directoryExists(tmpDir.c_str())==false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
             EXIT(EXIT_FAILURE);
         }
     }

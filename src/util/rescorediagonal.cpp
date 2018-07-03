@@ -111,7 +111,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     {
         globalAliStat.prepareGlobalAliParam(*subMat);
     }
-    Debug(Debug::WARNING) << "Prefilter database: " << par.db3 << "\n";
+    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
     DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";

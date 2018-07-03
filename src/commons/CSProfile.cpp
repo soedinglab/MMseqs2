@@ -30,7 +30,7 @@ int ContextLibrary::read(std::string &libStr){
     std::stringstream in(libStr);
     // Parse and check header information
     if (!reader.StreamStartsWith(in, "CRF")){
-        Debug(Debug::WARNING) << "Stream does not start with class id 'CRF'!\n";
+        Debug(Debug::ERROR) << "Stream does not start with class id 'CRF'!\n";
         EXIT(EXIT_FAILURE);
     }
     std::string line = reader.getline(in);
@@ -62,8 +62,8 @@ int ContextLibrary::read(std::string &libStr){
         //            }
     }
     if (k != libSize){
-        Debug(Debug::WARNING) << "Serialized context library should have "
-                              << libSize << " profiles but actually has " << k << "!\n";
+        Debug(Debug::ERROR) << "Serialized context library should have "
+                            << libSize << " profiles but actually has " << k << "!\n";
         EXIT(EXIT_FAILURE);
     }
 }
