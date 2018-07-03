@@ -394,7 +394,7 @@ void Sequence::mapProfileState(const char * sequenze){
             for (int k = 0; k < profileStateMat->alphabetSize; k++) {
                 // compute log score for all 32 profile states
                 float sum = profileStateMat->scoreState(&profile[i * Sequence::PROFILE_AA_SIZE], pav, k);
-                float pssmVal = (sum) * 8.0*profileStateMat->getScoreNormalization();
+                float pssmVal = (sum) * 10.0*profileStateMat->getScoreNormalization();
                 profile_score[i * profile_row_size + k] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
             }
         }
@@ -420,7 +420,7 @@ void Sequence::mapProfileState(const char * sequenze){
         for(int l = 0; l < this->L; l++){
             for(size_t aa_num = 0; aa_num < 32; aa_num++) {
                 unsigned int aa_idx = profile_index[l * profile_row_size + aa_num];
-                float scale = 4.0*profileStateMat->getScoreNormalization();
+                float scale = 5.0*profileStateMat->getScoreNormalization();
                 float score = static_cast<float>(profile_score[l * profile_row_size + aa_num]);
                 float pssmVal = score/scale;
                 profile_for_alignment[aa_idx * this->L + l] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
