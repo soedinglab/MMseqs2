@@ -510,7 +510,8 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
     for (size_t i = 0; i < fileNames.size();i++) {
         files[i] = FileUtil::openFileOrDie(fileNames[i].first.c_str(), "r", true);
 #if HAVE_POSIX_FADVISE
-        if ((int status = posix_fadvise (fileno(files[i]), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
+        int status;
+        if ((status = posix_fadvise (fileno(files[i]), 0, 0, POSIX_FADV_SEQUENTIAL)) != 0){
            Debug(Debug::ERROR) << "posix_fadvise returned an error: " << strerror(status) << "\n";
         }
 #endif
