@@ -1019,7 +1019,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
 void Parameters::printParameters(int argc, const char* pargv[],
                                  const std::vector<MMseqsParameter> &par){
-    if (Debug::debugLevel < 3) {
+    if (Debug::debugLevel < Debug::INFO) {
         return;
     }
 
