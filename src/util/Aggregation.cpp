@@ -255,7 +255,7 @@ std::string PvalAggregator::aggregateEntry(std::vector<std::vector<std::string> 
     }
 
     Buffer << params->targetSetKey << "\t" << updatedEval ;//* targetSetSizeDB->getSize() ;
-    return Buffer.str() ;
+    return Buffer.str();
 }
 
 GetHitDistance::GetHitDistance(std::string arg_inputDBname, std::string arg_outputDBname, std::string argTargetSetSizeDB, std::string argQuerySetSizeDB,std::string argTargetGenomesDB,
@@ -263,15 +263,15 @@ GetHitDistance::GetHitDistance(std::string arg_inputDBname, std::string arg_outp
         : Aggregation(std::move(arg_inputDBname), std::move(arg_outputDBname), arg_nbrThread, arg_targetColumn), targetSetSizeDBname(std::move(argTargetSetSizeDB)),
           querySetSizeDBname(std::move(argQuerySetSizeDB)), alpha(argAlpha){
 
-    std::string nbrGeneQueryDBIndex = querySetSizeDBname + ".index" ;
-    this->querySetSizeDB = new DBReader<unsigned int> (querySetSizeDBname.c_str(), nbrGeneQueryDBIndex.c_str()) ;
-    this->querySetSizeDB->open(DBReader<unsigned int>::NOSORT) ;
+    std::string nbrGeneQueryDBIndex = querySetSizeDBname + ".index";
+    this->querySetSizeDB = new DBReader<unsigned int> (querySetSizeDBname.c_str(), nbrGeneQueryDBIndex.c_str());
+    this->querySetSizeDB->open(DBReader<unsigned int>::NOSORT);
 
-    std::string nbrGeneDBIndex = targetSetSizeDBname + ".index" ;
-    this->targetSetSizeDB = new DBReader<unsigned int> (targetSetSizeDBname.c_str(), nbrGeneDBIndex.c_str()) ;
+    std::string nbrGeneDBIndex = targetSetSizeDBname + ".index";
+    this->targetSetSizeDB = new DBReader<unsigned int> (targetSetSizeDBname.c_str(), nbrGeneDBIndex.c_str());
     this->targetSetSizeDB->open(DBReader<unsigned int>::NOSORT);
 
-    std::string targetGenomnesDBIndex = argTargetGenomesDB + ".index" ;
+    std::string targetGenomnesDBIndex = argTargetGenomesDB + ".index";
     this->targetSetGenomes = new DBReader<unsigned int> (argTargetGenomesDB.c_str(), targetGenomnesDBIndex.c_str()) ;
     this->targetSetGenomes->open(DBReader<unsigned int>::USE_INDEX);
 }
@@ -330,9 +330,9 @@ double spreadPval(long median, double rate, size_t K)
 // return the median of the distance between genes of dataToAggregate
 std::string GetHitDistance::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate,
                                                  aggregParams *params) {
-    long nbrTargetGene = std::stol(targetSetSizeDB->getDataByDBKey(params->targetSetKey)) ;
-    double P0 = this->alpha/nbrTargetGene ;
-    int i = 0 ;
+    long nbrTargetGene = std::stol(targetSetSizeDB->getDataByDBKey(params->targetSetKey));
+    double P0 = this->alpha/nbrTargetGene;
+    int i = 0;
     unsigned int indexOfInterSpaceToReturn =0;
     std::vector<std::pair<long,long> > genesPositions;
     std::vector<long> interGeneSpaces;
@@ -341,21 +341,21 @@ std::string GetHitDistance::aggregateEntry(std::vector<std::vector<std::string> 
     double Pval;
     double meanEval = 0;
     std::string positionsStr;
-    std::string genesID ;
-    std::string eVals ;
-    unsigned int nbrGoodEvals = 0 ;
-    std::vector<unsigned long> checkGenesID ; //DELETE
+    std::string genesID;
+    std::string eVals;
+    unsigned int nbrGoodEvals = 0;
+    std::vector<unsigned long> checkGenesID; //DELETE
 
     for (auto &it : dataToAggregate) {
         Pval=std::strtod(it[3].c_str(), nullptr);
         if(Pval < P0) {
-            checkGenesID.emplace_back(std::strtoul(it[0].c_str(), nullptr, 0)) ;
-            meanEval+=log10(std::strtod(it[3].c_str(), nullptr)) ;
-            eVals += it[3]+"," ;
+            checkGenesID.emplace_back(std::strtoul(it[0].c_str(), nullptr, 0));
+            meanEval+=log10(std::strtod(it[3].c_str(), nullptr));
+            eVals += it[3]+",";
             if(std::strtod(it[3].c_str(), nullptr)<1e-10){nbrGoodEvals++;}
             unsigned long start = static_cast<unsigned long>(std::stol(it[8]));
             unsigned long stop = static_cast<unsigned long>(std::stol(it[10]));
-            genesID += it[0]+"," ;
+            genesID += it[0]+",";
             genesPositions.emplace_back(std::make_pair(start, stop));
             positionsStr += std::to_string(start) + "," + std::to_string(stop) + ",";
             i++;
@@ -391,10 +391,10 @@ std::string GetHitDistance::aggregateEntry(std::vector<std::vector<std::string> 
     else {
         buffer << params->targetSetKey << "\t0" << "\t" << std::stol(targetSetSizeDB->getDataByDBKey(params->targetSetKey)) << "\t" << i
                << "\t" << meanEval/i << "\t" << std::stol(querySetSizeDB->getDataByDBKey(params->querySetKey)) << "\t1.0" << "\t"
-               << genomeSize << "\t" << nbrGoodEvals ; //NaMM
+               << genomeSize << "\t" << nbrGoodEvals; //NaMM
     }
     buffer<<"\t" <<positionsStr << "\t" << genesID << "\t" <<eVals;
 
-    std::string bufferString= buffer.str() ;
-    return bufferString ;
+    std::string bufferString= buffer.str();
+    return bufferString;
 }
