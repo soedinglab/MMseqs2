@@ -176,6 +176,7 @@ public:
     size_t resListOffset;                // Offsets result list
     bool   noPreload;                    // Do not preload database into memory
     bool   earlyExit;                    // Exit immediately after writing the result
+    float  scoreBias;			 // Add this bias to the score when computing the alignements
 
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
@@ -321,12 +322,14 @@ public:
     int sortEntries;
     bool beatsFirst;
     std::string joinDB;
-    std::string swapFields ;
+    std::string compPos ;
     std::string clusterFile ;
 
     //aggregate
     std::string mode ;
     int setColumn ;
+    float alpha ;
+    bool simpleBestHitMode;
 
     // mergedbs
     std::string mergePrefixes;
@@ -416,6 +419,7 @@ public:
     PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_NO_PRELOAD)
     PARAMETER(PARAM_EARLY_EXIT)
+    PARAMETER(PARAM_SCORE_BIAS)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
@@ -563,12 +567,14 @@ public:
     PARAMETER(PARAM_SORT_ENTRIES)
     PARAMETER(PARAM_BEATS_FIRST)
     PARAMETER(PARAM_JOIN_DB)
-    PARAMETER(PARAM_SWAP_SEARCH_FIELDS)
+    PARAMETER(PARAM_COMPUTE_POSITIONS)
     PARAMETER(PARAM_TRANSITIVE_REPLACE)
 
     //aggregate
     PARAMETER(PARAM_MODE)
     PARAMETER(PARAM_SET_COLUMN)
+    PARAMETER(PARAM_ALPHA)
+    PARAMETER(PARAM_SIMPLE_BEST_HIT_MODE)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)

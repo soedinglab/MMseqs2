@@ -58,6 +58,7 @@ Parameters::Parameters():
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "compute more conservative, shorter alignments (scores and E-values not changed)", typeid(bool), (void *) &realign, "", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
+	PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID,"--alt-ali", "Alternative alignments","Show up to this many alternative alignments",typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
 
         // clustering
@@ -163,11 +164,13 @@ Parameters::Parameters():
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0) no sorting, 1) increasing,  2) decreasing or 3) random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
-        PARAM_SWAP_SEARCH_FIELDS(PARAM_SWAP_SEARCH_FIELDS_ID, "--swap-fields", "Swap fields of search results", "Replace positions of hits of the query on the target by its position on the target genome", typeid(std::string), (void*) &swapFields, ""),
+        PARAM_COMPUTE_POSITIONS(PARAM_COMPUTE_POSITIONS_ID, "--compute-positions", "Compute Positions", "Add the positions of he hit on the target genome", typeid(std::string), (void*) &compPos, ""),
         PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
         //aggregate
         PARAM_MODE(PARAM_MODE_ID, "--mode", "Aggregation Mode", "Choose wich of aggregation to launch : bestHit/pval", typeid(std::string), (void*) &mode, ""),
         PARAM_SET_COLUMN(PARAM_SET_COLUMN_ID, "--set-column", "Set Column", "Change default Set Column", typeid(int), (void*) &setColumn, ""),
+        PARAM_SIMPLE_BEST_HIT_MODE(PARAM_SIMPLE_BEST_HIT_MODE_ID, "--simple-best-hit", "Output the best evalue", "Othw, output a ortholog-corrected pvalue", typeid(bool), (void*) &simpleBestHitMode, ""),
+        PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining pvalues", typeid(float), (void*) &alpha, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
@@ -218,6 +221,7 @@ Parameters::Parameters():
     align.push_back(PARAM_EARLY_EXIT);
     align.push_back(PARAM_PCA);
     align.push_back(PARAM_PCB);
+    align.push_back(PARAM_SCORE_BIAS);
     align.push_back(PARAM_THREADS);
     align.push_back(PARAM_V);
 
@@ -509,13 +513,15 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_SORT_ENTRIES);
     filterDb.push_back(PARAM_INCLUDE_IDENTITY);
     filterDb.push_back(PARAM_JOIN_DB);
-    filterDb.push_back(PARAM_SWAP_SEARCH_FIELDS) ;
+    filterDb.push_back(PARAM_COMPUTE_POSITIONS) ;
     filterDb.push_back(PARAM_TRANSITIVE_REPLACE) ;
 
     //aggregate
     aggregate.push_back(PARAM_MODE) ;
     aggregate.push_back(PARAM_THREADS) ;
     aggregate.push_back(PARAM_SET_COLUMN) ;
+    aggregate.push_back(PARAM_ALPHA) ;
+    aggregate.push_back(PARAM_SIMPLE_BEST_HIT_MODE);
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);
 
@@ -1112,6 +1118,7 @@ void Parameters::setDefaults() {
     resListOffset = 0;
     noPreload = false;
     earlyExit = false;
+    scoreBias = 0.0;
 
     // affinity clustering
     maxIteration=1000;
@@ -1233,6 +1240,9 @@ void Parameters::setDefaults() {
 
     //aggregate
     setColumn = 9 ;
+    alpha = 0.001 ;
+    simpleBestHitMode  = false;
+
 
     // concatdbs
     preserveKeysB = false;

@@ -24,7 +24,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qSeqLookup(NULL),
-        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit) {
+        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit), scoreBias(par.scoreBias)  {
 
 
     unsigned int alignmentMode = par.alignmentMode;
@@ -152,23 +152,23 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     if (querySeqType == Sequence::NUCLEOTIDES) {
-        m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, scoreBias);
         gapOpen = 7;
         gapExtend = 1;
     } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
-        SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, 0.0, par.maxSeqLen, 255);
+        SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
+        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, scoreBias, par.maxSeqLen, 255);
         gapOpen = Matcher::GAP_OPEN;
         gapExtend = Matcher::GAP_EXTEND;
     } else {
         // keep score bias at 0.0 (improved ROC)
-        m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, 0.0);
+        m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, scoreBias);
         gapOpen = Matcher::GAP_OPEN;
         gapExtend = Matcher::GAP_EXTEND;
     }
 
     if (realign == true) {
-        realign_m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, -0.2f);
+        realign_m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, scoreBias-0.2f);
     } else {
         realign_m = NULL;
     }
