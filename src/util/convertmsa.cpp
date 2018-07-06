@@ -51,6 +51,10 @@ int convertmsa(int argc, const char **argv, const Command &command) {
         }
 
         if (inEntry == true  && line == "//") {
+            if (identifier.empty()) {
+                Debug(Debug::ERROR) << "Invalid MSA identifier specified!\n";
+                EXIT(EXIT_FAILURE);
+            }
             inEntry = false;
             result.clear();
             size_t j = 0;
