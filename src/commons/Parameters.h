@@ -273,7 +273,9 @@ public:
 
     // createtsv
     bool firstSeqRepr;
-    
+    bool fullHeader;
+    size_t targetTsvColumn;
+
     //result2stats
     std::string stat;
 
@@ -497,8 +499,10 @@ public:
     PARAMETER(PARAM_TAU)
 
     // createtsv
+    PARAMETER(PARAM_TARGET_COLUMN)
     PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
-    
+    PARAMETER(PARAM_FULL_HEADER)
+
     // result2stat
     PARAMETER(PARAM_STAT)
 

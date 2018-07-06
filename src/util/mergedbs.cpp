@@ -38,7 +38,7 @@ int mergedbs(int argc, const char **argv, const Command& command) {
 
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for merging: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for merging: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
     return 0;
 }

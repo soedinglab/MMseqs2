@@ -63,7 +63,7 @@ ReducedMatrix::ReducedMatrix(double **probMatrix, float ** rMatrix, size_t reduc
         char reduced_aa=reducedAlphabet->at(reduced_index);
         char lost_aa   =reducedAlphabet->at(lost_index);
 
-        Debug(Debug::WARNING)  << lost_aa  << " -> " << reduced_aa << "\n";
+        Debug(Debug::INFO)  << lost_aa  << " -> " << reduced_aa << "\n";
         reducedAlphabet->erase(reducedAlphabet->begin()+lost_index);
 
         int reduced_int=this->orig_aa2int[(int)reduced_aa];

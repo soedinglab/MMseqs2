@@ -398,19 +398,19 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         size_t elementsToSort = fillKmerPositionArray(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, splits, split);
         gettimeofday(&end, NULL);
         time_t sec = end.tv_sec - starttmp.tv_sec;
-        Debug(Debug::WARNING) << "\nTime for fill: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+        Debug(Debug::INFO) << "\nTime for fill: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
         if(splits == 1){
             seqDbr.unmapData();
         }
-        Debug(Debug::WARNING) << "Done." << "\n";
-        Debug(Debug::WARNING) << "Sort kmer ... ";
+        Debug(Debug::INFO) << "Done." << "\n";
+        Debug(Debug::INFO) << "Sort kmer ... ";
         gettimeofday(&starttmp, NULL);
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
         //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, KmerComparision());
-        Debug(Debug::WARNING) << "Done." << "\n";
+        Debug(Debug::INFO) << "Done." << "\n";
         gettimeofday(&end, NULL);
         sec = end.tv_sec - starttmp.tv_sec;
-        Debug(Debug::WARNING) << "Time for sort: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+        Debug(Debug::INFO) << "Time for sort: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
         size_t writePos = 0;
@@ -466,14 +466,14 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             }
         }
         // sort by rep. sequence (stored in kmer) and sequence id
-        Debug(Debug::WARNING) << "Sort by rep. sequence ... ";
+        Debug(Debug::INFO) << "Sort by rep. sequence ... ";
         gettimeofday(&starttmp, NULL);
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
         //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
         gettimeofday(&end, NULL);
         sec = end.tv_sec - starttmp.tv_sec;
-        Debug(Debug::WARNING) << "Done\n";
-        Debug(Debug::WARNING) << "Time for sort: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+        Debug(Debug::INFO) << "Done\n";
+        Debug(Debug::INFO) << "Time for sort: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
         if(splits > 1){
             std::string splitFile = par.db2 + "_split_" +SSTR(split);
@@ -500,7 +500,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     }
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - starttmp.tv_sec;
-    Debug(Debug::WARNING) << "Time for fill: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for fill: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     // add missing entries to the result (needed for clustering)
 
     {
@@ -531,8 +531,8 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
     gettimeofday(&end, NULL);
     sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-    return 0;
+    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    return EXIT_SUCCESS;
 }
 
 void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
@@ -669,7 +669,7 @@ size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, Kmer
 void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                              std::vector<std::string> tmpFiles, std::vector<bool> &repSequence,
                              int covMode, float covThr) {
-    Debug(Debug::WARNING) << "Merge splits ... ";
+    Debug(Debug::INFO) << "Merge splits ... ";
 
     const int fileCnt = tmpFiles.size();
     FILE ** files       = new FILE*[fileCnt];
@@ -757,7 +757,7 @@ void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
             EXIT(EXIT_FAILURE);
         }
     }
-    Debug(Debug::WARNING) << "Done\n";
+    Debug(Debug::INFO) << "Done\n";
 
     delete [] dataSizes;
     delete [] offsetPos;

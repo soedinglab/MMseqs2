@@ -44,7 +44,7 @@ int createindex(int argc, const char **argv, const Command& command) {
     std::string tmpDir = par.db2 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
             EXIT(EXIT_FAILURE);
         }
     }

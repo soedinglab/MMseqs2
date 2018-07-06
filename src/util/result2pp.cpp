@@ -346,7 +346,7 @@ int result2pp(int argc, const char **argv, const Command& command) {
 
     // never allow deletions
     par.allowDeletion = false;
-    Debug(Debug::WARNING) << "Compute profile.\n";
+    Debug(Debug::INFO) << "Compute profile.\n";
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
@@ -358,9 +358,6 @@ int result2pp(int argc, const char **argv, const Command& command) {
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
+    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     return retCode;
 }

@@ -172,7 +172,7 @@ int concatdbs(int argc, const char **argv, const Command& command) {
 
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for concatenating DBs: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for concatenating DBs: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
     return EXIT_SUCCESS;
 }
