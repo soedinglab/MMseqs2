@@ -402,7 +402,7 @@ void Sequence::mapProfileState(const char * sequenze){
 
         if(aaBiasCorrection==true){
             //TODO use new formular
-            SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(profile_score, profile_row_size, this->L);
+            SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(profile_score, profile_row_size, this->L,profileStateMat->alphabetSize);
         }
     //    printProfileStatePSSM();
 

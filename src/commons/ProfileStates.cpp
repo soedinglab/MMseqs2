@@ -205,29 +205,27 @@ int ProfileStates::read(std::string libraryData) {
         return -1;
     }
 
+
     for (k = 0; k < alphSize; ++k)
     {
         prior[k] /= zPrior;
         //DEBUG: std::cout<<"Prior["<<k<<"] = "<<prior[k]<<std::endl;
     }
     
-
  /*   zPrior = 0;
     for (k = 0; k < 20; ++k)
     {
         zPrior += prior[k];
     }
     
-    for (k = 0; k < alphSize; ++k)
-    {
-        prior[k] /= zPrior;
-	//DEBUG: std::cout<<"Prior["<<k<<"] = "<<prior[k]<<std::endl;
-    }
+
     
     for (k = 20; k < alphSize; ++k)
     {
         prior[k] = 0;
     }*/
+
+
     discProfScores = new float*[alphSize];
     for (k = 0; k< alphSize ; k++)
     {

@@ -132,39 +132,39 @@ void SubstitutionMatrix::calcLocalAaBiasCorrection(const BaseMatrix *m,
 
 void SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(short *profileScores,
                                                              const size_t profileAASize,
-                                                             const int N) {
+                                                             const int N, size_t alphabetSize) {
 
     const int windowSize = 40;
 
-    float pnul[32];
-    memset(pnul, 0, sizeof(float) * 32);
+    float pnul[alphabetSize];
+    memset(pnul, 0, sizeof(float) * alphabetSize);
 
 
     for (int pos = 0; pos < N; pos++) {
         const short * subMat = profileScores + (pos * profileAASize);
-        for(size_t aa = 0; aa < 32; aa++) {
+        for(size_t aa = 0; aa < alphabetSize; aa++) {
             pnul[aa] += subMat[aa]  ;
         }
     }
-    for(size_t aa = 0; aa < 32; aa++)
+    for(size_t aa = 0; aa < alphabetSize; aa++)
         pnul[aa] /= N;
     for (int i = 0; i < N; i++){
         const int minPos = std::max(0, (i - windowSize/2));
         const int maxPos = std::min(N, (i + windowSize/2));
         const int windowLength = maxPos - minPos;
         // negative score for the amino acids in the neighborhood of i
-        float aaSum[32];
-        memset(aaSum, 0, sizeof(float) * 32);
+        float aaSum[alphabetSize];
+        memset(aaSum, 0, sizeof(float) * alphabetSize);
 
         for (int j = minPos; j < maxPos; j++){
             const short * subMat = profileScores + (j * profileAASize);
             if( i == j )
                 continue;
-            for(size_t aa = 0; aa < 32; aa++){
+            for(size_t aa = 0; aa < alphabetSize; aa++){
                 aaSum[aa] += subMat[aa] - pnul[aa];
             }
         }
-        for(size_t aa = 0; aa < 32; aa++) {
+        for(size_t aa = 0; aa < alphabetSize; aa++) {
             profileScores[i*profileAASize + aa] = static_cast<int>((profileScores + (i * profileAASize))[aa] - aaSum[aa]/windowLength);
         }
     }
