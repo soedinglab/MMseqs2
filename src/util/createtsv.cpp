@@ -52,7 +52,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
     char *dbKey = new char[par.maxSeqLen + 1];
     for (size_t i = 0; i < reader.getSize(); i++) {
         unsigned int queryKey = reader.getDbKey(i);
-        std::string queryHeader = par.fullHeader ? std::string("\"") + qHeader.getDataByDBKey(queryKey) : Util::parseFastaHeader(qHeader.getDataByDBKey(queryKey));
+        std::string queryHeader = par.fullHeader ? qHeader.getDataByDBKey(queryKey) : Util::parseFastaHeader(qHeader.getDataByDBKey(queryKey));
         if (par.fullHeader){queryHeader.erase(queryHeader.length() -2) ;}
 
         char *data = reader.getData(i);
@@ -74,7 +74,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
             std::string targetAccession;
             if (tHeader != NULL) {
                 unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
-                targetAccession = par.fullHeader ? std::string("\"") + tHeader->getDataByDBKey(targetKey) : Util::parseFastaHeader(tHeader->getDataByDBKey(targetKey));
+                targetAccession = par.fullHeader ? tHeader->getDataByDBKey(targetKey) : Util::parseFastaHeader(tHeader->getDataByDBKey(targetKey));
                 if (par.fullHeader){
                     targetAccession.erase(targetAccession.length()-2);
                 }
@@ -90,9 +90,9 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
             // write to file
             fwrite(queryHeader.c_str(), sizeof(char), queryHeader.length(), file);
-            fwrite("\"\t", sizeof(char), 2, file);
+            fwrite("\t", sizeof(char), 2, file);
             fwrite(targetAccession.c_str(), sizeof(char), targetAccession.length(), file);
-            fwrite("\"", sizeof(char), 1, file);
+            //fwrite("\"", sizeof(char), 1, file);
 
             size_t offset = 0;
             if (targetCol != 0) {
