@@ -21,10 +21,10 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                      const std::string &outDB, const std::string &outDBIndex,
                      const Parameters &par) :
         covThr(par.covThr), covMode(par.covMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
-        includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign),
+        includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qSeqLookup(NULL),
-        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit), scoreBias(par.scoreBias)  {
+        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit)  {
 
 
     unsigned int alignmentMode = par.alignmentMode;

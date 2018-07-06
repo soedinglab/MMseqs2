@@ -171,8 +171,8 @@ Parameters::Parameters():
         //aggregate
         PARAM_MODE(PARAM_MODE_ID, "--mode", "Aggregation Mode", "Choose wich of aggregation to launch : bestHit/pval", typeid(std::string), (void*) &mode, ""),
         PARAM_SET_COLUMN(PARAM_SET_COLUMN_ID, "--set-column", "Set Column", "Change default Set Column", typeid(int), (void*) &setColumn, ""),
-        PARAM_SIMPLE_BEST_HIT_MODE(PARAM_SIMPLE_BEST_HIT_MODE_ID, "--simple-best-hit", "Output the best evalue", "Othw, output a ortholog-corrected pvalue", typeid(bool), (void*) &simpleBestHitMode, ""),
         PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining pvalues", typeid(float), (void*) &alpha, ""),
+        PARAM_SIMPLE_BEST_HIT_MODE(PARAM_SIMPLE_BEST_HIT_MODE_ID, "--simple-best-hit", "Output the best evalue", "Othw, output a ortholog-corrected pvalue", typeid(bool), (void*) &simpleBestHitMode, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
