@@ -322,12 +322,14 @@ public:
     int sortEntries;
     bool beatsFirst;
     std::string joinDB;
-    std::string swapFields ;
+    std::string compPos ;
     std::string clusterFile ;
 
     //aggregate
     std::string mode ;
     int setColumn ;
+    float alpha ;
+    bool simpleBestHitMode;
 
     // mergedbs
     std::string mergePrefixes;
@@ -565,12 +567,14 @@ public:
     PARAMETER(PARAM_SORT_ENTRIES)
     PARAMETER(PARAM_BEATS_FIRST)
     PARAMETER(PARAM_JOIN_DB)
-    PARAMETER(PARAM_SWAP_SEARCH_FIELDS)
+    PARAMETER(PARAM_COMPUTE_POSITIONS)
     PARAMETER(PARAM_TRANSITIVE_REPLACE)
 
     //aggregate
     PARAMETER(PARAM_MODE)
     PARAMETER(PARAM_SET_COLUMN)
+    PARAMETER(PARAM_ALPHA)
+    PARAMETER(PARAM_SIMPLE_BEST_HIT_MODE)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)

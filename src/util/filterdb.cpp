@@ -111,10 +111,10 @@ ffindexFilter::ffindexFilter(Parameters &par) {
         joinDB = new DBReader<unsigned int>(par.joinDB.c_str(), joinIndex.c_str());
         joinDB->open(DBReader<unsigned int>::NOSORT);
         std::cout << "Joining targets to query database.\n";
-    } else if (!par.swapFields.empty()) {
-        mode = SWAP_SEARCH_FIELDS;
-        std::string swapIndex = par.swapFields + ".index";
-        swapDB = new DBReader<unsigned int>(par.swapFields.c_str(), swapIndex.c_str());
+    } else if (!par.compPos.empty()) {
+        mode = COMPUTE_POSITIONS;
+        std::string swapIndex = par.compPos + ".index";
+        swapDB = new DBReader<unsigned int>(par.compPos.c_str(), swapIndex.c_str());
         swapDB->open(DBReader<unsigned int>::NOSORT);
         std::string A = par.db3;
         std::cout << "Swapping fields\n";
@@ -322,7 +322,7 @@ int ffindexFilter::runFilter(){
                     delete [] newLineBuffer;
 
                 }
-                else if (mode == SWAP_SEARCH_FIELDS) {
+                else if (mode == COMPUTE_POSITIONS) {
 				    // Optimise it
                     std::vector<std::string> splittedOriginalLine = Util::split(lineBuffer, "\t");
                     char *lineWithNewFields = swapDB->getDataByDBKey(
