@@ -5,6 +5,10 @@
 #include "Debug.h"
 #include "Util.h"
 
+#define MAX_NB_COLUMNS 15
+
+
+
 int createtsv(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, Parameters::PARSE_VARIADIC);
@@ -48,18 +52,32 @@ int createtsv(int argc, const char **argv, const Command &command) {
     char *dbKey = new char[par.maxSeqLen + 1];
     for (size_t i = 0; i < reader.getSize(); i++) {
         unsigned int queryKey = reader.getDbKey(i);
-        std::string queryHeader = Util::parseFastaHeader(qHeader.getDataByDBKey(queryKey));
+        std::string queryHeader = par.fullHeader ? std::string("\"") + qHeader.getDataByDBKey(queryKey) : Util::parseFastaHeader(qHeader.getDataByDBKey(queryKey));
+        if (par.fullHeader){queryHeader.erase(queryHeader.length() -2) ;}
 
         char *data = reader.getData(i);
         size_t entryIndex = 0;
+        char **columnPointer = new char*[MAX_NB_COLUMNS];
         while (*data != '\0') {
-            Util::parseKey(data, dbKey);
+
+            size_t foundElements = Util::getWordsOfLine(data, columnPointer, MAX_NB_COLUMNS);
+            size_t targetCol = 0;
+            if (foundElements < par.targetTsvColumn) {
+                Debug(Debug::WARNING) << "Not enough cloumns!" << "\n";
+            } else {
+                targetCol = par.targetTsvColumn;
+            }
+
+            Util::parseKey(columnPointer[targetCol], dbKey);
             size_t keyLen = strlen(dbKey);
 
             std::string targetAccession;
             if (tHeader != NULL) {
                 unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
-                targetAccession = Util::parseFastaHeader(tHeader->getDataByDBKey(targetKey));
+                targetAccession = par.fullHeader ? std::string("\"") + tHeader->getDataByDBKey(targetKey) : Util::parseFastaHeader(tHeader->getDataByDBKey(targetKey));
+                if (par.fullHeader){
+                    targetAccession.erase(targetAccession.length()-2);
+                }
             } else {
                 targetAccession = dbKey;
             }
@@ -72,10 +90,19 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
             // write to file
             fwrite(queryHeader.c_str(), sizeof(char), queryHeader.length(), file);
-            fwrite("\t", sizeof(char), 1, file);
+            fwrite("\"\t", sizeof(char), 2, file);
             fwrite(targetAccession.c_str(), sizeof(char), targetAccession.length(), file);
-            fwrite("\t", sizeof(char), 1, file);
-            fwrite(data + keyLen, sizeof(char), (nextLine - (data + keyLen)) - 1, file);
+            fwrite("\"", sizeof(char), 1, file);
+
+            size_t offset = 0;
+            if (targetCol != 0) {
+                fwrite("\t", sizeof(char), 1, file);
+                offset = 0;
+            } else {
+                offset = keyLen;
+            }
+
+            fwrite(data + offset, sizeof(char), (nextLine - (data + keyLen)) - 1, file);
             fwrite("\n", sizeof(char), 1, file);
 
             data = nextLine;

@@ -109,8 +109,10 @@ Parameters::Parameters():
         // sequence2profile
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void*) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void*) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
-        //createtesv
+        //createtsv
+        PARAM_TARGET_COLUMN(PARAM_TARGET_COLUMN_ID, "--target-column", "Target column", "Select a target column",typeid(int),(void *) &targetTsvColumn, "^[0-9]*$"),
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
+        PARAM_FULL_HEADER(PARAM_FULL_HEADER_ID, "--full-header", "Add Full Header", "Replace DB ID by its corresponding Full Header", typeid(bool), (void*) &fullHeader, ""),
         // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
 
@@ -355,6 +357,8 @@ Parameters::Parameters():
     
     // createtsv
     createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);
+    createtsv.push_back(PARAM_TARGET_COLUMN);
+    createtsv.push_back(PARAM_FULL_HEADER);
 
     //result2stats
     result2stats.push_back(PARAM_STAT);
@@ -567,7 +571,7 @@ Parameters::Parameters():
 
 
     // mergedbs
-    mergedbs.push_back(PARAM_BY_DB) ;
+    mergedbs.push_back(PARAM_BY_DB);
     mergedbs.push_back(PARAM_MERGE_PREFIXES);
     mergedbs.push_back(PARAM_V);
 
@@ -1136,7 +1140,7 @@ void Parameters::setDefaults() {
     removeTmpFiles = false;
 
     //mergeclusters
-    byDB = 0 ;
+    byDB = 0;
 
     // convertprofiledb
     profileMode = PROFILE_MODE_HMM;
@@ -1239,8 +1243,8 @@ void Parameters::setDefaults() {
     
 
     //aggregate
-    setColumn = 9 ;
-    alpha = 0.001 ;
+    setColumn = 9;
+    alpha = 0.001;
     simpleBestHitMode  = false;
 
 
@@ -1281,6 +1285,8 @@ void Parameters::setDefaults() {
 
     // createtsv
     firstSeqRepr = false;
+    fullHeader = false;
+    targetTsvColumn = 0;
 
     // lca
     lcaRanks = "";
