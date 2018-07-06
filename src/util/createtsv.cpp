@@ -62,7 +62,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
         while (*data != '\0') {
             size_t foundElements = Util::getWordsOfLine(data, columnPointer, 255);
             if (foundElements < targetCol) {
-                Debug(Debug::WARNING) << "Not enough cloumns!" << "\n";
+                Debug(Debug::WARNING) << "Not enough columns!" << "\n";
             }
 
             Util::parseKey(columnPointer[targetCol], dbKey);
