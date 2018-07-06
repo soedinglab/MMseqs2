@@ -7,6 +7,7 @@
 #include "QueryMatcher.h"
 #include "Parameters.h"
 #include "AlignmentSymmetry.h"
+#include "PrefilteringIndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -17,6 +18,50 @@ struct compareEval {
                     const Matcher::result_t &rhs) const {
         return lhs.eval < rhs.eval;
     }
+};
+
+class IndexReader {
+public:
+    DBReader<unsigned int> *reader;
+    IndexReader(const std::string &data) {
+        std::string index = data;
+        index.append(".index");
+
+        bool isIndex = false;
+        std::string indexData = PrefilteringIndexReader::searchForIndex(data);
+        if (indexData != "") {
+            Debug(Debug::INFO) << "Use index: " << indexData << "\n";
+            std::string indexIndex = indexData;
+            indexIndex.append(".index");
+            indexReader = new DBReader<unsigned int>(indexData.c_str(), indexIndex.c_str());
+            indexReader->open(DBReader<unsigned int>::NOSORT);
+            if ((isIndex = PrefilteringIndexReader::checkIfIndexFile(indexReader)) == true) {
+                reader = PrefilteringIndexReader::openNewReader(indexReader, false);
+            } else {
+                Debug(Debug::WARNING) << "Outdated index version. Please recompute it with 'createindex'!\n";
+                indexReader->close();
+                delete indexReader;
+                indexReader = NULL;
+            }
+        }
+
+        if (isIndex == false) {
+            reader = new DBReader<unsigned int>(data.c_str(), index.c_str(), DBReader<unsigned int>::USE_INDEX);
+            reader->open(DBReader<unsigned int>::NOSORT);
+        }
+    }
+
+    ~IndexReader() {
+        reader->close();
+        delete reader;
+
+        if (indexReader != NULL) {
+            indexReader->close();
+            delete indexReader;
+        }
+    }
+private:
+    DBReader<unsigned int> *indexReader = NULL;
 };
 
 int doswap(Parameters& par, bool isGeneralMode) {
@@ -68,16 +113,12 @@ int doswap(Parameters& par, bool isGeneralMode) {
         resultReader.close();
     } else {
         Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-        DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-        queryReader.open(DBReader<unsigned int>::NOSORT);
-        aaResSize = queryReader.getAminoAcidDBSize();
-        queryReader.close();
+        IndexReader query(par.db1);
+        aaResSize = query.reader->getAminoAcidDBSize();
 
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-        targetReader.open(DBReader<unsigned int>::NOSORT);
-        maxTargetId = targetReader.getLastKey();
-        targetReader.close();
+        IndexReader target(par.db2);
+        maxTargetId = target.reader->getLastKey();
     }
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
@@ -306,9 +347,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
     resultDbr.close();
 
     // add missing target entries
-    DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-    targetReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
+    IndexReader *target = new IndexReader(par.db2);
     std::string writerDb = parOutDbStr + "_" + SSTR(splits.size());
     std::pair<std::string, std::string> writerName = std::make_pair(writerDb, writerDb + ".index");
     splitFileNames.push_back(writerName);
@@ -322,8 +361,8 @@ int doswap(Parameters& par, bool isGeneralMode) {
         thread_idx = omp_get_thread_num();
 #endif
 #pragma omp for
-        for (size_t i = 0; i < targetReader.getSize(); ++i) {
-            unsigned int key = targetReader.getDbKey(i);
+        for (size_t i = 0; i < target->reader->getSize(); ++i) {
+            unsigned int key = target->reader->getDbKey(i);
             size_t entrySize = targetElementSize[key + 1] - targetElementSize[key];
             if (entrySize == 0) {
                 resultWriter.writeData(&empty, 0, key, thread_idx);
@@ -331,7 +370,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
         }
     };
     resultWriter.close();
-    targetReader.close();
+    delete target;
 
     DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);
 
