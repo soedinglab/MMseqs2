@@ -1,5 +1,4 @@
-FROM alpine:latest as mmseqs-builder
-
+FROM alpine:3.7 as mmseqs-builder
 RUN apk add --no-cache gcc g++ cmake musl-dev vim git ninja zlib-dev bzip2-dev
 
 WORKDIR /opt/mmseqs
@@ -13,7 +12,7 @@ WORKDIR ../build_avx
 RUN cmake -G Ninja -DHAVE_AVX2=1 -DHAVE_MPI=0 -DHAVE_TESTS=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=. ..
 RUN ninja && ninja install
 
-FROM alpine:latest
+FROM alpine:3.7
 MAINTAINER Milot Mirdita <milot@mirdita.de>
 RUN apk add --no-cache gawk bash grep libstdc++ libgomp zlib libbz2
 
