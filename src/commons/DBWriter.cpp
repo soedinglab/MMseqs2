@@ -184,15 +184,7 @@ void DBWriter::open(size_t bufferSize) {
 void DBWriter::close(int dbType) {
     // close all datafiles
     for (unsigned int i = 0; i < threads; i++) {
-        if (fsync(fileno(dataFiles[i])) < 0) {
-            Debug(Debug::ERROR) << "Could not sync data file " << dataFileNames[i] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
         fclose(dataFiles[i]);
-        if (fsync(fileno(indexFiles[i])) < 0) {
-            Debug(Debug::ERROR) << "Could not sync index file " << indexFileNames[i] << "\n";
-            EXIT(EXIT_FAILURE);
-        }
         fclose(indexFiles[i]);
     }
 
@@ -207,10 +199,6 @@ void DBWriter::close(int dbType) {
         size_t written = fwrite(&dbType, sizeof(int), 1, dbtypeDataFile);
         if (written != 1) {
             Debug(Debug::ERROR) << "Could not write to data file " << dbTypeFile << "\n";
-            EXIT(EXIT_FAILURE);
-        }
-        if (fsync(fileno(dbtypeDataFile)) < 0) {
-            Debug(Debug::ERROR) << "Could not sync type file " << dbTypeFile << "\n";
             EXIT(EXIT_FAILURE);
         }
         fclose(dbtypeDataFile);
@@ -374,136 +362,104 @@ void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<std::string>
     }
 }
 
-
 void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
                             const char **dataFileNames, const char **indexFileNames,
                             const unsigned long fileCount, const bool lexicographicOrder) {
-    if (fileCount <= 1) {
-        if (std::rename(dataFileNames[0], outFileName) != 0) {
-            Debug(Debug::ERROR) << "Could not move result " << dataFileNames[0] << " to final location " << outFileName << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
-        if (std::rename(indexFileNames[0], outFileNameIndex) != 0) {
-            Debug(Debug::ERROR) << "Could not move result index " << indexFileNames[0] << " to final location " << outFileNameIndex << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
-        return;
-    }
-
     struct timeval start, end;
     gettimeofday(&start, NULL);
-    // merge result data files into the first result data file
-    std::vector<size_t> dataSizes;
-    FILE **files = new FILE*[fileCount];
-    for (unsigned int i = 0; i < fileCount; ++i) {
-        files[i] = fopen(dataFileNames[i], i == 0 ? "a" : "r");
-        if (files[i] == NULL) {
-            Debug(Debug::ERROR) << "Could not open result file " << dataFileNames[i] << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
+    // merge results from each thread into one result file
+    if (fileCount > 1) {
+        FILE *outFile = fopen(outFileName, "w");
+        FILE **infiles = new FILE *[fileCount];
+        std::vector<size_t> threadDataFileSizes;
 
-        struct stat sb;
-        if (fstat(fileno(files[i]), &sb) < 0) {
-            int errsv = errno;
-            Debug(Debug::ERROR) << "Failed to fstat file " << dataFileNames[i] << ". Error " << errsv << ".\n";
-            EXIT(EXIT_FAILURE);
-        }
-        dataSizes.push_back(sb.st_size);
-    }
-    Concat::concatFiles(files + 1, fileCount - 1, files[0]);
-    for (unsigned int i = 0; i < fileCount; ++i) {
-        if (fsync(fileno(files[i])) < 0) {
-            Debug(Debug::ERROR) << "Could not sync data file " << dataFileNames[i] << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
-        fclose(files[i]);
-        if (i == 0) {
-            if (std::rename(dataFileNames[i], outFileName) != 0) {
-                Debug(Debug::ERROR) << "Could not move result " << dataFileNames[i] << " to final location " << outFileName << "!\n";
+        for (unsigned int i = 0; i < fileCount; i++) {
+            infiles[i] = fopen(dataFileNames[i], "r");
+            if (infiles[i] == NULL) {
+                Debug(Debug::ERROR) << "Could not open result file " << dataFileNames[i] << "!\n";
                 EXIT(EXIT_FAILURE);
             }
-        } else {
+
+            struct stat sb;
+            if (fstat(fileno(infiles[i]), &sb) < 0) {
+                int errsv = errno;
+                Debug(Debug::ERROR) << "Failed to fstat file " << dataFileNames[i] << ". Error " << errsv << ".\n";
+                EXIT(EXIT_FAILURE);
+            }
+            threadDataFileSizes.push_back(sb.st_size);
+        }
+        Concat::concatFiles(infiles, fileCount, outFile);
+        for (unsigned int i = 0; i < fileCount; i++) {
+            fclose(infiles[i]);
             if (std::remove(dataFileNames[i]) != 0) {
                 Debug(Debug::WARNING) << "Could not remove file " << dataFileNames[i] << "\n";
             }
         }
-    }
-    delete[] files;
+        delete[] infiles;
+        fclose(outFile);
+        FILE *index_file = fopen(outFileNameIndex, "w");
+        if (index_file == NULL) {
+            perror(outFileNameIndex);
+            EXIT(EXIT_FAILURE);
+        }
+        // merge index
+        size_t globalOffset = 0;
+        for (unsigned int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
+            DBReader<unsigned int> reader(dataFileNames[fileIdx], indexFileNames[fileIdx], DBReader<unsigned int>::USE_INDEX);
+            reader.open(DBReader<unsigned int>::HARDNOSORT);
+            if (reader.getSize() > 0) {
+                DBReader<unsigned int>::Index * index = reader.getIndex();
+                for (size_t i = 0; i < reader.getSize()-1; i++) {
+                    size_t currOffset = index[i].offset;
+                    index[i].offset = globalOffset + currOffset;
+                }
 
-    // merge index files
-    FILE *indexFile = fopen(outFileNameIndex, "w");
-    if (indexFile == NULL) {
-        perror(outFileNameIndex);
-        EXIT(EXIT_FAILURE);
-    }
-    size_t globalOffset = 0;
-    for (unsigned int fileIdx = 0; fileIdx < fileCount; ++fileIdx) {
-        DBReader<unsigned int> reader(indexFileNames[fileIdx], indexFileNames[fileIdx], DBReader<unsigned int>::USE_INDEX);
-        reader.open(DBReader<unsigned int>::HARDNOSORT);
-        if (reader.getSize() > 0) {
-            DBReader<unsigned int>::Index * index = reader.getIndex();
-            for (size_t i = 0; i < reader.getSize() - 1; ++i) {
-                size_t currOffset = index[i].offset;
-                index[i].offset = globalOffset + currOffset;
+                size_t currOffset = index[reader.getSize()-1].offset;
+                index[reader.getSize()-1].offset = globalOffset + currOffset;
+                writeIndex(index_file, reader.getSize(), index, reader.getSeqLens());
+                globalOffset += threadDataFileSizes[fileIdx];
             }
+            reader.close();
 
-            size_t currOffset = index[reader.getSize() - 1].offset;
-            index[reader.getSize() - 1].offset = globalOffset + currOffset;
-            writeIndex(indexFile, reader.getSize(), index, reader.getSeqLens());
-            globalOffset += dataSizes[fileIdx];
+            if (std::remove(indexFileNames[fileIdx]) != 0) {
+                Debug(Debug::WARNING) << "Could not remove file " << indexFileNames[fileIdx] << "\n";
+            }
         }
-        reader.close();
+        fclose(index_file);
+    } else {
+        if (std::rename(dataFileNames[0], outFileName) != 0) {
+            Debug(Debug::ERROR) << "Could not move result " << dataFileNames[0] << " to final location " << outFileName << "!\n";
+            EXIT(EXIT_FAILURE);
+        }
 
-        if (std::remove(indexFileNames[fileIdx]) != 0) {
-            Debug(Debug::WARNING) << "Could not remove file " << indexFileNames[fileIdx] << "\n";
+        if (std::rename(indexFileNames[0], outFileNameIndex) != 0) {
+            Debug(Debug::ERROR) << "Could not move result index " << indexFileNames[0] << " to final location " << outFileNameIndex << "!\n";
+            EXIT(EXIT_FAILURE);
         }
     }
-    if (fsync(fileno(indexFile)) < 0) {
-        Debug(Debug::ERROR) << "Could not sync index file " << outFileNameIndex << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
-    fclose(indexFile);
-
 
     if (lexicographicOrder == false) {
         // sort the index
         DBReader<unsigned int> indexReader(outFileNameIndex, outFileNameIndex, DBReader<unsigned int>::USE_INDEX);
         indexReader.open(DBReader<unsigned int>::NOSORT);
         DBReader<unsigned int>::Index *index = indexReader.getIndex();
-        FILE *indexFile  = fopen(outFileNameIndex, "w");
-        if (indexFile == NULL) {
-            perror(outFileNameIndex);
-            EXIT(EXIT_FAILURE);
-        }
-        writeIndex(indexFile, indexReader.getSize(), index, indexReader.getSeqLens());
-        if (fsync(fileno(indexFile)) < 0) {
-            Debug(Debug::ERROR) << "Could not sync index file " << outFileNameIndex << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
-        fclose(indexFile);
+        FILE *index_file  = fopen(outFileNameIndex, "w");
+        writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
+        fclose(index_file);
         indexReader.close();
     } else {
         DBReader<std::string> indexReader(outFileNameIndex, outFileNameIndex, DBReader<std::string>::USE_INDEX);
         indexReader.open(DBReader<std::string>::SORT_BY_ID);
         DBReader<std::string>::Index *index = indexReader.getIndex();
-        FILE *indexFile  = fopen(outFileNameIndex, "w");
-        if (indexFile == NULL) {
-            perror(outFileNameIndex);
-            EXIT(EXIT_FAILURE);
-        }
-        writeIndex(indexFile, indexReader.getSize(), index, indexReader.getSeqLens());
-        if (fsync(fileno(indexFile)) < 0) {
-            Debug(Debug::ERROR) << "Could not sync index file " << outFileNameIndex << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
-        fclose(indexFile);
+        FILE *index_file  = fopen(outFileNameIndex, "w");
+        writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
+        fclose(index_file);
         indexReader.close();
     }
     gettimeofday(&end, NULL);
     int sec = end.tv_sec - start.tv_sec;
     Debug(Debug::INFO) << "Time for merging files: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) <<" s\n";
 }
-
 
 void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::string>> fileNames) {
     FILE ** files = new FILE*[fileNames.size()];
@@ -561,10 +517,6 @@ void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::strin
     }
 
     for (size_t i = 0; i < fileNames.size(); ++i) {
-        if (fsync(fileno(files[i])) < 0) {
-            Debug(Debug::ERROR) << "Could not sync data file " << fileNames[i].first << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
         fclose(files[i]);
     }
 
