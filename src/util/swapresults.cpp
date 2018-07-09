@@ -93,7 +93,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
 
     size_t aaResSize = 0;
     unsigned int maxTargetId = 0;
-
+    char *targetElementExists = NULL;
     if (isGeneralMode) {
         Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
         DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex);
@@ -119,6 +119,14 @@ int doswap(Parameters& par, bool isGeneralMode) {
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
         IndexReader target(par.db2);
         maxTargetId = target.reader->getLastKey();
+
+        targetElementExists = new char[maxTargetId + 1];
+        memset(targetElementExists, 0, sizeof(char) * (maxTargetId + 1));
+#pragma omp parallel for
+        for (size_t i = 0; i < target.reader->getSize(); ++i) {
+            unsigned int key = target.reader->getDbKey(i);
+            targetElementExists[key] = 1;
+        }
     }
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
@@ -244,6 +252,13 @@ int doswap(Parameters& par, bool isGeneralMode) {
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
+            // we are reusing this vector also for the prefiltering results
+            // qcov is used for pScore because its the first float value
+            // and alnLength for diagonal because its the first int value after
+            std::vector<Matcher::result_t> curRes;
+            char buffer[1024+32768];
+            std::string ss;
+            ss.reserve(100000);
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t i = prevDbKeyToWrite; i <= dbKeyToWrite; ++i) {
@@ -258,14 +273,6 @@ int doswap(Parameters& par, bool isGeneralMode) {
                     }
                     continue;
                 }
-
-                // we are reusing this vector also for the prefiltering results
-                // qcov is used for pScore because its the first float value
-                // and alnLength for diagonal because its the first int value after
-                std::vector<Matcher::result_t> curRes;
-                char buffer[1024+32768];
-                std::string ss;
-                ss.reserve(100000);
 
                 bool evalBreak = false;
                 while (dataSize > 0) {
@@ -332,7 +339,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
                     ss = "";
 
                     curRes.clear();
-                } else if (evalBreak == true) {
+                } else if (evalBreak == true || targetElementExists[i] == 1) {
                     resultWriter.writeData(&empty, 0, i, thread_idx);
                 }
             }
@@ -344,36 +351,12 @@ int doswap(Parameters& par, bool isGeneralMode) {
         prevBytesToWrite += bytesToWrite;
         delete[] tmpData;
     }
-    resultDbr.close();
-
-    // add missing target entries
-    IndexReader *target = new IndexReader(par.db2);
-    std::string writerDb = parOutDbStr + "_" + SSTR(splits.size());
-    std::pair<std::string, std::string> writerName = std::make_pair(writerDb, writerDb + ".index");
-    splitFileNames.push_back(writerName);
-
-    DBWriter resultWriter(writerName.first.c_str(), writerName.second.c_str(), par.threads);
-    resultWriter.open();
-#pragma omp parallel
-    {
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-#pragma omp for
-        for (size_t i = 0; i < target->reader->getSize(); ++i) {
-            unsigned int key = target->reader->getDbKey(i);
-            size_t entrySize = targetElementSize[key + 1] - targetElementSize[key];
-            if (entrySize == 0) {
-                resultWriter.writeData(&empty, 0, key, thread_idx);
-            }
-        }
-    };
-    resultWriter.close();
-    delete target;
-
     DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);
 
+    resultDbr.close();
+    if (targetElementExists != NULL) {
+        delete[] targetElementExists;
+    }
     delete[] targetElementSize;
     gettimeofday(&end, NULL);
     time_t sec = end.tv_sec - start.tv_sec;
