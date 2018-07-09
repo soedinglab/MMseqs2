@@ -304,7 +304,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
 
 void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outDBIndex,
                                const std::vector<std::pair<std::string, std::string>> &filenames) {
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
     if (filenames.size() < 2) {
         std::rename(filenames[0].first.c_str(), outDB.c_str());
@@ -379,10 +379,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         EXIT(EXIT_FAILURE);
     }
 
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for merging results: " << (sec / 3600) << " h "
-                       << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "\nTime for merging results: " << Util::formatDuration(start) << "\n";
 }
 
 
@@ -426,7 +423,7 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         return;
     }
 
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 
     Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
@@ -449,12 +446,9 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         sequenceLookup = NULL;
     }
 
-    gettimeofday(&end, NULL);
     indexTable->printStatistics(subMat->int2aa);
-    time_t sec = end.tv_sec - start.tv_sec;
     tdbr->remapData();
-    Debug(Debug::INFO) << "Time for index table init: "
-                       << (sec / 3600) << "h " << (sec % 3600 / 60) << "m " << (sec % 60) << "s.\n\n";
+    Debug(Debug::INFO) << "Time for index table init: " << Util::formatDuration(start) << "\n";
 }
 
 bool Prefiltering::isSameQTDB(const std::string &queryDB) {
@@ -656,7 +650,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
     Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 
     size_t kmersPerPos = 0;
@@ -784,16 +778,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
         printStatistics(stats, reslens, localThreads, empty, maxResults);
     }
-
-    if (totalQueryDBSize > 1000) {
-        Debug(Debug::INFO) << "\n";
-    }
-    Debug(Debug::INFO) << "\n";
-
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60)
-                       << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "\nTime for prefiltering scores calculation: " << Util::formatDuration(start) << "\n";
     tmpDbw.close(); // sorts the index
 
     // sort by ids

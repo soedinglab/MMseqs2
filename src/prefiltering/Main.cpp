@@ -22,7 +22,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
     omp_set_num_threads(par.threads);
 #endif
 
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 
     Debug(Debug::INFO) << "Initialising data structures...\n";
@@ -45,9 +45,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
     }
 
     Prefiltering pref(par.db2, par.db2Index, queryDbType, targetDbType, par);
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for init: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n\n";
+    Debug(Debug::INFO) << "Time for init: " << Util::formatDuration(start) << "\n";
 
 #ifdef HAVE_MPI
     pref.runMpiSplits(par.db1, par.db1Index, par.db3, par.db3Index);
@@ -55,9 +53,7 @@ int prefilter(int argc, const char **argv, const Command& command) {
     pref.runAllSplits(par.db1, par.db1Index, par.db3, par.db3Index);
 #endif
 
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nOverall time for prefiltering run: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "\nOverall time for prefiltering run: " << Util::formatDuration(start) << "\n";
 
     EXIT(EXIT_SUCCESS);
 }

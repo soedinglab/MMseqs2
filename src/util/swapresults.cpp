@@ -88,7 +88,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
     std::string parOutDbStr(parOutDb);
     std::string parOutDbIndexStr(parOutDbIndex);
 
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 
     size_t aaResSize = 0;
@@ -362,10 +362,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
         delete[] targetElementExists;
     }
     delete[] targetElementSize;
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for swapping: " << (sec / 3600) << "h "
-                       << (sec % 3600 / 60) << "m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for swapping: " << Util::formatDuration(start) << "\n";
     return EXIT_SUCCESS;
 }
 

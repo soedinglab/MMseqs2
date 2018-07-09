@@ -58,7 +58,7 @@ int result2repseq(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 
     DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str());
@@ -71,10 +71,7 @@ int result2repseq(int argc, const char **argv, const Command &command) {
 
     resultReader.close();
 
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "
-                       << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for processing: " << Util::formatDuration(start) << "\n";
 
     return status;
 }

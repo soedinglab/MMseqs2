@@ -405,18 +405,14 @@ int result2stats(int argc, const char **argv, const Command &command) {
     omp_set_num_threads(par.threads);
 #endif
 
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
     int retCode;
 
     StatsComputer computeStats(par);
     retCode = computeStats.run();
 
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h "
-                       << (sec % 3600 / 60) << " m "
-                       << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for processing: " << Util::formatDuration(start) << "\n";
 
     return retCode;
 }

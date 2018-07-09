@@ -365,7 +365,7 @@ void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<std::string>
 void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
                             const char **dataFileNames, const char **indexFileNames,
                             const unsigned long fileCount, const bool lexicographicOrder) {
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
     // merge results from each thread into one result file
     if (fileCount > 1) {
@@ -456,9 +456,8 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         fclose(index_file);
         indexReader.close();
     }
-    gettimeofday(&end, NULL);
-    int sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for merging files: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) <<" s\n";
+
+    Debug(Debug::INFO) << "Time for merging files: " << Util::formatDuration(start) << "\n";
 }
 
 void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::string>> fileNames) {

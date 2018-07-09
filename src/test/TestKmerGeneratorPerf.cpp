@@ -69,7 +69,7 @@ int main (int argc, const char * argv[])
     kmerGen.setDivideStrategy(extMatthree.scoreMatrix, extMattwo.scoreMatrix );
     
     int* testKmer = new int[kmer_size];
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
     for(int x = 0; x <10;x++){
 	    s->mapSequence(x,"LALA",sequence);
@@ -90,9 +90,7 @@ int main (int argc, const char * argv[])
         std::cout << "Similar " << kmer_size << "-mer list for pos 0:\n";
     }
     }
-    gettimeofday(&end, NULL);
-    int sec = end.tv_sec - start.tv_sec;
-    std::cout << "Time: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n\n";
+    std::cout << "Time: " << Util::formatDuration(start) << "\n";
 						   
     
     return 0;

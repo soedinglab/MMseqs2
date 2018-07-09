@@ -458,6 +458,20 @@ std::map<std::string, unsigned int> Util::readLookupReverse(const std::string& f
     return mapping;
 }
 
+std::string Util::formatDuration(struct timeval start) {
+    struct timeval end;
+    gettimeofday(&end, NULL);
+    return Util::formatDuration(end, start);
+}
+
+std::string Util::formatDuration(struct timeval end, struct timeval start) {
+    std::ostringstream ss;
+    time_t sec = end.tv_sec - start.tv_sec;
+    time_t usec = (end.tv_usec - start.tv_usec) / 1000;
+    ss << (sec / 3600) << "h " << (sec % 3600 / 60) << "m " << (sec % 60) << "s " << usec << "ms";
+    return ss.str();
+}
+
 int Util::omp_thread_count() {
     int n = 0;
 #pragma omp parallel reduction(+:n)

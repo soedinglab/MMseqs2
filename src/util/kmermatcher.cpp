@@ -325,7 +325,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 
 
@@ -396,9 +396,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         struct timeval starttmp;
         gettimeofday(&starttmp, NULL);
         size_t elementsToSort = fillKmerPositionArray(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, splits, split);
-        gettimeofday(&end, NULL);
-        time_t sec = end.tv_sec - starttmp.tv_sec;
-        Debug(Debug::INFO) << "\nTime for fill: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+        Debug(Debug::INFO) << "\nTime for fill: " << Util::formatDuration(starttmp) << "\n";
         if(splits == 1){
             seqDbr.unmapData();
         }
@@ -408,9 +406,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
         //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, KmerComparision());
         Debug(Debug::INFO) << "Done." << "\n";
-        gettimeofday(&end, NULL);
-        sec = end.tv_sec - starttmp.tv_sec;
-        Debug(Debug::INFO) << "Time for sort: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+        Debug(Debug::INFO) << "Time for sort: " << Util::formatDuration(starttmp) << "\n";
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
         size_t writePos = 0;
@@ -470,10 +466,8 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         gettimeofday(&starttmp, NULL);
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
         //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
-        gettimeofday(&end, NULL);
-        sec = end.tv_sec - starttmp.tv_sec;
         Debug(Debug::INFO) << "Done\n";
-        Debug(Debug::INFO) << "Time for sort: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+        Debug(Debug::INFO) << "Time for sort: " << Util::formatDuration(starttmp) << "\n";
 
         if(splits > 1){
             std::string splitFile = par.db2 + "_split_" +SSTR(split);
@@ -498,9 +492,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     } else {
         writeKmerMatcherResult(seqDbr, dbw, hashSeqPair, totalKmers, repSequence, par.covMode, par.cov, par.threads);
     }
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - starttmp.tv_sec;
-    Debug(Debug::INFO) << "Time for fill: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for fill: " << Util::formatDuration(starttmp) << "\n";
     // add missing entries to the result (needed for clustering)
 
     {
@@ -529,9 +521,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     seqDbr.close();
     dbw.close();
 
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for processing: " << Util::formatDuration(start) << "\n";
     return EXIT_SUCCESS;
 }
 

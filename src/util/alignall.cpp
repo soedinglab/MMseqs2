@@ -21,7 +21,7 @@
 
 int alignall(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
@@ -152,10 +152,8 @@ int alignall(int argc, const char **argv, const Command &command) {
         tdbr->close();
         delete tdbr;
     }
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for diagonal calculation: " << (sec / 3600) << " h "
-                       << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+
+    Debug(Debug::INFO) << "Time for diagonal calculation: " << Util::formatDuration(start) << "\n";
     return EXIT_SUCCESS;
 }
 

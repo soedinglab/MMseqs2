@@ -122,15 +122,13 @@ int subtractdbs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
     dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.evalProfile, par.threads);
-    gettimeofday(&end, NULL);
-    int sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for profile substracting: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for profile substracting: " << Util::formatDuration(start) << "\n";
     return 0;
 }

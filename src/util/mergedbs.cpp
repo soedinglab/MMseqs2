@@ -11,7 +11,7 @@ int mergedbs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_VARIADIC);
 
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 
     if (par.filenames.size() <= 2) {
@@ -36,9 +36,6 @@ int mergedbs(int argc, const char **argv, const Command& command) {
 
     qdbr.close();
 
-    gettimeofday(&end, NULL);
-    int sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for merging: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-
-    return 0;
+    Debug(Debug::INFO) << "Time for merging: " << Util::formatDuration(start) << "\n";
+    return EXIT_SUCCESS;
 }

@@ -156,7 +156,7 @@ int concatdbs(int argc, const char **argv, const Command& command) {
     omp_set_num_threads(par.threads);
 #endif
 
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 
     int datamode = DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX;
@@ -170,9 +170,7 @@ int concatdbs(int argc, const char **argv, const Command& command) {
         FileUtil::copyFile((par.db2 + ".dbtype").c_str(), (par.db3 + ".dbtype").c_str());
     }
 
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for concatenating DBs: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for concatenating DBs: " << Util::formatDuration(start) << "\n";
 
     return EXIT_SUCCESS;
 }

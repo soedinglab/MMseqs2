@@ -370,8 +370,7 @@ void ClusteringAlgorithms::greedyIncremental(unsigned int **elementLookupTable, 
 void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
                                              unsigned short **scoreLookupTable, unsigned short *&scores,
                                              size_t *elementOffsets, size_t totalElementCount) {
-    //time
-    struct timeval start, end;
+    struct timeval start;
     gettimeofday(&start, NULL);
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
@@ -427,10 +426,6 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     }
 
     memcpy(elementOffsets, newElementOffsets, sizeof(size_t) * (dbSize + 1));
-    delete [] newElementOffsets;
-    //time
-    gettimeofday(&end, NULL);
-    size_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for Read in: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
+    delete[] newElementOffsets;
+    Debug(Debug::INFO) << "\nTime for read in: " << Util::formatDuration(start) << "\n";
 }
