@@ -98,18 +98,22 @@ int doswap(Parameters& par, bool isGeneralMode) {
         Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
         DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex);
         resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-        //search for the maxTargetId (value of first column) in parallel 
-        char *resultDbEntry[1000];
-#pragma omp parallel for schedule(dynamic, 100) reduction(max:maxTargetId)
-        for (size_t id = 0; id < resultReader.getSize(); id++) {
-            Debug::printProgress(id);
-            char *resultDbRecord = resultReader.getData(id);
-            while (*resultDbRecord != '\0') {
-                unsigned int currTargetId = Util::fast_atoi<int>(resultDbEntry[0]);
-                maxTargetId = std::max(maxTargetId, currTargetId);
-                resultDbRecord = Util::skipLine(resultDbRecord);
+        //search for the maxTargetId (value of first column) in parallel
+#pragma omp parallel
+        {
+            char key[255];
+#pragma omp for schedule(dynamic, 100) reduction(max:maxTargetId)
+            for (size_t i = 0; i < resultReader.getSize(); ++i) {
+                Debug::printProgress(i);
+                char *data = resultReader.getData(i);
+                while (*data != '\0') {
+                    Util::parseKey(data, key);
+                    unsigned int dbKey = std::strtoul(key, NULL, 10);
+                    maxTargetId = std::max(maxTargetId, dbKey);
+                    data = Util::skipLine(data);
+                }
             }
-        }
+        };
         resultReader.close();
     } else {
         Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
