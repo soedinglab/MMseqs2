@@ -466,9 +466,10 @@ std::string Util::formatDuration(struct timeval start) {
 
 std::string Util::formatDuration(struct timeval end, struct timeval start) {
     std::ostringstream ss;
-    time_t sec = end.tv_sec - start.tv_sec;
-    time_t usec = (end.tv_usec - start.tv_usec) / 1000;
-    ss << (sec / 3600) << "h " << (sec % 3600 / 60) << "m " << (sec % 60) << "s " << usec << "ms";
+    double timediff = (end.tv_sec - start.tv_sec) + 1e-6 * (end.tv_usec - start.tv_usec);
+    time_t sec = (time_t)timediff;
+    time_t msec = (time_t)((timediff - sec) * 1e3);
+    ss << (sec / 3600) << "h " << (sec % 3600 / 60) << "m " << (sec % 60) << "s " << msec << "ms";
     return ss.str();
 }
 
