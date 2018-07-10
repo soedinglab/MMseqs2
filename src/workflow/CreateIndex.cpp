@@ -29,23 +29,32 @@ int createindex(int argc, const char **argv, const Command& command) {
     }
 
     int dbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
-    if(dbType == -1){
+    if (dbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
-        EXIT(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
-    if (dbType == Sequence::HMM_PROFILE && sensitivity == false){
+    if (dbType == Sequence::HMM_PROFILE && sensitivity == false) {
         Debug(Debug::ERROR) << "Please adjust the sensitivity of your target profile index with -s.\n"
                                "Be aware that this searches can take huge amount of memory. \n";
-        EXIT(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
+    if (FileUtil::directoryExists(par.db2.c_str())==false) {
+        Debug(Debug::INFO) << "Tmp " << par.db2 << " folder does not exist or is not a directory.\n";
+        if (FileUtil::makeDir(par.db2.c_str()) == false) {
+            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db2 << ".\n";
+            return EXIT_FAILURE;
+        } else {
+            Debug(Debug::INFO) << "Created dir " << par.db2 << "\n";
+        }
+    }
     size_t hash = par.hashParameter(par.filenames, par.createindex);
     std::string tmpDir = par.db2 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
     }
     par.filenames.pop_back();
