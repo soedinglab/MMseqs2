@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <sstream>
-#include <sys/time.h>
 
 #include "MsaFilter.h"
 #include "Parameters.h"
@@ -491,16 +490,11 @@ int result2msa(int argc, const char **argv, const Command &command) {
     par.pca = 0.0;
     par.parseParameters(argc, argv, command, 4);
 
-    struct timeval start;
-    gettimeofday(&start, NULL);
-
 #ifdef HAVE_MPI
     int status = result2msa(par, MMseqsMPI::rank, MMseqsMPI::numProc);
 #else
     int status = result2msa(par);
 #endif
-
-    Debug(Debug::INFO) << "Time for processing: " << Util::formatDuration(start) << "\n";
 
     return status;
 }

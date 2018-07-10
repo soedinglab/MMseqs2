@@ -1,12 +1,3 @@
-//
-// Created by Martin Steinegger on 2/25/16.
-//
-
-#include <limits>
-#include <string>
-#include <vector>
-#include <iomanip>
-#include <algorithm>
 #include "Indexer.h"
 #include "ReducedMatrix.h"
 #include "DBWriter.h"
@@ -17,14 +8,20 @@
 #include "Debug.h"
 #include "DBReader.h"
 #include "omptl/omptl_algorithm"
-#include <sys/time.h>
 #include "MathUtil.h"
 #include "FileUtil.h"
-#include <tantan.h>
-#include <queue>
-#include <NucleotideMatrix.h>
+#include "NucleotideMatrix.h"
 #include "QueryMatcher.h"
 #include "FileUtil.h"
+#include "Timer.h"
+#include "tantan.h"
+
+#include <limits>
+#include <string>
+#include <vector>
+#include <iomanip>
+#include <algorithm>
+#include <queue>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -325,8 +322,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-    struct timeval start;
-    gettimeofday(&start, NULL);
 
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());
@@ -393,20 +388,19 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             hashSeqPair[i].kmer = SIZE_T_MAX;
         }
 
-        struct timeval starttmp;
-        gettimeofday(&starttmp, NULL);
+        Timer timer;
         size_t elementsToSort = fillKmerPositionArray(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, splits, split);
-        Debug(Debug::INFO) << "\nTime for fill: " << Util::formatDuration(starttmp) << "\n";
+        Debug(Debug::INFO) << "\nTime for fill: " << timer.lap() << "\n";
         if(splits == 1){
             seqDbr.unmapData();
         }
         Debug(Debug::INFO) << "Done." << "\n";
         Debug(Debug::INFO) << "Sort kmer ... ";
-        gettimeofday(&starttmp, NULL);
+        timer.reset();
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
         //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, KmerComparision());
         Debug(Debug::INFO) << "Done." << "\n";
-        Debug(Debug::INFO) << "Time for sort: " << Util::formatDuration(starttmp) << "\n";
+        Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
         size_t writePos = 0;
@@ -463,11 +457,11 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         }
         // sort by rep. sequence (stored in kmer) and sequence id
         Debug(Debug::INFO) << "Sort by rep. sequence ... ";
-        gettimeofday(&starttmp, NULL);
+        timer.reset();
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
         //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
         Debug(Debug::INFO) << "Done\n";
-        Debug(Debug::INFO) << "Time for sort: " << Util::formatDuration(starttmp) << "\n";
+        Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
 
         if(splits > 1){
             std::string splitFile = par.db2 + "_split_" +SSTR(split);
@@ -484,15 +478,15 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     // write result
     DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), par.threads);
     dbw.open();
-    struct timeval starttmp;
-    gettimeofday(&starttmp, NULL);
+    
+    Timer timer;
     if(splits > 1) {
         seqDbr.unmapData();
         mergeKmerFilesAndOutput(seqDbr, dbw, splitFiles, repSequence, par.covMode, par.cov);
     } else {
         writeKmerMatcherResult(seqDbr, dbw, hashSeqPair, totalKmers, repSequence, par.covMode, par.cov, par.threads);
     }
-    Debug(Debug::INFO) << "Time for fill: " << Util::formatDuration(starttmp) << "\n";
+    Debug(Debug::INFO) << "Time for fill: " << timer.lap() << "\n";
     // add missing entries to the result (needed for clustering)
 
     {
@@ -521,7 +515,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     seqDbr.close();
     dbw.close();
 
-    Debug(Debug::INFO) << "Time for processing: " << Util::formatDuration(start) << "\n";
     return EXIT_SUCCESS;
 }
 

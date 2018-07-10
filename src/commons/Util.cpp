@@ -6,7 +6,6 @@
 #include "SubstitutionMatrix.h"
 #include "Sequence.h"
 #include "Parameters.h"
-#include <sys/time.h>
 #include <sys/resource.h>
 
 #include <unistd.h>
@@ -456,21 +455,6 @@ std::map<std::string, unsigned int> Util::readLookupReverse(const std::string& f
     }
 
     return mapping;
-}
-
-std::string Util::formatDuration(struct timeval start) {
-    struct timeval end;
-    gettimeofday(&end, NULL);
-    return Util::formatDuration(end, start);
-}
-
-std::string Util::formatDuration(struct timeval end, struct timeval start) {
-    std::ostringstream ss;
-    double timediff = (end.tv_sec - start.tv_sec) + 1e-6 * (end.tv_usec - start.tv_usec);
-    time_t sec = (time_t)timediff;
-    time_t msec = (time_t)((timediff - sec) * 1e3);
-    ss << (sec / 3600) << "h " << (sec % 3600 / 60) << "m " << (sec % 60) << "s " << msec << "ms";
-    return ss.str();
 }
 
 int Util::omp_thread_count() {

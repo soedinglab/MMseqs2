@@ -3,8 +3,8 @@
 #include "Debug.h"
 #include "Parameters.h"
 #include "Util.h"
-#include <sys/time.h>
-#include <itoa.h>
+#include "itoa.h"
+#include "Timer.h"
 
 Clustering::Clustering(const std::string &seqDB, const std::string &seqDBIndex,
                        const std::string &alnDB, const std::string &alnDBIndex,
@@ -33,8 +33,7 @@ Clustering::~Clustering() {
 
 
 void Clustering::run(int mode) {
-    struct timeval start;
-    gettimeofday(&start, NULL);
+    Timer timer;
 
     DBWriter *dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), 1);
     dbw->open();
@@ -64,7 +63,7 @@ void Clustering::run(int mode) {
     Debug(Debug::INFO) << "Writing results...\n";
     writeData(dbw, ret);
     Debug(Debug::INFO) << "...done.\n";
-    Debug(Debug::INFO) << "Time for clustering: " << Util::formatDuration(start) << "\n";
+    Debug(Debug::INFO) << "Time for clustering: " << timer.lap() << "\n";
 
     delete algorithm;
 
@@ -77,7 +76,7 @@ void Clustering::run(int mode) {
     dbw->close();
     delete dbw;
 
-    Debug(Debug::INFO) << "Total time: " << Util::formatDuration(start) << "\n";
+    Debug(Debug::INFO) << "Total time: " << timer.lap() << "\n";
     Debug(Debug::INFO) << "\nSize of the sequence database: " << seqDbSize << "\n";
     Debug(Debug::INFO) << "Size of the alignment database: " << dbSize << "\n";
     Debug(Debug::INFO) << "Number of clusters: " << cluNum << "\n";

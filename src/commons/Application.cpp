@@ -2,6 +2,7 @@
 #include "Util.h"
 #include "Command.h"
 #include "DistanceCalculator.h"
+#include "Timer.h"
 
 #include <CpuInfo.h>
 #include <iomanip>
@@ -49,7 +50,10 @@ int getCommandIndex(const char *s) {
 }
 
 int runCommand(const Command &p, int argc, const char **argv) {
-    return p.commandFunction(argc, argv, p);
+    Timer timer;
+    int status = p.commandFunction(argc, argv, p);
+    Debug(Debug::INFO) << "Time for processing: " << timer.lap() << "\n";
+    return status;
 }
 
 void printUsage(bool showExtended) {

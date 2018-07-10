@@ -48,7 +48,7 @@ int easysearch(int argc, const char **argv, const Command &command) {
         Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db4 << ".\n";
-            EXIT(EXIT_FAILURE);
+            return EXIT_FAILURE;
         } else {
             Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
         }
@@ -60,7 +60,7 @@ int easysearch(int argc, const char **argv, const Command &command) {
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
             Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
     }
     par.filenames.pop_back();

@@ -7,11 +7,10 @@
 #include "DBWriter.h"
 #include "QueryMatcher.h"
 #include "QueryMatcher.h"
+#include "NucleotideMatrix.h"
 
 #include <string>
 #include <vector>
-#include <sys/time.h>
-#include <NucleotideMatrix.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -21,8 +20,6 @@
 
 int alignall(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
-    struct timeval start;
-    gettimeofday(&start, NULL);
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 #ifdef OPENMP
@@ -153,7 +150,6 @@ int alignall(int argc, const char **argv, const Command &command) {
         delete tdbr;
     }
 
-    Debug(Debug::INFO) << "Time for diagonal calculation: " << Util::formatDuration(start) << "\n";
     return EXIT_SUCCESS;
 }
 

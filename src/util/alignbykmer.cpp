@@ -12,7 +12,6 @@
 
 #include <string>
 #include <vector>
-#include <sys/time.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -25,8 +24,6 @@ void setAlignByKmerDefaults(Parameters *p) {
 
 int alignbykmer(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
-    struct timeval start;
-    gettimeofday(&start, NULL);
     Parameters &par = Parameters::getInstance();
     setAlignByKmerDefaults(&par);
     par.parseParameters(argc, argv, command, 4);
@@ -490,7 +487,6 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         delete tdbr;
     }
 
-    Debug(Debug::INFO) << "Time for diagonal calculation: " << Util::formatDuration(start) << "\n";
     return EXIT_SUCCESS;
 }
 

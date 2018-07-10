@@ -15,7 +15,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
         in = new igzstream(par.db1.c_str());
 #else
         Debug(Debug::ERROR) << "MMseqs2 was not compiled with zlib support. Can not read compressed input!\n";
-        EXIT(EXIT_FAILURE);
+        return EXIT_FAILURE;
 #endif
     } else {
         in = new std::ifstream(par.db1);
@@ -24,7 +24,7 @@ int convertmsa(int argc, const char **argv, const Command &command) {
 
     if (in->fail()) {
         Debug(Debug::ERROR) << "File " << par.db1 << " not found!\n";
-        EXIT(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     DBWriter writer(par.db2.c_str(), par.db2Index.c_str());

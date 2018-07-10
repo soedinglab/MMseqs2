@@ -4,15 +4,9 @@
 #include "Parameters.h"
 #include "Util.h"
 
-#include <sys/time.h>
-
-
 int mergedbs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2, true, Parameters::PARSE_VARIADIC);
-
-    struct timeval start;
-    gettimeofday(&start, NULL);
 
     if (par.filenames.size() <= 2) {
         Debug(Debug::ERROR) << "Not enough databases for merging passed!\n";
@@ -36,6 +30,5 @@ int mergedbs(int argc, const char **argv, const Command& command) {
 
     qdbr.close();
 
-    Debug(Debug::INFO) << "Time for merging: " << Util::formatDuration(start) << "\n";
     return EXIT_SUCCESS;
 }

@@ -4,8 +4,6 @@
 #include "Util.h"
 #include "MMseqsMPI.h"
 
-#include <sys/time.h>
-
 #ifdef OPENMP
 #include <omp.h>
 #endif
@@ -16,9 +14,6 @@ int align(int argc, const char **argv, const Command& command) {
 
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4, true, 0, MMseqsParameter::COMMAND_ALIGN);
-
-    struct timeval start;
-    gettimeofday(&start, NULL);
 
     Debug(Debug::INFO) << "Init data structures...\n";
     Alignment aln(par.db1, par.db1Index, par.db2, par.db2Index,
@@ -32,9 +27,7 @@ int align(int argc, const char **argv, const Command& command) {
     aln.run(par.maxAccept, par.maxRejected);
 #endif
 
-    Debug(Debug::INFO) << "Time for alignments calculation: " << Util::formatDuration(start) << "\n";
- 
-    EXIT(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }
 
 

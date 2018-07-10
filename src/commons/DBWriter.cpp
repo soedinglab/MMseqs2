@@ -5,11 +5,11 @@
 #include "FileUtil.h"
 #include "Concat.h"
 #include "itoa.h"
+#include "Timer.h"
 
 #include <cstdlib>
 #include <cstdio>
 #include <sstream>
-#include <sys/time.h>
 #include <unistd.h>
 
 #ifdef OPENMP
@@ -365,8 +365,7 @@ void DBWriter::writeIndex(FILE *outFile, size_t indexSize, DBReader<std::string>
 void DBWriter::mergeResults(const char *outFileName, const char *outFileNameIndex,
                             const char **dataFileNames, const char **indexFileNames,
                             const unsigned long fileCount, const bool lexicographicOrder) {
-    struct timeval start;
-    gettimeofday(&start, NULL);
+    Timer timer;
     // merge results from each thread into one result file
     if (fileCount > 1) {
         FILE *outFile = fopen(outFileName, "w");
@@ -457,7 +456,7 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         indexReader.close();
     }
 
-    Debug(Debug::INFO) << "Time for merging files: " << Util::formatDuration(start) << "\n";
+    Debug(Debug::INFO) << "Time for merging files: " << timer.lap() << "\n";
 }
 
 void DBWriter::mergeFilePair(const std::vector<std::pair<std::string, std::string>> fileNames) {

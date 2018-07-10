@@ -9,11 +9,10 @@
 #include "CovSeqidQscPercMinDiag.out.h"
 #include "CovSeqidQscPercMinDiagTargetCov.out.h"
 #include "QueryMatcher.h"
+#include "NucleotideMatrix.h"
 
 #include <string>
 #include <vector>
-#include <sys/time.h>
-#include <NucleotideMatrix.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -49,8 +48,6 @@ float parsePrecisionLib(std::string scoreFile, double targetSeqid, double target
 
 int rescorediagonal(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
-    struct timeval start;
-    gettimeofday(&start, NULL);
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 #ifdef OPENMP
@@ -299,8 +296,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         tdbr->close();
         delete tdbr;
     }
-
-    Debug(Debug::INFO) << "Time for diagonal calculation: " << Util::formatDuration(start) << "\n";
     return EXIT_SUCCESS;
 }
 

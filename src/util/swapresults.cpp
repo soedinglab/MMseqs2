@@ -88,9 +88,6 @@ int doswap(Parameters& par, bool isGeneralMode) {
     std::string parOutDbStr(parOutDb);
     std::string parOutDbIndexStr(parOutDbIndex);
 
-    struct timeval start;
-    gettimeofday(&start, NULL);
-
     size_t aaResSize = 0;
     unsigned int maxTargetId = 0;
     char *targetElementExists = NULL;
@@ -362,7 +359,6 @@ int doswap(Parameters& par, bool isGeneralMode) {
         delete[] targetElementExists;
     }
     delete[] targetElementSize;
-    Debug(Debug::INFO) << "Time for swapping: " << Util::formatDuration(start) << "\n";
     return EXIT_SUCCESS;
 }
 

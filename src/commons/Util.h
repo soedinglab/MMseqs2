@@ -274,10 +274,6 @@ public:
         return h;
     }
 
-    static std::string formatDuration(struct timeval start);
-
-    static std::string formatDuration(struct timeval end, struct timeval start);
-
     static int omp_thread_count();
 
     static std::string removeWhiteSpace(std::string in);
