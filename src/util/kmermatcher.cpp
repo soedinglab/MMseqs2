@@ -147,17 +147,9 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                              size_t splits, size_t split){
     size_t offset = 0;
     int querySeqType  =  seqDbr.getDbtype();
-    double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
-    const double *probMatrixPointers[subMat->alphabetSize];
-    char hardMaskTable[256];
+    ProbabilityMatrix *probMatrix = NULL;
     if (par.maskMode == 1) {
-        std::fill_n(hardMaskTable, 256, subMat->aa2int[(int) 'X']);
-        for (int i = 0; i < subMat->alphabetSize; ++i) {
-            probMatrixPointers[i] = probMatrix[i];
-            for (int j = 0; j < subMat->alphabetSize; ++j) {
-                probMatrix[i][j] = subMat->probMatrix[i][j] / (subMat->pBack[i] * subMat->pBack[j]);
-            }
-        }
+        probMatrix = new ProbabilityMatrix(*subMat);
     }
 
     struct SequencePosition{
@@ -207,12 +199,12 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                     tantan::maskSequences(charSequence,
                                           charSequence + seq.L,
                                           50 /*options.maxCycleLength*/,
-                                          probMatrixPointers,
+                                          probMatrix->probMatrixPointers,
                                           0.005 /*options.repeatProb*/,
                                           0.05 /*options.repeatEndProb*/,
                                           0.5 /*options.repeatOffsetProbDecay*/,
                                           0, 0,
-                                          0.5 /*options.minMaskProb*/, hardMaskTable);
+                                          0.5 /*options.minMaskProb*/, probMatrix->hardMaskTable);
                     for (int i = 0; i < seq.L; i++) {
                         seq.int_sequence[i] = charSequence[i];
                     }
@@ -299,6 +291,10 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
         delete [] kmers;
         delete [] charSequence;
         delete [] threadKmerBuffer;
+    }
+
+    if (probMatrix != NULL) {
+        delete probMatrix;
     }
     return offset;
 }
