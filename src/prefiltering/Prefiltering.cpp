@@ -437,7 +437,8 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
     SequenceLookup **maskedLookup   = maskMode == 1 ? &sequenceLookup : NULL;
     SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
-
+    
+    Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << "\n";
     IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *subMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr);
 
     if (diagonalScoring == false) {
