@@ -504,7 +504,7 @@ std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, u
                                UngappedAlignment *align, int lowerBoundScore) {
     size_t elements = 0;
     unsigned char query[querySeq->L];
-    for(size_t pos = 0; pos < querySeq->L; pos++ ){
+    for(int pos = 0; pos < querySeq->L; pos++ ){
         query[pos] = static_cast<unsigned char>(querySeq->int_sequence[pos]);
     }
     int maxSelfScore = align->scoreSingleSequence(std::make_pair(static_cast<const unsigned char*>(query),querySeq->L), 0,0);
@@ -512,7 +512,7 @@ std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, u
     maxSelfScore = (maxSelfScore-lowerBoundScore);
     maxSelfScore = std::max(1, maxSelfScore);
     float fltMaxSelfScore = static_cast<float>(maxSelfScore);
-    for (size_t i = 0; i < resultSize && results[i].count >= lowerBoundScore; i++) {
+    for (int i = 0; i < resultSize && results[i].count >= lowerBoundScore; i++) {
         unsigned int newScore = align->scoreSingelSequenceByCounterResult(results[i]);
         newScore -= lowerBoundScore;
         float score = static_cast<float>(std::min(newScore, static_cast<unsigned int>(USHRT_MAX)));

@@ -1,11 +1,12 @@
 #include "Parameters.h"
 #include "Sequence.h"
 #include "Util.h"
-#include <unistd.h>
 #include "DistanceCalculator.h"
+#include "Debug.h"
 
 #include <iomanip>
 #include <regex.h>
+#include <unistd.h>
 
 #ifdef __CYGWIN__
 #include <sys/cygwin.h>
@@ -57,6 +58,7 @@ Parameters::Parameters():
         PARAM_ADD_BACKTRACE(PARAM_ADD_BACKTRACE_ID, "-a", "Add backtrace", "add backtrace string (convert to alignments with mmseqs convertalis utility)", typeid(bool), (void *) &addBacktrace, "", MMseqsParameter::COMMAND_ALIGN),
         PARAM_REALIGN(PARAM_REALIGN_ID, "--realign", "Realign hit", "compute more conservative, shorter alignments (scores and E-values not changed)", typeid(bool), (void *) &realign, "", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_MIN_SEQ_ID(PARAM_MIN_SEQ_ID_ID,"--min-seq-id", "Seq. Id Threshold","list matches above this sequence identity (for clustering) [0.0,1.0]",typeid(float), (void *) &seqIdThr, "^0(\\.[0-9]+)?|1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN),
+	PARAM_SCORE_BIAS(PARAM_SCORE_BIAS_ID,"--score-bias", "Score bias", "Score bias when computing the SW alignment (in bits)",typeid(float), (void *) &scoreBias, "^-?[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_ALT_ALIGNMENT(PARAM_ALT_ALIGNMENT_ID,"--alt-ali", "Alternative alignments","Show up to this many alternative alignments",typeid(int), (void *) &altAlignment, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_ALIGN),
 
         // clustering
@@ -107,12 +109,13 @@ Parameters::Parameters():
         // sequence2profile
         PARAM_NEFF(PARAM_NEFF_ID, "--neff", "Neff", "Neff included into context state profile (1.0,20.0)", typeid(float), (void*) &neff, "^[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
         PARAM_TAU(PARAM_TAU_ID, "--tau", "Tau", "Tau: context state pseudo count mixture (0.0,1.0)", typeid(float), (void*) &tau, "[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_PROFILE),
-        //createtesv
+        //createtsv
+        PARAM_TARGET_COLUMN(PARAM_TARGET_COLUMN_ID, "--target-column", "Target column", "Select a target column",typeid(int),(void *) &targetTsvColumn, "^[0-9]*$"),
         PARAM_FIRST_SEQ_REP_SEQ(PARAM_FIRST_SEQ_REP_SEQ_ID, "--first-seq-as-repr", "first sequence as respresentative", "Use the first sequence of the clustering result as representative sequence", typeid(bool), (void*) &firstSeqRepr, "", MMseqsParameter::COMMAND_MISC),
+        PARAM_FULL_HEADER(PARAM_FULL_HEADER_ID, "--full-header", "Add Full Header", "Replace DB ID by its corresponding Full Header", typeid(bool), (void*) &fullHeader, ""),
         // result2stats
         PARAM_STAT(PARAM_STAT_ID, "--stat", "Statistics to be computed", "can be one of: linecount, mean, doolittle, charges, seqlen, firstline.", typeid(std::string), (void*) &stat, ""),
-        PARAM_PRINTKEY(PARAM_PRINTKEY_ID, "--print-key", "Prefix the key to the stat", "For every stat line, prefix the key in the result file.", typeid(bool), (void*) &printKey, ""),
-        
+
         // linearcluster
         PARAM_KMER_PER_SEQ(PARAM_KMER_PER_SEQ_ID, "--kmer-per-seq", "Kmer per sequence", "kmer per sequence", typeid(int), (void*) &kmersPerSequence, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_INCLUDE_ONLY_EXTENDABLE(PARAM_INCLUDE_ONLY_EXTENDABLE_ID, "--include-only-extendable", "Include only extendable", "Include only extendable", typeid(bool), (void*) &includeOnlyExtendable, "", MMseqsParameter::COMMAND_CLUSTLINEAR),
@@ -163,11 +166,13 @@ Parameters::Parameters():
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0) no sorting, 1) increasing,  2) decreasing or 3) random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
-        PARAM_SWAP_SEARCH_FIELDS(PARAM_SWAP_SEARCH_FIELDS_ID, "--swap-fields", "Swap fields of search results", "Replace positions of hits of the query on the target by its position on the target genome", typeid(std::string), (void*) &swapFields, ""),
+        PARAM_COMPUTE_POSITIONS(PARAM_COMPUTE_POSITIONS_ID, "--compute-positions", "Compute Positions", "Add the positions of he hit on the target genome", typeid(std::string), (void*) &compPos, ""),
         PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
         //aggregate
         PARAM_MODE(PARAM_MODE_ID, "--mode", "Aggregation Mode", "Choose wich of aggregation to launch : bestHit/pval", typeid(std::string), (void*) &mode, ""),
         PARAM_SET_COLUMN(PARAM_SET_COLUMN_ID, "--set-column", "Set Column", "Change default Set Column", typeid(int), (void*) &setColumn, ""),
+        PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining pvalues", typeid(float), (void*) &alpha, ""),
+        PARAM_SIMPLE_BEST_HIT_MODE(PARAM_SIMPLE_BEST_HIT_MODE_ID, "--simple-best-hit", "Output the best evalue", "Othw, output a ortholog-corrected pvalue", typeid(bool), (void*) &simpleBestHitMode, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
@@ -218,6 +223,7 @@ Parameters::Parameters():
     align.push_back(PARAM_EARLY_EXIT);
     align.push_back(PARAM_PCA);
     align.push_back(PARAM_PCB);
+    align.push_back(PARAM_SCORE_BIAS);
     align.push_back(PARAM_THREADS);
     align.push_back(PARAM_V);
 
@@ -351,10 +357,11 @@ Parameters::Parameters():
     
     // createtsv
     createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);
+    createtsv.push_back(PARAM_TARGET_COLUMN);
+    createtsv.push_back(PARAM_FULL_HEADER);
 
     //result2stats
     result2stats.push_back(PARAM_STAT);
-    result2stats.push_back(PARAM_PRINTKEY);
     result2stats.push_back(PARAM_THREADS);
     result2stats.push_back(PARAM_V);
 
@@ -510,13 +517,15 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_SORT_ENTRIES);
     filterDb.push_back(PARAM_INCLUDE_IDENTITY);
     filterDb.push_back(PARAM_JOIN_DB);
-    filterDb.push_back(PARAM_SWAP_SEARCH_FIELDS) ;
+    filterDb.push_back(PARAM_COMPUTE_POSITIONS) ;
     filterDb.push_back(PARAM_TRANSITIVE_REPLACE) ;
 
     //aggregate
     aggregate.push_back(PARAM_MODE) ;
     aggregate.push_back(PARAM_THREADS) ;
     aggregate.push_back(PARAM_SET_COLUMN) ;
+    aggregate.push_back(PARAM_ALPHA) ;
+    aggregate.push_back(PARAM_SIMPLE_BEST_HIT_MODE);
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);
 
@@ -525,10 +534,12 @@ Parameters::Parameters():
     swapresult.push_back(PARAM_E);
     swapresult.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     swapresult.push_back(PARAM_THREADS);
+    swapresult.push_back(PARAM_V);
 
     // swap results
     swapdb.push_back(PARAM_SPLIT_MEMORY_LIMIT);
     swapdb.push_back(PARAM_THREADS);
+    swapdb.push_back(PARAM_V);
 
     // subtractdbs
     subtractdbs.push_back(PARAM_THREADS);
@@ -562,7 +573,7 @@ Parameters::Parameters():
 
 
     // mergedbs
-    mergedbs.push_back(PARAM_BY_DB) ;
+    mergedbs.push_back(PARAM_BY_DB);
     mergedbs.push_back(PARAM_MERGE_PREFIXES);
     mergedbs.push_back(PARAM_V);
 
@@ -1020,7 +1031,7 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
 void Parameters::printParameters(int argc, const char* pargv[],
                                  const std::vector<MMseqsParameter> &par){
-    if (Debug::debugLevel < 3) {
+    if (Debug::debugLevel < Debug::INFO) {
         return;
     }
 
@@ -1113,6 +1124,7 @@ void Parameters::setDefaults() {
     resListOffset = 0;
     noPreload = false;
     earlyExit = false;
+    scoreBias = 0.0;
 
     // affinity clustering
     maxIteration=1000;
@@ -1130,7 +1142,7 @@ void Parameters::setDefaults() {
     removeTmpFiles = false;
 
     //mergeclusters
-    byDB = 0 ;
+    byDB = 0;
 
     // convertprofiledb
     profileMode = PROFILE_MODE_HMM;
@@ -1233,7 +1245,10 @@ void Parameters::setDefaults() {
     
 
     //aggregate
-    setColumn = 9 ;
+    setColumn = 9;
+    alpha = 0.001;
+    simpleBestHitMode  = false;
+
 
     // concatdbs
     preserveKeysB = false;
@@ -1269,10 +1284,11 @@ void Parameters::setDefaults() {
 
     // result2stats
     stat = "";
-    printKey = false;
 
     // createtsv
     firstSeqRepr = false;
+    fullHeader = false;
+    targetTsvColumn = 0;
 
     // lca
     lcaRanks = "";

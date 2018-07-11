@@ -1,14 +1,5 @@
 // Computes PSSMs from clustering or alignment result
 // MMseqs just stores the position specific score in 1 byte
-
-#include <string>
-#include <vector>
-#include <sstream>
-#include <sys/time.h>
-#include <algorithm>
-#include <utility>
-#include <tantan.h>
-
 #include "MsaFilter.h"
 #include "Parameters.h"
 #include "PSSMCalculator.h"
@@ -18,6 +9,13 @@
 #include "Util.h"
 #include "PrefilteringIndexReader.h"
 #include "FileUtil.h"
+
+#include <string>
+#include <vector>
+#include <sstream>
+#include <algorithm>
+#include <utility>
+#include <tantan.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -133,11 +131,11 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
 
     if (qDbr->getDbtype() == -1 || targetSeqType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
-        EXIT(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     if (qDbr->getDbtype() == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE){
         Debug(Debug::ERROR) << "Only the query OR the target database can be a profile database.\n";
-        EXIT(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     Debug(Debug::INFO) << "Query database type: " << qDbr->getDbTypeName() << "\n";
     Debug(Debug::INFO) << "Target database type: " << DBReader<unsigned int>::getDbTypeName(targetSeqType) << "\n";
@@ -390,10 +388,6 @@ int result2profile(int argc, const char **argv, const Command &command) {
     par.pca = 0.0;
     par.parseParameters(argc, argv, command, 4);
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-
-
     DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -417,11 +411,6 @@ int result2profile(int argc, const char **argv, const Command &command) {
     }
 
     resultReader.close();
-
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "
-                          << (sec % 60) << "s\n";
 
     return status;
 }

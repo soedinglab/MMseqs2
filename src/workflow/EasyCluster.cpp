@@ -33,12 +33,12 @@ int easycluster(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 3);
 
     if (FileUtil::directoryExists(par.db3.c_str()) == false) {
-        Debug(Debug::WARNING) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
+        Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db3.c_str()) == false) {
-            Debug(Debug::WARNING) << "Could not crate tmp folder " << par.db3 << ".\n";
+            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db3 << ".\n";
             EXIT(EXIT_FAILURE);
         } else {
-            Debug(Debug::WARNING) << "Created dir " << par.db3 << "\n";
+            Debug(Debug::INFO) << "Created dir " << par.db3 << "\n";
         }
     }
 
@@ -47,7 +47,7 @@ int easycluster(int argc, const char **argv, const Command &command) {
     std::string tmpDir = par.db3 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
             EXIT(EXIT_FAILURE);
         }
     }
@@ -61,7 +61,9 @@ int easycluster(int argc, const char **argv, const Command &command) {
     }
 
     cmd.addVariable("RUNNER", par.runner.c_str());
-    std::string clusterParam = par.createParameterString(par.clusteringWorkflow,true);
+    std::string createdbParam = par.createParameterString(par.createdb);
+    cmd.addVariable("CREATEDB_PAR", createdbParam.c_str());
+    std::string clusterParam = par.createParameterString(par.clusteringWorkflow, true);
     cmd.addVariable("CLUSTER_PAR", clusterParam.c_str());
 
     FileUtil::writeFile(tmpDir + "/easycluster.sh", easycluster_sh, easycluster_sh_len);

@@ -176,6 +176,7 @@ public:
     size_t resListOffset;                // Offsets result list
     bool   noPreload;                    // Do not preload database into memory
     bool   earlyExit;                    // Exit immediately after writing the result
+    float  scoreBias;			 // Add this bias to the score when computing the alignements
 
     // ALIGNMENT
     int alignmentMode;                   // alignment mode 0=fastest on parameters,
@@ -272,12 +273,12 @@ public:
 
     // createtsv
     bool firstSeqRepr;
-    
+    bool fullHeader;
+    size_t targetTsvColumn;
+
     //result2stats
     std::string stat;
-    bool printKey;
-    
-    
+
     // linearcluster
     int kmersPerSequence;
     bool includeOnlyExtendable;
@@ -323,12 +324,14 @@ public:
     int sortEntries;
     bool beatsFirst;
     std::string joinDB;
-    std::string swapFields ;
+    std::string compPos ;
     std::string clusterFile ;
 
     //aggregate
     std::string mode ;
     int setColumn ;
+    float alpha ;
+    bool simpleBestHitMode;
 
     // mergedbs
     std::string mergePrefixes;
@@ -430,6 +433,7 @@ public:
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
+    PARAMETER(PARAM_SCORE_BIAS)
     PARAMETER(PARAM_ALT_ALIGNMENT)
     std::vector<MMseqsParameter> align;
 
@@ -495,11 +499,12 @@ public:
     PARAMETER(PARAM_TAU)
 
     // createtsv
+    PARAMETER(PARAM_TARGET_COLUMN)
     PARAMETER(PARAM_FIRST_SEQ_REP_SEQ)
-    
+    PARAMETER(PARAM_FULL_HEADER)
+
     // result2stat
     PARAMETER(PARAM_STAT)
-    PARAMETER(PARAM_PRINTKEY)
 
     // linearcluster
     PARAMETER(PARAM_KMER_PER_SEQ)
@@ -566,12 +571,14 @@ public:
     PARAMETER(PARAM_SORT_ENTRIES)
     PARAMETER(PARAM_BEATS_FIRST)
     PARAMETER(PARAM_JOIN_DB)
-    PARAMETER(PARAM_SWAP_SEARCH_FIELDS)
+    PARAMETER(PARAM_COMPUTE_POSITIONS)
     PARAMETER(PARAM_TRANSITIVE_REPLACE)
 
     //aggregate
     PARAMETER(PARAM_MODE)
     PARAMETER(PARAM_SET_COLUMN)
+    PARAMETER(PARAM_ALPHA)
+    PARAMETER(PARAM_SIMPLE_BEST_HIT_MODE)
 
     // concatdb
     PARAMETER(PARAM_PRESERVEKEYS)

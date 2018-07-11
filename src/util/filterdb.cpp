@@ -111,10 +111,10 @@ ffindexFilter::ffindexFilter(Parameters &par) {
         joinDB = new DBReader<unsigned int>(par.joinDB.c_str(), joinIndex.c_str());
         joinDB->open(DBReader<unsigned int>::NOSORT);
         std::cout << "Joining targets to query database.\n";
-    } else if (!par.swapFields.empty()) {
-        mode = SWAP_SEARCH_FIELDS;
-        std::string swapIndex = par.swapFields + ".index";
-        swapDB = new DBReader<unsigned int>(par.swapFields.c_str(), swapIndex.c_str());
+    } else if (!par.compPos.empty()) {
+        mode = COMPUTE_POSITIONS;
+        std::string swapIndex = par.compPos + ".index";
+        swapDB = new DBReader<unsigned int>(par.compPos.c_str(), swapIndex.c_str());
         swapDB->open(DBReader<unsigned int>::NOSORT);
         std::string A = par.db3;
         std::cout << "Swapping fields\n";
@@ -322,34 +322,34 @@ int ffindexFilter::runFilter(){
                     delete [] newLineBuffer;
 
                 }
-                else if (mode == SWAP_SEARCH_FIELDS) { // Optimise it
+                else if (mode == COMPUTE_POSITIONS) {
+				    // Optimise it
                     std::vector<std::string> splittedOriginalLine = Util::split(lineBuffer, "\t");
-                    char  *lineWithNewFields = swapDB->getDataByDBKey(
+                    char *lineWithNewFields = swapDB->getDataByDBKey(
                             static_cast<unsigned int>(strtoul(columnValue, NULL, 10))) ;
                     std::vector<std::string> splittedLineWithNewFields = Util::split(lineWithNewFields, "\t");
-                    std::vector<std::string>::iterator it = splittedOriginalLine.begin() ;
 
-                    unsigned long posStart = std::stoul(splittedOriginalLine[7].c_str())*3 ;
-                    unsigned long posStop = std::stoul(splittedOriginalLine[8].c_str())*3 ;
+                    unsigned long posStart = std::stoul(splittedOriginalLine[7].c_str()) * 3;
+                    unsigned long posStop = std::stoul(splittedOriginalLine[8].c_str()) * 3;
 
                     if (posStart < posStop) {
                         unsigned long startPosHitOnGenome =
-                                std::stoul(splittedLineWithNewFields[7].c_str(), nullptr) + posStart;
+                                std::stoul(splittedLineWithNewFields[7].c_str(), NULL) + posStart;
                         unsigned long endPosHitOnGenome =
-                                std::stoul(splittedLineWithNewFields[7].c_str(), nullptr) + posStop;
+                                std::stoul(splittedLineWithNewFields[7].c_str(), NULL) + posStop;
                         splittedOriginalLine.insert(splittedOriginalLine.begin() + 8,
                                                     std::to_string(startPosHitOnGenome) + "\t");
                         splittedOriginalLine.insert(splittedOriginalLine.begin() + 10,
                                                     std::to_string(endPosHitOnGenome) + "\t");
-                    }else {
+                    } else {
                         unsigned long startPosHitOnGenome =
-                                std::stoul(splittedLineWithNewFields[7].c_str(), nullptr) - posStart;
-                        unsigned long endPosHitOnGenome = std::stoul(splittedLineWithNewFields[7].c_str(), nullptr) - posStop;
+                                std::stoul(splittedLineWithNewFields[7].c_str(), NULL) - posStart;
+                        unsigned long endPosHitOnGenome = std::stoul(splittedLineWithNewFields[7].c_str(), NULL) - posStop;
                         splittedOriginalLine.insert(splittedOriginalLine.begin() + 8, std::to_string(startPosHitOnGenome) + "\t");
                         splittedOriginalLine.insert(splittedOriginalLine.begin() + 10, std::to_string(endPosHitOnGenome) + "\t");
                     }
                     std::string tempBuffer = "" ;
-                    for (std::vector<std::string>::iterator i=splittedOriginalLine.begin() ; i!=splittedOriginalLine.end() ; ++i) {
+                    for (std::vector<std::string>::const_iterator i = splittedOriginalLine.begin(); i != splittedOriginalLine.end(); ++i) {
                         tempBuffer.append(*i);
                         tempBuffer.append("\t");
                     }

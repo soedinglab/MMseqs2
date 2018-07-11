@@ -28,6 +28,7 @@ set(commons_header_files
         commons/SubstitutionMatrixProfileStates.h
         commons/tantan.h
         commons/TranslateNucl.h
+        commons/Timer.h
         commons/UniprotKB.h
         commons/Util.h
         PARENT_SCOPE

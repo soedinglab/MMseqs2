@@ -10,8 +10,6 @@
 #include <omp.h>
 #endif
 
-#include <sys/time.h>
-
 int doExtractAlignedRegion(Parameters &par) {
     DBReader<unsigned int> *qdbr = NULL;
     DBReader<unsigned int> *tdbr = NULL;
@@ -105,14 +103,8 @@ int extractalignedregion(int argc, const char **argv, const Command& command) {
 
     // never allow deletions
     par.allowDeletion = false;
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
 
     int retCode = doExtractAlignedRegion(par);
-
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
     return retCode;
 }

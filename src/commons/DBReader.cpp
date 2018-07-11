@@ -20,26 +20,27 @@
 template <typename T>
 DBReader<T>::DBReader(const char* dataFileName_, const char* indexFileName_, int dataMode) :
         data(NULL), dataMode(dataMode), dataFileName(strdup(dataFileName_)),
-        indexFileName(strdup(indexFileName_)), size(0), dataSize(0), aaDbSize(0), closed(1), dbtype(-1),
+        indexFileName(strdup(indexFileName_)), size(0), dataSize(0), aaDbSize(0), lastKey(T()), closed(1), dbtype(-1),
         index(NULL), seqLens(NULL), id2local(NULL), local2id(NULL),
-        lastKey(T()), dataMapped(false), accessType(0), externalData(false), didMlock(false)
+        dataMapped(false), accessType(0), externalData(false), didMlock(false)
 {}
 
 template <typename T>
-DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize) :
+DBReader<T>::DBReader(DBReader<T>::Index *index, unsigned int *seqLens, size_t size, size_t aaDbSize, T lastKey) :
         data(NULL), dataMode(USE_INDEX), dataFileName(NULL), indexFileName(NULL),
-        size(size), dataSize(0), aaDbSize(aaDbSize), closed(1), dbtype(-1),
+        size(size), dataSize(0), aaDbSize(aaDbSize), lastKey(lastKey), closed(1), dbtype(-1),
         index(index), seqLens(seqLens), id2local(NULL), local2id(NULL),
-        lastKey(T()), dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
+        dataMapped(false), accessType(NOSORT), externalData(true), didMlock(false)
 {}
 
 template <typename T>
 void DBReader<T>::setDataFile(const char* dataFileName_)  {
     if (dataFileName != NULL) {
+        unmapData();
         free(dataFileName);
     }
 
-    dataMode = USE_INDEX | USE_DATA;
+    dataMode |= USE_DATA;
     dataFileName = strdup(dataFileName_);
 }
 
@@ -103,8 +104,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
         seqLens = new unsigned int[size];
 
         isSortedById = readIndex(indexFileName, index, seqLens);
-        if (accessType != HARDNOSORT) 
-        {
+        if (accessType != HARDNOSORT) {
             sortIndex(isSortedById);
         }
 
@@ -470,7 +470,7 @@ bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *ent
         entryLength[i] = length;
         indexDataChar = Util::skipLine(indexDataChar);
         currPos = indexDataChar - (char *) indexData.getData();
-        lastKey = std::max(index[i].id,lastKey);
+        lastKey = std::max(index[i].id, lastKey);
         prevId = index[i].id;
         i++;
     }
@@ -478,8 +478,7 @@ bool DBReader<T>::readIndex(char *indexFileName, Index *index, unsigned int *ent
     return isSorted;
 }
 
-template<typename T> T DBReader<T>::getLastKey()
-{
+template<typename T> T DBReader<T>::getLastKey() {
     return lastKey;
 }
 
@@ -534,6 +533,8 @@ char* DBReader<unsigned int>::serialize(const DBReader<unsigned int> &idx) {
     p += sizeof(size_t);
     memcpy(p, &idx.aaDbSize, sizeof(size_t));
     p += sizeof(size_t);
+    memcpy(p, &idx.lastKey, sizeof(unsigned int));
+    p += sizeof(unsigned int);
     memcpy(p, idx.index, idx.size * sizeof(DBReader<unsigned int>::Index));
     p += idx.size * sizeof(DBReader<unsigned int>::Index);
     memcpy(p, idx.seqLens, idx.size * sizeof(unsigned int));
@@ -548,11 +549,13 @@ DBReader<unsigned int> *DBReader<unsigned int>::unserialize(const char* data) {
     p += sizeof(size_t);
     size_t aaDbSize = *((size_t*)p);
     p += sizeof(size_t);
+    size_t lastKey = *((unsigned int*)p);
+    p += sizeof(unsigned int);
     DBReader<unsigned int>::Index *idx = (DBReader<unsigned int>::Index *)p;
     p += size * sizeof(DBReader<unsigned int>::Index);
     unsigned int *seqLens = (unsigned int *)p;
 
-    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize);
+    return new DBReader<unsigned int>(idx, seqLens, size, aaDbSize, lastKey);
 }
 
 template <typename T>

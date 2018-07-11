@@ -7,13 +7,10 @@
 #include "QueryMatcher.h"
 #include "Parameters.h"
 #include "AlignmentSymmetry.h"
-
-#include "omptl/omptl_algorithm"
+#include "PrefilteringIndexReader.h"
 
 #ifdef OPENMP
-
 #include <omp.h>
-
 #endif
 
 struct compareEval {
@@ -21,6 +18,50 @@ struct compareEval {
                     const Matcher::result_t &rhs) const {
         return lhs.eval < rhs.eval;
     }
+};
+
+class IndexReader {
+public:
+    DBReader<unsigned int> *reader;
+    IndexReader(const std::string &data) {
+        std::string index = data;
+        index.append(".index");
+
+        bool isIndex = false;
+        std::string indexData = PrefilteringIndexReader::searchForIndex(data);
+        if (indexData != "") {
+            Debug(Debug::INFO) << "Use index: " << indexData << "\n";
+            std::string indexIndex = indexData;
+            indexIndex.append(".index");
+            indexReader = new DBReader<unsigned int>(indexData.c_str(), indexIndex.c_str());
+            indexReader->open(DBReader<unsigned int>::NOSORT);
+            if ((isIndex = PrefilteringIndexReader::checkIfIndexFile(indexReader)) == true) {
+                reader = PrefilteringIndexReader::openNewReader(indexReader, false);
+            } else {
+                Debug(Debug::WARNING) << "Outdated index version. Please recompute it with 'createindex'!\n";
+                indexReader->close();
+                delete indexReader;
+                indexReader = NULL;
+            }
+        }
+
+        if (isIndex == false) {
+            reader = new DBReader<unsigned int>(data.c_str(), index.c_str(), DBReader<unsigned int>::USE_INDEX);
+            reader->open(DBReader<unsigned int>::NOSORT);
+        }
+    }
+
+    ~IndexReader() {
+        reader->close();
+        delete reader;
+
+        if (indexReader != NULL) {
+            indexReader->close();
+            delete indexReader;
+        }
+    }
+private:
+    DBReader<unsigned int> *indexReader = NULL;
 };
 
 int doswap(Parameters& par, bool isGeneralMode) {
@@ -47,42 +88,46 @@ int doswap(Parameters& par, bool isGeneralMode) {
     std::string parOutDbStr(parOutDb);
     std::string parOutDbIndexStr(parOutDbIndex);
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-
     size_t aaResSize = 0;
     unsigned int maxTargetId = 0;
-
+    char *targetElementExists = NULL;
     if (isGeneralMode) {
         Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
         DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex);
         resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-        //search for the maxTargetId (value of first column) in parallel 
-        char *resultDbEntry[1000];
-#pragma omp parallel for schedule(dynamic, 100) reduction(max:maxTargetId)
-        for (size_t id = 0; id < resultReader.getSize(); id++) {
-            Debug::printProgress(id);
-            char *resultDbRecord = resultReader.getData(id);
-            while (*resultDbRecord != '\0') {
-                const size_t resultDbColumns = Util::getWordsOfLine(resultDbRecord, resultDbEntry, 255);
-                unsigned int currTargetId = Util::fast_atoi<int>(resultDbEntry[0]);
-                maxTargetId = std::max(maxTargetId, currTargetId);
-                resultDbRecord = Util::skipLine(resultDbRecord);
+        //search for the maxTargetId (value of first column) in parallel
+#pragma omp parallel
+        {
+            char key[255];
+#pragma omp for schedule(dynamic, 100) reduction(max:maxTargetId)
+            for (size_t i = 0; i < resultReader.getSize(); ++i) {
+                Debug::printProgress(i);
+                char *data = resultReader.getData(i);
+                while (*data != '\0') {
+                    Util::parseKey(data, key);
+                    unsigned int dbKey = std::strtoul(key, NULL, 10);
+                    maxTargetId = std::max(maxTargetId, dbKey);
+                    data = Util::skipLine(data);
+                }
             }
-        }
+        };
         resultReader.close();
     } else {
         Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-        DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-        queryReader.open(DBReader<unsigned int>::NOSORT);
-        aaResSize = queryReader.getAminoAcidDBSize();
-        queryReader.close();
+        IndexReader query(par.db1);
+        aaResSize = query.reader->getAminoAcidDBSize();
 
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-        targetReader.open(DBReader<unsigned int>::NOSORT);
-        maxTargetId = targetReader.getLastKey();
-        targetReader.close();
+        IndexReader target(par.db2);
+        maxTargetId = target.reader->getLastKey();
+
+        targetElementExists = new char[maxTargetId + 1];
+        memset(targetElementExists, 0, sizeof(char) * (maxTargetId + 1));
+#pragma omp parallel for
+        for (size_t i = 0; i < target.reader->getSize(); ++i) {
+            unsigned int key = target.reader->getDbKey(i);
+            targetElementExists[key] = 1;
+        }
     }
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
@@ -137,9 +182,12 @@ int doswap(Parameters& par, bool isGeneralMode) {
     }
     splits.push_back(std::make_pair(maxTargetId, bytesToWrite));
     AlignmentSymmetry::computeOffsetFromCounts(targetElementSize, maxTargetId + 1);
+
+    const char empty = '\0';
+
     unsigned int prevDbKeyToWrite = 0;
     size_t prevBytesToWrite = 0;
-    for(size_t split = 0; split < splits.size(); split++) {
+    for (size_t split = 0; split < splits.size(); split++) {
         unsigned int dbKeyToWrite = splits[split].first;
         size_t bytesToWrite = splits[split].second;
         char *tmpData = new char[bytesToWrite];
@@ -183,123 +231,134 @@ int doswap(Parameters& par, bool isGeneralMode) {
         char *entry[255];
         bool isAlignmentResult = false;
         bool hasBacktrace = false;
-        for(size_t i = 0; i < resultDbr.getSize(); i++){
+        for (size_t i = 0; i < resultDbr.getSize(); i++){
+            if (resultDbr.getSeqLens(i) <= 1){
+                continue;
+            }
             const size_t columns = Util::getWordsOfLine(resultDbr.getData(i), entry, 255);
             isAlignmentResult = columns >= Matcher::ALN_RES_WITH_OUT_BT_COL_CNT;
             hasBacktrace = columns >= Matcher::ALN_RES_WITH_BT_COL_CNT;
-            if(resultDbr.getSeqLens(i) > 1 ){
-                break;
-            }
+            break;
         }
 
         std::string splitDbw = parOutDbStr + "_" + SSTR(split);
-        std::pair<std::string, std::string> splitNamePair = std::make_pair(splitDbw, splitDbw+".index");
+        std::pair<std::string, std::string> splitNamePair = std::make_pair(splitDbw, splitDbw + ".index");
         splitFileNames.push_back(splitNamePair);
+
         DBWriter resultWriter(splitNamePair.first.c_str(), splitNamePair.second.c_str(), par.threads);
         resultWriter.open();
-#pragma omp parallel for schedule(dynamic, 100)
-        for (size_t i = prevDbKeyToWrite; i <= dbKeyToWrite; ++i) {
+#pragma omp parallel
+        {
             unsigned int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-            Debug::printProgress(i);
-            char *data = &tmpData[targetElementSize[i] - prevBytesToWrite];
-            size_t dataSize = targetElementSize[i + 1] - targetElementSize[i];
-            
-            if (isGeneralMode) {
-                resultWriter.writeData(data, dataSize, i, thread_idx);
-                continue;
-            }
-
             // we are reusing this vector also for the prefiltering results
             // qcov is used for pScore because its the first float value
-            // and alnLength for diagonal because its the first int value after            
+            // and alnLength for diagonal because its the first int value after
             std::vector<Matcher::result_t> curRes;
             char buffer[1024+32768];
             std::string ss;
             ss.reserve(100000);
 
-            while (dataSize > 0) {
-                if (isAlignmentResult) {
-                    Matcher::result_t res = Matcher::parseAlignmentRecord(data, true);
-                    double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
-                    res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
-                    if (res.eval > par.evalThr) {
-                        goto outer;
+#pragma omp for schedule(dynamic, 100)
+            for (size_t i = prevDbKeyToWrite; i <= dbKeyToWrite; ++i) {
+                Debug::printProgress(i);
+
+                char *data = &tmpData[targetElementSize[i] - prevBytesToWrite];
+                size_t dataSize = targetElementSize[i + 1] - targetElementSize[i];
+
+                if (isGeneralMode) {
+                    if (dataSize > 0) {
+                        resultWriter.writeData(data, dataSize, i, thread_idx);
                     }
-                    unsigned int qstart = res.qStartPos;
-                    unsigned int qend = res.qEndPos;
-                    unsigned int qLen = res.qLen;
-                    res.qStartPos = res.dbStartPos;
-                    res.qEndPos = res.dbEndPos;
-                    res.qLen = res.dbLen;
-                    res.dbStartPos = qstart;
-                    res.dbEndPos = qend;
-                    res.dbLen = qLen;
-                    if (hasBacktrace) {
-                        for (size_t j = 0; j < res.backtrace.size(); j++) {
-                            if (res.backtrace.at(j) == 'I') {
-                                res.backtrace.at(j) = 'D';
-                            } else if (res.backtrace.at(j) == 'D') {
-                                res.backtrace.at(j) = 'I';
+                    continue;
+                }
+
+                bool evalBreak = false;
+                while (dataSize > 0) {
+                    if (isAlignmentResult) {
+                        Matcher::result_t res = Matcher::parseAlignmentRecord(data, true);
+                        double rawScore = evaluer.computeRawScoreFromBitScore(res.score);
+                        res.eval = evaluer.computeEvalue(rawScore, res.dbLen);
+                        if (res.eval > par.evalThr) {
+                            evalBreak = true;
+                            goto outer;
+                        }
+                        unsigned int qstart = res.qStartPos;
+                        unsigned int qend = res.qEndPos;
+                        unsigned int qLen = res.qLen;
+                        res.qStartPos = res.dbStartPos;
+                        res.qEndPos = res.dbEndPos;
+                        res.qLen = res.dbLen;
+                        res.dbStartPos = qstart;
+                        res.dbEndPos = qend;
+                        res.dbLen = qLen;
+                        if (hasBacktrace) {
+                            for (size_t j = 0; j < res.backtrace.size(); j++) {
+                                if (res.backtrace.at(j) == 'I') {
+                                    res.backtrace.at(j) = 'D';
+                                } else if (res.backtrace.at(j) == 'D') {
+                                    res.backtrace.at(j) = 'I';
+                                }
                             }
                         }
-                    }
-                    curRes.emplace_back(res);
-                } else {
-                    hit_t hit = QueryMatcher::parsePrefilterHit(data);
-                    hit.diagonal = static_cast<unsigned short>(static_cast<short>(hit.diagonal) * -1);
-                    curRes.emplace_back(hit.seqId, 0, hit.pScore, 0, 0, -hit.pScore, hit.diagonal, 0, 0, 0, 0, 0, 0, "");
-                }
-                outer:
-                char *nextLine = Util::skipLine(data);
-                size_t lineLen = nextLine - data;
-                dataSize -= lineLen;
-                data = nextLine;
-            }
-
-            if (curRes.empty() == false) {
-                if (curRes.size() > 1) {
-                    std::sort(curRes.begin(), curRes.end(), compareEval());
-                }
-
-                for (size_t j = 0; j < curRes.size(); j++) {
-                    const Matcher::result_t &res = curRes[j];
-                    if (isAlignmentResult) {
-                        size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
-                        ss.append(buffer, len);
+                        curRes.emplace_back(res);
                     } else {
-                        hit_t hit;
-                        hit.seqId = res.dbKey;
-                        hit.pScore = res.qcov;
-                        hit.diagonal = res.alnLength;
-                        QueryMatcher::prefilterHitToBuffer(buffer, hit);
-                        ss.append(buffer);
+                        hit_t hit = QueryMatcher::parsePrefilterHit(data);
+                        hit.diagonal = static_cast<unsigned short>(static_cast<short>(hit.diagonal) * -1);
+                        curRes.emplace_back(hit.seqId, 0, hit.pScore, 0, 0, -hit.pScore, hit.diagonal, 0, 0, 0, 0, 0, 0, "");
                     }
+                    outer:
+                    char *nextLine = Util::skipLine(data);
+                    size_t lineLen = nextLine - data;
+                    dataSize -= lineLen;
+                    data = nextLine;
                 }
 
-                resultWriter.writeData(ss.c_str(), ss.size(), i, thread_idx);
-                ss = "";
-                curRes.clear();
+                if (curRes.empty() == false) {
+                    if (curRes.size() > 1) {
+                        std::sort(curRes.begin(), curRes.end(), compareEval());
+                    }
+
+                    for (size_t j = 0; j < curRes.size(); j++) {
+                        const Matcher::result_t &res = curRes[j];
+                        if (isAlignmentResult) {
+                            size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                            ss.append(buffer, len);
+                        } else {
+                            hit_t hit;
+                            hit.seqId = res.dbKey;
+                            hit.pScore = res.qcov;
+                            hit.diagonal = res.alnLength;
+                            size_t len = QueryMatcher::prefilterHitToBuffer(buffer, hit);
+                            ss.append(buffer, len);
+                        }
+                    }
+
+                    resultWriter.writeData(ss.c_str(), ss.size(), i, thread_idx);
+                    ss = "";
+
+                    curRes.clear();
+                } else if (evalBreak == true || targetElementExists[i] == 1) {
+                    resultWriter.writeData(&empty, 0, i, thread_idx);
+                }
             }
-        }
+        };
+        Debug(Debug::INFO) << "\n";
+        resultWriter.close();
+
         prevDbKeyToWrite = dbKeyToWrite + 1;
         prevBytesToWrite += bytesToWrite;
-        resultWriter.close();
         delete[] tmpData;
-    } // end split
-
-    Debug(Debug::INFO) << "\n";
-
+    }
     DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);
 
     resultDbr.close();
+    if (targetElementExists != NULL) {
+        delete[] targetElementExists;
+    }
     delete[] targetElementSize;
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for swapping: " << (sec / 3600) << " h "
-                       << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     return EXIT_SUCCESS;
 }
 

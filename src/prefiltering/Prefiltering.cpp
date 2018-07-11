@@ -6,6 +6,7 @@
 #include "PatternCompiler.h"
 #include "FileUtil.h"
 #include "IndexBuilder.h"
+#include "Timer.h"
 
 namespace prefilter {
 #include "ExpOpt3_8_polished.cs32.lib.h"
@@ -304,8 +305,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
 
 void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outDBIndex,
                                const std::vector<std::pair<std::string, std::string>> &filenames) {
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    Timer timer;
     if (filenames.size() < 2) {
         std::rename(filenames[0].first.c_str(), outDB.c_str());
         std::rename(filenames[0].second.c_str(), outDBIndex.c_str());
@@ -379,10 +379,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         EXIT(EXIT_FAILURE);
     }
 
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for merging results: " << (sec / 3600) << " h "
-                       << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "\nTime for merging results: " << timer.lap() << "\n";
 }
 
 
@@ -426,8 +423,7 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         return;
     }
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    Timer timer;
 
     Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
     int localKmerThr = (querySeqType == Sequence::HMM_PROFILE ||
@@ -450,12 +446,9 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         sequenceLookup = NULL;
     }
 
-    gettimeofday(&end, NULL);
     indexTable->printStatistics(subMat->int2aa);
-    time_t sec = end.tv_sec - start.tv_sec;
     tdbr->remapData();
-    Debug(Debug::INFO) << "Time for index table init: "
-                       << (sec / 3600) << "h " << (sec % 3600 / 60) << "m " << (sec % 60) << "s.\n\n";
+    Debug(Debug::INFO) << "Time for index table init: " << timer.lap() << "\n";
 }
 
 bool Prefiltering::isSameQTDB(const std::string &queryDB) {
@@ -657,8 +650,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
     Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    Timer timer;
 
     size_t kmersPerPos = 0;
     size_t dbMatches = 0;
@@ -785,16 +777,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
         printStatistics(stats, reslens, localThreads, empty, maxResults);
     }
-
-    if (totalQueryDBSize > 1000) {
-        Debug(Debug::INFO) << "\n";
-    }
-    Debug(Debug::INFO) << "\n";
-
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60)
-                       << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "\nTime for prefiltering scores calculation: " << timer.lap() << "\n";
     tmpDbw.close(); // sorts the index
 
     // sort by ids
@@ -806,8 +789,8 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
         DBWriter resultWriter((resultDB + "_tmp").c_str(), (resultDBIndex + "_tmp").c_str(), localThreads);
         resultWriter.open();
         resultWriter.sortDatafileByIdOrder(resultReader);
-        resultReader.close();
         resultWriter.close();
+        resultReader.close();
         remove(resultDB.c_str());
         remove(resultDBIndex.c_str());
         std::rename((resultDB + "_tmp").c_str(), resultDB.c_str());

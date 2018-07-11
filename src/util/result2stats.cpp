@@ -8,7 +8,6 @@
 
 #include <cstdlib>
 #include <cmath>
-#include <sys/time.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -405,18 +404,6 @@ int result2stats(int argc, const char **argv, const Command &command) {
     omp_set_num_threads(par.threads);
 #endif
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-    int retCode;
-
     StatsComputer computeStats(par);
-    retCode = computeStats.run();
-
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h "
-                          << (sec % 3600 / 60) << " m "
-                          << (sec % 60) << "s\n";
-
-    return retCode;
+    return computeStats.run();
 }

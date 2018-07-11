@@ -44,22 +44,37 @@ int createtsv(int argc, const char **argv, const Command &command) {
 
     FILE *file = fopen(tsv.c_str(), "w");
 
+    char **columnPointer = new char*[255];
+
+    const size_t targetCol = par.targetTsvColumn;
+
     Debug(Debug::INFO) << "Start writing file to " << tsv << "\n";
     char *dbKey = new char[par.maxSeqLen + 1];
     for (size_t i = 0; i < reader.getSize(); i++) {
         unsigned int queryKey = reader.getDbKey(i);
-        std::string queryHeader = Util::parseFastaHeader(qHeader.getDataByDBKey(queryKey));
+        std::string queryHeader = par.fullHeader ? qHeader.getDataByDBKey(queryKey) : Util::parseFastaHeader(qHeader.getDataByDBKey(queryKey));
+        if (par.fullHeader) {
+            queryHeader.erase(queryHeader.length() - 2);
+        }
 
         char *data = reader.getData(i);
         size_t entryIndex = 0;
         while (*data != '\0') {
-            Util::parseKey(data, dbKey);
+            size_t foundElements = Util::getWordsOfLine(data, columnPointer, 255);
+            if (foundElements < targetCol) {
+                Debug(Debug::WARNING) << "Not enough columns!" << "\n";
+            }
+
+            Util::parseKey(columnPointer[targetCol], dbKey);
             size_t keyLen = strlen(dbKey);
 
             std::string targetAccession;
             if (tHeader != NULL) {
                 unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
-                targetAccession = Util::parseFastaHeader(tHeader->getDataByDBKey(targetKey));
+                targetAccession = par.fullHeader ? tHeader->getDataByDBKey(targetKey) : Util::parseFastaHeader(tHeader->getDataByDBKey(targetKey));
+                if (par.fullHeader) {
+                    targetAccession.erase(targetAccession.length()-2);
+                }
             } else {
                 targetAccession = dbKey;
             }
@@ -74,8 +89,16 @@ int createtsv(int argc, const char **argv, const Command &command) {
             fwrite(queryHeader.c_str(), sizeof(char), queryHeader.length(), file);
             fwrite("\t", sizeof(char), 1, file);
             fwrite(targetAccession.c_str(), sizeof(char), targetAccession.length(), file);
-            fwrite("\t", sizeof(char), 1, file);
-            fwrite(data + keyLen, sizeof(char), (nextLine - (data + keyLen)) - 1, file);
+
+            size_t offset = 0;
+            if (targetCol != 0) {
+                fwrite("\t", sizeof(char), 1, file);
+                offset = 0;
+            } else {
+                offset = keyLen;
+            }
+
+            fwrite(data + offset, sizeof(char), (nextLine - (data + keyLen)) - 1, file);
             fwrite("\n", sizeof(char), 1, file);
 
             data = nextLine;
@@ -83,6 +106,7 @@ int createtsv(int argc, const char **argv, const Command &command) {
         }
     }
     delete[] dbKey;
+    delete[] columnPointer;
 
     Debug(Debug::INFO) << "Done.\n";
 

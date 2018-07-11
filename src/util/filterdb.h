@@ -20,7 +20,7 @@
 #define SORT_ENTRIES 5
 #define BEATS_FIRST 6
 #define JOIN_DB 7
-#define SWAP_SEARCH_FIELDS 8
+#define COMPUTE_POSITIONS 8
 #define TRANSITIVE_REPLACE 9
 
 #define GREATER_OR_EQUAL "ge"

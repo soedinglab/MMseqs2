@@ -5,6 +5,7 @@
 #include "DBWriter.h"
 #include "FileUtil.h"
 #include "CompressedA3M.h"
+#include "MathUtil.h"
 
 #include "kseq.h"
 #include "kseq_buffer_reader.h"
@@ -16,7 +17,6 @@ KSEQ_INIT(kseq_buffer_t*, kseq_buffer_reader)
 #endif
 
 #include <libgen.h>
-#include <MathUtil.h>
 
 void setMsa2ProfileDefaults(Parameters *p) {
     p->msaType = 2;
@@ -27,9 +27,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     setMsa2ProfileDefaults(&par);
     par.parseParameters(argc, argv, command, 2, true, 0, MMseqsParameter::COMMAND_PROFILE);
-
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
 
     std::string msaData = par.db1;
     std::string msaIndex = par.db1Index;
@@ -394,13 +391,6 @@ int msa2profile(int argc, const char **argv, const Command &command) {
         headerReader->close();
         delete headerReader;
     }
-
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for processing: "
-                       << (sec / 3600) << " h "
-                       << (sec % 3600 / 60) << " m "
-                       << (sec % 60) << "s\n";
 
     return EXIT_SUCCESS;
 }

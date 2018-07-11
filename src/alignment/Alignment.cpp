@@ -21,13 +21,13 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                      const std::string &outDB, const std::string &outDBIndex,
                      const Parameters &par) :
         covThr(par.covThr), covMode(par.covMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
-        includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign),
+        includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qSeqLookup(NULL),
-        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit) {
+        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit)  {
 
 
-    int alignmentMode = par.alignmentMode;
+    unsigned int alignmentMode = par.alignmentMode;
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     }
@@ -152,29 +152,29 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
     prefdbr->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     if (querySeqType == Sequence::NUCLEOTIDES) {
-        m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, 0.0);
+        m = new NucleotideMatrix(par.scoringMatrixFile.c_str(), 1.0, scoreBias);
         gapOpen = 7;
         gapExtend = 1;
     } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
-        SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, 0.0);
-        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, 0.0, par.maxSeqLen, 255);
+        SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
+        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, scoreBias, par.maxSeqLen, 255);
         gapOpen = Matcher::GAP_OPEN;
         gapExtend = Matcher::GAP_EXTEND;
     } else {
         // keep score bias at 0.0 (improved ROC)
-        m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, 0.0);
+        m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, scoreBias);
         gapOpen = Matcher::GAP_OPEN;
         gapExtend = Matcher::GAP_EXTEND;
     }
 
     if (realign == true) {
-        realign_m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, -0.2f);
+        realign_m = new SubstitutionMatrix(scoringMatrixFile.c_str(), 2.0, scoreBias-0.2f);
     } else {
         realign_m = NULL;
     }
 }
 
-void Alignment::initSWMode(int alignmentMode) {
+void Alignment::initSWMode(unsigned int alignmentMode) {
     switch (alignmentMode) {
         case Parameters::ALIGNMENT_MODE_FAST_AUTO:
             if(covThr > 0.0 && seqIdThr == 0.0) {
@@ -375,16 +375,16 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                             continue;
                         }
                         setTargetSequence(dbSeq, swResults[i].dbKey);
-                        for (size_t pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; pos++) {
+                        for (int pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; ++pos) {
                             dbSeq.int_sequence[pos] = xIndex;
                         }
                         bool nextAlignment = true;
-                        for (size_t altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
+                        for (int altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
                             Matcher::result_t res = matcher.getSWResult(&dbSeq, 0, covMode, covThr, evalThr, swMode,
                                                                         isIdentity);
                             nextAlignment = checkCriteriaAndAddHitToList(res, isIdentity, swResults);
                             if (nextAlignment == true) {
-                                for (size_t pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
+                                for (int pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
                                     dbSeq.int_sequence[pos] = xIndex;
                                 }
                             }

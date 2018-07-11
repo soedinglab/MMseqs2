@@ -274,7 +274,6 @@ public:
         return h;
     }
 
-
     static int omp_thread_count();
 
     static std::string removeWhiteSpace(std::string in);
