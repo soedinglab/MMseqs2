@@ -131,7 +131,7 @@ s_align SmithWaterman::ssw_align (
 		int32_t db_length,
 		const uint8_t gap_open,
 		const uint8_t gap_extend,
-		const uint8_t flag,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
+		const uint8_t alignmentMode,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
 		const double  evalueThr,
 		EvalueComputation * evaluer,
 		const int covMode, const float covThr,
@@ -187,7 +187,7 @@ s_align SmithWaterman::ssw_align (
 	r.tCov = computeCov(0, r.dbEndPos1, db_length);
     bool hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
 
-	if (flag == 0 || ((flag == 2 || flag == 1) && hasLowerEvalue && hasLowerCoverage)){
+	if (alignmentMode == 0 || ((alignmentMode == 2 || alignmentMode == 1) && hasLowerEvalue && hasLowerCoverage)){
 		goto end;
 	}
 
@@ -225,7 +225,7 @@ s_align SmithWaterman::ssw_align (
 	r.tCov = computeCov(r.dbStartPos1, r.dbEndPos1, db_length);
 	hasLowerCoverage = !(Util::hasCoverage(covThr, covMode, r.qCov, r.tCov));
 	free(bests_reverse);
-	if (flag == 1 || hasLowerCoverage) // just start and end point are needed
+	if (alignmentMode == 1 || hasLowerCoverage) // just start and end point are needed
 		goto end;
 
 	// Generate cigar.
@@ -1063,7 +1063,7 @@ float SmithWaterman::computeCov(unsigned int startPos, unsigned int endPos, unsi
     return (std::min(len, endPos) - startPos + 1) / (float) len;
 }
 
-s_align SmithWaterman::scoreIdentical(int *dbSeq, int L, EvalueComputation * evaluer, int mode) {
+s_align SmithWaterman::scoreIdentical(int *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode) {
 	if(profile->query_length != L){
 		std::cerr << "scoreIdentical has different length L: "
 				  << L << " query_length: " << profile->query_length
@@ -1073,7 +1073,7 @@ s_align SmithWaterman::scoreIdentical(int *dbSeq, int L, EvalueComputation * eva
 
 	s_align r;
 	// to be compatible with --alignment-mode 1 (score only)
-	if(mode == 0){
+	if(alignmentMode == 0){
 		r.dbStartPos1 = -1;
 		r.qStartPos1 = -1;
 	}else{

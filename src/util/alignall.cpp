@@ -120,7 +120,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                         double seqId = 0;
                         double evalue = 0.0;
                         Matcher::result_t result = matcher.getSWResult(&target, INT_MAX, par.covMode, par.covThr, FLT_MAX,
-                                                                       par.alignmentMode, isIdentity);
+                                                                       par.alignmentMode, par.seqIdMode, isIdentity);
                         // query/target cov mode
                         bool hasCov = Util::hasCoverage(par.covThr, par.covMode, result.qcov, result.dbcov);
                         // --min-seq-id

@@ -281,5 +281,7 @@ public:
     static bool canBeCovered(const float covThr, const int covMode, float queryLength, float targetLength);
 
     static bool hasCoverage(float covThr, int covMode, float queryCov, float targetCov);
+
+    static float computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLen);
 };
 #endif

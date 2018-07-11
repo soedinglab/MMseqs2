@@ -492,3 +492,18 @@ bool Util::hasCoverage(float covThr, int covMode, float queryCov, float targetCo
             return true;
     }
 }
+
+
+float Util::computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLen) {
+    switch(seqIdMode) {
+        case Parameters::SEQ_ID_SHORT:
+            return static_cast<float>(aaIds) / static_cast<float>(std::min(qLen, tLen));
+        case Parameters::SEQ_ID_LONG:
+            return static_cast<float>(aaIds) / static_cast<float>(std::max(qLen, tLen));
+        case Parameters::SEQ_ID_ALN_LEN:
+            return static_cast<float>(aaIds) / static_cast<float>(alnLen);
+    }
+    return 0.0;
+}
+
+
