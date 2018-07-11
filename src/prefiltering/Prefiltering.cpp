@@ -429,7 +429,7 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     int localKmerThr = (querySeqType == Sequence::HMM_PROFILE ||
                         querySeqType == Sequence::PROFILE_STATE_PROFILE ||
                         querySeqType == Sequence::NUCLEOTIDES ||
-                        takeOnlyBestKmer == true) ? 0 : kmerThr;
+                        (targetSeqType != Sequence::HMM_PROFILE && takeOnlyBestKmer == true) ) ? 0 : kmerThr;
 
     // remove X or N for seeding
     int adjustAlphabetSize = (targetSeqType == Sequence::NUCLEOTIDES || targetSeqType == Sequence::AMINO_ACIDS)
@@ -437,7 +437,6 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
     SequenceLookup **maskedLookup   = maskMode == 1 ? &sequenceLookup : NULL;
     SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
-
 
     IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *subMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr);
 
