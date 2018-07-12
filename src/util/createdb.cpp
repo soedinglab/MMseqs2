@@ -62,10 +62,20 @@ int createdb(int argn, const char **argv, const Command& command) {
 
     DBWriter out_writer(data_filename.c_str(), index_filename.c_str());
     DBWriter out_hdr_writer(data_filename_hdr.c_str(), index_filename_hdr.c_str());
+    DBWriter *cluster_writer;
+    if (par.clusterDB) {
+        std::string cluster_filename(data_filename);
+        cluster_filename.append("_cluster");
+        std::string cluster_index_filename(data_filename);
+        cluster_index_filename.append("_cluster.index");
+        cluster_writer = new DBWriter(cluster_filename.c_str(), cluster_index_filename.c_str());
+        cluster_writer->open();
+    }
     out_writer.open();
     out_hdr_writer.open();
 
     unsigned int entries_num = 1;
+    unsigned int cluster_num;
     size_t count = 0;
     size_t sampleCount = 0;
 
@@ -80,6 +90,8 @@ int createdb(int argn, const char **argv, const Command& command) {
         std::string splitId;
         splitId.reserve(1024);
         KSeqWrapper *kseq = KSeqFactory(filenames[i].c_str());
+        cluster_num = entries_num;
+        std::string clusterString;
         while (kseq->ReadEntry()) {
             Debug::printProgress(count);
             const KSeqWrapper::KSeqEntry &e = kseq->entry;
@@ -114,7 +126,6 @@ int createdb(int argn, const char **argv, const Command& command) {
                 }
 
                 unsigned int id = par.identifierOffset + entries_num;
-
 
                 // For split entries replace the found identifier by identifier_splitNumber
                 // Also add another hint that it was split to the end of the header
@@ -175,12 +186,17 @@ int createdb(int argn, const char **argv, const Command& command) {
                     seqWithLineRet.append("\n");
                     out_writer.writeData(seqWithLineRet.c_str(), seqWithLineRet.length(), id);
                 }
+                clusterString.append(std::to_string(id) + "\n");
 
                 entries_num++;
                 count++;
             }
             header.clear();
         }
+        if(par.clusterDB) {
+            cluster_writer->writeData(clusterString.c_str(), clusterString.size(), cluster_num);
+        }
+        clusterString.clear();
         delete kseq;
     }
 
@@ -190,63 +206,85 @@ int createdb(int argn, const char **argv, const Command& command) {
     }
     out_hdr_writer.close();
     out_writer.close(dbType);
+    if(par.clusterDB){
+        cluster_writer->close();
+    }
 
-    // shuffle data
-    DBReader<unsigned int> readerSequence(out_writer.getDataFileName(), out_writer.getIndexFileName());
-    readerSequence.open( DBReader<unsigned int>::NOSORT);
-    readerSequence.readMmapedDataInMemory();
-    DBReader<unsigned int>::Index * indexSequence  = readerSequence.getIndex();
-    unsigned int * lengthSequence  = readerSequence.getSeqLens();
 
     DBReader<unsigned int> readerHeader(out_hdr_writer.getDataFileName(), out_hdr_writer.getIndexFileName());
-    readerHeader.open( DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int>::Index * indexHeader  = readerHeader.getIndex();
-    unsigned int * lengthHeader  = readerHeader.getSeqLens();
+    readerHeader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int>::Index *indexHeader = readerHeader.getIndex();
+    unsigned int *lengthHeader = readerHeader.getSeqLens();
 
-    unsigned int * perm =  new unsigned int[readerSequence.getSize()];
-    std::default_random_engine generator(0);
-    std::uniform_int_distribution<unsigned int> distribution(0,readerSequence.getSize()-1);
-    for (unsigned int n=0; n < readerSequence.getSize(); n++){
-        perm[n] = n;
-    }
-    for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
-        unsigned int n_new = distribution(generator);
-        std::swap(indexSequence[n_new], indexSequence[n]);
-        std::swap(lengthSequence[n_new], lengthSequence[n]);
-        std::swap(indexHeader[n_new], indexHeader[n]);
-        std::swap(lengthHeader[n_new], lengthHeader[n]);
-    }
-    delete [] perm;
-    DBWriter out_writer_shuffeled(data_filename.c_str(), index_filename.c_str());
-    out_writer_shuffeled.open();
-    for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
-        unsigned int id = par.identifierOffset + n;
-        const char * data = readerSequence.getData() + indexSequence[n].offset;
-        out_writer_shuffeled.writeData(data, lengthSequence[n]-1, id);
-    }
-    readerSequence.close();
-    out_writer_shuffeled.close(dbType);
+    if(!par.clusterDB) {
+        // shuffle data
+        DBReader<unsigned int> readerSequence(out_writer.getDataFileName(), out_writer.getIndexFileName());
+        readerSequence.open(DBReader<unsigned int>::NOSORT);
+        readerSequence.readMmapedDataInMemory();
+        DBReader<unsigned int>::Index *indexSequence = readerSequence.getIndex();
+        unsigned int *lengthSequence = readerSequence.getSeqLens();
 
-    DBWriter out_hdr_writer_shuffeled(data_filename_hdr.c_str(), index_filename_hdr.c_str());
-    out_hdr_writer_shuffeled.open();
-    readerHeader.readMmapedDataInMemory();
-    char lookupBuffer[32768];
-    for (unsigned int n = 0; n < readerHeader.getSize(); n++) {
-        unsigned int id = par.identifierOffset + n;
-        const char * data = readerHeader.getData() + indexHeader[n].offset;
-        std::string splitId = Util::parseFastaHeader(data);
-        char * tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
-        *(tmpBuff-1) = '\t';
-        fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
-        fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
-        char newline='\n';
-        fwrite(&newline, sizeof(char), 1, lookupFile);
-        out_hdr_writer_shuffeled.writeData(data, lengthHeader[n]-1, id);
+        unsigned int *perm = new unsigned int[readerSequence.getSize()];
+        std::default_random_engine generator(0);
+        std::uniform_int_distribution<unsigned int> distribution(0, readerSequence.getSize() - 1);
+        for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
+            perm[n] = n;
+        }
+        for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
+            unsigned int n_new = distribution(generator);
+            std::swap(indexSequence[n_new], indexSequence[n]);
+            std::swap(lengthSequence[n_new], lengthSequence[n]);
+            std::swap(indexHeader[n_new], indexHeader[n]);
+            std::swap(lengthHeader[n_new], lengthHeader[n]);
+        }
+        delete[] perm;
+        DBWriter out_writer_shuffeled(data_filename.c_str(), index_filename.c_str());
+        out_writer_shuffeled.open();
+        for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
+            unsigned int id = par.identifierOffset + n;
+            const char *data = readerSequence.getData() + indexSequence[n].offset;
+            out_writer_shuffeled.writeData(data, lengthSequence[n] - 1, id);
+        }
+        readerSequence.close();
+        out_writer_shuffeled.close(dbType);
+
+        DBWriter out_hdr_writer_shuffeled(data_filename_hdr.c_str(), index_filename_hdr.c_str());
+        out_hdr_writer_shuffeled.open();
+        readerHeader.readMmapedDataInMemory();
+        char lookupBuffer[32768];
+        for (unsigned int n = 0; n < readerHeader.getSize(); n++) {
+            unsigned int id = par.identifierOffset + n;
+            const char *data = readerHeader.getData() + indexHeader[n].offset;
+            std::string splitId = Util::parseFastaHeader(data);
+            char *tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
+            *(tmpBuff - 1) = '\t';
+            fwrite(lookupBuffer, sizeof(char), tmpBuff - lookupBuffer, lookupFile);
+            fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
+            char newline = '\n';
+            fwrite(&newline, sizeof(char), 1, lookupFile);
+            out_hdr_writer_shuffeled.writeData(data, lengthHeader[n] - 1, id);
+        }
+        out_hdr_writer_shuffeled.close();
+
+    } else {
+        readerHeader.readMmapedDataInMemory();
+        char lookupBuffer[32768];
+        for (unsigned int n = 0; n < readerHeader.getSize(); n++) {
+            unsigned int id = par.identifierOffset + n + 1;
+            const char *data = readerHeader.getData() + indexHeader[n].offset;
+            std::string splitId = Util::parseFastaHeader(data);
+            char *tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
+            *(tmpBuff - 1) = '\t';
+            fwrite(lookupBuffer, sizeof(char), tmpBuff - lookupBuffer, lookupFile);
+            fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
+            char newline = '\n';
+            fwrite(&newline, sizeof(char), 1, lookupFile);
+        }
+
+
     }
-    out_hdr_writer_shuffeled.close();
     readerHeader.close();
     fclose(lookupFile);
-
     return EXIT_SUCCESS;
 }
 
