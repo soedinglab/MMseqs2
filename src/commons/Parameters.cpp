@@ -154,6 +154,7 @@ Parameters::Parameters():
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_MAX_SEQUENCES(PARAM_MAX_SEQUENCES_ID,"--max-sequences", "Max Sequences", "maximum number of sequences a cluster may contain", typeid(int),(void *) &maxSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_HH_FORMAT(PARAM_HH_FORMAT_ID,"--hh-format", "HH format", "format entries to use with hhsuite (for singleton clusters)", typeid(bool), (void *) &hhFormat, ""),
+        PARAM_CLUSTER_DB(PARAM_CLUSTER_DB_ID, "--cluster-db", "Cluster DB", "Create cluster DB", typeid(bool), (void*) &clusterDB, ""),
         // filterdb
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
         PARAM_COLUMN_TO_TAKE(PARAM_COLUMN_TO_TAKE_ID,"--column-to-take", "Column to take", "column to take in join mode. If -1, the whole line is taken", typeid(int),(void *) &columnToTake,"^(-1|0|[1-9]{1}[0-9]*)$"),
@@ -476,6 +477,7 @@ Parameters::Parameters():
     createdb.push_back(PARAM_DONT_SPLIT_SEQ_BY_LEN);
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
+    createdb.push_back(PARAM_CLUSTER_DB);
 
     // convert2fasta
     convert2fasta.push_back(PARAM_USE_HEADER_FILE);
@@ -1157,7 +1159,7 @@ void Parameters::setDefaults() {
 
     // createdb
     splitSeqByLen = true;
-
+    clusterDB = false ;
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
     dbOut = false;
