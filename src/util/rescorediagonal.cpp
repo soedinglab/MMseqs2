@@ -9,11 +9,10 @@
 #include "CovSeqidQscPercMinDiag.out.h"
 #include "CovSeqidQscPercMinDiagTargetCov.out.h"
 #include "QueryMatcher.h"
+#include "NucleotideMatrix.h"
 
 #include <string>
 #include <vector>
-#include <sys/time.h>
-#include <NucleotideMatrix.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -49,8 +48,6 @@ float parsePrecisionLib(std::string scoreFile, double targetSeqid, double target
 
 int rescorediagonal(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 #ifdef OPENMP
@@ -155,7 +152,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     unsigned int targetId = tdbr->getId(results[entryIdx].seqId);
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB))? true : false;
                     char * targetSeq = tdbr->getData(targetId);
-                    int targetLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
+                    int dbLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
                     short diagonal = results[entryIdx].diagonal;
                     unsigned short distanceToDiagonal = abs(diagonal);
                     unsigned int diagonalLen = 0;
@@ -163,7 +160,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     DistanceCalculator::LocalAlignment alignment;
 
                     if (diagonal >= 0 && distanceToDiagonal < queryLen) {
-                        diagonalLen = std::min(targetLen, queryLen - distanceToDiagonal);
+                        diagonalLen = std::min(dbLen, queryLen - distanceToDiagonal);
                         if(par.rescoreMode == Parameters::RESCORE_MODE_HAMMING){
                             distance = DistanceCalculator::computeHammingDistance(querySeq + distanceToDiagonal,
                                                                                   targetSeq, diagonalLen);
@@ -179,8 +176,8 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                     diagonalLen, fastMatrix.matrix);
                             distance = alignment.score;
                         }
-                    } else if (diagonal < 0 && distanceToDiagonal < targetLen) {
-                        diagonalLen = std::min(targetLen - distanceToDiagonal, queryLen);
+                    } else if (diagonal < 0 && distanceToDiagonal < dbLen) {
+                        diagonalLen = std::min(dbLen - distanceToDiagonal, queryLen);
                         if(par.rescoreMode == Parameters::RESCORE_MODE_HAMMING){
                             distance = DistanceCalculator::computeHammingDistance(querySeq,
                                                                                   targetSeq + distanceToDiagonal,
@@ -201,12 +198,12 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     }
                     double seqId = 0;
                     double evalue = 0.0;
-                    float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(targetLen);
+                    float targetCov = static_cast<float>(diagonalLen) / static_cast<float>(dbLen);
                     float queryCov = static_cast<float>(diagonalLen) / static_cast<float>(queryLen);
                     Matcher::result_t result;
                     if(par.rescoreMode == Parameters::RESCORE_MODE_HAMMING){
-                        seqId = (static_cast<float>(diagonalLen) - static_cast<float>(distance)) /
-                                static_cast<float>(diagonalLen);
+                        int idCnt = (static_cast<float>(diagonalLen) - static_cast<float>(distance));
+                        seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, diagonalLen);
                     }else if(par.rescoreMode == Parameters::RESCORE_MODE_SUBSTITUTION || par.rescoreMode == Parameters::RESCORE_MODE_ALIGNMENT){
                         //seqId = exp(static_cast<float>(distance) / static_cast<float>(diagonalLen));
                         if (par.globalAlignment)
@@ -239,7 +236,9 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                     for(int i = qStartPos; i < qEndPos; i++){
                                         idCnt += (querySeq[i] == targetSeq[dbStartPos+(i-qStartPos)]) ? 1 : 0;
                                     }
-                                    seqId = static_cast<double>(idCnt) / (static_cast<double>(qEndPos) - static_cast<double>(qStartPos));
+                                    unsigned int alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
+                                    seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLength);
+
                                 }
                                 std::string backtrace;
 
@@ -249,7 +248,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                 backtrace.push_back('M');
 
                                 result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov, seqId, evalue, alnLen,
-                                                           qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, targetLen, backtrace);
+                                                           qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, dbLen, backtrace);
                             }
                         }
                     }
@@ -299,10 +298,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         tdbr->close();
         delete tdbr;
     }
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for diagonal calculation: " << (sec / 3600) << " h "
-                       << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     return EXIT_SUCCESS;
 }
 

@@ -5,7 +5,6 @@
 #include <climits>
 #include <list>
 #include <vector>
-#include <sys/time.h>
 #include <Matcher.h>
 #include "DBReader.h"
 #include "Debug.h"
@@ -20,29 +19,33 @@
 void dosubstractresult(std::string leftDb, std::string rightDb, std::string outDb,
                        size_t maxLineLength, double evalThreshold, int threads)
 {
-    Debug(Debug::INFO) << "Remove " << rightDb << " ids from "<< leftDb << "\n";
+    Debug(Debug::INFO) << "Remove " << rightDb << " ids from " << leftDb << "\n";
     DBReader<unsigned int> leftDbr(leftDb.c_str(), (leftDb + std::string(".index")).c_str());
     leftDbr.open(DBReader<unsigned int>::NOSORT);
     DBReader<unsigned int> rightDbr(rightDb.c_str(), (rightDb + std::string(".index")).c_str());
     rightDbr.open(DBReader<unsigned int>::NOSORT);
+
+    Debug(Debug::INFO) << "Output databse: " << outDb << "\n";
     DBWriter writer(outDb.c_str(), (outDb + std::string(".index")).c_str(), threads);
     writer.open();
     const size_t LINE_BUFFER_SIZE = 1000000;
 #pragma omp parallel
     {
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
+
         char * lineBuffer = new char[LINE_BUFFER_SIZE];
         char * key = new char[255];
         std::string minusResultsOutString;
         minusResultsOutString.reserve(maxLineLength);
-#pragma omp  for schedule(static)
+#pragma omp for schedule(static)
         for (size_t id = 0; id < leftDbr.getSize(); id++) {
             std::map<unsigned int, bool> elementLookup;
-            int thread_idx = 0;
             const char *leftData = leftDbr.getData(id);
             unsigned int leftDbKey = leftDbr.getDbKey(id);
-#ifdef OPENMP
-            thread_idx = omp_get_thread_num();
-#endif
+
             // fill element id look up with left side elementLookup
             {
                 char *data = (char *) leftData;
@@ -110,27 +113,21 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
         }
         delete [] lineBuffer;
         delete [] key;
-    } //end of OMP
+    }
+    writer.close();
+
     leftDbr.close();
     rightDbr.close();
-    // close all reader
-    writer.close();
-    Debug(Debug::INFO) << "Stored results in " << outDb << "\n";
 }
 
 int subtractdbs(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
     dosubstractresult(par.db1, par.db2, par.db3, 1000000, par.evalProfile, par.threads);
-    gettimeofday(&end, NULL);
-    int sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for profile substracting: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-    return 0;
+    return EXIT_SUCCESS;
 }

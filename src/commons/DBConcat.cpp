@@ -1,13 +1,11 @@
 #include "DBConcat.h"
 #include "DBWriter.h"
-
 #include "Util.h"
 #include "Debug.h"
 #include "FileUtil.h"
 #include "Parameters.h"
 
 #include <algorithm>
-#include <sys/time.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -156,9 +154,6 @@ int concatdbs(int argc, const char **argv, const Command& command) {
     omp_set_num_threads(par.threads);
 #endif
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-
     int datamode = DBReader<unsigned int>::USE_DATA | DBReader<unsigned int>::USE_INDEX;
     DBConcat outDB(par.db1.c_str(), par.db1Index.c_str(),
                    par.db2.c_str(), par.db2Index.c_str(),
@@ -166,13 +161,9 @@ int concatdbs(int argc, const char **argv, const Command& command) {
                    static_cast<unsigned int>(par.threads), datamode, true, par.preserveKeysB);
     outDB.concat(true);
 
-    if(FileUtil::fileExists((par.db2 + ".dbtype").c_str())){
+    if (FileUtil::fileExists((par.db2 + ".dbtype").c_str())) {
         FileUtil::copyFile((par.db2 + ".dbtype").c_str(), (par.db3 + ".dbtype").c_str());
     }
-
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for concatenating DBs: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
 
     return EXIT_SUCCESS;
 }

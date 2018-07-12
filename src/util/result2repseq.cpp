@@ -1,5 +1,4 @@
 #include <string>
-#include <sys/time.h>
 
 #include "Parameters.h"
 #include "DBReader.h"
@@ -58,9 +57,6 @@ int result2repseq(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-
     DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str());
     resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
@@ -70,11 +66,6 @@ int result2repseq(int argc, const char **argv, const Command &command) {
     status = result2repseq(par, resultReader, par.db3, 0, resultSize);
 
     resultReader.close();
-
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m "
-                       << (sec % 60) << "s\n";
 
     return status;
 }

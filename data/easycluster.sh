@@ -20,7 +20,7 @@ RESULTS="$2"
 TMP_PATH="$3"
 
 if notExists "${TMP_PATH}/query"; then
-   "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/input" \
+   "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/input" ${CREATEDB_PAR} \
         || fail "query createdb died"
 fi
 

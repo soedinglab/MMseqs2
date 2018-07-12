@@ -6,6 +6,7 @@
 #include "PatternCompiler.h"
 #include "FileUtil.h"
 #include "IndexBuilder.h"
+#include "Timer.h"
 
 namespace prefilter {
 #include "ExpOpt3_8_polished.cs32.lib.h"
@@ -304,8 +305,7 @@ void Prefiltering::setupSplit(DBReader<unsigned int>& dbr, const int alphabetSiz
 
 void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outDBIndex,
                                const std::vector<std::pair<std::string, std::string>> &filenames) {
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    Timer timer;
     if (filenames.size() < 2) {
         std::rename(filenames[0].first.c_str(), outDB.c_str());
         std::rename(filenames[0].second.c_str(), outDBIndex.c_str());
@@ -379,10 +379,7 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
         EXIT(EXIT_FAILURE);
     }
 
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for merging results: " << (sec / 3600) << " h "
-                       << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "\nTime for merging results: " << timer.lap() << "\n";
 }
 
 
@@ -426,13 +423,13 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         return;
     }
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    Timer timer;
 
     Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
-    int localKmerThr = (querySeqType != Sequence::HMM_PROFILE &&
-                        querySeqType != Sequence::PROFILE_STATE_PROFILE &&
-                        querySeqType != Sequence::NUCLEOTIDES ) ? kmerThr : 0;
+    int localKmerThr = (querySeqType == Sequence::HMM_PROFILE ||
+                        querySeqType == Sequence::PROFILE_STATE_PROFILE ||
+                        querySeqType == Sequence::NUCLEOTIDES ||
+                        (targetSeqType != Sequence::HMM_PROFILE && takeOnlyBestKmer == true) ) ? 0 : kmerThr;
 
     // remove X or N for seeding
     int adjustAlphabetSize = (targetSeqType == Sequence::NUCLEOTIDES || targetSeqType == Sequence::AMINO_ACIDS)
@@ -440,8 +437,8 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
     indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
     SequenceLookup **maskedLookup   = maskMode == 1 ? &sequenceLookup : NULL;
     SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
-
-
+    
+    Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << "\n";
     IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *subMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr);
 
     if (diagonalScoring == false) {
@@ -449,12 +446,9 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         sequenceLookup = NULL;
     }
 
-    gettimeofday(&end, NULL);
     indexTable->printStatistics(subMat->int2aa);
-    time_t sec = end.tv_sec - start.tv_sec;
     tdbr->remapData();
-    Debug(Debug::INFO) << "Time for index table init: "
-                       << (sec / 3600) << "h " << (sec % 3600 / 60) << "m " << (sec % 60) << "s.\n\n";
+    Debug(Debug::INFO) << "Time for index table init: " << timer.lap() << "\n";
 }
 
 bool Prefiltering::isSameQTDB(const std::string &queryDB) {
@@ -656,8 +650,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
     Debug(Debug::INFO) << "k-mer similarity threshold: " << kmerThr << "\n";
     Debug(Debug::INFO) << "k-mer match probability: " << kmerMatchProb << "\n\n";
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    Timer timer;
 
     size_t kmersPerPos = 0;
     size_t dbMatches = 0;
@@ -784,16 +777,7 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
 
         printStatistics(stats, reslens, localThreads, empty, maxResults);
     }
-
-    if (totalQueryDBSize > 1000) {
-        Debug(Debug::INFO) << "\n";
-    }
-    Debug(Debug::INFO) << "\n";
-
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for prefiltering scores calculation: " << (sec / 3600) << " h " << (sec % 3600 / 60)
-                       << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "\nTime for prefiltering scores calculation: " << timer.lap() << "\n";
     tmpDbw.close(); // sorts the index
 
     // sort by ids

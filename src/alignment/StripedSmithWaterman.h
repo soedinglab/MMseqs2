@@ -104,7 +104,7 @@ public:
 
      @param	gap_extend	the absolute value of gap extension penalty
 
-     @param	flag	bitwise FLAG; (from high to low) bit 5: when setted as 1, function ssw_align will return the best alignment
+     @param	alignmentMode	bitwise FLAG; (from high to low) bit 5: when setted as 1, function ssw_align will return the best alignment
      beginning position; bit 6: when setted as 1, if (ref_end1 - ref_begin1 < filterd && read_end1 - read_begin1
      < filterd), (whatever bit 5 is setted) the function will return the best alignment beginning position and
      cigar; bit 7: when setted as 1, if the best alignment score >= filters, (whatever bit 5 is setted) the function
@@ -138,7 +138,7 @@ public:
                         int32_t db_length,
                         const uint8_t gap_open,
                         const uint8_t gap_extend,
-                        const uint8_t flag,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
+                        const uint8_t alignmentMode,	//  (from high to low) bit 5: return the best alignment beginning position; 6: if (ref_end1 - ref_begin1 <= filterd) && (read_end1 - read_begin1 <= filterd), return cigar; 7: if max score >= filters, return cigar; 8: always return cigar; if 6 & 7 are both setted, only return cigar when both filter fulfilled
                         const double filters,
                         EvalueComputation * filterd,
                         const int covMode, const float covThr,
@@ -173,7 +173,7 @@ public:
 
     static float computeCov(unsigned int startPos, unsigned int endPos, unsigned int len);
 
-    s_align scoreIdentical(int *dbSeq, int L, EvalueComputation * evaluer, int mode);
+    s_align scoreIdentical(int *dbSeq, int L, EvalueComputation * evaluer, int alignmentMode);
 
     static void seq_reverse(int8_t * reverse, const int8_t* seq, int32_t end)	/* end is 0-based alignment ending position */
     {

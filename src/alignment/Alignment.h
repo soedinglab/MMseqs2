@@ -39,7 +39,10 @@ private:
     const double covThr;
 
     // query or query+target coverage mode
-    const double covMode;
+    const int covMode;
+
+    // sets the mode how seq. id will be normalized
+    const int seqIdMode;
 
     // e value threshold
     const double evalThr;

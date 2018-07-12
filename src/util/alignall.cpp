@@ -7,11 +7,10 @@
 #include "DBWriter.h"
 #include "QueryMatcher.h"
 #include "QueryMatcher.h"
+#include "NucleotideMatrix.h"
 
 #include <string>
 #include <vector>
-#include <sys/time.h>
-#include <NucleotideMatrix.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -21,8 +20,6 @@
 
 int alignall(int argc, const char **argv, const Command &command) {
     Debug(Debug::INFO) << "Rescore diagonals.\n";
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 4);
 #ifdef OPENMP
@@ -123,7 +120,7 @@ int alignall(int argc, const char **argv, const Command &command) {
                         double seqId = 0;
                         double evalue = 0.0;
                         Matcher::result_t result = matcher.getSWResult(&target, INT_MAX, par.covMode, par.covThr, FLT_MAX,
-                                                                       par.alignmentMode, isIdentity);
+                                                                       par.alignmentMode, par.seqIdMode, isIdentity);
                         // query/target cov mode
                         bool hasCov = Util::hasCoverage(par.covThr, par.covMode, result.qcov, result.dbcov);
                         // --min-seq-id
@@ -152,10 +149,7 @@ int alignall(int argc, const char **argv, const Command &command) {
         tdbr->close();
         delete tdbr;
     }
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for diagonal calculation: " << (sec / 3600) << " h "
-                       << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+
     return EXIT_SUCCESS;
 }
 

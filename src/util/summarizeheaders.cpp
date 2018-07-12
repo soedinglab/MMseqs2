@@ -36,7 +36,7 @@ int summarizeheaders(int argc, const char **argv, const Command& command) {
         summarizer = new UniprotHeaderSummarizer;
     }else {
         Debug(Debug::ERROR) << "Header type is not supported\n";
-        EXIT(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     Debug(Debug::INFO) << "Start writing to file " << par.db4 << "\n";

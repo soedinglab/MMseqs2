@@ -111,6 +111,11 @@ public:
     static const int COV_MODE_TARGET = 1;
     static const int COV_MODE_QUERY = 2;
 
+    // seq. id mode
+    static const int SEQ_ID_ALN_LEN  = 0;
+    static const int SEQ_ID_SHORT = 1;
+    static const int SEQ_ID_LONG = 2;
+
 
     // rescorediagonal
     static const int RESCORE_MODE_HAMMING = 0;
@@ -184,6 +189,7 @@ public:
     float  evalThr;                      // e-value threshold for acceptance
     float  covThr;                       // coverage query&target threshold for acceptance
     int    covMode;                      // coverage target threshold for acceptance
+    int    seqIdMode;                    // seq. id. normalize mode
 
     int    maxRejected;                  // after n sequences that are above eval stop
     int    maxAccept;                    // after n accepted sequences stop
@@ -421,7 +427,6 @@ public:
     PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_NO_PRELOAD)
     PARAMETER(PARAM_EARLY_EXIT)
-    PARAMETER(PARAM_SCORE_BIAS)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment
@@ -429,11 +434,13 @@ public:
     PARAMETER(PARAM_E)
     PARAMETER(PARAM_C)
     PARAMETER(PARAM_COV_MODE)
+    PARAMETER(PARAM_SEQ_ID_MODE)
     PARAMETER(PARAM_MAX_REJECTED)
     PARAMETER(PARAM_MAX_ACCEPT)
     PARAMETER(PARAM_ADD_BACKTRACE)
     PARAMETER(PARAM_REALIGN)
     PARAMETER(PARAM_MIN_SEQ_ID)
+    PARAMETER(PARAM_SCORE_BIAS)
     PARAMETER(PARAM_ALT_ALIGNMENT)
     std::vector<MMseqsParameter> align;
 

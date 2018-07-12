@@ -1,12 +1,3 @@
-//
-// Created by Martin Steinegger on 2/25/16.
-//
-
-#include <limits>
-#include <string>
-#include <vector>
-#include <iomanip>
-#include <algorithm>
 #include "Indexer.h"
 #include "ReducedMatrix.h"
 #include "DBWriter.h"
@@ -17,14 +8,20 @@
 #include "Debug.h"
 #include "DBReader.h"
 #include "omptl/omptl_algorithm"
-#include <sys/time.h>
 #include "MathUtil.h"
 #include "FileUtil.h"
-#include <tantan.h>
-#include <queue>
-#include <NucleotideMatrix.h>
+#include "NucleotideMatrix.h"
 #include "QueryMatcher.h"
 #include "FileUtil.h"
+#include "Timer.h"
+#include "tantan.h"
+
+#include <limits>
+#include <string>
+#include <vector>
+#include <iomanip>
+#include <algorithm>
+#include <queue>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -150,17 +147,9 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                              size_t splits, size_t split){
     size_t offset = 0;
     int querySeqType  =  seqDbr.getDbtype();
-    double probMatrix[subMat->alphabetSize][subMat->alphabetSize];
-    const double *probMatrixPointers[subMat->alphabetSize];
-    char hardMaskTable[256];
+    ProbabilityMatrix *probMatrix = NULL;
     if (par.maskMode == 1) {
-        std::fill_n(hardMaskTable, 256, subMat->aa2int[(int) 'X']);
-        for (int i = 0; i < subMat->alphabetSize; ++i) {
-            probMatrixPointers[i] = probMatrix[i];
-            for (int j = 0; j < subMat->alphabetSize; ++j) {
-                probMatrix[i][j] = subMat->probMatrix[i][j] / (subMat->pBack[i] * subMat->pBack[j]);
-            }
-        }
+        probMatrix = new ProbabilityMatrix(*subMat);
     }
 
     struct SequencePosition{
@@ -210,12 +199,12 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                     tantan::maskSequences(charSequence,
                                           charSequence + seq.L,
                                           50 /*options.maxCycleLength*/,
-                                          probMatrixPointers,
+                                          probMatrix->probMatrixPointers,
                                           0.005 /*options.repeatProb*/,
                                           0.05 /*options.repeatEndProb*/,
                                           0.5 /*options.repeatOffsetProbDecay*/,
                                           0, 0,
-                                          0.5 /*options.minMaskProb*/, hardMaskTable);
+                                          0.5 /*options.minMaskProb*/, probMatrix->hardMaskTable);
                     for (int i = 0; i < seq.L; i++) {
                         seq.int_sequence[i] = charSequence[i];
                     }
@@ -303,6 +292,10 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
         delete [] charSequence;
         delete [] threadKmerBuffer;
     }
+
+    if (probMatrix != NULL) {
+        delete probMatrix;
+    }
     return offset;
 }
 
@@ -325,8 +318,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
 
 
     DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());
@@ -393,24 +384,19 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             hashSeqPair[i].kmer = SIZE_T_MAX;
         }
 
-        struct timeval starttmp;
-        gettimeofday(&starttmp, NULL);
+        Timer timer;
         size_t elementsToSort = fillKmerPositionArray(hashSeqPair, seqDbr, par, subMat, KMER_SIZE, chooseTopKmer, splits, split);
-        gettimeofday(&end, NULL);
-        time_t sec = end.tv_sec - starttmp.tv_sec;
-        Debug(Debug::INFO) << "\nTime for fill: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+        Debug(Debug::INFO) << "\nTime for fill: " << timer.lap() << "\n";
         if(splits == 1){
             seqDbr.unmapData();
         }
         Debug(Debug::INFO) << "Done." << "\n";
         Debug(Debug::INFO) << "Sort kmer ... ";
-        gettimeofday(&starttmp, NULL);
+        timer.reset();
         omptl::sort(hashSeqPair, hashSeqPair + elementsToSort, KmerPosition::compareRepSequenceAndIdAndPos);
         //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, KmerComparision());
         Debug(Debug::INFO) << "Done." << "\n";
-        gettimeofday(&end, NULL);
-        sec = end.tv_sec - starttmp.tv_sec;
-        Debug(Debug::INFO) << "Time for sort: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+        Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
         // assign rep. sequence to same kmer members
         // The longest sequence is the first since we sorted by kmer, seq.Len and id
         size_t writePos = 0;
@@ -467,13 +453,11 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
         }
         // sort by rep. sequence (stored in kmer) and sequence id
         Debug(Debug::INFO) << "Sort by rep. sequence ... ";
-        gettimeofday(&starttmp, NULL);
+        timer.reset();
         omptl::sort(hashSeqPair, hashSeqPair + writePos, KmerPosition::compareRepSequenceAndIdAndDiag);
         //kx::radix_sort(hashSeqPair, hashSeqPair + elementsToSort, SequenceComparision());
-        gettimeofday(&end, NULL);
-        sec = end.tv_sec - starttmp.tv_sec;
         Debug(Debug::INFO) << "Done\n";
-        Debug(Debug::INFO) << "Time for sort: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+        Debug(Debug::INFO) << "Time for sort: " << timer.lap() << "\n";
 
         if(splits > 1){
             std::string splitFile = par.db2 + "_split_" +SSTR(split);
@@ -490,17 +474,15 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     // write result
     DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), par.threads);
     dbw.open();
-    struct timeval starttmp;
-    gettimeofday(&starttmp, NULL);
+    
+    Timer timer;
     if(splits > 1) {
         seqDbr.unmapData();
         mergeKmerFilesAndOutput(seqDbr, dbw, splitFiles, repSequence, par.covMode, par.cov);
     } else {
         writeKmerMatcherResult(seqDbr, dbw, hashSeqPair, totalKmers, repSequence, par.covMode, par.cov, par.threads);
     }
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - starttmp.tv_sec;
-    Debug(Debug::INFO) << "Time for fill: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
+    Debug(Debug::INFO) << "Time for fill: " << timer.lap() << "\n";
     // add missing entries to the result (needed for clustering)
 
     {
@@ -529,9 +511,6 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
     seqDbr.close();
     dbw.close();
 
-    gettimeofday(&end, NULL);
-    sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
     return EXIT_SUCCESS;
 }
 

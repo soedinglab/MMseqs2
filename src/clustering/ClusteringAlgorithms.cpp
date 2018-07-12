@@ -1,14 +1,11 @@
-//
-// Created by lars on 08.06.15.
-//
-#include <sys/time.h>
 #include "ClusteringAlgorithms.h"
 #include "Util.h"
 #include "Debug.h"
 #include "AlignmentSymmetry.h"
+#include "Timer.h"
+
 #include <queue>
 #include <algorithm>
-#include <new>
 #include <climits>
 #include <unordered_map>
 
@@ -370,9 +367,7 @@ void ClusteringAlgorithms::greedyIncremental(unsigned int **elementLookupTable, 
 void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
                                              unsigned short **scoreLookupTable, unsigned short *&scores,
                                              size_t *elementOffsets, size_t totalElementCount) {
-    //time
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    Timer timer;
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         const unsigned int clusterId = seqDbr->getDbKey(i);
@@ -427,10 +422,6 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     }
 
     memcpy(elementOffsets, newElementOffsets, sizeof(size_t) * (dbSize + 1));
-    delete [] newElementOffsets;
-    //time
-    gettimeofday(&end, NULL);
-    size_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for Read in: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
+    delete[] newElementOffsets;
+    Debug(Debug::INFO) << "\nTime for read in: " << timer.lap() << "\n";
 }
