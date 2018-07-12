@@ -211,6 +211,7 @@ Parameters::Parameters():
     align.push_back(PARAM_ALIGNMENT_MODE);
     align.push_back(PARAM_E);
     align.push_back(PARAM_MIN_SEQ_ID);
+    align.push_back(PARAM_SEQ_ID_MODE);
     align.push_back(PARAM_ALT_ALIGNMENT);
     align.push_back(PARAM_C);
     align.push_back(PARAM_COV_MODE);
@@ -280,6 +281,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(PARAM_E);
     rescorediagonal.push_back(PARAM_COV_MODE);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
+    rescorediagonal.push_back(PARAM_SEQ_ID_MODE);
     rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
