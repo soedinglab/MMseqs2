@@ -45,12 +45,12 @@ int easysearch(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 4);
 
     if (FileUtil::directoryExists(par.db4.c_str()) == false) {
-        Debug(Debug::WARNING) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
+        Debug(Debug::INFO) << "Tmp " << par.db4 << " folder does not exist or is not a directory.\n";
         if (FileUtil::makeDir(par.db4.c_str()) == false) {
-            Debug(Debug::WARNING) << "Could not crate tmp folder " << par.db4 << ".\n";
-            EXIT(EXIT_FAILURE);
+            Debug(Debug::ERROR) << "Could not crate tmp folder " << par.db4 << ".\n";
+            return EXIT_FAILURE;
         } else {
-            Debug(Debug::WARNING) << "Created dir " << par.db4 << "\n";
+            Debug(Debug::INFO) << "Created dir " << par.db4 << "\n";
         }
     }
 
@@ -59,8 +59,8 @@ int easysearch(int argc, const char **argv, const Command &command) {
     std::string tmpDir = par.db4 + "/" + SSTR(hash);
     if (FileUtil::directoryExists(tmpDir.c_str()) == false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
-            Debug(Debug::WARNING) << "Could not create sub tmp folder " << tmpDir << ".\n";
-            EXIT(EXIT_FAILURE);
+            Debug(Debug::ERROR) << "Could not create sub tmp folder " << tmpDir << ".\n";
+            return EXIT_FAILURE;
         }
     }
     par.filenames.pop_back();
@@ -82,6 +82,7 @@ int easysearch(int argc, const char **argv, const Command &command) {
 
     cmd.addVariable("RUNNER", par.runner.c_str());
 
+    cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
     cmd.addVariable("SEARCH_PAR", par.createParameterString(par.searchworkflow).c_str());
     cmd.addVariable("CONVERT_PAR", par.createParameterString(par.convertalignments).c_str());
     cmd.addVariable("SUMMARIZE_PAR", par.createParameterString(par.summarizeresult).c_str());

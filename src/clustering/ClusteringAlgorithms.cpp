@@ -1,14 +1,11 @@
-//
-// Created by lars on 08.06.15.
-//
-#include <sys/time.h>
 #include "ClusteringAlgorithms.h"
 #include "Util.h"
 #include "Debug.h"
 #include "AlignmentSymmetry.h"
+#include "Timer.h"
+
 #include <queue>
 #include <algorithm>
-#include <new>
 #include <climits>
 #include <unordered_map>
 
@@ -370,9 +367,7 @@ void ClusteringAlgorithms::greedyIncremental(unsigned int **elementLookupTable, 
 void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, unsigned int *&elements,
                                              unsigned short **scoreLookupTable, unsigned short *&scores,
                                              size_t *elementOffsets, size_t totalElementCount) {
-    //time
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    Timer timer;
 #pragma omp parallel for schedule(dynamic, 1000)
     for(size_t i = 0; i < dbSize; i++) {
         const unsigned int clusterId = seqDbr->getDbKey(i);
@@ -389,9 +384,9 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
                                                    totalElementCount);
     // fill elements
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, NULL, 0, elementOffsets);
-    Debug(Debug::WARNING) << "\nSort entries.\n";
+    Debug(Debug::INFO) << "\nSort entries.\n";
     AlignmentSymmetry::sortElements(elementLookupTable, elementOffsets, dbSize);
-    Debug(Debug::WARNING) << "\nFind missing connections.\n";
+    Debug(Debug::INFO) << "\nFind missing connections.\n";
 
     size_t *newElementOffsets = new size_t[dbSize + 1];
     memcpy(newElementOffsets, elementOffsets, sizeof(size_t) * (dbSize + 1));
@@ -409,15 +404,15 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     scores = new(std::nothrow) unsigned short[symmetricElementCount];
     Util::checkAllocation(scores, "Could not allocate scores memory in readInClusterData");
     std::fill_n(scores, symmetricElementCount, 0);
-    Debug(Debug::WARNING) << "\nFound " << symmetricElementCount - totalElementCount << " new connections.\n";
+    Debug(Debug::INFO) << "\nFound " << symmetricElementCount - totalElementCount << " new connections.\n";
     AlignmentSymmetry::setupPointers<unsigned int>  (elements, elementLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     AlignmentSymmetry::setupPointers<unsigned short>(scores, scoreLookupTable, newElementOffsets, dbSize, symmetricElementCount);
     //time
-    Debug(Debug::WARNING) << "\nReconstruct initial order.\n";
+    Debug(Debug::INFO) << "\nReconstruct initial order.\n";
     alnDbr->remapData(); // need to free memory
     AlignmentSymmetry::readInData(alnDbr, seqDbr, elementLookupTable, scoreLookupTable, scoretype, elementOffsets);
     alnDbr->remapData(); // need to free memory
-    Debug(Debug::WARNING) << "\nAdd missing connections.\n";
+    Debug(Debug::INFO) << "\nAdd missing connections.\n";
     AlignmentSymmetry::addMissingLinks(elementLookupTable, elementOffsets, newElementOffsets, dbSize, scoreLookupTable);
     maxClustersize = 0;
     for (size_t i = 0; i < dbSize; i++) {
@@ -427,10 +422,6 @@ void ClusteringAlgorithms::readInClusterData(unsigned int **elementLookupTable, 
     }
 
     memcpy(elementOffsets, newElementOffsets, sizeof(size_t) * (dbSize + 1));
-    delete [] newElementOffsets;
-    //time
-    gettimeofday(&end, NULL);
-    size_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "\nTime for Read in: " << (sec / 60) << " m " << (sec % 60) << "s\n\n";
-    gettimeofday(&start, NULL);
+    delete[] newElementOffsets;
+    Debug(Debug::INFO) << "\nTime for read in: " << timer.lap() << "\n";
 }

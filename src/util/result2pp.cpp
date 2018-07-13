@@ -1,11 +1,6 @@
 // Computes either a PSSM or a MSA from clustering or alignment result
 // For PSSMs: MMseqs just stores the position specific score in 1 byte
 
-#include <string>
-#include <vector>
-#include <sstream>
-#include <sys/time.h>
-
 #include "Alignment.h"
 #include "MsaFilter.h"
 #include "Parameters.h"
@@ -19,11 +14,14 @@
 #include "Util.h"
 #include "ProfileStates.h"
 #include "MathUtil.h"
-#include <SubstitutionMatrixProfileStates.h>
+#include "SubstitutionMatrixProfileStates.h"
+
+#include <string>
+#include <vector>
+#include <sstream>
 
 #ifdef OPENMP
 #include <omp.h>
-
 #endif
 
 
@@ -346,9 +344,7 @@ int result2pp(int argc, const char **argv, const Command& command) {
 
     // never allow deletions
     par.allowDeletion = false;
-    Debug(Debug::WARNING) << "Compute profile.\n";
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
+    Debug(Debug::INFO) << "Compute profile.\n";
 
 #ifdef HAVE_MPI
     int retCode = computeProfileProfile(par, MMseqsMPI::rank, MMseqsMPI::numProc);
@@ -356,11 +352,5 @@ int result2pp(int argc, const char **argv, const Command& command) {
     int retCode = computeProfileProfile(par);
 #endif
 
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::WARNING) << "Time for processing: " << (sec / 3600) << " h " << (sec % 3600 / 60) << " m " << (sec % 60) << "s\n";
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
     return retCode;
 }

@@ -27,7 +27,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     // init the structure for cluster merging
     // it has the size of all possible cluster (sequence amount)
     std::list<unsigned int>** mergedClustering = new std::list<unsigned int>*[dbr.getSize()];
-    Debug(Debug::WARNING) << "List amount "<< dbr.getSize() << "\n";
+    Debug(Debug::INFO) << "List amount "<< dbr.getSize() << "\n";
 #pragma omp parallel for
     for (size_t i = 0; i < dbr.getSize(); i++){
         mergedClustering[i] = new std::list<unsigned int>();
@@ -56,7 +56,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     }
     cluStepDbr->close();
     delete cluStepDbr;
-    Debug(Debug::WARNING) << "Clustering step 1...\n";
+    Debug(Debug::INFO) << "Clustering step 1...\n";
 
     // merge later clustering steps into the initial clustering step
     int cnt = 2;
@@ -90,11 +90,11 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         }
         cluStepDbr->close();
         delete cluStepDbr;
-        Debug(Debug::WARNING) << "Clustering step " << cnt << "...\n";
+        Debug(Debug::INFO) << "Clustering step " << cnt << "...\n";
         cnt++;
     }
 
-    Debug(Debug::WARNING) << "Writing the results...\n";
+    Debug(Debug::INFO) << "Writing the results...\n";
 
     std::string outDBIndex = outDB + ".index";
     DBWriter* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), threads);
@@ -140,7 +140,7 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         delete mergedClustering[i];
     }
     delete[] mergedClustering;
-    Debug(Debug::WARNING) << "...done.\n";
+    Debug(Debug::INFO) << "...done.\n";
 }
 
 void mergeSearchWithClustersResults(const std::string &searchResults, const std::string &outDB,
@@ -184,9 +184,7 @@ void mergeSearchWithClustersResults(const std::string &searchResults, const std:
     searchResultsDB.close();
     geneToQuerySetLinkDB.close();
 
-
-    Debug(Debug::WARNING) << "...done.\n";
-
+    Debug(Debug::INFO) << "...done.\n";
 }
 
 int mergeclusters(int argc, const char **argv, const Command& command) {

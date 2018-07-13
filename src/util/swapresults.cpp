@@ -7,6 +7,7 @@
 #include "QueryMatcher.h"
 #include "Parameters.h"
 #include "AlignmentSymmetry.h"
+#include "PrefilteringIndexReader.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -17,6 +18,50 @@ struct compareEval {
                     const Matcher::result_t &rhs) const {
         return lhs.eval < rhs.eval;
     }
+};
+
+class IndexReader {
+public:
+    DBReader<unsigned int> *reader;
+    IndexReader(const std::string &data) {
+        std::string index = data;
+        index.append(".index");
+
+        bool isIndex = false;
+        std::string indexData = PrefilteringIndexReader::searchForIndex(data);
+        if (indexData != "") {
+            Debug(Debug::INFO) << "Use index: " << indexData << "\n";
+            std::string indexIndex = indexData;
+            indexIndex.append(".index");
+            indexReader = new DBReader<unsigned int>(indexData.c_str(), indexIndex.c_str());
+            indexReader->open(DBReader<unsigned int>::NOSORT);
+            if ((isIndex = PrefilteringIndexReader::checkIfIndexFile(indexReader)) == true) {
+                reader = PrefilteringIndexReader::openNewReader(indexReader, false);
+            } else {
+                Debug(Debug::WARNING) << "Outdated index version. Please recompute it with 'createindex'!\n";
+                indexReader->close();
+                delete indexReader;
+                indexReader = NULL;
+            }
+        }
+
+        if (isIndex == false) {
+            reader = new DBReader<unsigned int>(data.c_str(), index.c_str(), DBReader<unsigned int>::USE_INDEX);
+            reader->open(DBReader<unsigned int>::NOSORT);
+        }
+    }
+
+    ~IndexReader() {
+        reader->close();
+        delete reader;
+
+        if (indexReader != NULL) {
+            indexReader->close();
+            delete indexReader;
+        }
+    }
+private:
+    DBReader<unsigned int> *indexReader = NULL;
 };
 
 int doswap(Parameters& par, bool isGeneralMode) {
@@ -43,41 +88,46 @@ int doswap(Parameters& par, bool isGeneralMode) {
     std::string parOutDbStr(parOutDb);
     std::string parOutDbIndexStr(parOutDbIndex);
 
-    struct timeval start, end;
-    gettimeofday(&start, NULL);
-
     size_t aaResSize = 0;
     unsigned int maxTargetId = 0;
-
+    char *targetElementExists = NULL;
     if (isGeneralMode) {
         Debug(Debug::INFO) << "Result database: " << parResultDbStr << "\n";
         DBReader<unsigned int> resultReader(parResultDb, parResultDbIndex);
         resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-        //search for the maxTargetId (value of first column) in parallel 
-        char *resultDbEntry[1000];
-#pragma omp parallel for schedule(dynamic, 100) reduction(max:maxTargetId)
-        for (size_t id = 0; id < resultReader.getSize(); id++) {
-            Debug::printProgress(id);
-            char *resultDbRecord = resultReader.getData(id);
-            while (*resultDbRecord != '\0') {
-                unsigned int currTargetId = Util::fast_atoi<int>(resultDbEntry[0]);
-                maxTargetId = std::max(maxTargetId, currTargetId);
-                resultDbRecord = Util::skipLine(resultDbRecord);
+        //search for the maxTargetId (value of first column) in parallel
+#pragma omp parallel
+        {
+            char key[255];
+#pragma omp for schedule(dynamic, 100) reduction(max:maxTargetId)
+            for (size_t i = 0; i < resultReader.getSize(); ++i) {
+                Debug::printProgress(i);
+                char *data = resultReader.getData(i);
+                while (*data != '\0') {
+                    Util::parseKey(data, key);
+                    unsigned int dbKey = std::strtoul(key, NULL, 10);
+                    maxTargetId = std::max(maxTargetId, dbKey);
+                    data = Util::skipLine(data);
+                }
             }
-        }
+        };
         resultReader.close();
     } else {
         Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
-        DBReader<unsigned int> queryReader(par.db1.c_str(), par.db1Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-        queryReader.open(DBReader<unsigned int>::NOSORT);
-        aaResSize = queryReader.getAminoAcidDBSize();
-        queryReader.close();
+        IndexReader query(par.db1);
+        aaResSize = query.reader->getAminoAcidDBSize();
 
         Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
-        DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-        targetReader.open(DBReader<unsigned int>::NOSORT);
-        maxTargetId = targetReader.getLastKey();
-        targetReader.close();
+        IndexReader target(par.db2);
+        maxTargetId = target.reader->getLastKey();
+
+        targetElementExists = new char[maxTargetId + 1];
+        memset(targetElementExists, 0, sizeof(char) * (maxTargetId + 1));
+#pragma omp parallel for
+        for (size_t i = 0; i < target.reader->getSize(); ++i) {
+            unsigned int key = target.reader->getDbKey(i);
+            targetElementExists[key] = 1;
+        }
     }
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     EvalueComputation evaluer(aaResSize, &subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
@@ -203,6 +253,13 @@ int doswap(Parameters& par, bool isGeneralMode) {
 #ifdef OPENMP
             thread_idx = (unsigned int) omp_get_thread_num();
 #endif
+            // we are reusing this vector also for the prefiltering results
+            // qcov is used for pScore because its the first float value
+            // and alnLength for diagonal because its the first int value after
+            std::vector<Matcher::result_t> curRes;
+            char buffer[1024+32768];
+            std::string ss;
+            ss.reserve(100000);
 
 #pragma omp for schedule(dynamic, 100)
             for (size_t i = prevDbKeyToWrite; i <= dbKeyToWrite; ++i) {
@@ -217,14 +274,6 @@ int doswap(Parameters& par, bool isGeneralMode) {
                     }
                     continue;
                 }
-
-                // we are reusing this vector also for the prefiltering results
-                // qcov is used for pScore because its the first float value
-                // and alnLength for diagonal because its the first int value after
-                std::vector<Matcher::result_t> curRes;
-                char buffer[1024+32768];
-                std::string ss;
-                ss.reserve(100000);
 
                 bool evalBreak = false;
                 while (dataSize > 0) {
@@ -291,7 +340,7 @@ int doswap(Parameters& par, bool isGeneralMode) {
                     ss = "";
 
                     curRes.clear();
-                } else if (evalBreak == true) {
+                } else if (evalBreak == true || targetElementExists[i] == 1) {
                     resultWriter.writeData(&empty, 0, i, thread_idx);
                 }
             }
@@ -303,43 +352,13 @@ int doswap(Parameters& par, bool isGeneralMode) {
         prevBytesToWrite += bytesToWrite;
         delete[] tmpData;
     }
-    resultDbr.close();
-
-    // add missing target entries
-    DBReader<unsigned int> targetReader(par.db2.c_str(), par.db2Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-    targetReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-    std::string writerDb = parOutDbStr + "_" + SSTR(splits.size());
-    std::pair<std::string, std::string> writerName = std::make_pair(writerDb, writerDb + ".index");
-    splitFileNames.push_back(writerName);
-
-    DBWriter resultWriter(writerName.first.c_str(), writerName.second.c_str(), par.threads);
-    resultWriter.open();
-#pragma omp parallel
-    {
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-#pragma omp for
-        for (size_t i = 0; i < targetReader.getSize(); ++i) {
-            unsigned int key = targetReader.getDbKey(i);
-            size_t entrySize = targetElementSize[key + 1] - targetElementSize[key];
-            if (entrySize == 0) {
-                resultWriter.writeData(&empty, 0, key, thread_idx);
-            }
-        }
-    };
-    resultWriter.close();
-    targetReader.close();
-
     DBWriter::mergeResults(parOutDbStr, parOutDbIndexStr, splitFileNames);
 
+    resultDbr.close();
+    if (targetElementExists != NULL) {
+        delete[] targetElementExists;
+    }
     delete[] targetElementSize;
-    gettimeofday(&end, NULL);
-    time_t sec = end.tv_sec - start.tv_sec;
-    Debug(Debug::INFO) << "Time for swapping: " << (sec / 3600) << "h "
-                       << (sec % 3600 / 60) << "m " << (sec % 60) << "s\n";
     return EXIT_SUCCESS;
 }
 

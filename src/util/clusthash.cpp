@@ -44,7 +44,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
 
     DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), par.threads);
     dbw.open();
-    Debug(Debug::WARNING) << "Hashing sequences ... \n";
+    Debug(Debug::INFO) << "Hashing sequences ... \n";
     std::pair<size_t, unsigned int> * hashSeqPair = new  std::pair<size_t, unsigned int>[seqDbr.getSize()+1];
     hashSeqPair[seqDbr.getSize()] = std::make_pair(UINT_MAX, 0); // needed later to check if one of array
 #pragma omp parallel
@@ -60,7 +60,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
             hashSeqPair[id] = std::make_pair(seqHash, id);
         }
     }
-    Debug(Debug::WARNING) << "Done." << "\n";
+    Debug(Debug::INFO) << "Done." << "\n";
 
 
     // sort by hash and set up the pointer for parallel processing
@@ -84,7 +84,7 @@ int clusthash(int argc, const char **argv, const Command& command) {
         }
         prevHash = hashSeqPair[id].first;
     }
-    Debug(Debug::WARNING) << "Compute "<< uniqHashes <<" unique hashes.\n";
+    Debug(Debug::INFO) << "Compute " << uniqHashes << " unique hashes.\n";
 
 #pragma omp parallel
     {

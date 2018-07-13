@@ -30,7 +30,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
     if(queryDbType == -1 || targetDbType == -1){
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
-        EXIT(EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
 
     Debug(Debug::INFO) << "Query Header file: " << par.db1 << "_h\n";

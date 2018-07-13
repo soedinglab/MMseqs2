@@ -66,7 +66,8 @@ void Matcher::initQuery(Sequence* query){
 
 
 Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, const int covMode, const float covThr,
-                                       const double evalThr, unsigned int mode, bool isIdentity){
+                                       const double evalThr, unsigned int alignmentMode, unsigned int seqIdMode,
+                                       bool isIdentity){
     // calculation of the score and traceback of the alignment
     int32_t maskLen = currentQuery->L / 2;
 
@@ -87,11 +88,11 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
             EXIT(EXIT_FAILURE);
         }
         alignment = nuclaligner->align(dbSeq,diagonal,evaluer);
-        mode = Matcher::SCORE_COV_SEQID;
+        alignmentMode = Matcher::SCORE_COV_SEQID;
     }else if(isIdentity==false){
-        alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, gapOpen, gapExtend, mode, evalThr, evaluer, covMode, covThr, maskLen);
+        alignment = aligner->ssw_align(dbSeq->int_sequence, dbSeq->L, gapOpen, gapExtend, alignmentMode, evalThr, evaluer, covMode, covThr, maskLen);
     }else{
-        alignment = aligner->scoreIdentical(dbSeq->int_sequence, dbSeq->L, evaluer, mode);
+        alignment = aligner->scoreIdentical(dbSeq->int_sequence, dbSeq->L, evaluer, alignmentMode);
     }
 
     // calculation of the coverage and e-value
@@ -102,7 +103,7 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
     std::string backtrace;
 
     int aaIds = 0;
-    if(mode == Matcher::SCORE_COV_SEQID){
+    if(alignmentMode == Matcher::SCORE_COV_SEQID){
         if(isIdentity==false){
             if(alignment.cigar){
                 int32_t targetPos = alignment.dbStartPos1, queryPos = alignment.qStartPos1;
@@ -146,30 +147,29 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
     const unsigned int dbEndPos = alignment.dbEndPos1;
     // normalize score
 //    alignment->score1 = alignment->score1 - log2(dbSeq->L);
-    if(mode == Matcher::SCORE_COV || mode == Matcher::SCORE_COV_SEQID) {
+    if(alignmentMode == Matcher::SCORE_COV || alignmentMode == Matcher::SCORE_COV_SEQID) {
         qcov  = alignment.qCov;
         dbcov = alignment.tCov;
     }
 
     unsigned int alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
     // try to estimate sequence id
-    if(mode == Matcher::SCORE_COV_SEQID){
+    if(alignmentMode == Matcher::SCORE_COV_SEQID){
         // compute sequence id
-        unsigned int qAlnLen = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
-        unsigned int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
         if(alignment.cigar){
             // OVERWRITE alnLength with gapped value
             alnLength = backtrace.size();
         }
-        seqId =  static_cast<float>(aaIds) / static_cast<float>(std::max(std::max(qAlnLen, dbAlnLen), alnLength));
-    }else if( mode == Matcher::SCORE_COV){
+        seqId = Util::computeSeqId(seqIdMode, aaIds, currentQuery->L, dbSeq->L, alnLength);
+
+    }else if( alignmentMode == Matcher::SCORE_COV){
         // "20%   30%   40%   50%   60%   70%   80%   90%   99%"
         // "0.52  1.12  1.73  2.33  2.93  3.53  4.14  4.74  5.28"
         unsigned int qAlnLen = std::max(qEndPos - qStartPos, static_cast<unsigned int>(1));
         unsigned int dbAlnLen = std::max(dbEndPos - dbStartPos, static_cast<unsigned int>(1));
         //seqId = (alignment.score1 / static_cast<float>(std::max(qAlnLength, dbAlnLength)))  * 0.1656 + 0.1141;
         seqId = estimateSeqIdByScorePerCol(alignment.score1, qAlnLen, dbAlnLen);
-    }else if ( mode == Matcher::SCORE_ONLY){
+    }else if ( alignmentMode == Matcher::SCORE_ONLY){
         unsigned int qAlnLen = std::max(qEndPos, static_cast<unsigned int>(1));
         unsigned int dbAlnLen = std::max(dbEndPos, static_cast<unsigned int>(1));
         //seqId = (alignment.score1 / static_cast<float>(std::max(dbAlnLen, qAlnLen)))  * 0.1656 + 0.1141;

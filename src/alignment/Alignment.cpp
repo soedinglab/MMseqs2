@@ -20,11 +20,12 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
                      const std::string &prefDB, const std::string &prefDBIndex,
                      const std::string &outDB, const std::string &outDBIndex,
                      const Parameters &par) :
-        covThr(par.covThr), covMode(par.covMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
-        includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign),
+
+        covThr(par.covThr), covMode(par.covMode), seqIdMode(par.seqIdMode), evalThr(par.evalThr), seqIdThr(par.seqIdThr),
+        includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qSeqLookup(NULL),
-        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit), scoreBias(par.scoreBias)  {
+        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit)  {
 
 
     unsigned int alignmentMode = par.alignmentMode;
@@ -346,7 +347,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     const bool isIdentity = (queryDbKey == dbKey && (includeIdentity || sameQTDB)) ? true : false;
 
                     // calculate Smith-Waterman alignment
-                    Matcher::result_t res = matcher.getSWResult(&dbSeq, diagonal, covMode, covThr, evalThr, swMode, isIdentity);
+                    Matcher::result_t res = matcher.getSWResult(&dbSeq, diagonal, covMode, covThr, evalThr, swMode, seqIdMode, isIdentity);
                     alignmentsNum++;
 
                     //set coverage and seqid if identity
@@ -381,7 +382,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         bool nextAlignment = true;
                         for (int altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
                             Matcher::result_t res = matcher.getSWResult(&dbSeq, 0, covMode, covThr, evalThr, swMode,
-                                                                        isIdentity);
+                                                                        seqIdMode, isIdentity);
                             nextAlignment = checkCriteriaAndAddHitToList(res, isIdentity, swResults);
                             if (nextAlignment == true) {
                                 for (int pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
@@ -400,7 +401,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         setTargetSequence(dbSeq, swResults[result].dbKey);
                         const bool isIdentity = (queryDbKey == swResults[result].dbKey && (includeIdentity || sameQTDB)) ? true : false;
                         Matcher::result_t res = realigner->getSWResult(&dbSeq, INT_MAX, covMode, covThr, FLT_MAX,
-                                                                       Matcher::SCORE_COV_SEQID, isIdentity);
+                                                                       Matcher::SCORE_COV_SEQID, seqIdMode, isIdentity);
                         swResults[result].backtrace  = res.backtrace;
                         swResults[result].qStartPos  = res.qStartPos;
                         swResults[result].qEndPos    = res.qEndPos;
