@@ -317,7 +317,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
 }
 
 int result2msa(Parameters &par) {
-    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    DBReader<unsigned int> *resultReader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str(), DBReader<unsigned int>::USE_INDEX);
     resultReader->open(DBReader<unsigned int>::NOSORT);
     size_t resultSize = resultReader->getSize();
     resultReader->close();
