@@ -59,7 +59,7 @@ std::vector<struct Command> commands = {
         {"createtsv",            createtsv,            &par.createtsv,        COMMAND_FORMAT_CONVERSION,
                 "Create tab-separated flat file from prefilter DB, alignment DB, cluster DB, or taxa DB",
                 "Create tab-separated flat file from prefilter DB, alignment DB, cluster DB, or taxa DB. The target database is optional. This is useful for taxa DB, since it does not have a target key.",
-                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>r",
+                "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryDB> [<i:targetDB>] <i:resultDB> <o:tsvFile>",
                 CITATION_MMSEQS2},
         {"convertalis",          convertalignments,    &par.convertalignments,    COMMAND_FORMAT_CONVERSION,
