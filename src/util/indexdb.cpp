@@ -66,13 +66,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> *hdbr = NULL;
     if (par.includeHeader == true) {
-        std::string hdr_filename(par.db1);
-        hdr_filename.append("_h");
-
-        std::string hdr_index_filename(par.db1);
-        hdr_index_filename.append("_h.index");
-
-        hdbr = new DBReader<unsigned int>(hdr_filename.c_str(), hdr_index_filename.c_str());
+        hdbr = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str());
         hdbr->open(DBReader<unsigned int>::NOSORT);
     }
 

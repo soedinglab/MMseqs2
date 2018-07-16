@@ -24,7 +24,7 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     bool addOrfStop = par.addOrfStop;
     DBReader<unsigned int> *header = NULL;
     if (addOrfStop == true) {
-        header = new DBReader<unsigned int>((par.db1 + "_h").c_str(), (par.db1 + "_h.index").c_str());
+        header = new DBReader<unsigned int>(par.hdr1.c_str(), par.hdr1Index.c_str());
         header->open(DBReader<unsigned int>::NOSORT);
     }
 
@@ -112,8 +112,8 @@ int translatenucs(int argc, const char **argv, const Command& command) {
     }
     writer.close(Sequence::AMINO_ACIDS);
 
-    FileUtil::symlinkAbs(par.db1 + "_h", par.db2 + "_h");
-    FileUtil::symlinkAbs(par.db1 + "_h.index", par.db2 + "_h.index");
+    FileUtil::symlinkAbs(par.hdr1, par.hdr2);
+    FileUtil::symlinkAbs(par.hdr1Index, par.hdr2Index);
 
     if (addOrfStop == true) {
         header->close();

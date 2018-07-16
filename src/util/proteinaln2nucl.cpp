@@ -29,7 +29,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 4);
 
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
-    DBReader<unsigned int> * qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
+    DBReader<unsigned int> *qdbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qdbr->open(DBReader<unsigned int>::NOSORT);
     qdbr->readMmapedDataInMemory();
 
@@ -42,7 +42,7 @@ int proteinaln2nucl(int argc, const char **argv, const Command &command) {
         sameDB = true;
         tdbr = qdbr;
     } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), (par.db2 + ".index").c_str());
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
         tdbr->readMmapedDataInMemory();
     }

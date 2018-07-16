@@ -402,12 +402,12 @@ int result2profile(int argc, const char **argv, const Command &command) {
     int status = result2profile(resultReader, par, par.db4, 0, resultReader.getSize());
 #endif
 
-    FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_h");
-    FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_h.index");
+    FileUtil::symlinkAbs(par.hdr1, par.hdr4);
+    FileUtil::symlinkAbs(par.hdr1Index, par.hdr4Index);
 
     if (par.omitConsensus == false) {
-        FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_consensus_h");
-        FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_consensus_h.index");
+        FileUtil::symlinkAbs(par.hdr1, par.db4 + "_consensus_h");
+        FileUtil::symlinkAbs(par.hdr1Index, par.db4 + "_consensus_h.index");
     }
 
     resultReader.close();

@@ -33,13 +33,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
     DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str());
     qDbr.open(DBReader<unsigned int>::NOSORT);
 
-    std::string headerNameQuery(par.db1);
-    headerNameQuery.append("_h");
-
-    std::string headerIndexNameQuery(par.db1);
-    headerIndexNameQuery.append("_h.index");
-
-    DBReader<unsigned int> queryHeaderReader(headerNameQuery.c_str(), headerIndexNameQuery.c_str());
+    DBReader<unsigned int> queryHeaderReader(par.hdr1.c_str(), par.hdr1Index.c_str());
     // NOSORT because the index should be in the same order as resultReader
     queryHeaderReader.open(DBReader<unsigned int>::NOSORT);
 
@@ -61,13 +55,8 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
         for (size_t i = 0; i < tDbr->getSize(); i++) {
             maxSequenceLength = std::max(lengths[i], maxSequenceLength);
         }
-        std::string headerNameTarget(par.db2);
-        headerNameTarget.append("_h");
 
-        std::string headerIndexNameTarget(par.db2);
-        headerIndexNameTarget.append("_h.index");
-
-        tempateHeaderReader = new DBReader<unsigned int>(headerNameTarget.c_str(), headerIndexNameTarget.c_str());
+        tempateHeaderReader = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str());
         tempateHeaderReader->open(DBReader<unsigned int>::NOSORT);
     } else {
         unsigned int *lengths = qDbr.getSeqLens();
@@ -353,14 +342,6 @@ int result2msa(Parameters &par) {
         // line number in the index file.
         referenceDBr->open(DBReader<unsigned int>::SORT_BY_LINE);
 
-        std::string headerQuery(par.db1);
-        headerQuery.append("_h");
-        std::pair<std::string, std::string> query = Util::databaseNames(headerQuery);
-
-        std::string headerTarget(par.db2);
-        headerTarget.append("_h");
-        std::pair<std::string, std::string> target = Util::databaseNames(headerTarget);
-
         std::string referenceHeadersName(outDb);
         std::string referenceHeadersIndexName(outDb);
 
@@ -368,7 +349,7 @@ int result2msa(Parameters &par) {
         referenceHeadersIndexName.append("_header.ffindex");
 
         // Use only 1 thread for concat to ensure the same order as the former sequence concat
-        DBConcat referenceHeadersDBr(query.first, query.second, target.first, target.second,
+        DBConcat referenceHeadersDBr(par.hdr1, par.hdr1Index, par.hdr2, par.hdr2Index,
                                      referenceHeadersName, referenceHeadersIndexName, 1);
         referenceHeadersDBr.concat();
 
@@ -424,14 +405,6 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
         referenceDBr->open(DBReader<unsigned int>::SORT_BY_LINE);
 
         if (MMseqsMPI::isMaster()) {
-            std::string headerQuery(par.db1);
-            headerQuery.append("_h");
-            std::pair<std::string, std::string> query = Util::databaseNames(headerQuery);
-
-            std::string headerTarget(par.db2);
-            headerTarget.append("_h");
-            std::pair<std::string, std::string> target = Util::databaseNames(headerTarget);
-
             std::string referenceHeadersName(outDb);
             std::string referenceHeadersIndexName(outDb);
 
@@ -439,13 +412,9 @@ int result2msa(Parameters &par, const unsigned int mpiRank, const unsigned int m
             referenceHeadersIndexName.append("_header.ffindex");
 
             // Use only 1 thread for concat to ensure the same order as the former sequence concat
-            DBConcat referenceHeadersDBr(query.first, query.second, target.first, target.second,
+            DBConcat referenceHeadersDBr(par.hdr1, par.hdr1Index, par.hdr2, par.hdr2Index,
                                          referenceHeadersName, referenceHeadersIndexName, 1);
             referenceHeadersDBr.concat();
-
-            if (headerQuery == headerTarget) {
-
-            }
         }
 
         outDb.append("_ca3m.ffdata");

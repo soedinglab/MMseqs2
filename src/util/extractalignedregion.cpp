@@ -81,8 +81,8 @@ int doExtractAlignedRegion(Parameters &par) {
         dbw.close(tdbr->getDbtype());
     }
 
-    FileUtil::symlinkAbs(par.db1 + "_h", par.db4 + "_h");
-    FileUtil::symlinkAbs(par.db1 + "_h.index", par.db4 + "_h.index");
+    FileUtil::symlinkAbs(par.hdr1, par.hdr4);
+    FileUtil::symlinkAbs(par.hdr1Index, par.hdr4Index);
 
     Debug(Debug::INFO) << "Done." << "\n";
 

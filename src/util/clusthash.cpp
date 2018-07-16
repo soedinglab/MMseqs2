@@ -38,11 +38,11 @@ int clusthash(int argc, const char **argv, const Command& command) {
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, -0.2);
     ReducedMatrix redSubMat(subMat.probMatrix, subMat.subMatrixPseudoCounts, par.alphabetSize, 2.0);
 
-    DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());
+    DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str());
     seqDbr.open(DBReader<unsigned int>::NOSORT);
     seqDbr.readMmapedDataInMemory();
 
-    DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), par.threads);
+    DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads);
     dbw.open();
     Debug(Debug::INFO) << "Hashing sequences ... \n";
     std::pair<size_t, unsigned int> * hashSeqPair = new  std::pair<size_t, unsigned int>[seqDbr.getSize()+1];

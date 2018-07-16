@@ -11,19 +11,17 @@ int result2flat(int argc, const char **argv, const Command &command) {
     par.parseParameters(argc, argv, command, 4);
 
     Debug(Debug::INFO) << "Query file is " << par.db1 << "\n";
-    std::string queryHeaderDB = par.db1 + "_h";
-    DBReader<unsigned int> querydb_header(queryHeaderDB.c_str(), std::string(queryHeaderDB + ".index").c_str());
+    DBReader<unsigned int> querydb_header(par.hdr1.c_str(), par.hdr1Index.c_str());
     querydb_header.open(DBReader<unsigned int>::NOSORT);
     querydb_header.readMmapedDataInMemory();
 
     Debug(Debug::INFO) << "Target file is " << par.db2 << "\n";
-    std::string targetHeaderDB = par.db2 + "_h";
-    DBReader<unsigned int> targetdb_header(targetHeaderDB.c_str(), std::string(targetHeaderDB + ".index").c_str());
+    DBReader<unsigned int> targetdb_header(par.hdr2.c_str(), par.hdr2Index.c_str());
     targetdb_header.open(DBReader<unsigned int>::NOSORT);
     targetdb_header.readMmapedDataInMemory();
 
     Debug(Debug::INFO) << "Data file is " << par.db3 << "\n";
-    DBReader<unsigned int> dbr_data(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
+    DBReader<unsigned int> dbr_data(par.db3.c_str(), par.db3Index.c_str());
     dbr_data.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     FILE *fastaFP = fopen(par.db4.c_str(), "w");

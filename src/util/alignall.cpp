@@ -29,7 +29,7 @@ int alignall(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> *qdbr = NULL;
 
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
-    qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
+    qdbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qdbr->open(DBReader<unsigned int>::NOSORT);
     int querySeqType  =  qdbr->getDbtype();
 
@@ -42,7 +42,6 @@ int alignall(int argc, const char **argv, const Command &command) {
         subMat = new SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0, 0.0);
     }
 
-
     qdbr->readMmapedDataInMemory();
     Debug(Debug::INFO) << "Target  file: " << par.db2 << "\n";
     bool sameDB = false;
@@ -50,7 +49,7 @@ int alignall(int argc, const char **argv, const Command &command) {
         sameDB = true;
         tdbr = qdbr;
     } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), (par.db2 + ".index").c_str());
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
         tdbr->readMmapedDataInMemory();
     }
@@ -58,11 +57,13 @@ int alignall(int argc, const char **argv, const Command &command) {
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, false);
 
     Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
-    DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
+    DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str());
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
     resultWriter.open();
+
     const size_t flushSize = 100000000;
     size_t iterations = static_cast<int>(ceil(static_cast<double>(dbr_res.getSize()) / static_cast<double>(flushSize)));
     for (size_t i = 0; i < iterations; i++) {

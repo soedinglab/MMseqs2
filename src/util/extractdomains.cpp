@@ -340,7 +340,7 @@ int doExtract(Parameters &par, const unsigned int mpiRank, const unsigned int mp
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db3, par.db3Index, proc);
             splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
         }
-        DBWriter::mergeResults(par.db3, par.db3 + ".index", splitFiles);
+        DBWriter::mergeResults(par.db3, par.db3Index, splitFiles);
     }
 
     return status;

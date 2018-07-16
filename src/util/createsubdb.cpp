@@ -1,6 +1,3 @@
-#include <climits>
-#include <fstream>
-
 #include "Parameters.h"
 #include "FileUtil.h"
 #include "DBReader.h"
@@ -8,9 +5,16 @@
 #include "Debug.h"
 #include "Util.h"
 
+#include <climits>
+
 int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
+
+    FILE *orderFile =  fopen(par.db1.c_str(), "r");
+    if (FileUtil::fileExists(par.db1Index.c_str())) {
+        orderFile = fopen(par.db1Index.c_str(), "r");
+    }
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str());
     reader.open(DBReader<unsigned int>::NOSORT);
@@ -19,10 +23,6 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     writer.open();
 
     Debug(Debug::INFO) << "Start writing to file " << par.db3 << "\n";
-    FILE *orderFile =  fopen(par.db1.c_str(), "r");
-    if(FileUtil::fileExists((par.db1 + ".index").c_str())){
-        orderFile = fopen((par.db1 + ".index").c_str(),"r");
-    }
     char * line = new char[65536];
     char dbKey[255 + 1];
     size_t len = 0;
@@ -44,11 +44,11 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     if(FileUtil::fileExists((par.db2 + ".dbtype").c_str())){
         FileUtil::copyFile((par.db2 + ".dbtype").c_str(), (par.db3 + ".dbtype").c_str());
     }
-
-    delete [] line;
-    fclose(orderFile);
     writer.close();
+
+    delete[] line;
     reader.close();
+    fclose(orderFile);
 
     return EXIT_SUCCESS;
 }
