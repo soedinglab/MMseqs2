@@ -106,16 +106,11 @@ int search(int argc, const char **argv, const Command& command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    if (par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
+    cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());
-    if(targetDbType == Sequence::PROFILE_STATE_SEQ){
-        cmd.addVariable("ALIGNMENT_DB_EXT", ".255");
-    }else{
-        cmd.addVariable("ALIGNMENT_DB_EXT", "");
-    }
+    cmd.addVariable("ALIGNMENT_DB_EXT", targetDbType == Sequence::PROFILE_STATE_SEQ ? ".255" : "");
 
     if (targetDbType == Sequence::HMM_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
@@ -202,12 +197,8 @@ int search(int argc, const char **argv, const Command& command) {
 
     if (isTranslatedNuclSearch==true){
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
-        if (queryDbType == Sequence::NUCLEOTIDES) {
-            cmd.addVariable("QUERY_NUCL", "TRUE");
-        }
-        if (targetDbType == Sequence::NUCLEOTIDES) {
-            cmd.addVariable("TARGET_NUCL", "TRUE");
-        }
+        cmd.addVariable("QUERY_NUCL", queryDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
+        cmd.addVariable("TARGET_NUCL", targetDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());

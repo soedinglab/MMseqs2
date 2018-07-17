@@ -56,9 +56,7 @@ int easycluster(int argc, const char **argv, const Command &command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    if (par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
 
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string createdbParam = par.createParameterString(par.createdb);

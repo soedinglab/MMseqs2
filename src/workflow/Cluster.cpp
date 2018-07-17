@@ -137,10 +137,8 @@ int clusteringworkflow(int argc, const char **argv, const Command& command) {
 //    FileUtil::errorIfFileExist(par.db2Index.c_str());
 
     CommandCaller cmd;
-    if(par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
-
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
+    cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     if (par.cascaded) {

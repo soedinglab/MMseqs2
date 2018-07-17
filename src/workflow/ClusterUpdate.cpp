@@ -13,14 +13,9 @@ int clusterupdate(int argc, const char **argv, const Command& command) {
     par.parseParameters(argc, argv, command, 6);
 
     CommandCaller cmd;
-    if(par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
+    cmd.addVariable("RECOVER_DELETED", par.recoverDeleted ? "TRUE" : NULL);
 
-    if(par.recoverDeleted) {
-        cmd.addVariable("RECOVER_DELETED", "TRUE");
-    }
-	
     cmd.addVariable("RUNNER", par.runner.c_str());
     cmd.addVariable("DIFF_PAR", par.createParameterString(par.diff).c_str());
 

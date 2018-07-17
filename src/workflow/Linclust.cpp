@@ -53,9 +53,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    if(par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     // save some values to restore them later
@@ -96,9 +94,7 @@ int linclust(int argc, const char **argv, const Command& command) {
     }
 
     // filter by diagonal in case of AA (do not filter for nucl, profiles, ...)
-    if(queryDbType == Sequence::AMINO_ACIDS){
-        cmd.addVariable("FILTER","1");
-    }
+    cmd.addVariable("FILTER", dbType == Sequence::AMINO_ACIDS ? "1" : NULL);
     cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
     par.alphabetSize = alphabetSize;
     par.kmerSize = kmerSize;

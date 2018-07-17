@@ -27,7 +27,11 @@ CommandCaller::CommandCaller() {
 }
 
 void CommandCaller::addVariable(const char* key, const char* value) {
-    setenv(key, value, true);
+    if (value == NULL) {
+        unsetenv(key);
+    } else {
+        setenv(key, value, true);
+    }
 }
 
 int CommandCaller::callProgram(const char* program, size_t argc, const char **argv) {
