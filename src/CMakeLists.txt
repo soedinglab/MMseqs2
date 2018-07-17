@@ -166,7 +166,7 @@ endif ()
 
 # MPI
 if (${HAVE_MPI})
-    find_package(MPI QUIET)
+    find_package(MPI REQUIRED)
     if (MPI_FOUND)
         message("-- Found MPI")
         target_include_directories(mmseqs-framework PUBLIC ${MPI_INCLUDE_PATH})
@@ -209,7 +209,6 @@ if (NOT FRAMEWORK_ONLY)
     mmseqs_setup_derived_target(mmseqs)
     target_link_libraries(mmseqs version)
     install(TARGETS mmseqs DESTINATION bin)
-
 
     if (HAVE_TESTS)
         add_subdirectory(test)
