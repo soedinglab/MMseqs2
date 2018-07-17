@@ -363,6 +363,9 @@ Parameters::Parameters():
     createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);
     createtsv.push_back(PARAM_TARGET_COLUMN);
     createtsv.push_back(PARAM_FULL_HEADER);
+    createtsv.push_back(PARAM_DB_OUTPUT);
+    createtsv.push_back(PARAM_THREADS);
+    createtsv.push_back(PARAM_V);
 
     //result2stats
     result2stats.push_back(PARAM_STAT);
