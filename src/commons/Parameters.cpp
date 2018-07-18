@@ -70,8 +70,6 @@ Parameters::Parameters():
         // affinity clustering
         PARAM_MAXITERATIONS(PARAM_MAXITERATIONS_ID,"--max-iterations", "Max depth connected component", "maximum depth of breadth first search in connected component",typeid(int), (void *) &maxIteration,  "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
         PARAM_SIMILARITYSCORE(PARAM_SIMILARITYSCORE_ID,"--similarity-type", "Similarity type", "type of score used for clustering [1:2]. 1=alignment score. 2=sequence identity ",typeid(int),(void *) &similarityScoreType,  "^[1-2]{1}$", MMseqsParameter::COMMAND_CLUST|MMseqsParameter::COMMAND_EXPERT),
-        // merge Clusters
-        PARAM_BY_DB(PARAM_BY_DB_ID, "--by-db", "Merge by DB", "Merge results by key column in DB", typeid(bool), (void *) &byDB, ""),
         // logging
         PARAM_V(PARAM_V_ID,"-v", "Verbosity","verbosity level: 0=nothing, 1: +errors, 2: +warnings, 3: +info",typeid(int), (void *) &verbosity, "^[0-3]{1}$", MMseqsParameter::COMMAND_COMMON),
         // create profile (HMM)
@@ -151,6 +149,7 @@ Parameters::Parameters():
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
         PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1) CANONICAL, 2) VERT_MITOCHONDRIAL, 3) YEAST_MITOCHONDRIAL, 4) MOLD_MITOCHONDRIAL, 5) INVERT_MITOCHONDRIAL, 6) CILIATE, 9) FLATWORM_MITOCHONDRIAL, 10) EUPLOTID, 11) PROKARYOTE, 12) ALT_YEAST, 13) ASCIDIAN_MITOCHONDRIAL, 14) ALT_FLATWORM_MITOCHONDRIAL, 15) BLEPHARISMA, 16) CHLOROPHYCEAN_MITOCHONDRIAL, 21) TREMATODE_MITOCHONDRIAL, 22) SCENEDESMUS_MITOCHONDRIAL, 23) THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24) PTEROBRANCHIA_MITOCHONDRIAL, 25) GRACILIBACTERIA, 26) PACHYSOLEN, 27) KARYORELICT, 28) CONDYLOSTOMA, 29) MESODINIUM, 30) PERTRICH, 31) BLASTOCRITHIDIA", typeid(int),(void *) &translationTable, "^[1-9]{1}[0-9]*$"),
         PARAM_ADD_ORF_STOP(PARAM_ADD_ORF_STOP_ID,"--add-orf-stop", "Add Orf Stop", "add * at complete start and end", typeid(bool),(void *) &addOrfStop, ""),
+        // createseqfiledb
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_MAX_SEQUENCES(PARAM_MAX_SEQUENCES_ID,"--max-sequences", "Max Sequences", "maximum number of sequences a cluster may contain", typeid(int),(void *) &maxSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_HH_FORMAT(PARAM_HH_FORMAT_ID,"--hh-format", "HH format", "format entries to use with hhsuite (for singleton clusters)", typeid(bool), (void *) &hhFormat, ""),
@@ -170,11 +169,10 @@ Parameters::Parameters():
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
         PARAM_COMPUTE_POSITIONS(PARAM_COMPUTE_POSITIONS_ID, "--compute-positions", "Compute Positions", "Add the positions of he hit on the target genome", typeid(std::string), (void*) &compPos, ""),
         PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
-        //aggregate
-        PARAM_MODE(PARAM_MODE_ID, "--mode", "Aggregation Mode", "Choose wich of aggregation to launch : bestHit/pval", typeid(std::string), (void*) &mode, ""),
-        PARAM_SET_COLUMN(PARAM_SET_COLUMN_ID, "--set-column", "Set Column", "Change default Set Column", typeid(int), (void*) &setColumn, ""),
-        PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining pvalues", typeid(float), (void*) &alpha, ""),
-        PARAM_SIMPLE_BEST_HIT_MODE(PARAM_SIMPLE_BEST_HIT_MODE_ID, "--simple-best-hit", "Output the best evalue", "Othw, output a ortholog-corrected pvalue", typeid(bool), (void*) &simpleBestHitMode, ""),
+        // aggregate
+        PARAM_AGGREGATION_MODE(PARAM_AGGREGATION_MODE_ID, "--aggregation-mode", "Aggregation Mode", "Aggregation to use: 0: best hit, 1: simplified best hit, 2: p-value, 3: distance", typeid(int), (void*) &aggregationMode, ""),
+        PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void*) &alpha, ""),
+        PARAM_SHORT_OUTPUT(PARAM_SHORT_OUTPUT_ID, "--short-output", "Short output", "The output database will contain only the spread p-value", typeid(bool), (void*) &shortOutput, ""),
         // concatdb
         PARAM_PRESERVEKEYS(PARAM_PRESERVEKEYS_ID,"--preserve-keys", "Preserve the keys", "the keys of the two DB should be distinct, and they will be preserved in the concatenation.",typeid(bool), (void *) &preserveKeysB, ""),
         //diff
@@ -265,11 +263,7 @@ Parameters::Parameters():
     clust.push_back(PARAM_SIMILARITYSCORE);
     clust.push_back(PARAM_THREADS);
 
-    //mergeClusters
-    mergeclusters.push_back(PARAM_THREADS) ;
-    mergeclusters.push_back(PARAM_BY_DB) ;
-
-    // find orf
+    // onlyverbosity
     onlyverbosity.push_back(PARAM_V);
 
     // rescorediagonal
@@ -424,8 +418,6 @@ Parameters::Parameters():
     msa2profile.push_back(PARAM_THREADS);
     msa2profile.push_back(PARAM_V);
 
-    //mergeclusters
-
     // profile2pssm
     profile2pssm.push_back(PARAM_SUB_MAT);
     profile2pssm.push_back(PARAM_MAX_SEQ_LEN);
@@ -528,11 +520,13 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_TRANSITIVE_REPLACE) ;
 
     //aggregate
-    aggregate.push_back(PARAM_MODE) ;
-    aggregate.push_back(PARAM_THREADS) ;
-    aggregate.push_back(PARAM_SET_COLUMN) ;
-    aggregate.push_back(PARAM_ALPHA) ;
-    aggregate.push_back(PARAM_SIMPLE_BEST_HIT_MODE);
+    aggregate.push_back(PARAM_AGGREGATION_MODE);
+    aggregate.push_back(PARAM_ALPHA);
+    aggregate.push_back(PARAM_SHORT_OUTPUT);
+    aggregate.push_back(PARAM_THREADS);
+    aggregate.push_back(PARAM_V);
+
+    // onlythreads
     onlythreads.push_back(PARAM_THREADS);
     onlythreads.push_back(PARAM_V);
 
@@ -580,7 +574,6 @@ Parameters::Parameters():
 
 
     // mergedbs
-    mergedbs.push_back(PARAM_BY_DB);
     mergedbs.push_back(PARAM_MERGE_PREFIXES);
     mergedbs.push_back(PARAM_V);
 
@@ -696,6 +689,15 @@ Parameters::Parameters():
     taxonomy.push_back(PARAM_REMOVE_TMP_FILES);
     taxonomy.push_back(PARAM_RUNNER);
 
+    // multi hit db
+    multihitdb = combineList(createdb, extractorfs);
+    multihitdb = combineList(multihitdb, extractorfs);
+    multihitdb = combineList(multihitdb, translatenucs);
+    multihitdb = combineList(multihitdb, result2stats);
+
+    // multi hit search
+    multihitsearch = combineList(searchworkflow, filterDb);
+    multihitsearch = combineList(multihitsearch, aggregate);
 
     clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
@@ -1173,9 +1175,6 @@ void Parameters::setDefaults() {
     // Clustering workflow
     removeTmpFiles = false;
 
-    //mergeclusters
-    byDB = 0;
-
     // convertprofiledb
     profileMode = PROFILE_MODE_HMM;
 
@@ -1277,10 +1276,9 @@ void Parameters::setDefaults() {
     
 
     //aggregate
-    setColumn = 9;
+    aggregationMode = 2;
     alpha = 0.001;
-    simpleBestHitMode  = false;
-
+    shortOutput = false;
 
     // concatdbs
     preserveKeysB = false;

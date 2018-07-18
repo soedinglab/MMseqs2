@@ -15,6 +15,7 @@ extern int createindex(int argc, const char **argv, const Command& command);
 extern int indexdb(int argc, const char **argv, const Command& command);
 extern int mergedbs(int argc, const char **argv, const Command& command);
 extern int mergeclusters(int argc, const char **argv, const Command& command);
+extern int mergeorfcontigs(int argc, const char **argv, const Command& command);
 extern int align(int argc, const char **argv, const Command& command);
 extern int alignall(int argc, const char **argv, const Command& command);
 extern int createseqfiledb(int argc, const char **argv, const Command& command);
@@ -68,5 +69,7 @@ extern int apply(int argc, const char **argv, const Command& command);
 extern int versionstring(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);
 extern int aggregate(int argc, const char **argv, const Command& command);
+extern int multihitdb(int argc, const char **argv, const Command& command);
+extern int multihitsearch(int argc, const char **argv, const Command& command);
 
 #endif

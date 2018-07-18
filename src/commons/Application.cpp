@@ -75,7 +75,10 @@ void printUsage(bool showExtended) {
 
 
     for (size_t i = 0; i < categories.size(); ++i) {
-        if (showExtended == false && categories[i].mode != COMMAND_MAIN && categories[i].mode != COMMAND_EASY &&  categories[i].mode != COMMAND_FORMAT_CONVERSION &&  categories[i].mode != COMMAND_TAXONOMY) {
+        if (showExtended == false
+                && categories[i].mode != COMMAND_MAIN && categories[i].mode != COMMAND_EASY
+                && categories[i].mode != COMMAND_FORMAT_CONVERSION &&  categories[i].mode != COMMAND_TAXONOMY
+                && categories[i].mode != COMMAND_MULTIHIT) {
             continue;
         }
 

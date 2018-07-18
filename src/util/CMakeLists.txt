@@ -1,5 +1,7 @@
 set(util_source_files
         util/aggregate.cpp
+        util/Aggregation.h
+        util/Aggregation.cpp
         util/alignall.cpp
         util/alignbykmer.cpp
         util/apply.cpp
@@ -24,6 +26,7 @@ set(util_source_files
         util/kmermatcher.cpp
         util/maskbygff.cpp
         util/mergeclusters.cpp
+        util/mergeorfcontigs.cpp
         util/mergedbs.cpp
         util/msa2profile.cpp
         util/prefixid.cpp

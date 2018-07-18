@@ -1,77 +1,69 @@
 #ifndef MMSEQS_AGGREGATIONFUNCTIONS_H
 #define MMSEQS_AGGREGATIONFUNCTIONS_H
 
-#include <vector>
-#include <map>
 #include "DBReader.h"
 #include "DBWriter.h"
 
-typedef struct {
-    unsigned int querySetKey;
-    unsigned int targetSetKey;
-} aggregParams;
-
+#include <vector>
+#include <map>
 
 class Aggregation {
-protected:
-    size_t targetSetColumn;
-    std::string inputDBname;
-    std::string outputDBname;
-    unsigned int nbrThread;
 public:
-    Aggregation(std::string argInputDBname, std::string argOutputDBname, unsigned int argNbrThread, size_t argTargetSetColumn);
-    bool buildMap(std::stringstream& dataStream, std::map<unsigned int, std::vector<std::vector<std::string> > > &dataToAggregate);
+    Aggregation(const std::string &resultDbName, const std::string &outputDbName, size_t setColumn, unsigned int threads);
+    int run();
 
+    virtual std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int querySetKey, unsigned int targetSetKey) = 0;
 
-    void runAggregate();
-    virtual std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, aggregParams* params) = 0;
+protected:
+    std::string resultDbName;
+    std::string outputDbName;
+    size_t setColumn;
+    unsigned int threads;
+
+    bool buildMap(std::stringstream &data, std::map<unsigned int, std::vector<std::vector<std::string>>> &dataToAggregate);
+
 };
 
-class BestHitAggregator : public Aggregation{
-private:
-    size_t scoreColumn; // Field where to retrieve score values
-    std::string targetSetSizeName;
-    DBReader<unsigned int> *targetSetSizeDB;
-    bool simpleBestHitMode;
+class BestHitAggregator : public Aggregation {
 public :
-    BestHitAggregator(std::string argInputDBname, std::string argOutputDBname, std::string argTargetSetSizeName,
-                      size_t argTargetColumn, unsigned int argNbrThread,  size_t argScoreColumn=1, bool argSimpleBestHitMode = false); // argScoreColumn=3 for evalue
+    BestHitAggregator(const std::string &targetDbName, const std::string &resultDbName, const std::string &outputDbName, bool simpleBestHitMode, unsigned int threads);
+    std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int querySetKey, unsigned int targetSetKey);
 
-    std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, aggregParams* params) override;
+private:
+    DBReader<unsigned int> *targetSizeReader;
+    bool simpleBestHitMode;
 };
 
 
-class PvalAggregator : public Aggregation{
+class PvalueAggregator : public Aggregation {
+public:
+    PvalueAggregator(std::string queryDbName, std::string targetDbName, const std::string &resultDbName,
+                     const std::string &outputDbName, float alpha, unsigned int threads);
+
+    std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey, unsigned int targetSetKey);
+
 private:
     double alpha;
-    size_t scoreColumn;
-    std::string querySetSizeDBname;
-    std::string targetSetSizeDBname;
-    DBReader<unsigned int>* querySetSizeDB ;
-    DBReader<unsigned int>* targetSetSizeDB ;
-public:
-    PvalAggregator(std::string argInputDBname, std::string argOutputDBname, unsigned int arg_nbrThread,
-                   std::string argQuerySetSizeDBname, std::string argTargetSetSizeDBname, size_t argTargetSetColumn, float alpha, size_t argScoreColumn=1);
-
-    std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, aggregParams* params) override;
-
+    DBReader<unsigned int> *querySizeReader;
+    DBReader<unsigned int> *targetSizeReader;
 };
 
 
-class GetHitDistance : public Aggregation {
-private:
-
-    std::string querySetSizeDBname;
-    std::string targetSetSizeDBname;
-    DBReader<unsigned int>* querySetSizeDB;
-    DBReader<unsigned int>* targetSetGenomes;
-    DBReader<unsigned int>* targetSetSizeDB;
-    float alpha;
+class HitDistanceAggregator : public Aggregation {
 public:
-    GetHitDistance(std::string arg_inputDBname, std::string arg_outputDBname, std::string argTargetSetSizeDB, std::string argQuerySetSizeDB,std::string argTargetGenomeDB,
-                             unsigned int arg_nbrThread, float argAlpha, size_t arg_targetColumn=12);
-    ~GetHitDistance();
-    std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, aggregParams* params) override;
+    HitDistanceAggregator(const std::string &queryDbName, const std::string &targetDbName,
+                              const std::string &resultDbName, const std::string &outputDbName, bool shortOutput,
+                              float alpha, unsigned int threads);
+    ~HitDistanceAggregator();
+
+    std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey, unsigned int targetSetKey);
+
+private:
+    DBReader<unsigned int> *querySizeReader;
+    DBReader<unsigned int> *targetSourceReader;
+    DBReader<unsigned int> *targetSizeReader;
+    float alpha;
+    bool shortOutput;
 };
 
 #endif //MMSEQS_AGGREGATIONFUNCTIONS_H

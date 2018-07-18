@@ -1,16 +1,12 @@
-#include <cstring>
-#include <list>
-#include <sstream>
-#include <itoa.h>
-#include <algorithm>
-#include <mutex>
-#include "omptl/omptl_algorithm"
-
 #include "Debug.h"
 #include "DBReader.h"
 #include "DBWriter.h"
 #include "Parameters.h"
 #include "Util.h"
+#include "itoa.h"
+#include "omptl/omptl_algorithm"
+
+#include <list>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -143,50 +139,6 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
     Debug(Debug::INFO) << "...done.\n";
 }
 
-void mergeSearchWithClustersResults(const std::string &searchResults, const std::string &outDB,
-                                    const std::string &geneToQuerySetLink, int threads){
-    std::string searchResultsIndex = searchResults + ".index";
-    DBReader<unsigned int> searchResultsDB(searchResults.c_str(), searchResultsIndex.c_str());
-    searchResultsDB.open(DBReader<unsigned int>::NOSORT);
-
-    std::string geneToQuerySetLinkIndex = geneToQuerySetLink + ".index";
-    DBReader<unsigned int> geneToQuerySetLinkDB(geneToQuerySetLink.c_str(), geneToQuerySetLinkIndex.c_str());
-    geneToQuerySetLinkDB.open(DBReader<unsigned int>::NOSORT);
-
-    std::string outDBIndex = outDB + ".index";
-    auto* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), static_cast<unsigned int>(threads));
-    dbw->open();
-
-    #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < geneToQuerySetLinkDB.getSize(); i++){
-        std::string buffer;
-        std::stringstream querySetGeneList(geneToQuerySetLinkDB.getData(i));
-        std::string Gene;
-        int thread_idx = 0;
-#ifdef OPENMP
-        thread_idx = omp_get_thread_num();
-#endif
-        // go through the sequences in the cluster and add them to the initial clustering
-        while (std::getline(querySetGeneList, Gene)){
-            auto key = (unsigned  int) strtoul(Gene.c_str(), nullptr, 10);
-
-            char *data = searchResultsDB.getDataByDBKey(key);
-            buffer.append(data);
-        }
-        dbw->writeData(buffer.c_str(), buffer.length(), geneToQuerySetLinkDB.getDbKey(i),
-                       static_cast<unsigned int>(thread_idx));
-    }
-
-    dbw->close();
-    delete dbw;
-
-
-    searchResultsDB.close();
-    geneToQuerySetLinkDB.close();
-
-    Debug(Debug::INFO) << "...done.\n";
-}
-
 int mergeclusters(int argc, const char **argv, const Command& command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, true);
@@ -199,11 +151,8 @@ int mergeclusters(int argc, const char **argv, const Command& command) {
     for (int i = 2; i < argc; i++) {
         clusterings.push_back(std::string(argv[i]));
     }
-    if (par.byDB){
-    mergeSearchWithClustersResults(par.db1, par.db2, par.db3, par.threads);
-    }
-    else
-        mergeClusteringResults(par.db1, par.db2, clusterings, par.threads);
+
+    mergeClusteringResults(par.db1, par.db2, clusterings, par.threads);
 
     return 0;
 }
