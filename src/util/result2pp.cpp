@@ -14,8 +14,7 @@
 #include "Util.h"
 #include "ProfileStates.h"
 #include "MathUtil.h"
-#include "SubstitutionMatrixProfileStates.h"
-
+#include "SubstitutionMatrix.h"
 #include <string>
 #include <vector>
 #include <sstream>
@@ -53,7 +52,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
     resultReader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
     DBWriter resultWriter(outpath.c_str(), (outpath + ".index").c_str(), par.threads, DBWriter::BINARY_MODE);
     resultWriter.open();
-    BaseMatrix  subMat = SubstitutionMatrix(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
+    SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0f);
 
 //#pragma omp parallel
     {
@@ -83,11 +82,8 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
 
             const float * qProfile =  queryProfile.getProfile();
 
-            queryProfile.printProfile();
-
+	    /*
             const size_t profile_row_size = queryProfile.profile_row_size;
-            const float neffQ = 1.0;
-            /*
             // init outProfile with query Probs
             for(int l = 0; l < queryProfile.L; l++) {
                 for (size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
@@ -137,16 +133,13 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                         maxNeffT = std::max(maxNeffT,targetProfile.neffM[pos]);
                     } 
                     
-                    for(int btPos = 0; btPos < res.backtrace.size(); btPos++){
+                    for(size_t btPos = 0; btPos < res.backtrace.size(); btPos++){
                         aliLength++;
-                        const float neffT = 1.0;
                         char letter = res.backtrace[btPos];
 //                        std::cout << letter;
 
                         float qNeff = queryProfile.neffM[qPos];
                         float tNeff = targetProfile.neffM[tPos];
-                        float maxNeff = std::max(qNeff, tNeff);
-                        float minNeff = std::min(qNeff, tNeff);
                         
                         for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
                             //TODO do all alignment states contribute?
@@ -189,13 +182,11 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                     // update the Neff of the merge between the target prof and the query prof
                     qPos = res.qStartPos;
                     tPos = res.dbStartPos;
-                    for(int btPos = 0; btPos < res.backtrace.size(); btPos++){
+                    for(size_t btPos = 0; btPos < res.backtrace.size(); btPos++){
                         char letter = res.backtrace[btPos];
 
                         float qNeff = queryProfile.neffM[qPos];
                         float tNeff = targetProfile.neffM[tPos];
-                        float maxNeff = std::max(qNeff, tNeff);
-                        float minNeff = std::min(qNeff, tNeff);
                         
                         neffM[qPos] = computeNeff(queryProfile.neffM[qPos], maxNeffQ, targetProfile.neffM[tPos],maxNeffT,avgNewNeff);
                         
