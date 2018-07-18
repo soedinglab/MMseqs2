@@ -26,13 +26,7 @@ int createseqfiledb(int argc, const char **argv, const Command& command) {
     bodies.open(DBReader<unsigned int>::NOSORT);
     bodies.readMmapedDataInMemory();
 
-    std::string headerFilename(par.db1);
-    headerFilename.append("_h");
-
-    std::string headerIndexFilename(par.db1);
-    headerIndexFilename.append("_h.index");
-
-    DBReader<unsigned int> headers(headerFilename.c_str(), headerIndexFilename.c_str());
+    DBReader<unsigned int> headers(par.hdr1.c_str(), par.hdr1Index.c_str());
     headers.open(DBReader<unsigned int>::NOSORT);
     headers.readMmapedDataInMemory();
 

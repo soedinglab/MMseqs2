@@ -48,25 +48,13 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
     reader.open(DBReader<unsigned int>::NOSORT);
 
-    std::string headerIn(par.db1);
-    headerIn.append("_h");
-
-    std::string headerInIndex(par.db1);
-    headerInIndex.append("_h.index");
-
-    DBReader<unsigned int> headerReader(headerIn.c_str(), headerInIndex.c_str());
+    DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str());
     headerReader.open(DBReader<unsigned int>::NOSORT);
 
     DBWriter sequenceWriter(par.db2.c_str(), par.db2Index.c_str(), par.threads);
     sequenceWriter.open();
 
-    std::string headerOut(par.db2);
-    headerOut.append("_h");
-
-    std::string headerIndexOut(par.db2);
-    headerIndexOut.append("_h.index");
-
-    DBWriter headerWriter(headerOut.c_str(), headerIndexOut.c_str(), par.threads);
+    DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
     headerWriter.open();
 
 

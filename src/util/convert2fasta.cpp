@@ -19,19 +19,10 @@ int convert2fasta(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 2);
 
-    std::string data_filename = par.db1;
-    std::string index_filename = par.db1Index;
-
-    std::string data_filename_hdr(data_filename);
-    data_filename_hdr.append("_h");
-
-    std::string index_filename_hdr(data_filename);
-    index_filename_hdr.append("_h.index");
-
-    DBReader<unsigned int> db(data_filename.c_str(), index_filename.c_str());
+    DBReader<unsigned int> db(par.db1.c_str(), par.db1Index.c_str());
     db.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> db_header(data_filename_hdr.c_str(), index_filename_hdr.c_str());
+    DBReader<unsigned int> db_header(par.hdr1.c_str(), par.hdr1Index.c_str());
     db_header.open(DBReader<unsigned int>::NOSORT);
 
     FILE *fastaFP =  FileUtil::openFileOrDie(par.db2.c_str(), "w", false);

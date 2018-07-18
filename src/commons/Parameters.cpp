@@ -211,6 +211,7 @@ Parameters::Parameters():
     align.push_back(PARAM_ALIGNMENT_MODE);
     align.push_back(PARAM_E);
     align.push_back(PARAM_MIN_SEQ_ID);
+    align.push_back(PARAM_SEQ_ID_MODE);
     align.push_back(PARAM_ALT_ALIGNMENT);
     align.push_back(PARAM_C);
     align.push_back(PARAM_COV_MODE);
@@ -280,6 +281,7 @@ Parameters::Parameters():
     rescorediagonal.push_back(PARAM_E);
     rescorediagonal.push_back(PARAM_COV_MODE);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
+    rescorediagonal.push_back(PARAM_SEQ_ID_MODE);
     rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
@@ -361,6 +363,9 @@ Parameters::Parameters():
     createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);
     createtsv.push_back(PARAM_TARGET_COLUMN);
     createtsv.push_back(PARAM_FULL_HEADER);
+    createtsv.push_back(PARAM_DB_OUTPUT);
+    createtsv.push_back(PARAM_THREADS);
+    createtsv.push_back(PARAM_V);
 
     //result2stats
     result2stats.push_back(PARAM_STAT);
@@ -989,31 +994,55 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db6 = filenames[5];
             db6Index = db6;
             db6Index.append(".index");
+            hdr6 = db6;
+            hdr6.append("_h");
+            hdr6Index = hdr6;
+            hdr6Index.append(".index");
             // FALLTHROUGH
         case 5:
             db5 = filenames[4];
             db5Index = db5;
             db5Index.append(".index");
+            hdr5 = db5;
+            hdr5.append("_h");
+            hdr5Index = hdr5;
+            hdr5Index.append(".index");
             // FALLTHROUGH
         case 4:
             db4 = filenames[3];
             db4Index = db4;
             db4Index.append(".index");
+            hdr4 = db4;
+            hdr4.append("_h");
+            hdr4Index = hdr4;
+            hdr4Index.append(".index");
             // FALLTHROUGH
         case 3:
             db3 = filenames[2];
             db3Index = db3;
             db3Index.append(".index");
+            hdr3 = db3;
+            hdr3.append("_h");
+            hdr3Index = hdr3;
+            hdr3Index.append(".index");
             // FALLTHROUGH
         case 2:
             db2 = filenames[1];
             db2Index = db2;
             db2Index.append(".index");
+            hdr2 = db2;
+            hdr2.append("_h");
+            hdr2Index = hdr2;
+            hdr2Index.append(".index");
             // FALLTHROUGH
         case 1:
             db1 = filenames[0];
             db1Index = db1;
             db1Index.append(".index");
+            hdr1 = db1;
+            hdr1.append("_h");
+            hdr1Index = hdr1;
+            hdr1Index.append(".index");
             break;
         default:
             // Do not abort execution if we expect a variable amount of parameters

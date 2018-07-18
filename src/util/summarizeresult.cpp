@@ -124,7 +124,7 @@ int doSummarize(Parameters &par, const unsigned int mpiRank, const unsigned int 
             std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db2, par.db2Index, proc);
             splitFiles.push_back(std::make_pair(tmpFile.first, tmpFile.second));
         }
-        DBWriter::mergeResults(par.db2, par.db2 + ".index", splitFiles);
+        DBWriter::mergeResults(par.db2, par.db2Index, splitFiles);
     }
     return status;
 }

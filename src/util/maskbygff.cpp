@@ -90,26 +90,14 @@ int maskbygff(int argc, const char **argv, const Command& command) {
     DBWriter writer(par.db3.c_str(), par.db3Index.c_str());
     writer.open();
 
-    std::string headerFilename(par.db2);
-    headerFilename.append("_h");
-
-    std::string headerIndexFilename(par.db2);
-    headerIndexFilename.append("_h.index");
-
-    DBReader<std::string> headerReader(headerFilename.c_str(), headerIndexFilename.c_str());
+    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str());
     headerReader.open(DBReader<std::string>::NOSORT);
 
     DBReader<std::string>::Index* headerIndex = headerReader.getIndex();
     unsigned int* headerLengths = headerReader.getSeqLens();
     char * headerData = (char *)headerReader.getData();
 
-    std::string headerOutFilename(par.db3);
-    headerOutFilename.append("_h");
-
-    std::string headerIndexOutFilename(par.db3);
-    headerIndexOutFilename.append("_h.index");
-
-    DBWriter headerWriter(headerOutFilename.c_str(), headerIndexOutFilename.c_str());
+    DBWriter headerWriter(par.hdr3.c_str(), par.hdr3Index.c_str());
     headerWriter.open();
 
     for(size_t i = 0; i < reader.getSize(); ++i ) {

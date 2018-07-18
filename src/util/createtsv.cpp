@@ -1,123 +1,169 @@
-#include <cstdio>
 #include "Parameters.h"
-
 #include "DBReader.h"
+#include "DBWriter.h"
 #include "Debug.h"
 #include "Util.h"
+
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 int createtsv(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, Parameters::PARSE_VARIADIC);
 
+    Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
+    DBReader<unsigned int> queryDB(par.hdr1.c_str(), par.hdr1Index.c_str());
+    queryDB.open(DBReader<unsigned int>::NOSORT);
+    queryDB.readMmapedDataInMemory();
+    unsigned int* qHeaderLength = queryDB.getSeqLens();
+
     const bool hasTargetDB = par.filenames.size() > 3;
-    size_t i = 0;
-
-    const std::string& query = par.filenames[i++];
-    const std::string& target = hasTargetDB ? par.filenames[i++] : "";
-    const std::string& result = par.filenames[i++];
-    const std::string& tsv = par.filenames[i++];
-
-
-    Debug(Debug::INFO) << "Query file is " << query << "\n";
-    DBReader<unsigned int> qHeader(std::string(query + "_h").c_str(), std::string(query + "_h.index").c_str());
-    qHeader.open(DBReader<unsigned int>::NOSORT);
-    qHeader.readMmapedDataInMemory();
-
     bool sameDatabase = false;
-    DBReader<unsigned int> *tHeader = NULL;
+    DBReader<unsigned int> *targetDB = NULL;
+    unsigned int* tHeaderLength = NULL;
     if (hasTargetDB) {
-        if (query == target) {
+        if (par.db1 == par.db2) {
             sameDatabase = true;
-            tHeader = &qHeader;
+            targetDB = &queryDB;
         } else {
-            Debug(Debug::INFO) << "Target file is " << target << "\n";
-            tHeader = new DBReader<unsigned int>(std::string(target + "_h").c_str(),
-                                                 std::string(target + "_h.index").c_str());
-            tHeader->open(DBReader<unsigned int>::NOSORT);
-            tHeader->readMmapedDataInMemory();
+            Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
+            targetDB = new DBReader<unsigned int>(par.hdr2.c_str(), par.hdr2Index.c_str());
+            targetDB->open(DBReader<unsigned int>::NOSORT);
+            targetDB->readMmapedDataInMemory();
+            tHeaderLength = targetDB->getSeqLens();
         }
     }
 
-    Debug(Debug::INFO) << "Data file is " << result << "\n";
-    DBReader<unsigned int> reader(result.c_str(), std::string(result + ".index").c_str());
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<unsigned int> *reader;
+    if (hasTargetDB) {
+        Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
+        reader = new DBReader<unsigned int>(par.db3.c_str(), par.db3Index.c_str());
+    } else {
+        Debug(Debug::INFO) << "Result database: " << par.db2 << "\n";
+        reader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
+    }
+    reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    FILE *file = fopen(tsv.c_str(), "w");
+    DBWriter *writer;
+    if (hasTargetDB) {
+        Debug(Debug::INFO) << "Start writing to " << par.db4 << "\n";
+        writer = new DBWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+    } else {
+        Debug(Debug::INFO) << "Start writing to " << par.db3 << "\n";
+        writer = new DBWriter(par.db3.c_str(), par.db3Index.c_str(), par.threads);
+    }
+    writer->open();
 
-    char **columnPointer = new char*[255];
+    const size_t targetColumn = par.targetTsvColumn;
+#pragma omp parallel
+    {
+        unsigned int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = (unsigned int) omp_get_thread_num();
+#endif
 
-    const size_t targetCol = par.targetTsvColumn;
+        char **columnPointer = new char*[255];
+        char *dbKey = new char[par.maxSeqLen + 1];
 
-    Debug(Debug::INFO) << "Start writing file to " << tsv << "\n";
-    char *dbKey = new char[par.maxSeqLen + 1];
-    for (size_t i = 0; i < reader.getSize(); i++) {
-        unsigned int queryKey = reader.getDbKey(i);
-        std::string queryHeader = par.fullHeader ? qHeader.getDataByDBKey(queryKey) : Util::parseFastaHeader(qHeader.getDataByDBKey(queryKey));
-        if (par.fullHeader) {
-            queryHeader.erase(queryHeader.length() - 2);
-        }
+        std::string outputBuffer;
+        outputBuffer.reserve(10 * 1024);
 
-        char *data = reader.getData(i);
-        size_t entryIndex = 0;
-        while (*data != '\0') {
-            size_t foundElements = Util::getWordsOfLine(data, columnPointer, 255);
-            if (foundElements < targetCol) {
-                Debug(Debug::WARNING) << "Not enough columns!" << "\n";
+#pragma omp for schedule(dynamic, 1000)
+        for (size_t i = 0; i < reader->getSize(); ++i) {
+            unsigned int queryKey = reader->getDbKey(i);
+            size_t queryIndex = queryDB.getId(queryKey);
+
+            char *headerData = queryDB.getData(queryIndex);
+            if (headerData == NULL) {
+                Debug(Debug::WARNING) << "Invalid header entry in query " << queryKey << "!\n";
+                continue;
             }
 
-            Util::parseKey(columnPointer[targetCol], dbKey);
-            size_t keyLen = strlen(dbKey);
+            std::string queryHeader;
+            if (par.fullHeader) {
+                queryHeader = std::string(headerData, qHeaderLength[queryIndex] - 2);
+            } else {
+                queryHeader = Util::parseFastaHeader(headerData);
+            }
 
-            std::string targetAccession;
-            if (tHeader != NULL) {
-                unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
-                targetAccession = par.fullHeader ? tHeader->getDataByDBKey(targetKey) : Util::parseFastaHeader(tHeader->getDataByDBKey(targetKey));
-                if (par.fullHeader) {
-                    targetAccession.erase(targetAccession.length()-2);
+            size_t entryIndex = 0;
+
+            char *data = reader->getData(i);
+            while (*data != '\0') {
+                size_t foundElements = Util::getWordsOfLine(data, columnPointer, 255);
+                if (foundElements < targetColumn) {
+                    Debug(Debug::WARNING) << "Not enough columns!" << "\n";
+                    continue;
                 }
-            } else {
-                targetAccession = dbKey;
+
+                Util::parseKey(columnPointer[targetColumn], dbKey);
+
+                std::string targetAccession;
+                if (targetDB != NULL) {
+                    unsigned int targetKey = (unsigned int) strtoul(dbKey, NULL, 10);
+                    size_t targetIndex = targetDB->getId(targetKey);
+                    char *targetData = targetDB->getData(targetIndex);
+                    if (targetData == NULL) {
+                        Debug(Debug::WARNING) << "Invalid header entry in query " << queryKey << " and target " << targetKey << "!\n";
+                        continue;
+                    }
+                    if (par.fullHeader) {
+                        targetAccession = std::string(targetData, tHeaderLength[targetIndex] - 2);
+                    } else {
+                        targetAccession = Util::parseFastaHeader(targetData);
+                    }
+                } else {
+                    targetAccession = dbKey;
+                }
+
+                if (par.firstSeqRepr && !entryIndex) {
+                    queryHeader = targetAccession;
+                }
+
+                outputBuffer.append(queryHeader);
+                outputBuffer.append("\t");
+                outputBuffer.append(targetAccession);
+
+                size_t offset = 0;
+                if (targetColumn != 0) {
+                    outputBuffer.append("\t");
+                    offset = 0;
+                } else {
+                    offset = strlen(dbKey);
+                }
+
+                char *nextLine = Util::skipLine(data);
+                outputBuffer.append(data + offset, (nextLine - (data + offset)) - 1);
+                outputBuffer.append("\n");
+                data = nextLine;
+                entryIndex++;
             }
-
-            if (par.firstSeqRepr && !entryIndex) {
-                queryHeader = targetAccession;
-            }
-
-            char *nextLine = Util::skipLine(data);
-
-            // write to file
-            fwrite(queryHeader.c_str(), sizeof(char), queryHeader.length(), file);
-            fwrite("\t", sizeof(char), 1, file);
-            fwrite(targetAccession.c_str(), sizeof(char), targetAccession.length(), file);
-
-            size_t offset = 0;
-            if (targetCol != 0) {
-                fwrite("\t", sizeof(char), 1, file);
-                offset = 0;
-            } else {
-                offset = keyLen;
-            }
-
-            fwrite(data + offset, sizeof(char), (nextLine - (data + keyLen)) - 1, file);
-            fwrite("\n", sizeof(char), 1, file);
-
-            data = nextLine;
-            entryIndex++;
+            writer->writeData(outputBuffer.c_str(), outputBuffer.length(), queryKey, thread_idx, par.dbOut);
+            outputBuffer.clear();
         }
-    }
-    delete[] dbKey;
-    delete[] columnPointer;
-
+        delete[] dbKey;
+        delete[] columnPointer;
+    };
+    writer->close();
+    delete writer;
     Debug(Debug::INFO) << "Done.\n";
 
-    fclose(file);
-    if (sameDatabase == false && tHeader != NULL) {
-        tHeader->close();
-        delete tHeader;
+    if (par.dbOut == false) {
+        if (hasTargetDB) {
+            std::remove(par.db4Index.c_str());
+        } else {
+            std::remove(par.db3Index.c_str());
+        }
     }
 
-    qHeader.close();
-    reader.close();
+    reader->close();
+    delete reader;
+    if (sameDatabase == false && targetDB != NULL) {
+        targetDB->close();
+        delete targetDB;
+    }
+    queryDB.close();
 
     return EXIT_SUCCESS;
 }

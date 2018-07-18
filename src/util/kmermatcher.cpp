@@ -84,7 +84,7 @@ struct __attribute__((__packed__)) KmerEntry {
 };
 
 void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
-                             std::vector<std::string> tmpFiles, std::vector<bool> &repSequence,
+                             std::vector<std::string> tmpFiles, std::vector<char> &repSequence,
                              int covMode, float covThr) ;
 
 void setKmerLengthAndAlphabet(Parameters &parameters, size_t aaDbSize, int seqType);
@@ -93,7 +93,7 @@ void writeKmersToDisk(std::string tmpFile, KmerPosition *kmers, size_t totalKmer
 
 void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                             KmerPosition *hashSeqPair, size_t totalKmers,
-                            std::vector<bool> &repSequence, int covMode, float covThr,
+                            std::vector<char> &repSequence, int covMode, float covThr,
                             size_t threads);
 
 void setLinearFilterDefault(Parameters *p) {
@@ -320,7 +320,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 #endif
 
 
-    DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());
+    DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str());
     seqDbr.open(DBReader<unsigned int>::NOSORT);
     int querySeqType  =  seqDbr.getDbtype();
 
@@ -467,12 +467,12 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
             hashSeqPair = NULL;
         }
     }
-    std::vector<bool> repSequence(seqDbr.getSize());
+    std::vector<char> repSequence(seqDbr.getSize());
     std::fill(repSequence.begin(), repSequence.end(), false);
 
 
     // write result
-    DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), par.threads);
+    DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads);
     dbw.open();
     
     Timer timer;
@@ -516,7 +516,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
 void writeKmerMatcherResult(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
                             KmerPosition *hashSeqPair, size_t totalKmers,
-                            std::vector<bool> &repSequence, int covMode, float covThr,
+                            std::vector<char> &repSequence, int covMode, float covThr,
                             size_t threads) {
     std::vector<size_t> threadOffsets;
     size_t splitSize = totalKmers/threads;
@@ -646,7 +646,7 @@ size_t queueNextEntry(KmerPositionQueue &queue, int file, size_t offsetPos, Kmer
 }
 
 void mergeKmerFilesAndOutput(DBReader<unsigned int> & seqDbr, DBWriter & dbw,
-                             std::vector<std::string> tmpFiles, std::vector<bool> &repSequence,
+                             std::vector<std::string> tmpFiles, std::vector<char> &repSequence,
                              int covMode, float covThr) {
     Debug(Debug::INFO) << "Merge splits ... ";
 

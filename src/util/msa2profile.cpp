@@ -377,7 +377,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     sequenceWriter.close(Sequence::AMINO_ACIDS);
     resultWriter.close(Sequence::HMM_PROFILE);
 
-    std::string base = FileUtil::baseName(par.db2 + "_h");
+    std::string base = FileUtil::baseName(par.hdr2);
     FileUtil::symlinkAlias(par.db2 + "_seq_h", base);
     FileUtil::symlinkAlias(par.db2 + "_seq_h.index", base + ".index");
 

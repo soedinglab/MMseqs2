@@ -1,18 +1,18 @@
-#include <string>
-#include <limits.h>
-#include <cassert>
-#include <FileUtil.h>
-#include <searchtargetprofile.sh.h>
-#include <blastpgp.sh.h>
-#include <translated_search.sh.h>
-#include <blastp.sh.h>
-#include <iomanip>
-#include <DBReader.h>
+#include "DBReader.h"
 #include "CommandCaller.h"
 #include "Util.h"
+#include "FileUtil.h"
 #include "Debug.h"
 #include "Parameters.h"
 
+#include "searchtargetprofile.sh.h"
+#include "blastpgp.sh.h"
+#include "translated_search.sh.h"
+#include "blastp.sh.h"
+
+#include <iomanip>
+#include <climits>
+#include <cassert>
 
 void setSearchDefaults(Parameters *p) {
     p->spacedKmer = true;

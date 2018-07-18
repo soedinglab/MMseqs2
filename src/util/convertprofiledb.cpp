@@ -154,13 +154,7 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
     DBWriter seqOut(std::string(par.db2 +"_seq").c_str(),std::string(par.db2 +"_seq.index").c_str(), par.threads);
     seqOut.open();
 
-    std::string headerFileName(par.db2);
-    headerFileName.append("_h");
-
-    std::string headerIndexFileName(par.db2);
-    headerIndexFileName.append("_h.index");
-
-    DBWriter headerOut(headerFileName.c_str(), headerIndexFileName.c_str(), par.threads);
+    DBWriter headerOut(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
     headerOut.open();
 
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0, 0.0);
@@ -196,16 +190,15 @@ int convertprofiledb(int argc, const char **argv, const Command& command) {
         }
         delete[] profileBuffer;
     }
-
     headerOut.close();
     dataOut.close(Sequence::HMM_PROFILE);
     seqOut.close(Sequence::AMINO_ACIDS);
 
-    dataIn.close();
-
     std::string base = FileUtil::baseName(par.db2 + "_seq_h");
-    FileUtil::symlinkAlias(headerFileName, base);
-    FileUtil::symlinkAlias(headerFileName + ".index", base + ".index");
+    FileUtil::symlinkAlias(par.hdr2, base);
+    FileUtil::symlinkAlias(par.hdr2Index, base + ".index");
+
+    dataIn.close();
 
     Debug(Debug::INFO) << "Done.\n";
 
