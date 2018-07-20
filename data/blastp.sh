@@ -40,7 +40,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
     # call alignment module
     if notExists "$TMP_PATH/aln_$SENS"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" align "$INPUT" "$TARGET${ALIGNMENT_DB_EXT}" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  \
+        $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$TARGET${ALIGNMENT_DB_EXT}" "$TMP_PATH/pref_$SENS" "$TMP_PATH/aln_$SENS" $ALIGNMENT_PAR  \
             || fail "Alignment died"
     fi
 
