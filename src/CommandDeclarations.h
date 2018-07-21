@@ -70,9 +70,10 @@ extern int versionstring(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);
 extern int besthitperset(int argc, const char **argv, const Command &command);
 extern int combinepvalperset(int argc, const char **argv, const Command &command);
-extern int summarizeresultsbyset(int argc, const char **argv, const Command &command);
+extern int summerizeresultsbyset(int argc, const char **argv, const Command &command);
 extern int resultsbyset(int argc, const char **argv, const Command &command);
 extern int multihitdb(int argc, const char **argv, const Command& command);
 extern int multihitsearch(int argc, const char **argv, const Command& command);
+extern int dbtype(int argc, const char **argv, const Command& command);
 
 #endif

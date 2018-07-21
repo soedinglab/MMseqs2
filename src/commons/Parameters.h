@@ -696,7 +696,7 @@ public:
     std::vector<MMseqsParameter> profile2cs;
     std::vector<MMseqsParameter> besthitbyset;
     std::vector<MMseqsParameter> combinepvalbyset;
-    std::vector<MMseqsParameter> summarizeresultsbyset;
+    std::vector<MMseqsParameter> summerizeresultsbyset;
     std::vector<MMseqsParameter> multihitdb;
     std::vector<MMseqsParameter> multihitsearch;
 

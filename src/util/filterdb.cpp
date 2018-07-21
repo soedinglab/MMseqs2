@@ -373,77 +373,79 @@ int ffindexFilter::runFilter(){
                     }
                 } else {
                     // i.e. (mode == FILE_FILTERING || mode == FILE_MAPPING)
-					std::string toSearch(columnValue);
+                    std::string toSearch(columnValue);
+                    if (mode == FILE_FILTERING) {
+                        std::vector<std::string>::iterator foundInFilter = std::upper_bound(filter.begin(),
+                                                                                            filter.end(), toSearch,
+                                                                                            compareString());
+                        if (foundInFilter != filter.end() && toSearch.compare(*foundInFilter) == 0) {
+                            // Found in filter
+                            if (positiveFiltering)
+                                nomatch = 0;
+                            else
+                                nomatch = 1;
+                        } else {
+                            // not found in the filter
+                            if (positiveFiltering)
+                                nomatch = 1;
+                            else
+                                nomatch = 0;
+                        }
+                    } else if (mode == FILE_MAPPING) {
+                        std::vector<std::pair<std::string, std::string>>::iterator foundInFilter = std::lower_bound(
+                                mapping.begin(), mapping.end(), toSearch, compareToFirstString());
 
-					if (mode == FILE_FILTERING)
-					{
-						std::vector<std::string>::iterator foundInFilter = std::upper_bound(filter.begin(), filter.end(), toSearch, compareString());
-						if (foundInFilter != filter.end() && toSearch.compare(*foundInFilter) == 0)
-						{ // Found in filter
-							if (positiveFiltering)
-								nomatch = 0; // add to the output
-							else
-								nomatch = 1;
-						} else {
-							// not found in the filter
-							if (positiveFiltering)
-								nomatch = 1; // do NOT add to the output
-							else
-								nomatch = 0;
-						}
-					} else if(mode == FILE_MAPPING) {
-						std::vector<std::pair<std::string,std::string>>::iterator foundInFilter = std::lower_bound(mapping.begin(), mapping.end(), toSearch, compareToFirstString());
-                      
-                      nomatch = 1; // by default, do NOT add to the output
-                      
-                      char *newLineBuffer = new char[LINE_BUFFER_SIZE];
-                      size_t newLineBufferIndex = 0;
-                      char *endLine = lineBuffer + dataLength;
-                      *newLineBuffer = '\0';
-                      
-                      for (size_t i = 0;i<dataLength;i++)
-                          if (lineBuffer[i] == '\n' || lineBuffer[i] == '\0')
-                          {
-                              endLine = lineBuffer+i;
-                              break;
-                          }
-                      size_t fieldLength = Util::skipNoneWhitespace(columnPointer[column-1]);
-                      
-		      // Output all the possible mapping value
-                      while (foundInFilter != mapping.end() && toSearch.compare(foundInFilter->first) == 0)
-                        {
-                            nomatch = 0; // add to the output
-                            
+                        // by default, do NOT add to the output
+                        nomatch = 1;
+
+                        char *newLineBuffer = new char[LINE_BUFFER_SIZE];
+                        size_t newLineBufferIndex = 0;
+                        char *endLine = lineBuffer + dataLength;
+                        *newLineBuffer = '\0';
+
+                        for (size_t i = 0; i < dataLength; i++) {
+                            if (lineBuffer[i] == '\n' || lineBuffer[i] == '\0') {
+                                endLine = lineBuffer + i;
+                                break;
+                            }
+                        }
+                        size_t fieldLength = Util::skipNoneWhitespace(columnPointer[column - 1]);
+
+                        // Output all the possible mapping value
+                        while (foundInFilter != mapping.end() && toSearch.compare(foundInFilter->first) == 0) {
+                            nomatch = 0;
+
                             // copy the previous columns
-                            memcpy(newLineBuffer + newLineBufferIndex,lineBuffer,columnPointer[column-1] - columnPointer[0]);
-                            newLineBufferIndex += columnPointer[column-1] - columnPointer[0];
-                            
+                            memcpy(newLineBuffer + newLineBufferIndex, lineBuffer,
+                                   columnPointer[column - 1] - columnPointer[0]);
+                            newLineBufferIndex += columnPointer[column - 1] - columnPointer[0];
+
                             // map the current column value
-                            memcpy(newLineBuffer + newLineBufferIndex,(foundInFilter->second).c_str(),(foundInFilter->second).length());
+                            memcpy(newLineBuffer + newLineBufferIndex, (foundInFilter->second).c_str(),
+                                   (foundInFilter->second).length());
                             newLineBufferIndex += (foundInFilter->second).length();
-                            
-                            
-                            // copy the next columns                            
-                            if (foundElements > column)
-                            {
-                                memcpy(newLineBuffer + newLineBufferIndex,columnPointer[column-1]+fieldLength,endLine - (columnPointer[column-1]+fieldLength));
-                                newLineBufferIndex += endLine - (columnPointer[column-1]+fieldLength);
+
+                            // copy the next columns
+                            if (foundElements > column) {
+                                memcpy(newLineBuffer + newLineBufferIndex, columnPointer[column - 1] + fieldLength,
+                                       endLine - (columnPointer[column - 1] + fieldLength));
+                                newLineBufferIndex += endLine - (columnPointer[column - 1] + fieldLength);
                             } else {
                                 newLineBuffer[newLineBufferIndex++] = '\n';
                             }
                             newLineBuffer[newLineBufferIndex] = '\0';
-                            
+
                             foundInFilter++;
                         }
-                      if(!nomatch)
-                        memcpy(lineBuffer,newLineBuffer,newLineBufferIndex+1);
-
-                      delete [] newLineBuffer;
-
-					}  else if(mode == SORT_ENTRIES) {
-                        toSort.push_back(std::make_pair<double, std::string>(std::strtod(columnValue, NULL), lineBuffer));
+                        if (nomatch == 0) {
+                            memcpy(lineBuffer, newLineBuffer, newLineBufferIndex + 1);
+                        }
+                        delete[] newLineBuffer;
+                    } else if (mode == SORT_ENTRIES) {
+                        toSort.push_back(
+                                std::make_pair<double, std::string>(std::strtod(columnValue, NULL), lineBuffer));
                         nomatch = 1; // do not put anything in the output buffer
-                  }
+                    }
                     else // Unknown filtering mode, keep all entries
 						nomatch = 0;
 

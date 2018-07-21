@@ -145,15 +145,19 @@ Parameters::Parameters():
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_DONT_SPLIT_SEQ_BY_LEN(PARAM_DONT_SPLIT_SEQ_BY_LEN_ID,"--dont-split-seq-by-len", "Split Seq. by len", "Dont split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
+        PARAM_CLUSTER_DB(PARAM_CLUSTER_DB_ID, "--cluster-db", "Cluster DB", "Create cluster DB", typeid(bool), (void*) &clusterDB, ""),
+        // convert2fasta
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
+        // gff2db
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
-        PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1) CANONICAL, 2) VERT_MITOCHONDRIAL, 3) YEAST_MITOCHONDRIAL, 4) MOLD_MITOCHONDRIAL, 5) INVERT_MITOCHONDRIAL, 6) CILIATE, 9) FLATWORM_MITOCHONDRIAL, 10) EUPLOTID, 11) PROKARYOTE, 12) ALT_YEAST, 13) ASCIDIAN_MITOCHONDRIAL, 14) ALT_FLATWORM_MITOCHONDRIAL, 15) BLEPHARISMA, 16) CHLOROPHYCEAN_MITOCHONDRIAL, 21) TREMATODE_MITOCHONDRIAL, 22) SCENEDESMUS_MITOCHONDRIAL, 23) THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24) PTEROBRANCHIA_MITOCHONDRIAL, 25) GRACILIBACTERIA, 26) PACHYSOLEN, 27) KARYORELICT, 28) CONDYLOSTOMA, 29) MESODINIUM, 30) PERTRICH, 31) BLASTOCRITHIDIA", typeid(int),(void *) &translationTable, "^[1-9]{1}[0-9]*$"),
+        // translatenucs
+        PARAM_TRANSLATION_TABLE(PARAM_TRANSLATION_TABLE_ID,"--translation-table", "Translation Table", "1) CANONICAL, 2) VERT_MITOCHONDRIAL, 3) YEAST_MITOCHONDRIAL, 4) MOLD_MITOCHONDRIAL, 5) INVERT_MITOCHONDRIAL, 6) CILIATE, 9) FLATWORM_MITOCHONDRIAL, 10) EUPLOTID, 11) PROKARYOTE, 12) ALT_YEAST, 13) ASCIDIAN_MITOCHONDRIAL, 14) ALT_FLATWORM_MITOCHONDRIAL, 15) BLEPHARISMA, 16) CHLOROPHYCEAN_MITOCHONDRIAL, 21) TREMATODE_MITOCHONDRIAL, 22) SCENEDESMUS_MITOCHONDRIAL, 23) THRAUSTOCHYTRIUM_MITOCHONDRIAL, 24) PTEROBRANCHIA_MITOCHONDRIAL, 25) GRACILIBACTERIA, 26) PACHYSOLEN, 27) KARYORELICT, 28) CONDYLOSTOMA, 29) MESODINIUM, 30) PERTRICH, 31) BLASTOCRITHIDIA", typeid(int),(void *) &translationTable, "^[1-9]{1}[0-9]*$", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
+        // createseqfiledb
         PARAM_ADD_ORF_STOP(PARAM_ADD_ORF_STOP_ID,"--add-orf-stop", "Add Orf Stop", "add * at complete start and end", typeid(bool),(void *) &addOrfStop, ""),
         // createseqfiledb
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_MAX_SEQUENCES(PARAM_MAX_SEQUENCES_ID,"--max-sequences", "Max Sequences", "maximum number of sequences a cluster may contain", typeid(int),(void *) &maxSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_HH_FORMAT(PARAM_HH_FORMAT_ID,"--hh-format", "HH format", "format entries to use with hhsuite (for singleton clusters)", typeid(bool), (void *) &hhFormat, ""),
-        PARAM_CLUSTER_DB(PARAM_CLUSTER_DB_ID, "--cluster-db", "Cluster DB", "Create cluster DB", typeid(bool), (void*) &clusterDB, ""),
         // filterdb
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
         PARAM_COLUMN_TO_TAKE(PARAM_COLUMN_TO_TAKE_ID,"--column-to-take", "Column to take", "column to take in join mode. If -1, the whole line is taken", typeid(int),(void *) &columnToTake,"^(-1|0|[1-9]{1}[0-9]*)$"),
@@ -534,10 +538,10 @@ Parameters::Parameters():
     combinepvalbyset.push_back(PARAM_V);
 
     // combinepvalperset
-    summarizeresultsbyset.push_back(PARAM_ALPHA);
-    summarizeresultsbyset.push_back(PARAM_SHORT_OUTPUT);
-    summarizeresultsbyset.push_back(PARAM_THREADS);
-    summarizeresultsbyset.push_back(PARAM_V);
+    summerizeresultsbyset.push_back(PARAM_ALPHA);
+    summerizeresultsbyset.push_back(PARAM_SHORT_OUTPUT);
+    summerizeresultsbyset.push_back(PARAM_THREADS);
+    summerizeresultsbyset.push_back(PARAM_V);
 
     // onlythreads
     onlythreads.push_back(PARAM_THREADS);
@@ -709,8 +713,7 @@ Parameters::Parameters():
     multihitdb = combineList(multihitdb, result2stats);
 
     // multi hit search
-    multihitsearch = combineList(searchworkflow, filterDb);
-    multihitsearch = combineList(multihitsearch, besthitbyset);
+    multihitsearch = combineList(searchworkflow, besthitbyset);
 
     clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);

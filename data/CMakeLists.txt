@@ -15,6 +15,7 @@ set(COMPILED_RESOURCES
         taxonomy.sh
         multihitdb.sh
         multihitsearch.sh
+        summarizeresultsbyset.sh
         nucleotide.out
         blosum30.out
         blosum35.out

@@ -68,9 +68,9 @@ int createdb(int argn, const char **argv, const Command& command) {
     DBWriter *set_writer = NULL;
     if (par.clusterDB) {
         std::string cluster_filename(data_filename);
-        cluster_filename.append("_set_lookup");
+        cluster_filename.append("_member_lookup");
         std::string cluster_index_filename(data_filename);
-        cluster_index_filename.append("_set_lookup.index");
+        cluster_index_filename.append("_member_lookup.index");
         set_writer = new DBWriter(cluster_filename.c_str(), cluster_index_filename.c_str());
         set_writer->open();
     }

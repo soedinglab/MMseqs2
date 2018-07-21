@@ -1,9 +1,4 @@
 set(util_source_files
-        util/besthitperset.cpp
-        util/combinepvalperset.cpp
-        util/resultsbyset.cpp
-        util/Aggregation.h
-        util/Aggregation.cpp
         util/alignall.cpp
         util/alignbykmer.cpp
         util/apply.cpp
@@ -14,6 +9,7 @@ set(util_source_files
         util/convertmsa.cpp
         util/convertprofiledb.cpp
         util/createdb.cpp
+        util/dbtype.cpp
         util/indexdb.cpp
         util/offsetalignment.cpp
         util/createseqfiledb.cpp

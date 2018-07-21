@@ -28,7 +28,7 @@ fi
 
 if notExists "${TMP_PATH}/aggregate"; then
     # aggregation: take for each target set the best hit
-    "${MMSEQS}" besthitperset "${QUERY}" "${TARGET}" "${TMP_PATH}/result" "${TMP_PATH}/aggregate" ${AGGREGATE_PAR} \
+    "${MMSEQS}" besthitperset "${QUERY}" "${TARGET}" "${TMP_PATH}/result" "${TMP_PATH}/aggregate" ${BESTHITBYSET_PAR} \
         || fail "aggregate best hit failed"
 fi
 

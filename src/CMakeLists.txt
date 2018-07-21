@@ -10,6 +10,7 @@ include(AppendTargetProperty)
 add_subdirectory(alignment)
 add_subdirectory(clustering)
 add_subdirectory(commons)
+add_subdirectory(multihit)
 add_subdirectory(prefiltering)
 add_subdirectory(taxonomy)
 add_subdirectory(util)
@@ -27,6 +28,8 @@ add_library(mmseqs-framework
         ${commons_source_files}
         ${prefiltering_header_files}
         ${prefiltering_source_files}
+        ${multihit_header_files}
+        ${multihit_source_files}
         ${taxonomy_header_files}
         ${taxonomy_source_files}
         ${util_header_files}
@@ -35,12 +38,13 @@ add_library(mmseqs-framework
 
 target_include_directories(mmseqs-framework PUBLIC ${CMAKE_BINARY_DIR}/generated)
 target_include_directories(mmseqs-framework PUBLIC ${PROJECT_BINARY_DIR}/generated)
-target_include_directories(mmseqs-framework PUBLIC commons)
-target_include_directories(mmseqs-framework PUBLIC prefiltering)
 target_include_directories(mmseqs-framework PUBLIC alignment)
 target_include_directories(mmseqs-framework PUBLIC clustering)
-target_include_directories(mmseqs-framework PUBLIC util)
+target_include_directories(mmseqs-framework PUBLIC commons)
+target_include_directories(mmseqs-framework PUBLIC multihit)
+target_include_directories(mmseqs-framework PUBLIC prefiltering)
 target_include_directories(mmseqs-framework PUBLIC taxonomy)
+target_include_directories(mmseqs-framework PUBLIC util)
 target_include_directories(mmseqs-framework PUBLIC .)
 
 add_dependencies(mmseqs-framework generated)
