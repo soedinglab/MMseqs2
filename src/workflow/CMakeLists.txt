@@ -6,6 +6,7 @@ set(workflow_source_files
         workflow/EasyCluster.cpp
         workflow/MultiHitDb.cpp
         workflow/MultiHitSearch.cpp
+        workflow/SummarizeResultsBySet.cpp
         workflow/Search.cpp
         workflow/Taxonomy.cpp
         workflow/CreateIndex.cpp

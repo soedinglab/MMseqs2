@@ -9,7 +9,7 @@
 
 class Aggregation {
 public:
-    Aggregation(const std::string &resultDbName, const std::string &outputDbName, size_t setColumn, unsigned int threads);
+    Aggregation(const std::string &targetDbName, const std::string &resultDbName, const std::string &outputDbName, unsigned int threads);
     int run();
 
     virtual std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int querySetKey, unsigned int targetSetKey) = 0;
@@ -17,16 +17,16 @@ public:
 protected:
     std::string resultDbName;
     std::string outputDbName;
-    size_t setColumn;
+    DBReader<unsigned int> *targetSetReader;
     unsigned int threads;
 
     bool buildMap(std::stringstream &data, std::map<unsigned int, std::vector<std::vector<std::string>>> &dataToAggregate);
 
 };
 
-class BestHitAggregator : public Aggregation {
+class BestHitBySetFilter : public Aggregation {
 public :
-    BestHitAggregator(const std::string &targetDbName, const std::string &resultDbName, const std::string &outputDbName, bool simpleBestHitMode, unsigned int threads);
+    BestHitBySetFilter(const std::string &targetDbName, const std::string &resultDbName, const std::string &outputDbName, bool simpleBestHitMode, unsigned int threads);
     std::string aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int querySetKey, unsigned int targetSetKey);
 
 private:
@@ -49,12 +49,12 @@ private:
 };
 
 
-class HitDistanceAggregator : public Aggregation {
+class SetSummaryAggregator : public Aggregation {
 public:
-    HitDistanceAggregator(const std::string &queryDbName, const std::string &targetDbName,
+    SetSummaryAggregator(const std::string &queryDbName, const std::string &targetDbName,
                               const std::string &resultDbName, const std::string &outputDbName, bool shortOutput,
                               float alpha, unsigned int threads);
-    ~HitDistanceAggregator();
+    ~SetSummaryAggregator();
 
     std::string aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey, unsigned int targetSetKey);
 

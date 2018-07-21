@@ -312,6 +312,7 @@ public:
     // createdb
     int identifierOffset;
     bool splitSeqByLen;
+    bool clusterDB ;
 
     // convert2fasta
     bool useHeaderFile;
@@ -348,8 +349,8 @@ public:
     std::string compPos ;
     std::string clusterFile ;
 
-    // aggregate
-    int aggregationMode;
+    // besthitperset
+    bool simpleBestHit;
     float alpha;
     bool shortOutput;
 
@@ -559,6 +560,7 @@ public:
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
     PARAMETER(PARAM_ID_OFFSET)  // same
     PARAMETER(PARAM_DONT_SPLIT_SEQ_BY_LEN)
+    PARAMETER(PARAM_CLUSTER_DB)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
@@ -592,8 +594,8 @@ public:
     PARAMETER(PARAM_COMPUTE_POSITIONS)
     PARAMETER(PARAM_TRANSITIVE_REPLACE)
 
-    //aggregate
-    PARAMETER(PARAM_AGGREGATION_MODE)
+    //besthitperset
+    PARAMETER(PARAM_SIMPLE_BEST_HIT)
     PARAMETER(PARAM_ALPHA)
     PARAMETER(PARAM_SHORT_OUTPUT)
 
@@ -692,7 +694,9 @@ public:
     std::vector<MMseqsParameter> taxonomy;
     std::vector<MMseqsParameter> profile2pssm;
     std::vector<MMseqsParameter> profile2cs;
-    std::vector<MMseqsParameter> aggregate;
+    std::vector<MMseqsParameter> besthitbyset;
+    std::vector<MMseqsParameter> combinepvalbyset;
+    std::vector<MMseqsParameter> summarizeresultsbyset;
     std::vector<MMseqsParameter> multihitdb;
     std::vector<MMseqsParameter> multihitsearch;
 

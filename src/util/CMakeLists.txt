@@ -1,5 +1,7 @@
 set(util_source_files
-        util/aggregate.cpp
+        util/besthitperset.cpp
+        util/combinepvalperset.cpp
+        util/resultsbyset.cpp
         util/Aggregation.h
         util/Aggregation.cpp
         util/alignall.cpp
@@ -26,7 +28,7 @@ set(util_source_files
         util/kmermatcher.cpp
         util/maskbygff.cpp
         util/mergeclusters.cpp
-        util/mergeorfcontigs.cpp
+        util/mergeresultsbyset.cpp
         util/mergedbs.cpp
         util/msa2profile.cpp
         util/prefixid.cpp

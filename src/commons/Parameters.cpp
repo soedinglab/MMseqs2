@@ -153,6 +153,7 @@ Parameters::Parameters():
         PARAM_MIN_SEQUENCES(PARAM_MIN_SEQUENCES_ID,"--min-sequences", "Min Sequences", "minimum number of sequences a cluster may contain", typeid(int),(void *) &minSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_MAX_SEQUENCES(PARAM_MAX_SEQUENCES_ID,"--max-sequences", "Max Sequences", "maximum number of sequences a cluster may contain", typeid(int),(void *) &maxSequences,"^[1-9]{1}[0-9]*$"),
         PARAM_HH_FORMAT(PARAM_HH_FORMAT_ID,"--hh-format", "HH format", "format entries to use with hhsuite (for singleton clusters)", typeid(bool), (void *) &hhFormat, ""),
+        PARAM_CLUSTER_DB(PARAM_CLUSTER_DB_ID, "--cluster-db", "Cluster DB", "Create cluster DB", typeid(bool), (void*) &clusterDB, ""),
         // filterdb
         PARAM_FILTER_COL(PARAM_FILTER_COL_ID,"--filter-column", "Filter column", "column", typeid(int),(void *) &filterColumn,"^[1-9]{1}[0-9]*$"),
         PARAM_COLUMN_TO_TAKE(PARAM_COLUMN_TO_TAKE_ID,"--column-to-take", "Column to take", "column to take in join mode. If -1, the whole line is taken", typeid(int),(void *) &columnToTake,"^(-1|0|[1-9]{1}[0-9]*)$"),
@@ -169,8 +170,8 @@ Parameters::Parameters():
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
         PARAM_COMPUTE_POSITIONS(PARAM_COMPUTE_POSITIONS_ID, "--compute-positions", "Compute Positions", "Add the positions of he hit on the target genome", typeid(std::string), (void*) &compPos, ""),
         PARAM_TRANSITIVE_REPLACE(PARAM_TRANSITIVE_REPLACE_ID, "--transitive-replace", "Replace transitively", "Replace cluster name in a search file by all genes in this cluster", typeid(std::string), (void*) &clusterFile, ""),
-        // aggregate
-        PARAM_AGGREGATION_MODE(PARAM_AGGREGATION_MODE_ID, "--aggregation-mode", "Aggregation Mode", "Aggregation to use: 0: best hit, 1: simplified best hit, 2: p-value, 3: distance", typeid(int), (void*) &aggregationMode, ""),
+        // besthitperset
+        PARAM_SIMPLE_BEST_HIT(PARAM_SIMPLE_BEST_HIT_ID, "--simple-best-hit", "Use Simple Best Hit", "Update the e-value by the best p-value", typeid(bool), (void*) &simpleBestHit, ""),
         PARAM_ALPHA(PARAM_ALPHA_ID, "--alpha", "Alpha", "Set alpha for combining p-values during aggregation", typeid(float), (void*) &alpha, ""),
         PARAM_SHORT_OUTPUT(PARAM_SHORT_OUTPUT_ID, "--short-output", "Short output", "The output database will contain only the spread p-value", typeid(bool), (void*) &shortOutput, ""),
         // concatdb
@@ -471,6 +472,7 @@ Parameters::Parameters():
     createdb.push_back(PARAM_DONT_SPLIT_SEQ_BY_LEN);
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
+    createdb.push_back(PARAM_CLUSTER_DB);
 
     // convert2fasta
     convert2fasta.push_back(PARAM_USE_HEADER_FILE);
@@ -519,12 +521,23 @@ Parameters::Parameters():
     filterDb.push_back(PARAM_COMPUTE_POSITIONS) ;
     filterDb.push_back(PARAM_TRANSITIVE_REPLACE) ;
 
-    //aggregate
-    aggregate.push_back(PARAM_AGGREGATION_MODE);
-    aggregate.push_back(PARAM_ALPHA);
-    aggregate.push_back(PARAM_SHORT_OUTPUT);
-    aggregate.push_back(PARAM_THREADS);
-    aggregate.push_back(PARAM_V);
+    // besthitperset
+    besthitbyset.push_back(PARAM_SIMPLE_BEST_HIT);
+    besthitbyset.push_back(PARAM_THREADS);
+    besthitbyset.push_back(PARAM_V);
+
+
+    // combinepvalperset
+    combinepvalbyset.push_back(PARAM_ALPHA);
+//    combinepvalperset.push_back(PARAM_SHORT_OUTPUT);
+    combinepvalbyset.push_back(PARAM_THREADS);
+    combinepvalbyset.push_back(PARAM_V);
+
+    // combinepvalperset
+    summarizeresultsbyset.push_back(PARAM_ALPHA);
+    summarizeresultsbyset.push_back(PARAM_SHORT_OUTPUT);
+    summarizeresultsbyset.push_back(PARAM_THREADS);
+    summarizeresultsbyset.push_back(PARAM_V);
 
     // onlythreads
     onlythreads.push_back(PARAM_THREADS);
@@ -697,7 +710,7 @@ Parameters::Parameters():
 
     // multi hit search
     multihitsearch = combineList(searchworkflow, filterDb);
-    multihitsearch = combineList(multihitsearch, aggregate);
+    multihitsearch = combineList(multihitsearch, besthitbyset);
 
     clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
@@ -1183,7 +1196,7 @@ void Parameters::setDefaults() {
 
     // createdb
     splitSeqByLen = true;
-
+    clusterDB = false ;
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
     dbOut = false;
@@ -1275,8 +1288,8 @@ void Parameters::setDefaults() {
     beatsFirst = false;
     
 
-    //aggregate
-    aggregationMode = 2;
+    //besthitperset
+    simpleBestHit = false;
     alpha = 0.001;
     shortOutput = false;
 

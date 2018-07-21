@@ -26,33 +26,22 @@ if notExists "${TMP_PATH}/result"; then
         || fail "search failed"
 fi
 
-if notExists "${TMP_PATH}/result_filter"; then
-    "${MMSEQS}" filterdb "${TMP_PATH}/result" "${TMP_PATH}/result_filter" --join-db "${TARGET}_orfs_orf_lookup" --column-to-take 0 ${THREADS_PAR} \
-        || fail "filterdb failed"
-fi
-
 if notExists "${TMP_PATH}/aggregate"; then
-    "${MMSEQS}" aggregate "${QUERY}" "${TARGET}" "${TMP_PATH}/result_filter" "${TMP_PATH}/aggregate" ${AGGREGATE_PAR} \
+    # aggregation: take for each target set the best hit
+    "${MMSEQS}" besthitperset "${QUERY}" "${TARGET}" "${TMP_PATH}/result" "${TMP_PATH}/aggregate" ${AGGREGATE_PAR} \
         || fail "aggregate best hit failed"
 fi
 
-if notExists "${TMP_PATH}/query_orfs_size"; then
-    "${MMSEQS}" result2stats "${QUERY}_set_lookup" "${QUERY}_set_lookup" "${QUERY}" "${TMP_PATH}/query_orfs_size" ${RESULT2STATS_PAR} \
-        || fail "result2stats failed"
-fi
-
 if notExists "${OUTPUT}"; then
-    "${MMSEQS}" mergeorfcontigs "${TMP_PATH}/aggregate" "${TMP_PATH}/query_orfs_size" "${OUTPUT}" ${THREADS_PAR} \
-        || fail "mergeclusters failed"
+    "${MMSEQS}" mergeresultsbyset "${QUERY}_member_lookup" "${TMP_PATH}/aggregate" "${OUTPUT}" ${THREADS_PAR} \
+        || fail "mergesetresults failed"
 fi
 
 if [ -n "${REMOVE_TMP}" ]; then
     echo "Remove temporary files"
     rmdir "${TMP_PATH}/search"
     rm -f "${TMP_PATH}/result" "${TMP_PATH}/result.index"
-    rm -f "${TMP_PATH}/result_filter" "${TMP_PATH}/result_filter.index"
     rm -f "${TMP_PATH}/aggregate" "${TMP_PATH}/aggregate.index"
-    rm -f "${TMP_PATH}/query_orfs_size" "${TMP_PATH}/query_orfs_size.index"
     rm -f "${TMP_PATH}/multihitsearch.sh"
 fi
 

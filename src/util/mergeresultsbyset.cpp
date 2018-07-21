@@ -3,16 +3,12 @@
 #include "DBWriter.h"
 #include "Parameters.h"
 #include "Util.h"
-#include "omptl/omptl_algorithm"
-
-#include <list>
-#include <sstream>
 
 #ifdef OPENMP
 #include <omp.h>
 #endif
 
-int mergeorfcontigs(int argc, const char **argv, const Command &command) {
+int mergeresultsbyset(int argc, const char **argv, const Command &command) {
     Parameters &par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3, true, true);
 
@@ -20,11 +16,11 @@ int mergeorfcontigs(int argc, const char **argv, const Command &command) {
     omp_set_num_threads(par.threads);
 #endif
 
-    DBReader<unsigned int> resultReader(par.db1.c_str(), par.db1Index.c_str());
-    resultReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> setReader(par.db1.c_str(), par.db1Index.c_str());
+    setReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBReader<unsigned int> contigReader(par.db2.c_str(), par.db2Index.c_str());
-    contigReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+    DBReader<unsigned int> resultReader(par.db2.c_str(), par.db2Index.c_str());
+    resultReader.open(DBReader<unsigned int>::NOSORT);
 
     DBWriter dbw(par.db3.c_str(), par.db3Index.c_str(), par.threads);
     dbw.open();
@@ -35,25 +31,30 @@ int mergeorfcontigs(int argc, const char **argv, const Command &command) {
         thread_idx = omp_get_thread_num();
 #endif
         std::string buffer;
-        buffer.reserve(1024);
+        buffer.reserve(10 * 1024);
         char dbKey[255];
 #pragma omp for schedule(static)
-        for (size_t i = 0; i < contigReader.getSize(); ++i) {
-            char *data = contigReader.getData(i);
+        for (size_t i = 0; i < setReader.getSize(); ++i) {
+            char *data = setReader.getData(i);
             // go through the results in the cluster and add them to one entry
             while (*data != '\0'){
                 Util::parseKey(data, dbKey);
                 unsigned int key = Util::fast_atoi<unsigned int>(dbKey);
-                buffer.append(resultReader.getDataByDBKey(key));
+                size_t id = resultReader.getId(key);
+                if (id == UINT_MAX) {
+                    Debug(Debug::ERROR) << "Invalid key " << key << " in entry " << i << ".\n";
+                    EXIT(EXIT_SUCCESS);
+                }
+                buffer.append(resultReader.getData(id));
                 data = Util::skipLine(data);
             }
-            dbw.writeData(buffer.c_str(), buffer.length(), contigReader.getDbKey(i), thread_idx);
+            dbw.writeData(buffer.c_str(), buffer.length(), setReader.getDbKey(i), thread_idx);
         }
         buffer.clear();
     };
     dbw.close();
-    contigReader.close();
     resultReader.close();
+    setReader.close();
 
     return EXIT_SUCCESS;
 }

@@ -58,13 +58,13 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     headerWriter.open();
 
 
-    std::string dbSetToOrf = par.db2 + "_set_lookup";
-    std::string dbIndexSetToOrf = par.db2 + "_set_lookup.index";
+    std::string dbSetToOrf = par.db2 + "_member_lookup";
+    std::string dbIndexSetToOrf = par.db2 + "_member_lookup.index";
     DBWriter writerSetToOrf(dbSetToOrf.c_str(), dbIndexSetToOrf.c_str(), par.threads);
     writerSetToOrf.open();
 
-    std::string dbOrfToSet = par.db2 + "_orf_lookup";
-    std::string dbIndexOrfToSet = par.db2 + "_orf_lookup.index";
+    std::string dbOrfToSet = par.db2 + "_set_lookup";
+    std::string dbIndexOrfToSet = par.db2 + "_set_lookup.index";
     DBWriter writerOrfToSet(dbOrfToSet.c_str(), dbIndexOrfToSet.c_str(), par.threads);
     writerOrfToSet.open();
 
@@ -143,7 +143,7 @@ int extractorfs(int argc, const char **argv, const Command& command) {
 
                 Matcher::result_t orfToSetResult(key, 1, 1, 0, 1, 0, orfLen, 0, (orfLen - 1), orfLen, setFromWithStrand, setToWithStrand, setLen, "");
                 char orfToSetBuffer[LINE_MAX];
-                size_t len = Matcher::resultToBuffer(orfToSetBuffer, orfToSetResult, true);
+                size_t len = Matcher::resultToBuffer(orfToSetBuffer, orfToSetResult, false);
                 writerOrfToSet.writeData(orfToSetBuffer, len, id, thread_idx);
 
                 Itoa::u32toa_sse2(static_cast<uint32_t>(id), buffer);

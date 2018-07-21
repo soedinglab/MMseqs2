@@ -35,7 +35,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
         }
     }
 
-<<<<<<< HEAD
     DBReader<unsigned int> *reader;
     if (hasTargetDB) {
         Debug(Debug::INFO) << "Result database: " << par.db3 << "\n";
@@ -45,26 +44,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
         reader = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
     }
     reader->open(DBReader<unsigned int>::LINEAR_ACCCESS);
-=======
-    Debug(Debug::INFO) << "Data file is " << result << "\n";
-    DBReader<unsigned int> reader(result.c_str(), std::string(result + ".index").c_str());
-    reader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
-
-    FILE *file = fopen(tsv.c_str(), "w");
-
-    char **columnPointer = new char*[255];
-
-    const size_t targetCol = par.targetTsvColumn;
-
-    Debug(Debug::INFO) << "Start writing file to " << tsv << "\n";
-    char *dbKey = new char[par.maxSeqLen + 1];
-    for (size_t i = 0; i < reader.getSize(); i++) {
-        unsigned int queryKey = reader.getDbKey(i);
-        std::string queryHeader = par.fullHeader ? std::string("\"") +qHeader.getDataByDBKey(queryKey) : Util::parseFastaHeader(qHeader.getDataByDBKey(queryKey));
-        if (par.fullHeader) {
-            queryHeader.erase(queryHeader.length() - 2);
-        }
->>>>>>> d51170c... Working multi hit nucl search
 
     DBWriter *writer;
     if (hasTargetDB) {
@@ -132,7 +111,6 @@ int createtsv(int argc, const char **argv, const Command &command) {
                         continue;
                     }
                     if (par.fullHeader) {
-
                         targetAccession = "\"";
                         targetAccession.append(targetData, tHeaderLength[targetIndex] - 2);
                         targetAccession.append("\"");

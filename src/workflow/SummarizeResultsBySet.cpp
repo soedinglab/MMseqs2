@@ -11,12 +11,12 @@ void setMultiHitSearchWorkflowDefaults(Parameters *p) {
     p->cov = 0.7;
     p->evalThr = 100;
 
-    // TODO: Needs to be more than the count of target sets (10x?)
+    // TODO: Needs to be count of target genomes
     p->maxSequences = 1500;
     p->scoreBias = 0.3;
 }
 
-int multihitsearch(int argc, const char **argv, const Command& command) {
+int summerizeresultsbyset(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     setMultiHitSearchWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, 4);

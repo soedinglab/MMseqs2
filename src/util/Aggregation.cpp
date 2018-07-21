@@ -10,9 +10,7 @@
 #include <cmath>
 
 #ifdef OPENMP
-
 #include <omp.h>
-
 #endif
 
 #define EVAL_COLUMN 3
@@ -24,18 +22,30 @@ struct compareByStart {
     }
 };
 
-Aggregation::Aggregation(const std::string &resultDbName, const std::string &outputDbName, size_t setColumn, unsigned int threads)
-        : resultDbName(resultDbName), outputDbName(outputDbName), setColumn(setColumn), threads(threads) {}
+Aggregation::Aggregation(const std::string &targetDbName, const std::string &resultDbName, const std::string &outputDbName, unsigned int threads)
+        : resultDbName(resultDbName), outputDbName(outputDbName), threads(threads) {
+    std::string sizeDbName = targetDbName + "_set_lookup";
+    std::string sizeDbIndex = targetDbName + "_set_lookup.index";
+    targetSetReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str());
+    targetSetReader->open(DBReader<unsigned int>::NOSORT);
+}
 
 // build a map with the value in [target column] field as a key and the rest of the line, cut in fields, as values
-bool Aggregation::buildMap(std::stringstream &dataStream, std::map<unsigned int, std::vector<std::vector<std::string> > > &dataToAggregate) {
+bool Aggregation::buildMap(std::stringstream &dataStream, std::map<unsigned int, std::vector<std::vector<std::string>>> &dataToAggregate) {
     dataToAggregate.clear();
     std::string line;
     while (std::getline(dataStream, line)) {
         if (!line.empty()) {
             std::vector<std::string> columns = Util::split(line, "\t");
-            unsigned int dbKey = (unsigned int) strtoull(columns[setColumn].c_str(), NULL, 10);
-            dataToAggregate[dbKey].push_back(columns);
+            unsigned int targetKey = (unsigned int) strtoull(columns[0].c_str(), NULL, 10);
+            size_t setId = targetSetReader->getId(targetKey);
+            if (setId == UINT_MAX) {
+                Debug(Debug::ERROR) << "Invalid target database key " << targetKey << ".\n";
+                EXIT(EXIT_FAILURE);
+            }
+            char *data = targetSetReader->getData(setId);
+            unsigned int setKey = (unsigned int)strtoull(data, NULL, 10);
+            dataToAggregate[setKey].push_back(columns);
         }
     }
     return true;
@@ -89,107 +99,98 @@ int Aggregation::run() {
 }
 
 
-BestHitAggregator::BestHitAggregator(const std::string &targetDbName, const std::string &resultDbName,
+BestHitBySetFilter::BestHitBySetFilter(const std::string &targetDbName, const std::string &resultDbName,
                                      const std::string &outputDbName, bool simpleBestHitMode, unsigned int threads) :
-        Aggregation(resultDbName, outputDbName, 10, threads), simpleBestHitMode(simpleBestHitMode) {
-    std::string sizeDbName = targetDbName + "_orfs_size";
-    std::string sizeDbIndex = targetDbName + "_orfs_size.index";
+        Aggregation(targetDbName, resultDbName, outputDbName, threads), simpleBestHitMode(simpleBestHitMode) {
+    std::string sizeDbName = targetDbName + "_set_size";
+    std::string sizeDbIndex = targetDbName + "_set_size.index";
     targetSizeReader = new DBReader<unsigned int>(sizeDbName.c_str(), sizeDbIndex.c_str());
     targetSizeReader->open(DBReader<unsigned int>::NOSORT);
 }
 
 // Only Keep the best hits of a protein against each Target Set
-std::string BestHitAggregator::aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int querySetKey,
-                                  unsigned int targetSetKey) {
+std::string BestHitBySetFilter::aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int, unsigned int targetSetKey) {
     std::string buffer;
     buffer.reserve(1024);
 
     double bestScore = 0;
-    size_t maxId = 0;
-    size_t bestEvalId = 0;
     double secondBestScore = 0;
+    double bestEval = DBL_MAX;
+
     double correctedPval = 0;
 
-    double eval = 0;
-    double bestEval = DBL_MAX;
     // Look for the lowest p-value and retain only this line
     // dataToAggregate = [nbrTargetGene][Field of result]
+    std::vector<std::string> *bestEntry;
     for (size_t i = 0; i < dataToAggregate.size(); i++) {
         double score = strtod(dataToAggregate[i][1].c_str(), NULL);
-        eval = strtod(dataToAggregate[i][EVAL_COLUMN].c_str(), NULL);
+        double eval = strtod(dataToAggregate[i][EVAL_COLUMN].c_str(), NULL);
 
         if (score > bestScore) {
             secondBestScore = bestScore;
             bestScore = score;
-            maxId = i;
+            if (simpleBestHitMode == false) {
+                bestEntry = &dataToAggregate[i];
+            }
         }
 
-        if (bestEval > eval) {
+        if (simpleBestHitMode == true && bestEval > eval) {
             bestEval = eval;
-            bestEvalId = i;
+            bestEntry = &dataToAggregate[i];
         }
-
     }
 
-    unsigned int targetKey = static_cast<unsigned int>(std::strtoull(dataToAggregate[maxId][10].c_str(), NULL, 10));
-    char *data = targetSizeReader->getDataByDBKey(targetKey);
+    size_t targetId = targetSizeReader->getId(targetSetKey);
+    if (targetId == UINT_MAX) {
+        Debug(Debug::ERROR) << "Invalid target size database key " << targetSetKey << ".\n";
+        EXIT(EXIT_FAILURE);
+    }
+    char *data = targetSizeReader->getData(targetId);
     unsigned int nbrGenes = (unsigned int) std::strtoull(data, NULL, 10);
 
     if (simpleBestHitMode) {
-        maxId = bestEvalId;
         correctedPval = bestEval / nbrGenes;
     } else {
-        // ortholog mode
-        // exp(log(secondBestEval / nbrGenes) - log(secondBestEval / nbrGenes));
-        // TODO what happens with == 1 ????
+        // if no second hit is available, update pvalue with fake hit
         if (dataToAggregate.size() < 2) {
-            // (2.00/(nbrGenes+1.00))
-            // (2.00*nbrGenes/(nbrGenes+1.00));
             secondBestScore = 2.0 * log((nbrGenes + 1) / 2) / log(2.0);
         }
         correctedPval = pow(2.0, secondBestScore / 2 - bestScore / 2);
     }
 
-
-    char tmpBuf[15];
-    sprintf(tmpBuf, "%.3E", correctedPval);
-    dataToAggregate[maxId][1] = std::string(tmpBuf);
-
-    // Aggregate the full line in one string
-    for (std::vector<std::string>::const_iterator it = dataToAggregate[maxId].begin();
-         it != dataToAggregate[maxId].end(); ++it) {
-        buffer.append(*it);
+    // Aggregate the full line into string
+    for (size_t i = 0; i < bestEntry->size(); ++i) {
+        if (i == 1) {
+            char tmpBuf[15];
+            sprintf(tmpBuf, "%.3E", correctedPval);
+            buffer.append(tmpBuf);
+        } else {
+            buffer.append(bestEntry->at(i));
+        }
         buffer.append("\t");
     }
+
     return buffer;
 }
 
 
-PvalueAggregator::PvalueAggregator(std::string queryDbName, std::string targetDbName, const std::string &argInputDBname,
-                                   const std::string &argOutputDBname, float alpha, unsigned int threads) :
-        Aggregation(argInputDBname, argOutputDBname, 10, threads), alpha(alpha) {
+PvalueAggregator::PvalueAggregator(std::string queryDbName, std::string targetDbName, const std::string &resultDbName,
+                                   const std::string &outputDbName, float alpha, unsigned int threads) :
+        Aggregation(targetDbName, resultDbName, outputDbName, threads), alpha(alpha) {
 
-    std::string sizeDBName  = queryDbName + "_orfs_size";
-    std::string sizeDBIndex = queryDbName + "_orfs_size.index";
+    std::string sizeDBName  = queryDbName + "_set_size";
+    std::string sizeDBIndex = queryDbName + "_set_size.index";
     querySizeReader = new DBReader<unsigned int>(sizeDBName.c_str(), sizeDBIndex.c_str());
     querySizeReader->open(DBReader<unsigned int>::NOSORT);
 
-    sizeDBName = targetDbName + "_orfs_size";
-    sizeDBIndex = targetDbName + "_orfs_size.index";
+    sizeDBName = targetDbName + "_set_size";
+    sizeDBIndex = targetDbName + "_set_size.index";
     targetSizeReader = new DBReader<unsigned int>(sizeDBName.c_str(), sizeDBIndex.c_str());
     targetSizeReader->open(DBReader<unsigned int>::NOSORT);
 }
 
 double LBinCoeff(int M, int k) {
     return lgamma(M + 1) - lgamma(M - k + 1) - lgamma(k + 1);
-}
-
-double factorial(size_t i) {
-    double fac = 1;
-    for (size_t j = 1; j < i + 1; j++) {
-        fac *= j;
-    }
-    return fac;
 }
 
 //Get all result of a single Query Set VS a Single Target Set and return the multiple-match p-value for it
@@ -209,37 +210,32 @@ std::string PvalueAggregator::aggregateEntry(std::vector<std::vector<std::string
         }
     }
 
-    double totalSum = 0;
-    double rightSum = 0;
-    for (size_t i = 0; i < k; i++) {
-        // LeftSum
-        rightSum = 0.0;
-        for (size_t j = i + 1; j < k + 1; j++) {
-            // RightSum
-            //BinCoeff(orfCount, j) * pow(P0, j) * pow((1.0 - P0), (orfCount - j));
-            rightSum += exp(LBinCoeff(orfCount, j) + j * log(pvalThreshold) +
-                            (orfCount - j) * log(1.0 - pvalThreshold));
+    double updatedEval = 0;
+    if (std::isinf(r) == false) {
+        double truncatedFisherPval = 0;
+        double powR = 1;
+        size_t factorial = 1;
+        for (size_t i = 0; i < k; i++) {
+            // K hits with p-val < p0
+            double probKGoodHits = 0.0;
+            for (size_t j = i + 1; j < k + 1; j++) {
+                probKGoodHits += exp(LBinCoeff(orfCount, j) + j * log(pvalThreshold) +
+                                (orfCount - j) * log(1.0 - pvalThreshold));
+            }
+            if (i > 0) {
+                factorial *= i;
+            }
+            truncatedFisherPval += (powR / factorial) * probKGoodHits;
+            powR *= r;
         }
-        // FIXME: faster
-        totalSum += (pow(r, i) / factorial(i)) * rightSum;
-    }
 
-    double I = 0;
-    if (r == 0) {
-        I = 1;
-    }
+        double I = 0;
+        if (r == 0) {
+            I = 1;
+        }
 
-    double updatedPval = (1.0 - pow((1.0 - pvalThreshold), orfCount)) * I + exp(-r) * totalSum;
-    double updatedEval = updatedPval * orfCount;
-
-    if (std::isinf(r)) {
-        Debug(Debug::WARNING) << "R is infinity !\n";
-        updatedEval = 0;
-    }
-
-    if (updatedEval == 0) {
-        Debug(Debug::WARNING) << "Eval is 0 !\n";
-        pvalue = std::strtod(dataToAggregate.back()[1].c_str(), NULL);
+        double updatedPval = (1.0 - pow((1.0 - pvalThreshold), orfCount)) * I + exp(-r) * truncatedFisherPval;
+        updatedEval = updatedPval * targetSizeReader->getSize();
     }
 
     std::string buffer;
@@ -250,28 +246,27 @@ std::string PvalueAggregator::aggregateEntry(std::vector<std::vector<std::string
     return buffer;
 }
 
-HitDistanceAggregator::HitDistanceAggregator(const std::string &queryDbName, const std::string &targetDbName,
+SetSummaryAggregator::SetSummaryAggregator(const std::string &queryDbName, const std::string &targetDbName,
                                              const std::string &resultDbName, const std::string &outputDbName, bool shortOutput,
                                              float alpha, unsigned int threads)
-        : Aggregation(resultDbName, targetDbName, 12, threads), alpha(alpha), shortOutput(shortOutput) {
-\
-    std::string data = queryDbName + "_orfs_size";
-    std::string index = queryDbName + "_orfs_size.index";
+        : Aggregation(targetDbName, resultDbName, outputDbName, threads), alpha(alpha), shortOutput(shortOutput) {
+    std::string data = queryDbName + "_set_size";
+    std::string index = queryDbName + "_set_size.index";
     querySizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str());
     querySizeReader->open(DBReader<unsigned int>::NOSORT);
 
-    data = targetDbName + "_orfs_size";
-    index = targetDbName + "_orfs_size.index";
+    data = targetDbName + "_set_size";
+    index = targetDbName + "_set_size.index";
     targetSizeReader = new DBReader<unsigned int>(data.c_str(), index.c_str());
     targetSizeReader->open(DBReader<unsigned int>::NOSORT);
 
-    data = targetDbName + "_nucl_size";
-    index = targetDbName + "_nucl_size.index";
+    data = targetDbName + "_nucl";
+    index = targetDbName + "_nucl.index";
     targetSourceReader = new DBReader<unsigned int>(data.c_str(), index.c_str());
     targetSourceReader->open(DBReader<unsigned int>::USE_INDEX);
 }
 
-HitDistanceAggregator::~HitDistanceAggregator() {
+SetSummaryAggregator::~SetSummaryAggregator() {
     targetSourceReader->close();
     delete targetSourceReader;
 
@@ -320,7 +315,7 @@ double spreadPval(size_t median, double rate, size_t K) {
 
 
 // return the median of the distance between genes of dataToAggregate
-std::string HitDistanceAggregator::aggregateEntry(std::vector<std::vector<std::string> > &dataToAggregate, unsigned int querySetKey, unsigned int targetSetKey) {
+std::string SetSummaryAggregator::aggregateEntry(std::vector<std::vector<std::string>> &dataToAggregate, unsigned int querySetKey, unsigned int targetSetKey) {
     double targetGeneCount = std::strtod(targetSizeReader->getDataByDBKey(targetSetKey), NULL);
     double pvalThreshold = this->alpha / targetGeneCount;
     std::vector<std::pair<long, long>> genesPositions;
@@ -330,26 +325,32 @@ std::string HitDistanceAggregator::aggregateEntry(std::vector<std::vector<std::s
     std::string genesID;
     std::string positionsStr;
     unsigned int nbrGoodEvals = 0;
-    for (auto &it : dataToAggregate) {
-        double Pval = std::strtod(it[3].c_str(), nullptr);
-        if (Pval < pvalThreshold) {
-            unsigned long start = static_cast<unsigned long>(std::stol(it[8]));
-            unsigned long stop = static_cast<unsigned long>(std::stol(it[10]));
-            genesPositions.emplace_back(std::make_pair(start, stop));
-            hitsUnderThreshold++;
-            if (shortOutput == false) {
-                meanEval += log10(std::strtod(it[3].c_str(), nullptr));
-                eVals += it[3] + ",";
-                genesID += it[0] + ",";
-                positionsStr += std::to_string(start) + "," + std::to_string(stop) + ",";
-                if (std::strtod(it[3].c_str(), nullptr) < 1e-10) {
-                    nbrGoodEvals++;
-                }
-            }
+    for (std::vector<std::vector<std::string>>::const_iterator it = dataToAggregate.begin(); it != dataToAggregate.end(); ++it) {
+        double Pval = std::strtod((*it)[3].c_str(), NULL);
+        if (Pval >= pvalThreshold) {
+            continue;
+        }
+
+        unsigned long start = static_cast<unsigned long>(std::stol((*it)[8]));
+        unsigned long stop = static_cast<unsigned long>(std::stol((*it)[10]));
+        genesPositions.emplace_back(std::make_pair(start, stop));
+        hitsUnderThreshold++;
+
+        if (shortOutput) {
+            continue;
+        }
+        meanEval += log10(std::strtod((*it)[3].c_str(), NULL));
+        eVals += (*it)[3] + ",";
+        genesID += (*it)[0] + ",";
+        positionsStr += std::to_string(start) + "," + std::to_string(stop) + ",";
+        if (std::strtod((*it)[3].c_str(), NULL) < 1e-10) {
+            nbrGoodEvals++;
         }
     }
 
     std::sort(genesPositions.begin(), genesPositions.end(), compareByStart());
+
+    // TODO: Get size for whole genome (multiple contigs, proteines etc.)
     double genomeSize = (targetSourceReader->getSeqLens(targetSourceReader->getId(targetSetKey)) - 2);
     double rate = ((double) hitsUnderThreshold) / genomeSize;
 
