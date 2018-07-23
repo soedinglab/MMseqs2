@@ -48,6 +48,7 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
+    static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
 
     // format alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;

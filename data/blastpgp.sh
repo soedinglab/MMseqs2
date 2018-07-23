@@ -51,7 +51,7 @@ while [ $STEP -lt $NUM_IT ]; do
 	    PARAM="ALIGNMENT_PAR_$STEP"
         eval TMP="\$$PARAM"
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" align "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${TMP} \
+        $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$QUERYDB" "$2" "$TMP_PATH/pref_$STEP" "$TMP_PATH/aln_$STEP" ${TMP} \
             || fail "Alignment died"
     fi
 
