@@ -49,7 +49,7 @@ Parameters::Parameters():
         PARAM_NO_PRELOAD(PARAM_NO_PRELOAD_ID, "--no-preload", "No preload", "Do not preload database", typeid(bool), (void*) &noPreload, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         PARAM_EARLY_EXIT(PARAM_EARLY_EXIT_ID, "--early-exit", "Early exit", "Exit immediately after writing the result", typeid(bool), (void*) &earlyExit, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         // alignment
-        PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id; 4: only ungapped alignment",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) residues (see --cov-mode)",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_COV_MODE(PARAM_COV_MODE_ID, "--cov-mode", "Coverage Mode", "0: coverage of query and target, 1: coverage of target, 2: coverage of query", typeid(int), (void *) &covMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_ALIGN),
@@ -363,6 +363,9 @@ Parameters::Parameters():
     createtsv.push_back(PARAM_FIRST_SEQ_REP_SEQ);
     createtsv.push_back(PARAM_TARGET_COLUMN);
     createtsv.push_back(PARAM_FULL_HEADER);
+    createtsv.push_back(PARAM_DB_OUTPUT);
+    createtsv.push_back(PARAM_THREADS);
+    createtsv.push_back(PARAM_V);
 
     //result2stats
     result2stats.push_back(PARAM_STAT);
@@ -645,6 +648,7 @@ Parameters::Parameters():
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
+    searchworkflow = combineList(searchworkflow, rescorediagonal);
     searchworkflow = combineList(searchworkflow, result2profile);
     searchworkflow = combineList(searchworkflow, extractorfs);
     searchworkflow = combineList(searchworkflow, translatenucs);
@@ -680,6 +684,7 @@ Parameters::Parameters():
 
     // clustering workflow
     clusteringWorkflow = combineList(prefilter, align);
+    clusteringWorkflow = combineList(clusteringWorkflow, rescorediagonal);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_CLUSTER_STEPS);
@@ -694,7 +699,7 @@ Parameters::Parameters():
     taxonomy.push_back(PARAM_RUNNER);
 
 
-    clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
+    clusterUpdateSearch = removeParameter(searchworkflow, PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(PARAM_USESEQID);
@@ -991,31 +996,55 @@ void Parameters::parseParameters(int argc, const char* pargv[],
             db6 = filenames[5];
             db6Index = db6;
             db6Index.append(".index");
+            hdr6 = db6;
+            hdr6.append("_h");
+            hdr6Index = hdr6;
+            hdr6Index.append(".index");
             // FALLTHROUGH
         case 5:
             db5 = filenames[4];
             db5Index = db5;
             db5Index.append(".index");
+            hdr5 = db5;
+            hdr5.append("_h");
+            hdr5Index = hdr5;
+            hdr5Index.append(".index");
             // FALLTHROUGH
         case 4:
             db4 = filenames[3];
             db4Index = db4;
             db4Index.append(".index");
+            hdr4 = db4;
+            hdr4.append("_h");
+            hdr4Index = hdr4;
+            hdr4Index.append(".index");
             // FALLTHROUGH
         case 3:
             db3 = filenames[2];
             db3Index = db3;
             db3Index.append(".index");
+            hdr3 = db3;
+            hdr3.append("_h");
+            hdr3Index = hdr3;
+            hdr3Index.append(".index");
             // FALLTHROUGH
         case 2:
             db2 = filenames[1];
             db2Index = db2;
             db2Index.append(".index");
+            hdr2 = db2;
+            hdr2.append("_h");
+            hdr2Index = hdr2;
+            hdr2Index.append(".index");
             // FALLTHROUGH
         case 1:
             db1 = filenames[0];
             db1Index = db1;
             db1Index.append(".index");
+            hdr1 = db1;
+            hdr1.append("_h");
+            hdr1Index = hdr1;
+            hdr1Index.append(".index");
             break;
         default:
             // Do not abort execution if we expect a variable amount of parameters

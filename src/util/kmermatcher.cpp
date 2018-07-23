@@ -320,7 +320,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 #endif
 
 
-    DBReader<unsigned int> seqDbr(par.db1.c_str(), (par.db1 + ".index").c_str());
+    DBReader<unsigned int> seqDbr(par.db1.c_str(), par.db1Index.c_str());
     seqDbr.open(DBReader<unsigned int>::NOSORT);
     int querySeqType  =  seqDbr.getDbtype();
 
@@ -472,7 +472,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 
 
     // write result
-    DBWriter dbw(par.db2.c_str(), std::string(par.db2 + ".index").c_str(), par.threads);
+    DBWriter dbw(par.db2.c_str(), par.db2Index.c_str(), par.threads);
     dbw.open();
     
     Timer timer;

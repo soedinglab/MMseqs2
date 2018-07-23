@@ -48,6 +48,7 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
+    static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
 
     // format alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
@@ -129,21 +130,39 @@ public:
     // path to databases
     std::string db1;
     std::string db1Index;
+
+    std::string hdr1;
+    std::string hdr1Index;
     
     std::string db2;
     std::string db2Index;
 
+    std::string hdr2;
+    std::string hdr2Index;
+
     std::string db3;
     std::string db3Index;
-    
+
+    std::string hdr3;
+    std::string hdr3Index;
+
     std::string db4;
     std::string db4Index;
-    
+
+    std::string hdr4;
+    std::string hdr4Index;
+
     std::string db5;
     std::string db5Index;
 
+    std::string hdr5;
+    std::string hdr5Index;
+
     std::string db6;
     std::string db6Index;
+
+    std::string hdr6;
+    std::string hdr6Index;
 
     std::vector<std::string> filenames;
 

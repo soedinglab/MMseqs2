@@ -42,20 +42,10 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     omp_set_num_threads(par.threads);
 #endif
 
-    std::string headerDBold(par.db1);
-    headerDBold.append("_h");
-    std::string headerDBoldIndex(par.db1);
-    headerDBoldIndex.append("_h.index");
-
-    std::string headerDBnew(par.db2);
-    headerDBnew.append("_h");
-    std::string headerDBnewIndex(par.db2);
-    headerDBnewIndex.append("_h.index");
-
-    DBReader<unsigned int> oldReader(headerDBold.c_str(), headerDBoldIndex.c_str());
+    DBReader<unsigned int> oldReader(par.hdr1.c_str(), par.hdr1Index.c_str());
     oldReader.open(DBReader<unsigned int>::NOSORT);
 
-    DBReader<unsigned int> newReader(headerDBnew.c_str(), headerDBnewIndex.c_str());
+    DBReader<unsigned int> newReader(par.hdr2.c_str(), par.hdr2Index.c_str());
     newReader.open(DBReader<unsigned int>::NOSORT);
 
     std::ofstream removedSeqDBWriter, keptSeqDBWriter, newSeqDBWriter;

@@ -59,7 +59,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
         sameDB = true;
         tdbr = qdbr;
     } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), (par.db2 + ".index").c_str());
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
         tdbr->readMmapedDataInMemory();
     }
@@ -67,7 +67,7 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
     EvalueComputation evaluer(tdbr->getAminoAcidDBSize(), subMat, Matcher::GAP_OPEN, Matcher::GAP_EXTEND, true);
 
     Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
-    DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
+    DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str());
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";

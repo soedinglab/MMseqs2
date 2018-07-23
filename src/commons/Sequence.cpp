@@ -377,7 +377,7 @@ void Sequence::mapProfileState(const char * sequenze){
     float pav[20];
     // initialize vector of average aa freqs with pseudocounts
     for (int a = 0; a < 20; a++){
-        pav[a] = subMat->pBack[a] * 100.0;
+        pav[a] = subMat->pBack[a] * 10.0;
     }
     // calculate averages
     for (int i = 0; i < L; ++i){
@@ -431,10 +431,21 @@ void Sequence::mapProfileState(const char * sequenze){
         for (int l = 0; l < this->L; ++l) {
             for (size_t aa_num = 0; aa_num < static_cast<size_t>(subMat->alphabetSize); ++aa_num) {
                 float sum = profileStateMat->scoreState(&profile[l * Sequence::PROFILE_AA_SIZE], pav, aa_num);
-                float pssmVal = sum * 2.0 * profileStateMat->getScoreNormalization();
+                float pssmVal = 2.0 * sum * profileStateMat->getScoreNormalization();
                 profile_for_alignment[aa_num * this->L + l] = static_cast<short>((pssmVal < 0.0) ? pssmVal - 0.5 : pssmVal + 0.5);
             }
         }
+        if(aaBiasCorrection==true){
+            SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrectionAln(profile_for_alignment,this->L,profileStateMat->alphabetSize,subMat);
+        }
+	/*
+ 	//TEST with a neg bias to avoid over extension
+        for (int l = 0; l < this->L; ++l) {
+            for (size_t aa_num = 0; aa_num < static_cast<size_t>(subMat->alphabetSize); ++aa_num) {
+                profile_for_alignment[aa_num * this->L + l] -= 1;
+            }
+        }*/
+ 
     }
 }
 

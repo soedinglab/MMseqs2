@@ -136,13 +136,12 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     if(sameDB){
         tHeaderDbr = &qHeaderDbr;
     } else {
-        std::string tHeaderName = (par.db2 + "_h");
         Debug(Debug::INFO) << "Target Header file: " << par.db2 << "_h\n";
         tHeaderDbr = new HeaderIdReader(par.db2.c_str(), par.noPreload);
     }
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
-    DBReader<unsigned int> alnDbr(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
+    DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str());
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);

@@ -18,29 +18,14 @@ int gff2db(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    std::string headerFilename(par.db2);
-    headerFilename.append("_h");
-
-    std::string headerIndexFilename(par.db2);
-    headerIndexFilename.append("_h.index");
-
     DBReader<std::string> reader(par.db2.c_str(), par.db2Index.c_str());
-    DBReader<std::string> headerReader(headerFilename.c_str(), headerIndexFilename.c_str());
+    DBReader<std::string> headerReader(par.hdr2.c_str(), par.hdr2Index.c_str());
 
     reader.open(DBReader<std::string>::NOSORT);
     headerReader.open(DBReader<std::string>::NOSORT);
 
-    std::string data_filename = par.db3;
-    std::string index_filename = par.db3Index;
-
-    std::string data_filename_hdr(data_filename);
-    data_filename_hdr.append("_h");
-
-    std::string index_filename_hdr(data_filename);
-    index_filename_hdr.append("_h.index");
-
-    DBWriter out_writer(data_filename.c_str(), index_filename.c_str());
-    DBWriter out_hdr_writer(data_filename_hdr.c_str(), index_filename_hdr.c_str());
+    DBWriter out_writer(par.db3.c_str(), par.db3Index.c_str());
+    DBWriter out_hdr_writer(par.hdr3.c_str(), par.hdr3Index.c_str());
 
     out_writer.open();
     out_hdr_writer.open();

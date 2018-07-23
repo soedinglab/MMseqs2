@@ -62,12 +62,8 @@ int createindex(int argc, const char **argv, const Command& command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    if (dbType == Sequence::NUCLEOTIDES) {
-        cmd.addVariable("NUCL", "TRUE");
-    }
-    if(par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
+    cmd.addVariable("NUCL", dbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
     cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
     cmd.addVariable("INDEX_PAR", par.createParameterString(par.indexdb).c_str());

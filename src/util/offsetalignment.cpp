@@ -28,22 +28,21 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
     int queryDbType = DBReader<unsigned int>::parseDbType(par.db1.c_str());
     int targetDbType = DBReader<unsigned int>::parseDbType(par.db2.c_str());
-    if(queryDbType == -1 || targetDbType == -1){
+    if (queryDbType == -1 || targetDbType == -1) {
         Debug(Debug::ERROR) << "Please recreate your database or add a .dbtype file to your sequence/profile database.\n";
         return EXIT_FAILURE;
     }
 
     Debug(Debug::INFO) << "Query Header file: " << par.db1 << "_h\n";
-    std::string qHeaderName = (par.db1 + "_h");
-    DBReader<unsigned int> qHeaderDbr(qHeaderName.c_str(), std::string(qHeaderName + ".index").c_str());
+    DBReader<unsigned int> qHeaderDbr(par.hdr1.c_str(), par.hdr1Index.c_str());
     qHeaderDbr.open(DBReader<unsigned int>::NOSORT);
-    std::string tHeaderName = (par.db2 + "_h");
+
     Debug(Debug::INFO) << "Target Header file: " << par.db2 << "_h\n";
-    DBReader<unsigned int> tHeaderDbr(tHeaderName.c_str(), std::string(tHeaderName + ".index").c_str());
+    DBReader<unsigned int> tHeaderDbr(par.hdr2.c_str(), par.hdr2Index.c_str());
     tHeaderDbr.open(DBReader<unsigned int>::NOSORT);
 
     Debug(Debug::INFO) << "Alignment database: " << par.db3 << "\n";
-    DBReader<unsigned int> alnDbr(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
+    DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str());
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);

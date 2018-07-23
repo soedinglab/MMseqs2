@@ -57,7 +57,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> *qdbr = NULL;
 
     Debug(Debug::INFO) << "Query  file: " << par.db1 << "\n";
-    qdbr = new DBReader<unsigned int>(par.db1.c_str(), (par.db1 + ".index").c_str());
+    qdbr = new DBReader<unsigned int>(par.db1.c_str(), par.db1Index.c_str());
     qdbr->open(DBReader<unsigned int>::NOSORT);
     int querySeqType  =  qdbr->getDbtype();
 
@@ -86,7 +86,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         sameDB = true;
         tdbr = qdbr;
     } else {
-        tdbr = new DBReader<unsigned int>(par.db2.c_str(), (par.db2 + ".index").c_str());
+        tdbr = new DBReader<unsigned int>(par.db2.c_str(), par.db2Index.c_str());
         tdbr->open(DBReader<unsigned int>::NOSORT);
         tdbr->readMmapedDataInMemory();
     }
@@ -109,7 +109,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         globalAliStat.prepareGlobalAliParam(*subMat);
     }
     Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
-    DBReader<unsigned int> dbr_res(par.db3.c_str(), std::string(par.db3 + ".index").c_str());
+    DBReader<unsigned int> dbr_res(par.db3.c_str(), par.db3Index.c_str());
     dbr_res.open(DBReader<unsigned int>::LINEAR_ACCCESS);
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
     DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
