@@ -437,6 +437,8 @@ Parameters::Parameters():
     // profile2cs
     profile2cs.push_back(PARAM_SUB_MAT);
 //    profile2cs.push_back(PARAM_ALPH_SIZE);
+    profile2cs.push_back(PARAM_PCA);
+    profile2cs.push_back(PARAM_PCB);
     profile2cs.push_back(PARAM_THREADS);
     profile2cs.push_back(PARAM_V);
 
