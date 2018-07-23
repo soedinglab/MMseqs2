@@ -436,7 +436,7 @@ void Sequence::mapProfileState(const char * sequenze){
             }
         }
         if(aaBiasCorrection==true){
-            SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrectionAln(profile_for_alignment,this->L,profileStateMat->alphabetSize);
+            SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrectionAln(profile_for_alignment,this->L,profileStateMat->alphabetSize,subMat);
         }
 	/*
  	//TEST with a neg bias to avoid over extension

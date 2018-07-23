@@ -109,13 +109,14 @@ public:
         return order[k];
     }
 
+    float* prior;
+    
 private:
     LibraryReader reader;
     float entropy (float*);
     std::vector<Color> colors;
     std::vector<std::string> names;
     float* background;
-    float* prior;
     float score(float* profileA, float* profileB);
     size_t alphSize;
     float ** profiles;
