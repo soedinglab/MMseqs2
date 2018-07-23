@@ -257,7 +257,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
     }
 
     // cleanup
-    resultWriter.close();
+    resultWriter.close(Sequence::HMM_PROFILE);
 
     resultReader->close();
     delete resultReader;

@@ -170,6 +170,45 @@ void SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrection(short *profileS
     }
 }
 
+void SubstitutionMatrix::calcProfileProfileLocalAaBiasCorrectionAln(int8_t *profileScores,
+                                                             int N, size_t alphabetSize) {
+
+    const int windowSize = 40;
+
+    float pnul[alphabetSize];
+    memset(pnul, 0, sizeof(float) * alphabetSize);
+
+
+    for (int pos = 0; pos < N; pos++) {
+        for(size_t aa = 0; aa < alphabetSize; aa++) {
+            pnul[aa] += *(profileScores + pos + N*aa);
+        }
+    }
+    for(size_t aa = 0; aa < alphabetSize; aa++)
+        pnul[aa] /= N;
+
+    for (int i = 0; i < N; i++){
+        const int minPos = std::max(0, (i - windowSize/2));
+        const int maxPos = std::min(N, (i + windowSize/2));
+        const int windowLength = maxPos - minPos;
+        // negative score for the amino acids in the neighborhood of i
+        float aaSum[alphabetSize];
+        memset(aaSum, 0, sizeof(float) * alphabetSize);
+
+        for (int j = minPos; j < maxPos; j++){
+            if( i == j )
+                continue;
+            for(size_t aa = 0; aa < alphabetSize; aa++){
+                aaSum[aa] += *(profileScores + aa*N + j) - pnul[aa];
+            }
+        }
+        for(size_t aa = 0; aa < alphabetSize; aa++) {
+            profileScores[i + aa*N] = static_cast<int8_t>(*(profileScores + i + N*aa) - aaSum[aa]/windowLength);
+        }
+    }
+}
+
+
 
 
 /* Compute aa correction
