@@ -37,7 +37,6 @@ set(COMPILED_RESOURCES
         K4000.crf
 	libPure_blosum62_255.lib
 	libPure_blosum62_32.lib
-	libPureMMorder20_blosum62_255.lib
         )
 
 set(GENERATED_OUTPUT_HEADERS "")
