@@ -241,15 +241,17 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
             }
         }
         if (keep[k] == 1) {
-            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
-            << ": " << __func__ << ":" << "\n";
-            Debug(Debug::WARNING)
-            << "\tFiltering removed all sequences in alignment. Inserting back first sequence.\n";
+//            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
+//            << ": " << __func__ << ":" << "\n";
+//            Debug(Debug::WARNING)
+//            << "\tFiltering removed all sequences in alignment. Inserting back first sequence.\n";
+            ;
         } else if (display[kfirst] == 2) {  // the only sequence in the alignment is the consensus sequence :-(
-            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
-            << ": " << __func__ << ":" << "\n";
-            Debug(Debug::WARNING)
-            << "\tAlignment contains no sequence except consensus sequence. Using consensus sequence for searching.\n";
+//            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
+//            << ": " << __func__ << ":" << "\n";
+//            Debug(Debug::WARNING)
+//            << "\tAlignment contains no sequence except consensus sequence. Using consensus sequence for searching.\n";
+            ;
         } else {
             Debug(Debug::WARNING) << "The alingment %s does not contain any sequences.\n";
         }
