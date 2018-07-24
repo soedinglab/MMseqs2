@@ -48,7 +48,7 @@ fi
 # call alignment module
 if notExists "${TMP_PATH}/aln"; then
     # shellcheck disable=SC2086
-    $RUNNER "$MMSEQS" align "$INPUT" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/aln" $ALIGNMENT_PAR \
+    $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/aln" $ALIGNMENT_PAR \
         || fail "Alignment died"
 fi
 

@@ -11,9 +11,11 @@ int createsubdb(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
     par.parseParameters(argc, argv, command, 3);
 
-    FILE *orderFile =  fopen(par.db1.c_str(), "r");
+    FILE *orderFile = NULL;
     if (FileUtil::fileExists(par.db1Index.c_str())) {
         orderFile = fopen(par.db1Index.c_str(), "r");
+    } else {
+        orderFile = fopen(par.db1.c_str(), "r");
     }
 
     DBReader<unsigned int> reader(par.db2.c_str(), par.db2Index.c_str());

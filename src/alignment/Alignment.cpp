@@ -29,6 +29,11 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
 
     unsigned int alignmentMode = par.alignmentMode;
+    if (alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED) {
+        Debug(Debug::ERROR) << "Use rescorediagonal for ungapped alignment mode.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     }

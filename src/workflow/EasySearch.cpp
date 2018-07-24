@@ -68,17 +68,9 @@ int easysearch(int argc, const char **argv, const Command &command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    if (par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
-
-    if (par.greedyBestHits) {
-        cmd.addVariable("GREEDY_BEST_HITS", "TRUE");
-    }
-
-    if (par.dbOut) {
-        cmd.addVariable("LEAVE_INPUT", "TRUE");
-    }
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
+    cmd.addVariable("GREEDY_BEST_HITS", par.greedyBestHits ? "TRUE" : NULL);
+    cmd.addVariable("LEAVE_INPUT", par.dbOut ? "TRUE" : NULL);
 
     cmd.addVariable("RUNNER", par.runner.c_str());
 
