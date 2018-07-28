@@ -1313,7 +1313,7 @@ void Parameters::setDefaults() {
     kbColumns = "";
 
     // linearcluster
-    kmersPerSequence = 20;
+    kmersPerSequence = 21;
     includeOnlyExtendable = false;
     skipNRepeatKmer = 0;
     hashShift = 5;
