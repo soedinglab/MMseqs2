@@ -83,21 +83,21 @@ int createdb(int argn, const char **argv, const Command& command) {
         while (kseq->ReadEntry()) {
             Debug::printProgress(count);
             const KSeqWrapper::KSeqEntry &e = kseq->entry;
-            if (e.name.length() == 0) {
+            if (e.name.l == 0) {
                 Debug(Debug::ERROR) << "Fasta entry: " << entries_num << " is invalid.\n";
                 EXIT(EXIT_FAILURE);
             }
 
             size_t splitCnt = 1;
             if (par.splitSeqByLen == true) {
-                splitCnt = (size_t) ceilf(static_cast<float>(e.sequence.length()) / static_cast<float>(par.maxSeqLen));
+                splitCnt = (size_t) ceilf(static_cast<float>(e.sequence.l) / static_cast<float>(par.maxSeqLen));
             }
 
             // header
-            header.append(e.name);
-            if (e.comment.length() > 0) {
+            header.append(e.name.s, e.name.l);
+            if (e.comment.l > 0) {
                 header.append(" ", 1);
-                header.append(e.comment);
+                header.append(e.comment.s,e.comment.l);
             }
 
             std::string headerId = Util::parseFastaHeader(header);
@@ -140,14 +140,12 @@ int createdb(int argn, const char **argv, const Command& command) {
                 splitHeader.clear();
                 splitId.clear();
 
-                // sequence
-                const std::string &sequence = e.sequence;
                 // check for the first 10 sequences if they are nucleotide sequences
                 if((count % 100) == 0){
                     if(sampleCount < testForNucSequence){
                         size_t cnt=0;
-                        for(size_t i = 0; i < sequence.size(); i++){
-                            switch(toupper(sequence[i]))
+                        for(size_t i = 0; i < e.sequence.l; i++){
+                            switch(toupper(e.sequence.s[i]))
                             {
                                 case 'T':
                                 case 'A':
@@ -157,23 +155,26 @@ int createdb(int argn, const char **argv, const Command& command) {
                                 break;
                             }
                         }
-                        if(cnt == sequence.size()){
+                        if(cnt == e.sequence.l){
                             isNuclCnt += true;
                         }
                     }
                     sampleCount++;
                 }
 
-
                 if (par.splitSeqByLen) {
-                    size_t len = std::min(par.maxSeqLen, sequence.length() - split * par.maxSeqLen);
-                    std::string splitString(sequence.c_str() + split * par.maxSeqLen, len);
-                    splitString.append("\n");
-                    out_writer.writeData(splitString.c_str(), splitString.length(), id);
+                    size_t len = std::min(par.maxSeqLen, e.sequence.l - split * par.maxSeqLen);
+                    out_writer.writeStart(0);
+                    out_writer.writeAdd(e.sequence.s + split * par.maxSeqLen, len, 0);
+                    char newLine = '\n';
+                    out_writer.writeAdd(&newLine, 1, 0);
+                    out_writer.writeEnd(id, 0, true);
                 } else {
-                    std::string seqWithLineRet(sequence);
-                    seqWithLineRet.append("\n");
-                    out_writer.writeData(seqWithLineRet.c_str(), seqWithLineRet.length(), id);
+                    out_writer.writeStart(0);
+                    out_writer.writeAdd(e.sequence.s, e.sequence.l, 0);
+                    char newLine = '\n';
+                    out_writer.writeAdd(&newLine, 1, 0);
+                    out_writer.writeEnd(id, 0, true);
                 }
 
                 entries_num++;

@@ -20,9 +20,10 @@ bool KSeqFile::ReadEntry() {
     if (result < 0)
         return false;
 
-    entry.name = std::string(s->name.s, s->name.l);
-    entry.comment = std::string(s->comment.s, s->comment.l);
-    entry.sequence = std::string(s->seq.s, s->seq.l);
+    entry.name = s->name;
+    entry.comment = s->comment;
+    entry.sequence = s->seq;
+    entry.qual = s->qual;
 
     return true;
 }
@@ -58,9 +59,10 @@ bool KSeqGzip::ReadEntry() {
     if (result < 0)
         return false;
 
-    entry.name = std::string(s->name.s, s->name.l);
-    entry.comment = std::string(s->comment.s, s->comment.l);
-    entry.sequence = std::string(s->seq.s, s->seq.l);
+    entry.name = s->name;
+    entry.comment = s->comment;
+    entry.sequence = s->seq;
+    entry.qual = s->qual;
 
     return true;
 }
@@ -99,9 +101,10 @@ bool KSeqBzip::ReadEntry() {
     if (result < 0)
         return false;
 
-    entry.name = std::string(s->name.s, s->name.l);
-    entry.comment = std::string(s->comment.s, s->comment.l);
-    entry.sequence = std::string(s->seq.s, s->seq.l);
+    entry.name = s->name;
+    entry.comment = s->comment;
+    entry.sequence = s->seq;
+    entry.qual = s->qual;
 
     return true;
 }
