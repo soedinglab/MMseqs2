@@ -316,7 +316,7 @@ public:
     // createdb
     int identifierOffset;
     bool splitSeqByLen;
-
+    bool shuffleDatabase;
     // convert2fasta
     bool useHeaderFile;
 
@@ -567,6 +567,7 @@ public:
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
     PARAMETER(PARAM_ID_OFFSET)  // same
     PARAMETER(PARAM_DONT_SPLIT_SEQ_BY_LEN)
+    PARAMETER(PARAM_DONT_SHUFFLE)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)

@@ -152,7 +152,7 @@ int createdb(int argn, const char **argv, const Command& command) {
                                 case 'G':
                                 case 'C':
                                 case 'N': cnt++;
-                                break;
+                                    break;
                             }
                         }
                         if(cnt == e.sequence.l){
@@ -193,63 +193,65 @@ int createdb(int argn, const char **argv, const Command& command) {
     out_writer.close(dbType);
 
     // shuffle data
-    DBReader<unsigned int> readerSequence(out_writer.getDataFileName(), out_writer.getIndexFileName());
-    readerSequence.open( DBReader<unsigned int>::NOSORT);
-    readerSequence.readMmapedDataInMemory();
-    DBReader<unsigned int>::Index * indexSequence  = readerSequence.getIndex();
-    unsigned int * lengthSequence  = readerSequence.getSeqLens();
+    if(par.shuffleDatabase == true){
+        DBReader<unsigned int> readerSequence(out_writer.getDataFileName(), out_writer.getIndexFileName());
+        readerSequence.open( DBReader<unsigned int>::NOSORT);
+        readerSequence.readMmapedDataInMemory();
+        DBReader<unsigned int>::Index * indexSequence  = readerSequence.getIndex();
+        unsigned int * lengthSequence  = readerSequence.getSeqLens();
 
-    DBReader<unsigned int> readerHeader(out_hdr_writer.getDataFileName(), out_hdr_writer.getIndexFileName());
-    readerHeader.open( DBReader<unsigned int>::NOSORT);
-    DBReader<unsigned int>::Index * indexHeader  = readerHeader.getIndex();
-    unsigned int * lengthHeader  = readerHeader.getSeqLens();
+        DBReader<unsigned int> readerHeader(out_hdr_writer.getDataFileName(), out_hdr_writer.getIndexFileName());
+        readerHeader.open( DBReader<unsigned int>::NOSORT);
+        DBReader<unsigned int>::Index * indexHeader  = readerHeader.getIndex();
+        unsigned int * lengthHeader  = readerHeader.getSeqLens();
 
-    unsigned int * perm =  new unsigned int[readerSequence.getSize()];
-    std::default_random_engine generator(0);
-    std::uniform_int_distribution<unsigned int> distribution(0,readerSequence.getSize()-1);
-    for (unsigned int n=0; n < readerSequence.getSize(); n++){
-        perm[n] = n;
-    }
-    for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
-        unsigned int n_new = distribution(generator);
-        std::swap(indexSequence[n_new], indexSequence[n]);
-        std::swap(lengthSequence[n_new], lengthSequence[n]);
-        std::swap(indexHeader[n_new], indexHeader[n]);
-        std::swap(lengthHeader[n_new], lengthHeader[n]);
-    }
-    delete [] perm;
-    DBWriter out_writer_shuffeled(data_filename.c_str(), index_filename.c_str());
-    out_writer_shuffeled.open();
-    for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
-        unsigned int id = par.identifierOffset + n;
-        const char * data = readerSequence.getData() + indexSequence[n].offset;
-        out_writer_shuffeled.writeData(data, lengthSequence[n]-1, id);
-    }
-    readerSequence.close();
-    out_writer_shuffeled.close(dbType);
+        unsigned int * perm =  new unsigned int[readerSequence.getSize()];
+        std::default_random_engine generator(0);
+        std::uniform_int_distribution<unsigned int> distribution(0,readerSequence.getSize()-1);
+        for (unsigned int n=0; n < readerSequence.getSize(); n++){
+            perm[n] = n;
+        }
+        for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
+            unsigned int n_new = distribution(generator);
+            std::swap(indexSequence[n_new], indexSequence[n]);
+            std::swap(lengthSequence[n_new], lengthSequence[n]);
+            std::swap(indexHeader[n_new], indexHeader[n]);
+            std::swap(lengthHeader[n_new], lengthHeader[n]);
+        }
+        delete [] perm;
+        DBWriter out_writer_shuffeled(data_filename.c_str(), index_filename.c_str());
+        out_writer_shuffeled.open();
+        for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
+            unsigned int id = par.identifierOffset + n;
+            const char * data = readerSequence.getData() + indexSequence[n].offset;
+            out_writer_shuffeled.writeData(data, lengthSequence[n]-1, id);
+        }
+        readerSequence.close();
+        out_writer_shuffeled.close(dbType);
 
-    DBWriter out_hdr_writer_shuffeled(data_filename_hdr.c_str(), index_filename_hdr.c_str());
-    out_hdr_writer_shuffeled.open();
-    readerHeader.readMmapedDataInMemory();
-    char lookupBuffer[32768];
-    for (unsigned int n = 0; n < readerHeader.getSize(); n++) {
-        unsigned int id = par.identifierOffset + n;
-        const char * data = readerHeader.getData() + indexHeader[n].offset;
-        std::string splitId = Util::parseFastaHeader(data);
-        char * tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
-        *(tmpBuff-1) = '\t';
-        fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
-        fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
-        char newline='\n';
-        fwrite(&newline, sizeof(char), 1, lookupFile);
-        out_hdr_writer_shuffeled.writeData(data, lengthHeader[n]-1, id);
+        DBWriter out_hdr_writer_shuffeled(data_filename_hdr.c_str(), index_filename_hdr.c_str());
+        out_hdr_writer_shuffeled.open();
+        readerHeader.readMmapedDataInMemory();
+        char lookupBuffer[32768];
+        for (unsigned int n = 0; n < readerHeader.getSize(); n++) {
+            unsigned int id = par.identifierOffset + n;
+            const char * data = readerHeader.getData() + indexHeader[n].offset;
+            std::string splitId = Util::parseFastaHeader(data);
+            char * tmpBuff = Itoa::u32toa_sse2(id, lookupBuffer);
+            *(tmpBuff-1) = '\t';
+            fwrite(lookupBuffer, sizeof(char), tmpBuff-lookupBuffer, lookupFile);
+            fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
+            char newline='\n';
+            fwrite(&newline, sizeof(char), 1, lookupFile);
+            out_hdr_writer_shuffeled.writeData(data, lengthHeader[n]-1, id);
+        }
+        out_hdr_writer_shuffeled.close();
+        readerHeader.close();
+        fclose(lookupFile);
     }
-    out_hdr_writer_shuffeled.close();
-    readerHeader.close();
-    fclose(lookupFile);
-
     return EXIT_SUCCESS;
 }
+
 
 
 
