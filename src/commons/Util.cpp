@@ -7,6 +7,7 @@
 #include "Sequence.h"
 #include "Parameters.h"
 #include <sys/resource.h>
+#include "itoa.h"
 
 #include <unistd.h>
 #ifdef __APPLE__
@@ -506,4 +507,54 @@ float Util::computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLe
     return 0.0;
 }
 
+template<> std::string SSTR(char x) { return std::string(1, x); }
+template<> std::string SSTR(const std::string &x) { return x; }
+template<> std::string SSTR(const char* x) { return x; }
+template<> std::string SSTR(std::string x) { return x; }
 
+template<>
+std::string SSTR(size_t x) {
+    return SSTR(static_cast<uint64_t>(x));
+}
+
+template<>
+std::string SSTR(uint64_t x) {
+    char buffer[32];
+    char *end = Itoa::u64toa_sse2(x, buffer);
+    return std::string(buffer, end - buffer - 1);
+}
+
+template<>
+std::string SSTR(int64_t x) {
+    char buffer[32];
+    char *end = Itoa::i64toa_sse2(x, buffer);
+    return std::string(buffer, end - buffer - 1);
+}
+
+template<>
+std::string SSTR(uint32_t x) {
+    char buffer[32];
+    char *end = Itoa::u32toa_sse2(x, buffer);
+    return std::string(buffer, end - buffer - 1);
+}
+
+template<>
+std::string SSTR(int32_t x) {
+    char buffer[32];
+    char *end = Itoa::i32toa_sse2(x, buffer);
+    return std::string(buffer, end - buffer - 1);
+}
+
+template<>
+std::string SSTR(double x) {
+    char buffer[32];
+    int n = sprintf(buffer, "%.3E", x);
+    return std::string(buffer, n);
+}
+
+template<>
+std::string SSTR(float x) {
+    char buffer[32];
+    int n = sprintf(buffer, "%.3E", x);
+    return std::string(buffer, n);
+}
