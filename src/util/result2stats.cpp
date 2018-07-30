@@ -319,80 +319,64 @@ std::string firstline(const char *seq) {
 
 template<typename T>
 int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyResultDb) {
-
-    bool sameQTDB = false;
-    DBReader<unsigned int> *queryReader = NULL, *targetReader = NULL;
+    DBReader<unsigned int> *targetReader = NULL;
     if (!onlyResultDb) {
-        queryReader = new DBReader<unsigned int>(queryDb.c_str(), queryDbIndex.c_str());
-        queryReader->open(DBReader<unsigned int>::NOSORT);
-
-        sameQTDB = (queryDb.compare(targetDb) == 0);
-        if (sameQTDB) {
-            targetReader = queryReader;
-        } else {
-            targetReader = new DBReader<unsigned int>(targetDb.c_str(), targetDbIndex.c_str());
-            targetReader->open(DBReader<unsigned int>::NOSORT);
-        }
+        targetReader = new DBReader<unsigned int>(targetDb.c_str(), targetDbIndex.c_str());
+        targetReader->open(DBReader<unsigned int>::NOSORT);
     }
 
-#pragma omp parallel for schedule(dynamic, 10)
-    for (size_t id = 0; id < resultReader->getSize(); id++) {
-        Debug::printProgress(id);
+#pragma omp parallel
+    {
         unsigned int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
         char dbKey[255 + 1];
+        std::string buffer;
+        buffer.reserve(1024);
 
-        std::ostringstream ss;
-        char *results = resultReader->getData(id);
+#pragma omp for schedule(dynamic, 10)
+        for (size_t id = 0; id < resultReader->getSize(); id++) {
+            Debug::printProgress(id);
 
-        if (onlyResultDb) {
-            T stat = (*call)(results);
-            ss << SSTR(stat) << '\n';
+            char *results = resultReader->getData(id);
+            if (onlyResultDb) {
+                T stat = (*call)(results);
+                buffer.append(SSTR(stat));
+                buffer.append("\n");
+            } else {
+                // for every hit
+                int cnt = 0;
+                while (*results != '\0') {
+                    Util::parseKey(results, dbKey);
+                    char *rest;
+                    const unsigned int key = (unsigned int) strtoul(dbKey, &rest, 10);
+                    if ((rest != dbKey && *rest != '\0') || errno == ERANGE) {
+                        Debug(Debug::WARNING) << "Invalid key in entry " << id << "!\n";
+                        continue;
+                    }
 
-        } else {
-            // for every hit
-            int cnt = 0;
-            while (*results != '\0') {
-                Util::parseKey(results, dbKey);
-                char *rest;
-
-                const unsigned int key = (unsigned int) strtoul(dbKey, &rest, 10);
-                if ((rest != dbKey && *rest != '\0') || errno == ERANGE) {
-                    Debug(Debug::WARNING) << "Invalid key in entry " << id << "!\n";
-                    continue;
-                }
-
-                const char *dbSeqData;
-                if (cnt == 0) {
-                    const size_t edgeId = queryReader->getId(key);
-                    dbSeqData = queryReader->getData(edgeId);
-                } else {
                     const size_t edgeId = targetReader->getId(key);
-                    dbSeqData = targetReader->getData(edgeId);
+                    const char *dbSeqData = targetReader->getData(edgeId);
+
+                    T stat = (*call)(dbSeqData);
+                    buffer.append(SSTR(stat));
+                    buffer.append("\n");
+
+                    results = Util::skipLine(results);
+                    cnt++;
                 }
-
-                T stat = (*call)(dbSeqData);
-                ss << SSTR(stat) << '\n';
-
-                results = Util::skipLine(results);
-                cnt++;
             }
+            statWriter->writeData(buffer.c_str(), buffer.length(), resultReader->getDbKey(id), thread_idx);
+            buffer.clear();
         }
-
-        std::string statString = ss.str();
-        statWriter->writeData(statString.c_str(), statString.length(), resultReader->getDbKey(id), thread_idx);
-    }
+    };
 
     if(!onlyResultDb) {
-        queryReader->close();
-        delete queryReader;
-        if (!sameQTDB) {
-            targetReader->close();
-            delete targetReader;
-        }
+        targetReader->close();
+        delete targetReader;
     }
+
     return 0;
 }
 
