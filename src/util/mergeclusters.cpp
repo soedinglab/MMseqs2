@@ -157,7 +157,7 @@ void mergeSearchWithClustersResults(const std::string &searchResults, const std:
     auto* dbw = new DBWriter(outDB.c_str(), outDBIndex.c_str(), static_cast<unsigned int>(threads));
     dbw->open();
 
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(dynamic, 10)
     for (size_t i = 0; i < geneToQuerySetLinkDB.getSize(); i++){
         std::string buffer;
         std::stringstream querySetGeneList(geneToQuerySetLinkDB.getData(i));

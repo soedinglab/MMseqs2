@@ -59,7 +59,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     std::pair<std::string, unsigned int> *keysOld
             = new std::pair<std::string, unsigned int>[indexSizeOld];
 
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(dynamic, 10)
     for (size_t id = 0; id < indexSizeOld; ++id) {
         if (par.useSequenceId) {
             keysOld[id] = std::make_pair(
@@ -78,7 +78,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
     std::pair<std::string, unsigned int> *keysNew
             = new std::pair<std::string, unsigned int>[indexSizeNew];
 
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(dynamic, 10)
     for (size_t id = 0; id < indexSizeNew; ++id) {
         if (par.useSequenceId) {
             keysNew[id] = std::make_pair(
@@ -103,7 +103,7 @@ int diffseqdbs(int argc, const char **argv, const Command &command) {
 
     bool* deletedIds = new bool[indexSizeOld]();
 
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(dynamic, 10)
     for (size_t id = 0; id < indexSizeOld; ++id) {
         const std::string &keyToSearch = keysOld[id].first;
         std::pair<std::string, unsigned int> *mappedKey

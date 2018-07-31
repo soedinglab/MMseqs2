@@ -49,7 +49,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(dynamic, 10)
     for (size_t i = 0; i < alnDbr.getSize(); i++) {
         unsigned int thread_idx = 0;
 #ifdef OPENMP

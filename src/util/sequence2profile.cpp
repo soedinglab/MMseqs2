@@ -29,7 +29,7 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
         Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, &subMat, 0, false, false);
         CSProfile ps(par.maxSeqLen);
         char * data = new char[par.maxSeqLen * Sequence::PROFILE_READIN_SIZE];
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < sequenceDb.getSize(); id++) {
             Debug::printProgress(id);
             int thread_idx = 0;

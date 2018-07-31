@@ -65,7 +65,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
         thread_idx = omp_get_thread_num();
 #endif
 
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < dbr.getSize(); id++) {
             char *data = dbr.getData(id);
             size_t length = dbr.getSeqLens(id);

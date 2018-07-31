@@ -54,7 +54,7 @@ void DBConcat::concat(bool write) {
 
     // where the new key numbering of B should start
     unsigned int maxKeyA = 0;
-#pragma omp parallel for schedule(static) num_threads(threads) reduction(max:maxKeyA)
+#pragma omp parallel for schedule(dynamic, 10) num_threads(threads) reduction(max:maxKeyA)
     for (size_t id = 0; id < indexSizeA; id++) {
         Debug::printProgress(id);
         unsigned int thread_idx = 0;
@@ -80,7 +80,7 @@ void DBConcat::concat(bool write) {
     }
     maxKeyA++;
 
-#pragma omp parallel for schedule(static) num_threads(threads)
+#pragma omp parallel for schedule(dynamic, 10) num_threads(threads)
     for (size_t id = 0; id < indexSizeB; id++) {
         Debug::printProgress(id);
         unsigned int thread_idx = 0;

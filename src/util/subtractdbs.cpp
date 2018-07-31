@@ -40,7 +40,7 @@ void dosubstractresult(std::string leftDb, std::string rightDb, std::string outD
         char * key = new char[255];
         std::string minusResultsOutString;
         minusResultsOutString.reserve(maxLineLength);
-#pragma omp for schedule(static)
+#pragma omp  for schedule(dynamic, 10)
         for (size_t id = 0; id < leftDbr.getSize(); id++) {
             std::map<unsigned int, bool> elementLookup;
             const char *leftData = leftDbr.getData(id);

@@ -158,7 +158,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             querySeq = new Sequence(par.maxSeqLen, queryReader->getDbtype(), &subMat, 0, false, false, false);
             targetSeq = new Sequence(par.maxSeqLen, targetReader->getDbtype(), &subMat, 0, false, false, false);
         }
-#pragma omp  for schedule(static)
+#pragma omp  for schedule(dynamic, 10)
         for (size_t i = 0; i < alnDbr.getSize(); i++) {
             unsigned int thread_idx = 0;
 #ifdef OPENMP

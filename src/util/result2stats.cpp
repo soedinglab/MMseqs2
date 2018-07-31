@@ -114,7 +114,7 @@ StatsComputer::~StatsComputer() {
 }
 
 int StatsComputer::countNumberOfLines() {
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(dynamic, 100)
     for (size_t id = 0; id < resultReader->getSize(); id++) {
         Debug::printProgress(id);
         unsigned int thread_idx = 0;
@@ -148,7 +148,7 @@ int StatsComputer::meanValue() {
 #ifdef OPENMP
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 100)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
             Debug::printProgress(id);
             char *results = resultReader->getData(id);
@@ -185,7 +185,7 @@ int StatsComputer::sumValue() {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
         char buffer[1024];
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < resultReader->getSize(); id++) {
             Debug::printProgress(id);
             char *results = resultReader->getData(id);
@@ -335,7 +335,7 @@ int StatsComputer::sequenceWise(typename PerSequence<T>::type call, bool onlyRes
         }
     }
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(dynamic, 10)
     for (size_t id = 0; id < resultReader->getSize(); id++) {
         Debug::printProgress(id);
         unsigned int thread_idx = 0;

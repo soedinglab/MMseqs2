@@ -65,7 +65,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
         std::string result;
         result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
             unsigned int thread_idx = 0;

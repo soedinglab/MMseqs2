@@ -55,7 +55,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     unsigned int maxSetSize = 0;
     unsigned int *msaSizes = qDbr.getSeqLens();
 
-#pragma omp parallel for schedule(static) reduction(max:maxSeqLength, maxSetSize)  
+#pragma omp parallel for schedule(dynamic, 10) reduction(max:maxSeqLength, maxSetSize)
     for (size_t id = 0; id < qDbr.getSize(); id++) {
         bool inHeader = false;
         unsigned int setSize = 0;
