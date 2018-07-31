@@ -116,21 +116,19 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
     }
 
     std::pair<int, int> * tmpSort = new std::pair<int, int>[N_in];
-    // Sort sequences according to length; afterwards, nres[ksort[kk]] is sorted by size
-    for (k = 0; k < N_in; ++k){
+    // create sorted index according to length (needed for the pairwise seq. id. comparision); afterwards, nres[ksort[kk]] is sorted by size
+    for (k = 0; k < N_in; ++k) {
         tmpSort[k].first = nres[k];
         tmpSort[k].second = k;
-        //[k] = k;
     }
     //Sort sequences after query (first sequence) in descending order
     struct sortPairDesc {
         bool operator()(const std::pair<int,int> &left, const std::pair<int,int> &right) {
-            return left.second > right.second;
+            return left.first > right.first;
         }
     };
     std::stable_sort(tmpSort + 1, tmpSort + N_in, sortPairDesc());
     for (k = 0; k < N_in; ++k) {
-        nres[k]= tmpSort[k].first ;
         ksort[k] =  tmpSort[k].second;
     }
     delete [] tmpSort;
@@ -458,8 +456,7 @@ void MsaFilter::shuffleSequences(const char ** X, size_t setSize) {
     for (size_t i = 0, j = 0; j < setSize; j++) {
         if (keep[j] != 0) {
             if (i < j) {
-                const char* temp;
-                temp = X[i];
+                const char* temp = X[i];
                 X[i] = X[j];
                 X[j] = temp;
             }
