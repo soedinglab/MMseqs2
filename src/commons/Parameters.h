@@ -675,6 +675,7 @@ public:
     std::vector<MMseqsParameter> assemblerworkflow;
     std::vector<MMseqsParameter> easysearchworkflow;
     std::vector<MMseqsParameter> searchworkflow;
+    std::vector<MMseqsParameter> mapworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;
     std::vector<MMseqsParameter> clusterUpdateClust;

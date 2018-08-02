@@ -711,6 +711,14 @@ Parameters::Parameters():
     clusterUpdate.push_back(PARAM_USESEQID);
     clusterUpdate.push_back(PARAM_RECOVER_DELETED);
 
+    mapworkflow = combineList(prefilter, rescorediagonal);
+    mapworkflow = combineList(mapworkflow, extractorfs);
+    mapworkflow = combineList(mapworkflow, translatenucs);
+    mapworkflow.push_back(PARAM_START_SENS);
+    mapworkflow.push_back(PARAM_SENS_STEPS);
+    mapworkflow.push_back(PARAM_RUNNER);
+    mapworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+
     //checkSaneEnvironment();
     setDefaults();
 }
