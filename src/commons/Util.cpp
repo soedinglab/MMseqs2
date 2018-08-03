@@ -512,16 +512,6 @@ template<> std::string SSTR(const std::string &x) { return x; }
 template<> std::string SSTR(const char* x) { return x; }
 template<> std::string SSTR(std::string x) { return x; }
 
-template<> std::string SSTR(char);
-template<> std::string SSTR(short);
-template<> std::string SSTR(unsigned short);
-template<> std::string SSTR(int);
-template<> std::string SSTR(unsigned int);
-template<> std::string SSTR(long);
-template<> std::string SSTR(unsigned long);
-template<> std::string SSTR(long long);
-template<> std::string SSTR(unsigned long long);
-
 template<>
 std::string SSTR(short x) {
     return SSTR(static_cast<int>(x));
@@ -569,8 +559,6 @@ std::string SSTR(unsigned long long x) {
     char *end = Itoa::u64toa_sse2(x, buffer);
     return std::string(buffer, end - buffer - 1);
 }
-
-
 
 template<>
 std::string SSTR(double x) {

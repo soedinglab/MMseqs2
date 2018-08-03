@@ -414,8 +414,6 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         } else if (maskMode == 1) {
             sequenceLookup = PrefilteringIndexReader::getMaskedSequenceLookup(tidxdbr, false);
         }
-
-        return;
     } else {
         Timer timer;
 
