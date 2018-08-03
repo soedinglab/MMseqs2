@@ -28,15 +28,18 @@ std::string SSTR(T x) {
     return "";
 }
 
-template<> std::string SSTR(char);
 template<> std::string SSTR(const char*);
 template<> std::string SSTR(const std::string&);
 template<> std::string SSTR(std::string);
-template<> std::string SSTR(size_t);
-template<> std::string SSTR(uint64_t);
-template<> std::string SSTR(int64_t);
-template<> std::string SSTR(uint32_t);
-template<> std::string SSTR(int32_t);
+template<> std::string SSTR(char);
+template<> std::string SSTR(short);
+template<> std::string SSTR(unsigned short);
+template<> std::string SSTR(int);
+template<> std::string SSTR(unsigned int);
+template<> std::string SSTR(long);
+template<> std::string SSTR(unsigned long);
+template<> std::string SSTR(long long);
+template<> std::string SSTR(unsigned long long);
 template<> std::string SSTR(double);
 template<> std::string SSTR(float);
 
