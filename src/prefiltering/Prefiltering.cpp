@@ -22,6 +22,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                            const Parameters &par) :
         targetDB(targetDB),
         targetDBIndex(targetDBIndex),
+        _2merSubMatrix(NULL),
+        _3merSubMatrix(NULL),
         splits(par.split),
         kmerSize(par.kmerSize),
         spacedKmer(par.spacedKmer != 0),
