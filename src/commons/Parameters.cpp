@@ -80,9 +80,10 @@ Parameters::Parameters():
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format 0: BLAST-TAB, 1: PAIRWISE, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database Output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, ""),
         // rescorediagonal
-        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "rescore diagonal by: 0 hamming distance, 1 local alignment (score only) or 2 local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
+        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only) or 2: local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq.id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_GLOBAL_ALIGNMENT(PARAM_GLOBAL_ALIGNMENT_ID,"--global-alignment", "In substitution scoring mode, performs global alignment along the diagonal", "Rescore the complete diagonal", typeid(bool), (void *) &globalAlignment, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by evalue (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}*$"),
         // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, "",  MMseqsParameter::COMMAND_EXPERT),
@@ -275,23 +276,25 @@ Parameters::Parameters():
     onlyverbosity.push_back(PARAM_V);
 
     // rescorediagonal
-    rescorediagonal.push_back(PARAM_RESCORE_MODE);
     rescorediagonal.push_back(PARAM_SUB_MAT);
+    rescorediagonal.push_back(PARAM_RESCORE_MODE);
     rescorediagonal.push_back(PARAM_FILTER_HITS);
-    rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
-    rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_E);
+    rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_COV_MODE);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
     rescorediagonal.push_back(PARAM_SEQ_ID_MODE);
     rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
+    rescorediagonal.push_back(PARAM_SORT_RESULTS);
+    rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
+    rescorediagonal.push_back(PARAM_NO_PRELOAD);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
 
     // alignbykmer
+    alignbykmer.push_back(PARAM_SUB_MAT);
     alignbykmer.push_back(PARAM_K);
     alignbykmer.push_back(PARAM_ALPH_SIZE);
-    alignbykmer.push_back(PARAM_SUB_MAT);
     alignbykmer.push_back(PARAM_FILTER_HITS);
     alignbykmer.push_back(PARAM_C);
     alignbykmer.push_back(PARAM_E);
@@ -1277,6 +1280,7 @@ void Parameters::setDefaults() {
     // rescorediagonal
     rescoreMode = Parameters::RESCORE_MODE_HAMMING;
     filterHits = false;
+    sortResults = false;
 
     // filterDb
     filterColumn = 1;

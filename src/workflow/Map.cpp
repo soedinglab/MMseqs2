@@ -14,6 +14,7 @@ void setMapWorkflowDefaults(Parameters *p) {
     p->seqIdThr = 0.9;
     p->sensitivity = 2;
     p->rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+    p->sortResults = true;
 }
 
 int map(int argc, const char **argv, const Command &command) {
