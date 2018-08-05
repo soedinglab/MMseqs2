@@ -12,6 +12,9 @@ extern const char* tool_name;
 extern const char* tool_introduction;
 extern const char* main_author;
 extern const char* version;
+extern const char* show_extended_help;
+extern const char* show_bash_info;
+
 extern std::vector<struct Command> commands;
 extern std::vector<Categories> categories;
 
@@ -92,13 +95,15 @@ void printUsage(bool showExtended) {
         }
     }
 
-    if (showExtended == false) {
-        usage << "\n\nAn extended list of all tools can be obtained by calling '" << binary_name << " -h'.\n";
+    if(show_extended_help != NULL) {
+        if (showExtended == false) {
+            usage << "\n\nAn extended list of all tools can be obtained by calling '" << binary_name << " -h'.\n";
+        }
     }
-
-    usage << "\nBash completion for tools and parameters can be installed by adding \"source MMSEQS_HOME/util/bash-completion.sh\" to your \"$HOME/.bash_profile\".\n"
-            "Include the location of the " << tool_name << " binary is in your \"$PATH\" environment variable.";
-
+    if(show_bash_info != NULL){
+        usage << "\nBash completion for tools and parameters can be installed by adding \"source MMSEQS_HOME/util/bash-completion.sh\" to your \"$HOME/.bash_profile\".\n"
+                "Include the location of the " << tool_name << " binary is in your \"$PATH\" environment variable.";
+    }
     Debug(Debug::INFO) << usage.str() << "\n";
 }
 

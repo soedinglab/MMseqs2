@@ -731,13 +731,17 @@ void Parameters::printUsageMessage(const Command& command,
     const std::vector<MMseqsParameter>& parameters = *command.params;
 
     std::ostringstream ss;
-    ss << "mmseqs " << command.cmd << ":\n";
+    ss << binary_name << " " << command.cmd << ":\n";
     ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
 
     if(command.citations > 0) {
         ss << "Please cite:\n";
+
+        if(command.citations & CITATION_PLASS) {
+            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. (2018)\n";
+        }
         if(command.citations & CITATION_LINCLUST) {
-            ss << "Steinegger, M. & Soding, J. Linclust: clustering billions of protein sequences per day on a single server. bioRxiv 104034 (2017)\n\n";
+            ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)\n";
         }
         if(command.citations & CITATION_MMSEQS1) {
             ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
