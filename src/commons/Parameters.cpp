@@ -845,9 +845,6 @@ void Parameters::printUsageMessage(const Command& command,
 
 int compileRegex(regex_t * regex, const char * regexText){
     int status = regcomp(regex, regexText, REG_EXTENDED | REG_NEWLINE);
-    if (status == REG_EMPTY ) {
-        return REG_EMPTY;
-    }
     if (status != 0 ){
         Debug(Debug::ERROR) << "Error in regex " << regexText << "\n";
         EXIT(EXIT_FAILURE);
@@ -896,11 +893,9 @@ void Parameters::parseParameters(int argc, const char* pargv[],
 
                     if (typeid(int) == par[parIdx].type) {
                         regex_t regex;
-                        int nomatch = false;
-                        if(compileRegex(&regex, par[parIdx].regex) == 0) {
-                            nomatch = regexec(&regex, pargv[argIdx + 1], 0, NULL, 0);
-                            regfree(&regex);
-                        }
+                        compileRegex(&regex, par[parIdx].regex);
+                        int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
+                        regfree(&regex);
                         // if no match found or two matches found (we want exactly one match)
                         if (nomatch){
                             printUsageMessage(command, outputFlags);
@@ -913,11 +908,9 @@ void Parameters::parseParameters(int argc, const char* pargv[],
                         argIdx++;
                     } else if (typeid(float) == par[parIdx].type) {
                         regex_t regex;
-                        int nomatch = false;
-                        if(compileRegex(&regex, par[parIdx].regex) == 0) {
-                            nomatch = regexec(&regex, pargv[argIdx + 1], 0, NULL, 0);
-                            regfree(&regex);
-                        }
+                        compileRegex(&regex, par[parIdx].regex);
+                        int nomatch = regexec(&regex, pargv[argIdx+1], 0, NULL, 0);
+                        regfree(&regex);
                         if (nomatch){
                             printUsageMessage(command, outputFlags);
                             Debug(Debug::ERROR) << "Error in argument " << par[parIdx].name << "\n";
