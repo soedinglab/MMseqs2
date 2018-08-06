@@ -80,9 +80,10 @@ Parameters::Parameters():
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format 0: BLAST-TAB, 1: PAIRWISE, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database Output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, ""),
         // rescorediagonal
-        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "rescore diagonal by: 0 hamming distance, 1 local alignment (score only) or 2 local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
+        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only) or 2: local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq.id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_GLOBAL_ALIGNMENT(PARAM_GLOBAL_ALIGNMENT_ID,"--global-alignment", "In substitution scoring mode, performs global alignment along the diagonal", "Rescore the complete diagonal", typeid(bool), (void *) &globalAlignment, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by evalue (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$"),
         // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, "",  MMseqsParameter::COMMAND_EXPERT),
@@ -275,23 +276,25 @@ Parameters::Parameters():
     onlyverbosity.push_back(PARAM_V);
 
     // rescorediagonal
-    rescorediagonal.push_back(PARAM_RESCORE_MODE);
     rescorediagonal.push_back(PARAM_SUB_MAT);
+    rescorediagonal.push_back(PARAM_RESCORE_MODE);
     rescorediagonal.push_back(PARAM_FILTER_HITS);
-    rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
-    rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_E);
+    rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_COV_MODE);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
     rescorediagonal.push_back(PARAM_SEQ_ID_MODE);
     rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
+    rescorediagonal.push_back(PARAM_SORT_RESULTS);
+    rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
+    rescorediagonal.push_back(PARAM_NO_PRELOAD);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
 
     // alignbykmer
+    alignbykmer.push_back(PARAM_SUB_MAT);
     alignbykmer.push_back(PARAM_K);
     alignbykmer.push_back(PARAM_ALPH_SIZE);
-    alignbykmer.push_back(PARAM_SUB_MAT);
     alignbykmer.push_back(PARAM_FILTER_HITS);
     alignbykmer.push_back(PARAM_C);
     alignbykmer.push_back(PARAM_E);
@@ -711,6 +714,14 @@ Parameters::Parameters():
     clusterUpdate.push_back(PARAM_USESEQID);
     clusterUpdate.push_back(PARAM_RECOVER_DELETED);
 
+    mapworkflow = combineList(prefilter, rescorediagonal);
+    mapworkflow = combineList(mapworkflow, extractorfs);
+    mapworkflow = combineList(mapworkflow, translatenucs);
+    mapworkflow.push_back(PARAM_START_SENS);
+    mapworkflow.push_back(PARAM_SENS_STEPS);
+    mapworkflow.push_back(PARAM_RUNNER);
+    mapworkflow.push_back(PARAM_REMOVE_TMP_FILES);
+
     //checkSaneEnvironment();
     setDefaults();
 }
@@ -720,13 +731,17 @@ void Parameters::printUsageMessage(const Command& command,
     const std::vector<MMseqsParameter>& parameters = *command.params;
 
     std::ostringstream ss;
-    ss << "mmseqs " << command.cmd << ":\n";
+    ss << binary_name << " " << command.cmd << ":\n";
     ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
 
     if(command.citations > 0) {
         ss << "Please cite:\n";
+
+        if(command.citations & CITATION_PLASS) {
+            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. (2018)\n";
+        }
         if(command.citations & CITATION_LINCLUST) {
-            ss << "Steinegger, M. & Soding, J. Linclust: clustering billions of protein sequences per day on a single server. bioRxiv 104034 (2017)\n\n";
+            ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)\n";
         }
         if(command.citations & CITATION_MMSEQS1) {
             ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
@@ -1276,6 +1291,7 @@ void Parameters::setDefaults() {
     // rescorediagonal
     rescoreMode = Parameters::RESCORE_MODE_HAMMING;
     filterHits = false;
+    sortResults = false;
 
     // filterDb
     filterColumn = 1;

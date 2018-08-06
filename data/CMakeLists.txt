@@ -5,6 +5,7 @@ set(COMPILED_RESOURCES
         easycluster.sh
         blastp.sh
         blastpgp.sh
+        map.sh
         linclust.sh
         clustering.sh
         cascaded_clustering.sh

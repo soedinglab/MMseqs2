@@ -150,10 +150,10 @@ void PrefilteringIndexReader::createIndexFile(const std::string &outDB, DBReader
     delete indexTable;
 
     Debug(Debug::INFO) << "Write META (" << META << ")\n";
-    int local = 1;
+    int mask = maskMode > 0;
     int spacedKmer = (hasSpacedKmer) ? 1 : 0;
     int headers = (hdbr != NULL) ? 1 : 0;
-    int metadata[] = {kmerSize, alphabetSize, local, spacedKmer, kmerThr, seqType, headers};
+    int metadata[] = {kmerSize, alphabetSize, mask, spacedKmer, kmerThr, seqType, headers};
     char *metadataptr = (char *) &metadata;
     writer.writeData(metadataptr, sizeof(metadata), META, 0);
     writer.alignToPageSize();
@@ -275,14 +275,13 @@ SequenceLookup *PrefilteringIndexReader::getUnmaskedSequenceLookup(DBReader<unsi
 IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *dbr, bool touch) {
     PrefilteringIndexData data = getMetadata(dbr);
     IndexTable *retTable;
-    if (data.local) {
-        int adjustAlphabetSize = (data.seqType == Sequence::NUCLEOTIDES || data.seqType == Sequence::AMINO_ACIDS)
-                                 ? (data.alphabetSize - 1) : data.alphabetSize;
-        retTable = new IndexTable(adjustAlphabetSize, data.kmerSize, true);
-    }else {
-        Debug(Debug::ERROR) << "Search mode is not valid.\n";
-        EXIT(EXIT_FAILURE);
+    int adjustAlphabetSize;
+    if (data.seqType == Sequence::NUCLEOTIDES || data.seqType == Sequence::AMINO_ACIDS) {
+        adjustAlphabetSize = data.alphabetSize - 1;
+    } else {
+        adjustAlphabetSize = data.alphabetSize;
     }
+    retTable = new IndexTable(adjustAlphabetSize, data.kmerSize, true);
 
     size_t entriesNumId = dbr->getId(ENTRIESNUM);
     int64_t entriesNum = *((int64_t *)dbr->getData(entriesNumId));
@@ -309,7 +308,7 @@ IndexTable *PrefilteringIndexReader::generateIndexTable(DBReader<unsigned int> *
 void PrefilteringIndexReader::printMeta(int *metadata_tmp) {
     Debug(Debug::INFO) << "KmerSize:     " << metadata_tmp[0] << "\n";
     Debug(Debug::INFO) << "AlphabetSize: " << metadata_tmp[1] << "\n";
-    Debug(Debug::INFO) << "Type:         " << metadata_tmp[2] << "\n";
+    Debug(Debug::INFO) << "Masked:       " << metadata_tmp[2] << "\n";
     Debug(Debug::INFO) << "Spaced:       " << metadata_tmp[3] << "\n";
     Debug(Debug::INFO) << "KmerScore:    " << metadata_tmp[4] << "\n";
     Debug(Debug::INFO) << "SequenceType: " << metadata_tmp[5] << "\n";
@@ -336,7 +335,7 @@ PrefilteringIndexData PrefilteringIndexReader::getMetadata(DBReader<unsigned int
     PrefilteringIndexData data;
     data.kmerSize = meta[0];
     data.alphabetSize = meta[1];
-    data.local = meta[2];
+    data.mask = meta[2];
     data.spacedKmer = meta[3];
     data.kmerThr = meta[4];
     data.seqType = meta[5];

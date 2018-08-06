@@ -287,13 +287,13 @@ public:
         return buffer;
     }
 
-    static void i64toa_sse2(int64_t value, char* buffer) {
+    static char* i64toa_sse2(int64_t value, char* buffer) {
         uint64_t u = static_cast<uint64_t>(value);
         if (value < 0) {
             *buffer++ = '-';
             u = ~u + 1;
         }
-        u64toa_sse2(u, buffer);
+        return u64toa_sse2(u, buffer);
     }
 
 };

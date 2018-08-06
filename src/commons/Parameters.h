@@ -262,6 +262,7 @@ public:
     int rescoreMode;
     bool filterHits;
     bool globalAlignment;
+    int sortResults;
 
     // result2msa
     bool allowDeletion;
@@ -490,6 +491,7 @@ public:
     PARAMETER(PARAM_RESCORE_MODE)
     PARAMETER(PARAM_FILTER_HITS)
     PARAMETER(PARAM_GLOBAL_ALIGNMENT)
+    PARAMETER(PARAM_SORT_RESULTS)
 
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION)
@@ -675,6 +677,7 @@ public:
     std::vector<MMseqsParameter> assemblerworkflow;
     std::vector<MMseqsParameter> easysearchworkflow;
     std::vector<MMseqsParameter> searchworkflow;
+    std::vector<MMseqsParameter> mapworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;
     std::vector<MMseqsParameter> clusterUpdateClust;

@@ -8,6 +8,8 @@ const char* binary_name = "mmseqs";
 const char* tool_name = "MMseqs2";
 const char* tool_introduction = "MMseqs2 (Many against Many sequence searching) is an open-source software suite for very fast, \nparallelized protein sequence searches and clustering of huge protein sequence data sets.\n\nPlease cite: M. Steinegger and J. Soding. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets. Nature Biotechnology, doi:10.1038/nbt.3988 (2017).";
 const char* main_author = "Martin Steinegger (martin.steinegger@mpibpc.mpg.de)";
+const char* show_extended_help = "1";
+const char* show_bash_info = "1";
 
 Parameters& par = Parameters::getInstance();
 
@@ -37,7 +39,13 @@ std::vector<struct Command> commands = {
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
                 "<i:queryDB> <i:targetDB> <o:alignmentDB> <tmpDir>",
                 CITATION_MMSEQS2},
-        {"cluster",              clusteringworkflow,   &par.clusteringWorkflow,   COMMAND_MAIN,
+        {"map",                   map,                  &par.mapworkflow,         COMMAND_MAIN,
+                "Fast ungapped mapping of query sequences to target sequences.",
+                "Finds very similar sequence matches in a sequence database. First calls the prefilter module (with a low sensitivity setting) to detect high scoring diagonals and then computes an ungapped alignment with the rescorediagonal module. In contrast to the normal search, for maximum speed no gapped alignment is computed, query sequences are not masked for low complexity regions and no compositional bias correction is applied.",
+                "Milot Mirdita <milot@mirdita.de> & Martin Steinegger <martin.steinegger@mpibpc.mpg.de>",
+                "<i:queryDB> <i:targetDB> <o:alignmentDB> <tmpDir>",
+                CITATION_MMSEQS2},
+        {"cluster",              clusteringworkflow,    &par.clusteringWorkflow,  COMMAND_MAIN,
                 "Compute clustering of a sequence DB (quadratic time)",
                 "Clusters sequences by similarity. It compares all sequences in the sequence DB with each other using mmseqs search, filters alignments according to user-specified criteria (max. E-value, min. coverage,...),   and runs mmseqs clust to group similar sequences together into clusters.",
                 "Martin Steinegger <martin.steinegger@mpibpc.mpg.de> & Lars von den Driesch",

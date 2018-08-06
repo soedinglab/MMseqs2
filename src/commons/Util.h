@@ -19,13 +19,29 @@
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 template<typename T>
+struct assert_false : std::false_type
+{ };
+
+template<typename T>
 std::string SSTR(T x) {
-    std::string result;
-    std::ostringstream oss;
-    oss << std::dec << (x);
-    result.assign(oss.str());
-    return result;
+    static_assert(assert_false<T>::value , "Not implemented for requested type");
+    return "";
 }
+
+template<> std::string SSTR(const char*);
+template<> std::string SSTR(const std::string&);
+template<> std::string SSTR(std::string);
+template<> std::string SSTR(char);
+template<> std::string SSTR(short);
+template<> std::string SSTR(unsigned short);
+template<> std::string SSTR(int);
+template<> std::string SSTR(unsigned int);
+template<> std::string SSTR(long);
+template<> std::string SSTR(unsigned long);
+template<> std::string SSTR(long long);
+template<> std::string SSTR(unsigned long long);
+template<> std::string SSTR(double);
+template<> std::string SSTR(float);
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
