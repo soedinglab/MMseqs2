@@ -518,8 +518,13 @@ template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
 
 template <>
 size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
-    size_t memSize = 2 * sizeof(size_t)
+    size_t memSize = // size + aaDbSize
+                     2 * sizeof(size_t)
+                     // lastKey
+                     + 1 * sizeof(unsigned int)
+                     // index
                      + idx.size * sizeof(DBReader<unsigned int>::Index)
+                     // seqLens
                      + idx.size * sizeof(unsigned int);
 
     return memSize;
