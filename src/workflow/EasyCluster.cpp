@@ -64,6 +64,9 @@ int easycluster(int argc, const char **argv, const Command &command) {
     std::string clusterParam = par.createParameterString(par.clusteringWorkflow, true);
     cmd.addVariable("CLUSTER_PAR", clusterParam.c_str());
 
+    cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
+    cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
+
     FileUtil::writeFile(tmpDir + "/easycluster.sh", easycluster_sh, easycluster_sh_len);
     std::string program(tmpDir + "/easycluster.sh");
     cmd.execProgram(program.c_str(), par.filenames);

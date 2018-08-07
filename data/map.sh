@@ -6,4 +6,5 @@
 [   -f "$3" ] &&  echo "$3 exists already!" && exit 1;
 [ ! -d "$4" ] &&  echo "tmp directory $4 not found!" && mkdir -p "$4";
 
+# shellcheck disable=SC2086
 "$MMSEQS" search "$1" "$2" "$3" "$4" ${SEARCH_PAR}

@@ -22,13 +22,15 @@ RESULTS="$3"
 TMP_PATH="$4"
 
 if notExists "${TMP_PATH}/query"; then
-   "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/query" ${CREATEDB_PAR} \
+    # shellcheck disable=SC2086
+    "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/query" ${CREATEDB_PAR} \
         || fail "query createdb died"
 fi
 
 if notExists "${TARGET}.dbtype"; then
-   if notExists "${TMP_PATH}/target"; then
-       "$MMSEQS" createdb "${TARGET}" "${TMP_PATH}/target" ${CREATEDB_PAR} \
+    if notExists "${TMP_PATH}/target"; then
+        # shellcheck disable=SC2086
+        "$MMSEQS" createdb "${TARGET}" "${TMP_PATH}/target" ${CREATEDB_PAR} \
             || fail "target createdb died"
     fi
     TARGET="${TMP_PATH}/target"
