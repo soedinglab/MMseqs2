@@ -738,7 +738,7 @@ void Parameters::printUsageMessage(const Command& command,
         ss << "Please cite:\n";
 
         if(command.citations & CITATION_PLASS) {
-            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. (2018)\n";
+            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, https://doi.org/10.1101/386110 (2018)\n";
         }
         if(command.citations & CITATION_LINCLUST) {
             ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)\n";
