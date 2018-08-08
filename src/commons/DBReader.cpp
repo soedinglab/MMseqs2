@@ -245,6 +245,28 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             seqLens[i] = tmpSizeArray[local2id[i]];
         }
         delete[] tmpSizeArray;
+    } else if (accessType == SORT_BY_ID_OFFSET) {
+        // sort the entries by the offset of the sequences
+        std::pair<unsigned int, Index> *sortForMapping = new std::pair<unsigned int, Index>[size];
+        id2local = new unsigned int[size];
+        local2id = new unsigned int[size];
+        for (size_t i = 0; i < size; i++) {
+            id2local[i] = i;
+            local2id[i] = i;
+            sortForMapping[i] = std::make_pair(i, index[i]);
+        }
+        omptl::sort(sortForMapping, sortForMapping + size, comparePairByIdAndOffset());
+        for (size_t i = 0; i < size; i++) {
+            id2local[sortForMapping[i].first] = i;
+            local2id[i] = sortForMapping[i].first;
+        }
+        delete[] sortForMapping;
+        unsigned int *tmpSizeArray = new unsigned int[size];
+        memcpy(tmpSizeArray, seqLens, size * sizeof(unsigned int));
+        for (size_t i = 0; i < size; i++) {
+            seqLens[i] = tmpSizeArray[local2id[i]];
+        }
+        delete[] tmpSizeArray;
     } else if (accessType == SORT_BY_LINE) {
         // sort the entries by the original line number in the index file
         id2local = new unsigned int[size];
