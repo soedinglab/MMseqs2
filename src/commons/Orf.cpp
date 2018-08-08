@@ -115,14 +115,14 @@ void Orf::cleanup()  {
     }
 }
 
-std::string Orf::view(const SequenceLocation &location) {
+std::pair<char*, size_t> Orf::view(const SequenceLocation &location) {
     assert(location.to > location.from);
-    
+
     size_t length = location.to - location.from;
     if(location.strand == Orf::STRAND_PLUS) {
-        return sequence ? std::string(&sequence[location.from], length) : std::string();
+        return sequence ? std::make_pair(&sequence[location.from], length) : std::make_pair((char*)NULL, length);
     } else {
-        return reverseComplement ? std::string(&reverseComplement[location.from], length) : std::string();
+        return reverseComplement ? std::make_pair(&reverseComplement[location.from], length) :  std::make_pair((char*)NULL, length);
     }
 }
 
@@ -220,7 +220,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
             // ANY_TO_STOP returns the longest fragment
             // LAST_START_TO_STOP retruns last encountered start to stop,
             // no start codons in the middle
-           
+
             bool shouldStart;
             if((startMode == START_TO_STOP)) {
                 shouldStart = isInsideOrf[frame] == false && isStart(codon);
