@@ -1,9 +1,10 @@
 #include "Command.h"
 #include "Debug.h"
+#include "Util.h"
 
 extern const char* version;
 
-int versionstring(int argc, const char **argv, const Command& command) {
+int versionstring(int, const char**, const Command&) {
     Debug(Debug::INFO) << version << "\n";
-    return EXIT_SUCCESS;
+    EXIT(EXIT_SUCCESS);
 }
