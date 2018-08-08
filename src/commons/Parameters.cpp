@@ -263,10 +263,10 @@ Parameters::Parameters():
 
     // clustering
     clust.push_back(PARAM_CLUSTER_MODE);
-    clust.push_back(PARAM_V);
     clust.push_back(PARAM_MAXITERATIONS);
     clust.push_back(PARAM_SIMILARITYSCORE);
     clust.push_back(PARAM_THREADS);
+    clust.push_back(PARAM_V);
 
     //mergeClusters
     mergeclusters.push_back(PARAM_THREADS) ;
@@ -398,13 +398,13 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_FILTER_COV);
     result2msa.push_back(PARAM_FILTER_NDIFF);
     result2msa.push_back(PARAM_THREADS);
-    result2msa.push_back(PARAM_V);
     result2msa.push_back(PARAM_COMPRESS_MSA);
     result2msa.push_back(PARAM_SUMMARIZE_HEADER);
     result2msa.push_back(PARAM_SUMMARY_PREFIX);
     result2msa.push_back(PARAM_OMIT_CONSENSUS);
     result2msa.push_back(PARAM_SKIP_QUERY);
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
+    result2msa.push_back(PARAM_V);
 
 
     // convertmsa
@@ -459,11 +459,13 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_TRANSLATION_TABLE);
     extractorfs.push_back(PARAM_USE_ALL_TABLE_STARTS);
     extractorfs.push_back(PARAM_ID_OFFSET);    
-    extractorfs.push_back(PARAM_THREADS);    
+    extractorfs.push_back(PARAM_THREADS);
+    extractorfs.push_back(PARAM_V);
 
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
     splitdb.push_back(PARAM_SPLIT_AMINOACID);
+    splitdb.push_back(PARAM_V);
 
     // create index
     indexdb.push_back(PARAM_SUB_MAT);
@@ -485,7 +487,6 @@ Parameters::Parameters():
     createdb.push_back(PARAM_MAX_SEQ_LEN);
     createdb.push_back(PARAM_DONT_SPLIT_SEQ_BY_LEN);
     createdb.push_back(PARAM_DONT_SHUFFLE);
-
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
 
@@ -652,8 +653,8 @@ Parameters::Parameters():
     // lca
     lca.push_back(PARAM_LCA_RANKS);
     lca.push_back(PARAM_BLACKLIST);
-    lca.push_back(PARAM_V);
     lca.push_back(PARAM_THREADS);
+    lca.push_back(PARAM_V);
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
