@@ -1,3 +1,7 @@
+#include <unistd.h>
+#include <climits>
+#include <algorithm>
+
 #include "Debug.h"
 #include "Parameters.h"
 #include "DBReader.h"
@@ -8,12 +12,9 @@
 
 #include "Orf.h"
 
-#include <unistd.h>
-#include <climits>
-#include <algorithm>
-
 #ifdef OPENMP
 #include <omp.h>
+
 #endif
 
 unsigned int getFrames(std::string frames) {
@@ -44,8 +45,8 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     omp_set_num_threads(par.threads);
 #endif
 
-    DBReader<unsigned int> sequenceReader(par.db1.c_str(), par.db1Index.c_str());
-    sequenceReader.open(DBReader<unsigned int>::NOSORT);
+    DBReader<unsigned int> reader(par.db1.c_str(), par.db1Index.c_str());
+    reader.open(DBReader<unsigned int>::NOSORT);
 
     DBReader<unsigned int> headerReader(par.hdr1.c_str(), par.hdr1Index.c_str());
     headerReader.open(DBReader<unsigned int>::NOSORT);
@@ -56,41 +57,50 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     DBWriter headerWriter(par.hdr2.c_str(), par.hdr2Index.c_str(), par.threads);
     headerWriter.open();
 
+
+
     unsigned int forwardFrames = getFrames(par.forwardFrames);
     unsigned int reverseFrames = getFrames(par.reverseFrames);
 
-
+    unsigned int total = 0;
 #pragma omp parallel
     {
         Orf orf(par.translationTable, par.useAllTableStarts);
-        char buffer[LINE_MAX];
         int thread_idx = 0;
 #ifdef OPENMP
         thread_idx = omp_get_thread_num();
 #endif
         size_t querySize = 0;
         size_t queryFrom = 0;
-        Util::decomposeDomainByAminoAcid(sequenceReader.getAminoAcidDBSize(), sequenceReader.getSeqLens(), sequenceReader.getSize(),
+        Util::decomposeDomainByAminoAcid(reader.getAminoAcidDBSize(), reader.getSeqLens(), reader.getSize(),
                                          thread_idx, par.threads, &queryFrom, &querySize);
         if (querySize == 0) {
             queryFrom = 0;
         }
 
-        for (unsigned int i = queryFrom; i < (queryFrom + querySize); i++){
+        for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
             Debug::printProgress(i);
-            unsigned int key = sequenceReader.getDbKey(i);
-            const char* data = sequenceReader.getData(i);
+            int thread_idx = 0;
+#ifdef OPENMP
+            thread_idx = omp_get_thread_num();
+#endif
 
-            size_t dataLength = sequenceReader.getSeqLens(i);
+            std::string orfsBuffer;
+            orfsBuffer.reserve(10000);
 
+            unsigned int key = reader.getDbKey(i);
+            std::string data(reader.getData(i));
+            // remove newline in sequence
+            data.erase(std::remove(data.begin(), data.end(), '\n'), data.end());
 
-            if(!orf.setSequence(data, dataLength - 2)) {
+            if(!orf.setSequence(data.c_str(), data.length())) {
                 Debug(Debug::WARNING) << "Invalid sequence with index " << i << "!\n";
                 continue;
             }
 
-            const char* header = headerReader.getData(i);
-            size_t headerLength = headerReader.getSeqLens(i);
+            std::string header(headerReader.getData(i));
+            // remove newline in header
+            header.erase(std::remove(header.begin(), header.end(), '\n'), header.end());
 
             std::vector<Orf::SequenceLocation> res;
             orf.findAll(res, par.orfMinLength, par.orfMaxLength, par.orfMaxGaps, forwardFrames, reverseFrames, par.orfStartMode);
@@ -100,32 +110,30 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 if (par.contigStartMode < 2 && (loc.hasIncompleteStart == par.contigStartMode)) {
                     continue;
                 }
-                if (par.contigEndMode   < 2 && (loc.hasIncompleteEnd  == par.contigEndMode)) {
+                if (par.contigEndMode   < 2 && (loc.hasIncompleteEnd   == par.contigEndMode)) {
                     continue;
                 }
 
-                snprintf(buffer, LINE_MAX, "%.*s [Orf: %d, %zu, %zu, %d, %d, %d]\n", headerLength, header, key, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
+                char buffer[LINE_MAX];
+                snprintf(buffer, LINE_MAX, "%s [Orf: %d, %zu, %zu, %d, %d, %d]\n", header.c_str(), key, loc.from, loc.to, loc.strand, loc.hasIncompleteStart, loc.hasIncompleteEnd);
 
                 headerWriter.writeData(buffer, strlen(buffer), key, thread_idx);
 
-                std::pair<char *, size_t > sequence = sequence = orf.view(loc);
-                sequenceWriter.writeStart(thread_idx);
-
-                sequenceWriter.writeAdd(sequence.first, sequence.second, thread_idx);
-                char * newLine = "\n";
-                sequenceWriter.writeAdd(newLine, 1, thread_idx);
-                sequenceWriter.writeEnd(key, thread_idx, true);
+                std::string sequence = orf.view(loc);
+                sequence.append("\n");
+//            if(loc.hasIncompleteStart == false){
+//                sequence.insert (0, "TAG");
+//            }
+                sequenceWriter.writeData(sequence.c_str(), sequence.length(), key, thread_idx);
 
             }
         }
     }
-    // close writer
+
     headerWriter.close();
     sequenceWriter.close(Sequence::NUCLEOTIDES);
-
-    // close sequenceReader
     headerReader.close();
-    sequenceReader.close();
+    reader.close();
 
     // make identifiers stable
     DBReader<unsigned int> orfHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(), DBReader<unsigned int>::USE_INDEX);
