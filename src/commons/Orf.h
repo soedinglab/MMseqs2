@@ -60,9 +60,9 @@ public:
                      const size_t minLength, const size_t maxLength, const size_t maxGaps,
                      const unsigned int frames, const unsigned int startMode, const Strand strand);
 
-    std::string view(const SequenceLocation &location);
+    std::pair<const char *, size_t> getSequence(const SequenceLocation &location);
 
-    static SequenceLocation parseOrfHeader(const char *data);
+    static SequenceLocation parseOrfHeader(char *data);
 
 private:
     size_t sequenceLength;

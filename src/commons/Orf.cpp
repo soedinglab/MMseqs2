@@ -118,7 +118,7 @@ bool Orf::setSequence(const char* seq, size_t length) {
 
     sequenceLength = length;
     for(size_t i = 0; i < sequenceLength; ++i) {
-        sequence[i] = static_cast<char>(toupper(static_cast<int>(seq[i])));
+        sequence[i] = seq[i] & ~0x20;
         if(sequence[i] == 'U') {
             sequence[i] = 'T';
         }
@@ -139,14 +139,14 @@ bool Orf::setSequence(const char* seq, size_t length) {
     return true;
 }
 
-std::string Orf::view(const SequenceLocation &location) {
+std::pair<const char *, size_t> Orf::getSequence(const SequenceLocation &location) {
     assert(location.to > location.from);
     
     size_t length = location.to - location.from;
     if(location.strand == Orf::STRAND_PLUS) {
-        return sequence ? std::string(&sequence[location.from], length) : std::string();
+        return sequence ? std::make_pair(sequence + location.from, length) : std::make_pair("", 0);
     } else {
-        return reverseComplement ? std::string(&reverseComplement[location.from], length) : std::string();
+        return reverseComplement ? std::make_pair(reverseComplement + location.from, length) : std::make_pair("", 0);
     }
 }
 
@@ -310,13 +310,13 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
                     continue;
                 }
 
-                result.emplace_back(SequenceLocation(from[frame], to, !hasStartCodon[frame], !stop, strand));
+                result.emplace_back(from[frame], to, !hasStartCodon[frame], !stop, strand);
             }
         }
     }
 }
 
-Orf::SequenceLocation Orf::parseOrfHeader(const char *data) {
+Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
     char * entry[255];
     size_t columns = Util::getWordsOfLine(data, entry, 255);
     size_t col;
