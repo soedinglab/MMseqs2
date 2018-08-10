@@ -23,7 +23,7 @@ struct assert_false : std::false_type
 { };
 
 template<typename T>
-std::string SSTR(T x) {
+std::string SSTR(T) {
     static_assert(assert_false<T>::value , "Not implemented for requested type");
     return "";
 }
