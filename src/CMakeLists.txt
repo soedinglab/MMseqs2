@@ -188,6 +188,7 @@ if (OPENMP_FOUND)
 endif ()
 
 if (${HAVE_GPROF})
+    include(CheckCXXCompilerFlag)
     check_cxx_compiler_flag(-pg GPROF_FOUND)
     if (GPROF_FOUND)
         append_target_property(mmseqs-framework COMPILE_FLAGS -pg)
