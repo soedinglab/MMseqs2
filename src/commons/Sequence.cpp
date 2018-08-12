@@ -467,9 +467,6 @@ void Sequence::mapSequence(const char * sequence){
     char curr = sequence[l];
     while (curr != '\0' && curr != '\n'){
         this->int_sequence[l] = subMat->aa2int[(int)curr];
-        if(this->int_sequence[l]== -1){
-            std::cout << l << "\t" << curr << "\t" << subMat->aa2int[(int)curr] << std::endl;
-        }
         l++;
         curr  = sequence[l];
     }
