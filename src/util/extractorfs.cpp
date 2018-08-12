@@ -82,9 +82,6 @@ int extractorfs(int argc, const char **argv, const Command& command) {
         for (unsigned int i = queryFrom; i < (queryFrom + querySize); ++i){
             Debug::printProgress(i);
 
-            std::string orfsBuffer;
-            orfsBuffer.reserve(10000);
-
             unsigned int key = reader.getDbKey(i);
             const char* data = reader.getData(i);
             size_t dataLength = reader.getSeqLens(i);
@@ -118,9 +115,6 @@ int extractorfs(int argc, const char **argv, const Command& command) {
                 sequenceWriter.writeAdd(sequence.first, sequence.second, thread_idx);
                 sequenceWriter.writeAdd(&newline, 1, thread_idx);
                 sequenceWriter.writeEnd(key, thread_idx);
-//            if(loc.hasIncompleteStart == false){
-//                sequence.insert (0, "TAG");
-//            }
             }
             res.clear();
         }
