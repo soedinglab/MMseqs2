@@ -133,57 +133,61 @@ int extractorfs(int argc, const char **argv, const Command& command) {
     // make identifiers stable
 #pragma omp parallel
     {
-#pragma omp task
+#pragma omp single
         {
-            DBReader<unsigned int> orfHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(), DBReader<unsigned int>::USE_INDEX);
-            orfHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
-            FILE* hIndex = fopen((par.hdr2Index+"_tmp").c_str(), "w");
-            if(hIndex == NULL) {
-                Debug(Debug::ERROR) << "Could not open " << par.hdr2Index << "_tmp for writing!\n";
-                EXIT(EXIT_FAILURE);
-            }
-            for(size_t i = 0; i < orfHeaderReader.getSize(); i++){
-                DBReader<unsigned int>::Index* idx = orfHeaderReader.getIndex(i);
-                char buffer[1024];
-                size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfHeaderReader.getSeqLens(i));
-                int written = fwrite(buffer, sizeof(char), len, hIndex);
-                if (written != (int)len) {
-                    Debug(Debug::ERROR) << "Could not write to data file " << par.hdr2Index << "_tmp\n";
+#pragma omp task
+            {
+                DBReader<unsigned int> orfHeaderReader(par.hdr2.c_str(), par.hdr2Index.c_str(),
+                                                       DBReader<unsigned int>::USE_INDEX);
+                orfHeaderReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
+                FILE *hIndex = fopen((par.hdr2Index + "_tmp").c_str(), "w");
+                if (hIndex == NULL) {
+                    Debug(Debug::ERROR) << "Could not open " << par.hdr2Index << "_tmp for writing!\n";
                     EXIT(EXIT_FAILURE);
                 }
+                for (size_t i = 0; i < orfHeaderReader.getSize(); i++) {
+                    DBReader<unsigned int>::Index *idx = orfHeaderReader.getIndex(i);
+                    char buffer[1024];
+                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfHeaderReader.getSeqLens(i));
+                    int written = fwrite(buffer, sizeof(char), len, hIndex);
+                    if (written != (int) len) {
+                        Debug(Debug::ERROR) << "Could not write to data file " << par.hdr2Index << "_tmp\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+                fclose(hIndex);
+                orfHeaderReader.close();
+                std::rename((par.hdr2Index + "_tmp").c_str(), par.hdr2Index.c_str());
             }
-            fclose(hIndex);
-            orfHeaderReader.close();
-            std::rename((par.hdr2Index+"_tmp").c_str(), par.hdr2Index.c_str());
-        };
 
 #pragma omp task
-        {
-            DBReader<unsigned int> orfSequenceReader(par.db2.c_str(), par.db2Index.c_str(),
-                                                     DBReader<unsigned int>::USE_INDEX);
-            orfSequenceReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
+            {
+                DBReader<unsigned int> orfSequenceReader(par.db2.c_str(), par.db2Index.c_str(),
+                                                         DBReader<unsigned int>::USE_INDEX);
+                orfSequenceReader.open(DBReader<unsigned int>::SORT_BY_ID_OFFSET);
 
-            FILE *sIndex = fopen((par.db2Index + "_tmp").c_str(), "w");
-            if (sIndex == NULL) {
-                Debug(Debug::ERROR) << "Could not open " << par.db2Index << "_tmp for writing!\n";
-                EXIT(EXIT_FAILURE);
-            }
-
-            for (size_t i = 0; i < orfSequenceReader.getSize(); i++) {
-                DBReader<unsigned int>::Index *idx = (orfSequenceReader.getIndex(i));
-                char buffer[1024];
-                size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfSequenceReader.getSeqLens(i));
-                int written = fwrite(buffer, sizeof(char), len, sIndex);
-                if (written != (int) len) {
-                    Debug(Debug::ERROR) << "Could not write to data file " << par.db2Index << "_tmp\n";
+                FILE *sIndex = fopen((par.db2Index + "_tmp").c_str(), "w");
+                if (sIndex == NULL) {
+                    Debug(Debug::ERROR) << "Could not open " << par.db2Index << "_tmp for writing!\n";
                     EXIT(EXIT_FAILURE);
                 }
+
+                for (size_t i = 0; i < orfSequenceReader.getSize(); i++) {
+                    DBReader<unsigned int>::Index *idx = (orfSequenceReader.getIndex(i));
+                    char buffer[1024];
+                    size_t len = DBWriter::indexToBuffer(buffer, i, idx->offset, orfSequenceReader.getSeqLens(i));
+                    int written = fwrite(buffer, sizeof(char), len, sIndex);
+                    if (written != (int) len) {
+                        Debug(Debug::ERROR) << "Could not write to data file " << par.db2Index << "_tmp\n";
+                        EXIT(EXIT_FAILURE);
+                    }
+                }
+                fclose(sIndex);
+                orfSequenceReader.close();
+                std::rename((par.db2Index + "_tmp").c_str(), par.db2Index.c_str());
             }
-            fclose(sIndex);
-            orfSequenceReader.close();
-            std::rename((par.db2Index + "_tmp").c_str(), par.db2Index.c_str());
-        };
-    };
+        }
+    }
     return EXIT_SUCCESS;
 }
 
