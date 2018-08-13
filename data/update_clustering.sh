@@ -17,7 +17,7 @@ notExists() {
 
 abspath() {
     if [ -d "$1" ]; then
-        echo "$(cd "$1"; pwd)"
+        (cd "$1"; pwd)
     elif [ -f "$1" ]; then
         if [ -z "${1##*/*}" ]; then
             echo "$(cd "${1%/*}"; pwd)/${1##*/}"
