@@ -754,7 +754,8 @@ void SmithWaterman::ssw_init (const Sequence* q,
 			for(int32_t i = 0; i< alphabetSize; i++) {
 				profile->profile_word_linear[i] = &profile_word_linear_data[i*q->L];
 				for (int j = 0; j < q->L; j++) {
-					profile->profile_word_linear[i][j] = mat[i * q->L + q->int_sequence[j]];
+					//TODO is this right? :O
+					profile->profile_word_linear[i][j] = mat[i * q->L + j];
 				}
 			}
 		}else{
