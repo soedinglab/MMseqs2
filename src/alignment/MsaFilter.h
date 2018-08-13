@@ -54,7 +54,7 @@ public:
 	
 private:
     // prune sequence based on score
-    int prune(int start, int end, float b, char * query, char *target, int L);
+    int prune(int start, int end, float b, char * query, char *target);
 
     BaseMatrix *m;
 

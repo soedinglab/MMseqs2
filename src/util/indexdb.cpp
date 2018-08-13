@@ -30,7 +30,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
 
     DBReader<unsigned int> dbr(par.db1.c_str(), par.db1Index.c_str());
     dbr.open(DBReader<unsigned int>::NOSORT);
-    BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false, false);
+    BaseMatrix *subMat = Prefiltering::getSubstitutionMatrix(par.scoringMatrixFile, par.alphabetSize, 8.0f, false);
 
     int kmerSize = par.kmerSize;
     int split = 1;
@@ -42,8 +42,7 @@ int indexdb(int argc, const char **argv, const Command &command) {
     } else {
         memoryLimit = static_cast<size_t>(Util::getTotalSystemMemory() * 0.9);
     }
-    Prefiltering::setupSplit(dbr, subMat->alphabetSize, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit,
-                             &kmerSize, &split, &splitMode);
+    Prefiltering::setupSplit(dbr, subMat->alphabetSize, dbr.getDbtype(), par.threads, false, par.maxResListLen, memoryLimit, &kmerSize, &split, &splitMode);
 
     bool kScoreSet = false;
     for (size_t i = 0; i < par.indexdb.size(); i++) {

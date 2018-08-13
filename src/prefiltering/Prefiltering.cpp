@@ -107,15 +107,15 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             alphabetSize = subMat->alphabetSize;
             break;
         case Sequence::AMINO_ACIDS:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false, false);
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
             alphabetSize = subMat->alphabetSize;
             break;
         case Sequence::HMM_PROFILE:
             // needed for Background distributions
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false, false);
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
             break;
         case Sequence::PROFILE_STATE_PROFILE:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true, true);
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true);
             alphabetSize = subMat->alphabetSize;
             break;
         default:
@@ -893,8 +893,7 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
     Debug(Debug::INFO) << empty << " sequences with 0 size result lists.\n";
 }
 
-BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize,
-                                                float bitFactor, bool ignoreX, bool profileState) {
+BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState) {
     Debug(Debug::INFO) << "Substitution matrices...\n";
     BaseMatrix *subMat;
     if (alphabetSize < 21) {
