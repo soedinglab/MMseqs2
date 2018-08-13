@@ -249,8 +249,8 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                 if(par.skipNRepeatKmer > 0 ){
                     size_t prevKmer = SIZE_T_MAX;
                     kmers[seqKmerCount].kmer=SIZE_T_MAX;
-                    size_t repeatKmerCnt = 0;
-                    for (size_t topKmer = 0; topKmer < seqKmerCount; topKmer++) {
+                    int repeatKmerCnt = 0;
+                    for (int topKmer = 0; topKmer < seqKmerCount; topKmer++) {
                         repeatKmerCnt += (
                                 (kmers + topKmer)->kmer == (kmers + topKmer + 1)->kmer ||
                                 (kmers + topKmer)->kmer == prevKmer);
@@ -446,7 +446,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 //                            hashSeqPair[writePos].id = hashSeqPair[i].id;
 //                            writePos++;
 
-                            bool canBeExtended =  diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
+                            bool canBeExtended = diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
                             if(par.includeOnlyExtendable == false || (canBeExtended && par.includeOnlyExtendable ==true )){
                                 hashSeqPair[writePos].kmer = rId;
                                 hashSeqPair[writePos].pos = diagonal;

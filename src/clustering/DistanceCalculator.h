@@ -21,11 +21,11 @@ public:
         if (globalAlignment)
         {
             for(unsigned int pos = 0; pos < length; pos++){
-                max += subMat[seq1[pos]][seq2[pos]];
+                max += subMat[static_cast<int>(seq1[pos])][static_cast<int>(seq2[pos])];
             }
         } else {
             for(unsigned int pos = 0; pos < length; pos++){
-                int curr = subMat[seq1[pos]][seq2[pos]];
+                int curr = subMat[static_cast<int>(seq1[pos])][static_cast<int>(seq2[pos])];
                 score = curr  + score;
                 score = (score < 0) ? 0 : score;
                 max = (score > max)? score : max;
@@ -62,7 +62,7 @@ public:
 //        int maxMinPos = 0;
         int score = 0;
         for(unsigned int pos = 0; pos < length; pos++){
-            int curr = subMat[seq1[pos]][seq2[pos]];
+            int curr = subMat[static_cast<int>(seq1[pos])][static_cast<int>(seq2[pos])];
             score = curr  + score;
             const bool isMinScore = (score <= 0);
             score =  (isMinScore) ? 0 : score;

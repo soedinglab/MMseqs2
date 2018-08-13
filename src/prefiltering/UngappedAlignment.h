@@ -21,7 +21,7 @@ public:
     // This function computes the diagonal score for each CounterResult object
     // it assigns the diagonal score to the CounterResult object
     void processQuery(Sequence *seq, float *compositionBias, CounterResult *results,
-                      size_t resultSize, unsigned int thr);
+                      size_t resultSize);
 
     int scoreSingelSequenceByCounterResult(CounterResult &result);
 
@@ -54,8 +54,7 @@ private:
                        const unsigned int queryLen,
                        CounterResult * results,
                        const size_t resultSize,
-                       const short bias,
-                       unsigned int thr);
+                       const short bias);
     // scores a single diagonal
     int scalarDiagonalScoring(const char *profile,
                                     const int bias,
@@ -90,7 +89,7 @@ private:
                                     std::pair<const unsigned char *, const unsigned int> &dbSeq,
                                     int diagonal, unsigned int minDistToDiagonal, short bias);
 
-    int computeLongScore(const char * queryProfile, int queryLen,
+    int computeLongScore(const char * queryProfile, unsigned int queryLen,
                          std::pair<const unsigned char *, const unsigned int> &dbSeq,
                          unsigned short diagonal, short bias);
 

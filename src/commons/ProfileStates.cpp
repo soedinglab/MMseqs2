@@ -126,7 +126,7 @@ int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * 
         float s = 0.0;
 
         // Store the probabilities
-        for (size_t k = 0 ; k < nalph ; k++)
+        for (int k = 0 ; k < nalph ; k++)
         {
             float score = std::strtod(pos, NULL);
             float prob = MathUtil::fpow2(-score/kScale);
@@ -144,7 +144,7 @@ int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * 
         }
 
         float norm = sqrt(ScalarProd20(profile,profile));
-        for (size_t k = 0 ; k < nalph ; k++)
+        for (int k = 0 ; k < nalph ; k++)
         {
             normalizedProfile[k] = profile[k] / norm;
         }

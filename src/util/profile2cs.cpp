@@ -40,13 +40,11 @@ int profile2cs(int argc, const char **argv, const Command &command) {
         size_t entries = profileReader.getSize();
 
         SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, 0.0);
-        ProfileStates ps(alphabetSize[i], subMat.pBack);
 
         Debug(Debug::INFO) << "Start converting profiles.\n";
 #pragma omp parallel
         {
-            Sequence seq(par.maxSeqLen, Sequence::HMM_PROFILE, &subMat, 0, false, false);
-
+            Sequence seq(par.maxSeqLen, Sequence::HMM_PROFILE, &subMat, 0, false, false, true);
             unsigned int thread_idx = 0;
 #ifdef OPENMP
             thread_idx = static_cast<unsigned int>(omp_get_thread_num());
@@ -54,6 +52,8 @@ int profile2cs(int argc, const char **argv, const Command &command) {
             char* buffer = new char[64];
             std::string result;
             result.reserve(par.maxSeqLen);
+            ProfileStates ps(alphabetSize[i], subMat.pBack);
+
 #pragma omp for schedule(dynamic, 1000)
             for (size_t i = 0; i < entries; ++i) {
                 Debug::printProgress(i);

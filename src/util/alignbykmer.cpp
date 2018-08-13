@@ -221,9 +221,9 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
 
 
                     std::sort(kmerPosVec, kmerPosVec + kmerPosSize, KmerPos::compareKmerPos);
-                    unsigned short region_min_i = UINT_MAX;
+                    unsigned short region_min_i = USHRT_MAX;
                     unsigned short region_max_i = 0;
-                    unsigned short region_min_j = UINT_MAX;
+                    unsigned short region_min_j = USHRT_MAX;
                     unsigned short region_max_j = 0;
                     unsigned short region_max_kmer_cnt = 0;
                     size_t stretcheSize = 0;
@@ -269,9 +269,9 @@ int alignbykmer(int argc, const char **argv, const Command &command) {
                                 stretcheVec[stretcheSize].kmerCnt = region_max_kmer_cnt;
 
                                 stretcheSize++;
-                                region_min_i = UINT_MAX;
+                                region_min_i = USHRT_MAX;
                                 region_max_i = 0;
-                                region_min_j = UINT_MAX;
+                                region_min_j = USHRT_MAX;
                                 region_max_j = 0;
                                 region_max_kmer_cnt = 0;
                                 prev_i=0;

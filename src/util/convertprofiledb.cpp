@@ -118,7 +118,7 @@ void parseHMM(char *data, std::string *sequence, std::string *header, char *prof
             }
         }
         // write query, consensus and neff
-        profileBuffer[curr_pos] = static_cast<char>(subMat->aa2int[sequence->at(seq_pos)]);
+        profileBuffer[curr_pos] = static_cast<char>(subMat->aa2int[(int)sequence->at(seq_pos)]);
         curr_pos++;
         profileBuffer[curr_pos] = maxa;
         curr_pos++;

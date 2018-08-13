@@ -28,7 +28,7 @@ std::vector<Matcher::result_t> mapDomains(const std::vector<Matcher::result_t> &
     std::vector<bool> covered(input[0].qLen, false);
     for (size_t i = 0; i < input.size(); i++) {
         Matcher::result_t domain = input[i];
-        if (domain.qStartPos > domain.qLen || domain.qEndPos > domain.qLen) {
+        if (domain.qStartPos > static_cast<int>(domain.qLen) || domain.qEndPos > static_cast<int>(domain.qLen)) {
             Debug(Debug::WARNING) << "Query alignment start or end is greater than query length! Skipping line.\n";
             continue;
         }
@@ -41,7 +41,7 @@ std::vector<Matcher::result_t> mapDomains(const std::vector<Matcher::result_t> &
             Debug(Debug::WARNING) << "Target alignment end is greater than start! Skipping line.\n";
             continue;
         }
-        if (domain.dbStartPos > domain.dbLen || domain.dbEndPos > domain.dbLen) {
+        if (domain.dbStartPos > static_cast<int>(domain.dbLen) || domain.dbEndPos > static_cast<int>(domain.dbLen)) {
             Debug(Debug::WARNING) << "Target alignment start or end is greater than target length! Skipping line.\n";
             continue;
         }

@@ -260,7 +260,7 @@ namespace tantan {
         }
 
         void calcEmissionProbs() {
-            const double *lrRow = likelihoodRatioMatrix[*seqPtr];
+            const double *lrRow = likelihoodRatioMatrix[static_cast<int>(*seqPtr)];
 
             bool isNearSeqBeg = (seqPtr - seqBeg < maxRepeatOffset);
             const char *seqStop = isNearSeqBeg ? seqBeg : seqPtr - maxRepeatOffset;
@@ -270,7 +270,7 @@ namespace tantan {
 
             while (offsetPtr > seqStop) {
                 --offsetPtr;
-                *foregroundPtr *= lrRow[*offsetPtr];
+                *foregroundPtr *= lrRow[static_cast<int>(*offsetPtr)];
                 ++foregroundPtr;
             }
 
@@ -384,7 +384,7 @@ namespace tantan {
         while (seqBeg < seqEnd) {
             if (*probabilities >= minMaskProb){
                 masked++;
-                *seqBeg = maskTable[*seqBeg];
+                *seqBeg = maskTable[static_cast<int>(*seqBeg)];
             }
             ++probabilities;
             ++seqBeg;

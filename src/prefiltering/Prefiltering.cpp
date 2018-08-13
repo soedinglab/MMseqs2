@@ -901,7 +901,7 @@ BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrix
         subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, alphabetSize, bitFactor);
     }else if(profileState == true){
         SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
-        subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack, sMat.subMatrixPseudoCounts, sMat.subMatrix, bitFactor, 0.0, 1, 32);
+        subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack, sMat.subMatrixPseudoCounts, bitFactor, 0.0, 32);
     } else {
         subMat = new SubstitutionMatrix(scoringMatrixFile.c_str(), bitFactor, -0.2f);
     }

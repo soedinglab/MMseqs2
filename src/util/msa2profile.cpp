@@ -353,7 +353,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 }
                 // write query, consensus sequence and neffM
                 result.push_back(static_cast<unsigned char>(msaSequences[0][pos]));
-                result.push_back(static_cast<unsigned char>(subMat.aa2int[pssmRes.consensus[pos]]));
+                result.push_back(static_cast<unsigned char>(subMat.aa2int[static_cast<int>(pssmRes.consensus[pos])]));
                 result += MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
             }
 
