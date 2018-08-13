@@ -501,11 +501,11 @@ void MsaFilter::pruneAlignment(char ** msaSequence, int N_in, int L) {
         int i2 = L;
 
         if( bleft > -9){
-            i1 = prune(0,     L, bleft, msaSequence[0], msaSequence[seqIdx], L);
+            i1 = prune(0,     L, bleft,  msaSequence[0], msaSequence[seqIdx]);
         }
         if (bright > -9)
         {
-            i2 = prune(L - 1, 0, bright, msaSequence[0], msaSequence[seqIdx], L);
+            i2 = prune(L - 1, 0, bright, msaSequence[0], msaSequence[seqIdx]);
         }
         if(i1 > 0){
             for (int i = 0; i <= i1; i++) {
@@ -522,7 +522,7 @@ void MsaFilter::pruneAlignment(char ** msaSequence, int N_in, int L) {
 }
 
 
-int MsaFilter::prune(int start, int end, float b, char * query, char *target, int L) {
+int MsaFilter::prune(int start, int end, float b, char * query, char *target) {
     float smin  = 0.0;
     float score = 0.0;
     bool gap = false;

@@ -6,8 +6,8 @@ bool MMseqsMPI::active = false;
 int MMseqsMPI::rank = -1;
 int MMseqsMPI::numProc = -1;
 
-void MMseqsMPI::init(int argc, const char **argv) {
 #ifdef HAVE_MPI
+void MMseqsMPI::init(int argc, const char **argv) {
     MPI_Init(&argc, const_cast<char ***>(&argv));
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numProc);
@@ -22,5 +22,7 @@ void MMseqsMPI::init(int argc, const char **argv) {
 
     Debug(Debug::INFO) << "MPI Init...\n";
     Debug(Debug::INFO) << "Rank: " << rank << " Size: " << numProc << "\n";
-#endif
 }
+#else
+void MMseqsMPI::init(int, const char **) {}
+#endif

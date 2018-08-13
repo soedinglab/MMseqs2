@@ -5,12 +5,8 @@
 #include "CommandCaller.h"
 #include "taxonomy.sh.h"
 
-void setTaxonomyWorkflowDefaults(Parameters *p) {
-}
-
 int taxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    setTaxonomyWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, 6);
 
     if(FileUtil::directoryExists(par.db6.c_str())==false){

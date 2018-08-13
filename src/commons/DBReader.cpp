@@ -121,7 +121,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
 }
 
 template<typename T>
-void DBReader<T>::sortIndex(bool isSortedById) {
+void DBReader<T>::sortIndex(bool) {
 }
 
 template<>
@@ -505,12 +505,12 @@ template<typename T> T DBReader<T>::getLastKey() {
 }
 
 template<>
-void DBReader<std::string>::readIndexId(std::string* id, char * line, char** cols){
+void DBReader<std::string>::readIndexId(std::string* id, char* line, char** cols){
     ptrdiff_t keySize =  ((cols[1] - 1) - line) ;
     id->assign(line, keySize);
 }
 template<>
-void DBReader<unsigned int>::readIndexId(unsigned int* id, char * line, char** cols) {
+void DBReader<unsigned int>::readIndexId(unsigned int* id, char*, char** cols) {
     *id = Util::fast_atoi<unsigned int>(cols[0]);
 }
 

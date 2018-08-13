@@ -7,13 +7,6 @@
 // Abstract: Index table stores the list of DB sequences containing a certain k-mer, for each k-mer.
 //
 
-#include <iostream>
-#include <fstream>
-#include <algorithm>
-#include <list>
-#include <sys/mman.h>
-#include <new>
-
 #include "DBReader.h"
 #include "Sequence.h"
 #include "Indexer.h"
@@ -22,6 +15,9 @@
 #include "SequenceLookup.h"
 #include "MathUtil.h"
 #include "KmerGenerator.h"
+
+#include <algorithm>
+#include <new>
 
 // IndexEntryLocal is an entry with position and seqId for a kmer
 // structure needs to be packed or it will need 8 bytes instead of 6
@@ -98,8 +94,7 @@ public:
     }
 
     // count k-mers in the sequence, so enough memory for the sequence lists can be allocated in the end
-    size_t addSimilarKmerCount (Sequence* s, KmerGenerator * kmerGenerator, Indexer * idxer,
-                                int threshold, char * diagonalScore){
+    size_t addSimilarKmerCount(Sequence* s, KmerGenerator* kmerGenerator){
 
         s->resetCurrPos();
         std::vector<unsigned int> seqKmerPosBuffer;
@@ -301,9 +296,7 @@ public:
 
     // FUNCTIONS TO OVERWRITE
     // add k-mers of the sequence to the index table
-    void addSimilarSequence (Sequence* s, KmerGenerator * kmerGenerator, Indexer * idxer,
-
-                             int threshold, char * diagonalScore){
+    void addSimilarSequence(Sequence* s, KmerGenerator* kmerGenerator, Indexer * idxer) {
         std::vector<IndexEntryLocalTmp> buffer;
         // iterate over all k-mers of the sequence and add the id of s to the sequence list of the k-mer (tableDummy)
         s->resetCurrPos();

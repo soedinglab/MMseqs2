@@ -22,6 +22,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <queue>
+#include <sys/mman.h>
 
 #ifdef OPENMP
 #include <omp.h>
