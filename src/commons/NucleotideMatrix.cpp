@@ -1,6 +1,8 @@
 #include "NucleotideMatrix.h"
 #include <climits>
-NucleotideMatrix::NucleotideMatrix(const char *scoringMatrixFileName_, float bitFactor, float scoreBias)
+
+// TODO think about making the matrix dynamic
+NucleotideMatrix::NucleotideMatrix(const char* /*scoringMatrixFileName_*/, float bitFactor, float scoreBias)
         : SubstitutionMatrix("nucleotide.out", bitFactor, scoreBias) {
 //    this->alphabetSize = 5;
     setupLetterMapping();

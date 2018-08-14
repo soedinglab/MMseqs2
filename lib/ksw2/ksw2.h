@@ -98,7 +98,7 @@ int ksw_ll_i16(void *q, int tlen, const uint8_t *target, int gapo, int gape, int
 #include <stdio.h>
 
 
-static inline uint32_t *ksw_push_cigar(void *km, int *n_cigar, int *m_cigar, uint32_t *cigar, uint32_t op, int len)
+static inline uint32_t *ksw_push_cigar(void*, int *n_cigar, int *m_cigar, uint32_t *cigar, uint32_t op, int len)
 {
 	if (*n_cigar == 0 || op != (cigar[(*n_cigar) - 1]&0xf)) {
 		if (*n_cigar == *m_cigar) {

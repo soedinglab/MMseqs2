@@ -44,7 +44,7 @@ struct UniprotHeader {
             priority = 1;
         }
 
-        priority += (std::min(std::max(existence, 0u), 5u) - 5u);
+        priority += (std::min(existence, 5u) - 5u);
     }
 
     friend bool operator<(const UniprotHeader& h1, const UniprotHeader& h2)

@@ -407,7 +407,8 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
 
 }
 
-void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
+// TODO reimplement split index feature
+void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
     if (templateDBIsIndex == true) {
         indexTable = PrefilteringIndexReader::generateIndexTable(tidxdbr, false);
 

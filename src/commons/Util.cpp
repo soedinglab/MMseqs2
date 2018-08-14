@@ -114,7 +114,7 @@ void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntr
         }
     }
 
-    delete(entriesPerWorker);
+    delete[] entriesPerWorker;
 }
 
 template

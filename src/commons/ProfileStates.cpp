@@ -303,7 +303,7 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
         profileCol = (float *)sequence + i*Sequence::PROFILE_AA_SIZE;
 
         float maxScore = -FLT_MIN;
-        size_t maxScoreIndex = 0;
+//        size_t maxScoreIndex = 0;
 	
 	/*for (size_t a = 0 ; a < 20 ; a++)
         {
@@ -317,7 +317,7 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
             if (repScore[k]>maxScore)
             {
                 maxScore = repScore[k];
-                maxScoreIndex = k;
+//                maxScoreIndex = k;
             }
         }
 

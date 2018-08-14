@@ -67,7 +67,7 @@ extern int proteinaln2nucl(int argc, const char **argv, const Command& command);
 extern int apply(int argc, const char **argv, const Command& command);
 extern int versionstring(int argc, const char **argv, const Command& command);
 extern int shellcompletion(int argc, const char **argv, const Command& command);
-extern int aggregate(int argc, const char **argv, const Command& command);
+//extern int aggregate(int argc, const char **argv, const Command& command);
 extern int map(int argc, const char **argv, const Command& command);
 
 #endif
