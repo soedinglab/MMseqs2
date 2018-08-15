@@ -642,6 +642,7 @@ Parameters::Parameters():
 
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);
+    extractalignedregion.push_back(PARAM_NO_PRELOAD);
     extractalignedregion.push_back(PARAM_THREADS);
     extractalignedregion.push_back(PARAM_V);
 

@@ -28,12 +28,23 @@ int translatenucs(int argc, const char **argv, const Command& command) {
         header->open(DBReader<unsigned int>::NOSORT);
     }
 
-    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), par.threads);
+    size_t entries = reader.getSize();
+
+#ifdef OPENMP
+    unsigned int totalThreads = par.threads;
+#else
+    unsigned int totalThreads = 1;
+#endif
+
+    unsigned int localThreads = totalThreads;
+    if (entries <= totalThreads) {
+        localThreads = entries;
+    }
+    DBWriter writer(par.db2.c_str(), par.db2Index.c_str(), localThreads);
     writer.open();
 
-    size_t entries = reader.getSize();
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(par.translationTable));
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         int thread_idx = 0;
 #ifdef OPENMP

@@ -186,16 +186,15 @@ Matcher::result_t Matcher::getSWResult(Sequence* dbSeq, const int diagonal, cons
 }
 
 
-std::vector<Matcher::result_t> Matcher::readAlignmentResults(char *data, bool readCompressed) {
-    std::vector<Matcher::result_t> ret;
-    if(data != NULL){
-        while(*data != '\0'){
-            Matcher::result_t result = parseAlignmentRecord(data, readCompressed);
-            ret.push_back(result);
-            data = Util::skipLine(data);
-        }
+void Matcher::readAlignmentResults(std::vector<result_t> &result, char *data, bool readCompressed) {
+    if(data == NULL) {
+        return;
     }
-    return ret;
+
+    while(*data != '\0'){
+        result.emplace_back(parseAlignmentRecord(data, readCompressed));
+        data = Util::skipLine(data);
+    }
 }
 
 size_t Matcher::computeAlnLength(size_t qStart, size_t qEnd, size_t dbStart, size_t dbEnd) {

@@ -18,82 +18,88 @@ static inline float getOverlap(const std::vector<bool> &covered, unsigned int qS
     return static_cast<float>(counter) / static_cast<float>(qEnd - qStart + 1);
 }
 
-std::vector<Matcher::result_t> mapDomains(const std::vector<Matcher::result_t> &input, float overlap, float minCoverage,
-                                          double eValThreshold) {
-    std::vector<Matcher::result_t> result;
-    if (input.empty()) {
-        return result;
-    }
-
-    std::vector<bool> covered(input[0].qLen, false);
-    for (size_t i = 0; i < input.size(); i++) {
-        Matcher::result_t domain = input[i];
-        if (domain.qStartPos > static_cast<int>(domain.qLen) || domain.qEndPos > static_cast<int>(domain.qLen)) {
-            Debug(Debug::WARNING) << "Query alignment start or end is greater than query length! Skipping line.\n";
-            continue;
-        }
-        if (domain.qStartPos > domain.qEndPos) {
-            Debug(Debug::WARNING) << "Query alignment end is greater than start! Skipping line.\n";
-            continue;
-        }
-        float percentageOverlap = getOverlap(covered, domain.qStartPos, domain.qEndPos);
-        if (domain.dbStartPos > domain.dbEndPos) {
-            Debug(Debug::WARNING) << "Target alignment end is greater than start! Skipping line.\n";
-            continue;
-        }
-        if (domain.dbStartPos > static_cast<int>(domain.dbLen) || domain.dbEndPos > static_cast<int>(domain.dbLen)) {
-            Debug(Debug::WARNING) << "Target alignment start or end is greater than target length! Skipping line.\n";
-            continue;
-        }
-        float targetCov = MathUtil::getCoverage(domain.dbStartPos, domain.dbEndPos, domain.dbLen);
-        if (percentageOverlap <= overlap && targetCov > minCoverage && domain.eval < eValThreshold) {
-            for (int j = domain.qStartPos; j < domain.qEndPos; ++j) {
-                covered[j] = true;
-            }
-            result.push_back(domain);
-        }
-    }
-    return result;
-}
-
-int doSummarize(Parameters &par, DBReader<unsigned int> &blastTabReader,
+int doSummarize(Parameters &par, DBReader<unsigned int> &resultReader,
                 const std::pair<std::string, std::string> &resultdb,
                 const size_t dbFrom, const size_t dbSize) {
 #ifdef OPENMP
     omp_set_num_threads(par.threads);
 #endif
 
-    DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), static_cast<unsigned int>(par.threads));
-    writer.open();
+#ifdef OPENMP
+    unsigned int totalThreads = par.threads;
+#else
+    unsigned int totalThreads = 1;
+#endif
+
+    unsigned int localThreads = totalThreads;
+    if (resultReader.getSize() <= totalThreads) {
+        localThreads = resultReader.getSize();
+    }
+
     Debug(Debug::INFO) << "Start writing to file " << resultdb.first << "\n";
-#pragma omp parallel for schedule(dynamic, 100)
-    for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
+    DBWriter writer(resultdb.first.c_str(), resultdb.second.c_str(), localThreads);
+    writer.open();
+#pragma omp parallel num_threads(localThreads)
+    {
         unsigned int thread_idx = 0;
-        char buffer[1024+32768];
 #ifdef OPENMP
         thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+        char buffer[32768];
 
-        unsigned int id = blastTabReader.getDbKey(i);
-        char *tabData = blastTabReader.getData(i);
-        const std::vector<Matcher::result_t> entries = Matcher::readAlignmentResults(tabData);
-        if (entries.size() == 0) {
-            Debug(Debug::WARNING) << "Could not map any entries for entry " << id << "!\n";
-            continue;
-        }
+        std::vector<Matcher::result_t> alnResults;
+        alnResults.reserve(300);
 
-        std::vector<Matcher::result_t> result = mapDomains(entries, par.overlap, par.cov, par.evalThr);
-        if (result.size() == 0) {
-            Debug(Debug::WARNING) << "Could not map any domains for entry " << id << "!\n";
-            continue;
-        }
         std::string annotation;
         annotation.reserve(1024*1024);
-        for (size_t j = 0; j < result.size(); j++) {
-            size_t len = Matcher::resultToBuffer(buffer, result[j], par.addBacktrace);
-            annotation.append(buffer, len);
+
+#pragma omp for schedule(dynamic, 100)
+        for (size_t i = dbFrom; i < dbFrom + dbSize; ++i) {
+            Debug::printProgress(i);
+
+            unsigned int id = resultReader.getDbKey(i);
+            char *tabData = resultReader.getData(i);
+            Matcher::readAlignmentResults(alnResults, tabData);
+            if (alnResults.size() == 0) {
+                Debug(Debug::WARNING) << "Could not map any alingment results for entry " << id << "!\n";
+                continue;
+            }
+
+            std::vector<bool> covered(alnResults[0].qLen, false);
+            for (size_t i = 0; i < alnResults.size(); i++) {
+                Matcher::result_t domain = alnResults[i];
+                if (domain.qStartPos > static_cast<int>(domain.qLen) || domain.qEndPos > static_cast<int>(domain.qLen)) {
+                    Debug(Debug::WARNING) << "Query alignment start or end is greater than query length! Skipping line.\n";
+                    continue;
+                }
+                if (domain.qStartPos > domain.qEndPos) {
+                    Debug(Debug::WARNING) << "Query alignment end is greater than start! Skipping line.\n";
+                    continue;
+                }
+                float percentageOverlap = getOverlap(covered, domain.qStartPos, domain.qEndPos);
+                if (domain.dbStartPos > domain.dbEndPos) {
+                    Debug(Debug::WARNING) << "Target alignment end is greater than start! Skipping line.\n";
+                    continue;
+                }
+                if (domain.dbStartPos > static_cast<int>(domain.dbLen) || domain.dbEndPos > static_cast<int>(domain.dbLen)) {
+                    Debug(Debug::WARNING) << "Target alignment start or end is greater than target length! Skipping line.\n";
+                    continue;
+                }
+                float targetCov = MathUtil::getCoverage(domain.dbStartPos, domain.dbEndPos, domain.dbLen);
+                if (percentageOverlap <= par.overlap && targetCov > par.cov && domain.eval < par.evalThr) {
+                    for (int j = domain.qStartPos; j < domain.qEndPos; ++j) {
+                        covered[j] = true;
+                    }
+                    size_t len = Matcher::resultToBuffer(buffer, domain, par.addBacktrace);
+                    annotation.append(buffer, len);
+                }
+            }
+
+            writer.writeData(annotation.c_str(), annotation.length(), id, thread_idx);
+
+            alnResults.clear();
+            annotation.clear();
         }
-        writer.writeData(annotation.c_str(), annotation.length(), id, thread_idx);
     }
     writer.close();
 
