@@ -93,7 +93,7 @@ void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntr
     size_t chunkSize = dbSize / worldSize;
 
     size_t *entriesPerWorker = new size_t[worldSize]; 
-    memset(&entriesPerWorker, 0, worldSize);
+    memset(entriesPerWorker, 0, worldSize);
 
     size_t currentRank = 0;
     size_t sumCharsAssignedToCurrRank = 0;
