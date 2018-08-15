@@ -245,8 +245,13 @@ std::string Matcher::uncompressAlignment(const std::string &cbt) {
 }
 
 Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed) {
-    char * entry[255];
-    size_t columns = Util::getWordsOfLine(data, entry, 255 );
+    char *entry[255];
+    size_t columns = Util::getWordsOfLine(data, entry, 255);
+    if (columns < ALN_RES_WITH_OUT_BT_COL_CNT) {
+        Debug(Debug::ERROR) << "Invalid alignment result record.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     char key[255];
     ptrdiff_t keySize =  (entry[1] - data);
     strncpy(key, data, keySize);
@@ -269,18 +274,17 @@ Matcher::result_t Matcher::parseAlignmentRecord(char *data, bool readCompressed)
     double dbCov = SmithWaterman::computeCov(adjustDBstart, dbEnd, dbLen);
     size_t alnLength = Matcher::computeAlnLength(adjustQstart, qEnd, adjustDBstart, dbEnd);
 
-    if(columns < ALN_RES_WITH_BT_COL_CNT){
+    if (columns < ALN_RES_WITH_BT_COL_CNT) {
         return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
-                                 alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
-                                 dbLen, "");
+                                 alnLength, qStart, qEnd, qLen, dbStart, dbEnd, dbLen, "");
 
-    }else{
+    } else {
         size_t len = entry[11] - entry[10];
-        if(readCompressed){
+        if (readCompressed) {
             return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
                                      alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
                                      dbLen, std::string(entry[10], len));
-        }else {
+        } else {
             return Matcher::result_t(targetId, score, qCov, dbCov, seqId, eval,
                                      alnLength, qStart, qEnd, qLen, dbStart, dbEnd,
                                      dbLen, uncompressAlignment(std::string(entry[10], len)));
