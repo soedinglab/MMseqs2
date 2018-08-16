@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <string>
+#include "Matcher.h"
+#include "DBReader.h"
 
 class Orf
 {
@@ -61,6 +63,8 @@ public:
                      const unsigned int frames, const unsigned int startMode, const Strand strand);
 
     std::pair<const char *, size_t> getSequence(const SequenceLocation &location);
+
+    static Matcher::result_t getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader);
 
     static SequenceLocation parseOrfHeader(char *data);
 

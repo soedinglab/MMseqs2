@@ -103,6 +103,35 @@ Orf::~Orf() {
     free(stopCodons);
 }
 
+Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader) {
+    char * orfHeader = orfHeadersReader.getData(id);
+    Orf::SequenceLocation orfLocOnContigParsed;
+    orfLocOnContigParsed = Orf::parseOrfHeader(orfHeader);
+
+    // get contig key and its length in nucleotides
+    int contigKey = orfLocOnContigParsed.id;
+    unsigned int contigId = contigsReader.getId(contigKey);
+
+    size_t contigLenWithEndings = contigsReader.getSeqLens(contigId);
+    if (contigLenWithEndings < 2) {
+        Debug(Debug::ERROR) << "Invalid contig record has less than two bytes\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    size_t contigLen = contigLenWithEndings - 2; // remove \n\0
+
+    // orf search returns the position right after the orf, this keeps consitency with alignemnt format
+    // if strand == -1 (reverse), we need to recompute the coordinates with respect to the positive strand and swap them
+    size_t contigFromWithStrand = (orfLocOnContigParsed.strand > 0) ? orfLocOnContigParsed.from : (contigLen - orfLocOnContigParsed.from - 1);
+    size_t contigToWithStrand = (orfLocOnContigParsed.strand > 0) ? (orfLocOnContigParsed.to - 1) : (contigLen - orfLocOnContigParsed.to);
+
+    // compute orf length
+    int orfLen = (orfLocOnContigParsed.strand > 0) ? (contigToWithStrand - contigFromWithStrand + 1) : (contigFromWithStrand - contigToWithStrand + 1);
+
+    Matcher::result_t orfToContigResult(contigKey, 1, 1, 0, 1, 0, orfLen, 0, (orfLen - 1), orfLen, contigFromWithStrand, contigToWithStrand, contigLen, "");
+    return (orfToContigResult);
+}
+
 bool Orf::setSequence(const char* seq, size_t length) {
     if(length < 3) {
         return false;
