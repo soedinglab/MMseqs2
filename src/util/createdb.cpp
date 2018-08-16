@@ -72,7 +72,11 @@ int createdb(int argn, const char **argv, const Command& command) {
     const size_t testForNucSequence = 100;
     size_t isNuclCnt = 0;
 
+    // keep number of entries in each file
+    unsigned int numEntriesInCurrFile = 0;
+    unsigned int * fileToNumEntries =  new unsigned int[filenames.size()];
     for (size_t i = 0; i < filenames.size(); i++) {
+        numEntriesInCurrFile = 0;
         std::string splitHeader;
         splitHeader.reserve(1024);
         std::string header;
@@ -178,10 +182,12 @@ int createdb(int argn, const char **argv, const Command& command) {
                 }
 
                 entries_num++;
+                numEntriesInCurrFile++;
                 count++;
             }
             header.clear();
         }
+        fileToNumEntries[i] = numEntriesInCurrFile;
         delete kseq;
     }
 
@@ -205,11 +211,23 @@ int createdb(int argn, const char **argv, const Command& command) {
         DBReader<unsigned int>::Index * indexHeader  = readerHeader.getIndex();
         unsigned int * lengthHeader  = readerHeader.getSeqLens();
 
-        unsigned int * perm =  new unsigned int[readerSequence.getSize()];
+        // Each file is identified by its first unshuffled entry
+        // Intialize keyToFileAfterShuf to the sequential of the files
+        unsigned int * keyToFileAfterShuf =  new unsigned int[readerSequence.getSize()];
+        unsigned int firstEntryOfFile = 0;
+        for (size_t i = 0; i < filenames.size(); i++) {
+            unsigned int numEntriesInCurrFile = fileToNumEntries[i];
+            for (unsigned int j = firstEntryOfFile; j < (firstEntryOfFile + numEntriesInCurrFile); ++j ) {
+                keyToFileAfterShuf[j] = firstEntryOfFile; // perhaps change to: numEntriesInCurrFile as identifier...
+            }
+            firstEntryOfFile += numEntriesInCurrFile;
+        }
+        delete [] fileToNumEntries;
+
         std::default_random_engine generator(0);
         std::uniform_int_distribution<unsigned int> distribution(0,readerSequence.getSize()-1);
         for (unsigned int n=0; n < readerSequence.getSize(); n++){
-            perm[n] = n;
+            keyToFileAfterShuf[n] = n;
         }
         for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
             unsigned int n_new = distribution(generator);
@@ -217,20 +235,21 @@ int createdb(int argn, const char **argv, const Command& command) {
             std::swap(lengthSequence[n_new], lengthSequence[n]);
             std::swap(indexHeader[n_new], indexHeader[n]);
             std::swap(lengthHeader[n_new], lengthHeader[n]);
+            std::swap(keyToFileAfterShuf[n_new], keyToFileAfterShuf[n]);
         }
-        delete [] perm;
-        DBWriter out_writer_shuffeled(data_filename.c_str(), index_filename.c_str());
-        out_writer_shuffeled.open();
+        delete [] keyToFileAfterShuf;
+        DBWriter out_writer_shuffled(data_filename.c_str(), index_filename.c_str());
+        out_writer_shuffled.open();
         for (unsigned int n = 0; n < readerSequence.getSize(); n++) {
             unsigned int id = par.identifierOffset + n;
             const char * data = readerSequence.getData() + indexSequence[n].offset;
-            out_writer_shuffeled.writeData(data, lengthSequence[n]-1, id);
+            out_writer_shuffled.writeData(data, lengthSequence[n]-1, id);
         }
         readerSequence.close();
-        out_writer_shuffeled.close(dbType);
+        out_writer_shuffled.close(dbType);
 
-        DBWriter out_hdr_writer_shuffeled(data_filename_hdr.c_str(), index_filename_hdr.c_str());
-        out_hdr_writer_shuffeled.open();
+        DBWriter out_hdr_writer_shuffled(data_filename_hdr.c_str(), index_filename_hdr.c_str());
+        out_hdr_writer_shuffled.open();
         readerHeader.readMmapedDataInMemory();
         char lookupBuffer[32768];
         for (unsigned int n = 0; n < readerHeader.getSize(); n++) {
@@ -243,9 +262,9 @@ int createdb(int argn, const char **argv, const Command& command) {
             fwrite(splitId.c_str(), sizeof(char), splitId.length(), lookupFile);
             char newline='\n';
             fwrite(&newline, sizeof(char), 1, lookupFile);
-            out_hdr_writer_shuffeled.writeData(data, lengthHeader[n]-1, id);
+            out_hdr_writer_shuffled.writeData(data, lengthHeader[n]-1, id);
         }
-        out_hdr_writer_shuffeled.close();
+        out_hdr_writer_shuffled.close();
         readerHeader.close();
         fclose(lookupFile);
     }
