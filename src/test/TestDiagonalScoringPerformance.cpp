@@ -98,16 +98,16 @@ int main(int argc, char **argv)
 
 
 
-    matcher.processQuery(&s1,compositionBias, hits, 16, 0);
+    matcher.processQuery(&s1,compositionBias, hits, 16);
     std::cout << (int)hits[0].count << " ";
     std::cout << (int)hits[1].count << " ";
     std::cout << (int)hits[2].count << " ";
     std::cout << (int)hits[3].count << std::endl;
 
-    matcher.processQuery(&s1, compositionBias, hits, 1, 0);
-    matcher.processQuery(&s1, compositionBias, hits + 1, 1, 0);
-    matcher.processQuery(&s1, compositionBias, hits + 2, 1, 0);
-    matcher.processQuery(&s1, compositionBias, hits + 3, 1, 0);
+    matcher.processQuery(&s1, compositionBias, hits, 1);
+    matcher.processQuery(&s1, compositionBias, hits + 1, 1);
+    matcher.processQuery(&s1, compositionBias, hits + 2, 1);
+    matcher.processQuery(&s1, compositionBias, hits + 3, 1);
 
     std::cout << (int)hits[0].count<< " ";
     std::cout << (int)hits[1].count<< " ";
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
             hits[j].diagonal =  rand()%s1.L;
         }
         //   std::reverse(hits, hits+1000);
-        matcher.processQuery(&s1, compositionBias, hits, 16000, 0);
+        matcher.processQuery(&s1, compositionBias, hits, 16000);
     }
 //    std::cout << ExtendedSubstitutionMatrix::calcScore(s1.int_sequence, s1.int_sequence,s1.L, subMat.subMatrix) << " " << (int)hits[0].diagonalScore <<  std::endl;
 //    std::cout << (int)hits[0].diagonalScore <<  std::endl;

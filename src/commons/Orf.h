@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <string>
+#include "Matcher.h"
+#include "DBReader.h"
 
 class Orf
 {
@@ -39,12 +41,9 @@ public:
     };
     
     Orf(const unsigned int requestedGenCode, bool useAllTableStarts);
-    
+    ~Orf();
+
     bool setSequence(const char* sequence, size_t sequenceLength);
-    
-    ~Orf() {
-        cleanup();
-    }
 
     /// Find all ORFs in both orientations that are at least orfMinLength and at most orfMaxLength long.
     /// Report results as SequenceLocations.
@@ -58,15 +57,14 @@ public:
                  const unsigned int reverseFrames = FRAME_1 | FRAME_2 | FRAME_3,
                  const unsigned int startMode = 0);
 
-    bool isStop(const char* codon);
-    bool isStart(const char* codon);
-
     void findForward(const char *sequence, const size_t sequenceLength,
-                            std::vector<Orf::SequenceLocation> &result,
-                            const size_t minLength, const size_t maxLength, const size_t maxGaps,
-                            const unsigned int frames, const unsigned int startMode, const Strand strand);
+                     std::vector<Orf::SequenceLocation> &result,
+                     const size_t minLength, const size_t maxLength, const size_t maxGaps,
+                     const unsigned int frames, const unsigned int startMode, const Strand strand);
 
-    std::string view(const SequenceLocation &location);
+    std::pair<const char *, size_t> getSequence(const SequenceLocation &location);
+
+    static Matcher::result_t getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader);
 
     static SequenceLocation parseOrfHeader(char *data);
 
@@ -74,12 +72,12 @@ private:
     size_t sequenceLength;
     char* sequence;
     char* reverseComplement;
+    size_t bufferSize;
 
-    std::vector<std::string> stopCodons;
-    std::vector<std::string> startCodons;
-    bool isInCodonList(const char* codon, const std::vector<std::string> &codons);
-
-    void cleanup();
+    char* stopCodons;
+    size_t stopCodonCount;
+    char* startCodons;
+    size_t startCodonCount;
 };
 
 #endif

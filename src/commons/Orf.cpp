@@ -34,11 +34,14 @@
 #include "Orf.h"
 #include "Util.h"
 #include "Debug.h"
+#include "TranslateNucl.h"
+#include "simd.h"
+
+#include <climits>
 #include <cstring>
 #include <cassert>
 #include <cstdlib>
 #include <algorithm>
-#include "TranslateNucl.h"
 
 //note: N->N, S->S, W->W, U->A, T->A
 static const char* iupacReverseComplementTable =
@@ -47,82 +50,132 @@ static const char* iupacReverseComplementTable =
 "................................................................"
 "................................................................";
 
-inline char complement(const char c)
-{
+inline char complement(const char c) {
     return iupacReverseComplementTable[static_cast<unsigned char>(c)];
 }
 
-inline void TtoU(std::vector<std::string> & codonsVec) {
-    std::vector<std::string> tempVec;
-    for (size_t i = 0; i < codonsVec.size(); ++i) {
-        std::string currCodon = codonsVec[i];
-        // replace each 'T' with 'U'
-        std::replace(currCodon.begin(), currCodon.end(), 'T', 'U');
-        tempVec.push_back(currCodon);
-    }
-    for (size_t i = 0; i < tempVec.size(); ++i) {
-        codonsVec.push_back(tempVec[i]);
-    }
-}
-
-Orf::Orf(const unsigned int requestedGenCode, bool useAllTableStarts) : sequence(NULL), reverseComplement(NULL) {
+Orf::Orf(const unsigned int requestedGenCode, bool useAllTableStarts) {
     TranslateNucl translateNucl(static_cast<TranslateNucl::GenCode>(requestedGenCode));
-    stopCodons = translateNucl.getStopCodons();
-    TtoU(stopCodons);
-
-    // if useAllTableStarts we take all alternatives for start codons from the table
-    if (useAllTableStarts) {
-        startCodons = translateNucl.getStartCodons();
-    } else {
-        startCodons.push_back("ATG");
+    std::vector<std::string> codons = translateNucl.getStopCodons();
+    stopCodons = (char*)mem_align(ALIGN_INT, 8 * sizeof(int));
+    memset(stopCodons, 0, 8 * sizeof(int));
+    size_t count = 0;
+    for (size_t i = 0; i < codons.size(); ++i) {
+        memcpy(stopCodons + count, codons[i].c_str(), 3);
+        count += 4;
     }
-    TtoU(startCodons);
+    stopCodonCount = codons.size();
+    if(stopCodonCount > 8) {
+        Debug(Debug::ERROR) << "Invalid translation table with more than 8 stop codons.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    codons.clear();
+    if(useAllTableStarts) {
+        // if useAllTableStarts we take all alternatives for start codons from the table
+        codons = translateNucl.getStartCodons();
+    } else {
+        codons.push_back("ATG");
+    }
+
+    startCodons = (char*)mem_align(ALIGN_INT, 8 * sizeof(int));
+    memset(startCodons, 0, 8 * sizeof(int));
+    count = 0;
+    for (size_t i = 0; i < codons.size(); ++i) {
+        memcpy(startCodons + count, codons[i].c_str(), 3);
+        count += 4;
+    }
+    startCodonCount = codons.size();
+    if(startCodonCount > 8) {
+        Debug(Debug::ERROR) << "Invalid translation table with more than 8 start codons.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    sequence = (char*)mem_align(ALIGN_INT, 32000 * sizeof(char));
+    reverseComplement = (char*)mem_align(ALIGN_INT, 32000 * sizeof(char));
+    bufferSize = 32000;
 }
 
+Orf::~Orf() {
+    free(sequence);
+    free(reverseComplement);
+    free(startCodons);
+    free(stopCodons);
+}
+
+Matcher::result_t Orf::getFromDatabase(const size_t id, DBReader<unsigned int> & contigsReader, DBReader<unsigned int> & orfHeadersReader) {
+    char * orfHeader = orfHeadersReader.getData(id);
+    Orf::SequenceLocation orfLocOnContigParsed;
+    orfLocOnContigParsed = Orf::parseOrfHeader(orfHeader);
+
+    // get contig key and its length in nucleotides
+    int contigKey = orfLocOnContigParsed.id;
+    unsigned int contigId = contigsReader.getId(contigKey);
+
+    size_t contigLenWithEndings = contigsReader.getSeqLens(contigId);
+    if (contigLenWithEndings < 2) {
+        Debug(Debug::ERROR) << "Invalid contig record has less than two bytes\n";
+        EXIT(EXIT_FAILURE);
+    }
+
+    size_t contigLen = contigLenWithEndings - 2; // remove \n\0
+
+    // orf search returns the position right after the orf, this keeps consitency with alignemnt format
+    // if strand == -1 (reverse), we need to recompute the coordinates with respect to the positive strand and swap them
+    size_t contigFromWithStrand = (orfLocOnContigParsed.strand > 0) ? orfLocOnContigParsed.from : (contigLen - orfLocOnContigParsed.from - 1);
+    size_t contigToWithStrand = (orfLocOnContigParsed.strand > 0) ? (orfLocOnContigParsed.to - 1) : (contigLen - orfLocOnContigParsed.to);
+
+    // compute orf length
+    int orfLen = (orfLocOnContigParsed.strand > 0) ? (contigToWithStrand - contigFromWithStrand + 1) : (contigFromWithStrand - contigToWithStrand + 1);
+
+    Matcher::result_t orfToContigResult(contigKey, 1, 1, 0, 1, 0, orfLen, 0, (orfLen - 1), orfLen, contigFromWithStrand, contigToWithStrand, contigLen, "");
+    return (orfToContigResult);
+}
 
 bool Orf::setSequence(const char* seq, size_t length) {
-    cleanup();
-
-    sequenceLength = length;
-
-    if(sequenceLength < 3)
+    if(length < 3) {
         return false;
-
-    sequence = strdup(seq);
-    for(size_t i = 0; i < sequenceLength; ++i) {
-        sequence[i] = static_cast<char>(toupper(static_cast<int>(seq[i])));
     }
 
-    reverseComplement = strdup(sequence);
+    if((length + VECSIZE_INT) > bufferSize) {
+        free(sequence);
+        free(reverseComplement);
+        sequence = (char*)mem_align(ALIGN_INT, (length + VECSIZE_INT) * sizeof(char));
+        reverseComplement = (char*)mem_align(ALIGN_INT, (length + VECSIZE_INT) * sizeof(char));
+        bufferSize = (length + VECSIZE_INT);
+    }
+
+    sequenceLength = length;
+    for(size_t i = 0; i < sequenceLength; ++i) {
+        sequence[i] = seq[i] & ~0x20;
+        if(sequence[i] == 'U') {
+            sequence[i] = 'T';
+        }
+    }
+
     for(size_t i = 0; i < sequenceLength; ++i) {
         reverseComplement[i] = complement(sequence[sequenceLength - i - 1]);
-        if (reverseComplement[i] == '.') {
+        if(reverseComplement[i] == '.') {
             return false;
         }
+    }
+
+    for (size_t i = sequenceLength; i < sequenceLength + VECSIZE_INT; ++i) {
+        sequence[i] = CHAR_MAX;
+        reverseComplement[i] = CHAR_MAX;
     }
 
     return true;
 }
 
-void Orf::cleanup()  {
-    if (sequence) {
-        free(sequence);
-        sequence = NULL;
-    }
-    if (reverseComplement) {
-        free(reverseComplement);
-        reverseComplement = NULL;
-    }
-}
-
-std::string Orf::view(const SequenceLocation &location) {
+std::pair<const char *, size_t> Orf::getSequence(const SequenceLocation &location) {
     assert(location.to > location.from);
     
     size_t length = location.to - location.from;
     if(location.strand == Orf::STRAND_PLUS) {
-        return sequence ? std::string(&sequence[location.from], length) : std::string();
+        return sequence ? std::make_pair(sequence + location.from, length) : std::make_pair("", 0);
     } else {
-        return reverseComplement ? std::string(&reverseComplement[location.from], length) : std::string();
+        return reverseComplement ? std::make_pair(reverseComplement + location.from, length) : std::make_pair("", 0);
     }
 }
 
@@ -132,15 +185,14 @@ void Orf::findAll(std::vector<Orf::SequenceLocation> &result,
                   const size_t maxGaps,
                   const unsigned int forwardFrames,
                   const unsigned int reverseFrames,
-                  const unsigned int startMode)
-{
-    if (forwardFrames != 0) {
+                  const unsigned int startMode) {
+    if(forwardFrames != 0) {
         // find ORFs on the forward sequence
         findForward(sequence, sequenceLength, result,
                     minLength, maxLength, maxGaps, forwardFrames, startMode, STRAND_PLUS);
     }
 
-    if (reverseFrames != 0) {
+    if(reverseFrames != 0) {
         // find ORFs on the reverse complement
         findForward(reverseComplement, sequenceLength, result,
                     minLength, maxLength, maxGaps, reverseFrames, startMode, STRAND_MINUS);
@@ -148,7 +200,7 @@ void Orf::findAll(std::vector<Orf::SequenceLocation> &result,
 }
 
 inline bool isIncomplete(const char* codon) {
-    return codon[0] == 0 || codon[1] == 0 || codon[2] == 0;
+    return codon[0] == CHAR_MAX || codon[1] == CHAR_MAX || codon[2] == CHAR_MAX;
 }
 
 inline bool isGapOrN(const char *codon) {
@@ -156,25 +208,32 @@ inline bool isGapOrN(const char *codon) {
         || codon[1] == 'N' || complement(codon[1]) == '.'
         || codon[2] == 'N' || complement(codon[2]) == '.';
 }
-bool Orf::isStop(const char* codon) {
-    return isInCodonList(codon, stopCodons);
-}
 
-bool Orf::isStart(const char* codon) {
-    return isInCodonList(codon, startCodons);
-}
-
-bool Orf::isInCodonList(const char* codon, const std::vector<std::string> &codons) {
-    char nuc0 = codon[0];
-    char nuc1 = codon[1];
-    char nuc2 = codon[2];
-
-    for (size_t codInd = 0; codInd < codons.size(); ++codInd) {
-        if (nuc0 == codons[codInd][0] && nuc1 == codons[codInd][1] && nuc2 == codons[codInd][2]) {
-            return true;
-        }
+template <int N>
+#ifndef AVX2
+inline bool isInCodons(const char* sequence, simd_int codons, simd_int codons2) {
+#else
+inline bool isInCodons(const char* sequence, simd_int codons, simd_int) {
+#endif
+    simd_int c = simdi_loadu((simd_int*)sequence);
+    // ATGA ATGA ATGA ATGA
+#ifdef AVX2
+    simd_int shuf = _mm256_permutevar8x32_epi32(c, _mm256_setzero_si256());
+#else
+    simd_int shuf = simdi32_shuffle(c, _MM_SHUFFLE(0, 0, 0, 0));
+#endif
+    // ATG0 ATG0 ATG0 ATG0
+    simd_int mask = simdi32_set(0x00FFFFFF);
+    shuf = simdi_and(mask, shuf);
+    // FFFF 0000 0000 0000
+    simd_int test = simdi32_eq(shuf, codons);
+    #ifndef AVX2
+    if(N > 4) {
+        simd_int test2 = simdi32_eq(shuf, codons2);
+        return (simdi8_movemask(test) != 0) && (simdi8_movemask(test2) != 0);
     }
-    return false;
+    #endif
+    return simdi8_movemask(test) != 0;
 }
 
 void Orf::findForward(const char *sequence, const size_t sequenceLength, std::vector<SequenceLocation> &result,
@@ -203,6 +262,12 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
     // Offset the start position by reading frame
     size_t from[FRAMES] = {frameOffset[0], frameOffset[1], frameOffset[2]};
 
+    simd_int startCodonsHi = simdi_load((simd_int*)startCodons);
+    simd_int startCodonsLo = simdi_loadu((simd_int*)(startCodons + 16));
+
+    simd_int stopCodonsHi = simdi_load((simd_int*)stopCodons);
+    simd_int stopCodonsLo = simdi_loadu((simd_int*)(stopCodons + 16));
+
     for (size_t i = 0;  i < sequenceLength - (FRAMES - 1);  i += FRAMES) {
         for(size_t position = i; position < i + FRAMES; position++) {
             const char* codon = sequence + position;
@@ -223,12 +288,15 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
            
             bool shouldStart;
             if((startMode == START_TO_STOP)) {
-                shouldStart = isInsideOrf[frame] == false && isStart(codon);
-            } else if (startMode == ANY_TO_STOP) {
+                shouldStart = isInsideOrf[frame] == false 
+                            && ((startCodonCount > 4) ? isInCodons<8>(codon, startCodonsHi, startCodonsLo)
+                                                      : isInCodons<4>(codon, startCodonsHi, startCodonsLo));
+            } else if(startMode == ANY_TO_STOP) {
                 shouldStart = isInsideOrf[frame] == false;
             } else {
                 // LAST_START_TO_STOP:
-                shouldStart = isStart(codon);
+                shouldStart = ((startCodonCount > 4) ? isInCodons<8>(codon, startCodonsHi, startCodonsLo)
+                                                     : isInCodons<4>(codon, startCodonsHi, startCodonsLo));
             }
 
             // do not start a new orf on the last codon
@@ -249,7 +317,8 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
                 }
             }
 
-            bool stop = isStop(codon);
+            const bool stop = (stopCodonCount > 4) ? isInCodons<8>(codon, stopCodonsHi, stopCodonsLo)
+                                                   : isInCodons<4>(codon, stopCodonsHi, stopCodonsLo);
             if(isInsideOrf[frame] && (stop || isLast)) {
                 isInsideOrf[frame] = false;
 
@@ -270,8 +339,7 @@ void Orf::findForward(const char *sequence, const size_t sequenceLength, std::ve
                     continue;
                 }
 
-                result.emplace_back(SequenceLocation(from[frame], to,
-                                                     !hasStartCodon[frame], !stop, strand));
+                result.emplace_back(from[frame], to, !hasStartCodon[frame], !stop, strand);
             }
         }
     }
@@ -288,7 +356,7 @@ Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
             break;
         }
     }
-    if(found==false ){
+    if(found == false){
         Debug(Debug::ERROR) << "Could not find Orf information in header.\n";
         EXIT(EXIT_FAILURE);
     }
@@ -298,7 +366,7 @@ Orf::SequenceLocation Orf::parseOrfHeader(char *data) {
     int retCode = sscanf(entry[col], "[Orf: %u, %zu, %zu, %d, %d, %d]", &loc.id, &loc.from, &loc.to, &strand, &hasIncompleteStart, &hasIncompleteEnd);
     loc.hasIncompleteStart = hasIncompleteStart;
     loc.hasIncompleteEnd = hasIncompleteEnd;
-    if(retCode < 5){
+    if(retCode < 5) {
         Debug(Debug::ERROR) << "Could not parse Orf " << entry[col] << ".\n";
         EXIT(EXIT_FAILURE);
     }

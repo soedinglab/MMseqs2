@@ -68,7 +68,7 @@ int lca(int argc, const char **argv, const Command& command) {
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-        #pragma omp for schedule(static)
+        #pragma omp for schedule(dynamic, 10)
         for (size_t i = 0; i < entries; ++i) {
             Debug::printProgress(i);
 

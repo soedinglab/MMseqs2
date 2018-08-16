@@ -49,7 +49,7 @@ Parameters::Parameters():
         PARAM_NO_PRELOAD(PARAM_NO_PRELOAD_ID, "--no-preload", "No preload", "Do not preload database", typeid(bool), (void*) &noPreload, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         PARAM_EARLY_EXIT(PARAM_EARLY_EXIT_ID, "--early-exit", "Early exit", "Exit immediately after writing the result", typeid(bool), (void*) &earlyExit, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         // alignment
-        PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "What to compute: 0: automatic; 1: score+end_pos; 2:+start_pos+cov; 3: +seq.id",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
+        PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id; 4: only ungapped alignment",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
         PARAM_C(PARAM_C_ID,"-c", "Coverage threshold", "list matches above this fraction of aligned (covered) residues (see --cov-mode)",typeid(float), (void *) &covThr, "^0(\\.[0-9]+)?|^1(\\.0+)?$", MMseqsParameter::COMMAND_ALIGN| MMseqsParameter::COMMAND_CLUSTLINEAR),
         PARAM_COV_MODE(PARAM_COV_MODE_ID, "--cov-mode", "Coverage Mode", "0: coverage of query and target, 1: coverage of target, 2: coverage of query", typeid(int), (void *) &covMode, "^[0-2]{1}$", MMseqsParameter::COMMAND_ALIGN),
@@ -78,9 +78,10 @@ Parameters::Parameters():
         PARAM_FORMAT_MODE(PARAM_FORMAT_MODE_ID,"--format-mode", "Alignment Format", "output format 0: BLAST-TAB, 1: PAIRWISE, 2: BLAST-TAB + query/db length", typeid(int), (void*) &formatAlignmentMode, "^[0-2]{1}$"),
         PARAM_DB_OUTPUT(PARAM_DB_OUTPUT_ID, "--db-output", "Database Output", "Output a result db instead of a text file", typeid(bool), (void*) &dbOut, ""),
         // rescorediagonal
-        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "rescore diagonal by: 0 hamming distance, 1 local alignment (score only) or 2 local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
+        PARAM_RESCORE_MODE(PARAM_RESCORE_MODE_ID,"--rescore-mode", "Rescore mode", "Rescore diagonal with: 0: Hamming distance, 1: local alignment (score only) or 2: local alignment", typeid(int), (void *) &rescoreMode, "^[0-2]{1}$"),
         PARAM_FILTER_HITS(PARAM_FILTER_HITS_ID,"--filter-hits", "Remove hits by seq.id. and coverage", "filter hits by seq.id. and coverage", typeid(bool), (void *) &filterHits, "", MMseqsParameter::COMMAND_EXPERT),
         PARAM_GLOBAL_ALIGNMENT(PARAM_GLOBAL_ALIGNMENT_ID,"--global-alignment", "In substitution scoring mode, performs global alignment along the diagonal", "Rescore the complete diagonal", typeid(bool), (void *) &globalAlignment, "", MMseqsParameter::COMMAND_EXPERT),
+        PARAM_SORT_RESULTS(PARAM_SORT_RESULTS_ID, "--sort-results", "Sort results", "Sort results: 0: no sorting, 1: sort by evalue (Alignment) or seq.id. (Hamming)", typeid(int), (void *) &sortResults, "^[0-1]{1}$"),
         // result2msa
         PARAM_ALLOW_DELETION(PARAM_ALLOW_DELETION_ID,"--allow-deletion", "Allow Deletion", "allow deletions in a MSA", typeid(bool), (void*) &allowDeletion, ""),
         PARAM_ADD_INTERNAL_ID(PARAM_ADD_INTERNAL_ID_ID,"--add-iternal-id", "Add internal id", "add internal id as comment to MSA", typeid(bool), (void*) &addInternalId, "",  MMseqsParameter::COMMAND_EXPERT),
@@ -145,8 +146,7 @@ Parameters::Parameters():
         PARAM_USE_HEADER(PARAM_USE_HEADER_ID,"--use-fasta-header", "Use fasta header", "use the id parsed from the fasta header as the index key instead of using incrementing numeric identifiers",typeid(bool),(void *) &useHeader, ""),
         PARAM_ID_OFFSET(PARAM_ID_OFFSET_ID, "--id-offset", "Offset of numeric ids", "numeric ids in index file are offset by this value ",typeid(int),(void *) &identifierOffset, "^(0|[1-9]{1}[0-9]*)$"),
         PARAM_DONT_SPLIT_SEQ_BY_LEN(PARAM_DONT_SPLIT_SEQ_BY_LEN_ID,"--dont-split-seq-by-len", "Split Seq. by len", "Dont split sequences by --max-seq-len",typeid(bool),(void *) &splitSeqByLen, ""),
-        PARAM_CLUSTER_DB(PARAM_CLUSTER_DB_ID, "--cluster-db", "Cluster DB", "Create cluster DB", typeid(bool), (void*) &clusterDB, ""),
-        // convert2fasta
+        PARAM_DONT_SHUFFLE(PARAM_DONT_SHUFFLE_ID,"--dont-shuffle", "Do not shuffle input database", "Do not shuffle input database",typeid(bool),(void *) &shuffleDatabase, ""),
         PARAM_USE_HEADER_FILE(PARAM_USE_HEADER_FILE_ID, "--use-header-file", "Use ffindex header", "use the ffindex header file instead of the body to map the entry keys",typeid(bool),(void *) &useHeaderFile, ""),
         // gff2db
         PARAM_GFF_TYPE(PARAM_GFF_TYPE_ID,"--gff-type", "GFF Type", "type in the GFF file to filter by",typeid(std::string),(void *) &gffType, ""),
@@ -168,7 +168,7 @@ Parameters::Parameters():
         PARAM_TRIM_TO_ONE_COL(PARAM_TRIM_TO_ONE_COL_ID,"--trim-to-one-column", "trim the results to one column","Output only the column specified by --filter-column.",typeid(bool), (void *) &trimToOneColumn, ""),
         PARAM_EXTRACT_LINES(PARAM_EXTRACT_LINES_ID,"--extract-lines", "Extract n lines", "extract n lines of each entry.",typeid(int), (void *) &extractLines, "^[1-9]{1}[0-9]*$"),
         PARAM_COMP_OPERATOR(PARAM_COMP_OPERATOR_ID, "--comparison-operator", "Numerical comparison operator", "Filter by comparing each entry row numerically by using the le) less-than-equal, ge) greater-than-equal or e) equal operator.", typeid(std::string), (void *) &compOperator, ""),
-        PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID, "--comparison-value", "Numerical comparison value", "Filter by comparing each entry to this value.", typeid(float), (void *) &compValue, ""),
+        PARAM_COMP_VALUE(PARAM_COMP_VALUE_ID, "--comparison-value", "Numerical comparison value", "Filter by comparing each entry to this value.", typeid(float), (void *) &compValue, "^.*$"),
         PARAM_SORT_ENTRIES(PARAM_SORT_ENTRIES_ID, "--sort-entries", "Sort entries", "Sort column set by --filter-column, by 0) no sorting, 1) increasing,  2) decreasing or 3) random shuffle.", typeid(int), (void *) &sortEntries, "^[1-9]{1}[0-9]*$"),
         PARAM_BEATS_FIRST(PARAM_BEATS_FIRST_ID, "--beats-first", "Beats first", "Filter by comparing each entry to the first entry.", typeid(bool), (void*) &beatsFirst, ""),
         PARAM_JOIN_DB(PARAM_JOIN_DB_ID, "--join-db","join to DB", "Join another database entry with respect to the database identifier in the chosen column", typeid(std::string), (void*) &joinDB, ""),
@@ -263,32 +263,34 @@ Parameters::Parameters():
 
     // clustering
     clust.push_back(PARAM_CLUSTER_MODE);
-    clust.push_back(PARAM_V);
     clust.push_back(PARAM_MAXITERATIONS);
     clust.push_back(PARAM_SIMILARITYSCORE);
     clust.push_back(PARAM_THREADS);
+    clust.push_back(PARAM_V);
 
     // onlyverbosity
     onlyverbosity.push_back(PARAM_V);
 
     // rescorediagonal
-    rescorediagonal.push_back(PARAM_RESCORE_MODE);
     rescorediagonal.push_back(PARAM_SUB_MAT);
+    rescorediagonal.push_back(PARAM_RESCORE_MODE);
     rescorediagonal.push_back(PARAM_FILTER_HITS);
-    rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
-    rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_E);
+    rescorediagonal.push_back(PARAM_C);
     rescorediagonal.push_back(PARAM_COV_MODE);
     rescorediagonal.push_back(PARAM_MIN_SEQ_ID);
     rescorediagonal.push_back(PARAM_SEQ_ID_MODE);
     rescorediagonal.push_back(PARAM_INCLUDE_IDENTITY);
+    rescorediagonal.push_back(PARAM_SORT_RESULTS);
+    rescorediagonal.push_back(PARAM_GLOBAL_ALIGNMENT);
+    rescorediagonal.push_back(PARAM_NO_PRELOAD);
     rescorediagonal.push_back(PARAM_THREADS);
     rescorediagonal.push_back(PARAM_V);
 
     // alignbykmer
+    alignbykmer.push_back(PARAM_SUB_MAT);
     alignbykmer.push_back(PARAM_K);
     alignbykmer.push_back(PARAM_ALPH_SIZE);
-    alignbykmer.push_back(PARAM_SUB_MAT);
     alignbykmer.push_back(PARAM_FILTER_HITS);
     alignbykmer.push_back(PARAM_C);
     alignbykmer.push_back(PARAM_E);
@@ -392,13 +394,13 @@ Parameters::Parameters():
     result2msa.push_back(PARAM_FILTER_COV);
     result2msa.push_back(PARAM_FILTER_NDIFF);
     result2msa.push_back(PARAM_THREADS);
-    result2msa.push_back(PARAM_V);
     result2msa.push_back(PARAM_COMPRESS_MSA);
     result2msa.push_back(PARAM_SUMMARIZE_HEADER);
     result2msa.push_back(PARAM_SUMMARY_PREFIX);
     result2msa.push_back(PARAM_OMIT_CONSENSUS);
     result2msa.push_back(PARAM_SKIP_QUERY);
     //result2msa.push_back(PARAM_FIRST_SEQ_REP_SEQ);
+    result2msa.push_back(PARAM_V);
 
 
     // convertmsa
@@ -434,6 +436,8 @@ Parameters::Parameters():
     // profile2cs
     profile2cs.push_back(PARAM_SUB_MAT);
 //    profile2cs.push_back(PARAM_ALPH_SIZE);
+    profile2cs.push_back(PARAM_PCA);
+    profile2cs.push_back(PARAM_PCB);
     profile2cs.push_back(PARAM_THREADS);
     profile2cs.push_back(PARAM_V);
 
@@ -449,11 +453,17 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_TRANSLATION_TABLE);
     extractorfs.push_back(PARAM_USE_ALL_TABLE_STARTS);
     extractorfs.push_back(PARAM_ID_OFFSET);    
-    extractorfs.push_back(PARAM_THREADS);    
+    extractorfs.push_back(PARAM_THREADS);
+    extractorfs.push_back(PARAM_V);
+
+    // orf to contig 
+    orftocontig.push_back(PARAM_THREADS);
+    orftocontig.push_back(PARAM_V);
 
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
     splitdb.push_back(PARAM_SPLIT_AMINOACID);
+    splitdb.push_back(PARAM_V);
 
     // create index
     indexdb.push_back(PARAM_SUB_MAT);
@@ -474,6 +484,7 @@ Parameters::Parameters():
     // create db
     createdb.push_back(PARAM_MAX_SEQ_LEN);
     createdb.push_back(PARAM_DONT_SPLIT_SEQ_BY_LEN);
+    createdb.push_back(PARAM_DONT_SHUFFLE);
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
     createdb.push_back(PARAM_CLUSTER_DB);
@@ -642,6 +653,7 @@ Parameters::Parameters():
 
     // extractalignedregion
     extractalignedregion.push_back(PARAM_EXTRACT_MODE);
+    extractalignedregion.push_back(PARAM_NO_PRELOAD);
     extractalignedregion.push_back(PARAM_THREADS);
     extractalignedregion.push_back(PARAM_V);
 
@@ -653,11 +665,12 @@ Parameters::Parameters():
     // lca
     lca.push_back(PARAM_LCA_RANKS);
     lca.push_back(PARAM_BLACKLIST);
-    lca.push_back(PARAM_V);
     lca.push_back(PARAM_THREADS);
+    lca.push_back(PARAM_V);
 
     // WORKFLOWS
     searchworkflow = combineList(align, prefilter);
+    searchworkflow = combineList(searchworkflow, rescorediagonal);
     searchworkflow = combineList(searchworkflow, result2profile);
     searchworkflow = combineList(searchworkflow, extractorfs);
     searchworkflow = combineList(searchworkflow, translatenucs);
@@ -693,6 +706,7 @@ Parameters::Parameters():
 
     // clustering workflow
     clusteringWorkflow = combineList(prefilter, align);
+    clusteringWorkflow = combineList(clusteringWorkflow, rescorediagonal);
     clusteringWorkflow = combineList(clusteringWorkflow, clust);
     clusteringWorkflow.push_back(PARAM_CASCADED);
     clusteringWorkflow.push_back(PARAM_CLUSTER_STEPS);
@@ -715,11 +729,19 @@ Parameters::Parameters():
     // multi hit search
     multihitsearch = combineList(searchworkflow, besthitbyset);
 
-    clusterUpdateSearch = removeParameter(searchworkflow,PARAM_MAX_SEQS);
+    clusterUpdateSearch = removeParameter(searchworkflow, PARAM_MAX_SEQS);
     clusterUpdateClust = removeParameter(clusteringWorkflow,PARAM_MAX_SEQS);
     clusterUpdate = combineList(clusterUpdateSearch, clusterUpdateClust);
     clusterUpdate.push_back(PARAM_USESEQID);
     clusterUpdate.push_back(PARAM_RECOVER_DELETED);
+
+    mapworkflow = combineList(prefilter, rescorediagonal);
+    mapworkflow = combineList(mapworkflow, extractorfs);
+    mapworkflow = combineList(mapworkflow, translatenucs);
+    mapworkflow.push_back(PARAM_START_SENS);
+    mapworkflow.push_back(PARAM_SENS_STEPS);
+    mapworkflow.push_back(PARAM_RUNNER);
+    mapworkflow.push_back(PARAM_REMOVE_TMP_FILES);
 
     //checkSaneEnvironment();
     setDefaults();
@@ -730,13 +752,17 @@ void Parameters::printUsageMessage(const Command& command,
     const std::vector<MMseqsParameter>& parameters = *command.params;
 
     std::ostringstream ss;
-    ss << "mmseqs " << command.cmd << ":\n";
+    ss << binary_name << " " << command.cmd << ":\n";
     ss << (command.longDescription != NULL ? command.longDescription : command.shortDescription) << "\n\n";
 
     if(command.citations > 0) {
         ss << "Please cite:\n";
+
+        if(command.citations & CITATION_PLASS) {
+            ss << "Steinegger, M. Mirdita, M., & Soding, J. Protein-level assembly increases protein sequence recovery from metagenomic samples manyfold. biorxiv, https://doi.org/10.1101/386110 (2018)\n";
+        }
         if(command.citations & CITATION_LINCLUST) {
-            ss << "Steinegger, M. & Soding, J. Linclust: clustering billions of protein sequences per day on a single server. bioRxiv 104034 (2017)\n\n";
+            ss << "Steinegger, M. & Soding, J. Clustering huge protein sequence sets in linear time. Nature Communications, doi: 10.1038/s41467-018-04964-5 (2018)\n";
         }
         if(command.citations & CITATION_MMSEQS1) {
             ss << "Hauser, M., Steinegger, M. & Soding, J. MMseqs software suite for fast and deep clustering and searching of large protein sequence sets. Bioinformatics, 32(9), 1323-1330 (2016). \n\n";
@@ -1199,7 +1225,8 @@ void Parameters::setDefaults() {
 
     // createdb
     splitSeqByLen = true;
-    clusterDB = false ;
+    shuffleDatabase = true;
+
     // format alignment
     formatAlignmentMode = FORMAT_ALIGNMENT_BLAST_TAB;
     dbOut = false;
@@ -1276,6 +1303,7 @@ void Parameters::setDefaults() {
     // rescorediagonal
     rescoreMode = Parameters::RESCORE_MODE_HAMMING;
     filterHits = false;
+    sortResults = false;
 
     // filterDb
     filterColumn = 1;
@@ -1323,7 +1351,7 @@ void Parameters::setDefaults() {
     kbColumns = "";
 
     // linearcluster
-    kmersPerSequence = 20;
+    kmersPerSequence = 21;
     includeOnlyExtendable = false;
     skipNRepeatKmer = 0;
     hashShift = 5;

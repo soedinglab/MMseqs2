@@ -22,6 +22,8 @@ Prefiltering::Prefiltering(const std::string &targetDB,
                            const Parameters &par) :
         targetDB(targetDB),
         targetDBIndex(targetDBIndex),
+        _2merSubMatrix(NULL),
+        _3merSubMatrix(NULL),
         splits(par.split),
         kmerSize(par.kmerSize),
         spacedKmer(par.spacedKmer != 0),
@@ -47,6 +49,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     Debug(Debug::INFO) << "Using " << threads << " threads.\n";
 #endif
 
+    int indexMasked = maskMode;
     int minKmerThr = INT_MIN;
     std::string indexDB = PrefilteringIndexReader::searchForIndex(targetDB);
     if (indexDB != "") {
@@ -69,6 +72,7 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             alphabetSize = data.alphabetSize;
             targetSeqType = data.seqType;
             spacedKmer   = (data.spacedKmer == 1) ? true : false;
+            indexMasked = data.mask;
 
             if (querySeqType == Sequence::HMM_PROFILE && targetSeqType == Sequence::HMM_PROFILE) {
                 Debug(Debug::ERROR) << "Query-profiles cannot be searched against a target-profile database!\n";
@@ -96,6 +100,29 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         templateDBIsIndex = false;
     }
 
+    // init the substitution matrices
+    switch (querySeqType) {
+        case Sequence::NUCLEOTIDES:
+            subMat = new NucleotideMatrix(scoringMatrixFile.c_str(), 1.0, 0.0);
+            alphabetSize = subMat->alphabetSize;
+            break;
+        case Sequence::AMINO_ACIDS:
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
+            alphabetSize = subMat->alphabetSize;
+            break;
+        case Sequence::HMM_PROFILE:
+            // needed for Background distributions
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false);
+            break;
+        case Sequence::PROFILE_STATE_PROFILE:
+            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true);
+            alphabetSize = subMat->alphabetSize;
+            break;
+        default:
+            Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
+            EXIT(EXIT_FAILURE);
+    }
+
     // investigate if it makes sense to mask the profile consensus sequence
     if (targetSeqType == Sequence::HMM_PROFILE || targetSeqType == Sequence::PROFILE_STATE_SEQ) {
         maskMode = 0;
@@ -104,39 +131,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
     takeOnlyBestKmer = (par.exactKmerMatching==1)||
                        (targetSeqType == Sequence::HMM_PROFILE && querySeqType == Sequence::AMINO_ACIDS) ||
                        (targetSeqType == Sequence::NUCLEOTIDES && querySeqType == Sequence::NUCLEOTIDES);
-    // init the substitution matrices
-    switch (querySeqType) {
-        case Sequence::NUCLEOTIDES:
-            subMat = new NucleotideMatrix(scoringMatrixFile.c_str(), 1.0, 0.0);
-            alphabetSize = subMat->alphabetSize;
-            _2merSubMatrix = NULL;
-            _3merSubMatrix = NULL;
-            break;
-        case Sequence::AMINO_ACIDS:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false, false);
-            alphabetSize = subMat->alphabetSize;
-            // Do not add X
-            subMat->alphabetSize = subMat->alphabetSize -1 ;
-            _2merSubMatrix = getScoreMatrix(*subMat, 2);
-            _3merSubMatrix = getScoreMatrix(*subMat, 3);
-            subMat->alphabetSize = alphabetSize;
-            break;
-        case Sequence::HMM_PROFILE:
-            // needed for Background distributions
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, false, false);
-            _2merSubMatrix = NULL;
-            _3merSubMatrix = NULL;
-            break;
-        case Sequence::PROFILE_STATE_PROFILE:
-            subMat = getSubstitutionMatrix(scoringMatrixFile, alphabetSize, 8.0, true, true);
-            alphabetSize = subMat->alphabetSize;
-            _2merSubMatrix = NULL;
-            _3merSubMatrix = NULL;
-            break;
-        default:
-            Debug(Debug::ERROR) << "Query sequence type not implemented!\n";
-            EXIT(EXIT_FAILURE);
-    }
 
     int originalSplits = splits;
     size_t memoryLimit;
@@ -163,6 +157,9 @@ Prefiltering::Prefiltering(const std::string &targetDB,
             reopenTargetDb();
         } else if ((querySeqType == Sequence::HMM_PROFILE || querySeqType == Sequence::PROFILE_STATE_PROFILE) && minKmerThr != 0) {
             Debug(Debug::WARNING) << "Query profiles require an index table k-mer threshold of 0. Recomputing index table!\n";
+            reopenTargetDb();
+        } else if (indexMasked != maskMode) {
+            Debug(Debug::WARNING) << "Can not use masked index for unmasked prefiltering. Recomputing index table!\n";
             reopenTargetDb();
         }
     }
@@ -410,7 +407,8 @@ ScoreMatrix *Prefiltering::getScoreMatrix(const BaseMatrix& matrix, const size_t
 
 }
 
-void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
+// TODO reimplement split index feature
+void Prefiltering::getIndexTable(int /*split*/, size_t dbFrom, size_t dbSize) {
     if (templateDBIsIndex == true) {
         indexTable = PrefilteringIndexReader::generateIndexTable(tidxdbr, false);
 
@@ -419,36 +417,59 @@ void Prefiltering::getIndexTable(int split, size_t dbFrom, size_t dbSize) {
         } else if (maskMode == 1) {
             sequenceLookup = PrefilteringIndexReader::getMaskedSequenceLookup(tidxdbr, false);
         }
+    } else {
+        Timer timer;
 
-        return;
+        Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
+        int localKmerThr = (querySeqType == Sequence::HMM_PROFILE ||
+                            querySeqType == Sequence::PROFILE_STATE_PROFILE ||
+                            querySeqType == Sequence::NUCLEOTIDES ||
+                            (targetSeqType != Sequence::HMM_PROFILE && takeOnlyBestKmer == true) ) ? 0 : kmerThr;
+
+        // remove X or N for seeding
+        int adjustAlphabetSize = (targetSeqType == Sequence::NUCLEOTIDES || targetSeqType == Sequence::AMINO_ACIDS)
+                           ? alphabetSize -1 : alphabetSize;
+        indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
+        SequenceLookup **maskedLookup   = maskMode == 1 ? &sequenceLookup : NULL;
+        SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
+
+        Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << "\n";
+        IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *subMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr);
+
+        if (diagonalScoring == false) {
+            delete sequenceLookup;
+            sequenceLookup = NULL;
+        }
+
+        indexTable->printStatistics(subMat->int2aa);
+        tdbr->remapData();
+        Debug(Debug::INFO) << "Time for index table init: " << timer.lap() << "\n";
     }
 
-    Timer timer;
+    // init the substitution matrices
+    switch (querySeqType) {
+        case Sequence::AMINO_ACIDS:
+            // Do not add X
+            subMat->alphabetSize = subMat->alphabetSize - 1;
+            _2merSubMatrix = getScoreMatrix(*subMat, 2);
+            _3merSubMatrix = getScoreMatrix(*subMat, 3);
+            subMat->alphabetSize = alphabetSize;
+            break;
+        case Sequence::HMM_PROFILE:
+        case Sequence::PROFILE_STATE_PROFILE:
+        case Sequence::NUCLEOTIDES:
+        default:
+            if (_2merSubMatrix != NULL && templateDBIsIndex == false) {
+                delete _2merSubMatrix;
+            }
 
-    Sequence tseq(maxSeqLen, targetSeqType, subMat, kmerSize, spacedKmer, aaBiasCorrection);
-    int localKmerThr = (querySeqType == Sequence::HMM_PROFILE ||
-                        querySeqType == Sequence::PROFILE_STATE_PROFILE ||
-                        querySeqType == Sequence::NUCLEOTIDES ||
-                        (targetSeqType != Sequence::HMM_PROFILE && takeOnlyBestKmer == true) ) ? 0 : kmerThr;
-
-    // remove X or N for seeding
-    int adjustAlphabetSize = (targetSeqType == Sequence::NUCLEOTIDES || targetSeqType == Sequence::AMINO_ACIDS)
-                       ? alphabetSize -1 : alphabetSize;
-    indexTable = new IndexTable(adjustAlphabetSize, kmerSize, false);
-    SequenceLookup **maskedLookup   = maskMode == 1 ? &sequenceLookup : NULL;
-    SequenceLookup **unmaskedLookup = maskMode == 0 ? &sequenceLookup : NULL;
-    
-    Debug(Debug::INFO) << "Index table k-mer threshold: " << localKmerThr << "\n";
-    IndexBuilder::fillDatabase(indexTable, maskedLookup, unmaskedLookup, *subMat,  &tseq, tdbr, dbFrom, dbFrom + dbSize, localKmerThr);
-
-    if (diagonalScoring == false) {
-        delete sequenceLookup;
-        sequenceLookup = NULL;
+            if (_3merSubMatrix != NULL && templateDBIsIndex == false) {
+                delete _3merSubMatrix;
+            }
+            _2merSubMatrix = NULL;
+            _3merSubMatrix = NULL;
+            break;
     }
-
-    indexTable->printStatistics(subMat->int2aa);
-    tdbr->remapData();
-    Debug(Debug::INFO) << "Time for index table init: " << timer.lap() << "\n";
 }
 
 bool Prefiltering::isSameQTDB(const std::string &queryDB) {
@@ -873,8 +894,7 @@ void Prefiltering::printStatistics(const statistics_t &stats, std::list<int> **r
     Debug(Debug::INFO) << empty << " sequences with 0 size result lists.\n";
 }
 
-BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize,
-                                                float bitFactor, bool ignoreX, bool profileState) {
+BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrixFile, size_t alphabetSize, float bitFactor, bool profileState) {
     Debug(Debug::INFO) << "Substitution matrices...\n";
     BaseMatrix *subMat;
     if (alphabetSize < 21) {
@@ -882,7 +902,7 @@ BaseMatrix *Prefiltering::getSubstitutionMatrix(const std::string &scoringMatrix
         subMat = new ReducedMatrix(sMat.probMatrix, sMat.subMatrixPseudoCounts, alphabetSize, bitFactor);
     }else if(profileState == true){
         SubstitutionMatrix sMat(scoringMatrixFile.c_str(), bitFactor, -0.2f);
-        subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack, sMat.subMatrixPseudoCounts, sMat.subMatrix, bitFactor, 0.0, 1, 32);
+        subMat = new SubstitutionMatrixProfileStates(sMat.matrixName, sMat.probMatrix, sMat.pBack, sMat.subMatrixPseudoCounts, bitFactor, 0.0, 32);
     } else {
         subMat = new SubstitutionMatrix(scoringMatrixFile.c_str(), bitFactor, -0.2f);
     }

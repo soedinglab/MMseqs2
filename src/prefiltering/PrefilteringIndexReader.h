@@ -9,7 +9,7 @@
 struct PrefilteringIndexData {
     int kmerSize;
     int alphabetSize;
-    int local;
+    int mask;
     int spacedKmer;
     int kmerThr;
     int seqType;

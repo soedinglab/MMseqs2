@@ -71,6 +71,8 @@ public:
     static const int SORT_BY_LINE   = 4; // the local IDs correspond to the line number in the original index file
     static const int SHUFFLE        = 5;
     static const int HARDNOSORT = 6; // do not even sort by ids.
+    static const int SORT_BY_ID_OFFSET = 7;
+
 
     static const int USE_INDEX    = 0;
     static const int USE_DATA     = 1;
@@ -167,6 +169,21 @@ public:
             return false;
         }
     };
+
+    struct comparePairByIdAndOffset {
+        bool operator() (const std::pair<unsigned int, Index>& lhs, const std::pair<unsigned int, Index>& rhs) const{
+            if(lhs.second.id < rhs.second.id)
+                return true;
+            if(rhs.second.id < lhs.second.id)
+                return false;
+            if(lhs.second.offset < rhs.second.offset  )
+                return true;
+            if(rhs.second.offset < lhs.second.offset )
+                return false;
+            return false;
+        }
+    };
+
 
     struct comparePairByOffset{
         bool operator() (const std::pair<unsigned int, size_t >& lhs, const std::pair<unsigned int, size_t >& rhs) const{

@@ -2,13 +2,15 @@
 #define MMSEQS_KSEQWRAPPER_H
 
 #include <string>
+#include <kseq/kseq.h>
 
 class KSeqWrapper {
 public:
     struct KSeqEntry {
-        std::string name;
-        std::string comment;
-        std::string sequence;
+        kstring_t name;
+        kstring_t sequence;
+        kstring_t comment;
+        kstring_t qual;
     } entry;
 
     virtual bool ReadEntry() = 0;

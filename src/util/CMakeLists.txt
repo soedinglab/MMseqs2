@@ -19,6 +19,7 @@ set(util_source_files
         util/extractalignedregion.cpp
         util/extractdomains.cpp
         util/extractorfs.cpp
+        util/orftocontig.cpp
         util/filterdb.cpp
         util/gff2db.cpp
         util/kmermatcher.cpp

@@ -48,6 +48,7 @@ public:
     static const unsigned int ALIGNMENT_MODE_SCORE_ONLY = 1;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV = 2;
     static const unsigned int ALIGNMENT_MODE_SCORE_COV_SEQID = 3;
+    static const unsigned int ALIGNMENT_MODE_UNGAPPED = 4;
 
     // format alignment
     static const int FORMAT_ALIGNMENT_BLAST_TAB = 0;
@@ -258,6 +259,7 @@ public:
     int rescoreMode;
     bool filterHits;
     bool globalAlignment;
+    int sortResults;
 
     // result2msa
     bool allowDeletion;
@@ -312,7 +314,7 @@ public:
     // createdb
     int identifierOffset;
     bool splitSeqByLen;
-    bool clusterDB ;
+    bool shuffleDatabase;
 
     // convert2fasta
     bool useHeaderFile;
@@ -483,6 +485,7 @@ public:
     PARAMETER(PARAM_RESCORE_MODE)
     PARAMETER(PARAM_FILTER_HITS)
     PARAMETER(PARAM_GLOBAL_ALIGNMENT)
+    PARAMETER(PARAM_SORT_RESULTS)
 
     // result2msa
     PARAMETER(PARAM_ALLOW_DELETION)
@@ -560,7 +563,7 @@ public:
     PARAMETER(PARAM_USE_HEADER) // also used by extractorfs
     PARAMETER(PARAM_ID_OFFSET)  // same
     PARAMETER(PARAM_DONT_SPLIT_SEQ_BY_LEN)
-    PARAMETER(PARAM_CLUSTER_DB)
+    PARAMETER(PARAM_DONT_SHUFFLE)
 
     // convert2fasta
     PARAMETER(PARAM_USE_HEADER_FILE)
@@ -653,6 +656,7 @@ public:
     std::vector<MMseqsParameter> createtsv;
     std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorfs;
+    std::vector<MMseqsParameter> orftocontig;
     std::vector<MMseqsParameter> splitdb;
     std::vector<MMseqsParameter> indexdb;
     std::vector<MMseqsParameter> createindex;
@@ -667,6 +671,7 @@ public:
     std::vector<MMseqsParameter> assemblerworkflow;
     std::vector<MMseqsParameter> easysearchworkflow;
     std::vector<MMseqsParameter> searchworkflow;
+    std::vector<MMseqsParameter> mapworkflow;
     std::vector<MMseqsParameter> clusteringWorkflow;
     std::vector<MMseqsParameter> clusterUpdateSearch;
     std::vector<MMseqsParameter> clusterUpdateClust;

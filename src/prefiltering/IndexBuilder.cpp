@@ -117,7 +117,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
             // count similar or exact k-mers based on sequence type
             if (isProfile) {
                 // Find out if we should also mask profiles
-                totalKmerCount += indexTable->addSimilarKmerCount(&s, generator, &idxer, kmerThr, idScoreLookup);
+                totalKmerCount += indexTable->addSimilarKmerCount(&s, generator);
                 (*unmaskedLookup)->addSequence(s.int_consensus_sequence, s.L, id - dbFrom, info->sequenceOffsets[id - dbFrom]);
             } else {
                 // Do not mask if column state sequences are used
@@ -216,7 +216,7 @@ void IndexBuilder::fillDatabase(IndexTable *indexTable, SequenceLookup **maskedL
             unsigned int qKey = dbr->getDbKey(id);
             if (isProfile) {
                 s.mapSequence(id - dbFrom, qKey, dbr->getData(id));
-                indexTable->addSimilarSequence(&s, generator, &idxer, kmerThr, idScoreLookup);
+                indexTable->addSimilarSequence(&s, generator, &idxer);
             } else {
                 s.mapSequence(id - dbFrom, qKey, sequenceLookup->getSequence(id - dbFrom));
                 indexTable->addSequence(&s, &idxer, buffer, kmerThr, idScoreLookup);

@@ -32,7 +32,9 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
 
     DBReader<unsigned int> qDbr(par.db1.c_str(), par.db1Index.c_str());
     qDbr.open(DBReader<unsigned int>::NOSORT);
-
+    if(par.noPreload == false){
+        qDbr.readMmapedDataInMemory();
+    }
     DBReader<unsigned int> queryHeaderReader(par.hdr1.c_str(), par.hdr1Index.c_str());
     // NOSORT because the index should be in the same order as resultReader
     queryHeaderReader.open(DBReader<unsigned int>::NOSORT);
@@ -111,7 +113,7 @@ int result2msa(Parameters &par, const std::string &resultData, const std::string
             kept[i] = 1;
         }
 
-#pragma omp for schedule(static)
+#pragma omp  for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
             unsigned int thread_idx = 0;

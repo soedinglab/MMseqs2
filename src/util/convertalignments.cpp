@@ -1,17 +1,11 @@
-#include <string>
-#include <vector>
-#include <fstream>
-#include <FileUtil.h>
-
-#include "Alignment.h"
 #include "Util.h"
 #include "Parameters.h"
 #include "Matcher.h"
-#include "PrefilteringIndexReader.h"
-
 #include "Debug.h"
 #include "DBReader.h"
 #include "DBWriter.h"
+#include "PrefilteringIndexReader.h"
+#include "FileUtil.h"
 
 #ifdef OPENMP
 #include <omp.h>
@@ -78,28 +72,28 @@ private:
     DBReader<unsigned int> *index;
 };
 
-void printSeqBasedOnAln(std::ostream &out, const Sequence *seq, unsigned int offset, const std::string &bt, bool reverse) {
+void printSeqBasedOnAln(std::string &out, const Sequence *seq, unsigned int offset, const std::string &bt, bool reverse) {
     unsigned int seqPos = 0;
     for (uint32_t i = 0; i < bt.size(); ++i) {
         switch (bt[i]) {
             case 'M':
-                out << seq->subMat->int2aa[seq->int_sequence[offset + seqPos]];
+                out.append(1, seq->subMat->int2aa[seq->int_sequence[offset + seqPos]]);
                 seqPos++;
                 break;
             case 'I':
                 if (reverse == true) {
-                    out << '-';
+                    out.append(1, '-');
                 } else {
-                    out << seq->subMat->int2aa[seq->int_sequence[offset + seqPos]];
+                    out.append(1, seq->subMat->int2aa[seq->int_sequence[offset + seqPos]]);
                     seqPos++;
                 }
                 break;
             case 'D':
                 if (reverse == true) {
-                    out << seq->subMat->int2aa[seq->int_sequence[offset + seqPos]];
+                    out.append(1, seq->subMat->int2aa[seq->int_sequence[offset + seqPos]]);
                     seqPos++;
                 } else {
-                    out << '-';
+                    out.append(1, '-');
                 }
                 break;
         }
@@ -144,13 +138,24 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     DBReader<unsigned int> alnDbr(par.db3.c_str(), par.db3Index.c_str());
     alnDbr.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+#ifdef OPENMP
+    unsigned int totalThreads = par.threads;
+#else
+    unsigned int totalThreads = 1;
+#endif
+
+    unsigned int localThreads = totalThreads;
+    if (alnDbr.getSize() <= totalThreads) {
+        localThreads = alnDbr.getSize();
+    }
+
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), localThreads);
     resultWriter.open();
     Debug(Debug::INFO) << "Start writing file to " << par.db4 << "\n";
     bool isDb = par.dbOut;
     SubstitutionMatrix subMat(par.scoringMatrixFile.c_str(), 2.0f, -0.2f);
 
-#pragma omp parallel
+#pragma omp parallel num_threads(localThreads)
     {
         Sequence *querySeq;
         Sequence *targetSeq;
@@ -158,12 +163,22 @@ int convertalignments(int argc, const char **argv, const Command &command) {
             querySeq = new Sequence(par.maxSeqLen, queryReader->getDbtype(), &subMat, 0, false, false, false);
             targetSeq = new Sequence(par.maxSeqLen, targetReader->getDbtype(), &subMat, 0, false, false, false);
         }
-#pragma omp  for schedule(static)
-        for (size_t i = 0; i < alnDbr.getSize(); i++) {
-            unsigned int thread_idx = 0;
+
+        unsigned int thread_idx = 0;
 #ifdef OPENMP
-            thread_idx = static_cast<unsigned int>(omp_get_thread_num());
+        thread_idx = static_cast<unsigned int>(omp_get_thread_num());
 #endif
+
+        std::string result;
+        result.reserve(1024*1024);
+
+        char buffer[1024];
+        std::vector<Matcher::result_t> results;
+        results.reserve(300);
+
+#pragma omp  for schedule(dynamic, 10)
+        for (size_t i = 0; i < alnDbr.getSize(); i++) {
+            Debug::printProgress(i);
 
             unsigned int queryKey = alnDbr.getDbKey(i);
             char *data = alnDbr.getData(i);
@@ -172,11 +187,8 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 querySeq->mapSequence(i, queryKey, queryReader->getDataByDBKey(queryKey));
             }
 
-            char buffer[1024];
-            std::ostringstream ss;
-
             std::string queryId = qHeaderDbr.getId(queryKey);
-            std::vector<Matcher::result_t> results = Matcher::readAlignmentResults(data, true);
+            Matcher::readAlignmentResults(results, data, true);
             unsigned int missMatchCount;
             for (size_t j = 0; j < results.size(); j++) {
                 const Matcher::result_t &res = results[j];
@@ -185,8 +197,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 unsigned int alnLen = res.alnLength;
                 if (res.backtrace.size() > 0) {
                     size_t matchCount = 0;
-
-                    std::vector<int> vec;
                     alnLen = 0;
                     for (size_t pos = 0; pos < res.backtrace.size(); pos++) {
                         int cnt = 0;
@@ -235,7 +245,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             continue;
                         }
 
-                        ss << buffer;
+                        result.append(buffer, count);
                         break;
                     }
                     case Parameters::FORMAT_ALIGNMENT_BLAST_WITH_LEN: {
@@ -253,7 +263,7 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             continue;
                         }
 
-                        ss << buffer;
+                        result.append(buffer, count);
                         break;
                     }
                     case Parameters::FORMAT_ALIGNMENT_PAIRWISE: {
@@ -269,16 +279,16 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                             continue;
                         }
 
-                        ss << buffer;
+                        result.append(buffer, count);
 
                         const std::string &backtrace = Matcher::uncompressAlignment(res.backtrace);
-                        printSeqBasedOnAln(ss, querySeq, res.qStartPos, backtrace, false);
-                        ss << '\n';
+                        printSeqBasedOnAln(result, querySeq, res.qStartPos, backtrace, false);
+                        result.append(1, '\n');
 
                         targetSeq->mapSequence(i, res.dbKey, targetReader->getDataByDBKey(res.dbKey));
 
-                        printSeqBasedOnAln(ss, targetSeq, res.dbStartPos, backtrace, true);
-                        ss << '\n';
+                        printSeqBasedOnAln(result, targetSeq, res.dbStartPos, backtrace, true);
+                        result.append(1, '\n');
                         break;
                     }
                     case Parameters::FORMAT_ALIGNMENT_SAM:
@@ -288,12 +298,9 @@ int convertalignments(int argc, const char **argv, const Command &command) {
                 }
             }
 
-            std::string result = ss.str();
-            if (isDb == false) {
-                resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx, false);
-            } else {
-                resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx);
-            }
+            resultWriter.writeData(result.c_str(), result.size(), queryKey, thread_idx, isDb);
+            results.clear();
+            result.clear();
         }
         if (needSequenceDB) {
             delete querySeq;
@@ -302,20 +309,17 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     }
     resultWriter.close();
 
-    // remove NULL byte
-    // \n\0 -> ' '\n
-    if(isDb==false) {
+    // tsv output
+    if (isDb == false) {
         FileUtil::deleteFile(par.db4Index);
     }
     if (par.earlyExit) {
-        Debug(Debug::INFO) << "Done. Exiting early now.\n";
+        Debug(Debug::INFO) << "\nDone. Exiting early now.\n";
         _Exit(EXIT_SUCCESS);
     }
 
-    Debug(Debug::INFO) << "Done." << "\n";
-
     alnDbr.close();
-    if(sameDB == false) {
+    if (sameDB == false) {
         delete tHeaderDbr;
     }
 

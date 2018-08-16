@@ -7,6 +7,7 @@
 #include "Sequence.h"
 #include "Parameters.h"
 #include <sys/resource.h>
+#include "itoa.h"
 
 #include <unistd.h>
 #ifdef __APPLE__
@@ -69,41 +70,51 @@ std::map<std::string, size_t> Util::readMapping(const char *fastaFile) {
 
 
 template <typename T>
-void Util::decomposeDomainByAminoAcid(size_t aaSize, T seqSizes, size_t count,
-                                      size_t worldRank, size_t worldSize, size_t *start, size_t *size){
-    if (worldSize > aaSize) {
-        // Assume the domain size is greater than the world size.
-        Debug(Debug::ERROR) << "World Size: " << worldSize << " aaSize: " << aaSize << "\n";
+void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntries,
+                                      size_t worldRank, size_t worldSize, size_t *startEntry, size_t *numEntries){
+    if (worldSize > dbSize) {
+        // Assume the domain numEntries is greater than the world numEntries.
+        Debug(Debug::ERROR) << "World Size: " << worldSize << " dbSize: " << dbSize << "\n";
         EXIT(EXIT_FAILURE);
     }
+
     if (worldSize == 1) {
-        *start = 0;
-        *size = count;
+        *startEntry = 0;
+        *numEntries = dbEntries;
         return;
     }
 
-    size_t aaPerSplit =  aaSize / worldSize;
-    size_t currentRank = 0;
-    size_t currentSize = 0;
-    *start = 0;
-    *size = 0;
-    for(size_t i = 0; i < count; i++ ){
-        if(currentSize > aaPerSplit){
-            currentSize = 0;
-            currentRank++;
-            if (currentRank > worldRank) {
-                *size = (i) - *start;
-                break;
-            } else if (currentRank == worldRank) {
-                *start = i;
-                *size = count - *start;
-                if (worldRank == worldSize - 1) {
-                    break;
-                }
-            }
-        }
-        currentSize += seqSizes[i];
+    if (dbEntries <= worldSize) {
+        *startEntry = worldRank < dbEntries ? worldRank : 0;
+        *numEntries = worldRank < dbEntries ? 1 : 0;
+        return;
     }
+
+    size_t chunkSize = dbSize / worldSize;
+
+    size_t *entriesPerWorker = new size_t[worldSize]; 
+    memset(entriesPerWorker, 0, worldSize);
+
+    size_t currentRank = 0;
+    size_t sumCharsAssignedToCurrRank = 0;
+    for (size_t i = 0; i < dbEntries; ++i) {
+        if (sumCharsAssignedToCurrRank > chunkSize) {
+            sumCharsAssignedToCurrRank = 0;
+            currentRank++;
+        }
+        sumCharsAssignedToCurrRank += entrySizes[i];
+        entriesPerWorker[currentRank] += 1;
+    }
+
+    *startEntry = 0;
+    *numEntries = entriesPerWorker[worldRank];
+    if (worldRank > 0) {
+        for (size_t j = 0; j < (worldRank - 1); ++j) {
+            *startEntry += entriesPerWorker[j];
+        }
+    }
+
+    delete[] entriesPerWorker;
 }
 
 template
@@ -506,4 +517,69 @@ float Util::computeSeqId(int seqIdMode, int aaIds, int qLen, int tLen, int alnLe
     return 0.0;
 }
 
+template<> std::string SSTR(char x) { return std::string(1, x); }
+template<> std::string SSTR(const std::string &x) { return x; }
+template<> std::string SSTR(const char* x) { return x; }
+template<> std::string SSTR(std::string x) { return x; }
 
+template<>
+std::string SSTR(short x) {
+    return SSTR(static_cast<int>(x));
+}
+
+template<>
+std::string SSTR(unsigned short x) {
+    return SSTR(static_cast<unsigned int>(x));
+}
+
+template<>
+std::string SSTR(int x) {
+    char buffer[32];
+    char *end = Itoa::i32toa_sse2(x, buffer);
+    return std::string(buffer, end - buffer - 1);
+}
+
+template<>
+std::string SSTR(unsigned int x) {
+    char buffer[32];
+    char *end = Itoa::u32toa_sse2(x, buffer);
+    return std::string(buffer, end - buffer - 1);
+}
+
+template<>
+std::string SSTR(long x) {
+    return SSTR(static_cast<long long>(x));
+}
+
+template<>
+std::string SSTR(unsigned long x) {
+    return SSTR(static_cast<unsigned long long>(x));
+}
+
+template<>
+std::string SSTR(long long x) {
+    char buffer[32];
+    char *end = Itoa::i64toa_sse2(x, buffer);
+    return std::string(buffer, end - buffer - 1);
+}
+
+template<>
+std::string SSTR(unsigned long long x) {
+    char buffer[32];
+    char *end = Itoa::u64toa_sse2(x, buffer);
+    return std::string(buffer, end - buffer - 1);
+}
+
+template<>
+std::string SSTR(double x) {
+    char buffer[32];
+    int n = sprintf(buffer, "%.3E", x);
+    return std::string(buffer, n);
+}
+
+template<>
+std::string SSTR(float x) {
+    char buffer[32];
+    int n = sprintf(buffer, "%.3E", x);
+    return std::string(buffer, n);
+}

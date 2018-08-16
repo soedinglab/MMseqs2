@@ -5,12 +5,8 @@
 #include "CommandCaller.h"
 #include "taxonomy.sh.h"
 
-void setTaxonomyWorkflowDefaults(Parameters *p) {
-}
-
 int taxonomy(int argc, const char **argv, const Command& command) {
     Parameters& par = Parameters::getInstance();
-    setTaxonomyWorkflowDefaults(&par);
     par.parseParameters(argc, argv, command, 6);
 
     if(FileUtil::directoryExists(par.db6.c_str())==false){
@@ -22,7 +18,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
             Debug(Debug::INFO) << "Created dir " << par.db6 << "\n";
         }
     }
-    size_t hash = par.hashParameter(par.filenames, par.clusterUpdate);
+    size_t hash = par.hashParameter(par.filenames, par.taxonomy);
     std::string tmpDir = par.db6+"/"+SSTR(hash);
     if(FileUtil::directoryExists(tmpDir.c_str())==false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
@@ -35,9 +31,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    if(par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     cmd.addVariable("RUNNER", par.runner.c_str());
 
     int alignmentMode = par.alignmentMode;

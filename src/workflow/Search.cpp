@@ -62,6 +62,13 @@ int search(int argc, const char **argv, const Command& command) {
     const bool isTranslatedNuclSearch =
                (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
 
+    const bool isUngappedMode = par.alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED;
+    if (isUngappedMode && (queryDbType == Sequence::HMM_PROFILE || targetDbType == Sequence::HMM_PROFILE)) {
+        par.printUsageMessage(command, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
+        Debug(Debug::ERROR) << "Cannot use ungapped alignment mode with profile databases.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     // validate and set parameters for iterative search
     if (par.numIterations > 1) {
         if (targetDbType == Sequence::HMM_PROFILE) {
@@ -105,24 +112,27 @@ int search(int argc, const char **argv, const Command& command) {
     par.filenames.push_back(tmpDir);
     FileUtil::symlinkAlias(tmpDir, "latest");
 
+    const int originalRescoreMode = par.rescoreMode;
+
     CommandCaller cmd;
-    if (par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
+    cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
     std::string program;
     cmd.addVariable("RUNNER", par.runner.c_str());
-    if(targetDbType == Sequence::PROFILE_STATE_SEQ){
-        cmd.addVariable("ALIGNMENT_DB_EXT", ".255");
-    }else{
-        cmd.addVariable("ALIGNMENT_DB_EXT", "");
-    }
+    cmd.addVariable("ALIGNMENT_DB_EXT", targetDbType == Sequence::PROFILE_STATE_SEQ ? ".255" : "");
 
     if (targetDbType == Sequence::HMM_PROFILE) {
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(par.prefilter).c_str());
         // we need to align all hits in case of target Profile hits
         size_t maxResListLen = par.maxResListLen;
         par.maxResListLen = INT_MAX;
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        if (isUngappedMode) {
+            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
+            par.rescoreMode = originalRescoreMode;
+        } else {
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        }
         par.maxResListLen = maxResListLen;
         cmd.addVariable("SWAP_PAR", par.createParameterString(par.swapresult).c_str());
         FileUtil::writeFile(tmpDir + "/searchtargetprofile.sh", searchtargetprofile_sh, searchtargetprofile_sh_len);
@@ -154,11 +164,16 @@ int search(int argc, const char **argv, const Command& command) {
             }
 
             cmd.addVariable(std::string("PREFILTER_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.prefilter).c_str());
-            cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.align).c_str());
+            if (isUngappedMode) {
+                par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+                cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.rescorediagonal).c_str());
+                par.rescoreMode = originalRescoreMode;
+            } else {
+                cmd.addVariable(std::string("ALIGNMENT_PAR_" + SSTR(i)).c_str(), par.createParameterString(par.align).c_str());
+            }
             par.pca = 0.0;
             cmd.addVariable(std::string("PROFILE_PAR_" + SSTR(i)).c_str(),   par.createParameterString(par.result2profile).c_str());
             par.pca = 1.0;
-
         }
 
         FileUtil::writeFile(tmpDir + "/blastpgp.sh", blastpgp_sh, blastpgp_sh_len);
@@ -195,19 +210,21 @@ int search(int argc, const char **argv, const Command& command) {
             }
         }
         cmd.addVariable("PREFILTER_PAR", par.createParameterString(prefilterWithoutS).c_str());
-        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        if (isUngappedMode) {
+            par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
+            par.rescoreMode = originalRescoreMode;
+        } else {
+            cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+        }
         FileUtil::writeFile(tmpDir + "/blastp.sh", blastp_sh, blastp_sh_len);
         program = std::string(tmpDir + "/blastp.sh");
     }
 
     if (isTranslatedNuclSearch==true){
         FileUtil::writeFile(tmpDir + "/translated_search.sh", translated_search_sh, translated_search_sh_len);
-        if (queryDbType == Sequence::NUCLEOTIDES) {
-            cmd.addVariable("QUERY_NUCL", "TRUE");
-        }
-        if (targetDbType == Sequence::NUCLEOTIDES) {
-            cmd.addVariable("TARGET_NUCL", "TRUE");
-        }
+        cmd.addVariable("QUERY_NUCL", queryDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
+        cmd.addVariable("TARGET_NUCL", targetDbType == Sequence::NUCLEOTIDES ? "TRUE" : NULL);
         cmd.addVariable("ORF_PAR", par.createParameterString(par.extractorfs).c_str());
         cmd.addVariable("TRANSLATE_PAR", par.createParameterString(par.translatenucs).c_str());
         cmd.addVariable("SEARCH", program.c_str());

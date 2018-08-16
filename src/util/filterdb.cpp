@@ -166,7 +166,7 @@ int ffindexFilter::runFilter(){
 		char **columnPointer = new char*[column + 1];
 		std::string buffer = "";
 		buffer.reserve(LINE_BUFFER_SIZE);
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
 		for (size_t id = 0; id < dataDb->getSize(); id++) {
 
 			Debug::printProgress(id);

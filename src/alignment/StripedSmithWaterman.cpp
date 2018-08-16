@@ -741,7 +741,6 @@ void SmithWaterman::ssw_init (const Sequence* q,
 			}
 		}
 		bias = abs(bias) + abs(compositionBias);
-
 		profile->bias = bias;
 		if(q->getSequenceType() == Sequence::HMM_PROFILE || q->getSequenceType() == Sequence::PROFILE_STATE_PROFILE){
 			createQueryProfile<int8_t, VECSIZE_INT * 4, PROFILE>(profile->profile_byte, profile->query_sequence, NULL, profile->mat, q->L, alphabetSize, bias, 1, q->L);
@@ -755,7 +754,8 @@ void SmithWaterman::ssw_init (const Sequence* q,
 			for(int32_t i = 0; i< alphabetSize; i++) {
 				profile->profile_word_linear[i] = &profile_word_linear_data[i*q->L];
 				for (int j = 0; j < q->L; j++) {
-					profile->profile_word_linear[i][j] = mat[i * q->L + q->int_sequence[j]];
+					//TODO is this right? :O
+					profile->profile_word_linear[i][j] = mat[i * q->L + j];
 				}
 			}
 		}else{

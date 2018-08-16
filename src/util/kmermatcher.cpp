@@ -22,6 +22,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <queue>
+#include <sys/mman.h>
 
 #ifdef OPENMP
 #include <omp.h>
@@ -169,7 +170,6 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
             return false;
         }
     };
-
 #pragma omp parallel
     {
         Sequence seq(par.maxSeqLen, querySeqType, subMat, KMER_SIZE, false, false);
@@ -179,7 +179,11 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
         size_t bufferPos = 0;
         KmerPosition * threadKmerBuffer = new KmerPosition[BUFFER_SIZE];
         SequencePosition * kmers = new SequencePosition[par.maxSeqLen+1];
-
+        int highestSeq[32];
+        for(size_t i = 0; i<KMER_SIZE;i++){
+            highestSeq[i]=subMat->alphabetSize-1;
+        }
+        size_t highestPossibleIndex = idxer.int2index(highestSeq);
         const size_t flushSize = 100000000;
         size_t iterations = static_cast<size_t>(ceil(static_cast<double>(seqDbr.getSize()) / static_cast<double>(flushSize)));
         for (size_t i = 0; i < iterations; i++) {
@@ -190,6 +194,7 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
             for (size_t id = start; id < (start + bucketSize); id++) {
                 Debug::printProgress(id);
                 seq.mapSequence(id, id, seqDbr.getData(id));
+                size_t seqHash = highestPossibleIndex + static_cast<unsigned int>(Util::hash(seq.int_sequence, seq.L));
 
                 // mask using tantan
                 if (par.maskMode == 1) {
@@ -240,12 +245,12 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                 if (seqKmerCount > 1) {
                     std::stable_sort(kmers, kmers + seqKmerCount, SequencePosition::compareByScore);
                 }
-                size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer), seqKmerCount);
+                size_t kmerConsidered = std::min(static_cast<int>(chooseTopKmer - 1), seqKmerCount);
                 if(par.skipNRepeatKmer > 0 ){
                     size_t prevKmer = SIZE_T_MAX;
                     kmers[seqKmerCount].kmer=SIZE_T_MAX;
-                    size_t repeatKmerCnt = 0;
-                    for (size_t topKmer = 0; topKmer < seqKmerCount; topKmer++) {
+                    int repeatKmerCnt = 0;
+                    for (int topKmer = 0; topKmer < seqKmerCount; topKmer++) {
                         repeatKmerCnt += (
                                 (kmers + topKmer)->kmer == (kmers + topKmer + 1)->kmer ||
                                 (kmers + topKmer)->kmer == prevKmer);
@@ -253,6 +258,20 @@ size_t fillKmerPositionArray(KmerPosition * hashSeqPair, DBReader<unsigned int> 
                     }
                     if(repeatKmerCnt >= par.skipNRepeatKmer){
                         kmerConsidered = 0;
+                    }
+                }
+
+                // add k-mer to represent the identity
+                if (seqHash%splits == split) {
+                    threadKmerBuffer[bufferPos].kmer = seqHash;
+                    threadKmerBuffer[bufferPos].id = seqId;
+                    threadKmerBuffer[bufferPos].pos = 0;
+                    threadKmerBuffer[bufferPos].seqLen = seq.L;
+                    bufferPos++;
+                    if (bufferPos >= BUFFER_SIZE) {
+                        size_t writeOffset = __sync_fetch_and_add(&offset, bufferPos);
+                        memcpy(hashSeqPair + writeOffset, threadKmerBuffer, sizeof(KmerPosition) * bufferPos);
+                        bufferPos = 0;
                     }
                 }
                 for (size_t topKmer = 0; topKmer < kmerConsidered; topKmer++) {
@@ -427,7 +446,7 @@ int kmermatcher(int argc, const char **argv, const Command &command) {
 //                            hashSeqPair[writePos].id = hashSeqPair[i].id;
 //                            writePos++;
 
-                            bool canBeExtended =  diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
+                            bool canBeExtended = diagonal < 0 || (diagonal > (queryLen - hashSeqPair[i].seqLen));
                             if(par.includeOnlyExtendable == false || (canBeExtended && par.includeOnlyExtendable ==true )){
                                 hashSeqPair[writePos].kmer = rId;
                                 hashSeqPair[writePos].pos = diagonal;

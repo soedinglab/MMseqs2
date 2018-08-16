@@ -126,7 +126,7 @@ int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * 
         float s = 0.0;
 
         // Store the probabilities
-        for (size_t k = 0 ; k < nalph ; k++)
+        for (int k = 0 ; k < nalph ; k++)
         {
             float score = std::strtod(pos, NULL);
             float prob = MathUtil::fpow2(-score/kScale);
@@ -144,7 +144,7 @@ int ProfileStates::readProfile(std::stringstream &in, float * profile,  float * 
         }
 
         float norm = sqrt(ScalarProd20(profile,profile));
-        for (size_t k = 0 ; k < nalph ; k++)
+        for (int k = 0 ; k < nalph ; k++)
         {
             normalizedProfile[k] = profile[k] / norm;
         }
@@ -303,7 +303,7 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
         profileCol = (float *)sequence + i*Sequence::PROFILE_AA_SIZE;
 
         float maxScore = -FLT_MIN;
-        size_t maxScoreIndex = 0;
+//        size_t maxScoreIndex = 0;
 	
 	/*for (size_t a = 0 ; a < 20 ; a++)
         {
@@ -317,7 +317,7 @@ void ProfileStates::discretize(const float* sequence, size_t length, std::string
             if (repScore[k]>maxScore)
             {
                 maxScore = repScore[k];
-                maxScoreIndex = k;
+//                maxScoreIndex = k;
             }
         }
 

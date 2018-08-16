@@ -12,7 +12,6 @@
 #include <omp.h>
 #endif
 
-
 void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std::string> cluSteps, int threads){
     // open the sequence database
     // it will serve as the reference for sequence indexes

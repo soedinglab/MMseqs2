@@ -53,8 +53,7 @@ void MultipleAlignment::print(MSAResult msaResult, SubstitutionMatrix * subMat){
     }
 }
 
-std::vector<Matcher::result_t> MultipleAlignment::computeBacktrace(Sequence *centerSeq, std::vector<Sequence *> seqs,
-                                                                   size_t dbSetSize) {
+std::vector<Matcher::result_t> MultipleAlignment::computeBacktrace(Sequence *centerSeq, std::vector<Sequence*> seqs) {
     std::vector<Matcher::result_t> btSequences;
     // init query with center star sequence
     aligner->initQuery(centerSeq);
@@ -219,7 +218,7 @@ MultipleAlignment::MSAResult MultipleAlignment::computeMSA(Sequence *centerSeq, 
     for(size_t i = 0; i < edgeSeqs.size(); i++) {
         dbSetSize += edgeSeqs[i]->L;
     }
-    std::vector<Matcher::result_t> alignmentResults = computeBacktrace(centerSeq, edgeSeqs, dbSetSize);
+    std::vector<Matcher::result_t> alignmentResults = computeBacktrace(centerSeq, edgeSeqs);
     return computeMSA(centerSeq, edgeSeqs, alignmentResults, noDeletionMSA);
 }
 

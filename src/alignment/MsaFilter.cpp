@@ -116,21 +116,19 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
     }
 
     std::pair<int, int> * tmpSort = new std::pair<int, int>[N_in];
-    // Sort sequences according to length; afterwards, nres[ksort[kk]] is sorted by size
-    for (k = 0; k < N_in; ++k){
+    // create sorted index according to length (needed for the pairwise seq. id. comparision); afterwards, nres[ksort[kk]] is sorted by size
+    for (k = 0; k < N_in; ++k) {
         tmpSort[k].first = nres[k];
         tmpSort[k].second = k;
-        //[k] = k;
     }
     //Sort sequences after query (first sequence) in descending order
     struct sortPairDesc {
         bool operator()(const std::pair<int,int> &left, const std::pair<int,int> &right) {
-            return left.second > right.second;
+            return left.first > right.first;
         }
     };
     std::stable_sort(tmpSort + 1, tmpSort + N_in, sortPairDesc());
     for (k = 0; k < N_in; ++k) {
-        nres[k]= tmpSort[k].first ;
         ksort[k] =  tmpSort[k].second;
     }
     delete [] tmpSort;
@@ -241,15 +239,17 @@ void MsaFilter::filter(const int N_in, const int L, const int coverage, const in
             }
         }
         if (keep[k] == 1) {
-            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
-            << ": " << __func__ << ":" << "\n";
-            Debug(Debug::WARNING)
-            << "\tFiltering removed all sequences in alignment. Inserting back first sequence.\n";
+//            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
+//            << ": " << __func__ << ":" << "\n";
+//            Debug(Debug::WARNING)
+//            << "\tFiltering removed all sequences in alignment. Inserting back first sequence.\n";
+            ;
         } else if (display[kfirst] == 2) {  // the only sequence in the alignment is the consensus sequence :-(
-            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
-            << ": " << __func__ << ":" << "\n";
-            Debug(Debug::WARNING)
-            << "\tAlignment contains no sequence except consensus sequence. Using consensus sequence for searching.\n";
+//            Debug(Debug::WARNING) << "Warning in " << __FILE__ << ":" << __LINE__
+//            << ": " << __func__ << ":" << "\n";
+//            Debug(Debug::WARNING)
+//            << "\tAlignment contains no sequence except consensus sequence. Using consensus sequence for searching.\n";
+            ;
         } else {
             Debug(Debug::WARNING) << "The alingment %s does not contain any sequences.\n";
         }
@@ -456,8 +456,7 @@ void MsaFilter::shuffleSequences(const char ** X, size_t setSize) {
     for (size_t i = 0, j = 0; j < setSize; j++) {
         if (keep[j] != 0) {
             if (i < j) {
-                const char* temp;
-                temp = X[i];
+                const char* temp = X[i];
                 X[i] = X[j];
                 X[j] = temp;
             }
@@ -502,11 +501,11 @@ void MsaFilter::pruneAlignment(char ** msaSequence, int N_in, int L) {
         int i2 = L;
 
         if( bleft > -9){
-            i1 = prune(0,     L, bleft, msaSequence[0], msaSequence[seqIdx], L);
+            i1 = prune(0,     L, bleft,  msaSequence[0], msaSequence[seqIdx]);
         }
         if (bright > -9)
         {
-            i2 = prune(L - 1, 0, bright, msaSequence[0], msaSequence[seqIdx], L);
+            i2 = prune(L - 1, 0, bright, msaSequence[0], msaSequence[seqIdx]);
         }
         if(i1 > 0){
             for (int i = 0; i <= i1; i++) {
@@ -523,7 +522,7 @@ void MsaFilter::pruneAlignment(char ** msaSequence, int N_in, int L) {
 }
 
 
-int MsaFilter::prune(int start, int end, float b, char * query, char *target, int L) {
+int MsaFilter::prune(int start, int end, float b, char * query, char *target) {
     float smin  = 0.0;
     float score = 0.0;
     bool gap = false;

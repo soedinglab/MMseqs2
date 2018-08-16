@@ -56,15 +56,16 @@ int easycluster(int argc, const char **argv, const Command &command) {
     FileUtil::symlinkAlias(tmpDir, "latest");
 
     CommandCaller cmd;
-    if (par.removeTmpFiles) {
-        cmd.addVariable("REMOVE_TMP", "TRUE");
-    }
+    cmd.addVariable("REMOVE_TMP", par.removeTmpFiles ? "TRUE" : NULL);
 
     cmd.addVariable("RUNNER", par.runner.c_str());
     std::string createdbParam = par.createParameterString(par.createdb);
     cmd.addVariable("CREATEDB_PAR", createdbParam.c_str());
     std::string clusterParam = par.createParameterString(par.clusteringWorkflow, true);
     cmd.addVariable("CLUSTER_PAR", clusterParam.c_str());
+
+    cmd.addVariable("THREADS_PAR", par.createParameterString(par.onlythreads).c_str());
+    cmd.addVariable("VERBOSITY_PAR", par.createParameterString(par.onlyverbosity).c_str());
 
     FileUtil::writeFile(tmpDir + "/easycluster.sh", easycluster_sh, easycluster_sh_len);
     std::string program(tmpDir + "/easycluster.sh");

@@ -159,7 +159,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
         thread_idx = (unsigned int) omp_get_thread_num();
 #endif
 
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
 
@@ -293,7 +293,7 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
                 }
                 // write query, consensus sequence and neffM
                 result.push_back(static_cast<unsigned char>(centerSequence.int_sequence[pos]));
-                result.push_back(static_cast<unsigned char>(subMat.aa2int[pssmRes.consensus[pos]]));
+                result.push_back(static_cast<unsigned char>(subMat.aa2int[static_cast<int>(pssmRes.consensus[pos])]));
                 unsigned char neff = MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
                 result.push_back(neff);
             }

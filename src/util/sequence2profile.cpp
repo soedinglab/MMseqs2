@@ -29,7 +29,7 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
         Sequence seq(par.maxSeqLen, Sequence::AMINO_ACIDS, &subMat, 0, false, false);
         CSProfile ps(par.maxSeqLen);
         char * data = new char[par.maxSeqLen * Sequence::PROFILE_READIN_SIZE];
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < sequenceDb.getSize(); id++) {
             Debug::printProgress(id);
             int thread_idx = 0;
@@ -41,9 +41,8 @@ int sequence2profile(int argc, const char **argv, const Command& command) {
             seq.mapSequence(id, queryKey, seqData);
             float * prob =  ps.computeProfile(&seq, par.neff, par.tau);
 
-            size_t dataSize = seq.L * Sequence::PROFILE_READIN_SIZE * sizeof(char);
             size_t idx = 0;
-            for (size_t i = 0; i < seq.L; i++) {
+            for (int i = 0; i < seq.L; i++) {
                 for (size_t aa = 0; aa < Sequence::PROFILE_AA_SIZE;aa++)
                 {
                     data[idx++] = Sequence::scoreMask(prob[i*Sequence::PROFILE_READIN_SIZE + aa]);

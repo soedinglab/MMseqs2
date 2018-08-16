@@ -102,11 +102,6 @@ void FileUtil::writeFile(const std::string &pathToFile, const unsigned char *dat
         EXIT(EXIT_FAILURE);
     }
 
-    if (fsync(fd) != 0) {
-        Debug(Debug::ERROR) << "Error syncing file " << pathToFile << "!\n";
-        EXIT(EXIT_FAILURE);
-    }
-
     if (close(fd) != 0) {
         Debug(Debug::ERROR) << "Error closing file " << pathToFile << "!\n";
         EXIT(EXIT_FAILURE);

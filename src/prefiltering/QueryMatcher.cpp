@@ -143,7 +143,7 @@ std::pair<hit_t *, size_t> QueryMatcher::matchQuery (Sequence * querySeq, unsign
     std::pair<hit_t *, size_t > queryResult;
     if(diagonalScoring == true) {
         // write diagonal scores in count value
-        ungappedAlignment->processQuery(querySeq, compositionBias, foundDiagonals, resultSize, 0);
+        ungappedAlignment->processQuery(querySeq, compositionBias, foundDiagonals, resultSize);
         memset(scoreSizes, 0, SCORE_RANGE * sizeof(unsigned int));
 
 
@@ -393,7 +393,7 @@ std::pair<hit_t *, size_t>  QueryMatcher::getResult(CounterResult * results,
                     newScore += (scoreCurr*rescaleScore / 255);
                     result->prefScore = newScore;
                     evalue = -evaluer.computeLogEvalue(newScore, queryLen);
-                } else if (scoreCurr >= (UCHAR_MAX - align->getQueryBias())) {
+                } else if (static_cast<int>(scoreCurr) >= (UCHAR_MAX - align->getQueryBias())) {
                     unsigned int newScore = align->scoreSingelSequenceByCounterResult(results[i]);
                     result->prefScore = newScore;
                     evalue = -evaluer.computeLogEvalue(newScore, queryLen);
@@ -503,11 +503,13 @@ size_t QueryMatcher::radixSortByScoreSize(const unsigned int * scoreSizes,
 std::pair<size_t, unsigned int> QueryMatcher::rescoreHits(Sequence * querySeq, unsigned int * scoreSizes,CounterResult *results, int resultSize,
                                UngappedAlignment *align, int lowerBoundScore) {
     size_t elements = 0;
-    unsigned char query[querySeq->L];
+    unsigned char * query = new unsigned char[querySeq->L];
     for(int pos = 0; pos < querySeq->L; pos++ ){
         query[pos] = static_cast<unsigned char>(querySeq->int_sequence[pos]);
     }
     int maxSelfScore = align->scoreSingleSequence(std::make_pair(static_cast<const unsigned char*>(query),querySeq->L), 0,0);
+    delete [] query;
+
     maxSelfScore = std::min(maxSelfScore, USHRT_MAX);
     maxSelfScore = (maxSelfScore-lowerBoundScore);
     maxSelfScore = std::max(1, maxSelfScore);

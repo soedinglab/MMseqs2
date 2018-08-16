@@ -66,6 +66,7 @@ int ContextLibrary::read(std::string &libStr){
                             << libSize << " profiles but actually has " << k << "!\n";
         EXIT(EXIT_FAILURE);
     }
+    return 0;
 }
 
 void ContextLibrary::readContextProfile(std::stringstream &in, LibraryReader &reader,
@@ -363,7 +364,7 @@ float * CSProfile::computeProfile(Sequence * seq, float neff, float pTau){
         // set neff
         profile[i*Sequence::PROFILE_READIN_SIZE + Sequence::PROFILE_AA_SIZE] = neff;
     }
-    for (size_t i = 0; i < seq->L; ++i) {
+    for (int i = 0; i < seq->L; ++i) {
         MathUtil::NormalizeTo1(&profile[i*Sequence::PROFILE_READIN_SIZE], Sequence::PROFILE_AA_SIZE);
     }
     return profile;

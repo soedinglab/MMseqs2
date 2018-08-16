@@ -47,7 +47,7 @@ while [ "$STEP" -lt "$STEPS" ]; do
     eval TMP="\$$PARAM"
     if notExists "${TMP_PATH}/aln_step$STEP"; then
          # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" align "$INPUT" "$INPUT" "${TMP_PATH}/pref_step$STEP" "${TMP_PATH}/aln_step$STEP" ${TMP} \
+        $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$INPUT" "${TMP_PATH}/pref_step$STEP" "${TMP_PATH}/aln_step$STEP" ${TMP} \
             || fail "Alignment step $STEP died"
     fi
     PARAM=CLUSTER${STEP}_PAR

@@ -23,7 +23,7 @@ int result2repseq(const Parameters &par, DBReader<unsigned int> &resultReader,
     resultWriter.open();
 
     Debug(Debug::INFO) << "Start computing representative sequences.\n";
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(dynamic, 100)
     for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
         Debug::printProgress(id);
         unsigned int thread_idx = 0;

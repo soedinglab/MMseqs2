@@ -7,7 +7,7 @@
 
 extern std::vector<struct Command> commands;
 
-int shellcompletion(int argc, const char** argv, const Command& command) {
+int shellcompletion(int argc, const char** argv, const Command&) {
     // mmseqs programs
     if(argc == 0) {
         for (size_t i = 0; i < commands.size(); i++) {

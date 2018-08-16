@@ -65,7 +65,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
         std::string result;
         result.reserve(par.maxSeqLen * Sequence::PROFILE_READIN_SIZE * sizeof(char));
 
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
         for (size_t id = dbFrom; id < (dbFrom + dbSize); id++) {
             Debug::printProgress(id);
             unsigned int thread_idx = 0;
@@ -93,7 +93,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
             */
 
             float maxNeffQ = 0;
-            for (size_t pos = 0; pos<queryProfile.L;pos++)
+            for (int pos = 0; pos<queryProfile.L; pos++)
             {
                 maxNeffQ = std::max(maxNeffQ,queryProfile.neffM[pos]);
                 neffM[pos] = queryProfile.neffM[pos];
@@ -128,7 +128,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                     size_t aliLength = 0;
                     float avgEntropy = 0.0f;
                     float maxNeffT = 0;
-                    for (size_t pos = 0; pos<targetProfile.L;pos++)
+                    for (int pos = 0; pos<targetProfile.L; pos++)
                     {
                         maxNeffT = std::max(maxNeffT,targetProfile.neffM[pos]);
                     } 
@@ -138,8 +138,8 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                         char letter = res.backtrace[btPos];
 //                        std::cout << letter;
 
-                        float qNeff = queryProfile.neffM[qPos];
-                        float tNeff = targetProfile.neffM[tPos];
+//                        float qNeff = queryProfile.neffM[qPos];
+//                        float tNeff = targetProfile.neffM[tPos];
                         
                         for(size_t aa_num = 0; aa_num < Sequence::PROFILE_AA_SIZE; aa_num++) {
                             //TODO do all alignment states contribute?
@@ -185,8 +185,8 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                     for(size_t btPos = 0; btPos < res.backtrace.size(); btPos++){
                         char letter = res.backtrace[btPos];
 
-                        float qNeff = queryProfile.neffM[qPos];
-                        float tNeff = targetProfile.neffM[tPos];
+//                        float qNeff = queryProfile.neffM[qPos];
+//                        float tNeff = targetProfile.neffM[tPos];
                         
                         neffM[qPos] = computeNeff(queryProfile.neffM[qPos], maxNeffQ, targetProfile.neffM[tPos],maxNeffT,avgNewNeff);
                         
@@ -227,7 +227,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
                 //}
             }
                     */
-            size_t pos = 0;
+//            size_t pos = 0;
             std::string consensus(queryProfile.L,'X');
             result.clear();
             for(int l = 0; l < queryProfile.L; l++) {
@@ -257,7 +257,7 @@ int computeProfileProfile(Parameters &par,const std::string &outpath,
     }
 
     // cleanup
-    resultWriter.close();
+    resultWriter.close(Sequence::HMM_PROFILE);
 
     resultReader->close();
     delete resultReader;

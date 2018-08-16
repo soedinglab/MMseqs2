@@ -29,6 +29,11 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
 
 
     unsigned int alignmentMode = par.alignmentMode;
+    if (alignmentMode == Parameters::ALIGNMENT_MODE_UNGAPPED) {
+        Debug(Debug::ERROR) << "Use rescorediagonal for ungapped alignment mode.\n";
+        EXIT(EXIT_FAILURE);
+    }
+
     if (addBacktrace == true) {
         alignmentMode = Parameters::ALIGNMENT_MODE_SCORE_COV_SEQID;
     }
@@ -158,7 +163,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         gapExtend = 1;
     } else if (querySeqType == Sequence::PROFILE_STATE_PROFILE){
         SubstitutionMatrix s(par.scoringMatrixFile.c_str(), 2.0, scoreBias);
-        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, s.subMatrix, 2.0, scoreBias, par.maxSeqLen, 255);
+        this->m = new SubstitutionMatrixProfileStates(s.matrixName, s.probMatrix, s.pBack, s.subMatrixPseudoCounts, 2.0, scoreBias, 255);
         gapOpen = Matcher::GAP_OPEN;
         gapExtend = Matcher::GAP_EXTEND;
     } else {
@@ -367,7 +372,7 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                     data = Util::skipLine(data);
                 }
                 if(altAlignment> 0){
-                    int xIndex = m->aa2int['X'];
+                    int xIndex = m->aa2int[static_cast<int>('X')];
                     size_t firstItResSize = swResults.size();
                     for(size_t i = 0; i < firstItResSize; i++) {
                         const bool isIdentity = (queryDbKey == swResults[i].dbKey && (includeIdentity || sameQTDB))

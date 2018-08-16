@@ -121,7 +121,7 @@ template <typename T> bool DBReader<T>::open(int accessType){
 }
 
 template<typename T>
-void DBReader<T>::sortIndex(bool isSortedById) {
+void DBReader<T>::sortIndex(bool) {
 }
 
 template<>
@@ -234,6 +234,28 @@ void DBReader<unsigned int>::sortIndex(bool isSortedById) {
             sortForMapping[i] = std::make_pair(i, index[i].offset);
         }
         omptl::sort(sortForMapping, sortForMapping + size, comparePairByOffset());
+        for (size_t i = 0; i < size; i++) {
+            id2local[sortForMapping[i].first] = i;
+            local2id[i] = sortForMapping[i].first;
+        }
+        delete[] sortForMapping;
+        unsigned int *tmpSizeArray = new unsigned int[size];
+        memcpy(tmpSizeArray, seqLens, size * sizeof(unsigned int));
+        for (size_t i = 0; i < size; i++) {
+            seqLens[i] = tmpSizeArray[local2id[i]];
+        }
+        delete[] tmpSizeArray;
+    } else if (accessType == SORT_BY_ID_OFFSET) {
+        // sort the entries by the offset of the sequences
+        std::pair<unsigned int, Index> *sortForMapping = new std::pair<unsigned int, Index>[size];
+        id2local = new unsigned int[size];
+        local2id = new unsigned int[size];
+        for (size_t i = 0; i < size; i++) {
+            id2local[i] = i;
+            local2id[i] = i;
+            sortForMapping[i] = std::make_pair(i, index[i]);
+        }
+        omptl::sort(sortForMapping, sortForMapping + size, comparePairByIdAndOffset());
         for (size_t i = 0; i < size; i++) {
             id2local[sortForMapping[i].first] = i;
             local2id[i] = sortForMapping[i].first;
@@ -483,12 +505,12 @@ template<typename T> T DBReader<T>::getLastKey() {
 }
 
 template<>
-void DBReader<std::string>::readIndexId(std::string* id, char * line, char** cols){
+void DBReader<std::string>::readIndexId(std::string* id, char* line, char** cols){
     ptrdiff_t keySize =  ((cols[1] - 1) - line) ;
     id->assign(line, keySize);
 }
 template<>
-void DBReader<unsigned int>::readIndexId(unsigned int* id, char * line, char** cols) {
+void DBReader<unsigned int>::readIndexId(unsigned int* id, char*, char** cols) {
     *id = Util::fast_atoi<unsigned int>(cols[0]);
 }
 
@@ -518,8 +540,13 @@ template <typename T>  size_t DBReader<T>::getDataOffset(T i) {
 
 template <>
 size_t DBReader<unsigned int>::indexMemorySize(const DBReader<unsigned int> &idx) {
-    size_t memSize = 2 * sizeof(size_t)
+    size_t memSize = // size + aaDbSize
+                     2 * sizeof(size_t)
+                     // lastKey
+                     + 1 * sizeof(unsigned int)
+                     // index
                      + idx.size * sizeof(DBReader<unsigned int>::Index)
+                     // seqLens
                      + idx.size * sizeof(unsigned int);
 
     return memSize;

@@ -65,7 +65,7 @@ void DBWriter::sortDatafileByIdOrder(DBReader<unsigned int> &dbr) {
         thread_idx = omp_get_thread_num();
 #endif
 
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic, 10)
         for (size_t id = 0; id < dbr.getSize(); id++) {
             char *data = dbr.getData(id);
             size_t length = dbr.getSeqLens(id);
@@ -396,14 +396,15 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         }
         delete[] infiles;
         fclose(outFile);
-        FILE *index_file = fopen(outFileNameIndex, "w");
+
+        // merge index
+        FILE *index_file = fopen(indexFileNames[0], "a");
         if (index_file == NULL) {
             perror(outFileNameIndex);
             EXIT(EXIT_FAILURE);
         }
-        // merge index
-        size_t globalOffset = 0;
-        for (unsigned int fileIdx = 0; fileIdx < fileCount; fileIdx++) {
+        size_t globalOffset = threadDataFileSizes[0];
+        for (unsigned int fileIdx = 1; fileIdx < fileCount; fileIdx++) {
             DBReader<unsigned int> reader(dataFileNames[fileIdx], indexFileNames[fileIdx], DBReader<unsigned int>::USE_INDEX);
             reader.open(DBReader<unsigned int>::HARDNOSORT);
             if (reader.getSize() > 0) {
@@ -412,17 +413,16 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
                     size_t currOffset = index[i].offset;
                     index[i].offset = globalOffset + currOffset;
                 }
-
                 size_t currOffset = index[reader.getSize()-1].offset;
                 index[reader.getSize()-1].offset = globalOffset + currOffset;
                 writeIndex(index_file, reader.getSize(), index, reader.getSeqLens());
-                globalOffset += threadDataFileSizes[fileIdx];
             }
             reader.close();
-
             if (std::remove(indexFileNames[fileIdx]) != 0) {
                 Debug(Debug::WARNING) << "Could not remove file " << indexFileNames[fileIdx] << "\n";
             }
+
+            globalOffset += threadDataFileSizes[fileIdx];
         }
         fclose(index_file);
     } else {
@@ -430,24 +430,20 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
             Debug(Debug::ERROR) << "Could not move result " << dataFileNames[0] << " to final location " << outFileName << "!\n";
             EXIT(EXIT_FAILURE);
         }
-
-        if (std::rename(indexFileNames[0], outFileNameIndex) != 0) {
-            Debug(Debug::ERROR) << "Could not move result index " << indexFileNames[0] << " to final location " << outFileNameIndex << "!\n";
-            EXIT(EXIT_FAILURE);
-        }
     }
 
     if (lexicographicOrder == false) {
         // sort the index
-        DBReader<unsigned int> indexReader(outFileNameIndex, outFileNameIndex, DBReader<unsigned int>::USE_INDEX);
+        DBReader<unsigned int> indexReader(indexFileNames[0], indexFileNames[0], DBReader<unsigned int>::USE_INDEX);
         indexReader.open(DBReader<unsigned int>::NOSORT);
         DBReader<unsigned int>::Index *index = indexReader.getIndex();
         FILE *index_file  = fopen(outFileNameIndex, "w");
         writeIndex(index_file, indexReader.getSize(), index, indexReader.getSeqLens());
         fclose(index_file);
         indexReader.close();
+
     } else {
-        DBReader<std::string> indexReader(outFileNameIndex, outFileNameIndex, DBReader<std::string>::USE_INDEX);
+        DBReader<std::string> indexReader(indexFileNames[0], indexFileNames[0], DBReader<std::string>::USE_INDEX);
         indexReader.open(DBReader<std::string>::SORT_BY_ID);
         DBReader<std::string>::Index *index = indexReader.getIndex();
         FILE *index_file  = fopen(outFileNameIndex, "w");
@@ -456,6 +452,9 @@ void DBWriter::mergeResults(const char *outFileName, const char *outFileNameInde
         indexReader.close();
     }
 
+    if (std::remove(indexFileNames[0]) != 0) {
+        Debug(Debug::WARNING) << "Could not remove file " << indexFileNames[0] << "\n";
+    }
     Debug(Debug::INFO) << "Time for merging files: " << timer.lap() << "\n";
 }
 

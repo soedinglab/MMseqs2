@@ -66,8 +66,7 @@ private:
     size_t maxMsaSeqLen;
     unsigned int * queryGaps;
 
-    std::vector<Matcher::result_t> computeBacktrace(Sequence *center, std::vector<Sequence *> sequenes,
-                                                                       size_t dbSetSize);
+    std::vector<Matcher::result_t> computeBacktrace(Sequence *center, std::vector<Sequence *> sequences);
 
     void computeQueryGaps(unsigned int *queryGaps, Sequence *center, std::vector<Sequence *> seqs,
                           std::vector<Matcher::result_t> alignmentResults);

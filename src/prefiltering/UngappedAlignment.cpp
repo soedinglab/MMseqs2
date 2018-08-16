@@ -27,12 +27,11 @@ UngappedAlignment::~UngappedAlignment() {
 void UngappedAlignment::processQuery(Sequence *seq,
                                    float *biasCorrection,
                                    CounterResult *results,
-                                   size_t resultSize,
-                                   unsigned int thr) {
+                                   size_t resultSize) {
     short bias = createProfile(seq, biasCorrection, subMatrix->subMatrix2Bit, subMatrix->alphabetSize);
     this->bias = bias;
     queryLen = seq->L;
-    computeScores(queryProfile, seq->L, results, resultSize, bias, thr);
+    computeScores(queryProfile, seq->L, results, resultSize, bias);
 }
 
 int UngappedAlignment::scalarDiagonalScoring(const char * profile,
@@ -217,17 +216,17 @@ void UngappedAlignment::scoreDiagonalAndUpdateHits(const char * queryProfile,
     }
 }
 
-int UngappedAlignment::computeLongScore(const char * queryProfile, int queryLen,
+int UngappedAlignment::computeLongScore(const char * queryProfile, unsigned int queryLen,
                                          std::pair<const unsigned char *, const unsigned int> &dbSeq,
                                          unsigned short diagonal, short bias){
     int totalMax=0;
-    for(size_t devisions = 1; devisions <= 1+ dbSeq.second /32768; devisions++ ){
+    for(unsigned int devisions = 1; devisions <= 1+ dbSeq.second /32768; devisions++ ){
         int realDiagonal = (-devisions * 65536  + diagonal);
         int minDistToDiagonal = abs(realDiagonal);
         int max = computeSingelSequenceScores(queryProfile, queryLen, dbSeq, realDiagonal, minDistToDiagonal, bias);
         totalMax = std::max(totalMax, max);
     }
-    for(size_t devisions = 0; devisions <= queryLen/65536; devisions++ ) {
+    for(unsigned int devisions = 0; devisions <= queryLen/65536; devisions++ ) {
         int realDiagonal = (devisions*65536+diagonal);
         int minDistToDiagonal = abs(realDiagonal);
         int max = computeSingelSequenceScores(queryProfile, queryLen, dbSeq, realDiagonal, minDistToDiagonal, bias);
@@ -240,8 +239,7 @@ void UngappedAlignment::computeScores(const char *queryProfile,
                                     const unsigned int queryLen,
                                     CounterResult * results,
                                     const size_t resultSize,
-                                    const short bias,
-                                    unsigned int thr) {
+                                    const short bias) {
     memset(diagonalCounter, 0, DIAGONALCOUNT * sizeof(unsigned char));
     for(size_t i = 0; i < resultSize; i++){
 //        // skip all that count not find enough diagonals

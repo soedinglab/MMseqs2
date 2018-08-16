@@ -55,7 +55,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
     unsigned int maxSetSize = 0;
     unsigned int *msaSizes = qDbr.getSeqLens();
 
-#pragma omp parallel for schedule(static) reduction(max:maxSeqLength, maxSetSize)  
+#pragma omp parallel for schedule(dynamic, 10) reduction(max:maxSeqLength, maxSetSize)
     for (size_t id = 0; id < qDbr.getSize(); id++) {
         bool inHeader = false;
         unsigned int setSize = 0;
@@ -353,7 +353,7 @@ int msa2profile(int argc, const char **argv, const Command &command) {
                 }
                 // write query, consensus sequence and neffM
                 result.push_back(static_cast<unsigned char>(msaSequences[0][pos]));
-                result.push_back(static_cast<unsigned char>(subMat.aa2int[pssmRes.consensus[pos]]));
+                result.push_back(static_cast<unsigned char>(subMat.aa2int[static_cast<int>(pssmRes.consensus[pos])]));
                 result += MathUtil::convertNeffToChar(pssmRes.neffM[pos]);
             }
 
