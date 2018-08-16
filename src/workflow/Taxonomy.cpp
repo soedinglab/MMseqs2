@@ -18,7 +18,7 @@ int taxonomy(int argc, const char **argv, const Command& command) {
             Debug(Debug::INFO) << "Created dir " << par.db6 << "\n";
         }
     }
-    size_t hash = par.hashParameter(par.filenames, par.clusterUpdate);
+    size_t hash = par.hashParameter(par.filenames, par.taxonomy);
     std::string tmpDir = par.db6+"/"+SSTR(hash);
     if(FileUtil::directoryExists(tmpDir.c_str())==false) {
         if (FileUtil::makeDir(tmpDir.c_str()) == false) {
