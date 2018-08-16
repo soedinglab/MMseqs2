@@ -4,7 +4,6 @@
 #include "Parameters.h"
 #include "Util.h"
 #include "itoa.h"
-#include "omptl/omptl_algorithm"
 
 #include <list>
 
@@ -135,7 +134,6 @@ void mergeClusteringResults(std::string seqDB, std::string outDB, std::list<std:
         delete mergedClustering[i];
     }
     delete[] mergedClustering;
-    Debug(Debug::INFO) << "...done.\n";
 }
 
 int mergeclusters(int argc, const char **argv, const Command& command) {
@@ -147,8 +145,8 @@ int mergeclusters(int argc, const char **argv, const Command& command) {
 #endif
 
     std::list<std::string> clusterings;
-    for (int i = 2; i < argc; i++) {
-        clusterings.push_back(std::string(argv[i]));
+    for (size_t i = 2; i < par.filenames.size(); i++) {
+        clusterings.push_back(par.filenames[i]);
     }
 
     mergeClusteringResults(par.db1, par.db2, clusterings, par.threads);
