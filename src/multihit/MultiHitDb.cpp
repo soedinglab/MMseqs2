@@ -50,7 +50,6 @@ int multihitdb(int argc, const char **argv, const Command &command) {
     }
 
     par.splitSeqByLen = false;
-    par.clusterDB = true;
     cmd.addVariable("CREATEDB_PAR", par.createParameterString(par.createdb).c_str());
     cmd.addVariable("EXTRACTORFS_PAR", par.createParameterString(par.extractorfs).c_str());
     cmd.addVariable("TRANSLATENUCS_PAR", par.createParameterString(par.translatenucs).c_str());

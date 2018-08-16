@@ -139,7 +139,7 @@ std::vector<struct Command> commands = {
                 "Clovis Norroy & Milot Mirdita <milot@mirdita.de>",
                 "<i:querySetDB> <i:targetSetDB> <i:resultDB> <o:setSummaryDB> <tmpDir>",
                 CITATION_MMSEQS2},
-        {"resultsbyset",         resultsbyset,         &par.summerizeresultsbyset,COMMAND_HIDDEN,
+        {"resultsbyset",         resultsbyset,         &par.summerizeresultsbyset,COMMAND_MULTIHIT,
                 "For each set compute the combined p-value",
                 NULL,
                 "Clovis Norroy & Milot Mirdita <milot@mirdita.de>",

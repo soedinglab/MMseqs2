@@ -487,7 +487,6 @@ Parameters::Parameters():
     createdb.push_back(PARAM_DONT_SHUFFLE);
     createdb.push_back(PARAM_ID_OFFSET);
     createdb.push_back(PARAM_V);
-    createdb.push_back(PARAM_CLUSTER_DB);
 
     // convert2fasta
     convert2fasta.push_back(PARAM_USE_HEADER_FILE);

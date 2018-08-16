@@ -20,11 +20,13 @@ OUTDB="$4"
 TMP_PATH="$5"
 
 if notExists "${TMP_PATH}/result_pos"; then
+    # shellcheck disable=SC2086
     "${MMSEQS}" filterdb "${RESULTDB}" "${TMP_PATH}/result_pos" --compute-positions "${TARGETDB}_orf_set_lookup" ${THREADS_PAR} \
         || fail "filterdb failed"
 fi
 
 if notExists "${OUTDB}"; then
+    # shellcheck disable=SC2086
     "${MMSEQS}" resultsbyset "${QUERYDB}" "${TARGETDB}" "${TMP_PATH}/result_pos" "${OUTDB}" "${TMP_PATH}" ${RESULTSBYSET_PAR} \
         || fail "resultsbyset failed"
 fi
