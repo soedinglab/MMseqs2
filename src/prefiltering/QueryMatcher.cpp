@@ -50,9 +50,8 @@ QueryMatcher::QueryMatcher(IndexTable *indexTable, SequenceLookup *sequenceLooku
     this->resList = (hit_t *) mem_align(ALIGN_INT, maxHitsPerQuery * sizeof(hit_t) );
     this->databaseHits = new(std::nothrow) IndexEntryLocal[maxDbMatches];
     Util::checkAllocation(databaseHits, "Could not allocate databaseHits memory in QueryMatcher");
-    this->foundDiagonals = new(std::nothrow) CounterResult[counterResultSize];
+    this->foundDiagonals = (CounterResult*)calloc(counterResultSize, sizeof(CounterResult));
     Util::checkAllocation(foundDiagonals, "Could not allocate foundDiagonals memory in QueryMatcher");
-    memset(foundDiagonals, 0, sizeof(CounterResult) * counterResultSize);
     this->lastSequenceHit = this->databaseHits + maxDbMatches;
     this->indexPointer = new(std::nothrow) IndexEntryLocal*[maxSeqLen + 1];
     Util::checkAllocation(indexPointer, "Could not allocate indexPointer memory in QueryMatcher");
@@ -95,7 +94,7 @@ QueryMatcher::~QueryMatcher(){
     delete [] scoreSizes;
     delete [] databaseHits;
     delete [] indexPointer;
-    delete [] foundDiagonals;
+    free(foundDiagonals);
     if(logScoreFactorial != NULL){
         delete [] logScoreFactorial;
     }
