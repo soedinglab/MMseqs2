@@ -663,6 +663,7 @@ public:
     std::vector<MMseqsParameter> createtsv;
     std::vector<MMseqsParameter> result2stats;
     std::vector<MMseqsParameter> extractorfs;
+    std::vector<MMseqsParameter> orftocontig;
     std::vector<MMseqsParameter> splitdb;
     std::vector<MMseqsParameter> indexdb;
     std::vector<MMseqsParameter> createindex;

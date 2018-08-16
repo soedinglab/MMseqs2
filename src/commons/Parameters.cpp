@@ -462,6 +462,10 @@ Parameters::Parameters():
     extractorfs.push_back(PARAM_THREADS);
     extractorfs.push_back(PARAM_V);
 
+    // orf to contig 
+    orftocontig.push_back(PARAM_THREADS);
+    orftocontig.push_back(PARAM_V);
+
     // splitdb
     splitdb.push_back(PARAM_SPLIT);
     splitdb.push_back(PARAM_SPLIT_AMINOACID);
