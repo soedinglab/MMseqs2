@@ -92,8 +92,7 @@ void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntr
 
     size_t chunkSize = dbSize / worldSize;
 
-    size_t *entriesPerWorker = new size_t[worldSize]; 
-    memset(entriesPerWorker, 0, worldSize);
+    size_t *entriesPerWorker = (size_t*)calloc(worldSize, sizeof(size_t));
 
     size_t currentRank = 0;
     size_t sumCharsAssignedToCurrRank = 0;
@@ -114,7 +113,7 @@ void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntr
         }
     }
 
-    delete[] entriesPerWorker;
+    free(entriesPerWorker);
 }
 
 template
