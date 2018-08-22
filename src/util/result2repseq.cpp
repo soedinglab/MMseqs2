@@ -1,5 +1,6 @@
 #include <string>
 
+#include "Sequence.h"
 #include "Parameters.h"
 #include "DBReader.h"
 #include "DBWriter.h"
@@ -46,7 +47,7 @@ int result2repseq(const Parameters &par, DBReader<unsigned int> &resultReader,
         resultWriter.writeData(result.c_str(), result.length(), queryKey, thread_idx);
     }
 
-    resultWriter.close();
+    resultWriter.close(Sequence::AMINO_ACIDS);
     qDbr.close();
 
     Debug(Debug::INFO) << "\nDone.\n";
