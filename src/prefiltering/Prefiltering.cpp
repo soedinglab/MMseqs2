@@ -42,7 +42,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
         covThr(par.covThr), covMode(par.covMode), includeIdentical(par.includeIdentity),
-        earlyExit(par.earlyExit),
         noPreload(par.noPreload),
         threads(static_cast<unsigned int>(par.threads)) {
 #ifdef OPENMP
@@ -597,13 +596,6 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
         }
     }
 
-#ifndef HAVE_MPI
-    if (earlyExit) {
-        Debug(Debug::INFO) << "Done. Exiting early now.\n";
-        _Exit(EXIT_SUCCESS);
-    }
-#endif
-
     if (sameQTDB == false) {
         qdbr->close();
         delete qdbr;
@@ -769,18 +761,6 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             realResSize += std::min(resultSize, maxResults);
             reslens[thread_idx]->emplace_back(resultSize);
         } // step end
-
-#ifndef HAVE_MPI
-        if (earlyExit && splitCount == 1) {
-            #pragma omp barrier
-            if (thread_idx == 0) {
-                tmpDbw.close();
-                Debug(Debug::INFO) << "Done. Exiting early now.\n";
-            }
-            #pragma omp barrier
-            _Exit(EXIT_SUCCESS);
-        }
-#endif
     }
 
     if (Debug::debugLevel >= Debug::INFO) {

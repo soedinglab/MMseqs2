@@ -25,7 +25,7 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
         includeIdentity(par.includeIdentity), addBacktrace(par.addBacktrace), realign(par.realign), scoreBias(par.scoreBias),
         threads(static_cast<unsigned int>(par.threads)), outDB(outDB), outDBIndex(outDBIndex),
         maxSeqLen(par.maxSeqLen), compBiasCorrection(par.compBiasCorrection), altAlignment(par.altAlignment), qdbr(NULL), qSeqLookup(NULL),
-        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false), earlyExit(par.earlyExit)  {
+        tdbr(NULL), tidxdbr(NULL), tSeqLookup(NULL), templateDBIsIndex(false) {
 
 
     unsigned int alignmentMode = par.alignmentMode;
@@ -414,19 +414,6 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
             }
 #pragma omp barrier
         }
-
-#ifndef HAVE_MPI
-        if (earlyExit) {
-#pragma omp barrier
-            if(thread_idx == 0) {
-                dbw.close();
-                Debug(Debug::INFO) << "Done. Exiting early now.\n";
-            }
-#pragma omp barrier
-
-            _Exit(EXIT_SUCCESS);
-        }
-#endif
 
         if (realign == true) {
             delete realigner;
