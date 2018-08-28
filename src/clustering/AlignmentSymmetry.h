@@ -14,7 +14,16 @@
 class AlignmentSymmetry {
 public:
     static void readInData(DBReader<unsigned int>*pReader, DBReader<unsigned int>*pDBReader, unsigned int **pInt,unsigned short**elementScoreTable, int scoretype, size_t *offsets);
-    static void computeOffsetFromCounts(size_t *elementSizes, size_t dbSize);
+    template<typename T>
+    static void computeOffsetFromCounts(T* elementSizes, size_t dbSize)  {
+        size_t prevElementLength = elementSizes[0];
+        elementSizes[0] = 0;
+        for(size_t i = 0; i < dbSize; i++) {
+            const size_t currElementLength = elementSizes[i + 1];
+            elementSizes[i + 1] = elementSizes[i] + prevElementLength;
+            prevElementLength = currElementLength;
+        }
+    }
     static size_t findMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t dbSize, int threads);
     static void addMissingLinks(unsigned int **elementLookupTable, size_t *offsetTable, size_t * newOffset, size_t dbSize,unsigned short**elementScoreTable);
     static void sortElements(unsigned int **elementLookupTable, size_t *offsets, size_t dbSize);
