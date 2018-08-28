@@ -51,10 +51,10 @@ Alignment::Alignment(const std::string &querySeqDB, const std::string &querySeqD
             Debug(Debug::ERROR) << "Alternative alignments are not supported for nucleotides.\n";
             EXIT(EXIT_FAILURE);
         }
-        if(realign==true){
-            Debug(Debug::ERROR) << "Alternative alignments do not supported realignment.\n";
-            EXIT(EXIT_FAILURE);
-        }
+//        if(realign==true){
+//            Debug(Debug::ERROR) << "Alternative alignments do not supported realignment.\n";
+//            EXIT(EXIT_FAILURE);
+//        }
         alignmentMode = (alignmentMode > Parameters::ALIGNMENT_MODE_SCORE_COV) ? alignmentMode : Parameters::ALIGNMENT_MODE_SCORE_COV;
     }
 
@@ -371,31 +371,8 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
 
                     data = Util::skipLine(data);
                 }
-                if(altAlignment> 0){
-                    int xIndex = m->aa2int[static_cast<int>('X')];
-                    size_t firstItResSize = swResults.size();
-                    for(size_t i = 0; i < firstItResSize; i++) {
-                        const bool isIdentity = (queryDbKey == swResults[i].dbKey && (includeIdentity || sameQTDB))
-                                                ? true : false;
-                        if (isIdentity == true) {
-                            continue;
-                        }
-                        setTargetSequence(dbSeq, swResults[i].dbKey);
-                        for (int pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; ++pos) {
-                            dbSeq.int_sequence[pos] = xIndex;
-                        }
-                        bool nextAlignment = true;
-                        for (int altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
-                            Matcher::result_t res = matcher.getSWResult(&dbSeq, 0, covMode, covThr, evalThr, swMode,
-                                                                        seqIdMode, isIdentity);
-                            nextAlignment = checkCriteriaAndAddHitToList(res, isIdentity, swResults);
-                            if (nextAlignment == true) {
-                                for (int pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
-                                    dbSeq.int_sequence[pos] = xIndex;
-                                }
-                            }
-                        }
-                    }
+                if(altAlignment > 0 && realign == false ){
+                    computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, evalThr, swMode);
                 }
 
                 // write the results
@@ -416,6 +393,9 @@ void Alignment::run(const std::string &outDB, const std::string &outDBIndex,
                         swResults[result].seqId      = res.seqId;
                         swResults[result].qcov       = res.qcov;
                         swResults[result].dbcov      = res.dbcov;
+                    }
+                    if(altAlignment> 0 ){
+                        computeAlternativeAlignment(queryDbKey, dbSeq, swResults, matcher, FLT_MAX, Matcher::SCORE_COV_SEQID);
                     }
                 }
 
@@ -532,5 +512,34 @@ bool Alignment::checkCriteriaAndAddHitToList(Matcher::result_t &res, bool isIden
         return true;
     } else {
         return false;
+    }
+}
+
+void Alignment::computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq,
+                                            std::vector<Matcher::result_t> &swResults,
+                                            Matcher &matcher, float evalThr, int swMode) {
+    int xIndex = m->aa2int[static_cast<int>('X')];
+    size_t firstItResSize = swResults.size();
+    for(size_t i = 0; i < firstItResSize; i++) {
+        const bool isIdentity = (queryDbKey == swResults[i].dbKey && (includeIdentity || sameQTDB))
+                                ? true : false;
+        if (isIdentity == true) {
+            continue;
+        }
+        setTargetSequence(dbSeq, swResults[i].dbKey);
+        for (int pos = swResults[i].dbStartPos; pos < swResults[i].dbEndPos; ++pos) {
+            dbSeq.int_sequence[pos] = xIndex;
+        }
+        bool nextAlignment = true;
+        for (int altAli = 0; altAli < altAlignment && nextAlignment; altAli++) {
+            Matcher::result_t res = matcher.getSWResult(&dbSeq, INT_MAX, covMode, covThr, evalThr, swMode,
+                                                        seqIdMode, isIdentity);
+            nextAlignment = checkCriteriaAndAddHitToList(res, isIdentity, swResults);
+            if (nextAlignment == true) {
+                for (int pos = res.dbStartPos; pos < res.dbEndPos; pos++) {
+                    dbSeq.int_sequence[pos] = xIndex;
+                }
+            }
+        }
     }
 }

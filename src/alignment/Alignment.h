@@ -110,6 +110,10 @@ private:
     static size_t estimateHDDMemoryConsumption(int dbSize, int maxSeqs);
 
     bool checkCriteriaAndAddHitToList(Matcher::result_t &result, bool isIdentity, std::vector<Matcher::result_t> &swHits);
+
+    void computeAlternativeAlignment(unsigned int queryDbKey, Sequence &dbSeq,
+                                     std::vector<Matcher::result_t> &vector, Matcher &matcher,
+                                     float evalThr, int swMode);
 };
 
 #endif
