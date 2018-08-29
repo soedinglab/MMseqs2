@@ -90,7 +90,7 @@ void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntr
         return;
     }
 
-    size_t chunkSize = dbSize / worldSize;
+    size_t chunkSize = ceil(static_cast<double>(dbSize) / static_cast<double>(worldSize));
 
     size_t *entriesPerWorker = (size_t*)calloc(worldSize, sizeof(size_t));
 
