@@ -85,6 +85,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
     // Compute mapping from contig -> orf[] from orf[]->contig in headers
     unsigned int *contigLookup = NULL;
     unsigned int *contigOffsets = NULL;
+    char *contigExists = NULL;
     unsigned int maxContigKey = 0;
     if (queryDbType == Sequence::NUCLEOTIDES) {
         Timer timer;
@@ -102,9 +103,11 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
         Debug(Debug::INFO) << "Computing contig offsets...\n";
         unsigned int *contigSizes = new unsigned int[maxContigKey + 2]();
+        contigExists = new char[maxContigKey + 1]();
 #pragma omp parallel for schedule(static) num_threads(localThreads)
         for (size_t i = 0; i <= maxOrfKey; ++i) {
             __sync_fetch_and_add(&(contigSizes[orfLookup[i]]), 1);
+            contigExists[orfLookup[i]] = 1;
         }
         contigOffsets = contigSizes;
         AlignmentSymmetry::computeOffsetFromCounts(contigOffsets, maxContigKey + 1);
@@ -145,7 +148,7 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
         size_t entryCount = alnDbr.getSize();
         if (queryDbType == Sequence::NUCLEOTIDES) {
-            entryCount = maxContigKey;
+            entryCount = maxContigKey + 1;
         }
 
 #pragma omp for schedule(dynamic, 10)
@@ -155,6 +158,9 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
             unsigned int queryKey;
             if (queryDbType == Sequence::NUCLEOTIDES) {
                 queryKey = i;
+                if (contigExists[i] == 0) {
+                    continue;
+                }
                 unsigned int *orfKeys = &contigLookup[contigOffsets[i]];
                 size_t orfCount = contigOffsets[i + 1] - contigOffsets[i];
                 for (unsigned int j = 0; j < orfCount; ++j) {
@@ -189,6 +195,10 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
 
     if (contigOffsets != NULL) {
         delete[] contigOffsets;
+    }
+
+    if (contigExists != NULL) {
+        delete[] contigExists;
     }
 
     qHeaderDbr.close();
