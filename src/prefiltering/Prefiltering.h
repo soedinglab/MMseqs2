@@ -91,7 +91,6 @@ private:
     const float covThr;
     const int covMode;
     const bool includeIdentical;
-    const bool earlyExit;
     const bool noPreload;
     const unsigned int threads;
 

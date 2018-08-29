@@ -47,7 +47,6 @@ Parameters::Parameters():
         PARAM_INCLUDE_IDENTITY(PARAM_INCLUDE_IDENTITY_ID,"--add-self-matches", "Include identical Seq. Id.","artificially add entries of queries with themselves (for clustering)",typeid(bool), (void *) &includeIdentity, "", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_RES_LIST_OFFSET(PARAM_RES_LIST_OFFSET_ID,"--offset-result", "Offset result","Offset result list",typeid(int), (void *) &resListOffset, "^[0-9]{1}[0-9]*$", MMseqsParameter::COMMAND_PREFILTER|MMseqsParameter::COMMAND_EXPERT),
         PARAM_NO_PRELOAD(PARAM_NO_PRELOAD_ID, "--no-preload", "No preload", "Do not preload database", typeid(bool), (void*) &noPreload, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
-        PARAM_EARLY_EXIT(PARAM_EARLY_EXIT_ID, "--early-exit", "Early exit", "Exit immediately after writing the result", typeid(bool), (void*) &earlyExit, "", MMseqsParameter::COMMAND_MISC|MMseqsParameter::COMMAND_EXPERT),
         // alignment
         PARAM_ALIGNMENT_MODE(PARAM_ALIGNMENT_MODE_ID,"--alignment-mode", "Alignment mode", "How to compute the alignment: 0: automatic; 1: only score and end_pos; 2: also start_pos and cov; 3: also seq.id; 4: only ungapped alignment",typeid(int), (void *) &alignmentMode, "^[0-4]{1}$", MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_EXPERT),
         PARAM_E(PARAM_E_ID,"-e", "E-value threshold", "list matches below this E-value [0.0, inf]",typeid(float), (void *) &evalThr, "^([-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?)|[0-9]*(\\.[0-9]+)?$", MMseqsParameter::COMMAND_ALIGN),
@@ -226,7 +225,6 @@ Parameters::Parameters():
     align.push_back(PARAM_MAX_ACCEPT);
     align.push_back(PARAM_INCLUDE_IDENTITY);
     align.push_back(PARAM_NO_PRELOAD);
-    align.push_back(PARAM_EARLY_EXIT);
     align.push_back(PARAM_PCA);
     align.push_back(PARAM_PCB);
     align.push_back(PARAM_SCORE_BIAS);
@@ -255,7 +253,6 @@ Parameters::Parameters():
     prefilter.push_back(PARAM_INCLUDE_IDENTITY);
     prefilter.push_back(PARAM_SPACED_KMER_MODE);
     prefilter.push_back(PARAM_NO_PRELOAD);
-    prefilter.push_back(PARAM_EARLY_EXIT);
     prefilter.push_back(PARAM_PCA);
     prefilter.push_back(PARAM_PCB);
     prefilter.push_back(PARAM_THREADS);
@@ -336,7 +333,6 @@ Parameters::Parameters():
     result2profile.push_back(PARAM_PCB);
     result2profile.push_back(PARAM_OMIT_CONSENSUS);
     result2profile.push_back(PARAM_NO_PRELOAD);
-    result2profile.push_back(PARAM_EARLY_EXIT);
     result2profile.push_back(PARAM_THREADS);
     result2profile.push_back(PARAM_V);
 
@@ -355,7 +351,6 @@ Parameters::Parameters():
     result2pp.push_back(PARAM_PCB);
     result2pp.push_back(PARAM_OMIT_CONSENSUS);
     result2pp.push_back(PARAM_NO_PRELOAD);
-    result2pp.push_back(PARAM_EARLY_EXIT);
     result2pp.push_back(PARAM_THREADS);
     result2pp.push_back(PARAM_V);
     
@@ -376,7 +371,6 @@ Parameters::Parameters():
     // format alignment
     convertalignments.push_back(PARAM_FORMAT_MODE);
     convertalignments.push_back(PARAM_NO_PRELOAD);
-    convertalignments.push_back(PARAM_EARLY_EXIT);
     convertalignments.push_back(PARAM_DB_OUTPUT);
     convertalignments.push_back(PARAM_THREADS);
     convertalignments.push_back(PARAM_V);
@@ -1198,7 +1192,6 @@ void Parameters::setDefaults() {
     clusterSteps = 3;
     resListOffset = 0;
     noPreload = false;
-    earlyExit = false;
     scoreBias = 0.0;
 
     // affinity clustering

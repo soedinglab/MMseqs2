@@ -42,7 +42,6 @@ Prefiltering::Prefiltering(const std::string &targetDB,
         minDiagScoreThr(static_cast<unsigned int>(par.minDiagScoreThr)),
         aaBiasCorrection(par.compBiasCorrection != 0),
         covThr(par.covThr), covMode(par.covMode), includeIdentical(par.includeIdentity),
-        earlyExit(par.earlyExit),
         noPreload(par.noPreload),
         threads(static_cast<unsigned int>(par.threads)) {
 #ifdef OPENMP
@@ -339,15 +338,16 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
     dbw.open(1024 * 1024 * 1024);
 #pragma omp parallel
     {
-        std::string prefResultsOutString;
-        prefResultsOutString.reserve(BUFFER_SIZE);
+        int thread_idx = 0;
+#ifdef OPENMP
+        thread_idx = omp_get_thread_num();
+#endif
+
+        std::string result;
+        result.reserve(BUFFER_SIZE);
         char buffer[100];
 #pragma omp  for schedule(dynamic, 10)
         for (size_t id = 0; id < dbr.getSize(); id++) {
-            int thread_idx = 0;
-#ifdef OPENMP
-            thread_idx = omp_get_thread_num();
-#endif
             unsigned int dbKey = dbr.getDbKey(id);
             char *data = dbr.getData(id);
             std::vector<hit_t> hits = QueryMatcher::parsePrefilterHits(data);
@@ -356,10 +356,10 @@ void Prefiltering::mergeOutput(const std::string &outDB, const std::string &outD
             }
             for(size_t hit_id = 0; hit_id < hits.size(); hit_id++){
                 int len = QueryMatcher::prefilterHitToBuffer(buffer, hits[hit_id]);
-                prefResultsOutString.append(buffer, len);
+                result.append(buffer, len);
             }
-            dbw.writeData(prefResultsOutString.c_str(), prefResultsOutString.size(), dbKey, thread_idx);
-            prefResultsOutString.clear();
+            dbw.writeData(result.c_str(), result.size(), dbKey, thread_idx);
+            result.clear();
         }
     }
     Debug(Debug::INFO) << out.first << " " << out.second << "\n";
@@ -596,13 +596,6 @@ bool Prefiltering::runSplits(const std::string &queryDB, const std::string &quer
         }
     }
 
-#ifndef HAVE_MPI
-    if (earlyExit) {
-        Debug(Debug::INFO) << "Done. Exiting early now.\n";
-        _Exit(EXIT_SUCCESS);
-    }
-#endif
-
     if (sameQTDB == false) {
         qdbr->close();
         delete qdbr;
@@ -768,18 +761,6 @@ bool Prefiltering::runSplit(DBReader<unsigned int>* qdbr, const std::string &res
             realResSize += std::min(resultSize, maxResults);
             reslens[thread_idx]->emplace_back(resultSize);
         } // step end
-
-#ifndef HAVE_MPI
-        if (earlyExit && splitCount == 1) {
-            #pragma omp barrier
-            if (thread_idx == 0) {
-                tmpDbw.close();
-                Debug(Debug::INFO) << "Done. Exiting early now.\n";
-            }
-            #pragma omp barrier
-            _Exit(EXIT_SUCCESS);
-        }
-#endif
     }
 
     if (Debug::debugLevel >= Debug::INFO) {

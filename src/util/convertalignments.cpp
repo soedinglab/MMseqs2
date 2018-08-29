@@ -313,10 +313,6 @@ int convertalignments(int argc, const char **argv, const Command &command) {
     if (isDb == false) {
         FileUtil::deleteFile(par.db4Index);
     }
-    if (par.earlyExit) {
-        Debug(Debug::INFO) << "\nDone. Exiting early now.\n";
-        _Exit(EXIT_SUCCESS);
-    }
 
     alnDbr.close();
     if (sameDB == false) {

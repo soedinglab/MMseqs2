@@ -200,7 +200,6 @@ public:
     bool   splitAA;                      // Split database by amino acid count instead
     size_t resListOffset;                // Offsets result list
     bool   noPreload;                    // Do not preload database into memory
-    bool   earlyExit;                    // Exit immediately after writing the result
     float  scoreBias;			 // Add this bias to the score when computing the alignements
 
     // ALIGNMENT
@@ -444,7 +443,6 @@ public:
     PARAMETER(PARAM_INCLUDE_IDENTITY)
     PARAMETER(PARAM_RES_LIST_OFFSET)
     PARAMETER(PARAM_NO_PRELOAD)
-    PARAMETER(PARAM_EARLY_EXIT)
     std::vector<MMseqsParameter> prefilter;
 
     // alignment

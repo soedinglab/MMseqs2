@@ -97,7 +97,7 @@ void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntr
     size_t currentRank = 0;
     size_t sumCharsAssignedToCurrRank = 0;
     for (size_t i = 0; i < dbEntries; ++i) {
-        if (sumCharsAssignedToCurrRank > chunkSize) {
+        if (sumCharsAssignedToCurrRank >= chunkSize) {
             sumCharsAssignedToCurrRank = 0;
             currentRank++;
         }
@@ -107,10 +107,8 @@ void Util::decomposeDomainByAminoAcid(size_t dbSize, T entrySizes, size_t dbEntr
 
     *startEntry = 0;
     *numEntries = entriesPerWorker[worldRank];
-    if (worldRank > 0) {
-        for (size_t j = 0; j < (worldRank - 1); ++j) {
-            *startEntry += entriesPerWorker[j];
-        }
+    for (size_t j = 0; j < worldRank; ++j) {
+        *startEntry += entriesPerWorker[j];
     }
 
     free(entriesPerWorker);

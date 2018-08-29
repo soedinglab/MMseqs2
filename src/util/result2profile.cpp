@@ -322,13 +322,6 @@ int result2profile(DBReader<unsigned int> &resultReader, Parameters &par, const 
     }
     resultWriter.close(Sequence::HMM_PROFILE);
 
-#ifndef HAVE_MPI
-    if (par.earlyExit) {
-        Debug(Debug::INFO) << "\nDone. Exiting early now.\n";
-        _Exit(EXIT_SUCCESS);
-    }
-#endif
-
     if (!sameDatabase) {
         qDbr->close();
         delete qDbr;

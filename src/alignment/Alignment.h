@@ -99,8 +99,6 @@ private:
 
     bool templateDBIsIndex;
 
-    const bool earlyExit;
-
     void initSWMode(unsigned int alignmentMode);
 
     void setQuerySequence(Sequence &seq, size_t id, unsigned int key);
