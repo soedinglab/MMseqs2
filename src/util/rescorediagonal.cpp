@@ -159,6 +159,12 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                     const bool isIdentity = (queryId == targetId && (par.includeIdentity || sameDB))? true : false;
                     char * targetSeq = tdbr->getData(targetId);
                     int dbLen = std::max(0, static_cast<int>(tdbr->getSeqLens(targetId)) - 2);
+
+                    float queryLength = static_cast<float>(queryLen);
+                    float targetLength = static_cast<float>(dbLen);
+                    if(Util::canBeCovered(par.covThr, par.covMode, queryLength, targetLength)==false){
+                        continue;
+                    }
                     short diagonal = results[entryIdx].diagonal;
                     unsigned short distanceToDiagonal = abs(diagonal);
                     unsigned int diagonalLen = 0;
@@ -237,13 +243,15 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
                                     }
                                     unsigned int alnLength = Matcher::computeAlnLength(qStartPos, qEndPos, dbStartPos, dbEndPos);
                                     seqId = Util::computeSeqId(par.seqIdMode, idCnt, queryLen, dbLen, alnLength);
-
                                 }
 
                                 char *end = Itoa::i32toa_sse2(qEndPos-qStartPos, buffer);
                                 size_t len = end - buffer;
                                 std::string backtrace(buffer, len - 1);
                                 backtrace.push_back('M');
+                                queryCov = SmithWaterman::computeCov(qStartPos, qEndPos, queryLen);
+                                targetCov = SmithWaterman::computeCov(dbStartPos, dbEndPos, dbLen);
+
                                 result = Matcher::result_t(results[entryIdx].seqId, bitScore, queryCov, targetCov, seqId, evalue, alnLen,
                                                            qStartPos, qEndPos, queryLen, dbStartPos, dbEndPos, dbLen, backtrace);
                             }

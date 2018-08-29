@@ -485,12 +485,15 @@ bool Util::canBeCovered(const float covThr, const int covMode, float queryLength
             return ((queryLength / targetLength >= covThr) && (targetLength / queryLength >= covThr));
         case Parameters::COV_MODE_QUERY:
             return ((targetLength / queryLength) >= covThr);
+        case Parameters::COV_MODE_LENGTH:
+            return ((targetLength / queryLength) >= covThr) && (targetLength / queryLength) <= 1.0;
         default:
             return true;
     }
 }
 
-bool Util::hasCoverage(float covThr, int covMode, float queryCov, float targetCov){
+bool Util::hasCoverage(float covThr, int covMode,
+                       float queryCov, float targetCov){
     switch(covMode){
         case Parameters::COV_MODE_BIDIRECTIONAL:
             return ((queryCov >= covThr) && (targetCov >= covThr));
@@ -498,6 +501,8 @@ bool Util::hasCoverage(float covThr, int covMode, float queryCov, float targetCo
             return (queryCov >= covThr);
         case Parameters::COV_MODE_TARGET:
             return (targetCov >= covThr);
+        case Parameters::COV_MODE_LENGTH:
+            return true;
         default:
             return true;
     }
