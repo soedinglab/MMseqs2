@@ -12,11 +12,13 @@
 #include <omp.h>
 #endif
 
-void updateOffset(char* data, std::string &ss, std::vector<Matcher::result_t> &results, char* buffer, const Orf::SequenceLocation *qloc, DBReader<unsigned int>& tHeaderDbr) {
+void updateOffset(char* data, std::vector<Matcher::result_t> &results,
+                  const Orf::SequenceLocation *qloc, DBReader<unsigned int>& tHeaderDbr) {
+    size_t startPos = results.size();
     Matcher::readAlignmentResults(results, data, true);
-    for (size_t i = 0; i < results.size(); i++) {
+    size_t endPos = results.size();
+    for (size_t i = startPos; i < endPos; i++) {
         Matcher::result_t &res = results[i];
-        bool hasBacktrace = (res.backtrace.size() > 0);
         if (qloc == NULL) {
             size_t targetId = tHeaderDbr.getId(res.dbKey);
             char *header = tHeaderDbr.getData(targetId);
@@ -42,8 +44,6 @@ void updateOffset(char* data, std::string &ss, std::vector<Matcher::result_t> &r
             }
             res.qLen = res.qLen * 3;
         }
-        size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
-        ss.append(buffer, len);
     }
 }
 
@@ -171,19 +171,23 @@ int offsetalignment(int argc, const char **argv, const Command &command) {
                     size_t queryId = qHeaderDbr.getId(orfKey);
                     char *header = qHeaderDbr.getData(queryId);
                     Orf::SequenceLocation qloc = Orf::parseOrfHeader(header);
-
-                    updateOffset(data, ss, results, buffer, &qloc, tHeaderDbr);
-                    results.clear();
+                    updateOffset(data, results, &qloc, tHeaderDbr);
                 }
             } else {
                 queryKey = alnDbr.getDbKey(i);
                 char *data = alnDbr.getData(i);
-                updateOffset(data, ss, results, buffer, NULL, tHeaderDbr);
-                results.clear();
+                updateOffset(data, results, NULL, tHeaderDbr);
             }
-
+            std::stable_sort(results.begin(), results.end(), Matcher::compareHits);
+            for(size_t i = 0; i < results.size(); i++){
+                Matcher::result_t &res = results[i];
+                bool hasBacktrace = (res.backtrace.size() > 0);
+                size_t len = Matcher::resultToBuffer(buffer, res, hasBacktrace, false);
+                ss.append(buffer, len);
+            }
             resultWriter.writeData(ss.c_str(), ss.length(), queryKey, thread_idx);
             ss.clear();
+            results.clear();
         }
     }
     Debug(Debug::INFO) << "\n";
