@@ -59,13 +59,6 @@ int search(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    // FIXME: use larger default k-mer size in target-profile case if memory is available
-    // overwrite default kmerSize for target-profile searches and parse parameters again
-    if (targetDbType == Sequence::HMM_PROFILE) {
-        par.kmerSize = 5;
-        par.parseParameters(argc, argv, command, 4, false, 0, MMseqsParameter::COMMAND_ALIGN|MMseqsParameter::COMMAND_PREFILTER);
-    }
-
     const bool isTranslatedNuclSearch =
                (queryDbType == Sequence::NUCLEOTIDES || targetDbType == Sequence::NUCLEOTIDES);
 
