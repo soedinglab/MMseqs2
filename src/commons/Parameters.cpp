@@ -680,7 +680,7 @@ Parameters::Parameters():
 
     // createindex workflow
     createindex = combineList(indexdb, extractorfs);
-    createindex =  combineList(createindex, translatenucs);
+    createindex = combineList(createindex, translatenucs);
     createindex.push_back(PARAM_REMOVE_TMP_FILES);
 
     // linclust workflow

@@ -21,13 +21,13 @@ SOURCE="$INPUT"
 # 1. Finding exact $k$-mer matches.
 if notExists "${TMP_PATH}/pref"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" kmermatcher "$INPUT" "${TMP_PATH}/pref" ${KMERMATCHER_PAR} \
+    $RUNNER "$MMSEQS" kmermatcher "$INPUT" "${TMP_PATH}/pref" ${KMERMATCHER_PAR} \
         || fail "kmermatcher died"
 fi
 # 2. Hamming distance pre-clustering
 if notExists "${TMP_PATH}/pref_rescore1"; then
     # shellcheck disable=SC2086
-    "$MMSEQS" rescorediagonal "$INPUT" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/pref_rescore1" ${HAMMING_PAR} \
+    $RUNNER "$MMSEQS" rescorediagonal "$INPUT" "$INPUT" "${TMP_PATH}/pref" "${TMP_PATH}/pref_rescore1" ${HAMMING_PAR} \
         || fail "Rescore with hamming distance step died"
 fi
 if notExists "${TMP_PATH}/pre_clust"; then
@@ -59,7 +59,7 @@ if [ -n "${ALIGN_GAPPED}" ]; then
     if [ -n "$FILTER" ]; then
         if notExists "${TMP_PATH}/pref_rescore2"; then
             # shellcheck disable=SC2086
-            "$MMSEQS" rescorediagonal "$INPUT" "$INPUT" "$RESULTDB" "${TMP_PATH}/pref_rescore2" ${UNGAPPED_ALN_PAR} \
+            $RUNNER "$MMSEQS" rescorediagonal "$INPUT" "$INPUT" "$RESULTDB" "${TMP_PATH}/pref_rescore2" ${UNGAPPED_ALN_PAR} \
                 || fail "Ungapped alignment step died"
         fi
         RESULTDB="${TMP_PATH}/pref_rescore2"

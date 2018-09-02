@@ -40,13 +40,10 @@ float parsePrecisionLib(const std::string &scoreFile, double targetSeqid, double
     return 0;
 }
 
-int rescorediagonal(int argc, const char **argv, const Command &command) {
-    Parameters &par = Parameters::getInstance();
-    par.parseParameters(argc, argv, command, 4);
-#ifdef OPENMP
-    omp_set_num_threads(par.threads);
-#endif
-
+int doRescorediagonal(Parameters &par,
+                      DBWriter &resultWriter,
+                      DBReader<unsigned int> &resultReader,
+              const size_t dbFrom, const size_t dbSize) {
     Debug(Debug::INFO) << "Query database: " << par.db1 << "\n";
     DBReader<unsigned int> qdbr(par.db1.c_str(), par.db1Index.c_str());
     qdbr.open(DBReader<unsigned int>::NOSORT);
@@ -64,11 +61,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     }
 
     SubstitutionMatrix::FastMatrix fastMatrix = SubstitutionMatrix::createAsciiSubMat(*subMat);
-
-//    int sequenceType = Sequence::AMINO_ACIDS;
-//    if (par.queryProfile == true) {
-//        sequenceType = Sequence::HMM_PROFILE;
-//    }
 
     Debug(Debug::INFO) << "Target database: " << par.db2 << "\n";
     DBReader<unsigned int> *tdbr = NULL;
@@ -103,23 +95,19 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         globalAliStat.prepareGlobalAliParam(*subMat);
     }
 
-    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
-    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
-    resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
 
     Debug(Debug::INFO) << "Result database: " << par.db4 << "\n";
-    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
-    resultWriter.open();
+
 
     size_t totalMemory = Util::getTotalSystemMemory();
     size_t flushSize = 100000000;
     if (totalMemory > resultReader.getDataSize()) {
         flushSize = resultReader.getSize();
     }
-    size_t iterations = static_cast<int>(ceil(static_cast<double>(resultReader.getSize()) / static_cast<double>(flushSize)));
+    size_t iterations = static_cast<int>(ceil(static_cast<double>(dbSize) / static_cast<double>(flushSize)));
     for (size_t i = 0; i < iterations; i++) {
         size_t start = (i * flushSize);
-        size_t bucketSize = std::min(resultReader.getSize() - (i * flushSize), flushSize);
+        size_t bucketSize = std::min(dbSize - (i * flushSize), flushSize);
 #pragma omp parallel
         {
             unsigned int thread_idx = 0;
@@ -137,7 +125,7 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
             shortResults.reserve(300);
 
 #pragma omp for schedule(dynamic, 1)
-            for (size_t id = start; id < (start + bucketSize); id++) {
+            for (size_t id = dbFrom; id < (dbFrom + bucketSize); id++) {
                 Debug::printProgress(id);
 
                 char *data = resultReader.getData(id);
@@ -316,10 +304,6 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
         resultReader.remapData();
     }
     Debug(Debug::INFO) << "\nDone.\n";
-
-    resultWriter.close();
-
-    resultReader.close();
     qdbr.close();
     if (sameDB == false) {
         tdbr->close();
@@ -329,8 +313,56 @@ int rescorediagonal(int argc, const char **argv, const Command &command) {
     delete[] fastMatrix.matrix;
     delete[] fastMatrix.matrixData;
     delete subMat;
+    return 0;
+}
 
-    return EXIT_SUCCESS;
+int rescorediagonal(int argc, const char **argv, const Command &command) {
+    MMseqsMPI::init(argc, argv);
+    Parameters &par = Parameters::getInstance();
+    par.parseParameters(argc, argv, command, 4);
+
+
+    Debug(Debug::INFO) << "Prefilter database: " << par.db3 << "\n";
+    DBReader<unsigned int> resultReader(par.db3.c_str(), par.db3Index.c_str());
+    resultReader.open(DBReader<unsigned int>::LINEAR_ACCCESS);
+#ifdef HAVE_MPI
+    size_t dbFrom = 0;
+    size_t dbSize = 0;
+
+    Util::decomposeDomainByAminoAcid(resultReader.getAminoAcidDBSize(), resultReader.getSeqLens(), resultReader.getSize(),
+                                     MMseqsMPI::rank, MMseqsMPI::numProc, &dbFrom, &dbSize);
+    std::pair<std::string, std::string> tmpOutput = Util::createTmpFileNames(par.db4, par.db4Index, MMseqsMPI::rank);
+
+    DBWriter resultWriter(tmpOutput.first.c_str(), tmpOutput.second.c_str(), par.threads);
+    resultWriter.open();
+    int status = doRescorediagonal(par, resultWriter, resultReader, dbFrom, dbSize);
+    resultWriter.close();
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if(MMseqsMPI::rank == 0) {
+        std::vector<std::pair<std::string, std::string>> splitFiles;
+        for(unsigned int proc = 0; proc < MMseqsMPI::numProc; ++proc){
+            std::pair<std::string, std::string> tmpFile = Util::createTmpFileNames(par.db4, par.db4Index, proc);
+            splitFiles.push_back(std::make_pair(tmpFile.first,  tmpFile.second));
+        }
+        DBWriter::mergeResults(par.db4, par.db4Index, splitFiles);
+    }
+#else
+    DBWriter resultWriter(par.db4.c_str(), par.db4Index.c_str(), par.threads);
+    resultWriter.open();
+    int status = doRescorediagonal(par, resultWriter, resultReader, 0, resultReader.getSize());
+    resultWriter.close();
+
+#endif
+
+
+
+
+    resultReader.close();
+
+
+
+    return status;
 }
 
 
