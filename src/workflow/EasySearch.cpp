@@ -41,7 +41,8 @@ int easysearch(int argc, const char **argv, const Command &command) {
 
     par.overrideParameterDescription((Command &) command, par.PARAM_THREADS.uniqid, NULL, NULL,
                                      par.PARAM_THREADS.category & ~MMseqsParameter::COMMAND_EXPERT);
-
+    par.overrideParameterDescription((Command &) command, par.PARAM_V.uniqid, NULL, NULL,
+                                     par.PARAM_V.category & ~MMseqsParameter::COMMAND_EXPERT);
     par.parseParameters(argc, argv, command, 4);
 
     if (FileUtil::directoryExists(par.db4.c_str()) == false) {

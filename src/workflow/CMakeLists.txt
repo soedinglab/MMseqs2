@@ -4,6 +4,7 @@ set(workflow_source_files
         workflow/Linclust.cpp
         workflow/EasySearch.cpp
         workflow/EasyCluster.cpp
+        workflow/EasyLinclust.cpp
         workflow/Map.cpp
         workflow/Search.cpp
         workflow/Taxonomy.cpp
