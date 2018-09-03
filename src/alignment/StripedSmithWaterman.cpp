@@ -1098,3 +1098,4 @@ s_align SmithWaterman::scoreIdentical(int *dbSeq, int L, EvalueComputation * eva
 
 	return r;
 }
+
