@@ -99,7 +99,7 @@ int linclust(int argc, const char **argv, const Command& command) {
         EXIT(EXIT_FAILURE);
     }
 
-    cmd.addVariable("ALIGN_GAPPED", isUngappedMode == false ? "TRUE" : NULL);
+    cmd.addVariable("ALIGN_MODULE", isUngappedMode ? "rescorediagonal" : "align");
     // filter by diagonal in case of AA (do not filter for nucl, profiles, ...)
     cmd.addVariable("FILTER", dbType == Sequence::AMINO_ACIDS ? "1" : NULL);
     cmd.addVariable("KMERMATCHER_PAR", par.createParameterString(par.kmermatcher).c_str());
@@ -126,8 +126,15 @@ int linclust(int argc, const char **argv, const Command& command) {
     cmd.addVariable("UNGAPPED_ALN_PAR", par.createParameterString(par.rescorediagonal).c_str());
     // # 4. Local gapped sequence alignment.
     par.maxResListLen = INT_MAX;
-    cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
 
+    if (isUngappedMode) {
+        const int originalRescoreMode = par.rescoreMode;
+        par.rescoreMode = Parameters::RESCORE_MODE_ALIGNMENT;
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.rescorediagonal).c_str());
+        par.rescoreMode = originalRescoreMode;
+    } else {
+        cmd.addVariable("ALIGNMENT_PAR", par.createParameterString(par.align).c_str());
+    }
     // # 5. Clustering using greedy set cover.
     cmd.addVariable("CLUSTER_PAR", par.createParameterString(par.clust).c_str());
     FileUtil::writeFile(tmpDir + "/linclust.sh", linclust_sh, linclust_sh_len);

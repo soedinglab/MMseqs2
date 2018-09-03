@@ -55,24 +55,23 @@ fi
 INPUT="${TMP_PATH}/input_step_redundancy"
 # 3. Ungapped alignment filtering
 RESULTDB="${TMP_PATH}/pref_filter2"
-if [ -n "${ALIGN_GAPPED}" ]; then
-    if [ -n "$FILTER" ]; then
-        if notExists "${TMP_PATH}/pref_rescore2"; then
-            # shellcheck disable=SC2086
-            $RUNNER "$MMSEQS" rescorediagonal "$INPUT" "$INPUT" "$RESULTDB" "${TMP_PATH}/pref_rescore2" ${UNGAPPED_ALN_PAR} \
-                || fail "Ungapped alignment step died"
-        fi
-        RESULTDB="${TMP_PATH}/pref_rescore2"
-    fi
-
-    # 4. Local gapped sequence alignment.
-    if notExists "${TMP_PATH}/aln"; then
+if [ -n "$FILTER" ]; then
+    if notExists "${TMP_PATH}/pref_rescore2"; then
         # shellcheck disable=SC2086
-        $RUNNER "$MMSEQS" align "$INPUT" "$INPUT" "$RESULTDB" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
-            || fail "Alignment step died"
+        $RUNNER "$MMSEQS" rescorediagonal "$INPUT" "$INPUT" "$RESULTDB" "${TMP_PATH}/pref_rescore2" ${UNGAPPED_ALN_PAR} \
+            || fail "Ungapped alignment step died"
     fi
-    RESULTDB="${TMP_PATH}/aln"
+    RESULTDB="${TMP_PATH}/pref_rescore2"
 fi
+
+# 4. Local gapped sequence alignment.
+
+if notExists "${TMP_PATH}/aln"; then
+    # shellcheck disable=SC2086
+    $RUNNER "$MMSEQS" "${ALIGN_MODULE}" "$INPUT" "$INPUT" "$RESULTDB" "${TMP_PATH}/aln" ${ALIGNMENT_PAR} \
+        || fail "Alignment step died"
+fi
+RESULTDB="${TMP_PATH}/aln"
 
 # 5. Clustering using greedy set cover.
 if notExists "${TMP_PATH}/clust"; then

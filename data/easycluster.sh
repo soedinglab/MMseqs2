@@ -18,7 +18,7 @@ INPUT="$1"
 RESULTS="$2"
 TMP_PATH="$3"
 
-if notExists "${TMP_PATH}/query"; then
+if notExists "${TMP_PATH}/input"; then
     # shellcheck disable=SC2086
     "$MMSEQS" createdb "${INPUT}" "${TMP_PATH}/input" ${CREATEDB_PAR} \
         || fail "query createdb died"
